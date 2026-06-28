@@ -16,92 +16,13 @@
     }
   ],
   "paths": {
-    "/api/bots/{id}/capabilities": {
-      "get": {
-        "tags": [
-          "bots"
-        ],
-        "summary": "List bot capabilities",
-        "operationId": "list_capabilities",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "Bot WebID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of capabilities",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/bots/{id}/grant": {
-      "post": {
-        "tags": [
-          "bots"
-        ],
-        "summary": "Grant capability to bot",
-        "operationId": "grant_capability",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "Bot WebID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GrantCapabilityRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Capability granted"
-          },
-          "400": {
-            "description": "Invalid request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
     "/api/chat": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Chat with the Curator or a specified agent.",
-        "description": "Accepts an optional `model` field to switch the LLM at request time.\nWhen omitted, the server default (`qwen3:8b`) is used. The response\nechoes the `model` used, confirming which LLM generated the output.\n\nUse `GET /api/models` or `GET /api/models/search?q=...` to discover\navailable model identifiers.",
+        "description": "Accepts an optional `model` field to switch the LLM at request time.\nWhen omitted, the server default (a fast classifier model) is used. The response\nechoes the `model` used, confirming which LLM generated the output.\n\nUse `GET /api/models` or `GET /api/models/search?q=...` to discover\navailable model identifiers.",
         "operationId": "chat",
         "requestBody": {
           "content": {
@@ -259,7 +180,7 @@
           "consolidation"
         ],
         "summary": "Consolidate episodic memories for an agent.",
-        "description": "Triggers the semantic consolidation loop: reads raw episodic triples,\nderives confidence-weighted semantic knowledge, and deletes low-confidence\nephemera. Requires the agent's master passphrase for authorization.",
+        "description": "Triggers the semantic consolidation loop: reads raw episodic triples,\nderives confidence-weighted semantic knowledge, and deletes low-confidence\nephemera. Requires the agent's master passphrase for authorization and\naffirmative consent for both memory categories.",
         "operationId": "consolidate",
         "requestBody": {
           "content": {
@@ -284,6 +205,9 @@
           },
           "401": {
             "description": "Unauthorized — invalid passphrase"
+          },
+          "403": {
+            "description": "Forbidden — caller not authorized for target agent or consent denied"
           },
           "429": {
             "description": "Rate limited — try again later"
@@ -635,7 +559,7 @@
           "models"
         ],
         "summary": "List all available models from all configured providers.",
-        "description": "Queries DeepInfra, fal.ai, and Together AI and returns metadata for each\navailable model with provider prefix applied. Returns an empty list if\nno providers are reachable (graceful degradation).",
+        "description": "Queries DeepInfra, fal.ai, Together AI, OpenRouter, and KiloCode and returns metadata for each\navailable model with provider prefix applied. Returns an empty list if\nno providers are reachable (graceful degradation).",
         "operationId": "list_models",
         "responses": {
           "200": {
@@ -854,7 +778,7 @@
         "tags": [
           "specs"
         ],
-        "summary": "Capture a new specification (MDS §3: spec/goal/capture)",
+        "summary": "Capture a new specification",
         "operationId": "capture_spec",
         "requestBody": {
           "content": {
@@ -878,7 +802,7 @@
         "tags": [
           "specs"
         ],
-        "summary": "Get specification collection coherence (MDS §3: spec/graph/coherence)",
+        "summary": "Get specification collection coherence",
         "operationId": "get_coherence",
         "responses": {
           "200": {
@@ -934,7 +858,7 @@
         "tags": [
           "specs"
         ],
-        "summary": "Get writing quality assessment for a spec (MDS §3: spec/require/writing-quality)",
+        "summary": "Get writing quality assessment for a spec",
         "operationId": "get_writing_quality",
         "parameters": [
           {
@@ -1083,260 +1007,6 @@
           },
           "404": {
             "description": "Agent not found"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/v1/backup/config": {
-      "get": {
-        "tags": [
-          "backup"
-        ],
-        "summary": "Get current backup configuration.",
-        "operationId": "get_config",
-        "responses": {
-          "200": {
-            "description": "Backup configuration",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BackupConfigResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "backup"
-        ],
-        "summary": "Update backup configuration.",
-        "operationId": "update_config",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateConfigRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Configuration updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BackupConfigResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid configuration"
-          },
-          "401": {
-            "description": "Unauthorized"
-          }
-        }
-      }
-    },
-    "/api/v1/backup/list": {
-      "get": {
-        "tags": [
-          "backup"
-        ],
-        "summary": "List backup snapshots.",
-        "operationId": "list_snapshots",
-        "parameters": [
-          {
-            "name": "type",
-            "in": "query",
-            "description": "Filter by artifact type.",
-            "required": false,
-            "schema": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "Maximum snapshots to return.",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Snapshots listed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/v1/backup/prune": {
-      "post": {
-        "tags": [
-          "backup"
-        ],
-        "summary": "Prune expired backup snapshots.",
-        "operationId": "prune",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PruneRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Prune report",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PruneResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/v1/backup/restore": {
-      "post": {
-        "tags": [
-          "backup"
-        ],
-        "summary": "Restore artifacts from a backup snapshot.",
-        "operationId": "restore",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RestoreRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Artifacts restored",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RestoreResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid commit hash or scope"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/v1/backup/snapshot": {
-      "post": {
-        "tags": [
-          "backup"
-        ],
-        "summary": "Create a backup snapshot.",
-        "operationId": "snapshot",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SnapshotRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Snapshot created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SnapshotResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid scope or untracked type"
-          },
-          "401": {
-            "description": "Unauthorized"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        }
-      }
-    },
-    "/api/v1/backup/verify": {
-      "post": {
-        "tags": [
-          "backup"
-        ],
-        "summary": "Verify backup integrity.",
-        "operationId": "verify",
-        "responses": {
-          "200": {
-            "description": "Integrity report",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VerifyResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized"
           },
           "500": {
             "description": "Internal server error"
@@ -1736,7 +1406,7 @@
         "tags": [
           "git"
         ],
-        "summary": "Resolve a git reference to a SHA using GitCASPort",
+        "summary": "Resolve a git reference to a SHA using GixCasAdapter",
         "operationId": "resolve_sha",
         "parameters": [
           {
@@ -2158,67 +1828,6 @@
           }
         }
       },
-      "ApiBackupScope": {
-        "oneOf": [
-          {
-            "type": "object",
-            "description": "Snapshot all tracked artifact types.",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "full"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Snapshot all artifacts of a single type.",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "by_type"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Snapshot specific artifacts by ID.",
-            "required": [
-              "artifact_type",
-              "ids",
-              "kind"
-            ],
-            "properties": {
-              "artifact_type": {
-                "type": "string"
-              },
-              "ids": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "by_ids"
-                ]
-              }
-            }
-          }
-        ],
-        "description": "Backup scope for API requests.\n\nControls which artifacts a snapshot or restore targets:\n- `Full` — all tracked artifact types (templates, styles, triples).\n- `ByType` — all artifacts of a single type (e.g., \"template\").\n- `ByIds` — specific artifacts by ID within a type."
-      },
       "ApiKeyCreatedResponse": {
         "type": "object",
         "description": "API key created response.\n\n**Security:** `private_key_hex` is shown only once. Store it securely.",
@@ -2348,64 +1957,6 @@
           }
         }
       },
-      "ApiRestoreScope": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "full"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "kind"
-            ],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "by_type"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "artifact_type",
-              "ids",
-              "kind"
-            ],
-            "properties": {
-              "artifact_type": {
-                "type": "string"
-              },
-              "ids": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "by_ids"
-                ]
-              }
-            }
-          }
-        ],
-        "description": "Backup restore scope for API requests."
-      },
       "ApplyBundleResponse": {
         "type": "object",
         "description": "Apply bundle response — result of activating a bundle in the current session.\n\n`status` is \"active\" on success.",
@@ -2502,39 +2053,6 @@
           }
         }
       },
-      "BackupConfigResponse": {
-        "type": "object",
-        "description": "Backup config response — current snapshot and retention configuration.\n\n`tracked_types` lists artifact types included in snapshots.\n`retention` is the time-based cleanup policy (None = keep indefinitely).",
-        "required": [
-          "tracked_types",
-          "auto_snapshot",
-          "verify_after_snapshot"
-        ],
-        "properties": {
-          "auto_snapshot": {
-            "type": "boolean"
-          },
-          "retention": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/RetentionConfigResponse"
-              }
-            ]
-          },
-          "tracked_types": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "verify_after_snapshot": {
-            "type": "boolean"
-          }
-        }
-      },
       "BotStatusReportResponse": {
         "type": "object",
         "description": "Bot status report — reflects the health of a specific bot agent.",
@@ -2618,7 +2136,7 @@
       },
       "ChatRequest": {
         "type": "object",
-        "description": "Chat request sent to the Curator or a specified agent.\n\nThe `model` field allows switching the LLM at request time. When omitted,\nthe server default (qwen3:8b) is used. Use `GET /api/models` to discover\navailable models, and `GET /api/models/search?q=...` for fuzzy matching.",
+        "description": "Chat request sent to the Curator or a specified agent.\n\nThe `model` field allows switching the LLM at request time. When omitted,\nthe server default (a fast classifier model) is used. Use `GET /api/models` to discover\navailable models, and `GET /api/models/search?q=...` for fuzzy matching.",
         "required": [
           "input"
         ],
@@ -2632,7 +2150,7 @@
               "string",
               "null"
             ],
-            "description": "Model override for inference (e.g., \"qwen3:8b\"). If unset, uses the server default."
+            "description": "Model override for inference (e.g., \"DI/google/gemma-4-9b-it\"). If unset, uses the server default."
           },
           "template_id": {
             "type": [
@@ -2745,22 +2263,6 @@
           }
         }
       },
-      "CommitInfo": {
-        "type": "object",
-        "description": "Git commit info — repository and commit hash for a backup snapshot.",
-        "required": [
-          "repo",
-          "commit"
-        ],
-        "properties": {
-          "commit": {
-            "type": "string"
-          },
-          "repo": {
-            "type": "string"
-          }
-        }
-      },
       "ComposeBundleRequest": {
         "type": "object",
         "description": "Compose bundle request — create a new skill bundle from individual template IDs (Pattern A).\n\nRequires at least 2 skills. The bundle composer uses inference to generate\na manifest describing how the skills compose together.",
@@ -2814,15 +2316,15 @@
       },
       "ConsolidateRequest": {
         "type": "object",
-        "description": "Consolidate request — triggers episodic-to-semantic memory consolidation.\n\nRequires the agents master passphrase for authorization (P4 OCAP).\nThe passphrase is derived via HKDF-SHA256 to produce the capability_key\nused as the DB passphrase.",
+        "description": "Consolidate request — triggers episodic-to-semantic memory consolidation.\n\nRequires the agents master passphrase for authorization (P4 OCAP) and P2\naffirmative consent for both `EpisodicMemory` and `SemanticMemory` on the\ntarget agent. The caller's authenticated WebID must match the target\nagent's derived WebID.",
         "required": [
-          "agent_webid",
+          "agent_name",
           "passphrase"
         ],
         "properties": {
-          "agent_webid": {
+          "agent_name": {
             "type": "string",
-            "description": "Agent WebID whose episodic memory to consolidate"
+            "description": "Agent name whose episodic memory to consolidate (e.g. `curator` or a replicant name)"
           },
           "confidence_floor": {
             "type": [
@@ -2880,14 +2382,13 @@
       },
       "CreateGoalRequest": {
         "type": "object",
-        "description": "Create goal request — P4 OCAP-gated goal creation.\n\nVisibility defaults to \"private\" when omitted. See P11 (Digital Public/Private\nSphere) for the visibility taxonomy.",
+        "description": "Create goal request — P4 OCAP-gated goal creation.",
         "required": [
           "text"
         ],
         "properties": {
           "text": {
-            "type": "string",
-            "description": "Goal description text"
+            "type": "string"
           },
           "visibility": {
             "type": [
@@ -2910,7 +2411,7 @@
               "string",
               "null"
             ],
-            "description": "Preferred chain: \"hinkal\", \"solana\", or \"hedera\" (default: \"hinkal\")"
+            "description": "Preferred chain: \"hinkal\" or \"hedera\" (default: \"hinkal\")"
           },
           "expiry_days": {
             "type": [
@@ -3008,7 +2509,7 @@
           },
           "chain": {
             "type": "string",
-            "description": "Blockchain: \"hinkal\", \"solana\", or \"hedera\""
+            "description": "Blockchain: \"hinkal\" or \"hedera\""
           },
           "privacy": {
             "type": "string",
@@ -3091,7 +2592,7 @@
       },
       "EpisodeResponse": {
         "type": "object",
-        "description": "A single episodic triple as returned over the API.\n\nEach episode is a (entity, attribute, value) triple with confidence,\nvisibility governance (P11), and a temporal validity marker (`valid_from`).\n`visibility` is one of: \"private\", \"shared\", \"public\".\n`perspective` is the WebID of the observing agent (P12).",
+        "description": "A single episodic triple as returned over the API.\n\nEach episode is a (entity, attribute, value) triple with confidence,\nvisibility governance (P11), and a temporal validity marker (`valid_from`).\n`visibility` is \"private\" for episodic memory.\n`perspective` is the WebID of the observing agent (P12).",
         "required": [
           "id",
           "entity",
@@ -3135,7 +2636,7 @@
           },
           "visibility": {
             "type": "string",
-            "description": "Visibility: \"private\", \"shared\", or \"public\" (P11)"
+            "description": "Visibility: \"private\" (P11)"
           }
         }
       },
@@ -3292,8 +2793,7 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GoalResponse"
-            },
-            "description": "Goals for the authenticated agent"
+            }
           }
         }
       },
@@ -3308,33 +2808,16 @@
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "description": "Unique goal identifier"
+            "type": "string"
           },
           "state": {
-            "type": "string",
-            "description": "Current state: \"active\", \"completed\", or \"abandoned\""
+            "type": "string"
           },
           "text": {
-            "type": "string",
-            "description": "Goal description text"
+            "type": "string"
           },
           "visibility": {
-            "type": "string",
-            "description": "Visibility: \"private\" or \"shared\""
-          }
-        }
-      },
-      "GrantCapabilityRequest": {
-        "type": "object",
-        "description": "Capability grant request — P4 OCAP capability assignment to a bot agent.\n\nCapabilities follow the `verb:resource` pattern (e.g., \"tool:execute\",\n\"template:render\").",
-        "required": [
-          "capability"
-        ],
-        "properties": {
-          "capability": {
-            "type": "string",
-            "description": "Capability to grant (e.g., \"tool:execute\", \"template:render\")"
+            "type": "string"
           }
         }
       },
@@ -3367,21 +2850,6 @@
               "$ref": "#/components/schemas/PodStatusResponse"
             },
             "description": "All active pods"
-          }
-        }
-      },
-      "ListResponse": {
-        "type": "object",
-        "description": "Backup list response.",
-        "required": [
-          "snapshots"
-        ],
-        "properties": {
-          "snapshots": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SnapshotResponse"
-            }
           }
         }
       },
@@ -3567,44 +3035,6 @@
           }
         }
       },
-      "PruneRequest": {
-        "type": "object",
-        "description": "Backup prune request.\n\n`dry_run` (default: true) reports what would be removed without deleting.\nSet to false to actually remove expired snapshots.",
-        "properties": {
-          "dry_run": {
-            "type": "boolean"
-          }
-        }
-      },
-      "PruneResponse": {
-        "type": "object",
-        "description": "Backup prune response.\n\n`evaluated` is snapshots checked. `removed` lists deleted commit hashes.\n`retained` is snapshots kept.",
-        "required": [
-          "dry_run",
-          "evaluated",
-          "removed",
-          "retained"
-        ],
-        "properties": {
-          "dry_run": {
-            "type": "boolean"
-          },
-          "evaluated": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "removed": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CommitInfo"
-            }
-          },
-          "retained": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      },
       "QueryEpisodesResponse": {
         "type": "object",
         "description": "Response from querying episodic memories.",
@@ -3618,39 +3048,6 @@
               "$ref": "#/components/schemas/EpisodeResponse"
             },
             "description": "Retrieved episodic triples"
-          }
-        }
-      },
-      "RepoVerifyReport": {
-        "type": "object",
-        "description": "Repository verify report — per-repo Git integrity verification result.",
-        "required": [
-          "repo",
-          "total_blobs",
-          "verified_blobs",
-          "corrupt_hashes",
-          "ok"
-        ],
-        "properties": {
-          "corrupt_hashes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "ok": {
-            "type": "boolean"
-          },
-          "repo": {
-            "type": "string"
-          },
-          "total_blobs": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "verified_blobs": {
-            "type": "integer",
-            "minimum": 0
           }
         }
       },
@@ -3697,122 +3094,14 @@
           }
         }
       },
-      "RestoreRequest": {
-        "type": "object",
-        "description": "Backup restore request.",
-        "required": [
-          "commit_hash",
-          "scope"
-        ],
-        "properties": {
-          "commit_hash": {
-            "type": "string"
-          },
-          "scope": {
-            "$ref": "#/components/schemas/ApiRestoreScope"
-          }
-        }
-      },
-      "RestoreResponse": {
-        "type": "object",
-        "description": "Backup restore response.\n\n`artifacts` lists the artifacts recovered from the backup snapshot.",
-        "required": [
-          "artifacts"
-        ],
-        "properties": {
-          "artifacts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RestoredArtifact"
-            }
-          }
-        }
-      },
-      "RestoredArtifact": {
-        "type": "object",
-        "description": "Restored artifact — identifies a single artifact recovered from a backup.",
-        "required": [
-          "artifact_type",
-          "artifact_id"
-        ],
-        "properties": {
-          "artifact_id": {
-            "type": "string"
-          },
-          "artifact_type": {
-            "type": "string"
-          }
-        }
-      },
-      "RetentionConfigResponse": {
-        "type": "object",
-        "description": "Retention config — time-based snapshot cleanup policy.\n\n`daily_days` is how many daily snapshots to keep.\n`weekly_weeks` is how many weekly snapshots to keep.",
-        "required": [
-          "daily_days",
-          "weekly_weeks"
-        ],
-        "properties": {
-          "daily_days": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
-          "weekly_weeks": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          }
-        }
-      },
       "SetGoalStateRequest": {
         "type": "object",
-        "description": "Set goal state request — state machine transition.\n\nLegal states: \"active\", \"completed\", \"abandoned\".\nLegal transitions: active→completed, active→abandoned.",
+        "description": "Set goal state request — state machine transition.",
         "required": [
           "state"
         ],
         "properties": {
           "state": {
-            "type": "string",
-            "description": "Target state: \"active\", \"completed\", or \"abandoned\""
-          }
-        }
-      },
-      "SnapshotRequest": {
-        "type": "object",
-        "description": "Backup snapshot request.",
-        "required": [
-          "scope"
-        ],
-        "properties": {
-          "scope": {
-            "$ref": "#/components/schemas/ApiBackupScope"
-          }
-        }
-      },
-      "SnapshotResponse": {
-        "type": "object",
-        "description": "Backup snapshot response — result of a snapshot operation via GitCAS.\n\n`commits` lists the Git commits backing this snapshot.\n`trigger` is \"manual\" (API-triggered) or \"auto\" (scheduled).",
-        "required": [
-          "commits",
-          "artifact_count",
-          "trigger",
-          "timestamp"
-        ],
-        "properties": {
-          "artifact_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "commits": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CommitInfo"
-            }
-          },
-          "timestamp": {
-            "type": "string"
-          },
-          "trigger": {
             "type": "string"
           }
         }
@@ -3926,7 +3215,7 @@
       },
       "SpecCoherenceResponse": {
         "type": "object",
-        "description": "Spec coherence response — MDS §3: spec/graph/coherence",
+        "description": "Spec coherence response",
         "required": [
           "coherence_score",
           "violations",
@@ -3953,7 +3242,7 @@
       },
       "SpecDetailResponse": {
         "type": "object",
-        "description": "Spec detail response — full details for a single MDS specification.\n\n`domain_anchor` identifies the bounded context (always \"hkask\" for this system).\n`requirements` lists the spec's captured requirements as plain-text statements.",
+        "description": "Spec detail response — full details for a single MDS specification.",
         "required": [
           "spec_id",
           "name",
@@ -3963,33 +3252,28 @@
         ],
         "properties": {
           "category": {
-            "type": "string",
-            "description": "MDS category: domain, composition, trust, lifecycle, or curation"
+            "type": "string"
           },
           "domain_anchor": {
-            "type": "string",
-            "description": "Bounded context anchor (always \"hkask\")"
+            "type": "string"
           },
           "name": {
-            "type": "string",
-            "description": "Specification name"
+            "type": "string"
           },
           "requirements": {
             "type": "array",
             "items": {
               "type": "string"
-            },
-            "description": "Captured requirement statements"
+            }
           },
           "spec_id": {
-            "type": "string",
-            "description": "Unique specification ID"
+            "type": "string"
           }
         }
       },
       "SpecListResponse": {
         "type": "object",
-        "description": "Spec list response — summary of a single MDS specification.\n\n`category` is one of the five MDS categories: domain, composition, trust,\nlifecycle, curation. `complete` indicates whether the spec satisfies its\ncategory completeness predicate (MDS §2).",
+        "description": "Spec list response — summary of a single MDS specification.",
         "required": [
           "spec_id",
           "name",
@@ -3998,26 +3282,22 @@
         ],
         "properties": {
           "category": {
-            "type": "string",
-            "description": "MDS category: domain, composition, trust, lifecycle, or curation"
+            "type": "string"
           },
           "complete": {
-            "type": "boolean",
-            "description": "Whether the spec satisfies its category completeness predicate"
+            "type": "boolean"
           },
           "name": {
-            "type": "string",
-            "description": "Specification name"
+            "type": "string"
           },
           "spec_id": {
-            "type": "string",
-            "description": "Unique specification ID"
+            "type": "string"
           }
         }
       },
       "SpecWritingQualityResponse": {
         "type": "object",
-        "description": "Spec writing quality response — MDS §3: spec/require/writing-quality",
+        "description": "Spec writing quality response",
         "required": [
           "dimensions_passing",
           "meets_publication_standard"
@@ -4163,39 +3443,6 @@
           }
         }
       },
-      "UpdateConfigRequest": {
-        "type": "object",
-        "description": "Backup config update request.\n\nAll fields are optional — only provided fields are updated.\n`retention` accepts \"daily:N,weekly:M\" format (e.g., \"daily:7,weekly:4\").",
-        "properties": {
-          "auto_snapshot": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          },
-          "retention": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "tracked_types": {
-            "type": [
-              "array",
-              "null"
-            ],
-            "items": {
-              "type": "string"
-            }
-          },
-          "verify_after_snapshot": {
-            "type": [
-              "boolean",
-              "null"
-            ]
-          }
-        }
-      },
       "VarietyCounterResponse": {
         "type": "object",
         "description": "CNS variety counter for a single domain.\n\n`variety` is the tracked behavioral diversity for this domain.\n`entropy` is the Shannon entropy of the domain's observation distribution\n(0.0 when not yet computed).",
@@ -4221,21 +3468,6 @@
             "format": "int64",
             "description": "Tracked behavioral diversity count",
             "minimum": 0
-          }
-        }
-      },
-      "VerifyResponse": {
-        "type": "object",
-        "description": "Backup verify response.\n\nReturns per-repository integrity verification reports from GitCAS.",
-        "required": [
-          "reports"
-        ],
-        "properties": {
-          "reports": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RepoVerifyReport"
-            }
           }
         }
       },
@@ -4291,7 +3523,7 @@
               "string",
               "null"
             ],
-            "description": "Target chain: \"hinkal\", \"solana\", or \"hedera\" (default: \"hinkal\")"
+            "description": "Target chain: \"hinkal\" or \"hedera\" (default: \"hinkal\")"
           },
           "private": {
             "type": [
@@ -4325,7 +3557,7 @@
         "properties": {
           "chain": {
             "type": "string",
-            "description": "Target blockchain: \"hinkal\", \"solana\", or \"hedera\""
+            "description": "Target blockchain: \"hinkal\" or \"hedera\""
           },
           "native_units": {
             "type": "number",
@@ -4396,10 +3628,6 @@
       "description": "Template registry — WordAct / FlowDef / KnowAct skills (Pattern A)"
     },
     {
-      "name": "bots",
-      "description": "Bot capability management — OCAP-gated capability grants to bot agents (P4, P10)"
-    },
-    {
       "name": "mcp",
       "description": "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"
     },
@@ -4413,11 +3641,11 @@
     },
     {
       "name": "models",
-      "description": "Multi-provider model catalog (DeepInfra, fal.ai, Together AI) — discover and search available LLMs"
+      "description": "Multi-provider model catalog (DeepInfra, fal.ai, Together AI, OpenRouter, KiloCode) — discover and search available LLMs"
     },
     {
       "name": "curator",
-      "description": "Curator escalation and metacognition — bot health reports and pending escalation queue (Pattern C, P12)"
+      "description": "Curator escalation and metacognition — health reports and pending escalation queue (Pattern C, P12)"
     },
     {
       "name": "git",

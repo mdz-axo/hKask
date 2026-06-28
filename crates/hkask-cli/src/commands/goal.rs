@@ -22,7 +22,7 @@ fn create(text: &str, visibility: &str) -> Result<(), String> {
     let owner = WebID::from_persona(b"cli-user");
     let vis = Visibility::parse_str(visibility).ok_or_else(|| {
         format!(
-            "Invalid visibility '{}': expected private | public",
+            "Invalid visibility '{}': expected private | shared",
             visibility
         )
     })?;

@@ -357,7 +357,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
 
 /// Resolve the display name for the currently active provider.
-fn provider_display_name(config: &InferenceConfig) -> &'static str {
+pub(crate) fn provider_display_name(config: &InferenceConfig) -> &'static str {
     match config.default_provider {
         ProviderId::KiloCode => "KiloCode",
         ProviderId::DeepInfra => "DeepInfra",

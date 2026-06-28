@@ -62,7 +62,7 @@ pub struct QueryEpisodesParams {
 ///
 /// Each episode is a (entity, attribute, value) triple with confidence,
 /// visibility governance (P11), and a temporal validity marker (`valid_from`).
-/// `visibility` is one of: "private", "shared", "public".
+/// `visibility` is "private" for episodic memory.
 /// `perspective` is the WebID of the observing agent (P12).
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct EpisodeResponse {
@@ -78,7 +78,7 @@ pub struct EpisodeResponse {
     pub confidence: f64,
     /// WebID of the observing agent (P12)
     pub perspective: Option<String>,
-    /// Visibility: "private", "shared", or "public" (P11)
+    /// Visibility: "private" (P11)
     pub visibility: String,
     /// ISO 8601 timestamp when this triple became valid
     pub valid_from: String,
