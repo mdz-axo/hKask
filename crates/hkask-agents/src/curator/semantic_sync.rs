@@ -333,7 +333,7 @@ impl CuratorSync {
         }
     }
 
-    /// Open a source pod's database read-only, query new public triples
+    /// Open a source pod's database read-only, query new shared/public triples
     /// since last cursor, insert into SemanticIndex, advance cursor.
     /// Uses spawn_blocking for database I/O to avoid blocking the tokio worker.
     async fn sync_pod(&self, pod_id: PodID, db_path: &Path) -> Result<usize, String> {
@@ -348,7 +348,7 @@ impl CuratorSync {
         tokio::task::spawn_blocking(move || {
             let db = open_source_db(&db_path)?;
 
-            let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility = 'public' ORDER BY rowid ASC";
+            let query = "SELECT rowid, entity, attribute, value, confidence FROM triples WHERE rowid > ?1 AND visibility IN ('shared','public') ORDER BY rowid ASC";
             let rows: Vec<(i64, String, String, String, f64)> = {
                 let conn_arc = db.conn_arc();
                 let conn = conn_arc.lock().map_err(|e| format!("Failed to lock pod DB: {e}"))?;

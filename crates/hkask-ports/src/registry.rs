@@ -282,7 +282,7 @@ pub trait SkillRegistryIndex {
         match caller_visibility {
             Visibility::Private => self.list_skills(),
             _ => {
-                let mut result = self.list_skills_by_visibility(Visibility::Public);
+                let mut result = self.list_skills_by_visibility(Visibility::Shared);
                 result.extend(self.list_skills_by_visibility(Visibility::Public));
                 result
             }

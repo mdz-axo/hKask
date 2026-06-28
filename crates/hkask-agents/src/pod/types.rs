@@ -200,14 +200,14 @@ pub(crate) struct AccessRight {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct VisibilitySettings {
-    #[serde(default = "default_public_visibility")]
+    #[serde(default = "default_shared_visibility")]
     pub default: hkask_types::Visibility,
     #[serde(default = "default_private_visibility")]
     pub episodic_override: hkask_types::Visibility,
 }
 
-fn default_public_visibility() -> hkask_types::Visibility {
-    hkask_types::Visibility::Public
+fn default_shared_visibility() -> hkask_types::Visibility {
+    hkask_types::Visibility::Shared
 }
 
 fn default_private_visibility() -> hkask_types::Visibility {
@@ -242,7 +242,7 @@ impl AgentPersona {
             rights: vec![],
             responsibilities: vec!["curate_and_aggregate".to_string()],
             visibility: VisibilitySettings {
-                default: hkask_types::Visibility::Public,
+                default: hkask_types::Visibility::Shared,
                 episodic_override: hkask_types::Visibility::Private,
             },
             cached_webid: Some(WebID::from_persona(canonical.as_bytes())),

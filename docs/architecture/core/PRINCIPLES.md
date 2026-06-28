@@ -58,6 +58,9 @@ P1–P3 are enforced through explicit capability boundaries. No ambient authorit
 
 ### 1.2 Operational Principles (How We Build)
 
+#### P2.1 — Shared vs Public Visibility (v0.31.0)
+Shared data is **consent-bound** and must pass `require_sovereignty` + `require_capability` gates (P2/P4). Public data is **unrestricted** and requires no consent gate. Semantic memory defaults to **Shared**; only explicitly public artifacts (e.g., template registry) use **Public**.
+
 #### P5 — Essentialism & Minimalism
 Remove before adding. Every module must earn existence by reducing total system action.
 

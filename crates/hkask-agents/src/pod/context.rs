@@ -325,9 +325,9 @@ impl PodContext {
             .map_err(AgentPodError::from)
     }
 
-    // Semantic memory methods — shared, public knowledge
+    // Semantic memory methods — shared knowledge
 
-    /// Store a semantic triple (shared, public knowledge).
+    /// Store a semantic triple (shared knowledge).
     ///
     /// OCAP: Agents with consolidation capability can store semantic triples.
     /// Semantic triples have no perspective (consolidated from episodic).

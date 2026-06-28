@@ -1,4 +1,4 @@
-//! SemanticIndex — Curator's merged view of all pods' public semantic data.
+//! SemanticIndex — Curator's merged view of all pods' shared semantic data.
 //!
 //! Backed by the CuratorPod's own SQLCipher file. Tracks per-source-pod
 //! cursors for incremental sync on CNS events.
@@ -7,7 +7,7 @@ use hkask_storage::{Triple, TripleStore};
 use hkask_types::id::PodID;
 use std::collections::HashMap;
 
-/// Merged index of all pods' public semantic triples.
+/// Merged index of all pods' shared semantic triples.
 /// Lives on the CuratorPod, backed by its own SQLCipher.
 pub struct SemanticIndex {
     /// Triple store backed by CuratorPod's database
