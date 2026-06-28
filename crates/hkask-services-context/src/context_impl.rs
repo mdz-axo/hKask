@@ -68,7 +68,6 @@ use hkask_types::event::NuEventSink;
 use hkask_types::id::WalletId;
 
 use hkask_services_core::ServiceConfig;
-use hkask_services_core::ServiceError;
 
 use hkask_services_wallet::WalletService;
 
@@ -607,6 +606,5 @@ impl AgentService {
         }
     }
 }
-
 
 mod build;

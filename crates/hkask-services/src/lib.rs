@@ -66,7 +66,6 @@ pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
 
-pub mod consolidation;
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@
 use axum::{Extension, Json, extract::State};
 use hkask_ports::ConsolidationRequest;
 use hkask_services::ServiceError;
-use hkask_services::consolidation;
+use hkask_memory::consolidation;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

@@ -1,165 +1,115 @@
-//! Consolidation Bridge — Episodic → Semantic (one-way)
-//!
-//! When currency pressure triggers consolidation, episodic triples are:
-//! 1. Selected via `EpisodicMemory::consolidation_candidates()` (oldest, lowest effective confidence)
-//! 2. Stripped of perspective (privacy boundary removal)
-//! 3. Checked against existing semantic triples with same EAV:
-//!    a. **Match found:** Bayesian combine confidences, update existing
-//!    b. **No match:** Seed as new semantic triple
-//! 4. Expired in episodic memory (valid_to set, soft-deleted) to free storage budget
-//!
-//! This is a ONE-WAY operation: Episodic → Semantic. No reverse flow.
+//! Consolidation — passphrase verify, per-agent DB, episodic→semantic pipeline.
+//! # REQ: P2 (Affirmative Consent) — consolidation requires passphrase verification.
+//! # expect: "Service operations require explicit, scoped consent"
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::bayesian::combine_confidences;
-use crate::episodic::EpisodicMemory;
-use crate::semantic::SemanticMemory;
+use crate::{ConsolidationBridge, EpisodicMemory, SemanticMemory};
 use hkask_ports::{ConsolidationOutcome, ConsolidationRequest};
-use hkask_storage::{Triple, TripleID};
+use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
 
-/// Consolidation Bridge — Episodic → Semantic
+use hkask_services_core::ServiceError;
+
+/// Minimum seconds between consolidation requests.
 ///
-/// One-way operation called from `EpisodicLoop::act()` when budget pressure
-/// requires freeing episodic storage.
-pub struct ConsolidationBridge {
-    episodic: Arc<EpisodicMemory>,
-    semantic: Arc<SemanticMemory>,
+/// Each request runs Argon2id key derivation (~100ms CPU) for passphrase
+/// verification. Without rate limiting, a tight loop of requests becomes
+/// a CPU denial-of-service vector. 30s is appropriate for an admin operation
+/// that runs at most a few times per session.
+const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
+
+/// Coarse-grained rate limiter for consolidation requests.
+///
+/// Uses a single `AtomicU64` timestamp (epoch seconds). Intentionally simple —
+/// one global gate, not per-user. For a single-user headless system, this is sufficient.
+static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
+
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  none (always succeeds or returns rate-limit error)
+/// post: Ok(()) if rate limit not exceeded; Err(RateLimited) with remaining seconds if within 30s window
+pub fn check_rate_limit() -> Result<(), ServiceError> {
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
+    if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
+        let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
+        return Err(ServiceError::RateLimited {
+            source: None,
+            message: format!("Rate limited: try again in {}s", remaining),
+        });
+    }
+    LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
+    Ok(())
 }
 
-impl ConsolidationBridge {
-    pub fn new(episodic: Arc<EpisodicMemory>, semantic: Arc<SemanticMemory>) -> Self {
-        Self { episodic, semantic }
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  webid must be a valid WebID
+/// post: returns standard agent memory DB path (agents/{name}/memory.db)
+pub fn db_path_for_agent(webid: &WebID) -> String {
+    hkask_types::agent_paths::agent_memory_db(&webid.to_string())
+        .to_string_lossy()
+        .to_string()
+}
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  passphrase must be non-empty; server passphrase must be configured in keystore
+/// post: returns the expected passphrase string on match; Err(Keystore) if not configured; Err(InvalidPassphrase) if mismatch
+pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
+    let expected =
+        hkask_keystore::keychain::resolve_db_passphrase().map_err(|_| ServiceError::Keystore {
+            source: None,
+            message: "Server passphrase not configured".into(),
+        })?;
+    let expected_str = String::from_utf8_lossy(&expected).to_string();
+    let secrets = hkask_keystore::master_key::derive_all_internal_secrets(passphrase);
+    if secrets.capability_key != expected_str {
+        return Err(ServiceError::InvalidPassphrase {
+            source: None,
+            message: "Passphrase verification failed".into(),
+        });
     }
+    Ok(expected_str)
+}
 
-    /// Consolidate episodic triples into semantic memory (one-way).
-    ///
-    /// For each candidate:
-    /// 1. Strip perspective (set to `None`) — removes privacy boundary
-    /// 2. Check semantic memory for existing triple with same EAV hash:
-    ///    a. **Match:** Bayesian combine episodic + semantic confidence,
-    ///       update existing semantic triple
-    ///    b. **No match:** Insert as new semantic triple
-    /// 3. Expire episodic source (soft-delete via valid_to)
-    #[allow(clippy::doc_lazy_continuation, clippy::doc_overindented_list_items)]
-    pub fn consolidate(
-        &self,
-        perspective: WebID,
-        request: ConsolidationRequest,
-    ) -> Result<ConsolidationOutcome, String> {
-        let span = tracing::span!(target: "cns.consolidation", tracing::Level::INFO, "consolidate");
-        let _enter = span.enter();
+/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// pre:  webid must be a valid WebID; db_passphrase must be correct; db_path must point to a valid database; request must be a valid ConsolidationRequest
+/// post: returns ConsolidationOutcome with consolidated_count, deleted_count, failed_count; Err on DB open failure or consolidation failure
+pub fn consolidate(
+    webid: &WebID,
+    db_passphrase: &str,
+    db_path: &str,
+    request: ConsolidationRequest,
+) -> Result<ConsolidationOutcome, ServiceError> {
+    let db = Database::open(db_path, db_passphrase).map_err(|e| ServiceError::Storage {
+        message: e.to_string(),
+    })?;
 
-        let candidates = self
-            .episodic
-            .consolidation_candidates(perspective, request.limit)
-            .map_err(|e| format!("Episodic error: {e}"))?;
+    let conn = db.conn_arc();
+    let ts1 = TripleStore::new(Arc::clone(&conn));
+    let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
+    let ts2 = TripleStore::new(Arc::clone(&conn));
+    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
+    let semantic_memory = Arc::new(SemanticMemory::new(ts2, embedding_store));
+    let bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let domain_service = crate::ConsolidationService::new(bridge, semantic_memory);
 
-        tracing::info!(
-            target: "cns.consolidation",
-            perspective = %perspective,
-            candidate_count = candidates.len(),
-            limit = request.limit,
-            "Starting consolidation"
-        );
+    let outcome =
+        domain_service
+            .consolidate(webid, request)
+            .map_err(|e| ServiceError::Consolidation {
+                source: None,
+                message: format!("Consolidation failed: {e}"),
+            })?;
 
-        let mut consolidated_count = 0usize;
-        let mut combined_count = 0usize;
-        let mut expired_count = 0usize;
-        let mut failed_count = 0usize;
-
-        let now = chrono::Utc::now();
-        for triple in &candidates {
-            let days_since = (now - triple.recalled_at).num_seconds() as f64 / 86400.0;
-            let episodic_c = triple
-                .confidence
-                .memory_decay(days_since, self.episodic.memory_life_days());
-
-            if let Some(existing) = self.semantic.find_existing_by_eav(triple) {
-                let combined = combine_confidences(existing.confidence, episodic_c);
-
-                match self
-                    .semantic
-                    .update_confidence(&existing.id, triple.value.clone(), combined)
-                {
-                    Ok(()) => {
-                        combined_count += 1;
-                        consolidated_count += 1;
-                        if let Err(e) = self.episodic.expire_triple(&triple.id) {
-                            tracing::warn!(target: "cns.consolidation", triple_id = %triple.id.as_uuid(), error = %e, "Failed to expire episodic triple");
-                        } else {
-                            expired_count += 1;
-                        }
-                        tracing::debug!(
-                            target: "cns.consolidation",
-                            entity = %triple.entity, attribute = %triple.attribute,
-                            stored = %triple.confidence, days_since_recall = days_since,
-                            episodic = %episodic_c, semantic = %existing.confidence, combined = %combined,
-                            "Bayesian combined"
-                        );
-                    }
-                    Err(e) => {
-                        failed_count += 1;
-                        tracing::warn!(target: "cns.consolidation", entity = %triple.entity, error = %e, "Failed to update semantic triple");
-                        continue;
-                    }
-                }
-            } else {
-                let semantic_triple = Triple {
-                    id: TripleID::new(),
-                    entity: triple.entity.clone(),
-                    attribute: triple.attribute.clone(),
-                    value: triple.value.clone(),
-                    temporal: triple.temporal.clone(),
-                    confidence: episodic_c,
-                    access: triple.access.to_semantic(),
-                    recalled_at: now,
-                };
-
-                match self.semantic.store_consolidated(semantic_triple) {
-                    Ok(()) => {
-                        consolidated_count += 1;
-                        if let Err(e) = self.episodic.expire_triple(&triple.id) {
-                            tracing::warn!(target: "cns.consolidation", triple_id = %triple.id.as_uuid(), error = %e, "Failed to expire episodic triple");
-                        } else {
-                            expired_count += 1;
-                        }
-                        tracing::debug!(
-                            target: "cns.consolidation",
-                            entity = %triple.entity, attribute = %triple.attribute,
-                            stored = %triple.confidence, days_since_recall = days_since,
-                            episodic = %episodic_c,
-                            "New semantic triple seeded"
-                        );
-                    }
-                    Err(e) => {
-                        failed_count += 1;
-                        tracing::warn!(target: "cns.consolidation", entity = %triple.entity, error = %e, "Failed to store new semantic triple");
-                        continue;
-                    }
-                }
-            }
-        }
-
-        tracing::info!(
-            target: "cns.consolidation",
-            perspective = %perspective,
-            consolidated_count, combined_count,
-            newly_seeded = consolidated_count - combined_count,
-            expired_count, failed_count,
-            "Consolidation complete"
-        );
-
-        Ok(ConsolidationOutcome {
-            consolidated_count,
-            deleted_count: expired_count,
-            failed_count,
-        })
-    }
-
-    /// Count consolidation candidates for a perspective.
-    pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
-        self.episodic.storage_usage(perspective).unwrap_or(0)
-    }
+    Ok(ConsolidationOutcome {
+        consolidated_count: outcome.consolidated_count,
+        deleted_count: outcome.deleted_count,
+        failed_count: outcome.failed_count,
+    })
 }
