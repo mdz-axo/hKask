@@ -737,16 +737,7 @@ impl OnboardingService {
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "register_system_accounts", "CNS");
-        let system_bots = [
-            "curator",
-            "r7-1-observer",
-            "r7-2-variety",
-            "r7-3-algedonic",
-            "r7-4-composer",
-            "r7-5-consolidator",
-            "r7-6-cybernetics",
-            "r7-7-communication",
-        ];
+        let system_bots = ["curator", "r7-1-observer"];
 
         let mut registered = std::collections::HashMap::new();
         let keychain = Keychain::default();

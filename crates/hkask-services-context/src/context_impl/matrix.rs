@@ -2,9 +2,16 @@
 
 use std::sync::Arc;
 
+/// Returned from `build_matrix()`: the Matrix transport (shared with REPL/pods)
+/// and the 7R7 listener handle (for graceful shutdown).
+pub(crate) struct MatrixInfra {
+    pub transport: Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>,
+    pub listener: hkask_communication::listener::SevenR7Listener,
+}
+
 pub(crate) async fn build_matrix(
     event_sink: Option<Arc<dyn hkask_types::event::NuEventSink>>,
-) -> Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
+) -> Option<MatrixInfra> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
     let keychain = hkask_keystore::Keychain::default();
@@ -47,7 +54,10 @@ pub(crate) async fn build_matrix(
                         homeserver = %homeserver_url,
                         "Matrix transport connected and 7R7 listener started"
                     );
-                    Some(transport)
+                    Some(MatrixInfra {
+                        transport,
+                        listener,
+                    })
                 }
                 Err(e) => {
                     tracing::warn!(
