@@ -174,30 +174,6 @@ impl CuratorServer {
         .await
     }
 
-    #[tool(description = "Per-bot health — gas consumption vs. energy budget")]
-    pub async fn curator_bot_status(
-        &self,
-        Parameters(req): Parameters<BotStatusRequest>,
-    ) -> String {
-        execute_tool(self, "curator_bot_status", async {
-            let Some(ref daemon) = self.daemon else {
-                return Err(McpToolError::unavailable("Daemon not available"));
-            };
-            match daemon
-                .bot_status_query(&self.replicant, req.bot_name.as_deref())
-                .await
-            {
-                Ok(DaemonResponse::BotStatusResponse { status }) => Ok(status),
-                Ok(other) => Err(McpToolError::internal(format!(
-                    "Bad daemon response: {:?}",
-                    other
-                ))),
-                Err(e) => Err(McpToolError::internal(format!("Daemon query failed: {e}"))),
-            }
-        })
-        .await
-    }
-
     // ── Specification Curation ─────────────────────────────────────────
 
     #[tool(description = "Check specs for drift from registered verbs")]
