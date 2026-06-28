@@ -342,7 +342,7 @@ impl GixCasAdapter {
             let mut found = None;
             for entry in tree.iter() {
                 let entry = entry.map_err(|e| GitCasError::Git(format!("tree entry: {e}")))?;
-                if entry.filename().to_string() == fp {
+                if entry.filename().as_ref() as &[u8] == fp.as_bytes() {
                     if entry.mode().is_tree() {
                         return Err(GitCasError::NotFound(format!(
                             "'{fp}' is a directory, not a file"
@@ -374,7 +374,7 @@ impl GixCasAdapter {
 /// Skips .git directory. Returns the tree OID.
 fn write_dir_as_tree(
     repo: &gix::Repository,
-    root: &Path,
+    _root: &Path,
     dir: &Path,
 ) -> Result<gix::ObjectId, GitCasError> {
     let mut entries: Vec<(String, gix::ObjectId)> = Vec::new();
@@ -393,7 +393,7 @@ fn write_dir_as_tree(
             .map_err(|e| GitCasError::Io(format!("file_type: {e}")))?;
 
         if file_type.is_dir() {
-            let subtree_oid = write_dir_as_tree(repo, root, &path)?;
+            let subtree_oid = write_dir_as_tree(repo, _root, &path)?;
             entries.push((name, subtree_oid));
         } else if file_type.is_file() {
             let content = std::fs::read(&path)
