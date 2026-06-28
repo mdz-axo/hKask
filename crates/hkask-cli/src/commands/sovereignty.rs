@@ -131,20 +131,11 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
             println!("Consent State:");
             println!("  WebID: {}", webid);
 
-            let categories = [
-                ("episodic_memory", &DataCategory::EpisodicMemory),
-                ("semantic_memory", &DataCategory::SemanticMemory),
-                ("personal_context", &DataCategory::PersonalContext),
-                ("capability_tokens", &DataCategory::CapabilityTokens),
-                ("ocap_boundaries", &DataCategory::OcapBoundaries),
-                ("template_invocations", &DataCategory::TemplateInvocations),
-                ("template_registry", &DataCategory::TemplateRegistry),
-                ("public", &DataCategory::Public),
-            ];
-            for (label, cat) in &categories {
+            let categories = DataCategory::all_known();
+            for cat in categories {
                 match cm.has_consent(&webid.to_string(), cat) {
-                    Ok(true) => println!("  • {label}: GRANTED"),
-                    _ => println!("  • {label}: DENIED"),
+                    Ok(true) => println!("  • {}: GRANTED", cat.as_str()),
+                    _ => println!("  • {}: DENIED", cat.as_str()),
                 }
             }
             println!();
@@ -207,13 +198,18 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
                 ),
             }
         }
-        SovereigntyAction::Grant { category } => {
-            let webid = super::helpers::resolve_user_webid();
+        SovereigntyAction::Grant { category, agent } => {
+            let webid = if let Some(name) = agent {
+                hkask_types::WebID::for_agent_name(&name)
+            } else {
+                super::helpers::resolve_user_webid()
+            };
             let (_svc, cm) = build_consent();
             let cat = crate::cli::parse_data_category(&category);
             match cm.grant_consent(&webid.to_string(), &cat) {
                 Ok(()) => {
                     println!("Consent granted for category: {category}");
+                    println!("  WebID: {}", webid);
                     println!("  Data sharing is now enabled for this category.");
                     if cat.is_typically_sovereign() {
                         println!("  Note: Sovereign data still requires owner verification.");

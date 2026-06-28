@@ -52,8 +52,8 @@ This is the same derivation chain used during onboarding to store the DB encrypt
 
 1. **Canonical entry point:** `AgentService::consolidate_agent_memory(agent_name, request)` (`crates/hkask-services-context/src/context_impl.rs`).
    - Derives the target `WebID` from `agent_name`.
-   - Checks `ConsentManager::has_consent` for both `DataCategory::EpisodicMemory` and `DataCategory::SemanticMemory`.
-   - On missing consent, returns `ServiceError::ConsentDenied` and instructs the caller to grant consent via `kask sovereignty grant --category <category>` or the API consent endpoint.
+   - Checks `ConsentManager::has_consent` for both `DataCategory::EpisodicMemory` and `DataCategory::SemanticMemory`. Missing-consent observations are emitted as `cns.consent.denied` ν-events when the consent manager has a CNS event sink.
+   - On missing consent, returns `ServiceError::ConsentDenied` and instructs the caller to grant consent via `kask sovereignty grant --category <category> [--agent <agent_name>]` or the API sovereignty consent endpoint.
    - Opens the per-agent memory DB at `agent_paths::agent_memory_db(agent_name)` using the configured passphrase.
    - Runs `ConsolidationService::consolidate` and returns the outcome.
 
@@ -62,6 +62,7 @@ This is the same derivation chain used during onboarding to store the DB encrypt
 3. **Curator auto-consolidation ("memory condensation"):**
    - Controlled by `ServiceConfig::curator_auto_consolidation_enabled`, read from `HKASK_CURATOR_AUTO_CONSOLIDATION=1` (default `false`).
    - When enabled, `CurationLoop::act()` checks consent for the Curator WebID for both memory categories before calling `ConsolidationBridge::consolidate`.
+   - Consent for the Curator WebID is granted with `kask sovereignty grant --category <category> --agent curator`.
    - When disabled or consent is missing, the branch is skipped and an escalation entry is posted to the escalation queue, notifying the user.
    - When it runs, a second escalation entry records the event counts.
 

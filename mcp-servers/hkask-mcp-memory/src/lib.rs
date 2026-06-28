@@ -903,7 +903,7 @@ pub async fn run(
                         default_path.to_string_lossy().to_string()
                     });
                 let db = if let Some(passphrase) = ctx.credentials.get("HKASK_DB_PASSPHRASE") {
-                    hkask_storage::Database::open(&memory_db_path, passphrase)
+                    hkask_storage::open_or_repair(&memory_db_path, passphrase)
                         .map_err(|e| anyhow::anyhow!("{e}"))?
                 } else {
                     hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?

@@ -321,6 +321,13 @@ pub enum ServiceError {
     #[error("Consent denied for wallet operation: {message}")]
     ConsentDenied { message: String },
 
+    /// Authorization denied — the caller lacks the required identity or
+    /// capability for this operation. Distinct from `ConsentDenied` (P2:
+    /// user hasn't granted consent) — this variant signals a P4 boundary
+    /// violation (caller WebID ≠ target WebID, missing OCAP, wrong scope).
+    #[error("Authorization denied: {message}")]
+    Forbidden { message: String },
+
     // ── Rate limiting ──────────────────────────────────────────────────────
     /// Operation rate limited (too soon after previous invocation).
     #[error("{message}")]
@@ -468,6 +475,9 @@ impl ServiceError {
             // P2 consent denied: retrying won't grant consent
             ServiceError::ConsentDenied { .. } => false,
 
+            // P4 authorization denied: retrying won't change caller identity
+            ServiceError::Forbidden { .. } => false,
+
             // CNS energy exhaustion: retrying would waste more gas
             ServiceError::Gas { .. } => false,
 
@@ -588,6 +598,7 @@ impl ServiceError {
             ServiceError::Verification { .. } => "error.pipeline.verification",
             ServiceError::Wallet { .. } => "error.pipeline.wallet",
             ServiceError::ConsentDenied { .. } => "error.pipeline.wallet.consent_denied",
+            ServiceError::Forbidden { .. } => "error.authorization.forbidden",
 
             // ── Rate limiting / config / communication ──────────────
             ServiceError::RateLimited { .. } => "error.rate_limited",
@@ -801,6 +812,11 @@ impl ServiceError {
             ServiceError::ConsentDenied { message: msg } => (
                 "cns.wallet.withdrawal",
                 "error.consent_denied",
+                serde_json::json!({ "message": msg }),
+            ),
+            ServiceError::Forbidden { message: msg } => (
+                "cns.authorization",
+                "error.forbidden",
                 serde_json::json!({ "message": msg }),
             ),
             ServiceError::Matrix { message: msg, .. } => (

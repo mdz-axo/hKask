@@ -496,9 +496,11 @@ impl HkaskLoop for CurationLoop {
                                     }
 
                                     if !can_run {
+                                        let curator_id_str = curator_id.to_string();
                                         tracing::warn!(
                                             target: CUR_TARGET,
                                             missing_categories = ?missing,
+                                            curator_webid = %curator_id_str,
                                             "Curator auto-consolidation skipped — missing consent"
                                         );
                                         let _ = self.context.escalation_queue().add(
@@ -508,7 +510,10 @@ impl HkaskLoop for CurationLoop {
                                                 .to_string(),
                                             0.9,
                                             0,
-                                            format!("Missing: {}", missing.join(", ")),
+                                            format!(
+                                                "Missing: {}. Grant consent with: kask sovereignty grant --category episodic_memory --agent curator && kask sovereignty grant --category semantic_memory --agent curator",
+                                                missing.join(", ")
+                                            ),
                                         );
                                     } else {
                                         match consolidation.consolidate(

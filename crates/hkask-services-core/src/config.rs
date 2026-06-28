@@ -178,8 +178,7 @@ impl ServiceConfig {
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(180.0);
-        let curator_auto_consolidation_enabled =
-            std::env::var("HKASK_CURATOR_AUTO_CONSOLIDATION").as_deref() == Ok("1");
+        let curator_auto_consolidation_enabled = read_curator_auto_consolidation_env();
 
         Ok(Self {
             db_path,
@@ -230,8 +229,7 @@ impl ServiceConfig {
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(180.0);
-        let curator_auto_consolidation_enabled =
-            std::env::var("HKASK_CURATOR_AUTO_CONSOLIDATION").as_deref() == Ok("1");
+        let curator_auto_consolidation_enabled = read_curator_auto_consolidation_env();
 
         Self {
             db_path,
@@ -286,6 +284,15 @@ impl ServiceConfig {
         }
     }
 
+/// Read `HKASK_CURATOR_AUTO_CONSOLIDATION` env var into a bool.
+///
+/// Returns `true` when set to `"1"`, `false` otherwise (including unset).
+/// Centralized here to avoid duplicating the env-var read across constructors.
+fn read_curator_auto_consolidation_env() -> bool {
+    std::env::var("HKASK_CURATOR_AUTO_CONSOLIDATION").as_deref() == Ok("1")
+}
+
+impl ServiceConfig {
     /// Returns the effective memory DB path when `in_memory: false`.
     ///
     /// Uses the standard agent directory layout: `agents/{agent_name}/memory.db`.

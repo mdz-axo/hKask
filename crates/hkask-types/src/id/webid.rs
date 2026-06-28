@@ -30,6 +30,19 @@ impl WebID {
         self.0
     }
 
+    /// Convenience method: derive a WebID for an agent by name.
+    ///
+    /// Equivalent to `WebID::from_persona(agent_name.as_bytes())`.
+    /// This is the canonical derivation for agent-name → WebID mapping
+    /// used across CLI, API, REPL, and AgentService.
+    ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// pre:  agent_name is non-empty
+    /// post: returns a WebID deterministically derived from the agent name
+    pub fn for_agent_name(agent_name: &str) -> Self {
+        Self::from_persona(agent_name.as_bytes())
+    }
+
     /// Derive WebID deterministically from persona using UUID v5
     ///
     /// Uses SHA-1 name-based UUID with a fixed namespace.

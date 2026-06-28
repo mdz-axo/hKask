@@ -1,7 +1,7 @@
 //! Consolidation API — user-triggered episodic→semantic consolidation + semantic cleanup
 
 use axum::{Extension, Json, extract::State};
-use hkask_memory::consolidation_ops;
+use hkask_memory::consolidation_auth;
 use hkask_ports::ConsolidationRequest;
 use hkask_services::ServiceError;
 use hkask_types::WebID;
@@ -83,19 +83,19 @@ pub(crate) async fn consolidate(
 ) -> Result<Json<ConsolidateResponse>, ServiceErrorResponse> {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
-    consolidation_ops::check_rate_limit()?;
+    consolidation_auth::check_rate_limit()?;
 
     // Derive the target agent WebID from its name and authorize the caller.
-    let target_webid = WebID::from_persona(req.agent_name.as_bytes());
+    let target_webid = WebID::for_agent_name(&req.agent_name);
     if auth.webid != target_webid {
-        return Err(ServiceError::ConsentDenied {
+        return Err(ServiceError::Forbidden {
             message: "Caller is not authorized to consolidate this agent's memory".to_string(),
         }
         .into());
     }
 
     // Verify passphrase via ConsolidationService (keystore → key derivation → comparison)
-    let _db_passphrase = consolidation_ops::verify_passphrase(&req.passphrase)?;
+    let _db_passphrase = consolidation_auth::verify_passphrase(&req.passphrase)?;
 
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {

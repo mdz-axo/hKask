@@ -23,7 +23,7 @@ pub fn run(
     // Required when targeting a non-Curator agent as an additional auth gate.
     if agent.is_some() {
         if let Some(provided) = passphrase {
-            match hkask_memory::consolidation_ops::verify_passphrase(provided) {
+            match hkask_memory::consolidation_auth::verify_passphrase(provided) {
                 Ok(_) => {}
                 Err(_) => {
                     eprintln!("Error: Passphrase verification failed");
@@ -54,10 +54,19 @@ pub fn run(
         }
         Err(hkask_services::ServiceError::ConsentDenied { message }) => {
             eprintln!("Consent required: {}", message);
-            eprintln!("Grant consent with: kask sovereignty grant --category episodic_memory");
-            eprintln!(
-                "                              kask sovereignty grant --category semantic_memory"
-            );
+            if agent_name == "curator" {
+                eprintln!(
+                    "Grant consent with: kask sovereignty grant --category episodic_memory --agent curator"
+                );
+                eprintln!(
+                    "                              kask sovereignty grant --category semantic_memory --agent curator"
+                );
+            } else {
+                eprintln!("Grant consent with: kask sovereignty grant --category episodic_memory");
+                eprintln!(
+                    "                              kask sovereignty grant --category semantic_memory"
+                );
+            }
             std::process::exit(1);
         }
         Err(e) => {

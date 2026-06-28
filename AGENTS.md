@@ -98,11 +98,10 @@ These derive from the Magna Carta (P1–P4) and P12 of [`docs/architecture/core/
 
 | # | Prohibition | Principle | Rationale |
 |---|-------------|-----------|-----------|
-| 1 | No visual UI, dashboards, Grafana, Prometheus, or monitoring stacks | P3 · §5 | Headless system — CLI/MCP/API only. CNS provides all observability programmatically. |
-| 2 | No `todo!()`, `unimplemented!()`, `#[deprecated]`, unused traits, stubs, or feature flags | P5 · P3 | Stubs are debt against the Generative Space. Deprecated code earns deletion, not annotation. |
-| 3 | No anonymous agency — every action has an authenticated author | P12 · P1 | Every operation carries a replicant host; every triple stores an `owner` WebID. No root, no `sudo`. |
-| 4 | No hidden parameters or admin-gated settings | P3 | All generative settings are user-visible through CLI, API, and REPL. No privileged engineer access. |
-| 5 | No pass-through abstractions (deep-module discipline) | P5 · P7 | Modules earn existence by the deletion test. Public surface ≤ 7 items; extras justified or removed. |
+| 1 | No `todo!()`, `unimplemented!()`, `#[deprecated]`, unused traits, or stubs | P5 · P3 | Stubs are debt against the Generative Space. Deprecated code earns deletion, not annotation. |
+| 2 | No anonymous agency — every action has an authenticated author | P12 · P1 | Every operation carries a replicant host; every triple stores an `owner` WebID. No root, no `sudo`. |
+| 3 | No hidden parameters or admin-gated settings | P3 | All generative settings are user-visible through CLI, API, and REPL. No privileged engineer access. |
+| 4 | No pass-through abstractions (deep-module discipline) | P5 · P7 | Modules earn existence by the deletion test. Public surface ≤ 7 items; extras justified or removed. |
 
 These are **Prohibitions**, not guidelines. See PRINCIPLES.md §2.1–2.4 for the full principle hierarchy (Prohibition → Guardrail → Guideline) and constraint force classification.
 
@@ -142,9 +141,6 @@ Preferred auxiliary tooling:
 ## Constraint Verification
 
 ```bash
-# Headless + monitoring stack violation (P3 + §5 anti-patterns)
-grep -r "grafana\|prometheus\|dashboard\|visual.*ui\|web.*frontend" crates/ --include="*.rs"
-
 # Stub / dead-code violation (P5)
 grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"
 

@@ -399,7 +399,7 @@ fn open_curator_stores(
         });
 
     let db = match ctx.credentials.get("HKASK_DB_PASSPHRASE") {
-        Some(pw) => match hkask_storage::Database::open(&curator_db_path, pw) {
+        Some(pw) => match hkask_storage::open_or_repair(&curator_db_path, pw) {
             Ok(db) => Some(db),
             Err(e) => {
                 tracing::warn!(target: "hkask.mcp.curator", error = %e, "Failed to open curator DB");

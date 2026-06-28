@@ -188,6 +188,7 @@ impl From<hkask_services::ServiceError> for ApiError {
             // NotFound/Forbidden/Conflict distinctions within A2A, Escalation, AgentRegistry,
             // GoalRepo, Triple, ConsentStore, UserStore, Consent, Pod, and Template errors
             // all collapse to Internal.
+            SE::ConsentDenied { message } => ApiError::Forbidden { reason: message },
             SE::A2A { message } => ApiError::Forbidden { reason: message },
             SE::SovereigntyStore { message } => ApiError::BadRequest { message },
             SE::InvalidAgentType { message: msg, .. } => ApiError::BadRequest { message: msg },

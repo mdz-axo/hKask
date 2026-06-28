@@ -467,7 +467,7 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
 | [`core/CNS-DOMAIN-SPECIFICATION.md`](core/CNS-DOMAIN-SPECIFICATION.md) | CNS Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
 | [`specs/hkask-ledger.md`](specs/hkask-ledger.md) | Ledger specification — triple-entry accounting, three-domain schema |
 
-**TUI specification** — 22 windows with 14 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation.
+**TUI specification** — 22 windows with 14 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation (spec content absorbed into this master).
 
 **Curator persona** — The Curator is the canonical system daemon. Defined in Pattern C above (§Curator Persona & Behavioral Specification).
 
@@ -675,6 +675,8 @@ All ReplSettings fields are equally exposed across:
 - **API:** `GET /api/settings` and `PUT /api/settings` endpoints
 
 All three surfaces read/write the same `~/.config/hkask/settings.json` file. No settings are hidden, admin-gated, or surface-restricted.
+
+**TUI launch:** `kask chat --tui` or `HKASK_TUI=1` (when built with the `tui` feature).
 
 ### Voice Interaction (Talk + Listen)
 
@@ -1375,7 +1377,7 @@ Detailed lookup tables and diagrams in `reference/`:
 docs/architecture/
 ├── hKask-architecture-master.md                # THIS FILE (index + four-loop + energy + self-healing + pod + curator + TUI)
 ├── matrix-integration-architecture.md          # Matrix transport, Conduit
-├── TUI_SPECIFICATION.md                        # TUI specification (22 windows, ratatui)
+
 ├── specs/
 │   ├── hkask-ledger.md                         # Specification (triple-entry ledger)
 │   └── rjoule-cost-system.md                   # Specification (rJoule cost system)
@@ -1396,7 +1398,7 @@ docs/architecture/
     └── hKask-Curator-persona.md                # Persona spec (content absorbed into master)
 ```
 
-**Total:** 19 architecture documents (8 core + 2 root + 2 specs + 2 ADRs + 1 TUI + 1 Matrix + 3 whose content is absorbed into master).
+**Total:** 18 architecture documents (8 core + 2 root + 2 specs + 2 ADRs + 1 Matrix + 3 whose content is absorbed into master).
 
 **Merged into this document (2026-06-24):** loop-architecture.md, energy-gas-payments-api-keys.md, self-healing.md, provider-intelligence.md. Pod and Curator content absorbed from SOLID_POD_ISOMORPHISM, MULTI_POD_ARCHITECTURE, and hKask-Curator-persona.
 

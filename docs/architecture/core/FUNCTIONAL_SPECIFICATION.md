@@ -177,6 +177,7 @@ The service layer was extracted from duplicated surface logic using the strangle
 | `hkask-services-backup` | `hkask-services` | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
 | `AgentService` (28-field consolidation) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
 | Named accessor pattern (individual methods) | 8-group-method tuple pattern | v0.28.0 | P5 (Essentialism — callers typically need one field, not a group) |
+| `AgentService::consolidate_agent_memory` | `hkask-memory::consolidation_ops` direct DB open bypass | v0.30.0 | P2 (Affirmative Consent) + P4 (Clear Boundaries) — single consent-checked, OCAP-gated entry point |
 
 ### 1.5.5 Pod Export & K8s Deployment (v0.31.0)
 
@@ -777,8 +778,8 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 | FR-M001 | `new()` | [P3] Goal: Generative Space — bridges episodic experience into shared semantic memory; [P4] Constraining: Clear Boundaries — links stores without bypassing their membranes |
 | FR-M002 | `consolidate()` | [P3] Goal: Generative Space — promotes sovereign episodic triples to shared knowledge; [P1] Constraining: User Sovereignty — strips perspective only under Curator authority; [P4] Constraining: Clear Boundaries — requires ConsolidationToken from expected curator |
 | FR-M003 | `consolidation_candidate_count()` | [P3] Goal: Generative Space — surfaces how much episodic content is ready for promotion; [P9] Constraining: Homeostatic Self-Regulation — count-only query avoids loading full store |
-| FR-M004 | `new()` | [P3] Goal: Generative Space — user-facing entry point for memory consolidation and cleanup; [P4] Constraining: Clear Boundaries — requires Curator-issued ConsolidationToken |
-| FR-M005 | `consolidate()` | [P3] Goal: Generative Space — combines episodic promotion with semantic cleanup; [P9] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits; [P4] Constraining: Clear Boundaries — delegates to token-gated bridge |
+| FR-M004 | `AgentService::consolidate_agent_memory()` | [P3] Goal: Generative Space — canonical user-facing entry point for memory consolidation and cleanup; [P2] Constraining: Affirmative Consent — checks `EpisodicMemory` + `SemanticMemory` consent for the target agent; [P4] Constraining: Clear Boundaries — opens the per-agent DB and runs `ConsolidationService`; no direct `Database::open` bypass remains |
+| FR-M005 | `ConsolidationService::consolidate()` | [P3] Goal: Generative Space — combines episodic promotion with semantic cleanup; [P9] Constraining: Homeostatic Self-Regulation — enforces confidence floor and max triple limits; [P4] Constraining: Clear Boundaries — delegates to the bridge after consent is verified at the service boundary |
 | FR-M006 | `consolidation_candidate_count()` | [P3] Goal: Generative Space — reports how many episodic triples can be promoted; [P9] Constraining: Homeostatic Self-Regulation — count-only, graceful degradation on error |
 | FR-M007 | `semantic_low_confidence_count()` | [P3] Goal: Generative Space — reports low-confidence semantic triples for cleanup; [P9] Constraining: Homeostatic Self-Regulation — threshold-driven pruning signal |
 | FR-M008 | `semantic_triple_count()` | [P3] Goal: Generative Space — reports total semantic memory size; [P9] Constraining: Homeostatic Self-Regulation — count used for budget monitoring |
@@ -1091,7 +1092,7 @@ Representative domains:
 | MCP Adapters | P4 | McpCapabilityAdapter (new), McpFullAdapter (new) |
 | Memory Adapter | P3 | MemoryAdapter (new, in-memory, in-memory-unwrap, encrypted) |
 | Memory Ports | P3 | MemoryRequest (new, episodic, semantic), ConfidenceMap, Recall (episodic, semantic) |
-| Curator | P9 | CuratorPersona (check, strip), CuratorLoop (new, new-with-consolidation, inbox, context, handle, restore-cursor), CuratorContext (new, with-store, with-acp, handle, directive) |
+| Curator | P9 | CuratorPersona (check, strip), CuratorLoop (new, new-with-consolidation, with-auto-consolidation, inbox, context, handle, restore-cursor), CuratorContext (new, with-store, with-acp, with-consent-manager, handle, directive) |
 | Curator Agent | P9 | CuratorAgent (escalation-check, meta-new, tick, summary, direct, issue-directive, new, new-with-config, new-with-consolidation, curation-loop, metacognition-loop, context, spec-curator, spec-new, spec-calibrate, spec-with-config, spec-drift-threshold, spec-with-sink, spec-channel, spec-check) |
 | Bot Health | P9 | BotHealth (classify) |
 | Semantic Sync | P9, P1, P11 | CuratorSync (new, run, tick, pod), SemanticIndex (new, insert, query, cursor) |

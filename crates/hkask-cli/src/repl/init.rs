@@ -338,6 +338,15 @@ pub(super) fn init_repl_state(
                     std::fs::create_dir_all(db_path.parent().unwrap_or(std::path::Path::new(".")));
                 match Database::open(&db_path_str, &secrets.db_passphrase) {
                     Ok(db) => db,
+                    Err(hkask_storage::DatabaseError::PassphraseMismatch(_)) => {
+                        eprintln!(
+                            "Warning: Database {} was encrypted with a different passphrase.",
+                            db_path_str
+                        );
+                        eprintln!("         Run 'kask repair' to fix, or delete it manually.");
+                        eprintln!("         Falling back to in-memory for this session.");
+                        hkask_storage::in_memory_db()
+                    }
                     Err(e) => {
                         eprintln!(
                             "Warning: Persistent memory init failed ({}), falling back to in-memory",

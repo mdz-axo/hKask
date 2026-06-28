@@ -52,6 +52,16 @@ pub enum DatabaseError {
     SqlCipher(String),
     #[error("Key derivation error: {0}")]
     KeyDerivation(String),
+    /// The database exists but the passphrase is wrong — the HMAC check on
+    /// page 1 failed. This is a recoverable error: the user can either provide
+    /// the correct passphrase or delete the database to start fresh.
+    #[error("Passphrase mismatch — database was encrypted with a different passphrase: {0}")]
+    PassphraseMismatch(String),
+    /// The database file is not a valid SQLite database at all (bad magic).
+    /// This typically means the file is corrupted or was written by a
+    /// non-SQLite process.
+    #[error("Corrupted database — file is not a valid SQLite database: {0}")]
+    Corrupted(String),
 }
 /// Database wrapper with SQLCipher support
 ///
@@ -139,10 +149,20 @@ impl Database {
                 },
             )
             .map_err(|e| {
-                DatabaseError::SqlCipher(format!(
-                    "Database unreadable — wrong passphrase or corrupted file: {}",
-                    e
-                ))
+                let msg = e.to_string().to_lowercase();
+                // SQLCipher HMAC failure: passphrase is wrong
+                if msg.contains("hmac check failed") || msg.contains("error decrypting page") {
+                    DatabaseError::PassphraseMismatch(format!("{}", path))
+                }
+                // rusqlite "not a database" error: file is corrupted
+                else if msg.contains("file is not a database") || msg.contains("not a database") {
+                    DatabaseError::Corrupted(format!("{}: {}", path, e))
+                } else {
+                    DatabaseError::SqlCipher(format!(
+                        "Database unreadable — wrong passphrase or corrupted file: {}",
+                        e
+                    ))
+                }
             })?;
         }
         tracing::info!(
@@ -269,6 +289,47 @@ impl Database {
         Arc::clone(&self.conn)
     }
 }
+
+/// Quick check: can this database be opened with the given passphrase?
+///
+/// Does NOT initialize schema or load extensions — just verifies the
+/// passphrase is correct by opening and reading the schema table.
+/// Returns `Ok(())` if readable, `Err(DatabaseError::PassphraseMismatch)`
+/// if the passphrase is wrong, or another error for corruption.
+pub fn check_passphrase(path: &str, passphrase: &str) -> Result<(), DatabaseError> {
+    let _ = Database::open(path, passphrase)?;
+    Ok(())
+}
+
+/// Open an encrypted database, self-healing on passphrase mismatch.
+///
+/// If the passphrase is correct, returns the encrypted database normally.
+/// If the passphrase is wrong (`PassphraseMismatch`), prints a clear
+/// message to stderr, deletes the old database + salt so a fresh one
+/// can be created, then retries the open (which auto-creates a new DB).
+///
+/// This is the preferred entry point for MCP servers and REPL init —
+/// it closes the feedback loop by fixing the problem automatically
+/// rather than crashing with a cryptic SQLCipher error.
+pub fn open_or_repair(path: &str, passphrase: &str) -> Result<Database, DatabaseError> {
+    match Database::open(path, passphrase) {
+        Ok(db) => Ok(db),
+        Err(DatabaseError::PassphraseMismatch(_)) => {
+            eprintln!(
+                "hKask: Database {} was encrypted with a different passphrase.",
+                path
+            );
+            eprintln!("       Deleting old database — a fresh one will be created.");
+            eprintln!("       Run 'kask repair' to audit all databases.");
+            let _ = std::fs::remove_file(path);
+            let salt_path = format!("{}.salt", path);
+            let _ = std::fs::remove_file(&salt_path);
+            Database::open(path, passphrase)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 /// Open a database from a path and passphrase, with in-memory fallback.
 ///
 /// If `path` is `":memory:"`, opens an in-memory database (unencrypted).

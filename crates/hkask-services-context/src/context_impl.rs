@@ -628,7 +628,7 @@ impl AgentService {
         agent_name: &str,
         request: ConsolidationRequest,
     ) -> Result<ConsolidationOutcome, ServiceError> {
-        let target_webid = WebID::from_persona(agent_name.as_bytes());
+        let target_webid = WebID::for_agent_name(agent_name);
 
         // P2: require explicit consent for both sovereign memory categories.
         let categories = [DataCategory::EpisodicMemory, DataCategory::SemanticMemory];
@@ -644,11 +644,16 @@ impl AgentService {
             .collect();
 
         if !missing.is_empty() {
+            let grant_help = if agent_name == "curator" {
+                format!(
+                    "Grant consent with: kask sovereignty grant --category <category> --agent curator"
+                )
+            } else {
+                format!("Grant consent with: kask sovereignty grant --category <category>")
+            };
             return Err(ServiceError::ConsentDenied {
                 message: format!(
-                    "consolidation denied for agent {} — missing consent for: {}. \
-                     Grant consent with `kask sovereignty grant --category <category>` \
-                     or the API sovereignty consent endpoint.",
+                    "consolidation denied for agent {} — missing consent for: {}. {grant_help}",
                     target_webid.redacted_display(),
                     missing.join(", ")
                 ),
@@ -676,6 +681,49 @@ impl AgentService {
                 source: None,
                 message: e,
             })
+    }
+
+    /// Query consolidation status for an agent without running consolidation.
+    ///
+    /// Opens the per-agent memory DB temporarily and returns
+    /// (candidates, semantic_count, low_confidence_count).
+    /// This is the canonical read path for consolidation status — the REPL,
+    /// TUI bridge, and CLI status display all route through this method.
+    ///
+    /// pre:  agent_name is non-empty
+    /// post: returns (candidates, semantic_count, low_confidence) on success;
+    ///       Err(Storage) on DB open failure
+    pub fn consolidation_status_for(
+        &self,
+        agent_name: &str,
+    ) -> Result<(usize, usize, usize), ServiceError> {
+        let target_webid = WebID::for_agent_name(agent_name);
+
+        let db_path = hkask_types::agent_paths::agent_memory_db(agent_name);
+        let passphrase = self
+            .config
+            .memory_passphrase
+            .as_deref()
+            .unwrap_or(&self.config.db_passphrase);
+
+        let db = Database::open(&db_path.to_string_lossy(), passphrase).map_err(|e| {
+            ServiceError::Storage {
+                message: e.to_string(),
+            }
+        })?;
+
+        let per_agent_memory = Self::build_per_agent_memory(db, None);
+        let candidates = per_agent_memory
+            .consolidation_service
+            .consolidation_candidate_count(&target_webid);
+        let semantic_count = per_agent_memory
+            .consolidation_service
+            .semantic_triple_count();
+        let low_confidence = per_agent_memory
+            .consolidation_service
+            .semantic_low_confidence_count(0.33);
+
+        Ok((candidates, semantic_count, low_confidence))
     }
 }
 

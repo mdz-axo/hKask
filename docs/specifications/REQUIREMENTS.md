@@ -148,13 +148,14 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-IFC-001: MCP ≡ CLI ≡ API Equivalence
 
 - **Category:** Composition
-- **Text:** When exercising a composition, I want identical semantics across MCP, CLI, and API, so I can choose the appropriate surface.
+- **Text:** When exercising a composition, I want identical semantics across MCP, CLI, and API **for core operations**, so I can choose the appropriate surface. Spec capture/list/validate/cultivate are **CLI + API + QA only**; MCP exposes **spec drift** via the Curator server.
 - **Criteria:**
   - [x] CLI binary `kask` with 26 subcommand groups
   - [x] HTTP API with 11 route groups
   - [x] MCP with 10 servers (internal cognition via direct crate calls)
-  - [x] All route through `hkask-agents` domain core
-- **Implementation:** `hkask-cli::main`, `hkask-api::lib::create_router`, `hkask-mcp::runtime`
+  - [x] Core operations route through `hkask-agents` domain core
+  - [x] Spec lifecycle operations are CLI + API + QA only (MCP excludes spec capture/list/validate/cultivate)
+- **Implementation:** `hkask-cli::main`, `hkask-api::lib::create_router`, `hkask-mcp::runtime`, `hkask-mcp-curator` (spec drift)
 - **Status:** Implemented
 - **Curation:** Merge
 

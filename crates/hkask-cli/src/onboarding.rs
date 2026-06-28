@@ -10,8 +10,10 @@
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
+use hkask_inference::{InferenceRouter, ProviderId};
 use hkask_services::{
-    MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig, ServiceError,
+    InferenceConfig, MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig,
+    ServiceError,
 };
 use hkask_storage::{RegisteredAgent, UserProfile};
 use thiserror::Error;
@@ -352,37 +354,434 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     })
 }
 
-/// Curated list of cloud near-frontier models for replicant cognition.
-/// All available via DeepInfra by default.
-const ONBOARDING_MODELS: &[&str] = &[
-    "deepseek-v4-pro",
-    "GLM5.1",
-    "Qwen3.5 397B",
-    "Kimi2.6",
-    "minimax-m3",
-    "nemotron-3-super",
-    "gemma4",
+/// Keywords that identify non-LLM models to exclude from onboarding.
+/// Models matching these are embeddings, TTS, OCR, image/video gen, etc.
+const NON_LLM_KEYWORDS: &[&str] = &[
+    "embedding",
+    "bge-",
+    "gte-",
+    "e5-",
+    "stella",
+    "jina-embeddings",
+    "tts",
+    "speech",
+    "whisper",
+    "parakeet",
+    "zonos",
+    "chatterbox",
+    "ocr",
+    "document-",
+    "layout",
+    "paddleocr",
+    "got-ocr",
+    "flux",
+    "stable-diffusion",
+    "sd-",
+    "sdxl",
+    "imagen",
+    "dall-e",
+    "image",
+    "video",
+    "vision",
+    "clip",
+    "blip",
+    "reranker",
+    "bge-reranker",
+    "jina-reranker",
+    "voice",
+    "audio",
+    "melotts",
+    "fish-speech",
+    "upscale",
+    "segmentation",
+    "detection",
+    "depth",
+    "bgm",
+    "musicgen",
 ];
 
-/// Let the user select a model from the curated cloud frontier list.
-async fn select_model() -> Result<String, OnboardingError> {
-    let default_model = hkask_services::InferenceConfig::from_env().default_model;
+/// Keywords that indicate a model is small / not frontier-tier.
+/// Models matching these are excluded from the near-frontier list.
+const SMALL_MODEL_KEYWORDS: &[&str] = &[
+    "-1b",
+    "-3b",
+    "-7b",
+    "-8b",
+    "-0.5b",
+    "-1.5b",
+    "-0.6b",
+    "-mini",
+    "-tiny",
+    "-small",
+    "-nano",
+    "instruct-1b",
+    "instruct-3b",
+    "instruct-7b",
+    "instruct-8b",
+];
 
-    println!("  \x1b[1mAvailable models\x1b[0m (via DeepInfra):");
+/// Keywords that signal a model is likely frontier-tier.
+const FRONTIER_SIGNALS: &[(&str, u32)] = &[
+    ("pro", 20),
+    ("max", 18),
+    ("ultra", 18),
+    ("super", 15),
+    ("flash", 8),
+    ("large", 10),
+    ("preview", 5),
+];
+
+/// Static fallback model list — used ONLY when provider APIs are unreachable.
+/// These are never shown when dynamic discovery succeeds.
+const ONBOARDING_FALLBACK_MODELS: &[(&str, &str)] = &[
+    (
+        "DI/deepseek-ai/DeepSeek-V4-Pro",
+        "1.6T MoE, 1M ctx, top coding/reasoning",
+    ),
+    (
+        "DI/zai-org/GLM-5.2",
+        "744B MoE, MIT, leads open-weight GPQA",
+    ),
+    (
+        "DI/moonshotai/Kimi-K2.6",
+        "1T MoE, agent swarms, multimodal",
+    ),
+    (
+        "DI/MiniMaxAI/MiniMax-M3",
+        "1M ctx, multimodal, top SWE-Bench",
+    ),
+    (
+        "DI/Qwen/Qwen3.5-397B-A17B",
+        "397B MoE, 262K ctx, Apache 2.0",
+    ),
+    (
+        "DI/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B",
+        "120B MoE, 1M ctx",
+    ),
+    (
+        "DI/google/gemma-4-31B-it",
+        "31B dense, Apache 2.0, strong reasoning",
+    ),
+    (
+        "DI/deepseek-ai/DeepSeek-V4-Flash",
+        "284B MoE, efficient 1M ctx",
+    ),
+];
+
+/// Result of dynamic model discovery from configured providers.
+struct OnboardingModel {
+    label: String,
+    full_id: String,
+    description: String,
+    provider: ProviderId,
+    score: u32,
+}
+
+/// Fetch available models from configured cloud providers.
+///
+/// Queries each configured provider's model listing API (which already
+/// filters to models updated in the last 180 days for DeepInfra & KiloCode).
+/// Then applies dynamic heuristics to identify near-frontier open-weight LLMs:
+///
+/// 1. Exclude non-LLM models (embeddings, TTS, OCR, image gen, etc.)
+/// 2. Exclude very small models (< ~10B parameters)
+/// 3. Score remaining models by size signals and quality tier indicators
+/// 4. Return top-scoring models sorted by quality
+///
+/// Falls back to a static curated list only when no providers are reachable.
+async fn fetch_onboarding_models(config: &InferenceConfig) -> Vec<OnboardingModel> {
+    let router = InferenceRouter::new(config.clone());
+    let all_models = router.list_models().await;
+
+    if !all_models.is_empty() {
+        let mut scored: Vec<OnboardingModel> = all_models
+            .into_iter()
+            .filter(|m| is_likely_llm(&m.model))
+            .filter(|m| !is_likely_small_model(&m.model))
+            .map(|m| {
+                let score = compute_frontier_score(&m.model);
+                let desc = describe_model_dynamic(&m.model);
+                OnboardingModel {
+                    label: shorten_model_id(&m.model),
+                    full_id: m.prefixed_name,
+                    description: desc,
+                    provider: m.provider,
+                    score,
+                }
+            })
+            .collect();
+
+        // Sort by score descending, then alphabetically for ties
+        scored.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| a.label.cmp(&b.label)));
+
+        // Deduplicate by full_id
+        let mut seen = std::collections::HashSet::new();
+        scored.retain(|m| seen.insert(m.full_id.clone()));
+
+        // Show top 12 to avoid overwhelming the user
+        scored.truncate(12);
+
+        if !scored.is_empty() {
+            return scored;
+        }
+    }
+
+    // Fallback: static curated list (API unreachable)
+    ONBOARDING_FALLBACK_MODELS
+        .iter()
+        .map(|(id, desc)| OnboardingModel {
+            label: shorten_model_id(id),
+            full_id: id.to_string(),
+            description: desc.to_string(),
+            provider: ProviderId::DeepInfra,
+            score: 0,
+        })
+        .collect()
+}
+
+/// Check if a model name suggests it's a text-generation LLM.
+fn is_likely_llm(model_id: &str) -> bool {
+    let lower = model_id.to_lowercase();
+    !NON_LLM_KEYWORDS.iter().any(|kw| lower.contains(kw))
+}
+
+/// Check if a model name suggests it's small (< ~10B parameters).
+fn is_likely_small_model(model_id: &str) -> bool {
+    let lower = model_id.to_lowercase();
+    SMALL_MODEL_KEYWORDS.iter().any(|kw| lower.contains(kw))
+}
+
+/// Compute a dynamic frontier quality score from the model name alone.
+///
+/// Scoring signals (all extracted dynamically, no hardcoded model names):
+/// - Parameter count in the name (e.g., "397B" → +39, "120B" → +12)
+/// - Quality tier keywords ("Pro" → +20, "Max" → +18, etc.)
+/// - Version numbers (e.g., "V4" → +4, "3.5" → +3)
+fn compute_frontier_score(model_id: &str) -> u32 {
+    let lower = model_id.to_lowercase();
+    let mut score: u32 = 10;
+
+    score += extract_param_score(&lower);
+
+    for (signal, points) in FRONTIER_SIGNALS {
+        if lower.contains(signal) {
+            score += points;
+        }
+    }
+
+    score += extract_version_score(&lower);
+
+    score
+}
+
+/// Extract a score from parameter count patterns in the model name.
+fn extract_param_score(lower: &str) -> u32 {
+    let mut best: u32 = 0;
+
+    for cap in lower.split(|c: char| !c.is_alphanumeric() && c != '.') {
+        if cap.ends_with('t') {
+            if let Ok(val) = cap.trim_end_matches('t').parse::<f64>() {
+                best = best.max((val * 100.0) as u32);
+            }
+        }
+        if cap.ends_with('b') {
+            if let Ok(val) = cap.trim_end_matches('b').parse::<f64>() {
+                best = best.max((val / 10.0) as u32);
+            }
+        }
+    }
+
+    best.min(200)
+}
+
+/// Extract a score from version number patterns.
+fn extract_version_score(lower: &str) -> u32 {
+    let mut score: u32 = 0;
+
+    for word in lower.split(|c: char| !c.is_alphanumeric()) {
+        if word.len() >= 2 && word.starts_with('v') {
+            if let Ok(val) = word[1..].parse::<u32>() {
+                score += val.min(10);
+            }
+        }
+    }
+
+    for part in lower.split(|c: char| c.is_whitespace() || c == '-' || c == '/') {
+        let bytes = part.as_bytes();
+        if bytes.len() >= 3
+            && bytes[0].is_ascii_digit()
+            && bytes[1] == b'.'
+            && bytes[2].is_ascii_digit()
+        {
+            let major = (bytes[0] - b'0') as u32;
+            score += major.min(10);
+        }
+    }
+
+    score
+}
+
+/// Shorten a model ID for display.
+/// "deepseek-ai/DeepSeek-V4-Pro" → "DeepSeek V4 Pro"
+fn shorten_model_id(id: &str) -> String {
+    let base = id.splitn(2, '/').nth(1).unwrap_or(id);
+    let base = base.splitn(2, '/').nth(1).unwrap_or(base);
+    let base = if base.is_empty() { id } else { base };
+
+    base.replace('-', " ")
+        .replace('_', " ")
+        .split_whitespace()
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Generate a concise description for a model — fully dynamic.
+fn describe_model_dynamic(model_id: &str) -> String {
+    let lower = model_id.to_lowercase();
+    let mut parts: Vec<String> = Vec::new();
+
+    let param_str = extract_param_display(&lower);
+    if !param_str.is_empty() {
+        parts.push(param_str);
+    }
+
+    if extract_moe_active(&lower).is_some() {
+        parts.push("MoE".into());
+    }
+
+    for (signal, _) in FRONTIER_SIGNALS {
+        if lower.contains(signal) {
+            let tier = match *signal {
+                "pro" => "Pro tier",
+                "max" => "Max tier",
+                "ultra" => "Ultra tier",
+                "super" => "Super tier",
+                "flash" => "Flash (efficient)",
+                "large" => "Large",
+                _ => "",
+            };
+            if !tier.is_empty() && !parts.iter().any(|p| p.contains("tier")) {
+                parts.push(tier.into());
+                break;
+            }
+        }
+    }
+
+    if lower.contains("coder") || lower.contains("code") {
+        parts.push("coding-specialized".into());
+    }
+    if lower.contains("reasoning") || lower.contains("think") {
+        parts.push("reasoning".into());
+    }
+    if lower.contains("instruct") || lower.contains("-it") {
+        if !parts.iter().any(|p| p.contains("instruction")) {
+            parts.push("instruction-tuned".into());
+        }
+    }
+    if lower.contains("multimodal") || lower.contains("omni") {
+        parts.push("multimodal".into());
+    }
+
+    if parts.is_empty() {
+        "Open-weight LLM (recently updated)".into()
+    } else {
+        parts.join(", ")
+    }
+}
+
+/// Extract a human-readable parameter count from model name.
+fn extract_param_display(lower: &str) -> String {
+    let mut best: String = String::new();
+    let mut best_val: f64 = 0.0;
+
+    for cap in lower.split(|c: char| !c.is_alphanumeric() && c != '.') {
+        if cap.ends_with('t') {
+            if let Ok(val) = cap.trim_end_matches('t').parse::<f64>() {
+                if val > best_val {
+                    best_val = val;
+                    best = format!("{}T", val);
+                }
+            }
+        }
+        if cap.ends_with('b') {
+            if let Ok(val) = cap.trim_end_matches('b').parse::<f64>() {
+                let b_val = val / 1000.0;
+                if b_val > best_val {
+                    best_val = b_val;
+                    best = format!("{}B", val);
+                }
+            }
+        }
+    }
+
+    best
+}
+
+/// Extract MoE active parameter count if model name suggests MoE architecture.
+fn extract_moe_active(lower: &str) -> Option<u32> {
+    for part in lower.split(|c: char| !c.is_alphanumeric()) {
+        if part.len() >= 3 && part.starts_with('a') && part.ends_with('b') {
+            if let Ok(val) = part[1..part.len() - 1].parse::<u32>() {
+                return Some(val);
+            }
+        }
+    }
+    None
+}
+
+/// Resolve the display name for the currently active provider.
+fn provider_display_name(config: &InferenceConfig) -> &'static str {
+    match config.default_provider {
+        ProviderId::KiloCode => "KiloCode",
+        ProviderId::DeepInfra => "DeepInfra",
+        ProviderId::Together => "Together AI",
+        ProviderId::Fal => "fal.ai",
+        ProviderId::OpenRouter => "OpenRouter",
+        _ => "your provider",
+    }
+}
+
+/// Let the user select a model — dynamically discovered from providers or fallback.
+async fn select_model() -> Result<String, OnboardingError> {
+    let config = InferenceConfig::from_env();
+    let default_model = config.default_model.clone();
+    let provider_name = provider_display_name(&config);
+
+    // Dynamically discover models from configured providers
+    let models = fetch_onboarding_models(&config).await;
+    let is_dynamic = !models.is_empty() && models[0].score > 0;
+
+    let source_label = if is_dynamic {
+        format!("dynamically discovered via {} (≤6 months)", provider_name)
+    } else {
+        format!("curated fallback list ({} unreachable)", provider_name)
+    };
+
+    println!("  \x1b[1mAvailable models\x1b[0m ({}):", source_label);
+    println!();
+
     let mut idx = 1usize;
-    for name in ONBOARDING_MODELS {
-        let marker = if *name == default_model {
-            " (default)"
+    for m in &models {
+        let marker = if m.full_id == default_model || m.label == default_model {
+            " \x1b[33m(default)\x1b[0m"
         } else {
             ""
         };
-        println!("    {}. \x1b[36m{}\x1b[0m{}", idx, name, marker);
+        println!(
+            "    {}. \x1b[36m{}\x1b[0m{}  \x1b[2m{}\x1b[0m",
+            idx, m.label, marker, m.description
+        );
         idx += 1;
     }
 
-    // Offer fusion if OpenRouter is configured (uses kask defaults when
-    // no explicit HKASK_FUSION_JUDGE/PANEL env vars are set).
-    let config = hkask_services::InferenceConfig::from_env();
+    // Offer fusion if OpenRouter is configured
     let has_openrouter = !config.openrouter_api_key.is_empty();
     if has_openrouter {
         let fusion = config
@@ -390,6 +789,7 @@ async fn select_model() -> Result<String, OnboardingError> {
             .as_ref()
             .map(|f| format!("openrouter/fusion ({})", f.description()))
             .unwrap_or_else(|| "openrouter/fusion (kask defaults)".to_string());
+        println!();
         println!(
             "    {}. \x1b[1;33m⚡ Fusion: \x1b[36m{}\x1b[0m\x1b[0m",
             idx, fusion
@@ -397,7 +797,9 @@ async fn select_model() -> Result<String, OnboardingError> {
         idx += 1;
     }
     let manual_idx = idx;
+    println!();
     println!("    {}. Enter a model name manually", manual_idx);
+    println!();
 
     let choice = prompt_choice(
         &format!(
@@ -407,10 +809,10 @@ async fn select_model() -> Result<String, OnboardingError> {
         1..=(manual_idx),
     );
 
-    let fusion_idx = ONBOARDING_MODELS.len() + 1; // right after the const list
-    let model_count = ONBOARDING_MODELS.len();
+    let fusion_idx = models.len() + 1;
+    let model_count = models.len();
     match choice {
-        Ok(n) if n <= model_count => Ok(ONBOARDING_MODELS[n - 1].to_string()),
+        Ok(n) if n <= model_count => Ok(models[n - 1].full_id.clone()),
         Ok(n) if has_openrouter && n == fusion_idx => Ok(config
             .fusion
             .as_ref()
@@ -434,15 +836,18 @@ async fn select_model() -> Result<String, OnboardingError> {
 /// .env is auto-loaded by dotenvy at startup). If not, prompts to enter a key
 /// directly or skip.
 async fn setup_provider() -> Result<(), OnboardingError> {
-    let config = hkask_services::InferenceConfig::from_env();
+    let config = InferenceConfig::from_env();
 
     // Check if any cloud provider is already configured
     let has_deepinfra = !config.deepinfra_api_key.is_empty();
     let has_together = !config.together_api_key.is_empty();
     let has_fal = !config.fal_api_key.is_empty();
+    let has_kilocode = !config.kilocode_api_key.is_empty();
 
-    if has_deepinfra || has_together || has_fal {
-        let provider_name = if has_deepinfra {
+    if has_deepinfra || has_together || has_fal || has_kilocode {
+        let provider_name = if has_kilocode {
+            "KiloCode"
+        } else if has_deepinfra {
             "DeepInfra"
         } else if has_together {
             "Together AI"
@@ -455,6 +860,9 @@ async fn setup_provider() -> Result<(), OnboardingError> {
         );
         // Auto-load into keychain so future sessions don't need .env in cwd
         let keychain = hkask_keystore::Keychain::default();
+        if has_kilocode {
+            let _ = keychain.store_by_key("KILOCODE_API_KEY", &config.kilocode_api_key);
+        }
         if has_deepinfra {
             let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key);
         }
@@ -476,7 +884,10 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     println!("  An API key is like a password that lets hKask use a cloud");
     println!("  AI service. You can get a free key at:");
     println!();
-    println!("    \x1b[36mhttps://deepinfra.com/\x1b[0m  (recommended — free tier, wide catalog)");
+    println!(
+        "    \x1b[36mhttps://kilo.ai/\x1b[0m         (KiloCode — unified gateway, recommended)"
+    );
+    println!("    \x1b[36mhttps://deepinfra.com/\x1b[0m  (free tier, wide model catalog)");
     println!("    \x1b[36mhttps://together.ai/\x1b[0m  (inference + fine-tuning)");
     println!("    \x1b[36mhttps://fal.ai/\x1b[0m      (specialized vision/OCR models)");
     println!();
@@ -493,21 +904,23 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             // Enter API key directly
             println!();
             println!("  Supported providers:");
-            println!("    DI — DeepInfra (recommended, wide model catalog)");
+            println!("    KC — KiloCode (unified gateway, recommended)");
+            println!("    DI — DeepInfra (wide model catalog)");
             println!("    TG — Together AI (inference + fine-tuning)");
             println!("    FA — fal.ai (specialized vision/OCR models)");
             println!();
 
-            let provider_str = prompt_line("  Provider code (DI/TG/FA):")?;
+            let provider_str = prompt_line("  Provider code (KC/DI/TG/FA):")?;
             let provider_str = provider_str.trim().to_uppercase();
 
             let key_name = match provider_str.as_str() {
+                "KC" => "KILOCODE_API_KEY",
                 "DI" => "DI_API_KEY",
                 "TG" => "TOGETHER_API_KEY",
                 "FA" => "FA_API_KEY",
                 _ => {
                     println!(
-                        "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use DI, TG, or FA.",
+                        "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use KC, DI, TG, or FA.",
                         provider_str
                     );
                     return Err(OnboardingError::Cancelled);
@@ -518,17 +931,6 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             let api_key = api_key.trim();
             if api_key.is_empty() {
                 println!("  No key entered — skipping provider setup.");
-                // Auto-load into keychain so future sessions don't need .env in cwd
-                let keychain = hkask_keystore::Keychain::default();
-                if has_deepinfra {
-                    let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key);
-                }
-                if has_together {
-                    let _ = keychain.store_by_key("TOGETHER_API_KEY", &config.together_api_key);
-                }
-                if has_fal {
-                    let _ = keychain.store_by_key("FA_API_KEY", &config.fal_api_key);
-                }
                 return Ok(());
             }
 
@@ -548,7 +950,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             );
 
             println!("  \x1b[32m✓\x1b[0m Key stored in OS keychain.");
-            println!("  Default provider set to {}.", provider_str);
+            println!("  Default provider set to {}", provider_str);
         }
         2 => {
             println!();

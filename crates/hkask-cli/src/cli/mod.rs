@@ -326,4 +326,15 @@ pub enum Commands {
         #[command(subcommand)]
         action: MatrixAction,
     },
+
+    /// Repair encrypted databases — detect and fix passphrase mismatches
+    Repair {
+        /// Only list broken databases, don't delete anything
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Delete all broken databases without prompting
+        #[arg(long, conflicts_with = "dry_run")]
+        force: bool,
+    },
 }

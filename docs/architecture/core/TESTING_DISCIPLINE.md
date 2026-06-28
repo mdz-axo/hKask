@@ -140,9 +140,9 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 | Strategy | Details |
 |----------|---------|
-| **Primary seam** | CLI ↔ API ↔ MCP equivalence |
+| **Primary seam** | CLI ↔ API ↔ MCP equivalence (core operations) |
 | **Test type** | Integration: cross-surface parity (same operation, same result, via all three surfaces) |
-| **Key invariant** | `MCP ≡ CLI ≡ API` for every operation |
+| **Key invariant** | `MCP ≡ CLI ≡ API` for core operations; spec lifecycle is CLI + API + QA only |
 | **Anti-pattern** | Testing only one surface and assuming the others work |
 
 ### 4.4 Composition (REQ-COM-*)

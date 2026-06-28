@@ -13,6 +13,7 @@ use crate::chat_protocol::{
     validate_prompt,
 };
 use crate::config::InferenceConfig;
+use chrono::Utc;
 use futures_util::StreamExt;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
@@ -282,12 +283,12 @@ impl KiloCodeBackend {
         chat_response_to_result(chat_response)
     }
 
-    /// List available models from Kilo Gateway.
+    /// List available models from Kilo Gateway, filtered to models updated in the last 6 months.
     ///
     /// expect: "I can discover available models across providers"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — model variety discovery with freshness filter
     /// pre:  self.client and self.base_url are initialized
-    /// post: returns Ok(`Vec<KiloCodeModel>`) with all available models
+    /// post: returns Ok(`Vec<KiloCodeModel>`) with models created in last 180 days
     /// post: if API returns non-success → Err(InferenceError::Connection)
     /// post: if connection fails → Err(InferenceError::Connection)
     pub async fn list_models(&self) -> Result<Vec<KiloCodeModel>, InferenceError> {
@@ -314,12 +315,25 @@ impl KiloCodeBackend {
             InferenceError::Connection(format!("KiloCode models parse error: {}", e))
         })?;
 
+        // Filter to models created/updated in the last 6 months (matching DeepInfra behavior)
+        let cutoff = Utc::now() - chrono::Duration::days(180);
+        let cutoff_secs = cutoff.timestamp() as u64;
+        let total = list.data.len();
+        let filtered: Vec<KiloCodeModel> = list
+            .data
+            .into_iter()
+            .filter(|m| {
+                m.created.map(|ts| ts >= cutoff_secs).unwrap_or(true) // Keep models without a timestamp (don't filter out)
+            })
+            .collect();
+
         info!(
             target: "hkask.inference.kilocode",
-            count = list.data.len(),
-            "Fetched KiloCode model list"
+            total,
+            filtered = filtered.len(),
+            "Fetched KiloCode model list (6-month freshness filter applied)"
         );
 
-        Ok(list.data)
+        Ok(filtered)
     }
 }

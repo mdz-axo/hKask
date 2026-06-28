@@ -34,6 +34,7 @@ pub mod mcp;
 pub mod models;
 pub mod pod;
 pub mod registry;
+pub mod repair;
 pub mod serve;
 pub mod settings;
 pub mod skill;

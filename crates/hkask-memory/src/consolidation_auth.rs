@@ -1,4 +1,4 @@
-//! Consolidation authorization helpers — passphrase verify and rate limiting.
+//! Consolidation authentication helpers — passphrase verification and rate limiting.
 //!
 //! The actual per-agent DB open + consolidation pipeline now lives in
 //! `hkask_services_context::AgentService::consolidate_agent_memory`, which is

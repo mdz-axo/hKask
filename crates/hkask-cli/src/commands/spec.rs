@@ -1,7 +1,7 @@
 //! Spec command handlers for `kask spec` — thin passthrough to SpecStore.
 //!
-//! Capture and listing delegate directly to the spec store. Validation and
-//! quality checks are handled by the QA system (`kask qa spec-check`).
+//! Capture and listing delegate directly to the spec store. Validation is
+//! handled by `DefaultSpecCurator`, with QA providing `kask qa spec-check`.
 
 use crate::cli::SpecAction;
 use hkask_storage::SpecStore;

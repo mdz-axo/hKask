@@ -196,6 +196,10 @@ pub enum SovereigntyAction {
     Grant {
         #[arg(long)]
         category: String,
+        /// Target agent name whose WebID should receive the grant. Defaults to the CLI user.
+        /// Use "curator" to grant consent for the Curator daemon's WebID.
+        #[arg(long)]
+        agent: Option<String>,
     },
     Revoke,
     Check {

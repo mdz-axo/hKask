@@ -382,7 +382,7 @@ The verification checklist (§10) is extended with MDS alignment checks:
 | Category | Required Content | Verification |
 |----------|-----------------|--------------|
 | **Domain** | Bounded context, ν-event types, entity definitions | Terms allocated |
-| **Composition** | Registry schema, cascade rules, template types, surface definitions, equivalence matrix | Template types documented; MCP ≡ CLI ≡ API verified |
+| **Composition** | Registry schema, cascade rules, template types, surface definitions, equivalence matrix | Template types documented; MCP ≡ CLI ≡ API verified for core operations |
 | **Trust** | Threat model, mitigations, keystore config, OCAP policy, attenuation rules | STRIDE-lite analysis complete; capability grant table present |
 | **Lifecycle** | Bootstrap sequence, evolution rules, deprecation policy, CNS span registry, storage schema, encryption config | All operations emit spans; bitemporal semantics documented |
 | **Curation** | Decision gradient, coherence metric, writing quality assessment | Curator authority bounded; ≥3/4 writing dimensions passing |

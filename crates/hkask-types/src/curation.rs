@@ -80,6 +80,27 @@ impl DataCategory {
         }
     }
 
+    /// All known (non-custom) data categories.
+    ///
+    /// Returns every variant except `DataCategory::Custom`. Use this for
+    /// enumeration (status displays, consent audits) instead of duplicating
+    /// the variant list at each call site.
+    ///
+    /// expect: "System types preserve semantic identity and are provenance-aware"
+    /// post: returns slice of all 8 known DataCategory variants
+    pub fn all_known() -> &'static [DataCategory] {
+        &[
+            DataCategory::EpisodicMemory,
+            DataCategory::SemanticMemory,
+            DataCategory::PersonalContext,
+            DataCategory::CapabilityTokens,
+            DataCategory::OcapBoundaries,
+            DataCategory::TemplateInvocations,
+            DataCategory::TemplateRegistry,
+            DataCategory::Public,
+        ]
+    }
+
     /// Check if this category is typically sovereign
     /// Check if this category is typically sovereign.
     ///

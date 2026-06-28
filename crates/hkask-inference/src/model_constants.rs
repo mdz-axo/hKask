@@ -24,6 +24,7 @@ pub const OCR_MODEL: &str = "maternion/LightOnOCR-2:1b";
 
 /// Fallback model when `HKASK_MODEL` env var is unset (ACP agent).
 /// Mirrors `InferenceConfig::default_model` to keep the codebase consistent.
+/// Updated June 2026: DeepSeek V4 Pro remains the strongest all-round open-weight model.
 pub const DEFAULT_FALLBACK_MODEL: &str = "deepseek-v4-pro";
 
 // ── Test fixtures (arbitrary identifiers, no network calls) ──────────────

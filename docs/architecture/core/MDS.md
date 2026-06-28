@@ -14,7 +14,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Supersedes:** The previous 9-category DDMVSS. All MDS references in the codebase should be updated.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`magna-carta.md`](magna-carta.md), [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md), [`loop-architecture.md`](../loop-architecture.md)
+**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`magna-carta.md`](magna-carta.md), [`FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md)
 
 ---
 
@@ -151,7 +151,7 @@ Curation decisions (Accept/Revise/Reject) are made by the Curator or human — n
 
 ## 4. Spec Operations & QA Integration
 
-Specifications are managed through three surfaces, following the MCP≡CLI≡API equivalence axiom:
+Specifications are managed through CLI and API surfaces, plus QA validation. MCP does not expose spec capture/list/validate/cultivate; it only surfaces spec drift via the Curator server.
 
 ### 4.1 CLI Surface (`kask spec`)
 

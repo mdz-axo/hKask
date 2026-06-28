@@ -27,7 +27,9 @@ pub mod wallet_store;
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use archive::{ArchiveError, BackupArchive, BackupMeta, MigrationReceipt};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
-pub use database::{Database, DatabaseError, in_memory_db, open_database};
+pub use database::{
+    Database, DatabaseError, check_passphrase, in_memory_db, open_database, open_or_repair,
+};
 pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};
 pub use escalation::{
     EscalationBatch, EscalationEntry, EscalationError, EscalationQueue, EscalationStats,

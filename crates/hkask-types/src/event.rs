@@ -143,6 +143,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.communication.thread",
     "cns.communication.agent",
     "cns.communication.listener",
+    "cns.consent",
     "cns.wallet.balance",
     "cns.wallet.chain_error",
     "cns.wallet.conversion",
