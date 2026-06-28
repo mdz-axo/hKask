@@ -57,42 +57,30 @@ pub use hkask_services_wallet::WalletService;
 
 // ── Remaining inline modules ───────────────────────────────────────────
 
-pub mod bundle;
 pub mod chat;
 pub mod lifecycle;
 pub mod memory;
 pub use memory::MemoryService;
 
-pub mod cns;
 pub mod compose;
 pub mod curator;
-pub mod federation;
 pub mod verification;
 pub use crate::verification::{
     Assertion, AssertionResult, Manifest, PrincipleResult, VerificationReport, VerificationService,
 };
 
-pub mod skills;
-
 pub mod archival;
 pub mod consolidation;
 
 pub use archival::{ArchivalService, ArchiveResult, SnapshotResult};
-pub use bundle::{BundleComposeResult, BundleService};
 pub use chat::{
     ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
 };
-pub use cns::CnsService;
 pub use compose::{
     CentroidValidation, CognitionConfig, ComposeRequest, ComposeResult, ComposeService,
     EmbeddingSection, RetrievalSection, ValidationSection, cosine_distance,
 };
 pub use curator::{CuratorService, EscalationResponse};
-pub use federation::FederationService;
-
-pub use skills::{
-    SkillAuditError, SkillAuditReport, SkillAuditor, SkillHealthScore, SkillStatus, TemplateSummary,
-};
 
 #[cfg(test)]
 mod tests {

@@ -78,12 +78,6 @@ pub enum DaemonRequest {
         replicant: String,
         domain: Option<String>,
     },
-    /// Query per-bot health — gas consumption vs budget.
-    #[serde(rename = "bot_status_query")]
-    BotStatusQuery {
-        replicant: String,
-        bot_name: Option<String>,
-    },
     /// Query spec drift — coherence and missing/extra verbs.
     #[serde(rename = "spec_drift_query")]
     SpecDriftQuery {
@@ -129,9 +123,6 @@ pub enum DaemonResponse {
     /// CNS status response.
     #[serde(rename = "cns_status_response")]
     CnsStatusResponse { status: serde_json::Value },
-    /// Bot status response.
-    #[serde(rename = "bot_status_response")]
-    BotStatusResponse { status: serde_json::Value },
     /// Spec drift response.
     #[serde(rename = "spec_drift_response")]
     SpecDriftResponse { drift: serde_json::Value },
@@ -273,19 +264,6 @@ impl DaemonClient {
         .await
     }
 
-    /// Query per-bot health from the daemon.
-    pub async fn bot_status_query(
-        &self,
-        replicant: &str,
-        bot_name: Option<&str>,
-    ) -> std::io::Result<DaemonResponse> {
-        self.send_recv(&DaemonRequest::BotStatusQuery {
-            replicant: replicant.to_string(),
-            bot_name: bot_name.map(|b| b.to_string()),
-        })
-        .await
-    }
-
     /// Query spec drift from the daemon.
     pub async fn spec_drift_query(
         &self,
@@ -348,9 +326,6 @@ pub trait DaemonHandler: Send + Sync {
 
     /// Query live CNS status — variety per domain, backpressure.
     async fn cns_status(&self, replicant: &str, domain: Option<&str>) -> serde_json::Value;
-
-    /// Query per-bot health — gas consumption vs energy budget.
-    async fn bot_status(&self, replicant: &str, bot_name: Option<&str>) -> serde_json::Value;
 
     /// Query spec drift — coherence evaluation and missing/extra verbs.
     async fn spec_drift(&self, replicant: &str, spec_id: Option<&str>) -> serde_json::Value;
@@ -500,13 +475,6 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
             let status = handler.cns_status(&replicant, domain.as_deref()).await;
             DaemonResponse::CnsStatusResponse { status }
         }
-        DaemonRequest::BotStatusQuery {
-            replicant,
-            bot_name,
-        } => {
-            let status = handler.bot_status(&replicant, bot_name.as_deref()).await;
-            DaemonResponse::BotStatusResponse { status }
-        }
         DaemonRequest::SpecDriftQuery { replicant, spec_id } => {
             let drift = handler.spec_drift(&replicant, spec_id.as_deref()).await;
             DaemonResponse::SpecDriftResponse { drift }
@@ -587,10 +555,6 @@ mod tests {
 
         async fn cns_status(&self, _replicant: &str, _domain: Option<&str>) -> serde_json::Value {
             serde_json::json!({"domains": [{"domain": "cns.tool", "variety": 42}]})
-        }
-
-        async fn bot_status(&self, _replicant: &str, _bot_name: Option<&str>) -> serde_json::Value {
-            serde_json::json!({"bots": [{"name": "research-bot", "status": "healthy"}]})
         }
 
         async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {

@@ -102,8 +102,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             communication_backpressure_threshold,
         } => {
             let rt_ref = build_cns_runtime(rt);
-            let cns_svc = hkask_services::CnsService::new(Arc::clone(&rt_ref));
-            let defaults = cns_svc.get_set_points();
+            let defaults = hkask_cns::load_set_points();
             println!("CNS Set-Points");
             println!("==============");
             println!(
@@ -145,7 +144,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
                     seam_coverage_min: None,
                     ..Default::default()
                 };
-                let updated = cns_svc.update_set_points(&config);
+                let updated = hkask_cns::SetPoints::from_config(&config);
                 println!();
                 println!("Updated values would be:");
                 println!("  gas_min_remaining:       {}", updated.gas_min_remaining);

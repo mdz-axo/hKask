@@ -908,12 +908,6 @@ impl HkaskLoop for MetacognitionLoop {
                 critical_alerts.len() as f64,
                 t.critical_alerts as f64 - 0.5,
             ),
-            Signal::new(
-                lid,
-                SignalMetric::MetacognitionBotFailures,
-                failed_bot_count as f64,
-                t.bot_failures as f64 - 0.5,
-            ),
         ]
     }
 

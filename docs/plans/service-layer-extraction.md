@@ -98,12 +98,12 @@ Per-module workflow:
 
 | # | Module | Lines | Fns (pub) | Sister Crate? | Disposition | Rationale | Effort |
 |---|--------|------:|----------:|--------------|-------------|-----------|--------|
-| 1.2a | `experience` | 128 | 3 (2) | No | **→ hkask-cli** | CLI daemon bridge. Not a domain service — it's a CLI→daemon adapter. Uses `hkask_mcp::DaemonClient`. | Small |
-| 1.2b | `consolidation` | 115 | 4 (4) | No | **→ hkask-services-core** | Small consolidation utility. 4 pub fns, fits core. | Small |
-| 1.2c | `cloud` | 259 | 8 (7) | No | **→ hkask-cli** | Hetzner deployment config from env vars. Pure infrastructure provisioning, not a domain service. Folded from `hkask-services-cloud`. | Small |
-| 1.2d | `cns` | 137 | 9 (6) | `hkask-cns` | **→ inline at call sites** | Convenience wrapper around `Arc<RwLock<CnsRuntime>>`. Callers can use `CnsRuntime` directly. 137 lines of `read().await.xxx().await`. | Small |
-| 1.2e | `federation` | 142 | 8 (8) | `hkask-federation` | **→ hkask-federation** | Federation lifecycle. `hkask-federation` currently only has types (10 LoC). The service logic is here. Move it. | Small |
-| 1.2f | `memory` | 210 | 6 (6) | `hkask-memory` | **→ hkask-memory** | Memory service operations. Wraps types from sister crate. Merge into sister crate. | Small |
+| 1.2a | `cloud` | 259 | 8 (7) | No | **→ hkask-cli** | ✅ Done | Hetzner deployment config from env vars. Only caller: hkask-cli. | Small |
+| 1.2b | `experience` | 128 | 3 (2) | No | **→ hkask-cli** | ✅ Done | CLI daemon bridge. Only callers: hkask-cli (kata, embed_corpus). | Small |
+| 1.2c | `consolidation` | 115 | 4 (4) | No | **→ TBD (own crate)** | ❌ Reverted | Depends on hkask-storage + hkask-memory + hkask-keystore — too heavy for core. Needs own crate or merge into hkask-memory. | Small |
+| 1.2d | `cns` | 137 | 9 (6) | `hkask-cns` | **Deleted** | ✅ Done | Pass-through wrapper around `Arc<RwLock<CnsRuntime>>`. Two methods inlined at single call site (`get_set_points` → `load_set_points()`, `update_set_points` → `SetPoints::from_config()`). | Small |
+| 1.2e | `federation` | 142 | 8 (8) | `hkask-federation` | **→ hkask-federation** | ✅ Done | Federation lifecycle operations. Error type changed from `ServiceError` to `String`. Added `hkask-federation` dep to `hkask-cli`. | Small |
+| 1.2f | `memory` | 210 | 6 (6) | `hkask-memory` | **DEFERRED** | Blocked | Blocked by `chat.rs` internal dependency. Extract after chat. | Small |
 | 1.2g | `skills` | 642 | 16 (7) | `hkask-services-skill` | **→ hkask-services-skill** | Dual-layer skill audit. Sister crate exists. Move code. | Medium |
 | 1.2h | `bundle` | 329 | 7 (7) | No | **→ hkask-services-skill** | Bundle composition via LLM. Bundles are composed skills — belongs with skill service. | Small |
 | 1.2i | `archival` | 339 | 7 (4) | No | **→ hkask-services-core** | Snapshot/archive operations. Small, fits core. | Small |

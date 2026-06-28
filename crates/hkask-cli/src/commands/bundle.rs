@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use hkask_ports::InferencePort;
-use hkask_services::BundleService;
+use hkask_services_skill::bundle::BundleService;
 use hkask_types::Visibility;
 
 use crate::block_on;

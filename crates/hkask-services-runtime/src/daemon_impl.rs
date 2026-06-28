@@ -328,59 +328,6 @@ impl DaemonHandler for ServiceDaemonHandler {
         })
     }
 
-    async fn bot_status(&self, _replicant: &str, bot_name: Option<&str>) -> serde_json::Value {
-        let Some(ref cns_lock) = self.cns_runtime else {
-            return serde_json::json!({
-                "timestamp": now_rfc3339(),
-                "note": "CNS runtime not available — energy budget data unavailable"
-            });
-        };
-        let cns = cns_lock.read().await;
-        // Use pod_manager to enumerate pods and cns for energy status
-        let pods = match self.pod_manager.list_pods().await {
-            Ok(p) => p,
-            Err(_) => {
-                return serde_json::json!({"timestamp": now_rfc3339(), "bots": [], "error": "failed to list pods"});
-            }
-        };
-        let mut bots: Vec<serde_json::Value> = Vec::new();
-        for pod in &pods {
-            let name = pod.name.clone().unwrap_or_default();
-            if let Some(filter) = bot_name
-                && name != filter
-            {
-                continue;
-            }
-            if let Ok(webid) = pod.webid.parse::<hkask_types::WebID>() {
-                let status = cns.agent_gas_status(&webid).await;
-                let cap = status.as_ref().map_or(0, |s| s.cap.as_raw());
-                let remaining = status.as_ref().map_or(0, |s| s.remaining.as_raw());
-                let ratio = if cap > 0 {
-                    (cap - remaining) as f64 / cap as f64
-                } else {
-                    0.0
-                };
-                let health = if ratio >= 0.9 {
-                    "critical"
-                } else if ratio >= 0.5 {
-                    "degraded"
-                } else {
-                    "healthy"
-                };
-                bots.push(serde_json::json!({
-                    "name": name,
-                    "status": health,
-                    "gas_cap": cap,
-                    "gas_remaining": remaining,
-                    "usage_ratio": ratio,
-                }));
-            }
-        }
-        serde_json::json!({
-            "timestamp": now_rfc3339(),
-            "bots": bots
-        })
-    }
 
     async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {
         serde_json::json!({"status": "ok", "note": "spec_drift not yet implemented in daemon handler"})

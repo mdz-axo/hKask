@@ -20,6 +20,7 @@ hkask-types = { path = "../hkask-types" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-agents = { path = "../hkask-agents" }
+hkask-federation = { path = "../hkask-federation" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-mcp = { path = "../hkask-mcp" }

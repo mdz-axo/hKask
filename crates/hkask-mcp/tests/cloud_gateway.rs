@@ -114,9 +114,6 @@ impl DaemonHandler for TestDaemon {
     async fn cns_status(&self, _replicant: &str, _domain: Option<&str>) -> serde_json::Value {
         json!({"domains": []})
     }
-    async fn bot_status(&self, _replicant: &str, _bot_name: Option<&str>) -> serde_json::Value {
-        json!({"bots": []})
-    }
     async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {
         json!({"specs": []})
     }

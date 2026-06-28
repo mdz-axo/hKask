@@ -9,7 +9,8 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use hkask_services::{BundleService, ServiceError};
+use hkask_services::ServiceError;
+use hkask_services_skill::bundle::BundleService;
 use hkask_types::Visibility;
 
 use crate::ApiState;
