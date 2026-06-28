@@ -1,7 +1,7 @@
 //! Together AI backend — cloud inference via OpenAI-compatible API.
 //!
 //! Together AI exposes `/v1/chat/completions` and `/v1/models`.
-//! Requires Bearer token authentication via `TOGETHER_API_KEY`.
+//! Requires Bearer token authentication via `TG_API_KEY`.
 
 use crate::chat_protocol::{
     ChatResponse, FusionPlugin, build_chat_request, chat_response_to_result,
@@ -48,7 +48,7 @@ impl TogetherBackend {
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         if config.together_api_key.is_empty() {
             return Err(InferenceError::Connection(
-                "Together AI API key not configured (set TOGETHER_API_KEY)".into(),
+                "Together AI API key not configured (set TG_API_KEY)".into(),
             ));
         }
         let client = config

@@ -507,16 +507,16 @@ async fn setup_provider() -> Result<(), OnboardingError> {
         // Auto-load into keychain so future sessions don't need .env in cwd
         let keychain = hkask_keystore::Keychain::default();
         if has_kilocode {
-            let _ = keychain.store_by_key("KILOCODE_API_KEY", &config.kilocode_api_key);
+            let _ = keychain.store_by_key("KC_API_KEY", &config.kilocode_api_key);
         }
         if has_deepinfra {
             let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key);
         }
         if has_together {
-            let _ = keychain.store_by_key("TOGETHER_API_KEY", &config.together_api_key);
+            let _ = keychain.store_by_key("TG_API_KEY", &config.together_api_key);
         }
         if has_fal {
-            let _ = keychain.store_by_key("HKASK_FAL_API_KEY", &config.fal_api_key);
+            let _ = keychain.store_by_key("FA_API_KEY", &config.fal_api_key);
         }
         return Ok(());
     }
@@ -560,10 +560,10 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             let provider_str = provider_str.trim().to_uppercase();
 
             let key_name = match provider_str.as_str() {
-                "KC" => "KILOCODE_API_KEY",
+                "KC" => "KC_API_KEY",
                 "DI" => "DI_API_KEY",
-                "TG" => "TOGETHER_API_KEY",
-                "FA" => "HKASK_FAL_API_KEY",
+                "TG" => "TG_API_KEY",
+                "FA" => "FA_API_KEY",
                 _ => {
                     println!(
                         "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use KC, DI, TG, or FA.",

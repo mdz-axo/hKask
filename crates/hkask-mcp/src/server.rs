@@ -130,7 +130,7 @@ impl CapabilityTier {
     /// post: returns CredentialStatus with available/missing counts
     pub fn detect(resolved_credentials: &HashMap<String, String>) -> Self {
         let embedded = resolved_credentials.contains_key("HKASK_WEBID")
-            || resolved_credentials.contains_key("HKASK_AGENT_PERSONA");
+            || resolved_credentials.contains_key("HKASK_REPLICANT_PERSONA");
         let persistence_available = resolved_credentials.contains_key("HKASK_DB_PATH");
         let keystore_available = Self::probe_keystore();
         Self {

@@ -140,7 +140,7 @@ classifier:
     {author} is known for {style_brief}. Score strictly against this reference.
 
   base_url: https://api.kilo.ai/api/gateway/chat/completions
-  api_key_env: KILOCODE_API_KEY
+  api_key_env: KC_API_KEY
 
   temperature: 0.0
   max_tokens: 256

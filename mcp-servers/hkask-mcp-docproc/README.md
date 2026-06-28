@@ -65,7 +65,7 @@ PDF → [Decimate] → PageQueue → [Score → Route → OCR] → [Verify] → 
 | `HKASK_OCR_MODEL` | Vision model for OCR (e.g., `DI/allenai/olmOCR-2-7B-1025`). Required for OCR tools. Fallback: `~/.config/hkask/settings.json` → `ocr_model`. |
 | `HKASK_EMBEDDING_MODEL` | Embedding model for vectorization and semantic search. Fallback: `~/.config/hkask/settings.json` → `embedding_model`. |
 | `HKASK_REGISTRY_PATH` | Path to the `registry/` directory for prompt templates. Default: `registry` (relative to CWD). |
-| `HKASK_USE_FAL_DOCRES` | Set to `true` to enable fal.ai docres binarization enhancement (opt-in, ~40s latency). Requires `HKASK_FAL_API_KEY`. |
+| `HKASK_USE_FAL_DOCRES` | Set to `true` to enable fal.ai docres binarization enhancement (opt-in, ~40s latency). Requires `FA_API_KEY`. |
 | `HKASK_REPLICANT` | Replicant identity for CNS narrative memory. |
 
 ### OCR Thresholds (via env vars or `settings.json`)

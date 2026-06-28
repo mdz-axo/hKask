@@ -144,7 +144,7 @@ kask qa triage --input fuzz-output.txt
 5. Emits `cns.qa.bolero_failure` spans for observability
 
 **Requirements:**
-- `DEEPINFRA_API_KEY` environment variable (or equivalent provider key)
+- `DI_API_KEY` environment variable (or equivalent provider key)
 - Classifier config at `registry/classify/qa-triage.yaml`
 - `cargo bolero` installed
 
@@ -167,7 +167,7 @@ cargo mutants --all-features 2>&1 | kask qa suggest-fuzz
 5. Prints crate/file/line → suggested fuzz target
 
 **Requirements:**
-- `DEEPINFRA_API_KEY` environment variable
+- `DI_API_KEY` environment variable
 - Classifier config at `registry/classify/qa-feedback.yaml`
 - `cargo mutants` installed
 

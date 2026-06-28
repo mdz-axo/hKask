@@ -61,13 +61,13 @@ The `workflow` parameter is a JSON **string** (not an object) to avoid
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `HKASK_FAL_API_KEY` | Required | Fal.ai API key for GPU model execution |
+| `FA_API_KEY` | Required | Fal.ai API key for GPU model execution |
 | `HKASK_REPLICANT` | Optional | Replicant identity (defaults to "anonymous") |
 
 ### Standalone
 
 ```bash
-HKASK_FAL_API_KEY="your-key" hkask-mcp-fal
+FA_API_KEY="your-key" hkask-mcp-fal
 ```
 
 ### With kask

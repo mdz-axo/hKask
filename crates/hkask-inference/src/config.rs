@@ -5,13 +5,13 @@
 //! - `DI_BASE_URL` — DeepInfra base URL (default: <https://api.deepinfra.com>)
 //! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
 //! - `FA_BASE_URL` — fal.ai base URL (default: <https://api.fal.ai>)
-//! - `HKASK_FAL_API_KEY` — fal.ai API key (required for FA provider)
+//! - `FA_API_KEY` — fal.ai API key (required for FA provider)
 //! - `TG_BASE_URL` — Together AI base URL (default: <https://api.together.xyz>)
-//! - `TOGETHER_API_KEY` — Together AI API key (required for TG provider)
+//! - `TG_API_KEY` — Together AI API key (required for TG provider)
 //! - `OR_BASE_URL` — OpenRouter base URL (default: <https://openrouter.ai/api>)
-//! - `OPENROUTER_API_KEY` — OpenRouter API key (required for OR provider)
+//! - `OR_API_KEY` — OpenRouter API key (required for OR provider)
 //! - `KC_BASE_URL` — KiloCode base URL (default: <https://api.kilo.ai/api/gateway>)
-//! - `KILOCODE_API_KEY` — KiloCode API key (required for KC provider)
+//! - `KC_API_KEY` — KiloCode API key (required for KC provider)
 //! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG, OR, KC; default: DI)
 //!
 //! # API Key Resolution
@@ -410,22 +410,22 @@ impl InferenceConfig {
         let fal_queue_base_url = std::env::var("FA_QUEUE_BASE_URL")
             .unwrap_or_else(|_| "https://queue.fal.run".to_string());
 
-        let fal_api_key = resolve_api_key("HKASK_FAL_API_KEY");
+        let fal_api_key = resolve_api_key("FA_API_KEY");
 
         let together_base_url =
             std::env::var("TG_BASE_URL").unwrap_or_else(|_| "https://api.together.xyz".to_string());
 
-        let together_api_key = resolve_api_key("TOGETHER_API_KEY");
+        let together_api_key = resolve_api_key("TG_API_KEY");
 
         let openrouter_base_url = std::env::var("OR_BASE_URL")
             .unwrap_or_else(|_| "https://openrouter.ai/api".to_string());
 
-        let openrouter_api_key = resolve_api_key("OPENROUTER_API_KEY");
+        let openrouter_api_key = resolve_api_key("OR_API_KEY");
 
         let kilocode_base_url = std::env::var("KC_BASE_URL")
             .unwrap_or_else(|_| "https://api.kilo.ai/api/gateway".to_string());
 
-        let kilocode_api_key = resolve_api_key("KILOCODE_API_KEY");
+        let kilocode_api_key = resolve_api_key("KC_API_KEY");
 
         let default_provider = resolve_default_provider();
 

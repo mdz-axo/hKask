@@ -21,7 +21,7 @@ pub(super) struct TogetherAdapterBackend {
 
 impl TogetherAdapterBackend {
     pub(super) fn new() -> Self {
-        let api_key = std::env::var("TOGETHER_API_KEY").unwrap_or_default();
+        let api_key = std::env::var("TG_API_KEY").unwrap_or_default();
         Self {
             cost_model: CostModel::together(),
             capability: ProviderCapability::together(),
@@ -135,7 +135,7 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
 
         if self.api_key.is_empty() {
             return Err(AdapterError::Internal(
-                "TOGETHER_API_KEY not set — cannot upload adapter. \
+                "TG_API_KEY not set — cannot upload adapter. \
                  Set the environment variable and retry."
                     .into(),
             ));

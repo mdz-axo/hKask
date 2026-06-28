@@ -256,7 +256,7 @@ impl MediaServer {
     async fn require_vision(&self) -> Result<(&'static str, &'static str), McpToolError> {
         self.resolve_vision_model().await.ok_or_else(|| {
             McpToolError::unavailable(
-                "No vision-capable provider configured (set DI_API_KEY, OPENROUTER_API_KEY, or TOGETHER_API_KEY)",
+                "No vision-capable provider configured (set DI_API_KEY, OR_API_KEY, or TG_API_KEY)",
             )
         })
     }
@@ -996,11 +996,11 @@ pub async fn run(
                 "DeepInfra API key for vision LLMs and media generation",
             ),
             hkask_mcp::CredentialRequirement::optional(
-                "HKASK_FAL_API_KEY",
+                "FA_API_KEY",
                 "fal.ai API key for image/video generation",
             ),
             hkask_mcp::CredentialRequirement::optional(
-                "TOGETHER_API_KEY",
+                "TG_API_KEY",
                 "Together AI API key for vision LLMs",
             ),
         ],

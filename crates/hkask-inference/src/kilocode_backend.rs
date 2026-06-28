@@ -2,7 +2,7 @@
 //!
 //! Kilo Gateway exposes `/chat/completions` and `/models` at
 //! `https://api.kilo.ai/api/gateway`. Requires Bearer token
-//! authentication via `KILOCODE_API_KEY`.
+//! authentication via `KC_API_KEY`.
 //!
 //! Kilo Gateway provides a unified API to 500+ models from
 //! multiple providers through a single endpoint, with server-side
@@ -73,7 +73,7 @@ impl KiloCodeBackend {
     pub fn new(config: &InferenceConfig) -> Result<Self, InferenceError> {
         if config.kilocode_api_key.is_empty() {
             return Err(InferenceError::Connection(
-                "KiloCode API key not configured (set KILOCODE_API_KEY)".into(),
+                "KiloCode API key not configured (set KC_API_KEY)".into(),
             ));
         }
         let client = config

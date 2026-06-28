@@ -16,10 +16,10 @@ pub async fn run_doctor() {
     println!("Inference Providers");
     println!("───────────────────");
     configured += check_env("DI_API_KEY", "DeepInfra", &mut total);
-    configured += check_env("HKASK_FAL_API_KEY", "fal.ai", &mut total);
-    configured += check_env("TOGETHER_API_KEY", "Together AI", &mut total);
-    configured += check_env("OPENROUTER_API_KEY", "OpenRouter", &mut total);
-    configured += check_env("KILOCODE_API_KEY", "KiloCode", &mut total);
+    configured += check_env("FA_API_KEY", "fal.ai", &mut total);
+    configured += check_env("TG_API_KEY", "Together AI", &mut total);
+    configured += check_env("OR_API_KEY", "OpenRouter", &mut total);
+    configured += check_env("KC_API_KEY", "KiloCode", &mut total);
     configured += check_env("RUNPOD_API_KEY", "RunPod", &mut total);
     configured += check_env("BASETEN_API_KEY", "Baseten", &mut total);
     println!();

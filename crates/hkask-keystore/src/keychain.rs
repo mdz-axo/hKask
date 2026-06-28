@@ -464,33 +464,40 @@ pub fn sign_wallet_bytes(bytes: &[u8]) -> Result<String, KeychainError> {
 mod tests {
     use super::*;
 
-    /// Set a test master key in the environment for derivation tests.
-    /// Uses a fixed 32-byte hex key so derivations are deterministic.
-    fn set_test_master_key() {
-        // SAFETY: set_var is unsafe in Rust 2024 due to potential race conditions
-        // with other threads reading the environment. In a single-threaded test
-        // context, this is safe.
+    /// Guard against concurrent env var mutation in parallel test execution.
+    /// Multiple tests set `HKASK_MASTER_KEY`; without serialization they race
+    /// and produce non-deterministic derivation results.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Acquire the env lock and set a test master key.
+    /// Returns a guard that must be held for the duration of the test.
+    fn set_test_master_key() -> std::sync::MutexGuard<'static, ()> {
+        let guard = ENV_LOCK.lock().unwrap();
+        // SAFETY: set_var is unsafe in Rust 2024. Serialized via ENV_LOCK.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
             );
         }
+        guard
     }
 
-    fn set_test_master_key_hex() {
-        // SAFETY: test-only env var mutation.
+    fn set_test_master_key_hex() -> std::sync::MutexGuard<'static, ()> {
+        let guard = ENV_LOCK.lock().unwrap();
+        // SAFETY: test-only env var mutation. Serialized via ENV_LOCK.
         unsafe {
             std::env::set_var(
                 "HKASK_MASTER_KEY",
                 "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
             );
         }
+        guard
     }
 
     #[test]
     fn treasury_keys_differ_per_context() {
-        set_test_master_key();
+        let _guard = set_test_master_key();
         let hedera_key = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
         let wallet_seed = resolve_wallet_seed().unwrap();
         assert_ne!(&*hedera_key, &*wallet_seed);
@@ -500,7 +507,7 @@ mod tests {
 
     #[test]
     fn treasury_key_is_deterministic() {
-        set_test_master_key();
+        let _guard = set_test_master_key();
         let key1 = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
         let key2 = resolve_treasury_key(derivation_contexts::TREASURY_HEDERA).unwrap();
         assert_eq!(&*key1, &*key2);
@@ -508,14 +515,14 @@ mod tests {
 
     #[test]
     fn wallet_seed_is_32_bytes() {
-        set_test_master_key();
+        let _guard = set_test_master_key();
         let seed = resolve_wallet_seed().unwrap();
         assert_eq!(seed.len(), 32);
     }
 
     #[test]
     fn wallet_seed_is_deterministic() {
-        set_test_master_key();
+        let _guard = set_test_master_key();
         let seed1 = resolve_wallet_seed().unwrap();
         let seed2 = resolve_wallet_seed().unwrap();
         assert_eq!(&*seed1, &*seed2);
@@ -523,7 +530,7 @@ mod tests {
 
     #[test]
     fn wallet_seed_accepts_hex_master_key() {
-        set_test_master_key_hex();
+        let _guard = set_test_master_key_hex();
         let seed1 = resolve_wallet_seed().unwrap();
         let seed2 = resolve_wallet_seed().unwrap();
         assert_eq!(&*seed1, &*seed2);
@@ -532,7 +539,7 @@ mod tests {
 
     #[test]
     fn sign_wallet_bytes_produces_signature() {
-        set_test_master_key();
+        let _guard = set_test_master_key();
         let sig = sign_wallet_bytes(b"test payload").unwrap();
         // Ed25519 signature is 64 bytes → 128 hex chars
         assert_eq!(sig.len(), 128);
@@ -541,7 +548,7 @@ mod tests {
 
     #[test]
     fn signature_changes_on_different_bytes() {
-        set_test_master_key();
+        let _guard = set_test_master_key();
         let sig1 = sign_wallet_bytes(b"payload1").unwrap();
         let sig2 = sign_wallet_bytes(b"payload2").unwrap();
         assert_ne!(sig1, sig2);

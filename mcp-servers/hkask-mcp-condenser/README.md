@@ -42,9 +42,9 @@ Environment variables (all optional):
 |----------|-------------|---------|
 | `HKASK_DB_PATH` | SQLite database path for episodic persistence | In-memory (no persistence) |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase | Required if `HKASK_DB_PATH` is set |
-| `INFERENCE_MODEL` | Model for thread summarization | `google/gemma-4-26B-A4B-it` (hKask classifier model; supports FW/, DI/ prefixes) |
+| `INFERENCE_MODEL` | Model for thread summarization | `google/gemma-4-26B-A4B-it` (hKask classifier model; supports DI/, FA/, TG/, OR/, KC/ prefixes) |
 
-Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `FW_API_KEY`, `DI_API_KEY` environment variables).
+Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `DI_API_KEY`, `FA_API_KEY`, `TG_API_KEY`, `OR_API_KEY`, `KC_API_KEY` environment variables).
 
 ## Context Categories
 

@@ -16,29 +16,31 @@ mds_categories: [domain, composition, trust]
 
 ## 1. Naming clarifications & disambiguation
 
-### 1.1 DeepInfra API key
-- **Canonical:** `DI_API_KEY`
-- **Not used:** `DEEPINFRA_API_KEY`, `DEEPINFRA_KEY` (docs-only misnomers; removed from docs elsewhere)
+### 1.1 Inference provider API keys
+All inference provider keys use the **two-letter provider prefix** + `_API_KEY`:
+- `DI_API_KEY` (DeepInfra)
+- `FA_API_KEY` (Fal.ai)
+- `TG_API_KEY` (Together)
+- `OR_API_KEY` (OpenRouter)
+- `KC_API_KEY` (KiloCode)
 
-### 1.2 Fal.ai API key
-- **Canonical:** `HKASK_FAL_API_KEY`
-- **Not used:** `HKASK_FAL_KEY`, `FAL_KEY`, `FA_API_KEY` (removed; use `HKASK_FAL_API_KEY` only)
+Deprecated/removed: `DEEPINFRA_API_KEY`, `DEEPINFRA_KEY`, `OPENROUTER_API_KEY`, `TOGETHER_API_KEY`, `KILOCODE_API_KEY`, `HKASK_FAL_API_KEY`, `HKASK_FAL_KEY`, `FAL_KEY`.
 
-### 1.3 Provider base URL overrides
+### 1.2 Provider base URL overrides
 These are **provider-prefix base URL overrides** (prefix identifies the inference provider; value is the base URL):
 - `DI_BASE_URL` (DeepInfra)
-- `FA_BASE_URL`, `FA_MEDIA_BASE_URL`, `FA_QUEUE_BASE_URL` (FAL)
+- `FA_BASE_URL`, `FA_MEDIA_BASE_URL`, `FA_QUEUE_BASE_URL` (Fal.ai)
 - `TG_BASE_URL` (Together)
 - `OR_BASE_URL` (OpenRouter)
 - `KC_BASE_URL` (KiloCode)
 
-### 1.4 `HKASK_ACP_MODEL` vs `HKASK_DEFAULT_MODEL`
+### 1.3 `HKASK_ACP_MODEL` vs `HKASK_DEFAULT_MODEL`
 - `HKASK_ACP_MODEL` is used by ACP / server-mode surfaces (ACP binaries) as a direct model selector.
 - `HKASK_DEFAULT_MODEL` is used by inference configuration as the general default model.
 
 If you want one global default for **inference**, prefer `HKASK_DEFAULT_MODEL`. If you are launching ACP binaries directly, `HKASK_ACP_MODEL` applies.
 
-### 1.5 Fusion variable naming
+### 1.4 Fusion variable naming
 **Canonical (current):**
 - `HKASK_FUSION_JUDGE_MODEL`
 - `HKASK_FUSION_PANEL_MODELS`
@@ -47,11 +49,11 @@ If you want one global default for **inference**, prefer `HKASK_DEFAULT_MODEL`. 
 - `HKASK_FUSION_MAX_ROUNDS`
 - `HKASK_FUSION_DISABLED`
 
-### 1.6 Matrix agent credentials: env vars vs keychain keys
+### 1.5 Matrix agent credentials: env vars vs keychain keys
 - **Env vars for MCP servers:** `HKASK_MATRIX_AGENT_USERNAME`, `HKASK_MATRIX_AGENT_PASSWORD`
 - **Keychain key prefixes (not env vars):** `HKASK_MATRIX_AGENT_USERNAME_`, `HKASK_MATRIX_AGENT_PASSWORD_` (suffix = agent name)
 
-### 1.7 Agent persona naming
+### 1.6 Agent persona naming
 `HKASK_REPLICANT_PERSONA` is the env var used by the MCP runtime for persona-based WebID resolution.
 
 ---
@@ -95,7 +97,7 @@ HKASK_EMBEDDING_DIM
 HKASK_EMBEDDING_MODEL
 HKASK_EODHD_API_KEY
 HKASK_EXA_API_KEY
-HKASK_FAL_API_KEY
+
 HKASK_FEDERATION_ENABLED
 HKASK_FERMI_DEFAULTS
 HKASK_FIRECRAWL_API_KEY
@@ -195,6 +197,7 @@ CARGO_MANIFEST_DIR
 CONTAINER_REGISTRY
 DI_API_KEY
 DI_BASE_URL
+FA_API_KEY
 FA_BASE_URL
 FA_MEDIA_BASE_URL
 FA_QUEUE_BASE_URL
@@ -206,6 +209,7 @@ HEDERA_TREASURY_ACCOUNT
 HF_TOKEN
 HOME
 INFERENCE_MODEL
+KC_API_KEY
 KC_BASE_URL
 LITESTREAM_ACCESS_KEY_ID
 LITESTREAM_BUCKET
@@ -213,6 +217,7 @@ LITESTREAM_ENDPOINT
 LITESTREAM_FORCE_PATH_STYLE
 LITESTREAM_REGION
 LITESTREAM_SECRET_ACCESS_KEY
+OR_API_KEY
 OR_BASE_URL
 RUNPOD_API_KEY
 RUNPOD_CONTAINER_DISK_GB
@@ -221,8 +226,8 @@ RUNPOD_MIN_MEMORY_GB
 RUNPOD_MIN_VCPU_COUNT
 RUNPOD_TEMPLATE_ID
 SHELL
+TG_API_KEY
 TG_BASE_URL
-TOGETHER_API_KEY
 USERPROFILE
 ```
 
@@ -230,8 +235,7 @@ USERPROFILE
 
 ## 4. Notes on aliases and redundancy
 
-- `HKASK_FAL_API_KEY` is the only supported Fal.ai API key env var.
-- `DI_API_KEY` is the only supported DeepInfra API key env var.
+- Inference provider API keys follow the `XX_API_KEY` pattern (DI/FA/TG/OR/KC).
 - `HKASK_MATRIX_AGENT_USERNAME_` / `HKASK_MATRIX_AGENT_PASSWORD_` are **keychain key prefixes**, not environment variables.
 
 ---

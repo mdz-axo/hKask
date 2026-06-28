@@ -3,7 +3,7 @@
 //! Tests that the InferenceRouter correctly routes to DeepInfra and Together
 //! backends with real API calls. Skipped when API keys are not set.
 //!
-//! Run with: DI_API_KEY=... TOGETHER_API_KEY=... cargo test -p hkask-inference --test live_backends -- --ignored
+//! Run with: DI_API_KEY=... TG_API_KEY=... cargo test -p hkask-inference --test live_backends -- --ignored
 
 use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId};
 use hkask_ports::InferencePort;
@@ -111,10 +111,10 @@ async fn deepinfra_summarization() {
 
 // [P9] Motivating: Homeostatic Self-Regulation — live Together AI generation with reasoning disabled
 #[tokio::test]
-#[ignore = "requires TOGETHER_API_KEY"]
+#[ignore = "requires TG_API_KEY"]
 async fn together_summarization() {
     load_env();
-    let api_key = std::env::var("TOGETHER_API_KEY").expect("TOGETHER_API_KEY must be set");
+    let api_key = std::env::var("TG_API_KEY").expect("TG_API_KEY must be set");
 
     let config = make_config(ProviderId::Together, "https://api.together.xyz", &api_key);
     let router = InferenceRouter::new(config);

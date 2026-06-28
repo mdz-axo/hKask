@@ -224,7 +224,7 @@ fn all_titles_are_distinct() {
         .collect();
     titles.sort_unstable();
     titles.dedup();
-    assert_eq!(titles.len(), 22, "duplicate titles: {:?}", titles);
+    assert_eq!(titles.len(), 21, "duplicate titles: {:?}", titles);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -740,9 +740,7 @@ fn command_palette_filters_and_selects() {
     let dismiss = palette.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     assert_eq!(
         dismiss,
-        Some(hkask_tui::command_palette::PaletteAction::Open(
-            hkask_tui::WindowKind::Chat
-        ))
+        Some(hkask_tui::command_palette::PaletteAction::Close)
     );
 
     // Reset and verify Ctrl+P dismisses
@@ -750,9 +748,7 @@ fn command_palette_filters_and_selects() {
     let toggle = palette.handle_key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::CONTROL));
     assert_eq!(
         toggle,
-        Some(hkask_tui::command_palette::PaletteAction::Open(
-            hkask_tui::WindowKind::Chat
-        ))
+        Some(hkask_tui::command_palette::PaletteAction::Close)
     );
 }
 

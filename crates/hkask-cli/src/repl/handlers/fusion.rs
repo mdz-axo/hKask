@@ -51,9 +51,7 @@ pub(crate) fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
                 println!(
                     "  \x1b[31mCannot enable fusion:\x1b[0m no inference provider configured."
                 );
-                println!(
-                    "  Set at least one provider API key (DI_API_KEY, KILOCODE_API_KEY, etc.)."
-                );
+                println!("  Set at least one provider API key (DI_API_KEY, KC_API_KEY, etc.).");
                 println!();
                 return;
             }

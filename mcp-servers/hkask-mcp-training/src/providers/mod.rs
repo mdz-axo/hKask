@@ -50,7 +50,7 @@ pub fn create_host(
         TrainingHostId::Together => {
             if config.together_api_key.is_empty() {
                 return Err(ProviderError::Unavailable(
-                    "Together AI API key not configured (set TOGETHER_API_KEY)".to_string(),
+                    "Together AI API key not configured (set TG_API_KEY)".to_string(),
                 ));
             }
             Ok(Box::new(TogetherHost::new(

@@ -538,7 +538,7 @@ Provider backends require API keys set in the environment:
 
 | Provider | Environment Variable |
 |----------|---------------------|
-| Together AI | `TOGETHER_API_KEY` |
+| Together AI | `TG_API_KEY` |
 | Runpod | `RUNPOD_API_KEY` |
 | Baseten | `BASETEN_API_KEY` |
 | HuggingFace | `HF_TOKEN` |
@@ -719,7 +719,7 @@ ENTRYPOINT ["hkask-mcp-training"]
 
 | Symptom | Likely Cause | Resolution |
 |---------|-------------|------------|
-| "TOGETHER_API_KEY not set" | Missing environment variable | `export TOGETHER_API_KEY=<key>` or add to `.env` |
+| "TG_API_KEY not set" | Missing environment variable | `export TG_API_KEY=<key>` or add to `.env` |
 | "Adapter not found by ID or skill name" | Adapter not registered | Run `training_list_adapters` to see available adapters |
 | "Provider unavailable for adapter composition" | Provider not in backend registry | Verify provider is configured (Together/Runpod/Baseten) |
 | "Base model incompatibility" | Adapter trained on unsupported model | Check `ProviderCapability::supported_base_model_families` |

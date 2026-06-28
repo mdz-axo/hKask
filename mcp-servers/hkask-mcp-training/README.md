@@ -34,14 +34,14 @@ Uses internal tool dispatch pattern (not individual `pub async fn` per tool).
 
 | Variable | Description |
 |----------|-------------|
-| `TOGETHER_API_KEY` | Together AI API key |
+| `TG_API_KEY` | Together AI API key |
 | `BASETEN_API_KEY` | Baseten API key |
 | `RUNPOD_API_KEY` | Runpod API key |
 
 ## Quick Start
 
 ```bash
-export TOGETHER_API_KEY="your-key"
+export TG_API_KEY="your-key"
 # The server starts automatically with kask
 kask chat
 ```

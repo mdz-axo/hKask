@@ -819,10 +819,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TOGETHER_API_KEY"]
+    #[ignore = "requires TG_API_KEY"]
     fn create_endpoint_returns_handle() {
         unsafe {
-            std::env::set_var("TOGETHER_API_KEY", "test-key");
+            std::env::set_var("TG_API_KEY", "test-key");
         }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
@@ -843,10 +843,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TOGETHER_API_KEY"]
+    #[ignore = "requires TG_API_KEY"]
     fn endpoint_status_query() {
         unsafe {
-            std::env::set_var("TOGETHER_API_KEY", "test-key");
+            std::env::set_var("TG_API_KEY", "test-key");
         }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
@@ -871,10 +871,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TOGETHER_API_KEY"]
+    #[ignore = "requires TG_API_KEY"]
     fn teardown_endpoint() {
         unsafe {
-            std::env::set_var("TOGETHER_API_KEY", "test-key");
+            std::env::set_var("TG_API_KEY", "test-key");
         }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
@@ -993,10 +993,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TOGETHER_API_KEY"]
+    #[ignore = "requires TG_API_KEY"]
     fn drain_all_owner_cleans_up() {
         unsafe {
-            std::env::set_var("TOGETHER_API_KEY", "test-key");
+            std::env::set_var("TG_API_KEY", "test-key");
         }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));
@@ -1084,10 +1084,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TOGETHER_API_KEY"]
+    #[ignore = "requires TG_API_KEY"]
     fn endpoint_guard_teardown_on_drop() {
         unsafe {
-            std::env::set_var("TOGETHER_API_KEY", "test-key");
+            std::env::set_var("TG_API_KEY", "test-key");
         }
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
@@ -1119,10 +1119,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TOGETHER_API_KEY"]
+    #[ignore = "requires TG_API_KEY"]
     fn endpoint_guard_explicit_teardown() {
         unsafe {
-            std::env::set_var("TOGETHER_API_KEY", "test-key");
+            std::env::set_var("TG_API_KEY", "test-key");
         }
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
@@ -1150,10 +1150,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TOGETHER_API_KEY"]
+    #[ignore = "requires TG_API_KEY"]
     fn end_to_end_store_deploy_status_teardown() {
         unsafe {
-            std::env::set_var("TOGETHER_API_KEY", "test-key");
+            std::env::set_var("TG_API_KEY", "test-key");
         }
         let db = in_memory_db();
         let store = Arc::new(AdapterStore::new(db.conn_arc()));

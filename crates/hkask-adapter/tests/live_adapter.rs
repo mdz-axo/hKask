@@ -4,13 +4,13 @@
 //! store → select → deploy → infer → teardown
 //!
 //! Requires:
-//!   TOGETHER_API_KEY — Together AI API key
+//!   TG_API_KEY — Together AI API key
 //!   HF_TOKEN — HuggingFace token (for private/gated adapter repos)
 //!   HKASK_LIVE_ADAPTER_REPO — HuggingFace repo with an adapter (e.g. "user/adapter-name")
 //!   HKASK_LIVE_BASE_MODEL — Base model family (e.g. "llama-3.3-70b")
 //!
 //! Run with:
-//!   TOGETHER_API_KEY=... HF_TOKEN=... \
+//!   TG_API_KEY=... HF_TOKEN=... \
 //!   HKASK_LIVE_ADAPTER_REPO=user/adapter \
 //!   HKASK_LIVE_BASE_MODEL=llama-3.3-70b \
 //!   cargo test -p hkask-adapter --test live_adapter -- --ignored
@@ -83,17 +83,17 @@ fn require_env(var: &str) -> String {
 }
 
 #[tokio::test]
-#[ignore = "requires TOGETHER_API_KEY, HF_TOKEN, HKASK_LIVE_ADAPTER_REPO, HKASK_LIVE_BASE_MODEL"]
+#[ignore = "requires TG_API_KEY, HF_TOKEN, HKASK_LIVE_ADAPTER_REPO, HKASK_LIVE_BASE_MODEL"]
 async fn live_together_adapter_e2e() {
     load_env();
-    let api_key = require_env("TOGETHER_API_KEY");
+    let api_key = require_env("TG_API_KEY");
     let hf_repo = require_env("HKASK_LIVE_ADAPTER_REPO");
     let base_model = require_env("HKASK_LIVE_BASE_MODEL");
     let _hf_token = std::env::var("HF_TOKEN").ok();
 
     // SAFETY: test-only — set API key for the Together backend
     unsafe {
-        std::env::set_var("TOGETHER_API_KEY", &api_key);
+        std::env::set_var("TG_API_KEY", &api_key);
     }
 
     let db = in_memory_db();

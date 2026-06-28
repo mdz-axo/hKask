@@ -684,7 +684,7 @@ cargo mutants -p hkask-types --timeout 120
 
 ```bash
 # Triage bolero failures with LLM classifier
-export DEEPINFRA_API_KEY="your-key"
+export DI_API_KEY="your-key"
 cargo test -p hkask-types-fuzz 2>&1 | kask qa triage
 
 # Suggest fuzz targets from surviving mutants
@@ -754,7 +754,7 @@ cargo mutants -p hkask-types --timeout 120 2>&1 | grep "Uncaught" | kask qa sugg
 
 | Issue | Cause | Resolution |
 |-------|-------|------------|
-| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `OPENROUTER_API_KEY` |
+| `Provider X is not available` | API key not set | Set `DI_API_KEY` or `OR_API_KEY` |
 | `Inference error: error sending request` | Provider unreachable | Verify provider URL and network connectivity |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates: `kask template register` |

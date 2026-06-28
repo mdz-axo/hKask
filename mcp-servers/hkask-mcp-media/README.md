@@ -45,12 +45,12 @@ Media generation MCP server — image, video, audio, and 3D generation via fal.a
 
 ## Configuration
 
-Provider API keys configured via standard environment variables (`DI_API_KEY`, `HKASK_FAL_API_KEY`, etc.).
+Provider API keys configured via standard environment variables (`DI_API_KEY`, `FA_API_KEY`, `TG_API_KEY`, `OR_API_KEY`, `KC_API_KEY`).
 
 ## Quick Start
 
 ```bash
-export HKASK_FAL_API_KEY="your-fal-ai-key"
+export FA_API_KEY="your-fal-ai-key"
 # The server starts automatically with kask
 kask chat
 # Or standalone:

@@ -31,7 +31,7 @@
 //! - `HKASK_TRAINING_HOST` — Override host (together|runpod|baseten) — where compute runs
 //! - `HKASK_TRAINING_HARNESS` — Override harness (axolotl|unsloth) — what tooling runs
 //! - `HKASK_TRAINING_CACHE_DIR` — Dataset cache directory
-//! - `TOGETHER_API_KEY` — Together AI API key (for Together host)
+//! - `TG_API_KEY` — Together AI API key (for Together host)
 //! - `RUNPOD_API_KEY` — Runpod API key (for Runpod host)
 //! - `RUNPOD_TEMPLATE_ID` — Runpod GPU pod template ID with axolotl pre-installed
 //! - `RUNPOD_GPU_TYPE_ID` — GPU type ID for Runpod pods (default: "NVIDIA RTX 4090")
@@ -2779,7 +2779,7 @@ pub async fn run(
         .unwrap_or(TrainingHarnessId::Axolotl);
     let host_config = TrainingHostConfig {
         host: host_id,
-        together_api_key: std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
+        together_api_key: std::env::var("TG_API_KEY").unwrap_or_default(),
         runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
         runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
         baseten_api_key: std::env::var("BASETEN_API_KEY").unwrap_or_default(),
