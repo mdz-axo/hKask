@@ -101,7 +101,6 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
 | `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, curator, experience, skills | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
-| `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | ✅ Realigned |
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | ✅ Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | ✅ Realigned |
@@ -570,7 +569,6 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
 | `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, curator, experience, skills | `P{N}-svc-{domain}-*` | 102 | Realigned |
-| `hkask-services-backup` | GitCAS operational backup | `P{N}-svc-backup-*` | 39 | Realigned |
 | `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | Realigned |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | Realigned |
@@ -583,7 +581,6 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | Crate | MDS Category | Key Entities |
 |-------|-------------|-------------|
 | `hkask-services` | Domain, Composition | `AgentService`, `ServiceConfig`, `PerAgentMemory` |
-| `hkask-services-backup` | Lifecycle | GitCAS archive, export/import pipelines |
 | `hkask-services-runtime` | Lifecycle | `ClassifyService`, `DaemonService` |
 | `hkask-services-context` | Lifecycle | `ContextService`, contract monitoring |
 | `hkask-services-corpus` | Domain | `CorpusService`, embedding pipelines |

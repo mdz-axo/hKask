@@ -101,7 +101,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
             connector_latency_max_secs,
             communication_backpressure_threshold,
         } => {
-            let rt_ref = build_cns_runtime(rt);
+            let _rt_ref = build_cns_runtime(rt);
             let defaults = hkask_cns::load_set_points();
             println!("CNS Set-Points");
             println!("==============");

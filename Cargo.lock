@@ -4646,6 +4646,7 @@ dependencies = [
  "hkask-services-core",
  "hkask-templates",
  "hkask-types",
+ "proptest",
  "serde",
  "serde_json",
  "tracing",
@@ -4662,6 +4663,7 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "minijinja",
+ "proptest",
  "serde",
  "tracing",
 ]
@@ -4759,6 +4761,7 @@ dependencies = [
 name = "hkask-services-curator"
 version = "0.30.0"
 dependencies = [
+ "chrono",
  "hkask-agents",
  "hkask-cns",
  "hkask-communication",
@@ -4768,6 +4771,7 @@ dependencies = [
  "hkask-types",
  "serde_json",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -4871,6 +4875,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_neo",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",

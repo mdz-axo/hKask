@@ -34,7 +34,7 @@ const CONDENSER_SYSTEM_PROMPT: &str = "You are a context condensation assistant.
      eliminating verbosity. Use bullet points. Be concise.";
 
 /// Token usage breakdown for gas accounting.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TokenUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -269,6 +269,7 @@ mod tests {
 /// Carries the response text, token usage, and structured tool calls
 /// (from native function calling) alongside the finish reason so the
 /// calling surface can detect tool-call completions.
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ChatResponse {
     /// The agent's response text
     pub text: String,

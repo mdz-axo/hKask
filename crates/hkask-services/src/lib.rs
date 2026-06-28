@@ -84,12 +84,10 @@ mod tests {
             if in_deps && trimmed.starts_with('[') {
                 break;
             }
-            if in_deps {
-                if let Some(name) = trimmed.split('=').next() {
-                    let name = name.trim();
-                    if name.starts_with("hkask-services-") {
-                        deps.push(name.to_string());
-                    }
+            if in_deps && let Some(name) = trimmed.split('=').next() {
+                let name = name.trim();
+                if name.starts_with("hkask-services-") {
+                    deps.push(name.to_string());
                 }
             }
         }

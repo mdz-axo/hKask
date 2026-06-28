@@ -2,6 +2,7 @@
 //!
 //! Usage: cargo run --example audit_skills -p hkask-services
 
+use hkask_services::skill::{SkillAuditor, SkillStatus};
 use std::path::Path;
 
 fn main() {
@@ -15,7 +16,7 @@ fn main() {
     let loader = hkask_templates::SkillLoader::new(project_root);
     loader.load_into(&mut skill_index);
 
-    let auditor = hkask_services::SkillAuditor::new(&registry, &skill_index, project_root);
+    let auditor = SkillAuditor::new(&registry, &skill_index, project_root);
     let report = auditor.audit_all().expect("audit all skills");
 
     let json = report.to_json().expect("serialize report");
@@ -45,10 +46,10 @@ fn main() {
             registry_only += 1;
         }
         match score.status {
-            hkask_services::SkillStatus::Active => active += 1,
-            hkask_services::SkillStatus::StaleWarning => stale += 1,
-            hkask_services::SkillStatus::Critical => critical += 1,
-            hkask_services::SkillStatus::RecommendDeprecation => deprecated += 1,
+            SkillStatus::Active => active += 1,
+            SkillStatus::StaleWarning => stale += 1,
+            SkillStatus::Critical => critical += 1,
+            SkillStatus::RecommendDeprecation => deprecated += 1,
         }
         md.push_str(&format!(
             "| {} | {} | {} | {:.2} | {:?} | {} |\n",

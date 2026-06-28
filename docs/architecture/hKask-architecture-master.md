@@ -1306,7 +1306,6 @@ kask init --profile server
 | Crate | Pub Items | Key Concerns | Justification |
 |-------|-----------|-------------|---------------|
 | `hkask-services` | 66 | 28 private `AgentService` fields, domain submodules | Strangler fig consolidation target. Each submodule ≤7 functions individually. |
-| `hkask-services-backup` | 12 | BackupService, GitCASPort, encryption config | Extracted for parallel compilation. Each concern independently testable. |
 | `hkask-types` | 50 | CNS span registry (28 variants), WebID, RDF types | Canonical type crate. CNS spans alone justify the surface — each span defines vocabulary. |
 | `hkask-test-harness` | 42 | Contract verification, proptest strategies | Testing infrastructure. Each strategy is test-only. |
 | `hkask-storage` | 39 | `define_store!` macro, TripleStore, vector store | Persistence orchestration. Each store follows same deep pattern. |

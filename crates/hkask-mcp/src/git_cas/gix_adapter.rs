@@ -936,7 +936,7 @@ mod tests {
     #[tokio::test]
     async fn diff_detects_added_removed_and_modified() {
         let (adapter, _dir) = test_adapter();
-        use RepoId::{GoalsSpecs, Registry};
+        use RepoId::GoalsSpecs;
 
         // Create first snapshot in Repo A
         adapter
@@ -1087,7 +1087,7 @@ mod tests {
         std::fs::write(pod_dir.join("deep/nested/path/data.txt"), b"deep data").unwrap();
         std::fs::write(pod_dir.join("root.txt"), b"root").unwrap();
 
-        let commit = adapter
+        let _commit = adapter
             .snapshot_pod_dir(&pod_dir, "nested dirs")
             .await
             .unwrap();
