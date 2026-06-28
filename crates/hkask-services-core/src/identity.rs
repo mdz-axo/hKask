@@ -6,72 +6,8 @@
 use hkask_types::WebID;
 use hkask_types::id::UserID;
 use hkask_types::id::WalletId;
+pub use hkask_types::identity::{OAuthProvider, Role};
 use serde::{Deserialize, Serialize};
-
-/// User role for multi-user access control.
-///
-/// expect: "I can assign roles to users to control what they can access"
-/// \[P1\] Goal: User Sovereignty — roles enforce who can manage the server
-///Constraining: Affirmative Consent — admin role is explicitly granted, never default
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum Role {
-    /// Full administrative access: invite, sessions, config, all realms.
-    Admin,
-    /// Standard user access: own replicants, own sessions, own resources.
-    #[default]
-    Member,
-}
-
-impl std::fmt::Display for Role {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Role::Admin => f.write_str("admin"),
-            Role::Member => f.write_str("member"),
-        }
-    }
-}
-
-impl std::str::FromStr for Role {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "admin" => Ok(Role::Admin),
-            "member" => Ok(Role::Member),
-            other => Err(format!("Unknown role: {other}")),
-        }
-    }
-}
-
-/// OAuth identity provider for human user sign-in.
-///
-/// expect: "System types preserve semantic identity and are provenance-aware"
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum OAuthProvider {
-    GitHub,
-    Google,
-}
-
-impl std::fmt::Display for OAuthProvider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            OAuthProvider::GitHub => f.write_str("github"),
-            OAuthProvider::Google => f.write_str("google"),
-        }
-    }
-}
-
-impl std::str::FromStr for OAuthProvider {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "github" => Ok(OAuthProvider::GitHub),
-            "google" => Ok(OAuthProvider::Google),
-            other => Err(format!("Unknown OAuth provider: {other}")),
-        }
-    }
-}
 
 /// Loop: Cybernetics
 /// Human user — owns contact info (email, phone for recovery only)
