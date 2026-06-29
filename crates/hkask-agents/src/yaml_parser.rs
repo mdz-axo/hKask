@@ -1,9 +1,9 @@
-//! YAML deserializer — parse stored agent YAML back into rich AgentDefinition.
+//! YAML deserializer — parse stored agent YAML back into AgentDefinition.
 //!
 //! The store holds `hkask_types::RegisteredAgent.source_yaml` (the original YAML).
-//! This module parses it into the rich `AgentDefinition` from hkask-agents,
-//! recovering fields like `persona`, `process_manifest`, `voice_description` etc.
-//! that the base `hkask_types::AgentDefinition` doesn't carry.
+//! This module parses it into the canonical `AgentDefinition`, rebuilding the
+//! same fields (persona, process_manifest, voice_description, etc.) from source
+//! YAML when needed.
 
 use serde::Deserialize;
 

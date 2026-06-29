@@ -288,7 +288,6 @@ impl OnboardingService {
                     description: description.to_string(),
                     archetype: String::new(),
                     visibility: String::new(),
-                    constraints: vec![],
                 }),
                 capabilities: default_capabilities,
                 rights: vec![],

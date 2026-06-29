@@ -2,16 +2,8 @@
 
 use crate::a2a::{A2AError, A2ARuntime};
 use crate::adapters::registry_source::FilesystemRegistrySource;
-use crate::types::agent::definition::{AgentDefinition, Charter};
-use crate::types::agent::profile::{Responsibility, Right};
-use hkask_storage::{
-    AgentDefinition as StorageAgentDefinition, AgentRegistryError, AgentRegistryStore,
-    Charter as StorageCharter, RegisteredAgent, now_rfc3339,
-};
-use hkask_types::AgentKind;
-use hkask_types::PersonaConstraints;
+use hkask_storage::{AgentRegistryError, AgentRegistryStore, RegisteredAgent, now_rfc3339};
 use hkask_types::WebID;
-use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::Error;
@@ -181,24 +173,7 @@ impl AgentRegistryLoader {
         };
 
         let registered = RegisteredAgent {
-            definition: StorageAgentDefinition {
-                name: definition.name,
-                agent_kind: definition.agent_kind,
-                charter: definition.charter.map(|c| StorageCharter {
-                    description: c.description,
-                    archetype: c.archetype,
-                    visibility: c.visibility,
-                    constraints: c.constraints,
-                }),
-                capabilities: definition.capabilities,
-                rights: vec![],
-                responsibilities: vec![],
-                depends_on: vec![],
-                persona: None,
-                process_manifest: None,
-                voice_description: None,
-                voice_id: None,
-            },
+            definition,
             token_hash: hex::encode(token.signature_bytes()),
             registered_at: now_rfc3339(),
             source_yaml: path.to_string(),

@@ -171,7 +171,6 @@ impl RawYamlAgent {
                 description: c.description,
                 archetype: c.archetype,
                 visibility: c.visibility,
-                constraints: vec![],
             }),
             capabilities: self.capabilities,
             rights: Self::convert_rights(self.rights),

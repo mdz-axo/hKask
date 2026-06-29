@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct Charter {
     /// Primary charter description.
-    #[serde(alias = "purpose")]
     pub description: String,
     /// Optional archetype label (e.g., "curator", "builder").
     #[serde(default)]
@@ -20,38 +19,19 @@ pub struct Charter {
     /// Default visibility label (e.g., "public", "private").
     #[serde(default)]
     pub visibility: String,
-    /// Legacy constraints list (storage compatibility).
-    #[serde(default)]
-    pub constraints: Vec<String>,
 }
 
 /// Access right granted to an agent.
 ///
-/// Serialized as a tagged enum (type + fields). Legacy flat records are
-/// accepted via custom deserialization and mapped to `Legacy`.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+/// Serialized as a tagged enum (type + fields).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Right {
-    Read {
-        resource: String,
-    },
-    Write {
-        resource: String,
-    },
-    Execute {
-        action: String,
-    },
-    Coordinate {
-        scope: String,
-    },
-    EscalateTo {
-        target: String,
-    },
-    /// Legacy flat record (name + description).
-    Legacy {
-        name: String,
-        description: String,
-    },
+    Read { resource: String },
+    Write { resource: String },
+    Execute { action: String },
+    Coordinate { scope: String },
+    EscalateTo { target: String },
 }
 
 impl Right {
@@ -65,100 +45,24 @@ impl Right {
             Right::Execute { action } => format!("execute: {action}"),
             Right::Coordinate { scope } => format!("coordinate: {scope}"),
             Right::EscalateTo { target } => format!("escalate_to: {target}"),
-            Right::Legacy { name, description } => format!("{name}: {description}"),
         }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum RightTagged {
-    Read { resource: String },
-    Write { resource: String },
-    Execute { action: String },
-    Coordinate { scope: String },
-    EscalateTo { target: String },
-}
-
-impl From<RightTagged> for Right {
-    fn from(tagged: RightTagged) -> Self {
-        match tagged {
-            RightTagged::Read { resource } => Right::Read { resource },
-            RightTagged::Write { resource } => Right::Write { resource },
-            RightTagged::Execute { action } => Right::Execute { action },
-            RightTagged::Coordinate { scope } => Right::Coordinate { scope },
-            RightTagged::EscalateTo { target } => Right::EscalateTo { target },
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Right {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = serde_json::Value::deserialize(deserializer)?;
-        if value.get("type").is_some() {
-            let tagged: RightTagged =
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-            return Ok(tagged.into());
-        }
-        let name = value
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
-        let description = value
-            .get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
-        Ok(Right::Legacy {
-            name: name.to_string(),
-            description: description.to_string(),
-        })
     }
 }
 
 /// Responsibility assigned to an agent.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Responsibility {
-    Monitor {
-        target: String,
-    },
-    Synthesize {
-        input: String,
-        output: String,
-    },
-    Perform {
-        action: String,
-    },
-    Calibrate {
-        target: String,
-    },
-    Escalate {
-        trigger: String,
-        target: String,
-    },
-    Maintain {
-        resource: String,
-    },
-    Emit {
-        span: String,
-    },
-    Orchestrate {
-        session: String,
-    },
-    Record {
-        target: String,
-    },
-    Produce {
-        artifact: String,
-    },
-    /// Legacy flat record (name + description).
-    Legacy {
-        name: String,
-        description: String,
-    },
+    Monitor { target: String },
+    Synthesize { input: String, output: String },
+    Perform { action: String },
+    Calibrate { target: String },
+    Escalate { trigger: String, target: String },
+    Maintain { resource: String },
+    Emit { span: String },
+    Orchestrate { session: String },
+    Record { target: String },
+    Produce { artifact: String },
 }
 
 impl Responsibility {
@@ -181,72 +85,7 @@ impl Responsibility {
             Responsibility::Orchestrate { session } => format!("orchestrate: {session}"),
             Responsibility::Record { target } => format!("record: {target}"),
             Responsibility::Produce { artifact } => format!("produce: {artifact}"),
-            Responsibility::Legacy { name, description } => format!("{name}: {description}"),
         }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum ResponsibilityTagged {
-    Monitor { target: String },
-    Synthesize { input: String, output: String },
-    Perform { action: String },
-    Calibrate { target: String },
-    Escalate { trigger: String, target: String },
-    Maintain { resource: String },
-    Emit { span: String },
-    Orchestrate { session: String },
-    Record { target: String },
-    Produce { artifact: String },
-}
-
-impl From<ResponsibilityTagged> for Responsibility {
-    fn from(tagged: ResponsibilityTagged) -> Self {
-        match tagged {
-            ResponsibilityTagged::Monitor { target } => Responsibility::Monitor { target },
-            ResponsibilityTagged::Synthesize { input, output } => {
-                Responsibility::Synthesize { input, output }
-            }
-            ResponsibilityTagged::Perform { action } => Responsibility::Perform { action },
-            ResponsibilityTagged::Calibrate { target } => Responsibility::Calibrate { target },
-            ResponsibilityTagged::Escalate { trigger, target } => {
-                Responsibility::Escalate { trigger, target }
-            }
-            ResponsibilityTagged::Maintain { resource } => Responsibility::Maintain { resource },
-            ResponsibilityTagged::Emit { span } => Responsibility::Emit { span },
-            ResponsibilityTagged::Orchestrate { session } => {
-                Responsibility::Orchestrate { session }
-            }
-            ResponsibilityTagged::Record { target } => Responsibility::Record { target },
-            ResponsibilityTagged::Produce { artifact } => Responsibility::Produce { artifact },
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Responsibility {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = serde_json::Value::deserialize(deserializer)?;
-        if value.get("type").is_some() {
-            let tagged: ResponsibilityTagged =
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-            return Ok(tagged.into());
-        }
-        let name = value
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
-        let description = value
-            .get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default();
-        Ok(Responsibility::Legacy {
-            name: name.to_string(),
-            description: description.to_string(),
-        })
     }
 }
 
