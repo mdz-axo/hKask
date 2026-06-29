@@ -40,7 +40,7 @@ pub use error::ApiError;
 // Re-export route types for OpenAPI schema generation
 pub use routes::{A2ARegisterRequest, A2ARegisterResponse};
 pub use routes::{
-    ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
+    ApiChatRequest, ApiChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, ListPodsResponse, ModelEntry, ModelListResponse, ModelSearchQuery,
     PodStatusResponse, SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse,
     TemplateResponse, VarietyCounterResponse, WithdrawalFeeEstimateResponse,

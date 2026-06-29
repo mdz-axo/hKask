@@ -9,8 +9,8 @@
 //! builds a tree from blob OIDs, commits the tree. No index needed.
 
 use hkask_ports::git_cas::{
-    CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, LogEntry, RepoId,
-    TreeEntry, TreeEntryKind, VerificationReport,
+    CommitHash, ContentHash, DiffKind, FileDiff, GitCASPort, GitCasError, GitCasVerificationReport,
+    LogEntry, RepoId, TreeEntry, TreeEntryKind,
 };
 use std::path::{Path, PathBuf};
 use tokio::sync::RwLock;
@@ -594,13 +594,13 @@ impl GitCASPort for GixCasAdapter {
         .await
     }
 
-    async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError> {
+    async fn verify(&self, repo: &RepoId) -> Result<GitCasVerificationReport, GitCasError> {
         let repo_dir = self.ensure_repo_dir(repo).await?;
         let cas_dir = repo_dir.join("cas");
         let repo_id = repo.clone();
         spawn_blocking_io(move || {
             if !cas_dir.exists() {
-                return Ok(VerificationReport {
+                return Ok(GitCasVerificationReport {
                     repo: repo_id,
                     total_blobs: 0,
                     verified_blobs: 0,
@@ -639,7 +639,7 @@ impl GitCASPort for GixCasAdapter {
                     corrupt.push(expected_hash);
                 }
             }
-            Ok(VerificationReport {
+            Ok(GitCasVerificationReport {
                 repo: repo_id,
                 total_blobs: total,
                 verified_blobs: verified,

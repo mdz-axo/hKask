@@ -4,7 +4,7 @@
 //! declaring conflicts, complementarities, and cascade steps that govern
 //! how the bundled skills execute together.
 //!
-//! The config sub-structs (ConvergenceConfig, GasConfig, etc.) mirror the
+//! The config sub-structs (ConvergenceConfig, BundleGasConfig, etc.) mirror the
 //! fields found in existing process manifests under `registry/manifests/`.
 
 use serde::{Deserialize, Serialize};
@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use super::cascade::CascadePhase;
 use super::composition::{BundleComplementarity, BundleConflict};
 use super::config::{
-    AuditConfig, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
-    RjouleConfig,
+    AuditConfig, BundleCnsConfig, BundleGasConfig, ConvergenceConfig, ErrorHandlingConfig,
+    OcapConfig, RjouleConfig,
 };
 use hkask_types::SkillPolarity;
 use hkask_types::Visibility;
@@ -78,11 +78,11 @@ pub struct BundleManifest {
     pub complementarities: Vec<BundleComplementarity>,
     pub steps: Vec<BundleManifestStep>,
     pub convergence: ConvergenceConfig,
-    pub gas: GasConfig,
+    pub gas: BundleGasConfig,
     pub rjoule: RjouleConfig,
     pub error_handling: ErrorHandlingConfig,
     pub ocap: OcapConfig,
-    pub cns: CnsConfig,
+    pub cns: BundleCnsConfig,
     pub audit: AuditConfig,
     #[serde(default)]
     pub functional_role: Option<String>,

@@ -8,7 +8,7 @@
 //! to the end-to-end test suite. See OPEN_QUESTIONS.md.
 
 use hkask_api::routes::{
-    A2ARegisterRequest, A2ARegisterResponse, ChatRequest, ChatResponse, CnsHealthResponse,
+    A2ARegisterRequest, A2ARegisterResponse, ApiChatRequest, ApiChatResponse, CnsHealthResponse,
     CnsVarietyResponse, CreatePodRequest, CreatePodResponse, ListPodsResponse, ModelEntry,
     ModelListResponse, PodStatusResponse, SovereigntyStatusResponse, SpecCoherenceResponse,
     SpecListResponse, SpecWritingQualityResponse, TemplateResponse, VarietyCounterResponse,
@@ -24,13 +24,14 @@ const TEST_MODEL: &str = "DI/google/gemma-4-9b-it";
 
 #[test]
 fn chat_request_serialization_round_trip() {
-    let req = ChatRequest {
+    let req = ApiChatRequest {
         input: "Hello, Curator!".to_string(),
         template_id: Some("greeting".to_string()),
         model: Some(TEST_MODEL.to_string()),
     };
-    let json = serde_json::to_string(&req).expect("ChatRequest should serialize");
-    let parsed: ChatRequest = serde_json::from_str(&json).expect("ChatRequest should deserialize");
+    let json = serde_json::to_string(&req).expect("ApiChatRequest should serialize");
+    let parsed: ApiChatRequest =
+        serde_json::from_str(&json).expect("ApiChatRequest should deserialize");
     assert_eq!(parsed.input, "Hello, Curator!");
     assert_eq!(parsed.template_id, Some("greeting".to_string()));
     assert_eq!(parsed.model, Some(TEST_MODEL.to_string()));
@@ -38,13 +39,14 @@ fn chat_request_serialization_round_trip() {
 
 #[test]
 fn chat_request_minimal_fields() {
-    let req = ChatRequest {
+    let req = ApiChatRequest {
         input: "Hi".to_string(),
         template_id: None,
         model: None,
     };
-    let json = serde_json::to_string(&req).expect("ChatRequest should serialize");
-    let parsed: ChatRequest = serde_json::from_str(&json).expect("ChatRequest should deserialize");
+    let json = serde_json::to_string(&req).expect("ApiChatRequest should serialize");
+    let parsed: ApiChatRequest =
+        serde_json::from_str(&json).expect("ApiChatRequest should deserialize");
     assert_eq!(parsed.input, "Hi");
     assert!(parsed.template_id.is_none());
     assert!(parsed.model.is_none());
@@ -52,14 +54,14 @@ fn chat_request_minimal_fields() {
 
 #[test]
 fn chat_response_serialization_round_trip() {
-    let resp = ChatResponse {
+    let resp = ApiChatResponse {
         output: "Hello! How can I help?".to_string(),
         template_id: "greeting".to_string(),
         model: TEST_MODEL.to_string(),
     };
-    let json = serde_json::to_string(&resp).expect("ChatResponse should serialize");
-    let parsed: ChatResponse =
-        serde_json::from_str(&json).expect("ChatResponse should deserialize");
+    let json = serde_json::to_string(&resp).expect("ApiChatResponse should serialize");
+    let parsed: ApiChatResponse =
+        serde_json::from_str(&json).expect("ApiChatResponse should deserialize");
     assert_eq!(parsed.output, "Hello! How can I help?");
     assert_eq!(parsed.template_id, "greeting");
     assert_eq!(parsed.model, TEST_MODEL);

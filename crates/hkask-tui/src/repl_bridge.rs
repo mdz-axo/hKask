@@ -13,7 +13,7 @@
 
 /// Result of a single inference turn.
 #[derive(Debug, Clone)]
-pub struct TurnResult {
+pub struct TuiTurnResult {
     pub text: String,
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -31,7 +31,7 @@ pub enum InferenceState {
     /// Inference is running (the TUI should show a spinner)
     Thinking,
     /// Inference completed successfully
-    Done(TurnResult),
+    Done(TuiTurnResult),
 }
 
 /// Bridge between the TUI chat window and the inference engine.
@@ -48,7 +48,7 @@ pub trait ReplBridge: Send + Sync {
     fn streaming_text(&self) -> String;
 
     /// Blocking send (used for quick commands, not for normal chat).
-    fn send_message_blocking(&self, input: &str) -> TurnResult;
+    fn send_message_blocking(&self, input: &str) -> TuiTurnResult;
 
     /// Get the current agent name.
     fn agent_name(&self) -> &str;

@@ -8,7 +8,7 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct KataManifest {
     pub manifest: ManifestMeta,
-    pub gas: GasConfig,
+    pub gas: KataGasConfig,
     #[serde(default)]
     pub steps: Vec<KataStep>,
     #[serde(default)]
@@ -17,7 +17,7 @@ pub struct KataManifest {
     pub practices: Vec<PracticeRoutine>,
     #[serde(default)]
     pub error_handling: ErrorHandling,
-    pub cns: CnsConfig,
+    pub cns: KataCnsConfig,
     #[serde(default)]
     pub outcomes: Vec<Outcome>,
     #[serde(default)]
@@ -42,7 +42,7 @@ pub struct ManifestMeta {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct GasConfig {
+pub struct KataGasConfig {
     #[serde(default = "default_gas_cap")]
     pub cap: u64,
     #[serde(default = "default_alert_threshold")]
@@ -141,7 +141,7 @@ impl Default for ErrorHandling {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct CnsConfig {
+pub struct KataCnsConfig {
     #[serde(default = "default_true")]
     pub emit_spans: bool,
     pub span_namespace: String,

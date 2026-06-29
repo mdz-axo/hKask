@@ -19,7 +19,8 @@ pub use hkask_inference::{
     FusionConfig, FusionMode, FusionSkill, InferenceConfig, InferenceRouter, ProviderId,
 };
 pub use hkask_services_chat::chat::{
-    ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
+    ChatService, ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage, TurnRequest,
+    TurnResult,
 };
 pub use hkask_services_chat::memory::MemoryService;
 pub use hkask_services_compose::{

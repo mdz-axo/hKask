@@ -7,9 +7,9 @@
 //! into the canonical `BundleManifest` type.
 
 use crate::bundle::{
-    AuditConfig, BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep,
-    BundleSkill, CnsConfig, ConvergenceConfig, ErrorHandlingConfig, GasConfig, OcapConfig,
-    RjouleConfig,
+    AuditConfig, BundleCnsConfig, BundleComplementarity, BundleConflict, BundleGasConfig,
+    BundleManifest, BundleManifestStep, BundleSkill, ConvergenceConfig, ErrorHandlingConfig,
+    OcapConfig, RjouleConfig,
 };
 use hkask_types::Visibility;
 use serde::Deserialize;
@@ -48,7 +48,7 @@ struct ManifestFile {
     #[serde(default)]
     convergence: Option<ConvergenceConfig>,
     #[serde(default)]
-    gas: Option<GasConfig>,
+    gas: Option<BundleGasConfig>,
     #[serde(default)]
     rjoule: Option<RjouleConfig>,
     #[serde(default)]
@@ -56,7 +56,7 @@ struct ManifestFile {
     #[serde(default)]
     ocap: Option<OcapConfig>,
     #[serde(default)]
-    cns: Option<CnsConfig>,
+    cns: Option<BundleCnsConfig>,
     #[serde(default)]
     audit: Option<AuditConfig>,
     #[serde(default)]

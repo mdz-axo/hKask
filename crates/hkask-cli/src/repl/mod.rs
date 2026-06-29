@@ -375,7 +375,7 @@ struct TuiReplBridge {
     a2a_secret: Vec<u8>,
     agent_name: String,
     model: String,
-    pending: std::sync::Mutex<Option<std::sync::mpsc::Receiver<hkask_tui::TurnResult>>>,
+    pending: std::sync::Mutex<Option<std::sync::mpsc::Receiver<hkask_tui::TuiTurnResult>>>,
     /// Streaming text buffer for chunked display during inference
     streaming_text: Arc<std::sync::Mutex<String>>,
     alert_count: std::sync::atomic::AtomicU32,
@@ -389,9 +389,9 @@ struct TuiReplBridge {
 
 #[cfg(feature = "tui")]
 impl TuiReplBridge {
-    fn build_result(capture: &turn::TurnCapture) -> hkask_tui::TurnResult {
+    fn build_result(capture: &turn::TurnCapture) -> hkask_tui::TuiTurnResult {
         if capture.budget_exhausted {
-            return hkask_tui::TurnResult {
+            return hkask_tui::TuiTurnResult {
                 text: String::new(),
                 prompt_tokens: 0,
                 completion_tokens: 0,
@@ -406,7 +406,7 @@ impl TuiReplBridge {
             text.push_str("\n\n── Tool Results ──\n");
             text.push_str(&capture.tool_output);
         }
-        hkask_tui::TurnResult {
+        hkask_tui::TuiTurnResult {
             text,
             prompt_tokens: capture.prompt_tokens,
             completion_tokens: capture.completion_tokens,
@@ -518,7 +518,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         self.streaming_text.lock().expect("stream lock").clone()
     }
 
-    fn send_message_blocking(&self, input: &str) -> hkask_tui::TurnResult {
+    fn send_message_blocking(&self, input: &str) -> hkask_tui::TuiTurnResult {
         let (result, context_length) = {
             let mut state = self.state.lock().expect("ReplState lock");
             let capture = turn::single_agent_turn_captured(

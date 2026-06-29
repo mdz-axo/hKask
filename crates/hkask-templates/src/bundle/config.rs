@@ -94,7 +94,7 @@ fn default_weight() -> f64 {
 /// Gas is cheap compute. 250,000 gas cycles ≈ 1 rJoule of inference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct GasConfig {
+pub struct BundleGasConfig {
     /// Total compute gas budget for the cascade.
     pub cap: u32,
     /// Compute gas cost per cascade iteration (loop pass).
@@ -104,7 +104,7 @@ pub struct GasConfig {
     pub alert_threshold: f64,
     pub hard_limit: bool,
 }
-impl Default for GasConfig {
+impl Default for BundleGasConfig {
     fn default() -> Self {
         Self {
             cap: 100000,
@@ -180,14 +180,14 @@ impl Default for OcapConfig {
 /// CNS monitoring configuration. Loaded from manifest YAML, spans handled by GovernedTool at runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct CnsConfig {
+pub struct BundleCnsConfig {
     pub emit_spans: bool,
     pub span_namespace: String,
     pub variety_monitoring: bool,
     pub algedonic_threshold: u32,
     pub escalation_target: String,
 }
-impl Default for CnsConfig {
+impl Default for BundleCnsConfig {
     fn default() -> Self {
         Self {
             emit_spans: true,

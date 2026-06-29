@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 /// Summary of a single template for TUI display.
 #[derive(Debug, Clone)]
-pub struct TemplateSummary {
+pub struct TemplateListItem {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
@@ -37,7 +37,7 @@ pub trait RegistryDataBridge: Send + Sync {
     fn template_count(&self) -> usize;
     fn skill_count(&self) -> usize;
     fn bundle_count(&self) -> usize;
-    fn list_templates(&self) -> Vec<TemplateSummary>;
+    fn list_templates(&self) -> Vec<TemplateListItem>;
     fn list_skills(&self) -> Vec<SkillSummary>;
     fn list_bundles(&self) -> Vec<BundleSummary>;
 }
@@ -47,7 +47,7 @@ pub struct MockRegistryBridge {
     pub template_count: usize,
     pub skill_count: usize,
     pub bundle_count: usize,
-    pub templates: Vec<TemplateSummary>,
+    pub templates: Vec<TemplateListItem>,
     pub skills: Vec<SkillSummary>,
     pub bundles: Vec<BundleSummary>,
 }
@@ -59,17 +59,17 @@ impl MockRegistryBridge {
             skill_count: 46,
             bundle_count: 3,
             templates: vec![
-                TemplateSummary {
+                TemplateListItem {
                     id: "coding-guidelines".into(),
                     name: "coding-guidelines".into(),
                     description: Some("Enforce Karpathy's four coding principles".into()),
                 },
-                TemplateSummary {
+                TemplateListItem {
                     id: "bug-hunt".into(),
                     name: "bug-hunt".into(),
                     description: Some("Bug hunting with Weinberg's quality definition".into()),
                 },
-                TemplateSummary {
+                TemplateListItem {
                     id: "tdd".into(),
                     name: "tdd".into(),
                     description: Some("Test-driven development RED→GREEN→REFACTOR".into()),
@@ -114,7 +114,7 @@ impl RegistryDataBridge for MockRegistryBridge {
     fn bundle_count(&self) -> usize {
         self.bundle_count
     }
-    fn list_templates(&self) -> Vec<TemplateSummary> {
+    fn list_templates(&self) -> Vec<TemplateListItem> {
         self.templates.clone()
     }
     fn list_skills(&self) -> Vec<SkillSummary> {

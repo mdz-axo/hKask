@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use hkask_tui::{
-    ReplBridge, TurnResult, Window, WindowId, WindowKind, Workspace,
+    ReplBridge, TuiTurnResult, Window, WindowId, WindowKind, Workspace,
     windows::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
         CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
@@ -62,8 +62,8 @@ impl ReplBridge for MockBridge {
     fn streaming_text(&self) -> String {
         String::new()
     }
-    fn send_message_blocking(&self, _input: &str) -> TurnResult {
-        TurnResult {
+    fn send_message_blocking(&self, _input: &str) -> TuiTurnResult {
+        TuiTurnResult {
             text: "mock response".into(),
             prompt_tokens: 0,
             completion_tokens: 0,

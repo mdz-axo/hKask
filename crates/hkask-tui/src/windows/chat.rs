@@ -90,7 +90,7 @@ impl TuiMode {
 
 /// A single message in the chat history.
 #[derive(Debug, Clone)]
-pub struct ChatMessage {
+pub struct TuiChatMessage {
     /// Who sent this message
     pub sender: MessageSender,
     /// The message content (may contain markdown)
@@ -119,7 +119,7 @@ pub struct ChatWindow {
     /// Current interaction mode
     mode: TuiMode,
     /// Conversation message history
-    messages: Vec<ChatMessage>,
+    messages: Vec<TuiChatMessage>,
     /// Current input buffer
     input: String,
     /// Cursor position in input
@@ -148,7 +148,7 @@ impl ChatWindow {
         bridge: Arc<dyn ReplBridge>,
     ) -> Self {
         let mut messages = Vec::new();
-        messages.push(ChatMessage {
+        messages.push(TuiChatMessage {
             sender: MessageSender::Curator,
             content: format!(
                 "hKask v{} — Agent: {} | Model: {} | Type /help for commands",
@@ -177,7 +177,7 @@ impl ChatWindow {
 
     /// Add a message to the history and auto-scroll to bottom.
     fn add_message(&mut self, sender: MessageSender, content: String) {
-        self.messages.push(ChatMessage { sender, content });
+        self.messages.push(TuiChatMessage { sender, content });
         if self.messages.len() > 1 {
             self.scroll_offset = 0;
         }

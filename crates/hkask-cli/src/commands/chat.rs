@@ -14,7 +14,8 @@ use std::sync::Arc;
 
 use hkask_ports::{InferencePort, InferenceUsage};
 use hkask_services::{
-    AgentService, ChatRequest, ChatService, MemoryService, PreparedChat, ResolvedSecrets,
+    AgentService, ChatService, ChatTurnRequest, ChatTurnResponse, MemoryService, PreparedChat,
+    ResolvedSecrets,
 };
 use hkask_types::template::LLMParameters;
 
@@ -26,9 +27,9 @@ use hkask_types::template::LLMParameters;
 async fn build_chat_context(
     name: &str,
     secrets: Option<&ResolvedSecrets>,
-) -> Result<AgentService, ChatResponse> {
+) -> Result<AgentService, ChatTurnResponse> {
     let from_secrets = secrets.map(|s| (name, s));
-    super::helpers::build_service_context_from_secrets(from_secrets).map_err(|e| ChatResponse {
+    super::helpers::build_service_context_from_secrets(from_secrets).map_err(|e| ChatTurnResponse {
         text: format!("AgentService error: {}", e),
         usage: None,
         finish_reason: "error".to_string(),
@@ -38,8 +39,8 @@ async fn build_chat_context(
 
 /// Response from a chat inference call.
 ///
-/// Re-exported from `hkask_services::ChatResponse` for surface convenience.
-pub type ChatResponse = hkask_services::ChatResponse;
+/// Re-exported from `hkask_services::ChatTurnResponse` for surface convenience.
+pub type ChatTurnResponse = hkask_services::ChatTurnResponse;
 
 /// Token usage breakdown for gas accounting.
 ///
@@ -65,7 +66,7 @@ pub type TokenUsage = hkask_services::TokenUsage;
 #[allow(clippy::too_many_arguments)]
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  input is a non-empty string; agent_name defaults to Curator; secrets or env config must be resolvable
-/// post: sends chat message through ChatService pipeline; returns ChatResponse with text, usage, and finish_reason
+/// post: sends chat message through ChatService pipeline; returns ChatTurnResponse with text, usage, and finish_reason
 pub async fn chat_with_agent(
     input: &str,
     agent_name: Option<&str>,
@@ -76,7 +77,7 @@ pub async fn chat_with_agent(
     semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
     _agent_webid: Option<hkask_types::WebID>,
     tool_section: Option<&str>,
-) -> ChatResponse {
+) -> ChatTurnResponse {
     let name = agent_name.unwrap_or("Curator");
 
     let ctx = match build_chat_context(name, secrets).await {
@@ -84,7 +85,7 @@ pub async fn chat_with_agent(
         Err(resp) => return resp,
     };
 
-    let req = ChatRequest {
+    let req = ChatTurnRequest {
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
@@ -99,7 +100,7 @@ pub async fn chat_with_agent(
 
     match ChatService::chat(&ctx, req).await {
         Ok(resp) => resp,
-        Err(e) => ChatResponse {
+        Err(e) => ChatTurnResponse {
             text: format!("Chat error: {}", e),
             usage: None,
             finish_reason: "error".to_string(),
@@ -109,7 +110,7 @@ pub async fn chat_with_agent(
 }
 
 /// Variant of `chat_with_agent` that accepts explicit LLMParameters.
-/// Sets `params_override` on the ChatRequest, which ChatService already respects.
+/// Sets `params_override` on the ChatTurnRequest, which ChatService already respects.
 #[allow(clippy::too_many_arguments)]
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  input is non-empty; params is a valid LLMParameters struct; secrets or env config must be resolvable
@@ -125,7 +126,7 @@ pub async fn chat_with_agent_with_params(
     _agent_webid: Option<hkask_types::WebID>,
     tool_section: Option<&str>,
     params: &LLMParameters,
-) -> ChatResponse {
+) -> ChatTurnResponse {
     let name = agent_name.unwrap_or("Curator");
 
     let ctx = match build_chat_context(name, secrets).await {
@@ -133,7 +134,7 @@ pub async fn chat_with_agent_with_params(
         Err(resp) => return resp,
     };
 
-    let req = ChatRequest {
+    let req = ChatTurnRequest {
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
@@ -148,7 +149,7 @@ pub async fn chat_with_agent_with_params(
 
     match ChatService::chat(&ctx, req).await {
         Ok(resp) => resp,
-        Err(e) => ChatResponse {
+        Err(e) => ChatTurnResponse {
             text: format!("Chat error: {}", e),
             usage: None,
             finish_reason: "error".to_string(),
@@ -162,7 +163,7 @@ async fn finish_stream(
     prepared: &PreparedChat,
     params: &LLMParameters,
     input: &str,
-) -> ChatResponse {
+) -> ChatTurnResponse {
     let stream = prepared.inference_port.generate_stream_with_model(
         &prepared.prompt,
         params,
@@ -196,7 +197,7 @@ async fn finish_stream(
                 }
             }
             Err(e) => {
-                return ChatResponse {
+                return ChatTurnResponse {
                     text: format!("Stream error: {}", e),
                     usage: None,
                     finish_reason: "error".to_string(),
@@ -216,7 +217,7 @@ async fn finish_stream(
         &prepared.agent_name,
     );
 
-    ChatResponse {
+    ChatTurnResponse {
         text: full_text,
         usage: final_usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens,
@@ -235,12 +236,12 @@ async fn finish_stream(
 /// then streams inference output via `generate_stream_with_model()` so
 /// the CLI can print `text_delta` chunks incrementally.
 ///
-/// Returns a `ChatResponse`-like struct with the full assembled text,
+/// Returns a `ChatTurnResponse`-like struct with the full assembled text,
 /// usage stats, and any tool calls from the final chunk.
 #[allow(clippy::too_many_arguments)]
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  input is non-empty; agent_name defaults to Curator; secrets or env config must be resolvable
-/// post: streams inference output token-by-token to stdout; stores episodic triple; returns assembled ChatResponse
+/// post: streams inference output token-by-token to stdout; stores episodic triple; returns assembled ChatTurnResponse
 pub async fn chat_with_agent_streaming(
     input: &str,
     agent_name: Option<&str>,
@@ -251,7 +252,7 @@ pub async fn chat_with_agent_streaming(
     semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
     _agent_webid: Option<hkask_types::WebID>,
     tool_section: Option<&str>,
-) -> ChatResponse {
+) -> ChatTurnResponse {
     let name = agent_name.unwrap_or("Curator");
 
     let ctx = match build_chat_context(name, secrets).await {
@@ -259,7 +260,7 @@ pub async fn chat_with_agent_streaming(
         Err(resp) => return resp,
     };
 
-    let req = ChatRequest {
+    let req = ChatTurnRequest {
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
@@ -276,7 +277,7 @@ pub async fn chat_with_agent_streaming(
     let prepared = match ChatService::prepare_chat(&ctx, &req).await {
         Ok(p) => p,
         Err(e) => {
-            return ChatResponse {
+            return ChatTurnResponse {
                 text: format!("Chat prepare error: {}", e),
                 usage: None,
                 finish_reason: "error".to_string(),
@@ -309,7 +310,7 @@ pub async fn chat_with_agent_streaming(
 /// Variant of `chat_with_agent_streaming` that accepts explicit LLMParameters.
 /// The streaming path requires the params before prepare_chat since the
 /// inference call happens after prepare. We pass params_override through
-/// the ChatRequest so PrepareChat receives it, then use directly for streaming.
+/// the ChatTurnRequest so PrepareChat receives it, then use directly for streaming.
 #[allow(clippy::too_many_arguments)]
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  input is non-empty; params is a valid LLMParameters struct; secrets or env config must be resolvable
@@ -325,7 +326,7 @@ pub async fn chat_with_agent_streaming_with_params(
     _agent_webid: Option<hkask_types::WebID>,
     tool_section: Option<&str>,
     params: &LLMParameters,
-) -> ChatResponse {
+) -> ChatTurnResponse {
     let name = agent_name.unwrap_or("Curator");
 
     let ctx = match build_chat_context(name, secrets).await {
@@ -333,7 +334,7 @@ pub async fn chat_with_agent_streaming_with_params(
         Err(resp) => return resp,
     };
 
-    let req = ChatRequest {
+    let req = ChatTurnRequest {
         input: input.to_string(),
         agent_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
@@ -350,7 +351,7 @@ pub async fn chat_with_agent_streaming_with_params(
     let prepared = match ChatService::prepare_chat(&ctx, &req).await {
         Ok(p) => p,
         Err(e) => {
-            return ChatResponse {
+            return ChatTurnResponse {
                 text: format!("Chat prepare error: {}", e),
                 usage: None,
                 finish_reason: "error".to_string(),

@@ -43,8 +43,8 @@ pub use history::{
 };
 #[allow(unused_imports)]
 pub use manifest::{
-    AuditConfig, CnsConfig, CoachQuestion, ErrorHandling, GasConfig, KataManifest, KataStep,
-    ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,
+    AuditConfig, CoachQuestion, ErrorHandling, KataCnsConfig, KataGasConfig, KataManifest,
+    KataStep, ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,
 };
 pub use state::{KataResult, KataState};
 

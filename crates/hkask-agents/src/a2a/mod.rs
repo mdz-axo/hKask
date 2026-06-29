@@ -139,7 +139,7 @@ pub struct TemplateDispatch<'a> {
     pub correlation_id: &'a str,
 }
 
-pub struct TemplateResponse<'a> {
+pub struct A2ATemplateResponse<'a> {
     pub correlation_id: &'a str,
     pub result: &'a serde_json::Value,
     pub error: Option<&'a str>,
@@ -162,7 +162,7 @@ pub struct MemoryArtifact<'a> {
 /// the variants they care about (Visitor pattern, Gamma et al.).
 pub trait A2AMessageVisitor {
     fn on_template_dispatch(&mut self, _msg: TemplateDispatch<'_>) {}
-    fn on_template_response(&mut self, _msg: TemplateResponse<'_>) {}
+    fn on_template_response(&mut self, _msg: A2ATemplateResponse<'_>) {}
     fn on_memory_artifact(&mut self, _msg: MemoryArtifact<'_>) {}
 }
 
@@ -202,7 +202,7 @@ impl A2AMessage {
                 correlation_id,
                 result,
                 error,
-            } => visitor.on_template_response(TemplateResponse {
+            } => visitor.on_template_response(A2ATemplateResponse {
                 correlation_id,
                 result,
                 error: error.as_deref(),

@@ -6,6 +6,7 @@ pub mod chat;
 pub mod memory;
 
 pub use chat::{
-    ChatRequest, ChatResponse, ChatService, PreparedChat, TokenUsage, TurnRequest, TurnResult,
+    ChatService, ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage, TurnRequest,
+    TurnResult,
 };
 pub use memory::MemoryService;

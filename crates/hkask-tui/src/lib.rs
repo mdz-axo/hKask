@@ -59,7 +59,7 @@ use bridges::{
     MatrixDataBridge, MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge,
     ResearchDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge,
 };
-pub use repl_bridge::{InferenceState, ReplBridge, TurnResult};
+pub use repl_bridge::{InferenceState, ReplBridge, TuiTurnResult};
 pub use splash::SplashScreen;
 pub use window::{Window, WindowId, WindowKind};
 pub use workspace::{SplitDirection, Workspace};

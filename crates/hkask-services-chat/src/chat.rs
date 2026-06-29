@@ -270,7 +270,7 @@ mod tests {
 /// (from native function calling) alongside the finish reason so the
 /// calling surface can detect tool-call completions.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ChatResponse {
+pub struct ChatTurnResponse {
     /// The agent's response text
     pub text: String,
     /// Token usage from the inference call (prompt + completion tokens)
@@ -285,7 +285,7 @@ pub struct ChatResponse {
 ///
 /// Both CLI and API construct this from their surface-specific inputs,
 /// then delegate to `ChatService::chat()`.
-pub struct ChatRequest {
+pub struct ChatTurnRequest {
     /// User input message
     pub input: String,
     /// Agent name (defaults to "Curator")
@@ -354,7 +354,7 @@ impl ChatService {
     /// post: returns PreparedChat with prompt, model, agent_webid, capability_token, inference_port, episodic_port, and agent_name; Err(AgentNotFound) if agent not registered
     pub async fn prepare_chat(
         ctx: &AgentService,
-        req: &ChatRequest,
+        req: &ChatTurnRequest,
     ) -> Result<PreparedChat, ServiceError> {
         let name = req.agent_name.as_deref().unwrap_or("Curator");
 
@@ -514,8 +514,11 @@ impl ChatService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty
-    /// post: returns ChatResponse with text, usage, finish_reason, and tool_calls; CNS spans emitted; episodic trace stored; Err on agent lookup or inference failure
-    pub async fn chat(ctx: &AgentService, req: ChatRequest) -> Result<ChatResponse, ServiceError> {
+    /// post: returns ChatTurnResponse with text, usage, finish_reason, and tool_calls; CNS spans emitted; episodic trace stored; Err on agent lookup or inference failure
+    pub async fn chat(
+        ctx: &AgentService,
+        req: ChatTurnRequest,
+    ) -> Result<ChatTurnResponse, ServiceError> {
         let prepared = Self::prepare_chat(ctx, &req).await?;
         // Access params_override after prepare_chat returns (prepare_chat only borrows req)
         let params_override = req.params_override;
@@ -628,7 +631,7 @@ impl ChatService {
             );
         }
 
-        Ok(ChatResponse {
+        Ok(ChatTurnResponse {
             text: result.text,
             usage: Some(TokenUsage {
                 prompt_tokens: result.usage.prompt_tokens,
@@ -1199,7 +1202,7 @@ Agent: {}",
             effective_input
         };
 
-        let chat_req = ChatRequest {
+        let chat_req = ChatTurnRequest {
             input: effective_input,
             agent_name: Some(req.agent_name.clone()),
             model_override: Some(req.model.clone()),

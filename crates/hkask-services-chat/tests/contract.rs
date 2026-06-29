@@ -1,5 +1,5 @@
 use hkask_ports::StructuredToolCall;
-use hkask_services_chat::chat::{ChatResponse, TokenUsage};
+use hkask_services_chat::chat::{ChatTurnResponse, TokenUsage};
 use proptest::prelude::*;
 
 proptest! {
@@ -41,7 +41,7 @@ fn token_usage_nonzero() {
 
 #[test]
 fn chat_response_serde_roundtrip() {
-    let resp = ChatResponse {
+    let resp = ChatTurnResponse {
         text: "Hello, world!".into(),
         usage: Some(TokenUsage {
             prompt_tokens: 10,
@@ -52,7 +52,7 @@ fn chat_response_serde_roundtrip() {
         tool_calls: vec![],
     };
     let json = serde_json::to_string(&resp).unwrap();
-    let rt: ChatResponse = serde_json::from_str(&json).unwrap();
+    let rt: ChatTurnResponse = serde_json::from_str(&json).unwrap();
     assert_eq!(rt.text, "Hello, world!");
     assert_eq!(rt.usage.unwrap().total_tokens, 15);
     assert_eq!(rt.finish_reason, "stop");
@@ -60,14 +60,14 @@ fn chat_response_serde_roundtrip() {
 
 #[test]
 fn chat_response_minimal_serde() {
-    let resp = ChatResponse {
+    let resp = ChatTurnResponse {
         text: "ok".into(),
         usage: None,
         finish_reason: "length".into(),
         tool_calls: vec![],
     };
     let json = serde_json::to_string(&resp).unwrap();
-    let rt: ChatResponse = serde_json::from_str(&json).unwrap();
+    let rt: ChatTurnResponse = serde_json::from_str(&json).unwrap();
     assert_eq!(rt.text, "ok");
     assert!(rt.usage.is_none());
 }

@@ -17,7 +17,7 @@ type SnapshotEntry = (RepoId, String, CommitHash, u64, Vec<ContentHash>);
 /// After calling [`GitCASPort::verify`], this report lists the total number
 /// of blobs checked, how many passed, and which content hashes failed integrity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerificationReport {
+pub struct GitCasVerificationReport {
     /// Which repo was verified.
     pub repo: RepoId,
     /// Total blobs in the repo.
@@ -83,7 +83,7 @@ pub trait GitCASPort: Send + Sync {
     ) -> Result<Vec<TreeEntry>, GitCasError>;
 
     /// Verify content integrity: re-hash all blobs, compare to stored hashes.
-    async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError>;
+    async fn verify(&self, repo: &RepoId) -> Result<GitCasVerificationReport, GitCasError>;
 
     /// List snapshot history for a repo.
     ///
@@ -259,7 +259,7 @@ impl GitCASPort for MockGitCas {
         Ok(entries)
     }
 
-    async fn verify(&self, repo: &RepoId) -> Result<VerificationReport, GitCasError> {
+    async fn verify(&self, repo: &RepoId) -> Result<GitCasVerificationReport, GitCasError> {
         let blobs = self.blobs.read().unwrap_or_else(|e| e.into_inner());
         let total = blobs.len();
         let mut corrupt = Vec::new();
@@ -269,7 +269,7 @@ impl GitCASPort for MockGitCas {
                 corrupt.push(hash.clone());
             }
         }
-        Ok(VerificationReport {
+        Ok(GitCasVerificationReport {
             repo: repo.clone(),
             total_blobs: total,
             verified_blobs: total - corrupt.len(),

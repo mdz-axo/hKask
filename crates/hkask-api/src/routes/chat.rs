@@ -18,7 +18,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 use hkask_ports::InferencePort;
-use hkask_services::{ChatRequest as ServiceChatRequest, ChatService, model_constants};
+use hkask_services::{ChatService, ChatTurnRequest as ServiceChatTurnRequest, model_constants};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -29,7 +29,7 @@ use utoipa::ToSchema;
 /// the server default (a fast classifier model) is used. Use `GET /api/models` to discover
 /// available models, and `GET /api/models/search?q=...` for fuzzy matching.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ChatRequest {
+pub struct ApiChatRequest {
     /// User input message
     pub input: String,
     /// Optional template ID to contextualize the prompt
@@ -43,7 +43,7 @@ pub struct ChatRequest {
 ///
 /// The `model` field echoes which LLM was used, confirming model switching.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ChatResponse {
+pub struct ApiChatResponse {
     /// Generated response text
     pub output: String,
     /// Template ID that was applied (or "auto-select")
@@ -75,9 +75,9 @@ pub fn chat_router() -> OpenApiRouter<ApiState> {
     post,
     path = "/api/chat",
     tag = "chat",
-    request_body = ChatRequest,
+    request_body = ApiChatRequest,
     responses(
-        (status = 200, description = "Chat response", body = ChatResponse),
+        (status = 200, description = "Chat response", body = ApiChatResponse),
         (status = 400, description = "Invalid request"),
         (status = 500, description = "Internal server error"),
     ),
@@ -85,8 +85,8 @@ pub fn chat_router() -> OpenApiRouter<ApiState> {
 pub(crate) async fn chat(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-    Json(req): Json<ChatRequest>,
-) -> Json<ChatResponse> {
+    Json(req): Json<ApiChatRequest>,
+) -> Json<ApiChatResponse> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat", "CNS");
     let model_str = req
@@ -102,7 +102,7 @@ pub(crate) async fn chat(
         None => strategy.frame(&req.input).to_string(),
     };
 
-    let svc_req = ServiceChatRequest {
+    let svc_req = ServiceChatTurnRequest {
         input: prompt,
         agent_name: Some("Curator".to_string()),
         model_override: req.model,
@@ -117,7 +117,7 @@ pub(crate) async fn chat(
 
     let result = match ChatService::chat(&state.agent_service, svc_req).await {
         Ok(resp) => resp,
-        Err(e) => hkask_services::ChatResponse {
+        Err(e) => hkask_services::ChatTurnResponse {
             text: format!("Chat error: {}", e),
             usage: None,
             finish_reason: "error".to_string(),
@@ -125,7 +125,7 @@ pub(crate) async fn chat(
         },
     };
 
-    Json(ChatResponse {
+    Json(ApiChatResponse {
         output: result.text,
         template_id: req
             .template_id
@@ -136,7 +136,7 @@ pub(crate) async fn chat(
 
 /// Stream chat inference output as Server-Sent Events.
 ///
-/// Accepts the same `ChatRequest` as `/api/chat` but streams the inference
+/// Accepts the same `ApiChatRequest` as `/api/chat` but streams the inference
 /// output as SSE `data:` events. Each event carries a JSON object with
 /// `text_delta`, `model`, and optionally `finish_reason`. The final event
 /// has `finish_reason: "stop"` and includes `usage` stats.
@@ -149,7 +149,7 @@ pub(crate) async fn chat(
     post,
     path = "/api/chat/stream",
     tag = "chat",
-    request_body = ChatRequest,
+    request_body = ApiChatRequest,
     responses(
         (status = 200, description = "SSE stream of chat chunks", content_type = "text/event-stream"),
         (status = 400, description = "Invalid request"),
@@ -160,7 +160,7 @@ pub(crate) async fn chat(
 pub(crate) async fn chat_stream(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-    Json(req): Json<ChatRequest>,
+    Json(req): Json<ApiChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");

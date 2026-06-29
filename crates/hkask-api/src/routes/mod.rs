@@ -58,7 +58,7 @@ pub use bundles::{
     ApplyBundleResponse, BundleListResponse, BundleSummary, ComposeBundleRequest,
     ComposeBundleResponse, DeactivateBundleResponse, EvolveBundleResponse,
 };
-pub use chat::{ChatRequest, ChatResponse};
+pub use chat::{ApiChatRequest, ApiChatResponse};
 pub use cns::{CnsHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
 pub use curator::{
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
