@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 
 use hkask_ports::federation::{FederationMessage, FederationTransport};
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 
 use crate::ReplicaId;
 use crate::sync::invitation_policy::{InvitationPolicy, ManualInvitationPolicy};

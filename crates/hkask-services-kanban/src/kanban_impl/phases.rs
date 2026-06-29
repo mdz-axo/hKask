@@ -6,11 +6,11 @@ impl KanbanService {
         board_id: BoardId,
         name: &str,
         order: u32,
-    ) -> Result<Phase, KanbanError> {
+    ) -> Result<KanbanPhase, KanbanError> {
         let mut board = self
             .board_get(board_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
-        let phase = Phase::new(name.to_string(), order);
+        let phase = KanbanPhase::new(name.to_string(), order);
         board.phases.push(phase.clone());
         self.update_board_triple(&board)?;
         Ok(phase)

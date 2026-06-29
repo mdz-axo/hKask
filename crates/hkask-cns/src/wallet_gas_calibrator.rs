@@ -14,7 +14,7 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use hkask_storage::NuEventStore;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
 use hkask_wallet::WalletManager;
 use std::sync::Arc;
 use std::time::Duration;
@@ -232,7 +232,7 @@ mod tests {
     use hkask_storage::in_memory_db;
     use hkask_types::NuEventSink;
     use hkask_types::WebID;
-    use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind};
+    use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
     use hkask_wallet::GAS_PER_RJOULE;
     use std::sync::Mutex;
 

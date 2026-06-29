@@ -18,7 +18,7 @@ use hkask_cns::types::loops::{
 };
 use hkask_storage::Triple;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 
 /// Default storage budget for semantic triple count.
 pub const DEFAULT_SEMANTIC_STORAGE_BUDGET: usize = 25_000;
@@ -183,7 +183,13 @@ impl SemanticLoop {
     fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
         if let Some(sink) = self.memory.event_sink() {
             let span = Span::new(SpanNamespace::from(CnsSpan::MemoryEncode), verb);
-            let event = NuEvent::new(hkask_types::WebID::new(), span, CyclePhase::Act, observation, 0);
+            let event = NuEvent::new(
+                hkask_types::WebID::new(),
+                span,
+                CyclePhase::Act,
+                observation,
+                0,
+            );
             let _ = sink.persist(&event);
         }
     }

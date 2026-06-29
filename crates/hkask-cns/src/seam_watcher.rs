@@ -19,7 +19,7 @@
 
 use crate::runtime::CnsRuntime;
 use hkask_types::cns::{CnsSpan, SeamInventory};
-use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use hkask_types::id::WebID;
 use std::path::PathBuf;
 use tracing;

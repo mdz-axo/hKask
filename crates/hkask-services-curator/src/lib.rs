@@ -11,7 +11,7 @@ use hkask_cns::types::loops::CuratorHandle;
 use hkask_storage::EscalationEntry;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;

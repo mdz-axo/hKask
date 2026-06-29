@@ -12,7 +12,7 @@ use hkask_cns::governed_tool::EnergyEstimator;
 use hkask_storage::{NuEventStore, in_memory_db};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
 use std::sync::Arc;
 
 fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> NuEvent {

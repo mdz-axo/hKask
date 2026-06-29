@@ -16,7 +16,7 @@ use hkask_storage::{
 use hkask_types::NuEventSink;
 use hkask_types::Visibility;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 use hkask_types::visibility::Confidence;
 use std::sync::Arc;
 use thiserror::Error;

@@ -27,7 +27,7 @@ use chrono::Utc;
 use hkask_capability::{CapabilitySpec, DelegationAction, DelegationResource};
 use hkask_services_core::{Goal, GoalState};
 use hkask_storage::Triple;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 use hkask_types::id::{GoalID, WebID};
 use hkask_types::transcript::TranscriptSegment;
 use hkask_types::visibility::Visibility;
@@ -84,7 +84,12 @@ pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
     (
         webid_strategy(),
         span_strategy(),
-        select(&[CyclePhase::Sense, CyclePhase::Compute, CyclePhase::Compare, CyclePhase::Act]),
+        select(&[
+            CyclePhase::Sense,
+            CyclePhase::Compute,
+            CyclePhase::Compare,
+            CyclePhase::Act,
+        ]),
         json_value_strategy(),
         (0u8..7u8),
     )

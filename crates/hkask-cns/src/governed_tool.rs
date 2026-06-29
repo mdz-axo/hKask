@@ -30,7 +30,7 @@ use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind, SpanNamespace};
 
 use serde_json::Value;
 use std::sync::Arc;

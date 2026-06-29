@@ -17,7 +17,7 @@ use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use hkask_types::id::{ApiKeyId, WalletId};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};

@@ -21,7 +21,7 @@ use hkask_ports::{ChatToolDefinition, InferenceError, InferencePort, InferenceRe
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind, SpanNamespace};
 use hkask_types::template::LLMParameters;
 
 use std::pin::Pin;

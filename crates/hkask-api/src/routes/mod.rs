@@ -55,7 +55,7 @@ pub use wallet::wallet_router;
 // Re-export domain-local types that may be used externally
 pub use a2a::{A2AAgentResponse, A2ARegisterRequest, A2ARegisterResponse, AgentListResponse};
 pub use bundles::{
-    ApplyBundleResponse, BundleListResponse, BundleSummary, ComposeBundleRequest,
+    ApiBundleSummary, ApplyBundleResponse, BundleListResponse, ComposeBundleRequest,
     ComposeBundleResponse, DeactivateBundleResponse, EvolveBundleResponse,
 };
 pub use chat::{ApiChatRequest, ApiChatResponse};

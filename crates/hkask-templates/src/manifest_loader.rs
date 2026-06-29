@@ -7,7 +7,7 @@
 //! into the canonical `BundleManifest` type.
 
 use crate::bundle::{
-    AuditConfig, BundleCnsConfig, BundleComplementarity, BundleConflict, BundleGasConfig,
+    BundleAuditConfig, BundleCnsConfig, BundleComplementarity, BundleConflict, BundleGasConfig,
     BundleManifest, BundleManifestStep, BundleSkill, ConvergenceConfig, ErrorHandlingConfig,
     OcapConfig, RjouleConfig,
 };
@@ -58,7 +58,7 @@ struct ManifestFile {
     #[serde(default)]
     cns: Option<BundleCnsConfig>,
     #[serde(default)]
-    audit: Option<AuditConfig>,
+    audit: Option<BundleAuditConfig>,
     #[serde(default)]
     inputs: Option<serde_json::Value>,
     #[serde(default)]

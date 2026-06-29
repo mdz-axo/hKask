@@ -395,7 +395,7 @@ impl DocProcServer {
 
     /// Emit a CNS pipeline event through the CnsObserver.
     async fn emit_pipeline_event(&self, outcome: &crate::ocr::PipelineOutcome) {
-        use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
+        use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 
         let observation = serde_json::json!({
             "total_pages": outcome.results.len(),

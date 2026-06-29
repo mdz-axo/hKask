@@ -102,7 +102,7 @@ impl KanbanService {
             for (i, phase_val) in phases.iter().enumerate() {
                 let name = phase_val["name"].as_str().unwrap_or("Unnamed");
                 let desc = phase_val["description"].as_str();
-                let mut phase = crate::kanban::Phase::new(name.to_string(), i as u32);
+                let mut phase = crate::kanban::KanbanPhase::new(name.to_string(), i as u32);
                 if let Some(d) = desc {
                     phase = phase.with_description(d.to_string());
                 }

@@ -102,6 +102,11 @@ pub async fn agent_register(
         capabilities,
         rights: vec![],
         responsibilities: vec![],
+        depends_on: vec![],
+        persona: None,
+        process_manifest: None,
+        voice_description: None,
+        voice_id: None,
     };
     let reg = RegisteredAgent {
         definition: def,
@@ -178,7 +183,7 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
             println!("Agent: {}", def.name);
             println!("  Kind: {}", def.agent_kind);
             if let Some(c) = &def.charter {
-                println!("  Charter: {}", c.purpose);
+                println!("  Charter: {}", c.description);
             }
             println!("  Capabilities:");
             for cap in &def.capabilities {
@@ -187,13 +192,13 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
             if !def.rights.is_empty() {
                 println!("  Rights:");
                 for r in &def.rights {
-                    println!("    - {}", r.name);
+                    println!("    - {}", r.to_display_string());
                 }
             }
             if !def.responsibilities.is_empty() {
                 println!("  Responsibilities:");
                 for r in &def.responsibilities {
-                    println!("    - {}", r.name);
+                    println!("    - {}", r.to_display_string());
                 }
             }
             println!("  Registered: {}", agent.registered_at);

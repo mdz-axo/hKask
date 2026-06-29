@@ -60,6 +60,11 @@ pub async fn token_issue(
         capabilities,
         rights: vec![],
         responsibilities: vec![],
+        depends_on: vec![],
+        persona: None,
+        process_manifest: None,
+        voice_description: None,
+        voice_id: None,
     };
     let reg = hkask_storage::RegisteredAgent {
         definition: def,

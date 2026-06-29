@@ -11,7 +11,7 @@ use hkask_ports::federation::{
     FederationDelta, FederationMessage, FederationSyncPort, FederationTransport,
 };
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use serde_json::json;
 use tokio::sync::{RwLock, watch};
 

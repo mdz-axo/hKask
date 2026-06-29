@@ -696,7 +696,7 @@ mod tests {
         use hkask_storage::WalletStore;
         use hkask_storage::database::in_memory_db;
         use hkask_types::cns::CnsSpan;
-        use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
+        use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
         use hkask_wallet::{ChainPort, DepositEvent, ExchangeRate, PriceFeed};
         use hkask_wallet::{TxHash, WalletConfig};
         use std::sync::Mutex;

@@ -28,7 +28,7 @@ use hkask_storage::spec_store::SpecStore;
 use hkask_storage::{DomainAnchor, Spec, SpecCategory};
 use hkask_types::DataCategory;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

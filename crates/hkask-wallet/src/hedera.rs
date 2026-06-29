@@ -23,7 +23,7 @@ use crate::types::{ChainId, PrivacyMode, TxHash, WalletError};
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use reqwest::Client;
 use serde::Deserialize;
 use std::sync::Arc;

@@ -202,7 +202,7 @@ impl Default for BundleCnsConfig {
 /// Audit trail configuration. Loaded from manifest YAML, future wiring target.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct AuditConfig {
+pub struct BundleAuditConfig {
     pub enabled: bool,
     pub log_level: String,
     pub include_input: bool,
@@ -210,7 +210,7 @@ pub struct AuditConfig {
     pub include_gas_cost: bool,
     pub include_cns_events: bool,
 }
-impl Default for AuditConfig {
+impl Default for BundleAuditConfig {
     fn default() -> Self {
         Self {
             enabled: true,

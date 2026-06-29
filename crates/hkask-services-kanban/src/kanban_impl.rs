@@ -11,7 +11,7 @@
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
 use crate::kanban::{
-    Board, ColumnDef, Comment, ConsentProof, GasEntry, Phase, Task, TaskFilter, TaskSpec,
+    Board, ColumnDef, Comment, ConsentProof, GasEntry, KanbanPhase, Task, TaskFilter, TaskSpec,
     TaskStatus, Verification,
 };
 use hkask_storage::{Triple, TripleStore};

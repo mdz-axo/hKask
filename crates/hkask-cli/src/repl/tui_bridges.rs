@@ -14,7 +14,7 @@ use hkask_tui::bridges::{
     matrix::{MatrixConnectionStatus, MatrixDataBridge, MatrixMessageSummary, MatrixRoomSummary},
     media::{GalleryStatus, ImageSummary, MediaDataBridge},
     memory::{ConsolidationStatus, MemoryDataBridge, MemorySummary, MemoryTriple},
-    registry::{BundleSummary, RegistryDataBridge, SkillSummary, TemplateListItem},
+    registry::{BundleListItem, RegistryDataBridge, SkillSummary, TemplateListItem},
     replica::{ReplicaDataBridge, ReplicaInfo},
     research::{ExtractResult, FeedInfo, ResearchDataBridge, SearchResult},
     skills::{SkillExecResult, SkillListItem, SkillsDataBridge},
@@ -116,7 +116,7 @@ impl RegistryDataBridge for TuiReplBridge {
             .unwrap_or_default()
     }
 
-    fn list_bundles(&self) -> Vec<BundleSummary> {
+    fn list_bundles(&self) -> Vec<BundleListItem> {
         let state = self.state.lock().expect("lock");
         state
             .service_context
@@ -125,7 +125,7 @@ impl RegistryDataBridge for TuiReplBridge {
             .map(|r| {
                 r.list_bundles()
                     .into_iter()
-                    .map(|b| BundleSummary {
+                    .map(|b| BundleListItem {
                         id: b.id.clone(),
                         name: b.name.clone(),
                         version: b.version.clone(),

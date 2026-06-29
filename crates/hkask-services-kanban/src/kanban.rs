@@ -255,15 +255,15 @@ impl Verification {
     }
 }
 
-// ── Phase ──────────────────────────────────────────────────────────────────
+// ── Kanban phase ───────────────────────────────────────────────────────────
 
-/// Phase — a grouping category for tasks within a board.
+/// Kanban phase — a grouping category for tasks within a board.
 ///
 /// Phases group work for reassembly: when all tasks in a phase complete,
 /// their deliverables can be composed into a coherent output.
 /// Unlike columns (which track workflow state), phases track project structure.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Phase {
+pub struct KanbanPhase {
     pub id: PhaseId,
     pub name: String,
     pub description: Option<String>,
@@ -273,12 +273,12 @@ pub struct Phase {
     pub created_at: DateTime<Utc>,
 }
 
-impl Phase {
+impl KanbanPhase {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  arguments are valid
     /// post: returns new instance with defaults
     /// pre:  name is non-empty, order is a valid u32
-    /// post: returns Phase with generated PhaseId and created_at set to now
+    /// post: returns KanbanPhase with generated PhaseId and created_at set to now
     pub fn new(name: String, order: u32) -> Self {
         Self {
             id: PhaseId::new(),
@@ -317,7 +317,7 @@ pub struct Board {
     /// Columns in display order (position-sorted).
     pub columns: Vec<ColumnDef>,
     /// Project phases for work grouping and reassembly.
-    pub phases: Vec<Phase>,
+    pub phases: Vec<KanbanPhase>,
     /// When the board was created.
     pub created_at: DateTime<Utc>,
 }

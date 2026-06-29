@@ -43,20 +43,20 @@ fn verify_grant_access(
     ) {
         VerificationOutcome::Valid => Ok(()),
         VerificationOutcome::InvalidSignature => Err(AgentMcpError::InvalidToken(
-                    TOKEN_ERR_INVALID_SIGNATURE.to_string(),
-                )),},{
+            TOKEN_ERR_INVALID_SIGNATURE.to_string(),
+        )),
         VerificationOutcome::Expired => Err(AgentMcpError::CapabilityDenied {
-                    resource: "token".to_string(),
-                    action: TOKEN_ERR_EXPIRED.to_string(),
-                }),
-                VerificationOutcome::InsufficientAccess { .. } => Err(AgentMcpError::CapabilityDenied {
-                    resource: token.resource_id.clone(),
-                    action: "execute".to_string(),
-                }),
-                VerificationOutcome::NoChecker => Err(AgentMcpError::CapabilityDenied {
-                    resource: "token".to_string(),
-                    action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
-                }),
+            resource: "token".to_string(),
+            action: TOKEN_ERR_EXPIRED.to_string(),
+        }),
+        VerificationOutcome::InsufficientAccess { .. } => Err(AgentMcpError::CapabilityDenied {
+            resource: token.resource_id.clone(),
+            action: "execute".to_string(),
+        }),
+        VerificationOutcome::NoChecker => Err(AgentMcpError::CapabilityDenied {
+            resource: "token".to_string(),
+            action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
+        }),
     }
 }
 

@@ -25,7 +25,7 @@ pub struct KataManifest {
     #[serde(default)]
     pub starter_outcomes: Vec<StarterOutcome>,
     #[serde(default)]
-    pub audit: AuditConfig,
+    pub audit: KataAuditConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -180,7 +180,7 @@ pub struct StarterOutcome {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct AuditConfig {
+pub struct KataAuditConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
@@ -195,7 +195,7 @@ pub struct AuditConfig {
     pub include_cns_events: bool,
 }
 
-impl Default for AuditConfig {
+impl Default for KataAuditConfig {
     fn default() -> Self {
         Self {
             enabled: true,

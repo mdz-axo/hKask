@@ -23,7 +23,7 @@ use utoipa::ToSchema;
 /// `visibility` is "private" or "shared" (P11).
 /// `skill_count` is the number of WordAct/FlowDef/KnowAct templates in the bundle.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct BundleSummary {
+pub struct ApiBundleSummary {
     pub id: String,
     pub name: String,
     pub description: String,
@@ -90,7 +90,7 @@ pub struct EvolveBundleResponse {
 /// List bundles response.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct BundleListResponse {
-    pub bundles: Vec<BundleSummary>,
+    pub bundles: Vec<ApiBundleSummary>,
 }
 
 /// Deactivate bundle response.
@@ -130,9 +130,9 @@ async fn list_bundles(State(state): State<ApiState>) -> Json<BundleListResponse>
         .await
         .unwrap_or_default();
 
-    let bundles: Vec<BundleSummary> = bundles
+    let bundles: Vec<ApiBundleSummary> = bundles
         .into_iter()
-        .map(|b| BundleSummary {
+        .map(|b| ApiBundleSummary {
             id: b.id.clone(),
             name: b.name.clone(),
             description: b.description.clone(),

@@ -19,7 +19,7 @@ use hkask_capability::{AuthContext, DelegationAction, DelegationToken};
 use hkask_ports::{ChatToolDefinition, InferencePort, StructuredToolCall};
 use hkask_types::PersonaConstraints;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{Confidence, DataCategory, WebID};
 

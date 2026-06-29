@@ -24,7 +24,7 @@ pub struct SkillSummary {
 
 /// Summary of a single bundle for TUI display.
 #[derive(Debug, Clone)]
-pub struct BundleSummary {
+pub struct BundleListItem {
     pub id: String,
     pub name: String,
     pub version: String,
@@ -39,7 +39,7 @@ pub trait RegistryDataBridge: Send + Sync {
     fn bundle_count(&self) -> usize;
     fn list_templates(&self) -> Vec<TemplateListItem>;
     fn list_skills(&self) -> Vec<SkillSummary>;
-    fn list_bundles(&self) -> Vec<BundleSummary>;
+    fn list_bundles(&self) -> Vec<BundleListItem>;
 }
 
 /// Mock implementation for TUI development and testing.
@@ -49,7 +49,7 @@ pub struct MockRegistryBridge {
     pub bundle_count: usize,
     pub templates: Vec<TemplateListItem>,
     pub skills: Vec<SkillSummary>,
-    pub bundles: Vec<BundleSummary>,
+    pub bundles: Vec<BundleListItem>,
 }
 
 impl MockRegistryBridge {
@@ -89,7 +89,7 @@ impl MockRegistryBridge {
                     description: Some("Systematic bug hunting".into()),
                 },
             ],
-            bundles: vec![BundleSummary {
+            bundles: vec![BundleListItem {
                 id: "core-dev".into(),
                 name: "Core Development Bundle".into(),
                 version: "1.0.0".into(),
@@ -120,7 +120,7 @@ impl RegistryDataBridge for MockRegistryBridge {
     fn list_skills(&self) -> Vec<SkillSummary> {
         self.skills.clone()
     }
-    fn list_bundles(&self) -> Vec<BundleSummary> {
+    fn list_bundles(&self) -> Vec<BundleListItem> {
         self.bundles.clone()
     }
 }
