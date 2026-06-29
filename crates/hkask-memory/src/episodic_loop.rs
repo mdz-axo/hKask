@@ -14,7 +14,7 @@ use hkask_cns::types::loops::{
 use hkask_ports::ConsolidationRequest;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.
 ///
@@ -79,7 +79,7 @@ impl EpisodicLoop {
     fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
         if let Some(sink) = self.memory.event_sink() {
             let span = Span::new(SpanNamespace::from(CnsSpan::MemoryEncode), verb);
-            let event = NuEvent::new(self.perspective, span, Phase::Act, observation, 0);
+            let event = NuEvent::new(self.perspective, span, CyclePhase::Act, observation, 0);
             let _ = sink.persist(&event);
         }
     }

@@ -25,7 +25,7 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use hkask_storage::NuEventStore;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -165,7 +165,7 @@ impl CalibratedEnergyEstimator {
             let event = NuEvent::new(
                 Self::default_actor(),
                 span,
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({
                     "since": since,
                     "until": until,
@@ -253,7 +253,7 @@ mod tests {
     use chrono::Duration as ChronoDuration;
     use hkask_storage::in_memory_db;
     use hkask_types::WebID;
-    use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanKind};
+    use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanKind};
     use std::sync::Mutex;
 
     /// A test event sink that captures the last persisted event.
@@ -283,7 +283,7 @@ mod tests {
         NuEvent::new(
             agent,
             Span::from_kind(SpanKind::GasSettled),
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "server": server,
                 "tool": "test_tool",
@@ -401,7 +401,7 @@ mod tests {
             .last_event()
             .expect("calibration span should be emitted");
         assert_eq!(event.span.as_str(), "cns.gas.calibrated");
-        assert_eq!(event.phase, Phase::Act);
+        assert_eq!(event.phase, CyclePhase::Act);
         assert_eq!(
             event
                 .observation

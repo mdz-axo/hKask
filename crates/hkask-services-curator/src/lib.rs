@@ -11,7 +11,7 @@ use hkask_cns::types::loops::CuratorHandle;
 use hkask_storage::EscalationEntry;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
 
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;
@@ -85,7 +85,7 @@ impl CuratorService {
         let event = NuEvent::new(
             WebID::from_persona(b"curator"),
             span,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "escalation_id": id,
                 "resolved_by": resolved_by,
@@ -131,7 +131,7 @@ impl CuratorService {
         let event = NuEvent::new(
             WebID::from_persona(b"curator"),
             span,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "escalation_id": id,
                 "dismissed_by": dismissed_by,

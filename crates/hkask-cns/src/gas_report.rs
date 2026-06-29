@@ -7,7 +7,7 @@
 //!
 //! - **Query layer**: reads raw events from the NuEventStore via [`NuEventStore::query_algedonic`].
 //! - **Aggregation**: groups events by agent and tool, sums reserved/consumed/depleted metrics.
-//! - **Limitation**: GasDepleted events use `Phase::Sense` and are not captured by `query_algedonic`
+//! - **Limitation**: GasDepleted events use `CyclePhase::Sense` and are not captured by `query_algedonic`
 //!   (which filters `phase = 'act'`). A future iteration may add a dedicated query method.
 //!
 //! ## Usage
@@ -296,7 +296,7 @@ impl GasReport {
     /// Uses [`NuEventStore::query_algedonic`] to fetch events with `span_category = 'gas'`
     /// and `phase = 'act'`, then filters to only gas-related span kinds.
     ///
-    /// **Limitation**: GasDepleted events use `Phase::Sense` and will not appear in
+    /// **Limitation**: GasDepleted events use `CyclePhase::Sense` and will not appear in
     /// algedonic results. Only GasReserved and GasSettled events are returned.
     fn query_gas_events(
         &self,
@@ -440,7 +440,7 @@ fn extract_actual(event: &NuEvent) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::event::{Phase, Span, SpanKind};
+    use hkask_types::event::{CyclePhase, Span, SpanKind};
     use hkask_types::id::WebID;
     use proptest::prelude::*;
 
@@ -458,7 +458,7 @@ mod tests {
         let (obs, phase) = match kind {
             SpanKind::GasReserved => (
                 serde_json::json!({"server": server, "tool": tool, "estimated_cost": cost}),
-                Phase::Act,
+                CyclePhase::Act,
             ),
             SpanKind::GasSettled => {
                 let actual = cost / 2;
@@ -470,12 +470,12 @@ mod tests {
                         "actual": actual,
                         "refunded": cost - actual,
                     }),
-                    Phase::Act,
+                    CyclePhase::Act,
                 )
             }
             SpanKind::GasDepleted => (
                 serde_json::json!({"server": server, "tool": tool, "estimated_cost": cost}),
-                Phase::Sense,
+                CyclePhase::Sense,
             ),
             _ => unreachable!("unexpected span kind"),
         };

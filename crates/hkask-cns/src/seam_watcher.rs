@@ -19,7 +19,7 @@
 
 use crate::runtime::CnsRuntime;
 use hkask_types::cns::{CnsSpan, SeamInventory};
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
 use hkask_types::id::WebID;
 use std::path::PathBuf;
 use tracing;
@@ -264,7 +264,7 @@ impl SeamWatcher {
             let event = NuEvent::new(
                 webid,
                 span,
-                Phase::Compare,
+                CyclePhase::Compare,
                 serde_json::json!({
                     "crate": crate_name,
                     "total_items": coverage.total_items,
@@ -359,7 +359,7 @@ impl SeamWatcher {
             let event = NuEvent::new(
                 webid,
                 span,
-                Phase::Compare,
+                CyclePhase::Compare,
                 serde_json::json!({
                     "crate": drift.crate_name,
                     "previous_coverage_pct": drift.previous_coverage_pct,

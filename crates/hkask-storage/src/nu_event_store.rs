@@ -1,7 +1,7 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 
 use crate::{Store, now_rfc3339};
-use hkask_types::event::{Phase, Span, SpanCategory, SpanNamespace};
+use hkask_types::event::{CyclePhase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink, Visibility};
 
@@ -270,7 +270,7 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
         span_path.as_str()
     };
     let span = Span::new(namespace, local_path);
-    let phase = Phase::from_str(&phase_str);
+    let phase = CyclePhase::from_str(&phase_str);
     let observation: serde_json::Value = serde_json::from_str(&observation_str).map_err(|e| {
         rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Text, Box::new(e))
     })?;

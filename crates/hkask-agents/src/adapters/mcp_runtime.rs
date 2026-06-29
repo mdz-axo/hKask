@@ -4,13 +4,13 @@
 //!
 //! - `CapabilityOnlyAdapter` — can verify and grant capabilities but cannot invoke tools.
 //!   Requires a `CapabilityChecker` at construction; tool invocation always returns
-//!   `McpError::NoRuntime`.
+//!   `AgentMcpError::NoRuntime`.
 //!
 //! - `FullMcpAdapter` — can verify capabilities *and* dispatch tool invocations through
 //!   a live `McpRuntime`. Requires `CapabilityChecker`, `McpRuntime`, *and* a tokio
 //!   `Handle` at construction.
 
-use crate::error::McpError;
+use crate::error::AgentMcpError;
 use crate::ports::MCPRuntimePort;
 use hkask_capability::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, TOKEN_ERR_EXPIRED,
@@ -28,9 +28,9 @@ use std::sync::Arc;
 fn verify_grant_access(
     checker: &CapabilityChecker,
     token: &DelegationToken,
-) -> Result<(), McpError> {
+) -> Result<(), AgentMcpError> {
     if token.id.is_empty() {
-        return Err(McpError::InvalidToken("Token ID is empty".to_string()));
+        return Err(AgentMcpError::InvalidToken("Token ID is empty".to_string()));
     }
 
     match verify_delegation_token_now(
@@ -42,21 +42,21 @@ fn verify_grant_access(
         DelegationAction::Execute,
     ) {
         VerificationOutcome::Valid => Ok(()),
-        VerificationOutcome::InvalidSignature => Err(McpError::InvalidToken(
-            TOKEN_ERR_INVALID_SIGNATURE.to_string(),
-        )),
-        VerificationOutcome::Expired => Err(McpError::CapabilityDenied {
-            resource: "token".to_string(),
-            action: TOKEN_ERR_EXPIRED.to_string(),
-        }),
-        VerificationOutcome::InsufficientAccess { .. } => Err(McpError::CapabilityDenied {
-            resource: token.resource_id.clone(),
-            action: "execute".to_string(),
-        }),
-        VerificationOutcome::NoChecker => Err(McpError::CapabilityDenied {
-            resource: "token".to_string(),
-            action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
-        }),
+        VerificationOutcome::InvalidSignature => Err(AgentMcpError::InvalidToken(
+                    TOKEN_ERR_INVALID_SIGNATURE.to_string(),
+                )),},{
+        VerificationOutcome::Expired => Err(AgentMcpError::CapabilityDenied {
+                    resource: "token".to_string(),
+                    action: TOKEN_ERR_EXPIRED.to_string(),
+                }),
+                VerificationOutcome::InsufficientAccess { .. } => Err(AgentMcpError::CapabilityDenied {
+                    resource: token.resource_id.clone(),
+                    action: "execute".to_string(),
+                }),
+                VerificationOutcome::NoChecker => Err(AgentMcpError::CapabilityDenied {
+                    resource: "token".to_string(),
+                    action: format!("{TOKEN_ERR_NO_CHECKER} — tool access denied"),
+                }),
     }
 }
 
@@ -82,7 +82,7 @@ impl CapabilityOnlyAdapter {
     /// \[P4\] Motivating: Clear Boundaries — capability-only adapter gates tools without runtime
     /// pre:  `checker` is a valid `Arc<CapabilityChecker>`.
     /// post: Returns a `CapabilityOnlyAdapter` with the given checker;
-    ///       tool invocation will always fail with `McpError::NoRuntime`.
+    ///       tool invocation will always fail with `AgentMcpError::NoRuntime`.
     pub fn new(checker: Arc<CapabilityChecker>) -> Self {
         Self {
             capability_checker: checker,
@@ -91,7 +91,7 @@ impl CapabilityOnlyAdapter {
 }
 
 impl MCPRuntimePort for CapabilityOnlyAdapter {
-    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), McpError> {
+    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), AgentMcpError> {
         verify_grant_access(&self.capability_checker, &token)
     }
 
@@ -100,8 +100,8 @@ impl MCPRuntimePort for CapabilityOnlyAdapter {
         _tool_name: &str,
         _input: serde_json::Value,
         _token: &DelegationToken,
-    ) -> Result<serde_json::Value, McpError> {
-        Err(McpError::NoRuntime(
+    ) -> Result<serde_json::Value, AgentMcpError> {
+        Err(AgentMcpError::NoRuntime(
             "CapabilityOnlyAdapter has no runtime — use FullMcpAdapter for tool invocation"
                 .to_string(),
         ))
@@ -155,7 +155,7 @@ impl FullMcpAdapter {
 }
 
 impl MCPRuntimePort for FullMcpAdapter {
-    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), McpError> {
+    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), AgentMcpError> {
         verify_grant_access(&self.capability_checker, &token)
     }
 
@@ -164,7 +164,7 @@ impl MCPRuntimePort for FullMcpAdapter {
         tool_name: &str,
         input: serde_json::Value,
         token: &DelegationToken,
-    ) -> Result<serde_json::Value, McpError> {
+    ) -> Result<serde_json::Value, AgentMcpError> {
         // P1.1: Use unified verification instead of duplicated inline HMAC check
         match verify_delegation_token_now(
             Some(self.capability_checker.as_ref()),
@@ -176,25 +176,25 @@ impl MCPRuntimePort for FullMcpAdapter {
         ) {
             VerificationOutcome::Valid => {}
             VerificationOutcome::InvalidSignature => {
-                return Err(McpError::CapabilityDenied {
+                return Err(AgentMcpError::CapabilityDenied {
                     resource: "token".to_string(),
                     action: TOKEN_ERR_INVALID_SIGNATURE.to_string(),
                 });
             }
             VerificationOutcome::Expired => {
-                return Err(McpError::CapabilityDenied {
+                return Err(AgentMcpError::CapabilityDenied {
                     resource: "token".to_string(),
                     action: TOKEN_ERR_EXPIRED.to_string(),
                 });
             }
             VerificationOutcome::InsufficientAccess { resource_id, .. } => {
-                return Err(McpError::CapabilityDenied {
+                return Err(AgentMcpError::CapabilityDenied {
                     resource: resource_id,
                     action: "execute".to_string(),
                 });
             }
             VerificationOutcome::NoChecker => {
-                return Err(McpError::CapabilityDenied {
+                return Err(AgentMcpError::CapabilityDenied {
                     resource: "token".to_string(),
                     action: format!("{TOKEN_ERR_NO_CHECKER} — tool invocation denied"),
                 });
@@ -206,7 +206,7 @@ impl MCPRuntimePort for FullMcpAdapter {
             .handle
             .block_on(self.mcp_runtime.get_tool_info(tool_name))
             .map(|info| info.server_id)
-            .ok_or_else(|| McpError::CapabilityDenied {
+            .ok_or_else(|| AgentMcpError::CapabilityDenied {
                 resource: tool_name.to_string(),
                 action: format!(
                     "Tool '{}' not registered on any MCP server — invocation denied",
@@ -219,20 +219,20 @@ impl MCPRuntimePort for FullMcpAdapter {
             &raw_port, &server_id, tool_name, input, token,
         )) {
             Ok(value) => Ok(value),
-            Err(hkask_ports::ToolPortError::NotFound(msg)) => Err(McpError::ToolNotFound(msg)),
+            Err(hkask_ports::ToolPortError::NotFound(msg)) => Err(AgentMcpError::ToolNotFound(msg)),
             Err(hkask_ports::ToolPortError::InvocationFailed(msg)) => {
-                Err(McpError::InvocationFailed(Box::new(
+                Err(AgentMcpError::InvocationFailed(Box::new(
                     hkask_ports::ToolPortError::InvocationFailed(msg),
                 )))
             }
             Err(hkask_ports::ToolPortError::CapabilityDenied(msg)) => {
-                Err(McpError::CapabilityDenied {
+                Err(AgentMcpError::CapabilityDenied {
                     resource: "tool".to_string(),
                     action: msg,
                 })
             }
             Err(hkask_ports::ToolPortError::EnergyBudgetExceeded(msg)) => {
-                Err(McpError::InvocationFailed(Box::new(
+                Err(AgentMcpError::InvocationFailed(Box::new(
                     hkask_ports::ToolPortError::EnergyBudgetExceeded(msg),
                 )))
             }

@@ -17,7 +17,7 @@ use ed25519_dalek::SigningKey;
 use hkask_storage::WalletStore;
 use hkask_types::cns::CnsSpan;
 use hkask_types::crypto::Ed25519PublicKey;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use hkask_types::id::{ApiKeyId, WalletId};
 use rand::Rng;
 use std::sync::Arc;
@@ -69,7 +69,7 @@ impl ApiKeyIssuer {
     }
 
     /// Emit a CNS span if an event sink is configured.
-    fn emit_span(&self, span: CnsSpan, verb: &str, phase: Phase, obs: serde_json::Value) {
+    fn emit_span(&self, span: CnsSpan, verb: &str, phase: CyclePhase, obs: serde_json::Value) {
         if let Some(ref sink) = self.event_sink {
             let event_span = Span::new(SpanNamespace::from(span), verb);
             let actor =
@@ -146,7 +146,7 @@ impl ApiKeyIssuer {
         self.emit_span(
             CnsSpan::WalletKeyIssued,
             "issued",
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "key_id": key_id.to_string(),
                 "wallet_id": wallet_id.to_string(),
@@ -183,7 +183,7 @@ impl ApiKeyIssuer {
         self.emit_span(
             CnsSpan::WalletKeyRevoked,
             "revoked",
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "key_id": key_id.to_string(),
             }),

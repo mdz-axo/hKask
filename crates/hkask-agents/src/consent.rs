@@ -12,7 +12,7 @@
 use hkask_storage::{ConsentStore, Store, StoredConsentRecord, read_rwlock, write_rwlock};
 use hkask_types::DataCategory;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
@@ -345,7 +345,7 @@ impl ConsentManager {
             let event = NuEvent::new(
                 WebID::from_persona(b"consent"),
                 Span::new(SpanNamespace::new("cns.consent"), "denied"),
-                Phase::Compare,
+                CyclePhase::Compare,
                 serde_json::json!({
                     "webid": webid,
                     "category": category.as_str(),

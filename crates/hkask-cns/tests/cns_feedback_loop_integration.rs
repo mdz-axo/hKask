@@ -8,7 +8,7 @@
 //! - P8 (Semantic Grounding): every test asserts a stated behavioral property
 
 use hkask_test_harness::{MockCnsRuntime, MockCnsState, MockToolState, test_event};
-use hkask_types::event::{Phase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 
 // The CNS detects perturbations and restores homeostasis.
 
@@ -18,7 +18,7 @@ fn cns_detects_perturbation() {
     assert!(cns.is_homeostatic(), "CNS should start homeostatic");
 
     let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-    let event = test_event(span, Phase::Sense, None);
+    let event = test_event(span, CyclePhase::Sense, None);
     cns.inject(event);
 
     assert!(!cns.is_homeostatic(), "CNS should detect perturbation");
@@ -35,7 +35,7 @@ fn cns_restores_homeostasis_after_time() {
 
     // Perturb the system
     let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-    cns.inject(test_event(span, Phase::Sense, None));
+    cns.inject(test_event(span, CyclePhase::Sense, None));
     assert!(!cns.is_homeostatic());
 
     // Advance time to allow feedback processing
@@ -80,10 +80,10 @@ fn cns_multiple_perturbations_accumulate_signals() {
     let cns = MockCnsRuntime::new();
 
     let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-    cns.inject(test_event(span, Phase::Sense, None));
+    cns.inject(test_event(span, CyclePhase::Sense, None));
     cns.inject(test_event(
         Span::new(SpanNamespace::new("cns.inference"), "error"),
-        Phase::Compute,
+        CyclePhase::Compute,
         None,
     ));
 

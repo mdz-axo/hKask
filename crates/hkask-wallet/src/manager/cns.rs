@@ -12,7 +12,7 @@ impl WalletManager {
         actor: &WebID,
         span: CnsSpan,
         verb: &str,
-        phase: Phase,
+        phase: CyclePhase,
         obs: serde_json::Value,
     ) {
         if let Some(ref sink) = self.event_sink {
@@ -28,7 +28,7 @@ impl WalletManager {
         &self,
         span: CnsSpan,
         verb: &str,
-        phase: Phase,
+        phase: CyclePhase,
         obs: serde_json::Value,
     ) {
         let actor = Self::default_actor();
@@ -40,7 +40,7 @@ impl WalletManager {
             self.emit_span(
                 CnsSpan::WalletKeyExpired,
                 "expired",
-                Phase::Sense,
+                CyclePhase::Sense,
                 serde_json::json!({
                     "key_id": key_id.to_string(),
                 }),
@@ -50,7 +50,7 @@ impl WalletManager {
             self.emit_span(
                 CnsSpan::WalletKeyExhausted,
                 "exhausted",
-                Phase::Sense,
+                CyclePhase::Sense,
                 serde_json::json!({
                     "key_id": key_id.to_string(),
                 }),
@@ -69,7 +69,7 @@ impl WalletManager {
             actor,
             CnsSpan::WalletChainError,
             "error",
-            Phase::Sense,
+            CyclePhase::Sense,
             serde_json::json!({
                 "actor": actor.to_string(),
                 "chain": chain.to_string(),

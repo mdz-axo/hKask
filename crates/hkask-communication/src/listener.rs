@@ -12,7 +12,7 @@
 
 use crate::matrix::MatrixTransport;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock, watch};
 
@@ -132,7 +132,7 @@ impl SevenR7Listener {
                                             let event = NuEvent::new(
                                                 WebID::from_persona(b"7r7-listener"),
                                                 span,
-                                                Phase::Act,
+                                                CyclePhase::Act,
                                                 serde_json::json!({
                                                     "room_id": room_id,
                                                     "sender": msg.sender.as_str(),

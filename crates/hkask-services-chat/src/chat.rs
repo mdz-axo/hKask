@@ -19,7 +19,7 @@ use hkask_capability::{AuthContext, DelegationAction, DelegationToken};
 use hkask_ports::{ChatToolDefinition, InferencePort, StructuredToolCall};
 use hkask_types::PersonaConstraints;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{Confidence, DataCategory, WebID};
 
@@ -549,7 +549,7 @@ impl ChatService {
         let request_event = NuEvent::new(
             prepared.agent_webid,
             request_span,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "agent": &prepared.agent_name,
                 "model": &prepared.model,
@@ -577,7 +577,7 @@ impl ChatService {
         let response_event = NuEvent::new(
             prepared.agent_webid,
             response_span,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "agent": &prepared.agent_name,
                 "model": &prepared.model,
@@ -597,7 +597,7 @@ impl ChatService {
         let memory_event = NuEvent::new(
             prepared.agent_webid,
             memory_span,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "agent": &prepared.agent_name,
                 "operation": "store_episodic",

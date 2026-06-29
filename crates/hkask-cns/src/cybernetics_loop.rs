@@ -41,7 +41,7 @@ use crate::types::loops::{
 };
 use hkask_ports::BackpressureSignal;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanKind};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanKind};
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 
@@ -345,7 +345,7 @@ impl CyberneticsLoop {
             let ack = NuEvent::new(
                 WebID::from_persona(b"cns"),
                 Span::from_kind(SpanKind::CurationDirectiveAcknowledged),
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({
                     "directive_type": directive_type,
                     "outcome": "applied",
@@ -640,7 +640,7 @@ impl HkaskLoop for CyberneticsLoop {
                         let event = NuEvent::new(
                             WebID::from_persona(b"cns"),
                             Span::from_kind(SpanKind::VarietyAlgedonicAlert),
-                            Phase::Act,
+                            CyclePhase::Act,
                             serde_json::json!({
                                 "domain": alert.domain,
                                 "deficit": alert.deficit,

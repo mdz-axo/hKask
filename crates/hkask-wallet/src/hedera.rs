@@ -23,7 +23,7 @@ use crate::types::{ChainId, PrivacyMode, TxHash, WalletError};
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
 use reqwest::Client;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -190,7 +190,7 @@ impl HederaPort {
             let event = NuEvent::new(
                 actor.clone(),
                 span_obj,
-                Phase::Sense,
+                CyclePhase::Sense,
                 serde_json::json!({
                     "actor": actor.to_string(),
                     "chain": "hedera",

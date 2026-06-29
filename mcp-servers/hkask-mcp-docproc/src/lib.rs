@@ -395,7 +395,7 @@ impl DocProcServer {
 
     /// Emit a CNS pipeline event through the CnsObserver.
     async fn emit_pipeline_event(&self, outcome: &crate::ocr::PipelineOutcome) {
-        use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+        use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
 
         let observation = serde_json::json!({
             "total_pages": outcome.results.len(),
@@ -417,7 +417,7 @@ impl DocProcServer {
         let event = NuEvent::new(
             self.webid,
             Span::new(SpanNamespace::new("cns.pipeline"), "ocr.verification"),
-            Phase::Sense,
+            CyclePhase::Sense,
             observation,
             0,
         )
@@ -446,7 +446,7 @@ impl DocProcServer {
                     SpanNamespace::new("cns.pipeline"),
                     "ocr.verification_failed",
                 ),
-                Phase::Act,
+                CyclePhase::Act,
                 failure_detail,
                 1, // urgency: elevated
             )

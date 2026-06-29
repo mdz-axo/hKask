@@ -14,7 +14,7 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use hkask_storage::NuEventStore;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
+use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span};
 use hkask_wallet::WalletManager;
 use std::sync::Arc;
 use std::time::Duration;
@@ -168,7 +168,7 @@ impl WalletGasCalibrator {
             let event = NuEvent::new(
                 Self::default_actor(),
                 span,
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({
                     "since": since,
                     "until": until,
@@ -232,7 +232,7 @@ mod tests {
     use hkask_storage::in_memory_db;
     use hkask_types::NuEventSink;
     use hkask_types::WebID;
-    use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
+    use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind};
     use hkask_wallet::GAS_PER_RJOULE;
     use std::sync::Mutex;
 
@@ -285,7 +285,7 @@ mod tests {
         NuEvent::new(
             agent,
             Span::from_kind(SpanKind::GasSettled),
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "server": "hkask-mcp-test",
                 "tool": "test_tool",
@@ -345,7 +345,7 @@ mod tests {
             .last_event()
             .expect("wallet conversion span should be emitted");
         assert_eq!(event.span.as_str(), "cns.wallet.conversion.calibrated");
-        assert_eq!(event.phase, Phase::Act);
+        assert_eq!(event.phase, CyclePhase::Act);
         assert_eq!(
             event
                 .observation

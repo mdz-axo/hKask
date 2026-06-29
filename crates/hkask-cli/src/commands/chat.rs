@@ -14,8 +14,7 @@ use std::sync::Arc;
 
 use hkask_ports::{InferencePort, InferenceUsage};
 use hkask_services::{
-    AgentService, ChatService, ChatTurnRequest, ChatTurnResponse, MemoryService, PreparedChat,
-    ResolvedSecrets,
+    AgentService, ChatService, ChatTurnRequest, MemoryService, PreparedChat, ResolvedSecrets,
 };
 use hkask_types::template::LLMParameters;
 
@@ -38,14 +37,10 @@ async fn build_chat_context(
 }
 
 /// Response from a chat inference call.
-///
-/// Re-exported from `hkask_services::ChatTurnResponse` for surface convenience.
-pub type ChatTurnResponse = hkask_services::ChatTurnResponse;
+pub use hkask_services::ChatTurnResponse;
 
 /// Token usage breakdown for gas accounting.
-///
-/// Re-exported from `hkask_services::TokenUsage` for surface convenience.
-pub type TokenUsage = hkask_services::TokenUsage;
+pub use hkask_services::TokenUsage;
 
 /// Send a chat message to an agent and return the response.
 ///

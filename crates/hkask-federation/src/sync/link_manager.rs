@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 
 use hkask_ports::federation::{FederationMessage, FederationTransport};
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
 
 use crate::ReplicaId;
 use crate::sync::invitation_policy::{InvitationPolicy, ManualInvitationPolicy};
@@ -201,7 +201,7 @@ impl FederationLinkManager {
         let event = NuEvent::new(
             hkask_types::WebID::from_persona(b"curator"),
             s,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({"peer": peer, "replica": self.local_replica}),
             0,
         );

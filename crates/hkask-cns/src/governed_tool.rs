@@ -30,7 +30,7 @@ use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind, SpanNamespace};
 
 use serde_json::Value;
 use std::sync::Arc;
@@ -234,7 +234,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             let depleted_event = NuEvent::new(
                 self.agent,
                 depleted_span,
-                Phase::Sense,
+                CyclePhase::Sense,
                 serde_json::json!({
                     "server": server,
                     "tool": tool,
@@ -278,7 +278,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         let reserved_event = NuEvent::new(
             self.agent,
             reserved_span,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "server": server,
                 "tool": tool,
@@ -298,7 +298,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         let invoked_event = NuEvent::new(
             self.agent,
             invoked_span,
-            Phase::Sense,
+            CyclePhase::Sense,
             serde_json::json!({
                 "server": server,
                 "tool": tool,
@@ -362,7 +362,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         let settled_event = NuEvent::new(
             self.agent,
             settled_span,
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "server": server,
                 "tool": tool,
@@ -397,7 +397,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         // Step 6: Emit outcome span
         let (outcome_phase, outcome_obs) = match &result {
             Ok(_value) => (
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({
                     "server": server,
                     "tool": tool,
@@ -408,7 +408,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 }),
             ),
             Err(e) => (
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({
                     "server": server,
                     "tool": tool,

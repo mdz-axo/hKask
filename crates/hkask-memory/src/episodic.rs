@@ -14,7 +14,7 @@ use hkask_types::NuEventSink;
 use hkask_types::Visibility;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -133,7 +133,7 @@ impl EpisodicMemory {
             let event = NuEvent::new(
                 triple.access.owner_webid,
                 span,
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({"entity": triple.entity, "attribute": triple.attribute}),
                 0,
             );

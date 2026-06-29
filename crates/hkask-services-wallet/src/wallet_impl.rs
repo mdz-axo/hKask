@@ -696,7 +696,7 @@ mod tests {
         use hkask_storage::WalletStore;
         use hkask_storage::database::in_memory_db;
         use hkask_types::cns::CnsSpan;
-        use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+        use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
         use hkask_wallet::{ChainPort, DepositEvent, ExchangeRate, PriceFeed};
         use hkask_wallet::{TxHash, WalletConfig};
         use std::sync::Mutex;
@@ -798,7 +798,7 @@ mod tests {
                 let event = NuEvent::new(
                     *actor,
                     Span::new(SpanNamespace::from(CnsSpan::WalletChainError), "error"),
-                    Phase::Sense,
+                    CyclePhase::Sense,
                     serde_json::json!({
                         "chain": "hedera",
                         "operation": "submit_signed_tx",

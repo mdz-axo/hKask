@@ -25,7 +25,7 @@ impl WalletManager {
 
         let tx_hash = match tx_hash_result {
             Ok(tx_hash) => {
-                self.emit_span_with_actor(actor, CnsSpan::WalletWithdrawal, "submitted", Phase::Act,
+                self.emit_span_with_actor(actor, CnsSpan::WalletWithdrawal, "submitted", CyclePhase::Act,
                     serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string(), "tx_hash": tx_hash.0}));
                 tx_hash
             }
@@ -78,7 +78,7 @@ impl WalletManager {
         amount_rj: RJoule,
         amount_usdc_micro: u64,
     ) {
-        self.emit_span_with_actor(actor, CnsSpan::WalletConversion, "converted", Phase::Act,
+        self.emit_span_with_actor(actor, CnsSpan::WalletConversion, "converted", CyclePhase::Act,
             serde_json::json!({"actor": actor.to_string(), "wallet_id": wallet_id.to_string(),
                 "rjoules": amount_rj.as_u64(), "usdc_micro": amount_usdc_micro, "direction": "rj_to_usdc"}));
     }
@@ -93,7 +93,7 @@ impl WalletManager {
     ) -> Result<TxHash, WalletError> {
         let port = self.chains.get(&chain).expect("chain port verified above");
         let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
-        self.emit_span_with_actor(actor, CnsSpan::WalletWithdrawal, "built", Phase::Act,
+        self.emit_span_with_actor(actor, CnsSpan::WalletWithdrawal, "built", CyclePhase::Act,
             serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string(),
                 "to_address": to_address, "amount_usdc_micro": amount_usdc_micro, "privacy": "transparent"}));
         let signature = signing::sign_withdrawal(chain, &tx_bytes)?;
@@ -101,7 +101,7 @@ impl WalletManager {
             actor,
             CnsSpan::WalletWithdrawal,
             "signed",
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string()}),
         );
         let mut signed_tx = tx_bytes;

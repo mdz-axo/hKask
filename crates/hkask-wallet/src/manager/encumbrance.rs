@@ -13,7 +13,7 @@ impl WalletManager {
         self.emit_span(
             CnsSpan::Gas,
             "encumbered",
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "key_id": key_id.to_string(),
                 "wallet_id": wallet_id.to_string(),
@@ -28,7 +28,7 @@ impl WalletManager {
         self.emit_span(
             CnsSpan::Gas,
             "released",
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "key_id": key_id.to_string(),
             }),

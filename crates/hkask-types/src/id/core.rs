@@ -162,9 +162,9 @@ pub enum SovereigntyKind {}
 impl private::Sealed for SovereigntyKind {}
 impl IdKind for SovereigntyKind {}
 
-pub enum PodKind {}
-impl private::Sealed for PodKind {}
-impl IdKind for PodKind {}
+pub enum PodIdKind {}
+impl private::Sealed for PodIdKind {}
+impl IdKind for PodIdKind {}
 
 pub enum WalletKind {}
 impl private::Sealed for WalletKind {}
@@ -208,7 +208,7 @@ pub type GoalID = Id<GoalKind>;
 pub type EmbeddingID = Id<EmbeddingKind>;
 pub type UserID = Id<UserKind>;
 pub type SovereigntyId = Id<SovereigntyKind>;
-pub type PodID = Id<PodKind>;
+pub type PodID = Id<PodIdKind>;
 pub type WalletId = Id<WalletKind>;
 pub type ApiKeyId = Id<ApiKeyKind>;
 pub type EscalationID = Id<EscalationKind>;

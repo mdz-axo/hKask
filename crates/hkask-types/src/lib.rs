@@ -2,6 +2,7 @@
 //!
 
 pub mod agent;
+pub mod agent_registry;
 
 pub mod agent_paths;
 pub mod cns;
@@ -32,6 +33,10 @@ pub mod sql_impls;
 
 pub use agent::AgentKind;
 pub use agent::PersonaConstraints;
+pub use agent_registry::{
+    AgentDefinition, Charter, Contact, RegisteredAgent, Responsibility, Right, ScheduledTask,
+    UserProfile,
+};
 pub use cns::CircuitState;
 pub use crypto::Ed25519PublicKey;
 pub use curation::{

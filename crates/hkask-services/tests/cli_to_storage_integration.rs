@@ -28,7 +28,7 @@ use hkask_storage::spec_store::SpecStore;
 use hkask_storage::{DomainAnchor, Spec, SpecCategory};
 use hkask_types::DataCategory;
 use hkask_types::WebID;
-use hkask_types::event::{NuEvent, Phase, Span, SpanKind};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,7 +176,7 @@ async fn cross_store_consent_visible_to_cns_events() {
             hkask_types::event::SpanNamespace::new("cns.inference"),
             "test.integration",
         ),
-        hkask_types::event::Phase::Act,
+        hkask_types::event::CyclePhase::Act,
         serde_json::json!({"test": true}),
         0,
     );
@@ -204,7 +204,7 @@ async fn service_energy_estimator_calibrates_from_events() {
     let event = NuEvent::new(
         agent,
         Span::from_kind(SpanKind::GasSettled),
-        Phase::Act,
+        CyclePhase::Act,
         serde_json::json!({
             "server": server,
             "tool": "search",

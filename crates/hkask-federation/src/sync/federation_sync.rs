@@ -11,7 +11,7 @@ use hkask_ports::federation::{
     FederationDelta, FederationMessage, FederationSyncPort, FederationTransport,
 };
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, NuEventSink, CyclePhase, Span, SpanNamespace};
 use serde_json::json;
 use tokio::sync::{RwLock, watch};
 
@@ -186,7 +186,7 @@ impl FederationSync {
         let event = NuEvent::new(
             hkask_types::WebID::from_persona(b"curator"),
             s,
-            Phase::Act,
+            CyclePhase::Act,
             metadata,
             0,
         );

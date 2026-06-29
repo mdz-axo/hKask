@@ -9,14 +9,14 @@ use hkask_capability::DelegationToken;
 /// - `CapabilityOnlyAdapter` — Capability verification only (no tool invocation)
 /// - Mock implementations for testing
 pub trait MCPRuntimePort: Send + Sync {
-    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), crate::error::McpError>;
+    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), crate::error::AgentMcpError>;
 
     fn invoke_tool(
         &self,
         tool_name: &str,
         input: serde_json::Value,
         token: &DelegationToken,
-    ) -> Result<serde_json::Value, crate::error::McpError>;
+    ) -> Result<serde_json::Value, crate::error::AgentMcpError>;
 
     /// Resolve the server ID for a tool.
     ///

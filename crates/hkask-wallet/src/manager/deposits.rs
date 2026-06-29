@@ -147,7 +147,7 @@ impl WalletManager {
                 self.emit_span(
                     CnsSpan::WalletDeposit,
                     "unresolvable_address",
-                    Phase::Sense,
+                    CyclePhase::Sense,
                     serde_json::json!({
                         "chain": chain.to_string(),
                         "amount_usdc_micro": event.amount_usdc_micro,
@@ -159,7 +159,7 @@ impl WalletManager {
                 self.emit_span(
                     CnsSpan::SelfHeal,
                     "wallet_deposit_address_unresolvable",
-                    Phase::Sense,
+                    CyclePhase::Sense,
                     serde_json::json!({
                         "chain": chain.to_string(),
                         "tx_hash": event.tx_hash.0,
@@ -178,7 +178,7 @@ impl WalletManager {
                         self.emit_span(
                             CnsSpan::SelfHeal,
                             "wallet_deposit_address_repaired",
-                            Phase::Act,
+                            CyclePhase::Act,
                             serde_json::json!({
                                 "chain": chain.to_string(),
                                 "to_address": event.to_address,
@@ -191,7 +191,7 @@ impl WalletManager {
                         self.emit_span(
                             CnsSpan::SelfHeal,
                             "wallet_deposit_address_repair_deferred",
-                            Phase::Sense,
+                            CyclePhase::Sense,
                             serde_json::json!({
                                 "chain": chain.to_string(),
                                 "to_address": event.to_address,
@@ -206,7 +206,7 @@ impl WalletManager {
                         self.emit_span(
                             CnsSpan::SelfHeal,
                             "wallet_deposit_address_repair_failed",
-                            Phase::Sense,
+                            CyclePhase::Sense,
                             serde_json::json!({
                                 "chain": chain.to_string(),
                                 "to_address": event.to_address,
@@ -224,7 +224,7 @@ impl WalletManager {
         self.emit_span(
             CnsSpan::WalletDeposit,
             "detected",
-            Phase::Sense,
+            CyclePhase::Sense,
             serde_json::json!({
                 "chain": chain.to_string(),
                 "amount_usdc_micro": event.amount_usdc_micro,
@@ -256,7 +256,7 @@ impl WalletManager {
         self.emit_span(
             CnsSpan::WalletBalance,
             "credited",
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "wallet_id": wallet_id.to_string(),
                 "rjoules_credited": rj_amount.as_u64(),
@@ -267,7 +267,7 @@ impl WalletManager {
         self.emit_span(
             CnsSpan::WalletDeposit,
             "deposit_credited",
-            Phase::Act,
+            CyclePhase::Act,
             serde_json::json!({
                 "wallet_id": wallet_id.to_string(),
                 "amount_rj": rj_amount.as_u64(),

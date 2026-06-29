@@ -554,7 +554,7 @@ impl CnsRuntime {
             let event = hkask_types::event::NuEvent::new(
                 WebID::default(),
                 hkask_types::event::Span::new(span_ns.clone(), "variety_incremented"),
-                hkask_types::event::Phase::Act,
+                hkask_types::event::CyclePhase::Act,
                 serde_json::json!({"domain": domain, "state": state_name}),
                 0,
             );

@@ -5,7 +5,7 @@
 
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use tracing;
 
 /// Emit a CNS event when a contract is proposed by a replicant (Phase B2–B4).
@@ -24,7 +24,7 @@ pub fn emit_contract_proposed(
         "function": function,
         "contract_id": contract_id,
     });
-    let event = NuEvent::new(WebID::default(), span, Phase::Act, observation, 0);
+    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_proposed event");
     }
@@ -45,7 +45,7 @@ pub fn emit_contract_accepted(
         "reviewer": reviewer,
         "contract_id": contract_id,
     });
-    let event = NuEvent::new(WebID::default(), span, Phase::Act, observation, 0);
+    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_accepted event");
     }
@@ -68,7 +68,7 @@ pub fn emit_contract_rejected(
         "contract_id": contract_id,
         "reason": reason,
     });
-    let event = NuEvent::new(WebID::default(), span, Phase::Act, observation, 0);
+    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_rejected event");
     }
@@ -88,7 +88,7 @@ pub fn emit_contract_violated(
         "contract_id": contract_id,
         "failure_reason": failure_reason,
     });
-    let event = NuEvent::new(WebID::default(), span, Phase::Act, observation, 0);
+    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_violated event");
     }

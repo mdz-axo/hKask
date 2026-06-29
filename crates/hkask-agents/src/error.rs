@@ -7,7 +7,7 @@ use thiserror::Error;
 
 /// MCP runtime errors
 #[derive(Debug, Error)]
-pub enum McpError {
+pub enum AgentMcpError {
     #[error("Invalid capability token: {0}")]
     InvalidToken(String),
 

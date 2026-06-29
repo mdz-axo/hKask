@@ -18,7 +18,7 @@ pub struct NuEvent {
     pub timestamp: DateTime<Utc>,
     pub observer_webid: WebID,
     pub span: Span,
-    pub phase: Phase,
+    pub phase: CyclePhase,
     pub observation: Value,
     pub regulation: Option<Value>,
     pub outcome: Option<Value>,
@@ -36,7 +36,7 @@ impl NuEvent {
     pub fn new(
         observer_webid: WebID,
         span: Span,
-        phase: Phase,
+        phase: CyclePhase,
         observation: Value,
         recursion_depth: u8,
     ) -> Self {
@@ -428,35 +428,35 @@ impl SpanKind {
     }
 }
 
-/// Phase of cybernetic cycle
+/// Phase of the cybernetic cycle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Phase {
+pub enum CyclePhase {
     Sense,
     Compute,
     Compare,
     Act,
 }
 
-impl Phase {
+impl CyclePhase {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Phase::Sense => "sense",
-            Phase::Compute => "compute",
-            Phase::Compare => "compare",
-            Phase::Act => "act",
+            CyclePhase::Sense => "sense",
+            CyclePhase::Compute => "compute",
+            CyclePhase::Compare => "compare",
+            CyclePhase::Act => "act",
         }
     }
 
-    /// Parse a phase string into a Phase variant.
+    /// Parse a phase string into a CyclePhase variant.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
-            "sense" | "Sense" => Phase::Sense,
-            "compute" | "Compute" => Phase::Compute,
-            "compare" | "Compare" => Phase::Compare,
-            "act" | "Act" => Phase::Act,
-            _ => Phase::Sense,
+            "sense" | "Sense" => CyclePhase::Sense,
+            "compute" | "Compute" => CyclePhase::Compute,
+            "compare" | "Compare" => CyclePhase::Compare,
+            "act" | "Act" => CyclePhase::Act,
+            _ => CyclePhase::Sense,
         }
     }
 }
@@ -479,10 +479,10 @@ mod tests {
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
         let obs = serde_json::json!({"key": "value"});
 
-        let event = NuEvent::new(webid, span, Phase::Sense, obs.clone(), 0);
+        let event = NuEvent::new(webid, span, CyclePhase::Sense, obs.clone(), 0);
 
         assert_eq!(event.observer_webid, webid);
-        assert_eq!(event.phase, Phase::Sense);
+        assert_eq!(event.phase, CyclePhase::Sense);
         assert_eq!(event.observation, obs);
         assert_eq!(event.recursion_depth, 0);
         assert_eq!(event.visibility, "private");
@@ -497,7 +497,7 @@ mod tests {
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
         let parent_id = crate::id::EventID::new();
 
-        let event = NuEvent::new(webid, span, Phase::Act, serde_json::json!({}), 1)
+        let event = NuEvent::new(webid, span, CyclePhase::Act, serde_json::json!({}), 1)
             .with_outcome(serde_json::json!({"result": "ok"}))
             .with_regulation(serde_json::json!({"adj": 0.5}))
             .with_parent(parent_id)
@@ -581,12 +581,12 @@ mod tests {
 
     #[test]
     fn phase_from_str() {
-        assert_eq!(Phase::from_str("sense"), Phase::Sense);
-        assert_eq!(Phase::from_str("compute"), Phase::Compute);
-        assert_eq!(Phase::from_str("compare"), Phase::Compare);
-        assert_eq!(Phase::from_str("act"), Phase::Act);
+        assert_eq!(CyclePhase::from_str("sense"), CyclePhase::Sense);
+        assert_eq!(CyclePhase::from_str("compute"), CyclePhase::Compute);
+        assert_eq!(CyclePhase::from_str("compare"), CyclePhase::Compare);
+        assert_eq!(CyclePhase::from_str("act"), CyclePhase::Act);
         // Unknown falls back to Sense
-        assert_eq!(Phase::from_str("unknown"), Phase::Sense);
+        assert_eq!(CyclePhase::from_str("unknown"), CyclePhase::Sense);
     }
 
     #[test]

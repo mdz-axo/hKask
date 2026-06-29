@@ -16,7 +16,7 @@ use hkask_storage::{
 use hkask_types::NuEventSink;
 use hkask_types::Visibility;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanNamespace};
 use hkask_types::visibility::Confidence;
 use std::sync::Arc;
 use thiserror::Error;
@@ -141,7 +141,7 @@ impl SemanticMemory {
             let event = NuEvent::new(
                 triple.access.owner_webid,
                 span,
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({"entity": triple.entity, "attribute": triple.attribute}),
                 0,
             );
@@ -158,7 +158,7 @@ impl SemanticMemory {
             let event = NuEvent::new(
                 triple.access.owner_webid,
                 span,
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({"entity": triple.entity, "attribute": triple.attribute}),
                 0,
             );

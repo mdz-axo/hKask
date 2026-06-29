@@ -21,7 +21,7 @@ use hkask_ports::{ChatToolDefinition, InferenceError, InferencePort, InferenceRe
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{NuEvent, Phase, Span, SpanKind, SpanNamespace};
+use hkask_types::event::{NuEvent, CyclePhase, Span, SpanKind, SpanNamespace};
 use hkask_types::template::LLMParameters;
 
 use std::pin::Pin;
@@ -133,7 +133,7 @@ impl InferencePort for GovernedInference {
                 let depleted_event = NuEvent::new(
                     agent,
                     depleted_span,
-                    Phase::Sense,
+                    CyclePhase::Sense,
                     serde_json::json!({
                         "operation": "inference",
                         "model": model_name,
@@ -174,7 +174,7 @@ impl InferencePort for GovernedInference {
             let reserved_event = NuEvent::new(
                 agent,
                 reserved_span,
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({
                     "server": crate::composite_energy_estimator::CompositeEnergyEstimator::INFERENCE_SERVER,
                     "operation": "inference",
@@ -190,7 +190,7 @@ impl InferencePort for GovernedInference {
             let invoked_event = NuEvent::new(
                 agent,
                 invoked_span,
-                Phase::Sense,
+                CyclePhase::Sense,
                 serde_json::json!({
                     "model": model_name,
                     "estimated_cost": estimated_cost.0,
@@ -255,7 +255,7 @@ impl InferencePort for GovernedInference {
             let settled_event = NuEvent::new(
                 agent,
                 settled_span,
-                Phase::Act,
+                CyclePhase::Act,
                 serde_json::json!({
                     "server": crate::composite_energy_estimator::CompositeEnergyEstimator::INFERENCE_SERVER,
                     "operation": "inference",
@@ -271,7 +271,7 @@ impl InferencePort for GovernedInference {
             // Step 4: Emit outcome span
             let (outcome_phase, outcome_obs) = match &result {
                 Ok(response) => (
-                    Phase::Act,
+                    CyclePhase::Act,
                     serde_json::json!({
                         "model": model_name,
                         "estimated_cost": estimated_cost.0,
@@ -282,7 +282,7 @@ impl InferencePort for GovernedInference {
                     }),
                 ),
                 Err(e) => (
-                    Phase::Act,
+                    CyclePhase::Act,
                     serde_json::json!({
                         "model": model_name,
                         "estimated_cost": estimated_cost.0,

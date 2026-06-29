@@ -634,7 +634,7 @@ impl ServiceError {
     /// pre:  self must be a valid ServiceError variant
     /// post: returns Some(NuEvent) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
     pub fn nu_event(&self) -> Option<hkask_types::event::NuEvent> {
-        use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+        use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
         use hkask_types::id::WebID;
 
         let (namespace, path_suffix, observation) = match self {
@@ -893,7 +893,7 @@ impl ServiceError {
         Some(NuEvent::new(
             WebID::new(),
             span,
-            Phase::Sense,
+            CyclePhase::Sense,
             observation,
             0,
         ))

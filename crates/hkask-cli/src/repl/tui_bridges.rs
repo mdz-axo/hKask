@@ -14,10 +14,10 @@ use hkask_tui::bridges::{
     matrix::{MatrixConnectionStatus, MatrixDataBridge, MatrixMessageSummary, MatrixRoomSummary},
     media::{GalleryStatus, ImageSummary, MediaDataBridge},
     memory::{ConsolidationStatus, MemoryDataBridge, MemorySummary, MemoryTriple},
-    registry::{BundleSummary, RegistryDataBridge, SkillSummary, TemplateSummary},
+    registry::{BundleSummary, RegistryDataBridge, SkillSummary, TemplateListItem},
     replica::{ReplicaDataBridge, ReplicaInfo},
     research::{ExtractResult, FeedInfo, ResearchDataBridge, SearchResult},
-    skills::{SkillExecResult, SkillInfo, SkillsDataBridge},
+    skills::{SkillExecResult, SkillListItem, SkillsDataBridge},
     training::{AdapterSummary, DeploymentSummary, TrainingDataBridge},
     wallet::{WalletDataBridge, WalletTxSummary},
 };
@@ -77,7 +77,7 @@ impl RegistryDataBridge for TuiReplBridge {
             .unwrap_or(0)
     }
 
-    fn list_templates(&self) -> Vec<TemplateSummary> {
+    fn list_templates(&self) -> Vec<TemplateListItem> {
         let state = self.state.lock().expect("lock");
         state
             .service_context
@@ -86,7 +86,7 @@ impl RegistryDataBridge for TuiReplBridge {
             .map(|r| {
                 r.list_skills_owned()
                     .into_iter()
-                    .map(|s| TemplateSummary {
+                    .map(|s| TemplateListItem {
                         id: s.id.clone(),
                         name: s.id.clone(),
                         description: None,
@@ -1001,7 +1001,7 @@ impl ReplicaDataBridge for TuiReplBridge {
 // ── SkillsDataBridge (live MCP dispatch to hkask-mcp-skill) ──
 
 impl SkillsDataBridge for TuiReplBridge {
-    fn skill_list(&self) -> Vec<SkillInfo> {
+    fn skill_list(&self) -> Vec<SkillListItem> {
         let state = self.state.lock().expect("lock");
         let runtime = state.service_context.mcp_runtime().clone();
         self.rt_handle.block_on(async {
@@ -1016,7 +1016,7 @@ impl SkillsDataBridge for TuiReplBridge {
                             skills
                                 .iter()
                                 .filter_map(|s| {
-                                    Some(SkillInfo {
+                                    Some(SkillListItem {
                                         id: s["id"].as_str()?.to_string(),
                                         description: s["description"]
                                             .as_str()

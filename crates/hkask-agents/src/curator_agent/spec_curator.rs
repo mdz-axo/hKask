@@ -17,7 +17,7 @@ use hkask_types::cns::CnsSpan;
 use hkask_types::curation::OCAPBoundary;
 use hkask_types::curation::{CurationDecision, OcapTokenKind};
 use hkask_types::curator::CurationThresholdConfig;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use hkask_types::id::WebID;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -176,7 +176,7 @@ impl DefaultSpecCurator {
 
     /// Record a sovereignty check for a spec evaluation.
     ///
-    /// Emits a `cns.sovereignty.checked` `NuEvent` (Phase::Compare) describing
+    /// Emits a `cns.sovereignty.checked` `NuEvent` (CyclePhase::Compare) describing
     /// which data categories the curator consulted. This is the
     /// Curator-as-Enforcer recording the Magna Carta's "sovereignty checking"
     /// responsibility (Curator Responsibilities §2 in `magna-carta.md`).
@@ -200,7 +200,7 @@ impl DefaultSpecCurator {
         let event = NuEvent::new(
             WebID::from_persona(b"spec-curator"),
             Span::new(SpanNamespace::from(CnsSpan::Sovereignty), "checked"),
-            Phase::Compare,
+            CyclePhase::Compare,
             serde_json::json!({
                 "spec_id": spec_id,
                 "categories": categories,
@@ -293,7 +293,7 @@ impl SpecCurator for DefaultSpecCurator {
                 let event = NuEvent::new(
                     WebID::from_persona(b"spec-curator"),
                     Span::new(SpanNamespace::from(CnsSpan::Spec), "drift_exceeded"),
-                    Phase::Compare,
+                    CyclePhase::Compare,
                     serde_json::json!({
                         "spec_id": spec.id.to_string(),
                         "drift_magnitude": drift_report.drift_magnitude,

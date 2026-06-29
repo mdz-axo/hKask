@@ -31,7 +31,7 @@ pub use test_runner::ExpectProposal;
 
 use chrono::Utc;
 use hkask_storage::Triple;
-use hkask_types::event::{NuEvent, Phase, Span};
+use hkask_types::event::{CyclePhase, NuEvent, Span};
 use hkask_types::id::WebID;
 use rand::Rng;
 use rusqlite::Connection;
@@ -434,13 +434,13 @@ pub fn temp_dir() -> TempDir {
 /// # Example
 /// ```ignore
 /// let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-/// let event = test_event(span, Phase::Observation, None);
+/// let event = test_event(span, CyclePhase::Observation, None);
 /// assert!(event.observer_webid.as_uuid().is_set());
 /// ```
 ///
 /// pre:  span is a valid Span, phase is a valid Phase
 /// post: returns NuEvent with random observer if observer is None, depth=0, test observation
-pub fn test_event(span: Span, phase: Phase, observer: Option<WebID>) -> NuEvent {
+pub fn test_event(span: Span, phase: CyclePhase, observer: Option<WebID>) -> NuEvent {
     NuEvent::new(
         observer.unwrap_or_else(TestWebId::random),
         span,
@@ -517,7 +517,7 @@ mod tests {
         assert!(cns.is_homeostatic());
 
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-        let event = test_event(span, Phase::Sense, None);
+        let event = test_event(span, CyclePhase::Sense, None);
         cns.inject(event);
 
         assert!(!cns.is_homeostatic());
@@ -529,7 +529,7 @@ mod tests {
     fn mock_cns_restores_homeostasis() {
         let cns = MockCnsRuntime::new();
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-        cns.inject(test_event(span, Phase::Sense, None));
+        cns.inject(test_event(span, CyclePhase::Sense, None));
         assert!(!cns.is_homeostatic());
 
         cns.advance_time(std::time::Duration::from_secs(10));
@@ -550,7 +550,7 @@ mod tests {
     #[test]
     fn test_event_is_valid() {
         let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
-        let event = test_event(span, Phase::Sense, None);
+        let event = test_event(span, CyclePhase::Sense, None);
         assert!(!event.id.as_uuid().is_nil());
         assert!(!event.observer_webid.as_uuid().is_nil());
         assert_eq!(event.recursion_depth, 0);

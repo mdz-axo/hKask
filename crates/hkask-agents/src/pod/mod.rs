@@ -137,7 +137,7 @@ pub enum AgentPodError {
     A2ARegistrationError(String),
 
     #[error("MCP access grant failed: {0}")]
-    MCPAccessError(#[from] crate::error::McpError),
+    MCPAccessError(#[from] crate::error::AgentMcpError),
 
     #[error("Capability attenuation limit exceeded")]
     AttenuationLimitExceeded,
