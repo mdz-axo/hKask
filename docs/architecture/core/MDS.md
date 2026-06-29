@@ -1,7 +1,7 @@
 ---
 title: "MDS — Minimal Domain Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-18
+last_updated: 2026-06-28
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -26,6 +26,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |--------|-------|-------------|---------------|
 | `HumanUser` | `hkask-storage` | Human identity with WebID, role (Admin\|Member), OAuth provider link | P1 |
 | `Replicant` | `hkask-types` | Agent identity with persona, voice, wallet link | P6 |
+| `AgentDefinition` / `RegisteredAgent` | `hkask-types` | Canonical agent registry schema persisted by storage and loaded from YAML | P3 |
 | `AgentPod` | `hkask-agents` | Runtime container for a replicant (Inactive\|Active\|ServerMode) | P1 |
 | `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
 | `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
@@ -60,7 +61,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |--------|-------------|---------------|
 | `KataEngine` | Orchestrates kata cycles (starter, improvement, coaching) | `state: KataState`, `manifest: KataManifest` |
 | `KataState` | Current state of a kata practice cycle | `cycle: CyclePhase`, `observations: Vec<Observation>` |
-| `KataManifest` | Declarative definition of a kata (steps, coaching questions, routines) | `meta: ManifestMeta`, `gas_config: GasConfig`, `steps: Vec<KataStep>`, `routines: Vec<PracticeRoutine>`, `cns: CnsConfig` |
+| `KataManifest` | Declarative definition of a kata (steps, coaching questions, routines) | `meta: ManifestMeta`, `gas: KataGasConfig`, `steps: Vec<KataStep>`, `practices: Vec<PracticeRoutine>`, `cns: KataCnsConfig`, `audit: KataAuditConfig` |
 | `KataStep` | A single step in a kata improvement cycle | `name: String`, `description: String`, `coach_question: CoachQuestion` |
 | `CoachQuestion` | One of the 5 coaching kata questions | `number: u8`, `text: String` |
 | `PracticeRoutine` | Deliberate practice routine (Five Questions Drill, PDCA, Observation) | `name: String`, `duration_minutes: u32`, `outcomes: Vec<StarterOutcome>` |

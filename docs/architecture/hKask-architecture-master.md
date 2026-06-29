@@ -188,6 +188,7 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 - **Deterministic key derivation.** `derive_ocap_secret(webid)` via HKDF-SHA256 from master key. ADR-027: restart-safe, per-agent isolation. No key material stored.
 - **Mode mutual exclusion (initial).** Chat OR Server, not both. Safety boundary: prevents context leakage between human dialogue and tool serving (P11).
 - **Server mode flow.** 4 gates: `kask login → pod assign → pod mode server → IDE spawns MCP binary → daemon auth → assignment → capability → serve`.
+- **Canonical agent registry schema.** Agent definitions are parsed from YAML into `hkask_types::agent_registry::AgentDefinition` and persisted verbatim by storage. `rights`/`responsibilities` are tagged enums (e.g., `read`, `write`, `perform`, `emit`); flat legacy records are not accepted.
 - **Dual memory encoding.** Every tool call → `record_experience()` → daemon `store_experience` → episodic (private) + semantic (public). Every 10 experiences → `generate_narrative()`.
 - **No cross-agent memory access.** `EpisodicMemory::query_for_deduped` filters by `perspective == Some(agent_webid)`. Semantic memory is public. P11: right to choose public/private extends to agents.
 - **Default is private — sovereignty fails closed.** `Visibility::Private` default. `ConsentManager` requires explicit affirmative consent for visibility transitions.

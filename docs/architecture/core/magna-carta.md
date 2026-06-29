@@ -1,7 +1,7 @@
 ---
 title: "The Magna Carta of hKask"
 audience: [architects, users, agents]
-last_updated: 2026-06-18
+last_updated: 2026-06-28
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -382,7 +382,7 @@ sovereignty policy on every memory access.
 // In hkask-agents::curator_agent::DefaultSpecCurator
 impl DefaultSpecCurator {
     /// Record a sovereignty check for a spec evaluation.
-    /// Emits a `cns.sovereignty.checked` NuEvent (Phase::Compare).
+    /// Emits a `cns.sovereignty.checked` NuEvent (CyclePhase::Compare).
     pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) { /* ... */ }
 }
 

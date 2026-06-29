@@ -1,7 +1,7 @@
 ---
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-27
+last_updated: 2026-06-28
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -47,7 +47,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Bounded context documented and verified against code
   - [x] External dependencies (Okapi, SQLCipher) are delegated, not owned
   - [x] All domain entities have corresponding Rust types
-- **Implementation:** `hkask-types::id`, `hkask-types::event`, `hkask-types::agent_def`
+- **Implementation:** `hkask-types::id`, `hkask-types::event`, `hkask-types::agent_registry`
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge — foundational requirement, fully satisfied

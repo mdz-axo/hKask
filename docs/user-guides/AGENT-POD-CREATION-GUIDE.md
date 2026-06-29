@@ -1,7 +1,7 @@
 ---
 title: "Agent Pod Creation Guide"
 audience: [developers, agent designers]
-last_updated: 2026-06-10
+last_updated: 2026-06-28
 version: "0.31.0"
 status: "Active"
 domain: "Application"
@@ -284,9 +284,9 @@ rights:
   # Add rights from Section 1.3
 
 responsibilities:
-  - respond_to: [trigger_type]
+  - perform: respond_to [trigger_type]
   - emit: cns.[domain].[action]
-  - report_to: [supervisor_bot]
+  - perform: report_to [supervisor_bot]
   - record: [memory_type]_to_episodic_memory
   - produce: semantic_triples_from_[operations]
 
@@ -361,7 +361,7 @@ rights:
   - execute: user_requested_operations
 
 responsibilities:
-  - respond_to: user_queries
+  - perform: respond_to user_queries
   - emit: cns.prompt.user_interaction
   - record: user_interactions_to_episodic_memory
   - escalate: complex_queries_to_curator
@@ -955,7 +955,7 @@ rights:
   - write: public_semantic_memory
 
 responsibilities:
-  - respond_to: memory_queries
+  - perform: respond_to memory_queries
   - emit: cns.memory.operation
   - record: operations_to_episodic_memory
   - produce: semantic_triples_from_memory_ops
@@ -1036,7 +1036,7 @@ rights:
   - execute: user_requested_operations
 
 responsibilities:
-  - respond_to: user_queries
+  - perform: respond_to user_queries
   - emit: cns.prompt.user_interaction
   - record: user_interactions_to_episodic_memory
   - escalate: complex_queries_to_curator
@@ -1084,8 +1084,8 @@ rights:
   - coordinate: cross_workspace_sessions
 
 responsibilities:
-  - translate: workspace_requests_to_hKask
-  - forward: hKask_responses_to_workspace
+  - perform: translate workspace_requests_to_hKask
+  - perform: forward hKask_responses_to_workspace
   - record: bridge_operations_to_memory
   - maintain: cross_workspace_protocol_compliance
 

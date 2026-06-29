@@ -1,7 +1,7 @@
 ---
 title: "hKask Functional Specification"
 audience: "hKask developers and architects"
-last_updated: "2026-06-26"
+last_updated: "2026-06-28"
 version: "0.31.0"
 status: "Active"
 domain: "architecture"
@@ -14,7 +14,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 **Version:** v0.31.0
 **Created:** 2026-06-16
 **Status:** Active — anchor for the Testing Discipline. Contracts use `expect:` + `[P{N}]` annotations with CNS-observed behavioral contracts.
-**Last Updated:** 2026-06-26  
+**Last Updated:** 2026-06-28  
 **Decision:** 2026-06-21 — Contract system simplified. REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. Enforcement is through CNS span observation and property-based testing.
 
 > This document maps the complete system to its motivating principles and enumerates functional requirements per domain. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`CONTRACT_GUIDE.md`](../../../guides/CONTRACT_GUIDE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
@@ -762,6 +762,63 @@ These domains are documented here for completeness. The canonical contract forma
 | Wallet store | P3 | 25 | `P3-sto-wallet-wal-mode`, `P3-sto-wallet-balance-get`, `P3-sto-wallet-ensure`, `P3-sto-wallet-list-ids`, `P3-sto-wallet-credit`, `P3-sto-wallet-debit`, `P3-sto-wallet-tx-record`, `P3-sto-wallet-tx-list`, `P3-sto-wallet-tx-hash-exists`, `P3-sto-wallet-api-key-*`, `P3-sto-wallet-spent-rj-update`, `P3-sto-wallet-address-*`, `P3-sto-wallet-reference-*`, `P3-sto-wallet-encumber`, `P3-sto-wallet-encumbrance-release`, `P3-sto-wallet-encumbrance-consume`, `P3-sto-wallet-encumbrance-get` |
 
 > **Note:** The original handoff estimated 12 storage contracts; the actual source contains **168 annotated functions**. Storage is the largest domain.
+
+#### Agent Registry Schema (Canonical)
+
+- **Canonical types:** `hkask_types::agent_registry::{AgentDefinition, Charter, Right, Responsibility, RegisteredAgent, UserProfile, Contact, ScheduledTask}`.
+- **Persistence:** `hkask-storage` re-exports these types and stores the full `AgentDefinition` parsed from YAML (no flattening).
+- **Rights/Responsibilities:** Tagged enum entries only. Example keys: `read`, `write`, `execute`, `coordinate`, `escalate_to` for rights; `monitor`, `synthesize`, `perform`, `calibrate`, `escalate`, `maintain`, `emit`, `orchestrate`, `record`, `produce` for responsibilities.
+- **Charter:** `description`, `archetype`, `visibility` only. Legacy `purpose` and `constraints` fields are not supported.
+
+##### Agent Registry YAML Schema (Canonical)
+
+```yaml
+agent:
+  name: Curator
+  type: Replicant
+  binding_contract: true
+  editor: hKask-Administrator
+
+charter:
+  description: "System curator — metacognitive oversight"
+  archetype: MaintenanceAdvisory
+  visibility: Primary
+
+capabilities:
+  - tool:cns:emit
+  - tool:memory:recall
+
+rights:
+  - read: cns_spans_all
+  - write: public_semantic_memory
+  - execute: system_calibration
+  - escalate_to: hKask-Administrator
+
+responsibilities:
+  - monitor: system_health_via_cns
+  - synthesize: bot_reports_into_system_state
+  - perform: metacognition_on_system_performance
+  - emit: cns.prompt.metacognition
+
+persona:
+  tone: Direct and to the point
+  verbosity: Minimal
+  formatting: GitHub-flavored markdown
+  forbidden: [preamble, postamble, emojis]
+  required: [direct answers, technical precision]
+
+depends_on:
+  - R7.1
+
+process_manifest: registry/manifests/curator-metacognition.yaml
+
+voice_description: "Neutral, calm, technical"
+voice_id: "local-tts-001"
+```
+
+**Allowed rights keys:** `read`, `write`, `execute`, `coordinate`, `escalate_to`.
+
+**Allowed responsibility keys:** `monitor`, `synthesize`, `perform`, `calibrate`, `escalate`, `maintain`, `emit`, `orchestrate`, `record`, `produce`.
 
 ### 3.3 Memory (`hkask-memory`)
 
