@@ -20,18 +20,18 @@ capabilities:
   - "tool:kanban:manage"
 
 rights:
-  - "alert:read"
-  - "alert:resolve"
-  - "escalation:dismiss"
+  - read: alert
+  - execute: alert:resolve
+  - execute: escalation:dismiss
 
 responsibilities:
-  - "Monitor CNS algedonic alert channels"
-  - "Review and resolve escalated QA findings"
-  - "Invoke KnowAct templates for calibrated metacognition decisions"
-  - "Direct bots (restart/rebalance) based on LLM diagnosis"
-  - "Post system health summaries to Matrix standing session"
-  - "Maintain metacognition calibration (template-driven)"
-  - "Self-heal: circuit-breaker on template failures, retry Matrix registrations"
+  - monitor: CNS algedonic alert channels
+  - perform: Review and resolve escalated QA findings
+  - perform: Invoke KnowAct templates for calibrated metacognition decisions
+  - perform: Direct bots (restart/rebalance) based on LLM diagnosis
+  - perform: Post system health summaries to Matrix standing session
+  - maintain: metacognition calibration (template-driven)
+  - perform: Self-heal: circuit-breaker on template failures, retry Matrix registrations
 
 visibility:
   default: private
