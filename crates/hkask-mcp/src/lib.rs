@@ -15,6 +15,31 @@ pub(crate) mod security;
 pub mod server;
 pub mod startup; // P4 Gate 1/2/3 startup verification for MCP server binaries
 
+// ── Canonical MCP server registry ─────────────────────────────────────────
+// Single source of truth for all (server_id, binary_name) mappings.
+// Every consumer that starts MCP servers MUST use this list.
+//
+// Subsets are permitted only for intentionally-sandboxed environments
+// (e.g., API server may exclude filesystem for security), but must
+// reference this constant as the upper bound.
+pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
+    ("memory", "hkask-mcp-memory"),
+    ("condenser", "hkask-mcp-condenser"),
+    ("research", "hkask-mcp-research"),
+    ("companies", "hkask-mcp-companies"),
+    ("communication", "hkask-mcp-communication"),
+    ("curator", "hkask-mcp-curator"),
+    ("fal", "hkask-mcp-fal"),
+    ("fal-workflow", "hkask-mcp-fal"),
+    ("media", "hkask-mcp-media"),
+    ("docproc", "hkask-mcp-docproc"),
+    ("training", "hkask-mcp-training"),
+    ("replica", "hkask-mcp-replica"),
+    ("kanban", "hkask-mcp-kanban"),
+    ("skill", "hkask-mcp-skill"),
+    ("filesystem", "hkask-mcp-filesystem"),
+];
+
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 pub use dispatch::McpDispatcher;
 pub use dispatch::RawMcpToolPort;

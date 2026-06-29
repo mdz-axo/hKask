@@ -7,30 +7,16 @@
 
 use hkask_mcp::runtime::McpRuntime;
 
-/// MCP servers available for the REPL.
+/// Canonical (server_id, binary_name) registry — single source of truth.
 ///
 /// Each entry maps `(server_id, binary_name)`. The binary must be on PATH
 /// or specified via the `HKASK_MCP_{ID}_BIN` environment variable.
 ///
 /// Servers are NOT auto-started at REPL boot — they require explicit user
 /// consent via the `/mcp` command or the post-sign-on prompt (P2: Affirmative Consent).
-pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
-    ("memory", "hkask-mcp-memory"),
-    ("condenser", "hkask-mcp-condenser"),
-    ("research", "hkask-mcp-research"),
-    ("companies", "hkask-mcp-companies"),
-    ("communication", "hkask-mcp-communication"),
-    ("curator", "hkask-mcp-curator"),
-    ("fal", "hkask-mcp-fal"),
-    ("fal-workflow", "hkask-mcp-fal"),
-    ("media", "hkask-mcp-media"),
-    ("docproc", "hkask-mcp-docproc"),
-    ("training", "hkask-mcp-training"),
-    ("replica", "hkask-mcp-replica"),
-    ("kanban", "hkask-mcp-kanban"),
-    ("skill", "hkask-mcp-skill"),
-    ("filesystem", "hkask-mcp-filesystem"),
-];
+///
+/// Imported from `hkask_mcp::BUILTIN_SERVERS` — the canonical source.
+pub use hkask_mcp::BUILTIN_SERVERS;
 
 /// Start all built-in MCP servers and discover their tools.
 ///

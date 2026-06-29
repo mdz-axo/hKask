@@ -372,7 +372,7 @@ async fn select_model() -> Result<String, OnboardingError> {
     let config = InferenceConfig::from_env();
     let default_model = config.default_model.clone();
 
-    // Run the discovery pipeline (HF → classify → dedup → fallback)
+    // Run the discovery pipeline (OpenRouter → filters → top 12 → fallback)
     let (models, source_label) = discovery::discover_models(&config).await;
     let is_dynamic = models
         .first()

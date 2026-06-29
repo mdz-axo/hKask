@@ -1,14 +1,7 @@
 //! MCP command handlers for `kask mcp`
 
 use crate::cli::McpAction;
-
-const BUILTIN_SERVERS: &[(&str, &str)] = &[
-    ("memory", "hkask-mcp-memory"),
-    ("condenser", "hkask-mcp-condenser"),
-    ("docproc", "hkask-mcp-docproc"),
-    ("training", "hkask-mcp-training"),
-    ("media", "hkask-mcp-media"),
-];
+use hkask_mcp::BUILTIN_SERVERS;
 
 fn build_service_context(rt: &tokio::runtime::Runtime) -> hkask_services::AgentService {
     let ctx = super::helpers::build_service_context();

@@ -349,6 +349,10 @@ pub struct InferenceConfig {
     pub together_api_key: String,
     pub openrouter_base_url: String,
     pub openrouter_api_key: String,
+    /// OpenRouter onboarding thresholds (used by CLI model discovery).
+    pub openrouter_max_prompt_price_per_m: f64,
+    pub openrouter_max_completion_price_per_m: f64,
+    pub openrouter_min_agentic_index: f64,
     pub kilocode_base_url: String,
     pub kilocode_api_key: String,
     pub timeout_secs: u64,
@@ -376,6 +380,9 @@ impl Default for InferenceConfig {
             together_api_key: String::new(),
             openrouter_base_url: "https://openrouter.ai/api".to_string(),
             openrouter_api_key: String::new(),
+            openrouter_max_prompt_price_per_m: 1.0,
+            openrouter_max_completion_price_per_m: 5.0,
+            openrouter_min_agentic_index: 29.0,
             kilocode_base_url: "https://api.kilo.ai/api/gateway".to_string(),
             kilocode_api_key: String::new(),
             timeout_secs: 120,
@@ -422,6 +429,10 @@ impl InferenceConfig {
 
         let openrouter_api_key = resolve_api_key("OR_API_KEY");
 
+        let openrouter_max_prompt_price_per_m = env_f64("HKASK_OR_MAX_PRICE", 1.0);
+        let openrouter_max_completion_price_per_m = env_f64("HKASK_OR_MAX_OUTPUT_PRICE", 5.0);
+        let openrouter_min_agentic_index = env_f64("HKASK_OR_MIN_AGENTIC_INDEX", 29.0);
+
         let kilocode_base_url = std::env::var("KC_BASE_URL")
             .unwrap_or_else(|_| "https://api.kilo.ai/api/gateway".to_string());
 
@@ -444,6 +455,9 @@ impl InferenceConfig {
             together_api_key,
             openrouter_base_url,
             openrouter_api_key,
+            openrouter_max_prompt_price_per_m,
+            openrouter_max_completion_price_per_m,
+            openrouter_min_agentic_index,
             kilocode_base_url,
             kilocode_api_key,
             timeout_secs: 120,
@@ -475,6 +489,13 @@ impl InferenceConfig {
 /// Tier 1: OS keychain (encrypted at rest, preferred for cloud deployments).
 /// Resolve an API key via OS keychain, then environment variable.
 /// Returns empty string if no key is found — the backend will be unavailable.
+fn env_f64(key: &str, default: f64) -> f64 {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(default)
+}
+
 fn resolve_api_key(env_name: &str) -> String {
     // Tier 1: OS keychain
     if let Ok(zeroizing) = hkask_keystore::resolve(&SecretRef::Keychain(env_name.to_string())) {

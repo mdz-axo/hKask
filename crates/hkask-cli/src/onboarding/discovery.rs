@@ -1,33 +1,50 @@
 //! Dynamic model discovery pipeline for onboarding.
 //!
-//! 5-layer architecture:
-//!   1. HuggingFace API: text-generation models sorted by recency
-//!   2. Classify & filter: >5000 followers, Thinking vs Instruct, recency gate
-//!   3. Per-family dedup: keep best Thinking + best Instruct per model family
-//!   4. Cross-reference: fuzzy-match HF models against configured provider's API
-//!   5. Display: UI presentation with family grouping, thinking/instruct icons
+//! OpenRouter-first pipeline (spec):
+//!   1. OpenRouter API: list models via /v1/models
+//!   2. Filter: max prompt/output price, min agentic index, supported parameters
+//!   3. Sort: intelligence index (desc), take top 12
+//!   4. Display: UI presentation grouped by model family alphabetically
 //!
-//! Three-tier fallback chain: HF → provider API → static curated lists.
+//! Fallbacks (only if OpenRouter is unavailable):
+//!   - provider API list (best thinking + best instruct per family)
+//!   - static curated list per provider
 
-use chrono::Utc;
 use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId, RouterModelEntry};
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
+use serde_json::Value;
+use std::collections::HashMap;
 
-// ── HuggingFace API types ──────────────────────────────────────────────────
+// ── OpenRouter API types ──────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, Clone)]
-struct HfModel {
-    #[serde(rename = "modelId")]
-    model_id: Option<String>,
-    author: Option<String>,
-    #[serde(rename = "lastModified")]
-    last_modified: Option<String>,
+struct OpenRouterModelList {
+    data: Vec<OpenRouterModel>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-struct HfUser {
-    followers: Option<u64>,
+#[allow(dead_code)]
+struct OpenRouterModel {
+    id: String,
+    name: Option<String>,
+    created: Option<u64>,
+    pricing: Option<OpenRouterPricing>,
+    architecture: Option<OpenRouterArchitecture>,
+    benchmarks: Option<Value>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct OpenRouterPricing {
+    prompt: Option<String>,
+    completion: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct OpenRouterArchitecture {
+    #[serde(default)]
+    output_modalities: Vec<String>,
+    #[serde(default)]
+    tokenizer: Option<String>,
 }
 
 // ── Internal types ─────────────────────────────────────────────────────────
@@ -41,17 +58,18 @@ pub(crate) enum ModelKind {
     Instruct,
 }
 
-/// A discovered model from the pipeline.
+/// A model entry for the onboarding UI.
 #[derive(Debug, Clone)]
-pub(crate) struct DiscoveredModel {
-    pub model_id: String,
-    pub family: String,
-    pub kind: ModelKind,
-    pub followers: u64,
+pub(crate) struct OnboardingModel {
+    pub label: String,
+    pub full_id: String,
     pub description: String,
+    #[allow(dead_code)]
+    pub score: u32,
+    pub source: ModelSource,
+    pub kind: ModelKind,
+    pub family: String,
 }
-
-// ── Onboarding model (UI-facing) ───────────────────────────────────────────
 
 /// Whether a model entry came from dynamic discovery or the static fallback.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -60,70 +78,10 @@ pub(crate) enum ModelSource {
     Fallback,
 }
 
-/// A model entry for the onboarding UI.
-#[derive(Debug, Clone)]
-pub(crate) struct OnboardingModel {
-    pub label: String,
-    pub full_id: String,
-    pub description: String,
-    pub score: u32,
-    pub source: ModelSource,
-    pub kind: ModelKind,
-    pub family: String,
-}
+// ── OpenRouter filter spec ─────────────────────────────────────────────────
 
-// ── HF API Client ──────────────────────────────────────────────────────────
-
-const HF_BASE: &str = "https://huggingface.co/api";
-const FOLLOWER_THRESHOLD: u64 = 5000;
-const RECENCY_DAYS: i64 = 180;
-
-/// Fetch models from HuggingFace API filtered to text-generation, sorted by recency.
-async fn fetch_hf_models(client: &reqwest::Client) -> Result<Vec<HfModel>, String> {
-    let url = format!(
-        "{}/models?sort=lastModified&direction=-1&limit=100&filter=text-generation-inference",
-        HF_BASE
-    );
-    let resp = client
-        .get(&url)
-        .header("User-Agent", "hKask-onboarding/0.31")
-        .send()
-        .await
-        .map_err(|e| format!("HF API request failed: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Err(format!("HF API returned {}", resp.status()));
-    }
-
-    let models: Vec<HfModel> = resp
-        .json()
-        .await
-        .map_err(|e| format!("HF parse error: {e}"))?;
-
-    Ok(models)
-}
-
-/// Fetch a HuggingFace user's follower count.
-async fn fetch_hf_user_followers(client: &reqwest::Client, username: &str) -> Result<u64, String> {
-    let url = format!("{}/users/{}", HF_BASE, username);
-    let resp = client
-        .get(&url)
-        .header("User-Agent", "hKask-onboarding/0.31")
-        .send()
-        .await
-        .map_err(|e| format!("HF user request failed: {e}"))?;
-
-    if !resp.status().is_success() {
-        return Ok(0); // Graceful: author may not exist
-    }
-
-    let user: HfUser = resp
-        .json()
-        .await
-        .map_err(|e| format!("HF user parse error: {e}"))?;
-
-    Ok(user.followers.unwrap_or(0))
-}
+const OR_SUPPORTED_PARAMETERS: &str = "temperature,top_p,structured_outputs,tools,reasoning";
+const OR_TOP_N: usize = 12;
 
 // ── Model classification ───────────────────────────────────────────────────
 
@@ -144,215 +102,50 @@ const THINKING_KEYWORDS: &[&str] = &[
     "deep-thought",
 ];
 
-/// Keywords excluding models that are NOT LLMs.
-const NON_LLM_KEYWORDS: &[&str] = &[
-    "embedding",
-    "bge-",
-    "gte-",
-    "e5-",
-    "stella",
-    "jina-embeddings",
-    "tts",
-    "speech",
-    "whisper",
-    "parakeet",
-    "zonos",
-    "chatterbox",
-    "ocr",
-    "paddleocr",
-    "got-ocr",
-    "flux",
-    "stable-diffusion",
-    "sd-",
-    "sdxl",
-    "dall-e",
-    "text-to-image",
-    "image-generat",
-    "imagen-",
-    "text-to-video",
-    "video-generat",
-    "ltx-video",
-    "clip-",
-    "blip-",
-    "reranker",
-    "bge-reranker",
-    "jina-reranker",
-    "voice",
-    "audio",
-    "melotts",
-    "fish-speech",
-    "bgm",
-    "musicgen",
-    "upscale",
-    "segmentation",
-    "detection",
-    "depth",
-    "computer-vision",
-];
-
-/// Classify a model AND score it. Returns None if model should be excluded
-/// (non-LLM or too small). Otherwise returns (kind, quality_score).
-fn classify_and_score(model_id: &str) -> Option<(ModelKind, u32)> {
-    let lower = model_id.to_lowercase();
-
-    // Exclude non-LLM models
-    if NON_LLM_KEYWORDS.iter().any(|kw| lower.contains(kw)) {
-        return None;
+fn classify_kind(model_id: &str, name: Option<&str>) -> ModelKind {
+    let mut haystack = model_id.to_lowercase();
+    if let Some(n) = name {
+        haystack.push(' ');
+        haystack.push_str(&n.to_lowercase());
     }
-
-    // Exclude small models
-    for kw in &[
-        "-1b", "-3b", "-7b", "-8b", "-0.5b", "-1.5b", "-0.6b", "-mini", "-tiny", "-small", "-nano",
-    ] {
-        if lower.contains(kw) {
-            return None;
-        }
-    }
-
-    let kind = if THINKING_KEYWORDS.iter().any(|kw| lower.contains(kw)) {
+    if THINKING_KEYWORDS.iter().any(|kw| haystack.contains(kw)) {
         ModelKind::Thinking
     } else {
         ModelKind::Instruct
-    };
-
-    let score = compute_quality_score(&lower);
-    Some((kind, score))
-}
-
-/// Compute a quality score from a model name (already lowercased).
-///
-/// Score ranges and interpretation:
-///   < 10:  very small / unknown model (filtered out by classify_and_score)
-///   10-30: standard model, no strong signals
-///   30-60: strong model (large params OR quality tier)
-///   > 60:  frontier-tier (large params + quality tier + high version)
-///
-/// The caller MUST pass an already-lowercased string. Passing mixed-case
-/// will produce incorrect results because substring checks are case-sensitive.
-fn compute_quality_score(lower: &str) -> u32 {
-    let mut score: u32 = 10;
-
-    // Parameter count signals
-    for cap in lower.split(|c: char| !c.is_alphanumeric() && c != '.') {
-        if cap.ends_with('t')
-            && let Ok(val) = cap.trim_end_matches('t').parse::<f64>()
-        {
-            score = score.max((val * 100.0) as u32);
-        }
-        if cap.ends_with('b')
-            && let Ok(val) = cap.trim_end_matches('b').parse::<f64>()
-        {
-            score = score.max((val / 10.0) as u32);
-        }
-    }
-
-    // Quality tier signals
-    for (signal, points) in &[
-        ("pro", 20u32),
-        ("max", 18),
-        ("ultra", 18),
-        ("super", 15),
-        ("flash", 8),
-        ("large", 10),
-    ] {
-        if lower.contains(signal) {
-            score += points;
-        }
-    }
-
-    // Version signals
-    for word in lower.split(|c: char| !c.is_alphanumeric()) {
-        if word.len() >= 2
-            && word.starts_with('v')
-            && let Ok(val) = word[1..].parse::<u32>()
-        {
-            score += val.min(10);
-        }
-    }
-
-    score
-}
-
-// ── Family extraction ──────────────────────────────────────────────────────
-
-/// Map HuggingFace author names to canonical model family names.
-/// This is a stable structural mapping, not a model list.
-fn author_to_family(author: &str, model_id: &str) -> String {
-    match author.to_lowercase().as_str() {
-        "deepseek-ai" => "deepseek".to_string(),
-        "zai-org" => "glm".to_string(),
-        "moonshotai" => "kimi".to_string(),
-        "minimaxai" => "minimax".to_string(),
-        "qwen" => "qwen".to_string(),
-        "google" => "gemma".to_string(),
-        "nvidia" => "nemotron".to_string(),
-        "meta-llama" => "llama".to_string(),
-        "mistralai" | "mistral" => "mistral".to_string(),
-        "microsoft" => "phi".to_string(),
-        "stepfun-ai" => "step".to_string(),
-        "openai" => "openai".to_string(),
-        "xiaomimimo" => "mimo".to_string(),
-        "ai21labs" | "ai21" => "jamba".to_string(),
-        "cohere" | "cohereforai" => "command".to_string(),
-        "allenai" => "olmo".to_string(),
-        "tiiuae" => "falcon".to_string(),
-        "ibm" | "ibm-granite" => "granite".to_string(),
-        _ => extract_family_from_id(model_id),
     }
 }
-
-/// Extract model family from the model ID by parsing the first segment.
-fn extract_family_from_id(model_id: &str) -> String {
-    let lower = model_id.to_lowercase();
-    // Try splitting on `/` — take the last part, then first segment before `-`
-    let base = lower.rsplit('/').next().unwrap_or(&lower);
-    let first = base.split('-').next().unwrap_or(base);
-    // Strip trailing digits/version numbers from family name
-    first
-        .trim_end_matches(|c: char| c.is_ascii_digit() || c == '.')
-        .trim()
-        .to_string()
-}
-
-// ── Provider-to-hKask provider mapping ─────────────────────────────────────
 
 // ── Main pipeline ──────────────────────────────────────────────────────────
 
 /// Run the full discovery pipeline.
 ///
-/// Returns `(models, source_label)` where models is the deduplicated list
+/// Returns `(models, source_label)` where models is the list
 /// and source_label describes where they came from.
 pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<OnboardingModel>, String) {
-    // ── Layer 1-2: HuggingFace pipeline ───────────────────────────────
-    eprintln!("  Discovering models via HuggingFace...");
-    let hf_results: Vec<DiscoveredModel> = if let Ok(client) = config.build_client() {
-        run_hf_pipeline(&client).await.unwrap_or_default()
-    } else {
+    // ── OpenRouter pipeline (spec) ────────────────────────────────────
+    eprintln!("  Discovering models via OpenRouter...");
+    let or_results: Vec<OnboardingModel> = if config.openrouter_api_key.is_empty() {
         Vec::new()
+    } else {
+        run_openrouter_pipeline(config).await.unwrap_or_default()
     };
 
-    // ── Build router once (reused across fallback paths) ──────────────
-    // NOTE: InferenceRouter::new() takes InferenceConfig by value, so we clone once.
-    let router = InferenceRouter::new(config.clone());
-
-    // ── Layer 3: Cross-reference with configured provider ──────────────
-    if !hf_results.is_empty() {
-        let provider_models = router.list_models().await;
-        if !provider_models.is_empty() {
-            let cross_ref = cross_reference_with_provider(&hf_results, &provider_models);
-            if !cross_ref.is_empty() {
-                return (
-                    cross_ref,
-                    format!(
-                        "HF + {} (≤6mo, >5k followers)",
-                        crate::onboarding::provider_display_name(config)
-                    ),
-                );
-            }
-        }
+    if !or_results.is_empty() {
+        return (
+            or_results,
+            format!(
+                "OpenRouter (top {}, max ${}/M in, ${}/M out, AA ≥ {}, params {})",
+                OR_TOP_N,
+                config.openrouter_max_prompt_price_per_m,
+                config.openrouter_max_completion_price_per_m,
+                config.openrouter_min_agentic_index,
+                OR_SUPPORTED_PARAMETERS
+            ),
+        );
     }
 
     // ── Fallback 1: Provider API directly ─────────────────────────────
+    let router = InferenceRouter::new(config.clone());
     let router_models = router.list_models().await;
     if !router_models.is_empty() {
         let models = build_from_router(router_models);
@@ -378,166 +171,157 @@ pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<Onboarding
     )
 }
 
-/// Run the HuggingFace pipeline: fetch, filter, classify, deduplicate.
-async fn run_hf_pipeline(client: &reqwest::Client) -> Result<Vec<DiscoveredModel>, String> {
-    // Layer 1: Fetch recent text-gen models from HF
-    let hf_models = fetch_hf_models(client).await?;
-    if hf_models.is_empty() {
-        return Err("No models returned from HF".into());
-    }
+// ── OpenRouter pipeline ───────────────────────────────────────────────────
 
-    // Collect unique authors
-    let mut authors: HashSet<String> = HashSet::new();
-    for m in &hf_models {
-        if let Some(ref author) = m.author {
-            authors.insert(author.clone());
-        }
-    }
-
-    // Fetch follower counts for all authors (with basic dedup caching)
-    let mut followers: HashMap<String, u64> = HashMap::new();
-    eprintln!(
-        "  Checking follower counts for {} authors...",
-        authors.len()
+async fn run_openrouter_pipeline(config: &InferenceConfig) -> Result<Vec<OnboardingModel>, String> {
+    let client = config.build_client().map_err(|e| e.to_string())?;
+    let url = format!(
+        "{}/v1/models?output_modalities=text&sort=intelligence-high-to-low&supported_parameters={}",
+        config.openrouter_base_url.trim_end_matches('/'),
+        OR_SUPPORTED_PARAMETERS
     );
-    for author in &authors {
-        match fetch_hf_user_followers(client, author).await {
-            Ok(count) => {
-                followers.insert(author.clone(), count);
-            }
-            Err(_) => {
-                followers.insert(author.clone(), 0);
-            }
-        }
+
+    let resp = client
+        .get(&url)
+        .header(
+            "Authorization",
+            format!("Bearer {}", config.openrouter_api_key),
+        )
+        .header("User-Agent", "hKask-onboarding/0.31")
+        .send()
+        .await
+        .map_err(|e| format!("OpenRouter API request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("OpenRouter API returned {}", resp.status()));
     }
 
-    // Layer 2: Filter to leading providers, classify models
-    let cutoff = Utc::now() - chrono::Duration::days(RECENCY_DAYS);
-    let mut by_family: HashMap<String, Vec<HfModel>> = HashMap::new();
+    let list: OpenRouterModelList = resp
+        .json()
+        .await
+        .map_err(|e| format!("OpenRouter parse error: {e}"))?;
 
-    for m in &hf_models {
-        let author = match &m.author {
-            Some(a) => a,
-            None => continue,
+    let mut filtered: Vec<(OnboardingModel, f64)> = Vec::new();
+    for model in list.data {
+        if !is_text_model(&model) {
+            continue;
+        }
+
+        let prompt_price =
+            price_per_million(model.pricing.as_ref().and_then(|p| p.prompt.as_deref()));
+        let completion_price =
+            price_per_million(model.pricing.as_ref().and_then(|p| p.completion.as_deref()));
+
+        let (prompt_price, completion_price) = match (prompt_price, completion_price) {
+            (Some(p), Some(c)) => (p, c),
+            _ => continue,
         };
-        let follower_count = followers.get(author).copied().unwrap_or(0);
-        if follower_count < FOLLOWER_THRESHOLD {
+
+        if prompt_price > config.openrouter_max_prompt_price_per_m
+            || completion_price > config.openrouter_max_completion_price_per_m
+        {
             continue;
         }
 
-        let model_id = m.model_id.as_deref().unwrap_or("");
-        if model_id.is_empty() {
+        let intelligence = intelligence_index(&model.benchmarks).unwrap_or(-1.0);
+        let agentic = agentic_index(&model.benchmarks).unwrap_or(-1.0);
+        if agentic < config.openrouter_min_agentic_index {
             continue;
         }
 
-        // Check recency
-        let recent = m
-            .last_modified
-            .as_ref()
-            .and_then(|ts| {
-                chrono::DateTime::parse_from_rfc3339(ts)
-                    .ok()
-                    .map(|dt| dt.with_timezone(&Utc))
-            })
-            .map(|dt| dt >= cutoff)
-            .unwrap_or(false);
+        let family = model_family(&model);
+        let label = model
+            .name
+            .clone()
+            .unwrap_or_else(|| shorten_for_display(&model.id));
+        let kind = classify_kind(&model.id, model.name.as_deref());
+        let description = format!(
+            "IA {:.1}, AA {:.1} — ${:.2}/M in, ${:.2}/M out",
+            intelligence, agentic, prompt_price, completion_price
+        );
 
-        if !recent {
-            continue;
-        }
-
-        // Classify
-        if classify_and_score(model_id).is_none() {
-            continue;
-        }
-
-        let family = author_to_family(author, model_id);
-        by_family.entry(family).or_default().push((*m).clone());
+        let onboarding = OnboardingModel {
+            label,
+            full_id: ProviderId::OpenRouter.prefix_model(&model.id),
+            description,
+            score: (intelligence * 10.0) as u32,
+            source: ModelSource::Dynamic,
+            kind,
+            family,
+        };
+        filtered.push((onboarding, intelligence));
     }
 
-    // Layer 3: Per family, keep best Thinking + best Instruct (by recency)
-    let mut results: Vec<DiscoveredModel> = Vec::new();
+    if filtered.is_empty() {
+        return Err("No qualifying models found via OpenRouter".into());
+    }
 
-    for (family, models) in &by_family {
-        let mut best_thinking: Option<&HfModel> = None;
-        let mut best_instruct: Option<&HfModel> = None;
+    filtered.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    let models = filtered
+        .into_iter()
+        .take(OR_TOP_N)
+        .map(|(m, _)| m)
+        .collect::<Vec<_>>();
 
-        for m in models {
-            let model_id = m.model_id.as_deref().unwrap_or("");
-            // Models in by_family were already classified; re-derive kind here
-            // since we didn't store it alongside the HfModel in the Vec
-            let kind = match model_id {
-                id if id.to_lowercase().contains("thinking")
-                    || id.to_lowercase().contains("reasoning")
-                    || id.to_lowercase().contains("-r1")
-                    || id.to_lowercase().contains("deep-think")
-                    || id.to_lowercase().contains("deep-thought") =>
-                {
-                    ModelKind::Thinking
+    Ok(models)
+}
+
+fn is_text_model(model: &OpenRouterModel) -> bool {
+    model
+        .architecture
+        .as_ref()
+        .map(|arch| arch.output_modalities.iter().any(|m| m == "text"))
+        .unwrap_or(true)
+}
+
+fn price_per_million(raw: Option<&str>) -> Option<f64> {
+    let per_token = raw?.parse::<f64>().ok()?;
+    Some(per_token * 1_000_000.0)
+}
+
+fn intelligence_index(benchmarks: &Option<Value>) -> Option<f64> {
+    let value = benchmarks.as_ref()?;
+    find_index(value, "intelligence_index")
+}
+
+fn agentic_index(benchmarks: &Option<Value>) -> Option<f64> {
+    let value = benchmarks.as_ref()?;
+    find_index(value, "agentic_index")
+}
+
+fn find_index(value: &Value, key: &str) -> Option<f64> {
+    match value {
+        Value::Object(map) => {
+            if let Some(v) = map.get(key) {
+                if let Some(f) = v.as_f64() {
+                    return Some(f);
                 }
-                _ => ModelKind::Instruct,
-            };
-
-            match kind {
-                ModelKind::Thinking => {
-                    if best_thinking.is_none() || is_newer(m, best_thinking.unwrap()) {
-                        best_thinking = Some(m);
-                    }
-                }
-                ModelKind::Instruct => {
-                    if best_instruct.is_none() || is_newer(m, best_instruct.unwrap()) {
-                        best_instruct = Some(m);
-                    }
+                if let Some(s) = v.as_str() {
+                    return s.parse::<f64>().ok();
                 }
             }
+            for v in map.values() {
+                if let Some(found) = find_index(v, key) {
+                    return Some(found);
+                }
+            }
+            None
         }
-
-        // Use the family's first model author to look up followers
-        let family_author = models
-            .first()
-            .and_then(|m| m.author.as_deref())
-            .unwrap_or("");
-        let followers = followers.get(family_author).copied().unwrap_or(0);
-
-        if let Some(m) = best_thinking {
-            let hf_id = m.model_id.as_deref().unwrap_or("");
-            results.push(DiscoveredModel {
-                model_id: hf_id.to_string(),
-                family: family.clone(),
-                kind: ModelKind::Thinking,
-                followers,
-                description: format!("⚡ Thinking — {}", m.model_id.as_deref().unwrap_or("")),
-            });
-        }
-
-        if let Some(m) = best_instruct {
-            let hf_id = m.model_id.as_deref().unwrap_or("");
-            results.push(DiscoveredModel {
-                model_id: hf_id.to_string(),
-                family: family.clone(),
-                kind: ModelKind::Instruct,
-                followers,
-                description: format!("Instruct — {}", m.model_id.as_deref().unwrap_or("")),
-            });
-        }
+        Value::Array(items) => items.iter().filter_map(|v| find_index(v, key)).next(),
+        _ => None,
     }
-
-    if results.is_empty() {
-        return Err("No qualifying models found".into());
-    }
-
-    Ok(results)
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-fn is_newer(a: &HfModel, b: &HfModel) -> bool {
-    let ta = a.last_modified.as_deref().unwrap_or("");
-    let tb = b.last_modified.as_deref().unwrap_or("");
-    ta > tb
+fn model_family(model: &OpenRouterModel) -> String {
+    model
+        .architecture
+        .as_ref()
+        .and_then(|arch| arch.tokenizer.as_ref())
+        .map(|t| t.to_lowercase())
+        .unwrap_or_else(|| extract_family_from_id(&model.id))
 }
 
-// provider display names are resolved by onboarding::provider_display_name
+// ── Display helpers ────────────────────────────────────────────────────────
 
 pub(crate) fn shorten_for_display(id: &str) -> String {
     // Strip provider prefix (DI/, KC/, etc.) and org prefix
@@ -560,6 +344,19 @@ pub(crate) fn shorten_for_display(id: &str) -> String {
         .join(" ")
 }
 
+/// Extract model family from the model ID by parsing the first segment.
+fn extract_family_from_id(model_id: &str) -> String {
+    let lower = model_id.to_lowercase();
+    // Try splitting on `/` — take the last part, then first segment before `-`
+    let base = lower.rsplit('/').next().unwrap_or(&lower);
+    let first = base.split('-').next().unwrap_or(base);
+    // Strip trailing digits/version numbers from family name
+    first
+        .trim_end_matches(|c: char| c.is_ascii_digit() || c == '.')
+        .trim()
+        .to_string()
+}
+
 // ── Fallback builders ──────────────────────────────────────────────────────
 
 fn build_from_router(models: Vec<RouterModelEntry>) -> Vec<OnboardingModel> {
@@ -567,60 +364,36 @@ fn build_from_router(models: Vec<RouterModelEntry>) -> Vec<OnboardingModel> {
     let mut by_family: HashMap<String, Vec<RouterModelEntry>> = HashMap::new();
 
     for m in models {
-        if classify_and_score(&m.model).is_none() {
-            continue;
-        }
         let family = extract_family_from_id(&m.model);
         by_family.entry(family).or_default().push(m);
     }
 
     let mut results: Vec<OnboardingModel> = Vec::new();
     for (family, family_models) in &by_family {
-        // Separate into thinking and instruct, scored
-        let mut thinking: Vec<(&RouterModelEntry, u32)> = family_models
+        let mut thinking: Vec<&RouterModelEntry> = family_models
             .iter()
-            .filter_map(|m| {
-                classify_and_score(&m.model).and_then(|(k, s)| {
-                    if k == ModelKind::Thinking {
-                        Some((m, s))
-                    } else {
-                        None
-                    }
-                })
-            })
+            .filter(|m| classify_kind(&m.model, None) == ModelKind::Thinking)
             .collect();
-        let mut instruct: Vec<(&RouterModelEntry, u32)> = family_models
+        let mut instruct: Vec<&RouterModelEntry> = family_models
             .iter()
-            .filter_map(|m| {
-                classify_and_score(&m.model).and_then(|(k, s)| {
-                    if k == ModelKind::Instruct {
-                        Some((m, s))
-                    } else {
-                        None
-                    }
-                })
-            })
+            .filter(|m| classify_kind(&m.model, None) == ModelKind::Instruct)
             .collect();
 
-        thinking.sort_by(|a, b| b.1.cmp(&a.1));
-        instruct.sort_by(|a, b| b.1.cmp(&a.1));
+        thinking.sort_by(|a, b| b.model.cmp(&a.model));
+        instruct.sort_by(|a, b| b.model.cmp(&a.model));
 
-        if let Some((m, _)) = thinking.first() {
+        if let Some(m) = thinking.first() {
             results.push(build_onboarding_entry(m, family, ModelKind::Thinking));
         }
-        if let Some((m, _)) = instruct.first() {
+        if let Some(m) = instruct.first() {
             results.push(build_onboarding_entry(m, family, ModelKind::Instruct));
         }
     }
 
-    results.sort_by(|a, b| b.score.cmp(&a.score));
-    results.truncate(24); // 12 families × 2 models each
     results
 }
 
 fn build_onboarding_entry(m: &RouterModelEntry, family: &str, kind: ModelKind) -> OnboardingModel {
-    let base_score = compute_quality_score(&m.model.to_lowercase());
-    let score = base_score + if kind == ModelKind::Thinking { 50 } else { 0 };
     let kind_label = if kind == ModelKind::Thinking {
         "⚡ Thinking"
     } else {
@@ -630,14 +403,14 @@ fn build_onboarding_entry(m: &RouterModelEntry, family: &str, kind: ModelKind) -
         label: shorten_for_display(&m.prefixed_name),
         full_id: m.prefixed_name.clone(),
         description: format!("{} — {}", kind_label, m.model),
-        score,
+        score: 0,
         source: ModelSource::Dynamic,
         kind,
         family: family.to_string(),
     }
 }
 
-// ── Fallback lists ─────────────────────────────────────────────────────────
+// ── Static fallbacks ───────────────────────────────────────────────────────
 
 const DEEPINFRA_FALLBACK: &[(&str, &str, ModelKind)] = &[
     (
@@ -738,84 +511,6 @@ fn build_fallback(config: &InferenceConfig) -> Vec<OnboardingModel> {
         .collect()
 }
 
-/// Cross-reference HF-discovered models against what's actually available
-/// from the configured provider. Uses normalized fuzzy matching because
-/// provider model IDs differ from HF IDs (e.g., KiloCode "deepseek-v4-pro"
-/// vs HF "deepseek-ai/DeepSeek-V4-Pro").
-fn cross_reference_with_provider(
-    hf_models: &[DiscoveredModel],
-    provider_models: &[RouterModelEntry],
-) -> Vec<OnboardingModel> {
-    if provider_models.is_empty() {
-        return Vec::new();
-    }
-
-    let provider_index: Vec<(&RouterModelEntry, String)> = provider_models
-        .iter()
-        .map(|m| (m, normalize_for_match(&m.model)))
-        .collect();
-
-    let mut results: Vec<OnboardingModel> = Vec::new();
-    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    for d in hf_models {
-        let hf_norm = normalize_for_match(&d.model_id);
-
-        let best = provider_index.iter().find(|(_, norm)| {
-            norm.contains(&hf_norm)
-                || hf_norm.contains(norm.as_str())
-                || fuzzy_family_match(norm, &hf_norm, &d.family)
-        });
-
-        if let Some((entry, _)) = best {
-            // Deduplicate per family+kind
-            let key = format!("{}:{:?}", d.family, d.kind);
-            if !seen.insert(key) {
-                continue;
-            }
-
-            let display = shorten_for_display(&entry.prefixed_name);
-            let score = if d.kind == ModelKind::Thinking {
-                100
-            } else {
-                50
-            } + d.followers.min(50000) / 1000;
-
-            results.push(OnboardingModel {
-                label: display,
-                full_id: entry.prefixed_name.clone(),
-                description: d.description.clone(),
-                score: score as u32,
-                source: ModelSource::Dynamic,
-                kind: d.kind.clone(),
-                family: d.family.clone(),
-            });
-        }
-    }
-
-    results.sort_by(|a, b| b.score.cmp(&a.score));
-    results.truncate(24);
-    results
-}
-
-/// Normalize a model ID for fuzzy comparison: lowercase, strip separators.
-/// Dots are preserved because they carry semantic meaning in version numbers
-/// (e.g., "qwen3.5" ≠ "qwen35" — stripping dots causes false negatives).
-fn normalize_for_match(id: &str) -> String {
-    id.split('/')
-        .next_back()
-        .unwrap_or(id)
-        .to_lowercase()
-        .replace(['-', '_', ' '], "")
-}
-
-/// Check if two normalized IDs share the same model family.
-fn fuzzy_family_match(provider_norm: &str, hf_norm: &str, family: &str) -> bool {
-    let f = family.to_lowercase().replace(['-', '_'], "");
-    provider_norm.contains(&f) && hf_norm.contains(&f)
-    // Note: dots are NOT stripped here to match normalize_for_match behavior
-}
-
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -823,43 +518,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn classify_thinking_models() {
-        assert_eq!(
-            classify_and_score("deepseek-ai/DeepSeek-R1-0528").map(|(k, _)| k),
-            Some(ModelKind::Thinking)
-        );
-        assert_eq!(
-            classify_and_score("Qwen/Qwen3-Max-Thinking").map(|(k, _)| k),
-            Some(ModelKind::Thinking)
-        );
+    fn price_per_million_converts_from_per_token() {
+        assert_eq!(price_per_million(Some("0.000001")).unwrap(), 1.0);
+        assert_eq!(price_per_million(Some("0.000005")).unwrap(), 5.0);
     }
 
     #[test]
-    fn classify_instruct_models() {
+    fn classify_kind_detects_thinking() {
         assert_eq!(
-            classify_and_score("deepseek-ai/DeepSeek-V4-Pro").map(|(k, _)| k),
-            Some(ModelKind::Instruct)
+            classify_kind("deepseek-ai/DeepSeek-R1-0528", None),
+            ModelKind::Thinking
         );
         assert_eq!(
-            classify_and_score("google/gemma-4-31B-it").map(|(k, _)| k),
-            Some(ModelKind::Instruct)
+            classify_kind("Qwen/Qwen3-Max-Thinking", None),
+            ModelKind::Thinking
         );
-    }
-
-    #[test]
-    fn classify_rejects_non_llm() {
-        assert_eq!(classify_and_score("BAAI/bge-m3"), None);
-        assert_eq!(classify_and_score("black-forest-labs/FLUX.1-dev"), None);
-    }
-
-    #[test]
-    fn family_extraction() {
         assert_eq!(
-            author_to_family("deepseek-ai", "deepseek-ai/DeepSeek-V4-Pro"),
-            "deepseek"
+            classify_kind("deepseek-ai/DeepSeek-V4-Pro", None),
+            ModelKind::Instruct
         );
-        assert_eq!(author_to_family("zai-org", "zai-org/GLM-5.2"), "glm");
-        assert_eq!(author_to_family("qwen", "Qwen/Qwen3.5-397B-A17B"), "qwen");
     }
 
     #[test]
@@ -869,28 +546,19 @@ mod tests {
             "unknownmodel"
         );
         assert_eq!(extract_family_from_id("deepseek-v4-pro"), "deepseek");
-        assert_eq!(extract_family_from_id("glm-5.2"), "glm");
+    }
+
+    #[test]
+    fn finds_indexes_nested() {
+        let value = serde_json::json!({
+            "aa": { "agentic_index": 10.0, "intelligence_index": 42.5 }
+        });
+        assert_eq!(find_index(&value, "intelligence_index"), Some(42.5));
+        assert_eq!(find_index(&value, "agentic_index"), Some(10.0));
     }
 
     #[test]
     fn shorten_display_strips_prefixes() {
-        assert_eq!(
-            shorten_for_display("DI/deepseek-ai/DeepSeek-V4-Pro"),
-            "Deepseek V4 Pro"
-        );
-        assert_eq!(shorten_for_display("KC/deepseek-v4-pro"), "Deepseek V4 Pro");
-    }
-
-    #[test]
-    fn classify_and_score_ranks_pro_over_flash() {
-        let (_, pro) = classify_and_score("deepseek-v4-pro").unwrap();
-        let (_, flash) = classify_and_score("deepseek-v4-flash").unwrap();
-        assert!(pro > flash);
-    }
-
-    #[test]
-    fn classify_and_score_rejects_small_models() {
-        assert_eq!(classify_and_score("qwen3-8b"), None);
-        assert_eq!(classify_and_score("phi-3-mini"), None);
+        assert_eq!(shorten_for_display("OR/openai/gpt-4o"), "Gpt 4o");
     }
 }

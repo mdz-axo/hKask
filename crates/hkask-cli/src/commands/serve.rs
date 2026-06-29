@@ -6,31 +6,14 @@
 //! operate on the same shared state.
 
 use hkask_api::ApiState;
+use hkask_mcp::BUILTIN_SERVERS;
 use hkask_mcp::runtime::McpRuntime;
-
-/// MCP servers to start for the API.
-///
-/// Each entry maps `(server_id, binary_name)`. The binary must be on PATH
-/// or specified via the `HKASK_MCP_{ID}_BIN` environment variable.
-const API_SERVERS: &[(&str, &str)] = &[
-    ("memory", "hkask-mcp-memory"),
-    ("condenser", "hkask-mcp-condenser"),
-    ("research", "hkask-mcp-research"),
-    ("companies", "hkask-mcp-companies"),
-    ("communication", "hkask-mcp-communication"),
-    ("fal", "hkask-mcp-media"),
-    ("fal-workflow", "hkask-mcp-fal"),
-    ("docproc", "hkask-mcp-docproc"),
-    ("training", "hkask-mcp-training"),
-    ("replica", "hkask-mcp-replica"),
-];
 
 /// Run the API server, sharing state with the CLI.
 ///
 /// Resolves configuration from the keystore and environment, builds a
 /// `AgentService` with all shared infrastructure, starts API MCP servers
 /// on the AgentService's runtime, and creates an `ApiState` from it.
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  port is a valid u16; host is a non-empty bind address string
 /// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
@@ -55,7 +38,8 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
             Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
         })?;
 
-    // Start API MCP servers on the AgentService's runtime
+    // Start API MCP servers on the AgentService's runtime.
+    // Derived from hkask_mcp::BUILTIN_SERVERS (canonical registry).
     let replicant_name = ctx.config().agent_name.clone();
     let server_count = start_api_servers(ctx.mcp_runtime(), &replicant_name).await;
     if server_count > 0 {
@@ -86,16 +70,21 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
 
 /// Start all API MCP servers and discover their tools.
 ///
-/// Each server receives `HKASK_MCP_HOST={replicant_name}` in its
-/// environment, so per-agent databases (agents/{name}/) are used.
-/// Returns the number of servers that started successfully.
-/// Servers that fail to start are logged and skipped.
+/// Started servers are derived from `hkask_mcp::BUILTIN_SERVERS`.
+/// excluded from the API sandbox for security: the API server is a
+/// headless HTTP endpoint — it does not expose local filesystem access,
+/// governance, registry management, or kanban task coordination.
+const API_EXCLUDED: &[&str] = &["filesystem", "curator", "kanban", "skill"];
+
 async fn start_api_servers(runtime: &McpRuntime, replicant_name: &str) -> usize {
     let mut started = 0;
     let mut extra_env = std::collections::HashMap::new();
     extra_env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
 
-    for (server_id, command) in API_SERVERS {
+    for (server_id, command) in BUILTIN_SERVERS {
+        if API_EXCLUDED.contains(server_id) {
+            continue;
+        }
         match runtime
             .start_server_with_env(server_id, command, extra_env.clone())
             .await

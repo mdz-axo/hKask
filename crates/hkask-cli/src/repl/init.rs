@@ -222,36 +222,24 @@ pub(super) fn init_repl_state(
         );
     }
 
-    // P2: Affirmative Consent — specialized servers require explicit opt-in.
-    // But the autonomous nervous system auto-starts: these 9 servers form the
-    // agent's sensory (read, search, research), model (memory, condenser),
-    // regulatory (curator, kanban), and actuation (filesystem write/exec,
-    // skill, docproc, media) capabilities. Without them, the agent is blind,
-    // amnesiac, and paralyzed — it hallucinates code it cannot read, forgets
-    // every session, and cannot execute workflows.
+    // P2: Affirmative Consent — specialized servers require explicit opt-in
+    // via /mcp. The reflexive capability set auto-starts: filesystem, memory,
+    // condenser, research, skill, curator, kanban, docproc, media. Without
+    // them the agent is blind, amnesiac, and paralyzed.
     //
-    // Opt-in servers (communication, companies, training, spec) are domain-specific
-    // and not part of the reflexive capability set.
+    // Derived from hkask_mcp::BUILTIN_SERVERS (canonical registry).
+    // The remaining servers (companies, communication, fal, training, replica)
+    // are domain-specific and require explicit consent.
+    const CORE_EXCLUDED: &[&str] = &[
+        "companies",
+        "communication",
+        "fal",
+        "fal-workflow",
+        "training",
+        "replica",
+    ];
     let mcp_runtime = ctx.mcp_runtime().clone();
     let degraded = rt.block_on(async {
-        // Core servers — ordered by dependency: filesystem first (other servers
-        // may need filesystem access), then model/memory, then actuators.
-        let core_servers: &[(&str, &str)] = &[
-            ("filesystem", "hkask-mcp-filesystem"),
-            ("memory", "hkask-mcp-memory"),
-            ("condenser", "hkask-mcp-condenser"),
-            // Note: the condenser MCP server provides agent-initiated condensation
-            // (compress, thread_summary). Automatic context condensation during
-            // turns uses ChatService::condense_history which calls the
-            // hkask-condenser library directly — no MCP dependency. The MCP
-            // server is still auto-started for explicit agent-initiated use.
-            ("research", "hkask-mcp-research"),
-            ("skill", "hkask-mcp-skill"),
-            ("curator", "hkask-mcp-curator"),
-            ("kanban", "hkask-mcp-kanban"),
-            ("docproc", "hkask-mcp-docproc"),
-            ("media", "hkask-mcp-media"),
-        ];
         let mut started = 0u32;
         let mut failed = Vec::new();
         // P12: Replicant Host Mandate — every action has an accountable host
@@ -263,7 +251,10 @@ pub(super) fn init_repl_state(
             "HKASK_MCP_HOST".to_string(),
             onboarding_outcome.signed_in_agent.clone(),
         );
-        for (server_id, binary) in core_servers {
+        for (server_id, binary) in hkask_mcp::BUILTIN_SERVERS {
+            if CORE_EXCLUDED.contains(server_id) {
+                continue;
+            }
             match mcp_runtime
                 .start_server_with_env(server_id, binary, core_env.clone())
                 .await
@@ -278,7 +269,7 @@ pub(super) fn init_repl_state(
             tracing::info!(
                 target: "hkask.repl",
                 started = started,
-                total = core_servers.len(),
+                total = hkask_mcp::BUILTIN_SERVERS.len() - CORE_EXCLUDED.len(),
                 "Core MCP servers auto-started"
             );
         }
