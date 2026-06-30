@@ -27,7 +27,7 @@ documents:
     drift_verdict: aligned
     code_artifacts:
       - crates/hkask-services/
-      - mcp-servers/hkask-mcp-kanban/
+      - mcp-servers/hkask-mcp-kata-kanban/
       - crates/hkask-adapter/
       - crates/hkask-cns/
     gaps: []
@@ -620,7 +620,7 @@ documents:
     mds_categories: [domain, composition, lifecycle]
     staleness_signal: partial
     drift_verdict: partial
-    code_artifacts: [mcp-servers/hkask-mcp-kanban/, crates/hkask-services/]
+    code_artifacts: [mcp-servers/hkask-mcp-kata-kanban/, crates/hkask-services/]
     gaps:
       - "Mentions 'Kata integration: coaching, improvement, and starter katas available as task primitives' but does not explain HOW"
       - "No kata coaching loop sequence diagram"
@@ -816,7 +816,7 @@ documents:
       - .agents/skills/kata-starter/
       - .agents/skills/kata-improvement/
       - .agents/skills/kata-coaching/
-      - mcp-servers/hkask-mcp-kanban/
+      - mcp-servers/hkask-mcp-kata-kanban/
       - crates/hkask-cns/
     gaps:
       - "No Mermaid sequence diagram of kata coaching loop"

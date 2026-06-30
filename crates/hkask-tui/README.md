@@ -42,7 +42,7 @@ The Kanban window provides an interactive 5-column task board:
 Columns: Backlog, Ready, In Progress, Review, Done. Tasks show priority indicators
 (critical/high/medium/low) and assignee when assigned. Selected task is highlighted with
 reverse video. Detail bar shows full task info. The Chat tab connects to the
-`hkask-mcp-kanban` MCP server (8 tools).
+`hkask-mcp-kata-kanban` MCP server (8 tools).
 
 ## Dependencies
 

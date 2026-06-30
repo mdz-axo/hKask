@@ -396,7 +396,7 @@ Ensemble fuzzing runs multiple engines on the same targets — standard practice
 | 8 | `hkask-services-core-fuzz` | 1 | Settings model resolution |
 | 9 | `hkask-improv-fuzz` | 1 | Riffing string matching |
 | 10 | `hkask-mcp-fuzz` | 5 | validate_identifier, validate_tool_url, classify_http_error |
-| 11 | `hkask-mcp-kanban-fuzz` | 15 | All 8 kanban tools: deser + dispatch + CNS span + state-machine |
+| 11 | `hkask-mcp-kata-kanban-fuzz` | 15 | All 8 kanban tools: deser + dispatch + CNS span + state-machine |
 | 12–21 | 10 remaining MCP server fuzz crates | 10 | Deserialization never-panics (all 171 request types covered) |
 | — | Additional via `dispatch_test!` macro | +41 | Per-tool dispatch tests for companies (27), memory (14), replica (7), kanban (8) |
 | **Total** | | **78** | |
@@ -478,7 +478,7 @@ Seed corpora give libfuzzer/honggfuzz/AFL valid starting points to mutate.
 Without seeds, engines waste time generating invalid JSON that doesn't parse.
 
 ```
-mcp-servers/hkask-mcp-kanban/fuzz/seeds/
+mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds/
 ├── board_create.json    # {"BoardCreate":{"name":"Seed Board",...}}
 ├── board_list.json      # {"BoardList":{...}}
 ├── task_create.json     # {"TaskCreate":{"board_id":"...","title":"Seed Task",...}}
@@ -486,7 +486,7 @@ mcp-servers/hkask-mcp-kanban/fuzz/seeds/
 └── sequence.json        # Multi-operation sequence
 ```
 
-Used via: `cargo bolero test --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds`
+Used via: `cargo bolero test --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds`
 
 ### 8.6 Running Fuzz Tests
 
@@ -495,7 +495,7 @@ Used via: `cargo bolero test --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds`
 cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
            -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
            -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz \
-           -p hkask-mcp-fuzz -p hkask-mcp-kanban-fuzz \
+           -p hkask-mcp-fuzz -p hkask-mcp-kata-kanban-fuzz \
            -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz \
            -p hkask-mcp-condenser-fuzz -p hkask-mcp-docproc-fuzz \
            -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz \
@@ -503,14 +503,14 @@ cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
            -p hkask-mcp-training-fuzz
 
 # Coverage-guided (nightly, CI deep fuzz — with seed corpora)
-cargo +nightly bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_board_create \
-  -T 300s -e libfuzzer --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds
+cargo +nightly bolero test -p hkask-mcp-kata-kanban-fuzz fuzz_kanban_dispatch_board_create \
+  -T 300s -e libfuzzer --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds
 
 # Ensemble — run different engines on same target
-cargo +nightly bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_task_create \
-  -T 300s -e honggfuzz --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds
-cargo +nightly bolero test -p hkask-mcp-kanban-fuzz fuzz_kanban_dispatch_board_create \
-  -T 300s -e afl --seed-dir mcp-servers/hkask-mcp-kanban/fuzz/seeds
+cargo +nightly bolero test -p hkask-mcp-kata-kanban-fuzz fuzz_kanban_dispatch_task_create \
+  -T 300s -e honggfuzz --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds
+cargo +nightly bolero test -p hkask-mcp-kata-kanban-fuzz fuzz_kanban_dispatch_board_create \
+  -T 300s -e afl --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds
 ```
 
 ### 8.7 Fuzz Target Priority

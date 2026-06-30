@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 // ── Priority ────────────────────────────────────────────────────────────────
 
 /// Priority level for kanban tasks.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Priority {
@@ -58,6 +59,7 @@ impl std::fmt::Display for Priority {
 /// ```text
 /// Backlog → Ready → InProgress → Review → Done
 /// ```
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TaskStatus {
@@ -152,6 +154,7 @@ impl std::str::FromStr for TaskStatus {
 ///
 /// Each column maps to a `TaskStatus`. The column ordering on a board
 /// determines the valid state transitions.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ColumnDef {
     /// Unique identifier for this column.
@@ -194,6 +197,7 @@ impl ColumnDef {
 ///
 /// Holds a natural-language specification of what "done" means for this task,
 /// plus an optional LLM evaluation prompt for automated verification.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerificationCriterion {
     /// Human-readable acceptance spec.
@@ -229,6 +233,7 @@ impl VerificationCriterion {
 ///
 /// Produced by `task_verify`: either an LLM-mediated evaluation against
 /// the task's acceptance criteria, or a human-in-the-loop confirmation.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Verification {
     /// Whether the task passed verification.
@@ -306,6 +311,7 @@ impl KanbanPhase {
 /// Every board carries an `owner: WebID` for P12 compliance.
 /// Boards are isolated — only members (agents assigned to the board)
 /// can view or modify its contents.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Board {
     /// Unique board identifier.
@@ -362,6 +368,7 @@ impl Board {
 // ── Task ───────────────────────────────────────────────────────────────────
 
 /// TaskSpec — input specification for creating a new task.
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TaskSpec {
     /// Short title for the task.
@@ -557,6 +564,7 @@ impl GasEntry {
 ///
 /// Every task carries `owner: WebID` (P12) — the creator of the task.
 /// Assignment is separate and requires agent consent (P1).
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Task {
     /// Unique task identifier.
@@ -681,6 +689,7 @@ impl Comment {
 // ── Filter ─────────────────────────────────────────────────────────────────
 
 /// TaskFilter — criteria for listing/filtering tasks on a board.
+#[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskFilter {
     /// Filter by status (column).
@@ -947,6 +956,7 @@ pub struct ConditionResult {
 /// - Minimal: read-only access to the task, no memory, restricted tools
 /// - Standard: read-write task access, episodic memory, kanban tools
 /// - Maximal: full replicant capabilities within the task scope
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpawnSpec {
     /// The task this spawn is for.

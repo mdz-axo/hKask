@@ -7,8 +7,7 @@ description = "Shared service layer for hKask surfaces (CLI, API)"
 
 [dependencies]
 hkask-services-core = { path = "../hkask-services-core" }
-hkask-services-kata = { path = "../hkask-services-kata" }
-hkask-services-kanban = { path = "../hkask-services-kanban" }
+	hkask-services-kata-kanban = { path = "../hkask-services-kata-kanban" }
 hkask-services-runtime = { path = "../hkask-services-runtime" }
 hkask-services-corpus = { path = "../hkask-services-corpus" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }

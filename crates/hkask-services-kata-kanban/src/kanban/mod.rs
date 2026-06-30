@@ -10,7 +10,7 @@
 //! - `socratic` — Socratic inquiry cycle for task diagnosis
 
 mod service_impl;
-mod socratic;
+pub mod socratic;
 pub mod types;
 
 // Common imports for submodule files that use `use super::*`

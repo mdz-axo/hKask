@@ -861,9 +861,9 @@ kask backup prune                       # retention cleanup
 
 ## Kanban Agent Coordination
 
-**Crates:** `hkask-services-kanban` (types + service), `mcp-servers/hkask-mcp-kanban` (MCP surface)
+**Crates:** `hkask-services-kanban` (types + service), `mcp-servers/hkask-mcp-kata-kanban` (MCP surface)
 
-**Tri-surface pattern:** CLI (`kask kanban`), REPL (`/kanban`), MCP (7 tools via `hkask-mcp-kanban`)
+**Tri-surface pattern:** CLI (`kask kanban`), REPL (`/kanban`), MCP (7 tools via `hkask-mcp-kata-kanban`)
 
 ### Summary
 
@@ -891,13 +891,13 @@ Kanban provides headless task coordination for agents and replicants. Boards con
 ```mermaid
 graph TD
     CLI["hkask-cli"] --> SVC["hkask-services"]
-    MCP["hkask-mcp-kanban"] --> SVC
+    MCP["hkask-mcp-kata-kanban"] --> SVC
     SVC --> TYPES["hkask-services-kanban"]
     SVC --> STORAGE["hkask-storage (TripleStore)"]
     SVC -.-> AGENTS["hkask-agents (ActivePods)"]
 ```
 
-`hkask-mcp-kanban` depends on `hkask-services` — permitted as a tri-surface for KanbanService.
+`hkask-mcp-kata-kanban` depends on `hkask-services` — permitted as a tri-surface for KanbanService.
 
 Kanban operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Kanban }`.
 
@@ -913,7 +913,7 @@ See also: `docs/user-guides/kanban-user-guide.md`
 
 **Templates:** 23 Jinja2 templates across 4 skill directories, 5 YAML manifests, registered in `registry/templates/bootstrap-registry.yaml`
 
-**MCP surface:** Kanban MCP (`hkask-mcp-kanban`) — kata cycles execute as kanban tasks (tri-surface: CLI, REPL, MCP)
+**MCP surface:** Kanban MCP (`hkask-mcp-kata-kanban`) — kata cycles execute as kanban tasks (tri-surface: CLI, REPL, MCP)
 
 ### Summary
 

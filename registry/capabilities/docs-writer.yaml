@@ -19,7 +19,7 @@ skills:
 memory_scope: episodic
 
 tool_servers:
-  - hkask-mcp-kanban
+  - hkask-mcp-kata-kanban
   - hkask-mcp-docproc
   - hkask-mcp-research
 

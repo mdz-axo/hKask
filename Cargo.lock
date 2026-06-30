@@ -4160,7 +4160,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-kanban"
+name = "hkask-mcp-kata-kanban"
 version = "0.31.0"
 dependencies = [
  "anyhow",
@@ -4169,7 +4169,7 @@ dependencies = [
  "hkask-bridge-dublincore",
  "hkask-bridge-pko",
  "hkask-mcp",
- "hkask-services-kanban",
+ "hkask-services-kata-kanban",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4425,8 +4425,7 @@ dependencies = [
  "hkask-services-core",
  "hkask-services-corpus",
  "hkask-services-curator",
- "hkask-services-kanban",
- "hkask-services-kata",
+ "hkask-services-kata-kanban",
  "hkask-services-onboarding",
  "hkask-services-runtime",
  "hkask-services-skill",

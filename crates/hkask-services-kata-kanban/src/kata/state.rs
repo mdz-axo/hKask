@@ -67,6 +67,7 @@ impl KataState {
     }
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize)]
 pub struct KataResult {
     pub manifest_id: String,

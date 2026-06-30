@@ -609,7 +609,7 @@ Available MCP servers (9 auto-start; 3 require `/mcp start` for opt-in):
 | `docproc` | `hkask-mcp-docproc` | Unified document processing (format conversion, OCR, chunking, parsing) |
 | `replica` | `hkask-mcp-replica` | Style embedding and prose composition |
 | `training` | `hkask-mcp-training` | Model training data ingestion |
-| `kanban` | `hkask-mcp-kanban` | Kanban board coordination |
+| `kanban` | `hkask-mcp-kata-kanban` | Kanban board coordination |
 | `filesystem` | `hkask-mcp-filesystem` | Filesystem read/write/search + shell command execution for agent code interaction |
 
 Servers that fail to start are logged and skipped — their tools simply won't be available.

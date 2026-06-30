@@ -2,7 +2,7 @@
 
 use crate::repl::ReplState;
 use hkask_services::KanbanService;
-use hkask_services_kanban::{ConsentProof, TaskFilter, TaskSpec};
+use hkask_services::{ConsentProof, TaskFilter, TaskSpec};
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
 use rusqlite::Connection;
@@ -170,7 +170,7 @@ pub(crate) fn handle_kanban(
                             return;
                         }
                     };
-                    let filter = match status.and_then(hkask_services_kanban::TaskStatus::parse_str)
+                    let filter = match status.and_then(hkask_services::TaskStatus::parse_str)
                     {
                         Some(st) => TaskFilter::by_status(st),
                         None => TaskFilter::all(),
@@ -258,7 +258,7 @@ pub(crate) fn handle_kanban(
                     return;
                 }
             };
-            let target = match hkask_services_kanban::TaskStatus::parse_str(target_str) {
+            let target = match hkask_services::TaskStatus::parse_str(target_str) {
                 Some(s) => s,
                 None => {
                     println!("  Invalid status: {target_str}");
@@ -817,7 +817,7 @@ pub(crate) fn handle_kanban(
                     return;
                 }
             };
-            let spec = hkask_services_kanban::SpawnSpec::new(tid);
+            let spec = hkask_services::SpawnSpec::new(tid);
             match service.spawn_task(tid, spec) {
                 Ok(output) => println!("  {}", output),
                 Err(e) => println!("  Error: {e}"),
@@ -825,7 +825,7 @@ pub(crate) fn handle_kanban(
         }
 
         "socratic" => {
-            use hkask_services_kanban::socratic;
+            use hkask_services::socratic;
             let parts: Vec<&str> = rest.splitn(3, ' ').collect();
             let action = parts.first().copied().unwrap_or("");
             match action {
@@ -913,7 +913,7 @@ pub(crate) fn handle_kanban(
                             return;
                         }
                     };
-                    if task.status == hkask_services_kanban::TaskStatus::Review {
+                    if task.status == hkask_services::TaskStatus::Review {
                         if response.is_empty() {
                             println!("  Provide your summary as evidence to complete the inquiry.");
                             println!("  Usage: /kanban socratic continue <task-id> <your summary>");
@@ -995,8 +995,8 @@ pub(crate) fn handle_kanban(
                             println!("  {} — Stage: {} ({})", task.title, stage, task.status);
                             let comments = service.task_comments(tid).unwrap_or_default();
                             println!("  Comments: {}", comments.len());
-                            if task.status != hkask_services_kanban::TaskStatus::Done
-                                && task.status != hkask_services_kanban::TaskStatus::Review
+                            if task.status != hkask_services::TaskStatus::Done
+                                && task.status != hkask_services::TaskStatus::Review
                                 && let Some(last) = comments.last()
                             {
                                 match socratic::quality_check(&service, tid, &last.body) {
@@ -1069,31 +1069,31 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
         .clone()
 }
 
-fn default_columns() -> Vec<hkask_services_kanban::ColumnDef> {
+fn default_columns() -> Vec<hkask_services::ColumnDef> {
     vec![
-        hkask_services_kanban::ColumnDef::new(
+        hkask_services::ColumnDef::new(
             "Backlog".into(),
-            hkask_services_kanban::TaskStatus::Backlog,
+            hkask_services::TaskStatus::Backlog,
             0,
         ),
-        hkask_services_kanban::ColumnDef::new(
+        hkask_services::ColumnDef::new(
             "Ready".into(),
-            hkask_services_kanban::TaskStatus::Ready,
+            hkask_services::TaskStatus::Ready,
             1,
         ),
-        hkask_services_kanban::ColumnDef::new(
+        hkask_services::ColumnDef::new(
             "In Progress".into(),
-            hkask_services_kanban::TaskStatus::InProgress,
+            hkask_services::TaskStatus::InProgress,
             2,
         ),
-        hkask_services_kanban::ColumnDef::new(
+        hkask_services::ColumnDef::new(
             "Review".into(),
-            hkask_services_kanban::TaskStatus::Review,
+            hkask_services::TaskStatus::Review,
             3,
         ),
-        hkask_services_kanban::ColumnDef::new(
+        hkask_services::ColumnDef::new(
             "Done".into(),
-            hkask_services_kanban::TaskStatus::Done,
+            hkask_services::TaskStatus::Done,
             4,
         ),
     ]

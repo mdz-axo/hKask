@@ -35,7 +35,7 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("docproc", "hkask-mcp-docproc"),
     ("training", "hkask-mcp-training"),
     ("replica", "hkask-mcp-replica"),
-    ("kanban", "hkask-mcp-kanban"),
+    ("kanban", "hkask-mcp-kata-kanban"),
     ("skill", "hkask-mcp-skill"),
     ("filesystem", "hkask-mcp-filesystem"),
 ];

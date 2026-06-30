@@ -5,6 +5,7 @@
 use serde::Deserialize;
 
 /// Top-level kata manifest deserialized from YAML.
+#[non_exhaustive]
 #[derive(Debug, Clone, Deserialize)]
 pub struct KataManifest {
     pub manifest: ManifestMeta,

@@ -45,10 +45,11 @@ pub use hkask_services_corpus::{
     default_corpus_config, download_and_cache, generate_corpus_yaml, slugify,
 };
 pub use hkask_services_curator::{CuratorService, EscalationResponse};
-pub use hkask_services_kanban::{KanbanError, KanbanService, UnjamFix, UnjamItem};
-pub use hkask_services_kata::{
-    ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
-    KataResult, KataState, KataStep, PracticeEntry, StepExperience,
+pub use hkask_services_kata_kanban::{
+    Board, ColumnDef, ConsentProof, ImprovementDirection, ImprovementSignal, KanbanError,
+    KanbanService, KataEngine, KataError, KataHistory, KataManifest, KataResult, KataState,
+    KataStep, PracticeEntry, Priority, SpawnSpec, StepExperience, Task, TaskFilter, TaskSpec,
+    TaskStatus, UnjamFix, UnjamItem, Verification, VerificationCriterion, socratic,
 };
 pub use hkask_services_onboarding::{
     MatrixRegistrationResult, OnboardingService, RegistryHandle, ReplicantContactConfig,

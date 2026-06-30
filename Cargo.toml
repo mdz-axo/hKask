@@ -56,7 +56,7 @@ members = [
     "mcp-servers/hkask-mcp-docproc",
     "mcp-servers/hkask-mcp-training",
     "mcp-servers/hkask-mcp-replica",
-    "mcp-servers/hkask-mcp-kanban",
+    "mcp-servers/hkask-mcp-kata-kanban",
     "mcp-servers/hkask-mcp-skill",
     "mcp-servers/hkask-mcp-curator",
     "mcp-servers/hkask-mcp-filesystem",

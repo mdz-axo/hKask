@@ -15,6 +15,8 @@ use super::types::{
     SpawnSpec, Task, TaskContract, TaskFilter, TaskSpec, TaskStatus, Verification,
     VerificationCriterion,
 };
+use crate::bridge::KanbanKataBridge;
+use crate::kata::{KataManifest, KataResult};
 use hkask_storage::{Triple, TripleStore};
 use hkask_types::WebID;
 use hkask_types::id::{BoardId, PhaseId, TaskId};
@@ -37,6 +39,7 @@ pub(crate) mod verification;
 pub struct KanbanService {
     store: TripleStore,
     pod_manager: Option<Arc<hkask_agents::pod::ActivePods>>,
+    kata_bridge: Option<Arc<KanbanKataBridge>>,
 }
 
 // Triple entity prefixes
@@ -53,6 +56,7 @@ impl KanbanService {
         Self {
             store,
             pod_manager: None,
+            kata_bridge: None,
         }
     }
 
@@ -63,6 +67,16 @@ impl KanbanService {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::ActivePods>) -> Self {
         self.pod_manager = Some(pm);
+        self
+    }
+
+    /// Attach a KataEngine bridge for kata cycle execution on tasks.
+    ///
+    /// pre:  engine is a valid `Arc<KataEngine>` configured with inference, CNS, and history
+    /// post: returns Self with kata_bridge set to Some(KanbanKataBridge::new(engine))
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_kata_engine(mut self, engine: Arc<crate::kata::KataEngine>) -> Self {
+        self.kata_bridge = Some(Arc::new(KanbanKataBridge::new(engine)));
         self
     }
 
@@ -851,6 +865,63 @@ impl KanbanService {
         Ok(deleted_count)
     }
 
+    // ── Kata Execution (bridge delegation) ──────────────────────────
+
+    /// Run a full coaching kata cycle on a task using the bridge.
+    ///
+    /// When the kata bridge is configured, delegates to KataEngine for
+    /// inference, CNS span emission, gas tracking, and automaticity.
+    /// When the bridge is not configured, returns an error.
+    pub async fn run_coaching_kata(
+        &self,
+        task_id: TaskId,
+        manifest: &KataManifest,
+    ) -> Result<KataResult, KanbanError> {
+        let task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let bridge = self
+            .kata_bridge
+            .as_ref()
+            .ok_or_else(|| KanbanError::Internal("kata bridge not configured".into()))?;
+        Ok(bridge.run_coaching_on_task(&task, manifest).await?)
+    }
+
+    /// Run a full improvement kata cycle on a task using the bridge.
+    pub async fn run_improvement_kata(
+        &self,
+        task_id: TaskId,
+        manifest: &KataManifest,
+    ) -> Result<KataResult, KanbanError> {
+        let task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let bridge = self
+            .kata_bridge
+            .as_ref()
+            .ok_or_else(|| KanbanError::Internal("kata bridge not configured".into()))?;
+        Ok(bridge.run_improvement_on_task(&task, manifest).await?)
+    }
+
+    /// Run a starter kata observation drill on a task using the bridge.
+    pub async fn run_starter_kata(
+        &self,
+        task_id: TaskId,
+        sub_problem: &str,
+        manifest: &KataManifest,
+    ) -> Result<KataResult, KanbanError> {
+        let task = self
+            .task_get(task_id)?
+            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let bridge = self
+            .kata_bridge
+            .as_ref()
+            .ok_or_else(|| KanbanError::Internal("kata bridge not configured".into()))?;
+        Ok(bridge
+            .run_starter_on_task(&task, sub_problem, manifest)
+            .await?)
+    }
+
     // ── De-jamming ────────────────────────────────────────────────────
 
     // Moved to dejam.rs.
@@ -943,6 +1014,12 @@ pub enum KanbanError {
         limit: u32,
         current: u32,
     },
+}
+
+impl From<crate::kata::KataError> for KanbanError {
+    fn from(e: crate::kata::KataError) -> Self {
+        KanbanError::Internal(format!("kata engine: {e}"))
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

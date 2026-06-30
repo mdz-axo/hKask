@@ -19,10 +19,12 @@ pub mod kanban;
 pub mod kata;
 
 // Re-export the public API at crate root.
-// Types intentionally pub(crate) are NOT re-exported here — they are accessed
-// through KanbanService or KataEngine methods.
 pub use kanban::{
-    Board, ColumnDef, KanbanError, KanbanService, Priority, SpawnSpec, Task, TaskFilter, TaskSpec,
-    TaskStatus, Verification, VerificationCriterion,
+    Board, ColumnDef, ConsentProof, KanbanError, KanbanService, Priority, SpawnSpec, Task,
+    TaskFilter, TaskSpec, TaskStatus, UnjamFix, UnjamItem, Verification, VerificationCriterion,
+    socratic,
 };
-pub use kata::{KataEngine, KataError, KataManifest, KataResult};
+pub use kata::{
+    ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
+    KataResult, KataState, KataStep, PracticeEntry, StepExperience,
+};

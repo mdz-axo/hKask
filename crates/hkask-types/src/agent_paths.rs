@@ -43,7 +43,7 @@
 //! | pod.db      | SQLCipher DB   | PodFactory, PodContext, MemoryLoopForwarder | ✅ done |
 //! | memory.db   | SQLCipher DB   | hkask-mcp-memory, REPL init, consolidation | ✅ done |
 //! | style.db    | SQLCipher DB   | hkask-services-embed (corpus embeddings) | 🔧 path exists, not wired |
-//! | kanban.db   | SQLCipher DB   | hkask-mcp-kanban, hkask-services-kanban | 🔧 path exists, not wired |
+//! | kanban.db   | SQLCipher DB   | hkask-mcp-kata-kanban, hkask-services-kanban | 🔧 path exists, not wired |
 //! | training.db | SQLCipher DB   | hkask-mcp-training (JobStore)           | 🔧 path exists, not wired |
 //! | wallet.db   | SQLCipher DB   | hkask-wallet (per-agent balances/keys)  | 🔧 path exists, not wired |
 //! | gallery/    | directory      | hkask-mcp-media (image/video assets)    | 🔧 dir exists, not wired |
