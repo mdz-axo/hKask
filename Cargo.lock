@@ -4599,6 +4599,7 @@ dependencies = [
 name = "hkask-services-kata-kanban"
 version = "0.31.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "hkask-agents",
  "hkask-capability",

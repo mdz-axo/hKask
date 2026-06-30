@@ -15,7 +15,7 @@ use crate::kata::{KataEngine, KataError, KataManifest, KataResult};
 /// Executes kata cycles on kanban tasks. Not a prompt generator — a full
 /// execution orchestrator that delegates to KataEngine for inference, CNS
 /// span emission, gas tracking, and automaticity.
-pub(crate) struct KanbanKataBridge {
+pub struct KanbanKataBridge {
     engine: Arc<KataEngine>,
 }
 

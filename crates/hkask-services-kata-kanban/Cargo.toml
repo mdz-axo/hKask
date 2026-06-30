@@ -31,3 +31,4 @@ hkask-capability = { path = "../hkask-capability" }
 
 [dev-dependencies]
 rusqlite = { workspace = true, features = ["bundled-sqlcipher"] }
+async-trait.workspace = true

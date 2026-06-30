@@ -69,6 +69,15 @@ Comment thread (agent/replicant communication):",
 
         let actual = evidence;
 
+        // P9: CNS span — kata prompt generated for human display
+        tracing::info!(
+            target: "cns.kata",
+            operation = "coaching_prompt_generated",
+            task_id = %task.id,
+            title = %task.title,
+            "CNS"
+        );
+
         Ok(format!(
             "Coaching Kata — Task: {title}
 
@@ -132,6 +141,15 @@ Recent comments:",
             }
         }
 
+        // P9: CNS span — kata prompt generated for human display
+        tracing::info!(
+            target: "cns.kata",
+            operation = "improvement_prompt_generated",
+            task_id = %task.id,
+            title = %task.title,
+            "CNS"
+        );
+
         Ok(format!(
             "Improvement Kata — Task: {title}
 
@@ -160,6 +178,15 @@ Recent comments:",
         let task = self
             .task_get(task_id)?
             .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+
+        // P9: CNS span — kata prompt generated for human display
+        tracing::info!(
+            target: "cns.kata",
+            operation = "practice_prompt_generated",
+            task_id = %task.id,
+            sub_problem = %sub_problem,
+            "CNS"
+        );
 
         Ok(format!(
             "Starter Kata — Observation Drill

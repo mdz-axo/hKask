@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**39 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade). **43 capabilities in all.**
+**40 Skills** (PDCA FlowDef loops with quality threshold + energy budget), **2 Templates** (one-shot, no registry manifest), **1 Bundle** (composition-only, non-PDCA), **1 Legacy** (v0.21.4, pending upgrade). **44 capabilities in all.**
 
 | Type | Invocation | Behavior | Exit |
 |------|-----------|----------|------|
@@ -34,6 +34,7 @@ A Skill has a FlowDef manifest with `convergence.threshold > 0`, `gas.cap > 0`, 
 | **improve-codebase-architecture** | **Skill** | Finding deepening opportunities. Walk codebase for shallow modules, tight coupling, untested seams. |
 | **strangler-fig** | **Skill** | Incremental architectural migration. Introduce new alongside old, migrate one domain at a time. |
 | **idiomatic-rust** | **Skill** | Idiomatic Rust design: type-driven design, ownership as architecture, fearless refactoring. |
+| **diataxis-diagram** | **Skill** | Generate Mermaid diagrams (ERD, flowchart, state, sequence, class) from code using Diataxis methodology. 6-step PDCA with Diataxis quality evaluation. |
 
 ### Reasoning & Analysis
 

@@ -39,4 +39,4 @@ Central `AgentService` struct — the runtime context aggregating all service de
 
 ## Dependencies
 
-Directly depends on: `hkask-types`, `hkask-cns`, `hkask-mcp`, `hkask-services-core`, `hkask-services-runtime`, `hkask-services-backup`, `hkask-services-kanban`, `hkask-services-kata`, `hkask-services-skill`, `hkask-services-wallet`, `hkask-storage`, `hkask-memory`, `hkask-agents`, `hkask-keystore`, `hkask-capability`, `hkask-communication`, `hkask-federation`
+Directly depends on: `hkask-types`, `hkask-cns`, `hkask-mcp`, `hkask-services-core`, `hkask-services-runtime`, `hkask-services-backup`, `hkask-services-kata-kanban`, `hkask-services-skill`, `hkask-services-wallet`, `hkask-storage`, `hkask-memory`, `hkask-agents`, `hkask-keystore`, `hkask-capability`, `hkask-communication`, `hkask-federation`

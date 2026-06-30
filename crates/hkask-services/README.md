@@ -27,8 +27,7 @@ Facade crate for all hKask service implementations. Provides the unified `Servic
 | `hkask-services-compose` | Prompt composition with cognition configuration |
 | `hkask-services-curator` | Curator daemon metacognition and escalation handling |
 | `hkask-services-corpus` | Document corpus management and indexing |
-| `hkask-services-kanban` | Kanban board coordination |
-| `hkask-services-kata` | Toyota Kata coaching/improvement loops |
+| `hkask-services-kata-kanban` | Toyota Kata coaching/improvement loops + Kanban board coordination |
 | `hkask-services-onboarding` | First-run and user onboarding |
 | `hkask-services-skill` | Skill registry and discovery |
 | `hkask-services-wallet` | Crypto wallet and chain port selection |

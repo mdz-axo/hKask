@@ -14,7 +14,7 @@
 //! - `kanban/` — Kanban board mechanics: boards, tasks, contracts, verification, de-jam, socratic inquiry
 //! - `bridge.rs` — Kata↔Kanban integration executor (replaces the old kanban_impl/kata.rs duplication)
 
-mod bridge;
+pub mod bridge;
 pub mod kanban;
 pub mod kata;
 
