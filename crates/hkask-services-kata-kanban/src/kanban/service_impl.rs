@@ -11,9 +11,8 @@
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
 use super::types::{
-    Board, CapabilityPackage, ColumnDef, Comment, ConsentProof, GasEntry, KanbanPhase, Priority,
-    SpawnSpec, Task, TaskContract, TaskFilter, TaskSpec, TaskStatus, Verification,
-    VerificationCriterion,
+    Board, ColumnDef, Comment, ConsentProof, GasEntry, KanbanPhase, Priority, SpawnSpec, Task,
+    TaskContract, TaskFilter, TaskSpec, TaskStatus, Verification, VerificationCriterion,
 };
 use crate::bridge::KanbanKataBridge;
 use crate::kata::{KataManifest, KataResult};

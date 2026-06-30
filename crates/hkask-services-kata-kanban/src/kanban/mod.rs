@@ -14,8 +14,6 @@ pub mod socratic;
 pub mod types;
 
 // Common imports for submodule files that use `use super::*`
-use hkask_types::WebID;
-use hkask_types::id::{BoardId, PhaseId, TaskId};
 
 // Re-export the public API from types
 pub use types::{
