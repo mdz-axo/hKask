@@ -21,9 +21,7 @@ pub mod types;
 
 use hkask_inference::EmbeddingRouter;
 use hkask_mcp::server::{McpToolError, execute_tool};
-use hkask_services_compose::{
-    ComposeResult as ServiceComposeResult, ComposeService, cosine_distance,
-};
+use hkask_services_compose::cosine_distance;
 use hkask_services_core::{HkaskSettings, InferenceContext};
 use hkask_services_corpus::{EmbedProgress, EmbedService};
 use hkask_storage::{Database, EmbeddingStore};

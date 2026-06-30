@@ -116,7 +116,7 @@ async fn a2a_register(
         .into());
     }
 
-    let a2a = state.agent_service.a2a_runtime();
+    let a2a = &state.agent_service.governance().a2a;
     let token = a2a
         .register_agent(webid, agent_kind, req.capabilities)
         .await?;
@@ -143,7 +143,7 @@ pub(crate) async fn a2a_list_agents(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<AgentListResponse>, ServiceErrorResponse> {
-    let a2a = state.agent_service.a2a_runtime();
+    let a2a = &state.agent_service.governance().a2a;
     let agents = a2a.list_agents().await;
 
     let agent_responses: Vec<A2AAgentResponse> = agents
@@ -187,7 +187,7 @@ pub(crate) async fn a2a_unregister_agent(
 
     let webid = parse_webid(&agent_id)?;
 
-    let a2a = state.agent_service.a2a_runtime();
+    let a2a = &state.agent_service.governance().a2a;
     a2a.unregister_agent(&webid).await?;
 
     Ok(StatusCode::NO_CONTENT)

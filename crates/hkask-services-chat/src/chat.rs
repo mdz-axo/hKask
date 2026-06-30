@@ -361,7 +361,7 @@ impl ChatService {
         // Load agent registry to find the agent definition
         let loader = hkask_agents::AgentRegistryLoader::new(
             ctx.config().registry_yaml_path.clone(),
-            ctx.a2a_runtime().clone(),
+            ctx.governance().a2a.clone(),
             ctx.agent_registry_store().clone(),
             Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
         );
@@ -426,7 +426,7 @@ impl ChatService {
         let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
 
         // Create capability token for memory operations.
-        let capability_token = ctx.capability_checker().grant_registry(
+        let capability_token = ctx.governance().checker.grant_registry(
             DelegationAction::Execute,
             req.auth_context
                 .as_ref()

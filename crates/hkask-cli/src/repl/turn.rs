@@ -37,7 +37,7 @@ fn build_turn_request(
         persona_constraints: state.persona_constraints.clone(),
         tool_section: state.tool_prompt.section.clone(),
         llm_params: to_llm_params(settings),
-        capability_checker: state.service_context.capability_checker().clone(),
+        capability_checker: Arc::clone(&state.service_context.governance().checker),
         system_webid: *state.service_context.identity().0,
         iteration,
         tool_results,

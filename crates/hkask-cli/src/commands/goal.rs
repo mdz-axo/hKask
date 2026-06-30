@@ -81,7 +81,7 @@ fn set_state(id: &str, state: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to update goal state: {e}"))?;
 
     // Curation inbox notification
-    if let Some(tx) = ctx.curation_inbox_tx() {
+    if let Some(tx) = &ctx.governance().curation_tx {
         let event = hkask_cns::types::loops::CurationInput::GoalTransition(
             hkask_cns::types::loops::GoalTransitionEvent {
                 goal_id: goal_id.to_string(),

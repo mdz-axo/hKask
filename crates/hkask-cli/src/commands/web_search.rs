@@ -10,9 +10,10 @@ pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     let from = super::helpers::resolve_user_webid();
     let to = super::helpers::resolve_user_webid();
     let token = ctx
-        .mcp_dispatcher()
+        .governance()
+        .dispatcher
         .issue_capability("tools".to_string(), from, to);
-    match rt.block_on(ctx.mcp_dispatcher().invoke(
+    match rt.block_on(ctx.governance().dispatcher.invoke(
         "web_search",
         serde_json::json!({"query": query, "max_results": max_results}),
         &token,
@@ -49,5 +50,5 @@ pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
             std::process::exit(1);
         }
     }
-    rt.block_on(ctx.mcp_dispatcher().shutdown_all());
+    rt.block_on(ctx.governance().dispatcher.shutdown_all());
 }

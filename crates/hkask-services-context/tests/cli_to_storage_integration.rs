@@ -75,7 +75,7 @@ async fn service_builds_with_in_memory_config() {
 
     let _user_store = svc.user_store();
     let _event_sink = svc.event_sink();
-    let _sovereignty = svc.sovereignty();
+    let _sovereignty = svc.governance().consent;
 }
 
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -87,7 +87,7 @@ async fn sovereignty_consent_round_trip() {
     let svc = build_test_service().await;
     let webid_str = WebID::new().to_string();
 
-    let sovereignty = svc.sovereignty();
+    let sovereignty = svc.governance().consent;
 
     // Initially no consent for EpisodicMemory
     let has_consent = sovereignty.has_consent(&webid_str, &DataCategory::EpisodicMemory);
@@ -164,7 +164,8 @@ async fn cross_store_consent_visible_to_cns_events() {
     let webid_str = webid.to_string();
 
     // Grant consent
-    svc.sovereignty()
+    svc.governance()
+        .consent
         .grant_consent(&webid_str, &DataCategory::EpisodicMemory)
         .expect("grant_consent should succeed");
 
@@ -277,13 +278,15 @@ async fn consolidate_agent_memory_consent_checks() {
     // Part 2: grant both memory categories and retry — consent gate should pass.
     // The DB open will fail (in-memory config has no on-disk DB), producing
     // a Storage error. This proves the consent gate was satisfied.
-    svc.sovereignty()
+    svc.governance()
+        .consent
         .grant_consent(
             &target_webid.to_string(),
             &hkask_types::DataCategory::EpisodicMemory,
         )
         .expect("grant episodic_memory consent");
-    svc.sovereignty()
+    svc.governance()
+        .consent
         .grant_consent(
             &target_webid.to_string(),
             &hkask_types::DataCategory::SemanticMemory,

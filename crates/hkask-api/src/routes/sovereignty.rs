@@ -106,7 +106,7 @@ pub(crate) async fn sovereignty_status(
 ) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_status", "CNS");
-    let cm = &state.agent_service.sovereignty();
+    let cm = &state.agent_service.governance().consent;
     let webid_str = auth.webid.to_string();
     let boundary = DataSovereigntyBoundary::hkask_default();
     let granted = cm
@@ -158,7 +158,7 @@ pub(crate) async fn sovereignty_grant_consent(
     let webid_str = auth.webid.to_string();
     let cat_str = req.category;
     let cat = hkask_services_core::parse_data_category(&cat_str);
-    let cm = &state.agent_service.sovereignty();
+    let cm = &state.agent_service.governance().consent;
     cm.grant_consent(&webid_str, &cat)
         .map_err(|e| ServiceError::Consent {
             message: e.to_string(),
@@ -192,7 +192,7 @@ pub(crate) async fn sovereignty_revoke_consent(
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "sovereignty_revoke", "CNS");
     let webid_str = auth.webid.to_string();
-    let cm = &state.agent_service.sovereignty();
+    let cm = &state.agent_service.governance().consent;
     cm.revoke_consent(&webid_str)
         .map_err(|e| ServiceError::Consent {
             message: e.to_string(),
@@ -234,7 +234,7 @@ pub(crate) async fn sovereignty_check_access(
     let cat_name = cat.as_str();
     let webid_str = auth.webid.to_string();
     let boundary = DataSovereigntyBoundary::hkask_default();
-    let cm = &state.agent_service.sovereignty();
+    let cm = &state.agent_service.governance().consent;
 
     let class = boundary.classify(&cat);
     let classification = class.label();

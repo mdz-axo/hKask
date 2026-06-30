@@ -48,11 +48,12 @@ pub fn run(
         std::process::exit(1);
     }
 
-    let mcp = ctx.mcp_dispatcher().clone() as std::sync::Arc<dyn McpPort>;
+    let mcp = ctx.governance().dispatcher.clone() as std::sync::Arc<dyn McpPort>;
     let from = super::helpers::resolve_user_webid();
     let to = super::helpers::resolve_user_webid();
     let token = ctx
-        .mcp_dispatcher()
+        .governance()
+        .dispatcher
         .issue_capability("web_search".to_string(), from, to);
 
     // ── Augment detection ──────────────────────────────────────────────
@@ -101,7 +102,7 @@ pub fn run(
     let result = rt.block_on(DiscoveryService::discover(&req, mcp.as_ref(), &token));
 
     // Shutdown MCP server
-    rt.block_on(ctx.mcp_dispatcher().shutdown_all());
+    rt.block_on(ctx.governance().dispatcher.shutdown_all());
 
     match result {
         Ok(mut r) => {

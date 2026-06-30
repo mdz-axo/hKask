@@ -73,14 +73,18 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             let from = super::helpers::resolve_user_webid();
             let to = super::helpers::resolve_user_webid();
             let token = ctx
-                .mcp_dispatcher()
+                .governance()
+                .dispatcher
                 .issue_capability("tools".to_string(), from, to);
-            let result = match rt.block_on(ctx.mcp_dispatcher().invoke(&tool, input_value, &token))
-            {
+            let result = match rt.block_on(ctx.governance().dispatcher.invoke(
+                &tool,
+                input_value,
+                &token,
+            )) {
                 Ok(v) => v,
                 Err(e) => {
                     eprintln!("Tool invocation error: {}", e);
-                    rt.block_on(ctx.mcp_dispatcher().shutdown_all());
+                    rt.block_on(ctx.governance().dispatcher.shutdown_all());
                     std::process::exit(1);
                 }
             };
@@ -88,7 +92,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
                 "{}",
                 serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
             );
-            rt.block_on(ctx.mcp_dispatcher().shutdown_all());
+            rt.block_on(ctx.governance().dispatcher.shutdown_all());
         }
     }
 }

@@ -93,6 +93,15 @@ struct AgentServiceWiring {
 
 impl AgentServiceWiring {
     fn into_service(self) -> AgentService {
+        let governance = governance::GovernanceContext::new(
+            Arc::clone(&self.mcp_pods.capability_checker),
+            Arc::clone(&self.foundation.consent_manager),
+            Arc::clone(&self.mcp_pods.mcp_dispatcher),
+            Arc::clone(&self.loops.a2a_runtime),
+            Arc::clone(&self.foundation.escalation_queue),
+            Some(self.foundation.curation_inbox_tx.clone()),
+        );
+
         AgentService {
             registry: self.reg_wallet.registry,
             mcp_runtime: self.mcp_pods.mcp_runtime,
@@ -122,6 +131,7 @@ impl AgentServiceWiring {
             matrix_transport: self.matrix_transport,
             curator_ready: Some(self.mcp_pods.curator_ready),
             seam_watcher: self.foundation.seam_watcher,
+            governance,
             config: self.config,
             wallet_service: self.reg_wallet.wallet_service,
             wallet_store: self.reg_wallet.wallet_store,

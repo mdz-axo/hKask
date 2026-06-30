@@ -141,7 +141,8 @@ pub(crate) async fn mcp_invoke(
     // Invoke via the MCP dispatcher with the authenticated capability token
     let result = state
         .agent_service
-        .mcp_dispatcher()
+        .governance()
+        .dispatcher
         .invoke(
             &req.tool,
             input,

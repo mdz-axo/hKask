@@ -1,6 +1,6 @@
 //! CuratorService — escalation management for CLI and API surfaces.
 //!
-//! Delegates to `AgentService::escalation_queue()` and wraps
+//! Delegates to `AgentService::governance().escalations` and wraps
 //! `EscalationError` as `ServiceError::Escalation`. Handles
 //! escalation CRUD (list, resolve, dismiss) and metacognition.
 
@@ -49,17 +49,10 @@ impl From<EscalationEntry> for EscalationResponse {
     }
 }
 
-/// Service for curator operations — delegates to EscalationQueue.
+/// Service for curator operations — delegates to governance context.
 pub struct CuratorService;
 
 /// Emit a CNS ν-event for an escalation operation (resolve/dismiss).
-///
-/// CNS observability is mandatory per P9 (Homeostatic Self-Regulation). This
-/// helper ensures consistent span format and error handling across all
-/// escalation lifecycle transitions.
-///
-/// pre:  ctx.event_sink() must be initialized; operation must be a valid CNS span name
-/// post: CNS ν-event emitted (or warn logged on persist failure)
 fn emit_escalation_event(
     ctx: &AgentService,
     operation: &str,
@@ -91,32 +84,23 @@ fn emit_escalation_event(
 
 impl CuratorService {
     /// List pending escalations.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.escalation_queue() must be initialized
-    /// post: returns `Vec<EscalationResponse>` of pending escalations; empty Vec if none; Err(Escalation) on queue error
-    /// # Returns
-    /// `ServiceError::Escalation` on queue error.
     pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
-        let queue = ctx.escalation_queue();
-        let entries = queue.list_pending().map_err(|e| ServiceError::Escalation {
-            message: e.to_string(),
-        })?;
+        let entries =
+            ctx.governance()
+                .escalations
+                .list_pending()
+                .map_err(|e| ServiceError::Escalation {
+                    message: e.to_string(),
+                })?;
         Ok(entries.into_iter().map(EscalationResponse::from).collect())
     }
 
     /// Resolve an escalation by ID.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; resolved_by must be non-empty
-    /// post: escalation is resolved; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
-    /// # Returns
-    /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
-    /// `ServiceError::Escalation` on queue error.
     pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
         emit_escalation_event(ctx, "escalation_resolved", "resolved_by", id, resolved_by);
 
-        ctx.escalation_queue()
+        ctx.governance()
+            .escalations
             .resolve(id, resolved_by)
             .map_err(|e| match e {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
@@ -130,13 +114,6 @@ impl CuratorService {
     }
 
     /// Dismiss an escalation by ID.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.escalation_queue() must be initialized; id must be a valid escalation ID; dismissed_by must be non-empty
-    /// post: escalation is dismissed; CNS event emitted; Ok(()) on success; Err(EscalationNotFound) if ID not found; Err(Escalation) on queue error
-    /// # Returns
-    /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
-    /// `ServiceError::Escalation` on queue error.
     pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
         emit_escalation_event(
             ctx,
@@ -146,7 +123,8 @@ impl CuratorService {
             dismissed_by,
         );
 
-        ctx.escalation_queue()
+        ctx.governance()
+            .escalations
             .dismiss(id, dismissed_by)
             .map_err(|e| match e {
                 hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
@@ -160,20 +138,8 @@ impl CuratorService {
     }
 
     /// Run a metacognition cycle and return a human-readable summary.
-    ///
-    /// Constructs a `CuratorAgent` from the AgentService's escalation queue
-    /// and CNS runtime, runs one metacognition cycle, and generates a summary.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.escalation_queue() and ctx.cns_runtime() must be initialized
-    /// post: returns human-readable summary string from metacognition cycle; Err(Metacognition) on cycle failure; Err(Cns) if CNS runtime unavailable
-    /// # Returns
-    /// `ServiceError::Metacognition` on cycle failure.
-    /// `ServiceError::Cns` if CNS runtime is unavailable.
     pub async fn metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
-        let queue = ctx.escalation_queue();
-        // Use the live CNS runtime (RwLock<CnsRuntime>) — clone the inner
-        // state so the CuratorAgent sees current alerts and variety, not zeros.
+        let queue = Arc::clone(&ctx.governance().escalations);
         let cns_lock = ctx.cns_runtime();
         let cns = Arc::new(cns_lock.read().await.clone());
 
@@ -181,10 +147,9 @@ impl CuratorService {
             CuratorHandle::system(),
             cns,
             None,
-            queue.clone(),
+            queue,
         ));
         let agent = CuratorAgent::new(agents_ctx);
-        // Override posture from the curator persona's CommunicationPosture
         let agent = if let Some(curator_id) = ctx.pod_manager().find_by_name("curator").await {
             if let Some(persona) = ctx.pod_manager().persona(&curator_id).await {
                 if let Some(posture) = persona.communication_posture {
@@ -208,16 +173,11 @@ impl CuratorService {
                 })?;
         let summary = agent.metacognition().generate_summary(&snapshot);
 
-        // Post to Matrix standing session if transport is configured
         Self::post_to_matrix_if_configured(ctx, &summary).await;
 
         Ok(summary)
     }
 
-    /// Post the metacognition summary to the Curator's Matrix room.
-    ///
-    /// Requires `HKASK_CURATOR_ROOM_ID` env var and Matrix transport
-    /// to be connected. Silently skips if unavailable.
     async fn post_to_matrix_if_configured(ctx: &AgentService, summary: &str) {
         let room_id = match std::env::var("HKASK_CURATOR_ROOM_ID") {
             Ok(id) if !id.is_empty() => id,
@@ -252,8 +212,6 @@ impl CuratorService {
         }
     }
 }
-
-// ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

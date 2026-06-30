@@ -75,6 +75,8 @@ use hkask_services_wallet::WalletService;
 mod matrix;
 mod seam_monitor;
 
+use crate::governance;
+
 /// Agent operational context — canonical composition root for hKask.
 ///
 /// Holds every piece of shared infrastructure an agent needs: CNS,
@@ -192,6 +194,10 @@ pub struct AgentService {
 
     /// Configuration used to build this context.
     config: ServiceConfig,
+
+    /// Governance context — consolidated OCAP, consent, dispatch, A2A, escalations.
+    /// Extracted from individual fields during strangler-fig decomposition.
+    governance: governance::GovernanceContext,
 
     /// Wallet service for rJoule payments, deposits, withdrawals, and API key management.
     /// Constructed during build() with the wallet_config from ServiceConfig.
@@ -357,6 +363,20 @@ impl AgentService {
     }
 
     // --- Governance ---
+    /// Consolidated governance context — OCAP, consent, dispatch,
+    /// A2A registration, escalation queue, curation signals.
+    ///
+    /// Prefer this over individual `capability_checker()`, `sovereignty()`,
+    /// `mcp_dispatcher()`, `escalation_queue()`, `a2a_runtime()`, and
+    /// `curation_inbox_tx()` accessors. The individual accessors are
+    /// deprecated as part of the strangler-fig decomposition.
+    ///
+    /// pre:  self must be fully built
+    /// post: returns `&GovernanceContext` with all six governance subsystems
+    pub fn governance(&self) -> &governance::GovernanceContext {
+        &self.governance
+    }
+
     /// Capability checker for OCAP verification.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.

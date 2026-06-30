@@ -127,7 +127,7 @@ async fn create_pod(
     let token = auth.token.as_ref().ok_or_else(|| ServiceError::A2A {
         message: "Session auth not supported for pod creation".to_string(),
     })?;
-    let has = state.agent_service.capability_checker().check_resource(
+    let has = state.agent_service.governance().checker.check_resource(
         token,
         &auth.webid,
         DelegationResource::Tool,
