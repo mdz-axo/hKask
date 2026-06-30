@@ -3735,7 +3735,7 @@ dependencies = [
  "hkask-ports",
  "hkask-services",
  "hkask-services-core",
- "hkask-services-kanban",
+ "hkask-services-kata-kanban",
  "hkask-services-runtime",
  "hkask-services-skill",
  "hkask-storage",
@@ -4593,46 +4593,6 @@ dependencies = [
  "serde_json",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "hkask-services-kanban"
-version = "0.31.0"
-dependencies = [
- "chrono",
- "hkask-agents",
- "hkask-capability",
- "hkask-services-core",
- "hkask-storage",
- "hkask-types",
- "rusqlite",
- "serde",
- "serde_json",
- "serde_yaml_neo",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-services-kata"
-version = "0.31.0"
-dependencies = [
- "chrono",
- "hkask-cns",
- "hkask-inference",
- "hkask-ports",
- "hkask-services-core",
- "hkask-storage",
- "hkask-templates",
- "hkask-types",
- "minijinja",
- "serde",
- "serde_json",
- "serde_yaml_neo",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]

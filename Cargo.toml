@@ -8,8 +8,6 @@ members = [
     "crates/hkask-bridge-dublincore",
     "crates/hkask-bridge-pko",
     "crates/hkask-services-kata-kanban",
-    "crates/hkask-services-kata",
-    "crates/hkask-services-kanban",
     "crates/hkask-services-runtime",
     "crates/hkask-services-corpus",
     "crates/hkask-services-wallet",
