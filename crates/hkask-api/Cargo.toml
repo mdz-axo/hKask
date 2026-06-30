@@ -16,9 +16,12 @@ hkask-cns = { path = "../hkask-cns" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }
-hkask-services = { path = "../hkask-services" }
-hkask-inference = { path = "../hkask-inference" }
 hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-context = { path = "../hkask-services-context" }
+hkask-services-chat = { path = "../hkask-services-chat" }
+hkask-services-wallet = { path = "../hkask-services-wallet" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-services-curator = { path = "../hkask-services-curator" }
 hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-wallet-types = { path = "../hkask-wallet-types" }

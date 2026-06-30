@@ -7,7 +7,7 @@
 //! - `cosine_distance` (pure function from hkask-services)
 //! - `ProbContractRunner` (probabilistic contract verification for LLM-driven tools)
 
-use hkask_services::cosine_distance;
+use hkask_services_compose::cosine_distance;
 use hkask_test_harness::ProbContractRunner;
 use proptest::prelude::*;
 

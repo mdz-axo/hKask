@@ -74,7 +74,7 @@ Each experiment moves your knowledge threshold forward. The path won't be straig
 
 ## CNS Integration
 
-- Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services-kata/src/lib.rs`).
+- Trace events are emitted under the `hkask.kata` target by the Kata runtime (`crates/hkask-services-kata-kanban/src/kata/`).
 - The only canonical CNS span that crosses into kata territory is `cns.kata`, emitted by `hkask-improv` when improv modes are active.
 - Do not reference `cns.prompt.kata.improvement` or counters like `kata.improvement.cycles`; they are not canonical CNS span names.
 - When improv modes are active, `cns.kata` carries derived sub-metrics from the improv runtime (mode active, plussing ratio, freestyle coherence, kata effectiveness delta, cascade depth). These are trace targets, not independent CNS spans.

@@ -14,7 +14,7 @@ use crate::ApiState;
 use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 use hkask_agents::{RecallRequest, StorageRequest};
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 use hkask_types::Confidence;
 
 /// Create episodic memory router

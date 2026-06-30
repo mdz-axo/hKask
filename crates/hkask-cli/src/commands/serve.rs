@@ -23,7 +23,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
     // Resolve configuration from keystore and environment.
     // Refuse to start with in-memory fallback — a server without proper
     // keystore configuration has no security, no persistence, and no auth.
-    let config = hkask_services::ServiceConfig::from_env().map_err(|e| {
+    let config = hkask_services_core::ServiceConfig::from_env().map_err(|e| {
         format!(
             "Failed to resolve service configuration: {e}\n\
              Run 'kask init' first to set up the server, or 'kask chat' to\n\
@@ -32,7 +32,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
     })?;
 
     // Build AgentService with all shared infrastructure
-    let ctx = hkask_services::AgentService::build(config)
+    let ctx = hkask_services_context::AgentService::build(config)
         .await
         .map_err(|e| {
             Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>

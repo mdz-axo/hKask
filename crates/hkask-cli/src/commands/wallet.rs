@@ -4,7 +4,7 @@
 //! withdrawals, API key management, and transaction history.
 
 use crate::cli::{KeyAction, WalletAction};
-use hkask_services::WalletService;
+use hkask_services_wallet::WalletService;
 use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
 use hkask_types::id::WalletId;

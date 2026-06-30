@@ -24,7 +24,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ed25519_dalek::SigningKey;
-use hkask_services::WalletService;
+use hkask_services_wallet::WalletService;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
 use hkask_types::id::{ApiKeyId, WalletId};

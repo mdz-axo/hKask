@@ -194,7 +194,7 @@ pub(crate) fn handle_consolidate(
                 println!("  Post-consolidation semantic count: {}", semantic_count);
             }
         }
-        Err(hkask_services::ServiceError::ConsentDenied { message }) => {
+        Err(hkask_services_core::ServiceError::ConsentDenied { message }) => {
             println!();
             println!("  \x1b[31mConsent required:\x1b[0m {}", message);
             println!(

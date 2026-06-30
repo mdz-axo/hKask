@@ -1079,8 +1079,18 @@ impl HkaskLoop for MetacognitionLoop {
             };
             info!(target: MC_TARGET, batch_id = %batch.id, entry_count = batch.entries.len(), threshold, "Consolidating escalations into batch");
             let batch_template_id = hkask_types::TemplateID::new();
-            let batch_error_context =
-                format!("Consolidated batch: {} escalation(s)", batch.entries.len());
+            let batch_error_context = {
+                let template_ids: Vec<_> = batch
+                    .entries
+                    .iter()
+                    .map(|e| e.template_id.to_string())
+                    .collect();
+                format!(
+                    "Consolidated batch: {} escalation(s) from templates: {}",
+                    batch.entries.len(),
+                    template_ids.join(", ")
+                )
+            };
             let batch_confidence = batch
                 .entries
                 .iter()

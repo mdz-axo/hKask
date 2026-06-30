@@ -245,7 +245,7 @@ fn wallet_err(status: StatusCode, msg: &str) -> Response<Body> {
     (status, Json(serde_json::json!({"error": msg}))).into_response()
 }
 
-fn get_wallet(state: &ApiState) -> Result<&hkask_services::WalletService, StatusCode> {
+fn get_wallet(state: &ApiState) -> Result<&hkask_services_wallet::WalletService, StatusCode> {
     state
         .wallet_service
         .as_ref()

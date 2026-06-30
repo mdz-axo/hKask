@@ -9,7 +9,7 @@ description = "Style replica MCP server — embed author corpora, compose prose,
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-inference = { path = "../../crates/hkask-inference" }
-hkask-services = { path = "../../crates/hkask-services" }
+hkask-services-compose = { path = "../../crates/hkask-services-compose" }
 hkask-services-core = { path = "../../crates/hkask-services-core" }
 hkask-services-corpus = { path = "../../crates/hkask-services-corpus" }
 hkask-storage = { path = "../../crates/hkask-storage" }

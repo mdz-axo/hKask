@@ -8,7 +8,7 @@
 
 use crate::cli::SettingsAction;
 use crate::repl::handlers::ReplSettings;
-use hkask_services::{load_settings, save_settings};
+use hkask_services_core::{load_settings, save_settings};
 
 /// CLI handler for `kask settings {show,set,reset}`.
 /// expect: "I can access all hKask functionality through the kask CLI"

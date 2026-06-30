@@ -11,10 +11,9 @@
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
 use hkask_inference::{FusionMode, ProviderId};
-use hkask_services::{
-    InferenceConfig, MatrixRegistrationResult, OnboardingService, ResolvedSecrets, ServiceConfig,
-    ServiceError,
-};
+use hkask_inference::InferenceConfig;
+use hkask_services_core::{ServiceConfig, ServiceError};
+use hkask_services_onboarding::{MatrixRegistrationResult, OnboardingService, ResolvedSecrets};
 use hkask_storage::{RegisteredAgent, UserProfile};
 use thiserror::Error;
 
@@ -30,7 +29,7 @@ pub enum OnboardingError {
     #[error("Onboarding cancelled by user")]
     Cancelled,
     #[error(transparent)]
-    Service(#[from] hkask_services::ServiceError),
+    Service(#[from] hkask_services_core::ServiceError),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 }
@@ -615,7 +614,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
 // ── Private helpers ────────────────────────────────────────────────────────
 
 /// Retry pending Matrix registration silently on session start.
-async fn retry_pending_matrix(handle: &hkask_services::RegistryHandle) {
+async fn retry_pending_matrix(handle: &hkask_services_onboarding::RegistryHandle) {
     let keychain = hkask_keystore::Keychain::default();
     if keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY)
@@ -636,7 +635,7 @@ async fn retry_pending_matrix(handle: &hkask_services::RegistryHandle) {
     let homeserver_url = keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_HOMESERVER)
         .unwrap_or_else(|_| "http://localhost:8008".to_string());
-    let user_profile = match hkask_services::OnboardingService::get_user_profile(&handle.store) {
+    let user_profile = match hkask_services_onboarding::OnboardingService::get_user_profile(&handle.store) {
         Ok(Some(p)) => p,
         _ => return,
     };
@@ -650,7 +649,7 @@ async fn retry_pending_matrix(handle: &hkask_services::RegistryHandle) {
             Ok(p) => p,
             _ => return,
         };
-    let _ = hkask_services::OnboardingService::register_matrix_accounts(
+    let _ = hkask_services_onboarding::OnboardingService::register_matrix_accounts(
         &user_profile,
         &replicant_name,
         &passphrase,

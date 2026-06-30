@@ -603,7 +603,7 @@ documents:
       - .agents/skills/kata-improvement/
       - .agents/skills/kata-coaching/
       - .agents/skills/kata/
-      - crates/hkask-services/src/kata.rs
+      - crates/hkask-services-kata-kanban/
     gaps:
       - "Extensive CNS integration docs exist but zero kanban integration mentioned"
       - "No explanation of how PDCA experiments become kanban tasks"

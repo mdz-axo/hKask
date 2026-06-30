@@ -54,7 +54,7 @@ impl AuthService {
     /// pre:  _config is a valid ServiceConfig
     /// post: returns AuthService with empty revocation set and the system OCAP
     ///       public key as its sole trusted root (or none if unavailable)
-    pub fn from_config(_config: &hkask_services::ServiceConfig) -> Self {
+    pub fn from_config(_config: &hkask_services_core::ServiceConfig) -> Self {
         let trusted_roots = match hkask_keystore::keychain::get_or_create_ocap_secret() {
             Ok(secret) => {
                 let sk = hkask_capability::derive_signing_key(secret.as_slice());

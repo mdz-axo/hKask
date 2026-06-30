@@ -21,18 +21,32 @@ pub mod types;
 
 use hkask_inference::EmbeddingRouter;
 use hkask_mcp::server::{McpToolError, execute_tool};
-use hkask_services::{
-    EmbedProgress, EmbedService, HkaskSettings, InferenceContext, cosine_distance,
+use hkask_services_compose::{
+    ComposeResult as ServiceComposeResult, ComposeService, cosine_distance,
 };
+use hkask_services_core::{HkaskSettings, InferenceContext};
+use hkask_services_corpus::{EmbedProgress, EmbedService};
 use hkask_storage::{Database, EmbeddingStore};
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
+
+/// MCP tool parameter struct for replica_compose.
+/// Separate from `ComposeRequest` to avoid requiring `InferenceContext` serialization.
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ReplicaComposeParams {
+    pub author: String,
+    pub prompt: String,
+    pub db_path: String,
+    pub passphrase: String,
+    #[serde(default)]
+    pub no_validate: bool,
+}
 use types::*;
 
 /// Default embedding model (DeepInfra Qwen3-Embedding-0.6B).
@@ -294,28 +308,31 @@ impl ReplicaServer {
     }
 
     #[tool(description = "Generate prose in an author's style.")]
-    pub async fn replica_compose(&self, Parameters(params): Parameters<ComposeRequest>) -> String {
+    pub async fn replica_compose(
+        &self,
+        Parameters(params): Parameters<ReplicaComposeParams>,
+    ) -> String {
         execute_tool(self, "replica_compose", async {
             let model = embedding_model();
             let gen_model = generation_model();
             let inf_cfg = inference_config();
-            let config = hkask_services::CognitionConfig {
+            let config = hkask_services_compose::CognitionConfig {
                 author: params.author.clone(),
                 jinja2_template: None,
-                embedding: hkask_services::EmbeddingSection {
+                embedding: hkask_services_compose::EmbeddingSection {
                     model: model.clone(),
                     dim: 1024,
                     centroid_entity_ref: format!("style:{}:centroid", params.author),
                     retrieval: Default::default(),
                 },
-                validation: hkask_services::ValidationSection {
+                validation: hkask_services_compose::ValidationSection {
                     centroid_distance_max: 0.25,
                 },
             };
 
             let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
 
-            let request = hkask_services::ComposeRequest {
+            let request = hkask_services_compose::ComposeRequest {
                 prompt: params.prompt,
                 db_path: PathBuf::from(&params.db_path),
                 db_passphrase: params.passphrase,
@@ -324,7 +341,7 @@ impl ReplicaServer {
                 no_validate: params.no_validate,
             };
 
-            let result = hkask_services::ComposeService::compose(request)
+            let result = hkask_services_compose::ComposeService::compose(request)
                 .await
                 .map_err(|e| McpToolError::internal(e.to_string()))?;
 
@@ -380,23 +397,23 @@ impl ReplicaServer {
             let model = embedding_model();
             let gen_model = generation_model();
             let inf_cfg = inference_config();
-            let config = hkask_services::CognitionConfig {
+            let config = hkask_services_compose::CognitionConfig {
                 author: params.author.clone(),
                 jinja2_template: None,
-                embedding: hkask_services::EmbeddingSection {
+                embedding: hkask_services_compose::EmbeddingSection {
                     model: model.clone(),
                     dim: 1024,
                     centroid_entity_ref: centroid_ref,
                     retrieval: Default::default(),
                 },
-                validation: hkask_services::ValidationSection {
+                validation: hkask_services_compose::ValidationSection {
                     centroid_distance_max: 0.40,
                 },
             };
 
             let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
 
-            let request = hkask_services::ComposeRequest {
+            let request = hkask_services_compose::ComposeRequest {
                 prompt,
                 db_path: PathBuf::from(&params.db_path),
                 db_passphrase: params.passphrase,
@@ -405,7 +422,7 @@ impl ReplicaServer {
                 no_validate: params.no_validate,
             };
 
-            let result = hkask_services::ComposeService::compose(request)
+            let result = hkask_services_compose::ComposeService::compose(request)
                 .await
                 .map_err(|e| McpToolError::internal(e.to_string()))?;
 
@@ -633,8 +650,8 @@ impl ReplicaServer {
                 .map(|(a, b)| a * (1.0 - blend as f32) + b * blend as f32)
                 .collect();
 
-            let dist_a = hkask_services::cosine_distance(&blended, &emb_a.vector);
-            let dist_b = hkask_services::cosine_distance(&blended, &emb_b.vector);
+            let dist_a = hkask_services_compose::cosine_distance(&blended, &emb_a.vector);
+            let dist_b = hkask_services_compose::cosine_distance(&blended, &emb_b.vector);
 
             let model = embedding_model();
             let gen_model = generation_model();
@@ -643,23 +660,23 @@ impl ReplicaServer {
                 .map_err(|e| McpToolError::internal(e.to_string()))?;
 
             let inf_cfg = inference_config();
-            let config = hkask_services::CognitionConfig {
+            let config = hkask_services_compose::CognitionConfig {
                 author: format!("mashup:{}:{}", params.author_a, params.author_b),
                 jinja2_template: None,
-                embedding: hkask_services::EmbeddingSection {
+                embedding: hkask_services_compose::EmbeddingSection {
                     model: model.clone(),
                     dim: 1024,
                     centroid_entity_ref: blended_ref.clone(),
                     retrieval: Default::default(),
                 },
-                validation: hkask_services::ValidationSection {
+                validation: hkask_services_compose::ValidationSection {
                     centroid_distance_max: 0.25,
                 },
             };
 
             let inference_ctx = InferenceContext::from_parts(None, &gen_model, inf_cfg);
 
-            let request = hkask_services::ComposeRequest {
+            let request = hkask_services_compose::ComposeRequest {
                 prompt: params.prompt,
                 db_path: PathBuf::from(&params.db_path),
                 db_passphrase: params.passphrase,
@@ -668,7 +685,7 @@ impl ReplicaServer {
                 no_validate: false,
             };
 
-            let result = hkask_services::ComposeService::compose(request)
+            let result = hkask_services_compose::ComposeService::compose(request)
                 .await
                 .map_err(|e| McpToolError::internal(e.to_string()))?;
 

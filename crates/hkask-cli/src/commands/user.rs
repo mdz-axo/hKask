@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::cli::ReplicantAction;
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 use hkask_services_core::{RegistrationRequest, ReplicantIdentity, UserSession};
 use hkask_storage::user_store::UserStore;
 use hkask_types::UserID;

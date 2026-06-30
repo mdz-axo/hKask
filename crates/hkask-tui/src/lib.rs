@@ -83,7 +83,7 @@ impl TuiSession {
     /// Initializes the terminal in raw mode + alternate screen,
     /// builds the workspace with a default layout (chat window).
     pub fn new(
-        service_context: std::sync::Arc<hkask_services::AgentService>,
+        service_context: std::sync::Arc<hkask_services_context::AgentService>,
         bridge: std::sync::Arc<dyn ReplBridge>,
     ) -> anyhow::Result<Self> {
         let mut terminal = ratatui::init();

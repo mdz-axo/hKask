@@ -9,7 +9,7 @@
 //! filtering. The CLI layer handles gas governance, streaming display,
 //! tool execution (via GovernedTool), and CNS updates.
 
-use hkask_services::{ChatService, TurnRequest};
+use hkask_services_chat::{ChatService, TurnRequest};
 
 use super::ReplState;
 use super::cns_display;
@@ -96,7 +96,7 @@ pub(super) fn single_agent_turn(
     let mut current_input: String = input.to_string();
     let mut tool_results: Option<String> = None;
     let mut iteration: usize = 0;
-    let mut total_usage: Option<hkask_services::TokenUsage> = None;
+    let mut total_usage: Option<hkask_services_chat::TokenUsage> = None;
     let mut final_response: Option<String> = None;
 
     // CNS: turn lifecycle — emit start span for observability.
@@ -312,7 +312,7 @@ pub(crate) fn single_agent_turn_captured(
     let mut current_input: String = input.to_string();
     let mut tool_results: Option<String> = None;
     let mut iteration: usize = 0;
-    let mut total_usage: Option<hkask_services::TokenUsage> = None;
+    let mut total_usage: Option<hkask_services_chat::TokenUsage> = None;
     let mut captured_text = String::new();
     let mut tool_text = String::new();
 
@@ -412,7 +412,7 @@ pub(crate) fn single_agent_turn_captured(
 
     cns_display::update_cns_and_display(state, rt);
 
-    let usage = total_usage.unwrap_or(hkask_services::TokenUsage {
+    let usage = total_usage.unwrap_or(hkask_services_chat::TokenUsage {
         prompt_tokens: 0,
         completion_tokens: 0,
         total_tokens: 0,

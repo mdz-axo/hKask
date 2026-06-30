@@ -59,12 +59,12 @@ impl Default for SettingsResponse {
 
 /// Load settings from disk via the shared service.
 fn load_settings() -> SettingsResponse {
-    hkask_services::load_settings()
+    hkask_services_core::load_settings()
 }
 
 /// Save settings to disk via the shared service.
 fn save_settings(settings: &SettingsResponse) -> Result<(), String> {
-    hkask_services::save_settings(settings).map_err(|e| e.to_string())
+    hkask_services_core::save_settings(settings).map_err(|e| e.to_string())
 }
 
 /// JSON shape for updating settings. All fields optional — only present

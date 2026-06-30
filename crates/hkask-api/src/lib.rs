@@ -50,8 +50,8 @@ use axum::http::Request;
 use axum::middleware::Next;
 use std::sync::Arc;
 
-use hkask_services::AgentService;
-use hkask_services::WalletService;
+use hkask_services_context::AgentService;
+use hkask_services_wallet::WalletService;
 use utoipa::OpenApi;
 
 use git_cas::{GitCasBundle, init_git_cas};
@@ -100,10 +100,11 @@ impl ApiState {
     /// post: if config/secrets available → Ok(ApiState) with full infrastructure
     /// post: if config/secrets missing → Err(ApiError::Internal)
     pub async fn with_defaults() -> Result<Self, ApiError> {
-        let config = hkask_services::ServiceConfig::from_env().map_err(|e| ApiError::Internal {
-            message: format!("Failed to resolve service config: {e}"),
-        })?;
-        let ctx = hkask_services::AgentService::build(config)
+        let config =
+            hkask_services_core::ServiceConfig::from_env().map_err(|e| ApiError::Internal {
+                message: format!("Failed to resolve service config: {e}"),
+            })?;
+        let ctx = hkask_services_context::AgentService::build(config)
             .await
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to build service context: {e}"),

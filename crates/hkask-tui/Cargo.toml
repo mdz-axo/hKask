@@ -7,7 +7,7 @@ description = "Terminal UI workspace for hKask — multi-window agent interface"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
-hkask-services = { path = "../hkask-services" }
+hkask-services-context = { path = "../hkask-services-context" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-agents = { path = "../hkask-agents" }
 ratatui.workspace = true

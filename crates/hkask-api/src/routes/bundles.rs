@@ -9,7 +9,7 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 use hkask_services_skill::bundle::BundleService;
 use hkask_types::Visibility;
 
@@ -190,12 +190,12 @@ fn resolve_api_composition_port(
         return Ok(port);
     }
     // Fallback: create a fresh inference port
-    let ctx = hkask_services::InferenceContext::from_parts(
+    let ctx = hkask_services_core::InferenceContext::from_parts(
         None,
         &state.agent_service.config().default_model,
         state.agent_service.config().inference_config.clone(),
     );
-    hkask_services::InferenceService::resolve_port(
+    hkask_services_core::InferenceService::resolve_port(
         &ctx,
         &state.agent_service.config().default_model,
     )
@@ -225,7 +225,7 @@ pub(crate) async fn compose_bundle(
 
     let vis = Visibility::parse_str(&request.visibility).unwrap_or(Visibility::Private);
     let inference_port = resolve_api_composition_port(&state)?;
-    let editor = hkask_services::resolve_replicant_name();
+    let editor = hkask_services_skill::resolve_replicant_name();
 
     let result = BundleService::compose(
         &state.agent_service,
@@ -305,7 +305,7 @@ pub(crate) async fn evolve_bundle(
     Path(id): Path<String>,
 ) -> Result<Json<EvolveBundleResponse>, ServiceErrorResponse> {
     let inference_port = resolve_api_composition_port(&state)?;
-    let editor = hkask_services::resolve_replicant_name();
+    let editor = hkask_services_skill::resolve_replicant_name();
 
     let result = BundleService::evolve(&state.agent_service, &id, inference_port, &editor)
         .await

@@ -11,7 +11,7 @@
 //!   → AgentService::build()
 //!     → ConsentStore ──┐
 //!     → GoalRepo ──────┤
-//!     → SpecStore ─────┼── all share ONE Arc<`Mutex<Connection>`>
+//!     → SpecStore ─────┼── all share ONE Arc<Mutex<Connection>>
 //!     → UserStore ─────┤
 //!     → WalletStore ───┤
 //!     → NuEventStore ──┘
@@ -23,7 +23,8 @@
 //! migration plan.
 
 use hkask_cns::governed_tool::EnergyEstimator;
-use hkask_services::{AgentService, ServiceConfig};
+use hkask_services_context::AgentService;
+use hkask_services_core::ServiceConfig;
 use hkask_storage::spec_store::SpecStore;
 use hkask_storage::{DomainAnchor, Spec, SpecCategory};
 use hkask_types::DataCategory;
@@ -267,7 +268,7 @@ async fn consolidate_agent_memory_consent_checks() {
     assert!(
         matches!(
             result,
-            Err(hkask_services::ServiceError::ConsentDenied { .. })
+            Err(hkask_services_core::ServiceError::ConsentDenied { .. })
         ),
         "should deny consolidation without consent, got {:?}",
         result
@@ -291,7 +292,10 @@ async fn consolidate_agent_memory_consent_checks() {
 
     let result = svc.consolidate_agent_memory(agent_name, request);
     assert!(
-        matches!(result, Err(hkask_services::ServiceError::Storage { .. })),
+        matches!(
+            result,
+            Err(hkask_services_core::ServiceError::Storage { .. })
+        ),
         "should proceed past consent check — expected Storage error for nonexistent DB, got {:?}",
         result
     );

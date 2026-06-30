@@ -4,10 +4,8 @@
 //! Each step is independently callable and carries its own recovery logic.
 //! If any step fails, the session can be resumed from the failed state.
 
-use hkask_services::{
-    MatrixRegistrationResult, OnboardingService, RegistryHandle, ResolvedSecrets, ServiceConfig,
-    ServiceError,
-};
+use hkask_services_core::{ServiceConfig, ServiceError};
+use hkask_services_onboarding::{MatrixRegistrationResult, OnboardingService, RegistryHandle, ResolvedSecrets};
 use hkask_storage::UserProfile;
 
 use crate::onboarding::OnboardingError;
@@ -98,7 +96,7 @@ impl OnboardingSession {
 
     async fn advance_provider(&mut self) -> Result<(), OnboardingError> {
         // Provider setup is idempotent — skip if already configured.
-        let config = hkask_services::InferenceConfig::from_env();
+        let config = hkask_inference::InferenceConfig::from_env();
         if config.deepinfra_api_key.is_empty()
             && config.together_api_key.is_empty()
             && config.fal_api_key.is_empty()

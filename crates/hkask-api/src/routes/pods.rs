@@ -4,7 +4,7 @@ use axum::Json;
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use hkask_capability::DelegationResource;
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 use utoipa_axum::router::OpenApiRouter;
 use uuid::Uuid;
 

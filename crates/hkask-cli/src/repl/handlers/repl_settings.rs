@@ -98,9 +98,9 @@ pub(crate) fn handle_repl_set(arg1: &str, arg2: &str, state: &mut ReplState) {
 }
 
 /// Path to the persisted settings file. Delegates to the shared
-/// hkask_services::settings_path for single-source-of-truth across surfaces.
+/// hkask_services_core::settings_path for single-source-of-truth across surfaces.
 pub fn settings_path() -> std::path::PathBuf {
-    hkask_services::settings_path()
+    hkask_services_core::settings_path()
 }
 
 /// Default REPL settings.
@@ -200,13 +200,13 @@ fn default_gen_model() -> String {
     "deepseek-v4-flash:cloud".to_string()
 }
 fn default_emb_model() -> String {
-    hkask_services::model_constants::EMBEDDING_MODEL.to_string()
+    hkask_inference::model_constants::EMBEDDING_MODEL.to_string()
 }
 fn default_cls_model() -> String {
-    hkask_services::model_constants::CLASSIFIER_MODEL.to_string()
+    hkask_inference::model_constants::CLASSIFIER_MODEL.to_string()
 }
 fn default_ocr() -> String {
-    hkask_services::model_constants::OCR_MODEL.to_string()
+    hkask_inference::model_constants::OCR_MODEL.to_string()
 }
 fn default_ocr_simple_max() -> f32 {
     0.05

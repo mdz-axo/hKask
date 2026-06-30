@@ -35,46 +35,30 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | `EnergyBudget` | `hkask-cns` | Per-agent gas budget with cap, replenish rate, hold-settle pattern | P9 |
 | `CircuitBreaker` | `hkask-cns` | Failure-gating state machine for external service calls | P9 |
 
-### 1.2 Kanban Domain
+### 1.2 Kata-Kanban Domain
 
-**Crate:** `hkask-services-kanban` | **Goal Principle:** P3 (Generative Space) — agent coordination via headless task boards
+**Crate:** `hkask-services-kata-kanban` | **Goal Principle:** P3 (Generative Space) — Toyota Kata scientific thinking applied through headless kanban task boards. PDCA phases map to task statuses: Plan→Backlog, Do→InProgress, Check→Review, Act→Done.
 
 | Entity | Description | Key Attributes |
 |--------|-------------|---------------|
-| `Board` | Named task board scoped to owner WebID | `board_id: BoardId`, `name`, `owner: WebID`, `columns: Vec<Column>` |
-| `Column` | Ordered column on a board representing a workflow phase | `column_id: ColumnId`, `name`, `order: u32`, `tasks: Vec<TaskId>` |
-| `Task` | Unit of work with status lifecycle, priority, verification criteria | `task_id: TaskId`, `title`, `status: TaskStatus`, `priority: Priority`, `owner: WebID`, `board_id: BoardId`, `column_id: ColumnId` |
+| `Board` | Named task board scoped to owner WebID | `board_id: BoardId`, `name`, `owner: WebID`, `columns: Vec<ColumnDef>` |
+| `ColumnDef` | Ordered column on a board representing a workflow phase | `column_id: ColumnId`, `name`, `status: TaskStatus`, `wip_limit: Option<u32>` |
+| `Task` | Unit of work with status lifecycle, priority, verification criteria | `task_id: TaskId`, `title`, `status: TaskStatus`, `priority: Priority`, `owner: WebID`, `board_id: BoardId` |
 | `Priority` | Task urgency level | `Low \| Medium \| High \| Critical` |
 | `TaskStatus` | Strict column-ordered lifecycle state | `Backlog → Ready → InProgress → Review → Done` |
-| `VerificationCriteria` | Acceptance spec with optional LLM evaluation prompt | `description: String`, `llm_prompt: Option<String>` |
-| `Comment` | Task discussion thread entry | `comment_id: CommentId`, `task_id: TaskId`, `author: WebID`, `body: String` |
-
-**CNS spans:** `cns.tool.kanban` — TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated
-
-**Key contracts:** 34 `KAN-SVC-*` IDs (migration to `P{N}-svc-kanban-*` in progress)
-
-### 1.3 Kata Domain
-
-**Crate:** `hkask-services-kata` | **Goal Principle:** P3 (Generative Space) — Toyota Kata scientific thinking for agent capability development
-
-| Entity | Description | Key Attributes |
-|--------|-------------|---------------|
+| `VerificationCriterion` | Acceptance spec with optional LLM evaluation prompt | `description: String`, `llm_prompt: Option<String>` |
 | `KataEngine` | Orchestrates kata cycles (starter, improvement, coaching) | `state: KataState`, `manifest: KataManifest` |
-| `KataState` | Current state of a kata practice cycle | `cycle: CyclePhase`, `observations: Vec<Observation>` |
-| `KataManifest` | Declarative definition of a kata (steps, coaching questions, routines) | `meta: ManifestMeta`, `gas: KataGasConfig`, `steps: Vec<KataStep>`, `practices: Vec<PracticeRoutine>`, `cns: KataCnsConfig`, `audit: KataAuditConfig` |
-| `KataStep` | A single step in a kata improvement cycle | `name: String`, `description: String`, `coach_question: CoachQuestion` |
-| `CoachQuestion` | One of the 5 coaching kata questions | `number: u8`, `text: String` |
-| `PracticeRoutine` | Deliberate practice routine (Five Questions Drill, PDCA, Observation) | `name: String`, `duration_minutes: u32`, `outcomes: Vec<StarterOutcome>` |
-| `KataHistory` | Recorded history of practice sessions | `entries: Vec<PracticeEntry>` |
-| `PracticeEntry` | A single practice session record | `routine: String`, `started_at: DateTime<Utc>`, `completed_at: Option<DateTime<Utc>>`, `score: Option<f64>` |
+| `KataState` | Current state of a kata practice cycle | `step_outputs: HashMap`, `learner_bot: String`, `context: HashMap` |
+| `KataManifest` | Declarative definition of a kata (steps, coaching questions, routines) | `manifest: ManifestMeta`, `gas: KataGasConfig`, `steps: Vec<KataStep>` |
+| `KataStep` | A single step in a kata improvement cycle | `ordinal: u32`, `action: String`, `description: String` |
 
 **5 coaching kata questions:** (1) Target condition? (2) Actual condition now? (3) What obstacles? Which ONE? (4) Next step? What do you expect? (5) How quickly can we go and see?
 
-**CNS spans:** `cns.kata` — KataImprovEffectiveness, coaching loop events
+**CNS spans:** `cns.kata` — KataImprovEffectiveness, coaching loop events; `cns.kanban` — TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated
 
-**Key contracts:** 27 `P9-svc-kata-*`, `P3-svc-kata-*`, `P7-svc-kata-*` IDs
+**Key contracts:** 34 `KAN-SVC-*` IDs (migration in progress), 27 `P{N}-svc-kata-*` IDs
 
-### 1.4 Adapter Domain
+### 1.3 Adapter Domain
 
 **Crate:** `hkask-adapter` | **Goal Principle:** P3 (Generative Space) — LoRA adapter lifecycle management for agent-specialized inference
 
@@ -95,7 +79,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Key contracts:** 44 pub fns with `expect:` + `[P{N}]` annotations
 
-### 1.5 Service Layer Subsystems
+### 1.4 Service Layer Subsystems
 
 **Crate:** `hkask-services` + subcrates | **Goal Principle:** P5 (Essentialism) — thin orchestration layer, delegates to domain crates
 
@@ -106,8 +90,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | ✅ Realigned |
 | `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | ✅ Realigned |
-| `hkask-services-kanban` | Kanban task board coordination | `KAN-SVC-*` (legacy) | 34 | ⚠️ Migration pending |
-| `hkask-services-kata` | Toyota Kata engine | `P{N}-svc-kata-*` | 27 | ✅ Realigned |
+| `hkask-services-kata-kanban` | Toyota Kata + Kanban board coordination | `P{N}-svc-kata-*` / `KAN-SVC-*` | 61 | ⚠️ Migration in progress |
 
 ---
 
@@ -574,8 +557,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | Realigned |
 | `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | Realigned |
-| `hkask-services-kanban` | Kanban task board coordination | `KAN-SVC-*` (legacy) | 34 | Migration pending |
-| `hkask-services-kata` | Toyota Kata engine | `P{N}-svc-kata-*` | 27 | Realigned |
+| `hkask-services-kata-kanban` | Toyota Kata + Kanban board coordination | `P{N}-svc-kata-*` / `KAN-SVC-*` | 61 | Migration in progress |
 
 ### Crate-to-Domain Mappings
 
@@ -586,8 +568,7 @@ All 28 fields are **private** and exposed through **individual named accessor me
 | `hkask-services-context` | Lifecycle | `ContextService`, contract monitoring |
 | `hkask-services-corpus` | Domain | `CorpusService`, embedding pipelines |
 | `hkask-inference` | Composition | Inference orchestration, provider routing |
-| `hkask-services-kanban` | Domain | `Board`, `Column`, `Task`, Kanban coordination |
-| `hkask-services-kata` | Domain, Curation | `KataEngine`, `KataManifest`, coaching loops |
+| `hkask-services-kata-kanban` | Domain, Curation | `KataEngine`, `KataManifest`, `Board`, `Task`, Kanban coordination |
 
 ### Dependency Direction
 

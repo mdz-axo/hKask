@@ -470,7 +470,7 @@ mod tests {
 
     /// Helper: create a minimal API key so encumbrance FK constraint is satisfied.
     fn ensure_key(store: &Arc<WalletStore>, wallet_id: WalletId, key_id: ApiKeyId) {
-        use crate::types::{ApiKeyCapability, ChainId, PrivacyMode};
+        use crate::types::ApiKeyCapability;
         use hkask_types::crypto::Ed25519PublicKey;
         let capability = ApiKeyCapability {
             wallet_id,

@@ -5,7 +5,7 @@
 
 use crate::cli::SkillAction;
 use hkask_ports::SkillZone;
-use hkask_services::skill;
+use hkask_services_skill as skill;
 use hkask_services_skill::audit::{SkillAuditor, SkillStatus};
 use hkask_templates::{Registry, SkillLoader};
 use hkask_types::visibility::Visibility;

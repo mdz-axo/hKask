@@ -1,8 +1,8 @@
 //! Run the dual-layer skill audit against the real hKask project tree.
 //!
-//! Usage: cargo run --example audit_skills -p hkask-services
+//! Usage: cargo run --example audit_skills -p hkask-services-skill
 
-use hkask_services::skill::{SkillAuditor, SkillStatus};
+use hkask_services_skill::audit::{SkillAuditor, SkillStatus};
 use std::path::Path;
 
 fn main() {
@@ -55,14 +55,14 @@ fn main() {
             "| {} | {} | {} | {:.2} | {:?} | {} |\n",
             score.skill_name,
             if score.zed_layer_present {
-                "✓"
+                "\u{2713}"
             } else {
-                "✗"
+                "\u{2717}"
             },
             if score.registry_layer_present {
-                "✓"
+                "\u{2713}"
             } else {
-                "✗"
+                "\u{2717}"
             },
             score.health_score,
             score.status,

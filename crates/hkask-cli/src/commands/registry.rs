@@ -75,7 +75,7 @@ pub fn run_rm(
 
 fn list_styles() {
     let config = crate::commands::helpers::or_exit(
-        hkask_services::ServiceConfig::from_env(),
+        hkask_services_core::ServiceConfig::from_env(),
         "Failed to resolve config",
     );
 
@@ -117,7 +117,7 @@ fn list_styles() {
 
 fn remove_style(artifact: &str, db_path: Option<String>, passphrase: Option<String>) {
     let config = crate::commands::helpers::or_exit(
-        hkask_services::ServiceConfig::from_env(),
+        hkask_services_core::ServiceConfig::from_env(),
         "Failed to resolve config",
     );
 

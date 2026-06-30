@@ -33,7 +33,13 @@ hkask-memory = { path = "../hkask-memory" }
 hkask-improv = { path = "../hkask-improv" }
 hkask-communication = { path = "../hkask-communication", optional = true }
 hkask-keystore = { path = "../hkask-keystore" }
-hkask-services = { path = "../hkask-services" }
+hkask-services-context = { path = "../hkask-services-context" }
+hkask-services-chat = { path = "../hkask-services-chat" }
+hkask-services-curator = { path = "../hkask-services-curator" }
+hkask-services-onboarding = { path = "../hkask-services-onboarding" }
+hkask-services-corpus = { path = "../hkask-services-corpus" }
+hkask-services-compose = { path = "../hkask-services-compose" }
+hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-services-runtime = { path = "../hkask-services-runtime" }
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-skill = { path = "../hkask-services-skill" }

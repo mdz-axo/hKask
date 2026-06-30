@@ -88,10 +88,10 @@ impl IntoResponse for ApiError {
 /// Route handlers return ``Result<Json<T>, ServiceErrorResponse>``.
 /// The `?` operator auto-converts `ServiceError` via the `From` impl.
 #[derive(Debug)]
-pub struct ServiceErrorResponse(pub hkask_services::ServiceError);
+pub struct ServiceErrorResponse(pub hkask_services_core::ServiceError);
 
-impl From<hkask_services::ServiceError> for ServiceErrorResponse {
-    fn from(e: hkask_services::ServiceError) -> Self {
+impl From<hkask_services_core::ServiceError> for ServiceErrorResponse {
+    fn from(e: hkask_services_core::ServiceError) -> Self {
         ServiceErrorResponse(e)
     }
 }
@@ -110,7 +110,7 @@ impl IntoResponse for ServiceErrorResponse {
 
 impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
     fn from(e: hkask_agents::a2a::A2AError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::A2A {
+        ServiceErrorResponse(hkask_services_core::ServiceError::A2A {
             message: e.to_string(),
         })
     }
@@ -118,7 +118,7 @@ impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
 
 impl From<hkask_storage::EscalationError> for ServiceErrorResponse {
     fn from(e: hkask_storage::EscalationError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::Escalation {
+        ServiceErrorResponse(hkask_services_core::ServiceError::Escalation {
             message: e.to_string(),
         })
     }
@@ -127,7 +127,7 @@ impl From<hkask_storage::EscalationError> for ServiceErrorResponse {
 impl From<uuid::Error> for ServiceErrorResponse {
     fn from(e: uuid::Error) -> Self {
         let msg = e.to_string();
-        ServiceErrorResponse(hkask_services::ServiceError::InvalidWebID {
+        ServiceErrorResponse(hkask_services_core::ServiceError::InvalidWebID {
             source: Some(e),
             message: msg,
         })
@@ -136,7 +136,7 @@ impl From<uuid::Error> for ServiceErrorResponse {
 
 impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
     fn from(e: hkask_storage::AgentRegistryError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::AgentRegistryStore {
+        ServiceErrorResponse(hkask_services_core::ServiceError::AgentRegistryStore {
             message: e.to_string(),
         })
     }
@@ -144,7 +144,7 @@ impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
 
 impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
     fn from(e: hkask_agents::pod::AgentPodError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::Pod {
+        ServiceErrorResponse(hkask_services_core::ServiceError::Pod {
             message: e.to_string(),
         })
     }
@@ -152,7 +152,7 @@ impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
 
 impl From<hkask_ports::RegistryError> for ServiceErrorResponse {
     fn from(e: hkask_ports::RegistryError) -> Self {
-        ServiceErrorResponse(hkask_services::ServiceError::Registry {
+        ServiceErrorResponse(hkask_services_core::ServiceError::Registry {
             message: e.to_string(),
         })
     }
@@ -160,9 +160,9 @@ impl From<hkask_ports::RegistryError> for ServiceErrorResponse {
 
 // ── Service layer adapter ────────────────────────────────────────────
 
-impl From<hkask_services::ServiceError> for ApiError {
-    fn from(e: hkask_services::ServiceError) -> Self {
-        use hkask_services::ServiceError as SE;
+impl From<hkask_services_core::ServiceError> for ApiError {
+    fn from(e: hkask_services_core::ServiceError) -> Self {
+        use hkask_services_core::ServiceError as SE;
         match e {
             SE::EscalationNotFound { message: id, .. } => ApiError::NotFound {
                 resource: "escalation".into(),

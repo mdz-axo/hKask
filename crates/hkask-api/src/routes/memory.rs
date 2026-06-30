@@ -14,7 +14,7 @@ use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 use crate::routes::episodic::EpisodeResponse;
 use hkask_agents::RecallRequest;
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct QueryMemoryParams {

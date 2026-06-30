@@ -128,7 +128,7 @@ pub struct ChatWindow {
     scroll_offset: u16,
     /// Shared service context (for future inference integration)
     #[allow(dead_code)]
-    service_context: Option<Arc<hkask_services::AgentService>>,
+    service_context: Option<Arc<hkask_services_context::AgentService>>,
     /// Bridge to the inference engine
     bridge: Arc<dyn ReplBridge>,
     /// Current inference state for async polling
@@ -144,7 +144,7 @@ impl ChatWindow {
         id: WindowId,
         agent_name: &str,
         model: &str,
-        service_context: Option<Arc<hkask_services::AgentService>>,
+        service_context: Option<Arc<hkask_services_context::AgentService>>,
         bridge: Arc<dyn ReplBridge>,
     ) -> Self {
         let mut messages = Vec::new();

@@ -24,7 +24,7 @@ use crate::ApiState;
 use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 
 /// Parse a WebID from a string, returning a structured error on failure.
 fn parse_webid(raw: &str) -> Result<WebID, ServiceError> {

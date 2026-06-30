@@ -85,9 +85,9 @@ pub struct ModelSearchQuery {
     ),
 )]
 pub(crate) async fn list_models(State(state): State<ApiState>) -> Json<ModelListResponse> {
-    use hkask_services::InferenceService;
+    use hkask_services_core::InferenceService;
 
-    let ctx = hkask_services::InferenceContext::from(&*state.agent_service);
+    let ctx = hkask_services_core::InferenceContext::from(&*state.agent_service);
     let models = InferenceService::list_models(&ctx)
         .await
         .unwrap_or_default();
@@ -127,9 +127,9 @@ pub(crate) async fn search_models(
     State(state): State<ApiState>,
     axum::extract::Query(query): axum::extract::Query<ModelSearchQuery>,
 ) -> Json<ModelListResponse> {
-    use hkask_services::InferenceService;
+    use hkask_services_core::InferenceService;
 
-    let ctx = hkask_services::InferenceContext::from(&*state.agent_service);
+    let ctx = hkask_services_core::InferenceContext::from(&*state.agent_service);
     let models = InferenceService::search_models(&ctx, &query.q)
         .await
         .unwrap_or_default();

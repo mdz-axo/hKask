@@ -270,14 +270,14 @@ impl KanbanDataBridge for TuiReplBridge {
             let board_list = ks.board_list(&state.agent_webid).unwrap_or_default();
             if let Some(board) = board_list.first() {
                 let status_enum = match status {
-                    "backlog" => hkask_services::TaskStatus::Backlog,
-                    "ready" => hkask_services::TaskStatus::Ready,
-                    "in_progress" => hkask_services::TaskStatus::InProgress,
-                    "review" => hkask_services::TaskStatus::Review,
-                    "done" => hkask_services::TaskStatus::Done,
+                    "backlog" => hkask_services_kata_kanban::TaskStatus::Backlog,
+                    "ready" => hkask_services_kata_kanban::TaskStatus::Ready,
+                    "in_progress" => hkask_services_kata_kanban::TaskStatus::InProgress,
+                    "review" => hkask_services_kata_kanban::TaskStatus::Review,
+                    "done" => hkask_services_kata_kanban::TaskStatus::Done,
                     _ => return Vec::new(),
                 };
-                let filter = hkask_services::TaskFilter::by_status(status_enum);
+                let filter = hkask_services_kata_kanban::TaskFilter::by_status(status_enum);
                 match ks.task_list(board.id, filter) {
                     Ok(tasks) => tasks
                         .into_iter()
@@ -305,16 +305,16 @@ impl KanbanDataBridge for TuiReplBridge {
         if let Some(ref ks) = state.kanban_service {
             let board_list = ks.board_list(&state.agent_webid).unwrap_or_default();
             if let Some(board) = board_list.first() {
-                let count_status = |s: hkask_services::TaskStatus| -> usize {
-                    let filter = hkask_services::TaskFilter::by_status(s);
+                let count_status = |s: hkask_services_kata_kanban::TaskStatus| -> usize {
+                    let filter = hkask_services_kata_kanban::TaskFilter::by_status(s);
                     ks.task_list(board.id, filter).map(|t| t.len()).unwrap_or(0)
                 };
                 KanbanStatusCounts {
-                    backlog: count_status(hkask_services::TaskStatus::Backlog),
-                    ready: count_status(hkask_services::TaskStatus::Ready),
-                    in_progress: count_status(hkask_services::TaskStatus::InProgress),
-                    review: count_status(hkask_services::TaskStatus::Review),
-                    done: count_status(hkask_services::TaskStatus::Done),
+                    backlog: count_status(hkask_services_kata_kanban::TaskStatus::Backlog),
+                    ready: count_status(hkask_services_kata_kanban::TaskStatus::Ready),
+                    in_progress: count_status(hkask_services_kata_kanban::TaskStatus::InProgress),
+                    review: count_status(hkask_services_kata_kanban::TaskStatus::Review),
+                    done: count_status(hkask_services_kata_kanban::TaskStatus::Done),
                 }
             } else {
                 KanbanStatusCounts {
@@ -341,7 +341,7 @@ impl KanbanDataBridge for TuiReplBridge {
         if let Some(ref ks) = state.kanban_service {
             let board_list = ks.board_list(&state.agent_webid).unwrap_or_default();
             if let Some(board) = board_list.first() {
-                let filter = hkask_services::TaskFilter::all();
+                let filter = hkask_services_kata_kanban::TaskFilter::all();
                 match ks.task_list(board.id, filter) {
                     Ok(tasks) => tasks
                         .into_iter()
@@ -375,7 +375,7 @@ impl KanbanDataBridge for TuiReplBridge {
             .parse()
             .map_err(|e| format!("invalid task id '{}': {}", task_id, e))?;
 
-        let target = hkask_services::TaskStatus::parse_str(to_status)
+        let target = hkask_services_kata_kanban::TaskStatus::parse_str(to_status)
             .ok_or_else(|| format!("unknown status: {}", to_status))?;
 
         let actor = state.agent_webid;

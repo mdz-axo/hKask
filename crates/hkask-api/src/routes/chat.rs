@@ -17,8 +17,9 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
+use hkask_inference::model_constants;
 use hkask_ports::InferencePort;
-use hkask_services::{ChatService, ChatTurnRequest as ServiceChatTurnRequest, model_constants};
+use hkask_services_chat::{ChatService, ChatTurnRequest as ServiceChatTurnRequest};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -117,7 +118,7 @@ pub(crate) async fn chat(
 
     let result = match ChatService::chat(&state.agent_service, svc_req).await {
         Ok(resp) => resp,
-        Err(e) => hkask_services::ChatTurnResponse {
+        Err(e) => hkask_services_chat::ChatTurnResponse {
             text: format!("Chat error: {}", e),
             usage: None,
             finish_reason: "error".to_string(),

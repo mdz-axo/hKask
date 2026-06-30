@@ -107,8 +107,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-services-compose` | Skill composition and bundle orchestration |
 | `hkask-services-curator` | Curator daemon metacognition and escalation |
 | `hkask-services-corpus` | Document corpus management and indexing |
-| `hkask-services-kanban` | Kanban board coordination |
-| `hkask-services-kata` | Toyota Kata coaching/improvement loops |
+| `hkask-services-kata-kanban` | Toyota Kata coaching/improvement + Kanban board coordination |
 | `hkask-services-onboarding` | First-run and user onboarding |
 | `hkask-services-skill` | Skill registry and discovery |
 | `hkask-services-wallet` | Crypto wallet and chain port selection |
@@ -141,7 +140,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 - `hkask-mcp-docproc` — Unified document processing (format conversion, OCR, chunking, QA generation)
 - `hkask-mcp-memory` — Unified episodic + semantic memory with cloud backup
 - `hkask-mcp-training` — Model training (QA pairs and training data for fine-tuning pipelines)
-- `hkask-mcp-kanban` — Kanban board coordination
+- `hkask-mcp-kata-kanban` — Kata-Kanban workflow coordination
 - `hkask-mcp-filesystem` — Secure filesystem operations with path allowlisting
 
 ---

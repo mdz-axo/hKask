@@ -1,11 +1,11 @@
 // REQ-MDS-T1: AgentService fields are private — direct field access is a compile error.
 // This file MUST fail to compile because it tries to access private struct fields
-// from outside the hkask-services crate.
+// from outside the AgentService's defining crate.
 //
 // MDS Category: Trust & Security (encapsulation boundary enforcement)
 // Constraint: P8 (every test verifies a stated behavioral property of a public seam)
 
-use hkask_services::AgentService;
+use hkask_services_context::AgentService;
 
 fn main() {
     // This would require constructing an AgentService, but even without one,

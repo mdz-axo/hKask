@@ -22,7 +22,7 @@ pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T 
 /// Convenience: `build_service_context_inner(None)` with exit-on-failure.
 /// Preserves backward compatibility for all call sites that already
 /// expected a non-fallible return.
-pub fn build_service_context() -> hkask_services::AgentService {
+pub fn build_service_context() -> hkask_services_context::AgentService {
     or_exit(
         build_service_context_inner(None),
         "Failed to build service context",
@@ -38,22 +38,22 @@ pub fn build_service_context() -> hkask_services::AgentService {
 /// pre:  if `from_secrets` is None → ServiceConfig::from_env() used
 /// post: returns Ok(AgentService) or Err(String) describing the failure
 pub fn build_service_context_from_secrets(
-    from_secrets: Option<(&str, &hkask_services::ResolvedSecrets)>,
-) -> Result<hkask_services::AgentService, String> {
+    from_secrets: Option<(&str, &hkask_services_onboarding::ResolvedSecrets)>,
+) -> Result<hkask_services_context::AgentService, String> {
     build_service_context_inner(from_secrets)
 }
 
 fn build_service_context_inner(
-    from_secrets: Option<(&str, &hkask_services::ResolvedSecrets)>,
-) -> Result<hkask_services::AgentService, String> {
+    from_secrets: Option<(&str, &hkask_services_onboarding::ResolvedSecrets)>,
+) -> Result<hkask_services_context::AgentService, String> {
     let config = match from_secrets {
-        Some((name, secrets)) => hkask_services::ServiceConfig::from_secrets(
+        Some((name, secrets)) => hkask_services_core::ServiceConfig::from_secrets(
             secrets.a2a_secret.clone(),
             secrets.db_passphrase.clone(),
             secrets.mcp_secret.clone(),
             name.to_string(),
         ),
-        None => hkask_services::ServiceConfig::from_env()
+        None => hkask_services_core::ServiceConfig::from_env()
             .map_err(|e| format!("Failed to resolve service config: {}", e))?,
     };
     match tokio::runtime::Handle::try_current() {
@@ -61,7 +61,7 @@ fn build_service_context_inner(
             let (tx, rx) = std::sync::mpsc::channel();
             let cfg = config.clone();
             handle.spawn(async move {
-                let _ = tx.send(hkask_services::AgentService::build(cfg).await);
+                let _ = tx.send(hkask_services_context::AgentService::build(cfg).await);
             });
             rx.recv()
                 .map_err(|_| "Service build task panicked".to_string())
@@ -69,7 +69,7 @@ fn build_service_context_inner(
         }
         Err(_) => {
             let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-            rt.block_on(hkask_services::AgentService::build(config))
+            rt.block_on(hkask_services_context::AgentService::build(config))
                 .map_err(|e| e.to_string())
         }
     }
@@ -117,7 +117,7 @@ pub fn resolve_user_webid() -> hkask_types::WebID {
 
 pub fn start_mcp_server(
     rt: &tokio::runtime::Runtime,
-    ctx: &hkask_services::AgentService,
+    ctx: &hkask_services_context::AgentService,
     server_id: &str,
     command: &str,
 ) -> bool {
@@ -152,7 +152,7 @@ pub fn print_item_list<T>(
 
 pub fn start_mcp_servers_with_env(
     rt: &tokio::runtime::Runtime,
-    ctx: &hkask_services::AgentService,
+    ctx: &hkask_services_context::AgentService,
     servers: &[(&str, &str)],
     replicant_name: &str,
 ) -> usize {

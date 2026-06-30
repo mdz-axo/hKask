@@ -6,7 +6,7 @@
 pub(crate) fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
     match arg1 {
         "" | "status" => {
-            let config = hkask_services::InferenceConfig::from_env();
+            let config = hkask_inference::InferenceConfig::from_env();
             match &config.fusion {
                 Some(f) => {
                     println!();
@@ -40,7 +40,7 @@ pub(crate) fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
             println!();
         }
         "on" => {
-            let config = hkask_services::InferenceConfig::from_env();
+            let config = hkask_inference::InferenceConfig::from_env();
             if config.deepinfra_api_key.is_empty()
                 && config.fal_api_key.is_empty()
                 && config.together_api_key.is_empty()

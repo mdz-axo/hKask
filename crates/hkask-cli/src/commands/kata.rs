@@ -7,7 +7,7 @@
 use crate::cli::KataAction;
 use crate::experience::CliExperienceRecorder;
 use hkask_cns::CnsRuntime;
-use hkask_services::{KataEngine, KataError, KataHistory, PracticeEntry};
+use hkask_services_kata_kanban::{KataEngine, KataError, KataHistory, PracticeEntry};
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
 use std::collections::HashMap;
@@ -302,7 +302,7 @@ fn start_kata(
 
     // Resume from saved state if provided
     let initial_state = if let Some(rp) = resume_path {
-        match hkask_services::KataState::load(rp) {
+        match hkask_services_kata_kanban::KataState::load(rp) {
             Ok(mut state) => {
                 eprintln!(
                     "Resumed state from {} (step {}/{})",
@@ -330,7 +330,7 @@ fn start_kata(
     } else {
         // New state with optional IK grounding
         if let Some(ref ik) = ik_state_ref {
-            let state = hkask_services::KataState {
+            let state = hkask_services_kata_kanban::KataState {
                 ik_state_ref: Some(ik.clone()),
                 ..Default::default()
             };

@@ -1,8 +1,9 @@
 //! REPL handler for `/kanban` slash commands.
 
 use crate::repl::ReplState;
-use hkask_services::KanbanService;
-use hkask_services::{ConsentProof, TaskFilter, TaskSpec};
+use hkask_services_kata_kanban::{
+    ColumnDef, ConsentProof, KanbanService, SpawnSpec, TaskFilter, TaskSpec, TaskStatus, socratic,
+};
 use hkask_storage::Store;
 use hkask_storage::TripleStore;
 use rusqlite::Connection;
@@ -87,7 +88,7 @@ pub(crate) fn handle_kanban(
                             Err(_) => println!(
                                 "  Template '{}' not found. Available: {}",
                                 tmpl_name,
-                                hkask_services::KanbanService::list_templates().join(", ")
+                                KanbanService::list_templates().join(", ")
                             ),
                         }
                     } else {
@@ -170,7 +171,7 @@ pub(crate) fn handle_kanban(
                             return;
                         }
                     };
-                    let filter = match status.and_then(hkask_services::TaskStatus::parse_str) {
+                    let filter = match status.and_then(TaskStatus::parse_str) {
                         Some(st) => TaskFilter::by_status(st),
                         None => TaskFilter::all(),
                     };
@@ -257,7 +258,7 @@ pub(crate) fn handle_kanban(
                     return;
                 }
             };
-            let target = match hkask_services::TaskStatus::parse_str(target_str) {
+            let target = match TaskStatus::parse_str(target_str) {
                 Some(s) => s,
                 None => {
                     println!("  Invalid status: {target_str}");
@@ -816,7 +817,7 @@ pub(crate) fn handle_kanban(
                     return;
                 }
             };
-            let spec = hkask_services::SpawnSpec::new(tid);
+            let spec = SpawnSpec::new(tid);
             match service.spawn_task(tid, spec) {
                 Ok(output) => println!("  {}", output),
                 Err(e) => println!("  Error: {e}"),
@@ -824,7 +825,7 @@ pub(crate) fn handle_kanban(
         }
 
         "socratic" => {
-            use hkask_services::socratic;
+            use socratic;
             let parts: Vec<&str> = rest.splitn(3, ' ').collect();
             let action = parts.first().copied().unwrap_or("");
             match action {
@@ -912,7 +913,7 @@ pub(crate) fn handle_kanban(
                             return;
                         }
                     };
-                    if task.status == hkask_services::TaskStatus::Review {
+                    if task.status == TaskStatus::Review {
                         if response.is_empty() {
                             println!("  Provide your summary as evidence to complete the inquiry.");
                             println!("  Usage: /kanban socratic continue <task-id> <your summary>");
@@ -994,8 +995,8 @@ pub(crate) fn handle_kanban(
                             println!("  {} — Stage: {} ({})", task.title, stage, task.status);
                             let comments = service.task_comments(tid).unwrap_or_default();
                             println!("  Comments: {}", comments.len());
-                            if task.status != hkask_services::TaskStatus::Done
-                                && task.status != hkask_services::TaskStatus::Review
+                            if task.status != TaskStatus::Done
+                                && task.status != TaskStatus::Review
                                 && let Some(last) = comments.last()
                             {
                                 match socratic::quality_check(&service, tid, &last.body) {
@@ -1068,16 +1069,12 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
         .clone()
 }
 
-fn default_columns() -> Vec<hkask_services::ColumnDef> {
+fn default_columns() -> Vec<ColumnDef> {
     vec![
-        hkask_services::ColumnDef::new("Backlog".into(), hkask_services::TaskStatus::Backlog, 0),
-        hkask_services::ColumnDef::new("Ready".into(), hkask_services::TaskStatus::Ready, 1),
-        hkask_services::ColumnDef::new(
-            "In Progress".into(),
-            hkask_services::TaskStatus::InProgress,
-            2,
-        ),
-        hkask_services::ColumnDef::new("Review".into(), hkask_services::TaskStatus::Review, 3),
-        hkask_services::ColumnDef::new("Done".into(), hkask_services::TaskStatus::Done, 4),
+        ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
+        ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
+        ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
+        ColumnDef::new("Review".into(), TaskStatus::Review, 3),
+        ColumnDef::new("Done".into(), TaskStatus::Done, 4),
     ]
 }

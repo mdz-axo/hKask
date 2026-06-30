@@ -45,15 +45,15 @@ pub fn run(rt: &tokio::runtime::Runtime, action: DaemonAction) {
 
 async fn run_daemon() -> Result<(), String> {
     // Build config — prefer env, fall back to in-memory (no wallet needed)
-    let config = hkask_services::ServiceConfig::from_env()
-        .unwrap_or_else(|_| hkask_services::ServiceConfig::in_memory());
+    let config = hkask_services_core::ServiceConfig::from_env()
+        .unwrap_or_else(|_| hkask_services_core::ServiceConfig::in_memory());
 
     // Try build — if wallet fails, retry with in-memory config
-    let ctx = match hkask_services::AgentService::build(config).await {
+    let ctx = match hkask_services_context::AgentService::build(config).await {
         Ok(ctx) => ctx,
         Err(e) => {
             tracing::warn!(target: "hkask.daemon", error = %e, "Build with env config failed, retrying in-memory");
-            hkask_services::AgentService::build(hkask_services::ServiceConfig::in_memory())
+            hkask_services_context::AgentService::build(hkask_services_core::ServiceConfig::in_memory())
                 .await
                 .map_err(|e| format!("Failed to build service context (in-memory fallback): {e}"))?
         }

@@ -6,9 +6,9 @@
 //! (default), presents web and YouTube results for user confirmation.
 //! Generates a corpus.yaml ready for `kask style embed-corpus`.
 
-use hkask_services::{
-    DiscoverRequest, DiscoveredWork, DiscoveryService, default_corpus_config, download_and_cache,
-    slugify,
+use hkask_services_corpus::{
+    CorpusConfig, DiscoverRequest, DiscoveredWork, DiscoveryService, Work, default_corpus_config,
+    download_and_cache, slugify,
 };
 use hkask_templates::ports::McpPort;
 
@@ -172,17 +172,16 @@ pub fn run(
                 // Load the config that DiscoveryService already wrote
                 // (which preserves entities/methods/rules when augmenting)
                 let existing_yaml = std::fs::read_to_string(&config_path).unwrap_or_default();
-                let mut config: hkask_services::CorpusConfig =
-                    serde_yaml_neo::from_str(&existing_yaml)
-                        .unwrap_or_else(|_| default_corpus_config(&r.author_slug));
+                let mut config: CorpusConfig = serde_yaml_neo::from_str(&existing_yaml)
+                    .unwrap_or_else(|_| default_corpus_config(&r.author_slug));
 
                 // Dedup: only add curated works whose URLs aren't already in the config
                 let existing_urls: std::collections::HashSet<&str> =
                     config.works.iter().map(|w| w.url.as_str()).collect();
-                let new_works: Vec<hkask_services::Work> = all_works
+                let new_works: Vec<Work> = all_works
                     .iter()
                     .filter(|w| !existing_urls.contains(w.url.as_str()))
-                    .map(|w| hkask_services::Work {
+                    .map(|w| Work {
                         title: w.title.clone(),
                         slug: w.slug.clone(),
                         url: w.url.clone(),

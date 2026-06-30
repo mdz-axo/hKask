@@ -14,7 +14,8 @@ use hkask_cns::{EnergyBudget, EnergyCost, GovernedTool};
 use super::{ManifestState, TalkConfig, ToolPrompt};
 use hkask_mcp::RawMcpToolPort;
 use hkask_ports::{InferencePort, ToolInfo, ToolPort};
-use hkask_services::{AgentService, InferenceContext, InferenceService};
+use hkask_services_context::AgentService;
+use hkask_services_core::{InferenceContext, InferenceService};
 use hkask_storage::Database;
 use hkask_templates::{ManifestExecutor, McpPort};
 use hkask_types::WebID;
@@ -65,7 +66,7 @@ pub(super) fn init_repl_state(
     // ReplState is fully constructed. Loads from ~/.config/hkask/settings.json
     // if available; falls back to ReplSettings::default().
     // Mutable here so the user can override via /repl during the session.
-    let repl_settings: crate::repl::handlers::ReplSettings = hkask_services::load_settings();
+    let repl_settings: crate::repl::handlers::ReplSettings = hkask_services_core::load_settings();
 
     // Propagate condensation settings to the MCP condenser server via env vars.
     // The condenser server is a child process that inherits the REPL's
@@ -87,7 +88,7 @@ pub(super) fn init_repl_state(
     // Resolve inference config from env for InferenceService calls.
     // Onboarding has already completed above; this is used to build the
     // inference port that serves the interactive REPL session.
-    let inference_config = hkask_services::InferenceConfig::from_env();
+    let inference_config = hkask_inference::InferenceConfig::from_env();
 
     // Initialize inference port once — reused across all chat turns.
     // Route through InferenceService so all surfaces share the same logic.
@@ -131,16 +132,16 @@ pub(super) fn init_repl_state(
 
             // Onboarding provides A2A + DB secrets. MCP secret is resolved separately.
             let mcp_secret = secrets.mcp_secret.clone();
-            hkask_services::ServiceConfig::from_secrets(
+            hkask_services_core::ServiceConfig::from_secrets(
                 secrets.a2a_secret.clone(),
                 secrets.db_passphrase.clone(),
                 mcp_secret,
                 onboarding_outcome.signed_in_agent.clone(),
             )
         }
-        None => hkask_services::ServiceConfig::from_env().unwrap_or_else(|e| {
+        None => hkask_services_core::ServiceConfig::from_env().unwrap_or_else(|e| {
             eprintln!("Warning: Failed to resolve service config from env: {}", e);
-            hkask_services::ServiceConfig::in_memory()
+            hkask_services_core::ServiceConfig::in_memory()
         }),
     };
 
@@ -175,7 +176,7 @@ pub(super) fn init_repl_state(
     // Build shared infrastructure via AgentService::build().
     // This creates: CNS, loop system (cybernetics, episodic, semantic, curation loops),
     // governed tool membrane, MCP runtime + dispatcher, pod manager, registry, etc.
-    let mut ctx = match rt.block_on(hkask_services::AgentService::build(service_config.clone())) {
+    let mut ctx = match rt.block_on(hkask_services_context::AgentService::build(service_config.clone())) {
         Ok(ctx) => ctx,
         Err(e) => {
             eprintln!("Failed to build service context: {}", e);

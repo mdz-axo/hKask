@@ -23,7 +23,7 @@ pub fn run(crate_name: Option<String>, format: &str, watch: Option<u64>) {
             "hkask-keystore".into(),
             "hkask-condenser".into(),
             "hkask-storage".into(),
-            "hkask-services".into(),
+            "hkask-services-context".into(),
             "hkask-mcp".into(),
         ]
     };

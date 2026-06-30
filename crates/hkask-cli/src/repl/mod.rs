@@ -29,7 +29,8 @@ use hkask_mcp::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::ConsolidationService;
 use hkask_ports::{ChatToolDefinition, InferencePort};
-use hkask_services::{AgentService, KanbanService};
+use hkask_services_context::AgentService;
+use hkask_services_kata_kanban::KanbanService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
@@ -106,7 +107,7 @@ pub(crate) struct ReplState {
     /// Pre-resolved secrets from onboarding, carried forward to avoid
     /// re-resolving from the OS keychain (which may use a mock backend
     /// with EntryOnly persistence on Linux).
-    pub(crate) resolved_secrets: Option<hkask_services::ResolvedSecrets>,
+    pub(crate) resolved_secrets: Option<hkask_services_onboarding::ResolvedSecrets>,
     /// GovernedTool membrane — the singular governance boundary for MCP tool
     /// invocations. All tool calls route through this membrane, which enforces
     /// OCAP authority, energy budgets, and CNS observability.

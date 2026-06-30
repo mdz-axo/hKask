@@ -1,6 +1,6 @@
 //! Style corpus embedding command — thin CLI orchestrator
 
-use hkask_services::{EmbedProgress, EmbedService};
+use hkask_services_corpus::{EmbedProgress, EmbedService};
 
 use crate::experience::CliExperienceRecorder;
 
@@ -27,7 +27,7 @@ fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, St
     );
 
     // Agent-specific DB path: ~/.config/hkask/agents/<replicant>.db
-    let agent_db_path = hkask_services::settings_path()
+    let agent_db_path = hkask_services_core::settings_path()
         .parent()
         .expect("embed corpus path")
         .join("agents")
@@ -63,7 +63,7 @@ pub fn run(
         }
     };
 
-    let progress: hkask_services::ProgressFn = Arc::new(|p: &EmbedProgress| {
+    let progress: hkask_services_corpus::ProgressFn = Arc::new(|p: &EmbedProgress| {
         eprint!("\r\x1b[K{}", p.format_full());
         let _ = std::io::stderr().flush();
     });

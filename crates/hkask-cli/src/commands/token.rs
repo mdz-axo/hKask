@@ -5,7 +5,7 @@
 //! `kask token revoke` — revoke a token by ID
 
 use crate::cli::TokenAction;
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 use hkask_types::{AgentKind, WebID};
 
 /// Parse a human-readable TTL string into seconds.

@@ -68,7 +68,7 @@ pub(crate) fn window_kind_from_title(title: &str) -> Option<WindowKind> {
 }
 
 pub(crate) struct WindowFactoryContext {
-    pub service_context: Option<Arc<hkask_services::AgentService>>,
+    pub service_context: Option<Arc<hkask_services_context::AgentService>>,
     pub bridge: Arc<dyn ReplBridge>,
     pub wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     pub config_bridge: Option<Arc<dyn ConfigDataBridge>>,

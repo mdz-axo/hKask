@@ -34,6 +34,8 @@ The decomposition is complete. `hkask-services` is now a **re-export facade** (o
 | Curator service | `hkask-services-curator` | `hkask-services::curator` |
 | Kanban | `hkask-services-kanban` | `hkask-services::kanban` |
 | Kata | `hkask-services-kata` | `hkask-services::kata` |
+
+> **Note (v0.31.0):** `hkask-services-kanban` and `hkask-services-kata` were subsequently merged into `hkask-services-kata-kanban`. See `docs/plans/kata-kanban-merge-plan.md`.
 | Onboarding | `hkask-services-onboarding` | `hkask-services::onboarding` |
 | Runtime/providers | `hkask-services-runtime` | `hkask-services::runtime` |
 | Wallet | `hkask-services-wallet` | `hkask-services::wallet` |

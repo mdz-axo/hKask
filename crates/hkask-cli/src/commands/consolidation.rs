@@ -52,7 +52,7 @@ pub fn run(
                 println!("  Failed: {}", outcome.failed_count);
             }
         }
-        Err(hkask_services::ServiceError::ConsentDenied { message }) => {
+        Err(hkask_services_core::ServiceError::ConsentDenied { message }) => {
             eprintln!("Consent required: {}", message);
             if agent_name == "curator" {
                 eprintln!(

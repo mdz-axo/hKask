@@ -24,18 +24,18 @@ use crate::commands;
 /// inference port for standalone CLI commands — the REPL reuses its shared
 /// port, but standalone commands (`kask bundle compose`) create one on demand.
 fn resolve_composition_port() -> Arc<dyn InferencePort> {
-    let inference_config = hkask_services::InferenceConfig::from_env();
+    let inference_config = hkask_inference::InferenceConfig::from_env();
     let default_model = inference_config.default_model.clone();
-    let ctx = hkask_services::InferenceContext::from_parts(None, &default_model, inference_config);
+    let ctx = hkask_services_core::InferenceContext::from_parts(None, &default_model, inference_config);
     commands::helpers::or_exit(
-        hkask_services::InferenceService::resolve_port(&ctx, &default_model),
+        hkask_services_core::InferenceService::resolve_port(&ctx, &default_model),
         "Failed to initialize inference port for bundle composition",
     )
 }
 
 /// Resolve the replicant name for editor attribution.
 fn resolve_editor() -> String {
-    hkask_services::resolve_replicant_name()
+    hkask_services_skill::resolve_replicant_name()
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI"

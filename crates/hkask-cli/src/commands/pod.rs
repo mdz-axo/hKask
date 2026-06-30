@@ -136,7 +136,7 @@ async fn run_pod_inner(action: PodAction) {
     }
 }
 
-fn build_ctx() -> hkask_services::AgentService {
+fn build_ctx() -> hkask_services_context::AgentService {
     super::helpers::build_service_context()
 }
 

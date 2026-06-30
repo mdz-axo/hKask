@@ -10,7 +10,7 @@ use crate::block_on;
 use crate::cli::BotAction;
 use hex;
 use hkask_mcp::GixCasAdapter;
-use hkask_services::ServiceError;
+use hkask_services_core::ServiceError;
 use hkask_storage::{AgentDefinition, RegisteredAgent};
 use hkask_types::{AgentKind, WebID, agent_paths};
 

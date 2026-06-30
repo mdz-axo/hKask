@@ -170,13 +170,13 @@ pub fn run(rt: &tokio::runtime::Runtime, action: CnsAction) {
 /// (reads/writes persistent CNS config). Falls back to standalone if
 /// the service cannot be constructed.
 fn build_cns_runtime(rt: &tokio::runtime::Runtime) -> Arc<RwLock<CnsRuntime>> {
-    let config = match hkask_services::ServiceConfig::from_env() {
+    let config = match hkask_services_core::ServiceConfig::from_env() {
         Ok(c) => c,
         Err(_) => {
             return standalone_cns_runtime();
         }
     };
-    match rt.block_on(hkask_services::AgentService::build(config)) {
+    match rt.block_on(hkask_services_context::AgentService::build(config)) {
         Ok(ctx) => ctx.cns_runtime().clone(),
         Err(_) => standalone_cns_runtime(),
     }

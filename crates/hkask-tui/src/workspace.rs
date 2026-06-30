@@ -273,7 +273,7 @@ pub struct Workspace {
     focused_window: Option<WindowId>,
     /// Whether the session should quit (set by Ctrl+Q).
     pub should_quit: bool,
-    service_context: Option<Arc<hkask_services::AgentService>>,
+    service_context: Option<Arc<hkask_services_context::AgentService>>,
     bridge: Arc<dyn ReplBridge>,
     bridges: WorkspaceBridges,
     status_bar: StatusBar,
@@ -302,7 +302,7 @@ struct WorkspaceBridges {
 }
 
 fn base_factory_context(
-    service_context: Option<Arc<hkask_services::AgentService>>,
+    service_context: Option<Arc<hkask_services_context::AgentService>>,
     bridge: Arc<dyn ReplBridge>,
     bridges: &WorkspaceBridges,
 ) -> crate::window_catalog::WindowFactoryContext {
@@ -328,7 +328,7 @@ fn base_factory_context(
 
 impl Workspace {
     pub fn new(
-        service_context: Arc<hkask_services::AgentService>,
+        service_context: Arc<hkask_services_context::AgentService>,
         bridge: Arc<dyn ReplBridge>,
     ) -> Self {
         let model = bridge.model_name().to_string();
