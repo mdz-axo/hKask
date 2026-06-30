@@ -36,12 +36,10 @@ pub(crate) mod metrics;
 pub(crate) mod starter;
 pub(crate) mod state;
 
-#[allow(unused_imports)]
 pub use error::KataError;
 pub use history::{
     ImprovementDirection, ImprovementSignal, KataHistory, PracticeEntry, StepExperience,
 };
-#[allow(unused_imports)]
 pub use manifest::{
     CoachQuestion, ErrorHandling, KataAuditConfig, KataCnsConfig, KataGasConfig, KataManifest,
     KataStep, ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,

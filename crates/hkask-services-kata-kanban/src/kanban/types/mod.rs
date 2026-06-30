@@ -5,7 +5,6 @@
 //! Verification criteria accept natural-language acceptance specs with optional LLM evaluation prompts.
 
 use chrono::{DateTime, Utc};
-use hkask_capability::capability_from_server_id;
 use hkask_types::id::{BoardId, ColumnId, CommentId, PhaseId, TaskId, WebID};
 use serde::{Deserialize, Serialize};
 
@@ -27,11 +26,10 @@ pub(crate) mod verification;
 pub use board::Board;
 pub use column::ColumnDef;
 pub use consent::ConsentProof;
-pub use contract::{ConditionResult, ContractState, ContractVerification, TaskContract};
 pub use gas::GasEntry;
 pub use phase::KanbanPhase;
 pub use priority::Priority;
-pub use spawn::{CapabilityPackage, SpawnSpec};
+pub use spawn::SpawnSpec;
 pub use status::TaskStatus;
 pub use task::{Comment, Task, TaskFilter};
 pub use task_spec::TaskSpec;

@@ -14,7 +14,7 @@ use super::*;
 /// Maps to rSolidity's require!/assert!/emit! macros for CNS-observable
 /// contract execution.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskContract {
+pub(crate) struct TaskContract {
     /// Name of the capability package used.
     pub package_name: String,
     /// The replicant delegating the work.
@@ -42,11 +42,9 @@ pub struct TaskContract {
 /// ContractState — the execution state of a TaskContract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum ContractState {
+pub(crate) enum ContractState {
     /// Contract created but not yet active.
     Pending,
-    /// Agent is actively working on the contract.
-    Active,
     /// All post-conditions satisfied — contract fulfilled.
     Completed,
     /// One or more post-conditions violated.
@@ -82,12 +80,6 @@ impl TaskContract {
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  state allows activation
-    /// post:      /// post: state transitioned to active
-    /// The agent now has authority to work on the task.
-    pub fn activate(&mut self) {
-        self.state = ContractState::Active;
-    }
-
     /// Task completion is user-feedback-driven. The agent submits evidence
     /// (a description of what was done) and the user confirms. Criteria are
     /// informational expectations — they guide the work but don't gate completion.
@@ -100,7 +92,6 @@ impl TaskContract {
             return ContractVerification {
                 passed: false,
                 reasoning: "No evidence provided — task not verified.".into(),
-                results: vec![],
             };
         }
 
@@ -123,41 +114,13 @@ impl TaskContract {
                 criteria_block,
                 evidence.len()
             ),
-            results: vec![],
         }
-    }
-
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  span data is valid
-    /// post:      /// post: CNS span emitted to event sink
-    pub fn emit_span(&self, verb: &str) -> String {
-        format!(
-            "TaskContract[{}] '{}': delegator={} delegate={} task='{}' pre_conds={} gas={} timeout={}s state={:?}",
-            verb,
-            self.package_name,
-            self.delegator.redacted_display(),
-            self.delegate.redacted_display(),
-            self.task_title,
-            self.pre_conditions.len(),
-            self.gas_limit,
-            self.timeout,
-            self.state,
-        )
     }
 }
 
 /// ContractVerification — result of checking a TaskContract's completion.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ContractVerification {
+pub(crate) struct ContractVerification {
     pub passed: bool,
     pub reasoning: String,
-    pub results: Vec<ConditionResult>,
-}
-
-/// ConditionResult — per-condition evaluation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ConditionResult {
-    pub condition: String,
-    pub passed: bool,
-    pub reason: String,
 }

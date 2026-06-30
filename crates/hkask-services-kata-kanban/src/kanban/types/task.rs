@@ -115,7 +115,7 @@ impl Comment {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  arguments are valid
     /// post:      /// post: returns new instance with defaults
-    pub fn new(task_id: TaskId, author: WebID, body: String) -> Self {
+    pub(crate) fn new(task_id: TaskId, author: WebID, body: String) -> Self {
         Self {
             id: CommentId::new(),
             task_id,

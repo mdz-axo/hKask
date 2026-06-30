@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 //! hKask Storage — SQLite + SQLCipher storage backend
 #[macro_use]
 mod store_macros;

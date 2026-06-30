@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 //! hKask Wallet — rJoule payments, Hedera self-custody deposits, API key issuance.
 //!
 //! # Self-custody `[OUGHT-DECL]` (P1 — User Sovereignty)

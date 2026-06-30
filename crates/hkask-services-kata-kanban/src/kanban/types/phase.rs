@@ -24,7 +24,7 @@ impl KanbanPhase {
     /// post: returns new instance with defaults
     /// pre:  name is non-empty, order is a valid u32
     /// post: returns KanbanPhase with generated PhaseId and created_at set to now
-    pub fn new(name: String, order: u32) -> Self {
+    pub(crate) fn new(name: String, order: u32) -> Self {
         Self {
             id: PhaseId::new(),
             name,

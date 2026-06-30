@@ -43,7 +43,17 @@ pub fn create_inquiry(
              Stages: Elicit → Structure → Test → Summarize\n\
              Each stage presents a kata prompt. Respond in the comment thread."
         ));
-    service.task_create(board_id, spec, owner)
+    let task = service.task_create(board_id, spec, owner)?;
+
+    tracing::info!(
+        target: "cns.kata",
+        operation = "socratic_inquiry_created",
+        task_id = %task.id,
+        topic = %topic,
+        "CNS"
+    );
+
+    Ok(task)
 }
 
 /// Generate the kata prompt for the current Socratic stage.
@@ -110,7 +120,18 @@ pub fn advance(
     };
 
     service.task_move(task_id, next, user)?;
-    Ok(format!("{from} → {to}"))
+    let result = format!("{from} → {to}");
+
+    tracing::info!(
+        target: "cns.kata",
+        operation = "socratic_stage_advanced",
+        task_id = %task_id,
+        from = %from,
+        to = %to,
+        "CNS"
+    );
+
+    Ok(result)
 }
 
 /// Check whether the user has responded since the last prompt.

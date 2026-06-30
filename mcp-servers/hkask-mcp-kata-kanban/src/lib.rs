@@ -191,7 +191,7 @@ impl KanbanServer {
                     spec = spec.with_gas_budget(gas);
                 }
                 if let Some(rj) = rjoule_budget {
-                    spec = spec.with_rjoule_budget(rj);
+                    spec.rjoule_budget = Some(rj);
                 }
                 if let Some(a) = assignee_webid {
                     match a.parse::<hkask_types::WebID>() {
@@ -310,7 +310,8 @@ impl KanbanServer {
                     }
                     Err(e) => return Err(map_kanban_error(e)),
                 };
-                let target = match hkask_services_kata_kanban::TaskStatus::parse_str(&target_status) {
+                let target = match hkask_services_kata_kanban::TaskStatus::parse_str(&target_status)
+                {
                     Some(s) => s,
                     None => {
                         return Err(McpToolError::invalid_argument(format!(

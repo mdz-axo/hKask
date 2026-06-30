@@ -10,9 +10,10 @@
 //!   kanban:task  → {task_id}  → JSON Task
 //!   kanban:board_tasks:{board_id} → {task_id} → task_id (index)
 
+use super::types::contract::TaskContract;
 use super::types::{
     Board, ColumnDef, Comment, ConsentProof, GasEntry, KanbanPhase, Priority, SpawnSpec, Task,
-    TaskContract, TaskFilter, TaskSpec, TaskStatus, Verification, VerificationCriterion,
+    TaskFilter, TaskSpec, TaskStatus, Verification, VerificationCriterion,
 };
 use crate::bridge::KanbanKataBridge;
 use crate::kata::{KataManifest, KataResult};

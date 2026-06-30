@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 //! hKask API — HTTP API with OpenAPI
 //!
 //! **Endpoints:**

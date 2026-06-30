@@ -295,7 +295,7 @@ async fn list_models_graceful_degradation() {
             ResponseTemplate::new(200).set_body_json(mock_deepinfra_models(&[json!({
                 "id": "meta-llama/Llama-3.3-70B-Instruct",
                 "object": "model",
-                "created_at": "2026-01-01T00:00:00Z",
+                "created_at": "2026-06-01T00:00:00Z",
                 "owned_by": "deepinfra"
             })])),
         )

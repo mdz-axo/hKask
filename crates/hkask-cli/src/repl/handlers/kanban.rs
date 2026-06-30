@@ -170,8 +170,7 @@ pub(crate) fn handle_kanban(
                             return;
                         }
                     };
-                    let filter = match status.and_then(hkask_services::TaskStatus::parse_str)
-                    {
+                    let filter = match status.and_then(hkask_services::TaskStatus::parse_str) {
                         Some(st) => TaskFilter::by_status(st),
                         None => TaskFilter::all(),
                     };
@@ -1071,30 +1070,14 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
 
 fn default_columns() -> Vec<hkask_services::ColumnDef> {
     vec![
-        hkask_services::ColumnDef::new(
-            "Backlog".into(),
-            hkask_services::TaskStatus::Backlog,
-            0,
-        ),
-        hkask_services::ColumnDef::new(
-            "Ready".into(),
-            hkask_services::TaskStatus::Ready,
-            1,
-        ),
+        hkask_services::ColumnDef::new("Backlog".into(), hkask_services::TaskStatus::Backlog, 0),
+        hkask_services::ColumnDef::new("Ready".into(), hkask_services::TaskStatus::Ready, 1),
         hkask_services::ColumnDef::new(
             "In Progress".into(),
             hkask_services::TaskStatus::InProgress,
             2,
         ),
-        hkask_services::ColumnDef::new(
-            "Review".into(),
-            hkask_services::TaskStatus::Review,
-            3,
-        ),
-        hkask_services::ColumnDef::new(
-            "Done".into(),
-            hkask_services::TaskStatus::Done,
-            4,
-        ),
+        hkask_services::ColumnDef::new("Review".into(), hkask_services::TaskStatus::Review, 3),
+        hkask_services::ColumnDef::new("Done".into(), hkask_services::TaskStatus::Done, 4),
     ]
 }

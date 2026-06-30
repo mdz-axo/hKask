@@ -17,8 +17,7 @@ pub mod types;
 
 // Re-export the public API from types
 pub use types::{
-    Board, CapabilityPackage, ColumnDef, Comment, ConditionResult, ConsentProof, ContractState,
-    ContractVerification, GasEntry, KanbanPhase, Priority, SpawnSpec, Task, TaskContract,
+    Board, ColumnDef, Comment, ConsentProof, GasEntry, KanbanPhase, Priority, SpawnSpec, Task,
     TaskFilter, TaskSpec, TaskStatus, Verification, VerificationCriterion,
 };
 

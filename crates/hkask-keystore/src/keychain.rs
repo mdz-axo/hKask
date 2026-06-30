@@ -9,7 +9,6 @@ use hkask_types::secret::SecretRef;
 use hkask_types::secret::derivation_contexts;
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
-#[allow(unused_imports)]
 use tracing::{info, warn};
 use zeroize::Zeroizing;
 
