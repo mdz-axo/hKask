@@ -907,7 +907,7 @@ See also: `docs/user-guides/kanban-user-guide.md`
 
 ## Kata — Cybernetic Capability Development
 
-**Crates:** `hkask-services` (KataEngine), `hkask-cns` (variety counters, algedonic alerts), `hkask-storage` (KataHistoryStore)
+**Crates:** `hkask-services-kata` (KataEngine), `hkask-services-kanban` (KanbanService, PDCA→task mapping), `hkask-cns` (variety counters, algedonic alerts), `hkask-storage` (KataHistoryStore)
 
 **Skills:** `.agents/skills/kata-starter/`, `.agents/skills/kata-improvement/`, `.agents/skills/kata-coaching/`, `.agents/skills/kata/` (bundle)
 
@@ -1323,8 +1323,20 @@ kask init --profile server
 | `hkask-api` | 16 | HTTP router, OpenAPI, endpoint handlers | API surface. Each endpoint group is a resource. |
 | `hkask-memory` | 14 | Episodic/semantic memory, narrative generation | Memory subsystem. Each memory type is distinct. |
 | `hkask-keystore` | 11 | Argon2id, OS keychain, SQLCipher | Security crate. Derivation, storage, encryption are distinct concerns. |
+| `hkask-services-core` | 32 | `ServiceConfig`, `ServiceError`, identity, verification, settings, goals | Foundation crate. Shared config, error taxonomy, and identity types used by every other service crate. |
+| `hkask-services-kanban` | 25 | `Board`, `Task`, `SpawnSpec`, `TaskContract`, `KanbanService` | Kanban board with WIP limits, consent-gated assignment, LLM verification, capability packages, de-jam. High type count driven by OCAP contract types and builder patterns. |
+| `hkask-services-corpus` | 23 | `DiscoverService`, `EmbedService`, `CorpusConfig`, entity extraction | Document corpus ingestion, embedding, entity extraction. Each phase (discover, embed, validate) exposes its own config types. |
+| `hkask-services-runtime` | 23 | `ServiceDaemonHandler`, provider backends (7), `AdaptiveMonitor` | Runtime orchestration with 7 provider backends, each a distinct type. Provider count drives surface breadth. |
+| `hkask-services-skill` | 19 | `SkillAuditor`, `BundleService`, skill discovery, publishing | Skill lifecycle + bundle composition. Audit pipeline exposes health types; bundle exposes composition types. |
+| `hkask-services-kata` | 11 | `KataEngine`, `KataManifest`, `KataState`, `KataResult`, `KataHistory` | Toyota Kata engine. State machine types (manifest, state, result) plus practice history tracking. |
+| `hkask-services-chat` | 10 | `ChatService`, `MemoryService`, `TurnRequest`, `TurnResult` | Chat session with turn management and memory recall. Request/response pair drives type count. |
+| `hkask-services-compose` | 9 | `ComposeService`, `CognitionConfig`, `ComposeRequest`, `ComposeResult` | Style-based prose composition. Config sections (embedding, retrieval, validation) each expose a type. |
+| `hkask-services-onboarding` | 8 | `OnboardingService`, `SignInOutcome`, `MatrixRegistrationResult`, `ResolvedSecrets` | First-run onboarding. Registration, secrets resolution, conduit health checks. |
+| `hkask-services-context` | 2 | `AgentService`, `PerAgentMemory` | Shared agent context and per-agent memory handle. Bottleneck type — all other services route through it. |
+| `hkask-services-curator` | 2 | `CuratorService`, `EscalationResponse` | Curator daemon metacognition. Single service with single response type. |
+| `hkask-services-wallet` | 1 | `WalletService` | Crypto wallet facade. Single service delegating to `hkask-wallet`. |
 
-**Deletion test:** Every crate above passes — delete it and its complexity reappears duplicated. Public surface reflects breadth of domain concerns, not shallow design.
+**Deletion test:** Every crate above passes — delete it and its complexity reappears duplicated. Public surface reflects breadth of domain concerns, not shallow design. `hkask-services-kanban` (25 items) is the widest services subcrate — OCAP contract types (`TaskContract`, `SpawnSpec`, `CapabilityPackage`, `ConsentProof`, `ContractVerification`) and builder patterns drive the count. See `docs/plans/kata-kanban-merge-plan.md` for the proposed consolidation into a single workflow crate.
 
 ## API Documentation (utoipa)
 

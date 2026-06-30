@@ -7,6 +7,7 @@ members = [
     # Ontology bridge crates (v0.31.0)
     "crates/hkask-bridge-dublincore",
     "crates/hkask-bridge-pko",
+    "crates/hkask-services-kata-kanban",
     "crates/hkask-services-kata",
     "crates/hkask-services-kanban",
     "crates/hkask-services-runtime",
