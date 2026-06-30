@@ -18,7 +18,7 @@
 //!
 //! It does NOT sign deposit transactions (user's primary wallet signs those).
 
-use crate::types::{ApiKeyCapability, ChainId, PrivacyMode, WalletError};
+use crate::types::{ApiKeyCapability, ChainId, WalletError};
 use ed25519_dalek::Signer;
 use hkask_keystore::keychain::resolve_treasury_key;
 use hkask_types::secret::derivation_contexts;

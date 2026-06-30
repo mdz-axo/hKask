@@ -5,8 +5,6 @@
 //! same fields (persona, process_manifest, voice_description, etc.) from source
 //! YAML when needed.
 
-use serde::Deserialize;
-
 use crate::types::agent::definition::AgentDefinition;
 use crate::yaml_types::RawYamlAgent;
 

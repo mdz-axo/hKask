@@ -7,9 +7,6 @@
 
 pub mod chain;
 pub mod error;
-pub use chain::*;
-pub use error::*;
-
 // Re-exports from hkask_wallet_types (canonical source for these types)
 pub use hkask_wallet_types::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,

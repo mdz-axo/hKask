@@ -14,7 +14,7 @@
 //! - \[P5\] Goal: Essentialism — factory only; no runtime cache
 //! - \[P9\] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
-use hkask_capability::{CapabilityChecker, DelegationToken};
+use hkask_capability::CapabilityChecker;
 use hkask_cns::CnsRuntime;
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;

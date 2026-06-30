@@ -4602,7 +4602,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "hkask-agents",
- "hkask-capability",
  "hkask-cns",
  "hkask-inference",
  "hkask-ports",

@@ -30,7 +30,7 @@ use crate::curator::SemanticIndex;
 use hkask_storage::Database;
 use hkask_types::{Visibility, WebID};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::time::Duration;

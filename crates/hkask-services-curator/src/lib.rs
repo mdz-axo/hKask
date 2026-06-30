@@ -52,6 +52,43 @@ impl From<EscalationEntry> for EscalationResponse {
 /// Service for curator operations — delegates to EscalationQueue.
 pub struct CuratorService;
 
+/// Emit a CNS ν-event for an escalation operation (resolve/dismiss).
+///
+/// CNS observability is mandatory per P9 (Homeostatic Self-Regulation). This
+/// helper ensures consistent span format and error handling across all
+/// escalation lifecycle transitions.
+///
+/// pre:  ctx.event_sink() must be initialized; operation must be a valid CNS span name
+/// post: CNS ν-event emitted (or warn logged on persist failure)
+fn emit_escalation_event(
+    ctx: &AgentService,
+    operation: &str,
+    actor_key: &str,
+    escalation_id: &str,
+    actor: &str,
+) {
+    let span = Span::new(SpanNamespace::from(CnsSpan::Curation), operation);
+    let event = NuEvent::new(
+        WebID::from_persona(b"curator"),
+        span,
+        CyclePhase::Act,
+        serde_json::json!({
+            "escalation_id": escalation_id,
+            actor_key: actor,
+        }),
+        0,
+    );
+    if let Err(e) = ctx.event_sink().persist(&event) {
+        tracing::warn!(
+            target: "cns.curation",
+            escalation_id = %escalation_id,
+            error = %e,
+            operation = operation,
+            "CNS event persist failed — observability gap"
+        );
+    }
+}
+
 impl CuratorService {
     /// List pending escalations.
     ///
@@ -77,29 +114,7 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
-        // CNS observability: record Curator resolution decision
-        let span = Span::new(
-            SpanNamespace::from(CnsSpan::Curation),
-            "escalation_resolved",
-        );
-        let event = NuEvent::new(
-            WebID::from_persona(b"curator"),
-            span,
-            CyclePhase::Act,
-            serde_json::json!({
-                "escalation_id": id,
-                "resolved_by": resolved_by,
-            }),
-            0,
-        );
-        if let Err(e) = ctx.event_sink().persist(&event) {
-            tracing::warn!(
-                target: "cns.curation",
-                escalation_id = %id,
-                error = %e,
-                "CNS event persist failed for resolve — observability gap"
-            );
-        }
+        emit_escalation_event(ctx, "escalation_resolved", "resolved_by", id, resolved_by);
 
         ctx.escalation_queue()
             .resolve(id, resolved_by)
@@ -123,29 +138,13 @@ impl CuratorService {
     /// `ServiceError::EscalationNotFound` if the ID doesn't match any entry.
     /// `ServiceError::Escalation` on queue error.
     pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
-        // CNS observability: record Curator dismissal decision
-        let span = Span::new(
-            SpanNamespace::from(CnsSpan::Curation),
+        emit_escalation_event(
+            ctx,
             "escalation_dismissed",
+            "dismissed_by",
+            id,
+            dismissed_by,
         );
-        let event = NuEvent::new(
-            WebID::from_persona(b"curator"),
-            span,
-            CyclePhase::Act,
-            serde_json::json!({
-                "escalation_id": id,
-                "dismissed_by": dismissed_by,
-            }),
-            0,
-        );
-        if let Err(e) = ctx.event_sink().persist(&event) {
-            tracing::warn!(
-                target: "cns.curation",
-                escalation_id = %id,
-                error = %e,
-                "CNS event persist failed for dismiss — observability gap"
-            );
-        }
 
         ctx.escalation_queue()
             .dismiss(id, dismissed_by)

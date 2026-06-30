@@ -27,7 +27,6 @@ minijinja.workspace = true
 
 # Kanban-specific
 hkask-agents = { path = "../hkask-agents" }
-hkask-capability = { path = "../hkask-capability" }
 
 [dev-dependencies]
 rusqlite = { workspace = true, features = ["bundled-sqlcipher"] }

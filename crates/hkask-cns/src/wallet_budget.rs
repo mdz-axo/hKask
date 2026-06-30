@@ -20,7 +20,7 @@ use chrono::Utc;
 use hkask_types::id::{ApiKeyId, WalletId};
 #[cfg(test)]
 use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{ApiKeyCapability, GAS_PER_RJOULE, PrivacyMode, RJoule, WalletManager};
+use hkask_wallet::{ApiKeyCapability, RJoule, WalletManager};
 use std::sync::Arc;
 
 /// Health status of an API key tracked by a wallet-backed budget.

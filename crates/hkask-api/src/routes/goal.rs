@@ -5,7 +5,7 @@ use axum::extract::Extension;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Json, extract::Path, extract::Query, extract::State};
-use hkask_services_core::{Goal, GoalState};
+use hkask_services_core::GoalState;
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

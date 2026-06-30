@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use hkask_ports::federation::{
     FederatedTriple, FederationSyncError, FederationSyncPort, ReplicaId,
 };
-use hkask_storage::TripleStore;
 use hkask_types::Visibility;
 use hkask_types::id::PodID;
 

@@ -86,7 +86,7 @@ impl SemanticIndex {
 mod tests {
     use super::*;
     use hkask_storage::Database;
-    use hkask_types::{TripleID, Visibility, WebID};
+    use hkask_types::{Visibility, WebID};
 
     fn make_store() -> TripleStore {
         let db = Database::in_memory().expect("in-memory db");
