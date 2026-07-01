@@ -38,7 +38,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6); note: ADR-023 superseded by ADR-027, ADR-028 archived (deferred), ADR-029 archived (superseded) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
 | **P1-06** | Citation compliance audit | Curator | Medium | ✅ Complete | 9 target docs compliant (2026-06-11); 12 additional docs pending |
-| **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web + hkask-mcp-rss-reader → hkask-mcp-research (1,044 LOC, ~17 tools) (consolidated 2026-06-11) |
+| **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-research + hkask-mcp-research → hkask-mcp-research (1,044 LOC, ~17 tools) (consolidated 2026-06-11) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have mds_categories (2026-05-28) |
 | **P1-09** | Face recognition system for media server | Media bot | High | ✅ Complete | `docs/plans/mcp-media-server-design.md` §10. Face registry table with validation gate, dual-path matching (vision LLM primary via fal.ai/open-weight Qwen2.5-VL, ONNX ArcFace behind `face-recognition` feature flag). 5 tools: face_validate, face_register, face_list, face_remove, gallery_name_face (with face_id lookup). ONNX `face_id` crate (SCRFD + ArcFace) optional via `--features face-recognition`. |
 | **P1-10** | Condenser live integration testing — thinking mode + auto-condense | Dev | Medium | ✅ Complete | **All items verified.** (1) Thinking mode wire format: 2 unit tests pass. (2) Router pass-through: `disable_thinking_flows_to_wire_format` integration test (wiremock) passes. (3) Auto-condense threshold: 87.5% formula verified for all window sizes (2048–131072). (4) Live DeepInfra: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output, no thinking interference. (5) Live Together: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output. (6) Graceful degradation: thinking models (qwen3.5/gemma4/deepseek-r1) return clear error on all backends. (7) Rust live-backend tests written: `crates/hkask-inference/tests/live_backends.rs` — `deepinfra_summarization` + `together_summarization` (gated on API keys, `#[ignore]`). DeepInfra/Together Qwen3 models also exhibit thinking mode. |
@@ -93,7 +93,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **D-02** | Federation transport | Complexity exceeds budget | ADR pending |
 | **D-03** | Remote LLM providers | Local-first invariant | ADR pending |
 | **D-04** | Fine-tuning (axolotl) | Not MVP | N/A |
-| **D-05** | hkask-surface reactive protocol | Not implemented | OQ-1 (resolved: removed from docs) |
+| **D-05** | `kask` CLI surface reactive protocol | Not implemented | OQ-1 (resolved: removed from docs) |
 
 ---
 
@@ -110,7 +110,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-07** | Write TRACEABILITY_MATRIX.md (Task 5) | 2026-05-25 | `do../specifications/specs/TRACEABILITY_MATRIX.md` |
 | **R-08** | Update PROJECT_STATUS.md (Task 7) | 2026-05-25 | Accurate metrics, MDS completeness |
 | **R-09** | Write OPEN_QUESTIONS.md (Task 9) | 2026-05-25 | 9 open questions with MDS tags |
-| **R-10** | Fix MDS.md stale gaps (Task 8) | 2026-05-25 | hkask-mcp-spec existence, Span::Spec variant |
+| **R-10** | Fix MDS.md stale gaps (Task 8) | 2026-05-25 | hkask-mcp-docproc existence, Span::Spec variant |
 | **R-11** | Update DOCUMENTATION_STANDARDS.md (Task 8) | 2026-05-25 | TOGAF→MDS metadata migration |
 | **R-12** | Add mds_categories to key docs (Task 8) | 2026-05-25 | architecture-master, security-architecture, MDS |
 
@@ -180,7 +180,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-67** | Update cli-reference.md last_updated to 2026-06-07 | 2026-06-07 | docs/generated/cli-reference.md |
 | **R-68** | Fix broken links: 17→0 broken links, add 5 status file placeholders, fix 3 archived ADR paths | 2026-06-07 | docs/README.md, docs/ci/check-links.sh |
 | **R-70** | Create ADR-032 (MCP gateway membrane) and ADR-033 (Dampener override cooldown); update ADR-027 footer | 2026-06-07 | docs/architecture/ADR-032, ADR-033, ADR-027 |
-| **R-71** | Verify hkask-mcp-spec build regression — no type errors found, workspace builds clean | 2026-06-07 | cargo check --workspace passes, 5 MCP protocol tests fail (TransportClosed, infra issue) |
+| **R-71** | Verify hkask-mcp-docproc build regression — no type errors found, workspace builds clean | 2026-06-07 | cargo check --workspace passes, 5 MCP protocol tests fail (TransportClosed, infra issue) |
 | **R-72** | Writing Excellence spot-check: domain-and-capability ✅ 4/4, trust-security-observability ✅ 4/4, MDS ❌ 1/4 | 2026-06-07 | MDS fails Hopper/Lovelace/Gentle (known gap, tracked in OPEN_QUESTIONS) |
 | **R-73** | Update all stale verified_date in architecture docs to 2026-06-07 | 2026-06-07 | 21 DIAGRAM_ALIGNMENT entries updated |
 
@@ -192,11 +192,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |----|------|------|----------|
 | **C-01** | Documentation audit | 2026-05-22 | `do../specifications/standards/WRITING_EXCELLENCE.md` |
 | **C-02** | Archive stale documents (73 files) | 2026-05-22 | `docs/archive/2026-05-22-documentation-refresh/` |
-| **C-03** | Fix hkask-testing compilation failures | 2026-05-22 | All tests passing |
+| **C-03** | Fix hkask-test-harness compilation failures | 2026-05-22 | All tests passing |
 | **C-04** | Resolve clippy warnings | 2026-05-22 | `cargo clippy -- -D warnings` passes |
 | **C-05** | Fix cargo fmt issues | 2026-05-22 | `cargo fmt --check` passes |
 | **C-06** | Fix hardcoded cryptographic key | 2026-05-22 | `OKAPI_DEV_KEY` const with migration path |
-| **C-08** | MCP server consolidation — Collapse rss-reader + web → research; document replica | 2026-06-11 | New `hkask-mcp-research` (1,044 LOC, ~17 tools). Deleted `hkask-mcp-web` (535 LOC) and `hkask-mcp-rss-reader` (504 LOC). Updated 7 code files, 5 docs, workspace Cargo.toml. |
+| **C-08** | MCP server consolidation — Collapse rss-reader + web → research; document replica | 2026-06-11 | New `hkask-mcp-research` (1,044 LOC, ~17 tools). Deleted `hkask-mcp-research` (535 LOC) and `hkask-mcp-research` (504 LOC). Updated 7 code files, 5 docs, workspace Cargo.toml. |
 | **C-10** | Tier 1 unit tests — condenser algorithms, profile parsing, classify_tool, registry | 2026-06-11 | 27 tests across types.rs and algorithms.rs. All compression algorithms verified. `algorithms` module promoted to `pub mod` in lib.rs. |
 | **C-11** | Tier 1 unit tests — research freshness, ranking, strip_html, rate_limiter | 2026-06-11 | 23 tests: 6 freshness parsing/brave/serpapi, 5 ranking dedup/rerank, 8 strip_html, 4 rate_limiter. Added `[lib]` target to research crate. |
 | **C-13** | Companies value-add tools — Tier 1 MAIA framework (moat, management, working capital, expectations gap) | 2026-06-11 | 4 new tools: `moat_check`, `management_scorecard`, `working_capital_cycle`, `expectations_gap`. New `analysis.rs` module with 20 tests. Companies server now has 15 tools (11 passthrough + 4 analytical). |

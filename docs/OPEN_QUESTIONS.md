@@ -27,9 +27,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Remove all references to `hkask-surface` from active documentation. The concept is deferred to v1.1+ with an ADR if surface generation becomes necessary.
+**Decision:** Remove all references to ``kask` CLI surface` from active documentation. The concept is deferred to v1.1+ with an ADR if surface generation becomes necessary.
 
-**Rationale:** No `hkask-surface` crate exists. Maintaining references to non-existent crates violates P6 (delete stubs, don't publish them). The MCP/CLI/API equivalence already provides surface generation through utoipa (OpenAPI) and clap (CLI docs).
+**Rationale:** No ``kask` CLI surface` crate exists. Maintaining references to non-existent crates violates P6 (delete stubs, don't publish them). The MCP/CLI/API equivalence already provides surface generation through utoipa (OpenAPI) and clap (CLI docs).
 
 ---
 
@@ -111,13 +111,13 @@ Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FE
 
 ---
 
-### OQ-8: hkask-mcp-spec Self-Application ✅
+### OQ-8: hkask-mcp-docproc Self-Application ✅
 
 **MDS Category:** Curation  
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document the self-application concept without executing it. The `hkask-mcp-spec` tools (11 MDS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
+**Decision:** Document the self-application concept without executing it. The `hkask-mcp-docproc` tools (11 MDS tools) are validated against the existing specification corpus. Self-application (using spec tools to capture/decompose/curate the spec tools themselves) is deferred to a future meta-curation exercise.
 
 **Rationale:** There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
 
@@ -338,7 +338,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 **Status:** Deferred (no current consumer outside `hkask-mcp-research`)  
 **Resolution Date:** 2026-06-03
 
-`WebSearchPort` trait and `ProviderPool` are only consumed within `mcp-servers/hkask-mcp-research`. No other crate references them. Extracting the trait to `hkask-types` and the pool to a new `hkask-web` crate would be premature — it moves code without enabling new capabilities. If a consumer outside the MCP server needs web search (e.g., a new crate that orchestrates search + memory), extract then. The MCP server becoming a thin shim is the right long-term goal, but not today.
+`WebSearchPort` trait and `ProviderPool` are only consumed within `mcp-servers/hkask-mcp-research`. No other crate references them. Extracting the trait to `hkask-types` and the pool to a new `hkask-api` crate would be premature — it moves code without enabling new capabilities. If a consumer outside the MCP server needs web search (e.g., a new crate that orchestrates search + memory), extract then. The MCP server becoming a thin shim is the right long-term goal, but not today.
 
 ### 9d: AgentKind Behavioral Dispatch ⚠️ RESOLVED — Keep Cosmetic
 
@@ -396,7 +396,7 @@ Where do `proptest` and `cargo fuzz` fit? MDS invariants are natural property ca
 **Status:** Open  
 **Opened:** 2026-06-06
 
-MCP server tests require `rmcp` transport. Should integration tests use the existing `McpTestServer` pattern from `hkask-mcp-docproc`, or should a shared test fixture crate (`hkask-test-utils`) be extracted? Per C4 ("repetition is a missing primitive"), if 3+ MCP servers duplicate test setup, extract. Current count: 2 servers with test modules. Threshold not yet met.
+MCP server tests require `rmcp` transport. Should integration tests use the existing `McpTestServer` pattern from `hkask-mcp-docproc`, or should a shared test fixture crate (`hkask-test-harness`) be extracted? Per C4 ("repetition is a missing primitive"), if 3+ MCP servers duplicate test setup, extract. Current count: 2 servers with test modules. Threshold not yet met.
 
 ---
 
@@ -430,13 +430,13 @@ When multiple skills are active (skill-bundler), does the TDD cycle apply per-sk
 
 ---
 
-### TQ-9: hkask-mcp-spec Has Zero Tests
+### TQ-9: hkask-mcp-docproc Has Zero Tests
 
 **MDS Category:** Interface  
 **Status:** Open — HIGH  
 **Opened:** 2026-06-06
 
-`hkask-mcp-spec` is the MDS governance surface (8+4 tool surfaces) and has zero test modules. Priority: behavioral tests at the `SpecStore` port and `SpecServer` tool handler seams.
+`hkask-mcp-docproc` is the MDS governance surface (8+4 tool surfaces) and has zero test modules. Priority: behavioral tests at the `SpecStore` port and `SpecServer` tool handler seams.
 
 ---
 
@@ -480,7 +480,7 @@ Currently, `Dampener.override_cooldown` is global — any issuer's metacognitive
 **Status:** Open  
 **Opened:** 2026-06-07
 
-Only 2 of 21 MCP servers currently gate capabilities through `GovernedTool`. The remaining 19 pass tool calls through without OCAP checks. This means the "capability membrane" described in `MDS.md §7.1-7.2` §5.5 is selectively permeable. Should all servers gate? Should servers without side effects (e.g., `hkask-mcp-spec` read-only queries) be exempted by design?
+Only 2 of 21 MCP servers currently gate capabilities through `GovernedTool`. The remaining 19 pass tool calls through without OCAP checks. This means the "capability membrane" described in `MDS.md §7.1-7.2` §5.5 is selectively permeable. Should all servers gate? Should servers without side effects (e.g., `hkask-mcp-docproc` read-only queries) be exempted by design?
 
 ---
 
@@ -566,7 +566,7 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 
 | OQ | Status | Decision | Date |
 |----|--------|----------|------|
-| OQ-1 | Resolved | Remove hkask-surface references | 2026-05-29 |
+| OQ-1 | Resolved | Remove `kask` CLI surface references | 2026-05-29 |
 | OQ-2 | Resolved | Document federation as deferred | 2026-05-29 |
 | OQ-3 | Resolved | Catalog + per-crate README | 2026-05-29 |
 | OQ-4 | Resolved | Manual Mermaid (current) | 2026-05-29 |
@@ -658,9 +658,9 @@ The `hkask-agents` crate build regression has been resolved. All 9 code drift it
 **Status:** Open (deferred, not blocked)  
 **Opened:** 2026-06-07
 
-The `hkask-mcp-spec` server can be used to capture and curate the specification corpus itself. There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
+The `hkask-mcp-docproc` server can be used to capture and curate the specification corpus itself. There is no circularity concern — the server's process is defined by its own spec and code; using it on the spec corpus is no more circular than using a compiler to compile itself. Self-application is deferred only because it has not been implemented yet, not because of any logical problem.
 
-**Note (2026-06-08, updated 2026-06-09):** The spec-code drift curation (Tasks 1–4) could be performed via `hkask-mcp-spec` tools (`spec/goal/capture`, `spec/require/writing-quality`, `spec/graph/coherence`) once self-application is implemented. The drift set and curation decisions were produced manually this cycle; future cycles should use the spec server. This requires SpecStore persistence wiring (FUT-011, FUT-012). Curation tools (evaluate, reconcile, cultivate) were deleted per MDS §3 — curation is external to the spec server.
+**Note (2026-06-08, updated 2026-06-09):** The spec-code drift curation (Tasks 1–4) could be performed via `hkask-mcp-docproc` tools (`spec/goal/capture`, `spec/require/writing-quality`, `spec/graph/coherence`) once self-application is implemented. The drift set and curation decisions were produced manually this cycle; future cycles should use the spec server. This requires SpecStore persistence wiring (FUT-011, FUT-012). Curation tools (evaluate, reconcile, cultivate) were deleted per MDS §3 — curation is external to the spec server.
 
 ---
 

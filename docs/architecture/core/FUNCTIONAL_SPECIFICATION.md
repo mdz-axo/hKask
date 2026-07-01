@@ -42,14 +42,14 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 13 | Inference Engine | `inference` | hkask-inference | 94 | System regulates LLM calls across provider boundaries | P9 + P4 (Homeostatic + Boundary) |
 | 14 | Template Engine | `templates` | hkask-templates | 53 | System renders skill templates into executable prompts | P3 (Generative Space) |
 | 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | System provides single-responsibility tool servers | P5 (Essentialism) |
-| 16 | Service Layer | `services` | hkask-services-* | 305+ | System composes a single service layer shared by CLI and API (11 subcrates: core, chat, compose, context, corpus, curator, kata-kanban, onboarding, runtime, skill, wallet) | P5 + P7 (Essentialism + Evolution) |
+| 16 | Service Layer | `services` | the service layer subcrates | 305+ | System composes a single service layer shared by CLI and API (11 subcrates: core, chat, compose, context, corpus, curator, kata-kanban, onboarding, runtime, skill, wallet) | P5 + P7 (Essentialism + Evolution) |
 | 17 | Agent Runtime | `agents` | hkask-agents | 159 | User's agents operate within sovereignty boundaries | P1 (User Sovereignty) |
 | 18 | Communication | `comm` | hkask-communication | 25 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
 | 19 | Keystore | `keystore` | hkask-keystore | 5 | User's keys are generated, stored, and rotated securely | P1 (User Sovereignty) |
 | 20 | Type System | `types` | hkask-types | 40 | System types are semantically grounded and provenance-aware | P8 (Semantic Grounding) |
 | 21 | API Surface | `api` | hkask-api | 25 | User accesses all functionality through a REST API with sovereignty enforcement | P1 + P4 (Sovereignty + Boundaries) |
 | 22 | CLI Surface | `cli` | kask | 12 | User accesses all functionality through a single binary CLI | P3 (Generative Space) |
-| 23 | Web Interface | `web` | hkask-api (hkask-web deferred) | 19 | User signs in via OAuth and gets a browser terminal | P1 + P4 ⚠️ DEFERRED — hkask-web crate not yet implemented |
+| 23 | Web Interface | `web` | hkask-api (hkask-api deferred) | 19 | User signs in via OAuth and gets a browser terminal | P1 + P4 ⚠️ DEFERRED — hkask-api crate not yet implemented |
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | Users share a server with scoped data and admin-managed membership | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
 | 26 | Deployment | `deploy` | hkask-cli + hkask-agents | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
@@ -122,7 +122,7 @@ Both CLI and API surfaces compose `AgentService` and add only presentation-speci
 graph TD
     CLI["hkask-cli"]
     API["hkask-api"]
-    SVC["hkask-services-* subcrates"]
+    SVC["the service layer subcrates"]
     CLI --> SVC
     API --> SVC
     SVC --> AGENTS[hkask-agents]
@@ -174,7 +174,7 @@ The service layer was extracted from duplicated surface logic using the **strang
 
 | Service | Extracted From | When | Constraint |
 |---------|---------------|------|------------|
-| `hkask-services-backup` (absorbed into `hkask-storage`, v0.31.0) | `hkask-services` monolith | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
+| `hkask-storage` (backup was absorbed, v0.31.0) | former monolithic service crate | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
 | `AgentService` (28-field consolidation) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
 | Named accessor pattern (individual methods) | 8-group-method tuple pattern | v0.28.0 | P5 (Essentialism — callers typically need one field, not a group) |
 | `AgentService::consolidate_agent_memory` | `hkask-memory::consolidation_ops` direct DB open bypass | v0.30.0 | P2 (Affirmative Consent) + P4 (Clear Boundaries) — single consent-checked, OCAP-gated entry point |
@@ -644,7 +644,7 @@ erDiagram
 
 ## 3. Non-CNS Domain Stubs
 
-These domains are documented here for completeness. The canonical contract format uses `expect:` + `[P{N}]` annotations. The service layer (`hkask-services-*` subcrates) has the largest remaining annotation surface.
+These domains are documented here for completeness. The canonical contract format uses `expect:` + `[P{N}]` annotations. The service layer (`the service layer subcrates` subcrates) has the largest remaining annotation surface.
 
 ### 3.1 Wallet (`hkask-wallet`)
 
@@ -1111,7 +1111,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 - `hkask-mcp-condenser` — context compression and saliency scoring (P5, P5.4). Provides three compression algorithms (`rtk_style`, `word_rank`, `flashrank`) and `condenser_score_saliency`: ontology graph proximity scoring for CAT communication posture — persona (charter-anchored), episodic memory (PKO process domain), and semantic memory (DC+BIBO document domain).
 - Tool registration, capability declaration, resource serving
 
-### 3.7 Service Layer (`hkask-services-*` subcrates)
+### 3.7 Service Layer (`the service layer subcrates` subcrates)
 
 **305+ contracts** — P5 + P7 (Essentialism + Evolution) plus mixed P1/P2/P3/P4/P9 concerns because the service layer wraps many underlying domains.
 
@@ -1205,11 +1205,11 @@ Representative domains:
 - `hkask-test-harness` — integration test infrastructure
 - Test fixtures, mock implementations, property-based testing
 
-### 3.15 Web Interface (`hkask-api` + `hkask-web`)
+### 3.15 Web Interface (`hkask-api` + `hkask-api`)
 
 **Goal Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal access via OAuth sessions scoped to user WebID
 **Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal sessions emit CNS observability
-**Crates:** `hkask-api` (hkask-web is deferred — not yet implemented) | **Reference:** `docs/plans/deployment-and-backup.md`
+**Crates:** `hkask-api` (hkask-api is deferred — not yet implemented) | **Reference:** `docs/plans/deployment-and-backup.md`
 
 The web interface is the primary deployment surface: users visit a URL, sign in with GitHub or Google, and get an xterm.js terminal connected via WebSocket to a server-spawned `kask repl` PTY. There is no client binary — the browser is the client. SSH is an optional power-user feature (`kask ssh-key add`), not the primary access method.
 

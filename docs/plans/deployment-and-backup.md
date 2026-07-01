@@ -191,8 +191,8 @@ kask init
 **What this creates:**
 - `~/.config/hkask/` — server config, keystore version file, OAuth provider config
 - `/var/lib/hkask/` — SQLCipher database (all user data), git backup repository
-- OS keychain entry: `hkask-master` (master passphrase)
-- OAuth credentials stored in OS keychain: `hkask-oauth-github`, `hkask-oauth-google`
+- OS keychain entry: `master-passphrase` (master passphrase)
+- OAuth credentials stored in OS keychain: `oauth-github-credentials`, `oauth-google-credentials`
 
 **After init, deploy sidecars:**
 ```bash
@@ -283,19 +283,19 @@ kask pod export-k8s <id>      # generates 6 YAML manifests
 kubectl apply -f k8s-manifests/
 kask pod activate <id>        # kubectl apply (best-effort)
 kask pod deactivate <id>      # scale statefulset to 0
-kubectl delete namespace hkask-pod-<id>  # destroy everything
+kubectl delete namespace agent-pod-<id>  # destroy everything
 ```
 
 **Useful kubectl commands:**
 ```bash
 kubectl get namespaces -l app=hkask
-kubectl get pods -n hkask-pod-alice -w
-kubectl logs -n hkask-pod-alice statefulset/kask -c kask
-kubectl exec -n hkask-pod-alice statefulset/kask -c litestream -- litestream generations /data/kask.db
-kubectl describe pod -n hkask-pod-alice kask-0
-kubectl get hpa -n hkask-pod-alice
-kubectl get events -n hkask-pod-alice --sort-by='.lastTimestamp'
-kubectl port-forward -n hkask-pod-alice statefulset/kask 3000:3000
+kubectl get pods -n agent-pod-alice -w
+kubectl logs -n agent-pod-alice statefulset/kask -c kask
+kubectl exec -n agent-pod-alice statefulset/kask -c litestream -- litestream generations /data/kask.db
+kubectl describe pod -n agent-pod-alice kask-0
+kubectl get hpa -n agent-pod-alice
+kubectl get events -n agent-pod-alice --sort-by='.lastTimestamp'
+kubectl port-forward -n agent-pod-alice statefulset/kask 3000:3000
 ```
 
 ### 3.7 Cloud Gateway — Remote IDE Access (mTLS)
@@ -324,7 +324,7 @@ IDE Client ──[mTLS 1.3]──▶ Cloud Gateway
 ```bash
 # Generate CA + server + client certs (ED25519)
 # Deploy as K8s service with TLS secrets
-kubectl create secret tls hkask-gateway-tls --cert=server.crt --key=server.key
+kubectl create secret tls gateway-tls-cert --cert=server.crt --key=server.key
 kask pod export-k8s gateway && kubectl apply -f k8s-manifests/
 
 # Issue scoped tokens
@@ -418,7 +418,7 @@ hKask maintains **two independent backup systems** with distinct purposes:
 | **Sovereignty Export** (this plan) | SQLCipher SQLite file | User passphrase at export time | P1 data portability — download and migrate to another server | `kask export` |
 | **Operational Backup** | Git via `GixCasAdapter` (one repo per pod, directory tracking) | pod.db is SQLCipher-encrypted | Server disaster recovery — pod directory versioning, agent revert by date, automated 24h snapshots | `kask backup`, `kask backup restore <pod> --date` |
 
-The operational backup is implemented in `hkask-services-backup` (absorbed into `hkask-storage`, v0.31.0):
+The operational backup is implemented in `hkask-storage` (absorbed into `hkask-storage`, v0.31.0):
 
 - **`GitCASPort`** — 8-method hexagonal port (CRUD + snapshot + inspection) for content-addressed git storage across 8 repos (`Registry`, `Memory`, `CnsAudit`, `Sovereignty`, `GoalsSpecs`, `Sessions`, `Vault`, `Pods`)
 - **`BackupService`** — 7-artifact operations (snapshot, restore, list, prune, verify, config, update_config) with mutual-exclusion gate (`AtomicBool` CAS), config injection, and encryption (AES-256-GCM + Argon2)
@@ -821,7 +821,7 @@ Hetzner Cloud (CX22/CX32) + k3s cluster topology (3 master + 3 worker nodes) was
 **Provisioning flow via `hetzner-k3s`:**
 ```bash
 hetzner-k3s create \
-  --name hkask-prod \
+  --name prod-cluster \
   --location nbg1 \
   --masters 3 --master-type cx33 \
   --workers 3 --worker-type cx43

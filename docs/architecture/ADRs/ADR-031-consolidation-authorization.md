@@ -36,7 +36,7 @@ User-supplied passphrase
   └── Compare derived capability_key against resolved DB passphrase
 ```
 
-This is the same derivation chain used during onboarding to store the DB encryption key in the OS keychain (`hkask-db-passphrase`). A correct passphrase produces a capability_key that matches the stored DB passphrase. An incorrect passphrase produces a different key.
+This is the same derivation chain used during onboarding to store the DB encryption key in the OS keychain (`db-passphrase`). A correct passphrase produces a capability_key that matches the stored DB passphrase. An incorrect passphrase produces a different key.
 
 **Surfaces that expose consolidation:**
 

@@ -4,6 +4,7 @@
 //! (port promotion rule). This module re-exports them for backward
 //! compatibility. New code should import from `hkask_memory::ports`.
 
+pub use hkask_memory::error::MemoryPortError;
 pub use hkask_memory::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,

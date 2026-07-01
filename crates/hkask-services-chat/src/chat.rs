@@ -59,6 +59,7 @@ impl TokenUsage {
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
+    use hkask_agents::ports::memory_storage::MemoryPortError;
     use hkask_agents::ports::memory_storage::RecalledEpisode;
     use hkask_cns::types::loops::episodic::ExperienceClassification;
 
@@ -113,19 +114,16 @@ mod tests {
             &self,
             _: StorageRequest,
             _: &DelegationToken,
-        ) -> Result<String, hkask_agents::error::MemoryError> {
+        ) -> Result<String, MemoryPortError> {
             Ok("id".into())
         }
         fn recall_semantic(
             &self,
             _: &RecallRequest,
-        ) -> Result<Vec<RecalledSemantic>, hkask_agents::error::MemoryError> {
+        ) -> Result<Vec<RecalledSemantic>, MemoryPortError> {
             Ok(self.triples.clone())
         }
-        fn semantic_storage_usage(
-            &self,
-            _: &str,
-        ) -> Result<usize, hkask_agents::error::MemoryError> {
+        fn semantic_storage_usage(&self, _: &str) -> Result<usize, MemoryPortError> {
             Ok(self.triples.len())
         }
     }
@@ -138,20 +136,17 @@ mod tests {
             &self,
             r: StorageRequest,
             _: &DelegationToken,
-        ) -> Result<String, hkask_agents::error::MemoryError> {
+        ) -> Result<String, MemoryPortError> {
             *self.last_request.lock().unwrap() = Some(r);
             Ok("id".into())
         }
         fn recall_episodic(
             &self,
             _: &RecallRequest,
-        ) -> Result<Vec<RecalledEpisode>, hkask_agents::error::MemoryError> {
+        ) -> Result<Vec<RecalledEpisode>, MemoryPortError> {
             Ok(vec![])
         }
-        fn episodic_storage_usage(
-            &self,
-            _: &WebID,
-        ) -> Result<usize, hkask_agents::error::MemoryError> {
+        fn episodic_storage_usage(&self, _: &WebID) -> Result<usize, MemoryPortError> {
             Ok(0)
         }
         fn episodic_storage_budget(&self) -> usize {
@@ -163,7 +158,7 @@ mod tests {
             _: ExperienceClassification,
             _: Option<Confidence>,
             t: &DelegationToken,
-        ) -> Result<String, hkask_agents::error::MemoryError> {
+        ) -> Result<String, MemoryPortError> {
             self.store_episodic(r, t)
         }
     }

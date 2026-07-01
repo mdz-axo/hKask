@@ -55,7 +55,7 @@ Your Domain (hkask.yourdomain.com)
 │  Restores on pod restart    │
 └────────────────────────────┘
 
-Namespace: hkask       Namespace: hkask-conduit
+Namespace: hkask       Namespace: conduit-matrix
 ```
 
 **What is a container?** A container is a packaged program with its dependencies. Think of it like a `.exe` file that includes everything it needs to run — the code, libraries, and configuration — all bundled together. Unlike a virtual machine, it doesn't include a full operating system; it shares the host's kernel. This makes containers small (tens of megabytes, not gigabytes) and fast to start (seconds, not minutes).
@@ -80,7 +80,7 @@ Learn these 12 terms before you start. They appear in every K8s command and erro
 | **Secret** | Like ConfigMap but for passwords and API keys. Base64-encoded in K8s storage. | "The password vault." OAuth secrets, S3 keys, encryption passphrases. |
 | **PVC** | PersistentVolumeClaim. A request for disk space. | "The hard drive." "I need 20 gigabytes." K8s provisions it. |
 | **Ingress** | Routes external HTTP traffic to Services. Also manages TLS certificates. | "The front door." Decides which Service gets which URL path. |
-| **Namespace** | A way to group K8s resources. Like folders. | "The folder." `hkask` namespace has kask things. `hkask-conduit` has Conduit things. |
+| **Namespace** | A way to group K8s resources. Like folders. | "The folder." `hkask` namespace has kask things. `conduit-matrix` has Conduit things. |
 | **Sidecar** | A helper container in the same Pod as your main container. | "The assistant." Litestream runs alongside kask, sharing the `/data` disk. |
 | **Init Container** | A container that runs to completion before the main containers start. | "The setup step." Restores the database from backup before kask starts. |
 | **kubectl** | The command-line tool for talking to K8s. Pronounced "cube-cuttle." | "The remote control." Every command in this guide starts with `kubectl`. |
@@ -167,13 +167,13 @@ hcloud context create hkask
 
 # Create the server
 hcloud server create \
-  --name hkask-k3s \
+  --name k3s-controller \
   --type cx22 \
   --image ubuntu-24.04 \
   --ssh-key your-ssh-key-name
 
 # Get the IP address — write this down
-hcloud server ip hkask-k3s
+hcloud server ip k3s-controller
 ```
 
 If you don't have an SSH key uploaded to Hetzner:
@@ -182,7 +182,7 @@ If you don't have an SSH key uploaded to Hetzner:
 ssh-keygen -t ed25519 -f ~/.ssh/hetzner -C "hkask"
 
 # Upload to Hetzner
-hcloud ssh-key create --name hkask-key --public-key-from-file ~/.ssh/hetzner.pub
+hcloud ssh-key create --name hetzner-key --public-key-from-file ~/.ssh/hetzner.pub
 ```
 
 **Success:** `hcloud server list` shows your server with status `running` and a public IPv4 address.
@@ -210,7 +210,7 @@ kubectl get nodes
 **Success:**
 ```
 NAME         STATUS   ROLES                  AGE   VERSION
-hkask-k3s    Ready    control-plane,master   30s   v1.30.2+k3s1
+k3s-controller    Ready    control-plane,master   30s   v1.30.2+k3s1
 ```
 
 The node shows `Ready`. This means the K8s control plane is running and the server is ready to accept workloads.
@@ -329,7 +329,7 @@ TTL:   300                (5 minutes — short while testing)
 **How:** In the Hetzner Cloud Console:
 1. Navigate to **Object Storage**
 2. Click **Create Bucket**
-3. Name: `hkask-backups`
+3. Name: `backups-bucket`
 4. Location: same region as your server (fsn1, nbg1, or hel1)
 5. Generate access keys: **Object Storage → Access Keys → Generate access key**
 6. Write down the **Access Key ID** and **Secret Access Key** — you'll need them in Step 6
@@ -365,7 +365,7 @@ TTL:   300                (5 minutes — short while testing)
 data:
   domain: "hkask.yourdomain.com"              # Your actual domain
   conduit-server-name: "hkask.yourdomain.com"  # Same as domain
-  litestream-bucket: "hkask-backups"           # Your bucket name
+  litestream-bucket: "backups-bucket"           # Your bucket name
   litestream-endpoint: "https://fsn1.your-objectstorage.com"  # From Hetzner Console
   litestream-region: "auto"                    # Keep as is
   litestream-force-path-style: "true"          # Keep as is (required for Hetzner)
@@ -453,7 +453,7 @@ docker push ghcr.io/YOUR_USERNAME/hkask:kask-main
 
 **Why:** `kubectl apply` sends the YAML files to the K8s API server. The API server validates them, stores the desired state in etcd (K8s's database), and controllers start working to make reality match the desired state.
 
-**Order matters:** Deploy Conduit first because kask's Deployment references the Conduit Service URL (`conduit.hkask-conduit.svc.cluster.local:8008`). If you deploy kask first, it will try to connect to a Conduit that doesn't exist yet and may fail its readiness check.
+**Order matters:** Deploy Conduit first because kask's Deployment references the Conduit Service URL (`conduit.conduit-matrix.svc.cluster.local:8008`). If you deploy kask first, it will try to connect to a Conduit that doesn't exist yet and may fail its readiness check.
 
 **How:**
 ```bash
@@ -465,7 +465,7 @@ kubectl apply -f deploy/k8s/conduit/service.yaml
 kubectl apply -f deploy/k8s/conduit/deployment.yaml
 
 # Wait for Conduit to be ready
-kubectl -n hkask-conduit wait \
+kubectl -n conduit-matrix wait \
   --for=condition=ready pod \
   --selector=app=conduit \
   --timeout=120s
@@ -507,7 +507,7 @@ $ kubectl -n hkask get pods
 NAME                    READY   STATUS    RESTARTS   AGE
 hkask-5d7f8b9c4-xyz12   2/2     Running   0          30s
 
-$ kubectl -n hkask-conduit get pods
+$ kubectl -n conduit-matrix get pods
 NAME                      READY   STATUS    RESTARTS   AGE
 conduit-7a8b9c0d-abc12   1/1     Running   0          60s
 ```
@@ -587,7 +587,7 @@ EOF
 # Change cert-manager.io/cluster-issuer annotation to letsencrypt-prod
 
 # Force renewal
-kubectl -n hkask delete secret hkask-tls --ignore-not-found
+kubectl -n hkask delete secret tls-cert --ignore-not-found
 kubectl -n hkask annotate ingress hkask cert-manager.io/cluster-issuer=letsencrypt-prod --overwrite
 
 # Watch the certificate being issued
@@ -651,7 +651,7 @@ kubectl -n hkask logs deploy/hkask -c kask -f
 kubectl -n hkask logs deploy/hkask -c litestream -f
 
 # Conduit logs
-kubectl -n hkask-conduit logs deploy/conduit -f
+kubectl -n conduit-matrix logs deploy/conduit -f
 ```
 
 ### Shell into a Container
@@ -669,7 +669,7 @@ ls -la /data/
 ```bash
 # CPU and memory usage per pod
 kubectl -n hkask top pods
-kubectl -n hkask-conduit top pods
+kubectl -n conduit-matrix top pods
 
 # Node-level usage
 kubectl top nodes
@@ -679,7 +679,7 @@ kubectl top nodes
 
 ```bash
 # Edit a ConfigMap
-kubectl -n hkask edit configmap hkask-config
+kubectl -n hkask edit configmap app-config
 
 # Restart the deployment to pick up changes
 kubectl -n hkask rollout restart deploy/hkask
@@ -789,7 +789,7 @@ Routes external traffic: `/` goes to the kask Service on port 3000, `/_matrix` g
 The startup script inside the kask container. Creates the data directory then starts `kask serve`. Does NOT do litestream restore (that's handled by the init container).
 
 ### `conduit/` Directory
-Contains the same resource types for the Conduit Matrix homeserver. Conduit runs in its own namespace (`hkask-conduit`) with its own PVC, Secret, and Service. The only shared resource is the Ingress, which routes `/_matrix` traffic to the Conduit Service.
+Contains the same resource types for the Conduit Matrix homeserver. Conduit runs in its own namespace (`conduit-matrix`) with its own PVC, Secret, and Service. The only shared resource is the Ingress, which routes `/_matrix` traffic to the Conduit Service.
 
 ---
 
@@ -798,7 +798,7 @@ Contains the same resource types for the Conduit Matrix homeserver. Conduit runs
 **Secrets are NOT encrypted at rest in etcd by default.** They are base64-encoded, which is encoding, not encryption. Anyone with `kubectl` access to the namespace can read them:
 
 ```bash
-kubectl -n hkask get secret hkask-secrets -o yaml
+kubectl -n hkask get secret app-secrets -o yaml
 ```
 
 To protect Secrets:

@@ -126,7 +126,7 @@ services:
   # ── TLS reverse proxy (auto-Let's Encrypt) ──
   caddy:
     image: caddy:2-alpine
-    container_name: hkask-caddy
+    container_name: caddy-hkask
     restart: unless-stopped
     ports:
       - "80:80"
@@ -135,12 +135,12 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
     networks:
-      - hkask-sidecar
+      - sidecar-net
 
   # ── Matrix homeserver ──
   conduit:
     image: registry.gitlab.com/famedly/conduit:0.9.0
-    container_name: hkask-conduit
+    container_name: conduit-matrix
     restart: unless-stopped
     expose:
       - "8008"                     # Internal only — Caddy proxies externally
@@ -156,12 +156,12 @@ services:
       retries: 3
       start_period: 15s
     networks:
-      - hkask-sidecar
+      - sidecar-net
 
   # ── Optional lightweight web client ──
   hydrogen:
     image: element-hq/hydrogen-web:latest
-    container_name: hkask-hydrogen
+    container_name: hydrogen-client
     restart: unless-stopped
     expose:
       - "80"                        # Internal only — Caddy proxies externally
@@ -174,12 +174,12 @@ services:
       retries: 3
       start_period: 5s
     networks:
-      - hkask-sidecar
+      - sidecar-net
     profiles:
       - with-web-client
 
 networks:
-  hkask-sidecar:
+  sidecar-net:
     driver: bridge
 ```
 
@@ -1565,7 +1565,7 @@ These gaps were identified in a final end-to-end review of the complete system. 
 ```yaml
   caddy:
     image: caddy:2-alpine
-    container_name: hkask-caddy
+    container_name: caddy-hkask
     restart: unless-stopped
     ports:
       - "80:80"
@@ -1574,7 +1574,7 @@ These gaps were identified in a final end-to-end review of the complete system. 
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy-data:/data
     networks:
-      - hkask-sidecar
+      - sidecar-net
 ```
 
 Caddyfile (generated):

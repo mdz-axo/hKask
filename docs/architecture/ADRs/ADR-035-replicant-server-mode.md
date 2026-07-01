@@ -140,7 +140,7 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon.rs --in
 ```
 
 **Expected Results:**
-- Daemon socket path referenced in `hkask-mcp` and service layer subcrates (`hkask-services-*`)
+- Daemon socket path referenced in `hkask-mcp` and service layer subcrates (`the service layer subcrates`)
 - All 11 MCP servers implement `try_daemon_flow`
 - 4 AgentMode tests pass (activation, exclusion, assignment, switch)
 - 5 daemon tests pass (auth, unauth, assignment, capability, dual-encoding)
