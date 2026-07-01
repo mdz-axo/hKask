@@ -146,6 +146,7 @@ impl GasReport {
     /// # Returns
     /// * `Ok(AgentGasSummary)` — Aggregated gas data for the agent.
     /// * `Err(InfrastructureError)` — If the underlying store query fails.
+    #[must_use]
     pub fn query_by_agent(
         &self,
         agent: &WebID,
@@ -172,6 +173,7 @@ impl GasReport {
     /// # Returns
     /// * `Ok(Vec<AgentGasSummary>)` — Sorted per-agent summaries.
     /// * `Err(InfrastructureError)` — If the underlying store query fails.
+    #[must_use]
     pub fn query_all_agents(
         &self,
         since: DateTime<Utc>,
@@ -210,6 +212,7 @@ impl GasReport {
     /// # Returns
     /// * `Ok(GasTotals)` — Grand-total aggregates.
     /// * `Err(InfrastructureError)` — If the underlying store query fails.
+    #[must_use]
     pub fn query_total(
         &self,
         since: DateTime<Utc>,
@@ -271,6 +274,7 @@ impl GasReport {
     /// # Returns
     /// * `Ok(usize)` — Number of servers whose costs were adjusted.
     /// * `Err(InfrastructureError)` — If the underlying store query fails.
+    #[must_use]
     pub fn calibrate_table(
         &self,
         table: &mut DynamicGasTable,

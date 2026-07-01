@@ -80,7 +80,7 @@ Output shows name, visibility, description, and activation trigger for every ins
 ### 2.2 Show Skill Details
 
 ```bash
-kask skill show coding-guidelines
+kask skill status coding-guidelines
 ```
 
 Displays the full SKILL.md content, template inventory, and contract signatures.
@@ -106,19 +106,12 @@ Use the coding-guidelines skill before reviewing this PR.
 
 The Zed agent loads `SKILL.md`, absorbs the procedural knowledge, and applies it to the task.
 
-### 3.2 Via the kask CLI (Registry Layer)
-
-```bash
-kask skill invoke coding-guidelines/guidelines-assess --input task_description="review auth module"
-```
-
-Renders the `.j2` template with your input, executes through the inference router, returns structured output.
-
-### 3.3 Via Bundles
+### 3.2 Via Bundles
 
 Bundles compose multiple skills into workflows:
 
 ```bash
+kask bundle compose coding-guidelines essentialist --name "code-review-bundle"
 ```
 
 
@@ -388,7 +381,7 @@ zoom-out → caveman (dense mode) → caveman (caveman mode)
 
 ---
 
-## 6. Skill Summary — All 45 Skills
+## 6. Skill Summary — 39 Skills
 
 | # | Skill | Category | Type | What it does |
 |---|-------|----------|------|-------------|
@@ -424,7 +417,7 @@ zoom-out → caveman (dense mode) → caveman (caveman mode)
 | 34 | `skill-bundler` | Skill Management | FlowDef | Orchestrate skills into bundles via convergent compose→validate loops |
 | 35 | `skill-logic-audit` | Skill Management | FlowDef | Audit template logic via bounded critique→proposal loops |
 | 36 | `skill-maintenance` | Skill Management | FlowDef | Audit skills for staleness/coverage via convergent maintenance loops |
-| 37 | `skill-translator` | Skill Management | FlowDef | Convert skills between formats via convergent translation loops |
+
 | 38 | `strangler-fig` | Diagnostics | FlowDef | Incremental architectural migration with convergent step verification |
 | 41 | `structured-extraction` | Extraction/Summarization | FlowDef | Schema-driven extraction via convergent entity/relation/map loops |
 | 42 | `superforecasting` | Decision & Strategy | FlowDef | Tetlock 8-stage calibrated forecasting via convergent pipeline loops |
@@ -492,7 +485,7 @@ grep -rn "/// \[P[0-9]*\]" crates/ --include="*.rs" | wc -l
 grep -rn "/// expect:" crates/ --include="*.rs" | wc -l
 ```
 
-Run the contract-generator (contract-generator/contract-generator.j2) for any gaps.
+Run `kask skill audit` for any gaps.
 
 ---
 
@@ -527,21 +520,18 @@ Concrete rails currently visible in core meta-skill manifests:
 |------|----------:|------------------:|--------:|
 | `skill-maintenance` | `0.15` | `0.10` | `16000` |
 | `skill-bundler` | `0.10` | `0.10` | `16000` |
-| `skill-translator` (`skill-translation` manifest) | `0.15` | `0.10` | `14000` |
+
 | `skill-logic-audit` | `0.10` | `0.10` | `12000` |
 | `improv` | `0.12` | `0.10` | `12000` |
 | `idiomatic-rust` | `0.15` | `0.05` | `120000` |
 
-Known model exceptions/tensions that still require explicit policy decisions:
-
 - `kata` is currently represented as `Bundle` in this guide, not a single FlowDef skill manifest.
-- `logo-builder` is documented as FlowDef capability via media orchestration templates, without a dedicated `registry/manifests/logo-builder.yaml` skill manifest.
 
 ---
 
 ## References
 
-- [Skill Designer Guide](../../docs/guides/skill-designer-guide.md) — Creating and maintaining skills
+- [Skill Designer Guide](../user-guides/skill-designer-guide.md) — Creating and maintaining skills
 - [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) — P1–P12 principles
 - [AGENTS.md](../../AGENTS.md) — Agent operating guide
 

@@ -139,6 +139,7 @@ impl DynamicGasTable {
     ///
     /// # Returns
     /// Number of servers whose costs were adjusted.
+    #[must_use]
     pub fn calibrate(&mut self) -> usize {
         let servers: Vec<String> = self.observed_since_last_calibrate.iter().cloned().collect();
         self.observed_since_last_calibrate.clear();
@@ -169,6 +170,7 @@ impl DynamicGasTable {
     /// expect: "I can run a calibration pass that adjusts server costs when EMA ratios exceed tolerance"
     /// expect: "I can export the calibrated server cost table for estimator construction"
     /// post: returns a Hash`Map<String, u64>` of server → cost mappings
+    #[must_use]
     pub fn report_table(&self) -> HashMap<String, u64> {
         self.server_costs.clone()
     }
@@ -180,6 +182,7 @@ impl DynamicGasTable {
     ///
     /// expect: "I can query per-server EMA ratios for diagnostics and monitoring"
     /// post: returns a Hash`Map<String, f64>` of server → EMA ratio mappings
+    #[must_use]
     pub fn current_ratios(&self) -> HashMap<String, f64> {
         self.ema_ratios.clone()
     }
@@ -190,6 +193,7 @@ impl DynamicGasTable {
     ///
     /// expect: "I can query the observation count for a server to assess calibration confidence"
     /// post: returns the count of recorded observations for `server`, or 0 if unobserved
+    #[must_use]
     pub fn observation_count(&self, server: &str) -> u64 {
         self.observation_counts.get(server).copied().unwrap_or(0)
     }

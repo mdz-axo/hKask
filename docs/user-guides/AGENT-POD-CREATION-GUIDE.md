@@ -796,35 +796,29 @@ curl -X POST http://localhost:8080/api/pods \
 
 ```rust
 use hkask_agents::pod::{ActivePods, AgentPersona, PodID};
-use hkask_agents::adapters::git_cas::TemplateCrateLoader;
-use hkask_agents::adapters::a2a_runtime::A2ARuntimeAdapter;
-use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
-use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
+use hkask_templates::crate_loader::TemplateCrateLoader;
 use hkask_types::WebID;
 use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create adapters
+    // Create loader
     let loader = TemplateCrateLoader::from_path(PathBuf::from("./registry/templates"));
-    let a2a_runtime = A2ARuntimeAdapter::new();
-    let cns_emitter = CnsEmitterAdapter::new(WebID::new());
-    let mcp_runtime = McpRuntimeAdapter::new();
-    
+
     // Create pod manager
-    let active_pods = ActivePods::new(loader, a2a_runtime, cns_emitter, mcp_runtime);
-    
+    let active_pods = ActivePods::new();
+
     // Load persona from YAML
     let persona_yaml = std::fs::read_to_string("agent_persona.yaml")?;
     let persona = AgentPersona::from_yaml(&persona_yaml)?;
-    
+
     // Create pod
     let pod_id = active_pods
         .create_pod("my-agent-crate", &persona, Some("my-specialist-bot".to_string()))
         .await?;
-    
+
     println!("Pod created: {}", pod_id);
-    
+
     Ok(())
 }
 ```
@@ -834,15 +828,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 After registration, the pod receives a capability token:
 
 ```rust
-pub struct CapabilityToken {
-    pub id: String,              // Unique token identifier
-    pub tool_name: String,       // Tool this grants access to
-    pub delegated_from: WebID,   // Delegator WebID
-    pub delegated_to: WebID,     // Holder WebID
-    pub signature: String,       // HMAC signature
-    pub attenuation_level: u8,   // Delegation depth (0-7)
-    pub max_attenuation: u8,     // Maximum allowed depth (default: 7)
-    pub root_context_nonce: String,
+use hkask_capability::DelegationToken;
+
+pub struct DelegationToken {
+    pub id: String,
+    pub resource: DelegationResource,
+    pub resource_id: String,
+    pub action: DelegationAction,
+    pub delegated_from: WebID,
+    pub delegated_to: WebID,
+    pub signature: TokenSignature,
+    pub public_key: Ed25519PublicKey,
+    pub expires_at: Option<i64>,
+    pub attenuation_level: u8,
+    pub max_attenuation: u8,
+    pub context_nonce: String,
 }
 ```
 
@@ -1210,7 +1210,7 @@ kask pod deactivate <pod-id>
 |----------|--------|-------------|
 | `/api/pods` | GET | List all pods |
 | `/api/pods` | POST | Create new pod |
-| `/api/pods/:id` | GET | Get pod status |
+| `/api/pods/{id}/status` | GET | Get pod status |
 | `/api/pods/:id/activate` | POST | Activate pod |
 | `/api/pods/:id/deactivate` | POST | Deactivate pod |
 
@@ -1282,5 +1282,5 @@ For advanced topics, see:
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.21.0*
+*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*

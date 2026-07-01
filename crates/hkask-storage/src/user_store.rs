@@ -481,6 +481,7 @@ impl UserStore {
     /// \[P1\] Motivating: User Sovereignty — get session by ID
     /// pre:  session_id is non-empty
     /// post: returns Some(session) if valid, None otherwise
+    #[must_use]
     pub fn get_session(&self, session_id: &str) -> UserResult<Option<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -498,6 +499,7 @@ impl UserStore {
     /// \[P1\] Motivating: User Sovereignty — list active sessions
     /// pre:  replicant_name is non-empty
     /// post: returns Vec of active sessions
+    #[must_use]
     pub fn list_sessions(&self, replicant_name: &str) -> UserResult<Vec<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -515,6 +517,7 @@ impl UserStore {
     /// \[P1\] Motivating: User Sovereignty — get replicant by name
     /// pre:  replicant_name is non-empty
     /// post: returns Some(identity) if found, None otherwise
+    #[must_use]
     pub fn get_replicant(&self, replicant_name: &str) -> UserResult<Option<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -532,6 +535,7 @@ impl UserStore {
     /// \[P1\] Motivating: User Sovereignty — get human user by ID
     /// pre:  user_id is valid
     /// post: returns HumanUser
+    #[must_use]
     pub fn get_user(&self, user_id: &UserID) -> UserResult<HumanUser> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -734,6 +738,7 @@ impl UserStore {
     /// \[P1\] Motivating: User Sovereignty — list replicants owned by user
     /// pre:  user_id is valid
     /// post: returns Vec of replicants owned by user
+    #[must_use]
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(

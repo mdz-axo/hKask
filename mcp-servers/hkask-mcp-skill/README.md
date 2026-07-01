@@ -8,9 +8,9 @@ MCP server exposing the skill registry: listing, installing, discovering, and ma
 
 | Tool | Description |
 |------|-------------|
-| `skill_health` | Liveness and profile info |
+| `skill_ping` | Liveness and profile info |
 | `skill_list` | List available skill IDs with their descriptions |
-| `skill_install` | Install a skill from the registry |
+| `skill_execute` | Execute a registered skill template with context variables. Renders the skill as a Jinja2 template and runs inference. Use `skill_list` first to discover available skill IDs. |
 
 ## Configuration
 

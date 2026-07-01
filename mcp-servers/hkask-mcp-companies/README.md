@@ -2,7 +2,7 @@
 
 Company financial data MCP server — FMP + EODHD dual-provider integration for global fundamental analysis, DCF valuation, scenario planning, and superforecasting.
 
-## Tools (34)
+## Tools (38)
 
 ### Financial Data (8)
 | Tool | Description |
@@ -24,12 +24,21 @@ Company financial data MCP server — FMP + EODHD dual-provider integration for 
 | `working_capital_cycle` | CFO scorecard: DPO, DSO, cash conversion cycle trends |
 | `expectations_gap` | Gordon Growth Model: market-implied growth vs historical performance |
 
-### DCF Valuation (3)
+### Analysis (2)
+| Tool | Description |
+|------|-------------|
+| `company_screener` | Company screener. Parses natural language prompts into FMP stock screener API parameters. Supports filtering by market cap, price, volume, P/E ratio, dividend yield, beta, sector, industry, country, exchange, ROE, ROIC, and more. Use criteria_overrides to adjust parsed criteria. Reply with a modified prompt to refine results. |
+| `research_search` | Multi-provider fundamental research search. Searches across Exa, Tavily, and Brave for company-specific information and returns raw claims with source URLs. Use with thesis_test, scenario_weight, or guidance_check skills for structured financial analysis. |
+
+### Valuation (6)
 | Tool | Description |
 |------|-------------|
 | `dcf_valuation` | Two-stage DCF: stage 1 (1-3yr) + stage 2 (2-7yr), terminal perpetuity or multiple, annual/quarterly. Returns intrinsic per share, margin of safety, full projection table. Default: 10yr, 3yr S1, 7yr S2, 10% discount, 2.5% terminal growth. |
 | `reverse_dcf` | Mauboussin expectations investing: solves for the growth rate implied by current price using binary search (-50% to +100%). Returns implied growth + interpretation (low/moderate/high expectations). |
 | `scenario_analysis` | Schwartz 2×2 matrix: revenue growth × profit margin → four scenarios (Bull, Land Grab, Cash Cow, Bear). Runs DCF under each. Returns intrinsic value range and dispersion. |
+| `comparable_analysis` | Comparable company analysis. Gathers valuation multiples (P/E, P/B, P/S, EV/EBITDA) from peer companies in the same industry, alongside a DCF intrinsic value overlay for the target. Multiples provide market-relative context; DCF provides fundamentals-anchored valuation. Accepts optional comma-separated peer list. |
+| `sensitivity_analysis` | Tornado chart sensitivity analysis. Varies each DCF driver (revenue growth, gross margin, D&A, capex, NWC, discount rate) by +/- range_pct (default 10%) while holding others constant. Returns drivers ranked by impact on intrinsic value per share. Identifies which assumptions most affect the valuation. |
+| `monte_carlo_dcf` | Monte Carlo DCF simulation. Runs N simulations (default 1000, clamped 100-10000) with each DCF assumption randomized uniformly within its +/- configured range. Returns intrinsic value distribution (percentiles p10/p25/median/p75/p90, histogram), probability of undervaluation, and base case comparison. Quantifies valuation uncertainty from assumption ranges. |
 
 ### Superforecasting (2)
 | Tool | Description |

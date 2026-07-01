@@ -274,6 +274,7 @@ impl SetPoints {
 ///
 /// If `HKASK_CNS_CONFIG` is set, reads the YAML file at that path.
 /// If unset or the file doesn't exist, returns default set-points.
+#[must_use]
 pub fn load_set_points() -> SetPoints {
     match std::env::var("HKASK_CNS_CONFIG") {
         Ok(path) => match SetPointsConfig::load_from_file(&path) {

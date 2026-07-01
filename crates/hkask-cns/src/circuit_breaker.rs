@@ -87,6 +87,7 @@ impl CircuitBreaker {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — the check-before-execute gateway
     /// \[P4\] Constraining: Clear Boundaries — state-driven gating enforces the boundary
     /// post: returns true if circuit is closed or half-open, false if open
+    #[must_use]
     pub fn allow_request(&self) -> bool {
         let state = self.state();
 
@@ -182,6 +183,7 @@ impl CircuitBreaker {
         }
     }
 
+    #[must_use]
     pub fn state(&self) -> CircuitState {
         match self.state.load(Ordering::Relaxed) {
             0 => CircuitState::Closed,

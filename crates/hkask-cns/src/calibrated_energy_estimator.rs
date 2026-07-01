@@ -115,6 +115,7 @@ impl CalibratedEnergyEstimator {
     /// post: all settled gas events since the last calibration are fed into
     ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
     ///       updated table; returns the number of servers whose costs changed
+    #[must_use]
     pub async fn calibrate(&self) -> Result<usize, InfrastructureError> {
         let until = Utc::now();
         let since = {
@@ -215,6 +216,7 @@ impl CalibratedEnergyEstimator {
     }
 
     /// Check whether the background calibration task is still running.
+    #[must_use]
     pub fn calibration_healthy(&self) -> bool {
         self.calibration_alive
             .load(std::sync::atomic::Ordering::Acquire)
@@ -227,6 +229,7 @@ impl CalibratedEnergyEstimator {
     /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data"
     /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation"
     /// post: returns a copy of the internal server_costs map
+    #[must_use]
     pub fn current_table(&self) -> std::collections::HashMap<String, u64> {
         self.table
             .read()

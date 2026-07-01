@@ -63,7 +63,7 @@ If you've signed in before, you skip onboarding and go straight to your terminal
 The default name is functional but not personal. To rename your replicant at any time:
 
 ```bash
-kask replicant rename "Alice Smith"
+kask replicant rename --from "alice-smith" --to "Alice Smith"
 ```
 
 (All commands in this guide are typed directly into the browser terminal — you're already connected.)
@@ -99,7 +99,7 @@ You're already in the terminal after sign-in — no need to start anything. Just
 ### 5.1 What You'll See
 
 ```
-ℏKask v0.28.0 — chat session
+ℏKask v0.31.0 — chat session
 Replicant: alice-smith
 Type /help for commands, /exit to end session.
 
@@ -135,16 +135,16 @@ Your replicant responds using the inference model configured by your instance ad
 By default, all data access is denied (Magna Carta "Maximum" default). To let your replicant access episodic memory:
 
 ```bash
-kask sovereignty grant --category episodic_memory --webid webid://alice-smith
+kask sovereignty grant --category episodic_memory --agent alice-smith
 ```
 
 ### 6.2 Explore MCP Servers
 
-hKask ships with 11 MCP servers providing tools for web search, document processing, media analysis, and more:
+hKask ships with 15 MCP servers providing tools for web search, document processing, media analysis, and more:
 
 ```bash
 kask mcp list-servers
-kask mcp list-tools --server research
+kask mcp list-tools
 ```
 
 ### 6.3 Customize Your Replicant
@@ -152,13 +152,13 @@ kask mcp list-tools --server research
 Rename your replicant if you haven't already:
 
 ```bash
-kask replicant rename "Alice Smith"
+kask replicant rename --from "alice-smith" --to "Alice Smith"
 ```
 
 Create additional replicants:
 
 ```bash
-kask replicant create --name "Bob Jones"
+kask replicant register "bob-jones" --first-name "Bob" --last-name "Jones" --email "bob@example.com"
 kask pod activate bob-jones
 ```
 
@@ -167,8 +167,8 @@ kask pod activate bob-jones
 | Guide | Location |
 |-------|----------|
 | Agent pod creation | [`user-guides/AGENT-POD-CREATION-GUIDE.md`](../user-guides/AGENT-POD-CREATION-GUIDE.md) |
-| Operations runbook | [`guides/OPERATIONS_RUNBOOK.md`](../guides/OPERATIONS_RUNBOOK.md) |
-| Kata user guide | [`guides/kata-user-guide.md`](../guides/kata-user-guide.md) |
+| Operations runbook | TODO: operations runbook (not yet written) |
+| Kata user guide | [`user-guides/kata-user-guide.md`](../user-guides/kata-user-guide.md) |
 
 ---
 
@@ -200,4 +200,4 @@ If your terminal disconnects, refresh the page. Your session state is preserved 
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.28.0*
+*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*

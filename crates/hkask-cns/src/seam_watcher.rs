@@ -110,6 +110,7 @@ impl SeamWatcher {
     ///
     /// Returns `None` if neither source is available — seam watching is
     /// non-fatal. The system runs normally without it.
+    #[must_use]
     pub fn load() -> Option<Self> {
         // 1. Try file path override (development)
         if let Ok(path) = std::env::var(INVENTORY_PATH_ENV) {
@@ -230,6 +231,7 @@ impl SeamWatcher {
     /// and returns empty vec — no drift to report.
     ///
     /// After calling this, the current inventory becomes the previous snapshot.
+    #[must_use]
     pub async fn check_drift(
         &mut self,
         runtime: &CnsRuntime,
@@ -468,6 +470,7 @@ impl SeamWatcher {
     /// Workspace-wide coverage summary.
     ///
     /// Consolidates inventory, coverage, and crate counts into one struct.
+    #[must_use]
     pub fn summary(&self) -> SeamSummary {
         SeamSummary {
             total_items: self.inventory.totals.total_items,

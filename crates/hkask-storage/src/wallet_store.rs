@@ -96,6 +96,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — get wallet balance
     /// pre:  wallet_id is valid
     /// post: returns Some(WalletBalance) if wallet exists, None otherwise
+    #[must_use]
     pub fn get_balance(&self, wallet_id: WalletId) -> Result<Option<WalletBalance>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -172,6 +173,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — credit rJoules
     /// pre:  wallet_id exists, amount > 0
     /// post: balance increased by amount, transaction recorded
+    #[must_use]
     pub fn credit_rjoules(
         &self,
         wallet_id: WalletId,
@@ -223,6 +225,7 @@ impl WalletStore {
     /// pre:  wallet_id exists, amount > 0, balance >= amount
     /// post: balance decreased by amount, transaction recorded
     /// post: returns Err if insufficient balance
+    #[must_use]
     pub fn debit_rjoules(
         &self,
         wallet_id: WalletId,
@@ -292,6 +295,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — list transactions
     /// pre:  wallet_id is valid
     /// post: returns Vec of transactions, optionally limited
+    #[must_use]
     pub fn get_transactions(
         &self,
         wallet_id: WalletId,
@@ -335,6 +339,7 @@ impl WalletStore {
     /// \[P4\] Motivating: Clear Boundaries — anti-replay hash check
     /// pre:  tx_hash is non-empty
     /// post: returns true if hash exists (anti-replay)
+    #[must_use]
     pub fn transaction_exists_by_hash(&self, tx_hash: &str) -> Result<bool, WalletError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
@@ -386,6 +391,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — get API key by ID
     /// pre:  key_id is valid
     /// post: returns Some(capability) if found, None otherwise
+    #[must_use]
     pub fn get_api_key(&self, key_id: ApiKeyId) -> Result<Option<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -463,6 +469,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — list API keys
     /// pre:  wallet_id is valid
     /// post: returns Vec of API key capabilities
+    #[must_use]
     pub fn list_api_keys(&self, wallet_id: WalletId) -> Result<Vec<ApiKeyCapability>, WalletError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -879,6 +886,7 @@ impl WalletStore {
     /// \[P3\] Motivating: Generative Space — get encumbrance
     /// pre:  key_id is valid
     /// post: returns Some(Encumbrance) if found, None otherwise
+    #[must_use]
     pub fn get_encumbrance(&self, key_id: ApiKeyId) -> Result<Option<Encumbrance>, WalletError> {
         let conn = self.lock_conn()?;
         let row: Option<(String, i64, i64, String, String, Option<String>)> = conn

@@ -135,6 +135,7 @@ impl EnergyBudget {
     pub fn cap(&self) -> EnergyCost {
         self.cap
     }
+    #[must_use]
     pub fn remaining(&self) -> EnergyCost {
         self.remaining
     }

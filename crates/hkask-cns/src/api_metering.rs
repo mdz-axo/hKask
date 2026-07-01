@@ -170,6 +170,7 @@ impl ApiMeter {
     /// \[P4\] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions
     /// pre:  key_id is valid
     /// post: returns Ok if within limit, Err if rate limited
+    #[must_use]
     pub fn check_and_record(
         &mut self,
         key_id: ApiKeyId,
@@ -205,6 +206,7 @@ impl ApiMeter {
     /// \[P8\] Constraining: Semantic Grounding — RPM count must be stable and accurate
     /// pre:  key_id is valid
     /// post: returns current requests per minute
+    #[must_use]
     pub fn current_rpm(&self, key_id: ApiKeyId) -> u32 {
         let now = Instant::now();
         self.buckets

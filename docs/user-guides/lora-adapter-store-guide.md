@@ -65,7 +65,6 @@ Every stored adapter is a `TrainedLoRAAdapter`:
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | `Uuid` | Unique adapter identifier |
-| `name` | `String` | Human-readable name (from expertise) |
 | `owner` | `WebID` | Sovereign owner — no anonymous artifacts (P12) |
 | `expertise` | `Expertise` | Named, domain-scoped capability descriptor |
 | `base_model_family` | `String` | e.g. `"llama-3.3-70b"` — fast DB queries |
@@ -82,7 +81,8 @@ Every stored adapter is a `TrainedLoRAAdapter`:
 use hkask_adapter::AdapterStore;
 use hkask_adapter::{TrainedLoRAAdapter, AdapterSource, Expertise, MdsDomain};
 
-let store = AdapterStore::open("hkask.db")?;
+let db = hkask_storage::in_memory_db();
+let store = AdapterStore::new(db.conn_arc());
 store.migrate()?;
 
 let adapter = TrainedLoRAAdapter {
@@ -101,7 +101,7 @@ let adapter = TrainedLoRAAdapter {
         repo: "mdz-axolotl/solidity-audit-v1".into(),
     },
     size_bytes: Some(45_000_000),
-    owner: WebID::parse("https://my-domain.org/profile#me")?,
+    owner: WebID::new(),
     created_at: Utc::now().to_rfc3339(),
 };
 
@@ -221,7 +221,7 @@ Every created endpoint is wrapped in an `EndpointGuard`:
 ```rust
 pub struct EndpointGuard {
     endpoint_id: Uuid,
-    router: Arc<AdapterRouter>,
+    router: Weak<AdapterRouter>,
     consumed: bool,  // prevents double-teardown
 }
 ```
