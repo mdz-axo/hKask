@@ -169,6 +169,7 @@ impl MemoryService {
     }
 
     /// Recall raw episodes for condensation.
+    #[allow(dead_code)]
     pub(crate) fn recall_raw_episodes(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,

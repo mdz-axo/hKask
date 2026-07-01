@@ -20,6 +20,7 @@ pub mod security;
 pub mod sovereignty;
 pub mod spec_store;
 pub mod spec_types;
+pub mod token_registry;
 pub mod triples;
 pub mod user_store;
 pub mod wallet;
@@ -54,6 +55,7 @@ pub use spec_types::{
     Criterion, DomainAnchor, DriftReport, GoalSpec, Spec, SpecCategory, SpecCurationRecord,
     SpecCurator, SpecError, SpecId, infer_spec_category,
 };
+pub use token_registry::TokenRegistryStore;
 pub use triples::{Triple, TripleError, TripleStore};
 pub use user_store::UserStoreError;
 pub use wallet::WalletStore;

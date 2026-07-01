@@ -6,7 +6,7 @@ use super::types::{HealAction, HealStrategy};
 
 #[derive(Debug, Clone, Default)]
 pub struct HealRegistry {
-    strategies: Vec<HealStrategy>,
+    pub(crate) strategies: Vec<HealStrategy>,
 }
 
 impl HealRegistry {
@@ -97,5 +97,15 @@ impl HealRegistry {
     #[must_use]
     pub fn find_strategy_by_name(&self, name: &str) -> Option<&HealStrategy> {
         self.strategies.iter().find(|s| s.name == name)
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.strategies.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.strategies.is_empty()
     }
 }

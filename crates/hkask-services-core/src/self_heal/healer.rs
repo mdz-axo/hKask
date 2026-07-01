@@ -336,7 +336,11 @@ impl SelfHealer {
         }
     }
 
-    fn execute_and_judge(&self, strategy: &super::types::HealStrategy, context: &HealContext) -> HealOutcome {
+    fn execute_and_judge(
+        &self,
+        strategy: &super::types::HealStrategy,
+        context: &HealContext,
+    ) -> HealOutcome {
         match self.execute_action(&strategy.action, context) {
             Ok(r) if r.success => HealOutcome::Healed {
                 action_taken: strategy.name.clone(),
@@ -411,7 +415,7 @@ impl SelfHealer {
             .map_err(|e| format!("Render: {e}"))
     }
 
-    fn execute_action(
+    pub(crate) fn execute_action(
         &self,
         action: &HealAction,
         context: &HealContext,
@@ -571,7 +575,7 @@ impl Default for SelfHealer {
 impl fmt::Debug for SelfHealer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SelfHealer")
-            .field("strategies", &self.registry.strategies.len())
+            .field("strategies", &self.registry.len())
             .field("has_inference", &self.inference.is_some())
             .finish()
     }

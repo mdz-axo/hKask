@@ -1,6 +1,7 @@
 //! Pod-directory-based backup operations — snapshot_pod_dir, log_pod, resolve_date, restore_file_from_commit.
 
-use super::{GixCasAdapter, commit_tree_oid, oid_to_commit_hash, open_or_init_repo, spawn_blocking_io};
+use super::tree::commit_tree_oid;
+use super::{GixCasAdapter, oid_to_commit_hash, open_or_init_repo, spawn_blocking_io};
 use hkask_ports::git_cas::{CommitHash, GitCasError, LogEntry};
 use std::path::Path;
 

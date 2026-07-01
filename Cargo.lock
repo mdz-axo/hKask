@@ -4672,6 +4672,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "hex",
+ "hkask-capability",
  "hkask-keystore",
  "hkask-ports",
  "hkask-services-core",

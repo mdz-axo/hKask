@@ -1,7 +1,6 @@
 //! Self-healing core types — outcomes, contexts, strategies, actions.
 
 use std::collections::HashMap;
-use std::fmt;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]

@@ -533,3 +533,139 @@ impl DelegationToken {
             && self.delegated_to == other.delegated_to
     }
 }
+
+// ── Token Registry — Persistence for consent audit ───────────────────────
+
+/// Errors from token registry operations.
+#[derive(Debug, thiserror::Error)]
+pub enum TokenRegistryError {
+    #[error("Storage error: {0}")]
+    Storage(String),
+
+    #[error("Token not found: {0}")]
+    NotFound(String),
+
+    #[error("Token already exists: {0}")]
+    Duplicate(String),
+}
+
+/// Persistence trait for DelegationToken lifecycle.
+///
+/// The token registry provides the **auditable** half of P2 (Affirmative Consent).
+/// OCAP gates enforce consent at runtime; the registry proves it after the fact.
+/// Without this, P2 is operationally enforced but forensically invisible.
+///
+/// CNS spans record token *usage* (was the token presented?).
+/// The registry records token *issuance* (was the token ever granted?).
+/// Together they enable the full consent picture.
+pub trait TokenRegistry: Send + Sync {
+    /// Persist a newly issued token.
+    ///
+    /// Called by DelegationTokenBuilder::sign() or equivalent.
+    /// Returns Duplicate error if a token with the same ID already exists.
+    fn store(&self, token: &DelegationToken) -> Result<(), TokenRegistryError>;
+
+    /// Get a single token by ID.
+    fn get(&self, token_id: &str) -> Result<Option<DelegationToken>, TokenRegistryError>;
+
+    /// Query all tokens issued by a WebID since the given timestamp.
+    fn query_by_issuer(
+        &self,
+        webid: &hkask_types::WebID,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<DelegationToken>, TokenRegistryError>;
+
+    /// Query all tokens received by a WebID since the given timestamp.
+    fn query_by_recipient(
+        &self,
+        webid: &hkask_types::WebID,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<DelegationToken>, TokenRegistryError>;
+
+    /// Query all tokens within a time window.
+    fn query_all(
+        &self,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<DelegationToken>, TokenRegistryError>;
+
+    /// Mark a token as revoked. Revoked tokens fail OCAP verification.
+    fn revoke(&self, token_id: &str) -> Result<(), TokenRegistryError>;
+}
+
+/// A no-op token registry for contexts where consent auditing is not needed.
+///
+/// Tokens are verified at runtime (OCAP gates) but issuance is not persisted.
+/// Used in tests and minimal deployments. The real implementation persists
+/// to SQLite via hkask-storage.
+pub struct NoOpTokenRegistry;
+
+impl TokenRegistry for NoOpTokenRegistry {
+    fn store(&self, _token: &DelegationToken) -> Result<(), TokenRegistryError> {
+        Ok(())
+    }
+
+    fn get(&self, _token_id: &str) -> Result<Option<DelegationToken>, TokenRegistryError> {
+        Ok(None)
+    }
+
+    fn query_by_issuer(
+        &self,
+        _webid: &hkask_types::WebID,
+        _since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<DelegationToken>, TokenRegistryError> {
+        Ok(Vec::new())
+    }
+
+    fn query_by_recipient(
+        &self,
+        _webid: &hkask_types::WebID,
+        _since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<DelegationToken>, TokenRegistryError> {
+        Ok(Vec::new())
+    }
+
+    fn query_all(
+        &self,
+        _since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<DelegationToken>, TokenRegistryError> {
+        Ok(Vec::new())
+    }
+
+    fn revoke(&self, _token_id: &str) -> Result<(), TokenRegistryError> {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+
+    #[test]
+    fn noop_registry_returns_none_for_any_query() {
+        let registry = NoOpTokenRegistry;
+        assert!(registry.get("any").unwrap().is_none());
+        assert!(registry.query_all(chrono::Utc::now()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn noop_registry_store_is_idempotent() {
+        let registry = NoOpTokenRegistry;
+        // Should not panic
+        let token = DelegationToken {
+            id: "test".into(),
+            resource: DelegationResource::Registry,
+            resource_id: "x".into(),
+            action: DelegationAction::Execute,
+            delegated_from: hkask_types::WebID::from_persona(b"a"),
+            delegated_to: hkask_types::WebID::from_persona(b"b"),
+            signature: TokenSignature([0u8; 64]),
+            public_key: hkask_types::Ed25519PublicKey([0u8; 32]),
+            expires_at: None,
+            attenuation_level: 0,
+            max_attenuation: 7,
+            context_nonce: "test".into(),
+            caveats: vec![],
+        };
+        registry.store(&token).unwrap();
+    }
+}

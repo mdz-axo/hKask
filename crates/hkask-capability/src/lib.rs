@@ -16,7 +16,8 @@ pub use resources::{
     capability_from_server_id,
 };
 pub use token_types::{
-    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+    DelegationToken, DelegationTokenBuilder, NoOpTokenRegistry, SYSTEM_MAX_ATTENUATION,
+    SYSTEM_MAX_RECURSION, TokenRegistry, TokenRegistryError,
 };
 pub use verification::{
     CapabilityChecker, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER,

@@ -15,7 +15,7 @@ use hkask_agents::ports::{
     StorageRequest,
 };
 use hkask_capability::{DelegationAction, DelegationToken};
-use hkask_ports::{InferencePort, StructuredToolCall};
+use hkask_ports::InferencePort;
 use hkask_types::PersonaConstraints;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};

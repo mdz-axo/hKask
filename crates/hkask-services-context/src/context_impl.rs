@@ -22,9 +22,7 @@
 //! 2. Does it already have a home crate/module? If yes, access it there.
 //! 3. Is it surface-specific (CLI-only or API-only)? If yes, put it in the surface.
 
-use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use hkask_agents::CuratorContext;
 use hkask_agents::LoopSystem;

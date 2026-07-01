@@ -4,18 +4,13 @@
 //! summarizes the oldest half via an inference call, and returns a rebuilt
 //! input with condensed + recent conversation blocks.
 
-use std::sync::Arc;
-
-use hkask_agents::ports::EpisodicStoragePort;
 use hkask_capability::DelegationToken;
 use hkask_types::DataCategory;
-use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 
 use super::types::TurnRequest;
 use crate::memory::MemoryService;
 use hkask_services_context::AgentService;
-use hkask_services_core::ServiceError;
 
 use super::service::ChatService;
 
@@ -47,19 +42,12 @@ impl ChatService {
             &req.episodic_storage,
             &req.agent_webid,
             token,
-            // Fetch enough episodes to cover the saliency window plus padding
-            // for condensation. We need at least saliency_window * 2 episodes
-            // to keep the anchor, plus the older ones to summarize.
             (req.condense_saliency_window * 4).max(8),
         );
         if episodes.len() < 4 {
-            return None; // too few messages to meaningfully condense
+            return None;
         }
 
-        // Saliency-based split: keep the most recent N exchanges verbatim
-        // (where N = condense_saliency_window, each exchange = 2 episodes).
-        // Older episodes are summarized. This preserves recent context as
-        // anchors while condensing stale history.
         let keep_count = (req.condense_saliency_window * 2).min(episodes.len().saturating_sub(2));
         let old_half = &episodes[..episodes.len() - keep_count];
         let recent_half = &episodes[episodes.len() - keep_count..];

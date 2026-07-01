@@ -7,7 +7,7 @@ use hkask_services_runtime::TripleExtraction;
 ///
 /// Carries everything needed for both embedding and triple storage.
 #[derive(Debug, Clone)]
-pub(crate) struct TaggedPassage {
+pub struct TaggedPassage {
     pub(crate) entity_ref: String,
     pub(crate) text: String,
     pub(crate) work_slug: String,

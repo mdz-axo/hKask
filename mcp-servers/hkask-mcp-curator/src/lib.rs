@@ -32,6 +32,7 @@ pub struct CuratorServer {
     nu_event_store: Option<Arc<hkask_storage::NuEventStore>>,
     episodic: Option<hkask_memory::EpisodicMemory>,
     semantic: Option<Arc<hkask_memory::SemanticMemory>>,
+    token_registry: Option<Arc<dyn hkask_capability::TokenRegistry>>,
 }
 
 #[tool_router(server_handler)]
@@ -404,6 +405,62 @@ impl CuratorServer {
                 "total_events": total_count,
                 "filtered_count": filtered.len(),
                 "events": filtered
+            }))
+        })
+        .await
+    }
+
+    // ── Token Registry (for consent auditing) ───────────────────────────
+
+    #[tool(
+        description = "List all DelegationTokens within a time window. Supports filtering by issuer or recipient WebID. Returns structured token data for consent auditing and anomaly detection."
+    )]
+    pub async fn list_tokens(&self, Parameters(req): Parameters<TokenListRequest>) -> String {
+        execute_tool(self, "list_tokens", async {
+            let Some(ref registry) = self.token_registry else {
+                return Err(McpToolError::permission_denied(
+                    "TokenRegistry not available",
+                ));
+            };
+            let window_secs = req.window_seconds.unwrap_or(86400);
+            let since = chrono::Utc::now() - chrono::Duration::seconds(window_secs as i64);
+
+            let tokens = if let Some(ref issuer) = req.issuer {
+                let wid = WebID::from_string(issuer);
+                registry.query_by_issuer(&wid, since)
+            } else if let Some(ref recipient) = req.recipient {
+                let wid = WebID::from_string(recipient);
+                registry.query_by_recipient(&wid, since)
+            } else {
+                registry.query_all(since)
+            }
+            .map_err(|e| McpToolError::internal(format!("Token query failed: {e}")))?;
+
+            let serialized: Vec<serde_json::Value> = tokens
+                .iter()
+                .map(|t| {
+                    json!({
+                        "id": t.id,
+                        "resource": format!("{:?}", t.resource),
+                        "resource_id": t.resource_id,
+                        "action": format!("{:?}", t.action),
+                        "delegated_from": t.delegated_from.to_string(),
+                        "delegated_to": t.delegated_to.to_string(),
+                        "expires_at": t.expires_at,
+                        "attenuation_level": t.attenuation_level,
+                    })
+                })
+                .collect();
+
+            CnsSpan::Tool {
+                subsystem: hkask_types::cns::ToolSubsystem::Curator,
+            }
+            .emit("list_tokens");
+
+            Ok(json!({
+                "window_seconds": window_secs,
+                "count": serialized.len(),
+                "tokens": serialized
             }))
         })
         .await

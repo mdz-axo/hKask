@@ -1,6 +1,5 @@
 //! Self-healing helper functions — env value resolution and LLM response parsing.
 
-use std::path::PathBuf;
 use std::process::Command;
 
 use super::types::{EnvValueSource, HealInstruction};

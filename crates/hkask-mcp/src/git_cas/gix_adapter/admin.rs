@@ -1,8 +1,8 @@
 //! Admin-level operations — resolve_ref, diff (not part of GitCASPort).
 
-use super::{GixCasAdapter, commit_tree_oid, collect_paths, oid_to_commit_hash, spawn_blocking_io};
+use super::tree::{collect_paths, commit_tree_oid};
+use super::{GixCasAdapter, oid_to_commit_hash, spawn_blocking_io};
 use hkask_ports::git_cas::{CommitHash, DiffKind, FileDiff, GitCasError, RepoId};
-use std::path::Path;
 
 impl GixCasAdapter {
     /// Resolve a symbolic ref (branch, tag) to a commit SHA.
@@ -55,8 +55,10 @@ impl GixCasAdapter {
             let from_tree = commit_tree_oid(&repo, &from_id.detach())?;
             let to_tree = commit_tree_oid(&repo, &to_id.detach())?;
 
-            let mut from_paths = std::collections::BTreeMap::new();
-            let mut to_paths = std::collections::BTreeMap::new();
+            let mut from_paths: std::collections::BTreeMap<String, gix::ObjectId> =
+                std::collections::BTreeMap::new();
+            let mut to_paths: std::collections::BTreeMap<String, gix::ObjectId> =
+                std::collections::BTreeMap::new();
             collect_paths(&repo, &from_tree, "", &mut from_paths)?;
             collect_paths(&repo, &to_tree, "", &mut to_paths)?;
 

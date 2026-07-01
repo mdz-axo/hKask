@@ -4,8 +4,6 @@
 //! 2-letter provider prefix in the model name. Unprefixed model names
 //! use the configured default provider.
 
-use crate::RouterModelEntry;
-use crate::chat_protocol::validate_prompt;
 use crate::config::{FusionConfig, InferenceConfig, ProviderId};
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::embedding_router::EmbeddingRouter;
@@ -13,11 +11,8 @@ use crate::fal_backend::FalBackend;
 use crate::kilocode_backend::KiloCodeBackend;
 use crate::openrouter_backend::OpenRouterBackend;
 use crate::together_backend::TogetherBackend;
-use hkask_ports::{
-    ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
-};
+use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::template::LLMParameters;
-use std::pin::Pin;
 use std::sync::Arc;
 use tracing::warn;
 
