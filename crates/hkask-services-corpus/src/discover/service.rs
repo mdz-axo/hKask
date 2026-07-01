@@ -2,11 +2,10 @@
 
 use super::llm::{extract_concepts, infer_methods};
 use super::search::{mcp_search, search_youtube_transcripts};
-use super::types::{DiscoveredWork, USER_AGENT};
+use super::types::DiscoveredWork;
 use super::utils::{extract_search_terms, slugify};
 use crate::embed::EntityConfig;
 use hkask_capability::DelegationToken;
-use hkask_ports::InferencePort;
 use hkask_services_core::ServiceError;
 use hkask_templates::ports::McpPort;
 use std::path::PathBuf;

@@ -10,16 +10,8 @@ use hkask_agents::consent::ConsentManager;
 use hkask_cns::CyberneticsLoop;
 use hkask_storage::WalletStore;
 use hkask_types::event::NuEventSink;
-#[cfg(test)]
-use hkask_wallet::GAS_PER_RJOULE;
-#[cfg(test)]
-use hkask_wallet::price_feed::StaticPriceFeed;
-use hkask_wallet::{
-    ApiKeyIssuer, WalletManager,
-};
-use hkask_wallet::{
-    ChainId, WalletConfig,
-};
+use hkask_wallet::{ApiKeyIssuer, WalletManager};
+use hkask_wallet::{ChainId, WalletConfig};
 use tokio::sync::RwLock;
 
 use hkask_services_core::ServiceError;
@@ -155,11 +147,12 @@ impl WalletService {
         }
 
         // ── Resolve price feed ──────────────────────────────────────────
-        let price_feed =
-            hkask_wallet::resolve_price_feed(&config.price_feed).map_err(|e| ServiceError::Wallet {
+        let price_feed = hkask_wallet::resolve_price_feed(&config.price_feed).map_err(|e| {
+            ServiceError::Wallet {
                 source: Some(Box::new(e)),
                 message: "Failed to resolve price feed".into(),
-            })?;
+            }
+        })?;
 
         // ── Build WalletManager ──────────────────────────────────────────
         let manager = Arc::new(

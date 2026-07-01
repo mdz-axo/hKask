@@ -426,10 +426,10 @@ impl CuratorServer {
             let since = chrono::Utc::now() - chrono::Duration::seconds(window_secs as i64);
 
             let tokens = if let Some(ref issuer) = req.issuer {
-                let wid = WebID::from_string(issuer);
+                let wid: WebID = issuer.parse().unwrap_or_default();
                 registry.query_by_issuer(&wid, since)
             } else if let Some(ref recipient) = req.recipient {
-                let wid = WebID::from_string(recipient);
+                let wid: WebID = recipient.parse().unwrap_or_default();
                 registry.query_by_recipient(&wid, since)
             } else {
                 registry.query_all(since)
@@ -496,6 +496,7 @@ pub async fn run(
                 nu_event_store,
                 episodic,
                 semantic,
+                token_registry: None,
             })
         },
         vec![

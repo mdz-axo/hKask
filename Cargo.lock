@@ -4075,6 +4075,7 @@ dependencies = [
  "chrono",
  "hkask-bridge-dublincore",
  "hkask-bridge-pko",
+ "hkask-capability",
  "hkask-mcp",
  "hkask-memory",
  "hkask-services-curator",

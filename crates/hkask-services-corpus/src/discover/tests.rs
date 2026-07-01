@@ -1,6 +1,5 @@
 use super::*;
 use super::config::default_corpus_config;
-use super::llm::extract_concepts;
 use super::utils::{extract_search_terms, slugify};
 
 // ── slugify ─────────────────────────────────────────────────────────

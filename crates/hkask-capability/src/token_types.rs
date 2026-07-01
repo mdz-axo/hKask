@@ -30,7 +30,7 @@ fn wid(w: &WebID) -> String {
 
 /// Additive restrictions on a capability token.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub(crate) struct Caveat {
+pub struct Caveat {
     pub caveat_id: String,
     pub data: String,
 }
@@ -64,7 +64,7 @@ pub struct DelegationToken {
     pub attenuation_level: u8,
     pub max_attenuation: u8,
     pub context_nonce: String,
-    pub(crate) caveats: Vec<Caveat>,
+    pub caveats: Vec<Caveat>,
 }
 
 /// Internal signing payload extracted from builder state.

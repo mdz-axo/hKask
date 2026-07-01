@@ -8,6 +8,8 @@ use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use hkask_types::id::WalletId;
+use hkask_wallet::GAS_PER_RJOULE;
+use hkask_wallet::price_feed::StaticPriceFeed;
 use hkask_wallet::{ApiKeyIssuer, PriceFeed, WalletManager};
 use hkask_wallet::{
     ChainId, ChainPort, DepositEvent, ExchangeRate, PrivacyMode, RJoule, TxHash, WalletConfig,

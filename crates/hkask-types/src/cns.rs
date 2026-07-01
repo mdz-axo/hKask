@@ -235,6 +235,28 @@ pub enum CnsSpan {
     SovereigntyPortabilityFailure,
     /// Sovereignty governance transparency report generated.
     SovereigntyGovernanceReport,
+    /// Platform metric — generic platform-as-product measurement.
+    PlatformMetric,
+    /// DORA: skill deployment frequency per user.
+    DoraDeployFreq,
+    /// DORA: skill lead time (manifest → dispatch) per user.
+    DoraLeadTime,
+    /// DORA: skill change failure rate per user.
+    DoraChangeFailRate,
+    /// DORA: skill mean time to recovery per user.
+    DoraMttr,
+    /// SPACE: developer satisfaction score.
+    SpaceSatisfaction,
+    /// SPACE: skill quality score.
+    SpacePerformance,
+    /// SPACE: creation activity volume.
+    SpaceActivity,
+    /// SPACE: collaboration score.
+    SpaceCommunication,
+    /// SPACE: flow/efficiency score.
+    SpaceEfficiency,
+    /// Loyalty score — composite of all loyalty dimensions.
+    LoyaltyScore,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -444,6 +466,17 @@ impl CnsSpan {
             CnsSpan::SovereigntyPortabilityVerified => "cns.sovereignty.portability_verified",
             CnsSpan::SovereigntyPortabilityFailure => "cns.sovereignty.portability_failure",
             CnsSpan::SovereigntyGovernanceReport => "cns.sovereignty.governance_report",
+            CnsSpan::PlatformMetric => "cns.platform.metric",
+            CnsSpan::DoraDeployFreq => "cns.platform.metric.dora.deploy_freq",
+            CnsSpan::DoraLeadTime => "cns.platform.metric.dora.lead_time",
+            CnsSpan::DoraChangeFailRate => "cns.platform.metric.dora.change_fail_rate",
+            CnsSpan::DoraMttr => "cns.platform.metric.dora.mttr",
+            CnsSpan::SpaceSatisfaction => "cns.platform.metric.space.satisfaction",
+            CnsSpan::SpacePerformance => "cns.platform.metric.space.performance",
+            CnsSpan::SpaceActivity => "cns.platform.metric.space.activity",
+            CnsSpan::SpaceCommunication => "cns.platform.metric.space.communication",
+            CnsSpan::SpaceEfficiency => "cns.platform.metric.space.efficiency",
+            CnsSpan::LoyaltyScore => "cns.platform.metric.loyalty",
         }
     }
 }
@@ -588,6 +621,17 @@ impl std::str::FromStr for CnsSpan {
             "cns.sovereignty.portability_verified" => Ok(CnsSpan::SovereigntyPortabilityVerified),
             "cns.sovereignty.portability_failure" => Ok(CnsSpan::SovereigntyPortabilityFailure),
             "cns.sovereignty.governance_report" => Ok(CnsSpan::SovereigntyGovernanceReport),
+            "cns.platform.metric" => Ok(CnsSpan::PlatformMetric),
+            "cns.platform.metric.dora.deploy_freq" => Ok(CnsSpan::DoraDeployFreq),
+            "cns.platform.metric.dora.lead_time" => Ok(CnsSpan::DoraLeadTime),
+            "cns.platform.metric.dora.change_fail_rate" => Ok(CnsSpan::DoraChangeFailRate),
+            "cns.platform.metric.dora.mttr" => Ok(CnsSpan::DoraMttr),
+            "cns.platform.metric.space.satisfaction" => Ok(CnsSpan::SpaceSatisfaction),
+            "cns.platform.metric.space.performance" => Ok(CnsSpan::SpacePerformance),
+            "cns.platform.metric.space.activity" => Ok(CnsSpan::SpaceActivity),
+            "cns.platform.metric.space.communication" => Ok(CnsSpan::SpaceCommunication),
+            "cns.platform.metric.space.efficiency" => Ok(CnsSpan::SpaceEfficiency),
+            "cns.platform.metric.loyalty" => Ok(CnsSpan::LoyaltyScore),
             _ => Err(()),
         }
     }
@@ -634,7 +678,7 @@ pub struct SloDefinition {
 }
 
 /// Result of evaluating a single SLO at a point in time.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SloEvaluation {
     /// The SLO being evaluated
     pub slo_id: String,
@@ -994,6 +1038,17 @@ mod cns_span_tests {
             CnsSpan::SovereigntyPortabilityVerified,
             CnsSpan::SovereigntyPortabilityFailure,
             CnsSpan::SovereigntyGovernanceReport,
+            CnsSpan::PlatformMetric,
+            CnsSpan::DoraDeployFreq,
+            CnsSpan::DoraLeadTime,
+            CnsSpan::DoraChangeFailRate,
+            CnsSpan::DoraMttr,
+            CnsSpan::SpaceSatisfaction,
+            CnsSpan::SpacePerformance,
+            CnsSpan::SpaceActivity,
+            CnsSpan::SpaceCommunication,
+            CnsSpan::SpaceEfficiency,
+            CnsSpan::LoyaltyScore,
         ];
         // Round-trip test: Display → FromStr → Display must be identity
         for variant in &all_variants {
@@ -1020,8 +1075,8 @@ mod cns_span_tests {
         // Assert count matches enum variant count (CnsSpan has ~73 variants).
         // If this fails, a new CnsSpan variant was added without updating this test.
         assert!(
-            all_variants.len() >= 78,
-            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥78)",
+            all_variants.len() >= 90,
+            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥90)",
             all_variants.len()
         );
     }

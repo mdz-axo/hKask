@@ -13,6 +13,7 @@ hkask-memory = { path = "../../crates/hkask-memory" }
 hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
 hkask-services-curator = { path = "../../crates/hkask-services-curator" }
+hkask-capability = { path = "../../crates/hkask-capability" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true

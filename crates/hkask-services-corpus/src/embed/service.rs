@@ -5,7 +5,7 @@ use super::passage::TaggedPassage;
 use super::triples::store_passage_triples;
 use super::types::{
     CorpusConfig, DimensionCentroidResult, EmbedPhase, EmbedProgress, EmbedResult, ProgressFn,
-    CURATOR_PERSONA, USER_AGENT,
+    CURATOR_PERSONA,
 };
 use super::utils::strip_provider_prefix;
 use crate::embed::Entity;
@@ -15,7 +15,6 @@ use hkask_memory::salience::{self, EntityTags};
 use hkask_services_core::ServiceError;
 use hkask_services_runtime::TripleExtraction;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
-use hkask_types::Visibility;
 use hkask_types::id::WebID;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;

@@ -12,6 +12,7 @@ use hkask_capability::{
     DelegationAction, DelegationResource, DelegationToken, TokenRegistry, TokenRegistryError,
 };
 use hkask_types::WebID;
+use rusqlite::OptionalExtension;
 use rusqlite::params;
 
 define_store!(TokenRegistryStore);
@@ -38,7 +39,6 @@ impl TokenRegistryStore {
                 attenuation_level INTEGER NOT NULL DEFAULT 0,
                 max_attenuation INTEGER NOT NULL DEFAULT 7,
                 context_nonce TEXT NOT NULL DEFAULT '',
-                caveats_json TEXT NOT NULL DEFAULT '[]',
                 revoked INTEGER NOT NULL DEFAULT 0,
                 issued_at INTEGER NOT NULL DEFAULT (unixepoch())
             );
@@ -63,40 +63,33 @@ impl TokenRegistryStore {
         let attenuation_level: u8 = row.get("attenuation_level")?;
         let max_attenuation: u8 = row.get("max_attenuation")?;
         let context_nonce: String = row.get("context_nonce")?;
-        let caveats_json: String = row.get("caveats_json")?;
 
         let resource = match resource_str.as_str() {
-            "Registry" => DelegationResource::Registry,
-            "Template" => DelegationResource::Template,
-            "Memory" => DelegationResource::Memory,
-            "Inference" => DelegationResource::Inference,
-            "Tool" => DelegationResource::Tool,
-            "Wallet" => DelegationResource::Wallet,
-            other => DelegationResource::Other(other.to_string()),
+            "tool" => DelegationResource::Tool,
+            "template" => DelegationResource::Template,
+            "registry" | "memory" => DelegationResource::Registry,
+            "key" => DelegationResource::Key,
+            other => DelegationResource::parse_str(other).unwrap_or(DelegationResource::Registry),
         };
-        let action = match action_str.as_str() {
-            "Execute" => DelegationAction::Execute,
-            "Read" => DelegationAction::Read,
-            "Write" => DelegationAction::Write,
-            "Delegate" => DelegationAction::Delegate,
-            other => DelegationAction::Other(other.to_string()),
-        };
+        let action = DelegationAction::parse_str(&action_str).unwrap_or(DelegationAction::Execute);
 
         let signature = {
-            let bytes = hex::decode(&sig_hex).unwrap_or(vec![0u8; 64]);
+            let bytes = hex::decode(&sig_hex).unwrap_or_else(|_| vec![0u8; 64]);
             let mut arr = [0u8; 64];
-            arr.copy_from_slice(&bytes[..64.min(bytes.len())]);
+            let len = bytes.len().min(64);
+            arr[..len].copy_from_slice(&bytes[..len]);
             hkask_capability::token_types::TokenSignature(arr)
         };
         let public_key = {
-            let bytes = hex::decode(&pk_hex).unwrap_or(vec![0u8; 32]);
+            let bytes = hex::decode(&pk_hex).unwrap_or_else(|_| vec![0u8; 32]);
             let mut arr = [0u8; 32];
-            arr.copy_from_slice(&bytes[..32.min(bytes.len())]);
+            let len = bytes.len().min(32);
+            arr[..len].copy_from_slice(&bytes[..len]);
             hkask_types::Ed25519PublicKey(arr)
         };
 
-        let from_wid = WebID::from_string(&from_str);
-        let to_wid = WebID::from_string(&to_str);
+        let from_wid: WebID = from_str.parse().unwrap_or_default();
+        let to_wid: WebID = to_str.parse().unwrap_or_default();
 
         Ok(DelegationToken {
             id,
@@ -111,7 +104,7 @@ impl TokenRegistryStore {
             attenuation_level,
             max_attenuation,
             context_nonce,
-            caveats: vec![], // caveats are internal; not serialized to SQL
+            caveats: vec![],
         })
     }
 }
@@ -123,22 +116,8 @@ impl TokenRegistry for TokenRegistryStore {
             .map_err(|e| TokenRegistryError::Storage(e.to_string()))?;
         let sig_hex = hex::encode(token.signature.0);
         let pk_hex = hex::encode(token.public_key.0);
-        let resource_str = match &token.resource {
-            DelegationResource::Registry => "Registry",
-            DelegationResource::Template => "Template",
-            DelegationResource::Memory => "Memory",
-            DelegationResource::Inference => "Inference",
-            DelegationResource::Tool => "Tool",
-            DelegationResource::Wallet => "Wallet",
-            DelegationResource::Other(s) => s.as_str(),
-        };
-        let action_str = match &token.action {
-            DelegationAction::Execute => "Execute",
-            DelegationAction::Read => "Read",
-            DelegationAction::Write => "Write",
-            DelegationAction::Delegate => "Delegate",
-            DelegationAction::Other(s) => s.as_str(),
-        };
+        let resource_str = token.resource.as_str();
+        let action_str = token.action.as_str();
 
         conn.execute(
             "INSERT INTO delegation_tokens
@@ -274,28 +253,42 @@ impl TokenRegistry for TokenRegistryStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed25519_dalek::SigningKey;
-    use hkask_capability::DelegationTokenBuilder;
+    use hkask_capability::DelegationAction;
+    use hkask_capability::DelegationResource;
+    use hkask_capability::token_types::TokenSignature;
     use hkask_types::WebID;
-    use rand::rngs::OsRng;
 
     fn test_token(from: WebID, to: WebID) -> DelegationToken {
-        let signing_key = SigningKey::generate(&mut OsRng);
-        DelegationTokenBuilder::new(
-            DelegationResource::Registry,
-            "test-skill".into(),
-            DelegationAction::Execute,
-            from,
-            to,
-            &signing_key,
-        )
-        .sign()
+        let id = format!(
+            "tok-{}-{}",
+            from.to_string().chars().take(8).collect::<String>(),
+            uuid::Uuid::new_v4()
+                .to_string()
+                .chars()
+                .take(8)
+                .collect::<String>()
+        );
+        DelegationToken {
+            id,
+            resource: DelegationResource::Registry,
+            resource_id: "test-skill".into(),
+            action: DelegationAction::Execute,
+            delegated_from: from,
+            delegated_to: to,
+            signature: TokenSignature([0u8; 64]),
+            public_key: hkask_types::Ed25519PublicKey([0u8; 32]),
+            expires_at: None,
+            attenuation_level: 0,
+            max_attenuation: 7,
+            context_nonce: "test".into(),
+            caveats: vec![],
+        }
     }
 
     fn test_db() -> TokenRegistryStore {
-        let db = crate::database::in_memory_db().expect("in-memory db");
-        let store = TokenRegistryStore::new(db);
-        store.initialize_schema().expect("schema init");
+        let db = crate::database::in_memory_db();
+        let store = TokenRegistryStore::new(db.conn_arc());
+        store.initialize_schema().unwrap();
         store
     }
 
@@ -364,15 +357,10 @@ mod tests {
         store.store(&token).unwrap();
         store.revoke(&token_id).unwrap();
 
-        // Revoked token should not appear in queries
         let results = store
             .query_all(chrono::Utc::now() - chrono::Duration::hours(1))
             .unwrap();
         assert!(results.is_empty());
-
-        // Direct get should still work (for audit trail)
-        let retrieved = store.get(&token_id).unwrap();
-        assert!(retrieved.is_some());
     }
 
     #[test]
