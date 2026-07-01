@@ -881,7 +881,7 @@ pub async fn run(
         "hkask-mcp-memory",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::server::ServerContext| {
-            Ok((|| -> anyhow::Result<MemoryServer> {
+            (|| -> anyhow::Result<MemoryServer> {
                 // Use the standard per-agent memory DB path when not explicitly set.
                 // This ensures each agent's memory goes to agents/{name}/memory.db
                 // alongside their pod.db, making the agent directory self-contained.
@@ -930,7 +930,7 @@ pub async fn run(
             .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                 context: "memory server init".into(),
                 detail: e.to_string(),
-            })?)
+            })
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

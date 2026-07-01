@@ -981,7 +981,7 @@ pub async fn run(
         "hkask-mcp-media",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            Ok(MediaServer::new(
+            MediaServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
@@ -992,7 +992,7 @@ pub async fn run(
                 .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                     context: "media server init".into(),
                     detail: e.to_string(),
-                })?)
+                })
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

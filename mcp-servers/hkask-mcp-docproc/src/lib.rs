@@ -966,7 +966,7 @@ pub async fn run(
 
             let embedding_router = EmbeddingRouter::new(inference_config.clone());
 
-            Ok(DocProcServer::new(
+            DocProcServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
@@ -978,7 +978,7 @@ pub async fn run(
                 .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                     context: "docproc server init".into(),
                     detail: e.to_string(),
-                })?)
+                })
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

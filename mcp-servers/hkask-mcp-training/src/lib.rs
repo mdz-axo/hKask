@@ -2803,7 +2803,7 @@ pub async fn run(
         "hkask-mcp-training",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            Ok((|| -> anyhow::Result<TrainingServer> {
+            (|| -> anyhow::Result<TrainingServer> {
                 let db_path = ctx
                     .credentials
                     .get("HKASK_TRAINING_DB")
@@ -2890,7 +2890,7 @@ pub async fn run(
                 .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                     context: "training server init".into(),
                     detail: e.to_string(),
-                })?)
+                })
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

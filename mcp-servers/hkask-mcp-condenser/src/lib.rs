@@ -539,7 +539,7 @@ pub async fn run(
         "hkask-mcp-condenser",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            Ok((|| -> anyhow::Result<CondenserServer> {
+            (|| -> anyhow::Result<CondenserServer> {
                 let episodic = {
                     let db_path = ctx
                         .credentials
@@ -588,7 +588,7 @@ pub async fn run(
             .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                 context: "condenser server init".into(),
                 detail: e.to_string(),
-            })?)
+            })
         },
         vec![],
     )

@@ -147,7 +147,7 @@ impl OnboardingSession {
             let _ = std::io::stdout().flush();
             let confirm = crate::onboarding::read_line().unwrap_or_default();
             if confirm.trim().to_lowercase().starts_with('y') {
-                OnboardingService::remove_orphaned_db(&pre_config);
+                let _ = OnboardingService::remove_orphaned_db(&pre_config);
                 eprintln!("  Removed orphaned database.");
             } else {
                 eprintln!("  Keeping existing database. Setup will use it if compatible.");

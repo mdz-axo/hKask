@@ -253,7 +253,7 @@ pub async fn run(
         "hkask-mcp-skill",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
-            Ok({
+            {
                 let webid = ctx.webid;
                 let mut server = SkillServer::new(
                     webid,
@@ -273,7 +273,7 @@ pub async fn run(
             .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                 context: "skill server init".into(),
                 detail: e.to_string(),
-            })?)
+            })
         },
         vec![],
     )

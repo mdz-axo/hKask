@@ -1004,7 +1004,7 @@ pub async fn run(
         "hkask-mcp-kata-kanban",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
-            Ok((|| -> anyhow::Result<KanbanServer> {
+            (|| -> anyhow::Result<KanbanServer> {
                 // Use the standard per-agent kanban DB path when not explicitly set.
                 let kanban_db_path = ctx
                     .credentials
@@ -1061,7 +1061,7 @@ pub async fn run(
             .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                 context: "kanban server init".into(),
                 detail: e.to_string(),
-            })?)
+            })
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

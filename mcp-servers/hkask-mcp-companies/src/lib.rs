@@ -435,7 +435,7 @@ pub async fn run(
             let exa_api_key = ctx.credentials.get("HKASK_EXA_API_KEY").cloned();
             let tavily_api_key = ctx.credentials.get("HKASK_TAVILY_API_KEY").cloned();
             let brave_api_key = ctx.credentials.get("HKASK_BRAVE_API_KEY").cloned();
-            Ok(CompaniesServer::new(
+            CompaniesServer::new(
                 ctx.webid,
                 replicant.clone(),
                 daemon_client.clone(),
@@ -448,7 +448,7 @@ pub async fn run(
             .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
                 context: "companies server init".into(),
                 detail: e.to_string(),
-            })?)
+            })
         },
         vec![
             hkask_mcp::CredentialRequirement::required(
