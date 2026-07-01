@@ -685,6 +685,8 @@ The ultimate move: create a hKask agent that continuously audits and improves th
 
 ### 11.1 Replicant Definition
 
+The Platform Engineer replicant is defined by the `skill-bundler` manifest in §4.3. The replicant YAML mirrors that bundle, with the addition of the 10 new platform-specific skills that must be developed as FlowDef manifests before the replicant can execute them:
+
 ```yaml
 agent:
   name: Platform Engineer
@@ -692,29 +694,55 @@ agent:
 charter:
   description: >
     Maintains platform health through continuous SLO monitoring,
-    architectural audit, and actionable recommendations.
-    Never modifies code or configuration without human approval (P2).
+    architectural audit, contract verification, DORA/SPACE skill
+    delivery measurement, loyalty scoring, and actionable
+    recommendations. Never modifies code or configuration without
+    human approval (P2).
 capabilities:
-  - semantic-graph-audit      # Crate dependency health
-  - deep-module               # Public surface audit
-  - pragmatic-cybernetics     # Feedback loop health
-  - bug-hunt                  # Platform reliability expedition
-  - diagnose                  # SLO breach root cause analysis
-  - improve-codebase-architecture  # Deepening opportunities
-  - mcda                      # Prioritize interventions
-  - superforecasting          # Risk forecasting
-  - handoff                   # Continuity between cycles
+  # Existing hKask skills (available now)
+  - semantic-graph-audit
+  - deep-module
+  - pragmatic-cybernetics
+  - bug-hunt
+  - diagnose
+  - improve-codebase-architecture
+  - mcda
+  - superforecasting
+  - handoff
+  - adversarial-red-team
+  - scenario-builder
+
+  # New skills to develop (proposed in §4.2)
+  - platform-slo-evaluator        # DORA: SLO compliance → error budgets
+  - platform-contract-auditor      # CI: trait ↔ impl drift detection
+  - platform-health-scorer         # Aggregate: 0.0-1.0 health score
+  - platform-dx-analyzer           # DORA + SPACE: skill delivery metrics
+  - platform-wardley-mapper        # Strategy: component evolution map
+  - platform-bulkhead-auditor      # Resilience: blast radius analysis
+  - platform-consent-auditor       # Sovereignty: DelegationToken audit
+  - platform-portability-verifier  # Sovereignty: export/import integrity
+  - platform-governance-transparency-reporter  # Governance: decision log
+  - platform-loyalty-scorecard     # Ultimate: loyalty score + trend
 ```
 
 ### 11.2 Operating Cadence
 
 | Frequency | Activity | Skills | Output |
 |-----------|----------|--------|--------|
-| **Daily** | CNS SLO check — are any error budgets burning? | pragmatic-cybernetics | SLO health dashboard update |
-| **Weekly** | Dependency graph audit — any new cycles, orphans, drift? | semantic-graph-audit | Dependency health report |
-| **Monthly** | Full platform audit — deep-module review, bug hunt expedition | deep-module + bug-hunt | Platform health score + prioritized recommendations |
+| **Daily** | SLO evaluation — are any error budgets burning? | platform-slo-evaluator + pragmatic-cybernetics | SLO health dashboard update, breach alerts |
+| **Daily** | Contract drift check — any trait mismatches detected? | platform-contract-auditor | Contract violation report |
+| **Weekly** | Dependency graph audit — any new cycles, orphans? | semantic-graph-audit | Dependency health report |
+| **Weekly** | Consent audit — any anomalous DelegationTokens? | platform-consent-auditor | Consent audit report, anomaly alerts |
+| **Monthly** | Full platform audit — deep-module review, bug hunt, bulkheads | deep-module + bug-hunt + platform-bulkhead-auditor | Platform health score + prioritized recommendations |
+| **Monthly** | DORA/SPACE assessment — skill delivery performance per user | platform-dx-analyzer | DORA cluster classification, SPACE scores, regression alerts |
+| **Monthly** | Portability verification — can user data be fully exported? | platform-portability-verifier | Portability verification report |
+| **Monthly** | Governance transparency — what decisions were made? | platform-governance-transparency-reporter | Governance decision log |
+| **Monthly** | Loyalty scorecard — aggregate all dimensions | platform-loyalty-scorecard | Loyalty score (0.0-1.0) + trend |
+| **Quarterly** | Strategic mapping — Wardley Map update, scenario planning, risk forecasting | platform-wardley-mapper + scenario-builder + superforecasting | Wardley Map artifact, scenario narratives, calibrated forecasts |
 | **On Alert** | SLO breach diagnosis | diagnose | Root cause analysis + proposed remediation |
-| **On Demand** | User-requested review ("audit crate X") | improve-codebase-architecture | Targeted refactoring proposal |
+| **On Demand** | Targeted refactoring proposal | improve-codebase-architecture | Deepening opportunity report |
+| **On Demand** | Prioritize competing interventions | mcda | Ranked recommendations with sensitivity analysis |
+| **Per Cycle** | Session handoff — what was done, what remains | handoff | Handoff document for next cycle |
 
 ### 11.3 OCAP Boundaries
 
@@ -760,11 +788,16 @@ New CNS spans:
 
 | Phase | What | Duration Est. | Prerequisites |
 |-------|------|--------------|---------------|
-| **Phase 1** | SloDefinition type + CNS integration + 3 seed SLOs (INF-001, SKL-001, API-001) | 2-3 PDCA cycles | None |
-| **Phase 2** | Error budget tracking + algedonic SLO breach escalation | 2 PDCA cycles | Phase 1 |
-| **Phase 3** | PaaP metric definitions + CNS spans + API | 2 PDCA cycles | Phase 1 |
-| **Phase 4** | Platform Engineer replicant definition + OCAP boundaries + basic audit skills | 3 PDCA cycles | Phase 1+2+3 |
-| **Phase 5** | Full replicant operating cadence (daily/weekly/monthly) | 2 PDCA cycles | Phase 4 |
+| **Phase 1** | SloDefinition type + 3 seed SLOs + CNS span `cns.slo.evaluated` (✅ Done) | 2-3 PDCA cycles | None |
+| **Phase 2** | Error budget tracking + algedonic SLO breach escalation + `platform-slo-evaluator` FlowDef | 2 PDCA cycles | Phase 1 |
+| **Phase 3** | PaaP metric definitions + CNS spans + API + 6 metric CNS spans | 2 PDCA cycles | Phase 1 |
+| **Phase 4** | DORA/SPACE CNS spans (9 spans for `cns.platform.metric.dora.*` and `cns.platform.metric.space.*`) + `platform-dx-analyzer` FlowDef | 2 PDCA cycles | Phase 1 |
+| **Phase 5** | Platform Engineer replicant definition + OCAP boundaries + basic audit skills (semantic-graph-audit, deep-module, bug-hunt) | 3 PDCA cycles | Phase 1+2+3 |
+| **Phase 6** | Sovereignty skills: `platform-consent-auditor`, `platform-portability-verifier`, `platform-governance-transparency-reporter` | 3 PDCA cycles | Phase 5 |
+| **Phase 7** | Strategic skills: `platform-wardley-mapper`, `platform-loyalty-scorecard`, `platform-health-scorer`, `platform-bulkhead-auditor` | 3 PDCA cycles | Phase 5 |
+| **Phase 8** | Full replicant operating cadence (daily/weekly/monthly/quarterly) + loyalty feedback loop closed | 2 PDCA cycles | Phase 5+6+7 |
+
+**Total:** 19–23 PDCA cycles to full implementation.
 
 ---
 
@@ -772,11 +805,16 @@ New CNS spans:
 
 | Criterion | Measurement | Target |
 |-----------|------------|--------|
-| SLOs are defined and tracked | SloEvaluation counts in CNS | ≥9 SLOs active within 30 days of Phase 1 start |
+| SLOs are defined and tracked | `cns.slo.evaluated` span count | ≥9 SLOs active within 30 days of Phase 1 start |
 | Error budgets inform decisions | % of SLO breaches that trigger an intervention | >80% within 60 days |
 | Platform metrics are measurable | PaaP metric CNS spans emitted | All 6 metrics emitting within 30 days of Phase 3 start |
-| Platform Engineer replicant is active | cns.platform.audit.* spans | Weekly audits running within 30 days of Phase 4 start |
+| DORA metrics are tracked per user | `cns.platform.metric.dora.*` spans | All 4 DORA metrics emitting within 30 days of Phase 4 start |
+| SPACE dimensions are tracked per user | `cns.platform.metric.space.*` spans | All 5 SPACE dimensions emitting within 30 days of Phase 4 start |
+| Platform Engineer replicant is active | `cns.platform.audit.*` spans | Weekly audits running within 30 days of Phase 5 start |
 | Replicant recommendations are actionable | Acceptance rate of recommendations | >60% acceptance within 90 days |
+| DORA elite cluster achieved | % of skill authors in Elite or High DORA cluster | >50% within 180 days of Phase 4 start |
+| Loyalty scorecard is operational | `cns.platform.metric.loyalty` span count | Monthly loyalty scores emitting within 30 days of Phase 7 start |
+| Loyalty score trend is positive | Loyalty score month-over-month delta | >0.0 (improving) for 3 consecutive months after Phase 8 |
 
 ---
 
