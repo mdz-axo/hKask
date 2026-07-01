@@ -656,6 +656,10 @@ impl SelfHealer {
                         modifications: vec![],
                     });
                 }
+                // SAFETY: set_var is unsafe due to potential data races. This
+                // runs during startup self-healing (single-threaded), before the
+                // multi-threaded runtime and MCP servers begin. No concurrent env
+                // access is possible at this point.
                 unsafe { std::env::set_var(key, &value) };
                 tracing::info!(target: "cns.heal.set_env", key = %key);
                 Ok(ActionResult {

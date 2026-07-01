@@ -225,6 +225,16 @@ pub enum CnsSpan {
     MediaFaceDetection,
     /// SLO evaluation cycle — compliance, error budget, burn rate.
     SloEvaluated,
+    /// Sovereignty consent audit completed — DelegationToken audit report generated.
+    SovereigntyConsentAudited,
+    /// Sovereignty consent anomaly detected — stale token, orphaned consent, scope violation.
+    SovereigntyConsentAnomaly,
+    /// Sovereignty portability verified — backup export integrity confirmed.
+    SovereigntyPortabilityVerified,
+    /// Sovereignty portability failure — backup export failed integrity checks.
+    SovereigntyPortabilityFailure,
+    /// Sovereignty governance transparency report generated.
+    SovereigntyGovernanceReport,
 }
 
 /// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
@@ -425,6 +435,11 @@ impl CnsSpan {
             CnsSpan::Storage => "cns.storage",
             CnsSpan::MediaFaceDetection => "cns.mcp.media.face",
             CnsSpan::SloEvaluated => "cns.slo.evaluated",
+            CnsSpan::SovereigntyConsentAudited => "cns.sovereignty.consent_audited",
+            CnsSpan::SovereigntyConsentAnomaly => "cns.sovereignty.consent_anomaly",
+            CnsSpan::SovereigntyPortabilityVerified => "cns.sovereignty.portability_verified",
+            CnsSpan::SovereigntyPortabilityFailure => "cns.sovereignty.portability_failure",
+            CnsSpan::SovereigntyGovernanceReport => "cns.sovereignty.governance_report",
         }
     }
 }
@@ -564,6 +579,11 @@ impl std::str::FromStr for CnsSpan {
             "cns.storage" => Ok(CnsSpan::Storage),
             "cns.mcp.media.face" => Ok(CnsSpan::MediaFaceDetection),
             "cns.slo.evaluated" => Ok(CnsSpan::SloEvaluated),
+            "cns.sovereignty.consent_audited" => Ok(CnsSpan::SovereigntyConsentAudited),
+            "cns.sovereignty.consent_anomaly" => Ok(CnsSpan::SovereigntyConsentAnomaly),
+            "cns.sovereignty.portability_verified" => Ok(CnsSpan::SovereigntyPortabilityVerified),
+            "cns.sovereignty.portability_failure" => Ok(CnsSpan::SovereigntyPortabilityFailure),
+            "cns.sovereignty.governance_report" => Ok(CnsSpan::SovereigntyGovernanceReport),
             _ => Err(()),
         }
     }
@@ -926,6 +946,12 @@ mod cns_span_tests {
             CnsSpan::BackupUpload,
             CnsSpan::Storage,
             CnsSpan::MediaFaceDetection,
+            CnsSpan::SloEvaluated,
+            CnsSpan::SovereigntyConsentAudited,
+            CnsSpan::SovereigntyConsentAnomaly,
+            CnsSpan::SovereigntyPortabilityVerified,
+            CnsSpan::SovereigntyPortabilityFailure,
+            CnsSpan::SovereigntyGovernanceReport,
         ];
         // Round-trip test: Display → FromStr → Display must be identity
         for variant in &all_variants {
@@ -952,8 +978,8 @@ mod cns_span_tests {
         // Assert count matches enum variant count (CnsSpan has ~73 variants).
         // If this fails, a new CnsSpan variant was added without updating this test.
         assert!(
-            all_variants.len() >= 72,
-            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥71)",
+            all_variants.len() >= 78,
+            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected ≥78)",
             all_variants.len()
         );
     }

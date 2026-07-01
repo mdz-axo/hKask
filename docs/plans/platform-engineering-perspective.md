@@ -786,18 +786,26 @@ New CNS spans:
 
 ### 12.3 Implementation Sequence
 
-| Phase | What | Duration Est. | Prerequisites |
-|-------|------|--------------|---------------|
-| **Phase 1** | SloDefinition type + 3 seed SLOs + CNS span `cns.slo.evaluated` (✅ Done) | 2-3 PDCA cycles | None |
-| **Phase 2** | Error budget tracking + algedonic SLO breach escalation + `platform-slo-evaluator` FlowDef | 2 PDCA cycles | Phase 1 |
-| **Phase 3** | PaaP metric definitions + CNS spans + API + 6 metric CNS spans | 2 PDCA cycles | Phase 1 |
-| **Phase 4** | DORA/SPACE CNS spans (9 spans for `cns.platform.metric.dora.*` and `cns.platform.metric.space.*`) + `platform-dx-analyzer` FlowDef | 2 PDCA cycles | Phase 1 |
-| **Phase 5** | Platform Engineer replicant definition + OCAP boundaries + basic audit skills (semantic-graph-audit, deep-module, bug-hunt) | 3 PDCA cycles | Phase 1+2+3 |
-| **Phase 6** | Sovereignty skills: `platform-consent-auditor`, `platform-portability-verifier`, `platform-governance-transparency-reporter` | 3 PDCA cycles | Phase 5 |
-| **Phase 7** | Strategic skills: `platform-wardley-mapper`, `platform-loyalty-scorecard`, `platform-health-scorer`, `platform-bulkhead-auditor` | 3 PDCA cycles | Phase 5 |
-| **Phase 8** | Full replicant operating cadence (daily/weekly/monthly/quarterly) + loyalty feedback loop closed | 2 PDCA cycles | Phase 5+6+7 |
+| Phase | What | Duration Est. | Status |
+|-------|------|--------------|--------|
+| **Phase 1** | SloDefinition type + 3 seed SLOs + CNS span `cns.slo.evaluated` | 2-3 PDCA cycles | ✅ Done |
+| **Phase 2** | SloManager in hkask-cns + CnsRuntime integration + CNS query MCP tool | 2 PDCA cycles | ✅ Done |
+| **Phase 3** | PaaP metric definitions + CNS spans + API + 6 metric CNS spans | 2 PDCA cycles | 📋 Planned |
+| **Phase 4** | DORA/SPACE CNS spans (9 spans) + `platform-dx-analyzer` FlowDef | 2 PDCA cycles | 📋 Planned |
+| **Phase 5** | Platform Engineer replicant definition + OCAP boundaries + basic audit skills | 3 PDCA cycles | 📋 Planned |
+| **Phase 6** | Sovereignty skills: consent-auditor, portability-verifier, governance-transparency-reporter | 3 PDCA cycles | 🟡 Designed (7 FlowDef manifests + 9 KnowAct templates) |
+| **Phase 7** | Strategic skills: wardley-mapper, loyalty-scorecard, health-scorer, bulkhead-auditor | 3 PDCA cycles | 🟡 Designed (4 FlowDef manifests) |
+| **Phase 8** | Full replicant operating cadence (daily/weekly/monthly/quarterly) + loyalty feedback loop closed | 2 PDCA cycles | 📋 Planned |
 
-**Total:** 19–23 PDCA cycles to full implementation.
+**Artifacts created:**
+- 7 FlowDef YAML manifests in `registry/manifests/platform-*.yaml`
+- 3 template crate manifests in `registry/templates/platform-*/manifest.yaml`
+- 6 KnowAct Jinja2 templates in `registry/templates/platform-*/*.j2`
+- 5 new CNS span variants: `SovereigntyConsentAudited`, `SovereigntyConsentAnomaly`, `SovereigntyPortabilityVerified`, `SovereigntyPortabilityFailure`, `SovereigntyGovernanceReport`
+- CNS query MCP tool in `mcp-servers/hkask-mcp-curator/src/lib.rs`
+- 78 total CnsSpan variants (up from 72)
+
+**Total:** 19–23 PDCA cycles to full implementation. Phases 1–2 complete, Phases 6–7 designed.
 
 ---
 

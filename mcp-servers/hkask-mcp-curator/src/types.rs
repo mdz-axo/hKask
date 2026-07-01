@@ -30,6 +30,16 @@ pub struct CnsStatusRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct CnsQueryRequest {
+    /// CNS namespace prefix to filter by (e.g., "cns.sovereignty", "cns.contract")
+    pub namespace: Option<String>,
+    /// Lookback window in seconds (default: 3600 = 1 hour)
+    pub window_seconds: Option<u64>,
+    /// Maximum events to return (default: 100)
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct BotStatusRequest {
     pub bot_name: Option<String>,
 }

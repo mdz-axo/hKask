@@ -12,7 +12,9 @@ pub mod types;
 use hkask_mcp::daemon::DaemonResponse;
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_services_curator::CuratorService;
+use hkask_storage::DecayConfig;
 use hkask_types::WebID;
+use hkask_types::cns::CnsSpan;
 use hkask_types::event::NuEventSink;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
@@ -343,6 +345,66 @@ impl CuratorServer {
                     "Algedonic query failed: {e}"
                 ))),
             }
+        })
+        .await
+    }
+
+    // ── CNS Query (for platform governance transparency) ────────────────
+
+    #[tool(
+        description = "Query CNS ν-events by namespace prefix within a time window. Returns structured event data for governance transparency reporting and consent auditing."
+    )]
+    pub async fn cns_query(&self, Parameters(req): Parameters<CnsQueryRequest>) -> String {
+        execute_tool(self, "cns_query", async {
+            let Some(ref store) = self.nu_event_store else {
+                return Err(McpToolError::permission_denied(
+                    "NuEventStore not available",
+                ));
+            };
+            let window_secs = req.window_seconds.unwrap_or(3600);
+            let limit = req.limit.unwrap_or(100) as u64;
+            let since = chrono::Utc::now() - chrono::Duration::seconds(window_secs as i64);
+            let config = hkask_storage::DecayConfig::default();
+
+            let weighted = store
+                .replay_weighted(since, limit, &config)
+                .map_err(|e| McpToolError::internal(format!("CNS query failed: {e}")))?;
+            let total_count = weighted.len();
+            let filtered: Vec<serde_json::Value> = weighted
+                .into_iter()
+                .filter(|we| {
+                    if let Some(ref ns) = req.namespace {
+                        we.event.span.namespace.as_str().starts_with(ns)
+                    } else {
+                        true
+                    }
+                })
+                .take(req.limit.unwrap_or(100))
+                .map(|we| {
+                    json!({
+                        "timestamp": we.event.timestamp.to_rfc3339(),
+                        "namespace": we.event.span.namespace.as_str(),
+                        "path": we.event.span.path,
+                        "phase": format!("{:?}", we.event.phase),
+                        "weight": we.weight,
+                        "observation": we.event.observation,
+                    })
+                })
+                .collect();
+
+            let namespace_info = req.namespace.as_deref().unwrap_or("all");
+            CnsSpan::Tool {
+                subsystem: hkask_types::cns::ToolSubsystem::Other,
+            }
+            .emit("cns_query");
+
+            Ok(json!({
+                "namespace": namespace_info,
+                "window_seconds": window_secs,
+                "total_events": total_count,
+                "filtered_count": filtered.len(),
+                "events": filtered
+            }))
         })
         .await
     }
