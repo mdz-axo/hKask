@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+use hkask_types::InfrastructureError;
 use hkask_types::cns::CircuitState;
 use hkask_types::event::{NuEvent, SpanNamespace};
 use hkask_types::id::WebID;
@@ -67,4 +69,19 @@ pub trait CnsObserver: Send + Sync {
     async fn on_depletion(&self, signal: &DepletionSignal);
 
     async fn on_backpressure(&self, signal: &BackpressureSignal);
+}
+
+/// Storage port for CNS event queries.
+///
+/// Abstracts the NuEventStore behind a trait so the cybernetic regulation
+/// layer (GasReport, CalibratedEnergyEstimator, WalletGasCalibrator) can be
+/// tested without a real SQLite database.
+///
+/// Concrete impl: `NuEventStore` in `hkask-storage`.
+pub trait CnsStoragePort: Send + Sync {
+    fn query_algedonic(
+        &self,
+        since: DateTime<Utc>,
+        limit: u64,
+    ) -> Result<Vec<NuEvent>, InfrastructureError>;
 }

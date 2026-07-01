@@ -91,7 +91,10 @@ impl WalletManager {
         chain: ChainId,
         _privacy: PrivacyMode,
     ) -> Result<TxHash, WalletError> {
-        let port = self.chains.get(&chain).expect("chain port verified above");
+        let port = self.chains.get(&chain).ok_or(WalletError::ChainError {
+            chain,
+            message: "chain port not found after verification".into(),
+        })?;
         let tx_bytes = port.build_withdrawal_tx(to_address, amount_usdc_micro)?;
         self.emit_span_with_actor(actor, CnsSpan::WalletWithdrawal, "built", CyclePhase::Act,
             serde_json::json!({"actor": actor.to_string(), "chain": chain.to_string(),

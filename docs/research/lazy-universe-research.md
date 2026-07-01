@@ -1,7 +1,7 @@
 ---
 title: "The Lazy Universe as Architectural Grounding — Deep Research"
 audience: [architects, developers, agents, curator]
-last_updated: 2026-06-13
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Architecture"
@@ -365,7 +365,9 @@ pub struct EnergyDelta(pub f64);
 | `cns.evolution.energy_delta` | Tracks energy(S_t) - energy(S_{t+1}) per evolutionary step |
 | `cns.architecture.module_depth` | Tracks public_fn_count / total_fn_count per module |
 
-### 4.3 `DeletionTest` trait (`hkask-services::deletion_test`)
+### 4.3 `DeletionTest` trait (`hkask-services-core::deletion_test`)
+
+[Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates. `DeletionTest` was proposed but never implemented; the proposed path is now `hkask-services-core`.]
 
 ```rust
 pub trait DeletionTest {
@@ -395,7 +397,7 @@ pub fn action_threshold(&self) -> f64 {
 ### 4.5 Test Results
 
 ```
-cargo test -p hkask-cns -p hkask-services -p hkask-mcp-condenser
+cargo test -p hkask-cns -p hkask-services-core -p hkask-mcp-condenser
 → 96 passed, 0 failed, 2 ignored (doc-tests)
 ```
 
@@ -536,7 +538,9 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 
 **Candidate answer:** When `DeletionTest::deletion_energy()` returns positive for all remaining modules, the system has reached its stationary action configuration. Further decomposition would scatter complexity (increase energy) rather than reduce it.
 
-**Resolution path:** Implement `DeletionTest` on 3-5 hKask modules (e.g., `hkask-cns::energy`, `hkask-services::cns`, `hkask-condenser::types`). Measure deletion_energy(). If all return positive, the system is at equilibrium. If any return negative, those modules are candidates for deletion or deepening.
+**Resolution path:** Implement `DeletionTest` on 3-5 hKask modules (e.g., `hkask-cns::energy`, `hkask-services-core`, `hkask-condenser::types`). Measure deletion_energy(). If all return positive, the system is at equilibrium. If any return negative, those modules are candidates for deletion or deepening.
+
+[Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates. The original reference to the old service crate `::cns` was a proposed path that never existed — CNS lives in `hkask-cns` and `hkask-types::cns`.]
 
 ### 6.5 Empirical Validation
 
@@ -546,7 +550,7 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 
 **Proposed experiment:**
 
-1. Measure `public_fn_count / total_fn_count` for every module in `hkask-cns`, `hkask-services`, and `hkask-condenser`
+1. Measure `public_fn_count / total_fn_count` for every module in `hkask-cns`, `hkask-services-core`, and `hkask-condenser` [Note: as of v0.31.0, the old monolithic service crate decomposed into 11 subcrates; `hkask-services-core` is the closest analogue for proposed module-level metrics.]
 2. Classify each module as "deep" (ratio < 0.3) or "shallow" (ratio > 0.5) by expert judgment
 3. Measure compression ratios across condenser profiles for representative inputs
 4. Correlate: do modules classified as "deep" have lower public/total ratios? Does heavy compression produce lower compression ratios than light?
@@ -575,8 +579,8 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 | `crates/hkask-types/src/event.rs` | +3 CNS span namespaces | 4.2 |
 | `crates/hkask-cns/src/energy.rs` | +EnergyDelta newtype (~70 lines) | 4.1 |
 | `crates/hkask-cns/src/lib.rs` | +EnergyDelta export | 4.1 |
-| `crates/hkask-services/src/deletion_test.rs` | New file (~207 lines) | 4.3 |
-| `crates/hkask-services/src/lib.rs` | +deletion_test module + DeletionTest export | 4.3 |
+| `crates/hkask-services-core/src/deletion_test.rs` | New file (~207 lines) [Note: path updated for services decomposition] | 4.3 |
+| `crates/hkask-services-core/src/lib.rs` | +deletion_test module + DeletionTest export [Note: path updated for services decomposition] | 4.3 |
 | `mcp-servers/hkask-mcp-condenser/src/types.rs` | +action_threshold() + 2 tests | 4.4 |
 | `crates/hkask-templates/src/vocabulary.rs` | +8 new terms | 1.2 |
 | `docs/architecture/lazy-universe-research.md` | This document | 1–6 |
@@ -587,8 +591,8 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 |------|-------|---------|--------|
 | `action_threshold_ordering` | condenser | CNS-CONDENSER-LAZY-UNIVERSE | ✅ |
 | `light_profile_is_most_permissive` | condenser | CNS-CONDENSER-LAZY-UNIVERSE | ✅ |
-| `deep_module_has_positive_deletion_energy` | services | svc-deletion-test-001 | ✅ |
-| `shallow_module_has_negative_deletion_energy` | services | svc-deletion-test-002 | ✅ |
-| `energy_delta_zero_is_descending` | services | svc-deletion-test-003 | ✅ |
-| `energy_delta_display_shows_direction` | services | svc-deletion-test-004 | ✅ |
+| `deep_module_has_positive_deletion_energy` | services-core | svc-deletion-test-001 | ✅ |
+| `shallow_module_has_negative_deletion_energy` | services-core | svc-deletion-test-002 | ✅ |
+| `energy_delta_zero_is_descending` | services-core | svc-deletion-test-003 | ✅ |
+| `energy_delta_display_shows_direction` | services-core | svc-deletion-test-004 | ✅ |
 | `alert_threshold_is_five_consecutive_ascending` | services | svc-deletion-test-005 | ✅ |

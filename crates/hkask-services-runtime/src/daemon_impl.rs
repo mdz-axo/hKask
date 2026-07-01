@@ -229,8 +229,13 @@ impl DaemonHandler for ServiceDaemonHandler {
                 let pod_manager = Arc::clone(&self.pod_manager);
                 let inference = Arc::clone(inference_port);
                 let replicant_name = replicant.to_string();
-                tokio::spawn(async move {
+                let handle = tokio::spawn(async move {
                     generate_narrative(&pod_manager, &*inference, &replicant_name).await;
+                });
+                tokio::spawn(async move {
+                    if let Err(e) = handle.await {
+                        tracing::error!(target: "hkask.daemon.narrative", error = %e, "Narrative generation task panicked");
+                    }
                 });
             }
         }
@@ -243,8 +248,13 @@ impl DaemonHandler for ServiceDaemonHandler {
             let value_clone = value.clone();
             let entity_clone = entity.to_string();
             let attr_clone = attribute.to_string();
-            tokio::task::spawn_blocking(move || {
+            let handle = tokio::task::spawn_blocking(move || {
                 append_session_entry(&replicant_name, &entity_clone, &attr_clone, &value_clone);
+            });
+            tokio::spawn(async move {
+                if let Err(e) = handle.await {
+                    tracing::error!(target: "hkask.daemon.session", error = %e, "Session append task panicked");
+                }
             });
         }
 

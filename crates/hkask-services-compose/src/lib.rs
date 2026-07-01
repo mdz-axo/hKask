@@ -166,6 +166,17 @@ impl ComposeService {
     /// # REQ: P3-svc-compose-004 — compose uses Jinja2 template from cognition config
     /// # expect: "The service layer enables generative access to domain capabilities"
     pub async fn compose(request: ComposeRequest) -> Result<ComposeResult, ServiceError> {
+        // Input length validation
+        if request.prompt.len() > 50_000 {
+            return Err(ServiceError::ValidationError {
+                source: None,
+                message: format!(
+                    "Prompt exceeds 50KB limit (received {} bytes)",
+                    request.prompt.len()
+                ),
+            });
+        }
+
         // 1. Open DB + construct memory infrastructure
         let db = Database::open(&request.db_path.to_string_lossy(), &request.db_passphrase)
             .map_err(|e| ServiceError::Storage {

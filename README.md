@@ -96,7 +96,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-test-harness` | Test infrastructure (TestDb, TestWebId, mocks, strategies) |
 | `hkask-mcp-cloud-gateway` | Cloud MCP gateway for remote tool dispatch |
 
-### Services (13 crates)
+### Services (11 crates)
 | Crate | Purpose |
 |-------|--------|
 | `hkask-services` | Facade: all service ports via dependency inversion |
@@ -157,7 +157,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **Core Total (src/)** | ~168,400 |
 | **MCP Server LOC (src/)** | ~42,800 |
 | **Total LOC** | ~211,200 |
-| **Core Crates** | 41 (12 foundation + 9 infra + 13 services + 3 wallet/identity + 2 bridges + 1 federation + 1 TUI) |
+| **Core Crates** | 39 (12 foundation + 9 infra + 11 services + 3 wallet/identity/ledger + 4 ontology/interface) |
 | **MCP Servers** | 14 |
 | **Tests** | ~1,540 (workspace) |
 | **CLI Subcommands** | 39 |
@@ -210,4 +210,4 @@ cargo fmt --check
 
 *ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 41 crates. 14 MCP servers. 39 PDCA skill loops. 273 templates.*
+*CI green. 39 crates. 14 MCP servers. 39 PDCA skill loops. 273 templates.*

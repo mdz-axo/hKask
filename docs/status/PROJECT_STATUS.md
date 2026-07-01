@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-06-28
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -52,7 +52,18 @@ All 34 workspace members (excluding fuzz targets).
 | hkask-cns | 42 |
 | hkask-agents | 31 |
 | hkask-keystore | 13 |
-| hkask-services | 78 |
+| hkask-services-core | 19 |
+| hkask-services-chat | 9 |
+| hkask-services-compose | — |
+| hkask-services-context | — |
+| hkask-services-corpus | 16 |
+| hkask-services-curator | 2 |
+| hkask-services-kata-kanban | 39 |
+| hkask-services-onboarding | — |
+| hkask-services-runtime | 7 |
+| hkask-services-skill | 2 |
+| hkask-services-wallet | 6 |
+| _[Note: as of v0.31.0, the old monolithic service crate decomposed into 11 subcrates above]_ | |
 | hkask-templates | 22 |
 | hkask-condenser | 34 |
 | hkask-improv | 37 |
@@ -143,7 +154,7 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 
 | Check | Result |
 |-------|--------|
-| Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services::verification`. No single SovereigntyService — this is correct, not a gap. |
+| Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services-core::verification`. No single SovereigntyService — this is correct, not a gap. |
 | Magna Carta P2 (Affirmative Consent) | CNS consent denial events emitted. Prohibition gate — denial is terminal. |
 | Magna Carta P3 (Generative Space) | 14 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
 | Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with Ed25519 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
@@ -216,13 +227,13 @@ See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../stat
 - 3 code bugs fixed: `run_add_replicant` dangerous fallback, `/start` cursor reset, stale comment
 - 6 P8 tests added: `append_feedback` (3) + `passphrase_strength` (3) — total: 19→25
 - Docs updated: AGENTS.md, cli-reference.md, REPL-specification.md, test-inventory.md
-- Pre-existing build errors in `hkask-cli` and `hkask-services` tests confirmed resolved (prior session)
+- Pre-existing build errors in `hkask-cli` and the old monolithic service crate tests confirmed resolved (prior session) [Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates]
 
 ## Session (2026-06-11)
 
-- Handoff continuation: verified build (246 tests, 0 failures), fixed 3 unicode escape errors in `hkask-services/src/bundle.rs` (Rust 2024 `\u{XXXX}` format)
+- Handoff continuation: verified build (246 tests, 0 failures), fixed 3 unicode escape errors in `crates/hkask-services-core/src/bundle.rs` (Rust 2024 `\u{XXXX}` format) [Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates; `bundle.rs` was in the monolithic crate]
 - HIGH #1: Transient AgentService accessor errors — confirmed resolved (no old accessor names in codebase, build clean)
-- HIGH #2: Architecture master sovereignty claim — updated AgentService section to current named-accessor pattern, noted sovereignty distribution across `hkask-types`/`hkask-agents`/`hkask-services`
+- HIGH #2: Architecture master sovereignty claim — updated AgentService section to current named-accessor pattern, noted sovereignty distribution across `hkask-types`/`hkask-agents`/`hkask-services-core` [Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates]
 - LOW #3: Architecture master allosteric/RBarThreshold update — confirmed already resolved (no references in arch master; remaining occurrences are historical docs, GML templates, or deletion-acknowledging code comments)
 - LOW #4: Citation compliance audit (PS-07) — completed; 23 files with footnote citation gaps identified and catalogued
 - MEDIUM: AgentService adapters refactoring — completed; 5 stale comments in `hkask-api/src/routes/` (acp.rs, mcp.rs, templates.rs) updated from old grouped-tuple references to current named accessors. Zero old accessor patterns remain in codebase.

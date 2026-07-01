@@ -1,7 +1,7 @@
 ---
 title: "hKask Wallet Crate — Architectural Specification"
 audience: [architects, developers]
-last_updated: 2026-06-28
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Application"
@@ -412,7 +412,7 @@ graph TD
 | 3 | `hkask-keystore` | ✅ | 6 | `resolve_treasury_key(chain)`, `resolve_wallet_seed()`, `sign_api_key_capability()` |
 | 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
 | 5 | `hkask-cns` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `EnergyBudgetManager` dual-map, algedonic alerts (balance + key health), CNS span emission wired |
-| 6 | `hkask-services` | ✅ | 35 | `WalletService` — 13 methods composing WalletManager + ApiKeyIssuer + CNS budget registration |
+| 6 | `hkask-services-wallet` | ✅ | 35 | `WalletService` — 13 methods composing WalletManager + ApiKeyIssuer + CNS budget registration |
 | 7 | `hkask-cli` | ✅ | 25 | `kask wallet` — 8 subcommands (balance, deposit-address, deposit-reference, history, key create/list/revoke, withdraw) |
 | 8 | `hkask-api` | ✅ | 2 | 8 wallet REST endpoints + `ApiKeyAuthService` middleware (Ed25519 Bearer token verification) |
 
@@ -431,7 +431,7 @@ graph TD
 | `hkask-keystore` | 6 (6 wallet) | `P3-keystore` |
 | `hkask-wallet` | 13 | `P4-signing`, `P4-manager`, `P4-issuer` |
 | `hkask-cns` | 11 (1 wallet_budget) | `P5-cns-wallet` |
-| `hkask-services` | 35 (6 wallet) | `svc-wallet-001`–`006` |
+| `hkask-services-wallet` | 35 (6 wallet) | `svc-wallet-001`–`006` |
 | `hkask-cli` | 25 (0 wallet-specific) | (existing CLI tests) |
 | `hkask-api` | 2 (0 wallet-specific) | (existing API tests) |
 | **Total** | **137** (44 wallet-specific) | |

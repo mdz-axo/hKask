@@ -62,8 +62,7 @@ async fn service_builds_with_in_memory_config() {
     // Config should be in_memory
     assert!(svc.config().in_memory, "config should be in_memory");
 
-    // Memory ports should be accessible
-    let (_episodic, _semantic) = svc.memory();
+    // Memory ports are accessible via build_per_agent_memory(db, cns_sink)
 
     // CNS runtime should be accessible
     let cns = svc.cns().runtime.read().await;
@@ -74,8 +73,8 @@ async fn service_builds_with_in_memory_config() {
     let _goal_repo = svc.storage().goals.clone();
 
     let _user_store = svc.storage().users.clone();
-    let _event_sink = svc.cns().events;
-    let _sovereignty = svc.governance().consent;
+    let _event_sink = svc.cns().events.clone();
+    let _sovereignty = svc.governance().consent.clone();
 }
 
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -87,7 +86,7 @@ async fn sovereignty_consent_round_trip() {
     let svc = build_test_service().await;
     let webid_str = WebID::new().to_string();
 
-    let sovereignty = svc.governance().consent;
+    let sovereignty = svc.governance().consent.clone();
 
     // Initially no consent for EpisodicMemory
     let has_consent = sovereignty.has_consent(&webid_str, &DataCategory::EpisodicMemory);
@@ -171,7 +170,7 @@ async fn cross_store_consent_visible_to_cns_events() {
 
     // The CNS event sink shares the same database as the consent store.
     // Verify the event sink is functional on the shared connection.
-    let event_sink = svc.cns().events;
+    let event_sink = svc.cns().events.clone();
     let test_event = hkask_types::event::NuEvent::new(
         webid,
         hkask_types::event::Span::new(
@@ -198,7 +197,7 @@ async fn service_energy_estimator_calibrates_from_events() {
     let server = "hkask-mcp-media";
 
     // Before calibration, default cost applies.
-    let estimator = svc.cns().energy;
+    let estimator = svc.cns().energy.clone();
     let before = estimator.estimate_cost(server, "search", &serde_json::json!({}));
     assert_eq!(before, 100);
 
@@ -216,7 +215,8 @@ async fn service_energy_estimator_calibrates_from_events() {
         }),
         0,
     );
-    svc.cns().events
+    svc.cns()
+        .events
         .persist(&event)
         .expect("persist settled gas event");
 

@@ -11,7 +11,9 @@ pub mod types;
 
 use hkask_mcp::daemon::DaemonResponse;
 use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_services_curator::CuratorService;
 use hkask_types::WebID;
+use hkask_types::event::NuEventSink;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
 use std::sync::Arc;
@@ -64,29 +66,29 @@ impl CuratorServer {
                     "EscalationQueue not available",
                 ));
             };
-            match queue.list_pending() {
+            match CuratorService::list_escalations_direct(queue.as_ref()) {
                 Ok(entries) => {
                     let serialized: Vec<serde_json::Value> = entries
                         .iter()
                         .map(|e| {
                             json!({
-                                "id": e.id.to_string(),
-                                "template_id": e.template_id.to_string(),
-                                "bot_id": e.bot_id.to_string(),
+                                "id": e.id,
+                                "template_id": e.template_id,
+                                "bot_id": e.bot_id,
                                 "output": e.output,
                                 "confidence": e.confidence,
                                 "retry_count": e.retry_count,
                                 "error_context": e.error_context,
-                                "created_at": e.created_at.to_rfc3339(),
-                                "status": "pending",
+                                "created_at": e.created_at,
+                                "status": e.status,
+                                "resolved_at": e.resolved_at,
+                                "resolved_by": e.resolved_by,
                             })
                         })
                         .collect();
                     Ok(json!({"count": serialized.len(), "escalations": serialized}))
                 }
-                Err(e) => Err(McpToolError::internal(format!(
-                    "Failed to list escalations: {e}"
-                ))),
+                Err(e) => Err(McpToolError::internal(format!("{e}"))),
             }
         })
         .await
@@ -103,7 +105,14 @@ impl CuratorServer {
                     "EscalationQueue not available",
                 ));
             };
-            match queue.resolve(&req.id, &self.replicant) {
+            let Some(ref events_store) = self.nu_event_store else {
+                return Err(McpToolError::permission_denied(
+                    "NuEventStore not available",
+                ));
+            };
+            let events: Arc<dyn NuEventSink> = Arc::clone(events_store) as Arc<dyn NuEventSink>;
+            match CuratorService::resolve_direct(queue.as_ref(), &events, &req.id, &self.replicant)
+            {
                 Ok(()) => Ok(json!({"resolved": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),
             }
@@ -122,7 +131,14 @@ impl CuratorServer {
                     "EscalationQueue not available",
                 ));
             };
-            match queue.dismiss(&req.id, &self.replicant) {
+            let Some(ref events_store) = self.nu_event_store else {
+                return Err(McpToolError::permission_denied(
+                    "NuEventStore not available",
+                ));
+            };
+            let events: Arc<dyn NuEventSink> = Arc::clone(events_store) as Arc<dyn NuEventSink>;
+            match CuratorService::dismiss_direct(queue.as_ref(), &events, &req.id, &self.replicant)
+            {
                 Ok(()) => Ok(json!({"dismissed": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),
             }

@@ -139,8 +139,7 @@ pub(crate) async fn store_episode(
     );
     state
         .agent_service
-        .memory()
-        .0
+        .infra().episodic
         .store_episodic(
             request,
             auth.token.as_ref().ok_or_else(|| {
@@ -205,8 +204,7 @@ pub(crate) async fn query_episodes(
     let request = RecallRequest::episodic(&params.entity, auth.webid, token);
     let results = state
         .agent_service
-        .memory()
-        .0
+        .infra().episodic
         .recall_episodic(&request)
         .map_err(|e| {
             ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
@@ -246,13 +244,12 @@ pub(crate) async fn storage_usage(
 ) -> Result<Json<EpisodicUsageResponse>, ServiceErrorResponse> {
     let count = state
         .agent_service
-        .memory()
-        .0
+        .infra().episodic
         .episodic_storage_usage(&auth.webid)
         .map_err(|e| {
             ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
         })?;
-    let budget = state.agent_service.memory().0.episodic_storage_budget();
+    let budget = state.agent_service.infra().episodic.episodic_storage_budget();
 
     Ok(Json(EpisodicUsageResponse { count, budget }))
 }

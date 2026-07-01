@@ -1,7 +1,7 @@
 ---
 title: "hKask Federation v2 — Complete Design"
 audience: [architects, developers, agents]
-last_updated: 2026-06-22
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Proposal — Supersedes FEDERATION_DESIGN.md §6"
 domain: "Cross-cutting"
@@ -354,7 +354,7 @@ pub struct FederationHealthModel {
 ### 6.1 Dependency Direction
 
 ```
-CLI/API/MCP → hkask-services → hkask-agents → hkask-federation
+CLI/API/MCP → hkask-services-core → hkask-agents → hkask-federation
                                    ↓                  ↓
                               hkask-agents     hkask-ports (traits)
                                    ↓                  ↓

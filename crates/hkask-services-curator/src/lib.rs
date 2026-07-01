@@ -11,7 +11,7 @@ use hkask_cns::types::loops::CuratorHandle;
 use hkask_storage::EscalationEntry;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;
@@ -54,7 +54,7 @@ pub struct CuratorService;
 
 /// Emit a CNS ν-event for an escalation operation (resolve/dismiss).
 fn emit_escalation_event(
-    ctx: &AgentService,
+    events: &Arc<dyn NuEventSink>,
     operation: &str,
     actor_key: &str,
     escalation_id: &str,
@@ -71,7 +71,7 @@ fn emit_escalation_event(
         }),
         0,
     );
-    if let Err(e) = ctx.cns().events.persist(&event) {
+    if let Err(e) = events.persist(&event) {
         tracing::warn!(
             target: "cns.curation",
             escalation_id = %escalation_id,
@@ -83,61 +83,94 @@ fn emit_escalation_event(
 }
 
 impl CuratorService {
-    /// List pending escalations.
-    pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
-        let entries =
-            ctx.governance()
-                .escalations
-                .list_pending()
-                .map_err(|e| ServiceError::Escalation {
-source: None,
-                    message: e.to_string(),
-                })?;
+    /// List pending escalations (granular — no `AgentService` required).
+    pub fn list_escalations_direct(
+        queue: &hkask_storage::EscalationQueue,
+    ) -> Result<Vec<EscalationResponse>, ServiceError> {
+        let entries = queue.list_pending().map_err(|e| ServiceError::Escalation {
+            source: None,
+            message: e.to_string(),
+        })?;
         Ok(entries.into_iter().map(EscalationResponse::from).collect())
     }
 
-    /// Resolve an escalation by ID.
-    pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
-        emit_escalation_event(ctx, "escalation_resolved", "resolved_by", id, resolved_by);
+    /// Resolve an escalation by ID (granular — no `AgentService` required).
+    pub fn resolve_direct(
+        queue: &hkask_storage::EscalationQueue,
+        events: &Arc<dyn NuEventSink>,
+        id: &str,
+        resolved_by: &str,
+    ) -> Result<(), ServiceError> {
+        emit_escalation_event(
+            events,
+            "escalation_resolved",
+            "resolved_by",
+            id,
+            resolved_by,
+        );
 
-        ctx.governance()
-            .escalations
-            .resolve(id, resolved_by)
-            .map_err(|e| match e {
-                hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
-                    source: None,
-                    message: id,
-                },
-                other => ServiceError::Escalation {
-source: None,
-                    message: other.to_string(),
-                },
-            })
+        queue.resolve(id, resolved_by).map_err(|e| match e {
+            hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
+                source: None,
+                message: id,
+            },
+            other => ServiceError::Escalation {
+                source: None,
+                message: other.to_string(),
+            },
+        })
     }
 
-    /// Dismiss an escalation by ID.
-    pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
+    /// Dismiss an escalation by ID (granular — no `AgentService` required).
+    pub fn dismiss_direct(
+        queue: &hkask_storage::EscalationQueue,
+        events: &Arc<dyn NuEventSink>,
+        id: &str,
+        dismissed_by: &str,
+    ) -> Result<(), ServiceError> {
         emit_escalation_event(
-            ctx,
+            events,
             "escalation_dismissed",
             "dismissed_by",
             id,
             dismissed_by,
         );
 
-        ctx.governance()
-            .escalations
-            .dismiss(id, dismissed_by)
-            .map_err(|e| match e {
-                hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
-                    source: None,
-                    message: id,
-                },
-                other => ServiceError::Escalation {
-source: None,
-                    message: other.to_string(),
-                },
-            })
+        queue.dismiss(id, dismissed_by).map_err(|e| match e {
+            hkask_storage::EscalationError::NotFound(id) => ServiceError::EscalationNotFound {
+                source: None,
+                message: id,
+            },
+            other => ServiceError::Escalation {
+                source: None,
+                message: other.to_string(),
+            },
+        })
+    }
+
+    /// List pending escalations — convenience wrapper requiring `AgentService`.
+    pub fn list_escalations(ctx: &AgentService) -> Result<Vec<EscalationResponse>, ServiceError> {
+        Self::list_escalations_direct(ctx.governance().escalations.as_ref())
+    }
+
+    /// Resolve an escalation by ID — convenience wrapper requiring `AgentService`.
+    pub fn resolve(ctx: &AgentService, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
+        Self::resolve_direct(
+            ctx.governance().escalations.as_ref(),
+            &ctx.cns().events,
+            id,
+            resolved_by,
+        )
+    }
+
+    /// Dismiss an escalation by ID — convenience wrapper requiring `AgentService`.
+    pub fn dismiss(ctx: &AgentService, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
+        Self::dismiss_direct(
+            ctx.governance().escalations.as_ref(),
+            &ctx.cns().events,
+            id,
+            dismissed_by,
+        )
     }
 
     /// Run a metacognition cycle and return a human-readable summary.
@@ -173,7 +206,7 @@ source: None,
                 .run_cycle()
                 .await
                 .map_err(|e| ServiceError::Metacognition {
-source: None,
+                    source: None,
                     message: e.to_string(),
                 })?;
         let summary = agent.metacognition().generate_summary(&snapshot);

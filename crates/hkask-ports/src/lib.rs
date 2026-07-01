@@ -16,7 +16,7 @@ pub mod registry;
 pub mod tool;
 
 pub use cns::{
-    BackpressureSignal, CircuitBreakerPort, CnsObserver, ConsolidationOutcome,
+    BackpressureSignal, CircuitBreakerPort, CnsObserver, CnsStoragePort, ConsolidationOutcome,
     ConsolidationRequest, DepletionSignal,
 };
 pub use embedding::EmbeddingGenerationError;

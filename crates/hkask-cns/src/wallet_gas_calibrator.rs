@@ -11,7 +11,7 @@
 use crate::gas_report::GasReport;
 use crate::wallet_energy_estimator::WalletEnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_storage::NuEventStore;
+use hkask_ports::CnsStoragePort;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
@@ -39,7 +39,7 @@ pub const DEFAULT_WALLET_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hour
 /// - `calibrate()` — run one calibration pass
 /// - `spawn_calibration()` — spawn a background calibration task
 pub struct WalletGasCalibrator {
-    store: Arc<NuEventStore>,
+    store: Arc<dyn CnsStoragePort>,
     wallet_manager: Arc<WalletManager>,
     estimator: std::sync::Mutex<WalletEnergyEstimator>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
@@ -53,11 +53,11 @@ impl WalletGasCalibrator {
     ///
     /// expect: "I can create a wallet gas calibrator that self-tunes the gas→rJoule rate from settled events"
     /// expect: "I can configure the default interval for background wallet gas calibration"
-    /// pre:  store is a valid NuEventStore; wallet_manager is valid
+    /// pre:  store is a valid CnsStoragePort; wallet_manager is valid
     /// post: returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate
     /// post: first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
     /// post: no event sink attached until `with_event_sink` is called
-    pub fn new(store: Arc<NuEventStore>, wallet_manager: Arc<WalletManager>) -> Self {
+    pub fn new(store: Arc<dyn CnsStoragePort>, wallet_manager: Arc<WalletManager>) -> Self {
         let initial_rate = wallet_manager.gas_per_rjoule();
         Self {
             store,
@@ -229,7 +229,7 @@ impl WalletGasCalibrator {
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
-    use hkask_storage::in_memory_db;
+    use hkask_storage::{NuEventStore, in_memory_db};
     use hkask_types::NuEventSink;
     use hkask_types::WebID;
     use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};

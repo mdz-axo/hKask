@@ -22,7 +22,7 @@ use crate::dynamic_gas_table::DynamicGasTable;
 use crate::gas_report::GasReport;
 use crate::governed_tool::EnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_storage::NuEventStore;
+use hkask_ports::CnsStoragePort;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
@@ -53,7 +53,7 @@ pub const DEFAULT_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
 /// - `spawn_calibration()` — spawn a background calibration task
 /// - `current_table()` — diagnostic snapshot of the calibrated table
 pub struct CalibratedEnergyEstimator {
-    store: Arc<NuEventStore>,
+    store: Arc<dyn CnsStoragePort>,
     table: RwLock<DynamicGasTable>,
     estimator: RwLock<CompositeEnergyEstimator>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
@@ -65,11 +65,11 @@ impl CalibratedEnergyEstimator {
     /// Create a calibrated estimator backed by the given event store.
     ///
     /// expect: "I can configure the default interval for the background gas calibration loop"
-    /// pre:  store is a valid NuEventStore
+    /// pre:  store is a valid CnsStoragePort
     /// post: returns CalibratedEnergyEstimator with default table and no observations
     /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
     /// post: no event sink attached until `with_event_sink` is called
-    pub fn new(store: Arc<NuEventStore>) -> Self {
+    pub fn new(store: Arc<dyn CnsStoragePort>) -> Self {
         let table = DynamicGasTable::new();
         let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
         Self {
@@ -251,7 +251,7 @@ impl EnergyEstimator for CalibratedEnergyEstimator {
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
-    use hkask_storage::in_memory_db;
+    use hkask_storage::{NuEventStore, in_memory_db};
     use hkask_types::WebID;
     use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanKind};
     use std::sync::Mutex;

@@ -242,7 +242,9 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 }),
                 0,
             );
-            let _ = self.event_sink.persist(&depleted_event);
+            if let Err(e) = self.event_sink.persist(&depleted_event) {
+                warn!(target: "cns.tool", error = %e, "Failed to persist gas-depleted event");
+            }
 
             debug!(
                 target: "cns.tool",
@@ -286,7 +288,9 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             }),
             0,
         );
-        let _ = self.event_sink.persist(&reserved_event);
+        if let Err(e) = self.event_sink.persist(&reserved_event) {
+            warn!(target: "cns.tool", error = %e, "Failed to persist gas-reserved event");
+        }
 
         // Step 3: Emit invoked span
         let invoked_span = Span::new(
@@ -372,7 +376,9 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
             }),
             0,
         );
-        let _ = self.event_sink.persist(&settled_event);
+        if let Err(e) = self.event_sink.persist(&settled_event) {
+            warn!(target: "cns.tool", error = %e, "Failed to persist gas-settled event");
+        }
 
         // Step 5b: Emit gas-consumed signal to Cybernetics Loop via direct channel.
         let success = result.is_ok();

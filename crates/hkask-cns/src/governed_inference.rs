@@ -141,7 +141,9 @@ impl InferencePort for GovernedInference {
                     }),
                     0,
                 );
-                let _ = event_sink.persist(&depleted_event);
+                if let Err(e) = event_sink.persist(&depleted_event) {
+                    warn!(target: "cns.inference", error = %e, "Failed to persist gas-depleted event");
+                }
 
                 debug!(
                     target: "cns.inference",
@@ -183,7 +185,9 @@ impl InferencePort for GovernedInference {
                 }),
                 0,
             );
-            let _ = event_sink.persist(&reserved_event);
+            if let Err(e) = event_sink.persist(&reserved_event) {
+                warn!(target: "cns.inference", error = %e, "Failed to persist gas-reserved event");
+            }
 
             // Emit cns.inference.invoked span
             let invoked_span = Span::new(SpanNamespace::from(CnsSpan::Inference), "invoked");
@@ -199,7 +203,9 @@ impl InferencePort for GovernedInference {
                 }),
                 0,
             );
-            let _ = event_sink.persist(&invoked_event);
+            if let Err(e) = event_sink.persist(&invoked_event) {
+                warn!(target: "cns.inference", error = %e, "Failed to persist cns.inference.invoked event");
+            }
 
             // Step 2: Delegate to inner inference port
             info!(
@@ -266,7 +272,9 @@ impl InferencePort for GovernedInference {
                 }),
                 0,
             );
-            let _ = event_sink.persist(&settled_event);
+            if let Err(e) = event_sink.persist(&settled_event) {
+                warn!(target: "cns.inference", error = %e, "Failed to persist gas-settled event");
+            }
 
             // Step 4: Emit outcome span
             let (outcome_phase, outcome_obs) = match &result {
@@ -297,7 +305,9 @@ impl InferencePort for GovernedInference {
             let completed_event =
                 NuEvent::new(agent, completed_span, outcome_phase, outcome_obs, 0)
                     .with_parent(invoked_event.id);
-            let _ = event_sink.persist(&completed_event);
+            if let Err(e) = event_sink.persist(&completed_event) {
+                warn!(target: "cns.inference", error = %e, "Failed to persist cns.inference.completed event");
+            }
 
             result
         })

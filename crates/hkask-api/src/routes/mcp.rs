@@ -75,7 +75,13 @@ pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<Stri
 pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "mcp_tools", "CNS");
-    let tools = state.agent_service.infra().mcp.clone().discover_tools().await;
+    let tools = state
+        .agent_service
+        .infra()
+        .mcp
+        .clone()
+        .discover_tools()
+        .await;
     Json(tools)
 }
 
@@ -132,6 +138,28 @@ pub(crate) async fn mcp_invoke(
 ) -> Result<Json<McpInvokeResponse>, ServiceErrorResponse> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "mcp_invoke", tool = %req.tool, "CNS");
+
+    // Input length validation
+    if req.tool.len() > 256 {
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: format!(
+                "Tool name exceeds 256 byte limit (received {} bytes)",
+                req.tool.len()
+            ),
+        }
+        .into());
+    }
+    if let serde_json::Value::String(ref s) = req.input {
+        if s.len() > 1_000_000 {
+            return Err(ServiceError::ValidationError {
+                source: None,
+                message: format!("Input exceeds 1MB limit (received {} bytes)", s.len()),
+            }
+            .into());
+        }
+    }
+
     let input = if req.input.is_null() {
         serde_json::Value::Object(serde_json::Map::new())
     } else {
@@ -147,20 +175,22 @@ pub(crate) async fn mcp_invoke(
             &req.tool,
             input,
             auth.token.as_ref().ok_or_else(|| ServiceError::Template {
-source: None,
+                source: None,
                 message: "Session auth not supported for MCP invoke".to_string(),
             })?,
         )
         .await
         .map_err(|e| ServiceError::Template {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
 
     // Resolve server_id from the runtime's tool registry
     let server_id = state
         .agent_service
-        .infra().mcp.clone()
+        .infra()
+        .mcp
+        .clone()
         .get_tool_info(&req.tool)
         .await
         .map(|t| t.server_id)

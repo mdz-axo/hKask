@@ -20,6 +20,7 @@ use crate::middleware::auth::AuthContext;
 use hkask_inference::model_constants;
 use hkask_ports::InferencePort;
 use hkask_services_chat::{ChatService, ChatTurnRequest as ServiceChatTurnRequest};
+use hkask_services_core::ServiceError;
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -87,9 +88,22 @@ pub(crate) async fn chat(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ApiChatRequest>,
-) -> Json<ApiChatResponse> {
+) -> Result<Json<ApiChatResponse>, crate::error::ServiceErrorResponse> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat", "CNS");
+
+    // Input length validation
+    if req.input.len() > 100_000 {
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: format!(
+                "Input exceeds 100KB limit (received {} bytes)",
+                req.input.len()
+            ),
+        }
+        .into());
+    }
+
     let model_str = req
         .model
         .clone()
@@ -126,13 +140,13 @@ pub(crate) async fn chat(
         },
     };
 
-    Json(ApiChatResponse {
+    Ok(Json(ApiChatResponse {
         output: result.text,
         template_id: req
             .template_id
             .unwrap_or_else(|| strategy.name().to_string()),
         model: model.to_string(),
-    })
+    }))
 }
 
 /// Stream chat inference output as Server-Sent Events.
@@ -165,6 +179,17 @@ pub(crate) async fn chat_stream(
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");
+
+    // Input length validation
+    if req.input.len() > 100_000 {
+        let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(1);
+        let _ = tx.send(Ok(Event::default().data(
+            serde_json::json!({"error": "Input exceeds 100KB limit"}).to_string(),
+        )));
+        let stream = tokio_stream::wrappers::ReceiverStream::new(rx);
+        return Sse::new(Box::pin(stream)).keep_alive(axum::response::sse::KeepAlive::default());
+    }
+
     let model_str = req
         .model
         .clone()
@@ -208,35 +233,47 @@ pub(crate) async fn chat_stream(
     match inference {
         Some(port) => {
             tokio::spawn(async move {
-                let mut stream =
-                    port.generate_stream_with_model(&prompt, &params, Some(&model_str));
-                use futures_util::StreamExt;
-                while let Some(chunk_result) = stream.next().await {
-                    let event = match chunk_result {
-                        Ok(chunk) => {
-                            let data = serde_json::json!({
-                                "text_delta": chunk.text_delta,
-                                "model": chunk.model,
-                                "finish_reason": chunk.finish_reason,
-                                "usage": chunk.usage.map(|u| serde_json::json!({
-                                    "prompt_tokens": u.prompt_tokens,
-                                    "completion_tokens": u.completion_tokens,
-                                    "total_tokens": u.total_tokens,
-                                })),
-                                "tool_calls": if chunk.tool_calls.is_empty() { None } else { Some(serde_json::json!(chunk.tool_calls)) },
-                            });
-                            Event::default().data(data.to_string())
+                use std::time::Duration;
+                let stream_future = async {
+                    let mut stream =
+                        port.generate_stream_with_model(&prompt, &params, Some(&model_str));
+                    use futures_util::StreamExt;
+                    while let Some(chunk_result) = stream.next().await {
+                        let event = match chunk_result {
+                            Ok(chunk) => {
+                                let data = serde_json::json!({
+                                    "text_delta": chunk.text_delta,
+                                    "model": chunk.model,
+                                    "finish_reason": chunk.finish_reason,
+                                    "usage": chunk.usage.map(|u| serde_json::json!({
+                                        "prompt_tokens": u.prompt_tokens,
+                                        "completion_tokens": u.completion_tokens,
+                                        "total_tokens": u.total_tokens,
+                                    })),
+                                    "tool_calls": if chunk.tool_calls.is_empty() { None } else { Some(serde_json::json!(chunk.tool_calls)) },
+                                });
+                                Event::default().data(data.to_string())
+                            }
+                            Err(e) => Event::default().data(
+                                serde_json::json!({
+                                    "error": e.to_string(),
+                                })
+                                .to_string(),
+                            ),
+                        };
+                        if tx.send(Ok(event)).await.is_err() {
+                            return; // receiver dropped
                         }
-                        Err(e) => Event::default().data(
-                            serde_json::json!({
-                                "error": e.to_string(),
-                            })
-                            .to_string(),
-                        ),
-                    };
-                    if tx.send(Ok(event)).await.is_err() {
-                        break; // receiver dropped
                     }
+                };
+                if let Err(_elapsed) =
+                    tokio::time::timeout(Duration::from_secs(120), stream_future).await
+                {
+                    let _ = tx
+                        .send(Ok(Event::default().data(
+                            serde_json::json!({"error": "Stream timed out after 120s"}).to_string(),
+                        )))
+                        .await;
                 }
             });
         }

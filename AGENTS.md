@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**40 Skills**, **2 Templates**, **1 Bundle**, **1 Legacy**. **44 capabilities total.**
+**39 Skills**, **2 Templates**, **1 Bundle**, **1 Legacy**. **43 capabilities total.**
 
 | Type | Behavior |
 |------|----------|

@@ -1,7 +1,7 @@
 ---
 title: "MDS — Minimal Domain Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-28
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -81,16 +81,22 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ### 1.4 Service Layer Subsystems
 
-**Crate:** `hkask-services` + subcrates | **Goal Principle:** P5 (Essentialism) — thin orchestration layer, delegates to domain crates
+**Crate:** `hkask-services-core` + 10 specialized subcrates | **Goal Principle:** P5 (Essentialism) — thin orchestration layer, delegates to domain crates
 
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
-| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, curator, experience, skills | `P{N}-svc-{domain}-*` | 102 | ✅ Realigned |
-| `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | ✅ Realigned |
+| `hkask-services-core` | Foundation: config, error types, settings | — | — | ✅ Decomposed |
+| `hkask-services-chat` | Chat orchestration | — | — | ✅ Decomposed |
+| `hkask-services-compose` | Template composition | — | — | ✅ Decomposed |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | ✅ Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | ✅ Realigned |
-| `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | ✅ Realigned |
+| `hkask-services-curator` | Curation services | — | — | ✅ Decomposed |
 | `hkask-services-kata-kanban` | Toyota Kata + Kanban board coordination | `P{N}-svc-kata-*` / `KAN-SVC-*` | 61 | ⚠️ Migration in progress |
+| `hkask-services-onboarding` | Onboarding services | — | — | ✅ Decomposed |
+| `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | ✅ Realigned |
+| `hkask-services-skill` | Skill management | — | — | ✅ Decomposed |
+| `hkask-services-wallet` | Wallet/Payments | — | — | ✅ Decomposed |
+| `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | ✅ Realigned |
 
 ---
 
@@ -552,23 +558,35 @@ All 28 fields are **private** and exposed through **individual named accessor me
 
 | Subcrate | Domain | Contract Prefix | Count | Status |
 |----------|--------|----------------|-------|--------|
-| `hkask-services` | Archival, bundle, chat, CNS, compose, consolidation, curator, experience, skills | `P{N}-svc-{domain}-*` | 102 | Realigned |
-| `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | Realigned |
+| `hkask-services-core` | Foundation: config, error types, settings | — | — | Decomposed |
+| `hkask-services-chat` | Chat orchestration | — | — | Decomposed |
+| `hkask-services-compose` | Template composition | — | — | Decomposed |
 | `hkask-services-context` | Service context and contract monitoring | `P{N}-svc-context-*` | 31 | Realigned |
 | `hkask-services-corpus` | Content corpus: discovery + embed | `P{N}-svc-corpus-*` | 30 | Realigned |
-| `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | Realigned |
+| `hkask-services-curator` | Curation services | — | — | Decomposed |
 | `hkask-services-kata-kanban` | Toyota Kata + Kanban board coordination | `P{N}-svc-kata-*` / `KAN-SVC-*` | 61 | Migration in progress |
+| `hkask-services-onboarding` | Onboarding services | — | — | Decomposed |
+| `hkask-services-runtime` | Runtime services: classify + daemon | `P{N}-svc-runtime-*` | 13 | Realigned |
+| `hkask-services-skill` | Skill management | — | — | Decomposed |
+| `hkask-services-wallet` | Wallet/Payments | — | — | Decomposed |
+| `hkask-inference` | Inference orchestration | `P{N}-svc-inference-*` | 7 | Realigned |
 
 ### Crate-to-Domain Mappings
 
 | Crate | MDS Category | Key Entities |
 |-------|-------------|-------------|
-| `hkask-services` | Domain, Composition | `AgentService`, `ServiceConfig`, `PerAgentMemory` |
-| `hkask-services-runtime` | Lifecycle | `ClassifyService`, `DaemonService` |
+| `hkask-services-core` | Domain | `ServiceConfig`, error types, settings |
+| `hkask-services-chat` | Composition | Chat orchestration, message routing |
+| `hkask-services-compose` | Composition | Template composition, rendering |
 | `hkask-services-context` | Lifecycle | `ContextService`, contract monitoring |
 | `hkask-services-corpus` | Domain | `CorpusService`, embedding pipelines |
-| `hkask-inference` | Composition | Inference orchestration, provider routing |
+| `hkask-services-curator` | Curation | Curation services, coherence checks |
 | `hkask-services-kata-kanban` | Domain, Curation | `KataEngine`, `KataManifest`, `Board`, `Task`, Kanban coordination |
+| `hkask-services-onboarding` | Lifecycle | Onboarding workflows, agent setup |
+| `hkask-services-runtime` | Lifecycle | `ClassifyService`, `DaemonService` |
+| `hkask-services-skill` | Composition | Skill management, capability registry |
+| `hkask-services-wallet` | Trust | Wallet service, payment processing |
+| `hkask-inference` | Composition | Inference orchestration, provider routing |
 
 ### Dependency Direction
 
@@ -576,18 +594,30 @@ All 28 fields are **private** and exposed through **individual named accessor me
 graph TD
     CLI["hkask-cli"]
     API["hkask-api"]
-    SVC["hkask-services (AgentService)"]
-    CLI --> SVC
-    API --> SVC
-    SVC --> AGENTS[hkask-agents]
-    SVC --> CNS[hkask-cns]
-    SVC --> MEM[hkask-memory]
-    SVC --> TEMPLATES[hkask-templates]
-    SVC --> TYPES[hkask-types]
-    SVC --> STORAGE[hkask-storage]
+    subgraph SERVICES["hkask services subcrates"]
+        CORE[core]
+        CHAT[chat]
+        COMPOSE[compose]
+        CONTEXT[context]
+        CORPUS[corpus]
+        CURATOR[curator]
+        KATA[kata-kanban]
+        ONBOARD[onboarding]
+        RUNTIME[runtime]
+        SKILL[skill]
+        WALLET[wallet]
+    end
+    CLI --> SERVICES
+    API --> SERVICES
+    SERVICES --> AGENTS[hkask-agents]
+    SERVICES --> CNS[hkask-cns]
+    SERVICES --> MEM[hkask-memory]
+    SERVICES --> TEMPLATES[hkask-templates]
+    SERVICES --> TYPES[hkask-types]
+    SERVICES --> STORAGE[hkask-storage]
 ```
 
-Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition).
+Domain crates **never** depend on service layer subcrates. MCP servers **never** depend on service layer subcrates for orchestration (P1 Prohibition).
 
 ### OCAP Boundaries
 

@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-28
+last_updated: 2026-06-30
 version: "0.30.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -762,18 +762,17 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 
 ## Service Layer
 
-**Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
+**Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 specialized subcrates providing shared business logic for CLI and API surfaces.
 
 **Canonical specification:** [`MDS-agent-service.md`](../specifications/specs/MDS-agent-service.md) — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
 ### Summary
 
-`AgentService` is the canonical service layer owning all shared infrastructure. All 28 fields are **private** and exposed through **individual named accessor methods** (replacing the earlier grouped-tuple pattern). `AgentService::build(config)` assembles all shared infrastructure once at startup. Both surfaces compose it and add only presentation-specific fields:
+The monolithic service layer crate has been decomposed into 11 specialized subcrates — `hkask-services-core`, `hkask-services-chat`, `hkask-services-compose`, `hkask-services-context`, `hkask-services-corpus`, `hkask-services-curator`, `hkask-services-kata-kanban`, `hkask-services-onboarding`, `hkask-services-runtime`, `hkask-services-skill`, and `hkask-services-wallet`. Each subcrate follows the deep-module discipline (≤7 public functions per module).
 
-- `ReplState` = `AgentService` + REPL fields (prompt history, input state)
-- `ApiState` = `Arc<AgentService>` + HTTP fields (router, OpenAPI spec) + surface-specific stores
+`hkask-services-context::AgentService` is a DI container with 30+ accessor methods, delegating to the specialized subcrates. Both CLI and API surfaces depend on individual subcrates directly rather than on a single monolithic service layer.
 
-**Consolidation pattern:** `AgentService::consolidate_agent_memory(agent_name, request)` is the single OCAP-gated entry point for episodic→semantic consolidation. It checks P2 affirmative consent for both `EpisodicMemory` and `SemanticMemory`, opens the per-agent memory DB, and runs `ConsolidationService`. CLI, API, REPL, and Curator daemon all route through this method; the previous direct `Database::open` bypass in `hkask-memory::consolidation_ops` has been removed.
+**Consolidation pattern:** Consolidation is routed through the relevant subcrate. CLI, API, REPL, and Curator daemon all route through service methods gated by P2 affirmative consent.
 
 ### Dependency Direction
 
@@ -781,7 +780,7 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 graph TD
     CLI["hkask-cli"]
     API["hkask-api"]
-    SVC["hkask-services (AgentService)"]
+    SVC["service subcrates"]
     CLI --> SVC
     API --> SVC
     SVC --> AGENTS[hkask-agents]
@@ -792,12 +791,12 @@ graph TD
     SVC --> STORAGE[hkask-storage]
 ```
 
-Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface MCP servers (those that are direct surfaces for a service) may import `hkask-services` for delegation only — see constraint 1 below.
+Domain crates **never** depend on service layer subcrates. MCP servers **never** depend on service layer subcrates for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface MCP servers (those that are direct surfaces for a service) may import specific service layer subcrates for delegation only — see constraint 1 below.
 
 ### Key Constraints
 
-1. **MCP servers should not depend on `hkask-services` for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`. Pure business logic lives in `hkask-storage::spec_types` (shared kernel). Neither server orchestrates — they delegate.
-2. **Domain crates do NOT depend on `hkask-services`** — dependency direction is strictly surface → service → domain.
+1. **MCP servers should not depend on service layer subcrates for orchestration** — P1 Prohibition (out-of-process isolation). Exceptions: servers that are direct surfaces for a service (CLI/API/MCP tri-surface pattern). `hkask-mcp-replica` is a tri-surface for `ComposeService` + `EmbedService`. Pure business logic lives in `hkask-storage::spec_types` (shared kernel). Neither server orchestrates — they delegate.
+2. **Domain crates do NOT depend on service layer subcrates** — dependency direction is strictly surface → service → domain.
 
 
 ---
@@ -890,14 +889,14 @@ Kanban provides headless task coordination for agents and replicants. Boards con
 
 ```mermaid
 graph TD
-    CLI["hkask-cli"] --> SVC["hkask-services"]
+    CLI["hkask-cli"] --> SVC["service subcrates"]
     MCP["hkask-mcp-kata-kanban"] --> SVC
-    SVC --> TYPES["hkask-services-kata-kanban"]
+    SVC --> KATA["hkask-services-kata-kanban"]
     SVC --> STORAGE["hkask-storage (TripleStore)"]
     SVC -.-> AGENTS["hkask-agents (ActivePods)"]
 ```
 
-`hkask-mcp-kata-kanban` depends on `hkask-services` — permitted as a tri-surface for KanbanService.
+`hkask-mcp-kata-kanban` depends on `hkask-services-kata-kanban` — permitted as a tri-surface for KanbanService.
 
 Kanban operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Kanban }`.
 
@@ -1004,7 +1003,7 @@ cns.kata.improv.effectiveness → variety_feedback → CNS homeostatic loop
 
 ## LoRA Adapter Lifecycle & Inference Composition
 
-**Crates:** `hkask-adapter` (lifecycle, routing, store), `hkask-types` (CNS spans), `hkask-services` (orchestration)
+**Crates:** `hkask-adapter` (lifecycle, routing, store), `hkask-types` (CNS spans), `hkask-services-runtime` (orchestration)
 
 **MCP surface:** Training via `hkask-mcp-training` (17 tools, 5 providers)
 
@@ -1078,7 +1077,7 @@ See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-trai
 
 ## Daemon & Replicant Server Mode
 
-**Crates:** `hkask-mcp` (daemon transport), `hkask-services` (daemon handler), `hkask-agents` (AgentMode)
+**Crates:** `hkask-mcp` (daemon transport), `hkask-services-runtime` (daemon handler), `hkask-agents` (AgentMode)
 
 ### Summary
 
@@ -1308,7 +1307,6 @@ kask init --profile server
 
 | Crate | Pub Items | Key Concerns | Justification |
 |-------|-----------|-------------|---------------|
-| `hkask-services` | 66 | 28 private `AgentService` fields, domain submodules | Strangler fig consolidation target. Each submodule ≤7 functions individually. |
 | `hkask-types` | 50 | CNS span registry (28 variants), WebID, RDF types | Canonical type crate. CNS spans alone justify the surface — each span defines vocabulary. |
 | `hkask-test-harness` | 42 | Contract verification, proptest strategies | Testing infrastructure. Each strategy is test-only. |
 | `hkask-storage` | 39 | `define_store!` macro, TripleStore, vector store | Persistence orchestration. Each store follows same deep pattern. |
@@ -1324,7 +1322,7 @@ kask init --profile server
 | `hkask-memory` | 14 | Episodic/semantic memory, narrative generation | Memory subsystem. Each memory type is distinct. |
 | `hkask-keystore` | 11 | Argon2id, OS keychain, SQLCipher | Security crate. Derivation, storage, encryption are distinct concerns. |
 | `hkask-services-core` | 32 | `ServiceConfig`, `ServiceError`, identity, verification, settings, goals | Foundation crate. Shared config, error taxonomy, and identity types used by every other service crate. |
-| `hkask-services-kata-kanban` | 22 | `KataEngine`, `KataManifest`, `KataResult`, `KanbanService`, `Board`, `Task`, `SpawnSpec`, `KanbanError`, `KataError` | Unified workflow crate (merged from `hkask-services-kata` + `hkask-services-kanban`). PDCA phases map directly to Kanban task statuses. |
+| `hkask-services-kata-kanban` | 22 | `KataEngine`, `KataManifest`, `KataResult`, `KanbanService`, `Board`, `Task`, `SpawnSpec`, `KanbanError`, `KataError` | Unified workflow crate (merged from the former kata and kanban service crates). PDCA phases map directly to Kanban task statuses. |
 | `hkask-services-corpus` | 23 | `DiscoverService`, `EmbedService`, `CorpusConfig`, entity extraction | Document corpus ingestion, embedding, entity extraction. Each phase (discover, embed, validate) exposes its own config types. |
 | `hkask-services-runtime` | 23 | `ServiceDaemonHandler`, provider backends (7), `AdaptiveMonitor` | Runtime orchestration with 7 provider backends, each a distinct type. Provider count drives surface breadth. |
 | `hkask-services-skill` | 19 | `SkillAuditor`, `BundleService`, skill discovery, publishing | Skill lifecycle + bundle composition. Audit pipeline exposes health types; bundle exposes composition types. |

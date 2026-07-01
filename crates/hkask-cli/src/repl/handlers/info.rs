@@ -6,7 +6,7 @@ use hkask_services_chat::MemoryService;
 pub(crate) fn handle_history(state: &super::super::ReplState) {
     let token = state.service_context.governance().checker.grant_registry(
         hkask_capability::DelegationAction::Read,
-        *state.service_context.identity().0,
+        *state.service_context.webid(),
         state.agent_webid,
     );
     match MemoryService::recall_recent_turns(

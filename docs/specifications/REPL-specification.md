@@ -1,7 +1,7 @@
 ---
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
-last_updated: 2026-06-25
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Surface"
@@ -278,7 +278,7 @@ Ensemble multi-agent commands are deferred. The dual-presence pattern (§7) is t
 
 The turn pipeline is now split between the service layer and the CLI:
 
-- **`ChatService::execute_turn()`** (in `hkask-services`) handles: manifest cascade,
+- **`ChatService::execute_turn()`** (in `hkask-services-chat`) handles: manifest cascade,
   history suffix, inference via `ChatService::chat()`, and persona filter.
 - **CLI (`turn::single_agent_turn()`)** handles: gas guard reservation/settlement,
   response display, tool execution through `GovernedTool`,

@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-06-24
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Verifiable registry of all Mermaid diagrams in the hKask documentation corpus. Per the Mermaid-First Mandate from `DOCUMENTATION_STANDARDS.md` §4: every interaction pattern, data flow, and object model is diagrammed. Every diagram carries `DIAGRAM_ALIGNMENT` metadata.
 
-**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-13.
+Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-30.
 
 ---
 
@@ -27,6 +27,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | Standing Session Chat Lifecycle | [MDS.md](architecture/core/MDS.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-research/src/main.rs` | ✅ VERIFIED |
 | DIAG-DC-007 | hKask Container Lifecycle (Create → Register → Activate → Deactivate) | [MDS.md](architecture/core/MDS.md) §6.5 | `crates/hkask-cli/src/commands/chat.rs`, `crates/hkask-agents/src/pod/mod.rs` | ✅ VERIFIED |
+| DIAG-DC-008 | Adapter Lifecycle State Machine (Cold → Warming → Active → Draining → Removed) | [state-adapter-lifecycle.md](diagrams/state-adapter-lifecycle.md) | `crates/hkask-adapter/src/endpoint_lifecycle.rs`, `crates/hkask-adapter/src/adapter_router/mod.rs` | ✅ VERIFIED |
 
 ## 2. Interface & Composition Diagrams
 
@@ -38,6 +39,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
 | DIAG-IC-006 | LLM Routing and Failover (Inference Router — DI/TG/FA/OR) | [MDS.md](architecture/core/MDS.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
+| DIAG-IC-007 | MCP Tool Dispatch Sequence with OCAP Enforcement | [sequence-mcp-tool-dispatch.md](diagrams/sequence-mcp-tool-dispatch.md) | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
+| DIAG-IC-008 | Service Layer Decomposition — 11 subcrates, ports, CLI/API consumers | [class-service-layer.md](diagrams/class-service-layer.md) | `crates/hkask-services-core through hkask-services-wallet/src/`, `crates/hkask-ports/src/` | ✅ VERIFIED |
 
 ## 3. Trust & Observability Diagrams
 
@@ -58,8 +61,10 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-PL-001 | Database Architecture — SQLCipher with 9 specialized stores | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-storage/src/database.rs:74` | ✅ VERIFIED |
 | DIAG-PL-002 | Bitemporal Triple Schema (valid-time × transaction-time) | [MDS.md](architecture/core/MDS.md) §2 | `crates/hkask-storage/src/triples.rs:79` | ✅ VERIFIED |
 | DIAG-PL-003 | Memory Architecture — Episodic/Semantic public/private gating | [MDS.md](architecture/core/MDS.md) §3 | `crates/hkask-memory/src/` | ✅ VERIFIED |
-| DIAG-PL-004 | Bootstrap Sequence (DB → Registry → Capability → Curator → CNS → MCP) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-cli/src/main.rs` | ✅ VERIFIED |
+| DIAG-PL-004 | Bootstrap Sequence (DB → Registry → Capability → Curator → CNS → MCP) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-cli/src/main.rs` | ⚠️ SUPERSEDED by DIAG-PL-006 |
 | DIAG-PL-005 | Embedding Vector Lifecycle (model → sqlite-vec → KNN search) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-storage/src/embeddings.rs` | ✅ VERIFIED |
+| DIAG-PL-006 | Bootstrap Flowchart — full CLI entry → AgentService assembly → surface mount | [flowchart-bootstrap.md](diagrams/flowchart-bootstrap.md) | `crates/hkask-cli/src/main.rs`, `crates/hkask-services-context/src/context_impl/build.rs`, `crates/hkask-services-core/src/config.rs`, `crates/hkask-api/src/lib.rs` | ✅ VERIFIED |
+| DIAG-PL-010 | Database Schema ERD — 37 tables, 16 relationships, full Crow's Foot notation | [erd-schema.md](diagrams/erd-schema.md) | `crates/hkask-storage/src/sql/schema.sql`, `crates/hkask-storage/src/sql/users.sql`, `crates/hkask-storage/src/*.rs` | ✅ VERIFIED |
 
 ## 5. Framework & Methodology Diagrams
 
@@ -69,8 +74,13 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-FW-002 | MDS Entity Relationship Diagram (Spec ↔ Goal ↔ Curation) | [`MDS.md`](architecture/core/MDS.md) §1.2 | `docs/architecture/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-003 | MVSDD Cycle Sequence Diagram (Specify → Grant → Compose → Curate → Reflect) | [`MDS.md`](architecture/core/MDS.md) §4.3 | `docs/architecture/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | [`MDS.md`](architecture/core/MDS.md) §6.1 | `crates/hkask-ports/src/` | ✅ VERIFIED |
+| DIAG-FW-005 | Kata PDCA State Machine — Plan → Do → Check → Act with Kanban integration | [state-kata-pdca.md](diagrams/state-kata-pdca.md) | `crates/hkask-services-kata-kanban/src/kata/`, `crates/hkask-services-kata-kanban/src/kanban/` | ✅ VERIFIED |
 
 ## 6. Reference Diagrams
+
+| Diagram ID | Description | Document | Verified Against | Status |
+|-----------|-------------|----------|-----------------|--------|
+| DIAG-RF-001 | ERD Schema Documentation (now replaced by DIAG-PL-010) | [erd-schema.md](diagrams/erd-schema.md) | `crates/hkask-storage/src/` | ✅ VERIFIED |
 
 *No reference diagrams remain; ERD documentation has been retired. Recoverable from git history.*
 
@@ -95,15 +105,15 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 
 | Category | Diagrams | Verified | V1.1+ Candidates |
 |----------|----------|----------|-----------------|
-| Domain & Capability | 8 | 8 | 0 |
-| Interface & Composition | 6 | 6 | 0 |
+| Domain & Capability | 9 | 9 | 0 |
+| Interface & Composition | 8 | 8 | 0 |
 | Trust & Observability | 7 | 7 | 0 |
-| Persistence & Lifecycle | 5 | 5 | 0 |
-| Framework | 4 | 4 | 0 |
-| Reference | 0 | 0 | 0 |
-| **Total** | **30** | **30** | **5** |
+| Persistence & Lifecycle | 7 | 7 | 0 |
+| Framework | 5 | 5 | 0 |
+| Reference | 1 | 1 | 0 |
+| **Total** | **37** | **37** | **5** |
 
-**MDS completeness:** All 5 MDS categories have diagram coverage. 30 diagrams verified against current code (2026-06-13).
+**MDS completeness:** All 5 MDS categories have diagram coverage. 37 diagrams verified against current code (2026-06-30).
 
 ---
 

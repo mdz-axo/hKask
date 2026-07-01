@@ -471,19 +471,18 @@ impl SqliteGoalRepository {
                 None => return Err(GoalRepositoryError::NotFound(goal_id.to_string())),
             }
         };
-        if quarantined.original_data.is_empty()
-            || serde_json::from_str::<Goal>(&quarantined.original_data).is_err()
-        {
-            let conn = self.lock_conn()?;
-            conn.execute(
-                "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
-                [goal_id],
-            )
-            .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
-            return Ok(false);
-        }
-        let goal: Goal =
-            serde_json::from_str(&quarantined.original_data).expect("goal deserialization");
+        let goal: Goal = match serde_json::from_str(&quarantined.original_data) {
+            Ok(goal) => goal,
+            Err(_) => {
+                let conn = self.lock_conn()?;
+                conn.execute(
+                    "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
+                    [goal_id],
+                )
+                .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
+                return Ok(false);
+            }
+        };
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name)

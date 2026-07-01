@@ -38,7 +38,7 @@ fn build_turn_request(
         tool_section: state.tool_prompt.section.clone(),
         llm_params: to_llm_params(settings),
         capability_checker: state.service_context.governance().checker.clone(),
-        system_webid: *state.service_context.identity().0,
+        system_webid: *state.service_context.webid(),
         iteration,
         tool_results,
         auto_condense: settings.auto_condense,

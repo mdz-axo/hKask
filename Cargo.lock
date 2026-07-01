@@ -4078,6 +4078,7 @@ dependencies = [
  "hkask-bridge-pko",
  "hkask-mcp",
  "hkask-memory",
+ "hkask-services-curator",
  "hkask-storage",
  "hkask-types",
  "rmcp",
@@ -4421,6 +4422,7 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 

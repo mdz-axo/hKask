@@ -78,8 +78,7 @@ pub(crate) async fn memory_recall(
     let episodic_request = RecallRequest::episodic(&params.entity, auth.webid, token.clone());
     let episodic_results = state
         .agent_service
-        .memory()
-        .0
+        .infra().episodic
         .recall_episodic(&episodic_request)
         .map_err(|e| {
             ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))
@@ -99,7 +98,7 @@ pub(crate) async fn memory_recall(
         .collect();
 
     let semantic = if params.include_semantic.unwrap_or(false) {
-        let semantic_port = state.agent_service.memory().1;
+        let semantic_port = &state.agent_service.infra().semantic;
         let semantic_request = RecallRequest::semantic(&params.entity, token.clone());
         let semantic_results = semantic_port
             .recall_semantic(&semantic_request)

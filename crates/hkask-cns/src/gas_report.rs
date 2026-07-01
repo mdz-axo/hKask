@@ -19,7 +19,7 @@
 //! ```
 
 use chrono::{DateTime, Utc};
-use hkask_storage::NuEventStore;
+use hkask_ports::CnsStoragePort;
 use hkask_types::InfrastructureError;
 use hkask_types::event::NuEvent;
 use hkask_types::id::WebID;
@@ -118,19 +118,19 @@ enum GasEventKind {
 
 /// Query and aggregation layer for CNS gas consumption data.
 ///
-/// Wraps the [`NuEventStore`] and provides methods for querying gas events
+/// Wraps a [`CnsStoragePort`] and provides methods for querying gas events
 /// by agent, by time window, and aggregating into reports.
 #[derive(Clone)]
 pub struct GasReport {
-    store: Arc<NuEventStore>,
+    store: Arc<dyn CnsStoragePort>,
 }
 
 impl GasReport {
     /// Create a new GasReport backed by the given event store.
     ///
     /// # Arguments
-    /// * `store` — An `Arc<NuEventStore>` providing access to raw CNS events.
-    pub fn new(store: Arc<NuEventStore>) -> Self {
+    /// * `store` — An `Arc<dyn CnsStoragePort>` providing access to raw CNS events.
+    pub fn new(store: Arc<dyn CnsStoragePort>) -> Self {
         Self { store }
     }
 
@@ -293,7 +293,7 @@ impl GasReport {
 
     /// Query gas events from the underlying store within a time window.
     ///
-    /// Uses [`NuEventStore::query_algedonic`] to fetch events with `span_category = 'gas'`
+    /// Uses [`CnsStoragePort::query_algedonic`] to fetch events with `span_category = 'gas'`
     /// and `phase = 'act'`, then filters to only gas-related span kinds.
     ///
     /// **Limitation**: GasDepleted events use `CyclePhase::Sense` and will not appear in

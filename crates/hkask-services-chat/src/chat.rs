@@ -7,6 +7,7 @@
 //! duplicating ~400 lines of business logic.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -429,9 +430,7 @@ impl ChatService {
         // Create capability token for memory operations.
         let capability_token = ctx.governance().checker.grant_registry(
             DelegationAction::Execute,
-            req.auth_context
-                .as_ref()
-                .map_or(*ctx.identity().0, |a| a.webid),
+            req.auth_context.as_ref().map_or(*ctx.webid(), |a| a.webid),
             agent_webid,
         );
 
@@ -439,11 +438,11 @@ impl ChatService {
         let semantic_port: Arc<dyn SemanticStoragePort> = req
             .semantic_storage_override
             .clone()
-            .unwrap_or_else(|| ctx.memory().1.clone());
+            .unwrap_or_else(|| ctx.infra().semantic.clone());
         let episodic_port: Arc<dyn EpisodicStoragePort> = req
             .episodic_storage_override
             .clone()
-            .unwrap_or_else(|| ctx.memory().0.clone());
+            .unwrap_or_else(|| ctx.infra().episodic.clone());
 
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only recall memory when
         // the owner has granted consent for the category. No consent ⇒ no recall.
@@ -560,20 +559,26 @@ impl ChatService {
         );
         let _ = ctx.cns().events.persist(&request_event);
 
-        let result = prepared
-            .inference_port
-            .generate_with_model(
+        let result = tokio::time::timeout(
+            Duration::from_secs(120),
+            prepared.inference_port.generate_with_model(
                 &prepared.prompt,
                 &params,
                 Some(&prepared.model),
                 req.tools.as_deref(),
-            )
-            .await
-            .map_err(|e| ServiceError::InferencePort {
-                source: None,
-                message: e.to_string(),
-                retryable: false,
-            })?;
+            ),
+        )
+        .await
+        .map_err(|_elapsed| ServiceError::InferencePort {
+            source: None,
+            message: "Inference call timed out after 120s".to_string(),
+            retryable: true,
+        })?
+        .map_err(|e| ServiceError::InferencePort {
+            source: None,
+            message: e.to_string(),
+            retryable: false,
+        })?;
 
         let response_span = Span::new(SpanNamespace::from(CnsSpan::Chat), "response");
         let response_event = NuEvent::new(

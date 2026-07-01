@@ -305,6 +305,16 @@ impl NuEventSink for NuEventStore {
     }
 }
 
+impl hkask_ports::CnsStoragePort for NuEventStore {
+    fn query_algedonic(
+        &self,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: u64,
+    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+        self.query_algedonic(since, limit)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use hkask_types::event::{Span, SpanNamespace};

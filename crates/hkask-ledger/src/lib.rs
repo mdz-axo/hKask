@@ -16,6 +16,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use thiserror::Error;
+use tracing;
 
 /// Errors the ledger can produce.
 #[derive(Debug, Error)]
@@ -30,6 +31,8 @@ pub enum LedgerError {
     DoubleEntryViolation(i64),
     #[error("idempotency conflict: reference '{reference}' already exists with different postings")]
     IdempotencyConflict { reference: String },
+    #[error("internal lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 /// A single entry in a transaction — moves `amount` of `asset` from
@@ -86,6 +89,13 @@ pub struct Ledger {
 }
 
 impl Ledger {
+    /// Lock the internal mutex, mapping poison to `LedgerError::LockPoisoned`.
+    fn lock_db(&self) -> Result<std::sync::MutexGuard<'_, Connection>, LedgerError> {
+        self.db
+            .lock()
+            .map_err(|_| LedgerError::LockPoisoned("ledger database mutex".into()))
+    }
+
     /// REQ: P8-ledger-open
     /// expect: "I can open a ledger database and it creates the schema if needed" \[P8\]
     /// pre:  path is a valid filesystem path
@@ -172,7 +182,7 @@ impl Ledger {
     /// \[P8\] Constraining: Persistence — account survives restarts
     pub fn ensure_account(&self, id: &str, namespace: &str) -> Result<(), LedgerError> {
         let now = chrono::Utc::now().to_rfc3339();
-        let db = self.db.lock().unwrap();
+        let db = self.lock_db()?;
         db.execute(
             "INSERT OR IGNORE INTO accounts (id, namespace, created_at) VALUES (?1, ?2, ?3)",
             rusqlite::params![id, namespace, now],
@@ -194,7 +204,7 @@ impl Ledger {
         }
 
         let now = chrono::Utc::now().to_rfc3339();
-        let db = self.db.lock().unwrap();
+        let db = self.lock_db()?;
 
         // Check if this reference already exists
         let existing_id: Option<String> = db
@@ -277,7 +287,7 @@ impl Ledger {
     /// inv:  read-only — does not modify the ledger; non-existent account returns 0
     /// \[P9\] Constraining: Observability — balances are visible to the user
     pub fn balance(&self, account: &str, asset: Option<&str>) -> Result<i64, LedgerError> {
-        let db = self.db.lock().unwrap();
+        let db = self.lock_db()?;
         let (query, params): (&str, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(a) = asset {
             (
                 "SELECT
@@ -310,7 +320,7 @@ impl Ledger {
     /// inv:  read-only; returns empty vec for unknown namespace
     /// \[P9\] Constraining: Observability — all domain balances are visible at once
     pub fn namespace_balances(&self, namespace: &str) -> Result<Vec<AccountBalance>, LedgerError> {
-        let db = self.db.lock().unwrap();
+        let db = self.lock_db()?;
         let mut stmt = db.prepare(
             "SELECT a.id,
                     COALESCE(p.asset, '') AS asset,
@@ -343,13 +353,16 @@ impl Ledger {
     /// inv:  read-only
     /// \[P9\] Constraining: Observability — transaction volume is queryable
     pub fn transaction_count(&self, destination: &str) -> Result<u64, LedgerError> {
-        let db = self.db.lock().unwrap();
+        let db = self.lock_db()?;
         let count: i64 = db.query_row(
             "SELECT COUNT(DISTINCT transaction_id) FROM postings WHERE destination = ?1",
             rusqlite::params![destination],
             |row| row.get(0),
         )?;
-        Ok(count as u64)
+        Ok(u64::try_from(count).unwrap_or_else(|_| {
+            tracing::warn!(target: "ledger", count, "Negative transaction count from database — clamping to 0");
+            0
+        }))
     }
 
     /// REQ: P9-ledger-query
@@ -364,7 +377,7 @@ impl Ledger {
         range: &DateRange,
         filter: &QueryFilter,
     ) -> Result<Vec<LedgerTransaction>, LedgerError> {
-        let db = self.db.lock().unwrap();
+        let db = self.lock_db()?;
 
         // Build query with parameterized conditions
         let mut conditions = vec!["t.timestamp >= ?1 AND t.timestamp <= ?2".to_string()];
@@ -427,12 +440,16 @@ impl Ledger {
                 .filter_map(|r| r.ok())
                 .collect();
 
+            let tx_id = id.clone();
             result.push(LedgerTransaction {
                 id,
                 timestamp,
                 reference,
                 postings,
-                metadata: serde_json::from_str(&metadata).unwrap_or_default(),
+                metadata: serde_json::from_str(&metadata).unwrap_or_else(|e| {
+                    tracing::warn!(target: "ledger", error = %e, transaction_id = %tx_id, "Corrupted metadata JSON");
+                    serde_json::Value::Null
+                }),
             });
             let _ = created_at;
         }
