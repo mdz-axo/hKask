@@ -2,6 +2,7 @@
 
 use super::super::*;
 use super::foundation::Foundation;
+use crate::cns_store_slo_provider::CnsStoreSloProvider;
 use hkask_services_core::ServiceError;
 use std::path::PathBuf;
 use tokio::sync::RwLock;
@@ -54,7 +55,10 @@ pub(super) async fn build_loops(
         .with_event_sink(Arc::clone(&f.cns_event_sink))
         .with_alerts_channel(f.curation_inbox_tx.clone())
         .with_tool_consumption_channel(tool_consumption_rx)
-        .with_curator_directive_channel(curator_directive_rx);
+        .with_curator_directive_channel(curator_directive_rx)
+        .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
+            &f.nu_event_store,
+        ))));
     let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
     loop_system
         .register_loop(Arc::new(CyberneticsLoopHandle(Arc::clone(

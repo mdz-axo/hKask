@@ -123,7 +123,7 @@ pub(crate) fn load_manifest_from_file(
 ///
 /// Parses the YAML using the `ManifestFile` wrapper and flattens
 /// it into a canonical `BundleManifest`.
-pub(crate) fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, ManifestLoadError> {
+pub fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, ManifestLoadError> {
     let file: ManifestFile =
         serde_yaml_neo::from_str(yaml).map_err(|e| ManifestLoadError::Yaml { source: e })?;
 
@@ -241,7 +241,7 @@ pub fn resolve_manifest(
 
 /// Errors that can occur when loading a manifest from YAML.
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum ManifestLoadError {
+pub enum ManifestLoadError {
     #[error("IO error reading {path}: {source}")]
     Io {
         path: String,

@@ -487,7 +487,8 @@ pub async fn run(
         SERVER_NAME,
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::server::ServerContext| {
-            let (escalation_queue, nu_event_store, episodic, semantic) = open_curator_stores(&ctx);
+            let (escalation_queue, nu_event_store, episodic, semantic, token_registry) =
+                open_curator_stores(&ctx);
             Ok(CuratorServer {
                 webid: ctx.webid,
                 replicant: replicant.clone(),
@@ -496,7 +497,7 @@ pub async fn run(
                 nu_event_store,
                 episodic,
                 semantic,
-                token_registry: None,
+                token_registry,
             })
         },
         vec![
@@ -521,6 +522,7 @@ fn open_curator_stores(
     Option<Arc<hkask_storage::NuEventStore>>,
     Option<hkask_memory::EpisodicMemory>,
     Option<Arc<hkask_memory::SemanticMemory>>,
+    Option<Arc<dyn hkask_capability::TokenRegistry>>,
 ) {
     let curator_db_path = ctx
         .credentials
@@ -548,7 +550,7 @@ fn open_curator_stores(
         }
     };
     let Some(db) = db else {
-        return (None, None, None, None);
+        return (None, None, None, None, None);
     };
 
     let conn = db.conn_arc();
@@ -572,10 +574,24 @@ fn open_curator_stores(
         embedding_store,
     ));
 
+    // Token registry — consent audit trail for DelegationToken lifecycle.
+    let conn4 = db.conn_arc();
+    let token_registry = {
+        let store = hkask_storage::TokenRegistryStore::new(conn4);
+        match store.initialize_schema() {
+            Ok(()) => Some(Arc::new(store) as Arc<dyn hkask_capability::TokenRegistry>),
+            Err(e) => {
+                tracing::warn!(target: "hkask.mcp.curator", error = %e, "Failed to initialize token registry schema");
+                None
+            }
+        }
+    };
+
     (
         escalation_queue,
         nu_event_store,
         Some(episodic),
         Some(semantic),
+        token_registry,
     )
 }

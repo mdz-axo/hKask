@@ -8,7 +8,9 @@ use hkask_cli::cli::Commands;
 use hkask_cli::commands;
 use hkask_inference::InferenceConfig;
 use hkask_mcp::runtime::McpRuntime;
+use hkask_templates::BundleRegistryIndex;
 use hkask_templates::SqliteRegistry;
+use hkask_templates::load_manifest_from_yaml;
 use std::time::Instant;
 
 /// Check fusion model configuration at startup.
@@ -49,6 +51,55 @@ fn main() {
         },
         "Failed to initialize registry",
     );
+
+    // Register platform engineering FlowDef manifests at startup.
+    // These are loyalty-anchored platform maintenance skills.
+    // Non-fatal: if parsing fails, log and continue.
+    {
+        let platform_manifests: [(&str, &str); 7] = [
+            (
+                "platform-governance-transparency-reporter",
+                include_str!(
+                    "../../../registry/manifests/platform-governance-transparency-reporter.yaml"
+                ),
+            ),
+            (
+                "platform-consent-auditor",
+                include_str!("../../../registry/manifests/platform-consent-auditor.yaml"),
+            ),
+            (
+                "platform-portability-verifier",
+                include_str!("../../../registry/manifests/platform-portability-verifier.yaml"),
+            ),
+            (
+                "platform-health-scorer",
+                include_str!("../../../registry/manifests/platform-health-scorer.yaml"),
+            ),
+            (
+                "platform-loyalty-scorecard",
+                include_str!("../../../registry/manifests/platform-loyalty-scorecard.yaml"),
+            ),
+            (
+                "platform-bulkhead-auditor",
+                include_str!("../../../registry/manifests/platform-bulkhead-auditor.yaml"),
+            ),
+            (
+                "platform-wardley-mapper",
+                include_str!("../../../registry/manifests/platform-wardley-mapper.yaml"),
+            ),
+        ];
+        for (name, yaml) in platform_manifests {
+            match load_manifest_from_yaml(yaml) {
+                Ok(bundle) => {
+                    registry.register_bundle(bundle);
+                    tracing::info!(target: "bootstrap", name, "Registered platform engineering manifest");
+                }
+                Err(e) => {
+                    tracing::warn!(target: "bootstrap", name, error = %e, "Failed to load platform manifest");
+                }
+            }
+        }
+    }
 
     // P9: CNS span
     let cns_start = Instant::now();

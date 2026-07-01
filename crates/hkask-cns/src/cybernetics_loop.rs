@@ -32,6 +32,7 @@ use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost, EnergyError};
 use crate::energy_budget_management::EnergyBudgetManager;
 use crate::runtime::CnsRuntime;
 use crate::set_points::SetPoints;
+use crate::slo_manager::SloDataProvider;
 use crate::wallet_budget::WalletBackedBudget;
 
 use crate::algedonic::{AlertSeverity, RuntimeAlert};
@@ -68,6 +69,9 @@ pub struct CyberneticsLoop {
     curator_directive_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<CuratorDirective>>>>,
     /// Loop-quality telemetry from the most recent tick cycle.
     loop_quality: Arc<RwLock<LoopQuality>>,
+    /// SLO data provider for periodic SLO evaluation. If set, SLOs are evaluated
+    /// on each tick and breaches are escalated through the algedonic pathway.
+    slo_provider: Option<Arc<dyn SloDataProvider>>,
 }
 
 impl CyberneticsLoop {
@@ -95,6 +99,7 @@ impl CyberneticsLoop {
             event_sink: None,
             alerts_tx: None,
             tool_consumption_rx: None,
+            slo_provider: None,
             curator_directive_rx: None,
             loop_quality: Arc::new(RwLock::new(LoopQuality::default())),
         };
@@ -135,6 +140,16 @@ impl CyberneticsLoop {
         rx: mpsc::UnboundedReceiver<CuratorDirective>,
     ) -> Self {
         self.curator_directive_rx = Some(Arc::new(RwLock::new(rx)));
+        self
+    }
+
+    /// Wire the SLO data provider for periodic SLO evaluation.
+    ///
+    /// When set, SLOs are evaluated on each tick and breaches are
+    /// escalated through the algedonic pathway.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_slo_provider(mut self, provider: Arc<dyn SloDataProvider>) -> Self {
+        self.slo_provider = Some(provider);
         self
     }
 
@@ -671,6 +686,14 @@ impl HkaskLoop for CyberneticsLoop {
     /// `LoopQuality` metrics (delay_ms, gain, fidelity_score) after each cycle.
     async fn tick(&self) {
         let start = std::time::Instant::now();
+
+        // SLO evaluation — runs every tick when provider is wired.
+        if let Some(ref provider) = self.slo_provider {
+            let cns = self.cns.read().await;
+            let _ = cns.evaluate_and_escalate_slos(provider.as_ref()).await;
+            drop(cns);
+        }
+
         let signals = self.sense().await;
         let deviations = self.compare(&signals).await;
         let actions = self.compute(&deviations).await;

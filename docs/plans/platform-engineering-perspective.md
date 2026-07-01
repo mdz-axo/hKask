@@ -3,7 +3,7 @@ title: "Platform Engineering Perspective — Systematic Integration Plan"
 audience: [architects, platform engineers, project maintainers]
 last_updated: 2026-07-01
 version: "0.31.0"
-status: "Active — Phases 1-2, 4-7 complete. Phase 3, 8 partially complete. Platform Engineer replicant defined and registered."
+status: "Active — Phases 1-8 complete. All types, traits, FlowDef manifests, templates, CNS spans, startup wiring, and Platform Engineer replicant built and registered."
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
 anchored_on: [PRINCIPLES.md §P1-P12]
@@ -835,15 +835,13 @@ hkask-mcp-curator → [capability, storage, cns]                     ← token +
 
 No production dependency from CNS → Storage.
 
-**Known integration gaps (startup wiring not yet implemented):**
+**Startup wiring — complete (2026-07-01):**
 
-| Gap | Detail | Root cause |
-|-----|--------|------------|
-| Platform manifests not registered at runtime | `Registry::bootstrap()` loads 7 FlowDef manifests via `include_str!` and calls `register_bundle()`, but the system uses `SqliteRegistry` at runtime, not the in-memory `Registry`. `SqliteRegistry` is never constructed in any startup flow. | The daemon/REPL bootstrap layer does not yet instantiate `SqliteRegistry` or call `Registry::bootstrap()`. This is not a missing call — the entire registry construction path is absent from the startup code. |
-| `TokenRegistryStore` not wired | `CuratorServer` has `token_registry: Option<Arc<dyn TokenRegistry>>`, set to `None`. The store works in tests but no database connection is available in `open_curator_stores()` to construct one. | The curator MCP server's `run()` function opens stores from a `ServerContext` with credential-based paths. Adding a token registry requires a database path and schema init in the startup flow. |
-| `SloDataProvider` not wired to `CyberneticsLoop` | `CyberneticsLoop::with_slo_provider()` exists but `CyberneticsLoop` is never constructed in production code (only in tests and kata). | The loop system is created inside `AgentService::build()`, but the construction path doesn't expose hooks for injecting a `SloDataProvider` or a `TokenRegistry`. |
-
-All three gaps are the same category: **the library types, traits, and implementations are complete and tested. The daemon/REPL startup flow that instantiates and wires them together has not yet been built.** This is deferred integration work, not a bug in the types or logic.
+| Gap | Status | Where |
+|-----|:---:|-------|
+| Platform manifests registered at startup | ✅ | `main.rs` — 7 manifests via `include_str!` + `load_manifest_from_yaml` + `register_bundle` |
+| `SloDataProvider` wired to `CyberneticsLoop` | ✅ | `build_loops()` — `CnsStoreSloProvider` from `Foundation.nu_event_store` via `.with_slo_provider()` |
+| `TokenRegistryStore` wired to curator MCP | ✅ | `open_curator_stores()` — schema init from curator DB, wired to `CuratorServer` |
 
 **Test coverage:**
 

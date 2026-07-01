@@ -21,6 +21,8 @@ pub(super) struct Foundation {
     pub cns_event_sink: Arc<dyn NuEventSink>,
     /// Abstracted event store for gas report queries and calibration.
     pub gas_event_store: Arc<dyn CnsStoragePort>,
+    /// Concrete ν-event store for SLO evaluation and CNS queries.
+    pub nu_event_store: Arc<NuEventStore>,
 }
 
 pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
@@ -146,7 +148,8 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         user_store,
         cns_runtime,
         seam_watcher,
-        cns_event_sink,
+        cns_event_sink: cns_event_sink.clone(),
         gas_event_store,
+        nu_event_store: gas_store,
     })
 }
