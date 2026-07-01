@@ -63,7 +63,7 @@ Verification status:** All diagram `verified-against` paths checked against curr
 | DIAG-PL-003 | Memory Architecture — Episodic/Semantic public/private gating | [MDS.md](architecture/core/MDS.md) §3 | `crates/hkask-memory/src/` | ✅ VERIFIED |
 | DIAG-PL-004 | Bootstrap Sequence (DB → Registry → Capability → Curator → CNS → MCP) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-cli/src/main.rs` | ⚠️ SUPERSEDED by DIAG-PL-006 |
 | DIAG-PL-005 | Embedding Vector Lifecycle (model → sqlite-vec → KNN search) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-storage/src/embeddings.rs` | ✅ VERIFIED |
-| DIAG-PL-006 | Bootstrap Flowchart — full CLI entry → AgentService assembly → surface mount | [flowchart-bootstrap.md](diagrams/flowchart-bootstrap.md) | `crates/hkask-cli/src/main.rs`, `crates/hkask-services-context/src/context_impl/build.rs`, `crates/hkask-services-core/src/config.rs`, `crates/hkask-api/src/lib.rs` | ✅ VERIFIED |
+| DIAG-PL-006 | Bootstrap Flowchart — full CLI entry → AgentService assembly → surface mount | [flowchart-bootstrap.md](diagrams/flowchart-bootstrap.md) | `crates/hkask-cli/src/main.rs`, `crates/hkask-services-context/src/context_impl/build/`, `crates/hkask-services-core/src/config.rs`, `crates/hkask-api/src/lib.rs` | ✅ VERIFIED |
 | DIAG-PL-010 | Database Schema ERD — 37 tables, 16 relationships, full Crow's Foot notation | [erd-schema.md](diagrams/erd-schema.md) | `crates/hkask-storage/src/sql/schema.sql`, `crates/hkask-storage/src/sql/users.sql`, `crates/hkask-storage/src/*.rs` | ✅ VERIFIED |
 
 ## 5. Framework & Methodology Diagrams

@@ -136,7 +136,7 @@ fn credit_rjoules_is_not_idempotent_documents_gap() {
 
 **What it means:** The developers know about the gap and documented it as a test. The test name describes the missing behavior. These are pre-triaged bugs waiting for implementation.
 
-**Found in:** `wallet_store.rs` — credit and debit idempotency gaps.
+**Found in:** `wallet/` — credit and debit idempotency gaps.
 
 #### PATTERN: Implicit Contract Violation
 

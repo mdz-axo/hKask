@@ -909,3 +909,20 @@
   required_capabilities: []
   cascade_level: 0
   matroshka_limit: 7
+
+- id: platform-engineer/persona
+  template_type: WordAct
+  name: "Platform Engineer Persona"
+  lexicon_terms:
+    - observe
+    - diagnose
+    - audit
+    - recommend
+    - measure
+    - verify
+    - escalate
+  description: "Platform Engineer replicant persona — synthesis of exemplars (Vogels, Hightower, Majors, Forsgren, Wardley, Allspaw, Nygard, Kim, Humble)"
+  source_path: registry/templates/platform-engineer/persona.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7

@@ -1024,9 +1024,9 @@ The Curation Loop doesn't need to know about rooms, Matrix user IDs, or sync tok
 | Communication is "demoted from a loop to transport infrastructure" | `loop-architecture.md` §2.1, L125 | High |
 | P12 is a Prohibition — every action has an author | `PRINCIPLES.md` §2.5 traceability matrix, L329 | High |
 | P5 declares stubs "a debt against the Generative Space" | `PRINCIPLES.md` §2.2, L234 | High |
-| `ChatService::execute_turn()` is the agent turn pipeline | `crates/hkask-services-chat/src/chat.rs` L856–951 | High |
+| `ChatService::execute_turn()` is the agent turn pipeline | `crates/hkask-services-chat/src/chat/` L856–951 | High |
 | REPL loop uses `rl.readline()` → `single_agent_turn()` | `crates/hkask-cli/src/repl/mod.rs` L150–234 | High |
-| Agent continuity comes from `recall_recent_turns()` (episodic memory) | `crates/hkask-services-chat/src/chat.rs` L625–656 | High |
+| Agent continuity comes from `recall_recent_turns()` (episodic memory) | `crates/hkask-services-chat/src/chat/` L625–656 | High |
 
 ### What We Infer (Probabilistic — Pattern-Based)
 

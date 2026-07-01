@@ -29,7 +29,7 @@ Two Rust git libraries exist: `gix` (gitoxide, pure Rust) and `git2-rs` (libgit2
 
 **Use `gix` crate v0.81 (gitoxide) — pure Rust, no C dependencies, no CLI subprocess.**
 
-The backup system uses `gix` for all git operations within `GixCasAdapter` (`hkask-mcp/src/git_cas/gix_adapter.rs`): initializing repositories, writing blob objects, building trees, creating commits, resolving refs, and computing diffs. Snapshot strategy reads files from a `cas/<blake3-hash>` directory, writes each as a git blob object, builds a tree from blob OIDs, and commits — no index file is needed.
+The backup system uses `gix` for all git operations within `GixCasAdapter` (`crates/hkask-mcp/src/git_cas/gix_adapter/`): initializing repositories, writing blob objects, building trees, creating commits, resolving refs, and computing diffs. Snapshot strategy reads files from a `cas/<blake3-hash>` directory, writes each as a git blob object, builds a tree from blob OIDs, and commits — no index file is needed.
 
 **Alternatives Considered:**
 
@@ -92,7 +92,7 @@ cargo test -p hkask-mcp -- git_cas
 
 - [ADR-037: BLAKE3 Content Addressing](ADR-037-blake3-content-addressing.md) — BLAKE3 used for content hashing within CAS
 - ADR-038: Eight-Repo CAS Design (archived — superseded by pod-directory backup model)
-- [`crates/hkask-mcp/src/git_cas/gix_adapter.rs`](../../crates/hkask-mcp/src/git_cas/gix_adapter.rs) — Production implementation
+- [`crates/crates/hkask-mcp/src/git_cas/gix_adapter/`](../../crates/crates/hkask-mcp/src/git_cas/gix_adapter/) — Production implementation
 
 ## References
 

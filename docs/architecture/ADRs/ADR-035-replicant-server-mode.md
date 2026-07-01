@@ -136,7 +136,7 @@ cargo test -p hkask-agents -- mode
 cargo test -p hkask-mcp -- daemon
 
 # Verify no stubs
-grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon.rs --include="*.rs" | wc -l
+grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon/ --include="*.rs" | wc -l
 ```
 
 **Expected Results:**
