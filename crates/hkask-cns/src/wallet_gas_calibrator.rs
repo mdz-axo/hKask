@@ -304,15 +304,13 @@ mod tests {
         assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);
 
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
-        store
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
+        event_store
             .persist(&settled_event(agent, 100, 200))
             .expect("persist settled event");
 
-        let calibrator = Arc::new(WalletGasCalibrator::new(
-            Arc::clone(&store),
-            Arc::clone(&wallet_manager),
-        ));
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let calibrator = Arc::new(WalletGasCalibrator::new(store, Arc::clone(&wallet_manager)));
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(adjusted, "ratio 2.0 should adjust rate");
         assert_eq!(
@@ -328,14 +326,15 @@ mod tests {
         let wallet_manager = make_wallet_manager();
 
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
         let sink = Arc::new(CaptureSink::new());
-        store
+        event_store
             .persist(&settled_event(agent, 100, 200))
             .expect("persist settled event");
 
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
         let calibrator = Arc::new(
-            WalletGasCalibrator::new(Arc::clone(&store), Arc::clone(&wallet_manager))
+            WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
         );
         let adjusted = calibrator.calibrate().await.unwrap();
@@ -359,11 +358,12 @@ mod tests {
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let wallet_manager = make_wallet_manager();
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
         let sink = Arc::new(CaptureSink::new());
 
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
         let calibrator = Arc::new(
-            WalletGasCalibrator::new(Arc::clone(&store), Arc::clone(&wallet_manager))
+            WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
         );
         let adjusted = calibrator.calibrate().await.unwrap();
@@ -378,12 +378,10 @@ mod tests {
     async fn calibrate_no_events_leaves_rate_unchanged() {
         let wallet_manager = make_wallet_manager();
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
 
-        let calibrator = Arc::new(WalletGasCalibrator::new(
-            Arc::clone(&store),
-            Arc::clone(&wallet_manager),
-        ));
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let calibrator = Arc::new(WalletGasCalibrator::new(store, Arc::clone(&wallet_manager)));
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(!adjusted);
         assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);
@@ -393,9 +391,10 @@ mod tests {
     fn with_initial_lookback_changes_first_window() {
         let wallet_manager = make_wallet_manager();
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
 
-        let _calibrator = WalletGasCalibrator::new(Arc::clone(&store), Arc::clone(&wallet_manager))
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let _calibrator = WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
             .with_initial_lookback(ChronoDuration::minutes(30));
         // Construction succeeds; internal state is not directly observable.
         assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);

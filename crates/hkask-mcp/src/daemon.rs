@@ -328,7 +328,9 @@ pub trait DaemonHandler: Send + Sync {
     async fn cns_status(&self, replicant: &str, domain: Option<&str>) -> serde_json::Value;
 
     /// Query spec drift — coherence evaluation and missing/extra verbs.
-    async fn spec_drift(&self, replicant: &str, spec_id: Option<&str>) -> serde_json::Value;
+    async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {
+        serde_json::json!({"status": "unavailable", "note": "spec_drift not available for this handler"})
+    }
 }
 
 /// Unix domain socket listener for the hKask daemon.

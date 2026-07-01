@@ -301,9 +301,10 @@ mod tests {
         let server = "hkask-mcp-media";
 
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
 
-        let estimator = Arc::new(CalibratedEnergyEstimator::new(Arc::clone(&store)));
+        let estimator = Arc::new(CalibratedEnergyEstimator::new(store));
 
         // Before calibration, default cost applies.
         let before = estimator.estimate_cost(server, "search", &serde_json::json!({}));
@@ -311,7 +312,7 @@ mod tests {
 
         // Persist a settled event where actual is double the reserved cost.
         let event = settled_event(agent, server, 100, 200);
-        store.persist(&event).unwrap();
+        event_store.persist(&event).unwrap();
 
         // Calibrate over a window that includes the event.
         let adjusted = estimator.calibrate().await.unwrap();
@@ -327,14 +328,15 @@ mod tests {
         let agent = WebID::new();
 
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
-        let estimator = Arc::new(CalibratedEnergyEstimator::new(Arc::clone(&store)));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let estimator = Arc::new(CalibratedEnergyEstimator::new(store));
 
         let server_a = "hkask-mcp-media";
         let server_b = "hkask-mcp-research";
 
         // First calibration window: only server A observed.
-        store
+        event_store
             .persist(&settled_event(agent, server_a, 100, 200))
             .unwrap();
         assert_eq!(estimator.calibrate().await.unwrap(), 1);
@@ -344,7 +346,7 @@ mod tests {
         );
 
         // Second calibration window: server B observed for the first time.
-        store
+        event_store
             .persist(&settled_event(agent, server_b, 50, 100))
             .unwrap();
         assert_eq!(estimator.calibrate().await.unwrap(), 1);
@@ -362,9 +364,10 @@ mod tests {
     #[test]
     fn with_initial_lookback_changes_first_window() {
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
 
-        let estimator = CalibratedEnergyEstimator::new(Arc::clone(&store))
+        let estimator = CalibratedEnergyEstimator::new(store)
             .with_initial_lookback(ChronoDuration::minutes(30));
 
         // We cannot observe the internal last_calibrated_at, but we can verify
@@ -382,15 +385,16 @@ mod tests {
         let server = "hkask-mcp-media";
 
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
         let sink = Arc::new(CaptureSink::new());
 
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
         let estimator = Arc::new(
-            CalibratedEnergyEstimator::new(Arc::clone(&store))
+            CalibratedEnergyEstimator::new(store)
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
         );
 
-        store
+        event_store
             .persist(&settled_event(agent, server, 100, 200))
             .unwrap();
 
@@ -414,11 +418,12 @@ mod tests {
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let db = in_memory_db();
-        let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(db.conn_arc()));
+        let event_store = Arc::new(NuEventStore::new(db.conn_arc()));
         let sink = Arc::new(CaptureSink::new());
 
+        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
         let estimator = Arc::new(
-            CalibratedEnergyEstimator::new(Arc::clone(&store))
+            CalibratedEnergyEstimator::new(store)
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
         );
 

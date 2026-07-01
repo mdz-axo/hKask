@@ -99,6 +99,7 @@ impl AgentServiceWiring {
             Arc::clone(&self.mcp_pods.mcp_dispatcher),
             Arc::clone(&self.loops.a2a_runtime),
             Arc::clone(&self.foundation.escalation_queue),
+            Arc::clone(&self.foundation.cns_event_sink) as Arc<dyn NuEventSink>,
             Some(self.foundation.curation_inbox_tx.clone()),
         );
 
@@ -161,8 +162,8 @@ struct Foundation {
     cns_runtime: Arc<RwLock<CnsRuntime>>,
     seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
     cns_event_sink: Arc<dyn NuEventSink>,
-    /// Concrete event store used for gas report queries and calibration.
-    gas_event_store: Arc<NuEventStore>,
+    /// Abstracted event store for gas report queries and calibration.
+    gas_event_store: Arc<dyn CnsStoragePort>,
 }
 
 async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
@@ -171,7 +172,7 @@ async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceE
     } else {
         Database::open(&config.db_path, &config.db_passphrase).map_err(|e| {
             ServiceError::Storage {
-source: None,
+                source: None,
                 message: e.to_string(),
             }
         })?
@@ -179,8 +180,10 @@ source: None,
     let shared_conn = db.conn_arc();
 
     let primary_conn = Arc::clone(&shared_conn);
-    let gas_event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
-    let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_event_store) as Arc<dyn NuEventSink>;
+    let gas_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(Arc::clone(&primary_conn)));
+    let gas_event_store: Arc<dyn CnsStoragePort> =
+        Arc::clone(&gas_store) as Arc<dyn CnsStoragePort>;
+    let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_store) as Arc<dyn NuEventSink>;
 
     let consent_conn = Arc::clone(&shared_conn);
     let escalation_conn = Arc::clone(&shared_conn);
@@ -197,7 +200,7 @@ source: None,
     consent_store
         .initialize_schema()
         .map_err(|e| ServiceError::ConsentStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
     let consent_manager =
@@ -218,20 +221,20 @@ source: None,
     sovereignty_boundary_store
         .initialize_schema()
         .map_err(|e| ServiceError::SovereigntyStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
 
     let spec_store = SqliteSpecStore::new(spec_conn);
     spec_store.init_schema().map_err(|e| ServiceError::Spec {
-source: None,
+        source: None,
         message: e.to_string(),
     })?;
 
     let user_store = Arc::new(std::sync::Mutex::new(UserStore::new(user_conn)));
     {
         let guard = user_store.lock().map_err(|_| ServiceError::UserStore {
-source: None,
+            source: None,
             message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
         guard
@@ -676,7 +679,6 @@ async fn build_mcp_and_pods(
         Arc::clone(&pod_manager),
         Arc::clone(&f.user_store),
         Some(Arc::clone(&f.cns_runtime)),
-        Some(Arc::new(f.spec_store.clone())),
         l.inference_port.clone(),
     ));
     if !config.in_memory {
@@ -751,7 +753,7 @@ async fn build_registry_and_wallet(
     let registry = Arc::new(tokio::sync::Mutex::new(
         SqliteRegistry::new_with_conn(f.primary_conn.clone()).map_err(|e| {
             ServiceError::Template {
-source: None,
+                source: None,
                 message: e.to_string(),
             }
         })?,
@@ -762,7 +764,7 @@ source: None,
     agent_registry_store
         .initialize_schema()
         .map_err(|e| ServiceError::AgentRegistryStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
 
@@ -797,7 +799,7 @@ source: None,
             .await
             .map_err(|e| ServiceError::A2A {
                 source: None,
-                        message: e.to_string(),
+                message: e.to_string(),
             })?;
     }
 
@@ -952,7 +954,7 @@ fn build_wallet(
     // Bind wallets to replicants
     {
         let user_guard = f.user_store.lock().map_err(|_| ServiceError::UserStore {
-source: None,
+            source: None,
             message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
         if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
@@ -961,7 +963,7 @@ source: None,
                 user_guard
                     .list_replicants(&user_id)
                     .map_err(|e| ServiceError::UserStore {
-source: None,
+                        source: None,
                         message: e.to_string(),
                     })?;
             for identity in &replicants {

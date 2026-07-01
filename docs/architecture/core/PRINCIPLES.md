@@ -50,7 +50,7 @@ Default is deny. Access requires explicit, scoped, version-aware, and revocable 
 Within user-defined boundaries, hKask remains maximally generative. No hidden or engineer-only control plane.
 
 #### P4 — Clear Boundaries (OCAP)
-P1–P3 are enforced through explicit capability boundaries. No ambient authority and no admin bypass.
+P1–P3 are enforced through explicit capability boundaries. No ambient authority and no admin bypass. Per **Miller's Object Capability model** (Miller, 2006): no ambient authority; every capability is an unforgeable reference; attenuation preserves safety.[^miller-ocap]
 
 **P4.1 — Pod Boundary as OCAP Enforcement Perimeter (v0.29.0):** The pod boundary IS the OCAP enforcement perimeter. Each pod deploys with its own `DelegationToken`, its own `CapabilityChecker`, and its own MCP server bindings. Tool dispatch cannot cross pod boundaries structurally — a pod has no handle to another pod's MCP servers. `PerPodToolBinding` makes cross-pod dispatch an invalid state.
 
@@ -214,5 +214,10 @@ Every interaction with hKask carries a replicant identity. Three interaction sur
 | **API** | 7R7 bots | Bot-managed capability tokens | Per-bot DB within pod | Bot-attested HKDF keys |
 
 **Dual-presence pattern:** The CLI/REPL surface hosts both the user's replicant AND the Curator daemon in a single loop. The user speaks; the Curator observes, surfaces CNS alerts, provides memory summaries, and can be addressed directly via `kask curator chat`. This is not two separate sessions — it is one conversation with two participants. The user's replicant is the sovereign host; the Curator daemon is the system's presence.
+
+[^dublin-core]: Dublin Core Metadata Initiative. *DCMI Metadata Terms*. ISO 15836. <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/>.
+[^bibo]: D'Arcus, B. & Giasson, F. *Bibliographic Ontology (BIBO)*. <https://bibliontology.com/>.
+[^pko]: Carriero, V. A. et al. (2024). "The Procedural Knowledge Ontology (PKO)." ISWC 2024 / PERKS Project. <https://w3id.org/pko>.
+[^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
 
 ---

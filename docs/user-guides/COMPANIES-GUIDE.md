@@ -93,6 +93,8 @@ Deep fundamental analysis and valuation — from competitive position assessment
 
 #### Superforecasting Pipeline
 
+Per **Tetlock's Good Judgment Project methodology** (Tetlock, 2005; Tetlock & Gardner, 2015): calibrated probability forecasting with Fermi decomposition, outside/inside view, Bayesian evidence updating, and Brier score tracking.[^tetlock-2005] [^tetlock-2015]
+
 | Tool | What it does |
 |------|-------------|
 | **`calibrate_forecast`** | Tetlock GJP pipeline — Fermi decomposition + outside/inside view → probability-weighted intrinsic value |
@@ -418,3 +420,6 @@ Keys are resolved from the OS keychain (`kask keystore`) first, then environment
 |----------|-----------|
 | [`docs/status/PROJECT_STATUS.md`](../status/PROJECT_STATUS.md) | Tool catalog across all 12 MCP servers |
 | [`docs/architecture/core/PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) | Architecture principles (P8) |
+
+[^tetlock-2005]: Tetlock, P. E. (2005). *Expert Political Judgment: How Good Is It? How Can We Know?* Princeton University Press.
+[^tetlock-2015]: Tetlock, P. E. & Gardner, D. (2015). *Superforecasting: The Art and Science of Prediction*. Crown.

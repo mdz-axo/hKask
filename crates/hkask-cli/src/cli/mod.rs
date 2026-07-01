@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 pub use actions::*;
-pub use helpers::{init_logging, parse_data_category, parse_template_type};
+pub use helpers::{init_logging, parse_template_type};
 pub use markdown::generate_cli_markdown;
 
 #[derive(Debug, Parser)]

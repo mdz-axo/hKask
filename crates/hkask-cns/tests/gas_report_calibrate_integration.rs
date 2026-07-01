@@ -9,6 +9,7 @@ use hkask_cns::composite_energy_estimator::CompositeEnergyEstimator;
 use hkask_cns::dynamic_gas_table::DynamicGasTable;
 use hkask_cns::gas_report::GasReport;
 use hkask_cns::governed_tool::EnergyEstimator;
+use hkask_ports::CnsStoragePort;
 use hkask_storage::{NuEventStore, in_memory_db};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
@@ -38,13 +39,14 @@ fn gas_report_calibrates_dynamic_table_from_settled_events() {
 
     let db = in_memory_db();
     let conn = db.conn_arc();
-    let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(conn));
+    let event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(conn));
 
     // Actual cost is double the reserved cost → ratio 2.0 → cost should double.
     let event = settled_event(agent, server, 100, 200);
-    store.persist(&event).expect("persist settled event");
+    event_store.persist(&event).expect("persist settled event");
 
-    let report = GasReport::new(Arc::clone(&store));
+    let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+    let report = GasReport::new(store);
     let mut table = DynamicGasTable::new();
 
     let since = Utc::now() - Duration::minutes(1);
@@ -68,13 +70,14 @@ fn calibrated_table_flows_into_composite_estimator() {
 
     let db = in_memory_db();
     let conn = db.conn_arc();
-    let store: Arc<NuEventStore> = Arc::new(NuEventStore::new(conn));
+    let event_store: Arc<NuEventStore> = Arc::new(NuEventStore::new(conn));
 
     // Actual is half of reserved → ratio 0.5 → cost should halve (5 → 2, floored at 1).
     let event = settled_event(agent, server, 10, 5);
-    store.persist(&event).expect("persist settled event");
+    event_store.persist(&event).expect("persist settled event");
 
-    let report = GasReport::new(Arc::clone(&store));
+    let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+    let report = GasReport::new(store);
     let mut table = DynamicGasTable::new();
     report
         .calibrate_table(

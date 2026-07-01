@@ -6,6 +6,18 @@
 //! 2. Renders the Jinja2 template with the provided context variables
 //! 3. Runs inference on the rendered prompt via the centralized inference router
 //! 4. Returns the inference result
+//!
+//! ## Architectural note: direct domain crate access
+//!
+//! This MCP server directly uses `hkask-templates`, `hkask-ports`, and `hkask-inference`
+//! rather than routing through `hkask-services-skill`. This is intentional: MCP servers
+//! are alternate consumer surfaces (alongside the CLI and Web servers) that may use
+//! domain crates directly per hKask's hexagonal architecture. `hkask-services-skill`
+//! provides skill management (discovery, publishing, hashing, auditing, bundle composition)
+//! but does not expose a `SkillService` with execution methods; skill execution — template
+//! rendering + inference — is an alternate concern that lives in the MCP surface layer.
+//! If `SkillService` gains execution methods in the future, this server should be migrated
+//! to use them.
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 

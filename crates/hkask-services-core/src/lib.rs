@@ -11,7 +11,6 @@
 //! - `settings` — `HkaskSettings` and canonical settings path
 
 pub mod config;
-pub mod data_category;
 pub mod error;
 pub mod goal;
 pub mod identity;
@@ -21,7 +20,6 @@ pub mod settings;
 pub mod verification;
 
 pub use config::{DEFAULT_DB_PATH, ServiceConfig};
-pub use data_category::parse_data_category;
 pub use error::ServiceError;
 pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
 pub use identity::{

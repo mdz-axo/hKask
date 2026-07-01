@@ -20,6 +20,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ## 1. Domain Ontology
 
+The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology** as described by Norouzi et al. (2025, arXiv:2509.23776): compact, requirement-driven extraction patterns rather than navigating entire complex ontologies.[^norouzi-odp]
+
 ### 1.1 Core Entities
 
 | Entity | Crate | Description | Goal Principle |
@@ -351,7 +353,7 @@ threat_model:
   adversaries:
     - name: malicious_template_author
       vector: template_injection
-      mitigation: jinja2_sandbox + capability_gating
+      mitigation: `minijinja` Rust sandbox (no filesystem/Python access, unlike Python Jinja2) + capability_gating[^minijinja]
     - name: compromised_dependency
       vector: supply_chain
       mitigation: cargo_deny + pinned_versions
@@ -504,6 +506,11 @@ bash docs/ci/check-links.sh    # Zero broken cross-references
 [^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. <https://alistair.cockburn.us/hexagonal-architecture/>.
 [^shostack-threat]: Shostack, A. (2014). *Threat Modeling: Designing for Security*. Wiley.
 [^ronacher-jinja2]: Ronacher, A. (2026). *Jinja2 Template Designer Reference*. <https://jinja.palletsprojects.com/>.
+[^norouzi-odp]: Norouzi, M. et al. (2025). "STAR: Seed Terms And Relationships — Ontology Design Pattern Extraction." arXiv:2509.23776.
+[^minijinja]: minijinja crate. <https://crates.io/crates/minijinja>. Rust-native Jinja2-compatible template engine with sandbox by default — no Python runtime, no filesystem access, no network access.
+[^fowler-strangler]: Fowler, M. (2004). "StranglerFigApplication." martinfowler.com. <https://martinfowler.com/bliki/StranglerFigApplication.html>.
+[^conway]: Conway, M. E. (1968). "How Do Committees Invent?" Datamation, 14(4), 28-31.
+[^ousterhout]: Ousterhout, J. (2018). *A Philosophy of Software Design*. Yaknyam Press.
 
 ---
 

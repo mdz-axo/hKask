@@ -22,7 +22,6 @@ use hkask_agents::pod::ActivePods;
 use hkask_cns::CnsRuntime;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_ports::InferencePort;
-use hkask_storage::spec_store::SqliteSpecStore;
 use hkask_storage::user_store::UserStore;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
@@ -50,9 +49,6 @@ pub struct ServiceDaemonHandler {
     user_store: Arc<std::sync::Mutex<UserStore>>,
     /// CNS runtime for health and variety queries (None if unavailable)
     cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
-    /// Spec store for spec drift queries (None if unavailable)
-    #[allow(dead_code)]
-    spec_store: Option<Arc<SqliteSpecStore>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
     /// Per-replicant counter of stored experiences (triggers narrative generation)
@@ -67,16 +63,14 @@ impl ServiceDaemonHandler {
         pod_manager: Arc<ActivePods>,
         user_store: Arc<std::sync::Mutex<UserStore>>,
         cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
-        spec_store: Option<Arc<SqliteSpecStore>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
-        tracing::info!(target: "cns.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_spec = spec_store.is_some(), has_inference = inference_port.is_some(), "CNS");
+        tracing::info!(target: "cns.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "CNS");
 
         Self {
             pod_manager,
             user_store,
             cns_runtime,
-            spec_store,
             inference_port,
             experience_counts: Mutex::new(HashMap::new()),
         }
@@ -336,10 +330,6 @@ impl DaemonHandler for ServiceDaemonHandler {
             "timestamp": now_rfc3339(),
             "domains": domains
         })
-    }
-
-    async fn spec_drift(&self, _replicant: &str, _spec_id: Option<&str>) -> serde_json::Value {
-        serde_json::json!({"status": "ok", "note": "spec_drift not yet implemented in daemon handler"})
     }
 }
 

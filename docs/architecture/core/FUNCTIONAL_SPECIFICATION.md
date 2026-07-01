@@ -170,7 +170,7 @@ graph TD
 
 ### 1.5.4 Strangler Fig Extraction Log
 
-The service layer was extracted from duplicated surface logic using the strangler fig pattern:
+The service layer was extracted from duplicated surface logic using the **strangler fig pattern** (Fowler, 2004): incremental replacement with both paths active, delegate before delete.[^fowler-strangler]
 
 | Service | Extracted From | When | Constraint |
 |---------|---------------|------|------------|
@@ -1615,5 +1615,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 - [TESTING_DISCIPLINE.md](TESTING_DISCIPLINE.md) — Contract testing discipline
 - [CONTRACT_GUIDE.md](../../../guides/CONTRACT_GUIDE.md) — Definitive contract standard
 - [hKask Architecture Master](../hKask-architecture-master.md) — Full architecture reference
+
+[^fowler-strangler]: Fowler, M. (2004). "StranglerFigApplication." martinfowler.com. <https://martinfowler.com/bliki/StranglerFigApplication.html>.
 
 ---

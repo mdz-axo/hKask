@@ -762,7 +762,7 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 
 ## Service Layer
 
-**Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 specialized subcrates providing shared business logic for CLI and API surfaces.
+**Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 specialized subcrates providing shared business logic for CLI and API surfaces. The service decomposition follows **Conway's Law** (Conway, 1968): each subcrate maps to a bounded context with its own CNS span domain, mirroring the separation of concerns between the Curator daemon, kata coaching loop, and domain services.[^conway]
 
 **Canonical specification:** [`MDS-agent-service.md`](../specifications/specs/MDS-agent-service.md) — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
@@ -1305,6 +1305,8 @@ kask init --profile server
 
 **Threshold:** ≤7 public items per crate (Ousterhout deep-module discipline, P5). Exceptions must pass the deletion test with documented rationale.
 
+This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: every module must pass the deletion test and maintain ≤7 public items.
+
 | Crate | Pub Items | Key Concerns | Justification |
 |-------|-----------|-------------|---------------|
 | `hkask-types` | 50 | CNS span registry (28 variants), WebID, RDF types | Canonical type crate. CNS spans alone justify the surface — each span defines vocabulary. |
@@ -1417,3 +1419,7 @@ docs/architecture/
 ---
 
 *ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
+
+[^ousterhout]: Ousterhout, J. (2018). *A Philosophy of Software Design*. Yaknyam Press.
+[^conway]: Conway, M. E. (1968). "How Do Committees Invent?" Datamation, 14(4), 28-31.
+[^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.

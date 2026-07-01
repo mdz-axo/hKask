@@ -1,4 +1,4 @@
-//! Curator commands — delegates to CuratorService.
+//! Curator commands — delegates to GovernanceContext and CuratorService.
 
 use hkask_services_core::ServiceError;
 use hkask_services_curator::CuratorService;
@@ -206,7 +206,7 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
     let ctx = crate::commands::helpers::build_service_context();
     let queue = &ctx.governance().escalations;
     queue.list_pending().map_err(|e| ServiceError::Escalation {
-source: None,
+        source: None,
         message: e.to_string(),
     })
 }
@@ -214,16 +214,15 @@ source: None,
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  id is a valid escalation identifier
 /// post: returns Ok(()) if escalation resolved successfully
-/// post: delegates to CuratorService::resolve
 pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::resolve(&ctx, id, "cli-user")
+    ctx.governance().resolve_escalation(id, "cli-user")
 }
 
-/// Dismiss an escalation — delegates to CuratorService.
+/// Dismiss an escalation — delegates to GovernanceContext.
 pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    CuratorService::dismiss(&ctx, id, "cli-user")
+    ctx.governance().dismiss_escalation(id, "cli-user")
 }
 
 /// Run metacognition cycle — delegates to CuratorService.

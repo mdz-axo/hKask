@@ -208,7 +208,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
                 super::helpers::resolve_user_webid()
             };
             let (_svc, cm) = build_consent();
-            let cat = crate::cli::parse_data_category(&category);
+            let cat = hkask_types::DataCategory::parse(&category);
             match cm.grant_consent(&webid.to_string(), &cat) {
                 Ok(()) => {
                     println!("Consent granted for category: {category}");
@@ -235,7 +235,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
         }
         SovereigntyAction::Check { category } => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
-            let cat = crate::cli::parse_data_category(&category);
+            let cat = hkask_types::DataCategory::parse(&category);
             let (_svc, cm) = build_consent();
             let boundary = DataSovereigntyBoundary::hkask_default();
 

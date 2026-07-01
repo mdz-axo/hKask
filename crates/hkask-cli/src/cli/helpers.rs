@@ -2,7 +2,7 @@
 
 use hkask_types::template_type::TemplateType as Type;
 
-// Shared canonical location: hkask-services-core
+/// Parse a template type stringShared canonical location: hkask-services-core
 pub use hkask_services_core::parse_data_category;
 
 /// Parse a template type string into a TemplateType enum

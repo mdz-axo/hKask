@@ -53,7 +53,7 @@ use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
 use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
-use hkask_ports::{ConsolidationOutcome, ConsolidationRequest, InferencePort};
+use hkask_ports::{CnsStoragePort, ConsolidationOutcome, ConsolidationRequest, InferencePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::nu_event_store::NuEventStore;

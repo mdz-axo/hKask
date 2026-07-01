@@ -58,12 +58,13 @@ fn build_service_context_inner(
     };
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => {
-            let (tx, rx) = std::sync::mpsc::channel();
+            let (tx, rx) = tokio::sync::oneshot::channel();
             let cfg = config.clone();
             handle.spawn(async move {
                 let _ = tx.send(hkask_services_context::AgentService::build(cfg).await);
             });
-            rx.recv()
+            handle
+                .block_on(rx)
                 .map_err(|_| "Service build task panicked".to_string())
                 .and_then(|r| r.map_err(|e| e.to_string()))
         }
