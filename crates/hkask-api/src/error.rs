@@ -111,6 +111,7 @@ impl IntoResponse for ServiceErrorResponse {
 impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
     fn from(e: hkask_agents::a2a::A2AError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::A2A {
+source: None,
             message: e.to_string(),
         })
     }
@@ -119,6 +120,7 @@ impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
 impl From<hkask_storage::EscalationError> for ServiceErrorResponse {
     fn from(e: hkask_storage::EscalationError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Escalation {
+source: None,
             message: e.to_string(),
         })
     }
@@ -137,6 +139,7 @@ impl From<uuid::Error> for ServiceErrorResponse {
 impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
     fn from(e: hkask_storage::AgentRegistryError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::AgentRegistryStore {
+source: None,
             message: e.to_string(),
         })
     }
@@ -145,6 +148,7 @@ impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
 impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
     fn from(e: hkask_agents::pod::AgentPodError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Pod {
+source: None,
             message: e.to_string(),
         })
     }
@@ -153,6 +157,7 @@ impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
 impl From<hkask_ports::RegistryError> for ServiceErrorResponse {
     fn from(e: hkask_ports::RegistryError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Registry {
+source: None,
             message: e.to_string(),
         })
     }
@@ -188,25 +193,25 @@ impl From<hkask_services_core::ServiceError> for ApiError {
             // NotFound/Forbidden/Conflict distinctions within A2A, Escalation, AgentRegistry,
             // GoalRepo, Triple, ConsentStore, UserStore, Consent, Pod, and Template errors
             // all collapse to Internal.
-            SE::ConsentDenied { message } => ApiError::Forbidden { reason: message },
-            SE::A2A { message } => ApiError::Forbidden { reason: message },
-            SE::SovereigntyStore { message } => ApiError::BadRequest { message },
+            SE::ConsentDenied { message, .. } => ApiError::Forbidden { reason: message },
+            SE::A2A { message, .. } => ApiError::Forbidden { reason: message },
+            SE::SovereigntyStore { message, .. } => ApiError::BadRequest { message },
             SE::InvalidAgentType { message: msg, .. } => ApiError::BadRequest { message: msg },
             SE::InvalidPassphrase { message: msg, .. } => ApiError::BadRequest {
                 message: format!("Invalid passphrase: {}", msg),
             },
             SE::ValidationError { message: msg, .. } => ApiError::BadRequest { message: msg },
             SE::AgentRegistrationFailed { message: msg, .. } => ApiError::Conflict { message: msg },
-            SE::Escalation { message } => ApiError::Internal { message },
-            SE::AgentRegistryStore { message } => ApiError::Internal { message },
-            SE::GoalRepo { message } => ApiError::Internal { message },
-            SE::Triple { message } => ApiError::Internal { message },
-            SE::ConsentStore { message } => ApiError::Internal { message },
-            SE::UserStore { message } => ApiError::Internal { message },
-            SE::Consent { message } => ApiError::Internal { message },
-            SE::Spec { message } => ApiError::Internal { message },
-            SE::Pod { message } => ApiError::Internal { message },
-            SE::Template { message } => ApiError::Internal { message },
+            SE::Escalation { message, .. } => ApiError::Internal { message },
+            SE::AgentRegistryStore { message, .. } => ApiError::Internal { message },
+            SE::GoalRepo { message, .. } => ApiError::Internal { message },
+            SE::Triple { message, .. } => ApiError::Internal { message },
+            SE::ConsentStore { message, .. } => ApiError::Internal { message },
+            SE::UserStore { message, .. } => ApiError::Internal { message },
+            SE::Consent { message, .. } => ApiError::Internal { message },
+            SE::Spec { message, .. } => ApiError::Internal { message },
+            SE::Pod { message, .. } => ApiError::Internal { message },
+            SE::Template { message, .. } => ApiError::Internal { message },
             SE::Keystore { message: msg, .. } => ApiError::ServiceUnavailable { reason: msg },
             SE::Infra(err) => ApiError::Internal {
                 message: err.to_string(),

@@ -147,6 +147,7 @@ impl OnboardingService {
 
         let db = Database::open(&config.db_path, &config.db_passphrase).map_err(|e| {
             ServiceError::Storage {
+                source: None,
                 message: e.to_string(),
             }
         })?;
@@ -154,12 +155,14 @@ impl OnboardingService {
         store
             .initialize_schema()
             .map_err(|e| ServiceError::AgentRegistryStore {
+                source: None,
                 message: e.to_string(),
             })?;
 
         // A2A state restoration: reload registered agents from the store
         let registered_agents = store.list().map_err(|e| ServiceError::AgentRegistryStore {
-            message: e.to_string(),
+            source: None,
+                message: e.to_string(),
         })?;
         if !registered_agents.is_empty() {
             let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
@@ -181,7 +184,8 @@ impl OnboardingService {
             a2a.restore_from_storage(agents, tokens)
                 .await
                 .map_err(|e| ServiceError::A2A {
-                    message: e.to_string(),
+                    source: None,
+                message: e.to_string(),
                 })?;
         }
 
@@ -252,6 +256,7 @@ impl OnboardingService {
             .register_agent(webid, AgentKind::Replicant, default_capabilities.clone())
             .await
             .map_err(|e| ServiceError::A2A {
+                source: None,
                 message: e.to_string(),
             })?;
 
@@ -277,7 +282,8 @@ impl OnboardingService {
             let _ = std::fs::create_dir_all(parent);
         }
         std::fs::write(&yaml_path, &source_yaml).map_err(|e| ServiceError::Storage {
-            message: format!("Failed to write agent YAML to {}: {e}", yaml_path.display()),
+            source: None,
+                message: format!("Failed to write agent YAML to {}: {e}", yaml_path.display()),
         })?;
 
         let registered = RegisteredAgent {
@@ -306,6 +312,7 @@ impl OnboardingService {
         store
             .insert(&registered)
             .map_err(|e| ServiceError::AgentRegistryStore {
+                source: None,
                 message: e.to_string(),
             })?;
 
@@ -335,6 +342,7 @@ impl OnboardingService {
         store
             .store_user_profile(profile)
             .map_err(|e| ServiceError::AgentRegistryStore {
+                source: None,
                 message: e.to_string(),
             })
     }
@@ -352,6 +360,7 @@ impl OnboardingService {
         store
             .get_user_profile()
             .map_err(|e| ServiceError::AgentRegistryStore {
+                source: None,
                 message: e.to_string(),
             })
     }

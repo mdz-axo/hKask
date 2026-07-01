@@ -46,6 +46,7 @@ pub async fn token_issue(
         .register_agent(webid, AgentKind::Replicant, capabilities.clone())
         .await
         .map_err(|e| ServiceError::A2A {
+            source: None,
             message: e.to_string(),
         })?;
 
@@ -75,6 +76,7 @@ pub async fn token_issue(
     ctx.storage().agents.clone()
         .insert(&reg)
         .map_err(|e| ServiceError::AgentRegistryStore {
+source: None,
             message: e.to_string(),
         })?;
 
@@ -91,6 +93,7 @@ pub fn token_list(replicant: Option<&str>) -> Result<Vec<TokenEntry>, ServiceErr
         ctx.storage().agents.clone()
             .list()
             .map_err(|e| ServiceError::AgentRegistryStore {
+                source: None,
                 message: e.to_string(),
             })?;
     let entries: Vec<TokenEntry> = agents

@@ -75,7 +75,7 @@ async fn run_daemon() -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to bind daemon socket: {e}"))?;
 
-    let handler_raw = Arc::clone(ctx.infra().daemon.clone());
+    let handler_raw = Arc::clone(&ctx.infra().daemon);
     let handler: Arc<dyn DaemonHandler> = handler_raw;
 
     let interval = std::env::var("HKASK_CONTRACT_TEST_INTERVAL_SECS")

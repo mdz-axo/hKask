@@ -125,6 +125,7 @@ async fn create_pod(
     tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
 
     let token = auth.token.as_ref().ok_or_else(|| ServiceError::A2A {
+source: None,
         message: "Session auth not supported for pod creation".to_string(),
     })?;
     let has = state.agent_service.governance().checker.check_resource(
@@ -134,6 +135,7 @@ async fn create_pod(
     );
     if !has {
         return Err(ServiceError::A2A {
+source: None,
             message: hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 "Insufficient capability to create pods".into(),

@@ -89,6 +89,7 @@ pub(crate) async fn consolidate(
     let target_webid = WebID::for_agent_name(&req.agent_name);
     if auth.webid != target_webid {
         return Err(ServiceError::Forbidden {
+source: None,
             message: "Caller is not authorized to consolidate this agent's memory".to_string(),
         }
         .into());

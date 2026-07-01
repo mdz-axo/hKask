@@ -708,6 +708,7 @@ fn list_replicants(
         .list_by_kind(hkask_types::AgentKind::Replicant)
         .map_err(|e| {
             OnboardingError::Service(ServiceError::AgentRegistryStore {
+source: None,
                 message: e.to_string(),
             })
         })

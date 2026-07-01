@@ -112,6 +112,7 @@ pub(crate) async fn sovereignty_status(
     let granted = cm
         .get_granted_categories(&webid_str)
         .map_err(|e| ServiceError::Consent {
+source: None,
             message: e.to_string(),
         })?;
 
@@ -161,11 +162,13 @@ pub(crate) async fn sovereignty_grant_consent(
     let cm = &state.agent_service.governance().consent;
     cm.grant_consent(&webid_str, &cat)
         .map_err(|e| ServiceError::Consent {
+source: None,
             message: e.to_string(),
         })?;
     let granted = cm
         .get_granted_categories(&webid_str)
         .map_err(|e| ServiceError::Consent {
+source: None,
             message: e.to_string(),
         })?;
     Ok(Json(SovereigntyConsentResponse {
@@ -195,6 +198,7 @@ pub(crate) async fn sovereignty_revoke_consent(
     let cm = &state.agent_service.governance().consent;
     cm.revoke_consent(&webid_str)
         .map_err(|e| ServiceError::Consent {
+source: None,
             message: e.to_string(),
         })?;
     Ok(Json(SovereigntyConsentResponse {
@@ -247,6 +251,7 @@ pub(crate) async fn sovereignty_check_access(
 
     if !has_consent && classification != "PUBLIC" {
         return Err(ServiceError::A2A {
+source: None,
             message: hkask_agents::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 format!("No consent for category '{cat_name}' (class {classification})"),

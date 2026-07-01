@@ -401,7 +401,7 @@ impl MatrixDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         let connected = state
             .service_context
-            .matrix_transport()
+            .infra().matrix.as_ref()
             .and_then(|mt| mt.try_lock().ok().map(|t| t.healthy()))
             .unwrap_or(false);
         MatrixConnectionStatus {
@@ -413,7 +413,7 @@ impl MatrixDataBridge for TuiReplBridge {
 
     fn list_rooms(&self) -> Vec<MatrixRoomSummary> {
         let state = self.state.lock().expect("lock");
-        let transport = state.service_context.matrix_transport().cloned();
+        let transport = state.service_context.infra().matrix.as_ref().cloned();
         transport
             .and_then(|mt| {
                 self.rt_handle.block_on(async {
@@ -437,7 +437,7 @@ impl MatrixDataBridge for TuiReplBridge {
 
     fn recent_messages(&self, room_id: &str, limit: usize) -> Vec<MatrixMessageSummary> {
         let state = self.state.lock().expect("lock");
-        let transport = state.service_context.matrix_transport().cloned();
+        let transport = state.service_context.infra().matrix.as_ref().cloned();
         transport
             .and_then(|mt| {
                 self.rt_handle.block_on(async {

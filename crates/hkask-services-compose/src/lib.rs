@@ -169,6 +169,7 @@ impl ComposeService {
         // 1. Open DB + construct memory infrastructure
         let db = Database::open(&request.db_path.to_string_lossy(), &request.db_passphrase)
             .map_err(|e| ServiceError::Storage {
+                source: None,
                 message: e.to_string(),
             })?;
         let conn = db.conn_arc();
@@ -190,6 +191,7 @@ impl ComposeService {
         let results = semantic
             .search_similar(&prompt_vector, request.cognition.embedding.retrieval.k_max)
             .map_err(|e| ServiceError::SemanticMemory {
+                source: None,
                 message: e.to_string(),
             })?;
 

@@ -344,7 +344,8 @@ impl WalletService {
             let category = DataCategory::Custom("wallet_withdrawal".into());
             let has_consent = cm.has_consent(&webid.to_string(), &category).map_err(|e| {
                 ServiceError::ConsentDenied {
-                    message: format!(
+                    source: None,
+                message: format!(
                         "Consent check failed for {}: {e}. Denying wallet withdrawal by default",
                         webid
                     ),
@@ -352,7 +353,8 @@ impl WalletService {
             })?;
             if !has_consent {
                 return Err(ServiceError::ConsentDenied {
-                    message: format!(
+                    source: None,
+                message: format!(
                         "User {} has not granted consent for wallet withdrawal. \
                          Grant consent with: kask sovereignty grant {} wallet_withdrawal",
                         webid, webid

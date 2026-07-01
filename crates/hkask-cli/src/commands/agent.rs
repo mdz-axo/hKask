@@ -30,6 +30,7 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
         ctx.storage().agents.clone()
             .list()
             .map_err(|e| ServiceError::AgentRegistryStore {
+                source: None,
                 message: e.to_string(),
             })?;
     Ok(match kind_filter.and_then(AgentKind::parse) {
@@ -49,6 +50,7 @@ pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
     ctx.storage().agents.clone()
         .get(name)
         .map_err(|e| ServiceError::AgentRegistryStore {
+source: None,
             message: e.to_string(),
         })
 }
@@ -72,6 +74,7 @@ pub async fn agent_register(
         .register_agent(webid, kind, capabilities.clone())
         .await
         .map_err(|e| ServiceError::A2A {
+            source: None,
             message: e.to_string(),
         })?;
     // Build the self-contained agent definition YAML.
@@ -117,6 +120,7 @@ pub async fn agent_register(
     ctx.storage().agents.clone()
         .insert(&reg)
         .map_err(|e| ServiceError::AgentRegistryStore {
+source: None,
             message: e.to_string(),
         })?;
     Ok(AgentReceipt {
@@ -134,6 +138,7 @@ pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
     ctx.storage().agents.clone()
         .remove(name)
         .map_err(|e| ServiceError::AgentRegistryStore {
+source: None,
             message: e.to_string(),
         })
 }

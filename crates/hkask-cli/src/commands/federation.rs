@@ -16,7 +16,7 @@ pub fn run_federation(rt: &tokio::runtime::Runtime, action: FederationAction) {
     tracing::info!(target: "cns.cli", operation = "federation", action = ?action, "CNS");
 
     let ctx = crate::commands::helpers::build_service_context();
-    let link_manager: Option<&Arc<dyn FederationDispatch>> = ctx.federation_dispatch();
+    let link_manager: Option<&Arc<dyn FederationDispatch>> = ctx.infra().federation.as_ref();
 
     let Some(lm) = link_manager else {
         eprintln!("Federation error: federation is not enabled on this server.");

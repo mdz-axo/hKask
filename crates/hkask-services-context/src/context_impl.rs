@@ -312,6 +312,7 @@ impl AgentService {
                 "Grant consent with: kask sovereignty grant --category <category>".to_string()
             };
             return Err(ServiceError::ConsentDenied {
+source: None,
                 message: format!(
                     "consolidation denied for agent {} — missing consent for: {}. {grant_help}",
                     target_webid.redacted_display(),
@@ -329,6 +330,7 @@ impl AgentService {
 
         let db = Database::open(&db_path.to_string_lossy(), passphrase).map_err(|e| {
             ServiceError::Storage {
+source: None,
                 message: e.to_string(),
             }
         })?;
@@ -368,6 +370,7 @@ impl AgentService {
 
         let db = Database::open(&db_path.to_string_lossy(), passphrase).map_err(|e| {
             ServiceError::Storage {
+                source: None,
                 message: e.to_string(),
             }
         })?;

@@ -106,8 +106,7 @@ impl CnsObserver for SseObserver {
     ),
 )]
 pub(crate) async fn cns_health(State(state): State<ApiState>) -> axum::Json<CnsHealthResponse> {
-    let cns_runtime = &state.agent_service.cns().runtime;
-    let health = cns_runtime.read().await.health().await;
+    let health = state.agent_service.cns().health().await;
 
     axum::Json(CnsHealthResponse {
         overall_deficit: health.overall_deficit,
@@ -133,8 +132,7 @@ async fn cns_alerts(State(_state): State<ApiState>) -> axum::Json<Vec<String>> {
     ),
 )]
 pub(crate) async fn cns_variety(State(state): State<ApiState>) -> axum::Json<CnsVarietyResponse> {
-    let cns_runtime = &state.agent_service.cns().runtime;
-    let variety_data = cns_runtime.read().await.variety().await;
+    let variety_data = state.agent_service.cns().variety().await;
 
     let domains: Vec<String> = variety_data
         .keys()

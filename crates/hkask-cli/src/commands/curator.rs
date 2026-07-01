@@ -206,6 +206,7 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
     let ctx = crate::commands::helpers::build_service_context();
     let queue = &ctx.governance().escalations;
     queue.list_pending().map_err(|e| ServiceError::Escalation {
+source: None,
         message: e.to_string(),
     })
 }

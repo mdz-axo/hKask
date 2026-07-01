@@ -369,6 +369,7 @@ impl ChatService {
             .boot()
             .await
             .map_err(|e| ServiceError::AgentRegistry {
+                source: None,
                 message: e.to_string(),
             })?;
         let agent = agents.iter().find(|a| a.definition.name == name);
@@ -569,6 +570,7 @@ impl ChatService {
             )
             .await
             .map_err(|e| ServiceError::InferencePort {
+                source: None,
                 message: e.to_string(),
                 retryable: false,
             })?;

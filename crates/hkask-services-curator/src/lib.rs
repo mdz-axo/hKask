@@ -90,6 +90,7 @@ impl CuratorService {
                 .escalations
                 .list_pending()
                 .map_err(|e| ServiceError::Escalation {
+source: None,
                     message: e.to_string(),
                 })?;
         Ok(entries.into_iter().map(EscalationResponse::from).collect())
@@ -108,6 +109,7 @@ impl CuratorService {
                     message: id,
                 },
                 other => ServiceError::Escalation {
+source: None,
                     message: other.to_string(),
                 },
             })
@@ -132,6 +134,7 @@ impl CuratorService {
                     message: id,
                 },
                 other => ServiceError::Escalation {
+source: None,
                     message: other.to_string(),
                 },
             })
@@ -170,6 +173,7 @@ impl CuratorService {
                 .run_cycle()
                 .await
                 .map_err(|e| ServiceError::Metacognition {
+source: None,
                     message: e.to_string(),
                 })?;
         let summary = agent.metacognition().generate_summary(&snapshot);

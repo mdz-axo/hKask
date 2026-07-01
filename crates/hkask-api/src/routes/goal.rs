@@ -218,18 +218,12 @@ pub(crate) async fn set_goal_state(
 
     match repo.update_goal_state(goal_id, new_state) {
         Ok(()) => {
-            // Curation inbox notification
-            if let Some(tx) = &state.agent_service.governance().curation_tx {
-                let event = hkask_cns::types::loops::CurationInput::GoalTransition(
-                    hkask_cns::types::loops::GoalTransitionEvent {
-                        goal_id: goal_id.to_string(),
-                        from_state: goal.state.as_str().to_string(),
-                        to_state: new_state.as_str().to_string(),
-                        agent: auth.webid,
-                    },
-                );
-                let _ = tx.send(event);
-            }
+            state.agent_service.governance().notify_goal_transition(
+                goal_id.to_string(),
+                goal.state.as_str().to_string(),
+                new_state.as_str().to_string(),
+                auth.webid,
+            );
             Json(GoalResponse {
                 id: goal_id.to_string(),
                 text: goal.text,

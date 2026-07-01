@@ -147,11 +147,13 @@ pub(crate) async fn mcp_invoke(
             &req.tool,
             input,
             auth.token.as_ref().ok_or_else(|| ServiceError::Template {
+source: None,
                 message: "Session auth not supported for MCP invoke".to_string(),
             })?,
         )
         .await
         .map_err(|e| ServiceError::Template {
+source: None,
             message: e.to_string(),
         })?;
 

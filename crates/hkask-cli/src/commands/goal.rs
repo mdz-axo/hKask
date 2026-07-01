@@ -81,24 +81,12 @@ fn set_state(id: &str, state: &str) -> Result<(), String> {
         .map_err(|e| format!("Failed to update goal state: {e}"))?;
 
     // Curation inbox notification
-    if let Some(tx) = &ctx.governance().curation_tx {
-        let event = hkask_cns::types::loops::CurationInput::GoalTransition(
-            hkask_cns::types::loops::GoalTransitionEvent {
-                goal_id: goal_id.to_string(),
-                from_state,
-                to_state: new_state.as_str().to_string(),
-                agent: WebID::from_persona(b"goal-service"),
-            },
-        );
-        if let Err(e) = tx.send(event) {
-            tracing::warn!(
-                target: "cns.curation",
-                goal_id = %goal_id,
-                error = %e,
-                "Goal transition event failed to reach curation inbox"
-            );
-        }
-    }
+    ctx.governance().notify_goal_transition(
+        goal_id.to_string(),
+        from_state,
+        new_state.as_str().to_string(),
+        WebID::from_persona(b"goal-service"),
+    );
 
     println!("Goal {} -> {}", goal.id, goal.state.as_str());
     Ok(())

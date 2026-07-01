@@ -55,11 +55,19 @@ pub enum ServiceError {
 
     /// Upstream escalation-queue error.
     #[error("Escalation error: {message}")]
-    Escalation { message: String },
+    Escalation {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream metacognition-loop error.
     #[error("Metacognition error: {message}")]
-    Metacognition { message: String },
+    Metacognition {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Agent / A2A domain ───────────────────────────────────────────────
     /// Agent not found by name.
@@ -88,65 +96,125 @@ pub enum ServiceError {
 
     /// Upstream A2A error.
     #[error("A2A error: {message}")]
-    A2A { message: String },
+    A2A {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream agent-registry loader error.
     #[error("Agent registry error: {message}")]
-    AgentRegistry { message: String },
+    AgentRegistry {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream agent registry store error.
     #[error("Agent registry store error: {message}")]
-    AgentRegistryStore { message: String },
+    AgentRegistryStore {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream consent error.
     #[error("Consent error: {message}")]
-    Consent { message: String },
+    Consent {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Storage domain ──────────────────────────────────────────────────
     /// Upstream database error.
     #[error("Storage error: {message}")]
-    Storage { message: String },
+    Storage {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream template registry error.
     #[error("Registry error: {message}")]
-    Registry { message: String },
+    Registry {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream template store error.
     #[error("Template error: {message}")]
-    Template { message: String },
+    Template {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream goal repository error.
     #[error("Goal repo error: {message}")]
-    GoalRepo { message: String },
+    GoalRepo {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream triple store error.
     #[error("Triple error: {message}")]
-    Triple { message: String },
+    Triple {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream user store error.
     #[error("User store error: {message}")]
-    UserStore { message: String },
+    UserStore {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream consent store error.
     #[error("Consent store error: {message}")]
-    ConsentStore { message: String },
+    ConsentStore {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream sovereignty store error.
     #[error("Sovereignty store error: {message}")]
-    SovereigntyStore { message: String },
+    SovereigntyStore {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream spec error.
     #[error("Spec error: {message}")]
-    Spec { message: String },
+    Spec {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Memory domain ────────────────────────────────────────────────────
     /// Upstream episodic memory error.
     #[error("Episodic memory error: {message}")]
-    EpisodicMemory { message: String },
+    EpisodicMemory {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Upstream semantic memory error.
     #[error("Semantic memory error: {message}")]
-    SemanticMemory { message: String },
+    SemanticMemory {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Consolidation pipeline execution failed.
     #[error("Consolidation failed: {message}")]
@@ -175,7 +243,11 @@ pub enum ServiceError {
 
     /// Upstream energy budget error.
     #[error("Energy budget error: {message}")]
-    Gas { message: String },
+    Gas {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Pod domain ────────────────────────────────────────────────────
     /// Pod not found by ID.
@@ -188,16 +260,28 @@ pub enum ServiceError {
 
     /// Upstream agent pod error.
     #[error("Pod error: {message}")]
-    Pod { message: String },
+    Pod {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Inference domain ────────────────────────────────────────────────
     /// Upstream inference port error.
     #[error("Inference error: {message}")]
-    InferencePort { message: String, retryable: bool },
+    InferencePort {
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+        retryable: bool,
+    },
 
     /// Upstream embedding generation error.
     #[error("Embedding error: {message}")]
-    Embedding { message: String, retryable: bool },
+    Embedding {
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+        retryable: bool,
+    },
 
     // ── User domain ─────────────────────────────────────────────────────
     /// User not found by name.
@@ -319,14 +403,22 @@ pub enum ServiceError {
     /// Returned when the user has not granted consent for the requested
     /// wallet operation (e.g., withdrawal signing per MUST-4).
     #[error("Consent denied for wallet operation: {message}")]
-    ConsentDenied { message: String },
+    ConsentDenied {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     /// Authorization denied — the caller lacks the required identity or
     /// capability for this operation. Distinct from `ConsentDenied` (P2:
     /// user hasn't granted consent) — this variant signals a P4 boundary
     /// violation (caller WebID ≠ target WebID, missing OCAP, wrong scope).
     #[error("Authorization denied: {message}")]
-    Forbidden { message: String },
+    Forbidden {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 
     // ── Rate limiting ──────────────────────────────────────────────────────
     /// Operation rate limited (too soon after previous invocation).
@@ -370,7 +462,11 @@ pub enum ServiceError {
     // ── Federation ────────────────────────────────────────────────────
     /// Federation lifecycle operation failed.
     #[error("Federation error: {message}")]
-    Federation { message: String },
+    Federation {
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+        message: String,
+    },
 }
 
 // ── From impls ──────────────────────────────────────────────────────
@@ -386,6 +482,7 @@ impl From<InferenceError> for ServiceError {
             InferenceError::Connection(_) | InferenceError::CircuitOpen(_)
         );
         ServiceError::InferencePort {
+            source: None,
             message: e.to_string(),
             retryable,
         }
@@ -398,6 +495,7 @@ impl From<EmbeddingGenerationError> for ServiceError {
             EmbeddingGenerationError::Connection(_) | EmbeddingGenerationError::Api(..)
         );
         ServiceError::Embedding {
+            source: None,
             message: e.to_string(),
             retryable,
         }
@@ -809,12 +907,12 @@ impl ServiceError {
                 "error",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::ConsentDenied { message: msg } => (
+            ServiceError::ConsentDenied { message: msg, .. } => (
                 "cns.wallet.withdrawal",
                 "error.consent_denied",
                 serde_json::json!({ "message": msg }),
             ),
-            ServiceError::Forbidden { message: msg } => (
+            ServiceError::Forbidden { message: msg, .. } => (
                 "cns.authorization",
                 "error.forbidden",
                 serde_json::json!({ "message": msg }),
@@ -838,7 +936,7 @@ impl ServiceError {
             ),
 
             // ── Federation ───────────────────────────────────────────
-            ServiceError::Federation { message } => (
+            ServiceError::Federation { message, .. } => (
                 "cns.federation.sync",
                 "error",
                 serde_json::json!({ "message": message }),
