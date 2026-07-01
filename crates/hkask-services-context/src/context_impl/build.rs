@@ -102,41 +102,46 @@ impl AgentServiceWiring {
             Some(self.foundation.curation_inbox_tx.clone()),
         );
 
-        AgentService {
-            registry: self.reg_wallet.registry,
-            mcp_runtime: self.mcp_pods.mcp_runtime,
-            mcp_dispatcher: self.mcp_pods.mcp_dispatcher,
-            cns_runtime: self.foundation.cns_runtime,
-            cybernetics_loop: self.loops.cybernetics_loop,
-            loop_system: self.loops.loop_system,
+        let cns = cns::CnsContext::new(
+            Arc::clone(&self.foundation.cns_runtime),
+            Arc::clone(&self.loops.cybernetics_loop),
+            Arc::clone(&self.loops.loop_system),
+            Arc::clone(&self.foundation.cns_event_sink) as Arc<dyn NuEventSink>,
+            Arc::clone(&self.mcp_pods.energy_estimator),
+        );
 
-            inference_port: self.loops.inference_port,
-            episodic_storage: self.loops.episodic_storage,
-            semantic_storage: self.loops.semantic_storage,
-            escalation_queue: self.foundation.escalation_queue,
-            consent_manager: self.foundation.consent_manager,
-            goal_repo: self.foundation.goal_repo,
-            curation_inbox_tx: Some(self.foundation.curation_inbox_tx.clone()),
-            pod_manager: self.mcp_pods.pod_manager,
-            capability_checker: self.mcp_pods.capability_checker,
-            system_webid: self.system_webid,
-            event_sink: self.foundation.cns_event_sink,
-            energy_estimator: self.mcp_pods.energy_estimator,
-            sovereignty_boundary_store: self.foundation.sovereignty_boundary_store,
-            spec_store: self.foundation.spec_store,
-            a2a_runtime: self.loops.a2a_runtime,
-            agent_registry_store: self.reg_wallet.agent_registry_store,
-            user_store: self.foundation.user_store,
-            daemon_handler: self.mcp_pods.daemon_handler,
-            matrix_transport: self.matrix_transport,
-            curator_ready: Some(self.mcp_pods.curator_ready),
-            seam_watcher: self.foundation.seam_watcher,
+        let storage = storage::StorageContext::new(
+            self.reg_wallet.registry,
+            self.foundation.goal_repo,
+            self.foundation.spec_store,
+            self.reg_wallet.agent_registry_store,
+            self.foundation.user_store,
+            self.foundation.sovereignty_boundary_store,
+            self.reg_wallet.wallet_store,
+        );
+
+        let infra = infra::InfraContext::new(
+            self.loops.inference_port,
+            self.loops.episodic_storage,
+            self.loops.semantic_storage,
+            self.mcp_pods.mcp_runtime,
+            self.mcp_pods.pod_manager,
+            self.reg_wallet.wallet_service,
+            self.mcp_pods.daemon_handler,
+            self.matrix_transport,
+            self.foundation.seam_watcher,
+            self.reg_wallet.wallet_gas_calibrator,
+            self.loops.federation_link_manager,
+        );
+
+        AgentService {
+            infra,
             governance,
+            cns,
+            storage,
+            system_webid: self.system_webid,
+            curator_ready: Some(self.mcp_pods.curator_ready),
             config: self.config,
-            wallet_service: self.reg_wallet.wallet_service,
-            wallet_store: self.reg_wallet.wallet_store,
-            wallet_gas_calibrator: self.reg_wallet.wallet_gas_calibrator,
-            federation_link_manager: self.loops.federation_link_manager,
         }
     }
 }

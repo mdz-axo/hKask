@@ -6,10 +6,10 @@
 //! thin delegation to a `SqliteRegistry` method plus HTTP response mapping. No
 //! cross-surface business logic duplication exists (CLI template commands take
 //! `&mut SqliteRegistry` directly and do terminal formatting). A TemplateService
-//! would just be `self.registry().list()` / `self.registry().get()` / etc. — pure
+//! would just be `self.storage().registry.list()` / `self.storage().registry.get()` / etc. — pure
 //! pass-throughs that increase interface cost without adding behavior.
 //!
-//! Decision: Guideline — keep direct `service_context.registry()` access.
+//! Decision: Guideline — keep direct `service_context.storage().registry` access.
 //! Revisit if template matching logic grows beyond name/skill/polarity queries.
 
 use axum::Json;
@@ -70,7 +70,7 @@ pub fn templates_router() -> OpenApiRouter<ApiState> {
 pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "templates_list", "CNS");
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().registry.lock().await;
     let entries = registry.list(None);
 
     let templates = entries
@@ -106,7 +106,7 @@ pub(crate) async fn get_template(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<TemplateResponse>, ServiceErrorResponse> {
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().registry.lock().await;
 
     let entry = registry.get(&id)?;
 
@@ -125,7 +125,7 @@ async fn search_templates(
     State(state): State<ApiState>,
     Path(term): Path<String>,
 ) -> Json<Vec<TemplateResponse>> {
-    let registry = state.agent_service.registry().lock().await;
+    let registry = state.agent_service.storage().registry.lock().await;
     let results = registry.search_by_lexicon(&term).unwrap_or_default();
 
     let templates = results

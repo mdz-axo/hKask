@@ -57,7 +57,7 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .registry()
+            .storage().registry.clone()
             .try_lock()
             .map(|r| r.list_skills_owned().len())
             .unwrap_or(0)
@@ -71,7 +71,7 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .registry()
+            .storage().registry.clone()
             .try_lock()
             .map(|r| r.list_bundles().len())
             .unwrap_or(0)
@@ -81,7 +81,7 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .registry()
+            .storage().registry.clone()
             .try_lock()
             .map(|r| {
                 r.list_skills_owned()
@@ -100,7 +100,7 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .registry()
+            .storage().registry.clone()
             .try_lock()
             .map(|r| {
                 r.list_skills_owned()
@@ -120,7 +120,7 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .registry()
+            .storage().registry.clone()
             .try_lock()
             .map(|r| {
                 r.list_bundles()
@@ -514,7 +514,7 @@ fn parse_mcp_json(result: &rmcp::model::CallToolResult) -> Option<serde_json::Va
 impl MediaDataBridge for TuiReplBridge {
     fn gallery_status(&self) -> GalleryStatus {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
             match runtime.call_tool("media", "gallery_status", args).await {
@@ -551,7 +551,7 @@ impl MediaDataBridge for TuiReplBridge {
 
     fn recent_images(&self, limit: usize) -> Vec<ImageSummary> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("query".into(), serde_json::Value::String(String::new()));
@@ -601,7 +601,7 @@ impl MediaDataBridge for TuiReplBridge {
 impl TrainingDataBridge for TuiReplBridge {
     fn adapter_list(&self) -> Vec<AdapterSummary> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
             match runtime
@@ -639,7 +639,7 @@ impl TrainingDataBridge for TuiReplBridge {
 
     fn deployment_list(&self) -> Vec<DeploymentSummary> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
             match runtime
@@ -693,7 +693,7 @@ impl TrainingDataBridge for TuiReplBridge {
 impl CompaniesDataBridge for TuiReplBridge {
     fn search(&self, query: &str) -> Vec<CompanySummary> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         let query = query.to_string();
         // Store the query for last_searched
         *self.last_companies_search.lock().expect("lock") = Some(query.clone());
@@ -737,7 +737,7 @@ impl CompaniesDataBridge for TuiReplBridge {
     fn financials(&self) -> Option<FinancialSummary> {
         let symbol = self.last_companies_search.lock().expect("lock").clone()?;
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         let sym = symbol.clone();
         let sym2 = symbol.clone();
         self.rt_handle.block_on(async {
@@ -786,7 +786,7 @@ impl CompaniesDataBridge for TuiReplBridge {
 
     fn portfolio_list(&self) -> Vec<PortfolioSummary> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
             match runtime.call_tool("companies", "portfolio_list", args).await {
@@ -821,7 +821,7 @@ impl CompaniesDataBridge for TuiReplBridge {
 impl ResearchDataBridge for TuiReplBridge {
     fn search(&self, query: &str) -> Vec<SearchResult> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         let query = query.to_string();
         *self.last_research_search.lock().expect("lock") = Some(query.clone());
         self.rt_handle.block_on(async {
@@ -863,7 +863,7 @@ impl ResearchDataBridge for TuiReplBridge {
 
     fn extract(&self, url: &str) -> Option<ExtractResult> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         let url = url.to_string();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
@@ -896,7 +896,7 @@ impl ResearchDataBridge for TuiReplBridge {
 impl DocprocDataBridge for TuiReplBridge {
     fn chunk_list(&self) -> Vec<ChunkInfo> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("text".into(), serde_json::Value::String("".into()));
@@ -935,7 +935,7 @@ impl DocprocDataBridge for TuiReplBridge {
 
     fn index_status(&self) -> (usize, usize) {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("question".into(), serde_json::Value::String("".into()));
@@ -960,7 +960,7 @@ impl DocprocDataBridge for TuiReplBridge {
 impl ReplicaDataBridge for TuiReplBridge {
     fn list_replicas(&self) -> Vec<ReplicaInfo> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("action".into(), serde_json::Value::String("list".into()));
@@ -1003,7 +1003,7 @@ impl ReplicaDataBridge for TuiReplBridge {
 impl SkillsDataBridge for TuiReplBridge {
     fn skill_list(&self) -> Vec<SkillListItem> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
             match runtime.call_tool("skill", "skill_list", args).await {
@@ -1035,7 +1035,7 @@ impl SkillsDataBridge for TuiReplBridge {
 
     fn skill_execute(&self, skill_id: &str, context: &str) -> Option<SkillExecResult> {
         let state = self.state.lock().expect("lock");
-        let runtime = state.service_context.mcp_runtime().clone();
+        let runtime = state.service_context.infra().mcp.clone().clone();
         let skill_id = skill_id.to_string();
         let context = context.to_string();
         self.rt_handle.block_on(async {

@@ -1,6 +1,6 @@
 ---
 name: bug-hunt
-version: "0.30.0"
+version: "0.31.0"
 visibility: Public
 namespace: bug-hunt
 description: >
@@ -8,7 +8,8 @@ description: >
   to user-defined quality. Applies Weinberg's quality definition, Beizer's
   bug taxonomy, Bach's Heuristic Test Strategy Model, and Hendrickson's
   exploratory testing charters. Uses MCP tools (file read, code search,
-  terminal) to probe code and produces structured bug reports.
+  terminal) and BugStalker runtime probes to probe code and produces
+  structured bug reports.
 trigger: >
   User says "hunt bugs in X", "find bugs", "bug hunt", "explore for bugs",
   "what bugs are in this crate", or specifies a target with quality criteria.
@@ -30,7 +31,7 @@ A bug hunting skill that explores target crates for threats to user-defined qual
 The expedition runs as a phased PDCA pipeline — each phase is a separate KnowAct template with its own contract:
 
 1. **Charter** (`bug-hunt-charter.j2`): Generates a focused exploration mission using Hendrickson format and Bach's HTSM
-2. **Probe** (`bug-hunt-probe.j2`): Agent-coordinated MCP tool execution — reads code, searches for bug patterns, runs tests
+2. **Probe** (`bug-hunt-probe.j2`): Agent-coordinated MCP tool execution — reads code, searches for bug patterns, runs tests, and (when `probe_depth` includes `dynamic`) executes BugStalker runtime probes for timing/integration/structural categories
 3. **Oracle** (`bug-hunt-oracle.j2`): Evaluates findings against user-defined quality criteria (Weinberg) with pragmatic-semantics IS/OUGHT classification
 4. **Taxonomize** (`bug-hunt-taxonomize.j2`): Classifies bugs into Beizer taxonomy with severity ratings
 5. **Report** (`bug-hunt-report.j2`): Produces structured JSON bug report with summary statistics
@@ -43,6 +44,7 @@ The previous monolithic `bug-hunt-expedition.j2` is retained for backward compat
 
 - `target`: crate name, module, or function to hunt in
 - `quality_criteria`: what "quality" means for this target (Weinberg: value to some person who matters)
+- `probe_depth` (optional): `static` (default — code+clippy+test), `dynamic` (add BugStalker runtime probes), `full` (both). Dynamic probes require Linux x86-64 and debug builds.
 
 ## Output
 
@@ -63,7 +65,7 @@ These skills **compose**, they do not merge. Bug-hunt embeds adversarial-red-tea
 
 ## Composition
 
-The expedition template embeds reasoning patterns from five skills as inline prompt instructions:
+The expedition template embeds reasoning patterns from six skills as inline prompt instructions:
 
 | Skill | Embedded in template | Role |
 |-------|---------------------|------|
@@ -72,6 +74,7 @@ The expedition template embeds reasoning patterns from five skills as inline pro
 | diagnose | ✓ (v0.30.0) | Reproduce before diagnosing, single-variable isolation |
 | adversarial-red-team | ✓ (v0.30.0) | Boundary-value probes, unexpected state transitions |
 | grill-me | ✓ (v0.30.0) | Self-challenge verdicts, intentional-vs-bug discrimination |
+| BugStalker | ✓ (v0.31.0) | Runtime breakpoint/thread/async probes — only when charter targets timing/integration/structural and probe_depth includes dynamic |
 
 Additionally referenced (not embedded): TDD (contract verification) and kata (PDCA learning) inform the expedition methodology but are not inline in the template.
 

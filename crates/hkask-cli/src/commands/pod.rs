@@ -149,7 +149,7 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, String> {
 pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusInfo, String> {
     let ctx = build_ctx();
     let pid = parse_pod_id(pod_id)?;
-    ctx.pod_manager()
+    ctx.infra().pods.clone()
         .get_pod_status(&pid)
         .await
         .map_err(|e| format!("Failed to get pod status: {e}"))
@@ -157,7 +157,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusInfo, String> {
 
 pub async fn list_pods() -> Result<Vec<PodStatusInfo>, String> {
     let ctx = build_ctx();
-    ctx.pod_manager()
+    ctx.infra().pods.clone()
         .list_pods()
         .await
         .map_err(|e| format!("Failed to list pods: {e}"))
@@ -173,7 +173,7 @@ pub async fn create_pod(
     let persona = hkask_agents::pod::AgentPersona::from_yaml(&yaml)
         .map_err(|e| format!("Invalid persona YAML: {e}"))?;
     let ctx = build_ctx();
-    let pm = ctx.pod_manager();
+    let pm = ctx.infra().pods.clone();
     let pod_id = pm
         .create_pod(
             template,
@@ -189,7 +189,7 @@ pub async fn create_pod(
 pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
     let ctx = build_ctx();
     let pid = parse_pod_id(pod_id)?;
-    ctx.pod_manager()
+    ctx.infra().pods.clone()
         .activate_pod(&pid)
         .await
         .map_err(|e| format!("Failed to activate pod: {e}"))
@@ -198,7 +198,7 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
     let ctx = build_ctx();
     let pid = parse_pod_id(pod_id)?;
-    ctx.pod_manager()
+    ctx.infra().pods.clone()
         .deactivate_pod(&pid)
         .await
         .map_err(|e| format!("Failed to deactivate pod: {e}"))
@@ -206,7 +206,7 @@ pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
 
 pub async fn assign_role(name: &str, role: &str) -> Result<(), String> {
     let ctx = build_ctx();
-    ctx.pod_manager()
+    ctx.infra().pods.clone()
         .assign_role(name, role)
         .await
         .map_err(|e| format!("Failed to assign role: {e}"))
@@ -214,7 +214,7 @@ pub async fn assign_role(name: &str, role: &str) -> Result<(), String> {
 
 pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), String> {
     let ctx = build_ctx();
-    ctx.pod_manager()
+    ctx.infra().pods.clone()
         .set_mode(name, mode, role)
         .await
         .map_err(|e| format!("Failed to set mode: {e}"))
@@ -223,7 +223,7 @@ pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), 
 /// Export a pod as a container build context (delegates to PodFactory).
 pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Result<(), String> {
     let ctx = build_ctx();
-    let pm = ctx.pod_manager();
+    let pm = ctx.infra().pods.clone();
     let pid = hkask_agents::pod::PodID::from_name(pod_id);
     pm.export_container(pid, output_dir)
         .map_err(|e| format!("Failed to export container: {e}"))

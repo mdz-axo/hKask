@@ -26,7 +26,7 @@ fn create(text: &str, visibility: &str) -> Result<(), String> {
             visibility
         )
     })?;
-    let repo = ctx.goal_repo();
+    let repo = ctx.storage().goals.clone();
     let goal = repo
         .create_goal(&owner, text, vis)
         .map_err(|e| format!("Failed to create goal: {e}"))?;
@@ -46,7 +46,7 @@ fn list(state: Option<&str>) -> Result<(), String> {
         ),
         None => None,
     };
-    let repo = ctx.goal_repo();
+    let repo = ctx.storage().goals.clone();
     let goals = repo
         .list_goals(&owner, filter)
         .map_err(|e| format!("Failed to list goals: {e}"))?;
@@ -64,7 +64,7 @@ fn set_state(id: &str, state: &str) -> Result<(), String> {
         .map_err(|_| format!("Invalid goal ID '{}'", id))?;
     let new_state =
         GoalState::parse_str(state).ok_or_else(|| format!("Invalid goal state '{}'", state))?;
-    let repo = ctx.goal_repo();
+    let repo = ctx.storage().goals.clone();
 
     let goal = repo
         .get_goal(goal_id)

@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// Returns (db_path, db_passphrase) after successful login.
 fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, String), String> {
     let ctx = crate::commands::helpers::build_service_context();
-    let store = ctx.user_store();
+    let store = ctx.storage().users.clone();
 
     // Authenticate
     let session = store

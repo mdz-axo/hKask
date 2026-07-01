@@ -53,7 +53,7 @@ pub async fn export_create(
     })?;
     let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
     let archive_path = export_dir.join(format!("{timestamp}.db"));
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let triple_store = {
         let store = user_store.lock().map_err(|e| {
             (
@@ -142,7 +142,7 @@ pub async fn export_upload(
         };
         (StatusCode::BAD_REQUEST, msg)
     })?;
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let triple_store = {
         let store = user_store.lock().map_err(|e| {
             (

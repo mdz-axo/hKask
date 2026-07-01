@@ -134,9 +134,9 @@ impl ApiState {
         } = init_git_cas()?;
 
         // Extract wallet service before moving ctx into Arc
-        let wallet_service = ctx.wallet().cloned();
+        let wallet_service = ctx.infra().wallet.clone();
         // Build API key auth service if wallet store and wallet service are available
-        let api_key_auth_service = match (ctx.wallet_store().cloned(), wallet_service.clone()) {
+        let api_key_auth_service = match (ctx.storage().wallet.clone(), wallet_service.clone()) {
             (Some(store), Some(svc)) => Some(Arc::new(
                 middleware::api_key_auth::ApiKeyAuthService::new(store, svc),
             )),
@@ -174,7 +174,7 @@ impl ApiState {
     /// post: all registered loops begin tick cycles
     /// post: returns Ok(()) on success, Err(InfrastructureError) on failure
     pub async fn start_loops(&self) -> Result<(), hkask_types::InfrastructureError> {
-        let loops = self.agent_service.loop_system();
+        let loops = &self.agent_service.cns().loops;
         tracing::info!(
             target: "hkask.api",
             loops = ?loops.registered_loop_ids().await,
@@ -184,13 +184,9 @@ impl ApiState {
     }
 
     /// Signal the loop system to shut down.
-    ///
-    /// expect: "API endpoints enforce OCAP boundaries"
-    /// pre:  self.agent_service.loop_system() is initialized
-    /// post: loop system shutdown signal sent; background tasks begin winding down
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
-        let loops = self.agent_service.loop_system();
+        let loops = &self.agent_service.cns().loops;
         loops.shutdown();
     }
 }
@@ -251,7 +247,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
             middleware::auth_middleware,
         ))
         .layer({
-            let store = state.agent_service.user_store().clone();
+            let store = state.agent_service.storage().users.clone();
             axum::middleware::from_fn(move |req: Request<Body>, next: Next| {
                 let store = store.clone();
                 async move {
@@ -263,7 +259,7 @@ pub fn create_router(state: ApiState) -> Result<utoipa_axum::router::OpenApiRout
         .layer(axum::middleware::from_fn(middleware::cns_middleware));
 
     // Admin role-gating middleware (runs after session + auth, before routes)
-    let admin_store = state.agent_service.user_store().clone();
+    let admin_store = state.agent_service.storage().users.clone();
     router = router.layer(axum::middleware::from_fn(
         move |req: Request<Body>, next: Next| {
             let store = admin_store.clone();

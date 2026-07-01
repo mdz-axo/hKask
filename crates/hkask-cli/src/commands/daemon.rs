@@ -60,12 +60,12 @@ async fn run_daemon() -> Result<(), String> {
     };
 
     // Start the loop system
-    ctx.loop_system()
+    ctx.cns().loops
         .start()
         .await
         .map_err(|e| format!("Failed to start loop system: {e}"))?;
 
-    let loop_ids = ctx.loop_system().registered_loop_ids().await;
+    let loop_ids = ctx.cns().loops.registered_loop_ids().await;
     tracing::info!(target: "hkask.daemon", loops_num = loop_ids.len(), "Loop system started");
 
     // Bind daemon socket
@@ -75,7 +75,7 @@ async fn run_daemon() -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to bind daemon socket: {e}"))?;
 
-    let handler_raw = Arc::clone(ctx.daemon_handler());
+    let handler_raw = Arc::clone(ctx.infra().daemon.clone());
     let handler: Arc<dyn DaemonHandler> = handler_raw;
 
     let interval = std::env::var("HKASK_CONTRACT_TEST_INTERVAL_SECS")
@@ -102,7 +102,7 @@ async fn run_daemon() -> Result<(), String> {
         }
     }
 
-    ctx.loop_system().shutdown();
+    ctx.cns().loops.shutdown();
     println!("Daemon shut down.");
     Ok(())
 }

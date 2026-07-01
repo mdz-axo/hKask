@@ -186,7 +186,7 @@ fn resolve_api_composition_port(
     state: &ApiState,
 ) -> Result<std::sync::Arc<dyn hkask_ports::InferencePort>, ServiceError> {
     // Prefer the shared port from AgentService
-    if let Some(port) = state.agent_service.inference_port() {
+    if let Some(port) = state.agent_service.infra().inference.clone() {
         return Ok(port);
     }
     // Fallback: create a fresh inference port

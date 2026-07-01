@@ -13,7 +13,7 @@ manifest:
     JSON report. Computes convergence via saturation detection and iterates until
     critical quality threats are resolved or escalation is required.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0
   editor: curator-or-human-admin
   visibility: Public
 
@@ -49,6 +49,15 @@ inputs:
   - name: quality_criteria
     type: string
     required: true
+  - name: probe_depth
+    type: string
+    required: false
+    default: "static"
+    description: >
+      Probe tool depth. `static` (default — code+clippy+test only),
+      `dynamic` (add BugStalker runtime probes for timing/integration/structural
+      categories), or `full` (static + dynamic). Dynamic probes require Linux
+      x86-64 and debug builds.
   - name: probe_findings
     type: string
     required: false
@@ -94,6 +103,7 @@ steps:
       charter: "{{ step_1_result }}"
       target: "{{ target }}"
       quality_criteria: "{{ quality_criteria }}"
+      probe_depth: "{{ probe_depth | default('static') }}"
       probe_findings: "{{ probe_findings | default('') }}"
 
   - ordinal: 3

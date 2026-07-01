@@ -26,7 +26,7 @@ pub(crate) fn handle_mcp(
     arg2: &str,
     rt: &tokio::runtime::Handle,
 ) {
-    let mcp_runtime = state.service_context.mcp_runtime().clone();
+    let mcp_runtime = state.service_context.infra().mcp.clone().clone();
     let servers: Vec<(&str, &str)> = builtin_servers::BUILTIN_SERVERS.to_vec();
 
     match arg1 {

@@ -12,9 +12,9 @@
 //! `discover_tools`, `invoke`, `get_tool_info`) plus HTTP response mapping.
 //! No CLI MCP commands share this logic (CLI `commands/mcp.rs` uses a separate
 //! `create_mcp_dispatcher_with_servers` path). An McpService would just be
-//! `self.mcp_runtime().discover_tools()` — a pure pass-through.
+//! `self.infra().mcp.clone().discover_tools()` — a pure pass-through.
 //!
-//! Decision: Guideline — keep direct `service_context.mcp_runtime()`/`mcp_dispatcher()`
+//! Decision: Guideline — keep direct `service_context.infra().mcp.clone()`/`mcp_dispatcher()`
 //! access. Revisit if MCP orchestration logic (e.g., server health monitoring,
 //! tool result caching) grows beyond simple discovery/invocation.
 
@@ -55,7 +55,7 @@ pub fn mcp_router() -> OpenApiRouter<ApiState> {
 pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "mcp_servers", "CNS");
-    let servers = state.agent_service.mcp_runtime().list_servers().await;
+    let servers = state.agent_service.infra().mcp.clone().list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
 }
 
@@ -75,7 +75,7 @@ pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<Stri
 pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "mcp_tools", "CNS");
-    let tools = state.agent_service.mcp_runtime().discover_tools().await;
+    let tools = state.agent_service.infra().mcp.clone().discover_tools().await;
     Json(tools)
 }
 
@@ -158,7 +158,7 @@ pub(crate) async fn mcp_invoke(
     // Resolve server_id from the runtime's tool registry
     let server_id = state
         .agent_service
-        .mcp_runtime()
+        .infra().mcp.clone()
         .get_tool_info(&req.tool)
         .await
         .map(|t| t.server_id)

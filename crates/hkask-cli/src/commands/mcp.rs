@@ -17,7 +17,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
     match action {
         McpAction::ListServers => {
             let ctx = build_service_context(rt);
-            let servers = rt.block_on(ctx.mcp_runtime().list_servers());
+            let servers = rt.block_on(ctx.infra().mcp.clone().list_servers());
             println!("MCP servers:");
             if servers.is_empty() {
                 println!("  (no servers registered)");
@@ -29,7 +29,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
         }
         McpAction::ListTools => {
             let ctx = build_service_context(rt);
-            let tools = rt.block_on(ctx.mcp_runtime().discover_tools());
+            let tools = rt.block_on(ctx.infra().mcp.clone().discover_tools());
             println!("Available tools:");
             if tools.is_empty() {
                 println!("  (no tools registered)");
@@ -41,7 +41,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
         }
         McpAction::GetTool { name } => {
             let ctx = build_service_context(rt);
-            match rt.block_on(ctx.mcp_runtime().get_tool_info(&name)) {
+            match rt.block_on(ctx.infra().mcp.clone().get_tool_info(&name)) {
                 Some(info) => {
                     println!("Tool: {}", info.name);
                     println!("  Description: {}", info.description);

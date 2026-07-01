@@ -27,7 +27,7 @@ pub struct AgentReceipt {
 pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
     let agents =
-        ctx.agent_registry_store()
+        ctx.storage().agents.clone()
             .list()
             .map_err(|e| ServiceError::AgentRegistryStore {
                 message: e.to_string(),
@@ -46,7 +46,7 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
 /// post: returns the RegisteredAgent for the given name or ServiceError if not found
 pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    ctx.agent_registry_store()
+    ctx.storage().agents.clone()
         .get(name)
         .map_err(|e| ServiceError::AgentRegistryStore {
             message: e.to_string(),
@@ -114,7 +114,7 @@ pub async fn agent_register(
         registered_at: hkask_types::time::now_rfc3339(),
         source_yaml,
     };
-    ctx.agent_registry_store()
+    ctx.storage().agents.clone()
         .insert(&reg)
         .map_err(|e| ServiceError::AgentRegistryStore {
             message: e.to_string(),
@@ -131,7 +131,7 @@ pub async fn agent_register(
 /// post: removes the agent from the registry; returns Ok(()) or ServiceError if not found
 pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
     let ctx = crate::commands::helpers::build_service_context();
-    ctx.agent_registry_store()
+    ctx.storage().agents.clone()
         .remove(name)
         .map_err(|e| ServiceError::AgentRegistryStore {
             message: e.to_string(),

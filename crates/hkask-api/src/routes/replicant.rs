@@ -35,7 +35,7 @@ pub async fn list_replicants(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<ReplicantListResponse>, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -76,7 +76,7 @@ pub async fn rename_replicant(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<RenameRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -97,7 +97,7 @@ pub async fn delete_replicant(
     Extension(_auth): Extension<AuthContext>,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

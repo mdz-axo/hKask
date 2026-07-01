@@ -16,14 +16,14 @@ pub fn run(rt: &tokio::runtime::Runtime) {
 
     // Start the loop system
     println!("Starting Loop System (per-loop default tick intervals)");
-    let loops = ctx.loop_system();
+    let loops = ctx.cns().loops.clone();
     println!("Registered loops:");
     let ids = rt.block_on(loops.registered_loop_ids());
     for id in &ids {
         println!("  • {:?}", id);
     }
     println!();
-    let inference = ctx.inference_port();
+    let inference = ctx.infra().inference.clone();
     if inference.is_none() {
         println!("Note: Inference Loop not registered (requires inference connection)");
     }

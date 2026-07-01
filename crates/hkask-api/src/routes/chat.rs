@@ -197,7 +197,7 @@ pub(crate) async fn chat_stream(
         bypass_fusion: fusion_active,
     };
 
-    let inference = state.agent_service.inference_port();
+    let inference = state.agent_service.infra().inference.clone();
 
     // Use a channel to bridge the borrowed inference stream into a 'static
     // stream for the SSE response. A spawned task owns the Arc and sends

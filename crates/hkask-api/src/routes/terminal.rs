@@ -45,7 +45,7 @@ pub async fn terminal_ws(
         "Missing session cookie".to_string(),
     ))?;
 
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let session = {
         let store = user_store.lock().map_err(|e| {
             (

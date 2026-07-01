@@ -17,7 +17,7 @@ pub fn run(action: SpecAction) {
             criteria,
         } => {
             let ctx = super::helpers::build_service_context();
-            let store = ctx.spec_store();
+            let store = ctx.storage().specs.clone();
             let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
             let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
 
@@ -50,7 +50,7 @@ pub fn run(action: SpecAction) {
         }
         SpecAction::List { category } => {
             let ctx = super::helpers::build_service_context();
-            let store = ctx.spec_store();
+            let store = ctx.storage().specs.clone();
             let result = match category.as_deref() {
                 Some(cat_str) => {
                     let cat = SpecCategory::parse_str(cat_str).unwrap_or(SpecCategory::Domain);
@@ -99,7 +99,7 @@ pub fn run(action: SpecAction) {
             let ctx = super::helpers::build_service_context();
 
             let render_ctx = if let Some(sid) = spec_id {
-                let store = ctx.spec_store();
+                let store = ctx.storage().specs.clone();
                 let id = parse_spec_id_or_exit(&sid);
                 let spec = super::helpers::or_exit(store.load(id), "Failed to load spec");
                 minijinja::context! {
@@ -136,7 +136,7 @@ fn run_validate(spec_id: &str) {
     use hkask_storage::spec_types::SpecCurator;
 
     let ctx = super::helpers::build_service_context();
-    let store = ctx.spec_store();
+    let store = ctx.storage().specs.clone();
     let id = parse_spec_id_or_exit(spec_id);
     let spec = super::helpers::or_exit(store.load(id), "Failed to load spec");
     let curator = DefaultSpecCurator::default();
@@ -158,7 +158,7 @@ fn run_cultivate(spec_id: &str) {
     use hkask_storage::spec_types::SpecCurator;
 
     let ctx = super::helpers::build_service_context();
-    let store = ctx.spec_store();
+    let store = ctx.storage().specs.clone();
     let id = parse_spec_id_or_exit(spec_id);
     let spec = super::helpers::or_exit(store.load(id), "Failed to load spec");
     let curator = DefaultSpecCurator::default();

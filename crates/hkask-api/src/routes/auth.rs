@@ -232,7 +232,7 @@ pub async fn callback(
     };
 
     // Find or create user
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let user_store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -453,7 +453,7 @@ pub async fn logout(
     headers: axum::http::HeaderMap,
 ) -> Result<Response, (StatusCode, String)> {
     if let Some(session_id) = extract_cookie(&headers, "hkask_session") {
-        let user_store = state.agent_service.user_store();
+        let user_store = state.agent_service.storage().users.clone();
         let store = user_store.lock().map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -491,7 +491,7 @@ pub async fn session_info(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let session_id = extract_cookie(&headers, "hkask_session")
         .ok_or((StatusCode::UNAUTHORIZED, "No session".to_string()))?;
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -526,7 +526,7 @@ pub async fn accept_invite(
     headers: axum::http::HeaderMap,
     Json(body): Json<AcceptInviteBody>,
 ) -> Result<Response, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let user_store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

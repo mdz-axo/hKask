@@ -121,7 +121,7 @@ pub fn start_mcp_server(
     server_id: &str,
     command: &str,
 ) -> bool {
-    match rt.block_on(ctx.mcp_runtime().start_server(server_id, command)) {
+    match rt.block_on(ctx.infra().mcp.clone().start_server(server_id, command)) {
         Ok(()) => {
             tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started");
             true
@@ -160,7 +160,7 @@ pub fn start_mcp_servers_with_env(
     extra_env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
     let mut started = 0;
     for (server_id, command) in servers {
-        match rt.block_on(ctx.mcp_runtime().start_server_with_env(
+        match rt.block_on(ctx.infra().mcp.clone().start_server_with_env(
             server_id,
             command,
             extra_env.clone(),

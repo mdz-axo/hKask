@@ -71,7 +71,7 @@ fn emit_escalation_event(
         }),
         0,
     );
-    if let Err(e) = ctx.event_sink().persist(&event) {
+    if let Err(e) = ctx.cns().events.persist(&event) {
         tracing::warn!(
             target: "cns.curation",
             escalation_id = %escalation_id,
@@ -140,7 +140,7 @@ impl CuratorService {
     /// Run a metacognition cycle and return a human-readable summary.
     pub async fn metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
         let queue = Arc::clone(&ctx.governance().escalations);
-        let cns_lock = ctx.cns_runtime();
+        let cns_lock = &ctx.cns().runtime;
         let cns = Arc::new(cns_lock.read().await.clone());
 
         let agents_ctx = Arc::new(hkask_agents::CuratorContext::new(
@@ -150,8 +150,9 @@ impl CuratorService {
             queue,
         ));
         let agent = CuratorAgent::new(agents_ctx);
-        let agent = if let Some(curator_id) = ctx.pod_manager().find_by_name("curator").await {
-            if let Some(persona) = ctx.pod_manager().persona(&curator_id).await {
+        let agent = if let Some(curator_id) = ctx.infra().pods.clone().find_by_name("curator").await
+        {
+            if let Some(persona) = ctx.infra().pods.clone().persona(&curator_id).await {
                 if let Some(posture) = persona.communication_posture {
                     agent.with_communication_posture(posture)
                 } else {
@@ -184,7 +185,7 @@ impl CuratorService {
             _ => return,
         };
 
-        let transport = match ctx.matrix_transport() {
+        let transport = match ctx.infra().matrix.as_ref() {
             Some(t) => t,
             None => return,
         };

@@ -15,7 +15,7 @@ use super::ReplState;
 /// CNS variety counters are updated by the service layer via CNS spans.
 pub(super) fn update_cns_and_display(state: &ReplState, rt: &tokio::runtime::Handle) {
     // Check for CNS algedonic alerts (read-only observation)
-    let cns_runtime = state.service_context.cns_runtime().clone();
+    let cns_runtime = state.service_context.cns().runtime.clone();
     let alerts = rt.block_on(async { cns_runtime.read().await.critical_alerts().await });
     if !alerts.is_empty() {
         for alert in &alerts {
@@ -32,6 +32,6 @@ pub(super) fn update_cns_and_display(state: &ReplState, rt: &tokio::runtime::Han
     // (Throttle, AdjustEnergyBudget, Escalate, Calibrate) visible
     // through tracing output (cns.cybernetics target).
     rt.block_on(async {
-        state.service_context.loop_system().tick().await;
+        state.service_context.cns().loops.tick().await;
     });
 }

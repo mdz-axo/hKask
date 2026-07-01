@@ -185,7 +185,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
             }
             println!();
             println!("Affirmative Consent:");
-            let store = &svc_ctx.sovereignty_boundary_store();
+            let store = &svc_ctx.storage().sovereignty.clone();
             match store.get(&webid.to_string()) {
                 Ok(Some(entry)) => println!(
                     "  • Requires Affirmative Consent: {}",

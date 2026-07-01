@@ -13,7 +13,7 @@ type Store = Arc<Mutex<UserStore>>;
 
 fn build_store() -> Store {
     crate::commands::helpers::build_service_context()
-        .user_store()
+        .storage().users.clone()
         .clone()
 }
 

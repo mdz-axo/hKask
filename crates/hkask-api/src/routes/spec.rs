@@ -88,7 +88,7 @@ pub(crate) async fn list_specs(
     State(state): State<ApiState>,
     Query(query): Query<SpecListQuery>,
 ) -> impl IntoResponse {
-    let store = state.agent_service.spec_store();
+    let store = state.agent_service.storage().specs.clone();
     let result = match query.category.as_deref() {
         Some(cat_str) => {
             let cat = SpecCategory::parse_str(cat_str).unwrap_or(SpecCategory::Domain);
@@ -139,7 +139,7 @@ pub(crate) async fn get_spec(
 ) -> impl IntoResponse {
     match parse_spec_id(&spec_id) {
         Ok(id) => {
-            let store = state.agent_service.spec_store();
+            let store = state.agent_service.storage().specs.clone();
             match store.load(id) {
                 Ok(spec) => {
                     let requirements: Vec<String> = spec
@@ -196,7 +196,7 @@ pub(crate) async fn capture_spec(
     }
 
     let spec = Spec::new(&req.description, cat, DomainAnchor::Hkask).with_goal(goal);
-    let store = state.agent_service.spec_store();
+    let store = state.agent_service.storage().specs.clone();
     match store.save(&spec) {
         Ok(()) => Json(serde_json::json!({
             "goal_id": spec.id.to_string(),
@@ -223,7 +223,7 @@ pub(crate) async fn capture_spec(
     ),
 )]
 pub(crate) async fn get_coherence(State(state): State<ApiState>) -> impl IntoResponse {
-    let store = state.agent_service.spec_store();
+    let store = state.agent_service.storage().specs.clone();
     let specs = match store.list_all() {
         Ok(s) => s,
         Err(e) => {
@@ -295,7 +295,7 @@ pub(crate) async fn get_writing_quality(
                 .into_response();
         }
     };
-    let store = state.agent_service.spec_store();
+    let store = state.agent_service.storage().specs.clone();
     let spec = match store.load(id) {
         Ok(s) => s,
         Err(e) => {

@@ -51,7 +51,7 @@ impl BundleService {
     /// into the `BundleRegistryIndex` for persistence.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  skill_ids must have at least 2 entries; ctx.registry() must be initialized; inference_port must be valid
+    /// pre:  skill_ids must have at least 2 entries; ctx.storage().registry must be initialized; inference_port must be valid
     /// post: returns BundleComposeResult with validated manifest and warnings; Err(Compose) if <2 skills, skills not found, or validation fails
     /// # Arguments
     /// - `ctx` — The shared AgentService context.
@@ -82,7 +82,7 @@ impl BundleService {
         }
 
         // Resolve skill metadata from the registry.
-        let registry = ctx.registry();
+        let registry = ctx.storage().registry.clone();
         let registry_guard = registry.lock().await;
         let skills: Vec<hkask_ports::Skill> = skill_ids
             .iter()
@@ -228,10 +228,10 @@ impl BundleService {
     /// List all bundles in the registry.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.registry() must be initialized
+    /// pre:  ctx.storage().registry must be initialized
     /// post: returns `Vec<BundleManifest>` of all registered bundles; empty Vec if none
     pub async fn list(ctx: &AgentService) -> Result<Vec<BundleManifest>, ServiceError> {
-        let registry = ctx.registry();
+        let registry = ctx.storage().registry.clone();
         let guard = registry.lock().await;
         Ok(guard.list_bundles())
     }
@@ -239,10 +239,10 @@ impl BundleService {
     /// Get a bundle by ID.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.registry() must be initialized; id must be non-empty
+    /// pre:  ctx.storage().registry must be initialized; id must be non-empty
     /// post: returns Some(BundleManifest) if found; None if not found
     pub async fn get(ctx: &AgentService, id: &str) -> Result<Option<BundleManifest>, ServiceError> {
-        let registry = ctx.registry();
+        let registry = ctx.storage().registry.clone();
         let guard = registry.lock().await;
         Ok(guard.get_bundle(id))
     }
@@ -252,10 +252,10 @@ impl BundleService {
     /// Returns the bundle manifest if found, or `ServiceError::Compose` if not.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.registry() must be initialized; id must be non-empty
+    /// pre:  ctx.storage().registry must be initialized; id must be non-empty
     /// post: returns BundleManifest if found; Err(Compose) if bundle not found
     pub async fn apply(ctx: &AgentService, id: &str) -> Result<BundleManifest, ServiceError> {
-        let registry = ctx.registry();
+        let registry = ctx.storage().registry.clone();
         let guard = registry.lock().await;
         guard.get_bundle(id).ok_or_else(|| ServiceError::Compose {
             source: None,
@@ -269,7 +269,7 @@ impl BundleService {
     /// Returns the evolved manifest.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.registry() must be initialized; id must reference an existing bundle; inference_port must be valid
+    /// pre:  ctx.storage().registry must be initialized; id must reference an existing bundle; inference_port must be valid
     /// post: returns BundleComposeResult with evolved manifest; old bundle removed, new one registered; Err(Compose) if bundle not found
     pub async fn evolve(
         ctx: &AgentService,
@@ -297,7 +297,7 @@ impl BundleService {
 
         // Remove the old bundle and register the new one.
         {
-            let registry = ctx.registry();
+            let registry = ctx.storage().registry.clone();
             let mut guard = registry.lock().await;
             guard.remove_bundle(id);
             guard.register_bundle(result.manifest.clone());
@@ -318,10 +318,10 @@ impl BundleService {
     /// List available skills from the registry.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx.registry() must be initialized
+    /// pre:  ctx.storage().registry must be initialized
     /// post: returns `Vec<Skill>` of all registered skills; empty Vec if none
     pub async fn list_skills(ctx: &AgentService) -> Result<Vec<hkask_ports::Skill>, ServiceError> {
-        let registry = ctx.registry();
+        let registry = ctx.storage().registry.clone();
         let guard = registry.lock().await;
         // list_skills() returns Vec<Skill> — an owned type from SkillRegistryIndex
         Ok(hkask_ports::SkillRegistryIndex::list_skills(&*guard))

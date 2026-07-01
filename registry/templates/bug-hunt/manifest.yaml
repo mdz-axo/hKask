@@ -3,7 +3,7 @@
 
 crate:
   name: bug-hunt
-  version: "0.30.0"
+  version: "0.31.0"
   description: >
     Bug hunting: explores a target crate for threats to user-defined quality.
     Applies Weinberg's quality definition ("value to some person who matters"),
@@ -35,9 +35,12 @@ templates:
     lexicon_terms: [probe, explore, search, test, verify]
     description: >
       PROBE phase — agent-coordinated MCP tool execution. Reads target source
-      files, searches for bug patterns, runs cargo check/test/clippy. This
-      template provides guidance and collects results; the actual probing is
-      performed by the agent using MCP tools between template calls.
+      files, searches for bug patterns, runs cargo check/test/clippy, and
+      when probe_depth includes `dynamic`, executes BugStalker (`bs`) runtime
+      probes (breakpoints, thread inspection, Tokio oracle) for timing,
+      integration, and structural Beizer categories. This template provides
+      guidance and collects results; the actual probing is performed by the
+      agent using MCP tools between template calls.
     generates_spans:
       - cns.bughunt.probe
 

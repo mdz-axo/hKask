@@ -79,7 +79,7 @@ pub(crate) async fn create_goal(
                 .into_response();
         }
     };
-    let repo = state.agent_service.goal_repo();
+    let repo = state.agent_service.storage().goals.clone();
     match repo.create_goal(&auth.webid, &req.text, vis) {
         Ok(goal) => Json(GoalResponse {
             id: goal.id.to_string(),
@@ -126,7 +126,7 @@ pub(crate) async fn list_goals(
         },
         None => None,
     };
-    let repo = state.agent_service.goal_repo();
+    let repo = state.agent_service.storage().goals.clone();
     match repo.list_goals(&auth.webid, filter) {
         Ok(goals) => Json(GoalListResponse {
             goals: goals
@@ -187,7 +187,7 @@ pub(crate) async fn set_goal_state(
                 .into_response();
         }
     };
-    let repo = state.agent_service.goal_repo();
+    let repo = state.agent_service.storage().goals.clone();
 
     let goal = match repo.get_goal(goal_id) {
         Ok(Some(g)) => g,

@@ -176,7 +176,9 @@ pub(super) fn init_repl_state(
     // Build shared infrastructure via AgentService::build().
     // This creates: CNS, loop system (cybernetics, episodic, semantic, curation loops),
     // governed tool membrane, MCP runtime + dispatcher, pod manager, registry, etc.
-    let mut ctx = match rt.block_on(hkask_services_context::AgentService::build(service_config.clone())) {
+    let mut ctx = match rt.block_on(hkask_services_context::AgentService::build(
+        service_config.clone(),
+    )) {
         Ok(ctx) => ctx,
         Err(e) => {
             eprintln!("Failed to build service context: {}", e);
@@ -191,7 +193,7 @@ pub(super) fn init_repl_state(
     }
 
     // Register the CLI's inference loop on the shared loop system.
-    rt.block_on(ctx.loop_system().register_loop(inference_loop.clone()));
+    rt.block_on(ctx.cns().loops.register_loop(inference_loop.clone()));
 
     // Propagate the project root to the filesystem server via env var.
     // The server resolves HKASK_PROJECT_ROOT at startup; if unset, it falls
@@ -239,7 +241,7 @@ pub(super) fn init_repl_state(
         "training",
         "replica",
     ];
-    let mcp_runtime = ctx.mcp_runtime().clone();
+    let mcp_runtime = ctx.infra().mcp.clone().clone();
     let degraded = rt.block_on(async {
         let mut started = 0u32;
         let mut failed = Vec::new();
@@ -289,11 +291,11 @@ pub(super) fn init_repl_state(
     // This wraps AgentService's MCP runtime with gas governance and CNS observability,
     // sharing the same cybernetics loop as the loop system.
     let raw_tool_port = Arc::new(RawMcpToolPort::new((*mcp_runtime).clone()));
-    let estimator: Arc<dyn hkask_cns::EnergyEstimator> = ctx.energy_estimator().clone();
+    let estimator: Arc<dyn hkask_cns::EnergyEstimator> = ctx.cns().energy.clone();
     let governed_tool = Arc::new(GovernedTool::new(
         raw_tool_port,
-        ctx.cybernetics_loop().clone(),
-        ctx.event_sink().clone(),
+        ctx.cns().cybernetics.clone(),
+        ctx.cns().events.clone(),
         estimator,
         agent_webid,
     ));
@@ -302,7 +304,8 @@ pub(super) fn init_repl_state(
     // Uses repl_settings.gas_cap (default 10_000), replenish_rate=10% of cap,
     // alert at 80% usage, hard_limit=true (block operations when exhausted).
     rt.block_on(async {
-        ctx.cybernetics_loop()
+        ctx.cns()
+            .cybernetics
             .read()
             .await
             .register_energy_budget(
@@ -355,7 +358,7 @@ pub(super) fn init_repl_state(
             }
             None => hkask_storage::in_memory_db(),
         };
-        let mem = AgentService::build_per_agent_memory(db, Some(Arc::clone(ctx.event_sink())));
+        let mem = AgentService::build_per_agent_memory(db, Some(Arc::clone(&ctx.cns().events)));
         (
             mem.episodic_storage,
             mem.semantic_storage,

@@ -37,7 +37,7 @@ fn build_turn_request(
         persona_constraints: state.persona_constraints.clone(),
         tool_section: state.tool_prompt.section.clone(),
         llm_params: to_llm_params(settings),
-        capability_checker: Arc::clone(&state.service_context.governance().checker),
+        capability_checker: state.service_context.governance().checker.clone(),
         system_webid: *state.service_context.identity().0,
         iteration,
         tool_results,
@@ -121,7 +121,7 @@ pub(super) fn single_agent_turn(
 
         // Hold-settle pattern via EnergyGuard.
         let Some(gas_guard) = energy::EnergyGuard::try_reserve(
-            state.service_context.cybernetics_loop(),
+            &state.service_context.cns().cybernetics,
             &state.inference_loop,
             &state.agent_webid,
             rt,
@@ -329,7 +329,7 @@ pub(crate) fn single_agent_turn_captured(
         }
 
         let Some(gas_guard) = energy::EnergyGuard::try_reserve(
-            state.service_context.cybernetics_loop(),
+            &state.service_context.cns().cybernetics,
             &state.inference_loop,
             &state.agent_webid,
             rt,

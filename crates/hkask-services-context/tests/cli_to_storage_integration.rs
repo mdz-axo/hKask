@@ -66,15 +66,15 @@ async fn service_builds_with_in_memory_config() {
     let (_episodic, _semantic) = svc.memory();
 
     // CNS runtime should be accessible
-    let cns = svc.cns_runtime().read().await;
+    let cns = svc.cns().runtime.read().await;
     // Domains may be empty at startup — that's valid
     drop(cns);
 
     // All store accessors should return valid references
-    let _goal_repo = svc.goal_repo();
+    let _goal_repo = svc.storage().goals.clone();
 
-    let _user_store = svc.user_store();
-    let _event_sink = svc.event_sink();
+    let _user_store = svc.storage().users.clone();
+    let _event_sink = svc.cns().events;
     let _sovereignty = svc.governance().consent;
 }
 
@@ -113,7 +113,7 @@ async fn sovereignty_consent_round_trip() {
 async fn goal_write_read_round_trip() {
     let svc = build_test_service().await;
     let webid = WebID::new();
-    let goal_repo = svc.goal_repo();
+    let goal_repo = svc.storage().goals.clone();
 
     // Create a goal
     let goal = goal_repo
@@ -140,7 +140,7 @@ async fn goal_write_read_round_trip() {
 #[tokio::test]
 async fn spec_write_read_round_trip() {
     let svc = build_test_service().await;
-    let spec_store = svc.spec_store();
+    let spec_store = svc.storage().specs.clone();
 
     // Create a spec directly via the store
     let spec = Spec::new("test-spec", SpecCategory::Lifecycle, DomainAnchor::Hkask);
@@ -171,7 +171,7 @@ async fn cross_store_consent_visible_to_cns_events() {
 
     // The CNS event sink shares the same database as the consent store.
     // Verify the event sink is functional on the shared connection.
-    let event_sink = svc.event_sink();
+    let event_sink = svc.cns().events;
     let test_event = hkask_types::event::NuEvent::new(
         webid,
         hkask_types::event::Span::new(
@@ -198,7 +198,7 @@ async fn service_energy_estimator_calibrates_from_events() {
     let server = "hkask-mcp-media";
 
     // Before calibration, default cost applies.
-    let estimator = svc.energy_estimator();
+    let estimator = svc.cns().energy;
     let before = estimator.estimate_cost(server, "search", &serde_json::json!({}));
     assert_eq!(before, 100);
 
@@ -216,7 +216,7 @@ async fn service_energy_estimator_calibrates_from_events() {
         }),
         0,
     );
-    svc.event_sink()
+    svc.cns().events
         .persist(&event)
         .expect("persist settled gas event");
 
@@ -241,7 +241,7 @@ async fn wallet_store_accessible() {
     let svc = build_test_service().await;
 
     // Wallet may be None if no chain ports are configured (expected in test mode)
-    if let Some(wallet) = svc.wallet() {
+    if let Some(wallet) = svc.infra().wallet.clone() {
         let wallet_id = hkask_types::id::WalletId::new();
         wallet
             .ensure_wallet(wallet_id)

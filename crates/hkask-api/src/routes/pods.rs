@@ -98,7 +98,7 @@ async fn list_pods(
     tracing::info!(target: "cns.api", operation = "pods_list", "CNS");
     let pod_statuses = state
         .agent_service
-        .pod_manager()
+        .infra().pods.clone()
         .list_pods()
         .await
         .unwrap_or_default();
@@ -152,7 +152,7 @@ async fn create_pod(
     })?;
     let pod_id = state
         .agent_service
-        .pod_manager()
+        .infra().pods.clone()
         .create_pod(
             &req.template,
             &persona,
@@ -174,7 +174,7 @@ async fn activate_pod(
     // P9: CNS span
     tracing::info!(target: "cns.api", operation = "pods_activate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
-    state.agent_service.pod_manager().activate_pod(&pid).await?;
+    state.agent_service.infra().pods.clone().activate_pod(&pid).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -188,7 +188,7 @@ async fn deactivate_pod(
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
-        .pod_manager()
+        .infra().pods.clone()
         .deactivate_pod(&pid)
         .await?;
     Ok(StatusCode::NO_CONTENT)
@@ -204,7 +204,7 @@ async fn pod_status(
     let pid = parse_pod_id(&id)?;
     let status = state
         .agent_service
-        .pod_manager()
+        .infra().pods.clone()
         .get_pod_status(&pid)
         .await?;
     Ok(Json(PodStatusResponse {

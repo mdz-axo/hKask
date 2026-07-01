@@ -362,7 +362,7 @@ impl ChatService {
         let loader = hkask_agents::AgentRegistryLoader::new(
             ctx.config().registry_yaml_path.clone(),
             ctx.governance().a2a.clone(),
-            ctx.agent_registry_store().clone(),
+            ctx.storage().agents.clone(),
             Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
         );
         let agents = loader
@@ -409,7 +409,7 @@ impl ChatService {
 
         // Resolve inference port — prefer override, then shared port from AgentService
         let inference: Arc<dyn InferencePort> =
-            match (&req.inference_port_override, ctx.inference_port()) {
+            match (&req.inference_port_override, ctx.infra().inference.clone()) {
                 (Some(port), _) => Arc::clone(port),
                 (None, Some(port)) => port,
                 (None, None) => {
@@ -557,7 +557,7 @@ impl ChatService {
             }),
             0,
         );
-        let _ = ctx.event_sink().persist(&request_event);
+        let _ = ctx.cns().events.persist(&request_event);
 
         let result = prepared
             .inference_port
@@ -587,9 +587,9 @@ impl ChatService {
             0,
         )
         .with_parent(request_event.id);
-        let _ = ctx.event_sink().persist(&response_event);
+        let _ = ctx.cns().events.persist(&response_event);
 
-        // Store the exchange as episodic triple (with CNS observability)
+        // Store the exchange
         let memory_span = Span::new(
             SpanNamespace::from(CnsSpan::MemoryEncode),
             "episodic_stored",
@@ -606,7 +606,7 @@ impl ChatService {
             }),
             0,
         );
-        let _ = ctx.event_sink().persist(&memory_event);
+        let _ = ctx.cns().events.persist(&memory_event);
 
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only persist the exchange to
         // episodic (sovereign) memory when the owner has granted consent.
@@ -1049,7 +1049,7 @@ Agent: {}",
             bypass_fusion: true,
         };
 
-        let port = ctx.inference_port()?;
+        let port = ctx.infra().inference.clone()?;
         let result = port
             .generate_with_model(&full_prompt, &params, Some(condenser_model), None)
             .await

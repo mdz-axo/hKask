@@ -16,7 +16,7 @@ pub async fn create_invite(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let user_store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -43,7 +43,7 @@ pub async fn list_invites(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let user_store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -70,7 +70,7 @@ pub async fn list_sessions(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let user_store = state.agent_service.user_store();
+    let user_store = state.agent_service.storage().users.clone();
     let user_store = user_store.lock().map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

@@ -177,7 +177,7 @@ fn build_cns_runtime(rt: &tokio::runtime::Runtime) -> Arc<RwLock<CnsRuntime>> {
         }
     };
     match rt.block_on(hkask_services_context::AgentService::build(config)) {
-        Ok(ctx) => ctx.cns_runtime().clone(),
+        Ok(ctx) => ctx.cns().runtime.clone(),
         Err(_) => standalone_cns_runtime(),
     }
 }
