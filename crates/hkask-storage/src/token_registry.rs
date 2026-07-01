@@ -69,27 +69,43 @@ impl TokenRegistryStore {
             "template" => DelegationResource::Template,
             "registry" | "memory" => DelegationResource::Registry,
             "key" => DelegationResource::Key,
-            other => DelegationResource::parse_str(other).unwrap_or(DelegationResource::Registry),
+            other => DelegationResource::parse_str(other).ok_or_else(|| {
+                rusqlite::Error::InvalidColumnName(format!("unknown delegation resource: {other}"))
+            })?,
         };
-        let action = DelegationAction::parse_str(&action_str).unwrap_or(DelegationAction::Execute);
+        let action = DelegationAction::parse_str(&action_str).ok_or_else(|| {
+            rusqlite::Error::InvalidColumnName(format!("unknown delegation action: {action_str}"))
+        })?;
 
         let signature = {
-            let bytes = hex::decode(&sig_hex).unwrap_or_else(|_| vec![0u8; 64]);
+            let bytes = hex::decode(&sig_hex).map_err(|e| {
+                rusqlite::Error::InvalidColumnName(format!("invalid signature hex: {e}"))
+            })?;
             let mut arr = [0u8; 64];
             let len = bytes.len().min(64);
             arr[..len].copy_from_slice(&bytes[..len]);
             hkask_capability::token_types::TokenSignature(arr)
         };
         let public_key = {
-            let bytes = hex::decode(&pk_hex).unwrap_or_else(|_| vec![0u8; 32]);
+            let bytes = hex::decode(&pk_hex).map_err(|e| {
+                rusqlite::Error::InvalidColumnName(format!("invalid public key hex: {e}"))
+            })?;
             let mut arr = [0u8; 32];
             let len = bytes.len().min(32);
             arr[..len].copy_from_slice(&bytes[..len]);
             hkask_types::Ed25519PublicKey(arr)
         };
 
-        let from_wid: WebID = from_str.parse().unwrap_or_default();
-        let to_wid: WebID = to_str.parse().unwrap_or_default();
+        let from_wid: WebID = from_str.parse().map_err(|e| {
+            rusqlite::Error::InvalidColumnName(format!(
+                "invalid delegated_from WebID '{from_str}': {e}"
+            ))
+        })?;
+        let to_wid: WebID = to_str.parse().map_err(|e| {
+            rusqlite::Error::InvalidColumnName(format!(
+                "invalid delegated_to WebID '{to_str}': {e}"
+            ))
+        })?;
 
         Ok(DelegationToken {
             id,

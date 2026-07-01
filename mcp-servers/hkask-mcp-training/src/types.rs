@@ -9,6 +9,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use chrono;
+use hkask_adapter::{EndpointLifecycle, EndpointPhase};
+
 use crate::providers::TrainingParams;
 use hkask_inference::ProviderId;
 use hkask_types::template::LLMParameters;
@@ -594,4 +597,80 @@ pub struct TrainDeployRequest {
 pub struct TrainTeardownRequest {
     /// Deployment ID from a previous training_deploy call.
     pub deployment_id: String,
+}
+
+// ── Training mode — expertise vs skill vs contrastive ──────────────────
+
+/// What kind of training data is being produced.
+///
+/// **Expertise** — "What to know" — factual domain knowledge.
+/// Training data is QA pairs (ingest_qa → assemble_dataset).
+/// Evaluation uses exact/contains/semantic match.
+/// Produces an *expertise adapter* that answers factual questions about a domain.
+///
+/// **Decomposition Trace** — "How to think" — procedural decomposition of problems.
+/// Training data is generated traces from SKILL.md (generate_traces).
+/// Evaluation uses decomposition accuracy.
+/// Produces a *skill adapter* that applies a methodology to novel situations.
+///
+/// **Contrastive Trace** — "What to prefer" — trains judgment by contrasting correct vs. incorrect decompositions.
+/// Training data is trace pairs (chosen/rejected) with the same situation.
+/// Evaluation uses preference accuracy (does model produce chosen over rejected?).
+/// Uses the existing A/B evaluation loop for comparing adapter outputs.
+///
+/// **Hybrid** — Both expertise and skill traces, with configurable weighting (default 30% expertise / 70% traces).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TrainingMode {
+    /// Expertise (factual knowledge) fine-tuning — domain QA pairs.
+    Expertise,
+    /// Skill (procedural) decomposition trace fine-tuning — from SKILL.md.
+    DecompositionTrace,
+    /// Contrastive preference training — correct vs. incorrect trace pairs.
+    ContrastiveTrace,
+    /// Weighted combination of expertise QA and skill decomposition traces.
+    Hybrid,
+}
+
+// ── A/B evaluation baseline ──────────────────────────────────────────────
+
+/// Metrics from the previous adapter version, used as baseline for A/B comparison
+/// when retraining. The new adapter must improve on at least 2 of 3 metrics
+/// (loss, perplexity, or eval accuracy) to be promoted.
+#[derive(Debug, Clone, Serialize)]
+pub struct AbBaseline {
+    pub previous_version: u32,
+    pub previous_loss: f32,
+    pub previous_perplexity: f32,
+}
+
+/// A deployed adapter endpoint — tracks the lifecycle of a trained adapter
+/// that has been deployed to a cloud inference provider.
+///
+/// Uses `EndpointLifecycle` for state machine governance:
+///   Provisioning → Ready → Active → Draining → Terminated
+#[derive(Debug, Clone, Serialize)]
+pub struct AdapterDeployment {
+    pub deployment_id: String,
+    pub adapter_name: String,
+    pub base_model: String,
+    pub provider: DeploymentProvider,
+    pub endpoint_url: Option<String>,
+    /// Lifecycle state machine — governs phase transitions.
+    #[serde(skip)]
+    pub lifecycle: EndpointLifecycle,
+    pub estimated_cost_per_hour: f32,
+    pub deployed_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl AdapterDeployment {
+    /// Current phase from the lifecycle state machine.
+    pub fn phase(&self) -> EndpointPhase {
+        self.lifecycle.phase
+    }
+
+    /// Accrued cost from the lifecycle.
+    pub fn cost_accrued(&self) -> f64 {
+        self.lifecycle.cost_accrued
+    }
 }

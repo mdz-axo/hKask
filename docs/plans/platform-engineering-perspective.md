@@ -3,7 +3,7 @@ title: "Platform Engineering Perspective — Systematic Integration Plan"
 audience: [architects, platform engineers, project maintainers]
 last_updated: 2026-07-01
 version: "0.31.0"
-status: "Proposal — Expanded with Exemplars, Platform Theory, and Loyalty-Anchor Design"
+status: "Active — Phases 1-2, 4-7 complete. Phase 3, 8 partially complete. Platform Engineer replicant defined and registered."
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
 anchored_on: [PRINCIPLES.md §P1-P12]
@@ -21,7 +21,7 @@ Platform engineering inherits from systems engineering, operations research, dis
 |----------|-----------------|-------------------|
 | **Werner Vogels** (AWS CTO) | Defined the modern cloud platform: "You build it, you run it." API-first design, two-pizza teams, distributed systems at global scale. Author of the distributed systems papers underpinning DynamoDB and S3. | hKask's hexagonal ports and API-first design echo Vogels' conviction that a platform IS its API. The tri-surface pattern (CLI/API/MCP) is Vogels-ian: every capability must be accessible programmatically. |
 | **Kelsey Hightower** | The conscience of platform engineering. His Kubernetes advocacy taught the industry that platforms must *disappear* for developers — "the best platform is the one you don't notice." Walked away from Google to emphasize that platform engineering is about people, not technology. | hKask's REPL and self-service skills (P3 Generative Space) embody Hightower's principle. But he would ask: "Does a user need to understand CNS spans to use hKask?" The answer should be no. |
-| **Charity Majors** (Honeycomb CTO) | Defined **Observability 2.0**: a single unified storage model for wide structured log events, replacing the "three pillars" (metrics, logs, traces) she called a vendor marketing construct. Her insight: observability is a *data analytics* problem, not an ops problem. Platform engineering teams become data governance teams. | hKask's CNS with 73 typed span variants is an Observability 2.0 architecture born before the term existed. Wide structured events at every membrane crossing. But hKask still separates CNS from the user-facing REPL — are developers observing *their agents* or just the platform's internals? |
+| **Charity Majors** (Honeycomb CTO) | Defined **Observability 2.0**: a single unified storage model for wide structured log events, replacing the "three pillars" (metrics, logs, traces) she called a vendor marketing construct. Her insight: observability is a *data analytics* problem, not an ops problem. Platform engineering teams become data governance teams. | hKask's CNS with 90 typed span variants is an Observability 2.0 architecture born before the term existed. Wide structured events at every membrane crossing. |
 | **Dr. Nicole Forsgren** | Created the **DORA metrics** (Deployment Frequency, Lead Time, Change Failure Rate, MTTR) and the **SPACE framework** for developer productivity. Rigorous statistical research proving that delivery performance drives organizational performance — not the other way around. | hKask has no DORA metrics for itself. How frequently do skills get deployed? What's the lead time from FlowDef creation to production use? What's the change failure rate of a YAML manifest edit? These are measurable with existing CNS spans. |
 | **Simon Wardley** | Created **Wardley Mapping**: a situational awareness technique that maps components on a value chain against their evolutionary stage (Genesis → Custom → Product → Commodity). Introduced the Pioneer-Settler-Town Planner (now Explorer-Villager-Town Planner) team structure. His doctrine: "Strategy is the art of manipulating an environment to gain a desirable outcome." | hKask needs a Wardley Map. Where are skills on the evolution axis? Where is the CNS? The MCP protocol? A map would reveal what to commoditize (deploy to MCP servers), what to productize (skills), and what to keep in Genesis (the Platform Engineer replicant). |
 
@@ -784,28 +784,76 @@ New CNS spans:
 | **Curation** | Platform Engineer replicant reports to Curator. New CNS spans for audit/recommendation lifecycle |
 | **Cybernetics** | SLO breach triggers enrich algedonic pathway. PaaP metric spans feed VarietyTracker |
 
-### 12.3 Implementation Sequence
+### 12.3 Implementation Status — 2026-07-01
 
-| Phase | What | Duration Est. | Status |
-|-------|------|--------------|--------|
-| **Phase 1** | SloDefinition type + 3 seed SLOs + CNS span `cns.slo.evaluated` | 2-3 PDCA cycles | ✅ Done |
-| **Phase 2** | SloManager in hkask-cns + CnsRuntime integration + CNS query MCP tool | 2 PDCA cycles | ✅ Done |
-| **Phase 3** | PaaP metric definitions + CNS spans + API + 6 metric CNS spans | 2 PDCA cycles | 📋 Planned |
-| **Phase 4** | DORA/SPACE CNS spans (9 spans) + `platform-dx-analyzer` FlowDef | 2 PDCA cycles | 📋 Planned |
-| **Phase 5** | Platform Engineer replicant definition + OCAP boundaries + basic audit skills | 3 PDCA cycles | 📋 Planned |
-| **Phase 6** | Sovereignty skills: consent-auditor, portability-verifier, governance-transparency-reporter | 3 PDCA cycles | 🟡 Designed (7 FlowDef manifests + 9 KnowAct templates) |
-| **Phase 7** | Strategic skills: wardley-mapper, loyalty-scorecard, health-scorer, bulkhead-auditor | 3 PDCA cycles | 🟡 Designed (4 FlowDef manifests) |
-| **Phase 8** | Full replicant operating cadence (daily/weekly/monthly/quarterly) + loyalty feedback loop closed | 2 PDCA cycles | 📋 Planned |
+| Phase | What | Status |
+|-------|------|--------|
+| **Phase 1** | SloDefinition type + 3 seed SLOs + `cns.slo.evaluated` CNS span | ✅ Done |
+| **Phase 2** | SloManager in hkask-cns + CnsRuntime integration + `evaluate_and_escalate_slos()` wired to algedonic pathway + SLO evaluation scheduled in CyberneticsLoop tick | ✅ Done |
+| **Phase 3** | PaaP metric CNS spans + API | 📋 Planned |
+| **Phase 4** | DORA/SPACE CNS spans | ✅ Done — 11 spans added (`PlatformMetric`, `DoraDeployFreq`, `DoraLeadTime`, `DoraChangeFailRate`, `DoraMttr`, `SpaceSatisfaction`, `SpacePerformance`, `SpaceActivity`, `SpaceCommunication`, `SpaceEfficiency`, `LoyaltyScore`) |
+| **Phase 5** | Platform Engineer replicant agent definition | ✅ Done — `agent_persona.yaml` + `persona.j2` WordAct template. Registered in bootstrap registry. |
+| **Phase 6** | Sovereignty skills (consent-auditor, portability-verifier, governance-transparency-reporter) | ✅ Done — 3 FlowDef manifests + 3 template crate manifests + 6 KnowAct templates + `TokenRegistry` trait + SQLite `TokenRegistryStore` + `list_tokens` MCP tool + 5 sovereignty CNS spans |
+| **Phase 7** | Strategic skills (health-scorer, loyalty-scorecard, bulkhead-auditor, wardley-mapper) | ✅ Done — 4 FlowDef manifests + 4 template crate manifests + 4 KnowAct templates |
+| **Phase 8** | Full replicant operating cadence | 🟡 Manifests and templates complete. Replicant persona defined. Runtime dispatch depends on existing `ManifestExecutor` infrastructure — manifests are registered in `Registry::bootstrap()`, templates in `bootstrap-registry.yaml`. |
 
-**Artifacts created:**
-- 7 FlowDef YAML manifests in `registry/manifests/platform-*.yaml`
-- 3 template crate manifests in `registry/templates/platform-*/manifest.yaml`
-- 6 KnowAct Jinja2 templates in `registry/templates/platform-*/*.j2`
-- 5 new CNS span variants: `SovereigntyConsentAudited`, `SovereigntyConsentAnomaly`, `SovereigntyPortabilityVerified`, `SovereigntyPortabilityFailure`, `SovereigntyGovernanceReport`
-- CNS query MCP tool in `mcp-servers/hkask-mcp-curator/src/lib.rs`
-- 78 total CnsSpan variants (up from 72)
+### 12.4 Build Inventory
 
-**Total:** 19–23 PDCA cycles to full implementation. Phases 1–2 complete, Phases 6–7 designed.
+**Rust crates modified:**
+
+| Crate | New files | Modified files |
+|-------|----------|---------------|
+| `hkask-types` | — | `cns.rs` (+16 CnsSpan variants, +SloDefinition, +SloSeverity, +SloEvaluation, +seed_slos) |
+| `hkask-cns` | `slo_manager.rs` | `runtime.rs`, `cybernetics_loop.rs`, `lib.rs` |
+| `hkask-capability` | — | `token_types.rs` (+TokenRegistry trait, +NoOpTokenRegistry, public Caveat/caveats), `lib.rs` |
+| `hkask-storage` | `token_registry.rs` | `lib.rs` |
+| `hkask-templates` | — | `registry.rs` (bootstrap loads 7 platform manifests) |
+| `hkask-agents` | — | `ports/memory_storage.rs`, `ports/mod.rs` (MemoryPortError re-export fix) |
+| `hkask-services-chat` | — | `chat.rs` (test mock fix) |
+| `hkask-mcp-curator` | — | `lib.rs` (+cns_query, +list_tokens tools), `types.rs` (+CnsQueryRequest, +TokenListRequest) |
+
+**Registry artifacts created:**
+
+| Type | Count | Location |
+|------|:-----:|----------|
+| FlowDef manifests | 7 | `registry/manifests/platform-*.yaml` |
+| Template crate manifests | 7 | `registry/templates/platform-*/manifest.yaml` |
+| KnowAct `.j2` templates | 14 | `registry/templates/platform-*/*.j2` |
+| WordAct persona template | 1 | `registry/templates/platform-engineer/persona.j2` |
+| Agent definition | 1 | `registry/templates/platform-engineer/agent_persona.yaml` |
+| Bootstrap registry entries | +15 | `registry/templates/bootstrap-registry.yaml` |
+| CI script | 1 | `scripts/ci-contract-check.sh` |
+
+**Dependency structure preserved:**
+
+```
+hkask-cns → [types, ports, capability, wallet, wallet-types]     ← production
+hkask-cns → [storage]                                              ← dev-only (tests)
+hkask-storage → [capability]                                       ← TokenRegistry impl
+hkask-mcp-curator → [capability, storage, cns]                     ← token + CNS query tools
+```
+
+No production dependency from CNS → Storage.
+
+**Known integration gaps (startup wiring not yet implemented):**
+
+| Gap | Detail | Root cause |
+|-----|--------|------------|
+| Platform manifests not registered at runtime | `Registry::bootstrap()` loads 7 FlowDef manifests via `include_str!` and calls `register_bundle()`, but the system uses `SqliteRegistry` at runtime, not the in-memory `Registry`. `SqliteRegistry` is never constructed in any startup flow. | The daemon/REPL bootstrap layer does not yet instantiate `SqliteRegistry` or call `Registry::bootstrap()`. This is not a missing call — the entire registry construction path is absent from the startup code. |
+| `TokenRegistryStore` not wired | `CuratorServer` has `token_registry: Option<Arc<dyn TokenRegistry>>`, set to `None`. The store works in tests but no database connection is available in `open_curator_stores()` to construct one. | The curator MCP server's `run()` function opens stores from a `ServerContext` with credential-based paths. Adding a token registry requires a database path and schema init in the startup flow. |
+| `SloDataProvider` not wired to `CyberneticsLoop` | `CyberneticsLoop::with_slo_provider()` exists but `CyberneticsLoop` is never constructed in production code (only in tests and kata). | The loop system is created inside `AgentService::build()`, but the construction path doesn't expose hooks for injecting a `SloDataProvider` or a `TokenRegistry`. |
+
+All three gaps are the same category: **the library types, traits, and implementations are complete and tested. The daemon/REPL startup flow that instantiates and wires them together has not yet been built.** This is deferred integration work, not a bug in the types or logic.
+
+**Test coverage:**
+
+| Crate | New tests |
+|-------|:---------:|
+| `hkask-types` (slo + cns) | 7 |
+| `hkask-cns` (slo_manager) | 14 |
+| `hkask-capability` (token_registry) | 2 |
+| `hkask-storage` (token_registry_store) | 6 |
+| **Total** | **29** |
 
 ---
 
