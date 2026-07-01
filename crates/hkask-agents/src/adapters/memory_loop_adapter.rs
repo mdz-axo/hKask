@@ -11,6 +11,7 @@ use crate::ports::{
 };
 use hkask_capability::{DelegationToken, require_read_access, require_write_access};
 use hkask_cns::ExperienceClassification;
+use hkask_memory::MemoryPortError;
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::Confidence;
@@ -77,8 +78,8 @@ fn request_to_triple(req: &StorageRequest) -> Triple {
 ///
 /// Wraps `require_write_access` with `MemoryError::CapabilityDenied`
 /// mapping, eliminating the `.map_err()` repetition across store methods.
-fn check_write_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryError> {
-    require_write_access(token, store_type).map_err(|msg| MemoryError::CapabilityDenied {
+fn check_write_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryPortError> {
+    require_write_access(token, store_type).map_err(|msg| MemoryPortError::CapabilityDenied {
         resource: store_type.to_string(),
         action: msg,
     })
@@ -86,10 +87,10 @@ fn check_write_access(token: &DelegationToken, store_type: &str) -> Result<(), M
 
 /// Verify read access to the given store type.
 ///
-/// Wraps `require_read_access` with `MemoryError::CapabilityDenied`
+/// Wraps `require_read_access` with `MemoryPortError::CapabilityDenied`
 /// mapping, eliminating the `.map_err()` repetition across recall methods.
-fn check_read_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryError> {
-    require_read_access(token, store_type).map_err(|msg| MemoryError::CapabilityDenied {
+fn check_read_access(token: &DelegationToken, store_type: &str) -> Result<(), MemoryPortError> {
+    require_read_access(token, store_type).map_err(|msg| MemoryPortError::CapabilityDenied {
         resource: store_type.to_string(),
         action: msg,
     })
@@ -110,9 +111,9 @@ fn store_via<E>(
     token: &DelegationToken,
     store_type: &str,
     store_fn: impl FnOnce(Triple) -> Result<(), E>,
-) -> Result<String, MemoryError>
+) -> Result<String, MemoryPortError>
 where
-    MemoryError: From<E>,
+    MemoryPortError: From<E>,
 {
     check_write_access(token, store_type)?;
     let entity = request.entity.clone();
@@ -207,7 +208,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
         &self,
         request: StorageRequest,
         token: &DelegationToken,
-    ) -> Result<String, MemoryError> {
+    ) -> Result<String, MemoryPortError> {
         store_via(request, token, "episodic", |triple| {
             self.episodic.store(triple)
         })
@@ -216,7 +217,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
     fn recall_episodic(
         &self,
         request: &RecallRequest,
-    ) -> Result<Vec<RecalledEpisode>, MemoryError> {
+    ) -> Result<Vec<RecalledEpisode>, MemoryPortError> {
         check_read_access(&request.token, "episodic")?;
 
         // P4.1: Replaced `.expect(...)` with a typed error. Episodic memory
@@ -224,7 +225,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
         // constraint violation, not a panic-worthy condition.
         let owner = request
             .perspective
-            .ok_or_else(|| MemoryError::CapabilityDenied {
+            .ok_or_else(|| MemoryPortError::CapabilityDenied {
                 resource: "episodic_memory".into(),
                 action: "recall requires a perspective (owner WebID)".into(),
             })?;
@@ -251,7 +252,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
     fn episodic_storage_usage(
         &self,
         perspective: &hkask_types::WebID,
-    ) -> Result<usize, MemoryError> {
+    ) -> Result<usize, MemoryPortError> {
         let count = self.episodic.storage_usage(perspective)?;
 
         // F-SYN-013: `cns.memory.budget` is observed by the
@@ -281,7 +282,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
         classification: ExperienceClassification,
         confidence_override: Option<Confidence>,
         token: &DelegationToken,
-    ) -> Result<String, MemoryError> {
+    ) -> Result<String, MemoryPortError> {
         // Resolve confidence: override takes precedence, otherwise classification default
         let confidence = confidence_override
             .unwrap_or_else(|| Confidence::new(classification.default_confidence()));
@@ -314,7 +315,7 @@ impl SemanticStoragePort for MemoryLoopForwarder {
         &self,
         request: StorageRequest,
         token: &DelegationToken,
-    ) -> Result<String, MemoryError> {
+    ) -> Result<String, MemoryPortError> {
         store_via(request, token, "semantic", |triple| {
             self.semantic.store(triple)
         })
@@ -323,7 +324,7 @@ impl SemanticStoragePort for MemoryLoopForwarder {
     fn recall_semantic(
         &self,
         request: &RecallRequest,
-    ) -> Result<Vec<RecalledSemantic>, MemoryError> {
+    ) -> Result<Vec<RecalledSemantic>, MemoryPortError> {
         check_read_access(&request.token, "semantic")?;
 
         // Route through SemanticMemory's deduped query
@@ -344,7 +345,7 @@ impl SemanticStoragePort for MemoryLoopForwarder {
         Ok(results)
     }
 
-    fn semantic_storage_usage(&self, entity: &str) -> Result<usize, MemoryError> {
+    fn semantic_storage_usage(&self, entity: &str) -> Result<usize, MemoryPortError> {
         let count = self.semantic.triple_count_for_entity(entity)?;
 
         tracing::debug!(
@@ -361,7 +362,7 @@ impl SemanticStoragePort for MemoryLoopForwarder {
         &self,
         query_vector: &[f32],
         limit: usize,
-    ) -> Result<Vec<RecalledSemantic>, MemoryError> {
+    ) -> Result<Vec<RecalledSemantic>, MemoryPortError> {
         let results = self.semantic.search_similar(query_vector, limit)?;
         let mut triples = Vec::new();
         for r in results {

@@ -51,6 +51,41 @@ echo -e "${CYAN}[2/6] Checking stale crate references in docs...${NC}"
 
 all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 
+# Infrastructure identifiers that use the hkask- prefix but are NOT crates.
+# Docker containers, K8s resources, keychain entries, hostnames, bucket names.
+# Also: deleted/renamed/consolidated crates that docs still reference historically.
+# These are skipped silently — they're not false positives, they're non-crate tokens.
+KNOWN_INFRA_NAMES='hkask-caddy
+hkask-conduit
+hkask-hydrogen
+hkask-sidecar
+hkask-master
+hkask-pod
+hkask-pod-alice
+hkask-prod
+hkask-gateway-tls
+hkask-oauth-github
+hkask-oauth-google
+hkask-k3s
+hkask-config
+hkask-secrets
+hkask-key
+hkask-tls
+hkask-backups
+hkask-db-passphrase
+hkask-mcp-spec
+hkask-mcp-web
+hkask-mcp-rss-reader
+hkask-mcp-kanban
+hkask-surface
+hkask-testing
+hkask-test-utils
+hkask-web
+hkask-services-backup
+hkask-services
+hkask-services-kanban
+hkask-services-kata'
+
 # Docs that are forward-looking by design. References to non-existent
 # crate names in these files are plans/aspirations, not errors.
 # Also includes architecture docs about deployment infrastructure
@@ -63,6 +98,11 @@ FORWARD_LOOKING_DIRS='^docs/(plans/|guides/|OPEN_QUESTIONS\.md|architecture/core
 while IFS=: read -r file name; do
   # Skip empty lines / edge cases
   [ -z "$file" ] && continue
+
+  # Skip known infrastructure identifiers (non-crate hkask-* tokens)
+  if echo "$KNOWN_INFRA_NAMES" | grep -qxF "$name"; then
+    continue
+  fi
 
   if ! echo "$all_actual" | grep -qxF "$name"; then
     # Fuzz targets use parent crate name (hkask-types-fuzz → hkask-types)

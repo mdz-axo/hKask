@@ -1,7 +1,7 @@
 ---
 title: "Replica LoRA Training — Style Confidence Feedback Loop"
 audience: [architects, developers, agents]
-last_updated: 2026-06-25
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Draft — 3-Phase Plan"
 domain: "Cross-cutting"
@@ -98,7 +98,7 @@ The paper from Mavridis et al. (2025) teaches nine lessons. Three are directly a
 | File | Change | Lines |
 |------|--------|-------|
 | `registry/classify/style-evaluator.yaml` | New classifier config: model, prompt, thresholds | ~30 |
-| `crates/hkask-services/src/compose.rs` | +`StyleConfidence` struct, +evaluator call via `classify_batch` (single item), wire into `ComposeResult` | ~25 |
+| `crates/hkask-services-compose/src/` | +`StyleConfidence` struct, +evaluator call via `classify_batch` (single item), wire into `ComposeResult` | ~25 |
 | `mcp-servers/hkask-mcp-replica/src/lib.rs` | +`llm_confidence`, +`confidence_reasoning` fields in `ComposeResult` | ~6 |
 
 **New classifier config** (`registry/classify/style-evaluator.yaml`):
@@ -203,7 +203,7 @@ let style_confidence = match &request.cognition.validation.llm_evaluate {
 
 | File | Change |
 |------|--------|
-| `crates/hkask-services/src/compose.rs` | Add `confidence_min` threshold to `EvaluateSection`; combine with centroid in pass/fail |
+| `crates/hkask-services-compose/src/` | Add `confidence_min` threshold to `EvaluateSection`; combine with centroid in pass/fail |
 | `crates/hkask-adapter/src/expertise.rs` | Add `StyleReplication` variant to `MdsDomain` |
 | `mcp-servers/hkask-mcp-replica/src/lib.rs` | Add `training_ingest_qa` call path for high-confidence outputs; CNS spans for training routing |
 
@@ -265,7 +265,7 @@ pub enum MdsDomain {
 |------|--------|
 | `mcp-servers/hkask-mcp-training/src/lib.rs` | New `TrainingMode::StyleReplication` or reuse `Expertise` mode with `StyleReplication` domain |
 | `registry/training/style-replication.yaml` | Axolotl config template for style adapter training |
-| `crates/hkask-services/src/compose.rs` | Adapter-aware generation: if deployed adapter exists for author, route through it instead of raw generation model |
+| `crates/hkask-services-compose/src/` | Adapter-aware generation: if deployed adapter exists for author, route through it instead of raw generation model |
 | `mcp-servers/hkask-mcp-replica/src/lib.rs` | `replica_build` optionally triggers training when corpus embedding completes |
 
 **Training pipeline:**
@@ -324,7 +324,7 @@ pub enum MdsDomain {
 │    └─ adapter-aware generation routing (Phase 3)                 │
 │                                                                  │
 │  SERVICE LAYER                                                   │
-│  crates/hkask-services/src/compose.rs                            │
+│  crates/hkask-services-compose/src/                              │
 │    └─ StyleConfidence type (Phase 1)                             │
 │    └─ Classifier evaluator call (Phase 1)                        │
 │    └─ AND-gate pass/fail logic (Phase 2)                         │

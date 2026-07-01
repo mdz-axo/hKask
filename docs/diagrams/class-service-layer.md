@@ -12,7 +12,7 @@ source: "hkask-services-core through hkask-services-wallet/src/lib.rs, hkask-por
 
 # Service Layer Class Diagram
 
-The hKask service layer comprises **11 subcrates** decomposed from the original monolithic `hkask-services-core` crate, following the Strangler Fig pattern (ADR-040, 2026-06-27). Every subcrate depends on `hkask-services-core` as its universal foundation. `hkask-services-context` provides `AgentService`, the canonical DI container that assembles all shared infrastructure (CNS, governance, storage, infra). Domain services (chat, curator, compose, skill, kata-kanban, corpus, wallet, onboarding, runtime) are thin orchestrators that delegate to domain crates via `AgentService` or port traits.
+The hKask service layer comprises **11 subcrates** decomposed from the original monolithic `hkask-services-core` crate, following the Strangler Fig pattern (archived ADR-040). Every subcrate depends on `hkask-services-core` as its universal foundation. `hkask-services-context` provides `AgentService`, the canonical DI container that assembles all shared infrastructure (CNS, governance, storage, infra). Domain services (chat, curator, compose, skill, kata-kanban, corpus, wallet, onboarding, runtime) are thin orchestrators that delegate to domain crates via `AgentService` or port traits.
 
 ```mermaid
 classDiagram

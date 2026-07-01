@@ -152,3 +152,29 @@ impl From<hkask_storage::EmbeddingError> for MemoryError {
         }
     }
 }
+
+// ── MemoryError → MemoryPortError conversion ─────────────────────────────
+//
+// Adapters in hkask-agents use MemoryError internally. The port traits
+// (now in hkask-memory) return MemoryPortError. This From impl lets `?`
+// auto-convert at the adapter boundary (ADR-042).
+
+impl From<MemoryError> for hkask_memory::MemoryPortError {
+    fn from(e: MemoryError) -> Self {
+        match e {
+            MemoryError::Core(core) => hkask_memory::MemoryPortError::Storage(core.to_string()),
+            MemoryError::CapabilityDenied { resource, action } => {
+                hkask_memory::MemoryPortError::CapabilityDenied { resource, action }
+            }
+        }
+    }
+}
+
+impl From<hkask_memory::MemoryPortError> for MemoryError {
+    fn from(e: hkask_memory::MemoryPortError) -> Self {
+        match e {
+            hkask_memory::MemoryPortError::Storage(msg) => MemoryError::Core(CoreError::Infra(hkask_types::InfrastructureError::Database(msg))),
+            hkask_memory::MemoryPortError::CapabilityDenied { resource, action } => MemoryError::CapabilityDenied { resource, action },
+        }
+    }
+}

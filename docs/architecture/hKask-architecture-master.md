@@ -1321,7 +1321,7 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 | `hkask-adapter` | 17 | Expertise, AdapterStore, AdapterRouter, EndpointLifecycle | Multi-concern spanning types, persistence, lifecycle, routing. |
 | `hkask-mcp` | 17 | MCP gateway, capability verification, transport | Protocol surface. Gateway, transport, governance are distinct layers. |
 | `hkask-api` | 16 | HTTP router, OpenAPI, endpoint handlers | API surface. Each endpoint group is a resource. |
-| `hkask-memory` | 14 | Episodic/semantic memory, narrative generation | Memory subsystem. Each memory type is distinct. |
+| `hkask-memory` | 16 | Episodic/semantic memory, narrative generation, port traits (ADR-041) | Memory subsystem. Each memory type is distinct. EpisodicStoragePort + SemanticStoragePort promoted here per ADR-042 (two consumers: agents + services-context). |
 | `hkask-keystore` | 11 | Argon2id, OS keychain, SQLCipher | Security crate. Derivation, storage, encryption are distinct concerns. |
 | `hkask-services-core` | 32 | `ServiceConfig`, `ServiceError`, identity, verification, settings, goals | Foundation crate. Shared config, error taxonomy, and identity types used by every other service crate. |
 | `hkask-services-kata-kanban` | 22 | `KataEngine`, `KataManifest`, `KataResult`, `KanbanService`, `Board`, `Task`, `SpawnSpec`, `KanbanError`, `KataError` | Unified workflow crate (merged from the former kata and kanban service crates). PDCA phases map directly to Kanban task statuses. |
@@ -1331,7 +1331,7 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 | `hkask-services-chat` | 10 | `ChatService`, `MemoryService`, `TurnRequest`, `TurnResult` | Chat session with turn management and memory recall. Request/response pair drives type count. |
 | `hkask-services-compose` | 9 | `ComposeService`, `CognitionConfig`, `ComposeRequest`, `ComposeResult` | Style-based prose composition. Config sections (embedding, retrieval, validation) each expose a type. |
 | `hkask-services-onboarding` | 8 | `OnboardingService`, `SignInOutcome`, `MatrixRegistrationResult`, `ResolvedSecrets` | First-run onboarding. Registration, secrets resolution, conduit health checks. |
-| `hkask-services-context` | 2 (+30 methods) | `AgentService`, `PerAgentMemory` | Shared agent context. `AgentService` is a DI container with 30+ accessor methods — the type count is low but the callable API surface is the largest in the project. Method-level depth metric: 30+ accessors encode zero behavioral depth (all are field returns). Targeted for strangler-fig decomposition (see ADR-040). |
+| `hkask-services-context` | 2 (+30 methods) | `AgentService`, `PerAgentMemory` | Shared agent context. `AgentService` is a DI container with 30+ accessor methods — the type count is low but the callable API surface is the largest in the project. Method-level depth metric: 30+ accessors encode zero behavioral depth (all are field returns). Targeted for strangler-fig decomposition (see archived ADR-040). |
 | `hkask-services-curator` | 2 (+4 methods, +11 fields) | `CuratorService`, `EscalationResponse` | Curator daemon metacognition. `CuratorService` has 4 public methods (list, resolve, dismiss, metacognition). `EscalationResponse` has 11 public fields (response DTO). Combined callable surface: 17 items. |
 | `hkask-services-wallet` | 1 | `WalletService` | Crypto wallet facade. Single service delegating to `hkask-wallet`. |
 
@@ -1365,8 +1365,9 @@ Detailed lookup tables and diagrams in `reference/`:
 |-----|-------|
 | [`ADRs/ADR-031-consolidation-authorization.md`](ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
 | [`ADRs/ADR-035-replicant-server-mode.md`](ADRs/ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
+| [`ADRs/ADR-042-port-promotion-rule.md`](ADRs/ADR-042-port-promotion-rule.md) | Port trait location — promotion rule (1 consumer = local, 2+ = promote to domain or shared crate) |
 
-**Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–038 (7 Draft ADRs, never adopted). **Archived (retroactive, 2026-06-15):** ADR-024–027. Recoverable via git history.
+**Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, never adopted). **Archived (retroactive, 2026-06-15):** ADR-024–027. Recoverable via git history.
 
 ---
 

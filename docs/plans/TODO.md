@@ -1,7 +1,7 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-06-20
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -20,7 +20,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P0-02** | Git CAS integration for triples | Storage bot | High | ✅ Complete | Deleted in 2026-06-10 architecture audit (see HANDOFF.md) |
 | **P0-03** | CLI/API symmetry audit | CLI bot | High | ✅ Complete | API routes match CLI commands |
 | **P0-04** | Documentation quality gates | Curator | High | ✅ Complete | MDS-aligned refresh complete |
-| **P0-05** | Git backup system — core implementation | Backup system | High | ✅ Complete | `hkask-services/src/backup/` — BackupService with snapshot/restore/list/prune/verify/config; CLI (`kask backup`); API (`/api/v1/backup/*`); 15 tests; CNS spans |
+| **P0-05** | Git backup system — core implementation | Backup system | High | ✅ Complete | `hkask-storage/src/backup/` — BackupService with snapshot/restore/list/prune/verify/config; CLI (`kask backup`); API (`/api/v1/backup/*`); 15 tests; CNS spans |
 | **P0-06** | Git backup — encryption at rest (AES-256-GCM + Argon2) | Backup system | High | ✅ Complete | `BackupService` encrypts blobs before CAS storage; key derived from `HKASK_BACKUP_PASSPHRASE`; salt persisted in `BackupConfig` |
 | **P0-07** | Git backup — 3-tier retention with actual GIX pruning | Backup system | High | ✅ Complete | `RetentionPolicy` (daily 21d, weekly 12w, monthly); `prune()` performs history rewriting via `rewrite_history()` |
 | **P0-08** | Git backup — scheduled daily snapshots + scoped restore | Backup system | High | ✅ Complete | `run_daily_snapshot()` for daemon loop; `scoped_restore()` for system/type/file-level restore; `BackupLoop` registered in `AgentService::build()` |
@@ -208,7 +208,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | ID | Task | Date | Evidence |
 |----|------|------|----------|
 | **C-14** | Fix DeepInfra base URL (`/v1/openai` → `https://api.deepinfra.com`) | 2026-06-12 | `crates/hkask-inference/src/config.rs` — double-`/v1/` bug fixed for embeddings and chat |
-| **C-15** | Fix `EmbedService` API key stripping (`Default::default()` → `from_env()`) | 2026-06-12 | `crates/hkask-services/src/embed.rs` — `DI_API_KEY` now reaches embedding router |
+| **C-15** | Fix `EmbedService` API key stripping (`Default::default()` → `from_env()`) | 2026-06-12 | `crates/hkask-services-corpus/src/` — `DI_API_KEY` now reaches embedding router |
 | **C-16** | Fix replica + docproc MCP servers passing partial configs | 2026-06-12 | `mcp-servers/hkask-mcp-replica/src/main.rs`, `mcp-servers/hkask-mcp-docproc/src/{main,tools}.rs` |
 | **C-17** | Add auto `.env` loading to all 11 binaries via `dotenvy` | 2026-06-12 | Workspace `Cargo.toml` + 11 `main.rs` files — API keys loaded from `.env` on startup |
 | **C-18** | Fix `embed-mashups.sh` — dead `--okapi-url`, wrong subcommand, stale URLs | 2026-06-12 | Script now uses `kask style embed-corpus`, no URL flags needed |

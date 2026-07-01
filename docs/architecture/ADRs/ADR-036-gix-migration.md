@@ -91,7 +91,7 @@ cargo test -p hkask-mcp -- git_cas
 ## Related Documents
 
 - [ADR-037: BLAKE3 Content Addressing](ADR-037-blake3-content-addressing.md) — BLAKE3 used for content hashing within CAS
-- [ADR-038: Eight-Repo CAS Design](ADR-038-eight-repo-cas-design.md) — Why 8 repos instead of 1
+- ADR-038: Eight-Repo CAS Design (archived — superseded by pod-directory backup model)
 - [`crates/hkask-mcp/src/git_cas/gix_adapter.rs`](../../crates/hkask-mcp/src/git_cas/gix_adapter.rs) — Production implementation
 
 ## References

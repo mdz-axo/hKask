@@ -1,7 +1,7 @@
 ---
 title: "hKask Functional Specification"
 audience: "hKask developers and architects"
-last_updated: "2026-06-28"
+last_updated: "2026-06-30"
 version: "0.31.0"
 status: "Active"
 domain: "architecture"
@@ -42,7 +42,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 13 | Inference Engine | `inference` | hkask-inference | 94 | System regulates LLM calls across provider boundaries | P9 + P4 (Homeostatic + Boundary) |
 | 14 | Template Engine | `templates` | hkask-templates | 53 | System renders skill templates into executable prompts | P3 (Generative Space) |
 | 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | System provides single-responsibility tool servers | P5 (Essentialism) |
-| 16 | Service Layer | `services` | hkask-services | 305+ | System composes a single service layer shared by CLI and API | P5 + P7 (Essentialism + Evolution) |
+| 16 | Service Layer | `services` | hkask-services-* | 305+ | System composes a single service layer shared by CLI and API (11 subcrates: core, chat, compose, context, corpus, curator, kata-kanban, onboarding, runtime, skill, wallet) | P5 + P7 (Essentialism + Evolution) |
 | 17 | Agent Runtime | `agents` | hkask-agents | 159 | User's agents operate within sovereignty boundaries | P1 (User Sovereignty) |
 | 18 | Communication | `comm` | hkask-communication | 25 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
 | 19 | Keystore | `keystore` | hkask-keystore | 5 | User's keys are generated, stored, and rotated securely | P1 (User Sovereignty) |
@@ -73,7 +73,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 
 ## 1.5 Service Layer Architecture
 
-**Crate:** `hkask-services` — shared business logic for CLI and API surfaces.
+**Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 subcrates providing shared business logic for CLI and API surfaces.
 
 **Canonical specification:** [`MDS-agent-service.md`](../../specifications/specs/MDS-agent-service.md) — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
@@ -122,7 +122,7 @@ Both CLI and API surfaces compose `AgentService` and add only presentation-speci
 graph TD
     CLI["hkask-cli"]
     API["hkask-api"]
-    SVC["hkask-services (AgentService)"]
+    SVC["hkask-services-* subcrates"]
     CLI --> SVC
     API --> SVC
     SVC --> AGENTS[hkask-agents]
@@ -133,7 +133,7 @@ graph TD
     SVC --> STORAGE[hkask-storage]
 ```
 
-Domain crates **never** depend on `hkask-services`. MCP servers **never** depend on `hkask-services` for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface exception: `hkask-mcp-replica` imports for delegation only.
+Domain crates **never** depend on service layer subcrates. MCP servers **never** depend on service layer subcrates for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface exception: `hkask-mcp-replica` imports for delegation only.
 
 ### 1.5.3 Loop Architecture Membrane
 
@@ -174,7 +174,7 @@ The service layer was extracted from duplicated surface logic using the **strang
 
 | Service | Extracted From | When | Constraint |
 |---------|---------------|------|------------|
-| `hkask-services-backup` | `hkask-services` | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
+| `hkask-services-backup` (absorbed into `hkask-storage`, v0.31.0) | `hkask-services` monolith | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
 | `AgentService` (28-field consolidation) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
 | Named accessor pattern (individual methods) | 8-group-method tuple pattern | v0.28.0 | P5 (Essentialism — callers typically need one field, not a group) |
 | `AgentService::consolidate_agent_memory` | `hkask-memory::consolidation_ops` direct DB open bypass | v0.30.0 | P2 (Affirmative Consent) + P4 (Clear Boundaries) — single consent-checked, OCAP-gated entry point |
@@ -644,7 +644,7 @@ erDiagram
 
 ## 3. Non-CNS Domain Stubs
 
-These domains are documented here for completeness. The canonical contract format uses `expect:` + `[P{N}]` annotations. The service layer (`hkask-services`) has the largest remaining annotation surface.
+These domains are documented here for completeness. The canonical contract format uses `expect:` + `[P{N}]` annotations. The service layer (`hkask-services-*` subcrates) has the largest remaining annotation surface.
 
 ### 3.1 Wallet (`hkask-wallet`)
 
@@ -1111,7 +1111,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 - `hkask-mcp-condenser` — context compression and saliency scoring (P5, P5.4). Provides three compression algorithms (`rtk_style`, `word_rank`, `flashrank`) and `condenser_score_saliency`: ontology graph proximity scoring for CAT communication posture — persona (charter-anchored), episodic memory (PKO process domain), and semantic memory (DC+BIBO document domain).
 - Tool registration, capability declaration, resource serving
 
-### 3.7 Service Layer (`hkask-services`)
+### 3.7 Service Layer (`hkask-services-*` subcrates)
 
 **305+ contracts** — P5 + P7 (Essentialism + Evolution) plus mixed P1/P2/P3/P4/P9 concerns because the service layer wraps many underlying domains.
 

@@ -190,6 +190,8 @@ pub enum AgentPodError {
     RoleNotAssigned(String, Vec<String>),
 }
 
+use crate::error::MemoryError;
+
 impl From<hkask_ports::ToolPortError> for AgentPodError {
     fn from(e: hkask_ports::ToolPortError) -> Self {
         AgentPodError::ToolError(Box::new(e))
@@ -908,5 +910,11 @@ mod tests {
 
         let err = AgentPodError::RoleNotAssigned("research".into(), vec![]);
         assert!(err.to_string().contains("research"));
+    }
+}
+
+impl From<hkask_memory::MemoryPortError> for AgentPodError {
+    fn from(e: hkask_memory::MemoryPortError) -> Self {
+        AgentPodError::from(MemoryError::from(e))
     }
 }

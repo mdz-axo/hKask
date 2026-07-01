@@ -1,7 +1,7 @@
 ---
 title: "Matrix Integration Architecture for hKask"
 audience: [architects, developers]
-last_updated: 2026-06-27
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active — Implemented"
 domain: "Communication"
@@ -15,7 +15,7 @@ mds_categories: [composition, trust]
 **Domain:** Communication Transport, Agent Enablement
 **MDS Categories:** architecture/design, specification/protocol
 **Skills Applied:** Essentialist (3-gate eliminative review), Grill-Me (Socratic interrogation), Pragmatic Semantics (epistemic classification), Pragmatic Cybernetics (feedback loop analysis)
-**Grounded In:** PRINCIPLES.md (P1–P12), Loop Architecture (§2–§4), Hexagonal Boundaries (§3), `mcp-servers/hkask-mcp-communication/src/matrix.rs` (current stubs), `crates/hkask-services/src/chat.rs` (ChatService pipeline), `crates/hkask-cli/src/repl/mod.rs` (REPL loop)
+**Grounded In:** PRINCIPLES.md (P1–P12), Loop Architecture (§2–§4), Hexagonal Boundaries (§3), `mcp-servers/hkask-mcp-communication/src/matrix.rs` (current stubs), `crates/hkask-services-chat/src/` (ChatService pipeline), `crates/hkask-cli/src/repl/mod.rs` (REPL loop)
 
 ---
 
@@ -1024,9 +1024,9 @@ The Curation Loop doesn't need to know about rooms, Matrix user IDs, or sync tok
 | Communication is "demoted from a loop to transport infrastructure" | `loop-architecture.md` §2.1, L125 | High |
 | P12 is a Prohibition — every action has an author | `PRINCIPLES.md` §2.5 traceability matrix, L329 | High |
 | P5 declares stubs "a debt against the Generative Space" | `PRINCIPLES.md` §2.2, L234 | High |
-| `ChatService::execute_turn()` is the agent turn pipeline | `crates/hkask-services/src/chat.rs` L856–951 | High |
+| `ChatService::execute_turn()` is the agent turn pipeline | `crates/hkask-services-chat/src/chat.rs` L856–951 | High |
 | REPL loop uses `rl.readline()` → `single_agent_turn()` | `crates/hkask-cli/src/repl/mod.rs` L150–234 | High |
-| Agent continuity comes from `recall_recent_turns()` (episodic memory) | `crates/hkask-services/src/chat.rs` L625–656 | High |
+| Agent continuity comes from `recall_recent_turns()` (episodic memory) | `crates/hkask-services-chat/src/chat.rs` L625–656 | High |
 
 ### What We Infer (Probabilistic — Pattern-Based)
 
@@ -1257,7 +1257,7 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 
 ---
 
-*Report grounded in: PRINCIPLES.md (all 12 principles + §0 Lazy Grounding), loop-architecture.md (four-loop decomposition, MCP server assignments), hexagonal boundaries (§3), `crates/hkask-services/src/chat.rs` (ChatService pipeline), `crates/hkask-cli/src/repl/mod.rs` (REPL loop), and direct inspection of `mcp-servers/hkask-mcp-communication/src/matrix.rs`.*
+*Report grounded in: PRINCIPLES.md (all 12 principles + §0 Lazy Grounding), loop-architecture.md (four-loop decomposition, MCP server assignments), hexagonal boundaries (§3), `crates/hkask-services-chat/src/` (ChatService pipeline), `crates/hkask-cli/src/repl/mod.rs` (REPL loop), and direct inspection of `mcp-servers/hkask-mcp-communication/src/matrix.rs`.*
 
 ---
 

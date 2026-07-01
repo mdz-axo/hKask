@@ -13,7 +13,7 @@ mds_categories: [trust]
 **Date:** 2026-06-05  
 **Status:** Active (amended 2026-06-28)  
 **Supersedes:** N/A (extends ADR-027)  
-**Related:** ADR-027 (Argon2id + HKDF-SHA256 Master Key Derivation), ADR-040 (Service Layer Extraction)
+**Related:** ADR-027 (Argon2id + HKDF-SHA256 Master Key Derivation), archived ADR-040 (Service Layer Extraction — complete)
 
 ## Context
 

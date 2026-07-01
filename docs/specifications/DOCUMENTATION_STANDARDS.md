@@ -1,7 +1,7 @@
 ---
 title: "Documentation Standards"
 audience: [all contributors authoring or editing documentation in `docs/`]
-last_updated: 2026-06-12
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -469,34 +469,7 @@ This documentation standard itself maps to the 5 MDS categories:
 
 ## 11. Handoff Lifecycle Policy
 
-> **Incorporated from:** `docs/specifications/policies/HANDOFF_LIFECYCLE.md`
-
-### 11.1 Purpose
-
-Handoffs record implementation state at agent session end for continuation. They are descriptive (what was done, what remains, key decisions), not prescriptive (future plans).
-
-### 11.2 Lifecycle States
-
-```
-Created → Active → Superseded → Archived (git history)
-                    ↓
-                  Stale (>30d no successor) → Archived
-```
-
-| State | Condition | Action |
-|-------|-----------|--------|
-| **Created** | Agent session end | Date-stamped filename: `{topic}-YYYY-MM-DD.md` |
-| **Active** | <30 days old, workstream active | Lives in `docs/handoffs/` |
-| **Superseded** | Successor carries forward state | `git rm`, commit removal |
-| **Stale** | >30 days, no successor | `git rm`, commit removal |
-
-### 11.3 Rules
-
-- No handoff stays in working tree >30 days without a successor
-- Every successor references its predecessor by filename
-- Superseded/stale handoffs are `git rm`'d, not moved to archive/
-- Handoffs never contain forward-looking plans (plans → `docs/plans/`)
-- No YAML frontmatter required (handoffs are transient, not formal docs)
+> See [Appendix B](#appendix-b-handoff-lifecycle-policy) for the canonical Handoff Lifecycle Policy.
 
 ---
 

@@ -10,6 +10,8 @@ pub mod consolidation_auth;
 pub mod consolidation_service;
 pub mod episodic; // Loop 2a
 pub mod episodic_loop;
+pub mod error;
+pub mod ports;
 pub mod ranking;
 pub mod recall_dedup;
 pub mod salience;
@@ -21,5 +23,10 @@ pub use consolidation_auth::*;
 pub use consolidation_service::ConsolidationService;
 pub use episodic::{EpisodicMemory, EpisodicMemoryError};
 pub use episodic_loop::EpisodicLoop;
+pub use error::MemoryPortError;
+pub use ports::{
+    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
+    StorageRequest,
+};
 pub use semantic::{SemanticMemory, SemanticMemoryError};
 pub use semantic_loop::SemanticLoop;

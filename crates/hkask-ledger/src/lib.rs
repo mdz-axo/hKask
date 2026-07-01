@@ -16,7 +16,6 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use thiserror::Error;
-use tracing;
 
 /// Errors the ledger can produce.
 #[derive(Debug, Error)]

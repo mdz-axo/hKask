@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-28
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -68,7 +68,7 @@ Documents are classified by **verification regime**, reflecting different audien
 | [ADR-031](architecture/ADRs/ADR-031-consolidation-authorization.md) | trust | Consolidation authorization via master passphrase derivation |
 | [ADR-035](architecture/ADRs/ADR-035-replicant-server-mode.md) | composition, trust, lifecycle | Replicant server mode — AgentMode, daemon transport, dual memory |
 
-**Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–038 (7 Draft ADRs, never adopted).
+Archived (2026-06-17): ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, never adopted).
 
 **Archived (2026-06-24):** 33 documents merged or archived in consolidation sweep. loop-architecture, energy-gas-payments, self-healing, provider-intelligence, rjoule-cost-system, hkask-ledger, MULTI_POD_ARCHITECTURE, SOLID_POD_ISOMORPHISM, CNS-DOMAIN-SPECIFICATION, hKask-Curator-persona, MDS-agent-service, TUI_SPECIFICATION → content absorbed into targets. Federation v1 + all addenda, bug-hunting research/designs, stale status docs → archive.
 

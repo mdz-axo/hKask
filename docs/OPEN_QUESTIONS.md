@@ -1,7 +1,7 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-06-27
+last_updated: 2026-06-30
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -36,12 +36,12 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 ### OQ-2: Federation Documentation Scope ✅
 
 **MDS Category:** Composition  
-**Status:** **Resolved — Option 1**  
-**Resolution Date:** 2026-05-29
+**Status:** **Resolved — Active in v0.31.0**  
+**Resolution Date:** 2026-05-29 | **Revision Date:** 2026-06-30
 
-Document federation as a deferred architectural direction (no dedicated ADR yet); federation as a first-class concept is deferred until essential.
+Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FEDERATION_V2.md` is an active proposal.
 
-**Rationale:** Inter-system agent communication was explored (see ADR-028 in the archive) but is not currently in the codebase. True federation (discovery, resource negotiation, capability composition across independent hKask instances) exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential.
+**Rationale:** Federation was initially deferred as exceeding the essential architecture scope. Since then, inter-system agent communication has been implemented: the `hkask-federation` crate provides discovery, resource negotiation, and capability composition across independent hKask instances. See `FEDERATION_V2.md` for the active proposal and forward design.
 
 ---
 
@@ -754,12 +754,12 @@ Can `replica_compare` be used as a CI gate — rejecting document edits whose st
 **MDS Category:** Domain, Curation
 **Status:** Open
 **Opened:** 2026-06-12
-**Cross-references:** WRITING_EXCELLENCE.md §2.3, hkask-services EmbedService, hkask-storage sqlite-vec, FUT-DOC-5
+**Cross-references:** WRITING_EXCELLENCE.md §2.3, hkask-services-corpus EmbedService, hkask-storage sqlite-vec, FUT-DOC-5
 
 The current `document-update` skill performs structural analysis (metadata, links, taxonomy alignment) and manual rubric-based quality assessment. It has zero semantic content analysis — no embedding-based similarity search, no structural pattern matching against exemplary technical documentation.
 
 The infrastructure exists across three crates but is wired for author style replication, not documentation quality:
-- `hkask-services::EmbedService` — chunks and embeds Gutenberg prose for author voice replication
+- `hkask-services-corpus::EmbedService` — chunks and embeds Gutenberg prose for author voice replication
 - `hkask-storage` — sqlite-vec vector database for embedding storage
 - `hkask-mcp-replica` — `replica_compose`/`replica_compare` for stylistic analysis
 
@@ -838,7 +838,7 @@ docs/                                Exemplary corpus
 
 `BackupService::run_daily_snapshot()` provides the daily snapshot capability. The daemon loop calls this on a 24-hour schedule via `BackupLoop`, which implements `HkaskLoop` and is registered in `AgentService::build()` alongside the existing `SnapshotLoop`. The `auto_snapshot` config flag controls whether the loop is active.
 
-**Resolution:** `BackupLoop` created in `hkask-services/src/backup/loop.rs`. Registered in `AgentService::build()` at section 6c. Runs daily snapshots through `BackupService`, optionally followed by `verify()` and `prune()`.
+**Resolution:** `BackupLoop` created in `hkask-storage/src/backup/loop.rs` (backup code absorbed into `hkask-storage`, v0.31.0). Registered in `AgentService::build()` at section 6c. Runs daily snapshots through `BackupService`, optionally followed by `verify()` and `prune()`.
 
 ---
 
