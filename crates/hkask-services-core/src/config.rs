@@ -137,6 +137,7 @@ impl ServiceConfig {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  keystore must have a2a_secret, db_passphrase, and mcp_secret configured
     /// post: returns ServiceConfig with env-derived values and keystore secrets; Err(Keystore) on secret resolution failure
+    #[must_use = "result must be used"]
     pub fn from_env() -> Result<Self, ServiceError> {
         let db_path =
             std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| DEFAULT_DB_PATH.to_string());
@@ -211,6 +212,7 @@ impl ServiceConfig {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  a2a_secret, db_passphrase, mcp_secret, agent_name must be non-empty
     /// post: returns ServiceConfig with provided secrets and env-derived or default values
+    #[must_use]
     pub fn from_secrets(
         a2a_secret: String,
         db_passphrase: String,
@@ -262,6 +264,7 @@ impl ServiceConfig {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns ServiceConfig with :memory: DB, zeroed secrets, and test agent name
+    #[must_use]
     pub fn in_memory() -> Self {
         let inference_config = InferenceConfig::default();
         Self {
@@ -306,6 +309,7 @@ impl ServiceConfig {
     ///
     /// pre:  none (always succeeds)
     /// post: returns Some(path) using agent dir layout if not in_memory; None if in_memory
+    #[must_use]
     pub fn effective_memory_db_path(&self) -> Option<String> {
         if self.in_memory {
             return None;

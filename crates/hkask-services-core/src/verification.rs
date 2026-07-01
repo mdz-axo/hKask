@@ -107,6 +107,7 @@ pub struct VerificationService;
 
 impl VerificationService {
     /// Run verification for all principles, optionally filtered by principle name.
+    #[must_use]
     pub fn verify(filter: Option<&str>) -> VerificationReport {
         let manifests = Self::load_manifests(filter);
         let mut principles = Vec::new();
@@ -157,6 +158,7 @@ impl VerificationService {
     }
 
     /// Run verification and return results as JSON-serializable value.
+    #[must_use]
     pub fn verify_json(filter: Option<&str>) -> serde_json::Value {
         let report = Self::verify(filter);
         serde_json::to_value(&report).unwrap_or_else(

@@ -163,6 +163,7 @@ pub struct HealRegistry {
 }
 
 impl HealRegistry {
+    #[must_use]
     pub fn with_defaults() -> Self {
         let mut r = Self::default();
         r.add(HealStrategy {
@@ -235,6 +236,7 @@ impl HealRegistry {
         self.strategies.push(s);
     }
 
+    #[must_use]
     pub fn find_strategy(&self, error: &str) -> Option<&HealStrategy> {
         let lower = error.to_lowercase();
         self.strategies.iter().find(|s| {
@@ -245,6 +247,7 @@ impl HealRegistry {
         })
     }
 
+    #[must_use]
     pub fn find_strategy_by_name(&self, name: &str) -> Option<&HealStrategy> {
         self.strategies.iter().find(|s| s.name == name)
     }
@@ -262,6 +265,7 @@ pub struct SelfHealer {
 }
 
 impl SelfHealer {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             registry: HealRegistry::with_defaults(),
@@ -269,6 +273,7 @@ impl SelfHealer {
         }
     }
 
+    #[must_use]
     pub fn with_registry(registry: HealRegistry) -> Self {
         Self {
             registry,
@@ -276,6 +281,7 @@ impl SelfHealer {
         }
     }
 
+    #[must_use]
     pub fn with_inference(mut self, f: HealInferenceFn) -> Self {
         self.inference = Some(f);
         self
@@ -287,12 +293,14 @@ impl SelfHealer {
     pub fn registry_mut(&mut self) -> &mut HealRegistry {
         &mut self.registry
     }
+    #[must_use]
     pub fn has_inference(&self) -> bool {
         self.inference.is_some()
     }
 
     // ── Bounded retry loop ──────────────────────────────────────────────
 
+    #[must_use = "result must be used"]
     pub fn healable<T, E: fmt::Display>(
         &self,
         mut operation: impl FnMut() -> Result<T, E>,
@@ -376,6 +384,7 @@ impl SelfHealer {
 
     // ── 4-stage attempt pipeline ────────────────────────────────────────
 
+    #[must_use]
     pub fn attempt(&self, error: &str, context: &HealContext) -> HealOutcome {
         tracing::info!(target: "cns.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::cns::CnsSpan::SelfHeal);
 

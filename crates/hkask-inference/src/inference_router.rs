@@ -301,6 +301,7 @@ impl InferenceRouter {
     /// pre:  backends are initialized (may be None)
     /// post: returns `Vec<RouterModelEntry>` with all available models across providers
     /// post: if a backend fails → its models are omitted (graceful degradation)
+    #[must_use]
     pub async fn list_models(&self) -> Vec<RouterModelEntry> {
         let mut entries = Vec::new();
 
@@ -369,6 +370,7 @@ impl InferenceRouter {
     /// pre:  query may be empty (returns all models)
     /// post: returns `Vec<RouterModelEntry>` filtered by case-insensitive substring match
     /// post: if query is empty → returns all models (delegates to list_models)
+    #[must_use]
     pub async fn search_models(&self, query: &str) -> Vec<RouterModelEntry> {
         let all = self.list_models().await;
         if query.is_empty() {
@@ -389,6 +391,7 @@ impl InferenceRouter {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — vision-capable model discovery
     /// pre:  none (delegates to list_models)
     /// post: returns `Vec<RouterModelEntry>` filtered to supports_vision == Some(true)
+    #[must_use]
     pub async fn list_vision_models(&self) -> Vec<RouterModelEntry> {
         self.list_models()
             .await
@@ -925,6 +928,7 @@ impl InferenceRouter {
     /// pre:  text is a non-empty string
     /// post: delegates to EmbeddingRouter::embed_sentence with resolved model
     /// post: if embedding fails → Err(EmbeddingGenerationError)
+    #[must_use = "result must be used"]
     pub async fn embed_text(
         &self,
         text: &str,
@@ -964,6 +968,7 @@ impl InferenceRouter {
     /// pre:  config.fusion may be None or Some
     /// post: if Some → resolves judge model to verify provider availability
     /// post: if None → returns Ok(true) immediately (nothing to verify)
+    #[must_use = "result must be used"]
     pub async fn verify_fusion_model(&self) -> Result<bool, InferenceError> {
         let fusion = match &self.config.fusion {
             Some(f) => f,

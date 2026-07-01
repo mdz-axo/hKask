@@ -2886,7 +2886,11 @@ pub async fn run(
                     adapter_router,
                     inference_config,
                 ))
-            })()?)
+            })()
+                .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                    context: "training server init".into(),
+                    detail: e.to_string(),
+                })?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

@@ -58,6 +58,7 @@ pub use startup::{StartupGateResult, verify_startup_gates};
 ///
 /// This is the canonical entry point for all hKask MCP servers.
 /// Each server's `main.rs` should call this directly.
+#[must_use = "result must be used"]
 pub async fn run_server<S, F>(
     name: &str,
     version: &str,
@@ -73,6 +74,7 @@ where
 }
 
 /// Run an MCP server with preloaded .env credentials.
+#[must_use = "result must be used"]
 pub async fn run_server_with_preloaded<S, F>(
     name: &str,
     version: &str,

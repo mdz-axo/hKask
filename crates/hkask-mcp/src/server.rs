@@ -55,8 +55,20 @@ pub enum McpError {
     )]
     MissingCredentials { missing: String },
 
-    #[error("{0}")]
-    Other(#[from] anyhow::Error),
+    #[error("Daemon communication error: {0}")]
+    Daemon(#[from] std::io::Error),
+
+    #[error("Storage error: {0}")]
+    Storage(#[from] hkask_storage::DatabaseError),
+
+    #[error("Transport error: {0}")]
+    Transport(Box<rmcp::RmcpError>),
+}
+
+impl From<rmcp::RmcpError> for McpError {
+    fn from(e: rmcp::RmcpError) -> Self {
+        McpError::Transport(Box::new(e))
+    }
 }
 
 /// A credential that an MCP server requires to function.
@@ -80,6 +92,7 @@ impl CredentialRequirement {
     ///
     /// pre:  env_var and description are non-empty
     /// post: returns CredentialDecl with required=true
+    #[must_use]
     pub fn required(env_var: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             env_var: env_var.into(),
@@ -93,6 +106,7 @@ impl CredentialRequirement {
     ///
     /// pre:  env_var and description are non-empty
     /// post: returns CredentialDecl with required=false
+    #[must_use]
     pub fn optional(env_var: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             env_var: env_var.into(),
@@ -128,6 +142,7 @@ impl CapabilityTier {
     ///
     /// pre:  resolved_credentials is a valid map
     /// post: returns CredentialStatus with available/missing counts
+    #[must_use]
     pub fn detect(resolved_credentials: &HashMap<String, String>) -> Self {
         let embedded = resolved_credentials.contains_key("HKASK_WEBID")
             || resolved_credentials.contains_key("HKASK_REPLICANT_PERSONA");
@@ -160,6 +175,7 @@ impl CapabilityTier {
     /// Check if CNS is available (all required credentials present).
     ///
     /// post: returns true iff all required credentials are available
+    #[must_use]
     pub fn cns_available(&self) -> bool {
         self.embedded
     }
@@ -195,14 +211,15 @@ impl ServerContext {
     ///
     /// pre:  db_env_var is set and contains a valid path
     /// post: returns opened Database with passphrase from credentials or keystore chain
+    #[must_use = "result must be used"]
     pub fn open_database(&self, db_env_var: &str) -> Result<hkask_storage::Database, McpError> {
         use hkask_storage::open_database;
         match self.credentials.get(db_env_var) {
             Some(path) => {
                 let passphrase = self.resolve_db_credential()?;
-                Ok(open_database(path, &passphrase).map_err(|e| anyhow::anyhow!("{e}"))?)
+                Ok(open_database(path, &passphrase)?)
             }
-            None => Ok(hkask_storage::Database::in_memory().map_err(|e| anyhow::anyhow!("{e}"))?),
+            None => Ok(hkask_storage::Database::in_memory()?),
         }
     }
 
@@ -210,6 +227,7 @@ impl ServerContext {
     ///
     /// pre:  db_env_var is set, extensions is valid SQL DDL
     /// post: returns opened Database with extensions applied
+    #[must_use = "result must be used"]
     pub fn open_database_with_extensions(
         &self,
         db_env_var: &str,
@@ -218,15 +236,15 @@ impl ServerContext {
         match self.credentials.get(db_env_var) {
             Some(path) => {
                 let passphrase = self.resolve_db_credential()?;
-                Ok(
-                    hkask_storage::Database::open_with_extensions(path, &passphrase, extensions)
-                        .map_err(|e| anyhow::anyhow!("{e}"))?,
-                )
+                Ok(hkask_storage::Database::open_with_extensions(
+                    path,
+                    &passphrase,
+                    extensions,
+                )?)
             }
-            None => Ok(
-                hkask_storage::Database::in_memory_with_extensions(extensions)
-                    .map_err(|e| anyhow::anyhow!("{e}"))?,
-            ),
+            None => Ok(hkask_storage::Database::in_memory_with_extensions(
+                extensions,
+            )?),
         }
     }
 }
@@ -256,6 +274,7 @@ impl ToolSpanGuard {
     ///
     /// pre:  tool_name is non-empty, caller is valid
     /// post: returns ToolSpanGuard with start time recorded
+    #[must_use]
     pub fn new(tool_name: &str, caller: &hkask_types::WebID) -> Self {
         Self {
             tool_name: tool_name.to_string(),
@@ -283,12 +302,14 @@ impl ToolSpanGuard {
     /// ToolSpanGuard::new("my_tool", &caller)
     ///     .with_ontology(STEP_EXECUTION);
     /// ```
+    #[must_use]
     pub fn with_ontology(mut self, concept: &'static str) -> Self {
         self.ontology = Some(concept);
         self
     }
 
     /// Attach a self-healing callback for automatic error recovery.
+    #[must_use]
     pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
         self
@@ -297,6 +318,7 @@ impl ToolSpanGuard {
     /// Attach an experience callback that fires when the span completes.
     ///
     /// The callback receives "success" or "error" based on how the span finishes.
+    #[must_use]
     pub fn with_experience(mut self, cb: ExperienceCallback) -> Self {
         self.experience_cb = Some(cb);
         self
@@ -306,6 +328,7 @@ impl ToolSpanGuard {
     ///
     /// post: CNS tool span emitted with "ok" status
     /// post: returns output unchanged
+    #[must_use]
     pub fn ok(mut self, output: String) -> String {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
@@ -327,6 +350,7 @@ impl ToolSpanGuard {
     ///
     /// post: CNS tool span emitted with "error" status and error kind
     /// post: returns output unchanged
+    #[must_use]
     pub fn error(mut self, kind: McpErrorKind, output: String) -> String {
         self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
@@ -352,6 +376,7 @@ impl ToolSpanGuard {
     ///
     /// post: CNS tool span emitted with "ok" status
     /// post: returns JSON string of value
+    #[must_use]
     pub fn ok_json(self, value: Value) -> String {
         self.ok(McpToolOutput::new(value).to_json_string())
     }
@@ -361,6 +386,7 @@ impl ToolSpanGuard {
     ///
     /// post: CNS tool span emitted with appropriate status
     /// post: returns JSON string of Ok value or error
+    #[must_use]
     pub fn finish(self, result: Result<Value, McpToolError>) -> String {
         match result {
             Ok(value) => self.ok_json(value),
@@ -373,6 +399,7 @@ impl ToolSpanGuard {
     ///
     /// post: CNS tool span emitted with "error" status
     /// post: returns JSON error string
+    #[must_use]
     pub fn internal_error(self, value: Value) -> String {
         let message = match value {
             Value::String(s) => s,
@@ -443,6 +470,7 @@ pub trait ToolContext {
 ///     }).await
 /// }
 /// ```
+#[must_use]
 pub async fn execute_tool<C: ToolContext>(
     ctx: &C,
     tool_name: &str,
@@ -459,6 +487,7 @@ pub async fn execute_tool<C: ToolContext>(
 
 /// Like `execute_tool` but tags the CNS span with a domain ontology concept
 /// (e.g. "pko:ChangeOfStatus") for type-aware feedback routing.
+#[must_use]
 pub async fn execute_tool_semantic<C: ToolContext>(
     ctx: &C,
     tool_name: &str,
@@ -554,6 +583,7 @@ impl McpToolError {
     ///
     /// pre:  kind is a valid McpErrorKind, message is non-empty
     /// post: returns McpToolError
+    #[must_use]
     pub fn new(kind: McpErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
@@ -564,54 +594,63 @@ impl McpToolError {
     /// Create an internal error.
     ///
     /// post: returns McpToolError with Internal kind
+    #[must_use]
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Internal, message)
     }
     /// Create a not-found error.
     ///
     /// post: returns McpToolError with NotFound kind
+    #[must_use]
     pub fn not_found(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::NotFound, message)
     }
     /// Create an invalid-argument error.
     ///
     /// post: returns McpToolError with InvalidArgument kind
+    #[must_use]
     pub fn invalid_argument(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::InvalidArgument, message)
     }
     /// Create an unavailable error.
     ///
     /// post: returns McpToolError with Unavailable kind
+    #[must_use]
     pub fn unavailable(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Unavailable, message)
     }
     /// Create a timeout error.
     ///
     /// post: returns McpToolError with Timeout kind
+    #[must_use]
     pub fn timeout(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::Timeout, message)
     }
     /// Create a permission-denied error.
     ///
     /// post: returns McpToolError with PermissionDenied kind
+    #[must_use]
     pub fn permission_denied(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::PermissionDenied, message)
     }
     /// Create a rate-limited error.
     ///
     /// post: returns McpToolError with RateLimited kind
+    #[must_use]
     pub fn rate_limited(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::RateLimited, message)
     }
     /// Create a failed-precondition error.
     ///
     /// post: returns McpToolError with FailedPrecondition kind
+    #[must_use]
     pub fn failed_precondition(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::FailedPrecondition, message)
     }
     /// Serialize to JSON string for MCP wire format.
     ///
     /// post: returns JSON string with "error" object
+    #[must_use]
     pub fn to_json_string(&self) -> String {
         serde_json::json!({"error": self.message, "kind": self.kind.to_string()}).to_string()
     }
@@ -633,6 +672,7 @@ impl std::error::Error for McpToolError {}
 ///
 /// pre:  message is non-empty
 /// post: returns JSON string with error object
+#[must_use]
 pub fn tool_internal_error(
     span: ToolSpanGuard,
     context: &str,
@@ -649,6 +689,7 @@ pub fn tool_internal_error(
 /// pre:  name and value are non-empty, max_len > 0
 /// post: returns Ok(()) if valid (non-empty, ≤max_len, alphanumeric+hyphen+underscore)
 /// post: returns Err if invalid
+#[must_use = "result must be used"]
 pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<(), McpToolError> {
     if value.is_empty() {
         return Err(McpToolError::invalid_argument(format!(
@@ -681,6 +722,7 @@ pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<()
 /// pre:  url is non-empty
 /// post: returns Ok(()) if valid http/https URL
 /// post: returns Err if invalid scheme or format
+#[must_use = "result must be used"]
 pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
     crate::security::validate_url(url, &crate::security::UrlValidationConfig::default())
         .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
@@ -692,6 +734,7 @@ pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
 ///
 /// pre:  service is non-empty, status is valid
 /// post: returns McpToolError with appropriate kind based on status code
+#[must_use]
 pub fn classify_http_error(service: &str, status: reqwest::StatusCode, body: &str) -> McpToolError {
     let msg = format!("{service} API returned {status}: {}", body.trim());
     match status.as_u16() {
@@ -732,6 +775,7 @@ async fn http_req(
         .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
 }
 
+#[must_use = "result must be used"]
 pub async fn api_get(
     client: &reqwest::Client,
     service: &str,
@@ -739,6 +783,7 @@ pub async fn api_get(
 ) -> Result<Value, McpToolError> {
     http_req(client, service, "GET", url, None).await
 }
+#[must_use = "result must be used"]
 pub async fn api_post(
     client: &reqwest::Client,
     service: &str,
@@ -747,6 +792,7 @@ pub async fn api_post(
 ) -> Result<Value, McpToolError> {
     http_req(client, service, "POST", url, Some(payload)).await
 }
+#[must_use = "result must be used"]
 pub async fn api_put(
     client: &reqwest::Client,
     service: &str,
@@ -763,6 +809,7 @@ pub async fn api_put(
 ///
 /// post: returns HashMap of env vars from .env file
 /// post: returns empty map if .env not found
+#[must_use]
 pub fn load_dotenv() -> HashMap<String, String> {
     let cwd = std::env::current_dir().unwrap_or_default();
     for path in [cwd.join(".env")].iter().chain(
@@ -798,6 +845,7 @@ pub fn load_dotenv() -> HashMap<String, String> {
 ///
 /// pre:  env_var is non-empty
 /// post: returns credential value from the appropriate resolution chain
+#[must_use = "result must be used"]
 pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
     match env_var {
         "HKASK_DB_PASSPHRASE" => {
@@ -884,6 +932,7 @@ fn emit_tool_span_with_caller(
 ///
 /// # Errors
 /// Returns an error if a required credential is missing or server construction fails.
+#[must_use = "result must be used"]
 pub async fn run_stdio_server<S, F>(
     server_name: &str,
     version: &str,
@@ -902,6 +951,7 @@ where
 /// Preloaded credentials take precedence over `resolve_credential()` results.
 /// This allows .env file values to be injected without mutating the process
 /// environment (no `unsafe set_var`).
+#[must_use = "result must be used"]
 pub async fn run_stdio_server_with_preloaded<S, F>(
     server_name: &str,
     version: &str,
@@ -1038,11 +1088,8 @@ where
     let running = server
         .serve(rmcp::transport::stdio())
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    running
-        .waiting()
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+        .map_err(rmcp::RmcpError::from)?;
+    running.waiting().await.map_err(rmcp::RmcpError::from)?;
     Ok(())
 }
 

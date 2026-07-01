@@ -1057,7 +1057,11 @@ pub async fn run(
                     daemon_client.clone(),
                     Some(db.conn_arc()),
                 ))
-            })()?)
+            })()
+            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                context: "kanban server init".into(),
+                detail: e.to_string(),
+            })?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

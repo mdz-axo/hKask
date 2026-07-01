@@ -20,6 +20,7 @@ pub enum Decision {
 /// - > 0.0: speaks when addressed by name (mentions in body)
 /// - ≥ 0.7: speaks to any message (convergent posture)
 /// - = 0.0: always silent (divergent posture)
+#[must_use]
 pub fn evaluate(convergence_bias: f64, agent_name: &str, event: &CommunicationEvent) -> Decision {
     let addressed = body_mentions(event, agent_name);
 

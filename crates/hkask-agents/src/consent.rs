@@ -312,6 +312,7 @@ impl ConsentManager {
     /// post: Returns `Ok(true)` if an active record for `webid` has the
     ///       category granted; `Ok(false)` otherwise (including when no
     ///       record exists). Emits a denial ν-event on `false`.
+    #[must_use = "result must be used"]
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> Result<bool, ConsentError> {
         let cache = read_rwlock(&self.cache)?;
 
@@ -372,6 +373,7 @@ impl ConsentManager {
     /// post: Returns `Ok(Vec<String>)` containing all granted category
     ///       names for an active record; returns `Ok(vec![])` if no active
     ///       record exists for `webid`.
+    #[must_use = "result must be used"]
     pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ConsentError> {
         let cache = read_rwlock(&self.cache)?;
 

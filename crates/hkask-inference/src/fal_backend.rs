@@ -227,6 +227,7 @@ impl FalBackend {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — static model catalog for variety
     /// pre:  none (static catalog, no API call)
     /// post: returns Ok(`Vec<FalModelEntry>`) with curated model list
+    #[must_use = "result must be used"]
     pub async fn list_models(&self) -> Result<Vec<FalModelEntry>, InferenceError> {
         // Static catalog of known fal.ai vision models.
         // These are models confirmed to work via the chat completions endpoint.

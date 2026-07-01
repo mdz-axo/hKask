@@ -16,6 +16,7 @@ use hkask_types::WebID;
 use hkask_types::id::{BoardId, TaskId};
 
 /// Return the Socratic stage name for a given TaskStatus.
+#[must_use]
 pub fn stage_name(status: TaskStatus) -> &'static str {
     match status {
         TaskStatus::Backlog => "Elicit",
@@ -30,6 +31,7 @@ pub fn stage_name(status: TaskStatus) -> &'static str {
 ///
 /// The task is initialized with a generous gas budget for multi-turn dialogue
 /// and a description of the 4-stage process.
+#[must_use = "result must be used"]
 pub fn create_inquiry(
     service: &KanbanService,
     board_id: BoardId,
@@ -59,6 +61,7 @@ pub fn create_inquiry(
 /// Generate the kata prompt for the current Socratic stage.
 ///
 /// Returns (prompt_text, stage_name). The caller presents this to the user.
+#[must_use = "result must be used"]
 pub fn prompt(service: &KanbanService, task_id: TaskId) -> Result<(String, String), KanbanError> {
     let task = service
         .task_get(task_id)?
@@ -101,6 +104,7 @@ pub fn prompt(service: &KanbanService, task_id: TaskId) -> Result<(String, Strin
 ///
 /// Moves the task status forward. Returns a description of the transition.
 /// If the task is in Review, the caller should use `task_verify` to complete.
+#[must_use = "result must be used"]
 pub fn advance(
     service: &KanbanService,
     task_id: TaskId,
@@ -138,6 +142,7 @@ pub fn advance(
 ///
 /// Returns true if at least one new comment exists since `last_count`.
 /// This is the readiness gate — presence of a response, not its quality.
+#[must_use = "result must be used"]
 pub fn has_response(
     service: &KanbanService,
     task_id: TaskId,
@@ -165,6 +170,7 @@ pub struct QualityGate {
 /// - Review: delegated to task_verify (always passes readiness, caller handles verification)
 ///
 /// Returns QualityGate with pass/fail and specific feedback for the user.
+#[must_use = "result must be used"]
 pub fn quality_check(
     service: &KanbanService,
     task_id: TaskId,
@@ -254,6 +260,7 @@ pub enum SocraticRole {
 }
 
 impl SocraticRole {
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             SocraticRole::Planner => "Planner",
@@ -264,6 +271,7 @@ impl SocraticRole {
     }
 
     /// The kata prompt seed for each role — what perspective they bring.
+    #[must_use]
     pub fn seed_prompt(&self, topic: &str) -> String {
         match self {
             SocraticRole::Planner => format!(
@@ -301,6 +309,7 @@ impl SocraticRole {
 /// comment threads and synthesizes the results.
 ///
 /// Returns the created task IDs in role order.
+#[must_use = "result must be used"]
 pub fn spawn_role_inquiries(
     service: &KanbanService,
     board_id: BoardId,
@@ -327,6 +336,7 @@ pub fn spawn_role_inquiries(
 /// Read all comments from a set of role tasks and synthesize a summary.
 ///
 /// Returns a formatted report showing each role's latest contribution.
+#[must_use = "result must be used"]
 pub fn synthesize_roles(service: &KanbanService, tasks: &[Task]) -> Result<String, KanbanError> {
     let mut report =
         String::from("╔══ Multi-Role Inquiry Synthesis ═══════════════════════════╗\n");

@@ -44,11 +44,13 @@ impl SemanticIndex {
     }
 
     /// Query all triples for an entity across all source pods.
+    #[must_use = "result must be used"]
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, hkask_storage::TripleError> {
         self.store.query_by_entity(entity)
     }
 
     /// Get the PodID from a triple's source provenance (stored in access.perspective).
+    #[must_use]
     pub fn source_pod_of(triple: &Triple) -> Option<PodID> {
         triple
             .access
@@ -57,6 +59,7 @@ impl SemanticIndex {
     }
 
     /// Query triples by entity and attribute.
+    #[must_use = "result must be used"]
     pub fn query_by_entity_attribute(
         &self,
         entity: &str,
@@ -67,6 +70,7 @@ impl SemanticIndex {
 
     /// Get the cursor (last-seen triple rowid) for a source pod.
     /// Returns 0 if this pod has never published.
+    #[must_use]
     pub fn cursor_for(&self, pod_id: &PodID) -> u64 {
         self.cursors.get(pod_id).copied().unwrap_or(0)
     }
@@ -77,6 +81,7 @@ impl SemanticIndex {
     }
 
     /// Number of source pods tracked.
+    #[must_use]
     pub fn source_count(&self) -> usize {
         self.cursors.len()
     }

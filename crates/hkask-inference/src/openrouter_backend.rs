@@ -225,6 +225,7 @@ impl OpenRouterBackend {
     /// post: returns Ok(`Vec<OpenRouterModel>`) with all available models
     /// post: if API returns non-success → Err(InferenceError::Connection)
     /// post: if connection fails → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn list_models(&self) -> Result<Vec<OpenRouterModel>, InferenceError> {
         let response = self
             .client

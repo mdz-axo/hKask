@@ -926,7 +926,11 @@ pub async fn run(
                     replicant.clone(),
                     daemon_client.clone(),
                 ))
-            })()?)
+            })()
+            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                context: "memory server init".into(),
+                detail: e.to_string(),
+            })?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

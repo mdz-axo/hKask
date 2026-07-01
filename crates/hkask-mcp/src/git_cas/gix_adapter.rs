@@ -92,6 +92,7 @@ impl GixCasAdapter {
     ///
     /// pre:  base_path is a valid directory path (created if missing)
     /// post: returns GixCasAdapter with initialized set
+    #[must_use = "result must be used"]
     pub fn new(base_path: impl Into<PathBuf>) -> Result<Self, GitCasError> {
         let base_path = base_path.into();
         std::fs::create_dir_all(&base_path)
@@ -105,6 +106,7 @@ impl GixCasAdapter {
     /// Create a GixCasAdapter from the HKASK_CAS_HOME environment variable.
     ///
     /// post: returns GixCasAdapter at resolved CAS home path
+    #[must_use = "result must be used"]
     pub fn from_env() -> Result<Self, GitCasError> {
         Self::new(resolve_cas_home())
     }
@@ -134,6 +136,7 @@ impl GixCasAdapter {
     ///
     /// This is an admin-level operation — not part of the [`GitCASPort`]
     /// backup contract. Used by the API git archive route.
+    #[must_use = "result must be used"]
     pub async fn resolve_ref(
         &self,
         repo: &RepoId,
@@ -156,6 +159,7 @@ impl GixCasAdapter {
     ///
     /// This is an admin-level operation — not part of the [`GitCASPort`]
     /// backup contract. Used by the CLI `kask git diff` command.
+    #[must_use = "result must be used"]
     pub async fn diff(
         &self,
         repo: &RepoId,
@@ -222,6 +226,7 @@ impl GixCasAdapter {
 
     /// Snapshot a pod directory: walk the tree, create git blobs for all files,
     /// build a nested tree, commit. Skips .git directory.
+    #[must_use = "result must be used"]
     pub async fn snapshot_pod_dir(
         &self,
         pod_dir: &Path,
@@ -252,6 +257,7 @@ impl GixCasAdapter {
     }
 
     /// List commit history for a pod directory, newest first.
+    #[must_use = "result must be used"]
     pub async fn log_pod(
         &self,
         pod_dir: &Path,
@@ -301,6 +307,7 @@ impl GixCasAdapter {
 
     /// Find the commit closest to (but not after) a target date.
     /// Walks the log newest-first, returns the first commit with timestamp <= target_secs.
+    #[must_use = "result must be used"]
     pub async fn resolve_date(
         &self,
         pod_dir: &Path,
@@ -315,6 +322,7 @@ impl GixCasAdapter {
     }
 
     /// Restore a file from a prior commit to a destination path.
+    #[must_use = "result must be used"]
     pub async fn restore_file_from_commit(
         &self,
         pod_dir: &Path,

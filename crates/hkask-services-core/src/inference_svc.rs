@@ -12,6 +12,7 @@ pub struct InferenceContext {
 }
 
 impl InferenceContext {
+    #[must_use]
     pub fn from_parts(
         shared_port: Option<Arc<dyn InferencePort>>,
         default_model: impl Into<String>,
@@ -51,6 +52,7 @@ impl From<RouterModelEntry> for ModelInfo {
 pub struct InferenceService;
 
 impl InferenceService {
+    #[must_use = "result must be used"]
     pub fn resolve_port(
         ctx: &InferenceContext,
         model: &str,
@@ -67,6 +69,7 @@ impl InferenceService {
         Ok(Arc::new(router) as Arc<dyn InferencePort>)
     }
 
+    #[must_use = "result must be used"]
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
         tracing::info!(target: "cns.inference_svc", operation = "list_models", "CNS");
 
@@ -75,6 +78,7 @@ impl InferenceService {
         Ok(models.into_iter().map(ModelInfo::from).collect())
     }
 
+    #[must_use = "result must be used"]
     pub async fn search_models(
         ctx: &InferenceContext,
         query: &str,

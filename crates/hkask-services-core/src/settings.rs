@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns PathBuf to ~/.config/hkask/settings.json; parent directory created if missing
+#[must_use]
 pub fn settings_path() -> std::path::PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     path.push("hkask");
@@ -81,6 +82,7 @@ impl HkaskSettings {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns HkaskSettings from disk; HkaskSettings::default() if file missing or unparseable
+    #[must_use]
     pub fn load() -> Self {
         let path = settings_path();
         match std::fs::read_to_string(&path) {
@@ -101,6 +103,7 @@ impl HkaskSettings {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  env_var name must be valid; settings_value and default must be non-empty strings
     /// post: returns env var value if set and non-empty; else settings_value if non-empty; else default
+    #[must_use]
     pub fn resolve_model(env_var: &str, settings_value: &str, default: &str) -> String {
         std::env::var(env_var)
             .ok()
@@ -119,6 +122,7 @@ impl HkaskSettings {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective generation model string (env > settings > default)
+    #[must_use]
     pub fn generation_model(&self) -> String {
         Self::resolve_model(
             "HKASK_REPLICA_MODEL",
@@ -132,6 +136,7 @@ impl HkaskSettings {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective embedding model string (env > settings > default)
+    #[must_use]
     pub fn embedding_model(&self) -> String {
         Self::resolve_model(
             "HKASK_EMBEDDING_MODEL",
@@ -145,6 +150,7 @@ impl HkaskSettings {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective classifier model string (env > settings > default)
+    #[must_use]
     pub fn classifier_model(&self) -> String {
         Self::resolve_model(
             "HKASK_CLASSIFIER_MODEL",
@@ -158,6 +164,7 @@ impl HkaskSettings {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  none (always succeeds)
     /// post: returns effective OCR model string (env > settings > default)
+    #[must_use]
     pub fn ocr_model(&self) -> String {
         Self::resolve_model("HKASK_OCR_MODEL", &self.ocr_model, &default_ocr_model())
     }
@@ -167,6 +174,7 @@ impl HkaskSettings {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid HkaskSettings
     /// post: settings are written as pretty JSON to settings_path(); Err on serialization or I/O failure
+    #[must_use = "result must be used"]
     pub fn save(&self) -> Result<(), std::io::Error> {
         let path = settings_path();
         let json = serde_json::to_string_pretty(self)?;
@@ -183,6 +191,7 @@ impl HkaskSettings {
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  T must implement DeserializeOwned + Default
 /// post: returns T from disk; T::default() if file missing or unparseable
+#[must_use]
 pub fn load_settings<T: serde::de::DeserializeOwned + Default>() -> T {
     let path = settings_path();
     match std::fs::read_to_string(&path) {
@@ -205,6 +214,7 @@ pub fn load_settings<T: serde::de::DeserializeOwned + Default>() -> T {
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  settings must implement Serialize
 /// post: settings are written as pretty JSON to settings_path(); Err(ServiceError::Infra) on serialization or I/O failure
+#[must_use = "result must be used"]
 pub fn save_settings<T: serde::Serialize>(settings: &T) -> Result<(), crate::ServiceError> {
     let path = settings_path();
     let json = serde_json::to_string_pretty(settings).map_err(|e| {

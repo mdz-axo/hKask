@@ -122,6 +122,7 @@ impl EmbeddingRouter {
     /// post: returns ``Vec<Vec<f32>>`` with one vector per sentence, same order
     /// post: if sentences is empty → Err(EmptyResponse)
     /// post: if provider is Fal → Err(Connection) (fal.ai does not support embeddings)
+    #[must_use = "result must be used"]
     pub async fn embed_sentences(
         &self,
         model: &str,
@@ -210,6 +211,7 @@ impl EmbeddingRouter {
     /// pre:  sentence is a non-empty string
     /// post: returns `Vec<f32>` — the first (only) embedding vector
     /// post: delegates to embed_sentences, inherits its error conditions
+    #[must_use = "result must be used"]
     pub async fn embed_sentence(
         &self,
         model: &str,

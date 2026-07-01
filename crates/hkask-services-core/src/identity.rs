@@ -37,6 +37,7 @@ pub struct HumanUser {
 }
 
 impl HumanUser {
+    #[must_use]
     pub fn new(
         email_enc: Vec<u8>,
         phone_enc: Option<Vec<u8>>,
@@ -85,6 +86,7 @@ impl ReplicantIdentity {
     /// pre:  replicant_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
     /// post: returns a deterministic WebID with the "replicant" namespace;
     ///       same replicant_name always produces the same WebID
+    #[must_use]
     pub fn derive_webid(replicant_name: &str) -> WebID {
         WebID::from_persona_with_namespace(replicant_name.as_bytes(), "replicant")
     }
@@ -95,6 +97,7 @@ impl ReplicantIdentity {
     /// post: returns a ReplicantIdentity with derived webid, wallet_id=None,
     ///       persona_yaml=None, created_at set to current Unix timestamp,
     ///       last_login=None
+    #[must_use]
     pub fn new(
         replicant_name: String,
         user_id: UserID,
@@ -136,6 +139,7 @@ impl UserSession {
     ///       expiry timestamp set at session creation
     /// post: returns true if now > self.expires_at (session has expired);
     ///       returns false if now <= self.expires_at (session still valid)
+    #[must_use]
     pub fn is_expired(&self, now: i64) -> bool {
         now > self.expires_at
     }

@@ -72,6 +72,7 @@ impl ProviderId {
     /// pre:  model is non-empty
     /// post: returns Some((ProviderId, stripped_model)) for DI/, FA/, TG/, RP/, BT/, OR/, KC/ prefixes
     /// post: returns None for unrecognized or missing prefix
+    #[must_use]
     pub fn parse_from_model(model: &str) -> Option<(Self, &str)> {
         if model.len() < 4 {
             return None;
@@ -103,6 +104,7 @@ impl ProviderId {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — canonical provider-prefixed model naming
     /// pre:  model is non-empty
     /// post: returns "{prefix}/{model}" string
+    #[must_use]
     pub fn prefix_model(&self, model: &str) -> String {
         format!("{}/{}", self.as_str(), model)
     }
@@ -112,6 +114,7 @@ impl ProviderId {
     /// expect: "The system normalizes provider responses for monitoring"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
     /// post: returns "DI", "FA", "TG", "RP", "BT", "OR", or "KC"
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             ProviderId::DeepInfra => "DI",
@@ -161,6 +164,7 @@ pub enum FusionMode {
 }
 
 impl FusionMode {
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             FusionMode::BestOfN => "best-of-n",
@@ -291,11 +295,13 @@ impl FusionConfig {
     }
 
     /// The model ID to use when fusion is active (judge model).
+    #[must_use]
     pub fn model_id(&self) -> String {
         self.judge.clone()
     }
 
     /// Human-readable description of the fusion setup.
+    #[must_use]
     pub fn description(&self) -> String {
         let skills_str = if self.skills.is_empty() {
             String::new()
@@ -473,6 +479,7 @@ impl InferenceConfig {
     /// expect: "The system resolves inference configuration from the environment"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — bounded HTTP client for regulated requests
     /// post: returns reqwest::Client with timeout and pool settings from config
+    #[must_use = "result must be used"]
     pub fn build_client(&self) -> Result<reqwest::Client, String> {
         reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(self.timeout_secs))

@@ -582,6 +582,7 @@ fn split_sentences(text: &str) -> Vec<&str> {
 ///       density, depth bucket (shallow/medium/deep), topic keywords,
 ///       verb diversity, and counts of conditionals/questions/imperatives.
 ///       An empty prompt yields zero counts and density 0.0.
+#[must_use]
 pub fn decompose_prompt(prompt: &str) -> PromptAnalysis {
     let sentences_raw = split_sentences(prompt);
     let sentence_decompositions: Vec<SentenceDecomposition> = sentences_raw

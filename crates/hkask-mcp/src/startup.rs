@@ -37,7 +37,6 @@
 
 use crate::daemon::{DaemonClient, DaemonResponse};
 use crate::server::McpError;
-use anyhow;
 
 /// Result of startup gate verification.
 #[derive(Debug, Clone)]
@@ -65,7 +64,7 @@ pub struct StartupGateResult {
 ///
 /// # Errors
 ///
-/// Returns `anyhow::Error` when:
+/// Returns `McpError` when:
 /// - Authentication returns `authenticated: false`
 /// - Assignment returns `assigned: false`
 /// - The daemon sends an unrecognized response variant
@@ -98,6 +97,7 @@ pub struct StartupGateResult {
 ///     &[],
 /// ).await?;
 /// ```
+#[must_use = "startup gate verification result must be inspected"]
 pub async fn verify_startup_gates(
     client: &DaemonClient,
     replicant: &str,
@@ -106,10 +106,7 @@ pub async fn verify_startup_gates(
 ) -> Result<StartupGateResult, McpError> {
     // ── Gate 1: Authentication ──────────────────────────────────────────
 
-    let auth = client
-        .auth_query(replicant)
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let auth = client.auth_query(replicant).await?;
     match auth {
         DaemonResponse::AuthResponse {
             authenticated: true,
@@ -136,10 +133,7 @@ pub async fn verify_startup_gates(
 
     // ── Gate 2: Assignment ──────────────────────────────────────────────
 
-    let assignment = client
-        .assignment_query(replicant, role)
-        .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let assignment = client.assignment_query(replicant, role).await?;
     match assignment {
         DaemonResponse::AssignmentResponse { assigned: true } => {
             // Assigned — proceed to Gate 3.
@@ -162,10 +156,7 @@ pub async fn verify_startup_gates(
 
     let mut denied_tools = Vec::new();
     for tool in required_tools {
-        let cap = client
-            .capability_query(replicant, tool)
-            .await
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let cap = client.capability_query(replicant, tool).await?;
         match cap {
             DaemonResponse::CapabilityResponse { granted: true } => {
                 // Tool capability granted.

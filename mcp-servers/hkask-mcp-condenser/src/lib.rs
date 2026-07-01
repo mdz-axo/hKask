@@ -584,7 +584,11 @@ pub async fn run(
                     default_model,
                     ctx.capability_tier,
                 ))
-            })()?)
+            })()
+            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                context: "condenser server init".into(),
+                detail: e.to_string(),
+            })?)
         },
         vec![],
     )

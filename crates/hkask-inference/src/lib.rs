@@ -105,6 +105,7 @@ impl RouterModelEntry {
     /// pre:  model is non-empty
     /// post: returns Some(true) if model/family matches known vision families
     /// post: returns None if unknown
+    #[must_use]
     pub fn infer_vision_support(model: &str, family: Option<&str>) -> Option<bool> {
         const VISION_FAMILIES: &[&str] = &[
             "llava",

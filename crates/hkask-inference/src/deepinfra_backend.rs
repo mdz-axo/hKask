@@ -223,6 +223,7 @@ impl DeepInfraBackend {
     /// post: returns Ok(`Vec<DeepInfraModelEntry>`) with models updated in last 180 days
     /// post: if API returns non-success → Ok(Vec::new()) (graceful degradation)
     /// post: if connection fails → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn list_models(&self) -> Result<Vec<DeepInfraModelEntry>, InferenceError> {
         let response = self
             .client

@@ -52,6 +52,7 @@ impl KanbanService {
     ///
     /// pre:  store must have the triples table initialized
     /// post: returns a KanbanService ready for use
+    #[must_use]
     pub fn new(store: TripleStore) -> Self {
         Self {
             store,
@@ -86,6 +87,7 @@ impl KanbanService {
     ///
     /// pre:  owner is a valid WebID; name is non-empty; columns is non-empty
     /// post: board is persisted as a triple; returns the created Board
+    #[must_use = "result must be used"]
     pub fn board_create(
         &self,
         owner: WebID,
@@ -127,6 +129,7 @@ impl KanbanService {
     ///
     /// pre:  template_path is a valid YAML file with board template schema
     /// post: board is created with template-defined columns, WIP limits, and phases
+    #[must_use = "result must be used"]
     pub fn board_create_from_template(
         &self,
         owner: WebID,
@@ -179,6 +182,7 @@ impl KanbanService {
     /// List all board templates.
     ///
     /// post: returns Vec of known template names
+    #[must_use]
     pub fn list_templates() -> Vec<String> {
         vec![
             "software-project".into(),
@@ -192,6 +196,7 @@ impl KanbanService {
     ///
     /// pre:  owner is a valid WebID
     /// post: returns all boards owned by this replicant
+    #[must_use = "result must be used"]
     pub fn board_list(&self, owner: &WebID) -> Result<Vec<Board>, KanbanError> {
         let triples = self
             .store
@@ -215,6 +220,7 @@ impl KanbanService {
     ///
     /// pre:  board_id is valid
     /// post: returns Some(Board) if found, None otherwise
+    #[must_use = "result must be used"]
     pub fn board_get(&self, board_id: BoardId) -> Result<Option<Board>, KanbanError> {
         let triples = self
             .store
@@ -235,6 +241,7 @@ impl KanbanService {
     /// pre:  board_id refers to an existing board
     /// post: returns a formatted string showing columns with tasks arranged by status,
     ///       WIP limits, story points, labels, overdue indicators, and verification status
+    #[must_use = "result must be used"]
     pub fn board_view(
         &self,
         board_id: BoardId,
@@ -327,6 +334,7 @@ impl KanbanService {
     ///
     /// pre:  board_id refers to an existing board; spec.title is non-empty; owner is valid
     /// post: task is persisted as a triple; returns the created Task
+    #[must_use = "result must be used"]
     pub fn task_create(
         &self,
         board_id: BoardId,
@@ -420,6 +428,7 @@ impl KanbanService {
     ///
     /// pre:  board_id refers to an existing board
     /// post: returns tasks matching the filter; empty Vec if none match
+    #[must_use = "result must be used"]
     pub fn task_list(
         &self,
         board_id: BoardId,
@@ -473,6 +482,7 @@ impl KanbanService {
     ///
     /// pre:  task_id is valid
     /// post: returns Some(Task) if found, None otherwise
+    #[must_use = "result must be used"]
     pub fn task_get(&self, task_id: TaskId) -> Result<Option<Task>, KanbanError> {
         let triples = self
             .store
@@ -493,6 +503,7 @@ impl KanbanService {
     /// pre:  task_id refers to an existing task; target is a valid transition from current status
     /// pre:  actor is a valid WebID (P12)
     /// post: task.status is updated; updated_at is refreshed
+    #[must_use = "result must be used"]
     pub fn task_move(
         &self,
         task_id: TaskId,
@@ -568,6 +579,7 @@ impl KanbanService {
     /// pre:  consent.task_id matches task_id
     /// post: task.assignee is set to consent.agent
     /// fails: if consent is invalid → ConsentViolation
+    #[must_use = "result must be used"]
     pub fn task_assign(
         &self,
         task_id: TaskId,
@@ -624,6 +636,7 @@ impl KanbanService {
     /// pre:  task_id refers to an existing task in Review status
     /// pre:  verifier is a valid WebID
     /// post: task.verification is set; task moves to Done if passed
+    #[must_use = "result must be used"]
     pub fn task_verify(
         &self,
         task_id: TaskId,
@@ -708,6 +721,7 @@ impl KanbanService {
     ///
     /// pre:  task_id is valid
     /// post: task triple and index triple are soft-deleted
+    #[must_use = "result must be used"]
     pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
         let task = self
             .task_get(task_id)?
@@ -743,6 +757,7 @@ impl KanbanService {
     ///
     /// pre:  task_id is valid
     /// post: task.assignee is set to None
+    #[must_use = "result must be used"]
     pub fn task_unassign(&self, task_id: TaskId) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -757,6 +772,7 @@ impl KanbanService {
     ///
     /// pre:  task_id refers to a task in Done status
     /// post: task moves to InProgress, verification cleared
+    #[must_use = "result must be used"]
     pub fn task_reopen(&self, task_id: TaskId) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -781,6 +797,7 @@ impl KanbanService {
     ///
     /// Called by the delegating agent to refill a subagent's gas budget
     /// so it can continue work after exhausting its initial budget.
+    #[must_use = "result must be used"]
     pub fn task_add_gas(&self, task_id: TaskId, amount: u64) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -802,6 +819,7 @@ impl KanbanService {
     }
 
     /// Add rJoules to a task's inference/API budget.
+    #[must_use = "result must be used"]
     pub fn task_add_rjoules(&self, task_id: TaskId, amount: u64) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
@@ -826,6 +844,7 @@ impl KanbanService {
     ///
     /// pre:  board_id is valid
     /// post: board triple and all associated task/index triples are soft-deleted
+    #[must_use = "result must be used"]
     pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
         let board = self
             .board_get(board_id)?
@@ -872,6 +891,7 @@ impl KanbanService {
     /// When the kata bridge is configured, delegates to KataEngine for
     /// inference, CNS span emission, gas tracking, and automaticity.
     /// When the bridge is not configured, returns an error.
+    #[must_use = "result must be used"]
     pub async fn run_coaching_kata(
         &self,
         task_id: TaskId,
@@ -888,6 +908,7 @@ impl KanbanService {
     }
 
     /// Run a full improvement kata cycle on a task using the bridge.
+    #[must_use = "result must be used"]
     pub async fn run_improvement_kata(
         &self,
         task_id: TaskId,
@@ -904,6 +925,7 @@ impl KanbanService {
     }
 
     /// Run a starter kata observation drill on a task using the bridge.
+    #[must_use = "result must be used"]
     pub async fn run_starter_kata(
         &self,
         task_id: TaskId,

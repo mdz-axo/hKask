@@ -75,6 +75,7 @@ impl InferenceLoop {
     }
 
     /// Get the current gas remaining value (read-only sense signal).
+    #[must_use]
     pub fn gas_remaining(&self) -> u64 {
         self.gas_remaining.load(Ordering::Relaxed)
     }
@@ -84,6 +85,7 @@ impl InferenceLoop {
     /// Returns `(remaining, cap)` — the loop's token budget state as a
     /// sense signal. The L6 budget (CyberneticsLoop's EnergyBudget) is the
     /// authoritative regulator; this counter is a read-only mirror.
+    #[must_use]
     pub fn token_usage(&self) -> (u64, u64) {
         (self.gas_remaining.load(Ordering::Relaxed), self.gas_cap)
     }
@@ -102,6 +104,7 @@ impl InferenceLoop {
     }
 
     /// Get the energy budget cap.
+    #[must_use]
     pub fn gas_cap(&self) -> u64 {
         self.gas_cap
     }
@@ -112,6 +115,7 @@ impl InferenceLoop {
     /// Read token budget remaining via `token_usage()`, check circuit breaker
     /// state, and verify model availability. Produces afferent signals for
     /// gas remaining ratio, circuit breaker state, and model availability.
+    #[must_use]
     pub async fn sense(&self) -> Vec<Signal> {
         <Self as HkaskLoop>::sense(self).await
     }
@@ -120,6 +124,7 @@ impl InferenceLoop {
     /// Check if remaining gas is below the set-point ratio (0.2), whether
     /// the circuit breaker is open, or whether the model is unavailable.
     /// Detects deviations from healthy operating set-points.
+    #[must_use]
     pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
         <Self as HkaskLoop>::compare(self, signals).await
     }
@@ -129,6 +134,7 @@ impl InferenceLoop {
     /// Circuit breaker open or inference unavailable → Throttle. Gas below
     /// set-point → AdjustEnergyBudget (self-throttle). Model unavailable →
     /// Calibrate (signal model selection needed).
+    #[must_use]
     pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         <Self as HkaskLoop>::compute(self, deviations).await
     }

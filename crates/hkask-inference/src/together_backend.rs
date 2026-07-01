@@ -224,6 +224,7 @@ impl TogetherBackend {
     /// post: returns Ok(`Vec<TogetherModel>`) with all available models
     /// post: if API returns non-success → Err(InferenceError::Connection)
     /// post: if connection fails → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn list_models(&self) -> Result<Vec<TogetherModel>, InferenceError> {
         let response = self
             .client

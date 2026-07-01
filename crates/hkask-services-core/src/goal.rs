@@ -53,6 +53,7 @@ pub struct GoalCriterion {
 }
 
 impl GoalCriterion {
+    #[must_use]
     pub fn new(goal_id: GoalID, criterion_type: &str, description: &str) -> Self {
         Self {
             id: format!("gc_{}", uuid::Uuid::new_v4().simple()),
@@ -79,6 +80,7 @@ pub struct GoalArtifact {
 }
 
 impl GoalArtifact {
+    #[must_use]
     pub fn new(goal_id: GoalID, artifact_ref: &str, artifact_type: &str) -> Self {
         Self {
             id: format!("ga_{}", uuid::Uuid::new_v4().simple()),
@@ -106,6 +108,7 @@ pub struct Goal {
 }
 
 impl Goal {
+    #[must_use]
     pub fn new(webid: WebID, text: &str, visibility: Visibility) -> Self {
         Self {
             id: GoalID::new(),
@@ -121,17 +124,20 @@ impl Goal {
         }
     }
 
+    #[must_use]
     pub fn with_display_name(mut self, name: impl Into<String>) -> Self {
         self.display_name = Some(name.into());
         self
     }
 
+    #[must_use]
     pub fn with_parent(mut self, parent_id: GoalID, parent_depth: u8) -> Self {
         self.parent_goal_id = Some(parent_id);
         self.depth = parent_depth + 1;
         self
     }
 
+    #[must_use = "result must be used"]
     pub fn transition(&mut self, new_state: GoalState) -> Result<(), IllegalGoalTransition> {
         if !self.state.can_transition_to(new_state) {
             return Err(IllegalGoalTransition {
@@ -148,6 +154,7 @@ impl Goal {
         Ok(())
     }
 
+    #[must_use]
     pub fn can_have_subgoals(&self) -> bool {
         !self.state.is_terminal() && self.depth < MAX_NESTING
     }

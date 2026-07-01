@@ -69,6 +69,7 @@ pub const DEFAULT_FALLBACK_TICK_SECS: u64 = 1;
 /// post: Returns the default tick `Duration` for the given loop:
 ///       Inference → 500ms, Episodic → 5s, Semantic → 5s, Cybernetics → 2s,
 ///       Curation → 10s, Snapshot → 60s.
+#[must_use]
 pub fn default_tick_interval(loop_id: LoopId) -> Duration {
     match loop_id {
         LoopId::Inference => Duration::from_millis(INFERENCE_TICK_MS),

@@ -42,6 +42,7 @@ impl RawMcpToolPort {
     ///
     /// pre:  runtime is initialized
     /// post: returns RawMcpToolPort
+    #[must_use]
     pub fn new(runtime: McpRuntime) -> Self {
         Self { runtime }
     }
@@ -192,6 +193,7 @@ impl McpDispatcher {
     ///
     /// pre:  runtime is initialized
     /// post: returns McpDispatcher with GovernedTool membrane
+    #[must_use]
     pub fn with_governed_tool(
         runtime: McpRuntime,
         governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
@@ -207,6 +209,7 @@ impl McpDispatcher {
     ///
     /// pre:  tool_name is non-empty, from and to are valid WebIDs
     /// post: returns DelegationToken granting tool access from → to
+    #[must_use]
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
         self.capability_checker.grant_tool(tool_name, from, to)
     }

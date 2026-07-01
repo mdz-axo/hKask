@@ -30,6 +30,7 @@ use tokio::net::{UnixListener, UnixStream};
 /// Well-known path for the hKask daemon socket.
 ///
 /// post: returns PathBuf to the daemon socket (config dir or /tmp fallback)
+#[must_use]
 pub fn daemon_socket_path() -> PathBuf {
     let base = dirs_next().unwrap_or_else(|| PathBuf::from("/tmp"));
     base.join("daemon.sock")
@@ -143,6 +144,7 @@ impl DaemonClient {
     /// Create a client that connects to the default daemon socket path.
     ///
     /// post: returns DaemonClient with default socket path
+    #[must_use]
     pub fn new() -> Self {
         Self {
             socket_path: daemon_socket_path(),
@@ -153,6 +155,7 @@ impl DaemonClient {
     ///
     /// pre:  path is a valid filesystem path
     /// post: returns DaemonClient with custom socket path
+    #[must_use]
     pub fn with_path(path: PathBuf) -> Self {
         Self { socket_path: path }
     }
@@ -176,6 +179,7 @@ impl DaemonClient {
     }
 
     /// Query whether a replicant is authenticated.
+    #[must_use = "result must be used"]
     pub async fn auth_query(&self, replicant: &str) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::AuthQuery {
             replicant: replicant.to_string(),
@@ -184,6 +188,7 @@ impl DaemonClient {
     }
 
     /// Query whether a replicant is assigned to a specific MCP role.
+    #[must_use = "result must be used"]
     pub async fn assignment_query(
         &self,
         replicant: &str,
@@ -197,6 +202,7 @@ impl DaemonClient {
     }
 
     /// Query whether a replicant holds a capability token for a tool.
+    #[must_use = "result must be used"]
     pub async fn capability_query(
         &self,
         replicant: &str,
@@ -210,6 +216,7 @@ impl DaemonClient {
     }
 
     /// Store an experience in both episodic and semantic memory.
+    #[must_use = "result must be used"]
     pub async fn store_experience(
         &self,
         replicant: &str,
@@ -229,6 +236,7 @@ impl DaemonClient {
     }
 
     /// Dispatch a tool call through the daemon to an MCP server.
+    #[must_use = "result must be used"]
     pub async fn tool_dispatch(
         &self,
         replicant: &str,
@@ -244,6 +252,7 @@ impl DaemonClient {
     }
 
     /// Query curator system health from the daemon.
+    #[must_use = "result must be used"]
     pub async fn curator_health_query(&self, replicant: &str) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::CuratorHealthQuery {
             replicant: replicant.to_string(),
@@ -252,6 +261,7 @@ impl DaemonClient {
     }
 
     /// Query live CNS status from the daemon.
+    #[must_use = "result must be used"]
     pub async fn cns_status_query(
         &self,
         replicant: &str,
@@ -265,6 +275,7 @@ impl DaemonClient {
     }
 
     /// Query spec drift from the daemon.
+    #[must_use = "result must be used"]
     pub async fn spec_drift_query(
         &self,
         replicant: &str,
@@ -352,6 +363,7 @@ impl DaemonListener {
     /// Create a listener bound to the default socket path.
     ///
     /// post: returns DaemonListener with default socket path, listener=None
+    #[must_use]
     pub fn new() -> Self {
         Self {
             socket_path: daemon_socket_path(),
@@ -362,7 +374,8 @@ impl DaemonListener {
     /// Create a listener with a custom socket path (for testing).
     ///
     /// pre:  path is a valid filesystem path
-    /// post: returns DaemonListener with custom socket path
+    /// post: returns DaemonListener with custom socket path, listener=None
+    #[must_use]
     pub fn with_path(path: PathBuf) -> Self {
         Self {
             socket_path: path,

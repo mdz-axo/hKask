@@ -39,6 +39,7 @@ impl McpTool {
     /// post: returns Ok(()) if input conforms to self.input_schema
     /// post: returns Err with validation errors if input violates schema
     /// post: returns Ok(()) if input_schema is empty or not a valid JSON Schema (graceful)
+    #[must_use = "result must be used"]
     pub fn validate_input(&self, input: &Value) -> Result<(), Vec<String>> {
         // If schema is empty or not an object, skip validation (graceful degradation)
         if !self.input_schema.is_object()
@@ -136,6 +137,7 @@ impl McpRuntime {
     /// Create a new MCP runtime.
     ///
     /// post: returns McpRuntime with empty servers, tool_registry, connections
+    #[must_use]
     pub fn new() -> Self {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
@@ -177,6 +179,7 @@ impl McpRuntime {
     ///
     /// If a server with the same ID is already connected, returns `Ok(())`.
     #[allow(private_interfaces)]
+    #[must_use = "result must be used"]
     pub async fn start_server(
         &self,
         server_id: &str,
@@ -187,6 +190,7 @@ impl McpRuntime {
     }
 
     /// Like `start_server`, but with extra environment variables for the child process.
+    #[must_use = "result must be used"]
     pub async fn start_server_with_env(
         &self,
         server_id: &str,
@@ -291,6 +295,7 @@ impl McpRuntime {
     ///
     /// Lower-level than `RawMcpToolPort::invoke` — no governance membrane.
     /// Used internally by `RawMcpToolPort` and by external callers (QA runner).
+    #[must_use = "result must be used"]
     pub async fn call_tool(
         &self,
         server_id: &str,
@@ -317,12 +322,14 @@ impl McpRuntime {
     }
 
     /// Discover tools from all registered servers
+    #[must_use]
     pub async fn discover_tools(&self) -> Vec<String> {
         let tool_registry = self.tool_registry.read().await;
         tool_registry.keys().cloned().collect()
     }
 
     /// Get tool definition
+    #[must_use]
     pub async fn get_tool(&self, tool_name: &str) -> Option<McpTool> {
         let tool_registry = self.tool_registry.read().await;
         let server_id = tool_registry.get(tool_name)?;
@@ -334,6 +341,7 @@ impl McpRuntime {
     }
 
     /// Get tool information with metadata
+    #[must_use]
     pub async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
         let tool_registry = self.tool_registry.read().await;
         let server_id = tool_registry.get(tool_name)?;
@@ -361,6 +369,7 @@ impl McpRuntime {
     }
 
     /// List all registered servers
+    #[must_use]
     pub async fn list_servers(&self) -> Vec<McpServer> {
         let servers = self.servers.read().await;
         servers.values().cloned().collect()

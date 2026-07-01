@@ -291,6 +291,7 @@ impl KiloCodeBackend {
     /// post: returns Ok(`Vec<KiloCodeModel>`) with models created in last 180 days
     /// post: if API returns non-success → Err(InferenceError::Connection)
     /// post: if connection fails → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn list_models(&self) -> Result<Vec<KiloCodeModel>, InferenceError> {
         let response = self
             .client
