@@ -1,6 +1,6 @@
-use super::*;
 use super::config::default_corpus_config;
 use super::utils::{extract_search_terms, slugify};
+use super::*;
 
 // ── slugify ─────────────────────────────────────────────────────────
 
@@ -38,7 +38,10 @@ fn slugify_empty_string() {
 #[test]
 fn parse_model_directive_present() {
     let src = "{# model: OM/qwen3:14b #}\nrest of template";
-    assert_eq!(super::llm::parse_template_model(src), Some("OM/qwen3:14b".to_string()));
+    assert_eq!(
+        super::llm::parse_template_model(src),
+        Some("OM/qwen3:14b".to_string())
+    );
 }
 
 #[test]

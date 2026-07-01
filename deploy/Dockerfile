@@ -22,7 +22,7 @@ RUN cargo build --release \
     --package hkask-mcp-docproc \
     --package hkask-mcp-training \
     --package hkask-mcp-replica \
-    --package hkask-mcp-kanban \
+    --package hkask-mcp-kata-kanban \
     --package hkask-mcp-skill \
     --package hkask-mcp-curator \
     --package hkask-mcp-filesystem

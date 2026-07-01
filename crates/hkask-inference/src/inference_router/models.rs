@@ -1,8 +1,8 @@
 //! Model listing and search across all configured providers.
 
 use super::InferenceRouter;
-use crate::config::ProviderId;
 use crate::RouterModelEntry;
+use crate::config::ProviderId;
 
 impl InferenceRouter {
     /// List all available models across all configured providers.

@@ -4,8 +4,8 @@ use super::download::download_text;
 use super::passage::TaggedPassage;
 use super::triples::store_passage_triples;
 use super::types::{
-    CorpusConfig, DimensionCentroidResult, EmbedPhase, EmbedProgress, EmbedResult, ProgressFn,
-    CURATOR_PERSONA,
+    CURATOR_PERSONA, CorpusConfig, DimensionCentroidResult, EmbedPhase, EmbedProgress, EmbedResult,
+    ProgressFn,
 };
 use super::utils::strip_provider_prefix;
 use crate::embed::Entity;

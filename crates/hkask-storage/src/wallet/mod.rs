@@ -11,9 +11,9 @@ pub mod api_keys;
 pub mod balances;
 pub mod deposits;
 pub mod encumbrances;
-pub mod transactions;
 #[cfg(test)]
 mod tests;
+pub mod transactions;
 
 use crate::Store;
 use hkask_types::InfrastructureError;

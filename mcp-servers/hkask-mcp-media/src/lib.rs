@@ -989,10 +989,10 @@ pub async fn run(
                 gallery_store.clone(),
                 face_analyzer.clone(),
             )
-                .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
-                    context: "media server init".into(),
-                    detail: e.to_string(),
-                })
+            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                context: "media server init".into(),
+                detail: e.to_string(),
+            })
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

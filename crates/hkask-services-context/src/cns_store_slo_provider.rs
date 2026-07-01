@@ -55,15 +55,15 @@ fn is_error_event(observation: &serde_json::Value) -> bool {
         if obj.contains_key("error") {
             return true;
         }
-        if let Some(status) = obj.get("status").and_then(|v| v.as_str()) {
-            if status == "error" || status == "failed" {
-                return true;
-            }
+        if let Some(status) = obj.get("status").and_then(|v| v.as_str())
+            && (status == "error" || status == "failed")
+        {
+            return true;
         }
-        if let Some(outcome) = obj.get("outcome").and_then(|v| v.as_str()) {
-            if outcome == "failure" {
-                return true;
-            }
+        if let Some(outcome) = obj.get("outcome").and_then(|v| v.as_str())
+            && outcome == "failure"
+        {
+            return true;
         }
     }
     false

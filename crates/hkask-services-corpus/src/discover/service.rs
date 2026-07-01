@@ -10,8 +10,8 @@ use hkask_services_core::ServiceError;
 use hkask_templates::ports::McpPort;
 use std::path::PathBuf;
 
-use super::config::{augment_corpus_yaml, generate_corpus_yaml};
 use super::cache::download_and_cache;
+use super::config::{augment_corpus_yaml, generate_corpus_yaml};
 use super::types::{DiscoverRequest, DiscoverResult};
 
 pub struct DiscoveryService;
@@ -140,7 +140,9 @@ impl DiscoveryService {
                     let added = new.len();
                     if req.curated {
                         web_candidates = new;
-                        sources.push(format!("web_search ({added} candidates — awaiting curation)"));
+                        sources.push(format!(
+                            "web_search ({added} candidates — awaiting curation)"
+                        ));
                     } else {
                         works.extend(new);
                         sources.push(format!("web_search ({added} pages)"));
@@ -232,9 +234,21 @@ impl DiscoveryService {
 
         // ── Phase 5: Generate corpus.yaml ──────────────────────────────────
         let config_path = if req.augment {
-            augment_corpus_yaml(&author_slug, &works, &output_path, entities.clone(), &methods)?
+            augment_corpus_yaml(
+                &author_slug,
+                &works,
+                &output_path,
+                entities.clone(),
+                &methods,
+            )?
         } else {
-            generate_corpus_yaml(&author_slug, &works, &output_path, entities.clone(), &methods)?
+            generate_corpus_yaml(
+                &author_slug,
+                &works,
+                &output_path,
+                entities.clone(),
+                &methods,
+            )?
         };
 
         tracing::info!(target: "hkask.discover", author = %req.author_name, slug = %author_slug, works_found = works.len(), works_cached = cached, config = %config_path.display(), "Discovery complete");

@@ -3,9 +3,7 @@
 use super::WalletService;
 use hkask_services_core::ServiceError;
 use hkask_types::id::{ApiKeyId, WalletId};
-use hkask_wallet::{
-    ApiKeyCapability, ApiKeyMaterial, ChainId, PrivacyMode, RJoule,
-};
+use hkask_wallet::{ApiKeyCapability, ApiKeyMaterial, ChainId, PrivacyMode, RJoule};
 
 impl WalletService {
     /// Create a new API key with the specified limits, scope, and purpose.

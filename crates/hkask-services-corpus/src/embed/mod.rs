@@ -25,7 +25,6 @@ pub use html::strip_html_tags;
 pub use ocr::ocr_pdf_bytes;
 pub use service::EmbedService;
 pub use types::{
-    ChunkingConfig, CorpusConfig, EmbedPhase,
-    EmbedProgress, EmbedResult, EmbeddingConfig, Entity, EntityConfig, FoundationalRule,
-    ProgressFn, ValidationConfig, Work,
+    ChunkingConfig, CorpusConfig, EmbedPhase, EmbedProgress, EmbedResult, EmbeddingConfig, Entity,
+    EntityConfig, FoundationalRule, ProgressFn, ValidationConfig, Work,
 };

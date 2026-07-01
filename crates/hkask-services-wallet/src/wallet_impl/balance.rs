@@ -2,10 +2,8 @@
 
 use super::WalletService;
 use hkask_services_core::ServiceError;
-use hkask_wallet::{
-    ChainId, DepositAddress, DepositReference, PrivacyMode, RJoule, WalletBalance,
-};
 use hkask_types::id::WalletId;
+use hkask_wallet::{ChainId, DepositAddress, DepositReference, PrivacyMode, RJoule, WalletBalance};
 
 impl WalletService {
     /// Get the current rJoule balance for a wallet.

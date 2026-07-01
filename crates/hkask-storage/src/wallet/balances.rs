@@ -1,6 +1,6 @@
 use super::WalletStore;
-use crate::collect_rows_strict;
 use crate::Store;
+use crate::collect_rows_strict;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{InfrastructureError, WalletId};
 use hkask_wallet_types::{RJoule, WalletBalance, WalletError};

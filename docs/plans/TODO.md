@@ -32,8 +32,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Owner | Priority | Status | Evidence |
 |----|------|-------|----------|--------|----------|
-| **P1-01** | Requirements specification | Architect | High | ✅ Complete | `do../specifications/specs/REQUIREMENTS.md` |
-| **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `do../specifications/specs/TRACEABILITY_MATRIX.md` |
+| **P1-01** | Requirements specification | Architect | High | ✅ Complete | `docs/specifications/specs/REQUIREMENTS.md` |
+| **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `docs/specifications/specs/TRACEABILITY_MATRIX.md` |
 | **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
 | **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6); note: ADR-023 superseded by ADR-027, ADR-028 archived (deferred), ADR-029 archived (superseded) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
@@ -43,7 +43,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P1-09** | Face recognition system for media server | Media bot | High | ✅ Complete | `docs/plans/mcp-media-server-design.md` §10. Face registry table with validation gate, dual-path matching (vision LLM primary via fal.ai/open-weight Qwen2.5-VL, ONNX ArcFace behind `face-recognition` feature flag). 5 tools: face_validate, face_register, face_list, face_remove, gallery_name_face (with face_id lookup). ONNX `face_id` crate (SCRFD + ArcFace) optional via `--features face-recognition`. |
 | **P1-10** | Condenser live integration testing — thinking mode + auto-condense | Dev | Medium | ✅ Complete | **All items verified.** (1) Thinking mode wire format: 2 unit tests pass. (2) Router pass-through: `disable_thinking_flows_to_wire_format` integration test (wiremock) passes. (3) Auto-condense threshold: 87.5% formula verified for all window sizes (2048–131072). (4) Live DeepInfra: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output, no thinking interference. (5) Live Together: `meta-llama/Llama-3.3-70B-Instruct-Turbo` works — clean output. (6) Graceful degradation: thinking models (qwen3.5/gemma4/deepseek-r1) return clear error on all backends. (7) Rust live-backend tests written: `crates/hkask-inference/tests/live_backends.rs` — `deepinfra_summarization` + `together_summarization` (gated on API keys, `#[ignore]`). DeepInfra/Together Qwen3 models also exhibit thinking mode. |
 | **P1-11** | Energy-use tracking simplification + security hardening | Dev + CNS | High | 📋 Partial | Audit complete: `docs/status/energy_accounting_hardening_audit.md` (2026-06-18). 7 semantic operations across 23 surfaces mapped. 3 recommendations: (a) remove CyberneticsLoop pass-through, (b) add EnergyBudget tamper-evidence, (c) audit float determinism. Implementation deferred. |
-| **P1-12** | Real `provision_endpoint` API integration for Runpod + Baseten | Adapter | High | ✅ Complete | Runpod: GraphQL `saveEndpoint` mutation → endpoint ID → OpenAI-compatible URL. Baseten: REST `POST /v1/models` → model ID → model-specific URL. |
+| **P1-12** | Real `provision_endpoint` API integration for Runpod + Baseten | Adapter | High | ✅ Complete | Runpod: GraphQL `saveEndpoint` mutation → endpoint ID → OpenAI-compatible URL. Baseten: REST `POST /v1/models` → model ID → model-specific URL. Verified 2026-06-15. |
 | **P1-13** | Contract-to-spec traceability — CNS `expect:` field completion | Curator | High | ✅ Complete | Contract system simplified: REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. CNS crate and wallet fully annotated. |
 
 ---
@@ -57,19 +57,19 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **P2-03** | GPU acceleration (CUDA) | Infrastructure | Low | Optional |
 | **P2-04** | Qdrant vector search | Storage bot | Low | Contingency |
 | **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
-| **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `do../status/corpus_inventory.yaml` and `do../status/corpus_inventory.yaml` |
+| **P2-06** | Resolve hkask-agents build regression + code drift | Dev | High | ✅ Complete | Build regression resolved; code drift audit complete — see `docs/status/corpus_inventory.yaml` |
 | **P2-07** | MDS audit R4: Update §9.1 self-application matrix | Curator | Medium | ✅ Complete | Trust → Pass, Observability → Pass, Persistence/Lifecycle/Curation → :partial. Updated 2026-06-08 |
 | **P2-08** | MDS audit R6: Consolidate CNS span listings (3→1 authoritative source) | Curator | Medium | ✅ Complete | canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`); 5 hierarchical spans now registered in CANONICAL_NAMESPACES |
 | **P2-09** | MDS audit R8: Add TemplateType vocabulary mapping to MDS.md §7.2 | Curator | Medium | ✅ Complete | Prompt↔WordAct, Process↔FlowDef, Cognition↔KnowAct mapping with `as_spec_name()` cross-reference. Updated 2026-06-08 |
 | **P2-10** | MDS audit R11: Add R3 deferred items to OPEN_QUESTIONS.md | Curator | Low | ✅ Complete | All 10 MDS §11 R3 items tracked (R3.1–R3.13), plus 3 additional items (Send+Sync bounds, CNS span integration, spec drift detection). Updated 2026-06-08 |
 | **P2-11** | Populate `docs/status/PROJECT_STATUS.md` — single source of truth for build/test/metrics status | Dev | Medium | ✅ Complete | Build (pass), test (pass), clippy (pass), doc CI (pass). Created 2026-06-08 |
-| **P2-12** | Populate `do../status/PROJECT_STATUS.md` — complete catalog of all 11 MCP servers' tools | Dev | Medium | ✅ Complete | 11 servers, 151 tools — all 151 fully implemented (verified 2026-06-15 pragmatics audit) |
-| **P2-13** | Populate `do../status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 360+ tests (verified 2026-06-15 pragmatics audit) |
+| **P2-12** | Populate `docs/status/PROJECT_STATUS.md` — complete catalog of all MCP servers' tools | Dev | Medium | ✅ Complete | 14 servers, all tools fully implemented (verified 2026-06-15 pragmatics audit) |
+| **P2-13** | Populate `docs/status/PROJECT_STATUS.md` — test seam depth and behavioral coverage | Dev | Medium | ✅ Complete | 12 crates audited, 360+ tests (verified 2026-06-15 pragmatics audit) |
 | **P2-14** | Populate `docs/status/fowler-audit-status.md` — Fowler pattern refactoring tracker | Dev | Low | ✅ Complete → Archived | 6 Fowler patterns identified (2 applied, 4 open-low). Archived 2026-06-11; open items deferred to P1 threshold. |
 | **P2-15** | Populate `docs/status/adversarial-simplification-inventory.md` — dead code and unwired seam inventory | Dev | Low | ✅ Complete | 12 dead_code annotations, 4 unwired seams, 3 simplification candidates, 0 removal candidates. Created 2026-06-08 |
 | **P2-16** | Custom/private securities for portfolio tracking | Companies bot | Medium | ⬜ Planned | Spec: `docs/specifications/portfolio-tracking.md` §10.6. 6 new tools planned (create, list, delete, update_price, import_prices, link_public). Deferred to Phase 6; depends on Phase 5 multi-currency. |
 
-**Code drift from spec alignment audit (2026-06-07, resolved 2026-06-08):** Full drift set and curation decisions are in [`do../status/corpus_inventory.yaml`](../status/corpus_inventory.yaml) and [`do../status/corpus_inventory.yaml`](../status/corpus_inventory.yaml). Summary of resolutions:
+**Code drift from spec alignment audit (2026-06-07, resolved 2026-06-08):** Full drift set and curation decisions are in [`docs/status/corpus_inventory.yaml`](../status/corpus_inventory.yaml). Summary of resolutions:
 
 | ID | Resolution |
 |----|------------|
@@ -104,10 +104,10 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | **R-01** | MDS documentation audit (Task 1) | 2026-05-25 | Classification table in refresh plan |
 | **R-02** | Archive 10 stale documents (Task 2) | 2026-05-25 | `docs/archive/2026-05-25-documentation-refresh/` |
 | **R-03** | Delete 1 duplicate document (Task 2) | 2026-05-25 | `DOCUMENTATION_REFRESH_DDNVSS.md` (deleted, no longer exists) |
-| **R-04** | Create MDS_SCAFFOLD.md (Task 3) | 2026-05-25 | `do../specifications/specs/MDS_SCAFFOLD.md` |
+| **R-04** | Create MDS_SCAFFOLD.md (Task 3) | 2026-05-25 | `docs/specifications/specs/MDS_SCAFFOLD.md` |
 | **R-05** | Write 4 MDS-aligned architecture docs (Task 4) | 2026-05-25 | domain-and-capability (deleted), interface-and-composition, trust-security-observability (deleted), persistence-and-lifecycle |
-| **R-06** | Write REQUIREMENTS.md (Task 5) | 2026-05-25 | `do../specifications/specs/REQUIREMENTS.md` |
-| **R-07** | Write TRACEABILITY_MATRIX.md (Task 5) | 2026-05-25 | `do../specifications/specs/TRACEABILITY_MATRIX.md` |
+| **R-06** | Write REQUIREMENTS.md (Task 5) | 2026-05-25 | `docs/specifications/specs/REQUIREMENTS.md` |
+| **R-07** | Write TRACEABILITY_MATRIX.md (Task 5) | 2026-05-25 | `docs/specifications/specs/TRACEABILITY_MATRIX.md` |
 | **R-08** | Update PROJECT_STATUS.md (Task 7) | 2026-05-25 | Accurate metrics, MDS completeness |
 | **R-09** | Write OPEN_QUESTIONS.md (Task 9) | 2026-05-25 | 9 open questions with MDS tags |
 | **R-10** | Fix MDS.md stale gaps (Task 8) | 2026-05-25 | hkask-mcp-docproc existence, Span::Spec variant |
@@ -190,7 +190,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | ID | Task | Date | Evidence |
 |----|------|------|----------|
-| **C-01** | Documentation audit | 2026-05-22 | `do../specifications/standards/WRITING_EXCELLENCE.md` |
+| **C-01** | Documentation audit | 2026-05-22 | `docs/specifications/standards/WRITING_EXCELLENCE.md` |
 | **C-02** | Archive stale documents (73 files) | 2026-05-22 | `docs/archive/2026-05-22-documentation-refresh/` |
 | **C-03** | Fix hkask-test-harness compilation failures | 2026-05-22 | All tests passing |
 | **C-04** | Resolve clippy warnings | 2026-05-22 | `cargo clippy -- -D warnings` passes |
@@ -286,4 +286,4 @@ cargo fmt --check
 
 ---
 
-*This TODO is the single source of truth for open work. Last updated 2026-06-17 after agentic QA pipeline buildout and contract quality review.*
+*This TODO is the single source of truth for open work. Last updated 2026-07-01 — audit verified all P0 items complete, P1-11 remains partial, build clean (0 errors), `do../` paths fixed.*

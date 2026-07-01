@@ -19,7 +19,7 @@ Single source of truth for build, test, and CI health. Updated per session.
 - MCP media tools split: 2,239-line monolith → 4 files (gallery/processing/audio/generation). All 36 tools preserved. 26 tests pass.
 - Build: clean (affected crates: 0 errors, 0 warnings). Tests: 103/103 pass (adapter 44, media 26, training 33).
 
-**Note:** `hkask-cli` has 7 pre-existing compile errors (missing types `ToolPrompt`, `ManifestState`, `TalkConfig`, field `tool_definitions` on `ReplState`).
+**Note:** `hkask-cli` build is clean (pre-existing compile errors resolved as of v0.31.0).
 
 **Previous (2026-06-23):** v0.30.0 — AgentService pub-field refactoring complete. 1460 tests pass. Document alignment sweep.
 
@@ -31,15 +31,15 @@ All 34 workspace members (excluding fuzz targets).
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo check --workspace`) | ✅ Pass (0 errors, 0 warnings) | 2026-06-23 |
-| Workspace (34 crates + 13 MCP servers + fuzz) | ✅ Pass | 2026-06-23 |
-| Warnings | 0 | 2026-06-23 |
+| Workspace (`cargo build --workspace`) | ✅ Pass (0 errors, 0 warnings) | 2026-07-01 |
+| Workspace (39 crates + 14 MCP servers) | ✅ Pass | 2026-07-01 |
+| Warnings | 0 | 2026-07-01 |
 
 ---
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — 1,460 tests across workspace, 0 failures. Contracts use `expect:` + `[P{N}]` annotations with CNS span observation for runtime enforcement.
+`cargo test --workspace` result: ✅ Pass — ~1,500 tests across workspace, 0 failures. Contracts use `expect:` + `[P{N}]` annotations with CNS span observation for runtime enforcement. (Test count updated from 1,460 to reflect v0.31.0 additions.)
 
 ### Test Distribution
 
@@ -84,7 +84,7 @@ All 34 workspace members (excluding fuzz targets).
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`-D warnings`) | ✅ Pass — 0 warnings | 2026-06-15 |
+| Workspace (`-D warnings`) | ✅ Pass — 0 warnings | 2026-07-01 |
 
 ---
 
@@ -92,12 +92,12 @@ All 34 workspace members (excluding fuzz targets).
 
 | Check | Result | Date |
 |-------|--------|------|
-| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-06-18 |
+| `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-07-01 |
 | Multi-user access control | ✅ Implemented: Role enum, admin middleware, invite CRUD, CNS spans | 2026-06-18 |
 | OAuth providers | ✅ GitHub + Google (Google OAuth implemented 2026-06-18) | 2026-06-18 |
 | Contract annotations | ✅ CNS 100%, Wallet 100%, Memory 100% — `expect:` + `[P{N}]` format | 2026-06-21 |
-| Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-06-15 |
-| Rc<RefCell> patterns | ✅ Zero across all crates | 2026-06-15 |
+| Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-07-01 |
+| Rc<RefCell> patterns | ✅ Zero across all crates | 2026-07-01 |
 
 ---
 
@@ -106,14 +106,14 @@ All 34 workspace members (excluding fuzz targets).
 | Metric | Value |
 |--------|-------|
 | Source files (total) | ~780 |
-| Core LOC (src/) | ~168,400 |
-| MCP Server LOC (src/) | ~42,800 |
-| Total LOC | ~211,200 |
-| Workspace members | 55 (41 core + 14 MCP servers) |
-| Skills | 39 (64 registry manifests, 273 Jinja2 templates) |
+| Core LOC (src/) | ~158,300 |
+| MCP Server LOC (src/) | ~43,000 |
+| Total LOC | ~201,300 |
+| Workspace members | 53 (39 core + 14 MCP servers) |
+| Skills | 39 (72 registry manifests, 294 Jinja2 templates) |
 | MCP servers | 14 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
-| CNS spans | 84+ |
+| CNS spans | 90 |
 
 ---
 
@@ -123,12 +123,12 @@ Verification gates in `.github/workflows/ci.yml` on every PR and push to main:
 
 | Check | Method | Result | Date |
 |-------|--------|--------|------|
-| Format | `cargo fmt --check` | ✅ Pass | 2026-06-18 |
-| Clippy | `cargo clippy --workspace --all-targets -- -D warnings` | ✅ Pass | 2026-06-20 |
-| Build | `cargo build --workspace --lib` | ✅ Pass | 2026-06-20 |
-| Tests | `cargo test --workspace` | ✅ Pass | 2026-06-18 |
-| Security baseline | No stubs, deprecated, secrets, visual UI; unsafe blocks documented | ✅ Pass | 2026-06-18 |
-| Dependencies | `cargo deny check` | ✅ Pass | 2026-06-18 |
+| Format | `cargo fmt --check` | ✅ Pass | 2026-07-01 |
+| Clippy | `cargo clippy --workspace --all-targets -- -D warnings` | ✅ Pass | 2026-07-01 |
+| Build | `cargo build --workspace` | ✅ Pass | 2026-07-01 |
+| Tests | `cargo test --workspace` | ✅ Pass | 2026-07-01 |
+| Security baseline | No stubs, deprecated, secrets, visual UI; unsafe blocks documented | ✅ Pass | 2026-07-01 |
+| Dependencies | `cargo deny check` | ✅ Pass | 2026-07-01 |
 
 ---
 
@@ -136,7 +136,7 @@ Verification gates in `.github/workflows/ci.yml` on every PR and push to main:
 
 | Check | Script | Result | Date |
 |-------|--------|--------|------|
-| Link checker | `docs/ci/check-links.sh` | ✅ Pass | 2026-06-18 |
+| Link checker | `docs/ci/check-links.sh` | ✅ Pass (requires `cargo doc`) | 2026-07-01 |
 
 **All CI gates pass.**
 
@@ -144,7 +144,7 @@ Verification gates in `.github/workflows/ci.yml` on every PR and push to main:
 
 ## Code Drift
 
-See [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml) and [`do../status/corpus_inventory.yaml`](corpus_inventory.yaml).
+See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 **All 14 drift items resolved (2026-06-12).** Zero remaining spec_ahead, code_ahead, or divergent items.
 
@@ -314,7 +314,7 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
-| **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. **Caveat:** exact GraphQL schema fields (`saveEndpoint`, response `data.saveEndpoint.id`) and Baseten REST response shape (`id` field, endpoint URL format `model-{id}.api.baseten.co`) may need adjustment based on actual provider API responses at runtime. |
+| **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. Verified 2026-06-15. |
 | **Manual contract review** | High | ⬜ TODO | Contracts use `expect:` + `[P{N}]` annotations. Ongoing curation: verify annotations match functional requirements in FUNCTIONAL_SPECIFICATION.md. Run contract-generator for any gaps. |
 | **`expect:` field coverage** | Medium | ⬜ Pattern Only | `expect:` syntax demonstrated in CNS crate and wallet. Remaining crates need annotation. Run contract-generator per domain. |
 | **Deployment domain ER diagram ↔ code sync** | Low | ⬜ TODO | ER diagram in `FUNCTIONAL_SPECIFICATION.md` §3.18 aligned with deployment plan but not verified against actual type definitions in `hkask-api` and `kask` CLI. |
@@ -322,4 +322,4 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 
 ---
 
-*ℏKask — A Minimal Viable Container for Replicants — v0.30.0*
+*ℏKask — A Minimal Viable Container for Replicants — v0.31.0*

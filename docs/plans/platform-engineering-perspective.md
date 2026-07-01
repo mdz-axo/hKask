@@ -3,7 +3,7 @@ title: "Platform Engineering Perspective — Systematic Integration Plan"
 audience: [architects, platform engineers, project maintainers]
 last_updated: 2026-07-01
 version: "0.31.0"
-status: "Active — Phases 1-8 complete. All types, traits, FlowDef manifests, templates, CNS spans, startup wiring, and Platform Engineer replicant built and registered."
+status: "Active — Phases 1-2, 5-8 complete. Phases 3-4 partially complete (CNS spans exist, FlowDef manifest + API endpoints pending)."
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
 anchored_on: [PRINCIPLES.md §P1-P12]
@@ -790,12 +790,12 @@ New CNS spans:
 |-------|------|--------|
 | **Phase 1** | SloDefinition type + 3 seed SLOs + `cns.slo.evaluated` CNS span | ✅ Done |
 | **Phase 2** | SloManager in hkask-cns + CnsRuntime integration + `evaluate_and_escalate_slos()` wired to algedonic pathway + SLO evaluation scheduled in CyberneticsLoop tick | ✅ Done |
-| **Phase 3** | PaaP metric CNS spans + API | 📋 Planned |
-| **Phase 4** | DORA/SPACE CNS spans | ✅ Done — 11 spans added (`PlatformMetric`, `DoraDeployFreq`, `DoraLeadTime`, `DoraChangeFailRate`, `DoraMttr`, `SpaceSatisfaction`, `SpacePerformance`, `SpaceActivity`, `SpaceCommunication`, `SpaceEfficiency`, `LoyaltyScore`) |
+| **Phase 3** | PaaP metric CNS spans + API | 🟡 CNS spans done (11 added). `platform-dx-analyzer` FlowDef manifest not yet created. API endpoints for metric queries not built. |
+| **Phase 4** | DORA/SPACE CNS spans + `platform-dx-analyzer` FlowDef | 🟡 CNS spans done. FlowDef manifest specified in plan doc §5.3 but no `registry/manifests/platform-dx-analyzer.yaml` exists. |
 | **Phase 5** | Platform Engineer replicant agent definition | ✅ Done — `agent_persona.yaml` + `persona.j2` WordAct template. Registered in bootstrap registry. |
 | **Phase 6** | Sovereignty skills (consent-auditor, portability-verifier, governance-transparency-reporter) | ✅ Done — 3 FlowDef manifests + 3 template crate manifests + 6 KnowAct templates + `TokenRegistry` trait + SQLite `TokenRegistryStore` + `list_tokens` MCP tool + 5 sovereignty CNS spans |
 | **Phase 7** | Strategic skills (health-scorer, loyalty-scorecard, bulkhead-auditor, wardley-mapper) | ✅ Done — 4 FlowDef manifests + 4 template crate manifests + 4 KnowAct templates |
-| **Phase 8** | Full replicant operating cadence | 🟡 Manifests and templates complete. Replicant persona defined. Runtime dispatch depends on existing `ManifestExecutor` infrastructure — manifests are registered in `Registry::bootstrap()`, templates in `bootstrap-registry.yaml`. |
+| **Phase 8** | Full replicant operating cadence + startup wiring | ✅ Done — SLO evaluation runs every tick. Manifests registered in SqliteRegistry at CLI startup. TokenRegistryStore wired in curator MCP. SloDataProvider wired in loop system. Platform Engineer replicant persona and agent definition complete. |
 
 ### 12.4 Build Inventory
 

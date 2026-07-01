@@ -1,8 +1,8 @@
 //! Matrix registration — Conduit homeserver account creation and health management.
 
 use hkask_keystore::Keychain;
-use hkask_storage::UserProfile;
 use hkask_services_core::ServiceError;
+use hkask_storage::UserProfile;
 
 use super::OnboardingService;
 

@@ -1,8 +1,10 @@
 use super::WalletStore;
-use crate::collect_rows_strict;
 use crate::Store;
+use crate::collect_rows_strict;
 use hkask_types::{ApiKeyId, InfrastructureError, WalletId};
-use hkask_wallet_types::{ChainId, PrivacyMode, RJoule, TransactionType, WalletError, WalletTransaction};
+use hkask_wallet_types::{
+    ChainId, PrivacyMode, RJoule, TransactionType, WalletError, WalletTransaction,
+};
 use std::str::FromStr;
 
 // ── Row type for query mapping ─────────────────────────────────────────────────
