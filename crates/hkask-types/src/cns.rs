@@ -257,6 +257,7 @@ pub enum ToolSubsystem {
     Companies,
     Docproc,
     Filesystem,
+    Curator,
     /// Catch-all for unknown or future MCP servers.
     Other,
 }
@@ -282,6 +283,7 @@ impl ToolSubsystem {
             "training" => ToolSubsystem::Training,
             "replica" => ToolSubsystem::Replica,
             "kanban" => ToolSubsystem::Kanban,
+            "curator" => ToolSubsystem::Curator,
             _ => ToolSubsystem::Other,
         }
     }
@@ -303,6 +305,7 @@ impl ToolSubsystem {
             ToolSubsystem::Companies => "companies",
             ToolSubsystem::Docproc => "docproc",
             ToolSubsystem::Filesystem => "filesystem",
+            ToolSubsystem::Curator => "curator",
             ToolSubsystem::Other => "other",
         }
     }
@@ -360,6 +363,7 @@ impl CnsSpan {
                 ToolSubsystem::Companies => "cns.tool.companies",
                 ToolSubsystem::Docproc => "cns.tool.docproc",
                 ToolSubsystem::Filesystem => "cns.tool.filesystem",
+                ToolSubsystem::Curator => "cns.tool.curator",
                 ToolSubsystem::Other => "cns.tool",
             },
             CnsSpan::Inference => "cns.inference",
@@ -619,6 +623,10 @@ pub struct SloDefinition {
     pub target: f64,
     /// Evaluation window in seconds
     pub window_seconds: u64,
+    /// Minimum operations required before the SLO can be evaluated.
+    /// Below this threshold, compliance is unknown (not 100%).
+    /// Default: 1 — at least one operation must exist for a valid evaluation.
+    pub minimum_operations: u64,
     /// Severity for algedonic escalation on breach
     pub severity: SloSeverity,
     /// Whether this SLO is currently active
@@ -630,20 +638,28 @@ pub struct SloDefinition {
 pub struct SloEvaluation {
     /// The SLO being evaluated
     pub slo_id: String,
-    /// Current compliance rate (0.0–1.0)
+    /// Current compliance rate (0.0–1.0). Meaningful only when data_available is true.
     pub current_compliance: f64,
     /// Error budget remaining as fraction of total budget (1.0 = full budget)
     pub error_budget_remaining: f64,
     /// Current burn rate — fraction of error budget consumed per hour
     pub burn_rate: f64,
-    /// Whether this SLO is currently in breach of its target
+    /// Whether sufficient data was available to evaluate this SLO.
+    /// False when total_operations < minimum_operations — compliance is unknown.
+    pub data_available: bool,
+    /// Whether this SLO is currently in breach of its target.
+    /// Only meaningful when data_available is true.
     pub in_breach: bool,
     /// Unix timestamp of this evaluation
     pub evaluated_at: u64,
 }
 
 impl SloDefinition {
-    /// Create a new active SLO.
+    /// Create a new active SLO with default minimum_operations of 1.
+    ///
+    /// Use `with_minimum_operations()` to set a higher threshold for
+    /// high-traffic SLOs where small sample sizes would produce misleading
+    /// compliance rates.
     pub fn new(
         slo_id: impl Into<String>,
         name: impl Into<String>,
@@ -658,9 +674,20 @@ impl SloDefinition {
             span_namespace: span_namespace.into(),
             target: target.clamp(0.0, 1.0),
             window_seconds,
+            minimum_operations: 1,
             severity,
             active: true,
         }
+    }
+
+    /// Set the minimum operations threshold for this SLO.
+    ///
+    /// Below this threshold, evaluation will report data_available = false
+    /// and compliance as 0.0 (unknown). This prevents "no data = perfect"
+    /// fallacies — P8 Semantic Grounding.
+    pub fn with_minimum_operations(mut self, min_ops: u64) -> Self {
+        self.minimum_operations = min_ops;
+        self
     }
 
     /// Compute the total error budget for this SLO.
@@ -768,7 +795,22 @@ mod slo_tests {
                 slo.slo_id
             );
             assert!(slo.active, "{} must be active", slo.slo_id);
+            assert_eq!(
+                slo.minimum_operations, 1,
+                "{} default min ops must be 1",
+                slo.slo_id
+            );
         }
+    }
+
+    #[test]
+    fn slo_with_minimum_operations_builder() {
+        let slo = SloDefinition::new("test", "test", "cns.test", 0.99, 3600, SloSeverity::High)
+            .with_minimum_operations(1000);
+        assert_eq!(slo.minimum_operations, 1000);
+        // Default is 1
+        let slo2 = SloDefinition::new("test2", "test", "cns.test", 0.99, 3600, SloSeverity::High);
+        assert_eq!(slo2.minimum_operations, 1);
     }
 
     #[test]

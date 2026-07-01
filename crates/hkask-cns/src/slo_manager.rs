@@ -14,14 +14,14 @@
 //! - Comparator: compares compliance rate to SLO target
 //! - Effector: emits `cns.slo.evaluated` spans; feeds breaches to algedonic
 
-use hkask_types::cns::{CnsSpan, SloDefinition, SloEvaluation, SloSeverity};
+use hkask_types::cns::{CnsSpan, SloDefinition, SloEvaluation};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Result of querying the ν-event store for SLO data.
 ///
 /// The SloManager is decoupled from the storage layer — it accepts
-/// a closure that provides these counts. This enables unit testing
-/// without a database and supports multiple storage backends.
+/// any implementation of the SloDataProvider trait. This enables
+/// unit testing without a database and supports multiple storage backends.
 #[derive(Debug, Clone)]
 pub struct SloDataPoint {
     /// Total operations in the SLO's window
@@ -112,11 +112,6 @@ impl SloManager {
         self.slos.push(slo);
     }
 
-    /// Register multiple SLO definitions.
-    pub fn register_all(&mut self, slos: impl IntoIterator<Item = SloDefinition>) {
-        self.slos.extend(slos);
-    }
-
     /// Remove an SLO by ID.
     ///
     /// expect: "The system supports SLO lifecycle management"
@@ -156,11 +151,14 @@ impl SloManager {
             .filter_map(|slo| {
                 match provider.query(&slo.span_namespace, slo.window_seconds) {
                     Ok(data) => {
-                        let compliance = if data.total_operations > 0 {
+                        let has_enough_data = data.total_operations >= slo.minimum_operations;
+
+                        let compliance = if has_enough_data {
                             data.successful_operations as f64 / data.total_operations as f64
                         } else {
-                            // No data = perfect compliance (no failures observed)
-                            1.0
+                            // Insufficient data — compliance is unknown, not 100%.
+                            // This prevents "no data = perfect" fallacy (P8 Semantic Grounding).
+                            0.0
                         };
 
                         let error_budget_total = slo.error_budget(data.total_operations);
@@ -173,18 +171,17 @@ impl SloManager {
                             1.0
                         };
 
-                        // Burn rate: fraction of error budget consumed per hour.
-                        // Approximated as failures / (window_hours × error_budget_total)
                         let window_hours = slo.window_seconds as f64 / 3600.0;
-                        let burn_rate = if error_budget_total > 0.0 && window_hours > 0.0 {
-                            (failures as f64 / error_budget_total) / window_hours
-                        } else {
-                            0.0
-                        };
+                        let burn_rate =
+                            if has_enough_data && error_budget_total > 0.0 && window_hours > 0.0 {
+                                (failures as f64 / error_budget_total) / window_hours
+                            } else {
+                                0.0
+                            };
 
-                        let in_breach = slo.is_breached(compliance);
+                        // Only mark as breached if we have sufficient data to evaluate
+                        let in_breach = has_enough_data && slo.is_breached(compliance);
 
-                        // Emit CNS span
                         CnsSpan::SloEvaluated.emit("evaluated");
                         tracing::info!(
                             target: "cns",
@@ -194,7 +191,9 @@ impl SloManager {
                             error_budget_pct = %(error_budget_remaining * 100.0),
                             burn_rate = %burn_rate,
                             in_breach = %in_breach,
+                            data_available = %has_enough_data,
                             total_ops = %data.total_operations,
+                            min_ops = %slo.minimum_operations,
                             "SLO evaluated",
                         );
 
@@ -203,6 +202,7 @@ impl SloManager {
                             current_compliance: compliance,
                             error_budget_remaining,
                             burn_rate,
+                            data_available: has_enough_data,
                             in_breach,
                             evaluated_at: now,
                         })
@@ -222,40 +222,6 @@ impl SloManager {
             })
             .collect()
     }
-
-    /// Evaluate SLOs and return only breached evaluations.
-    pub fn evaluate_breaches(&self, provider: &dyn SloDataProvider) -> Vec<SloEvaluation> {
-        self.evaluate(provider)
-            .into_iter()
-            .filter(|e| e.in_breach)
-            .collect()
-    }
-
-    /// Evaluate SLOs and return evaluations sorted by severity (Critical first).
-    pub fn evaluate_sorted(&self, provider: &dyn SloDataProvider) -> Vec<SloEvaluation> {
-        let mut results = self.evaluate(provider);
-        results.sort_by(|a, b| {
-            let severity_a = self
-                .slos
-                .iter()
-                .find(|s| s.slo_id == a.slo_id)
-                .map(|s| slo_severity_rank(s.severity))
-                .unwrap_or(2);
-            let severity_b = self
-                .slos
-                .iter()
-                .find(|s| s.slo_id == b.slo_id)
-                .map(|s| slo_severity_rank(s.severity))
-                .unwrap_or(2);
-            severity_a.cmp(&severity_b).then_with(|| {
-                // Within same severity, sort by worst compliance first
-                a.current_compliance
-                    .partial_cmp(&b.current_compliance)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-        });
-        results
-    }
 }
 
 impl Default for SloManager {
@@ -263,17 +229,6 @@ impl Default for SloManager {
         Self::with_seed_slos()
     }
 }
-
-/// Rank SloSeverity for sorting (lower = more severe).
-fn slo_severity_rank(s: SloSeverity) -> u8 {
-    match s {
-        SloSeverity::Critical => 0,
-        SloSeverity::High => 1,
-        SloSeverity::Medium => 2,
-    }
-}
-
-// ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -392,6 +347,11 @@ mod tests {
                 "SLO {} should not be breached",
                 eval.slo_id
             );
+            assert!(
+                eval.data_available,
+                "SLO {} should have sufficient data",
+                eval.slo_id
+            );
             assert!((eval.current_compliance - 1.0).abs() < 0.001);
             assert!((eval.error_budget_remaining - 1.0).abs() < 0.001);
         }
@@ -416,7 +376,7 @@ mod tests {
     }
 
     #[test]
-    fn evaluate_no_data_is_perfect() {
+    fn evaluate_no_data_reports_unknown() {
         let mut manager = SloManager::new();
         manager.register(SloDefinition::new(
             "test",
@@ -426,12 +386,36 @@ mod tests {
             3600,
             SloSeverity::High,
         ));
-        // Zero operations — no failures observed, assume perfect
+        // Zero operations — insufficient data, compliance is unknown
         let provider = TestDataProvider::new(0, 0);
         let results = manager.evaluate(&provider);
         assert_eq!(results.len(), 1);
-        assert!(!results[0].in_breach);
-        assert!((results[0].current_compliance - 1.0).abs() < 0.001);
+        assert!(
+            !results[0].data_available,
+            "no data should not be treated as perfect"
+        );
+        assert!(!results[0].in_breach, "unknown data should not be breached");
+        assert!(
+            (results[0].current_compliance - 0.0).abs() < 0.001,
+            "compliance should be 0.0 when unknown"
+        );
+    }
+
+    #[test]
+    fn evaluate_with_minimum_operations_threshold() {
+        let mut manager = SloManager::new();
+        manager.register(
+            SloDefinition::new("test", "test", "cns.test", 0.99, 3600, SloSeverity::High)
+                .with_minimum_operations(100),
+        );
+        // 50 ops with 100% success, but below minimum of 100
+        let provider = TestDataProvider::new(50, 50);
+        let results = manager.evaluate(&provider);
+        assert_eq!(results.len(), 1);
+        assert!(
+            !results[0].data_available,
+            "below minimum_operations should be unknown"
+        );
     }
 
     #[test]
@@ -510,7 +494,8 @@ mod tests {
         ));
         // 995/1000 = 99.5% — passes the first, fails the second
         let provider = TestDataProvider::new(1000, 995);
-        let breaches = manager.evaluate_breaches(&provider);
+        let results = manager.evaluate(&provider);
+        let breaches: Vec<_> = results.into_iter().filter(|e| e.in_breach).collect();
         assert_eq!(breaches.len(), 1);
         assert_eq!(breaches[0].slo_id, "failing");
     }
@@ -542,9 +527,19 @@ mod tests {
             3600,
             SloSeverity::High,
         ));
-        // All breached at 90% compliance
+        // All breached at 90% compliance — test that we can sort by severity
         let provider = TestDataProvider::new(1000, 900);
-        let results = manager.evaluate_sorted(&provider);
+        let mut results = manager.evaluate(&provider);
+        // Sort: Critical (0) before High (1) before Medium (2)
+        let severity_of = |id: &str| -> u8 {
+            match id {
+                "critical" => 0,
+                "high" => 1,
+                "medium" => 2,
+                _ => 3,
+            }
+        };
+        results.sort_by_key(|e| severity_of(&e.slo_id));
         assert_eq!(results.len(), 3);
         assert_eq!(results[0].slo_id, "critical");
         assert_eq!(results[1].slo_id, "high");

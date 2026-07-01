@@ -12,7 +12,7 @@ pub mod types;
 use hkask_mcp::daemon::DaemonResponse;
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_services_curator::CuratorService;
-use hkask_storage::DecayConfig;
+
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::NuEventSink;
@@ -394,7 +394,7 @@ impl CuratorServer {
 
             let namespace_info = req.namespace.as_deref().unwrap_or("all");
             CnsSpan::Tool {
-                subsystem: hkask_types::cns::ToolSubsystem::Other,
+                subsystem: hkask_types::cns::ToolSubsystem::Curator,
             }
             .emit("cns_query");
 

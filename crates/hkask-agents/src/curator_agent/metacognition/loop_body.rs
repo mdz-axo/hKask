@@ -1,227 +1,43 @@
-//! Curator Agent metacognition: sense→compare→compute→act governance loop.
-//! Moved from `curator::metacognition` — persona concern, not regulatory.
+//! MetacognitionLoop struct definition and core methods.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use hkask_cns::types::loops::{
+    ActionType, Deviation, DeviationDirection, Loop, LoopAction, LoopId, SignalMetric,
+};
+use hkask_storage::EscalationEntry;
+use hkask_types::WebID;
+use hkask_types::curator::CuratorDirective;
+use tokio::sync::RwLock;
+use tracing::{info, warn};
 
 use crate::a2a::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::cat;
 use crate::pod::CommunicationPosture;
-use hkask_cns::types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
-};
-use hkask_storage::{EscalationBatch, EscalationEntry};
-use hkask_types::BotID;
-use hkask_types::WebID;
-use hkask_types::cns::CnsHealth;
-use hkask_types::curator::CuratorDirective;
-use hkask_types::event::SpanNamespace;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::RwLock;
-use tracing::{info, warn};
 
-const MC_TARGET: &str = "curator.metacognition";
-
-/// Maximum retries for persisting an escalation to the queue before
-/// the CNS feedback loop is declared broken (P9 — Homeostatic Self-Regulation).
-const MAX_ESCALATION_PERSIST_RETRIES: u32 = 3;
-
-/// Base delay between escalation persist retries (exponential backoff).
-const ESCALATION_PERSIST_BASE_DELAY_MS: u64 = 100;
-
-/// Default interval between metacognition cycles (1 hour).
-pub(crate) const DEFAULT_METACOGNITION_INTERVAL_SECS: u64 = 3600;
-
-/// Default expected variety per domain for deficit calculation.
-pub(crate) const DEFAULT_EXPECTED_VARIETY_PER_DOMAIN: u64 = 50;
-
-/// Default maximum concurrent escalations (VSM algedonic paradox — fewer signals = higher fidelity).
-pub(crate) const DEFAULT_MAX_CONCURRENT_ESCALATIONS: usize = 3;
-
-/// Default variety deficit threshold for escalation.
-pub(crate) const DEFAULT_ESCALATION_VARIETY_DEFICIT: u64 = 100;
-
-/// Default critical alert count threshold for escalation.
-pub(crate) const DEFAULT_ESCALATION_CRITICAL_ALERTS: usize = 3;
-
-/// Default bot failure count threshold for escalation.
-pub(crate) const DEFAULT_ESCALATION_BOT_FAILURES: usize = 2;
-
-/// Escalation trigger thresholds.
-#[derive(Debug, Clone)]
-pub(crate) struct EscalationThresholds {
-    pub variety_deficit: u64,
-    pub critical_alerts: usize,
-    pub bot_failures: usize,
-}
-
-impl Default for EscalationThresholds {
-    fn default() -> Self {
-        Self {
-            variety_deficit: DEFAULT_ESCALATION_VARIETY_DEFICIT,
-            critical_alerts: DEFAULT_ESCALATION_CRITICAL_ALERTS,
-            bot_failures: DEFAULT_ESCALATION_BOT_FAILURES,
-        }
-    }
-}
-
-/// The trigger that caused an escalation alert.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum EscalationTrigger {
-    /// Variety deficit exceeded a threshold.
-    VarietyDeficit,
-    /// Critical alert count exceeded a threshold.
-    CriticalAlerts,
-    /// Bot failure count exceeded a threshold.
-    BotFailures,
-}
-
-/// Algedonic signal model: Warning (threshold/2) or Critical (threshold).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EscalationSeverity {
-    Warning,
-    Critical,
-}
-
-/// Alert produced when a threshold is breached.
-#[derive(Debug, Clone)]
-pub struct EscalationAlert {
-    pub trigger: EscalationTrigger,
-    pub value: f64,
-    pub threshold: f64,
-    pub severity: EscalationSeverity,
-}
-
-/// Encapsulates escalation threshold logic — independently testable.
-/// Algedonic: Warning at threshold/2, Critical at threshold.
-pub struct EscalationPolicy {
-    thresholds: EscalationThresholds,
-}
-
-impl EscalationPolicy {
-    pub(crate) fn new(thresholds: EscalationThresholds) -> Self {
-        Self { thresholds }
-    }
-
-    /// Check all escalation conditions, return active alerts.
-    ///
-    /// expect: "The system regulates agent behavior through cybernetic feedback"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — escalation policy classifies variety deficit
-    /// \[P4\] Constraining: Clear Boundaries — thresholds define explicit boundaries
-    /// pre:  `variety_deficit`, `critical_alerts`, `bot_failures` are
-    ///       non-negative numeric values.
-    /// post: Returns a `Vec<EscalationAlert>` containing alerts for any
-    ///       threshold exceeded: VarietyDeficit (Critical if > threshold,
-    ///       Warning if > threshold/2), CriticalAlerts (Critical if ≥
-    ///       threshold), BotFailures (Critical if ≥ threshold).
-    pub fn check_conditions(
-        &self,
-        variety_deficit: f64,
-        critical_alerts: u64,
-        bot_failures: u64,
-    ) -> Vec<EscalationAlert> {
-        let mut alerts = Vec::new();
-
-        let variety_threshold = self.thresholds.variety_deficit as f64;
-        if variety_deficit > variety_threshold {
-            alerts.push(EscalationAlert {
-                trigger: EscalationTrigger::VarietyDeficit,
-                value: variety_deficit,
-                threshold: variety_threshold,
-                severity: EscalationSeverity::Critical,
-            });
-        } else if variety_deficit > variety_threshold / 2.0 {
-            alerts.push(EscalationAlert {
-                trigger: EscalationTrigger::VarietyDeficit,
-                value: variety_deficit,
-                threshold: variety_threshold,
-                severity: EscalationSeverity::Warning,
-            });
-        }
-
-        let critical_alerts_threshold = self.thresholds.critical_alerts as f64;
-        if critical_alerts >= self.thresholds.critical_alerts as u64 {
-            alerts.push(EscalationAlert {
-                trigger: EscalationTrigger::CriticalAlerts,
-                value: critical_alerts as f64,
-                threshold: critical_alerts_threshold,
-                severity: EscalationSeverity::Critical,
-            });
-        }
-
-        let bot_failures_threshold = self.thresholds.bot_failures as f64;
-        if bot_failures >= self.thresholds.bot_failures as u64 {
-            alerts.push(EscalationAlert {
-                trigger: EscalationTrigger::BotFailures,
-                value: bot_failures as f64,
-                threshold: bot_failures_threshold,
-                severity: EscalationSeverity::Critical,
-            });
-        }
-
-        alerts
-    }
-}
-
-impl Default for EscalationPolicy {
-    fn default() -> Self {
-        Self::new(EscalationThresholds::default())
-    }
-}
-
-/// Health snapshot — unified system health state.
-#[derive(Debug, Clone)]
-pub struct HealthSnapshot {
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub cns_health: String,
-    pub variety_counters: HashMap<SpanNamespace, u64>,
-    pub variety_deficit: u64,
-    pub critical_alerts: usize,
-    pub total_alerts: usize,
-}
-
-/// Metacognition loop configuration.
-#[derive(Debug, Clone)]
-pub struct MetacognitionConfig {
-    /// Interval between metacognition cycles (default: 1 hour)
-    pub interval: Duration,
-    /// Escalation thresholds
-    pub(crate) thresholds: EscalationThresholds,
-    /// Expected variety per domain (for deficit calculation)
-    pub expected_variety_per_domain: u64,
-    /// Max concurrent escalations before batching (VSM algedonic paradox). Default: 3.
-    pub max_concurrent_escalations: usize,
-}
-
-impl Default for MetacognitionConfig {
-    fn default() -> Self {
-        Self {
-            interval: Duration::from_secs(DEFAULT_METACOGNITION_INTERVAL_SECS),
-            thresholds: EscalationThresholds::default(),
-            expected_variety_per_domain: DEFAULT_EXPECTED_VARIETY_PER_DOMAIN,
-            max_concurrent_escalations: DEFAULT_MAX_CONCURRENT_ESCALATIONS,
-        }
-    }
-}
+use super::config::{HealthSnapshot, MC_TARGET, MetacognitionConfig};
+use super::escalation::EscalationPolicy;
 
 /// Metacognition loop — Curator Agent's system governance mechanism.
 pub struct MetacognitionLoop {
-    context: Arc<CuratorContext>,
-    config: MetacognitionConfig,
-    escalation_policy: EscalationPolicy,
-    last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>,
+    pub(super) context: Arc<CuratorContext>,
+    pub(super) config: MetacognitionConfig,
+    pub(super) escalation_policy: EscalationPolicy,
+    pub(super) last_snapshot_tx: tokio::sync::watch::Sender<Option<HealthSnapshot>>,
     /// Template output from the most recent template-driven compute cycle.
     /// Stored separately from HealthSnapshot to avoid race conditions —
     /// `sense()` wipes the snapshot each cycle but template output must
     /// survive across cycles for `generate_summary()` and `act()`.
-    last_template_output: RwLock<Option<serde_json::Value>>,
+    pub(super) last_template_output: RwLock<Option<serde_json::Value>>,
     /// Circuit breaker: consecutive template invocation failures.
     /// After 3 consecutive failures, skip template for 5 cycles.
-    consecutive_template_failures: std::sync::atomic::AtomicU64,
-    template_skip_remaining: std::sync::atomic::AtomicU64,
+    pub(super) consecutive_template_failures: std::sync::atomic::AtomicU64,
+    pub(super) template_skip_remaining: std::sync::atomic::AtomicU64,
     /// Communication posture — loaded from the agent's persona.
     /// Governs speak/silent decisions and accommodation level.
-    communication_posture: CommunicationPosture,
+    pub(super) communication_posture: CommunicationPosture,
 }
 
 impl MetacognitionLoop {
@@ -287,7 +103,10 @@ impl MetacognitionLoop {
     ///       produced yet, returns `Err(CoreError::NoSnapshot)`.
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, crate::error::CoreError> {
         info!(target: MC_TARGET, "Starting metacognition cycle");
-        self.tick().await;
+        let signals = self.sense().await;
+        let deviations = self.compare(&signals).await;
+        let actions = self.compute(&deviations).await;
+        self.act(&actions).await;
         self.last_snapshot_tx
             .borrow()
             .clone()
@@ -431,7 +250,7 @@ impl MetacognitionLoop {
             .unwrap_or(default)
     }
 
-    async fn act_on_throttle(&self, action: &LoopAction) -> Option<EscalationEntry> {
+    pub(super) async fn act_on_throttle(&self, action: &LoopAction) -> Option<EscalationEntry> {
         let domain = Self::param_str(action, "domain", "");
         let new_threshold = Self::param_u64(
             action,
@@ -471,7 +290,7 @@ impl MetacognitionLoop {
     // authority DAG: Curation (L5) owns the escalation queue as its algedonic
     // regulation mechanism. This does NOT bypass the Communication Loop because
     // the queue is not a loop-to-loop message channel.
-    async fn act_on_escalate(&self, action: &LoopAction) -> Option<EscalationEntry> {
+    pub(super) async fn act_on_escalate(&self, action: &LoopAction) -> Option<EscalationEntry> {
         let metric = Self::param_str(action, "metric", "");
         let target = Self::param_str(action, "target", "");
         match metric {
@@ -548,7 +367,7 @@ impl MetacognitionLoop {
     }
 
     /// Log an unhandled action type (no-op).
-    fn act_on_no_action(&self, action: &LoopAction) {
+    pub(super) fn act_on_no_action(&self, action: &LoopAction) {
         info!(
             target: MC_TARGET,
             action_type = ?action.action_type,
@@ -560,13 +379,13 @@ impl MetacognitionLoop {
     // Delegation methods removed — HkaskLoop trait impl provides tick().
 
     /// Template-driven compute: invoke KnowAct templates for calibrated decisions.
-    async fn compute_with_templates(
+    pub(super) async fn compute_with_templates(
         &self,
         executor: &Arc<hkask_templates::ManifestExecutor>,
         deviations: &[Deviation],
     ) -> Vec<LoopAction> {
         let snapshot = self.last_snapshot_tx.borrow().clone();
-        let mut ctx = std::collections::HashMap::new();
+        let mut ctx = HashMap::new();
 
         if let Some(ref snap) = snapshot {
             ctx.insert("system_health".into(), serde_json::json!(snap.cns_health));
@@ -652,7 +471,7 @@ impl MetacognitionLoop {
                         .and_then(|v| v.as_str())
                         .unwrap_or("");
 
-                    let mut resp_ctx = std::collections::HashMap::new();
+                    let mut resp_ctx = HashMap::new();
                     resp_ctx.insert("message_body".into(), serde_json::json!(body));
                     resp_ctx.insert("sender".into(), serde_json::json!(sender));
                     resp_ctx.insert("room_id".into(), serde_json::json!(room_id));
@@ -796,7 +615,7 @@ impl MetacognitionLoop {
     }
 
     /// Fallback: Rust threshold comparison (standalone CLI, no executor).
-    fn compute_with_thresholds(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    pub(super) fn compute_with_thresholds(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
         for dev in deviations {
             match dev.signal.metric {
@@ -816,351 +635,5 @@ impl MetacognitionLoop {
             }
         }
         actions
-    }
-}
-
-/// Persist a single escalation entry with exponential-backoff retry.
-///
-/// Retries up to `MAX_ESCALATION_PERSIST_RETRIES` times before
-/// declaring the CNS feedback loop broken. On final failure, emits a
-/// critical-level tracing event so the operator is alerted.
-///
-/// pre:  queue is a valid EscalationQueue handle
-/// post: escalation persisted (Ok) or all retries exhausted (Err)
-async fn persist_escalation_with_retry(
-    queue: &Arc<hkask_storage::EscalationQueue>,
-    template_id: hkask_types::TemplateID,
-    bot_id: BotID,
-    output: &str,
-    confidence: f64,
-    retry_count: u32,
-    error_context: &str,
-) -> Result<(), hkask_storage::EscalationError> {
-    let mut last_error = String::new();
-    for attempt in 0..=MAX_ESCALATION_PERSIST_RETRIES {
-        match queue.add(
-            template_id,
-            bot_id,
-            output.to_string(),
-            confidence,
-            retry_count,
-            error_context.to_string(),
-        ) {
-            Ok(_escalation_id) => return Ok(()),
-            Err(e) => {
-                last_error = e.to_string();
-                if attempt < MAX_ESCALATION_PERSIST_RETRIES {
-                    let delay_ms = ESCALATION_PERSIST_BASE_DELAY_MS * 2u64.pow(attempt);
-                    warn!(
-                        target: "cns.curation.escalation",
-                        attempt = attempt + 1,
-                        max_retries = MAX_ESCALATION_PERSIST_RETRIES,
-                        delay_ms,
-                        "Escalation persist failed, retrying..."
-                    );
-                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-                }
-            }
-        }
-    }
-
-    // All retries exhausted — CNS feedback loop is broken (P9 violation)
-    tracing::error!(
-        target: "cns.curation.escalation.critical",
-        template_id = %template_id,
-        error = %last_error,
-        max_retries = MAX_ESCALATION_PERSIST_RETRIES,
-        "Escalation persistence exhausted all retries — CNS feedback loop broken. Manual intervention required."
-    );
-    Err(hkask_storage::EscalationError::Infra(
-        hkask_types::InfrastructureError::Database(last_error),
-    ))
-}
-
-// HkaskLoop — sense → compare → compute → act
-#[async_trait::async_trait]
-impl HkaskLoop for MetacognitionLoop {
-    fn id(&self) -> LoopId {
-        // Metacognition is a worker within Curation (Loop 5), not a governing loop.
-        LoopId::Curation
-    }
-
-    /// Sense: read CNS health, variety counters, alerts, and bot status.
-    /// Builds and stores a HealthSnapshot.
-    async fn sense(&self) -> Vec<Signal> {
-        info!(target: MC_TARGET, "Starting metacognition sense phase");
-
-        let cns_health = self.context.cns().health().await;
-        let cns_health_str = format_health_status(&cns_health);
-
-        let variety_counters = self.context.cns().variety().await;
-        let all_alerts = self.context.cns().alerts().await;
-        let critical_alerts = self.context.cns().critical_alerts().await;
-
-        // Compute total variety deficit (same logic as evaluate_and_adapt)
-        let mut total_variety_deficit = 0u64;
-        for (ns, variety) in &variety_counters {
-            let deficit = self
-                .config
-                .expected_variety_per_domain
-                .saturating_sub(*variety);
-            if deficit > 0 {
-                total_variety_deficit += deficit;
-                if deficit > self.config.thresholds.variety_deficit {
-                    warn!(
-                        target: MC_TARGET,
-                        domain = %ns.as_str(),
-                        variety = variety,
-                        deficit = deficit,
-                        "Variety deficit exceeds threshold"
-                    );
-                }
-            }
-        }
-
-        // Delegate escalation condition checking to the policy.
-        let alerts = self.escalation_policy.check_conditions(
-            total_variety_deficit as f64,
-            critical_alerts.len() as u64,
-            0, // bot_failures: no bot health subsystem
-        );
-        for alert in &alerts {
-            match alert.severity {
-                EscalationSeverity::Warning => warn!(
-                    target: MC_TARGET,
-                    trigger = ?alert.trigger,
-                    value = alert.value,
-                    threshold = alert.threshold,
-                    "Escalation policy: warning condition detected"
-                ),
-                EscalationSeverity::Critical => warn!(
-                    target: MC_TARGET,
-                    trigger = ?alert.trigger,
-                    value = alert.value,
-                    threshold = alert.threshold,
-                    "Escalation policy: critical condition detected"
-                ),
-            }
-        }
-
-        // Build and store snapshot for compute/act phases
-        let snapshot = HealthSnapshot {
-            timestamp: chrono::Utc::now(),
-            cns_health: cns_health_str,
-            variety_counters: variety_counters.clone(),
-            variety_deficit: total_variety_deficit,
-            critical_alerts: critical_alerts.len(),
-            total_alerts: all_alerts.len(),
-        };
-        // `send_replace` returns the previous value and Errs only if the
-        // channel is closed — which can't happen here because we own the
-        // `Sender`. Ignore the previous value (we just wrote).
-        let _ = self.last_snapshot_tx.send_replace(Some(snapshot));
-
-        // Produce afferent signals
-        let lid = LoopId::Curation;
-        let t = &self.config.thresholds;
-        vec![
-            Signal::new(
-                lid,
-                SignalMetric::MetacognitionVarietyDeficit,
-                total_variety_deficit as f64,
-                t.variety_deficit as f64,
-            ),
-            Signal::new(
-                lid,
-                SignalMetric::MetacognitionCriticalAlerts,
-                critical_alerts.len() as f64,
-                t.critical_alerts as f64 - 0.5,
-            ),
-        ]
-    }
-
-    /// Compute: map deviations to regulatory actions.
-    ///
-    /// Per P3 (Generative Space), when a ManifestExecutor is available,
-    /// calibrated decisions are produced by KnowAct templates, not Rust
-    /// threshold comparison. Falls back to Rust logic when no executor
-    /// is configured (standalone CLI).
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
-        if let Some(executor) = self.context.manifest_executor().await {
-            return self.compute_with_templates(&executor, deviations).await;
-        }
-        self.compute_with_thresholds(deviations)
-    }
-
-    /// Act: issue CuratorDirectives, direct bots, and post escalations.
-    ///
-    /// When a template output is available (from compute_with_templates),
-    /// "restart" and "rebalance" actions trigger bot direction via A2A
-    /// in addition to escalation queue audit entries.
-    async fn act(&self, actions: &[LoopAction]) {
-        let mut escalation_entries: Vec<EscalationEntry> = Vec::new();
-
-        for action in actions {
-            // Template-driven bot direction: when the LLM says restart/rebalance,
-            // send an A2A directive to the target bot before posting the escalation.
-            let metric = action
-                .parameters
-                .get("metric")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            let target = action
-                .parameters
-                .get("target")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
-            if matches!(metric, "restart" | "rebalance")
-                && !target.is_empty()
-                && let Err(e) = self.direct_bot(target, metric).await
-            {
-                tracing::warn!(target: MC_TARGET, bot = %target, error = %e, "Failed to direct bot");
-            }
-
-            // OverrideEnergyBudget from template (LLM-computed, replaces hardcoded 5000)
-            if matches!(metric, "adjust_budget") {
-                let new_budget = action
-                    .parameters
-                    .get("new_budget")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                if new_budget > 0 && !target.is_empty() {
-                    let directive = CuratorDirective::OverrideEnergyBudget {
-                        agent: hkask_types::WebID::from_persona(target.as_bytes()),
-                        new_budget,
-                    };
-                    self.context.issue_directive(directive).await;
-                }
-            }
-
-            match action.action_type {
-                ActionType::Calibrate => {
-                    if let Some(entry) = self.act_on_throttle(action).await {
-                        escalation_entries.push(entry);
-                    }
-                }
-                ActionType::Escalate => {
-                    if let Some(entry) = self.act_on_escalate(action).await {
-                        escalation_entries.push(entry);
-                    }
-                }
-                _ => self.act_on_no_action(action),
-            }
-        }
-
-        // Write escalations: batch if concurrent count meets/exceeds threshold, otherwise write individually.
-        let threshold = self.config.max_concurrent_escalations;
-        if escalation_entries.len() >= threshold {
-            let batch = EscalationBatch::new(escalation_entries, "consolidated", threshold);
-            let summary = batch.summary();
-            // Invoke escalate template for LLM-formatted notification when executor available
-            let summary = if let Some(executor) = self.context.manifest_executor().await {
-                let mut ctx = std::collections::HashMap::new();
-                ctx.insert("critical_issues".into(), serde_json::json!([]));
-                ctx.insert("system_health".into(), serde_json::json!("degraded"));
-                ctx.insert("variety_deficit".into(), serde_json::json!(0));
-                ctx.insert("active_alerts".into(), serde_json::json!([]));
-                ctx.insert("bot_failures".into(), serde_json::json!([]));
-                ctx.insert("energy_budget_status".into(), serde_json::json!("unknown"));
-                ctx.insert("required_actions".into(), serde_json::json!([]));
-                match executor
-                    .execute_knowact("curator/metacognition-escalate.j2", &ctx)
-                    .await
-                {
-                    Ok(output) => output
-                        .get("notification")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or(&summary)
-                        .to_string(),
-                    Err(_) => summary,
-                }
-            } else {
-                summary
-            };
-            info!(target: MC_TARGET, batch_id = %batch.id, entry_count = batch.entries.len(), threshold, "Consolidating escalations into batch");
-            let batch_template_id = hkask_types::TemplateID::new();
-            let batch_error_context = {
-                let template_ids: Vec<_> = batch
-                    .entries
-                    .iter()
-                    .map(|e| e.template_id.to_string())
-                    .collect();
-                format!(
-                    "Consolidated batch: {} escalation(s) from templates: {}",
-                    batch.entries.len(),
-                    template_ids.join(", ")
-                )
-            };
-            let batch_confidence = batch
-                .entries
-                .iter()
-                .map(|e| e.confidence)
-                .fold(f64::MAX, f64::min);
-            if let Err(e) = persist_escalation_with_retry(
-                self.context.escalation_queue(),
-                batch_template_id,
-                BotID::new(),
-                &summary,
-                batch_confidence,
-                0,
-                &batch_error_context,
-            )
-            .await
-            {
-                tracing::error!(
-                    target: "cns.curation.escalation",
-                    batch_id = %batch.id,
-                    error = %e,
-                    batch_size = batch.entries.len(),
-                    "Failed to persist consolidated escalation batch after retries — escalations LOST"
-                );
-            }
-        } else {
-            let mut lost_count = 0u32;
-            for entry in escalation_entries {
-                if let Err(e) = persist_escalation_with_retry(
-                    self.context.escalation_queue(),
-                    entry.template_id,
-                    entry.bot_id,
-                    &entry.output,
-                    entry.confidence,
-                    entry.retry_count,
-                    &entry.error_context,
-                )
-                .await
-                {
-                    lost_count += 1;
-                    tracing::error!(
-                        target: "cns.curation.escalation",
-                        template_id = %entry.template_id,
-                        bot_id = %entry.bot_id,
-                        error = %e,
-                        "Failed to persist escalation after retries — escalation LOST"
-                    );
-                }
-            }
-            if lost_count > 0 {
-                tracing::error!(
-                    target: "cns.curation.escalation",
-                    lost = lost_count,
-                    "{} escalation(s) could not be persisted — check escalation queue health",
-                    lost_count
-                );
-            }
-        }
-    }
-}
-
-fn format_health_status(h: &CnsHealth) -> String {
-    if h.healthy {
-        format!(
-            "Healthy (deficit={}, warnings={})",
-            h.overall_deficit, h.warning_count
-        )
-    } else {
-        format!(
-            "Degraded (deficit={}, critical={}, warnings={})",
-            h.overall_deficit, h.critical_count, h.warning_count
-        )
     }
 }

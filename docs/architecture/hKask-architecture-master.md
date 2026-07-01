@@ -118,7 +118,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, Ener
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `CnsRuntime::calibrate_threshold()`.
-- **28 canonical CNS span namespaces.** Every dimension observable: tools (11 MCP subsystems), inference, agent pods, gas, curation, sovereignty, specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (proposed/accepted/rejected/violated/coverage), ACP (replicant memory, IDE connection).
+- **78 canonical CNS span variants.** Every dimension observable: tools (12 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (replicant memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media. See `CnsSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
 - **Good Regulator contract enforced.** CNS variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 
 **Crates:** `hkask-cns`, `hkask-types` (CNS types, SpanNamespace)

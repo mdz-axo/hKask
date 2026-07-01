@@ -788,15 +788,6 @@ impl CnsRuntime {
         state.slo_manager.evaluate(provider)
     }
 
-    /// Evaluate SLOs and return only breached ones.
-    pub async fn evaluate_slo_breaches(
-        &self,
-        provider: &dyn SloDataProvider,
-    ) -> Vec<hkask_types::cns::SloEvaluation> {
-        let state = self.state.read().await;
-        state.slo_manager.evaluate_breaches(provider)
-    }
-
     /// Register a new SLO definition at runtime.
     ///
     /// expect: "The system supports dynamic SLO registration"
@@ -815,6 +806,55 @@ impl CnsRuntime {
     pub async fn deregister_slo(&self, slo_id: &str) -> bool {
         let mut state = self.state.write().await;
         state.slo_manager.deregister(slo_id)
+    }
+
+    /// Evaluate all SLOs and escalate breaches through the algedonic pathway.
+    ///
+    /// This closes the cybernetic feedback loop: Sensor (ν-event query) →
+    /// Comparator (SLO evaluation) → Regulator (algedonic escalation).
+    /// Breached SLOs are emitted as RuntimeAlert with the SLO ID as domain.
+    ///
+    /// expect: "The system closes the SLO feedback loop by escalating breaches"
+    /// [P9] Motivating: Homeostatic Self-Regulation — SLO breach escalation
+    /// [P8] Constraining: Semantic Grounding — breaches are measured, not guessed
+    /// pre:  provider is operational
+    /// post: SLOs evaluated; breached Critical SLOs produce algedonic alerts
+    pub async fn evaluate_and_escalate_slos(
+        &self,
+        provider: &dyn SloDataProvider,
+    ) -> Vec<hkask_types::cns::SloEvaluation> {
+        let state = self.state.read().await;
+        let evaluations = state.slo_manager.evaluate(provider);
+        let algedonic = state.algedonic.clone();
+        drop(state);
+
+        for eval in &evaluations {
+            if eval.in_breach && eval.data_available {
+                // Use the existing algedonic outcome check — maps success rate
+                // to AlertSeverity and produces a RuntimeAlert.
+                let mut mgr = algedonic.write();
+                let total_ops = ((1.0 / (1.0 - eval.current_compliance)) * 1000.0) as u64;
+                let domain = format!("slo:{}", eval.slo_id);
+                let alert = mgr
+                    .check_outcome(&domain, eval.current_compliance, total_ops.max(1))
+                    .cloned();
+                drop(mgr);
+
+                if let Some(alert) = alert {
+                    tracing::warn!(
+                        target: "cns",
+                        cns_domain = "cns.slo.breach_escalated",
+                        slo_id = %eval.slo_id,
+                        compliance = %eval.current_compliance,
+                        error_budget_pct = %(eval.error_budget_remaining * 100.0),
+                        alert_severity = ?alert.severity,
+                        "SLO breach escalated via algedonic pathway",
+                    );
+                }
+            }
+        }
+
+        evaluations
     }
 
     /// Get all registered SLOs.
