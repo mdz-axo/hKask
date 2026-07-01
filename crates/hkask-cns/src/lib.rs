@@ -22,6 +22,7 @@ pub mod gas_report;
 pub mod runtime; // Loop 6 — runtime
 pub mod seam_watcher; // Public seam watcher — inventory, drift, CNS spans
 pub mod set_points; // Loop 6 — set-points config & loaders
+pub mod slo_manager; // Loop 6 — SLO evaluation, error budgets, breach escalation
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_energy_estimator; // Per-server energy cost table
 pub mod wallet_budget; // Loop 6 — wallet-backed energy budgets (Phase 5)
@@ -59,6 +60,7 @@ pub use set_points::{
     DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX, DEFAULT_MAX_ITERATIONS,
     DEFAULT_VARIETY_MAX_DEFICIT, SetPoints, SetPointsConfig, load_set_points,
 };
+pub use slo_manager::{SloDataPoint, SloDataProvider, SloManager, SloManagerError};
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
 pub use types::curation::CurationThresholdConfig;
 pub use types::loops::{

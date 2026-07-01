@@ -144,6 +144,7 @@ impl EscalationQueue {
     /// expect: "The system provides durable storage for escalation data"
     /// \[P3\] Motivating: Generative Space — list pending escalations
     /// post: returns Vec of pending EscalationEntry
+    #[must_use = "result must be used"]
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -185,6 +186,7 @@ impl EscalationQueue {
     /// \[P3\] Motivating: Generative Space — get escalation by ID
     /// pre:  id is non-empty
     /// post: returns Some(entry) if found, None otherwise
+    #[must_use = "result must be used"]
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -272,6 +274,7 @@ impl EscalationQueue {
     /// expect: "The system provides durable storage for escalation data"
     /// \[P8\] Motivating: Semantic Grounding — escalation statistics
     /// post: returns EscalationStats with counts by status
+    #[must_use = "result must be used"]
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(

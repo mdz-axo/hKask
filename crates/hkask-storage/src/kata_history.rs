@@ -82,6 +82,7 @@ impl KataHistoryStore {
     /// \[P3\] Motivating: Generative Space — list entries per agent
     /// pre:  agent_name is non-empty
     /// post: returns Vec of entries for this agent
+    #[must_use = "result must be used"]
     pub fn entries_for_agent(
         &self,
         agent_name: &str,
@@ -164,6 +165,7 @@ impl KataHistoryStore {
     /// \[P3\] Motivating: Generative Space — most recent entry for agent
     /// pre:  agent_name is non-empty
     /// post: returns Some(entry) if exists, None otherwise
+    #[must_use = "result must be used"]
     pub fn last_entry_for_agent(
         &self,
         agent_name: &str,

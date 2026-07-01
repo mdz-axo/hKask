@@ -172,6 +172,7 @@ impl EmbeddingStore {
     /// pre:  entity_ref is non-empty
     /// post: returns StoredEmbedding if found
     /// post: returns Err(NotFound) if not found
+    #[must_use = "result must be used"]
     pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
         let conn = lock_mutex(&self.conn)?;
         let mut stmt = conn
@@ -207,6 +208,7 @@ impl EmbeddingStore {
     /// \[P3\] Motivating: Generative Space — vector similarity search
     /// pre:  query_vector matches store dimension, limit > 0
     /// post: returns `Vec<SimilarityResult>` ordered by ascending distance
+    #[must_use = "result must be used"]
     pub fn search(
         &self,
         query_vector: &[f32],

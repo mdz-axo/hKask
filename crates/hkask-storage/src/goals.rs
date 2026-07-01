@@ -197,6 +197,7 @@ impl SqliteGoalRepository {
     /// \[P3\] Motivating: Generative Space — get goal by ID
     /// pre:  goal_id is valid
     /// post: returns Some(Goal) if found, None otherwise
+    #[must_use = "result must be used"]
     pub fn get_goal(&self, goal_id: GoalID) -> Result<Option<Goal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!("SELECT {GOAL_COLUMNS} FROM goals WHERE id = ?1"))?;
@@ -243,6 +244,7 @@ impl SqliteGoalRepository {
     /// \[P3\] Motivating: Generative Space — list goals for WebID
     /// pre:  webid is valid
     /// post: returns Vec of goals, optionally filtered by state
+    #[must_use = "result must be used"]
     pub fn list_goals(&self, webid: &WebID, state_filter: Option<GoalState>) -> Result<Vec<Goal>> {
         let conn = self.lock_conn()?;
         let goals = match state_filter {
@@ -402,6 +404,7 @@ impl SqliteGoalRepository {
     /// \[P3\] Motivating: Generative Space — list subgoals
     /// pre:  parent_id is valid
     /// post: returns Vec of child goals
+    #[must_use = "result must be used"]
     pub fn get_subgoals(&self, parent_id: GoalID) -> Result<Vec<Goal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -506,6 +509,7 @@ impl SqliteGoalRepository {
     /// expect: "The system provides durable storage for goal data"
     /// \[P3\] Motivating: Generative Space — list quarantined goals
     /// post: returns Vec of QuarantinedGoal
+    #[must_use = "result must be used"]
     pub fn list_quarantined_goals(&self) -> Result<Vec<QuarantinedGoal>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(

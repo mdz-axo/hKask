@@ -130,7 +130,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — query by entity
     /// pre:  entity is non-empty
     /// post: returns Vec of triples matching entity
-    #[must_use]
+    #[must_use = "result must be used"]
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -190,7 +190,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — query by attribute
     /// pre:  attribute is non-empty
     /// post: returns Vec of triples matching attribute
-    #[must_use]
+    #[must_use = "result must be used"]
     pub fn query_by_attribute(&self, attribute: &str) -> Result<Vec<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -279,7 +279,7 @@ impl TripleStore {
     /// \[P3\] Motivating: Generative Space — get triple by ID
     /// pre:  id is valid
     /// post: returns Some(Triple) if found, None otherwise
-    #[must_use]
+    #[must_use = "result must be used"]
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(&format!(
@@ -385,6 +385,7 @@ impl TripleStore {
     /// expect: "The system provides durable storage for triple data"
     /// \[P8\] Motivating: Semantic Grounding — count semantic triples
     /// post: returns total count of semantic triples
+    #[must_use = "result must be used"]
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(

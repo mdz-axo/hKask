@@ -379,6 +379,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — get tags for an image
     /// pre:  gallery_id and image_hash are valid
     /// post: returns Vec of tags
+    #[must_use = "result must be used"]
     pub fn get_tags(
         &self,
         image_id: &str,
@@ -401,6 +402,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — get gallery by ID
     /// pre:  gallery_id is valid
     /// post: returns Gallery if found
+    #[must_use = "result must be used"]
     pub fn get_gallery(
         &self,
         gallery_id: &str,
@@ -510,6 +512,7 @@ impl GalleryStore {
     /// expect: "The system provides durable storage for gallery data"
     /// \[P3\] Motivating: Generative Space — list faces
     /// post: returns Vec of faces, optionally filtered by status
+    #[must_use = "result must be used"]
     pub fn list_faces(
         &self,
         status_filter: Option<&str>,
@@ -544,6 +547,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — get face by ID
     /// pre:  face_id is non-empty
     /// post: returns Face if found
+    #[must_use = "result must be used"]
     pub fn get_face(
         &self,
         face_id: &str,

@@ -19,6 +19,7 @@ use crate::algedonic::{
 };
 use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
 use crate::set_points::DEFAULT_VARIETY_MAX_DEFICIT;
+use crate::slo_manager::{SloDataProvider, SloManager};
 
 use hkask_ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use hkask_types::WebID;
@@ -261,6 +262,7 @@ struct CnsState {
     tracker: VarietyMonitor,
     outcome: HashMap<String, OutcomeTracker>,
     energy_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, EnergyBudget>>>,
+    slo_manager: SloManager,
 }
 
 impl CnsState {
@@ -272,11 +274,13 @@ impl CnsState {
         let tracker = VarietyMonitor::new();
         let outcome = HashMap::new();
         let energy_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+        let slo_manager = SloManager::with_seed_slos();
         Self {
             algedonic,
             tracker,
             outcome,
             energy_budgets,
+            slo_manager,
         }
     }
 }
@@ -765,6 +769,58 @@ impl CnsRuntime {
         let state = self.state.read().await;
         let budgets = state.energy_budgets.read().await;
         budgets.get(agent).map(AgentEnergyStatus::from)
+    }
+
+    // ── SLO Management ────────────────────────────────────────────────────
+
+    /// Evaluate all registered SLOs against the given data provider.
+    ///
+    /// expect: "The system evaluates SLOs against measured data and emits CNS spans"
+    /// [P9] Motivating: Homeostatic Self-Regulation — SLO evaluation is the platform contract layer
+    /// [P8] Constraining: Semantic Grounding — evaluations are computed from ν-event data
+    /// pre:  provider is operational
+    /// post: returns SloEvaluation list with CNS spans emitted
+    pub async fn evaluate_slos(
+        &self,
+        provider: &dyn SloDataProvider,
+    ) -> Vec<hkask_types::cns::SloEvaluation> {
+        let state = self.state.read().await;
+        state.slo_manager.evaluate(provider)
+    }
+
+    /// Evaluate SLOs and return only breached ones.
+    pub async fn evaluate_slo_breaches(
+        &self,
+        provider: &dyn SloDataProvider,
+    ) -> Vec<hkask_types::cns::SloEvaluation> {
+        let state = self.state.read().await;
+        state.slo_manager.evaluate_breaches(provider)
+    }
+
+    /// Register a new SLO definition at runtime.
+    ///
+    /// expect: "The system supports dynamic SLO registration"
+    /// [P9] Motivating: Homeostatic Self-Regulation — the SLO registry is extensible
+    /// pre:  slo.slo_id is unique
+    /// post: SLO added to the registry
+    pub async fn register_slo(&self, slo: hkask_types::cns::SloDefinition) {
+        let mut state = self.state.write().await;
+        state.slo_manager.register(slo);
+    }
+
+    /// Deregister an SLO by ID.
+    ///
+    /// expect: "The system supports SLO lifecycle management"
+    /// post: if slo_id exists, it is removed; returns true if removed
+    pub async fn deregister_slo(&self, slo_id: &str) -> bool {
+        let mut state = self.state.write().await;
+        state.slo_manager.deregister(slo_id)
+    }
+
+    /// Get all registered SLOs.
+    pub async fn slos(&self) -> Vec<hkask_types::cns::SloDefinition> {
+        let state = self.state.read().await;
+        state.slo_manager.slos().to_vec()
     }
 }
 

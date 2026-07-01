@@ -89,6 +89,7 @@ impl AgentRegistryStore {
     /// \[P3\] Motivating: Generative Space — get agent by name
     /// pre:  name is non-empty
     /// post: returns RegisteredAgent if found
+    #[must_use = "result must be used"]
     pub fn get(&self, name: &str) -> Result<RegisteredAgent, AgentRegistryError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -122,6 +123,7 @@ impl AgentRegistryStore {
     /// expect: "The system provides durable storage for agent registry data"
     /// \[P3\] Motivating: Generative Space — list all agents
     /// post: returns Vec of all RegisteredAgent
+    #[must_use = "result must be used"]
     pub fn list(&self) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
@@ -163,6 +165,7 @@ impl AgentRegistryStore {
     /// \[P3\] Motivating: Generative Space — list agents by kind
     /// pre:  kind is a valid AgentKind
     /// post: returns Vec of agents matching kind
+    #[must_use = "result must be used"]
     pub fn list_by_kind(
         &self,
         kind: AgentKind,
