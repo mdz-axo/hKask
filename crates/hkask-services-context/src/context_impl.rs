@@ -228,6 +228,7 @@ impl AgentService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  db must be a valid opened Database
     /// post: returns PerAgentMemory with episodic_storage, semantic_storage, and consolidation_service all sharing the same DB
+    #[must_use]
     pub fn build_per_agent_memory(
         db: Database,
         cns_event_sink: Option<Arc<dyn NuEventSink>>,
@@ -286,6 +287,7 @@ impl AgentService {
     /// post: returns ConsolidationOutcome on success; Err(ConsentDenied) if either
     ///       memory category lacks consent; Err(Storage) on DB open failure;
     ///       Err(Consolidation) on pipeline failure
+    #[must_use = "result must be used"]
     pub fn consolidate_agent_memory(
         &self,
         agent_name: &str,
@@ -358,6 +360,7 @@ impl AgentService {
     /// pre:  agent_name is non-empty
     /// post: returns (candidates, semantic_count, low_confidence) on success;
     ///       Err(Storage) on DB open failure
+    #[must_use = "result must be used"]
     pub fn consolidation_status_for(
         &self,
         agent_name: &str,

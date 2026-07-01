@@ -17,6 +17,7 @@ pub struct CuratorService;
 
 impl CuratorService {
     /// List pending escalations (granular — no `AgentService` required).
+    #[must_use = "result must be used"]
     pub fn list_escalations_direct(
         queue: &hkask_storage::EscalationQueue,
     ) -> Result<Vec<governance::EscalationResponse>, ServiceError> {
@@ -24,6 +25,7 @@ impl CuratorService {
     }
 
     /// Resolve an escalation by ID (granular — no `AgentService` required).
+    #[must_use = "result must be used"]
     pub fn resolve_direct(
         queue: &hkask_storage::EscalationQueue,
         events: &Arc<dyn hkask_types::event::NuEventSink>,
@@ -34,6 +36,7 @@ impl CuratorService {
     }
 
     /// Dismiss an escalation by ID (granular — no `AgentService` required).
+    #[must_use = "result must be used"]
     pub fn dismiss_direct(
         queue: &hkask_storage::EscalationQueue,
         events: &Arc<dyn hkask_types::event::NuEventSink>,
@@ -44,6 +47,7 @@ impl CuratorService {
     }
 
     /// Run a metacognition cycle and return a human-readable summary.
+    #[must_use = "result must be used"]
     pub async fn metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
         let queue = Arc::clone(&ctx.governance().escalations);
         let cns_lock = &ctx.cns().runtime;

@@ -67,6 +67,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  passphrase must be non-empty; store=true requires writable keychain
     /// post: returns ResolvedSecrets with a2a_secret and db_passphrase; if store=true, secrets are persisted to keychain; Err(Keystore) on keychain failure
+    #[must_use = "result must be used"]
     pub fn derive_secrets(passphrase: &str, store: bool) -> Result<ResolvedSecrets, ServiceError> {
         let secrets = derive_all_internal_secrets(passphrase);
         if store {
@@ -142,6 +143,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must have valid db_path, db_passphrase, and a2a_secret
     /// post: returns RegistryHandle with A2A runtime and initialized AgentRegistryStore; registered agents restored into ACP; Err on DB open or schema init failure
+    #[must_use = "result must be used"]
     pub async fn init_registry(config: &ServiceConfig) -> Result<RegistryHandle, ServiceError> {
         let a2a = Arc::new(A2ARuntime::new(&config.a2a_secret));
 
@@ -212,6 +214,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  a2a must be initialized; store must be initialized; name and description must be non-empty
     /// post: replicant is registered in A2A with default capabilities and persisted to store; Err(A2A) on registration failure; Err(AgentRegistryStore) on persistence failure
+    #[must_use = "result must be used"]
     pub async fn register_replicant(
         a2a: &Arc<A2ARuntime>,
         store: &AgentRegistryStore,
@@ -333,6 +336,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized; profile must be a valid UserProfile
     /// post: profile is persisted to the registry store; Err(AgentRegistryStore) on store failure
+    #[must_use = "result must be used"]
     pub fn store_user_profile(
         store: &AgentRegistryStore,
         profile: &UserProfile,
@@ -352,6 +356,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  store must be initialized
     /// post: returns Some(UserProfile) if stored; None if no profile; Err(AgentRegistryStore) on store failure
+    #[must_use = "result must be used"]
     pub fn get_user_profile(
         store: &AgentRegistryStore,
     ) -> Result<Option<UserProfile>, ServiceError> {
@@ -374,6 +379,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config must be valid; agent_name must match a registered replicant; resolved_secrets must be valid
     /// post: returns SignInOutcome on success; secrets stored in keychain; Err(AgentNotFound) if replicant missing; Err on registry init failure
+    #[must_use = "result must be used"]
     pub async fn try_sign_in(
         config: &ServiceConfig,
         agent_name: &str,
@@ -427,6 +433,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  config.db_path must be set; returns empty Vec on any failure
     /// post: returns `Vec<RegisteredAgent>` of replicants; empty Vec if DB inaccessible or no replicants
+    #[must_use]
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
@@ -465,6 +472,7 @@ impl OnboardingService {
     /// Check whether an orphaned database exists from a previous failed onboarding.
     /// Returns true if the DB file exists and contains no replicants (i.e., is orphaned).
     /// Does NOT remove the database — caller should confirm before calling remove_orphaned_db.
+    #[must_use]
     pub fn has_orphaned_db(config: &ServiceConfig) -> bool {
         let db_path = &config.db_path;
         if db_path == ":memory:" || !std::path::Path::new(db_path).exists() {
@@ -488,6 +496,7 @@ impl OnboardingService {
 
     /// pre:  config.db_path must be set; :memory: paths are never orphaned
     /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
+    #[must_use]
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "remove_orphaned_db", "CNS");

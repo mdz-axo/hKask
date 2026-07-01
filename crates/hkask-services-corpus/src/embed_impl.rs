@@ -80,6 +80,7 @@ impl EmbedProgress {
     /// \[P7\] Motivating: Evolutionary Architecture — display formatting emerges from usage.
     /// pre:  self is a valid EmbedProgress
     /// post: returns formatted "TODO [N pages · X%] ::: DONE [N pages · Y%]" string
+    #[must_use]
     pub fn format_page_progress(&self) -> String {
         let todo = self.total_passages.saturating_sub(self.completed_passages);
         let todo_pct = if self.total_passages > 0 {
@@ -104,6 +105,7 @@ impl EmbedProgress {
     /// \[P7\] Motivating: Evolutionary Architecture — full status formatting.
     /// pre:  self is a valid EmbedProgress
     /// post: returns formatted `[phase]` author — work — page_progress string
+    #[must_use]
     pub fn format_full(&self) -> String {
         let phase_label = match self.phase {
             EmbedPhase::Parsing => "Parsing",
@@ -457,6 +459,7 @@ impl EmbedService {
     /// salience scoring, and budget-gated triple storage.
     ///
     /// See module-level docs for the full phase breakdown.
+    #[must_use = "result must be used"]
     pub async fn embed_corpus(
         config_path: &Path,
         db_path: &str,
@@ -1208,6 +1211,7 @@ impl EmbedService {
     }
 
     /// Parse a corpus config YAML file.
+    #[must_use = "result must be used"]
     pub fn parse_config(path: &Path) -> Result<CorpusConfig, ServiceError> {
         // P9: CNS span
         tracing::info!(target: "cns.embed", operation = "parse_config", config = %path.display(), "CNS");
@@ -1498,6 +1502,7 @@ async fn download_text(url: &str) -> Result<String, ServiceError> {
 /// \[P7\] Motivating: Evolutionary Architecture — HTML stripping utility emerged from embedding needs.
 /// pre:  html is a valid HTML string
 /// post: returns plain text with tags removed, common entities decoded, whitespace collapsed
+#[must_use]
 pub fn strip_html_tags(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
@@ -1586,6 +1591,7 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 /// 4. Returns concatenated text.
 ///
 /// Falls back to sending raw PDF bytes as base64 if pdftoppm is not installed.
+#[must_use = "result must be used"]
 pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
     // P9: CNS span
     tracing::info!(target: "cns.embed", operation = "ocr_pdf_bytes", url = %url, byte_len = bytes.len(), "CNS");

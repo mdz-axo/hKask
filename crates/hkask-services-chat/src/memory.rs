@@ -21,6 +21,7 @@ impl MemoryService {
     ///
     /// \[NORMATIVE\] P1 User Sovereignty / P2 Affirmative Consent.
     /// Fails closed: no consent => no sovereign memory access.
+    #[must_use]
     pub fn has_memory_consent(ctx: &AgentService, owner: &WebID, category: &DataCategory) -> bool {
         ctx.governance()
             .consent
@@ -31,6 +32,7 @@ impl MemoryService {
     /// Recall semantic memory triples relevant to the input.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence.
+    #[must_use]
     pub fn recall_semantic(
         semantic_port: &Arc<dyn SemanticStoragePort>,
         input: &str,
@@ -56,6 +58,7 @@ impl MemoryService {
     /// Recall episodic memories relevant to the input, sorted by salience.
     ///
     /// Mirrors `recall_semantic`: same return type, same take-top-N pattern.
+    #[must_use]
     pub fn recall_episodic(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         input: &str,
@@ -93,6 +96,7 @@ impl MemoryService {
     }
 
     /// Recall recent chat turns as formatted history context.
+    #[must_use]
     pub fn recall_recent_turns(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,
@@ -192,6 +196,7 @@ impl MemoryService {
     }
 
     /// Paired memory recall — returns merged context from both stores.
+    #[must_use]
     pub fn recall_memory(
         semantic_port: &Arc<dyn SemanticStoragePort>,
         episodic_port: &Arc<dyn EpisodicStoragePort>,

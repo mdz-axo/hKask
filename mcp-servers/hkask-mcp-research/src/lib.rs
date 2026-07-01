@@ -1081,7 +1081,11 @@ pub async fn run(
                     parse_env_u64("HKASK_WEB_CACHE_TTL_SECS"),
                     parse_env_usize("HKASK_WEB_CACHE_MAX_ENTRIES"),
                 )
-            }?)
+                .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                    context: "research server init".into(),
+                    detail: e.to_string(),
+                })?
+            })
         },
         credential_requirements(),
         dotenv,

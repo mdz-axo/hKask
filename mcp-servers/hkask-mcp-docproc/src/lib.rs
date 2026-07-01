@@ -974,7 +974,11 @@ pub async fn run(
                 inference_config,
                 ocr_thresholds,
                 Some(embedding_router),
-            )?)
+            )
+                .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                    context: "docproc server init".into(),
+                    detail: e.to_string(),
+                })?)
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(

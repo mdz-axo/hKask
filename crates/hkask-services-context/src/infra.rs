@@ -65,6 +65,7 @@ impl InfraContext {
     }
 
     /// Fetch seam watcher summary, if available.
+    #[must_use]
     pub async fn seam_summary(&self) -> Option<SeamSummary> {
         let guard = self.seams.read().await;
         guard.as_ref().map(|w| w.summary())

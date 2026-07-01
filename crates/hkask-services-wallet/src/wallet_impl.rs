@@ -57,6 +57,7 @@ impl WalletService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  manager must be a valid `Arc<WalletManager>`; issuer must be a valid `Arc<ApiKeyIssuer>`
     /// post: returns WalletService with manager and issuer wired; cybernetics and consent_manager default to None
+    #[must_use]
     pub fn new(manager: Arc<WalletManager>, issuer: Arc<ApiKeyIssuer>) -> Self {
         Self {
             manager,
@@ -116,6 +117,7 @@ impl WalletService {
     /// - `store`: Shared wallet store for balances, keys, transactions
     /// - `event_sink`: CNS event sink for span emission (chain errors, key alerts)
     /// - `cybernetics`: CNS loop for wallet-backed energy budget registration
+    #[must_use = "result must be used"]
     pub fn build(
         config: &WalletConfig,
         store: Arc<WalletStore>,

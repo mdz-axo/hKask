@@ -165,6 +165,7 @@ impl ComposeService {
     /// # expect: "The service layer enables generative access to domain capabilities"
     /// # REQ: P3-svc-compose-004 — compose uses Jinja2 template from cognition config
     /// # expect: "The service layer enables generative access to domain capabilities"
+    #[must_use = "result must be used"]
     pub async fn compose(request: ComposeRequest) -> Result<ComposeResult, ServiceError> {
         // Input length validation
         if request.prompt.len() > 50_000 {
@@ -477,6 +478,7 @@ fn generic_system_prompt(
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  a and b must be non-empty f32 slices of equal length; mismatched or empty returns 2.0
 /// post: returns f64 in range [0.0, 2.0]; 0.0 = identical, 1.0 = orthogonal, 2.0 = opposite or degenerate
+#[must_use]
 pub fn cosine_distance(a: &[f32], b: &[f32]) -> f64 {
     if a.len() != b.len() || a.is_empty() {
         return 2.0;

@@ -427,6 +427,7 @@ pub fn validate_prompt(prompt: &str) -> Result<(), InferenceError> {
 /// pre:  base_url and auth_header_value are non-empty
 /// pre:  model and prompt are non-empty
 /// post: returns Pin<Box<Stream<Item = `Result<InferenceStreamChunk, InferenceError>`> + Send>>
+#[must_use]
 pub fn stream_chat_completion(
     client: std::sync::Arc<reqwest::Client>,
     base_url: String,

@@ -411,6 +411,7 @@ impl InferenceRouter {
     /// post: returns Ok(InferenceResult) on success
     /// post: if provider resolution fails → Err(InferenceError)
     /// post: if backend call fails → Err(InferenceError)
+    #[must_use = "result must be used"]
     pub async fn generate_vision(
         &self,
         prompt: &str,
@@ -489,6 +490,7 @@ impl InferenceRouter {
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated image data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn generate_image(
         &self,
         prompt: &str,
@@ -513,6 +515,7 @@ impl InferenceRouter {
     /// pre:  prompt is a non-empty transformation instruction
     /// post: returns Ok(serde_json::Value) with transformed image data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn image_to_image(
         &self,
         image_url: &str,
@@ -534,6 +537,7 @@ impl InferenceRouter {
     /// post: tries DeepInfra first, falls back to fal.ai on failure
     /// post: returns Ok(serde_json::Value) with background-removed image data
     /// post: if no backend available → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn remove_background(
         &self,
         image_url: &str,
@@ -562,6 +566,7 @@ impl InferenceRouter {
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with upscaled image data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn upscale(
         &self,
         image_url: &str,
@@ -581,6 +586,7 @@ impl InferenceRouter {
     /// pre:  prompt is a non-empty text description
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn generate_video(
         &self,
         prompt: &str,
@@ -602,6 +608,7 @@ impl InferenceRouter {
     /// pre:  image_url is a valid, accessible image URL
     /// post: returns Ok(serde_json::Value) with generated video data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn image_to_video(
         &self,
         image_url: &str,
@@ -626,6 +633,7 @@ impl InferenceRouter {
     /// post: tries DeepInfra first, falls back to fal.ai on failure
     /// post: returns Ok(serde_json::Value) with generated speech audio data
     /// post: if no backend available → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn generate_speech(
         &self,
         text: &str,
@@ -656,6 +664,7 @@ impl InferenceRouter {
     /// pre:  object_description is a non-empty description of the object to segment
     /// post: returns Ok(serde_json::Value) with segmented object data
     /// post: if fal backend unavailable → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn segment_object(
         &self,
         image_url: &str,
@@ -678,6 +687,7 @@ impl InferenceRouter {
     /// post: tries DeepInfra first, falls back to fal.ai on failure
     /// post: returns Ok(serde_json::Value) with transcription data
     /// post: if no backend available → Err(InferenceError::Connection)
+    #[must_use = "result must be used"]
     pub async fn transcribe(
         &self,
         audio_url: &str,

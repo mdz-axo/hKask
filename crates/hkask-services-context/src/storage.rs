@@ -48,6 +48,7 @@ impl StorageContext {
     /// Find an agent by name in the registry.
     ///
     /// Returns `Ok(None)` if no agent with the given name exists.
+    #[must_use = "result must be used"]
     pub fn find_agent_by_name(&self, name: &str) -> Result<Option<RegisteredAgent>, ServiceError> {
         match self.agents.get(name) {
             Ok(agent) => Ok(Some(agent)),
@@ -62,6 +63,7 @@ impl StorageContext {
     /// Find a user by WebID.
     ///
     /// Returns `Ok(None)` if no replicant with the given WebID exists.
+    #[must_use = "result must be used"]
     pub fn find_user_by_webid(
         &self,
         webid: &WebID,

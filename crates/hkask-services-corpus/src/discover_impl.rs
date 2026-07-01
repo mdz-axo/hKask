@@ -143,6 +143,7 @@ impl DiscoveryService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  req.author_name must be non-empty; mcp must be connected; token must be valid
     /// post: returns DiscoverResult with discovered works, sources, and academic works; output and cache directories created; Err on MCP or I/O failure
+    #[must_use = "result must be used"]
     pub async fn discover(
         req: &DiscoverRequest,
         mcp: &dyn McpPort,
@@ -458,6 +459,7 @@ impl DiscoveryService {
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty; works must be non-empty; output_dir must exist
 /// post: corpus.yaml is written to output_dir; returns PathBuf to the written file; Err on serialization or I/O failure
+#[must_use = "result must be used"]
 pub fn generate_corpus_yaml(
     author_slug: &str,
     works: &[DiscoveredWork],
@@ -531,6 +533,7 @@ pub fn generate_corpus_yaml(
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  author_slug must be non-empty
 /// post: returns CorpusConfig with default embedding, chunking, validation, and budget settings
+#[must_use]
 pub fn default_corpus_config(author_slug: &str) -> CorpusConfig {
     CorpusConfig {
         author: author_slug.to_string(),
@@ -1300,6 +1303,7 @@ async fn fetch_youtube_transcript(
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  url must be a valid HTTP/HTTPS URL; cache_path's parent directory must exist
 /// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
+#[must_use = "result must be used"]
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
     // P9: CNS span
     tracing::info!(target: "cns.discover", operation = "download_and_cache", url = %url, cache = %cache_path.display(), "CNS");
@@ -1436,6 +1440,7 @@ pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), Serv
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  s may be any string (including empty)
 /// post: returns lowercase, alphanumeric-only slug with hyphens; empty string becomes empty slug
+#[must_use]
 pub fn slugify(s: &str) -> String {
     let slug = s
         .to_lowercase()

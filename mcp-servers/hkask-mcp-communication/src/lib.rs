@@ -458,16 +458,21 @@ pub async fn run(
     transport
         .health_check()
         .await
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+        .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+            context: "matrix health check".into(),
+            detail: e.to_string(),
+        })?;
 
     if let (Ok(username), Ok(password)) = (
         std::env::var("HKASK_MATRIX_AGENT_USERNAME"),
         std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
     ) {
-        transport
-            .login(&username, &password)
-            .await
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        transport.login(&username, &password).await.map_err(|e| {
+            hkask_mcp::McpError::UnexpectedResponse {
+                context: "matrix login".into(),
+                detail: e.to_string(),
+            }
+        })?;
     }
 
     let matrix = Arc::new(transport);

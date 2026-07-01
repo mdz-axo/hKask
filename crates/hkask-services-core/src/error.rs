@@ -538,6 +538,7 @@ impl ServiceError {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
     /// post: returns true for retryable errors (network, rate-limit, keystore); false for non-retryable (not-found, validation, permission)
+    #[must_use]
     pub fn is_retryable(&self) -> bool {
         match self {
             // ── Retryable ────────────────────────────────────────────
@@ -631,6 +632,7 @@ impl ServiceError {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
     /// post: returns &'static str i18n key (e.g., "error.curator.escalation_not_found")
+    #[must_use]
     pub fn message_key(&self) -> &'static str {
         match self {
             // ── Curator domain ──────────────────────────────────────
@@ -731,6 +733,7 @@ impl ServiceError {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
     /// post: returns Some(NuEvent) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
+    #[must_use]
     pub fn nu_event(&self) -> Option<hkask_types::event::NuEvent> {
         use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
         use hkask_types::id::WebID;

@@ -348,6 +348,7 @@ impl ChatService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty; agent must be registered
     /// post: returns PreparedChat with prompt, model, agent_webid, capability_token, inference_port, episodic_port, and agent_name; Err(AgentNotFound) if agent not registered
+    #[must_use = "result must be used"]
     pub async fn prepare_chat(
         ctx: &AgentService,
         req: &ChatTurnRequest,
@@ -510,6 +511,7 @@ impl ChatService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty
     /// post: returns ChatTurnResponse with text, usage, finish_reason, and tool_calls; CNS spans emitted; episodic trace stored; Err on agent lookup or inference failure
+    #[must_use = "result must be used"]
     pub async fn chat(
         ctx: &AgentService,
         req: ChatTurnRequest,
@@ -654,6 +656,7 @@ impl ChatService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  semantic_port must be initialized; input must be non-empty; token must be valid
     /// post: returns Some(String) of concatenated triple values if matches found; None if no matches or recall fails
+    #[must_use]
     pub fn recall_semantic(
         semantic_port: &Arc<dyn SemanticStoragePort>,
         input: &str,
@@ -689,6 +692,7 @@ impl ChatService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; input must be non-empty; agent_webid must be valid; token must be valid
     /// post: returns Some(String) of formatted episodes sorted by relevance to input; None if no episodes or recall fails
+    #[must_use]
     pub fn recall_episodic(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         input: &str,
@@ -752,6 +756,7 @@ Agent: {}",
     /// \[P5\] Motivating: Essentialism — single entry point for paired memory access.
     /// pre:  both ports must be initialized; input must be non-empty; agent_webid valid; token valid
     /// post: returns Some(String) with merged semantic+episodic context; None if both recalled empty; each recall independently gated
+    #[must_use]
     pub fn recall_memory(
         semantic_port: &Arc<dyn SemanticStoragePort>,
         episodic_port: &Arc<dyn EpisodicStoragePort>,
@@ -825,6 +830,7 @@ Agent: {}",
     /// # expect: "Service operations require explicit, scoped consent"
     /// # REQ: P4-svc-chat-ocap-history — recall requires DelegationToken with Read on Manifest
     /// # expect: "Service boundaries enforce OCAP membranes"
+    #[must_use]
     pub fn recall_recent_turns(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,
@@ -867,6 +873,7 @@ Agent: {}",
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
     /// post: returns `Vec<Value>` of {role, content} messages; empty Vec if no episodes or recall fails
+    #[must_use]
     pub fn recall_raw_episodes(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,

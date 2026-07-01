@@ -43,6 +43,7 @@ impl CnsContext {
     /// Acquires a read lock on the runtime and returns the health status.
     /// This is the canonical access path — replaces the pattern
     /// `cns().runtime.read().await.health().await`.
+    #[must_use]
     pub async fn health(&self) -> CnsHealth {
         self.runtime.read().await.health().await
     }
@@ -51,6 +52,7 @@ impl CnsContext {
     ///
     /// Acquires a read lock on the runtime and returns per-namespace
     /// variety data. The returned map keys are namespace strings.
+    #[must_use]
     pub async fn variety(&self) -> HashMap<SpanNamespace, u64> {
         self.runtime.read().await.variety().await
     }

@@ -59,6 +59,7 @@ impl ServiceDaemonHandler {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  pod_manager must be a valid `Arc<ActivePods>`; user_store must be a valid ``Arc<Mutex<UserStore>>``
     /// post: returns ServiceDaemonHandler with all fields initialized; inference_port may be None
+    #[must_use]
     pub fn new(
         pod_manager: Arc<ActivePods>,
         user_store: Arc<std::sync::Mutex<UserStore>>,

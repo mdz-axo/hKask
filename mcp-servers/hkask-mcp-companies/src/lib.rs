@@ -444,7 +444,11 @@ pub async fn run(
                 exa_api_key,
                 tavily_api_key,
                 brave_api_key,
-            )?)
+            )
+            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                context: "companies server init".into(),
+                detail: e.to_string(),
+            })?)
         },
         vec![
             hkask_mcp::CredentialRequirement::required(

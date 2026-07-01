@@ -269,7 +269,11 @@ pub async fn run(
                     "Skills loaded from registry"
                 );
                 Ok::<_, anyhow::Error>(server)
-            }?)
+            }
+            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+                context: "skill server init".into(),
+                detail: e.to_string(),
+            })?)
         },
         vec![],
     )

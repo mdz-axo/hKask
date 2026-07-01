@@ -114,16 +114,19 @@ impl GovernanceContext {
     // ── Escalation CRUD ──────────────────────────────────────────────
 
     /// List pending escalations.
+    #[must_use = "result must be used"]
     pub fn list_pending_escalations(&self) -> Result<Vec<EscalationResponse>, ServiceError> {
         list_escalations_direct(self.escalations.as_ref())
     }
 
     /// Resolve an escalation by ID.
+    #[must_use = "result must be used"]
     pub fn resolve_escalation(&self, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
         resolve_direct(self.escalations.as_ref(), &self.events, id, resolved_by)
     }
 
     /// Dismiss an escalation by ID.
+    #[must_use = "result must be used"]
     pub fn dismiss_escalation(&self, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
         dismiss_direct(self.escalations.as_ref(), &self.events, id, dismissed_by)
     }
@@ -162,6 +165,7 @@ fn emit_escalation_event(
 }
 
 /// List pending escalations (granular — no `GovernanceContext` required).
+#[must_use = "result must be used"]
 pub fn list_escalations_direct(
     queue: &EscalationQueue,
 ) -> Result<Vec<EscalationResponse>, ServiceError> {
@@ -173,6 +177,7 @@ pub fn list_escalations_direct(
 }
 
 /// Resolve an escalation by ID (granular — no `GovernanceContext` required).
+#[must_use = "result must be used"]
 pub fn resolve_direct(
     queue: &EscalationQueue,
     events: &Arc<dyn NuEventSink>,
@@ -200,6 +205,7 @@ pub fn resolve_direct(
 }
 
 /// Dismiss an escalation by ID (granular — no `GovernanceContext` required).
+#[must_use = "result must be used"]
 pub fn dismiss_direct(
     queue: &EscalationQueue,
     events: &Arc<dyn NuEventSink>,

@@ -167,6 +167,7 @@ fn default_fallback() -> String {
 }
 
 /// Load a classifier config from registry/classify/{name}.yaml.
+#[must_use = "result must be used"]
 pub fn load_classifier_config(
     name: &str,
     registry_dir: &Path,
@@ -401,6 +402,7 @@ async fn classify_one(
 /// Unlike `classify_one`, this does not apply a system prompt or parse
 /// the response as a category. It returns the raw LLM output text.
 #[allow(dead_code)] // public API, called by external consumers
+#[must_use = "result must be used"]
 pub async fn generate_raw(prompt: &str, config: &ClassifierConfig) -> Result<String, ServiceError> {
     let client = Client::builder()
         .timeout(config.timeout)
@@ -466,6 +468,7 @@ pub async fn generate_raw(prompt: &str, config: &ClassifierConfig) -> Result<Str
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
 /// post: returns `Vec<ClassifyResult>` in input order; failed classifications fall back to config.fallback_category; all fallback if no API key
+#[must_use = "result must be used"]
 pub async fn classify_batch(
     texts: &[String],
     config: ClassifierConfig,
@@ -607,6 +610,7 @@ pub async fn classify_batch(
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  texts must be non-empty; config must have valid timeout and concurrency
 /// post: returns `Vec<TripleExtraction>` in input order; failed extractions fall back to empty; all empty if no API key
+#[must_use = "result must be used"]
 pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,

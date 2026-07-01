@@ -468,6 +468,7 @@ async fn mode_plan_implement(
 /// \[P9\] Motivating: Homeostatic Self-Regulation — hKask-side fusion orchestration
 /// pre:  fusion.panel is non-empty, fusion.judge is valid
 /// post: returns judge output per the configured mode
+#[must_use = "result must be used"]
 pub async fn orchestrate(
     router: &InferenceRouter,
     prompt: &str,
