@@ -149,18 +149,18 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 
 | Metric | Value |
 |--------|-------|
-| **Foundation LOC** | ~83,700 |
-| **Infrastructure LOC** | ~26,000 |
-| **Services LOC** | ~37,500 |
-| **Wallet & Identity LOC** | ~5,000 |
-| **Ontology & Interface LOC** | ~16,200 |
-| **Core Total (src/)** | ~168,400 |
-| **MCP Server LOC (src/)** | ~42,800 |
-| **Total LOC** | ~211,200 |
+| **Foundation LOC** | ~86,100 |
+| **Infrastructure LOC** | ~19,200 |
+| **Services LOC** | ~23,600 |
+| **Wallet & Identity LOC** | ~5,500 |
+| **Ontology & Interface LOC** | ~13,100 |
+| **Core Total (src/)** | ~147,500 |
+| **MCP Server LOC (src/)** | ~41,300 |
+| **Total LOC** | ~188,800 |
 | **Core Crates** | 39 (12 foundation + 9 infra + 11 services + 3 wallet/identity/ledger + 4 ontology/interface) |
 | **MCP Servers** | 14 |
-| **Tests** | ~1,540 (workspace) |
-| **CLI Subcommands** | 39 |
+| **Tests** | ~860 (864 test binary targets) |
+| **CLI Subcommands** | 33 |
 | **API Route Groups** | 26 |
 | **Build/Clippy/Fmt/Test** | All passing |
 | **Skills** | 39 (64 registry manifests, 273 Jinja2 templates) |

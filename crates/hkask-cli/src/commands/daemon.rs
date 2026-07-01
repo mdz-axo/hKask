@@ -53,14 +53,17 @@ async fn run_daemon() -> Result<(), String> {
         Ok(ctx) => ctx,
         Err(e) => {
             tracing::warn!(target: "hkask.daemon", error = %e, "Build with env config failed, retrying in-memory");
-            hkask_services_context::AgentService::build(hkask_services_core::ServiceConfig::in_memory())
-                .await
-                .map_err(|e| format!("Failed to build service context (in-memory fallback): {e}"))?
+            hkask_services_context::AgentService::build(
+                hkask_services_core::ServiceConfig::in_memory(),
+            )
+            .await
+            .map_err(|e| format!("Failed to build service context (in-memory fallback): {e}"))?
         }
     };
 
     // Start the loop system
-    ctx.cns().loops
+    ctx.cns()
+        .loops
         .start()
         .await
         .map_err(|e| format!("Failed to start loop system: {e}"))?;

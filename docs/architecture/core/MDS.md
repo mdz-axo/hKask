@@ -1,7 +1,7 @@
 ---
 title: "MDS — Minimal Domain Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-06-30
+last_updated 2026-07-01
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -471,7 +471,7 @@ Where each MDS category's authoritative documents live:
 | # | MDS Category | Primary Directory | Key Documents |
 |---|--------------|-------------------|---------------|
 | 1 | **Domain** | `architecture/` | MDS.md, FUNCTIONAL_SPECIFICATION.md |
-| 2 | **Composition** | `architecture/` | MDS.md, loop-architecture.md |
+| 2 | **Composition** | `architecture/` | MDS.md, architecture-master.md §Four-Loop Architecture |
 | 3 | **Trust** | `architecture/` | magna-carta.md, PRINCIPLES.md |
 | 4 | **Lifecycle** | `architecture/` + `plans/` | MDS.md, deployment-and-backup.md |
 | 5 | **Curation** | `architecture/` + `specifications/` | WRITING_EXCELLENCE.md, DOCUMENTATION_STANDARDS.md |

@@ -1,7 +1,7 @@
 ---
 title: "hKask Functional Specification"
 audience: "hKask developers and architects"
-last_updated: "2026-06-30"
+last_updated: 2026-07-01
 version: "0.31.0"
 status: "Active"
 domain: "architecture"
@@ -199,7 +199,7 @@ The CLI provides two pod export paths for cloud deployment. Both are implemented
 
 > **Incorporated from:** docs/architecture/core/CNS-DOMAIN-SPECIFICATION.md
 
-**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md). All 197 contracts carry `expect:` fields encoding user functional expectations.
+**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md). 76 `expect:`-annotated contracts encode user functional expectations.
 
 ### Sub-Domain Architecture
 
@@ -236,7 +236,7 @@ hkask-cns/src/
 | 7. Gas Cost Calibration | P9 | `dynamic_gas_table.rs` + `gas_report.rs` + `calibrated_energy_estimator.rs` | 4 | Per-server gas cost calibration via EMA |
 | 8. Wallet-Backed Energy | P9 + P4 | `wallet_budget.rs` + `wallet_energy_estimator.rs` + `wallet_gas_calibrator.rs` | 3 | Wallet-backed energy budget with gas→rJoule conversion |
 
-**Codebase Reference:** `crates/hkask-cns/src/` — 152 `pub fn`, 197 REQ-tagged contracts (129.6% coverage), 115 `expect:` fields encoding user expectations.
+**Codebase Reference:** `crates/hkask-cns/src/` — 76 `expect:`-annotated contracts across 8 sub-domains.
 
 ### CNS Spans
 
@@ -653,7 +653,7 @@ These domains are documented here for completeness. The canonical contract forma
 **Crate:** `hkask-wallet`
 **Sources:** `src/manager.rs`, `src/issuer.rs`, `src/signing.rs`, `src/hinkal.rs`, `src/price_feed.rs`, `src/hedera.rs`, `tests/hinkal_adapter.rs`
 
-#### Production Contracts (27)
+#### Production Contracts (59)
 
 | FR# | Function | Principle Annotations |
 |-----|----------|---------------------|
@@ -730,7 +730,7 @@ These domains are documented here for completeness. The canonical contract forma
 
 ### 3.2 Storage (`hkask-storage`)
 
-**168 contracts** — storage spans multiple principles:
+**213 expect:-annotated contracts** — storage spans multiple principles:
 - **P3 (Generative Space)** — CRUD stores: agent registry, embeddings, gallery, goals, triples, wallet store, kata history, escalation, NuEvent store, spec store
 - **P1 (User Sovereignty)** — user store, sovereignty boundaries, wallet-store tests
 - **P2 (Affirmative Consent)** — consent store
@@ -761,7 +761,7 @@ These domains are documented here for completeness. The canonical contract forma
 | Triples | P3 | 22 | `P3-sto-triple-new`, `P3-sto-triple-with-*`, `P3-sto-triple-is-episodic`, `P3-sto-triple-is-semantic`, `P3-sto-triple-insert`, `P3-sto-triple-query-*`, `P3-sto-triple-update`, `P3-sto-triple-get-id`, `P3-sto-triple-low-confidence`, `P3-sto-triple-count-*`, `P3-sto-triple-query-below`, `P3-sto-triple-soft-delete`, `P3-sto-triple-hard-delete`, `P3-sto-triple-delete-prefix` |
 | Wallet store | P3 | 25 | `P3-sto-wallet-wal-mode`, `P3-sto-wallet-balance-get`, `P3-sto-wallet-ensure`, `P3-sto-wallet-list-ids`, `P3-sto-wallet-credit`, `P3-sto-wallet-debit`, `P3-sto-wallet-tx-record`, `P3-sto-wallet-tx-list`, `P3-sto-wallet-tx-hash-exists`, `P3-sto-wallet-api-key-*`, `P3-sto-wallet-spent-rj-update`, `P3-sto-wallet-address-*`, `P3-sto-wallet-reference-*`, `P3-sto-wallet-encumber`, `P3-sto-wallet-encumbrance-release`, `P3-sto-wallet-encumbrance-consume`, `P3-sto-wallet-encumbrance-get` |
 
-> **Note:** The original handoff estimated 12 storage contracts; the actual source contains **168 annotated functions**. Storage is the largest domain.
+> **Note:** Storage is the largest domain with **213 `expect:`-annotated functions**.
 
 #### Agent Registry Schema (Canonical)
 
@@ -822,13 +822,13 @@ voice_id: "local-tts-001"
 
 ### 3.3 Memory (`hkask-memory`)
 
-**52 production contracts** + **16 test contracts** — P3 (Generative Space)
+**51 expect:-annotated production contracts** — P3 (Generative Space)
 
 **Crate:** `hkask-memory` | **Sources:** `src/recall_dedup.rs`, `src/consolidation.rs`, `src/consolidation_service.rs`, `src/episodic.rs`, `src/episodic_loop.rs`, `src/semantic.rs`, `src/semantic_loop.rs`, `src/salience.rs`, `src/ranking.rs`
 
 Memory provides the generative substrate for experience and knowledge: episodic first-person storage, semantic shared storage, consolidation bridges, salience-based budget gating, and cybernetic regulation loops.
 
-#### Production Contracts (52 unique IDs)
+#### Production Contracts (51)
 
 | FR# | Function | Principle Annotations |
 |-----|----------|---------------------|
@@ -1113,7 +1113,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 ### 3.7 Service Layer (`the service layer subcrates` subcrates)
 
-**305+ contracts** — P5 + P7 (Essentialism + Evolution) plus mixed P1/P2/P3/P4/P9 concerns because the service layer wraps many underlying domains.
+**65 expect:-annotated contracts** — P5 + P7 (Essentialism + Evolution) plus mixed P1/P2/P3/P4/P9 concerns. The service layer wraps many underlying domains with `expect:` annotations distributed across 11 subcrates.
 
 The crate uses `expect:` + `[P{N}]` annotations across its surface. This is the largest remaining annotation target.
 
@@ -1127,7 +1127,7 @@ Representative domains:
 
 ### 3.8 Agents (`hkask-agents`)
 
-**30 contracts** (+ ~27 new in v0.30) — agents span five motivating principles:
+**142 expect:-annotated contracts** — agents span five motivating principles:
 - **P1 (User Sovereignty)** — `AgentPod`, `PodDeployment`, `PodFactory`, `ActivePods`, `PodRegistry`, `SovereigntyChecker`
 - **P2 (Affirmative Consent)** — `ConsentRecord`, `ConsentManager`
 - **P4 (Clear Boundaries)** — `PodKind` (Curator/Team/Replicant), A2A runtime, MCP capability adapters, `PerPodToolBinding`
@@ -1157,7 +1157,7 @@ Representative domains:
 | Pod Deployment | P1, P4, P11 | PodDeployment (new), PodFactory (deploy), PodKind, PerPodStorage, PerPodCnsRuntime, PerPodToolBinding, PodRegistry (scan, scan-by-kind, find-curator, find-teams), ActivePods (new, context, create-pod, activate-pod, deactivate-pod, status, list-pods, find-by-name, webid, has-role, has-capability, assign-role, set-mode), PodContext (new, store-semantic, recall-semantic, invoke-tool) |
 | Pod Types | P4 | PodLifecycle (can-transition) |
 
-> **Note:** Production contract occurrences in `hkask-agents` total **174** annotated functions (including repeated annotations on struct + impl + tests).
+> **Note:** `hkask-agents/src/` contains **142 `expect:`-annotated contracts**.
 
 ### 3.2 Storage (`hkask-storage`)
 ### 3.9 Communication (`hkask-communication`)

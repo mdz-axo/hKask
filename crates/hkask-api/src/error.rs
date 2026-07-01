@@ -111,7 +111,7 @@ impl IntoResponse for ServiceErrorResponse {
 impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
     fn from(e: hkask_agents::a2a::A2AError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::A2A {
-source: None,
+            source: None,
             message: e.to_string(),
         })
     }
@@ -120,7 +120,7 @@ source: None,
 impl From<hkask_storage::EscalationError> for ServiceErrorResponse {
     fn from(e: hkask_storage::EscalationError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Escalation {
-source: None,
+            source: None,
             message: e.to_string(),
         })
     }
@@ -139,7 +139,7 @@ impl From<uuid::Error> for ServiceErrorResponse {
 impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
     fn from(e: hkask_storage::AgentRegistryError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::AgentRegistryStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })
     }
@@ -148,7 +148,7 @@ source: None,
 impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
     fn from(e: hkask_agents::pod::AgentPodError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Pod {
-source: None,
+            source: None,
             message: e.to_string(),
         })
     }
@@ -157,7 +157,7 @@ source: None,
 impl From<hkask_ports::RegistryError> for ServiceErrorResponse {
     fn from(e: hkask_ports::RegistryError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Registry {
-source: None,
+            source: None,
             message: e.to_string(),
         })
     }

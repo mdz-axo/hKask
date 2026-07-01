@@ -19,7 +19,8 @@ pub fn run(rt: &tokio::runtime::Runtime) {
             }
             // Group by family for tiered display
             use std::collections::BTreeMap;
-            let mut by_family: BTreeMap<String, Vec<&hkask_services_core::ModelInfo>> = BTreeMap::new();
+            let mut by_family: BTreeMap<String, Vec<&hkask_services_core::ModelInfo>> =
+                BTreeMap::new();
             for m in &models {
                 let family = m.family.as_deref().unwrap_or("uncategorized");
                 by_family.entry(family.to_string()).or_default().push(m);

@@ -13,7 +13,9 @@ type Store = Arc<Mutex<UserStore>>;
 
 fn build_store() -> Store {
     crate::commands::helpers::build_service_context()
-        .storage().users.clone()
+        .storage()
+        .users
+        .clone()
         .clone()
 }
 
@@ -117,7 +119,7 @@ pub fn register_replicant_with_passphrase(
             request.passphrase,
         )
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })
 }
@@ -152,7 +154,7 @@ pub fn get_replicant(
         .expect("CLI operation")
         .get_replicant(replicant_name)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?
         .ok_or_else(|| ServiceError::UserNotFound {
@@ -173,7 +175,7 @@ pub fn get_replicants(
         .expect("CLI operation")
         .list_replicants(user_id)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })
 }
@@ -187,7 +189,7 @@ pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSessi
         .expect("CLI operation")
         .list_sessions(replicant_name)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })
 }
@@ -201,7 +203,7 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
         .expect("CLI operation")
         .get_session(session_id)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?
         .ok_or_else(|| ServiceError::UserNotFound {
@@ -213,7 +215,7 @@ source: None,
         .unwrap_or_else(|e| e.into_inner())
         .logout(session_id)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
     Ok(session)
@@ -327,7 +329,7 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
         .expect("CLI operation")
         .get_replicant(replicant_name)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?
         .ok_or_else(|| ServiceError::UserNotFound {
@@ -353,7 +355,7 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
         .expect("CLI operation")
         .list_replicants(&user_id)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
     if replicants.is_empty() {
@@ -382,7 +384,7 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
         .expect("CLI operation")
         .get_session(session_id)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?
         .ok_or_else(|| ServiceError::UserNotFound {
@@ -394,7 +396,7 @@ source: None,
         .unwrap_or_else(|e| e.into_inner())
         .logout(session_id)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
     println!("Session revoked: {}", session.session_id);
@@ -410,7 +412,7 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceE
         .unwrap_or_else(|e| e.into_inner())
         .list_sessions(replicant_name)
         .map_err(|e| ServiceError::UserStore {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
     if sessions.is_empty() {

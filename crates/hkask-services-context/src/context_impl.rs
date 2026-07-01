@@ -181,7 +181,7 @@ impl AgentService {
         &self.storage
     }
 
-    /// Memory — episodic and semantic storage ports.
+    // Memory — episodic and semantic storage ports.
 
     /// Public seam watcher — delegated to infra context.
     pub async fn seam_summary(&self) -> Option<SeamSummary> {

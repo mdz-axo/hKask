@@ -5,7 +5,9 @@
 //! If any step fails, the session can be resumed from the failed state.
 
 use hkask_services_core::{ServiceConfig, ServiceError};
-use hkask_services_onboarding::{MatrixRegistrationResult, OnboardingService, RegistryHandle, ResolvedSecrets};
+use hkask_services_onboarding::{
+    MatrixRegistrationResult, OnboardingService, RegistryHandle, ResolvedSecrets,
+};
 use hkask_storage::UserProfile;
 
 use crate::onboarding::OnboardingError;

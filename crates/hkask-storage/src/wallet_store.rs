@@ -11,8 +11,8 @@ use hkask_types::time::now_rfc3339;
 use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
 use hkask_wallet_types::{
     ApiKeyCapability, ChainId, DepositAddress, DepositReference, Encumbrance, EncumbranceStatus,
-    PrivacyMode, RJoule, RateLimitConfig, TransactionType, WalletBalance,
-    WalletError, WalletTransaction,
+    PrivacyMode, RJoule, RateLimitConfig, TransactionType, WalletBalance, WalletError,
+    WalletTransaction,
 };
 use rusqlite::OptionalExtension;
 use std::str::FromStr;

@@ -173,8 +173,12 @@ impl From<MemoryError> for hkask_memory::MemoryPortError {
 impl From<hkask_memory::MemoryPortError> for MemoryError {
     fn from(e: hkask_memory::MemoryPortError) -> Self {
         match e {
-            hkask_memory::MemoryPortError::Storage(msg) => MemoryError::Core(CoreError::Infra(hkask_types::InfrastructureError::Database(msg))),
-            hkask_memory::MemoryPortError::CapabilityDenied { resource, action } => MemoryError::CapabilityDenied { resource, action },
+            hkask_memory::MemoryPortError::Storage(msg) => MemoryError::Core(CoreError::Infra(
+                hkask_types::InfrastructureError::Database(msg),
+            )),
+            hkask_memory::MemoryPortError::CapabilityDenied { resource, action } => {
+                MemoryError::CapabilityDenied { resource, action }
+            }
         }
     }
 }

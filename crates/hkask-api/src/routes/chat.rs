@@ -183,6 +183,9 @@ pub(crate) async fn chat_stream(
     // Input length validation
     if req.input.len() > 100_000 {
         let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(1);
+        // Fire-and-forget: tx.send() is a future but we return the stream
+        // immediately — the ReceiverStream polls it on the next executor tick.
+        #[allow(clippy::let_underscore_future)]
         let _ = tx.send(Ok(Event::default().data(
             serde_json::json!({"error": "Input exceeds 100KB limit"}).to_string(),
         )));

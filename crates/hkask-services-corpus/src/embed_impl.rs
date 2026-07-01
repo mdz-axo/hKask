@@ -527,7 +527,7 @@ impl EmbedService {
 
         // ── Open DB ────────────────────────────────────────────────────
         let db = Database::open(db_path, db_passphrase).map_err(|e| ServiceError::Storage {
-source: None,
+            source: None,
             message: e.to_string(),
         })?;
         let conn = db.conn_arc();
@@ -941,7 +941,7 @@ source: None,
                 semantic
                     .store_embedding(entity_ref, vector, &config.embedding.model)
                     .map_err(|e| ServiceError::SemanticMemory {
-source: None,
+                        source: None,
                         message: e.to_string(),
                     })?;
             }
@@ -1009,7 +1009,7 @@ source: None,
                     Some(&config.embedding.model),
                 )
                 .map_err(|e| ServiceError::SemanticMemory {
-source: None,
+                    source: None,
                     message: e.to_string(),
                 })?;
 

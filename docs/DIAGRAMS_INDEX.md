@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -22,7 +22,7 @@ Verification status:** All diagram `verified-against` paths checked against curr
 |-----------|-------------|----------|-----------------|--------|
 | DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-capability/src/lib.rs`, `Cargo.toml` workspace members | ✅ VERIFIED |
 | DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | [MDS.md](architecture/core/MDS.md) §3.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
-| DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/curator_agent/bot_metrics.rs` | ✅ VERIFIED |
+| DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/types/agent/definition.rs` | ✅ VERIFIED |
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-capability/src/lib.rs` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | Standing Session Chat Lifecycle | [MDS.md](architecture/core/MDS.md) §6.4 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-research/src/main.rs` | ✅ VERIFIED |
@@ -36,7 +36,7 @@ Verification status:** All diagram `verified-against` paths checked against curr
 | DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:636`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
 | DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [MDS.md](architecture/core/MDS.md) §2 | `crates/hkask-ports/src/` (7 port traits) | ✅ VERIFIED |
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
-| DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
+| DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/executor.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [MDS.md](architecture/core/MDS.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
 | DIAG-IC-006 | LLM Routing and Failover (Inference Router — DI/TG/FA/OR) | [MDS.md](architecture/core/MDS.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-IC-007 | MCP Tool Dispatch Sequence with OCAP Enforcement | [sequence-mcp-tool-dispatch.md](diagrams/sequence-mcp-tool-dispatch.md) | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |

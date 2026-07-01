@@ -74,7 +74,7 @@ pub fn register_template(
     registry
         .register(entry)
         .map_err(|e| ServiceError::Template {
-source: None,
+            source: None,
             message: e.to_string(),
         })
 }
@@ -88,7 +88,7 @@ source: None,
 /// post: returns Err(ServiceError) if not found
 pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEntry, ServiceError> {
     registry.get(id).map_err(|e| ServiceError::Registry {
-source: None,
+        source: None,
         message: e.to_string(),
     })
 }
@@ -107,7 +107,7 @@ pub fn search_templates(
     registry
         .search_by_lexicon(term)
         .map_err(|e| ServiceError::Template {
-source: None,
+            source: None,
             message: e.to_string(),
         })
 }

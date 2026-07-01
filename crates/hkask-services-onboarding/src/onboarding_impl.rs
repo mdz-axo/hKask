@@ -162,7 +162,7 @@ impl OnboardingService {
         // A2A state restoration: reload registered agents from the store
         let registered_agents = store.list().map_err(|e| ServiceError::AgentRegistryStore {
             source: None,
-                message: e.to_string(),
+            message: e.to_string(),
         })?;
         if !registered_agents.is_empty() {
             let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
@@ -185,7 +185,7 @@ impl OnboardingService {
                 .await
                 .map_err(|e| ServiceError::A2A {
                     source: None,
-                message: e.to_string(),
+                    message: e.to_string(),
                 })?;
         }
 
@@ -283,7 +283,7 @@ impl OnboardingService {
         }
         std::fs::write(&yaml_path, &source_yaml).map_err(|e| ServiceError::Storage {
             source: None,
-                message: format!("Failed to write agent YAML to {}: {e}", yaml_path.display()),
+            message: format!("Failed to write agent YAML to {}: {e}", yaml_path.display()),
         })?;
 
         let registered = RegisteredAgent {

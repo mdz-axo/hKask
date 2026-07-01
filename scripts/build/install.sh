@@ -274,7 +274,7 @@ MCP_SERVERS=(
     "hkask-mcp-docproc"
     "hkask-mcp-training"
     "hkask-mcp-replica"
-    "hkask-mcp-kanban"
+    "hkask-mcp-kata-kanban"
     "hkask-mcp-skill"
     "hkask-mcp-filesystem"
     "hkask-mcp-curator"

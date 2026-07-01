@@ -150,14 +150,14 @@ pub(crate) async fn mcp_invoke(
         }
         .into());
     }
-    if let serde_json::Value::String(ref s) = req.input {
-        if s.len() > 1_000_000 {
-            return Err(ServiceError::ValidationError {
-                source: None,
-                message: format!("Input exceeds 1MB limit (received {} bytes)", s.len()),
-            }
-            .into());
+    if let serde_json::Value::String(ref s) = req.input
+        && s.len() > 1_000_000
+    {
+        return Err(ServiceError::ValidationError {
+            source: None,
+            message: format!("Input exceeds 1MB limit (received {} bytes)", s.len()),
         }
+        .into());
     }
 
     let input = if req.input.is_null() {

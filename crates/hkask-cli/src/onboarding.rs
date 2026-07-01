@@ -10,8 +10,8 @@
 //! After setup, derived secrets are stored in the OS keychain for future
 //! sessions and passed directly to `init_registry_with_secrets()`.
 
-use hkask_inference::{FusionMode, ProviderId};
 use hkask_inference::InferenceConfig;
+use hkask_inference::{FusionMode, ProviderId};
 use hkask_services_core::{ServiceConfig, ServiceError};
 use hkask_services_onboarding::{MatrixRegistrationResult, OnboardingService, ResolvedSecrets};
 use hkask_storage::{RegisteredAgent, UserProfile};
@@ -635,10 +635,11 @@ async fn retry_pending_matrix(handle: &hkask_services_onboarding::RegistryHandle
     let homeserver_url = keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_HOMESERVER)
         .unwrap_or_else(|_| "http://localhost:8008".to_string());
-    let user_profile = match hkask_services_onboarding::OnboardingService::get_user_profile(&handle.store) {
-        Ok(Some(p)) => p,
-        _ => return,
-    };
+    let user_profile =
+        match hkask_services_onboarding::OnboardingService::get_user_profile(&handle.store) {
+            Ok(Some(p)) => p,
+            _ => return,
+        };
     let replicants = match list_replicants(&handle.store) {
         Ok(r) if !r.is_empty() => r,
         _ => return,
@@ -708,7 +709,7 @@ fn list_replicants(
         .list_by_kind(hkask_types::AgentKind::Replicant)
         .map_err(|e| {
             OnboardingError::Service(ServiceError::AgentRegistryStore {
-source: None,
+                source: None,
                 message: e.to_string(),
             })
         })

@@ -78,7 +78,8 @@ pub(crate) async fn memory_recall(
     let episodic_request = RecallRequest::episodic(&params.entity, auth.webid, token.clone());
     let episodic_results = state
         .agent_service
-        .infra().episodic
+        .infra()
+        .episodic
         .recall_episodic(&episodic_request)
         .map_err(|e| {
             ServiceError::Infra(hkask_types::InfrastructureError::Database(e.to_string()))

@@ -734,6 +734,12 @@ fn derive_ocap_secret(webid: &WebID) -> AgentPodResult<Zeroizing<String>> {
     Ok(Zeroizing::new(hex::encode(&*bytes)))
 }
 
+impl From<hkask_memory::MemoryPortError> for AgentPodError {
+    fn from(e: hkask_memory::MemoryPortError) -> Self {
+        AgentPodError::from(MemoryError::from(e))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -910,11 +916,5 @@ mod tests {
 
         let err = AgentPodError::RoleNotAssigned("research".into(), vec![]);
         assert!(err.to_string().contains("research"));
-    }
-}
-
-impl From<hkask_memory::MemoryPortError> for AgentPodError {
-    fn from(e: hkask_memory::MemoryPortError) -> Self {
-        AgentPodError::from(MemoryError::from(e))
     }
 }

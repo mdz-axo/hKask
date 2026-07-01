@@ -57,7 +57,9 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .storage().registry.clone()
+            .storage()
+            .registry
+            .clone()
             .try_lock()
             .map(|r| r.list_skills_owned().len())
             .unwrap_or(0)
@@ -71,7 +73,9 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .storage().registry.clone()
+            .storage()
+            .registry
+            .clone()
             .try_lock()
             .map(|r| r.list_bundles().len())
             .unwrap_or(0)
@@ -81,7 +85,9 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .storage().registry.clone()
+            .storage()
+            .registry
+            .clone()
             .try_lock()
             .map(|r| {
                 r.list_skills_owned()
@@ -100,7 +106,9 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .storage().registry.clone()
+            .storage()
+            .registry
+            .clone()
             .try_lock()
             .map(|r| {
                 r.list_skills_owned()
@@ -120,7 +128,9 @@ impl RegistryDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         state
             .service_context
-            .storage().registry.clone()
+            .storage()
+            .registry
+            .clone()
             .try_lock()
             .map(|r| {
                 r.list_bundles()
@@ -401,7 +411,9 @@ impl MatrixDataBridge for TuiReplBridge {
         let state = self.state.lock().expect("lock");
         let connected = state
             .service_context
-            .infra().matrix.as_ref()
+            .infra()
+            .matrix
+            .as_ref()
             .and_then(|mt| mt.try_lock().ok().map(|t| t.healthy()))
             .unwrap_or(false);
         MatrixConnectionStatus {

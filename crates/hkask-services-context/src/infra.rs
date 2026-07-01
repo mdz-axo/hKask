@@ -32,6 +32,10 @@ pub struct InfraContext {
 }
 
 impl InfraContext {
+    /// InfraContext constructor — assembles the full infrastructure layer at startup.
+    /// The argument count reflects the real architectural wiring; a builder pattern
+    /// would add indirection without reducing the essential surface area.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         inference: Option<Arc<dyn InferencePort>>,
         episodic: Arc<dyn EpisodicStoragePort>,
