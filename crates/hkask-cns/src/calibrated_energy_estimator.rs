@@ -115,7 +115,7 @@ impl CalibratedEnergyEstimator {
     /// post: all settled gas events since the last calibration are fed into
     ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
     ///       updated table; returns the number of servers whose costs changed
-    #[must_use]
+    #[must_use = "result must be used"]
     pub async fn calibrate(&self) -> Result<usize, InfrastructureError> {
         let until = Utc::now();
         let since = {
