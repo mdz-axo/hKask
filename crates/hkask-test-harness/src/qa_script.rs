@@ -17,8 +17,8 @@
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::path::Path;
-use std::process::Command;
 use thiserror::Error;
+use tracing as _;
 
 // ── Error type ──────────────────────────────────────────────────────────────
 
@@ -398,6 +398,74 @@ fn resolve_branch(branching: &BranchTarget, key: &str) -> Option<u32> {
     }
 }
 
+/// Default command timeout (5 minutes).
+const COMMAND_TIMEOUT_SECS: u64 = 300;
+
+/// Execute a shell command with timeout and null-byte guard.
+///
+/// Uses `std::process::Command` (not `tokio::process::Command`) because
+/// `run_script` is always called via `block_on` from a dedicated thread —
+/// blocking the current thread is safe in this context. If `run_script`
+/// were ever spawned as a concurrent tokio task, this would need to switch
+/// to `tokio::process::Command` + `tokio::time::sleep`.
+fn run_shell(command: &str) -> Result<std::process::Output, RunnerError> {
+    if command.contains('\0') {
+        return Err(RunnerError::CommandFailed {
+            ordinal: 0,
+            exit_code: -1,
+            stderr: "command contains null byte".into(),
+        });
+    }
+    let mut child = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| RunnerError::CommandFailed {
+            ordinal: 0,
+            exit_code: -1,
+            stderr: e.to_string(),
+        })?;
+
+    let start = std::time::Instant::now();
+    loop {
+        match child.try_wait().map_err(|e| RunnerError::CommandFailed {
+            ordinal: 0,
+            exit_code: -1,
+            stderr: e.to_string(),
+        })? {
+            Some(status) => {
+                let mut stdout = Vec::new();
+                let mut stderr = Vec::new();
+                if let Some(mut out) = child.stdout.take() {
+                    let _ = std::io::Read::read_to_end(&mut out, &mut stdout);
+                }
+                if let Some(mut err) = child.stderr.take() {
+                    let _ = std::io::Read::read_to_end(&mut err, &mut stderr);
+                }
+                return Ok(std::process::Output {
+                    status,
+                    stdout,
+                    stderr,
+                });
+            }
+            None => {
+                if start.elapsed().as_secs() > COMMAND_TIMEOUT_SECS {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(RunnerError::CommandFailed {
+                        ordinal: 0,
+                        exit_code: -1,
+                        stderr: format!("command timed out after {}s", COMMAND_TIMEOUT_SECS),
+                    });
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+    }
+}
+
 fn execute_run_command(
     state: &mut RunnerState,
     step: &StepDef,
@@ -409,15 +477,11 @@ fn execute_run_command(
         _ => unreachable!(),
     };
 
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(command)
-        .output()
-        .map_err(|e| RunnerError::CommandFailed {
-            ordinal: step.ordinal(),
-            exit_code: -1,
-            stderr: e.to_string(),
-        })?;
+    let output = run_shell(command).map_err(|e| RunnerError::CommandFailed {
+        ordinal: step.ordinal(),
+        exit_code: -1,
+        stderr: e.to_string(),
+    })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -441,11 +505,9 @@ fn execute_run_command(
             exit_code: output.status.code().unwrap_or(-1),
             stderr: stderr.trim().to_string(),
         };
-        // Return the error but also the next branch — caller decides
         if next.is_none() {
             return Err(err);
         }
-        // Log the failure but continue to the failure branch
         eprintln!(
             "[QA:{}] step {} FAILED: {}",
             "run_command",
@@ -555,25 +617,27 @@ async fn execute_classify(
         .map_err(|e| RunnerError::ClassifierApiError(e.to_string()))?;
 
     let status = response.status();
-    let raw: serde_json::Value = response
-        .json()
+    let raw_text = response
+        .text()
         .await
         .map_err(|e| RunnerError::ClassifierApiError(e.to_string()))?;
 
     if !status.is_success() {
         return Err(RunnerError::ClassifierApiError(format!(
             "HTTP {}: {}",
-            status, raw
+            status,
+            &raw_text[..raw_text.len().min(500)]
         )));
     }
 
-    // Extract content from OpenAI-compatible response
-    let content = raw["choices"][0]["message"]["content"]
+    // Extract content from OpenAI-compatible response, then parse as ClassifyResponse
+    let raw_json: serde_json::Value =
+        serde_json::from_str(&raw_text).unwrap_or(serde_json::Value::Null);
+    let content = raw_json["choices"][0]["message"]["content"]
         .as_str()
-        .unwrap_or("")
+        .unwrap_or(&raw_text)
         .to_string();
 
-    // Try to parse the JSON response from the LLM
     let classify_result: Result<ClassifyResponse, _> = serde_json::from_str(content.trim());
 
     let (branch_key, summary) = match classify_result {
@@ -623,15 +687,11 @@ async fn execute_loop(
     for iteration in 1..=max_iterations {
         state.charge(GAS_LOOP_ITERATION)?;
 
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(command)
-            .output()
-            .map_err(|e| RunnerError::CommandFailed {
-                ordinal: step.ordinal(),
-                exit_code: -1,
-                stderr: e.to_string(),
-            })?;
+        let output = run_shell(command).map_err(|e| RunnerError::CommandFailed {
+            ordinal: step.ordinal(),
+            exit_code: -1,
+            stderr: e.to_string(),
+        })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
 
@@ -727,19 +787,27 @@ pub async fn run_script(
     let manifest = load_manifest(&full_path)?;
     validate(&manifest)?;
 
+    let manifest_id = manifest.manifest.id.clone();
+    let step_count = manifest.steps.len();
+
+    tracing::info!(
+        target: "cns",
+        cns_domain = %hkask_types::cns::CnsSpan::QaRepairAttempted.as_str(),
+        operation = "started",
+        manifest = %manifest_id,
+        step_count = step_count,
+        "CNS"
+    );
+
     let mut state = RunnerState::new(manifest.gas.as_ref());
     let steps = manifest.steps;
-    let manifest_id = manifest.manifest.id.clone();
-
-    // Build ordinal → step lookup
     let step_map: std::collections::HashMap<u32, &StepDef> =
         steps.iter().map(|s| (s.ordinal(), s)).collect();
 
-    // Start at the lowest ordinal
     let start_ordinal = steps.iter().map(|s| s.ordinal()).min().unwrap_or(1);
     let mut current_ordinal = start_ordinal;
 
-    loop {
+    let outcome = loop {
         let step =
             step_map
                 .get(&current_ordinal)
@@ -757,8 +825,8 @@ pub async fn run_script(
         };
 
         if step.is_terminal() {
-            return Ok(ScriptOutput {
-                manifest_id,
+            break Ok(ScriptOutput {
+                manifest_id: manifest_id.clone(),
                 terminal_ordinal: step.ordinal(),
                 terminal_message: output,
                 steps_executed: state.steps_executed,
@@ -769,9 +837,8 @@ pub async fn run_script(
         match next_ordinal {
             Some(next) => current_ordinal = next,
             None => {
-                // No branch target — this is a terminal step even if not marked
-                return Ok(ScriptOutput {
-                    manifest_id,
+                break Ok(ScriptOutput {
+                    manifest_id: manifest_id.clone(),
                     terminal_ordinal: step.ordinal(),
                     terminal_message: output,
                     steps_executed: state.steps_executed,
@@ -779,7 +846,40 @@ pub async fn run_script(
                 });
             }
         }
+    };
+
+    match &outcome {
+        Ok(o) => {
+            let passed = !o.terminal_message.contains("FAIL");
+            let span = if passed {
+                hkask_types::cns::CnsSpan::QaRepairVerified
+            } else {
+                hkask_types::cns::CnsSpan::QaRepairExhausted
+            };
+            tracing::info!(
+                target: "cns",
+                cns_domain = %span.as_str(),
+                operation = if passed { "completed" } else { "failed" },
+                manifest = %manifest_id,
+                terminal = o.terminal_ordinal,
+                steps = o.steps_executed,
+                gas = o.gas_used,
+                "CNS"
+            );
+        }
+        Err(e) => {
+            tracing::info!(
+                target: "cns",
+                cns_domain = %hkask_types::cns::CnsSpan::QaRepairExhausted.as_str(),
+                operation = "error",
+                manifest = %manifest_id,
+                error = %e,
+                "CNS"
+            );
+        }
     }
+
+    outcome
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────

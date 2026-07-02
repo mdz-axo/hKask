@@ -622,12 +622,11 @@ suggests a fuzz target that would catch it.
 
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
-| CNS QA spans | `crates/hkask-types/src/cns.rs` | 5 `CnsSpan` variants for QA observability |
-| Triage library | `crates/hkask-test-harness/src/triage.rs` | Bolero output parser, git helpers, auto-repair, gh CLI |
-| Feedback library | `crates/hkask-test-harness/src/feedback.rs` | Correction passages, mutant parsing, fuzz suggestions |
-| CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa triage` — stdin reader, classifier orchestration |
-| Classifier config | `registry/classify/qa-triage.yaml` | Gemma 4 triage prompt (failure diagnosis) |
-| Feedback config | `registry/classify/qa-feedback.yaml` | Gemma 4 feedback prompt (correction + mutant suggestions) |
+| QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, run_command/classify/loop/mcp_tool execution, gas enforcement |
+| CNS QA spans | `crates/hkask-types/src/cns.rs` | 4 `CnsSpan` variants for QA observability (defined, not yet emitted) |
+| CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa run --script` — planned, not yet built |
+| Classifier config | `registry/classify/qa-triage.yaml` | Gemma 4 26B triage prompt (failure diagnosis) |
+| Feedback config | `registry/classify/qa-feedback.yaml` | Gemma 4 26B feedback prompt (correction + mutant suggestions) |
 
 ### 10.6 Cost Profile
 

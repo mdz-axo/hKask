@@ -302,6 +302,8 @@ fn main() {
         Commands::Matrix { action } => commands::matrix::run(action),
 
         Commands::Repair { dry_run, force } => commands::repair::run(dry_run, force),
+
+        Commands::Qa { action } => commands::qa::run(action),
     }
 
     // P9: CNS span

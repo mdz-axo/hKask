@@ -169,14 +169,14 @@ REST endpoints in `hkask-api` read and write specs directly through `AgentServic
 | `GET /api/specs/coherence` | Category coverage ratio across all specs |
 | `GET /api/specs/{id}/writing-quality` | Structural quality check (name, criteria, completeness) |
 
-### 4.3 QA Integration (`kask qa spec-check`)
+### 4.3 QA Integration (planned)
 
-Spec validation, coherence checking, and quality assessment moved from the former MCP spec server into the QA system. The QA system's classifier + self-heal pipeline naturally extends to spec health.
+Spec validation, coherence checking, and quality assessment will move into the QA system when `kask qa spec-check` is built. Currently, spec validation runs through `DefaultSpecCurator::evaluate()` directly.
 
-| Command | Operation |
-|---------|----------|
-| `kask qa spec-check` | Full collection check: category coverage + per-spec quality |
-| `kask qa spec-check --spec-id <uuid>` | Single-spec validation via `DefaultSpecCurator::evaluate()` |
+| Command | Operation | Status |
+|---------|----------|--------|
+| `kask qa spec-check` | Full collection check: category coverage + per-spec quality | Not yet built |
+| `kask qa spec-check --spec-id <uuid>` | Single-spec validation via `DefaultSpecCurator::evaluate()` | Not yet built |
 
 ### 4.4 Replica Integration (`replica_rewrite`)
 

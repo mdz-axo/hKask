@@ -1043,3 +1043,16 @@ pub enum AdapterAction {
         deployment_id: String,
     },
 }
+
+/// QA actions — run autonomous test scripts
+#[derive(Debug, Subcommand)]
+pub enum QaAction {
+    /// Run a QA script manifest
+    Run {
+        /// Path to the manifest YAML file
+        #[arg(short, long)]
+        script: PathBuf,
+    },
+    /// List available QA manifests
+    List,
+}

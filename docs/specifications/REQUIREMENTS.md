@@ -362,11 +362,11 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] `kask spec {capture,list,validate,cultivate,render}` CLI commands
   - [x] `GET/POST /api/specs` REST endpoints
-  - [x] `kask qa spec-check` for collection-wide validation
+  - [ ] `kask qa spec-check` for collection-wide validation (planned, not yet built)
   - [x] `SpecStore`, `SpecCurator`, `SpecObserver` traits
   - [x] `SqliteSpecStore` implementation
   - [x] `DefaultSpecCurator` implementation
-- **Implementation:** `hkask-storage::spec_types` (domain types), `hkask-storage::spec_store` (persistence), `hkask-agents::curator_agent::spec_curator` (validation), `hkask-cli::commands::qa` (spec-check)
+- **Implementation:** `hkask-storage::spec_types` (domain types), `hkask-storage::spec_store` (persistence), `hkask-agents::curator_agent::spec_curator` (validation)
 - **Status:** Implemented
 - **Note:** Former `mcp-spec` MCP server (12 tools) and `SpecService` service layer removed v0.31.0. Spec operations now call `SpecStore` directly; validation folded into QA; prose rewriting moved to `hkask-mcp-replica::replica_rewrite`.
 - **Curation:** Merge

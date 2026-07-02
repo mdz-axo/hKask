@@ -2,7 +2,15 @@
 
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
-/// Block on a future using a tokio Runtime, panicking with an error message on failure.
+/// Block on a future using a tokio Runtime, exiting the process on failure.
+///
+/// # Panics
+/// Exits the process with code 1 if the future returns an error.
+///
+/// # Provenance
+/// Reconstructed from call-site patterns in `backup_cmd`, `bundle`,
+/// `federation`, and `git_cmd` modules. The original definition site
+/// could not be located.
 #[macro_export]
 macro_rules! block_on {
     ($rt:expr, $future:expr, $msg:expr $(,)?) => {

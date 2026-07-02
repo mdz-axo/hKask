@@ -23,6 +23,7 @@ thiserror.workspace = true
 serde_yaml_neo.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["rt"] }
+tracing.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

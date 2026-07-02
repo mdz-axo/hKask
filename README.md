@@ -61,7 +61,7 @@ Where other systems give you a prompt, hKask gives you a process.
 | **Skill manifests** | `manifest.yaml` | 64 | FlowDef: contracts, convergence criteria, gas budget |
 | **Skills** | `.agents/skills/` | 39 | PDCA loops: compose templates → iterate → converge \| max_out \| escalate |
 
-Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa triage`, `kask qa run-script`). The skill system includes discovery, bundling, translation, lifecycle management, and adversarial logic auditing. A Bundle composes multiple Skills but is not itself a PDCA loop.
+Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa run --script`, planned). The skill system includes discovery, bundling, translation, lifecycle management, and adversarial logic auditing. A Bundle composes multiple Skills but is not itself a PDCA loop.
 
 ---
 

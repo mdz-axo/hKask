@@ -337,6 +337,12 @@ pub enum Commands {
         #[arg(long, conflicts_with = "dry_run")]
         force: bool,
     },
+
+    /// QA operations — run autonomous test scripts
+    Qa {
+        #[command(subcommand)]
+        action: QaAction,
+    },
 }
 
 impl Commands {
@@ -385,6 +391,7 @@ impl Commands {
             Commands::Transcript { .. } => "transcript",
             Commands::Matrix { .. } => "matrix",
             Commands::Repair { .. } => "repair",
+            Commands::Qa { .. } => "qa",
         }
     }
 }

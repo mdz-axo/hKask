@@ -332,12 +332,11 @@ steps:
 
 | Anti-Pattern | Why It's Wrong | Fix |
 |-------------|---------------|-----|
-| **Testing UIs** | The runner can't inject keystrokes or read terminal buffers | Use `cargo test` to run existing `TestBackend`-based integration tests; the QA script orchestrates failure response |
+| **Testing UIs** | The runner can't inject keystrokes or read terminal buffers | Use `cargo test` to run existing integration tests; the QA script orchestrates failure response |
 | **Infinite loops** | Loop without `loop_exhausted` branch | Always add a `loop_exhausted` branch |
 | **Unreachable steps** | Steps with ordinals above the max branch target | Reorder or remove |
-| **Using unsupported fields** | `escalate_on`, `severity_map`, `iteration_delay_secs`, global `alert:` — all cause parse errors | Only use fields from the actual schema |
-| **Missing `retries`** | Every step including `loop` requires `retries` | Add `retries: 0` to all steps |
-| **Wrong CLI command** | `kask qa run` doesn't exist | Use `kask qa run-script --script <path>` |
+| **Unsupported fields** | `iteration_delay_secs`, `cns_span`, `default_next` — silently ignored by the runner | Remove them; the runner only uses fields it deserializes |
+| **Missing `classifier_unavailable`** | Classify step without fallback when API key is missing | Always add `classifier_unavailable` branch targeting a WARN terminal step |
 | **Wrong API key env var** | `DEEPINFRA_API_KEY` doesn't match `.env` | Use `DI_API_KEY` |
 
 ## Workflow

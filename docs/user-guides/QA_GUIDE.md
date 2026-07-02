@@ -121,88 +121,51 @@ YAML Manifest ──> QaScriptManifest (parse)
 
 ---
 
-## 3. CLI Commands
+## 3. Running QA Scripts
 
-### 3.1 Fuzz Triage
+QA manifests are executed via `hkask_test_harness::qa_script::run_script()` —
+a Rust library function that parses YAML manifests and executes steps with
+branching, classifier triage, loop retry, and gas enforcement.
 
-Classify bolero fuzz failures and optionally auto-repair high-confidence issues.
-
-```bash
-# Pipe bolero output directly
-cargo bolero test --all-features 2>&1 | kask qa triage
-
-# From a saved file
-kask qa triage --input fuzz-output.txt
-```
-
-**What it does:**
-
-1. Parses bolero stderr into structured `BoleroFailure` records (crate, test, panic, stack trace)
-2. Loads the `qa-triage` classifier config from `$HKASK_REPLICANT_REGISTRY_PATH/classify/qa-triage.yaml`
-3. Sends each failure as a passage to `classify_batch()` via DeepInfra
-4. Routes by confidence:
-   - **≥0.95** — High confidence → auto-repair branch created
-   - **0.70–0.95** — Medium confidence → issue opened
-   - **<0.70** — Low confidence → investigation needed
-   - **is_flake** — Flake detected → skipped
-5. Emits `cns.qa.bolero_failure` spans for observability
-
-**Requirements:**
-- `DI_API_KEY` environment variable (or equivalent provider key)
-- Classifier config at `registry/classify/qa-triage.yaml`
-- `cargo bolero` installed
-
-**Without LLM:** Falls back to parse-only mode — prints failures without classification.
-
-### 3.2 Mutation Analysis
-
-Suggest fuzz targets for surviving mutants from `cargo-mutants`.
+### 3.1 Via cargo test (works today)
 
 ```bash
-cargo mutants --all-features 2>&1 | kask qa suggest-fuzz
+# Run all QA integration tests
+cargo test -p hkask-test-harness -- qa_script
+
+# Run a specific manifest end-to-end
+cargo test -p hkask-test-harness -- qa_script::tests::run_comm_integration_gate
 ```
 
-**What it does:**
+### 3.2 Planned CLI (not yet built)
 
-1. Parses `cargo-mutants` output for "Uncaught mutants in crate: file:line"
-2. Loads the `qa-feedback` classifier config
-3. Formats each surviving mutant as a passage describing the mutation
-4. Requests fuzz target suggestions from the LLM
-5. Prints crate/file/line → suggested fuzz target
-
-**Requirements:**
-- `DI_API_KEY` environment variable
-- Classifier config at `registry/classify/qa-feedback.yaml`
-- `cargo mutants` installed
-
-### 3.3 Autonomous Scripts
-
-Execute a YAML-defined interactive QA pipeline with classifier-driven branching.
+The `kask qa run --script <path>` CLI subcommand is planned but not yet
+implemented. Once built, usage will be:
 
 ```bash
-kask qa run --script registry/manifests/qa-autonomous.yaml
+# (planned, not yet available)
+kask qa run --script registry/manifests/qa-comm-integration-gate.yaml
 ```
 
-**What it does:**
+### 3.3 Fuzz Triage (planned)
 
-1. Parses the YAML manifest into a `QaScriptManifest`
-2. Wires the classification service into a `QaScriptRunner`
-3. Executes steps in order, branching on classifier outcomes or command exit codes
-4. Loop steps retry with configurable backoff
-5. Produces a structured report with per-step outcomes
+`kask qa triage` and `kask qa suggest-fuzz` are specified but not yet
+built. These will parse bolero/cargo-mutants output and classify failures
+via the LLM classifier.
 
-**Step-by-step output example:**
+### 3.4 Executable manifests today
 
-```
-[QA] Loading script: registry/manifests/qa-autonomous.yaml
-[QA] Running script 'qa-autonomous' — 7 steps
-[QA] ──────────────────────────────────────────────
-[QA] ──────────────────────────────────────────────
-[QA] Script complete: 3 steps executed, terminal outcome: high_confidence
-  [1] run_command → success (1234ms)
-  [2] classify → high_confidence (567ms) | category: {"confidence":0.96,"is_flake":false,...}
-  [3] run_command → success (12ms)
-```
+Four manifests are executable via `cargo test` without any API keys:
+
+| Manifest | Tests | Status |
+|----------|-------|--------|
+| `qa-comm-integration-gate` | 5 | ✅ Executable |
+| `qa-condenser-health-check` | 11 | ✅ Executable |
+| `qa-keystore-security-gate` | 16 | ✅ Executable |
+| `qa-memory-privacy-boundary` | 6 | ✅ Executable |
+
+Classify steps gracefully degrade through `classifier_unavailable` when
+`DI_API_KEY` is not set, routing to the WARN terminal step.
 
 ---
 
@@ -390,10 +353,10 @@ Stored in `$HKASK_REPLICANT_REGISTRY_PATH/classify/` as YAML files. Two standard
 ```yaml
 classifier:
   name: qa-triage
-  model: google/gemma-4-9b-it
+  model: google/gemma-4-26B-A4B-it
   provider: deepinfra
   system_prompt: |
-    You are a QA triage classifier. Analyze the following Rust fuzz test failure.
+    You are a QA triage classifier. Analyze the following Rust test failure.
     Output a JSON object with:
     - confidence (0.0-1.0): how confident you are in the diagnosis
     - is_flake (bool): true if this appears to be a non-deterministic/flaky failure
@@ -410,14 +373,7 @@ classifier:
 ```yaml
 classifier:
   name: qa-feedback
-  model: google/gemma-4-9b-it
-  provider: deepinfra
-  system_prompt: |
-    You are a QA feedback classifier. Given a surviving mutant from mutation testing,
-    suggest a fuzz target that would catch it. Output the suggestion as plain text.
-  temperature: 0.3
-  max_tokens: 256
-  fallback_category: "No suggestion"
+  model: google/gemma-4-26B-A4B-it
 ```
 
 ### 5.2 Diagnosis Schema
@@ -475,11 +431,6 @@ The `hkask-test-harness` crate provides reusable QA infrastructure:
 
 | Module | Purpose |
 |--------|---------|
-| `triage` | `BoleroFailure` parsing, `QaDiagnosis`, `TriageReport`, auto-repair (`attempt_auto_repair`, `open_pull_request`) |
-| `feedback` | Correction passages for rejected repairs, mutant-to-fuzz suggestion formatting |
-| `qa_script` | `QaScriptManifest`, `QaScriptRunner`, `QaScriptReport` |
-| `prob_contract` | `ProbContractRunner` for PAC-style (p, δ, k)-satisfaction testing |
-| `strategies` | `proptest` strategy functions for core types (`any_nu_event`, `any_triple`, etc.) |
 | `test_runner` | `run_contract_tests()`, `inventory_contracts()`, `discover_uncontracted_functions()` |
 | `fuzz` | Seed corpora for `cli_fuzz_seeds()` and `json_fuzz_seeds()` |
 
@@ -487,79 +438,61 @@ The `hkask-test-harness` crate provides reusable QA infrastructure:
 
 ## 8. Recipes
 
-### Run a full autonomous QA cycle
+### Run QA manifests via cargo test
 
 ```bash
-kask qa run --script registry/manifests/qa-autonomous.yaml
+# Run all QA integration tests
+cargo test -p hkask-test-harness -- qa_script
+
+# Run a specific manifest
+cargo test -p hkask-test-harness -- qa_script::tests::run_comm_integration_gate
 ```
 
-### Triage fuzz failures with LLM classification
+### Run contract tests
 
 ```bash
-cargo bolero test --all-features 2>&1 | kask qa triage
-```
-
-### Discover uncontracted functions and suggest fuzz targets
-
-```bash
-# 1. Find functions without REQ contracts
-kask test audit
-
-# 2. Run mutation testing
-cargo mutants --all-features 2>&1 | kask qa suggest-fuzz
+cargo run -- test
+cargo run -- test -c hkask-keystore
 ```
 
 ### Create a custom autonomous script
 
 1. Create `my-qa-script.yaml` following the [manifest format](#manifest-format)
-2. Optionally create a custom classifier config in `registry/classify/my-classifier.yaml`
-3. Run it:
+2. Run it via cargo test:
 
 ```bash
-kask qa run --script my-qa-script.yaml
+cargo test -p hkask-test-harness -- qa_script
+```
+
+Or programmatically via the library:
+
+```rust
+use hkask_test_harness::qa_script;
+
+let output = qa_script::run_script(
+    Path::new("/workspace/root"),
+    Path::new("registry/manifests/my-qa-script.yaml"),
+).await?;
 ```
 
 ### Test a script manifest without LLM access
 
-The runner still executes `run_command` steps without a classifier — useful for
-testing the flow before wiring in expensive LLM calls:
-
-```yaml
-steps:
-  - ordinal: 1
-    action: run_command
-    command: "echo 'test pass'"
-    branching:
-      success: 2
-  - ordinal: 2
-    action: run_command
-    command: "echo 'all done'"
-```
-
-```bash
-kask qa run --script dry-run.yaml
-# Output:
-# [QA] Script complete: 2 steps executed, terminal outcome: success
-#   [1] run_command → success (5ms)
-#   [2] run_command → success (4ms)
-```
+Manifests with `classifier_unavailable` branches gracefully degrade when
+`DI_API_KEY` is not set — `run_command` steps execute normally, and
+`classify` steps route to the unavailable branch.
 
 ### Integrate with CI
 
 ```bash
 #!/bin/sh
-# ci-qa.sh — Autonomous QA gate for CI
+# ci-qa.sh — QA gate for CI
 set -e
 
-echo "=== Fuzz tests ==="
-cargo bolero test --all-features --timeout 60s 2>&1 | tee ci-fuzz.txt
-kask qa triage --input ci-fuzz.txt
-
-echo "=== Autonomous QA script ==="
-kask qa run --script registry/manifests/qa-autonomous.yaml
+echo "=== QA manifests ==="
+cargo test -p hkask-test-harness -- qa_script::tests::run_
 
 echo "=== Contract audit ==="
-kask test audit 2>&1 | tee ci-contract.txt
+cargo run -- test
 ```
 
 ### Run the test harness tests
