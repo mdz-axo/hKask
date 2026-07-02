@@ -136,10 +136,6 @@ async fn run_pod_inner(action: PodAction) {
     }
 }
 
-fn build_ctx() -> hkask_services_context::AgentService {
-    super::helpers::build_service_context()
-}
-
 fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, String> {
     uuid::Uuid::parse_str(id)
         .map(hkask_agents::pod::PodID::from_uuid)
@@ -147,7 +143,7 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, String> {
 }
 
 pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusInfo, String> {
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     let pid = parse_pod_id(pod_id)?;
     ctx.infra()
         .pods
@@ -158,7 +154,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusInfo, String> {
 }
 
 pub async fn list_pods() -> Result<Vec<PodStatusInfo>, String> {
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     ctx.infra()
         .pods
         .clone()
@@ -176,7 +172,7 @@ pub async fn create_pod(
         .map_err(|e| format!("Cannot read persona file: {e}"))?;
     let persona = hkask_agents::pod::AgentPersona::from_yaml(&yaml)
         .map_err(|e| format!("Invalid persona YAML: {e}"))?;
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     let pm = ctx.infra().pods.clone();
     let pod_id = pm
         .create_pod(
@@ -191,7 +187,7 @@ pub async fn create_pod(
 }
 
 pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     let pid = parse_pod_id(pod_id)?;
     ctx.infra()
         .pods
@@ -202,7 +198,7 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
 }
 
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     let pid = parse_pod_id(pod_id)?;
     ctx.infra()
         .pods
@@ -213,7 +209,7 @@ pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
 }
 
 pub async fn assign_role(name: &str, role: &str) -> Result<(), String> {
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     ctx.infra()
         .pods
         .clone()
@@ -223,7 +219,7 @@ pub async fn assign_role(name: &str, role: &str) -> Result<(), String> {
 }
 
 pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), String> {
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     ctx.infra()
         .pods
         .clone()
@@ -234,7 +230,7 @@ pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), 
 
 /// Export a pod as a container build context (delegates to PodFactory).
 pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Result<(), String> {
-    let ctx = build_ctx();
+    let ctx = super::helpers::build_agent_service();
     let pm = ctx.infra().pods.clone();
     let pid = hkask_agents::pod::PodID::from_name(pod_id);
     pm.export_container(pid, output_dir)

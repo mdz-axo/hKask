@@ -74,26 +74,15 @@ pub struct ScriptOutput {
 #[derive(Debug, Deserialize)]
 struct ManifestMeta {
     id: String,
-    name: String,
-    version: String,
-    #[serde(default)]
-    description: String,
-    #[serde(default)]
-    visibility: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct GasConfig {
     cap: u64,
-    #[serde(default = "default_alert_threshold")]
-    alert_threshold: f64,
     #[serde(default = "default_true")]
     hard_limit: bool,
 }
 
-fn default_alert_threshold() -> f64 {
-    0.8
-}
 fn default_true() -> bool {
     true
 }
@@ -127,24 +116,6 @@ struct BranchMap {
     classifier_unavailable: Option<u32>,
 }
 
-#[derive(Debug, Deserialize)]
-struct CnsConfig {
-    #[serde(default)]
-    emit_spans: bool,
-    #[serde(default)]
-    alert: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ErrorHandling {
-    #[serde(default)]
-    on_gas_exceeded: String,
-    #[serde(default)]
-    on_timeout: String,
-    #[serde(default)]
-    max_retries: u32,
-}
-
 /// A single step in the QA manifest.
 ///
 /// Uses `#[serde(tag = "action")]` so invalid action strings fail at parse
@@ -158,10 +129,6 @@ enum StepDef {
         ordinal: u32,
         command: String,
         #[serde(default)]
-        description: String,
-        #[serde(default)]
-        retries: u32,
-        #[serde(default)]
         terminal: bool,
         #[serde(default)]
         branching: Option<BranchTarget>,
@@ -172,8 +139,6 @@ enum StepDef {
         classifier: String,
         description: String,
         #[serde(default)]
-        retries: u32,
-        #[serde(default)]
         terminal: bool,
         #[serde(default)]
         branching: Option<BranchTarget>,
@@ -183,7 +148,6 @@ enum StepDef {
         ordinal: u32,
         #[serde(default)]
         command: Option<String>,
-        description: String,
         max_iterations: u32,
         #[serde(default)]
         terminal: bool,
@@ -196,9 +160,6 @@ enum StepDef {
         tool_name: String,
         #[serde(default)]
         tool_params: String,
-        description: String,
-        #[serde(default)]
-        retries: u32,
         #[serde(default)]
         terminal: bool,
         #[serde(default)]
@@ -233,15 +194,6 @@ impl StepDef {
             | StepDef::McpTool { branching, .. } => branching.as_ref(),
         }
     }
-
-    fn description(&self) -> &str {
-        match self {
-            StepDef::RunCommand { description, .. }
-            | StepDef::Classify { description, .. }
-            | StepDef::Loop { description, .. }
-            | StepDef::McpTool { description, .. } => description,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,10 +202,6 @@ struct QaScriptManifest {
     #[serde(default)]
     gas: Option<GasConfig>,
     steps: Vec<StepDef>,
-    #[serde(default)]
-    error_handling: Option<ErrorHandling>,
-    #[serde(default)]
-    cns: Option<CnsConfig>,
 }
 
 // ── Classifier config (from registry/classify/*.yaml) ───────────────────────
@@ -265,9 +213,7 @@ struct ClassifierConfigFile {
 
 #[derive(Debug, Deserialize, Clone)]
 struct ClassifierConfig {
-    name: String,
     model: String,
-    provider: String,
     #[serde(default)]
     system_prompt: String,
     #[serde(default)]
@@ -288,10 +234,6 @@ struct ClassifyResponse {
     #[serde(default)]
     proposed_fix: String,
     #[serde(default)]
-    affected_file: String,
-    #[serde(default)]
-    affected_line: u32,
-    #[serde(default)]
     is_flake: bool,
 }
 
@@ -303,8 +245,6 @@ struct RunnerState {
     hard_limit: bool,
     previous_stdout: String,
     steps_executed: u32,
-    /// Cumulative stdout from all steps (for context passthrough)
-    accumulated_output: String,
 }
 
 impl RunnerState {
@@ -317,7 +257,6 @@ impl RunnerState {
             hard_limit: hard,
             previous_stdout: String::new(),
             steps_executed: 0,
-            accumulated_output: String::new(),
         }
     }
 
@@ -484,7 +423,6 @@ fn execute_run_command(
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
     state.previous_stdout = stdout.clone();
-    state.accumulated_output.push_str(&stdout);
     state.steps_executed += 1;
 
     if output.status.success() {
@@ -547,7 +485,6 @@ async fn execute_classify(
                 );
                 eprintln!("{}", msg);
                 state.previous_stdout = msg.clone();
-                state.accumulated_output.push_str(&msg);
                 state.steps_executed += 1;
                 return Ok((msg, Some(next)));
             }
@@ -572,7 +509,6 @@ async fn execute_classify(
                 );
                 eprintln!("{}", msg);
                 state.previous_stdout = msg.clone();
-                state.accumulated_output.push_str(&msg);
                 state.steps_executed += 1;
                 return Ok((msg, Some(next)));
             }
@@ -661,7 +597,6 @@ async fn execute_classify(
     };
 
     state.previous_stdout = summary.clone();
-    state.accumulated_output.push_str(&summary);
     state.steps_executed += 1;
 
     let next = step.branching().and_then(|b| resolve_branch(b, branch_key));
@@ -703,7 +638,6 @@ async fn execute_loop(
         if output.status.success() {
             let summary = format!("[loop] succeeded on iteration {}", iteration);
             state.previous_stdout = summary.clone();
-            state.accumulated_output.push_str(&summary);
             state.steps_executed += 1;
 
             let next = step.branching().and_then(|b| resolve_branch(b, "success"));
@@ -740,13 +674,16 @@ async fn execute_mcp_tool(
 ) -> Result<(String, Option<u32>), RunnerError> {
     state.charge(GAS_MCP_TOOL)?;
 
-    let tool_name = match step {
-        StepDef::McpTool { tool_name, .. } => tool_name,
+    let (tool_name, tool_params) = match step {
+        StepDef::McpTool {
+            tool_name,
+            tool_params,
+            ..
+        } => (tool_name, tool_params),
         _ => unreachable!(),
     };
 
     // MCP dispatch not yet implemented — requires McpRuntime integration.
-    // Return a clear error rather than silently skipping.
     let next = step.branching().and_then(|b| resolve_branch(b, "failure"));
 
     if next.is_none() {
@@ -757,12 +694,11 @@ async fn execute_mcp_tool(
     }
 
     let msg = format!(
-        "[QA:mcp_tool] MCP dispatch not yet supported (tool: {}) — routed to failure branch",
-        tool_name
+        "[QA:mcp_tool] MCP dispatch not yet supported — tool: {} params: {} — routed to failure branch",
+        tool_name, tool_params
     );
     eprintln!("{}", msg);
     state.previous_stdout = msg.clone();
-    state.accumulated_output.push_str(&msg);
     state.steps_executed += 1;
     Ok((msg, next))
 }

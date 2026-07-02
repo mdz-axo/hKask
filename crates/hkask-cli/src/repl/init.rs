@@ -120,7 +120,7 @@ pub(super) fn init_repl_state(
             // a separate keychain lookup (which fails with mock backends).
             // Also set HKASK_DB_PASSPHRASE, HKASK_MCP_SECRET, and
             // HKASK_MCP_SECURITY_KEY so downstream callers (e.g. bot_status →
-            // build_service_context → from_env) can resolve these without
+            // build_agent_service → from_env) can resolve these without
             // going through the OS keychain.
             // SAFETY: REPL init runs single-threaded before tokio runtime starts.
             unsafe {

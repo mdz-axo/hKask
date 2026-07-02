@@ -55,13 +55,8 @@ pub use template::{
     list_templates_local, register_mcp_server, register_template, search_templates,
 };
 
-// Re-exports from pod
-pub use pod::{
-    activate_pod, assign_role, create_pod, deactivate_pod, get_pod_status, list_pods, set_mode,
-};
-
 // Re-exports from agent
-pub use agent::{AgentReceipt, agent_register, agent_unregister, bot_list, bot_status};
+pub use agent::AgentReceipt;
 
 // Re-exports from chat
 pub use chat::{
@@ -69,8 +64,6 @@ pub use chat::{
     chat_with_agent_streaming_with_params, chat_with_agent_with_params,
 };
 
-// Re-exports from curator
-pub use curator::{curator_dismiss, curator_escalations, curator_metacognition, curator_resolve};
 pub use federation::run_federation;
 
 // Re-exports from bundle

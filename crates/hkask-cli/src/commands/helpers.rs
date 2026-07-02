@@ -116,3 +116,27 @@ pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
     let name = resolve_agent_name(agent);
     hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
 }
+
+/// Resolve the deploy directory from environment or default.
+pub fn resolve_deploy_dir() -> PathBuf {
+    std::env::var("HKASK_DEPLOY_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::config_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("hkask")
+                .join("deploy")
+        })
+}
+
+/// Print a list of items with a header.
+pub fn print_item_list(header: &str, items: &[String]) {
+    if items.is_empty() {
+        println!("{} (none)", header);
+    } else {
+        println!("{}:", header);
+        for item in items {
+            println!("  - {}", item);
+        }
+    }
+}

@@ -16,7 +16,7 @@ pub fn run(action: SpecAction) {
             domain,
             criteria,
         } => {
-            let ctx = super::helpers::build_service_context();
+            let ctx = super::helpers::build_agent_service();
             let store = ctx.storage().specs.clone();
             let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
             let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
@@ -49,7 +49,7 @@ pub fn run(action: SpecAction) {
             }
         }
         SpecAction::List { category } => {
-            let ctx = super::helpers::build_service_context();
+            let ctx = super::helpers::build_agent_service();
             let store = ctx.storage().specs.clone();
             let result = match category.as_deref() {
                 Some(cat_str) => {
@@ -96,7 +96,7 @@ pub fn run(action: SpecAction) {
                 "Template not found",
             );
 
-            let ctx = super::helpers::build_service_context();
+            let ctx = super::helpers::build_agent_service();
 
             let render_ctx = if let Some(sid) = spec_id {
                 let store = ctx.storage().specs.clone();
@@ -135,7 +135,7 @@ fn run_validate(spec_id: &str) {
     use hkask_agents::DefaultSpecCurator;
     use hkask_storage::spec_types::SpecCurator;
 
-    let ctx = super::helpers::build_service_context();
+    let ctx = super::helpers::build_agent_service();
     let store = ctx.storage().specs.clone();
     let id = parse_spec_id_or_exit(spec_id);
     let spec = super::helpers::or_exit(store.load(id), "Failed to load spec");
@@ -157,7 +157,7 @@ fn run_cultivate(spec_id: &str) {
     use hkask_agents::DefaultSpecCurator;
     use hkask_storage::spec_types::SpecCurator;
 
-    let ctx = super::helpers::build_service_context();
+    let ctx = super::helpers::build_agent_service();
     let store = ctx.storage().specs.clone();
     let id = parse_spec_id_or_exit(spec_id);
     let spec = super::helpers::or_exit(store.load(id), "Failed to load spec");

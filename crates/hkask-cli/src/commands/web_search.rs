@@ -5,7 +5,7 @@
 /// post: performs MCP web search; prints results with title, URL, and snippet; exits on failure
 pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     use hkask_templates::McpPort;
-    let ctx = super::helpers::build_service_context();
+    let ctx = super::helpers::build_agent_service();
     super::helpers::start_mcp_server(rt, &ctx, "research", "hkask-mcp-research");
     let from = super::helpers::resolve_user_webid();
     let to = super::helpers::resolve_user_webid();

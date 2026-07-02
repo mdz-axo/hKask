@@ -112,7 +112,7 @@ fn run_verify(action: SovereigntyAction) {
 }
 
 fn build_consent() -> (hkask_services_context::AgentService, Arc<ConsentManager>) {
-    let svc = super::helpers::build_service_context();
+    let svc = super::helpers::build_agent_service();
     let cm = svc.governance().consent.clone();
     (svc, cm)
 }

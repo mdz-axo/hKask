@@ -4,16 +4,20 @@
 //! context once at the entry point and uses it directly.
 
 use std::path::PathBuf;
+use std::str::FromStr;
 
-use hkask_agents::a2a::AgentReceipt;
-use hkask_ports::git_cas::GixCasAdapter;
+use hkask_mcp::GixCasAdapter;
 use hkask_services_context::AgentService;
 use hkask_storage::RegisteredAgent;
-use hkask_types::agent_paths;
+use hkask_types::{AgentKind, WebID, agent_paths};
 
-use crate::block_on;
-use crate::cli::BotAction;
-use hex;
+/// Simple receipt returned after agent registration.
+#[derive(Debug)]
+pub struct AgentReceipt {
+    pub webid: String,
+    pub token_hash: String,
+    pub registered_at: String,
+}
 
 /// Revert an agent to a specific commit.
 pub(crate) fn revert_agent(
@@ -47,17 +51,11 @@ pub(crate) fn revert_agent(
 /// List and display agents.
 pub(crate) fn list_agents(ctx: &AgentService, kind_filter: Option<&str>) {
     let agents = match ctx.storage().agents.list() {
-        Ok(all) => match kind_filter {
-            Some(kind_str) => {
-                if let Ok(kind) = kind_str.parse() {
-                    all.into_iter()
-                        .filter(|a| a.definition.agent_kind == kind)
-                        .collect()
-                } else {
-                    eprintln!("Unknown agent kind: {}", kind_str);
-                    return;
-                }
-            }
+        Ok(all) => match kind_filter.and_then(AgentKind::parse) {
+            Some(kind) => all
+                .into_iter()
+                .filter(|a| a.definition.agent_kind == kind)
+                .collect(),
             None => all,
         },
         Err(e) => {
@@ -157,20 +155,39 @@ pub(crate) fn show_agent_capabilities(ctx: &AgentService, name: &str) {
     }
 }
 
+/// Register an agent via A2A. Needs async because A2A registration is async.
+async fn register_agent_async(
+    ctx: &AgentService,
+    webid_str: &str,
+    agent_type: &str,
+    capabilities: Vec<String>,
+) -> Result<AgentReceipt, String> {
+    let webid = WebID::from_str(webid_str).map_err(|e| format!("Invalid WebID: {e}"))?;
+    let kind = AgentKind::parse(agent_type)
+        .ok_or_else(|| format!("Unknown agent kind: {}", agent_type))?;
+    let (_, a2a) = ctx.identity();
+    let token = a2a
+        .register_agent(webid, kind, capabilities)
+        .await
+        .map_err(|e| format!("A2A registration failed: {e}"))?;
+    Ok(AgentReceipt {
+        webid: webid_str.to_string(),
+        token_hash: hex::encode(&token.to_bytes()),
+        registered_at: chrono::Utc::now().to_rfc3339(),
+    })
+}
+
 /// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  rt is a valid tokio Runtime; action is a BotAction variant (List or Status)
-/// post: for List — prints table of all agents; for Status — prints detailed agent info
-pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
+pub fn run_bot(_rt: &tokio::runtime::Runtime, action: crate::cli::BotAction) {
     tracing::info!(target: "cns.cli", operation = "bot", action = ?action, "CNS");
     let ctx = super::helpers::build_agent_service();
     match action {
-        BotAction::List { kind } => list_agents(&ctx, kind.as_deref()),
-        BotAction::Status { name } => show_agent_status(&ctx, &name),
+        crate::cli::BotAction::List { kind } => list_agents(&ctx, kind.as_deref()),
+        crate::cli::BotAction::Status { name } => show_agent_status(&ctx, &name),
     }
 }
 
 /// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  rt is a valid tokio Runtime; action is an AgentAction variant
 pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) {
     tracing::info!(target: "cns.cli", operation = "agent", action = ?action, "CNS");
     let ctx = super::helpers::build_agent_service();
@@ -184,15 +201,15 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect();
-            let receipt = block_on!(
-                rt,
-                register_agent(&ctx, &webid, &agent_type, caps),
-                "Registration failed"
-            );
-            println!("Agent registered:");
-            println!("  WebID: {}", receipt.webid);
-            println!("  Token: {}...", &receipt.token_hash[..16]);
-            println!("  Registered at: {}", receipt.registered_at);
+            match rt.block_on(register_agent_async(&ctx, &webid, &agent_type, caps)) {
+                Ok(receipt) => {
+                    println!("Agent registered:");
+                    println!("  WebID: {}", receipt.webid);
+                    println!("  Token: {}...", &receipt.token_hash[..16]);
+                    println!("  Registered at: {}", receipt.registered_at);
+                }
+                Err(e) => eprintln!("Registration failed: {}", e),
+            }
         }
         crate::cli::AgentAction::Unregister { name } => match ctx.storage().agents.remove(&name) {
             Ok(()) => println!("Agent unregistered: {}", name),
@@ -209,24 +226,4 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             Err(e) => eprintln!("Revert failed: {}", e),
         },
     }
-}
-
-// ── Async helpers (kept minimal — only for genuinely async operations) ────
-
-/// Register an agent — needs async because A2A registration is async.
-async fn register_agent(
-    ctx: &AgentService,
-    webid_str: &str,
-    agent_type: &str,
-    capabilities: Vec<String>,
-) -> Result<AgentReceipt, String> {
-    let webid: hkask_types::WebID = webid_str
-        .parse()
-        .map_err(|e| format!("Invalid WebID: {e}"))?;
-    let kind = hkask_agents::AgentKind::parse(agent_type)
-        .ok_or_else(|| format!("Unknown agent kind: {}", agent_type))?;
-    let (_, a2a) = ctx.identity();
-    a2a.register_agent(webid, kind, capabilities)
-        .await
-        .map_err(|e| format!("A2A registration failed: {e}"))
 }
