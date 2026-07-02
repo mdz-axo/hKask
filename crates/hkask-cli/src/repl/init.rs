@@ -333,8 +333,8 @@ pub(super) fn init_repl_state(
         }
 
         // Create wallet for this replicant if not already present.
-        if let Some(wallet_mgr) = cyber.wallet_manager() {
-            if !wallet_mgr.has_wallet(&agent_webid).await {
+        if let Some(wallet_mgr) = cyber.wallet_manager()
+            && !wallet_mgr.has_wallet(&agent_webid).await {
                 let _ = wallet_mgr
                     .create_wallet(
                         agent_webid,
@@ -344,7 +344,6 @@ pub(super) fn init_repl_state(
                     .await;
                 tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created gas wallet for replicant");
             }
-        }
     });
 
     // Build per-agent memory via the service layer (NOT direct domain-crate
@@ -395,7 +394,7 @@ pub(super) fn init_repl_state(
         };
 
         // Create wallet + attach Well for this replicant.
-        let wallet_mgr = rt.block_on(async {
+        let _wallet_mgr = rt.block_on(async {
             let well = ctx.cns().cybernetics.read().await.well_manager().clone();
             let mgr = Arc::new(
                 hkask_cns::wallet_manager::WalletManager::new(Arc::clone(&wallet_store))

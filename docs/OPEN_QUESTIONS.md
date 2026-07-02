@@ -1,7 +1,7 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"

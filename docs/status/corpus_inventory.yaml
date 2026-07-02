@@ -244,7 +244,7 @@ documents:
   # ── Architecture — Federation ─────────────────────────────────────────────
   - path: docs/architecture/federation/FEDERATION_V2.md
     category: architecture
-    status: Active
+    status: Draft
     last_updated: 2026-06-30
     version: "0.31.0"
     mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -694,25 +694,25 @@ summary:
   generated: 2026-07-01
   corpus_version: "0.31.0"
 
-  total_documents: 57
+  total_documents: 58
 
-  active_aligned: 46
-  active_partial: 6
-  stale: 3
+  active_aligned: 48
+  active_partial: 0
+  stale: 4
   missing: 0
   na: 2
 
   disposition_create: 0
-  disposition_keep: 57
+  disposition_keep: 58
 
   drift_by_verdict:
-    aligned: 49
-    stale: 6
+    aligned: 52
+    stale: 4
     partial: 0
     na: 2
 
   category_counts:
-    architecture: 20
+    architecture: 17
     specification: 5
     user-guide: 13
     research: 3
@@ -720,6 +720,6 @@ summary:
     plan: 5
     generated: 1
     diagram: 6
-    index: 4
+    index: 2
 
-  documents_with_code_artifacts: 30
+  documents_with_code_artifacts: 41
