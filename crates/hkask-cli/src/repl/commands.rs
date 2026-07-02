@@ -266,18 +266,20 @@ pub(super) fn handle_slash_command(
         // Delegated to handler modules
         "status" | "st" => handlers::handle_status(state, template_id, rt),
         "agent" | "a" => handlers::handle_agent(arg1, state, rt),
-        "agents" | "ls" => handlers::handle_agents(rt),
+        "agents" | "ls" => handlers::handle_agents(state),
         "history" | "hist" => handlers::handle_history(state),
-        "pods" => handlers::handle_pods(rt),
+        "pods" => handlers::handle_pods(rt, state),
         "templates" | "tpl" => handlers::handle_templates(rt),
         "tools" => handlers::handle_tools(state, rt),
         "mcp" => handlers::handle_mcp(state, arg1, arg2, rt),
-        "escalations" | "esc" => handlers::handle_escalations(rt),
-        "resolve" => handlers::handle_resolve(arg1, rt),
-        "dismiss" => handlers::handle_dismiss(arg1, rt),
+        "escalations" | "esc" => handlers::handle_escalations(state),
+        "resolve" => handlers::handle_resolve(arg1, state),
+        "dismiss" => handlers::handle_dismiss(arg1, state),
         "metacognition" | "meta" => {
             rt.block_on(async {
-                match crate::commands::curator_metacognition().await {
+                match hkask_services_curator::CuratorService::metacognition(&state.service_context)
+                    .await
+                {
                     Ok(summary) => println!("  {}", summary),
                     Err(e) => println!("  Error: {}", e),
                 }

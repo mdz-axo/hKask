@@ -68,6 +68,7 @@ steps:
       low_confidence: 5
       flake: 2
       unparseable: 5
+      classifier_unavailable: 5
 
   # Step 3: PASS — communication layer intact
   - ordinal: 3

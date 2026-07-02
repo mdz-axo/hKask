@@ -20,7 +20,9 @@ serde.workspace = true
 rand.workspace = true
 proptest = "1"
 thiserror.workspace = true
+serde_yaml_neo.workspace = true
+reqwest.workspace = true
+tokio = { workspace = true, features = ["rt"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
-serde_yaml_neo.workspace = true

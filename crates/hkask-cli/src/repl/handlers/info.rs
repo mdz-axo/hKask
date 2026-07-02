@@ -35,8 +35,9 @@ pub(crate) fn handle_history(state: &super::super::ReplState) {
     println!();
 }
 
-pub(crate) fn handle_pods(rt: &tokio::runtime::Handle) {
-    match rt.block_on(crate::commands::list_pods()) {
+pub(crate) fn handle_pods(rt: &tokio::runtime::Handle, state: &super::super::ReplState) {
+    let pods = state.service_context.infra().pods.clone();
+    match rt.block_on(pods.list_pods()) {
         Ok(pods) => {
             if pods.is_empty() {
                 println!("  No pods registered.");

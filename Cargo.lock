@@ -4646,6 +4646,7 @@ dependencies = [
  "hkask-types",
  "proptest",
  "rand 0.9.4",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
