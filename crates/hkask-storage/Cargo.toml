@@ -13,7 +13,7 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-keystore = { path = "../hkask-keystore" }
 rusqlite.workspace = true
-sqlite-vec.workspace = true
+sqlite-vec = "0.1"
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true

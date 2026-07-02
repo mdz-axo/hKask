@@ -34,6 +34,8 @@ use crate::runtime::CnsRuntime;
 use crate::set_points::SetPoints;
 use crate::slo_manager::SloDataProvider;
 use crate::wallet_budget::WalletBackedBudget;
+use crate::wallet_manager::WalletManager;
+use crate::well::WellManager;
 
 use crate::algedonic::{AlertSeverity, RuntimeAlert};
 use crate::types::loops::{
@@ -55,6 +57,8 @@ use tokio::sync::{RwLock, mpsc};
 pub struct CyberneticsLoop {
     cns: Arc<RwLock<CnsRuntime>>,
     gas_budget_manager: GasBudgetManager,
+    well_manager: Arc<RwLock<WellManager>>,
+    wallet_manager: Arc<WalletManager>,
     set_points: SetPoints,
     /// Cascade detection — prevents unbounded sense→act cycles
     max_iterations: u32,
@@ -95,6 +99,8 @@ impl CyberneticsLoop {
         let slf = Self {
             cns,
             gas_budget_manager: GasBudgetManager::new(),
+            well_manager: Arc::new(RwLock::new(WellManager::new())),
+            wallet_manager: Arc::new(WalletManager::new()),
             set_points,
             max_iterations,
             dampener,
@@ -179,6 +185,16 @@ impl CyberneticsLoop {
         } else {
             Ok(0)
         }
+    }
+
+    /// Access the WalletManager for wallet creation and balance queries.
+    pub fn wallet_manager(&self) -> &Arc<WalletManager> {
+        &self.wallet_manager
+    }
+
+    /// Access the WellManager for Well creation and configuration.
+    pub fn well_manager(&self) -> &Arc<RwLock<WellManager>> {
+        &self.well_manager
     }
 
     /// Record a tool outcome in the CNS runtime for outcome quality tracking.
@@ -678,6 +694,31 @@ impl HkaskLoop for CyberneticsLoop {
         if let Some(ref path) = self.budget_persistence_path {
             if let Err(e) = self.gas_budget_manager.save_all(path).await {
                 tracing::error!(target: "cns.cybernetics", path = %path.display(), error = %e, "Failed to persist gas budgets");
+            }
+        }
+
+        // Replenish Wells on each regulation cycle
+        {
+            let mut wells = self.well_manager.write().await;
+            wells.replenish_all();
+        }
+
+        // 1.8: Well exhaustion → algedonic alert
+        {
+            let wells = self.well_manager.read().await;
+            if wells.default_well_exhausted() {
+                let alert = RuntimeAlert {
+                    domain: "well".into(),
+                    deficit: 1,
+                    threshold: 1,
+                    severity: AlertSeverity::Critical,
+                    escalated: true,
+                    timestamp: chrono::Utc::now(),
+                    message: "Default Well exhausted — agents will be blocked".into(),
+                };
+                if let Some(ref tx) = self.alerts_tx {
+                    let _ = tx.send(CurationInput::Alert(alert));
+                }
             }
         }
         let has_energy_depletion = actions.iter().any(|a| {

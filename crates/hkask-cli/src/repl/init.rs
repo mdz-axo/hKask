@@ -306,10 +306,10 @@ pub(super) fn init_repl_state(
     rt.block_on(async {
         // Load persisted budgets from previous sessions before registering.
         let _ = ctx.cns().cybernetics.read().await.load_budgets().await;
-        ctx.cns()
-            .cybernetics
-            .read()
-            .await
+        let cl = ctx.cns().cybernetics.clone();
+        let cyber = cl.read().await;
+
+        cyber
             .register_gas_budget(
                 agent_webid,
                 GasBudget::new(GasCost(repl_settings.gas_cap))
@@ -317,7 +317,33 @@ pub(super) fn init_repl_state(
                     .with_alert_threshold(0.8)
                     .with_hard_limit(true),
             )
-            .await
+            .await;
+
+        // Create default Well if none exists (first replicant to start).
+        {
+            let mut wells = cyber.well_manager().write().await;
+            if wells.default_well_id().is_none() {
+                let (well_id, _) = wells.create_well(hkask_cns::well::WellConfig {
+                    well_id: "default".into(),
+                    gas_rate: GasCost(repl_settings.gas_cap * 10),
+                    rjoule_rate: 1000,
+                });
+                tracing::info!(target: "hkask.cli", well_id = well_id.0, "Created default Well");
+            }
+        }
+
+        // Create wallet for this replicant if not already present.
+        let wallet_mgr = cyber.wallet_manager();
+        if !wallet_mgr.has_wallet(&agent_webid).await {
+            let _ = wallet_mgr
+                .create_wallet(
+                    agent_webid,
+                    GasCost(repl_settings.gas_cap * 5),
+                    500,
+                )
+                .await;
+            tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created gas wallet for replicant");
+        }
     });
 
     // Build per-agent memory via the service layer (NOT direct domain-crate

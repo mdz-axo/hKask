@@ -19,11 +19,12 @@ tracing.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
 
-parking_lot.workspace = true
+parking_lot = "0.12"
 
 tokio.workspace = true
 
 [dev-dependencies]
 hkask-test-harness = { path = "../hkask-test-harness" }
 hkask-storage = { path = "../hkask-storage" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
 proptest = "1"

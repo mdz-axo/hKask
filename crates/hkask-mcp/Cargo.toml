@@ -13,6 +13,8 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-cns = { path = "../hkask-cns" }
+# Runtime needs client (to talk to child MCP servers) and
+# transport-child-process (to spawn/manage them).
 rmcp = { workspace = true, features = ["server", "macros", "transport-io", "client", "transport-child-process"] }
 tokio-util.workspace = true
 serde.workspace = true
@@ -28,7 +30,7 @@ reqwest.workspace = true
 hex.workspace = true
 async-trait.workspace = true
 dirs = "6"
-gix = { workspace = true }
+gix = "0.81"
 jsonschema = "0.28"
 
 [dev-dependencies]

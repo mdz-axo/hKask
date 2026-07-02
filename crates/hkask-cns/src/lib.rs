@@ -17,6 +17,7 @@ pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator;
 pub mod types; // Loop 6 → Inference energy estimation
 
+pub mod curator_budget_policy;
 pub mod dynamic_gas_table;
 pub mod gas_report;
 pub mod runtime; // Loop 6 — runtime
@@ -27,7 +28,9 @@ pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
 pub(crate) mod table_energy_estimator; // Per-server energy cost table
 pub mod wallet_budget; // Loop 6 — wallet-backed energy budgets (Phase 5)
 pub(crate) mod wallet_energy_estimator; // Loop 6 — wallet-aware energy estimation (Phase 5)
-pub mod wallet_gas_calibrator; // Loop 6 — runtime wallet gas→rJoule calibration
+pub mod wallet_gas_calibrator;
+pub mod wallet_manager;
+pub mod well;
 pub use algedonic::RuntimeAlert;
 pub use api_metering::{
     ApiMeter, ApiMeteringAlert, ApiRequestSpan, EndpointWeight, RateLimitStatus, endpoint_weight,
@@ -44,8 +47,7 @@ pub use contract_events::{
 pub use cybernetics_loop::CyberneticsLoop;
 pub use dynamic_gas_table::DynamicGasTable;
 pub use energy::{
-    AgentGasStatus, DEFAULT_GAS_ALERT_THRESHOLD, GasBudget, GasCost, GasDelta,
-    GasError,
+    AgentGasStatus, DEFAULT_GAS_ALERT_THRESHOLD, GasBudget, GasCost, GasDelta, GasError,
 };
 pub use energy_budget_management::GasBudgetManager;
 pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};

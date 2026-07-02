@@ -1,7 +1,8 @@
-# hKask CI — fmt → clippy → build → test → doc → invariants
+# hKask CI — fmt → clippy + unused-deps + build → test + doc → invariants
 #
 # Clippy (with -D warnings + lint denials) catches: todo!(), unimplemented!(),
 # .unwrap(), undocumented unsafe blocks, deprecated usage.
+# Unused Deps (nightly -D unused_crate_dependencies) catches dependency drift.
 # The invariants grep-only job catches project-specific non-code patterns.
 
 name: CI
@@ -47,6 +48,23 @@ jobs:
       - name: Install linker + system deps
         run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
       - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  unused-deps:
+    name: Unused Deps
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: fmt
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: nightly
+      - name: Install linker + system deps
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - name: Cache cargo registry
+        uses: Swatinem/rust-cache@v2
+      - run: RUSTFLAGS="-D unused_crate_dependencies" cargo +nightly check --workspace
 
   build:
     name: Build

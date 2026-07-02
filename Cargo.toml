@@ -77,11 +77,16 @@ utoipa = { version = "5.5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-axum = "0.2"
 
 # MCP protocol (tool protocol)
+# Feature sets vary per crate — see individual Cargo.toml docs.
+#  server                    — core MCP types and tool registration
+#  macros                    — #[tool] derive macro
+#  transport-io              — stdio/SSE transport for standalone servers
+#  client                    — MCP client (runtime only)
+#  transport-child-process   — spawn + communicate with child MCP servers (runtime only)
 rmcp = "1"
 
 # Storage
 rusqlite = { version = "0.39", features = ["bundled-sqlcipher", "blob", "backup"] }
-sqlite-vec = "0.1"
 
 # Cryptography / Hashing
 blake3 = "1"
@@ -93,9 +98,6 @@ ed25519-dalek = "2"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 hex = { version = "0.4", features = ["serde"] }
 subtle = "2"
-
-# Git
-gix = "0.81"
 
 # Templating
 minijinja = { version = "2", features = ["loader", "serde", "json", "internal_safe_search"] }
@@ -120,13 +122,10 @@ clap = { version = "4", features = ["derive", "env"] }
 # Utilities
 uuid = { version = "1", features = ["v4", "v5", "serde", "fast-rng"] }
 chrono = { version = "0.4", features = ["serde"] }
-parking_lot = "0.12"
 rand = "0.9"
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 imageproc = { version = "0.25", default-features = false, features = ["rayon"] }
-ab_glyph = "0.2"
-nom-exif = "3"
 walkdir = "2"
 
 # Keychain / Secrets

@@ -7,7 +7,11 @@
 //!
 //! The daemon owns the Matrix connection. The REPL, pod activation hooks,
 //! and MCP tool surface all use this crate through the daemon.
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
+#[cfg(feature = "matrix")]
 pub mod agent_registration;
+#[cfg(feature = "matrix")]
 pub mod listener;
+#[cfg(feature = "matrix")]
 pub mod matrix;

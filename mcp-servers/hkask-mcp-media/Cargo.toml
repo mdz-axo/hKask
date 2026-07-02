@@ -33,9 +33,9 @@ sha2.workspace = true
 base64.workspace = true
 image.workspace = true
 imageproc.workspace = true
-ab_glyph.workspace = true
+ab_glyph = "0.2"
 uuid.workspace = true
-nom-exif.workspace = true
+nom-exif = "3"
 face_id = { version = "0.4", optional = true }
 
 [lib]

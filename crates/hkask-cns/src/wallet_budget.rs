@@ -165,11 +165,7 @@ impl WalletBackedBudget {
     /// When an API key is attached, consumes from the key's encumbrance
     /// via `WalletManager::consume()` (atomic encumbrance debit).
     /// When no key is attached, debits directly from wallet balance.
-    pub fn settle(
-        &self,
-        reserved_gas: GasCost,
-        actual_gas: GasCost,
-    ) -> Result<GasCost, GasError> {
+    pub fn settle(&self, reserved_gas: GasCost, actual_gas: GasCost) -> Result<GasCost, GasError> {
         let actual_rj = self.gas_to_rjoules(actual_gas.0);
 
         if let Some(key_id) = self.key_id {
@@ -219,8 +215,8 @@ mod tests {
     use hkask_storage::WalletStore;
     use hkask_storage::database::in_memory_db;
     use hkask_types::crypto::Ed25519PublicKey;
+    use hkask_wallet::GAS_PER_RJOULE;
     use hkask_wallet::WalletConfig;
-    use hkask_wallet_types::GAS_PER_RJOULE;
     use hkask_wallet_types::PrivacyMode;
 
     // WalletBackedBudget tests require a real WalletManager with an in-memory DB.
