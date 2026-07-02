@@ -1,19 +1,14 @@
 //! Wallet — Per-agent gas/rJoule balance store.
 //!
-//! Wallets are created by the Curator daemon on replicant registration.
-//! Agents spend from wallets via WalletBackedBudget.
-//! Wallets draw from Wells via the GasBudgetManager.
+//! Backed by SQLite via WalletStore. Wallets are created by the Curator daemon
+//! on replicant registration. Agents spend from wallets via WalletBackedBudget.
 
 use crate::energy::{GasCost, GasError};
+use crate::wallet_store::WalletStore;
+use crate::well::WellManager;
 use hkask_types::WebID;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-
-/// Unique wallet identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct WalletID(pub u64);
 
 /// Current balance of an agent's wallet.
 #[derive(Debug, Clone, Copy)]
@@ -22,125 +17,178 @@ pub struct WalletBalance {
     pub rjoule: u64,
 }
 
-/// Internal wallet state.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Wallet {
-    wallet_id: WalletID,
-    agent: WebID,
-    gas_balance: u64,
-    rjoule_balance: u64,
-    created_at: String,
-}
-
-/// Manages agent wallets — creation, drawing, spending, balance queries.
+/// Manages agent wallets — creation, spending, balance queries.
+/// Uses SQLite via WalletStore for persistence.
 pub struct WalletManager {
-    wallets: Arc<RwLock<HashMap<WebID, Wallet>>>,
-    next_id: Arc<RwLock<u64>>,
+    store: Option<Arc<WalletStore>>,
+    well_manager: Option<Arc<RwLock<WellManager>>>,
 }
 
 impl WalletManager {
-    pub fn new() -> Self {
+    /// Create a WalletManager with no persistence (in-memory only — for tests).
+    pub fn new_in_memory() -> Self {
         Self {
-            wallets: Arc::new(RwLock::new(HashMap::new())),
-            next_id: Arc::new(RwLock::new(1)),
+            store: None,
+            well_manager: None,
         }
     }
 
+    pub fn new(store: Arc<WalletStore>) -> Self {
+        Self {
+            store: Some(store),
+            well_manager: None,
+        }
+    }
+
+    /// Attach a WellManager for auto-draw on low balance.
+    pub fn with_well(mut self, well: Arc<RwLock<WellManager>>) -> Self {
+        self.well_manager = Some(well);
+        self
+    }
+
+    fn store(&self) -> Result<&WalletStore, GasError> {
+        self.store
+            .as_ref()
+            .map(|s| s.as_ref())
+            .ok_or_else(|| GasError::Persistence("No wallet store configured".into()))
+    }
+
     /// Create a wallet for an agent. Returns the wallet ID.
-    /// Called by Curator daemon on replicant registration.
     pub async fn create_wallet(
         &self,
         agent: WebID,
         initial_gas: GasCost,
         initial_rjoule: u64,
-    ) -> Result<WalletID, GasError> {
-        let mut wallets = self.wallets.write().await;
-        if wallets.contains_key(&agent) {
+    ) -> Result<i64, GasError> {
+        let store = self.store()?;
+        if store
+            .has_wallet(&agent)
+            .map_err(|e| GasError::Persistence(e))?
+        {
             return Err(GasError::Persistence(format!(
                 "Wallet already exists for agent {agent}"
             )));
         }
-        let mut next = self.next_id.write().await;
-        let id = WalletID(*next);
-        *next += 1;
-        wallets.insert(
-            agent,
-            Wallet {
-                wallet_id: id,
-                agent,
-                gas_balance: initial_gas.0,
-                rjoule_balance: initial_rjoule,
-                created_at: chrono::Utc::now().to_rfc3339(),
-            },
-        );
+
+        // B: Draw initial balance from Well if available
+        let (actual_gas, actual_rj) = if let Some(ref well) = self.well_manager {
+            let mut w = well.write().await;
+            w.draw_from_default(initial_gas, initial_rjoule)
+                .unwrap_or((GasCost(0), 0))
+        } else {
+            (initial_gas, initial_rjoule)
+        };
+
+        let id = store
+            .next_wallet_id()
+            .map_err(|e| GasError::Persistence(e))?;
+        store
+            .insert_wallet(&agent, id, actual_gas.0 as i64, actual_rj as i64)
+            .map_err(|e| GasError::Persistence(e))?;
         Ok(id)
     }
 
-    /// Deposit gas into an agent's wallet. Called after drawing from a Well.
-    pub async fn deposit_gas(&self, agent: &WebID, amount: GasCost) -> Result<GasCost, GasError> {
-        let mut wallets = self.wallets.write().await;
-        let wallet = wallets
-            .get_mut(agent)
-            .ok_or_else(|| GasError::Persistence(format!("No wallet for agent {agent}")))?;
-        wallet.gas_balance = wallet.gas_balance.saturating_add(amount.0);
-        Ok(amount)
-    }
-
-    /// Spend gas from an agent's wallet.
+    /// Spend gas from an agent's wallet. Auto-draws from Well if balance is low.
     pub async fn spend(&self, agent: &WebID, amount: GasCost) -> Result<GasCost, GasError> {
-        let mut wallets = self.wallets.write().await;
-        let wallet = wallets
-            .get_mut(agent)
+        let store = self.store()?;
+        let row = store
+            .get_wallet(agent)
+            .map_err(|e| GasError::Persistence(e))?
             .ok_or_else(|| GasError::Persistence(format!("No wallet for agent {agent}")))?;
-        let spent = amount.0.min(wallet.gas_balance);
-        wallet.gas_balance = wallet.gas_balance.saturating_sub(spent);
+
+        let balance = row.gas_balance as u64;
+        let effective_balance = if balance < amount.0 {
+            // A: Auto-draw from Well when balance is insufficient
+            if let Some(ref well) = self.well_manager {
+                let draw_amount = GasCost(amount.0 - balance);
+                let mut w = well.write().await;
+                if let Ok((drawn, _)) = w.draw_from_default(draw_amount, 0) {
+                    let new_balance = (balance + drawn.0) as i64;
+                    store
+                        .update_gas_balance(agent, new_balance)
+                        .map_err(|e| GasError::Persistence(e))?;
+                    balance + drawn.0
+                } else {
+                    balance
+                }
+            } else {
+                balance
+            }
+        } else {
+            balance
+        };
+
+        let spent = amount.0.min(effective_balance);
+        let new_balance = effective_balance.saturating_sub(spent) as i64;
+        store
+            .update_gas_balance(agent, new_balance)
+            .map_err(|e| GasError::Persistence(e))?;
         Ok(GasCost(spent))
     }
 
     /// Query an agent's wallet balance.
     pub async fn balance(&self, agent: &WebID) -> Result<WalletBalance, GasError> {
-        let wallets = self.wallets.read().await;
-        let wallet = wallets
-            .get(agent)
+        let store = self.store()?;
+        let row = store
+            .get_wallet(agent)
+            .map_err(|e| GasError::Persistence(e))?
             .ok_or_else(|| GasError::Persistence(format!("No wallet for agent {agent}")))?;
         Ok(WalletBalance {
-            gas: wallet.gas_balance,
-            rjoule: wallet.rjoule_balance,
+            gas: row.gas_balance as u64,
+            rjoule: row.rjoule_balance as u64,
         })
+    }
+
+    /// Deposit gas into an agent's wallet.
+    pub async fn deposit_gas(&self, agent: &WebID, amount: GasCost) -> Result<GasCost, GasError> {
+        let store = self.store()?;
+        let row = store
+            .get_wallet(agent)
+            .map_err(|e| GasError::Persistence(e))?
+            .ok_or_else(|| GasError::Persistence(format!("No wallet for agent {agent}")))?;
+
+        let new_balance = (row.gas_balance as u64).saturating_add(amount.0) as i64;
+        store
+            .update_gas_balance(agent, new_balance)
+            .map_err(|e| GasError::Persistence(e))?;
+        Ok(amount)
     }
 
     /// Check if a wallet has sufficient gas.
     pub async fn can_proceed(&self, agent: &WebID, amount: GasCost) -> bool {
-        let wallets = self.wallets.read().await;
-        wallets
-            .get(agent)
-            .map(|w| w.gas_balance >= amount.0)
-            .unwrap_or(false)
+        match self.balance(agent).await {
+            Ok(b) => b.gas >= amount.0,
+            Err(_) => false,
+        }
     }
 
     /// Check if a wallet exists for the agent.
     pub async fn has_wallet(&self, agent: &WebID) -> bool {
-        let wallets = self.wallets.read().await;
-        wallets.contains_key(agent)
-    }
-}
-
-impl Default for WalletManager {
-    fn default() -> Self {
-        Self::new()
+        if let Ok(store) = self.store() {
+            store.has_wallet(agent).unwrap_or(false)
+        } else {
+            false
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hkask_storage::database::in_memory_db;
+
+    fn make_manager() -> WalletManager {
+        let db = in_memory_db();
+        let store = WalletStore::new(db.conn_arc()).unwrap();
+        WalletManager::new(Arc::new(store))
+    }
 
     #[tokio::test]
     async fn create_and_query_wallet() {
-        let mgr = WalletManager::new();
+        let mgr = make_manager();
         let agent = WebID::from_persona(b"test-agent");
         let id = mgr.create_wallet(agent, GasCost(1000), 500).await.unwrap();
-        assert!(id.0 > 0);
+        assert!(id > 0);
 
         let balance = mgr.balance(&agent).await.unwrap();
         assert_eq!(balance.gas, 1000);
@@ -149,7 +197,7 @@ mod tests {
 
     #[tokio::test]
     async fn spend_reduces_balance() {
-        let mgr = WalletManager::new();
+        let mgr = make_manager();
         let agent = WebID::from_persona(b"test-agent");
         mgr.create_wallet(agent, GasCost(1000), 0).await.unwrap();
 
@@ -162,18 +210,18 @@ mod tests {
 
     #[tokio::test]
     async fn spend_capped_at_balance() {
-        let mgr = WalletManager::new();
+        let mgr = make_manager();
         let agent = WebID::from_persona(b"test-agent");
         mgr.create_wallet(agent, GasCost(100), 0).await.unwrap();
 
         let spent = mgr.spend(&agent, GasCost(500)).await.unwrap();
         assert_eq!(spent.0, 100);
-        assert!(mgr.can_proceed(&agent, GasCost(1)).await == false);
+        assert!(!mgr.can_proceed(&agent, GasCost(1)).await);
     }
 
     #[tokio::test]
     async fn deposit_adds_gas() {
-        let mgr = WalletManager::new();
+        let mgr = make_manager();
         let agent = WebID::from_persona(b"test-agent");
         mgr.create_wallet(agent, GasCost(100), 0).await.unwrap();
         mgr.deposit_gas(&agent, GasCost(200)).await.unwrap();
@@ -184,7 +232,7 @@ mod tests {
 
     #[tokio::test]
     async fn duplicate_wallet_rejected() {
-        let mgr = WalletManager::new();
+        let mgr = make_manager();
         let agent = WebID::from_persona(b"test-agent");
         mgr.create_wallet(agent, GasCost(100), 0).await.unwrap();
         let result = mgr.create_wallet(agent, GasCost(200), 0).await;

@@ -96,7 +96,7 @@ From Magna Carta (P1–P4) and P12. Violations **must be deleted**.
 | 3 | No hidden parameters or admin-gated settings | P3 |
 | 4 | No pass-through abstractions (deep-module discipline) | P5 · P7 |
 
-See [`docs/architecture/core/PRINCIPLES.md`](docs/architecture/core/PRINCIPLES.md) §2.1–2.4 for hierarchy and constraint force classification.
+See CI invariants job for current enforcement of hierarchy and constraint force classification.
 
 ---
 
@@ -110,15 +110,15 @@ Preferred auxiliary tooling: shell (`bash`) under `scripts/`, Rust binaries or `
 
 ## Key Docs
 
-| Topic | Location |
-|-------|----------|
-| Architecture master | `docs/architecture/hKask-architecture-master.md` |
-| Principles (P1–P12) | `docs/architecture/core/PRINCIPLES.md` |
-| MDS Specification | `docs/architecture/core/MDS.md` |
-| Testing Discipline | `docs/architecture/core/TESTING_DISCIPLINE.md` |
-| CNS span registry | `crates/hkask-types/src/cns.rs` |
-| Foundation types | `crates/hkask-types/src/lib.rs` |
-| Hexagonal port traits | `crates/hkask-ports/src/lib.rs` |
-| Curator metacognition | `crates/hkask-agents/src/curator_agent/metacognition.rs` |
+- `.github/workflows/ci.yml` — CI pipeline (fmt, clippy, unused-deps, build, test, doc, invariants)
+- `.github/workflows/audit.yml` — Weekly dependency audit (cargo-deny + cargo-audit)
+- `crates/hkask-types/src/cns.rs` — CNS span registry
+- `crates/hkask-types/src/lib.rs` — Foundation types
+- `crates/hkask-ports/src/lib.rs` — Hexagonal port traits
+- `crates/hkask-agents/src/curator_agent/metacognition.rs` — Curator metacognition
+- Dependency governance: CI unused-deps job (`nightly -D unused_crate_dependencies`)
+- Feature gating: `hkask-communication` matrix feature, `hkask-cli` communication/tui/api features
+
+> Architecture docs (`docs/architecture/`) are under reconstruction. CI invariants and crate-level doc comments are the current authority for design constraints.
 
 

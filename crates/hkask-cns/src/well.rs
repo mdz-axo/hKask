@@ -73,8 +73,10 @@ impl Well {
 pub struct WellManager {
     wells: std::collections::HashMap<WellID, Well>,
     next_id: u64,
-    /// ID of the default Well (agents auto-draw from this one)
     default_well: Option<WellID>,
+    /// Dampening: true if we already alerted about well exhaustion.
+    /// Prevents alert fatigue (re-alerting every tick).
+    pub was_already_exhausted: bool,
 }
 
 impl WellManager {
@@ -83,6 +85,7 @@ impl WellManager {
             wells: std::collections::HashMap::new(),
             next_id: 1,
             default_well: None,
+            was_already_exhausted: false,
         }
     }
 
@@ -143,6 +146,42 @@ impl WellManager {
     /// Get the default Well ID.
     pub fn default_well_id(&self) -> Option<WellID> {
         self.default_well
+    }
+
+    /// Serialize Well state for persistence.
+    pub fn save_state(&self) -> serde_json::Value {
+        let default_gas = self
+            .default_well
+            .and_then(|id| self.wells.get(&id))
+            .map(|w| w.gas_available.0)
+            .unwrap_or(0);
+        let default_rjoule = self
+            .default_well
+            .and_then(|id| self.wells.get(&id))
+            .map(|w| w.rjoule_available)
+            .unwrap_or(0);
+        serde_json::json!({
+            "default_well_gas": default_gas,
+            "default_well_rjoule": default_rjoule,
+        })
+    }
+
+    /// Restore Well state from persisted data.
+    pub fn load_state(&mut self, state: &serde_json::Value) {
+        if let Some(gas) = state.get("default_well_gas").and_then(|v| v.as_u64()) {
+            if let Some(default_id) = self.default_well {
+                if let Some(well) = self.wells.get_mut(&default_id) {
+                    well.gas_available = GasCost(gas);
+                }
+            }
+        }
+        if let Some(rj) = state.get("default_well_rjoule").and_then(|v| v.as_u64()) {
+            if let Some(default_id) = self.default_well {
+                if let Some(well) = self.wells.get_mut(&default_id) {
+                    well.rjoule_available = rj;
+                }
+            }
+        }
     }
 }
 

@@ -20,12 +20,13 @@
 
 use crate::energy::{AgentGasStatus, GasBudget, GasCost, GasError};
 use crate::wallet_budget::WalletBackedBudget;
+use crate::wallet_manager::WalletManager;
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Record of an active Curation override on an agent's energy budget.
+/// Record of an active Curation override on an agent's gas budget.
 ///
 /// When Curation issues an `OverrideEnergyBudget` directive, the override is
 /// recorded here so that `replenish_all_budgets()` does not overwrite it
@@ -41,8 +42,8 @@ struct OverrideRecord {
 
 /// Gas Budget Manager — registration, reservation, settlement, and replenishment.
 ///
-/// Owns the energy budget map and active override tracking. Extracted from
-/// `CyberneticsLoop` to concentrate energy budget logic and allow direct access
+/// Owns the gas budget map and active override tracking. Extracted from
+/// `CyberneticsLoop` to concentrate gas budget logic and allow direct access
 /// from `GovernedTool` without going through the full loop.
 pub struct GasBudgetManager {
     gas_budgets: Arc<RwLock<HashMap<WebID, GasBudget>>>,
@@ -53,6 +54,8 @@ pub struct GasBudgetManager {
     active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
     /// Previous remaining values for consumption velocity computation.
     previous_remaining: RwLock<HashMap<WebID, u64>>,
+    /// SQLite-backed wallet manager for gas wallets (optional).
+    wallet_manager: Option<Arc<WalletManager>>,
 }
 
 impl Default for GasBudgetManager {
@@ -69,13 +72,19 @@ impl GasBudgetManager {
             wallet_budgets: Arc::new(RwLock::new(HashMap::new())),
             active_overrides: Arc::new(RwLock::new(HashMap::new())),
             previous_remaining: RwLock::new(HashMap::new()),
+            wallet_manager: None,
         }
     }
 
-    /// Register a energy budget for an agent.
+    /// Register a gas budget for an agent.
     pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
         let mut budgets = self.gas_budgets.write().await;
         budgets.insert(agent, budget);
+    }
+
+    /// Attach a WalletManager for gas wallet enforcement.
+    pub fn set_wallet_manager(&mut self, mgr: Arc<WalletManager>) {
+        self.wallet_manager = Some(mgr);
     }
 
     /// Register a wallet-backed budget for an agent.
@@ -91,13 +100,19 @@ impl GasBudgetManager {
     /// Returns `true` if the agent has no registered budget (soft limit)
     /// or if the budget has sufficient remaining capacity.
     pub async fn can_proceed(&self, agent: &WebID, gas: GasCost) -> bool {
-        // Check wallet budget first
+        // 1. Check SQLite-backed WalletManager
+        if let Some(ref wm) = self.wallet_manager {
+            if wm.has_wallet(agent).await {
+                return wm.can_proceed(agent, gas).await;
+            }
+        }
+        // 2. Check WalletBackedBudget (rJoule-backed, Hedera)
         let wallet_budgets = self.wallet_budgets.read().await;
         if let Some(budget) = wallet_budgets.get(agent) {
             return budget.can_proceed(gas);
         }
         drop(wallet_budgets);
-        // Fall back to gas budget
+        // 3. Fall back to gas budget
         let budgets = self.gas_budgets.read().await;
         if let Some(budget) = budgets.get(agent) {
             budget.can_proceed(gas)
@@ -115,13 +130,19 @@ impl GasBudgetManager {
     /// Hold-settle pattern: gas reserved but not consumed. Call `settle_gas()` after.
     /// Checks wallet budgets first, then gas budgets.
     pub async fn reserve_gas(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
-        // Check wallet budget first
+        // 1. Check SQLite-backed WalletManager
+        if let Some(ref wm) = self.wallet_manager {
+            if wm.has_wallet(agent).await {
+                return wm.spend(agent, gas).await;
+            }
+        }
+        // 2. Check WalletBackedBudget (rJoule)
         let wallet_budgets = self.wallet_budgets.read().await;
         if let Some(budget) = wallet_budgets.get(agent) {
             return budget.reserve(gas);
         }
         drop(wallet_budgets);
-        // Fall back to gas budget
+        // 3. Fall back to gas budget
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.reserve(gas)
@@ -138,13 +159,19 @@ impl GasBudgetManager {
         reserved_gas: GasCost,
         actual_gas: GasCost,
     ) -> Result<GasCost, GasError> {
-        // Check wallet budget first
+        // 1. Wallet manager: spend already deducted, no hold-settle needed
+        if let Some(ref wm) = self.wallet_manager {
+            if wm.has_wallet(agent).await {
+                return Ok(actual_gas); // already spent during reserve
+            }
+        }
+        // 2. Wallet-backed budget (rJoule)
         let wallet_budgets = self.wallet_budgets.read().await;
         if let Some(budget) = wallet_budgets.get(agent) {
             return budget.settle(reserved_gas, actual_gas);
         }
         drop(wallet_budgets);
-        // Fall back to gas budget
+        // 3. Fall back to gas budget
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.settle(reserved_gas, actual_gas)
@@ -207,7 +234,7 @@ impl GasBudgetManager {
                     target: "cns.cybernetics",
                     agent = %agent,
                     replenish_rate = replenished.0,
-                    "Replenished energy budget"
+                    "Replenished gas budget"
                 );
             }
         }
@@ -246,7 +273,7 @@ impl GasBudgetManager {
                 agent = %agent,
                 amount = %amount,
                 remaining = %budget.remaining(),
-                "Replenished agent energy budget by directive"
+                "Replenished agent gas budget by directive"
             );
         }
     }
@@ -270,7 +297,7 @@ impl GasBudgetManager {
                 target: "cns.cybernetics",
                 agent = %agent,
                 new_budget = %new_budget,
-                "Registered new energy budget from OverrideEnergyBudget directive"
+                "Registered new gas budget from OverrideEnergyBudget directive"
             );
         }
         drop(budgets);
@@ -325,7 +352,7 @@ impl GasBudgetManager {
                 amount = %amount,
                 priority = priority,
                 replenished = %replenished,
-                "Replenished agent energy budget by directive"
+                "Replenished agent gas budget by directive"
             );
         }
     }
@@ -359,6 +386,18 @@ impl GasBudgetManager {
             .iter()
             .map(|(id, budget)| (*id, AgentGasStatus::from(budget)))
             .collect()
+    }
+
+    /// Access the raw budget map (for serialization).
+    pub async fn gas_budgets(&self) -> tokio::sync::RwLockReadGuard<'_, HashMap<WebID, GasBudget>> {
+        self.gas_budgets.read().await
+    }
+
+    /// Mutable access for restoring from persistence.
+    pub async fn gas_budgets_mut(
+        &self,
+    ) -> tokio::sync::RwLockWriteGuard<'_, HashMap<WebID, GasBudget>> {
+        self.gas_budgets.write().await
     }
 
     /// Return wallet-backed agents whose balance is zero.

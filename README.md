@@ -162,7 +162,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **Tests** | ~860 (864 test binary targets) |
 | **CLI Subcommands** | 33 |
 | **API Route Groups** | 26 |
-| **Build/Clippy/Fmt/Test** | All passing |
+| **Build/Clippy/Fmt/Test/UnusedDeps** | All passing |
 | **Skills** | 39 (64 registry manifests, 273 Jinja2 templates) |
 | **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
 
@@ -176,17 +176,22 @@ cargo check --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --check
+
+# Dependency hygiene (nightly)
+RUSTFLAGS="-D unused_crate_dependencies" cargo +nightly check --workspace
 ```
 
 ---
 
 ## Documentation
 
-- `docs/architecture/hKask-architecture-master.md` — Architecture index (includes Curator persona)
-- `docs/architecture/core/PRINCIPLES.md` — Magna Carta principles (P1–P12)
-- `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
+- `AGENTS.md` — Agent operating guide (capability catalog, tooling policy, prohibitions)
+- `.github/workflows/ci.yml` — CI pipeline (fmt → clippy + unused-deps + build → test + doc → invariants)
+- `.github/workflows/audit.yml` — Weekly dependency audit (cargo-deny + cargo-audit)
 - `assets/LOGO-DESIGN-PRINCIPLES.md` — Logo design principles
-- `AGENTS.md` — Agent operating guide
+- `OPEN_QUESTIONS.md` — Open design questions and tradeoffs
+
+> **Note:** Architecture documentation (`docs/architecture/`) is under reconstruction. The authoritative source for principles and invariants is the CI pipeline (`ci.yml` invariants job) and crate-level doc comments.
 
 ---
 

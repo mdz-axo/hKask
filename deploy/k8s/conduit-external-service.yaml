@@ -1,0 +1,20 @@
+# ExternalName bridge: makes conduit service in hkask-conduit namespace
+# reachable as `conduit` within the hkask namespace.
+# Required because Kubernetes Ingress can only route to Services in the
+# same namespace as the Ingress resource.
+apiVersion: v1
+kind: Service
+metadata:
+  name: conduit
+  namespace: hkask
+  labels:
+    app: hkask
+    component: conduit-bridge
+spec:
+  type: ExternalName
+  externalName: conduit.hkask-conduit.svc.cluster.local
+  ports:
+    - name: matrix
+      port: 8008
+      targetPort: 8008
+      protocol: TCP

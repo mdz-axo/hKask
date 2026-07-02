@@ -55,7 +55,7 @@ Your Domain (hkask.yourdomain.com)
 │  Restores on pod restart    │
 └────────────────────────────┘
 
-Namespace: hkask       Namespace: conduit-matrix
+Namespace: hkask       Namespace: hkask-conduit
 ```
 
 **What is a container?** A container is a packaged program with its dependencies. Think of it like a `.exe` file that includes everything it needs to run — the code, libraries, and configuration — all bundled together. Unlike a virtual machine, it doesn't include a full operating system; it shares the host's kernel. This makes containers small (tens of megabytes, not gigabytes) and fast to start (seconds, not minutes).
@@ -80,7 +80,7 @@ Learn these 12 terms before you start. They appear in every K8s command and erro
 | **Secret** | Like ConfigMap but for passwords and API keys. Base64-encoded in K8s storage. | "The password vault." OAuth secrets, S3 keys, encryption passphrases. |
 | **PVC** | PersistentVolumeClaim. A request for disk space. | "The hard drive." "I need 20 gigabytes." K8s provisions it. |
 | **Ingress** | Routes external HTTP traffic to Services. Also manages TLS certificates. | "The front door." Decides which Service gets which URL path. |
-| **Namespace** | A way to group K8s resources. Like folders. | "The folder." `hkask` namespace has kask things. `conduit-matrix` has Conduit things. |
+| **Namespace** | A way to group K8s resources. Like folders. | "The folder." `hkask` namespace has kask things. `hkask-conduit` has Conduit things. |
 | **Sidecar** | A helper container in the same Pod as your main container. | "The assistant." Litestream runs alongside kask, sharing the `/data` disk. |
 | **Init Container** | A container that runs to completion before the main containers start. | "The setup step." Restores the database from backup before kask starts. |
 | **kubectl** | The command-line tool for talking to K8s. Pronounced "cube-cuttle." | "The remote control." Every command in this guide starts with `kubectl`. |
@@ -453,7 +453,7 @@ docker push ghcr.io/YOUR_USERNAME/hkask:kask-main
 
 **Why:** `kubectl apply` sends the YAML files to the K8s API server. The API server validates them, stores the desired state in etcd (K8s's database), and controllers start working to make reality match the desired state.
 
-**Order matters:** Deploy Conduit first because kask's Deployment references the Conduit Service URL (`conduit.conduit-matrix.svc.cluster.local:8008`). If you deploy kask first, it will try to connect to a Conduit that doesn't exist yet and may fail its readiness check.
+**Order matters:** Deploy Conduit first because kask's Deployment references the Conduit Service URL (`conduit.hkask-conduit.svc.cluster.local:8008`). If you deploy kask first, it will try to connect to a Conduit that doesn't exist yet and may fail its readiness check.
 
 **How:**
 ```bash
@@ -465,7 +465,7 @@ kubectl apply -f deploy/k8s/conduit/service.yaml
 kubectl apply -f deploy/k8s/conduit/deployment.yaml
 
 # Wait for Conduit to be ready
-kubectl -n conduit-matrix wait \
+kubectl -n hkask-conduit wait \
   --for=condition=ready pod \
   --selector=app=conduit \
   --timeout=120s
@@ -507,7 +507,7 @@ $ kubectl -n hkask get pods
 NAME                    READY   STATUS    RESTARTS   AGE
 hkask-5d7f8b9c4-xyz12   2/2     Running   0          30s
 
-$ kubectl -n conduit-matrix get pods
+$ kubectl -n hkask-conduit get pods
 NAME                      READY   STATUS    RESTARTS   AGE
 conduit-7a8b9c0d-abc12   1/1     Running   0          60s
 ```
@@ -651,7 +651,7 @@ kubectl -n hkask logs deploy/hkask -c kask -f
 kubectl -n hkask logs deploy/hkask -c litestream -f
 
 # Conduit logs
-kubectl -n conduit-matrix logs deploy/conduit -f
+kubectl -n hkask-conduit logs deploy/conduit -f
 ```
 
 ### Shell into a Container
@@ -669,7 +669,7 @@ ls -la /data/
 ```bash
 # CPU and memory usage per pod
 kubectl -n hkask top pods
-kubectl -n conduit-matrix top pods
+kubectl -n hkask-conduit top pods
 
 # Node-level usage
 kubectl top nodes
@@ -761,7 +761,7 @@ Every file in `deploy/k8s/` and what it does:
 Creates the `hkask` namespace. All hKask resources go here. Without this, everything would go into the `default` namespace — which is an anti-pattern for production.
 
 ### `secret.yaml`
-Stores sensitive values: OAuth client credentials, S3 access keys, database encryption passphrase. K8s stores these base64-encoded in etcd. They're referenced by the Deployment via `secretKeyRef` — the values are injected as environment variables at container startup. The container never sees the Secret YAML.
+Stores sensitive values: OAuth client credentials, S3 access keys, the master key (`HKASK_MASTER_KEY`, used to derive all internal secrets). K8s stores these base64-encoded in etcd. They're referenced by the Deployment via `secretKeyRef` — the values are injected as environment variables at container startup. The container never sees the Secret YAML.
 
 ### `configmap.yaml`
 Stores non-sensitive configuration: domain name, S3 endpoint, Litestream YAML config. Also injected as environment variables. The `litestream.yml` key contains the full Litestream configuration as a multi-line YAML string — this is mounted as a file in the litestream sidecar container.
@@ -771,13 +771,14 @@ Requests 20Gi of persistent storage. On Hetzner, this provisions a Hetzner Cloud
 
 ### `deployment.yaml`
 The main deployment definition. Contains:
+- `terminationGracePeriodSeconds: 60` (gives Litestream time to flush final WAL before pod shutdown)
 - Init container: litestream restore
-- Sidecar container: litestream replicate
+- Sidecar container: litestream replicate (with liveness probe)
 - Main container: kask serve
 - Volume mounts for `/data` and litestream config
 - Resource requests and limits
 - Liveness and readiness probes
-- Environment variables from ConfigMap and Secret
+- Environment variables from ConfigMap and Secret (including `HKASK_MASTER_KEY`)
 
 ### `service.yaml`
 Creates a stable network endpoint on port 3000 for the kask Pod. The Service's `selector` matches the Pod's `app: hkask` label. Traffic sent to the Service is load-balanced across all matching Pods (with 1 replica, there's only one).
@@ -786,10 +787,22 @@ Creates a stable network endpoint on port 3000 for the kask Pod. The Service's `
 Routes external traffic: `/` goes to the kask Service on port 3000, `/_matrix` goes to the Conduit Service on port 8008. Configures TLS via cert-manager. The nginx annotations set 1-hour timeouts for WebSocket connections.
 
 ### `entrypoint.sh`
-The startup script inside the kask container. Creates the data directory then starts `kask serve`. Does NOT do litestream restore (that's handled by the init container).
+Removed. The Dockerfile now handles data directory creation and process startup via its `CMD` directive (`mkdir -p ${HKASK_DATA_DIR} && exec kask serve`). This eliminates one file and keeps startup logic colocated with the image definition.
 
 ### `conduit/` Directory
-Contains the same resource types for the Conduit Matrix homeserver. Conduit runs in its own namespace (`conduit-matrix`) with its own PVC, Secret, and Service. The only shared resource is the Ingress, which routes `/_matrix` traffic to the Conduit Service.
+Contains the same resource types for the Conduit Matrix homeserver. Conduit runs in its own namespace (`hkask-conduit`) with its own PVC, Secret, Service, and NetworkPolicy.
+
+### `conduit-external-service.yaml`
+An ExternalName Service in the `hkask` namespace that bridges to `conduit.hkask-conduit.svc.cluster.local`. Required because the Ingress (in `hkask` namespace) routes `/_matrix` to a Service named `conduit` — Kubernetes Ingress can only route to Services in the same namespace.
+
+### `networkpolicy.yaml` (both namespaces)
+Restricts ingress traffic:
+- `hkask` namespace: only accepts traffic from the ingress controller
+- `hkask-conduit` namespace: only accepts traffic from the ingress controller and the `hkask` namespace
+These enforce the design goal that a compromised Conduit pod cannot make network requests to kask.
+
+### `pdb.yaml`
+PodDisruptionBudget with `maxUnavailable: 0`. Prevents the cluster from voluntarily evicting the sole kask pod during node maintenance or cluster autoscaling events.
 
 ---
 

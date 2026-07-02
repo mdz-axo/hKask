@@ -15,6 +15,10 @@ spec:
       labels:
         app: hkask
     spec:
+      # Graceful shutdown: give Litestream time to flush final WAL
+      # before pod termination (default 30s is too short for S3 writes).
+      terminationGracePeriodSeconds: 60
+
       # Init container: restore database from S3 before kask starts.
       # Runs once, must complete before main containers start. This
       # prevents the race where kask opens /data/kask.db before the
@@ -49,7 +53,7 @@ spec:
         # kask (main application)
         - name: kask
           image: ghcr.io/mdz-axo/hkask:kask-main
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3000
@@ -93,6 +97,11 @@ spec:
                 configMapKeyRef:
                   name: hkask-config
                   key: litestream-force-path-style
+            - name: HKASK_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: master-passphrase
             - name: HKASK_OAUTH_GITHUB_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -157,6 +166,14 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - litestream
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
 
       volumes:
         - name: data

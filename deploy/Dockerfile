@@ -7,11 +7,9 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY mcp-servers/ mcp-servers/
 
-# Build CLI binary (default features: tui + communication + api)
-RUN cargo build --release --bin kask
-
-# Build MCP server binaries (kask serve spawns these via McpRuntime)
+# Single cargo invocation builds CLI + all MCP servers, sharing compilation cache.
 RUN cargo build --release \
+    --bin kask \
     --package hkask-mcp-memory \
     --package hkask-mcp-condenser \
     --package hkask-mcp-research \
@@ -36,17 +34,15 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-3 \
     && rm -rf /var/lib/apt/lists/*
 
-# CLI binary
+# CLI binary + all MCP server binaries
 COPY --from=kask-builder /app/target/release/kask /usr/local/bin/kask
-# MCP server binaries (wildcard copy: all hkask-mcp-* files)
 COPY --from=kask-builder /app/target/release/hkask-mcp-* /usr/local/bin/
-
-COPY deploy/k8s/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
 
 VOLUME /data
 EXPOSE 3000
 
 ENV HKASK_DATA_DIR=/data
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Create data dir (mounted PVC may not exist on first deploy),
+# then start kask serve. Litestream sidecar handles S3 restore.
+CMD ["sh", "-c", "mkdir -p ${HKASK_DATA_DIR} && exec kask serve"]

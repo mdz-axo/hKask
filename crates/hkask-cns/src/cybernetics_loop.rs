@@ -6,7 +6,7 @@
 //! 1. **Sense** — receive `cns.*` spans from all loops (tool invocations,
 //!    prompt outcomes, agent pod lifecycle, connector I/O).
 //! 2. **Compare** — evaluate each signal against homeostatic set-points:
-//!    energy budget remaining, variety counter balance, error rate threshold,
+//!    gas budget remaining, variety counter balance, error rate threshold,
 //!    connector latency envelope.
 //! 3. **Compute** — when a signal deviates beyond its set-point, produce an
 //!    efferent signal: throttle, escalate, calibrate, or circuit-break.
@@ -45,6 +45,7 @@ use crate::types::loops::{
 use hkask_ports::BackpressureSignal;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanKind};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 
@@ -58,7 +59,7 @@ pub struct CyberneticsLoop {
     cns: Arc<RwLock<CnsRuntime>>,
     gas_budget_manager: GasBudgetManager,
     well_manager: Arc<RwLock<WellManager>>,
-    wallet_manager: Arc<WalletManager>,
+    wallet_manager: Option<Arc<WalletManager>>,
     set_points: SetPoints,
     /// Cascade detection — prevents unbounded sense→act cycles
     max_iterations: u32,
@@ -100,7 +101,7 @@ impl CyberneticsLoop {
             cns,
             gas_budget_manager: GasBudgetManager::new(),
             well_manager: Arc::new(RwLock::new(WellManager::new())),
-            wallet_manager: Arc::new(WalletManager::new()),
+            wallet_manager: None,
             set_points,
             max_iterations,
             dampener,
@@ -172,14 +173,53 @@ impl CyberneticsLoop {
         self
     }
 
+    /// Attach a WalletManager for agent wallet operations.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_wallet_manager(mut self, mgr: Arc<WalletManager>) -> Self {
+        self.wallet_manager = Some(mgr);
+        self
+    }
+
     /// Attempt to load persisted budgets from the configured path.
     /// Called automatically during `build()` if a persistence path is set.
     /// Returns count loaded (0 if first run or no path configured).
     pub async fn load_budgets(&self) -> Result<usize, GasError> {
         if let Some(ref path) = self.budget_persistence_path {
-            let count = self.gas_budget_manager.load_all(path).await?;
+            let contents = match tokio::fs::read_to_string(path).await {
+                Ok(c) => c,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+                Err(e) => {
+                    return Err(GasError::Persistence(format!(
+                        "read {}: {e}",
+                        path.display()
+                    )));
+                }
+            };
+            let wrapper: serde_json::Value = serde_json::from_str(&contents)
+                .map_err(|e| GasError::Persistence(format!("parse {}: {e}", path.display())))?;
+
+            // Load gas budgets
+            let count = if let Some(budgets_val) = wrapper.get("budgets") {
+                let loaded: HashMap<WebID, GasBudget> = serde_json::from_value(budgets_val.clone())
+                    .map_err(|e| GasError::Persistence(format!("parse budgets: {e}")))?;
+                let n = loaded.len();
+                let mut budgets = self.gas_budget_manager.gas_budgets_mut().await;
+                for (id, budget) in loaded {
+                    budgets.insert(id, budget);
+                }
+                n
+            } else {
+                0
+            };
+
+            // Restore Well state
+            if let Some(well_val) = wrapper.get("well") {
+                let mut wells = self.well_manager.write().await;
+                wells.load_state(well_val);
+            }
+
             if count > 0 {
-                tracing::info!(target: "cns.cybernetics", count = count, "Loaded persisted gas budgets");
+                tracing::info!(target: "cns.cybernetics", count = count, "Loaded persisted gas budgets + Well state");
             }
             Ok(count)
         } else {
@@ -188,8 +228,15 @@ impl CyberneticsLoop {
     }
 
     /// Access the WalletManager for wallet creation and balance queries.
-    pub fn wallet_manager(&self) -> &Arc<WalletManager> {
-        &self.wallet_manager
+    /// Returns None if no wallet manager was attached via with_wallet_manager().
+    pub fn wallet_manager(&self) -> Option<&Arc<WalletManager>> {
+        self.wallet_manager.as_ref()
+    }
+
+    /// Attach a WalletManager after construction.
+    pub fn set_wallet_manager(&mut self, mgr: Arc<WalletManager>) {
+        self.gas_budget_manager.set_wallet_manager(Arc::clone(&mgr));
+        self.wallet_manager = Some(mgr);
     }
 
     /// Access the WellManager for Well creation and configuration.
@@ -690,9 +737,24 @@ impl HkaskLoop for CyberneticsLoop {
             }
         }
 
-        // E02: Persist budgets after each replenishment cycle
+        // E02: Persist budgets + Well state after each replenishment cycle
         if let Some(ref path) = self.budget_persistence_path {
-            if let Err(e) = self.gas_budget_manager.save_all(path).await {
+            let mut wrapper = serde_json::json!({
+                "version": 1,
+            });
+            {
+                let budgets = self.gas_budget_manager.gas_budgets().await;
+                wrapper["budgets"] = serde_json::to_value(&*budgets).unwrap_or_default();
+            }
+            {
+                let wells = self.well_manager.read().await;
+                wrapper["well"] = wells.save_state();
+            }
+            let json = serde_json::to_string_pretty(&wrapper).unwrap_or_default();
+            if let Some(parent) = path.parent() {
+                let _ = tokio::fs::create_dir_all(parent).await;
+            }
+            if let Err(e) = tokio::fs::write(path, &json).await {
                 tracing::error!(target: "cns.cybernetics", path = %path.display(), error = %e, "Failed to persist gas budgets");
             }
         }
@@ -703,24 +765,30 @@ impl HkaskLoop for CyberneticsLoop {
             wells.replenish_all();
         }
 
-        // 1.8: Well exhaustion → algedonic alert
+        // 1.8: Well exhaustion → algedonic alert (with dampening)
         {
-            let wells = self.well_manager.read().await;
+            let mut wells = self.well_manager.write().await;
             if wells.default_well_exhausted() {
-                let alert = RuntimeAlert {
-                    domain: "well".into(),
-                    deficit: 1,
-                    threshold: 1,
-                    severity: AlertSeverity::Critical,
-                    escalated: true,
-                    timestamp: chrono::Utc::now(),
-                    message: "Default Well exhausted — agents will be blocked".into(),
-                };
-                if let Some(ref tx) = self.alerts_tx {
-                    let _ = tx.send(CurationInput::Alert(alert));
+                if !wells.was_already_exhausted {
+                    wells.was_already_exhausted = true;
+                    let alert = RuntimeAlert {
+                        domain: "well".into(),
+                        deficit: 1,
+                        threshold: 1,
+                        severity: AlertSeverity::Critical,
+                        escalated: true,
+                        timestamp: chrono::Utc::now(),
+                        message: "Default Well exhausted — agents will be blocked".into(),
+                    };
+                    if let Some(ref tx) = self.alerts_tx {
+                        let _ = tx.send(CurationInput::Alert(alert));
+                    }
                 }
+            } else {
+                wells.was_already_exhausted = false;
             }
         }
+        // Note: Auto-draw from Well is now synchronous — handled in WalletManager::spend().
         let has_energy_depletion = actions.iter().any(|a| {
             a.parameters.get("reason").and_then(|v| v.as_str()) == Some("energy_budget_low")
         });

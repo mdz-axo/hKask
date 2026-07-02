@@ -3,6 +3,8 @@
 //! Homeostatic self-regulation: variety sensing, algedonic alerts, energy budgets,
 //! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
+#![allow(unused_crate_dependencies)] // hkask-storage used in wallet_manager.rs #[cfg(test)]
+
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
 pub mod calibrated_energy_estimator; // Loop 6 — self-regulating per-server gas estimator
@@ -17,7 +19,6 @@ pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator;
 pub mod types; // Loop 6 → Inference energy estimation
 
-pub mod curator_budget_policy;
 pub mod dynamic_gas_table;
 pub mod gas_report;
 pub mod runtime; // Loop 6 — runtime
@@ -30,6 +31,7 @@ pub mod wallet_budget; // Loop 6 — wallet-backed energy budgets (Phase 5)
 pub(crate) mod wallet_energy_estimator; // Loop 6 — wallet-aware energy estimation (Phase 5)
 pub mod wallet_gas_calibrator;
 pub mod wallet_manager;
+pub mod wallet_store;
 pub mod well;
 pub use algedonic::RuntimeAlert;
 pub use api_metering::{

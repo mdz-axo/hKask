@@ -15,7 +15,7 @@ Two Deployments: **kask** (with Litestream sidecar) and **conduit** (Matrix home
 
 ```bash
 # Edit secrets and config with your real values
-vim deploy/k8s/secret.yaml      # OAuth credentials, S3 keys, passphrase
+vim deploy/k8s/secret.yaml      # GitHub OAuth, S3 keys, master key (HKASK_MASTER_KEY)
 vim deploy/k8s/configmap.yaml    # Domain, S3 endpoint, bucket name
 vim deploy/k8s/ingress.yaml      # Your domain name
 
@@ -44,7 +44,7 @@ kubectl -n hkask logs deploy/hkask -c litestream
 | `oauth-github-client-secret` | GitHub OAuth App client secret |
 | `litestream-access-key-id` | S3 access key for Litestream backups |
 | `litestream-secret-access-key` | S3 secret key for Litestream backups |
-| `master-passphrase` | SQLCipher database encryption passphrase |
+| `master-passphrase` | Master key for all derived secrets (`HKASK_MASTER_KEY` env var) |
 
 ### Required config (`configmap.yaml`)
 
@@ -56,6 +56,18 @@ kubectl -n hkask logs deploy/hkask -c litestream
 | `litestream-endpoint` | `https://s3.example.com` | S3-compatible endpoint |
 | `litestream-region` | `auto` | S3 region |
 | `litestream-force-path-style` | `true` | Use path-style addressing (required for Hetzner OS, MinIO) |
+
+### Network Policies
+
+`networkpolicy.yaml` (in both namespaces) restricts ingress:
+- `hkask` namespace: only accepts traffic from the ingress controller
+- `hkask-conduit` namespace: only accepts traffic from the ingress controller and the `hkask` namespace
+
+This enforces the design goal: a compromised Conduit pod cannot make network requests to kask.
+
+### Pod Disruption Budget
+
+`pdb.yaml` prevents the cluster from voluntarily evicting the sole kask pod. With `replicas: 1`, any eviction means downtime.
 
 ### Ingress
 
@@ -125,6 +137,6 @@ guidance: containers that must share a lifecycle and volume.
 
 **Why is Litestream a sidecar?** Litestream needs to share the `/data` volume with kask to replicate the SQLite WAL to S3. The sidecar pattern is the legitimate multi-container use case — containers that share a lifecycle and storage.
 
-**Why separate namespaces?** `hkask` for kask, `hkask-conduit` for Conduit. Provides NetworkPolicy isolation and independent ResourceQuotas. A compromised Conduit can't access kask's secrets.
+**Why separate namespaces?** `hkask` for kask, `hkask-conduit` for Conduit. NetworkPolicies enforce ingress restrictions: Conduit's namespace cannot initiate connections to kask's namespace. The `conduit-external-service.yaml` bridges the namespaces via a Kubernetes-native ExternalName service so the Ingress can route `/_matrix` to Conduit from the `hkask` namespace.
 
-**Why no Helm chart?** The deployment is intentionally simple — 15 YAML files with no templating. Helm adds complexity for a single-service deployment. The `kask curator init` command handles dynamic configuration (signing keys, domain) at deploy time.
+**Why no Helm chart?** The deployment is intentionally simple — 18 YAML files with no templating. Helm adds complexity for a single-service deployment. The `kask init` command handles dynamic configuration (signing keys, domain) at deploy time.

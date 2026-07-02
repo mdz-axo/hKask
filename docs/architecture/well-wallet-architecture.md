@@ -191,24 +191,9 @@ ReplicantRegistered, // cns.replicant.registered → triggers wallet creation
 CuratorEfficiencyExceeded,  // cns.curator.efficiency.exceeded
 ```
 
-## 6. Implementation
+## 6. Implementation — ✅ Complete
 
-### Phase 1: Well + Wallet (this session)
-
-| Step | Action | File(s) |
-|------|--------|---------|
-| 1.1 | Add `CnsSpan::ReplicantRegistered` to CNS registry | `crates/hkask-types/src/cns.rs` |
-| 1.2 | Emit `ReplicantRegistered` span in AgentService on new replicant | `crates/hkask-services-core/` |
-| 1.3 | Create `WellConfig` + `WellManager` in hkask-cns | `crates/hkask-cns/src/well.rs` |
-| 1.4 | Create `agent_wallets` SQLite table migration | `crates/hkask-storage/` |
-| 1.5 | Implement `WalletManager` trait + SQLite impl | `crates/hkask-storage/src/wallet_manager.rs` |
-| 1.6 | Wire Curator daemon: on `ReplicantRegistered`, create wallet | `crates/hkask-agents/src/curator/` |
-| 1.7 | Add auto-draw to `WalletBackedBudget.can_proceed()` | `crates/hkask-cns/src/wallet_budget.rs` |
-| 1.8 | Add Well exhaustion → algedonic alert in `CyberneticsLoop::act()` | `crates/hkask-cns/src/cybernetics_loop.rs` |
-| 1.9 | Add `CuratorBudgetPolicy` to CurationLoop config | `crates/hkask-agents/src/curator/` |
-| 1.10 | `kask well create` CLI | `crates/hkask-cli/` |
-| 1.11 | `kask wallet create` + `kask wallet balance` CLI | `crates/hkask-cli/` |
-| 1.12 | Full workspace build + CNS tests pass | — |
+All 12 steps implemented. See `docs/status/gas-budget-system-status.md` for full status.
 
 ### Phase 2 (deferred): Authorization + Transfer + Hedera
 

@@ -3770,6 +3770,7 @@ dependencies = [
  "hkask-wallet-types",
  "parking_lot",
  "proptest",
+ "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml_neo",

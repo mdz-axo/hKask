@@ -1,0 +1,24 @@
+# NetworkPolicy: restrict ingress to kask namespace.
+# Only allows traffic from the ingress controller (nginx),
+# and intra-namespace traffic (kask ↔ litestream share /data via PVC, not network).
+# Egress is unrestricted (needed for GitHub OAuth, S3 backups, etc.).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hkask-deny-all-except-ingress
+  namespace: hkask
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from nginx-ingress controller (all namespaces — it routes to all services)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+    # Allow from within the same namespace (e.g., k8s control plane health checks)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hkask

@@ -1,5 +1,5 @@
 ---
-title: "Gas Budget System — Implementation Status & Gap Analysis"
+title: "Gas Budget System — Status"
 audience: [architects, CNS developers, curator]
 last_updated: 2026-07-01
 version: "0.31.0"
@@ -10,47 +10,40 @@ mds_categories: [trust, lifecycle, domain]
 
 # Gas Budget System — Status
 
-Post-rename (`Energy*` → `Gas*`) and post-implementation status. All 8 gaps from the adversarial review are closed.
+## Implemented (v0.31.0)
 
-## What Was Built (v0.31.0)
+### Core Gas System
+- **Rename**: `Energy*` → `Gas*` across all crates. Curation concepts preserved (`OverrideEnergyBudget`, `AdjustEnergyBudget`).
+- **Persistence**: Budgets saved as JSON `{version: 1, budgets: {...}}` via `tokio::fs`. Loaded at REPL startup.
+- **Escalation**: Exhausted agents emit `CurationInput::Alert` via algedonic pathway (`alerts_tx`). Wallet exhaustion also escalates.
+- **Stale reservations**: `last_reservation` timestamp on `GasBudget`. Auto-released after 5 min in `replenish_all_budgets`.
+- **Consumption velocity**: `previous_remaining` per agent tracks gas burned across ticks.
 
-### Rename (done)
-`GasBudget`, `GasCost`, `GasBudgetManager`, `GasDelta`, `GasError`, `AgentGasStatus`. Curation-level names preserved: `OverrideEnergyBudget`, `AdjustEnergyBudget`, `EnergyBudgetExceeded`.
+### Well System
+- `WellConfig`, `Well`, `WellManager` in `well.rs`
+- Default Well auto-created on first replicant start
+- Auto-replenish on each regulation cycle
+- Exhaustion → algedonic alert with dampening (no re-alert fatigue)
+- **Auto-draw**: agents below 25% budget draw from default Well into wallet
 
-### E02: Persistence (done)
-- `GasBudgetManager::save_all(path)` — async JSON write with `{version: 1, budgets: {...}}` envelope, tokio::fs
-- `GasBudgetManager::load_all(path)` — async JSON read with version check
-- `CyberneticsLoop::with_budget_persistence(path)` builder
-- `CyberneticsLoop::load_budgets()` — called automatically at startup in `repl/init.rs`
-- Automatic save after each replenishment cycle
+### Wallet System
+- SQLite-backed `WalletStore` (`agent_wallets` table) + `WalletManager` in `wallet_manager.rs`
+- Wallet auto-created on replicant start with initial balance
+- Integrated into spend path: `can_proceed` → `reserve_gas` → `settle_gas` check wallet first
+- Priority chain: WalletManager → WalletBackedBudget → GasBudget
 
-### E04: Escalation (done)
-- Budget exhaustion detected via `all_agent_statuses()` filter in `act()`
-- Alerts sent through algedonic pathway: `alerts_tx → CurationInput::Alert`, fallback to `event_sink`
-- Cybernetic feedback loop is closed — Curator receives budget exhaustion alerts
+### CNS Spans (10 new)
+`ReplicantRegistered`, `WellCreated`, `WellReplenished`, `WellDraw`, `WellExhausted`, `WalletCreated`, `WalletDraw`, `WalletSpend`, `WalletExhausted`, `CuratorEfficiencyExceeded`
 
-### G8: Consumption Velocity (done)
-- `GasBudgetManager.previous_remaining` tracks per-agent remaining across ticks
-- `replenish_all_budgets()` emits `tracing::debug` with `gas_burned` delta per agent per cycle
-
-## Deleted (essentialist review)
-- `gas_ratios()` — redundant with `all_agent_statuses()`
-- `exhausted_agents()` — inlined at call site
-
-## Fixes
-- `Result<(), String>` → `Result<(), GasError>` with `Persistence` variant
-- `std::fs` → `tokio::fs` for async I/O
-- JSON envelope with `version: 1` marker — rejects unknown versions on load
-
-## Remaining Deferred
-E03 (tamper-evidence) — security theater. E05–E11 — P2, revisit after core is solid.
+## Deferred / Future
+- Two wallet systems coexist: `WalletBackedBudget` (rJoule/Hedera) and `WalletManager` (gas/SQLite). Gas wallets bridge to rJoule later.
+- `acquire_budget()` dead code — zero callers.
+- Pass-through methods on `CyberneticsLoop` — 9 methods of pure indirection.
+- Hedera HTS token for rJoule.
+- Well authorization per-agent.
 
 ## Verification
 ```bash
 cargo build --workspace     # 0 errors, 0 warnings
-cargo test -p hkask-cns     # 99 passed, 0 failed
+cargo test -p hkask-cns     # 109 passed, 0 failed
 ```
-
----
-
-*Supersedes `docs/status/energy-accounting-requirements-assessment.md`.*

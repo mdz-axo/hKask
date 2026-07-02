@@ -333,16 +333,17 @@ pub(super) fn init_repl_state(
         }
 
         // Create wallet for this replicant if not already present.
-        let wallet_mgr = cyber.wallet_manager();
-        if !wallet_mgr.has_wallet(&agent_webid).await {
-            let _ = wallet_mgr
-                .create_wallet(
-                    agent_webid,
-                    GasCost(repl_settings.gas_cap * 5),
-                    500,
-                )
-                .await;
-            tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created gas wallet for replicant");
+        if let Some(wallet_mgr) = cyber.wallet_manager() {
+            if !wallet_mgr.has_wallet(&agent_webid).await {
+                let _ = wallet_mgr
+                    .create_wallet(
+                        agent_webid,
+                        GasCost(repl_settings.gas_cap * 5),
+                        500,
+                    )
+                    .await;
+                tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created gas wallet for replicant");
+            }
         }
     });
 
@@ -386,6 +387,30 @@ pub(super) fn init_repl_state(
             }
             None => hkask_storage::in_memory_db(),
         };
+        // Create SQLite-backed WalletStore before db is consumed by memory setup.
+        let wallet_store = {
+            let store = hkask_cns::wallet_store::WalletStore::new(db.conn_arc())
+                .expect("Failed to create WalletStore");
+            Arc::new(store)
+        };
+
+        // Create wallet + attach Well for this replicant.
+        let wallet_mgr = rt.block_on(async {
+            let well = ctx.cns().cybernetics.read().await.well_manager().clone();
+            let mgr = Arc::new(
+                hkask_cns::wallet_manager::WalletManager::new(Arc::clone(&wallet_store))
+                    .with_well(well),
+            );
+            if !mgr.has_wallet(&agent_webid).await {
+                let _ = mgr
+                    .create_wallet(agent_webid, GasCost(repl_settings.gas_cap * 5), 500)
+                    .await;
+                tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created SQLite-backed gas wallet");
+            }
+            ctx.cns().cybernetics.write().await.set_wallet_manager(Arc::clone(&mgr));
+            mgr
+        });
+
         let mem = AgentService::build_per_agent_memory(db, Some(Arc::clone(&ctx.cns().events)));
         (
             mem.episodic_storage,
