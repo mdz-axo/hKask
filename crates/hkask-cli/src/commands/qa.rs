@@ -132,6 +132,7 @@ fn setup_mcp_dispatch(
         ("skill", "hkask-mcp-skill"),
         ("kanban", "hkask-mcp-kata-kanban"),
         ("condenser", "hkask-mcp-condenser"),
+        ("media", "hkask-mcp-media"),
     ];
 
     for (server_id, binary) in servers {

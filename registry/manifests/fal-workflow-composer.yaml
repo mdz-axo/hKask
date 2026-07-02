@@ -116,6 +116,8 @@ steps:
 
   - ordinal: 4
     action: loop
+    gas_cap: 200
+    timeout_seconds: 10
     description: >
       Convergence gate. If convergence_metric ≤ threshold (0.15), the
       cascade exits with 'converged'. Otherwise proceeds to evolution
@@ -143,6 +145,8 @@ steps:
 
   - ordinal: 6
     action: loop
+    gas_cap: 200
+    timeout_seconds: 10
     description: >
       Re-enter cascade at step 1 with the evolved workflow.
       Step 1 will receive previous_workflow and critique_feedback
