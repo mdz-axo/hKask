@@ -36,7 +36,7 @@ Documents are classified by **verification regime**, reflecting different audien
 | [`architecture/hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, four-loop decomposition, economic layer, self-healing, pod architecture, Curator persona |
 | [`architecture/core/MDS.md`](architecture/core/MDS.md) | 5-category specification framework, MDS methodology, AgentService spec (absorbed) |
 | [`architecture/core/PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | Architecture principles (P1-P12), dual-axis ontological framework (PKO + DC+BIBO) |
-| [`architecture/core/TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC + PBT specification + QA triage |
+| [`architecture/core/TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC + PBT specification + QA system |
 | [`architecture/core/FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, CNS sub-domains (absorbed), contract anchoring |
 | [`plans/deployment-and-backup.md`](plans/deployment-and-backup.md) | Deployment & Multi-User Plan — includes admin install, K8s, operations, QA pipeline |
 | [`plans/TODO.md`](plans/TODO.md) | Open work |

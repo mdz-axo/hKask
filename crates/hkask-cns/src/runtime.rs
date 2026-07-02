@@ -103,6 +103,14 @@ impl VarietyTracker {
         self.counts.clear();
         self.window_start = Instant::now();
     }
+
+    /// Hard reset — clears both counts and EMA for a fresh session.
+    /// Unlike `reset()`, which blends into the EMA, this discards all history.
+    pub(crate) fn session_reset(&mut self) {
+        self.counts.clear();
+        self.ema = 0.0;
+        self.window_start = Instant::now();
+    }
 }
 
 impl Default for VarietyTracker {
@@ -247,6 +255,14 @@ impl VarietyMonitor {
 
     pub(crate) fn counters(&self) -> &HashMap<String, VarietyTracker> {
         &self.counters
+    }
+
+    /// Hard reset all trackers for a fresh session.
+    /// Preserves domain entries but clears counts and EMAs.
+    pub fn session_reset(&mut self) {
+        for tracker in self.counters.values_mut() {
+            tracker.session_reset();
+        }
     }
 }
 
@@ -437,6 +453,21 @@ impl CnsRuntime {
     pub async fn variety_for_domain(&self, domain: &str) -> u64 {
         let state = self.state.read().await;
         state.tracker.variety_for_domain(domain)
+    }
+
+    /// Reset all variety counters for a new session.
+    ///
+    /// Clears accumulated counts and EMAs while preserving domain entries
+    /// (i.e., domains registered by the seam watcher remain). Call this
+    /// at session start to prevent stale variety deficits from persisting
+    /// across agent rebuilds.
+    ///
+    /// expect: "Variety counters reset cleanly across sessions"
+    /// [P9] Motivating: Homeostatic Self-Regulation — clean session state
+    /// post: all VarietyTracker counts and EMAs are zeroed
+    pub async fn reset_variety(&self) {
+        let mut state = self.state.write().await;
+        state.tracker.session_reset();
     }
 
     /// Synchronous version of variety_for_domain — uses blocking_read() on the

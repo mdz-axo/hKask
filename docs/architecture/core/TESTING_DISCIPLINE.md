@@ -261,7 +261,7 @@ Tests accumulate the scar tissue of every production incident. They become the r
 |-----------|----------|------------|
 | Unit (same-module) | `#[cfg(test)] mod tests` inside source file | For testing public interface of a single module |
 | Integration | `tests/` directory at crate root | For testing cross-module behavior through crate public API |
-| Fuzz (bolero) | `fuzz/fuzz_targets/` directory at crate root | For panic-free verification on arbitrary input via `bolero::check!()` |
+| Fuzz (property-based) | `src/` module with proptest strategies | For panic-free verification on arbitrary input via proptest `#[test]` functions |
 | MCP server fuzz | `mcp-servers/*/fuzz/fuzz_targets/` directory | For full tool dispatch path fuzzing under `catch_unwind` |
 
 ### 6.2 Testing Rules
@@ -344,299 +344,123 @@ Tests accumulate the scar tissue of every production incident. They become the r
 
 ---
 
-## 8. Fuzz Testing with cargo-bolero
+## 8. Property-Based Testing
 
-### 8.1 Overview
+hKask uses **proptest** (already in `hkask-test-harness`) for property-based testing.
+Property tests live in `#[cfg(test)]` modules alongside the code they verify and
+are run via standard `cargo test`. No external fuzzing frameworks are used.
 
-hKask uses `cargo-bolero` for unified fuzz + property testing across **12 crates** (**78 test functions**).
-One `#[test] fn` works with all engines — bolero abstracts the engine behind `check!()`.
-
-Bolero supports five engines:
-
-| Engine | Requires | Use Case |
-|--------|----------|----------|
-| Property testing (`cargo test`) | Stable Rust | Every push — 100 iterations of random input, shrinks on failure |
-| libFuzzer (`-e libfuzzer`) | Nightly Rust | Coverage-guided — SanitizerCoverage instrumentation |
-| Honggfuzz (`-e honggfuzz`) | Nightly Rust | Hardware counter-guided — finds paths SanitizerCoverage misses |
-| AFL (`-e afl`) | Nightly Rust | Deterministic mutations — fork-server model, different crash handling |
-| Kani (`-e kani`) | Kani installed | Formal verification for selected targets |
-
-Ensemble fuzzing runs multiple engines on the same targets — standard practice
-(Google OSS-Fuzz runs libfuzzer + AFL + honggfuzz on every target).
-
-### 8.2 CI Fuzz Architecture
-
-```
-┌──────────────┬──────────────┬──────────────┬──────────────┐
-│   STABLE     │   NIGHTLY     │   NIGHTLY     │   NIGHTLY     │
-│   ci.yml     │   mutants.yml │   mutants.yml │   mutants.yml │
-│   every push │   push + tag  │   push + tag  │   daily only   │
-├──────────────┼──────────────┼──────────────┼──────────────┤
-│ cargo test   │ libfuzzer     │ honggfuzz     │ libfuzzer     │
-│ 100 iters    │ 300s/target   │ 300s/target   │ 600s/target   │
-│ 78 tests     │ 5 targets     │ 2 targets     │ 13 targets    │
-│              │ --seed-dir    │ --seed-dir    │               │
-│              │               │               │ AFL           │
-│              │               │               │ 300s/target   │
-│              │               │               │ 2 targets     │
-└──────────────┴──────────────┴──────────────┴──────────────┘
-```
-
-### 8.3 Fuzz Crate Inventory
-
-| # | Crate | Tests | Target Surface |
-|---|-------|-------|---------------|
-| 1 | `hkask-types-fuzz` | 4 | CnsSpan, GasCost, budget types |
-| 2 | `hkask-cns-fuzz` | 3 | CNS span parsing, energy construction |
-| 3 | `hkask-inference-fuzz` | 3 | Model name parsing, prompt validation |
-| 4 | `hkask-wallet-fuzz` | 1 | Wallet operations |
-| 5 | `hkask-storage-fuzz` | 1 | Triple construction |
-| 6 | `hkask-templates-fuzz` | 1 | Skill template parsing |
-| 7 | `hkask-memory-fuzz` | 1 | Salience computation |
-| 8 | `hkask-services-core-fuzz` | 1 | Settings model resolution |
-| 9 | `hkask-improv-fuzz` | 1 | Riffing string matching |
-| 10 | `hkask-mcp-fuzz` | 5 | validate_identifier, validate_tool_url, classify_http_error |
-| 11 | `hkask-mcp-kata-kanban-fuzz` | 15 | All 8 kanban tools: deser + dispatch + CNS span + state-machine |
-| 12–21 | 10 remaining MCP server fuzz crates | 10 | Deserialization never-panics (all 171 request types covered) |
-| — | Additional via `dispatch_test!` macro | +41 | Per-tool dispatch tests for companies (27), memory (14), replica (7), kanban (8) |
-| **Total** | | **78** | |
-
-### 8.4 Fuzz Target Patterns
-
-hKask uses four fuzz patterns, each verifying a different class of invariant:
-
-#### Pattern A: Deserialization never panics
-
-```rust
-#[test]
-fn fuzz_kanban_deserialize_never_panics() {
-    check!().with_type::<String>().for_each(|s| {
-        let _ = serde_json::from_str::<BoardCreateRequest>(s);
-        let _ = serde_json::from_str::<TaskCreateRequest>(s);
-        // ... all request types
-    });
-}
-```
-
-#### Pattern A (dispatch): One test per tool — equal coverage
-
-Uses `dispatch_test!` macro to eliminate short-circuit bias:
-
-```rust
-macro_rules! dispatch_test {
-    ($name:ident, $ty:ty, $method:ident) => {
-        #[test] fn $name() {
-            check!().with_type::<String>().for_each(|s| {
-                if let Ok(req) = serde_json::from_str::<$ty>(s) {
-                    let server = test_server();
-                    let _ = call_tool(server.$method(Parameters(req)));
-                }
-            });
-        }
-    };
-}
-dispatch_test!(fuzz_kanban_dispatch_board_create, BoardCreateRequest, kanban_board_create);
-// ... one invocation per tool
-```
-
-#### Pattern B: CNS span contract
-
-Verifies ToolSpanGuard invariants through observable output:
-
-```rust
-#[test]
-fn fuzz_kanban_cns_span_contract_holds() {
-    check!().with_type::<String>().for_each(|s| {
-        // ... dispatch tool ...
-        assert!(!output.is_empty(), "span leaked — no output");
-        let val: Value = serde_json::from_str(&output).expect("valid JSON");
-        assert!(val.get("content").is_some() || val.get("error").is_some());
-    });
-}
-```
-
-#### Pattern C: State-machine roundtrip
-
-Generates operation sequences, executes on shared server state, verifies consistency:
-
-```rust
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum KanbanOp { CreateBoard { name: String }, CreateTask { board_idx: usize, title: String }, ... }
-
-#[test]
-fn fuzz_kanban_state_machine_sequence() {
-    check!().with_type::<String>().for_each(|json| {
-        let ops: Vec<KanbanOp> = serde_json::from_str(json).unwrap_or_default();
-        // Execute sequence on shared server state, verify final consistency
-    });
-}
-```
-
-### 8.5 Seed Corpora
-
-Seed corpora give libfuzzer/honggfuzz/AFL valid starting points to mutate.
-Without seeds, engines waste time generating invalid JSON that doesn't parse.
-
-```
-mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds/
-├── board_create.json    # {"BoardCreate":{"name":"Seed Board",...}}
-├── board_list.json      # {"BoardList":{...}}
-├── task_create.json     # {"TaskCreate":{"board_id":"...","title":"Seed Task",...}}
-├── task_move.json       # {"TaskMove":{"task_id":"...","target_status":"InProgress",...}}
-└── sequence.json        # Multi-operation sequence
-```
-
-Used via: `cargo bolero test --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds`
-
-### 8.6 Running Fuzz Tests
+### 8.1 Running Property Tests
 
 ```bash
-# Property-based (stable, CI on every push — all 12 crates)
-cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
-           -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
-           -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz \
-           -p hkask-mcp-fuzz -p hkask-mcp-kata-kanban-fuzz \
-           -p hkask-mcp-communication-fuzz -p hkask-mcp-companies-fuzz \
-           -p hkask-mcp-condenser-fuzz -p hkask-mcp-docproc-fuzz \
-           -p hkask-mcp-media-fuzz -p hkask-mcp-memory-fuzz \
-           -p hkask-mcp-replica-fuzz -p hkask-mcp-research-fuzz \
-           -p hkask-mcp-training-fuzz
+# All property tests run via standard cargo test
+cargo test --workspace
 
-# Coverage-guided (nightly, CI deep fuzz — with seed corpora)
-cargo +nightly bolero test -p hkask-mcp-kata-kanban-fuzz fuzz_kanban_dispatch_board_create \
-  -T 300s -e libfuzzer --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds
-
-# Ensemble — run different engines on same target
-cargo +nightly bolero test -p hkask-mcp-kata-kanban-fuzz fuzz_kanban_dispatch_task_create \
-  -T 300s -e honggfuzz --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds
-cargo +nightly bolero test -p hkask-mcp-kata-kanban-fuzz fuzz_kanban_dispatch_board_create \
-  -T 300s -e afl --seed-dir mcp-servers/hkask-mcp-kata-kanban/fuzz/seeds
+# Fast property tests (CI on every push)
+cargo test -p hkask-cns -p hkask-types -p hkask-storage
 ```
 
-### 8.7 Fuzz Target Priority
+### 8.2 Fuzz Seed Corpora
 
-| Priority | Surface | Rationale |
-|----------|---------|-----------|
-| 1 | `pub fn` containing `unsafe` | Highest bug density |
-| 2 | MCP tool routers (deserialize + ToolSpanGuard + service) | External trust boundary — where arbitrary JSON enters the system |
-| 3 | Parsers/deserializers (`FromStr`, `Deserialize`) | Input boundary — where malformed data enters |
-| 4 | Validation functions (`validate_identifier`, `validate_tool_url`) | SSRF and injection surface |
-| 5 | Type constructors (`Triple::new`, `GasCost`) | Value construction guardrails |
+The `hkask-test-harness::fuzz` module provides pre-built seed corpora for
+input surface testing:
 
-### 8.8 Mutatis Investigation
+```rust
+use hkask_test_harness::fuzz::{cli_fuzz_seeds, json_fuzz_seeds};
 
-The `mutatis` crate (v0.5.3, by Nick Fitzgerald) was investigated for structure-aware
-fuzzing via `fuzz_mutator!`. It is blocked because `mutatis::DefaultMutate` is not
-implemented for `String`, `Vec<T>`, or `Option<T>` — the primary field types in
-MCP request structs. If a future mutatis release adds these impls, switching to
-structure-aware mutation would require zero server-crate changes (method enum +
-`fuzz_mutator!` in the fuzz crate only).
+// Test CLI argument parser resilience
+for seed in cli_fuzz_seeds() {
+    // no panic
+}
 
-Seed corpora fill this gap today: libfuzzer gets valid JSON starting points to
-mutate, achieving similar coverage through a different mechanism.
+// Test JSON deserializer resilience
+for seed in json_fuzz_seeds() {
+    // no panic on malformed input
+}
+```
+
+## 9. Mutation Testing (removed)
+
+Mutation testing via `cargo-mutants` was removed. The fuzz crate infrastructure
+(`hkask-*-fuzz`) was also removed. Property-based testing via proptest, combined
+with the QA manifest system, provides equivalent coverage without external tooling.
+
+### 9.1 Integration with QA Pipeline
+
+Property test failures that reach the QA system are triaged through the
+classifier (Gemma 4 26B) and routed by confidence — same as any other test
+failure in a QA manifest.
 
 ---
 
-## 9. Mutation Testing with cargo-mutants
-
-### 9.1 Overview
-
-Mutation testing verifies that the test suite catches deliberately introduced bugs.
-`cargo-mutants` systematically changes operators (`>` → `>=`, `+` → `-`, etc.) and
-checks whether any test fails. Mutants that survive represent gaps in test coverage.
-
-```bash
-cargo mutants -p hkask-types --timeout 120
-```
-
-### 9.2 Integration with QA Pipeline
-
-Surviving mutants feed into the `kask qa suggest-fuzz` pipeline:
-
-```bash
-cargo mutants -p hkask-types --timeout 120 2>&1 | grep "Uncaught" \
-  | cargo run --bin kask -- qa suggest-fuzz
-```
-
-This formats each surviving mutant as a passage for the `qa-feedback` classifier
-(Gemma 4 26B), which suggests new fuzz targets that would catch the mutant.
-
-**Critical:** Never use `--in-place` mode in CI. If CI is killed mid-mutation,
-the working tree is corrupted. Use the default temp-dir mode.
-
----
-
-## 10. LLM-Powered QA Triage
+## 10. QA System — Contract Gate Automation
 
 ### 10.1 Overview
 
-When bolero finds a failure, `kask qa triage` classifies it via Gemma 4 26B and
-routes by confidence:
+The QA system runs YAML-defined test manifests through `hkask_test_harness::qa_script::run_script()`.
+Each manifest executes `cargo test` commands, optionally classifies failures via Gemma 4 26B,
+and routes to terminal states (PASS/FAIL/WARN) based on branch conditions.
 
-| Confidence | Action | CNS Span |
-|-----------|--------|----------|
-| ≥ 0.95 | `gh pr create` with proposed fix | `cns.qa.repair_verified` |
-| 0.70–0.94 | `gh issue create` with suggestion | `cns.qa.bolero_failure` |
-| < 0.70 | `gh issue create` for investigation | `cns.qa.bolero_failure` |
-| Unparseable | `gh issue create` with raw output | `cns.qa.bolero_failure` |
+| Confidence | Route | CNS Span |
+|-----------|-------|----------|
+| ≥ 0.95 | High confidence branch | `cns.qa.repair_verified` |
+| 0.70–0.94 | Medium confidence branch | `cns.qa.repair_exhausted` |
+| < 0.70 | Low confidence branch | `cns.qa.repair_exhausted` |
+| Classifier unavailable | `classifier_unavailable` branch | `cns.qa.repair_exhausted` |
 
 ### 10.2 CNS QA Spans
 
-| Span | Meaning |
-|------|---------|
-| `cns.qa.bolero_failure` | A fuzz target caught a failure |
-| `cns.qa.repair_attempted` | An autonomous repair was attempted |
-| `cns.qa.repair_verified` | A repair passed verification (all tests green) |
-| `cns.qa.repair_exhausted` | Repairs exhausted — human investigation needed |
-| `cns.qa.mutant_survived` | A mutant survived — test suite has a gap |
+| Span | Meaning | Emitted |
+|------|---------|---------|
+| `cns.qa.repair_attempted` | QA script started | ✅ On every `run_script()` call |
+| `cns.qa.repair_verified` | Script completed successfully | ✅ On PASS terminal |
+| `cns.qa.repair_exhausted` | Script failed or errored | ✅ On FAIL/WARN/error |
+| `cns.qa.mutant_survived` | Test suite has a gap | 🔜 Planned |
 
 ### 10.3 Architecture
 
 ```
-CI: cargo bolero test --all 2>&1 | kask qa triage
-                                   │
-                                   ▼
-                          hkask-test-harness (lib)
-                          ├── parse bolero output
-                          ├── classify_batch (Gemma 4 26B)
-                          ├── route by confidence
-                          ├── git: check --apply + rollback
-                          ├── dedup: check existing branches/PRs
-                          └── open PR or issue (gh CLI)
+kask qa run --script <manifest.yaml>
+    │
+    ▼
+hkask-test-harness/src/qa_script.rs
+├── parse YAML manifest
+├── validate branch targets
+├── execute run_command steps (shell, 5-min timeout)
+├── execute classify steps (Gemma 4 26B via DeepInfra)
+├── execute loop steps (retry with max_iterations guard)
+├── execute mcp_tool steps (stub — routes to failure)
+├── enforce gas budget (hard_limit)
+└── emit CNS spans (start/complete/error)
 ```
 
-### 10.4 Feedback Loops
+### 10.4 Executable Manifests
 
-**Path A — Rejected repairs:** When a human closes an auto-repair PR without merging,
-the rejection reason + correct fix are formatted as a "correction passage" and fed
-back through the `qa-feedback` classifier. This improves future classifications via
-in-context learning.
+Four manifests run today via `cargo test -p hkask-test-harness -- qa_script`:
 
-**Path B — Surviving mutants:** When `cargo-mutants` reports uncaught mutants, each
-surviving mutant's location and mutation are formatted as a passage. The classifier
-suggests a fuzz target that would catch it.
+| Manifest | Crate Tested | Tests |
+|----------|-------------|-------|
+| `qa-comm-integration-gate` | `hkask-mcp-communication` | 5 |
+| `qa-condenser-health-check` | `hkask-mcp-condenser` | 11 |
+| `qa-keystore-security-gate` | `hkask-keystore` | 16 |
+| `qa-memory-privacy-boundary` | `hkask-mcp-memory` | 6 |
+
+Without `DI_API_KEY`, classify steps gracefully degrade through `classifier_unavailable`.
 
 ### 10.5 Implementation Components
 
-> **Incorporated from:** `docs/architecture/qa/QA_PLAN.md`
-
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
-| QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, run_command/classify/loop/mcp_tool execution, gas enforcement |
-| CNS QA spans | `crates/hkask-types/src/cns.rs` | 4 `CnsSpan` variants for QA observability (defined, not yet emitted) |
-| CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa run --script` — planned, not yet built |
-| Classifier config | `registry/classify/qa-triage.yaml` | Gemma 4 26B triage prompt (failure diagnosis) |
-| Feedback config | `registry/classify/qa-feedback.yaml` | Gemma 4 26B feedback prompt (correction + mutant suggestions) |
+| QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, step execution, gas, CNS |
+| CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa run --script`, `kask qa list` |
+| CNS QA spans | `crates/hkask-types/src/cns.rs` | 4 `CnsSpan` variants |
+| Classifier config | `registry/classify/qa-triage.yaml` | Gemma 4 26B triage prompt |
+| QA manifests | `registry/manifests/qa-*.yaml` | 9 manifests (4 executable, 5 planned) |
 
-### 10.6 Cost Profile
+### 10.6 Planned (not yet built)
 
-| Operation | Model | Tokens | DeepInfra Cost | Frequency |
-|-----------|-------|--------|---------------|-----------|
-| Classify one bolero failure | Gemma 4 26B A4B | ~400 in, ~300 out | ~$0.00030 | Per failure |
-| Feedback: rejected repair | Gemma 4 26B A4B | ~200 in, ~100 out | ~$0.00010 | Per rejection |
-| Feedback: surviving mutant | Gemma 4 26B A4B | ~200 in, ~200 out | ~$0.00016 | Per mutant |
-| cargo-bolero (property) | — | — | $0 | Every push/PR |
-| cargo-mutants | — | — | $0 | Nightly |
+- MCP tool dispatch — call MCP server tools from QA manifests (callback infrastructure ready)
+- Cross-crate invariant manifest — verify invariants spanning multiple crates
 
 ### 10.7 Anti-Patterns
 
@@ -644,8 +468,8 @@ suggests a fuzz target that would catch it.
 |-------------|-------------|
 | No `#[contract]` annotations | Removed — suffocated the code |
 | No pre/post/invariant DSL | Same reason as above |
-| No new model deployment | Uses existing Gemma 4 26B via `classify_batch` |
-| No new binary | `kask qa triage` is a CLI subcommand |
+| No new model deployment | Uses existing Gemma 4 26B via DeepInfra API |
+| No new binary | `kask qa run` is a CLI subcommand |
 | No visual QA dashboard | P3 Prohibition #1 — CNS spans + CLI only |
 | No auto-merge to main | P1 User Sovereignty — human always reviews the PR |
 
@@ -656,9 +480,8 @@ suggests a fuzz target that would catch it.
 | **Unit** | Single function's behavior | Proptest on the function directly |
 | **Integration** | Cross-function chains | Proptest on the entry point; CNS spans verify called functions' behavior |
 | **State machine** | Invariants across operation sequences | Proptest on operation sequences; CNS `cns.gas` spans track budget invariants |
-| **Fuzz** | Input surface robustness | Bolero property testing (stable) + libFuzzer (nightly); verifies no panic |
-| **Mutation** | Test suite adequacy | cargo-mutants; surviving mutants → fuzz target suggestions |
-| **Triage** | Failure diagnosis | LLM classifier (Gemma 4 26B); routes by confidence → PR or issue |
+| **Fuzz** | Input surface robustness | Fuzz seed corpora (cli_fuzz_seeds, json_fuzz_seeds); verifies no panic |
+| **Triage** | Failure diagnosis | LLM classifier (Gemma 4 26B); routes by confidence via QA manifests |
 | **System** | End-to-end workflows | Integration tracer bullet (TDD skill); verifies full vertical slice |
 
 ---

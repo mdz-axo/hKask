@@ -668,36 +668,30 @@ Explicit exclusions — considered and rejected:
 ### 11.1 Fuzz Testing
 
 ```bash
-# Property-based fuzzing (every CI push)
-cargo test -p hkask-types-fuzz -p hkask-cns-fuzz -p hkask-inference-fuzz \
-           -p hkask-wallet-fuzz -p hkask-storage-fuzz -p hkask-templates-fuzz \
-           -p hkask-memory-fuzz -p hkask-services-core-fuzz -p hkask-improv-fuzz
+# Property-based testing (every CI push — uses proptest)
+cargo test -p hkask-cns -p hkask-types -p hkask-storage
 
-# Coverage-guided fuzzing (nightly)
-cargo +nightly bolero test -p hkask-types-fuzz fuzz_cns_span_parse_never_panics -T 60s -e libfuzzer
-
-# Mutation testing (measures test suite quality)
-cargo mutants -p hkask-types --timeout 120
+# QA manifest gates
+cargo test -p hkask-test-harness -- qa_script
 ```
 
 ### 11.2 Triage & Repair
 
 ```bash
-# Triage bolero failures with LLM classifier
-export DI_API_KEY="your-key"
-cargo test -p hkask-types-fuzz 2>&1 | kask qa triage
+# Run QA manifests via cargo test
+cargo test -p hkask-test-harness -- qa_script
 
-# Suggest fuzz targets from surviving mutants
-cargo mutants -p hkask-types --timeout 120 2>&1 | grep "Uncaught" | kask qa suggest-fuzz
+# Run via CLI
+cargo run --bin kask -- qa run --script registry/manifests/qa-keystore-security-gate.yaml
 ```
 
 | Command | Output | Action |
 |---------|--------|--------|
-| `kask qa triage` | "No bolero failures detected" | System healthy |
-| `kask qa triage` | "HIGH confidence: ..." | Check for auto-repair PR |
-| `kask qa triage` | "LOW confidence: ..." | Open investigation issue |
-| `kask qa suggest-fuzz` | "→ [suggestion]" | Consider adding suggested fuzz target |
-| `cargo mutants` | "Uncaught mutants in ..." | Test gap — add test or fuzz target |
+| `cargo test -p hkask-test-harness -- qa_script` | 20 tests pass | System healthy |
+| `kask qa run --script <manifest>` | "PASS" | Gate passed |
+| `kask qa run --script <manifest>` | "FAIL" | Investigate |
+| `kask qa run --script <manifest>` | "WARN" | Classifier unavailable — manual review |
+| `kask qa list` | Lists all manifests | Discover available gates |
 
 ---
 

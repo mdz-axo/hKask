@@ -16,7 +16,10 @@
 
 use serde::Deserialize;
 use std::collections::HashSet;
+use std::future::Future;
 use std::path::Path;
+use std::pin::Pin;
+use std::sync::Arc;
 use thiserror::Error;
 use tracing as _;
 
@@ -726,6 +729,7 @@ async fn execute_loop(
 async fn execute_mcp_tool(
     state: &mut RunnerState,
     step: &StepDef,
+    mcp_dispatch: Option<&McpDispatchFn>,
 ) -> Result<(String, Option<u32>), RunnerError> {
     state.charge(GAS_MCP_TOOL)?;
 
@@ -738,7 +742,36 @@ async fn execute_mcp_tool(
         _ => unreachable!(),
     };
 
-    // MCP dispatch not yet implemented — requires McpRuntime integration.
+    // Try MCP dispatch via callback, fall back to stub
+    if let Some(dispatch) = mcp_dispatch {
+        match dispatch(tool_name.clone(), tool_params.clone()).await {
+            Ok(result) => {
+                let next = step.branching().and_then(|b| resolve_branch(b, "success"));
+                state.previous_stdout = result.clone();
+                state.steps_executed += 1;
+                return Ok((result, next));
+            }
+            Err(e) => {
+                let next = step.branching().and_then(|b| resolve_branch(b, "failure"));
+                if next.is_none() {
+                    return Err(RunnerError::McpNotSupported {
+                        ordinal: step.ordinal(),
+                        tool: tool_name.clone(),
+                    });
+                }
+                let msg = format!(
+                    "[QA:mcp_tool] dispatch failed — tool: {} error: {} — routed to failure branch",
+                    tool_name, e
+                );
+                eprintln!("{}", msg);
+                state.previous_stdout = msg.clone();
+                state.steps_executed += 1;
+                return Ok((msg, next));
+            }
+        }
+    }
+
+    // No dispatcher provided — stub
     let next = step.branching().and_then(|b| resolve_branch(b, "failure"));
 
     if next.is_none() {
@@ -749,7 +782,7 @@ async fn execute_mcp_tool(
     }
 
     let msg = format!(
-        "[QA:mcp_tool] MCP dispatch not yet supported — tool: {} params: {} — routed to failure branch",
+        "[QA:mcp_tool] MCP dispatch not available — tool: {} params: {} — routed to failure branch",
         tool_name, tool_params
     );
     eprintln!("{}", msg);
@@ -757,6 +790,16 @@ async fn execute_mcp_tool(
     state.steps_executed += 1;
     Ok((msg, next))
 }
+
+// ── MCP dispatch callback ───────────────────────────────────────────────────
+
+/// Async callback for MCP tool dispatch.
+/// Passed by the CLI (which owns McpRuntime) to avoid circular dependencies.
+pub type McpDispatchFn = Arc<
+    dyn Fn(String, String) -> Pin<Box<dyn Future<Output = Result<String, String>> + Send>>
+        + Send
+        + Sync,
+>;
 
 // ── Main entry point ────────────────────────────────────────────────────────
 
@@ -777,6 +820,7 @@ async fn execute_mcp_tool(
 pub async fn run_script(
     workspace_root: &Path,
     manifest_path: &Path,
+    mcp_dispatch: Option<McpDispatchFn>,
 ) -> Result<ScriptOutput, RunnerError> {
     let full_path = workspace_root.join(manifest_path);
     let manifest = load_manifest(&full_path)?;
@@ -816,7 +860,9 @@ pub async fn run_script(
             StepDef::RunCommand { .. } => execute_run_command(&mut state, step)?,
             StepDef::Classify { .. } => execute_classify(workspace_root, &mut state, step).await?,
             StepDef::Loop { .. } => execute_loop(&mut state, step).await?,
-            StepDef::McpTool { .. } => execute_mcp_tool(&mut state, step).await?,
+            StepDef::McpTool { .. } => {
+                execute_mcp_tool(&mut state, step, mcp_dispatch.as_ref()).await?
+            }
         };
 
         if step.is_terminal() {
@@ -1125,6 +1171,7 @@ steps:
             .block_on(run_script(
                 Path::new("."),
                 &path_in(&dir, "test-manifest.yaml"),
+                None,
             ))
             .unwrap();
         assert_eq!(result.manifest_id, "test-exec");
@@ -1162,6 +1209,7 @@ steps:
             .block_on(run_script(
                 Path::new("."),
                 &path_in(&dir, "test-manifest.yaml"),
+                None,
             ))
             .unwrap();
         assert_eq!(result.terminal_ordinal, 3);
@@ -1197,6 +1245,7 @@ steps:
             .block_on(run_script(
                 Path::new("."),
                 &path_in(&dir, "test-manifest.yaml"),
+                None,
             ))
             .unwrap();
         assert_eq!(result.terminal_ordinal, 3);
@@ -1235,6 +1284,7 @@ steps:
             .block_on(run_script(
                 Path::new("."),
                 &path_in(&dir, "test-manifest.yaml"),
+                None,
             ))
             .unwrap();
         assert_eq!(result.terminal_ordinal, 3);
@@ -1284,6 +1334,7 @@ steps:
             .block_on(run_script(
                 Path::new("."),
                 &path_in(&dir, "test-manifest.yaml"),
+                None,
             ))
             .unwrap();
         assert_eq!(result.terminal_ordinal, 2);
@@ -1316,6 +1367,7 @@ steps:
         let result = rt.block_on(run_script(
             Path::new("."),
             &path_in(&dir, "test-manifest.yaml"),
+            None,
         ));
         match result {
             Err(RunnerError::GasExceeded { cap, used }) => {
@@ -1357,6 +1409,7 @@ steps:
             .block_on(run_script(
                 Path::new("."),
                 &path_in(&dir, "test-manifest.yaml"),
+                None,
             ))
             .unwrap();
         assert_eq!(result.terminal_ordinal, 3);
@@ -1383,6 +1436,7 @@ steps:
         let result = rt.block_on(run_script(
             Path::new("."),
             &path_in(&dir, "test-manifest.yaml"),
+            None,
         ));
         assert!(matches!(result, Err(RunnerError::McpNotSupported { .. })));
     }
@@ -1432,6 +1486,7 @@ steps:
             .block_on(run_script(
                 Path::new(workspace_root()),
                 Path::new("registry/manifests/qa-comm-integration-gate.yaml"),
+                None,
             ))
             .unwrap();
 
@@ -1458,6 +1513,7 @@ steps:
             .block_on(run_script(
                 Path::new(workspace_root()),
                 Path::new("registry/manifests/qa-condenser-health-check.yaml"),
+                None,
             ))
             .unwrap();
 
@@ -1477,6 +1533,7 @@ steps:
             .block_on(run_script(
                 Path::new(workspace_root()),
                 Path::new("registry/manifests/qa-keystore-security-gate.yaml"),
+                None,
             ))
             .unwrap();
 
@@ -1496,6 +1553,7 @@ steps:
             .block_on(run_script(
                 Path::new(workspace_root()),
                 Path::new("registry/manifests/qa-memory-privacy-boundary.yaml"),
+                None,
             ))
             .unwrap();
 

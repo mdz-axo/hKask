@@ -568,6 +568,23 @@ impl OnboardingService {
             if salt_file.exists() {
                 let _ = std::fs::remove_file(salt_file);
             }
+
+            // Also remove the agent's sub-directory under agents/{name}/
+            // to prevent stale per-agent databases (memory.db, wallet.db,
+            // kanban.db) from being reused on re-onboarding.
+            let agent_dir = std::path::Path::new(db_path)
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .join(hkask_types::agent_paths::AGENTS_DIR)
+                .join(hkask_types::agent_paths::sanitize_name(&config.agent_name));
+            if agent_dir.exists() {
+                let _ = std::fs::remove_dir_all(&agent_dir);
+                tracing::info!(
+                    target: "cns.onboarding",
+                    path = %agent_dir.display(),
+                    "Removed agent database directory"
+                );
+            }
         }
     }
 }

@@ -1,12 +1,12 @@
 ---
 name: qa-script-builder
 visibility: public
-description: "Design and generate autonomous QA pipeline manifests for the hKask QA system. Walks through a structured persona→discover→design→generate→validate pipeline: generates diverse testing scenarios from persona + goal, maps testing intent to the QA system's capabilities (run_command, mcp_tool, classify, loop), designs the branching state machine, and produces a valid YAML manifest for `kask qa run-script`. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'."
+description: "Design and generate autonomous QA pipeline manifests for the hKask QA system. Walks through a structured persona→discover→design→generate→validate pipeline: generates diverse testing scenarios from persona + goal, maps testing intent to the QA system's capabilities (run_command, mcp_tool, classify, loop), designs the branching state machine, and produces a valid YAML manifest for `kask qa run`. Use when the user says 'build a QA script', 'create a QA pipeline', 'design a fuzz workflow', or 'generate a QA manifest'."
 ---
 
 # QA Script Builder
 
-You are a QA pipeline designer. Your job is to translate a user's quality-assurance intent into a **QA script manifest** — a YAML file that the hKask QA system's `QaScriptRunner` can execute autonomously via `kask qa run-script --script <path>`.
+You are a QA pipeline designer. Your job is to translate a user's quality-assurance intent into a **QA script manifest** — a YAML file that the hKask QA system's `run_script()` can execute autonomously via `kask qa run --script <path>`.
 
 ## Honest Scope
 
@@ -52,45 +52,46 @@ This skill's runtime templates live in `registry/templates/qa-script-builder/`:
 
 ## The Runner's Actual Schema
 
-These are the exact fields the `QaScriptRunner` deserializes. Any field not listed here will cause a parse error.
+These are the exact fields the runner (`hkask_test_harness::qa_script::run_script`) deserializes. Unknown fields are silently ignored — they do NOT cause parse errors.
 
 ### Manifest (QaScriptManifest)
 
-```rust
-pub struct QaScriptManifest {
-    pub manifest: ManifestMeta,    // id, description
-    pub gas: GasConfig,            // cap, gas_per_function, alert_threshold, hard_limit
-    pub cns: CnsConfig,            // emit_spans, alert (optional string)
-    pub steps: Vec<QaScriptStep>,  // ordered step list
-}
+```yaml
+manifest:
+  id: string          # required — unique script identifier
+gas:                  # optional
+  cap: u64            # maximum gas units
+  hard_limit: bool    # abort when exceeded (default: true)
+steps:                # required — ordered step list
 ```
 
-### Step (QaScriptStep)
+### Step
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `ordinal` | u32 | **Yes** | Unique step number; branches reference this |
 | `action` | string | **Yes** | `run_command`, `mcp_tool`, `classify`, or `loop` |
-| `description` | string | **Yes** | Human-readable description (also fed to classifier as context) |
-| `retries` | u32 | **Yes** | Retry count (set to 0 for no retry; required on ALL steps including `loop`) |
-| `command` | string | No | Shell command for `run_command` and `loop` actions |
-| `classifier` | string | No | Classifier config name for `classify` action (e.g., `qa-triage`) |
-| `tool_name` | string | No | MCP tool name for `mcp_tool` action |
-| `tool_params` | string | No | JSON parameters for `mcp_tool` invocation |
-| `branching` | map | No | Outcome → ordinal mapping (defaults to empty) |
-| `default_next` | u32 | No | Fallback ordinal if no branch matches |
-| `terminal` | bool | No | If true, script ends after this step (default: false) |
-| `gas_multiplier` | u32 | No | Cost multiplier for this step (default: 1) |
-| `training_cost_urj` | u64 | No | Training cost in micro-rJoules |
-| `max_iterations` | u32 | No | Max iterations for `loop` action |
+| `command` | string | No | Shell command for `run_command` and `loop` |
+| `classifier` | string | No | Classifier config name for `classify` (e.g., `qa-triage`) |
+| `description` | string | classify only | Description fed to classifier as context |
+| `tool_name` | string | No | MCP tool name for `mcp_tool` |
+| `tool_params` | string | No | JSON parameters for `mcp_tool` (default: "{}") |
+| `max_iterations` | u32 | loop only | Max iterations for `loop` action |
+| `terminal` | bool | No | If true, script ends after this step |
+| `branching` | map | No | Outcome → ordinal mapping |
 
-### Fields NOT supported (will cause parse errors)
+### Fields silently ignored
 
-- `escalate_on`, `severity_map`, `domain`, `threshold`, `cooldown_secs` on steps
-- Global `alert:` section with `enabled`, `default_domain`, etc.
+These YAML fields are parsed by the runner but not used — they persist
+in manifests for future integration but have no runtime effect:
+- `retries` on any step
+- `description` on `run_command`, `loop`, `mcp_tool` steps
+- `cns` section (emit_spans, alert) — CNS emission is built into the runner
+- `error_handling` section
+- `gas.alert_threshold` — only `cap` and `hard_limit` are enforced
+- `rjoule` section — reserved for future gas/rJoule integration
 - `iteration_delay_secs` on loop steps
-- `name`, `version`, `visibility` in manifest metadata (only `id` and `description`)
-- `cost_per_token` in gas config (only `cap`, `gas_per_function`, `alert_threshold`, `hard_limit`)
+- `default_next`, `cns_span` on individual steps
 
 ### Step Actions
 
@@ -105,35 +106,34 @@ pub struct QaScriptManifest {
 
 | Condition | Triggered When | Applicable Actions |
 |-----------|---------------|-------------------|
-| `success` | Shell command exit code = 0, or MCP tool returned OK | `run_command`, `mcp_tool`, `loop` |
-| `failure` | Shell command exit code ≠ 0, or MCP tool returned error | `run_command`, `mcp_tool`, `loop` |
-| `high_confidence` | Classifier returned confidence ≥ 0.85 | `classify` |
-| `medium_confidence` | Classifier returned confidence 0.50–0.849 | `classify` |
-| `low_confidence` | Classifier returned confidence > 0 and < 0.50 | `classify` |
+| `success` | Shell command exit code = 0 | `run_command`, `loop` |
+| `failure` | Shell command exit code ≠ 0, or MCP tool error | `run_command`, `mcp_tool`, `loop` |
+| `high_confidence` | Classifier returned confidence ≥ 0.95 | `classify` |
+| `medium_confidence` | Classifier returned confidence 0.70–0.949 | `classify` |
+| `low_confidence` | Classifier returned confidence < 0.70 | `classify` |
 | `flake` | Classifier returned `is_flake: true` | `classify` |
-| `unparseable` | Classifier returned non-JSON or confidence = 0 | `classify` |
-| `loop_exhausted` | Loop reached max_iterations without matching any branch | `loop` |
+| `unparseable` | Classifier returned non-JSON or unparseable output | `classify` |
+| `loop_exhausted` | Loop reached `max_iterations` without success | `loop` |
+| `classifier_unavailable` | API key missing or classifier config not found | `classify` |
 
-If no branch condition matches, the runner uses `default_next`. If neither is set, it advances to the next ordinal.
+If no branch condition matches and no `terminal: true`, the script errors.
 
 ### Gas Budget
 
 ```yaml
 gas:
-  cap: 20000            # maximum gas units (becomes 80000 µrJ at 4 µrJ/gas)
-  alert_threshold: 0.8  # fraction of cap that triggers a warning (default: 0.7)
-  hard_limit: true      # abort when cap exceeded (default: true)
+  cap: 20000          # maximum gas units
+  hard_limit: true    # abort when cap exceeded (default: true)
 ```
 
-### CNS Configuration
+Gas costs per step: `run_command` = 100, `classify` = 500, `loop` iteration = 100, `mcp_tool` = 200.
 
-```yaml
-cns:
-  emit_spans: true            # emit tracing spans per step
-  alert: qa.<domain>.<crate>  # optional alert namespace string
-```
+### CNS Spans
 
-CNS spans go to tracing/logging. The `alert` field is a namespace identifier — the runner does NOT do active algedonic escalation at the step level. Alert routing to the Curator is handled externally.
+CNS spans are emitted automatically by the runner — no manifest configuration needed.
+- `cns.qa.repair_attempted` on script start
+- `cns.qa.repair_verified` on successful completion
+- `cns.qa.repair_exhausted` on failure or error
 
 ### Existing Classifier Configs
 
@@ -346,7 +346,7 @@ steps:
 1. User describes persona + goal
 2. Phase 0: Generate 3–5 diverse testing scenarios
 3. For each scenario: run Phase 1→4 to produce a manifest
-4. User saves and runs: `kask qa run-script --script <path>`
+4. User saves and runs: `kask qa run --script <path>`
 
 ### Direct Path
 
@@ -355,7 +355,7 @@ steps:
 3. Phase 2: Design — present branching topology, confirm routing
 4. Phase 3: Generate — produce YAML using only supported fields
 5. Phase 4: Validate — check branch resolution, field validity, gas budget
-6. User saves and runs: `kask qa run-script --script <path>`
+6. User saves and runs: `kask qa run --script <path>`
 
 
 ## Registry Manifest

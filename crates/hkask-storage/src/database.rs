@@ -179,6 +179,7 @@ impl Database {
             "Database opened"
         );
         Self::initialize_schema(&conn)?;
+        Self::check_schema_version(&conn, path)?;
         if let Some(ext) = extensions {
             conn.execute_batch(ext)?;
         }
@@ -284,6 +285,43 @@ impl Database {
         .ok(); // Ignore error if column already exists
         Ok(())
     }
+
+    /// Current schema version. Increment when `schema.sql` changes and add
+    /// migrations in `check_schema_version` for existing databases.
+    const CURRENT_SCHEMA_VERSION: &str = "1";
+
+    /// Verify the database schema version matches the current version.
+    ///
+    /// The `pod_meta` table is created by `schema.sql` with an initial
+    /// `schema_version = '1'` row. On open, we compare stored vs. current
+    /// and warn if they differ — a future version may run migrations here.
+    fn check_schema_version(conn: &Connection, path: &str) -> Result<(), DatabaseError> {
+        match conn.query_row(
+            "SELECT value FROM pod_meta WHERE key = 'schema_version'",
+            [],
+            |row| row.get::<_, String>(0),
+        ) {
+            Ok(v) if v == Self::CURRENT_SCHEMA_VERSION => {}
+            Ok(v) => {
+                tracing::warn!(
+                    target: "cns.storage",
+                    path = %path,
+                    db_version = %v,
+                    expected = Self::CURRENT_SCHEMA_VERSION,
+                    "Database schema version mismatch — data may be from an incompatible build"
+                );
+            }
+            Err(_) => {
+                tracing::debug!(
+                    target: "cns.storage",
+                    path = %path,
+                    "No schema version row — treating as fresh database"
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// Get database connection for shared access
     /// Get a clone of the shared connection Arc.
     ///

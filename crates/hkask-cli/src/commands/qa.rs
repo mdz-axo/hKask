@@ -1,9 +1,12 @@
 //! QA command handlers for `kask qa`
 //!
 //! Runs QA script manifests through `hkask_test_harness::qa_script::run_script()`.
+//! When MCP tool dispatch is needed, starts the relevant MCP servers and wires
+//! McpRuntime via the McpDispatchFn callback.
 
 use crate::cli::QaAction;
 use std::path::Path;
+use std::sync::Arc;
 
 /// pre:  action is a valid QaAction
 /// post: runs the specified QA operation, prints results to stdout
@@ -22,7 +25,6 @@ pub fn run(action: QaAction) {
                 std::process::exit(1);
             }
 
-            // If script path is absolute or relative to cwd, resolve it
             let manifest_path = if script.is_absolute() {
                 script
                     .strip_prefix(&workspace_root)
@@ -31,15 +33,19 @@ pub fn run(action: QaAction) {
             } else if script.starts_with("registry/") {
                 script
             } else {
-                // Relative path — make it relative to workspace root
                 script
             };
 
             println!("Running QA script: {}", manifest_path.display());
 
+            // Try to set up MCP dispatch for manifests that use mcp_tool steps.
+            // Gracefully degrades if binaries aren't built or config is missing.
+            let mcp_dispatch = setup_mcp_dispatch(&rt);
+
             match rt.block_on(hkask_test_harness::qa_script::run_script(
                 workspace,
                 &manifest_path,
+                mcp_dispatch,
             )) {
                 Ok(output) => {
                     println!();
@@ -110,4 +116,71 @@ pub fn run(action: QaAction) {
             }
         }
     }
+}
+
+/// Try to set up MCP dispatch for QA manifests with mcp_tool steps.
+/// Returns None if MCP infrastructure isn't available (graceful degradation).
+fn setup_mcp_dispatch(
+    rt: &tokio::runtime::Runtime,
+) -> Option<hkask_test_harness::qa_script::McpDispatchFn> {
+    use hkask_mcp::BUILTIN_SERVERS;
+
+    // Build AgentService and start MCP servers (same pattern as kask mcp)
+    // Build AgentService and start MCP servers
+    let ctx = crate::commands::helpers::build_agent_service();
+
+    let replicant_name = ctx.config().agent_name.clone();
+    crate::commands::helpers::start_mcp_servers_with_env(
+        rt,
+        &ctx,
+        BUILTIN_SERVERS,
+        &replicant_name,
+    );
+
+    let mcp = ctx.infra().mcp.clone();
+
+    // Build dispatch closure: maps (tool_name, tool_params) → Result<output, error>
+    let dispatch: hkask_test_harness::qa_script::McpDispatchFn =
+        Arc::new(move |tool_name: String, tool_params: String| {
+            let mcp = mcp.clone();
+            Box::pin(async move {
+                // Parse params JSON
+                let args: serde_json::Map<String, serde_json::Value> =
+                    match serde_json::from_str(&tool_params) {
+                        Ok(serde_json::Value::Object(map)) => map,
+                        Ok(_) => serde_json::Map::new(),
+                        Err(_) => serde_json::Map::new(),
+                    };
+
+                // Resolve server_id from tool registry
+                let server_id = match mcp.get_tool_info(&tool_name).await {
+                    Some(info) => info.server_id,
+                    None => {
+                        return Err(format!(
+                            "tool '{}' not found in any registered server",
+                            tool_name
+                        ));
+                    }
+                };
+
+                // Dispatch via McpRuntime (bypasses OCAP governance — QA is internal audit)
+                match mcp.call_tool(&server_id, &tool_name, args).await {
+                    Ok(result) => {
+                        let text: String = result
+                            .content
+                            .iter()
+                            .filter_map(|c| match &**c {
+                                rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
+                                _ => None,
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        Ok(text)
+                    }
+                    Err(e) => Err(format!("MCP dispatch error: {}", e)),
+                }
+            })
+        });
+
+    Some(dispatch)
 }

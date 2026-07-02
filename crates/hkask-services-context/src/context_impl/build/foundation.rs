@@ -109,6 +109,13 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         config.cns_threshold,
     )));
 
+    // Reset variety counters for fresh session — prevents stale deficit
+    // values from prior sessions from triggering false algedonic alerts.
+    {
+        let cns = cns_runtime.read().await;
+        cns.reset_variety().await;
+    }
+
     // Seam watcher — non-fatal if inventory unavailable.
     let seam_watcher: Arc<RwLock<Option<SeamWatcher>>> = {
         let cns = cns_runtime.read().await;

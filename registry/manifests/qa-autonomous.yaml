@@ -1,118 +1,96 @@
 # QA Autonomous Cycle — v0.31.0
 #
-# Classifier-driven autonomous QA pipeline: fuzz → classify → branch on confidence.
-# High confidence → auto-repair. Medium → escalate. Low → investigate.
-# Loop actions retry until condition met or max iterations exhausted.
+# Classifier-driven autonomous QA pipeline using ONLY hKask infrastructure.
+# No external fuzzers, no bolero, no cargo-mutants.
 #
-# Pre-requisites:
-#   - cargo-bolero must be installed (cargo install bolero)
-#   - QaScriptRunner with classify + loop support
+# Architecture:
+#   1. Run contract/property tests across crates (cargo test with proptest)
+#   2. Classify failures via Gemma 4 26B (existing classifier)
+#   3. Branch on confidence: high → report, medium → escalate, low → investigate
+#   4. Loop retries for flaky failures
 #
-# Runner readiness: NEEDS TOOLING — requires bolero installation
-#   and QaScriptRunner with classify + loop support.
+# Uses hKask's own:
+#   - proptest (already in hkask-test-harness) for property-based testing
+#   - fuzz seed corpora (fuzz.rs) for CLI/JSON input surface testing
+#   - classifier (qa-triage) for LLM-powered failure diagnosis
+#   - CNS spans for observability
+#
+# Runner readiness: PARTIAL — run_command + classify steps executable today;
+#   loop steps require runner with classify + loop support.
 
 manifest:
   id: qa-autonomous
   name: QA Autonomous Cycle
   version: 0.31.0
   description: >
-    Autonomous QA pipeline that runs bolero fuzz tests, classifies failures
-    with the LLM classifier, and branches on confidence. Requires
-    cargo-bolero and QaScriptRunner with classify + loop support.
+    Autonomous QA pipeline using only hKask infrastructure: runs contract and
+    property tests, classifies failures via Gemma 4 26B, branches on confidence,
+    and retries flaky tests. No external fuzzers required.
   editor: system
   visibility: Public
 
 gas:
   cap: 50000
-  alert_threshold: 0.8
   hard_limit: true
-
-rjoule:
-  cap: 1
-  alert_threshold: 0.8
-  hard_limit: true
-
-inputs:
-  - name: workspace_root
-    type: string
-    description: Path to the Cargo workspace root
-    required: false
-  - name: fuzz_timeout_secs
-    type: integer
-    description: Maximum seconds to run fuzz tests per iteration
-    required: false
 
 steps:
-  # Step 1: Run bolero fuzz tests
+  # Step 1: Run full contract test suite across priority crates
   - ordinal: 1
     action: run_command
-    command: "cargo bolero test --all-features --timeout 30s 2>&1 | tee /tmp/hkask-fuzz-output.txt && echo 'fuzz_complete'"
-    description: "Run bolero fuzz tests and capture output"
+    command: "cargo test -p hkask-cns -p hkask-types -p hkask-storage -p hkask-keystore -p hkask-capability 2>&1 | tail -30"
+    description: "Run contract and property tests across priority crates"
     branching:
       success: 2
-      failure: 7
+      failure: 2
 
-  # Step 2: Classify failures with LLM
+  # Step 2: Classify test output
   - ordinal: 2
     action: classify
     classifier: qa-triage
-    description: "Parse bolero output at /tmp/hkask-fuzz-output.txt, classify each failure"
+    description: "Test suite: hKask priority crates (cns, types, storage, keystore, capability). Property-based tests use proptest for randomized input generation. Classify any failures by type (panic, assertion, logic error, flake) and confidence."
     branching:
       high_confidence: 3
       medium_confidence: 4
       low_confidence: 5
       flake: 6
       unparseable: 5
+      classifier_unavailable: 7
 
-  # Step 3: High confidence → auto-repair
+  # Step 3: High confidence → report for auto-repair review
   - ordinal: 3
     action: run_command
-    command: "echo '[QA] High-confidence failure detected — auto-repair attempted'"
-    description: "Auto-repair for high-confidence classification"
-    cns_span: cns.qa.autonomous.auto_repair
+    command: "echo '[QA:autonomous] High-confidence failure detected — review proposed fix in classifier output'"
+    description: "High-confidence classification — candidate for auto-repair"
 
   # Step 4: Medium confidence → escalate
   - ordinal: 4
     action: run_command
-    command: "echo '[QA] Medium-confidence failure — escalate to human'"
-    description: "Escalate medium-confidence failures for human review"
-    cns_span: cns.qa.autonomous.escalate
+    command: "echo '[QA:autonomous] Medium-confidence failure — escalate for human review'"
+    description: "Medium-confidence failure needs human judgment"
 
-  # Step 5: Low confidence → investigation needed
+  # Step 5: Low confidence → investigate
   - ordinal: 5
     action: run_command
-    command: "echo '[QA] Low-confidence failure — flag for investigation'"
-    description: "Flag low-confidence failures for developer investigation"
-    cns_span: cns.qa.autonomous.investigate
+    command: "echo '[QA:autonomous] Low-confidence or unparseable — flag for investigation'"
+    description: "Low-confidence failure requires developer investigation"
+    terminal: true
 
-  # Step 6: Flake → retry loop
+  # Step 6: Flake → retry
   - ordinal: 6
     action: loop
-    command: "echo 'retry_cycle'"
-    description: "Retry loop for flaky failures"
+    command: "echo 'retry_flake'"
+    description: "Retry flaky test"
     max_iterations: 3
-    iteration_delay_secs: 5
     branching:
-      success: 2
-    cns_span: cns.qa.autonomous.retry_loop
+      success: 1
+      loop_exhausted: 5
 
-  # Step 7: Fuzz failure → log and exit
+  # Step 7: Classifier unavailable → report
   - ordinal: 7
     action: run_command
-    command: "echo '[QA] Fuzz execution failed — check cargo bolero installation: cargo install bolero'"
-    description: "Log fuzz execution failure"
-    cns_span: cns.qa.autonomous.fuzz_failed
-
-error_handling:
-  on_gas_exceeded: abort
-  on_timeout: retry
-  max_retries: 2
-  retry_backoff_seconds: 1
+    command: "echo '[QA:autonomous] Classifier unavailable — raw test output available for manual review'"
+    description: "Classifier unavailable, manual review needed"
+    terminal: true
 
 cns:
   emit_spans: true
-  span_namespace: cns.qa.autonomous
-
-audit:
-  enabled: true
-  log_level: info

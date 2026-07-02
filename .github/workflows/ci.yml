@@ -129,3 +129,18 @@ jobs:
             echo "::error::Hardcoded secrets found — use env vars or keystore"
             exit 1
           fi
+
+  qa-gate:
+    name: QA Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-rust
+      - name: Install linker + system deps
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - name: QA manifest parse + validate
+        run: cargo test -p hkask-test-harness -- qa_script::tests::all_real_manifests
+      - name: QA end-to-end gates
+        run: cargo test -p hkask-test-harness -- qa_script::tests::run_

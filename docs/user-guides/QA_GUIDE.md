@@ -1,7 +1,7 @@
 ---
 title: "hKask QA System Guide"
 audience: [developers, operators]
-last_updated: 2026-07-01
+last_updated: 2026-07-02
 version: "0.31.0"
 status: "Active"
 domain: "Quality Assurance"
@@ -14,10 +14,7 @@ mds_categories: [domain, lifecycle, curation]
 
 1. [Overview](#overview)
 2. [Architecture](#architecture)
-3. [CLI Commands](#cli-commands)
-   - [Fuzz Triage (`kask qa triage`)](#fuzz-triage)
-   - [Mutation Analysis (`kask qa suggest-fuzz`)](#mutation-analysis)
-   - [Autonomous Scripts (`kask qa run`)](#autonomous-scripts)
+3. [Running QA Scripts](#running-qa-scripts)
 4. [Manifest Format](#manifest-format)
    - [Step Actions](#step-actions)
    - [Branching](#branching)
@@ -33,30 +30,25 @@ mds_categories: [domain, lifecycle, curation]
 
 ## 1. Overview
 
-The hKask QA system provides **three layers** of automated quality assurance, from
-passive analysis to fully autonomous interactive pipelines:
+The hKask QA system runs YAML-defined test manifests through
+`hkask_test_harness::qa_script::run_script()`. Each manifest executes
+`cargo test` commands, optionally classifies failures via Gemma 4 26B,
+and routes to terminal states based on branch conditions.
 
-| Layer | Command | Input | Output | Autonomy |
-|-------|---------|-------|--------|----------|
-| **Fuzz Triage** | `kask qa triage` | bolero stderr | classified failures + auto-repair branches | Semi (classify + branch) |
-| **Mutation Analysis** | `kask qa suggest-fuzz` | cargo-mutants output | fuzz target suggestions | Semi (classify + suggest) |
-| **Autonomous Scripts** | `kask qa run --script <yaml>` | YAML manifest | script report with step outcomes | Full (classify → branch → loop) |
-
-The system integrates with:
-
-- **bolero** — coverage-guided fuzzer for Rust
-- **cargo-mutants** — mutation testing framework
-- **hkask-services-runtime** — LLM-powered classification (DeepInfra, OpenRouter, etc.)
-- **CNS** — Cybernetic Nervous System for observability and homeostatic guards
+| Command | What It Does |
+|---------|-------------|
+| `kask qa list` | List all available QA manifests |
+| `kask qa run --script <path>` | Execute a QA manifest |
+| `cargo test -p hkask-test-harness -- qa_script` | Run all QA tests |
 
 ### Principle Grounding
 
 | Principle | How the QA system satisfies it |
 |-----------|-------------------------------|
-| **P4** Clear Boundaries | Every destructive action (auto-repair, PR creation) requires consent; gas budgets cap LLM costs |
-| **P5** Essentialism | Three focused subcommands; one manifest format; no framework |
-| **P8** Semantic Grounding | Every step emits a CNS span; classify results carry confidence scores |
-| **P9** Homeostatic Self-Regulation | Autonomous branching adapts to classifier output; feedback loops improve future classifications |
+| **P4** Clear Boundaries | Gas budgets cap LLM costs; `classifier_unavailable` graceful degradation |
+| **P5** Essentialism | One module (`qa_script.rs`), one public function (`run_script`) |
+| **P8** Semantic Grounding | CNS spans emitted on start/complete/error; classify results carry confidence |
+| **P9** Homeostatic Self-Regulation | Branching adapts to test outcomes; gas enforcement prevents runaway |
 
 ---
 
@@ -66,43 +58,34 @@ The system integrates with:
 ┌──────────────────────────────────────────────────────────────────────────┐
 │  CLI Surface (hkask-cli)                                                  │
 │                                                                           │
-│  kask qa triage ──┐                                                      │
-│  kask qa suggest  ─┤──> classify_batch() ──> LLM (DeepInfra/Gemma)       │
-│  kask qa run      ─┘       ▲                                              │
+│  kask qa run --script <manifest>                                          │
+│  kask qa list                                                             │
+│       │                                                                    │
+│       ▼                                                                    │
+│  ┌──────────────────────────────────────────────────────────────┐        │
+│  │  commands/qa.rs — thin dispatch to hkask-test-harness        │        │
+│  └─────────────────────────┬────────────────────────────────────┘        │
 │                            │                                              │
 │  ┌─────────────────────────┴──────────────────────────────────┐         │
-│  │  Classification Service (hkask-services-runtime)            │         │
-│  │  - classify_batch()   → batch LLM classification            │         │
-│  │  - extract_triples()  → structured data extraction          │         │
-│  │  - ClassifierConfig   → loaded from registry YAML           │         │
-│  └─────────────────────────┬──────────────────────────────────┘         │
-│                            │                                              │
-│  ┌─────────────────────────┴──────────────────────────────────┐         │
-│  │  Test Harness (hkask-test-harness)                          │         │
-│  │  - triage/              → bolero parsing + auto-repair       │         │
-│  │  - feedback/            → correction passages + mutants      │         │
-│  │  - qa_script/           → QaScriptRunner + manifest types    │         │
-│  │  - prob_contract/       → PAC probabilistic verification    │         │
-│  │  - strategies/          → proptest generators                │         │
-│  │  - test_runner/         → contract test discovery + runner   │         │
+│  │  hkask-test-harness/src/qa_script.rs                        │         │
+│  │  - run_script() → parse YAML, validate, execute steps       │         │
+│  │  - run_command steps → shell out (5-min timeout)             │         │
+│  │  - classify steps → Gemma 4 26B via DeepInfra API            │         │
+│  │  - loop steps → retry with max_iterations guard              │         │
+│  │  - mcp_tool steps → stub (routes to failure)                 │         │
+│  │  - gas enforcement → hard_limit on gas.cap                   │         │
+│  │  - CNS spans → cns.qa.{repair_attempted,verified,exhausted}  │         │
 │  └────────────────────────────────────────────────────────────┘         │
-│                                                                           │
-│  ┌──────────────────────────────────────────────────────────┐           │
-│  │  CNS (hkask-cns)                                           │           │
-│  │  - cns.qa.bolero_failure   → fuzz failure detected         │           │
-│  │  - cns.qa.autonomous.*     → script step outcomes          │           │
-│  │  - cns.classify            → classification operations     │           │
-│  └──────────────────────────────────────────────────────────┘           │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Data Flow: Autonomous Script
+### Data Flow
 
 ```
-YAML Manifest ──> QaScriptManifest (parse)
+YAML Manifest ──> load_manifest() + validate()
                       │
                       ▼
-              QaScriptRunner::run()
+              run_script() — walk steps by ordinal
                       │
          ┌────────────┼────────────┐
          ▼            ▼            ▼
@@ -110,7 +93,7 @@ YAML Manifest ──> QaScriptManifest (parse)
          │            │            │
          │    ┌───────┴───────┐    │
          │    ▼               ▼    │
-         │  high_conf   medium_conf│
+         │  high_conf     medium   │
          │    │               │    │
          ▼    ▼               ▼    ▼
       branch to specified ordinal (or advance linearly)
@@ -256,7 +239,7 @@ script advances to the next ordinal linearly.
 steps:
   - ordinal: 1
     action: run_command
-    command: "cargo bolero test --timeout 30s 2>&1 | tee /tmp/fuzz.txt"
+    command: "cargo test -p hkask-types -p hkask-cns -- --test-threads=1 2>&1 | tail -20"
     description: "Run fuzz tests"
     branching:
       success: 2
@@ -348,7 +331,7 @@ classifications.
 
 Stored in `$HKASK_REPLICANT_REGISTRY_PATH/classify/` as YAML files. Two standard configs:
 
-**`qa-triage.yaml`** — Used by `kask qa triage` and classify steps:
+**`qa-triage.yaml`** — Used by classify steps in QA manifests:
 
 ```yaml
 classifier:
@@ -365,20 +348,13 @@ classifier:
     - suggested_fuzz_target (string): fuzz target that would catch this, empty if n/a
   temperature: 0.1
   max_tokens: 512
-  fallback_category: '{"confidence":0.0,"is_flake":false,"root_cause":"unparseable"}'
 ```
 
-**`qa-feedback.yaml`** — Used by `kask qa suggest-fuzz` and correction passages:
-
-```yaml
-classifier:
-  name: qa-feedback
-  model: google/gemma-4-26B-A4B-it
-```
+**`qa-feedback.yaml`** — Used by the planned `kask qa suggest-fuzz` and correction passages:
 
 ### 5.2 Diagnosis Schema
 
-The `QaDiagnosis` struct expected from the LLM:
+The `ClassifyResponse` struct expected from the LLM:
 
 ```json
 {
@@ -386,38 +362,26 @@ The `QaDiagnosis` struct expected from the LLM:
   "is_flake": false,
   "root_cause": "off-by-one error in index calculation at line 42",
   "proposed_fix": "Change `i <= len` to `i < len`",
-  "suggested_fuzz_target": "fuzz_index_bounds",
-  "affected_file": "src/parser.rs",
-  "affected_line": 42,
   "failure_type": "panic"
 }
 ```
 
-The runner extracts `confidence` and `is_flake` for branching. The full diagnosis
-is used by `kask qa triage` for auto-repair and CNS span enrichment.
+The runner extracts `confidence` and `is_flake` for branching. The full response
+is captured in the step output for CNS span enrichment.
 
 ---
 
 ## 6. CNS Integration
 
-Every QA operation emits CNS spans for observability and homeostatic monitoring:
+QA runs emit CNS spans automatically via `tracing`:
 
-| Span Target | When Emitted | Fields |
-|-------------|-------------|--------|
-| `cns.qa.bolero_failure` | Each fuzz failure parsed (parse-only mode) | `crate_name`, `test_name` |
-| `cns.qa.script` | Each autonomous script step | `manifest`, `ordinal`, `action`, `outcome`, `duration_ms` |
-| `cns.classify` | Each classification batch | `operation`, `item_count` |
+| Span | When Emitted |
+|------|-------------|
+| `cns.qa.repair_attempted` | Script start |
+| `cns.qa.repair_verified` | Successful completion (PASS terminal) |
+| `cns.qa.repair_exhausted` | Failure or error (FAIL/WARN/error) |
 
-Custom manifests can set per-step `cns_span` targets:
-
-```yaml
-steps:
-  - ordinal: 3
-    action: run_command
-    cns_span: cns.qa.custom.auto_repair   # Custom span target
-```
-
-View CNS health:
+Spans include `manifest`, `terminal`, `steps`, `gas` fields. View via:
 
 ```bash
 kask cns health
