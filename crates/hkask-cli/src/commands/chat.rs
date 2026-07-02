@@ -19,7 +19,7 @@ use hkask_services_onboarding::ResolvedSecrets;
 use hkask_types::template::LLMParameters;
 
 /// Build AgentService from secrets or environment.
-/// Routes through the canonical `helpers::build_service_context_from_secrets`.
+/// Routes through the canonical `helpers::build_agent_service_from_secrets`.
 ///
 /// # REQ: P7-converge — AgentService construction is single-source
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -28,7 +28,7 @@ async fn build_chat_context(
     secrets: Option<&ResolvedSecrets>,
 ) -> Result<AgentService, ChatTurnResponse> {
     let from_secrets = secrets.map(|s| (name, s));
-    super::helpers::build_service_context_from_secrets(from_secrets).map_err(|e| ChatTurnResponse {
+    super::helpers::build_agent_service_from_secrets(from_secrets).map_err(|e| ChatTurnResponse {
         text: format!("AgentService error: {}", e),
         usage: None,
         finish_reason: "error".to_string(),
@@ -163,6 +163,7 @@ async fn finish_stream(
         &prepared.prompt,
         params,
         Some(&prepared.model),
+        None,
     );
 
     let mut full_text = String::new();

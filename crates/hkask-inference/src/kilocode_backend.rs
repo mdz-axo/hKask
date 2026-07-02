@@ -163,6 +163,7 @@ impl KiloCodeBackend {
         model: &str,
         prompt: &str,
         params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> std::pin::Pin<
         Box<
             dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
@@ -176,6 +177,7 @@ impl KiloCodeBackend {
         let model = model.to_string();
         let prompt = prompt.to_string();
         let params = params.clone();
+        let tools = tools.map(|t| t.to_vec());
 
         Box::pin(
             Box::pin(futures_util::stream::once(async move {
@@ -186,7 +188,7 @@ impl KiloCodeBackend {
                     &params,
                     Some(true),
                     None,
-                    None::<Vec<ChatToolDefinition>>,
+                    tools,
                     None::<Vec<FusionPlugin>>,
                 );
 

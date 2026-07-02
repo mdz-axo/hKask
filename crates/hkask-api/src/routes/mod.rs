@@ -6,6 +6,7 @@ pub(crate) mod auth;
 
 pub(crate) mod bundles;
 pub(crate) mod chat;
+pub(crate) mod chat_ws;
 pub(crate) mod cns;
 pub(crate) mod consolidation;
 pub(crate) mod curator;

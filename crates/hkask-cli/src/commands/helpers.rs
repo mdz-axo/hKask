@@ -1,17 +1,12 @@
 //! Shared helper functions for CLI command handlers
-//!
-//! Utility functions used across multiple command modules for error handling,
-//! output, and common setup.
 
 use std::path::{Path, PathBuf};
 
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceConfig;
+use hkask_services_onboarding::ResolvedSecrets;
 
 /// Unwrap a `Result` or print an error message and exit.
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  result is a `Result<T, E>`; label is a human-readable context string
-/// post: returns Ok value or prints "{label}: {error}" to stderr and exits with code 1
 pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T {
     match result {
         Ok(v) => v,
@@ -24,19 +19,41 @@ pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T 
 
 /// Build an AgentService from environment config.
 ///
-/// Always creates a fresh tokio runtime — safe to call from any context.
-/// This is the single entry point for one-shot CLI commands.
+/// Always creates a fresh tokio runtime. Suitable for one-shot CLI commands.
 pub fn build_agent_service() -> AgentService {
-    let config = or_exit(
-        ServiceConfig::from_env(),
-        "Failed to resolve service config",
-    );
-    let rt =
-        tokio::runtime::Runtime::new().expect("Failed to create tokio runtime for service build");
     or_exit(
-        rt.block_on(AgentService::build(config)),
+        build_agent_service_inner(None),
         "Failed to build AgentService",
     )
+}
+
+/// Build an AgentService from pre-resolved secrets (used by the chat path).
+///
+/// Returns `Result` — callers handle errors gracefully rather than exiting.
+pub fn build_agent_service_from_secrets(
+    from_secrets: Option<(&str, &ResolvedSecrets)>,
+) -> Result<AgentService, String> {
+    build_agent_service_inner(from_secrets)
+}
+
+/// Shared implementation — always creates a fresh tokio runtime.
+fn build_agent_service_inner(
+    from_secrets: Option<(&str, &ResolvedSecrets)>,
+) -> Result<AgentService, String> {
+    let config = match from_secrets {
+        Some((name, secrets)) => ServiceConfig::from_secrets(
+            secrets.a2a_secret.clone(),
+            secrets.db_passphrase.clone(),
+            secrets.mcp_secret.clone(),
+            name.to_string(),
+        ),
+        None => ServiceConfig::from_env()
+            .map_err(|e| format!("Failed to resolve service config: {}", e))?,
+    };
+    let rt =
+        tokio::runtime::Runtime::new().map_err(|e| format!("Failed to create runtime: {}", e))?;
+    rt.block_on(AgentService::build(config))
+        .map_err(|e| e.to_string())
 }
 
 /// Write content to a file or print to stdout.
@@ -52,9 +69,23 @@ pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
     }
 }
 
-/// Resolve the current user's WebID for commands that need an author identity.
+/// Resolve the current user's WebID.
 pub fn resolve_user_webid() -> hkask_types::WebID {
     let name = std::env::var("HKASK_USER_WEBID").unwrap_or_else(|_| "cli-user".to_string());
+    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
+}
+
+/// Resolve an agent name from an optional argument or environment.
+pub fn resolve_agent_name(agent: Option<&str>) -> String {
+    if let Some(name) = agent {
+        return name.to_string();
+    }
+    std::env::var("HKASK_MCP_HOST").unwrap_or_else(|_| "anonymous".to_string())
+}
+
+/// Resolve a WebID from an optional argument or derive from agent name.
+pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
+    let name = resolve_agent_name(agent);
     hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
 }
 
@@ -103,40 +134,39 @@ pub fn start_mcp_servers_with_env(
     }
 }
 
-/// Resolve an agent name from an optional argument or environment.
-pub fn resolve_agent_name(agent: Option<&str>) -> String {
-    if let Some(name) = agent {
-        return name.to_string();
-    }
-    std::env::var("HKASK_MCP_HOST").unwrap_or_else(|_| "anonymous".to_string())
-}
-
-/// Resolve a WebID from an optional argument or derive from agent name.
-pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
-    let name = resolve_agent_name(agent);
-    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
-}
-
 /// Resolve the deploy directory from environment or default.
-pub fn resolve_deploy_dir() -> PathBuf {
-    std::env::var("HKASK_DEPLOY_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            dirs::config_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join("hkask")
-                .join("deploy")
-        })
+pub fn resolve_deploy_dir() -> Result<PathBuf, String> {
+    if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
+        let p = PathBuf::from(&d);
+        if p.is_dir() {
+            return Ok(p);
+        }
+        return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}"));
+    }
+    let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+    let candidate = cwd.join("deploy").join("k8s");
+    if candidate.is_dir() {
+        return Ok(candidate);
+    }
+    Err(format!(
+        "deploy/k8s not found at {} and HKASK_DEPLOY_DIR not set",
+        cwd.display()
+    ))
 }
 
 /// Print a list of items with a header.
-pub fn print_item_list(header: &str, items: &[String]) {
+pub fn print_item_list<T>(
+    items: &[T],
+    empty_label: &str,
+    label: &str,
+    format_item: impl Fn(&T) -> String,
+) {
     if items.is_empty() {
-        println!("{} (none)", header);
-    } else {
-        println!("{}:", header);
-        for item in items {
-            println!("  - {}", item);
-        }
+        println!("{}", empty_label);
+        return;
+    }
+    println!("{} ({}):", label, items.len());
+    for item in items {
+        println!("  - {}", format_item(item));
     }
 }

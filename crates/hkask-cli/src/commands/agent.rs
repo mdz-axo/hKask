@@ -25,7 +25,7 @@ pub struct AgentReceipt {
 /// pre:  kind_filter is None or a valid AgentKind string; service context must be buildable
 /// post: returns all registered agents, optionally filtered by kind; empty vec if none match
 pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     let agents =
         ctx.storage()
             .agents
@@ -48,7 +48,7 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
 /// pre:  name is a non-empty agent name string; agent must exist in registry
 /// post: returns the RegisteredAgent for the given name or ServiceError if not found
 pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     ctx.storage()
         .agents
         .clone()
@@ -67,7 +67,7 @@ pub async fn agent_register(
     agent_type: &str,
     capabilities: Vec<String>,
 ) -> Result<AgentReceipt, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     let webid = WebID::from_str(webid_str)?;
     let kind = AgentKind::parse(agent_type).ok_or_else(|| ServiceError::InvalidAgentType {
         source: None,
@@ -140,7 +140,7 @@ pub async fn agent_register(
 /// pre:  name is a non-empty agent name string; agent must exist in registry
 /// post: removes the agent from the registry; returns Ok(()) or ServiceError if not found
 pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     ctx.storage()
         .agents
         .clone()

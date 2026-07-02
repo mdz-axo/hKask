@@ -197,6 +197,7 @@ impl DeepInfraBackend {
         model: &str,
         prompt: &str,
         params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> std::pin::Pin<
         Box<
             dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
@@ -212,6 +213,7 @@ impl DeepInfraBackend {
             model.to_string(),
             prompt.to_string(),
             params.clone(),
+            tools.map(|t| t.to_vec()),
         )
     }
 

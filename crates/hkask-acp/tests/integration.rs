@@ -55,6 +55,7 @@ impl InferencePort for MockInferencePort {
         &self,
         _p: &str,
         _params: &LLMParameters,
+        _tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
         let chunks = self.chunks.clone();
         Box::pin(futures_util::stream::iter(chunks.into_iter().map(Ok)))

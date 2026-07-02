@@ -16,6 +16,8 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["time"] }
+async-stream.workspace = true
+futures-util.workspace = true
 
 hkask-condenser = { path = "../hkask-condenser" }
 hkask-improv = { path = "../hkask-improv" }

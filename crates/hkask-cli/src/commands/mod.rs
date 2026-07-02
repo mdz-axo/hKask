@@ -47,6 +47,7 @@ pub mod user;
 pub mod wallet;
 pub mod web_search;
 
+pub mod qa;
 pub mod token;
 
 // Re-exports from template

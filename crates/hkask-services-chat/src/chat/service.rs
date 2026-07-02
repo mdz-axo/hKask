@@ -6,8 +6,12 @@
 //! CLI and API surfaces delegate to a single implementation rather than
 //! duplicating ~400 lines of business logic.
 
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+
+use futures_util::Stream;
+use futures_util::StreamExt;
 
 use hkask_agents::curator::persona_filter;
 use hkask_agents::ports::{
@@ -24,7 +28,8 @@ use hkask_types::{Confidence, DataCategory, WebID};
 
 use super::improv::improv_system_prompt;
 use super::types::{
-    ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage, TurnRequest, TurnResult,
+    ChatStreamEvent, ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage, TurnRequest,
+    TurnResult,
 };
 use crate::memory::MemoryService;
 use hkask_services_context::AgentService;
@@ -340,6 +345,142 @@ impl ChatService {
             }),
             finish_reason: result.finish_reason,
             tool_calls: result.tool_calls,
+        })
+    }
+
+    /// Execute a streaming chat turn with full pipeline.
+    ///
+    /// Calls `prepare_chat()` for agent lookup + memory recall + prompt composition,
+    /// then streams tokens from `generate_stream_with_model()`, then stores the
+    /// exchange in episodic memory (with sovereignty gate) and emits CNS spans.
+    ///
+    /// Returns a Stream of `ChatStreamEvent` — the caller decides how to deliver
+    /// (WebSocket frames, SSE events, etc.).
+    ///
+    /// **Phase 1 limitation:** Tool calls are passed to inference but mid-stream
+    /// tool execution is not yet handled. Tool calls that arrive in the final chunk
+    /// are available via `ChatStreamEvent::Done.tool_calls` (future).
+    ///
+    /// \[P5\] Motivating: Essentialism — composes existing `prepare_chat()` + streaming.
+    /// pre:  ctx must be fully built; req.input must be non-empty
+    /// post: returns Stream<ChatStreamEvent>; episodic stored (if P2 consent)
+    /// post: Err on agent lookup or inference port resolution failure
+    #[must_use = "stream must be consumed"]
+    pub fn chat_stream(
+        ctx: &AgentService,
+        req: ChatTurnRequest,
+    ) -> Pin<Box<dyn Stream<Item = ChatStreamEvent> + Send + '_>> {
+        // Validate input early
+        if req.input.is_empty() {
+            return Box::pin(futures_util::stream::once(async {
+                ChatStreamEvent::Error {
+                    message: "Input must be non-empty".to_string(),
+                }
+            }));
+        }
+
+        Box::pin(async_stream::stream! {
+            // --- Phase 1: Prepare (agent lookup, memory recall, prompt composition) ---
+            let prepared = match ChatService::prepare_chat(ctx, &req).await {
+                Ok(p) => p,
+                Err(e) => {
+                    yield ChatStreamEvent::Error {
+                        message: format!("Chat preparation failed: {e}"),
+                    };
+                    return;
+                }
+            };
+
+            // Resolve LLM parameters (same logic as chat())
+            let params_override = req.params_override;
+            let chat_bypass = ctx.config().inference_config.fusion.is_some();
+            let mut params = params_override.unwrap_or(LLMParameters {
+                temperature: 0.7,
+                top_p: 0.9,
+                top_k: 40,
+                min_p: 0.0,
+                typical_p: 0.0,
+                frequency_penalty: 0.0,
+                presence_penalty: 0.0,
+                max_tokens: 512,
+                seed: None,
+                disable_thinking: false,
+                adapter: None,
+                bypass_fusion: chat_bypass,
+            });
+            params.bypass_fusion = chat_bypass;
+
+            // --- Phase 2: Stream tokens ---
+            let tools_ref = req.tools.as_deref();
+            let mut stream = prepared.inference_port.generate_stream_with_model(
+                &prepared.prompt,
+                &params,
+                Some(&prepared.model),
+                tools_ref,
+            );
+
+            let mut full_text = String::new();
+            let mut usage = None;
+            let mut finish_reason = String::from("stop");
+
+            while let Some(chunk_result) = stream.next().await {
+                match chunk_result {
+                    Ok(chunk) => {
+                        let text = chunk.text_delta.clone();
+                        full_text.push_str(&text);
+                        if let Some(ref u) = chunk.usage {
+                            usage = Some(TokenUsage {
+                                prompt_tokens: u.prompt_tokens,
+                                completion_tokens: u.completion_tokens,
+                                total_tokens: u.total_tokens,
+                            });
+                        }
+                        if let Some(ref fr) = chunk.finish_reason {
+                            finish_reason = fr.clone();
+                        }
+                        yield ChatStreamEvent::Token {
+                            text_delta: text,
+                            model: chunk.model,
+                        };
+                    }
+                    Err(e) => {
+                        yield ChatStreamEvent::Error {
+                            message: format!("Inference streaming error: {e}"),
+                        };
+                        return;
+                    }
+                }
+            }
+
+            // --- Phase 3: Episodic storage (sovereignty-gated, P2) ---
+            let memory_stored = if MemoryService::has_memory_consent(
+                ctx,
+                &prepared.agent_webid,
+                &DataCategory::EpisodicMemory,
+            ) {
+                ChatService::store_episodic(
+                    &prepared.episodic_port,
+                    &req.input,
+                    &full_text,
+                    prepared.agent_webid,
+                    &prepared.capability_token,
+                    &prepared.agent_name,
+                );
+                true
+            } else {
+                tracing::debug!(
+                    target: "hkask.chat.memory",
+                    agent = %prepared.agent_name,
+                    "Episodic store skipped — no episodic-memory consent (P2)"
+                );
+                false
+            };
+
+            yield ChatStreamEvent::Done {
+                finish_reason,
+                usage,
+                memory_stored,
+            };
         })
     }
 

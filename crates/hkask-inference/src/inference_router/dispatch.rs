@@ -82,6 +82,7 @@ impl InferenceRouter {
         model: &str,
         prompt: &str,
         params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<
         Box<
             dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
@@ -92,12 +93,13 @@ impl InferenceRouter {
         let model = model.to_string();
         let prompt = prompt.to_string();
         let params = params.clone();
+        let tools = tools.map(|t| t.to_vec());
         match provider {
             ProviderId::DeepInfra => {
                 match self.deepinfra.as_ref().ok_or_else(|| {
                     InferenceError::Connection("DeepInfra backend unavailable".to_string())
                 }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
                 }
             }
@@ -105,7 +107,7 @@ impl InferenceRouter {
                 match self.fal.as_ref().ok_or_else(|| {
                     InferenceError::Connection("fal.ai backend unavailable".to_string())
                 }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
                 }
             }
@@ -113,7 +115,7 @@ impl InferenceRouter {
                 match self.together.as_ref().ok_or_else(|| {
                     InferenceError::Connection("Together backend unavailable".to_string())
                 }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
                 }
             }
@@ -121,7 +123,7 @@ impl InferenceRouter {
                 match self.openrouter.as_ref().ok_or_else(|| {
                     InferenceError::Connection("OpenRouter backend unavailable".to_string())
                 }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
                 }
             }
@@ -129,7 +131,7 @@ impl InferenceRouter {
                 match self.kilocode.as_ref().ok_or_else(|| {
                     InferenceError::Connection("KiloCode backend unavailable".to_string())
                 }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params),
+                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
                     Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
                 }
             }

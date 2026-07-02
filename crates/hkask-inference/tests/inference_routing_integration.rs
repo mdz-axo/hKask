@@ -424,7 +424,7 @@ async fn generate_stream_unavailable_backend_returns_error() {
     };
     let router = InferenceRouter::new(config);
 
-    let mut stream = router.generate_stream("Hello", &default_params());
+    let mut stream = router.generate_stream("Hello", &default_params(), None);
     let first = stream.next().await;
     assert!(
         first.is_some(),
@@ -467,13 +467,14 @@ async fn generate_stream_with_model_unavailable_backend_returns_error() {
         "Hello",
         &default_params(),
         Some("DI/meta-llama/Llama-3.3-70B-Instruct"),
+        None,
     );
     let first = stream.next().await;
     assert!(first.is_some(), "DI/ stream should yield items");
     assert!(first.unwrap().is_ok(), "DI/ stream should succeed");
 
     let mut stream =
-        router.generate_stream_with_model("Hello", &default_params(), Some("TG/some-model"));
+        router.generate_stream_with_model("Hello", &default_params(), Some("TG/some-model"), None);
     let first = stream.next().await;
     assert!(first.is_some(), "TG/ stream should yield at least one item");
     assert!(

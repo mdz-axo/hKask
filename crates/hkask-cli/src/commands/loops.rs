@@ -1,7 +1,7 @@
 //! Loops command handlers for `kask loops`
 //!
 //! Implements the CLI display logic for starting the cybernetic loop system.
-//! Routes through `helpers::build_service_context()` — the canonical
+//! Routes through `helpers::build_agent_service()` — the canonical
 //! single entry point shared across all CLI commands.
 
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -10,7 +10,7 @@
 pub fn run(rt: &tokio::runtime::Runtime) {
     // Build AgentService through the shared canonical helper
     let ctx = super::helpers::or_exit(
-        super::helpers::build_service_context_from_secrets(None),
+        super::helpers::build_agent_service_from_secrets(None),
         "Failed to build service context for loop system",
     );
 

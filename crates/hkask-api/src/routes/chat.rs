@@ -63,6 +63,7 @@ pub fn chat_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(chat))
         .routes(routes!(chat_stream))
+        .merge(super::chat_ws::chat_ws_router())
 }
 
 /// Chat with the Curator or a specified agent.
@@ -239,7 +240,7 @@ pub(crate) async fn chat_stream(
                 use std::time::Duration;
                 let stream_future = async {
                     let mut stream =
-                        port.generate_stream_with_model(&prompt, &params, Some(&model_str));
+                        port.generate_stream_with_model(&prompt, &params, Some(&model_str), None);
                     use futures_util::StreamExt;
                     while let Some(chunk_result) = stream.next().await {
                         let event = match chunk_result {

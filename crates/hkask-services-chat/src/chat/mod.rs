@@ -15,6 +15,6 @@ pub mod types;
 
 pub use service::ChatService;
 pub use types::{
-    ChatTurnRequest, ChatTurnResponse, MessageSource, PreparedChat, TokenUsage, TurnRequest,
-    TurnResult,
+    ChatStreamEvent, ChatTurnRequest, ChatTurnResponse, MessageSource, PreparedChat, TokenUsage,
+    TurnRequest, TurnResult,
 };

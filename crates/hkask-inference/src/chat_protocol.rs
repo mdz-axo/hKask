@@ -435,6 +435,7 @@ pub fn stream_chat_completion(
     model: String,
     prompt: String,
     params: LLMParameters,
+    tools: Option<Vec<ChatToolDefinition>>,
 ) -> std::pin::Pin<
     Box<dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send>,
 > {
@@ -447,7 +448,7 @@ pub fn stream_chat_completion(
                 &params,
                 Some(true),
                 None,
-                None::<Vec<ChatToolDefinition>>,
+                tools,
                 None::<Vec<FusionPlugin>>,
             );
 

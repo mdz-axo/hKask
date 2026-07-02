@@ -140,6 +140,7 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "mcp", description = "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"),
         (name = "cns", description = "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"),
         (name = "chat", description = "Curator chat interface — inference with model switching and streaming (Pattern C)"),
+                (name = "chat-ws", description = "Chat WebSocket — persistent bidirectional streaming agent chat with MCP tool support (P3)"),
         (name = "models", description = "Multi-provider model catalog (DeepInfra, fal.ai, Together AI, OpenRouter, KiloCode) — discover and search available LLMs"),
         (name = "curator", description = "Curator escalation and metacognition — health reports and pending escalation queue (Pattern C, P12)"),
         (name = "git", description = "Git archival and resolution — template crate loading and SHA resolution via GitCASPort hexagonal boundary"),

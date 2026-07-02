@@ -151,6 +151,7 @@ impl InferencePort for InferenceRouter {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<
         Box<
             dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
@@ -158,7 +159,7 @@ impl InferencePort for InferenceRouter {
                 + '_,
         >,
     > {
-        self.generate_stream_with_model(prompt, parameters, None)
+        self.generate_stream_with_model(prompt, parameters, None, tools)
     }
 
     // pre:  prompt is non-empty; parameters are valid; model_override may be None
@@ -169,6 +170,7 @@ impl InferencePort for InferenceRouter {
         prompt: &str,
         parameters: &LLMParameters,
         model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<
         Box<
             dyn futures_util::Stream<Item = Result<InferenceStreamChunk, InferenceError>>
@@ -188,7 +190,14 @@ impl InferencePort for InferenceRouter {
             let model = model.to_string();
             let prompt = prompt.to_string();
             let parameters = parameters.clone();
-            return self.dispatch_generate_stream(provider, &model, &prompt, &parameters);
+            let tools = tools.map(|t| t.to_vec());
+            return self.dispatch_generate_stream(
+                provider,
+                &model,
+                &prompt,
+                &parameters,
+                tools.as_deref(),
+            );
         }
 
         let model_name = self.effective_model(model_override, parameters);
@@ -201,8 +210,9 @@ impl InferencePort for InferenceRouter {
         let model = model.to_string();
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
+        let tools = tools.map(|t| t.to_vec());
 
-        self.dispatch_generate_stream(provider, &model, &prompt, &parameters)
+        self.dispatch_generate_stream(provider, &model, &prompt, &parameters, tools.as_deref())
     }
 
     fn generate_vision(

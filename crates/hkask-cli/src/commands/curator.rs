@@ -203,7 +203,7 @@ fn copy_conduit_manifests(
 
 /// List pending escalations — delegates to CuratorService.
 pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     let queue = &ctx.governance().escalations;
     queue.list_pending().map_err(|e| ServiceError::Escalation {
         source: None,
@@ -215,19 +215,19 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
 /// pre:  id is a valid escalation identifier
 /// post: returns Ok(()) if escalation resolved successfully
 pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     ctx.governance().resolve_escalation(id, "cli-user")
 }
 
 /// Dismiss an escalation — delegates to GovernanceContext.
 pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     ctx.governance().dismiss_escalation(id, "cli-user")
 }
 
 /// Run metacognition cycle — delegates to CuratorService.
 pub async fn curator_metacognition() -> Result<String, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     CuratorService::metacognition(&ctx).await
 }
 

@@ -231,7 +231,7 @@ impl HkaskAcpAgent {
         let port: Arc<dyn InferencePort> = Arc::clone(&self.inference) as Arc<dyn InferencePort>;
         let start = std::time::Instant::now();
         let mut stream =
-            port.generate_stream_with_model(prompt, &params, Some(&self.default_model));
+            port.generate_stream_with_model(prompt, &params, Some(&self.default_model), None);
 
         let mut total_text = String::new();
         let mut finish_reason = String::from("end_turn");

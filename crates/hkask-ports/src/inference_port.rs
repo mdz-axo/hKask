@@ -50,8 +50,9 @@ pub trait InferencePort: Send + Sync {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-        let future = self.generate(prompt, parameters, None);
+        let future = self.generate(prompt, parameters, tools);
         Box::pin(futures_util::stream::once(async move {
             Ok(InferenceStreamChunk::from(future.await?))
         }))
@@ -63,14 +64,15 @@ pub trait InferencePort: Send + Sync {
         prompt: &str,
         parameters: &LLMParameters,
         model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
         if model_override.is_some() {
-            let future = self.generate_with_model(prompt, parameters, model_override, None);
+            let future = self.generate_with_model(prompt, parameters, model_override, tools);
             Box::pin(futures_util::stream::once(async move {
                 Ok(InferenceStreamChunk::from(future.await?))
             }))
         } else {
-            self.generate_stream(prompt, parameters)
+            self.generate_stream(prompt, parameters, tools)
         }
     }
 
@@ -142,16 +144,18 @@ impl InferencePort for Arc<dyn InferencePort> {
         &self,
         p: &str,
         pa: &LLMParameters,
+        t: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-        self.as_ref().generate_stream(p, pa)
+        self.as_ref().generate_stream(p, pa, t)
     }
     fn generate_stream_with_model(
         &self,
         p: &str,
         pa: &LLMParameters,
         m: Option<&str>,
+        t: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-        self.as_ref().generate_stream_with_model(p, pa, m)
+        self.as_ref().generate_stream_with_model(p, pa, m, t)
     }
     fn generate_vision(
         &self,

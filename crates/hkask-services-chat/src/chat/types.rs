@@ -12,7 +12,7 @@ use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 
 /// Token usage breakdown for gas accounting.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TokenUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -208,4 +208,23 @@ pub struct TurnResult {
     /// Structured tool calls when the model requests tools.
     /// Empty if finish_reason != "tool_calls".
     pub structured_tool_calls: Vec<StructuredToolCall>,
+}
+
+/// Event emitted during a streaming chat turn.
+///
+/// Callers (WSS handler, future SSE handler) consume this stream
+/// and map each event to their transport-specific framing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChatStreamEvent {
+    /// A token delta from the streaming inference backend.
+    Token { text_delta: String, model: String },
+    /// Turn complete — all tokens emitted, episodic stored, CNS spans written.
+    /// `memory_stored` is false if the sovereignty gate blocked episodic storage.
+    Done {
+        finish_reason: String,
+        usage: Option<TokenUsage>,
+        memory_stored: bool,
+    },
+    /// An error occurred during the turn.
+    Error { message: String },
 }
