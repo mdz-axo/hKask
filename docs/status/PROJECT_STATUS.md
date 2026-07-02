@@ -161,7 +161,7 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 ---
 
-## This Session (2026-06-15) — Skills Training Expansion
+## Session (2026-06-15) — Skills Training Expansion
 
 **Training MCP Server — 8→15 tools, 1→5 providers, 3→14 tests:**
 
@@ -250,7 +250,7 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 ---
 
-## This Session (2026-06-23) — TUI Enhancement
+## Session (2026-06-23) — TUI Enhancement
 
 | Feature | Status |
 |---------|--------|

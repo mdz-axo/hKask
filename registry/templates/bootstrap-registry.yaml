@@ -910,6 +910,36 @@
   cascade_level: 0
   matroshka_limit: 7
 
+- id: platform-dx-analyzer/compute-dora
+  template_type: KnowAct
+  name: "DORA Metrics Computation"
+  lexicon_terms:
+    - compute
+    - measure
+    - classify
+    - evaluate
+    - assess
+  description: "Compute DORA metrics from CNS skill lifecycle spans"
+  source_path: registry/templates/platform-dx-analyzer/compute-dora.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-dx-analyzer/convergence-check
+  template_type: KnowAct
+  name: "DX Analyzer Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for DX analysis PDCA cycles"
+  source_path: registry/templates/platform-dx-analyzer/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
 - id: platform-engineer/persona
   template_type: WordAct
   name: "Platform Engineer Persona"

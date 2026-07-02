@@ -56,7 +56,7 @@ fn main() {
     // These are loyalty-anchored platform maintenance skills.
     // Non-fatal: if parsing fails, log and continue.
     {
-        let platform_manifests: [(&str, &str); 7] = [
+        let platform_manifests: [(&str, &str); 8] = [
             (
                 "platform-governance-transparency-reporter",
                 include_str!(
@@ -86,6 +86,10 @@ fn main() {
             (
                 "platform-wardley-mapper",
                 include_str!("../../../registry/manifests/platform-wardley-mapper.yaml"),
+            ),
+            (
+                "platform-dx-analyzer",
+                include_str!("../../../registry/manifests/platform-dx-analyzer.yaml"),
             ),
         ];
         for (name, yaml) in platform_manifests {
