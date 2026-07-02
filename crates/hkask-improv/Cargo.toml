@@ -7,8 +7,5 @@ description = "Improv interaction skill for hKask agents — Plussing, Yes And, 
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
-hkask-cns = { path = "../hkask-cns" }
 serde.workspace = true
 thiserror.workspace = true
-tracing.workspace = true
-chrono.workspace = true

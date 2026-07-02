@@ -19,6 +19,9 @@
 //! 6. `ImprovSkill` — facade applying a mode or cascade to a contribution
 //! 7. `ImprovSkill::register_with_cns()` — CNS integration
 
+// Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
+#![allow(unused_crate_dependencies)]
+
 pub mod cascade;
 pub mod freestyling;
 pub mod kata;

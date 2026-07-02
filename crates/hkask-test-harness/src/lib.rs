@@ -17,6 +17,9 @@
 //! - P8 (Semantic Grounding): every test using these fixtures carries REQ tags
 //! - P12 (Replicant Host Mandate): all test identities use TestWebId (authenticated)
 
+// Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
+#![allow(unused_crate_dependencies)]
+
 pub mod fuzz;
 pub mod mocks;
 pub mod prob_contract;

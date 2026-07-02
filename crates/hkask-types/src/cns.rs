@@ -157,6 +157,26 @@ pub enum CnsSpan {
     InviteSent,
     /// Multi-user invite accepted.
     InviteAccepted,
+    /// New replicant registered — triggers Curator wallet creation.
+    ReplicantRegistered,
+    /// Well created by admin.
+    WellCreated,
+    /// Well replenished on schedule.
+    WellReplenished,
+    /// Agent drew gas/rJoule from a Well.
+    WellDraw,
+    /// Well exhausted — no gas/rJoule remaining.
+    WellExhausted,
+    /// Wallet created for a replicant.
+    WalletCreated,
+    /// Wallet balance drawn from Well.
+    WalletDraw,
+    /// Wallet spend (gas consumed).
+    WalletSpend,
+    /// Wallet balance exhausted.
+    WalletExhausted,
+    /// Curator efficiency limit exceeded.
+    CuratorEfficiencyExceeded,
     /// Semantic triple published — triggers Curator sync.
     SemanticPublished,
     /// CI invariant gate violation — a pattern match failed with a principle anchor.
@@ -427,6 +447,16 @@ impl CnsSpan {
             CnsSpan::RoleAssigned => "cns.multi.role.assigned",
             CnsSpan::InviteSent => "cns.multi.invite.sent",
             CnsSpan::InviteAccepted => "cns.multi.invite.accepted",
+            CnsSpan::ReplicantRegistered => "cns.replicant.registered",
+            CnsSpan::WellCreated => "cns.well.created",
+            CnsSpan::WellReplenished => "cns.well.replenished",
+            CnsSpan::WellDraw => "cns.well.draw",
+            CnsSpan::WellExhausted => "cns.well.exhausted",
+            CnsSpan::WalletCreated => "cns.wallet.created",
+            CnsSpan::WalletDraw => "cns.wallet.draw",
+            CnsSpan::WalletSpend => "cns.wallet.spend",
+            CnsSpan::WalletExhausted => "cns.wallet.exhausted",
+            CnsSpan::CuratorEfficiencyExceeded => "cns.curator.efficiency.exceeded",
             CnsSpan::SemanticPublished => "cns.semantic.published",
             CnsSpan::CiInvariantViolation => "cns.ci.invariant.violation",
             CnsSpan::QaRepairAttempted => "cns.qa.repair_attempted",
@@ -582,6 +612,16 @@ impl std::str::FromStr for CnsSpan {
             "cns.multi.role.assigned" => Ok(CnsSpan::RoleAssigned),
             "cns.multi.invite.sent" => Ok(CnsSpan::InviteSent),
             "cns.multi.invite.accepted" => Ok(CnsSpan::InviteAccepted),
+            "cns.replicant.registered" => Ok(CnsSpan::ReplicantRegistered),
+            "cns.well.created" => Ok(CnsSpan::WellCreated),
+            "cns.well.replenished" => Ok(CnsSpan::WellReplenished),
+            "cns.well.draw" => Ok(CnsSpan::WellDraw),
+            "cns.well.exhausted" => Ok(CnsSpan::WellExhausted),
+            "cns.wallet.created" => Ok(CnsSpan::WalletCreated),
+            "cns.wallet.draw" => Ok(CnsSpan::WalletDraw),
+            "cns.wallet.spend" => Ok(CnsSpan::WalletSpend),
+            "cns.wallet.exhausted" => Ok(CnsSpan::WalletExhausted),
+            "cns.curator.efficiency.exceeded" => Ok(CnsSpan::CuratorEfficiencyExceeded),
             "cns.semantic.published" => Ok(CnsSpan::SemanticPublished),
             "cns.ci.invariant.violation" => Ok(CnsSpan::CiInvariantViolation),
             "cns.qa.repair_attempted" => Ok(CnsSpan::QaRepairAttempted),

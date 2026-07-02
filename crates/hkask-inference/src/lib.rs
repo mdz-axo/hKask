@@ -3,6 +3,9 @@
 //! Routes LLM requests to DeepInfra (cloud), fal.ai (cloud),
 //! Together AI (cloud), or OpenRouter (cloud) based on a 2-letter provider prefix
 //! in the model name.
+
+// Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
+#![allow(unused_crate_dependencies)]
 //!
 //! # Architecture
 //!

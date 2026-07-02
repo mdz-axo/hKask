@@ -12,7 +12,6 @@ hkask-capability = { path = "../hkask-capability" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-mcp = { path = "../hkask-mcp" }
-hkask-cns = { path = "../hkask-cns" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }
@@ -21,10 +20,8 @@ hkask-services-context = { path = "../hkask-services-context" }
 hkask-services-chat = { path = "../hkask-services-chat" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-inference = { path = "../hkask-inference" }
-hkask-services-curator = { path = "../hkask-services-curator" }
 hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-wallet = { path = "../hkask-wallet" }
-hkask-wallet-types = { path = "../hkask-wallet-types" }
 ed25519-dalek.workspace = true
 hex.workspace = true
 axum.workspace = true

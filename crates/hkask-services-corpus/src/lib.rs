@@ -2,6 +2,9 @@
 //!
 //! Merged from `hkask-services-discover` and `hkask-services-embed`.
 
+// Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
+#![allow(unused_crate_dependencies)]
+
 mod discover;
 mod embed;
 

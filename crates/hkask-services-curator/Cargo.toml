@@ -13,6 +13,4 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hkask-communication = { path = "../hkask-communication" }
-serde_json.workspace = true
 tracing.workspace = true
-chrono.workspace = true

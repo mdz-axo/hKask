@@ -3638,7 +3638,6 @@ dependencies = [
  "hex",
  "hkask-agents",
  "hkask-capability",
- "hkask-cns",
  "hkask-inference",
  "hkask-keystore",
  "hkask-mcp",
@@ -3647,14 +3646,12 @@ dependencies = [
  "hkask-services-chat",
  "hkask-services-context",
  "hkask-services-core",
- "hkask-services-curator",
  "hkask-services-skill",
  "hkask-services-wallet",
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "hkask-wallet",
- "hkask-wallet-types",
  "proptest",
  "reqwest",
  "serde",
@@ -3771,7 +3768,6 @@ dependencies = [
  "hkask-test-harness",
  "hkask-types",
  "hkask-wallet",
- "hkask-wallet-types",
  "parking_lot",
  "proptest",
  "serde",
@@ -3787,7 +3783,6 @@ name = "hkask-communication"
 version = "0.31.0"
 dependencies = [
  "chrono",
- "hkask-keystore",
  "hkask-types",
  "matrix-sdk",
  "mime",
@@ -3797,8 +3792,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "url",
- "uuid",
 ]
 
 [[package]]
@@ -3818,15 +3811,11 @@ dependencies = [
 name = "hkask-fal"
 version = "0.31.0"
 dependencies = [
- "anyhow",
- "futures-util",
  "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "tokio",
  "tracing",
- "url",
 ]
 
 [[package]]
@@ -3835,8 +3824,6 @@ version = "0.31.0"
 dependencies = [
  "async-trait",
  "chrono",
- "hkask-agents",
- "hkask-cns",
  "hkask-memory",
  "hkask-ports",
  "hkask-storage",
@@ -3848,19 +3835,15 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
 name = "hkask-improv"
 version = "0.31.0"
 dependencies = [
- "chrono",
- "hkask-cns",
  "hkask-types",
  "serde",
  "thiserror 2.0.18",
- "tracing",
 ]
 
 [[package]]
@@ -3944,7 +3927,6 @@ dependencies = [
  "rustls-pemfile",
  "serde",
  "serde_json",
- "serde_yaml_neo",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -3952,7 +3934,6 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-subscriber",
- "url",
 ]
 
 [[package]]
@@ -4369,7 +4350,6 @@ version = "0.31.0"
 dependencies = [
  "hkask-agents",
  "hkask-capability",
- "hkask-cns",
  "hkask-condenser",
  "hkask-improv",
  "hkask-ports",
@@ -4405,10 +4385,7 @@ name = "hkask-services-context"
 version = "0.31.0"
 dependencies = [
  "async-trait",
- "blake3",
  "chrono",
- "ed25519-dalek",
- "futures-util",
  "hkask-agents",
  "hkask-capability",
  "hkask-cns",
@@ -4426,15 +4403,12 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "hkask-wallet",
- "hkask-wallet-types",
- "reqwest",
  "rusqlite",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -4463,7 +4437,6 @@ name = "hkask-services-corpus"
 version = "0.31.0"
 dependencies = [
  "base64",
- "chrono",
  "hkask-capability",
  "hkask-inference",
  "hkask-memory",
@@ -4490,7 +4463,6 @@ dependencies = [
 name = "hkask-services-curator"
 version = "0.31.0"
 dependencies = [
- "chrono",
  "hkask-agents",
  "hkask-cns",
  "hkask-communication",
@@ -4498,7 +4470,6 @@ dependencies = [
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
- "serde_json",
  "tracing",
 ]
 
@@ -4554,7 +4525,6 @@ dependencies = [
  "chrono",
  "hkask-agents",
  "hkask-cns",
- "hkask-inference",
  "hkask-ledger",
  "hkask-mcp",
  "hkask-ports",
@@ -4575,7 +4545,6 @@ name = "hkask-services-skill"
 version = "0.31.0"
 dependencies = [
  "blake3",
- "chrono",
  "hex",
  "hkask-ports",
  "hkask-services-context",
@@ -4588,7 +4557,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -4597,21 +4565,16 @@ version = "0.31.0"
 dependencies = [
  "async-trait",
  "chrono",
- "hex",
  "hkask-agents",
  "hkask-cns",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
  "hkask-wallet",
- "hkask-wallet-types",
- "reqwest",
  "serde",
- "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -4647,11 +4610,9 @@ dependencies = [
 name = "hkask-templates"
 version = "0.31.0"
 dependencies = [
- "chrono",
  "ed25519-dalek",
  "hkask-capability",
  "hkask-ports",
- "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
  "minijinja",
@@ -4663,7 +4624,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
  "walkdir",
 ]
 
@@ -4674,12 +4634,10 @@ dependencies = [
  "chrono",
  "hkask-capability",
  "hkask-cns",
- "hkask-ledger",
  "hkask-ports",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
- "hkask-wallet-types",
  "proptest",
  "rand 0.9.4",
  "rusqlite",
@@ -4689,8 +4647,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -4702,7 +4658,6 @@ dependencies = [
  "crossterm",
  "dirs 5.0.1",
  "hkask-agents",
- "hkask-cns",
  "hkask-services-context",
  "hkask-types",
  "portable-pty",

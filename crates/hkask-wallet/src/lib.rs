@@ -1,6 +1,9 @@
 //! hKask Wallet — rJoule payments, Hedera self-custody deposits, API key issuance.
 //!
 //! # Self-custody `[OUGHT-DECL]` (P1 — User Sovereignty)
+
+// Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
+#![allow(unused_crate_dependencies)]
 //! hKask derives treasury keys from the user's master key via HKDF. No third
 //! party holds the keys. The user controls their funds at all times.
 //! Chain port (`hedera.rs`) interacts directly with blockchain endpoints.

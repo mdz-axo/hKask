@@ -10,7 +10,7 @@ path = "src/lib.rs"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
-hkask-keystore = { path = "../hkask-keystore" }
+
 matrix-sdk.workspace = true
 tokio.workspace = true
 serde.workspace = true
@@ -19,8 +19,6 @@ mime = "0.3"
 thiserror.workspace = true
 tracing.workspace = true
 chrono.workspace = true
-uuid.workspace = true
-url.workspace = true
 
 [dev-dependencies]
 reqwest.workspace = true

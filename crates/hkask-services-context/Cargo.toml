@@ -18,7 +18,6 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-types = { path = "../hkask-types" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-ports = { path = "../hkask-ports" }
-hkask-wallet-types = { path = "../hkask-wallet-types" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-federation = { path = "../hkask-federation" }
 serde.workspace = true
@@ -27,13 +26,8 @@ async-trait.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
-uuid.workspace = true
 chrono.workspace = true
 hkask-communication = { path = "../hkask-communication" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
-reqwest.workspace = true
 rusqlite.workspace = true
-blake3.workspace = true
-futures-util.workspace = true
-ed25519-dalek.workspace = true
