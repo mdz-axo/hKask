@@ -282,6 +282,8 @@ pub enum GasError {
         requested: GasCost,
         remaining: GasCost,
     },
+    #[error("Budget persistence failed: {0}")]
+    Persistence(String),
 }
 
 #[cfg(test)]

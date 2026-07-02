@@ -51,6 +51,8 @@ pub struct GasBudgetManager {
     /// instead of consuming from the dimensionless gas pool.
     wallet_budgets: Arc<RwLock<HashMap<WebID, WalletBackedBudget>>>,
     active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
+    /// Previous remaining values for consumption velocity computation.
+    previous_remaining: RwLock<HashMap<WebID, u64>>,
 }
 
 impl Default for GasBudgetManager {
@@ -66,6 +68,7 @@ impl GasBudgetManager {
             gas_budgets: Arc::new(RwLock::new(HashMap::new())),
             wallet_budgets: Arc::new(RwLock::new(HashMap::new())),
             active_overrides: Arc::new(RwLock::new(HashMap::new())),
+            previous_remaining: RwLock::new(HashMap::new()),
         }
     }
 
@@ -192,6 +195,29 @@ impl GasBudgetManager {
                 );
             }
         }
+
+        // G8: Consumption velocity — compute gas burned per agent since last cycle
+        {
+            let budgets = self.gas_budgets.read().await;
+            let mut prev = self.previous_remaining.write().await;
+            for (agent, budget) in budgets.iter() {
+                let current = budget.remaining().0;
+                if let Some(&previous) = prev.get(agent) {
+                    if current < previous {
+                        let burned = previous - current;
+                        tracing::debug!(
+                            target: "cns.cybernetics",
+                            agent = %agent,
+                            gas_burned = burned,
+                            remaining = current,
+                            cap = budget.cap().0,
+                            "Gas consumption velocity"
+                        );
+                    }
+                }
+                prev.insert(*agent, current);
+            }
+        }
     }
 
     /// Used by `CuratorDirective::ReplenishBudget`.
@@ -310,16 +336,6 @@ impl GasBudgetManager {
         });
     }
 
-    /// Iterate over energy budgets to produce energy signals.
-    /// Returns `(remaining, cap)` for each registered agent.
-    pub async fn gas_ratios(&self) -> Vec<(GasCost, GasCost)> {
-        let budgets = self.gas_budgets.read().await;
-        budgets
-            .values()
-            .map(|budget| (budget.remaining(), budget.cap()))
-            .collect()
-    }
-
     /// Return all registered agent budgets and their current status.
     pub async fn all_agent_statuses(&self) -> Vec<(WebID, AgentGasStatus)> {
         let budgets = self.gas_budgets.read().await;
@@ -329,41 +345,51 @@ impl GasBudgetManager {
             .collect()
     }
 
-    /// Return agents whose remaining budget is zero after replenishment.
-    pub async fn exhausted_agents(&self) -> Vec<(WebID, GasCost)> {
-        let budgets = self.gas_budgets.read().await;
-        budgets
-            .iter()
-            .filter(|(_, b)| b.remaining().0 == 0 && b.hard_limit())
-            .map(|(id, b)| (*id, b.cap()))
-            .collect()
-    }
-
     /// Serialize all budgets to a JSON file for persistence across restarts.
-    pub async fn save_all(&self, path: &std::path::Path) -> Result<(), String> {
+    pub async fn save_all(&self, path: &std::path::Path) -> Result<(), GasError> {
         let budgets = self.gas_budgets.read().await;
-        let json = serde_json::to_string_pretty(&*budgets)
-            .map_err(|e| format!("Failed to serialize budgets: {e}"))?;
+        let wrapper = serde_json::json!({
+            "version": 1,
+            "budgets": &*budgets,
+        });
+        let json = serde_json::to_string_pretty(&wrapper)
+            .map_err(|e| GasError::Persistence(format!("serialize: {e}")))?;
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create dir {}: {e}", parent.display()))?;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                GasError::Persistence(format!("create_dir {}: {e}", parent.display()))
+            })?;
         }
-        std::fs::write(path, &json)
-            .map_err(|e| format!("Failed to write budgets to {}: {e}", path.display()))?;
+        tokio::fs::write(path, &json)
+            .await
+            .map_err(|e| GasError::Persistence(format!("write {}: {e}", path.display())))?;
         Ok(())
     }
 
-    /// Load budgets from a JSON file. Returns Ok(count) on success.
-    /// Returns Ok(0) if the file doesn't exist (first run).
-    pub async fn load_all(&self, path: &std::path::Path) -> Result<usize, String> {
-        let contents = match std::fs::read_to_string(path) {
+    pub async fn load_all(&self, path: &std::path::Path) -> Result<usize, GasError> {
+        let contents = match tokio::fs::read_to_string(path).await {
             Ok(c) => c,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
-            Err(e) => return Err(format!("Failed to read {}: {e}", path.display())),
+            Err(e) => {
+                return Err(GasError::Persistence(format!(
+                    "read {}: {e}",
+                    path.display()
+                )));
+            }
         };
+        let wrapper: serde_json::Value = serde_json::from_str(&contents)
+            .map_err(|e| GasError::Persistence(format!("parse {}: {e}", path.display())))?;
+        let version = wrapper.get("version").and_then(|v| v.as_u64()).unwrap_or(0);
+        if version != 1 {
+            return Err(GasError::Persistence(format!(
+                "Unknown persistence version {} in {}",
+                version,
+                path.display()
+            )));
+        }
         let loaded: std::collections::HashMap<WebID, GasBudget> =
-            serde_json::from_str(&contents)
-                .map_err(|e| format!("Failed to parse budgets from {}: {e}", path.display()))?;
+            serde_json::from_value(wrapper["budgets"].clone()).map_err(|e| {
+                GasError::Persistence(format!("parse budgets {}: {e}", path.display()))
+            })?;
         let count = loaded.len();
         let mut budgets = self.gas_budgets.write().await;
         for (id, budget) in loaded {

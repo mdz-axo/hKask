@@ -304,6 +304,8 @@ pub(super) fn init_repl_state(
     // Uses repl_settings.gas_cap (default 10_000), replenish_rate=10% of cap,
     // alert at 80% usage, hard_limit=true (block operations when exhausted).
     rt.block_on(async {
+        // Load persisted budgets from previous sessions before registering.
+        let _ = ctx.cns().cybernetics.read().await.load_budgets().await;
         ctx.cns()
             .cybernetics
             .read()

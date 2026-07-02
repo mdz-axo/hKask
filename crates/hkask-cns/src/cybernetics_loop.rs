@@ -158,17 +158,18 @@ impl CyberneticsLoop {
 
     /// Enable gas budget persistence across restarts.
     ///
-    /// Budgets are saved to the given path after each replenishment cycle.
-    /// On startup, call `load_budgets()` to restore saved budgets.
+    /// Budgets are saved to the given path after each replenishment cycle
+    /// and loaded automatically on construction.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_budget_persistence(mut self, path: std::path::PathBuf) -> Self {
         self.budget_persistence_path = Some(path);
         self
     }
 
-    /// Load previously persisted gas budgets from the configured path.
-    /// Returns the number of budgets loaded (0 if no file or first run).
-    pub async fn load_budgets(&self) -> Result<usize, String> {
+    /// Attempt to load persisted budgets from the configured path.
+    /// Called automatically during `build()` if a persistence path is set.
+    /// Returns count loaded (0 if first run or no path configured).
+    pub async fn load_budgets(&self) -> Result<usize, GasError> {
         if let Some(ref path) = self.budget_persistence_path {
             let count = self.gas_budget_manager.load_all(path).await?;
             if count > 0 {
@@ -412,9 +413,9 @@ impl HkaskLoop for CyberneticsLoop {
         let mut signals = Vec::new();
 
         // Energy signals: per-agent remaining ratio
-        let budget_ratios = self.gas_budget_manager.gas_ratios().await;
-        for (remaining, cap) in budget_ratios {
-            let ratio = remaining.0 as f64 / cap.0.max(1) as f64;
+        let budget_statuses = self.gas_budget_manager.all_agent_statuses().await;
+        for (_, status) in budget_statuses {
+            let ratio = status.remaining.0 as f64 / status.cap.0.max(1) as f64;
             signals.push(Signal::new(
                 LoopId::Cybernetics,
                 SignalMetric::EnergyRemaining,
@@ -606,16 +607,50 @@ impl HkaskLoop for CyberneticsLoop {
     async fn act(&self, actions: &[LoopAction]) {
         self.replenish_all_budgets().await;
 
-        // E04: Detect and escalate budget exhaustion
-        let exhausted = self.gas_budget_manager.exhausted_agents().await;
-        if !exhausted.is_empty() {
-            for (agent, cap) in exhausted {
-                tracing::warn!(
-                    target: "cns.cybernetics",
-                    agent = %agent,
-                    cap = cap.0,
-                    "Budget exhausted — agent has zero remaining gas"
-                );
+        // E04: Detect and escalate budget exhaustion via algedonic pathway
+        {
+            let statuses = self.gas_budget_manager.all_agent_statuses().await;
+            let exhausted: Vec<_> = statuses
+                .into_iter()
+                .filter(|(_, s)| s.remaining.0 == 0 && s.hard_limit)
+                .collect();
+            for (agent, status) in &exhausted {
+                let alert = RuntimeAlert {
+                    domain: format!("gas_budget:{agent}"),
+                    deficit: status.cap.0,
+                    threshold: 1,
+                    severity: AlertSeverity::Warning,
+                    escalated: false,
+                    timestamp: chrono::Utc::now(),
+                    message: format!(
+                        "Agent {agent} gas budget exhausted (cap: {}, remaining: 0)",
+                        status.cap.0
+                    ),
+                };
+                let sent = if let Some(ref tx) = self.alerts_tx {
+                    tx.send(CurationInput::Alert(alert.clone())).is_ok()
+                } else {
+                    false
+                };
+                if !sent {
+                    if let Some(ref sink) = self.event_sink {
+                        let event = NuEvent::new(
+                            WebID::from_persona(b"cns"),
+                            Span::from_kind(SpanKind::VarietyAlgedonicAlert),
+                            CyclePhase::Act,
+                            serde_json::json!({
+                                "domain": alert.domain,
+                                "message": alert.message,
+                                "severity": "Warning",
+                                "timestamp": alert.timestamp.to_rfc3339(),
+                            }),
+                            0,
+                        );
+                        if let Err(e) = sink.persist(&event) {
+                            tracing::error!(target: "cns.cybernetics", error = %e, "Failed to persist budget exhaustion alert");
+                        }
+                    }
+                }
             }
         }
 
