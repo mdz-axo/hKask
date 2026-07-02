@@ -33,8 +33,8 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 | `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
 | `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
 | `Triple` | `hkask-storage` | Entity-Attribute-Value knowledge representation, bitemporal | P3 |
-| `CnsRuntime` | `hkask-cns` | Cybernetic nervous system — variety monitoring, alerts, energy budgets | P9 |
-| `EnergyBudget` | `hkask-cns` | Per-agent gas budget with cap, replenish rate, hold-settle pattern | P9 |
+| `CnsRuntime` | `hkask-cns` | Cybernetic nervous system — variety monitoring, alerts, gas budgets | P9 |
+| `GasBudget` | `hkask-cns` | Per-agent gas budget with cap, replenish rate, hold-settle pattern | P9 |
 | `CircuitBreaker` | `hkask-cns` | Failure-gating state machine for external service calls | P9 |
 
 ### 1.2 Kata-Kanban Domain
@@ -631,7 +631,7 @@ Domain crates **never** depend on service layer subcrates. MCP servers **never**
 | Boundary | Enforcement | Principle |
 |----------|-------------|-----------|
 | Tool invocation | `CapabilityChecker` gating via `governed_tool` | P4 |
-| Inference calls | `governed_inference` membrane with energy budget checks | P4 |
+| Inference calls | `governed_inference` membrane with gas budget checks | P4 |
 | MCP server isolation | Out-of-process; no `AgentService` dependency | P1 |
 | Capability attenuation | Max depth limit, TTL expiry on tokens | P4 |
 

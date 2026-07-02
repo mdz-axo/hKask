@@ -86,9 +86,9 @@ CHARTER → PROBE → ORACLE → TAXONOMIZE → REPORT
 
 | Tour | What to do | When to use |
 |------|-----------|------------|
-| **Money Trail Tour** | Follow the data flow: where does value enter, where does it leave, what checks exist at each boundary | Financial code, energy budgets, any value-bearing subsystem |
+| **Money Trail Tour** | Follow the data flow: where does value enter, where does it leave, what checks exist at each boundary | Financial code, gas budgets, any value-bearing subsystem |
 | **Contract Gap Tour** | List every public function. Check which have contracts (`expect:` annotations, `[P{N}]` principle grounding). Probe the uncontracted ones. | Any public API surface |
-| **Hold-Settle Tour** | Find every reserve/allocate/hold pattern. Check that settle always verifies actual ≤ reserved. | Energy budgets, encumbrance systems, resource management |
+| **Hold-Settle Tour** | Find every reserve/allocate/hold pattern. Check that settle always verifies actual ≤ reserved. | Gas budgets, encumbrance systems, resource management |
 | **Idempotency Tour** | For every state-changing operation: can it be called twice? What happens? Is the result correct? | Storage operations, payment operations, state transitions |
 | **Fail-Safe Tour** | Find every default/fallback/unknown-handler path. Does it fail open or fail closed? Which is correct? | Circuit breakers, error handlers, state machines |
 | **Audit Trail Tour** | Follow every transaction record. Is the balance recorded? Can you reconstruct the ledger? | Financial code, state changes, anything that needs traceability |
@@ -150,7 +150,7 @@ pub fn settle(reserved: X, actual: X) {
 
 **What it means:** The function signature implies a constraint (`actual` should relate to `reserved`) but only partially enforces it. The API is under-constrained.
 
-**Found in:** `EnergyBudget::settle` — checks `actual ≤ remaining` but not `actual ≤ reserved`.
+**Found in:** `GasBudget::settle` — checks `actual ≤ remaining` but not `actual ≤ reserved`.
 
 #### PATTERN: Fail-Open Default
 

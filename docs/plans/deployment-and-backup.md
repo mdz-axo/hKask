@@ -162,7 +162,7 @@ Every operation in the server is scoped to the authenticated user's WebID:
 
 - **TripleStore queries:** `WHERE owner_webid = ?` — users can only access their own triples.
 - **Agent pods:** spawned under the user's WebID, resource-limited per user.
-- **Inference:** quota-tracked per user (CNS energy budget, wallet balance).
+- **Inference:** quota-tracked per user (CNS gas budget, wallet balance).
 - **Wallet:** deposits, balances, API keys are per-user.
 - **Backup:** export is scoped to the authenticated WebID.
 

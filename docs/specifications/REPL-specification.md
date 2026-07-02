@@ -91,7 +91,7 @@ Three paired-field groups were extracted into sub-structs (v0.31.0) to reduce th
 ```rust
 pub(crate) struct ReplState {
     pub(crate) inference_port: Arc<dyn InferencePort>,          // Shared Okapi inference port
-    pub(crate) inference_loop: Arc<InferenceLoop>,              // CNS-observable energy budget + model tracking
+    pub(crate) inference_loop: Arc<InferenceLoop>,              // CNS-observable gas budget + model tracking
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,  // Private, agent-scoped memory
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,  // Public, shared memory
     pub(crate) agent_webid: WebID,                              // From --webid (OAuth identity)
@@ -130,7 +130,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 8. Register inference loop on loop system
 9. Start built-in MCP servers (9 core servers)
 10. Build `GovernedTool` membrane wrapped around MCP runtime
-11. Register agent energy budget with `CyberneticsLoop`
+11. Register agent gas budget with `CyberneticsLoop`
 12. Open per-agent SQLCipher-encrypted memory database (keyed by WebID)
 13. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
 14. Populate tool prompt section from MCP runtime discovery
@@ -282,7 +282,7 @@ The turn pipeline is now split between the service layer and the CLI:
   history suffix, inference via `ChatService::chat()`, and persona filter.
 - **CLI (`turn::single_agent_turn()`)** handles: gas guard reservation/settlement,
   response display, tool execution through `GovernedTool`,
-  token usage display, energy budget warnings, and CNS updates.
+  token usage display, gas budget warnings, and CNS updates.
 
 ### 6.1 Pipeline Overview
 
@@ -416,7 +416,7 @@ Per Magna Carta P3 (Generative Space), every inference parameter is user-exposed
 | `max_tokens` | `max_tokens` | u32 | 512 | 1+ | Maximum completion tokens |
 | `seed` | `seed` | Option<u32> | None (random) | u32 or "off" | Deterministic seed |
 | `gas_heuristic` | `gas_heuristic` | u64 | 500 | 1+ | Per-turn gas reservation estimate |
-| `gas_cap` | `gas_cap` | u64 | 10,000 | 1+ | Total session energy budget |
+| `gas_cap` | `gas_cap` | u64 | 10,000 | 1+ | Total session gas budget |
 | `auto_condense` | `auto_condense` | bool | true | on/off | Auto-condense when context pressure exceeds threshold |
 
 `condense_saliency_window` and `condense_pressure_threshold` also propagate to the condenser MCP server via `HKASK_CONDENSE_*` env vars, so agent-initiated condensation tools respect the same user-configured thresholds.
@@ -526,7 +526,7 @@ This is encapsulated in `EnergyGuard`, an RAII guard that:
 
 ### 10.2 Energy Budget Configuration
 
-Each agent gets an energy budget registered with the `CyberneticsLoop` at REPL init:
+Each agent gets an gas budget registered with the `CyberneticsLoop` at REPL init:
 
 ```
 Budget:    gas_cap (default 10,000)
@@ -660,7 +660,7 @@ After each turn, `cns_display::update_cns_and_display()` executes:
 
 3. **LoopSystem Tick:**
    - Runs `LoopSystem::tick()` — sense→compare→compute→act cycle
-   - `CyberneticsLoop` reads CNS variety + energy budgets → produces regulatory actions
+   - `CyberneticsLoop` reads CNS variety + gas budgets → produces regulatory actions
    - Regulatory actions are logged via tracing (visible with `RUST_LOG=cns.cybernetics=debug`)
 
 ## 15. Welcome Banner
@@ -770,7 +770,7 @@ The REPL routes all infrastructure through `AgentService::build()`, which create
 
 ### 19.4 GovernedTool as Singular Boundary
 
-Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, or auto-condense — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, energy budgets, and CNS observability are enforced at a single choke point with no bypass paths.
+Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, or auto-condense — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, gas budgets, and CNS observability are enforced at a single choke point with no bypass paths.
 
 ### 19.5 Per-Agent Memory Isolation
 

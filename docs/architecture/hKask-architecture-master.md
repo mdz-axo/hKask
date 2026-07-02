@@ -39,7 +39,7 @@ hKask's architecture is governed by **four irreducible patterns** that compose i
 - Specifications are FlowDef manifests — not a separate type (unification principle)
 - Energy-accounted and OCAP-gated: every execute step goes through `GovernedTool`
 - **PDCA convergence**: Skills declare `convergence.threshold` (quality gate) and iterate via `loop` actions until metric ≤ threshold or `max_iterations` exhausted
-- **Dual energy budget**: `gas` (compute cycles, caps loop iterations) and `rjoule` (inference energy, caps LLM spend). System constant: 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)
+- **Dual gas budget**: `gas` (compute cycles, caps loop iterations) and `rjoule` (inference energy, caps LLM spend). System constant: 1 rJ = 250,000 gas cycles (`RJOULE_TO_GAS`)
 - **Conditional steps**: Steps may declare `condition` expressions (`"var"`, `"NOT var"`, `"a AND b"`, `"a OR b"`) evaluated against context
 - **Compound convergence**: Bundle-delegated skills aggregate via `all_converged`, `min`, or `weighted_avg` methods
 - **Timeout enforcement**: Per-step `timeout_seconds` enforced via `tokio::time::timeout` on inference calls
@@ -107,7 +107,7 @@ Every Jinja2 template and YAML manifest carries a header identifying its functio
 **What it is:** The autonomic nervous system of hKask — a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active *regulation*.
 
 ```
-Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, EnergyBudget)
+Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasBudget)
     → Comparator (AlgedonicManager, SetPoints, Dampener)
     → Regulator (CurationLoop, CuratorAgent, BackpressureSignal)
     → Actuator (GovernedTool, OCAP dual gate, CircuitBreaker)
@@ -495,11 +495,11 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 | Rate Limiting Concept | Energy Tracking Equivalent |
 |-----------------------|---------------------------|
-| Token bucket capacity | `EnergyBudget` allocation |
+| Token bucket capacity | `GasBudget` allocation |
 | Refill rate | `ReplenishmentCycle` |
 | Window (sliding/fixed) | `ReplenishmentCycle` period |
 | Throttle / backoff | `DepletionSignal` + `BackpressureSignal` |
-| 429 Rate Limited | `EnergyBudget.try_consume()` → `Err(InsufficientEnergy)` |
+| 429 Rate Limited | `GasBudget.try_consume()` → `Err(InsufficientEnergy)` |
 
 **Deeper reason: least action.** Energy tracking is the computational expression of the least action principle. Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. Rate limiting was a lossy projection of action tracking — energy tracking is the direct measurement.
 
@@ -546,7 +546,7 @@ Every loop-to-loop interaction is governed by a capability membrane with explici
 | Inference → Cybernetics | Inference → Cybernetics | Signal | CNS span per inference call |
 | Cybernetics → Inference | Cybernetics → Inference | Signal | `BackpressureSignal`, `CircuitBreaker` |
 
-**Cross-loop authority rules:** (1) No struct passes a membrane by value — all crossings are typed message types. (2) Every crossing is OCAP-gated via `GovernedTool` or `GovernedInference`. (3) Every crossing is energy-accounted via `EnergyBudget.try_consume()`. (4) Every crossing is CNS-observable — a span is emitted for every membrane crossing.
+**Cross-loop authority rules:** (1) No struct passes a membrane by value — all crossings are typed message types. (2) Every crossing is OCAP-gated via `GovernedTool` or `GovernedInference`. (3) Every crossing is energy-accounted via `GasBudget.try_consume()`. (4) Every crossing is CNS-observable — a span is emitted for every membrane crossing.
 
 **Cycle-freedom guarantee:** The membrane graph is a DAG. Cybernetics ↔ Curation appears bidirectional but is directionally typed — signals differ (`CuratorDirective` vs `RuntimeAlert`), preventing infinite loops.
 
@@ -621,6 +621,28 @@ Six-gate issuance: authentication → CNS history check → scope validation →
 
 Real-time provider cost tracking via the `ProviderIntelligence` trait (`discover()`, `usage()`, `actual_cost()`). Detects pre-paid→marginal pricing shifts. Adaptive monitoring frequency: <50% usage → daily check, 90%+ → 10-minute check. `CostRate` struct: `input_nj_per_unit`, `output_nj_per_unit`, `fixed_nj_per_call`, `is_marginal` flag. Per-provider profiles at `registry/providers/<name>.yaml`. Self-tracked providers (Brave, Firecrawl, Tavily, Exa) use persistent call counters in the ledger.
 
+##### Gas Budget System
+
+The gas budget system (`GasBudget`, `GasBudgetManager`, `GasCost`) provides dimensionless per-agent gas accounting with:
+- Hold-settle pattern (reserve → execute → settle) with stale reservation auto-release (5 min timeout)
+- Wallet-backed gas wallets (SQLite via `WalletStore`) as the primary spend path
+- Gas budget fallback for agents without wallets
+- Budget persistence across restarts with Well state (JSON: `{version: 1, budgets, well}`)
+- Consumption velocity tracking per agent per tick
+- Escalation via algedonic pathway when budgets or wallets are exhausted
+
+See `docs/status/gas-budget-system-status.md` for implementation status.
+
+##### Well & Wallet System
+
+Wells (`WellManager`) produce gas/rJoule on a regulated schedule. Wallets (`WalletManager`) store per-agent balances backed by SQLite. The supply chain: Well → Wallet → Agent spend.
+
+- **Well**: One default Well per installation. Auto-replenishes on each cybernetics tick. Admin-configured gas/rJoule rate. Exhaustion triggers algedonic alert with dampening.
+- **Wallet**: Auto-created on replicant startup. Draws initial balance from Well. Auto-draws from Well on low balance during spend (synchronous, no tick delay).
+- **Priority chain**: WalletManager (SQLite gas) → WalletBackedBudget (rJoule/Hedera) → GasBudget (dimensionless fallback).
+
+See `docs/architecture/well-wallet-architecture.md` for full architecture.
+
 ---
 
 ## REPL Architecture
@@ -633,7 +655,7 @@ Conversation history is appended as a **suffix** (after the cache breakpoint) so
 
 ### Unbounded Tool-Use Loop
 
-The REPL loops tool calls until the model stops requesting them, gated by `ReplSettings.tool_loop_limit` (default 21). Each iteration checks the energy budget via `GovernedTool` before executing. If the limit is hit, the loop breaks and returns the partial response — the system tells the model it can continue by asking.
+The REPL loops tool calls until the model stops requesting them, gated by `ReplSettings.tool_loop_limit` (default 21). Each iteration checks the gas budget via `GovernedTool` before executing. If the limit is hit, the loop breaks and returns the partial response — the system tells the model it can continue by asking.
 
 ### Auto-Condense
 
@@ -664,7 +686,7 @@ User-configurable inference parameters exposed via three surfaces:
 | `max_tokens` | u32 | ≥1 | 512 | Max completion tokens per call |
 | `seed` | u32 or `off` | — | random | Deterministic seed |
 | `gas_heuristic` | u64 | ≥1 | 500 | Per-turn gas reservation |
-| `gas_cap` | u64 | ≥1 | 10,000 | Total session energy budget cap |
+| `gas_cap` | u64 | ≥1 | 10,000 | Total session gas budget cap |
 | `auto_condense` | bool | — | true | Auto-condense at 87.5% of context window |
 | `model_meta` | read-only | — | None | Model context_length, thinking, capabilities |
 
@@ -1309,7 +1331,7 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 
 | Crate | Pub Items | Key Concerns | Justification |
 |-------|-----------|-------------|---------------|
-| `hkask-types` | 50 | CNS span registry (28 variants), WebID, RDF types | Canonical type crate. CNS spans alone justify the surface — each span defines vocabulary. |
+| `hkask-types` | 50 | CNS span registry (100+ variants), WebID, RDF types | Canonical type crate. CNS spans alone justify the surface. |
 | `hkask-test-harness` | 42 | Contract verification, proptest strategies | Testing infrastructure. Each strategy is test-only. |
 | `hkask-storage` | 39 | `define_store!` macro, TripleStore, vector store | Persistence orchestration. Each store follows same deep pattern. |
 | `hkask-agents` | 26 | ActivePods, AgentRegistry, capability delegation | Multi-concern crate. Each concern independently testable. |

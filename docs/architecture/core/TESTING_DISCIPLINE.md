@@ -233,7 +233,7 @@ Every test verifies an IS claim about system behavior. The CNS span registry (`C
 
 **The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model.
 
-- **CNS spans provide runtime observability.** `cns.gas` spans on `reserve`/`settle`/`consume`/`reset_to` track budget invariants in production. Type-enforced invariants (private fields on `EnergyBudget`) prevent violations structurally.
+- **CNS spans provide runtime observability.** `cns.gas` spans on `reserve`/`settle`/`consume`/`reset_to` track budget invariants in production. Type-enforced invariants (private fields on `GasBudget`) prevent violations structurally.
 - **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 
@@ -386,7 +386,7 @@ Ensemble fuzzing runs multiple engines on the same targets — standard practice
 
 | # | Crate | Tests | Target Surface |
 |---|-------|-------|---------------|
-| 1 | `hkask-types-fuzz` | 4 | CnsSpan, EnergyCost, budget types |
+| 1 | `hkask-types-fuzz` | 4 | CnsSpan, GasCost, budget types |
 | 2 | `hkask-cns-fuzz` | 3 | CNS span parsing, energy construction |
 | 3 | `hkask-inference-fuzz` | 3 | Model name parsing, prompt validation |
 | 4 | `hkask-wallet-fuzz` | 1 | Wallet operations |
@@ -521,7 +521,7 @@ cargo +nightly bolero test -p hkask-mcp-kata-kanban-fuzz fuzz_kanban_dispatch_bo
 | 2 | MCP tool routers (deserialize + ToolSpanGuard + service) | External trust boundary — where arbitrary JSON enters the system |
 | 3 | Parsers/deserializers (`FromStr`, `Deserialize`) | Input boundary — where malformed data enters |
 | 4 | Validation functions (`validate_identifier`, `validate_tool_url`) | SSRF and injection surface |
-| 5 | Type constructors (`Triple::new`, `EnergyCost`) | Value construction guardrails |
+| 5 | Type constructors (`Triple::new`, `GasCost`) | Value construction guardrails |
 
 ### 8.8 Mutatis Investigation
 

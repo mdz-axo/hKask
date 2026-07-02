@@ -189,7 +189,7 @@ let style_confidence = match &request.cognition.validation.llm_evaluate {
 
 - [ ] `replica_compose` MCP response includes `llm_confidence` and `confidence_reasoning` fields when `validation.llm_evaluate` is configured
 - [ ] CNS span emitted for each evaluation call (`cns.classify` domain, style-evaluator classifier)
-- [ ] Evaluation cost tracked in energy budget (via existing classifier cost accounting)
+- [ ] Evaluation cost tracked in gas budget (via existing classifier cost accounting)
 - [ ] 20+ compose calls logged with both confidence and centroid distance for correlation analysis
 - [ ] No change to existing pass/fail behavior — confidence is informational only
 
@@ -257,7 +257,7 @@ pub enum MdsDomain {
 
 **Goal:** After accumulating sufficient training data (target: 500+ high-confidence QA pairs per author), train, deploy, and hot-swap a LoRA adapter into the compose pipeline.
 
-**Principle anchoring:** P3 (Generative Space — adapter is user-visible and user-controllable), P9 (Homeostatic Self-Regulation — training cost tracked in energy budget), P12 (Affirmative Consent — adapter ownership and deployment require explicit consent)
+**Principle anchoring:** P3 (Generative Space — adapter is user-visible and user-controllable), P9 (Homeostatic Self-Regulation — training cost tracked in gas budget), P12 (Affirmative Consent — adapter ownership and deployment require explicit consent)
 
 **Changes:**
 
@@ -305,7 +305,7 @@ pub enum MdsDomain {
 - [ ] `training_deploy` provisions an active endpoint
 - [ ] `replica_compose` detects deployed adapter and routes generation through it
 - [ ] Centroid distance improves on adapter-generated prose vs. prompt-only generation (measured over 20+ calls)
-- [ ] Adapter cost tracked per invocation in CNS energy budget
+- [ ] Adapter cost tracked per invocation in CNS gas budget
 
 ---
 

@@ -1228,7 +1228,7 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 
 4. **Federation opt-in:** The current stub design defaults to "local-only" federation. The cloud deployment model implies federation is the user's choice. Should hKask have any opinion about federation at all? **Recommendation:** Federation is off by default in generated `conduit.toml`. User enables it explicitly. hKask warns that federation exposes room metadata to other homeservers.
 
-5. **Gas accounting:** Should Matrix message send/receive consume gas from the agent's energy budget? If an agent receives 1,000 spam messages, does that drain its budget? **Recommendation:** Receiving a message costs a small fixed gas amount (1 hJoule). Sending costs the inference gas for the response. Spam protection: if message rate exceeds threshold, Curator throttles activation. The backpressure mechanism needs design.
+5. **Gas accounting:** Should Matrix message send/receive consume gas from the agent's gas budget? If an agent receives 1,000 spam messages, does that drain its budget? **Recommendation:** Receiving a message costs a small fixed gas amount (1 hJoule). Sending costs the inference gas for the response. Spam protection: if message rate exceeds threshold, Curator throttles activation. The backpressure mechanism needs design.
 
 6. **FluffyChat vs. Element X:** Which mobile client is primary? FluffyChat has better UX and is more popular. Element X is Rust-native and uses the exact same SDK as hKask agents. **Recommendation:** Recommend FluffyChat as primary (better UX for non-technical users). Document Element X as alternative (better for technical users who want SDK parity). Both are compatible.
 

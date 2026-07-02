@@ -411,7 +411,7 @@ graph TD
 | 2 | `hkask-storage` | ✅ | 34 | `WalletStore` — 5 tables, 16 methods, deposit addresses keyed by (wallet, chain, privacy) with unique (chain, privacy, address), anti-replay deposit references, MUST-10 property test |
 | 3 | `hkask-keystore` | ✅ | 6 | `resolve_treasury_key(chain)`, `resolve_wallet_seed()`, `sign_api_key_capability()` |
 | 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
-| 5 | `hkask-cns` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `EnergyBudgetManager` dual-map, algedonic alerts (balance + key health), CNS span emission wired |
+| 5 | `hkask-cns` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `GasBudgetManager` dual-map, algedonic alerts (balance + key health), CNS span emission wired |
 | 6 | `hkask-services-wallet` | ✅ | 35 | `WalletService` — 13 methods composing WalletManager + ApiKeyIssuer + CNS budget registration |
 | 7 | `hkask-cli` | ✅ | 25 | `kask wallet` — 8 subcommands (balance, deposit-address, deposit-reference, history, key create/list/revoke, withdraw) |
 | 8 | `hkask-api` | ✅ | 2 | 8 wallet REST endpoints + `ApiKeyAuthService` middleware (Ed25519 Bearer token verification) |

@@ -23,7 +23,7 @@ Skills are composable agent capabilities with explicit PDCA convergence loops. h
 | Type | Behavior | Exit |
 |------|----------|------|
 | **Template** | One-shot prompt execution | Returns output |
-| **Skill** | Iterative PDCA cascade with quality threshold + energy budget | Returns `converged` \| `maxed_out` \| `escalated` |
+| **Skill** | Iterative PDCA cascade with quality threshold + gas budget | Returns `converged` \| `maxed_out` \| `escalated` |
 | **Bundle** | Composition orchestration — delegates to sub-skills | Depends on aggregation method |
 
 

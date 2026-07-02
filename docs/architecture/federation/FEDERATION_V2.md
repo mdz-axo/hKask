@@ -70,7 +70,7 @@ The federation extends the existing three-tier pod architecture **horizontally**
 | Skill registries (`manifest.yaml` + `*.j2`) | Single source of truth per server | P5.1 |
 | Episodic memory (private triples) | Sovereignty boundary — never leaves home SQLCipher | P1, P11.1 |
 | Agent personas, capabilities, OCAP tokens | WebID-grounded to home server | P12 |
-| CNS runtimes (variety counters, energy budgets) | Per-pod regulation | P9 |
+| CNS runtimes (variety counters, gas budgets) | Per-pod regulation | P9 |
 | Wallet, keystore, ledger | Financial infrastructure scope | P4 |
 
 ---

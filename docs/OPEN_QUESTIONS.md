@@ -881,7 +881,7 @@ The dual-presence pattern — where two entities (a sovereign host replicant and
 **What does "being present" actually mean?**
 - **Continuous:** Curator observes every message (enables proactive CNS regulation but raises P2 consent concerns)
 - **Invoked:** Curator only engages when addressed (simpler but makes Curator reactive, not regulatory)
-- Can presence be toggled? If user disables Curator, who regulates energy budgets?
+- Can presence be toggled? If user disables Curator, who regulates gas budgets?
 
 ### DP-2: Sovereignty Boundary
 **Where does P1 draw the line between user and system?**

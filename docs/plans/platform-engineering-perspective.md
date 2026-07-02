@@ -99,7 +99,7 @@ hKask is primarily an **innovation platform** with transaction platform properti
 | Gear | hKask Strength | hKask Gap |
 |------|---------------|----------|
 | **Architecture** | 53 crates with deep-module discipline. Every public item survives the deletion test. Hexagonal ports prevent infrastructure lock-in. Capability membranes enforce zero-trust between loops. | The architecture is built for platforms engineers, not platform *users*. A complementor creating a skill doesn't see the architecture — they see YAML. Is the YAML surface as mature as the Rust surface? |
-| **Governance** | OCAP with attenuation, energy budgeting with rJoule, P2 Affirmative Consent, DelegationToken for every operation. The Magna Carta (P1–P4) is a constitutional governance document. | Governance is enforced internally but not communicated externally. The Magna Carta exists in `PRINCIPLES.md` — does the average hKask user know their rights? |
+| **Governance** | OCAP with attenuation, gas budgeting with rJoule, P2 Affirmative Consent, DelegationToken for every operation. The Magna Carta (P1–P4) is a constitutional governance document. | Governance is enforced internally but not communicated externally. The Magna Carta exists in `PRINCIPLES.md` — does the average hKask user know their rights? |
 | **Strategy** | Kata PDCA drives continuous capability development. Curator metacognition detects drift. CNS variety tracking enforces Ashby's Law. | No market-facing strategy. hKask doesn't know whether it's competing with LangChain, Cursor, or Kubernetes. Wardley Mapping would reveal positioning. |
 
 ---
@@ -156,7 +156,7 @@ A loyalty-anchored platform must develop capabilities that lock-in platforms nev
 | **Provable sovereignty** | Cryptographic proof that user data has not been accessed without consent. Audit trail for every data access. | Partial — CNS spans record operations, but there's no cryptographic receipt for the user. |
 | **Seamless portability** | One-command backup export. Restore to any hKask instance. No loss. No lock-in. | Planned — backup as portable SQLCipher archive. Not yet implemented. |
 | **Consent observability** | User can see every DelegationToken they've issued, to whom, for what, and revoke any of them. | Partial — DelegationToken exists in the type system but there's no user-facing consent dashboard. |
-| **Governance transparency** | All platform decisions (Curator directives, spec changes, energy budget adjustments) are visible and explainable. | Strong — CNS spans at every membrane crossing. Curator metacognition is documented. |
+| **Governance transparency** | All platform decisions (Curator directives, spec changes, gas budget adjustments) are visible and explainable. | Strong — CNS spans at every membrane crossing. Curator metacognition is documented. |
 | **Exit assistance** | If a user wants to leave, the platform helps them. Export all data, agents, skills. No friction. | Design intent — per-pod SQLCipher, portable backups. Implementation pending. |
 | **Co-evolution infrastructure** | Users can propose changes to the platform itself. Platform evolves with its ecosystem, not despite it. | Kata PDCA cycles invite user participation. Contract proposal CNS spans exist (ContractProposed/Accepted/Rejected). |
 
@@ -191,7 +191,7 @@ These skills already exist in hKask. The Platform Engineer replicant would activ
 | **improve-codebase-architecture** | Hunt for deepening opportunities. Where can the platform add depth (high benefit/cost ratio) by reducing public surface while increasing internal capability? | Monthly |
 | **mcda** | When multiple interventions compete for attention, evaluate them on: user impact, implementation cost, risk, alignment with Magna Carta. Produce ranked recommendations with sensitivity analysis. | On demand |
 | **superforecasting** | Calibrated probability forecasts: "What is the probability that CNS alert fatigue becomes a problem by Q4 2026?" "Probability that a skill injection vulnerability is found in the wild within 12 months?" | Quarterly |
-| **adversarial-red-team** | Test the platform's defenses. Can a compromised Inference loop read Curator state? Can a malicious skill exhaust the energy budget? Can a forged DelegationToken bypass OCAP? | Monthly |
+| **adversarial-red-team** | Test the platform's defenses. Can a compromised Inference loop read Curator state? Can a malicious skill exhaust the gas budget? Can a forged DelegationToken bypass OCAP? | Monthly |
 | **scenario-builder** | Scenario planning: "What if the primary inference provider goes down for 24 hours?" "What if a replicant gains write access to the skill registry?" "What if CNS variety tracking saturates?" | Quarterly |
 | **handoff** | Between platform iterations, capture: what was done, what remains, key decisions, open questions. Ensures continuity across PDCA cycles. | Per cycle |
 
@@ -209,7 +209,7 @@ These capabilities don't yet exist in hKask's skill registry. They must be devel
 | **platform-bulkhead-auditor** | FlowDef | Identify failure domains. For each agent pod, skill, and MCP server: if this crashes, what else breaks? Map blast radius. Recommend bulkheads where blast radius > 1 component. | Crate dependency graph, CNS spans for each loop membrane | Bulkhead audit: blast radius per component, recommendations |
 | **platform-consent-auditor** | FlowDef | Audit every DelegationToken issued. Report: who issued it, to whom, for what resource, with what action, when does it expire, has it been used. Flag anomalous patterns (e.g., token with Critical severity issued outside working hours). | DelegationToken registry, CNS spans | Consent audit report, anomaly alerts |
 | **platform-portability-verifier** | FlowDef | Verify that a user's data can be fully exported. Run backup export. Verify export integrity (checksums, record counts). Verify import on a clean hKask instance. Report any data loss or corruption. | Per-pod SQLCipher file, backup command | Portability verification report |
-| **platform-governance-transparency-reporter** | KnowAct | Generate a human-readable report of all platform governance decisions in the last N days. Curator directives, spec changes, energy budget adjustments, contract proposals/acceptions/rejections. Explain each decision in plain language. | CNS spans (Curation, Spec, ContractProposed/Accepted/Rejected, CuratorDirective) | Governance transparency report |
+| **platform-governance-transparency-reporter** | KnowAct | Generate a human-readable report of all platform governance decisions in the last N days. Curator directives, spec changes, gas budget adjustments, contract proposals/acceptions/rejections. Explain each decision in plain language. | CNS spans (Curation, Spec, ContractProposed/Accepted/Rejected, CuratorDirective) | Governance transparency report |
 | **platform-loyalty-scorecard** | KnowAct | The ultimate loyalty metric. Combines: data sovereignty score, portability score, consent transparency, governance visibility, exit friction, self-service capability, and user satisfaction. Produces a loyalty score (0.0–1.0) with trend. | All platform health metrics, consent audit, portability verification, governance report, DX analysis | Loyalty score (0.0–1.0), loyalty trend, degradation alerts |
 
 ### 4.3 Bundling the Platform Engineer
@@ -516,7 +516,7 @@ This is the deepest implication of loyalty-anchored design: **lock-in platforms 
 
 ## 6. Problem Statement
 
-hKask is a platform that builds agents. It has sophisticated internal regulation (CNS algedonic pathway, energy budgeting, capability membranes) and strong architectural discipline (hexagonal ports, deep-module surface constraints, property-based testing). Its Magna Carta (P1–P4) already encodes loyalty-anchored design — user sovereignty, affirmative consent, generative space, clear boundaries. But it lacks the **platform engineering lens** — the discipline of treating the platform as a product with measurable health, explicit contracts with users, and continuous improvement driven by data. As the exemplars above would observe: the architecture is ready; the platform operating model is not.
+hKask is a platform that builds agents. It has sophisticated internal regulation (CNS algedonic pathway, gas budgeting, capability membranes) and strong architectural discipline (hexagonal ports, deep-module surface constraints, property-based testing). Its Magna Carta (P1–P4) already encodes loyalty-anchored design — user sovereignty, affirmative consent, generative space, clear boundaries. But it lacks the **platform engineering lens** — the discipline of treating the platform as a product with measurable health, explicit contracts with users, and continuous improvement driven by data. As the exemplars above would observe: the architecture is ready; the platform operating model is not.
 
 Concretely:
 
@@ -538,7 +538,7 @@ A world-class platform engineer — combining Vogels' API discipline, Hightower'
 |---------|-------|-----------------|
 | **Hexagonal Architecture** | `hkask-ports` — trait abstractions for CNS, inference, embedding, tool dispatch, registry, git-cas, federation | Infrastructure swappable without touching domain logic |
 | **Cybernetic Self-Regulation** | 28 CNS span namespaces, VarietyTracker, AlgedonicManager, BackpressureSignal, CircuitBreaker | Observability as architecture. Ashby's Law enforced at type level |
-| **Energy-Based Cost Governance** | EnergyBudget, rJoule (1 rJ = 250,000 gas), triple-entry ledger, ProviderIntelligence | FinOps built into type system. Rate limiting subsumed by energy tracking |
+| **Energy-Based Cost Governance** | GasBudget, rJoule (1 rJ = 250,000 gas), triple-entry ledger, ProviderIntelligence | FinOps built into type system. Rate limiting subsumed by energy tracking |
 | **Capability Membranes (OCAP)** | Read/Write/Signal/Never boundaries between four loops, typed crossings only | Zero-trust architecture. No ambient authority |
 | **Self-Healing** | SelfHealer on every fallible operation, 6 built-in strategies, full CNS audit trail | Autonomous recovery as first resort |
 | **Deep Module Discipline** | ≤7 public items per crate, deletion test justification for all crates | API surface minimalism |

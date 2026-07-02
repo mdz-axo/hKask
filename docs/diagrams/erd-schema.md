@@ -484,6 +484,6 @@ This diagram models the storage layer for all [MDS Core Entities](../architectur
 - **`ApiKey`** → `api_keys` table
 - **`Triple`** → `triples` table
 - **`CnsRuntime`** → `nu_events`, `cns_variety_checkpoint`, `cns_alerts` tables
-- **`EnergyBudget`** → `loop_cursors` table (cursor-based gas tracking)
+- **`GasBudget`** → `loop_cursors` table (cursor-based gas tracking)
 
 All FK relationships align with the ownership chains defined in [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) P1 (User Sovereignty) and P9 (Economic Layer). The `webid` columns in `triples`, `goals`, `consent_records`, `sovereignty_boundaries`, and `nu_events` implement the multi-tenant data isolation required by P1 and P4 (Clear Boundaries).

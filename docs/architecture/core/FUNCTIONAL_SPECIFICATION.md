@@ -31,7 +31,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 2 | Algedonic Signalling | `algedonic` | hkask-cns | 4 | System alerts when regulation thresholds are breached | P9 (Homeostatic Self-Regulation) |
 | 3 | Runtime Observability | `runtime` | hkask-cns | 24 | System provides unified CNS observability and regulation feedback | P9 (Homeostatic Self-Regulation) |
 | 4 | Tool Governance | `gov-tool` | hkask-cns | 3 | System gates tool execution behind OCAP capability checks | P9 (Homeostatic Self-Regulation) |
-| 5 | Inference Governance | `gov-inf` | hkask-cns | 2 | System gates inference calls behind energy budget checks | P9 (Homeostatic Self-Regulation) |
+| 5 | Inference Governance | `gov-inf` | hkask-cns | 2 | System gates inference calls behind gas budget checks | P9 (Homeostatic Self-Regulation) |
 | 6 | Circuit Breaking | `circuit` | hkask-cns | 3 | System prevents cascading failures in external service calls | P9 (Homeostatic Self-Regulation) |
 | 7 | API Metering | `api` | hkask-cns | 8 | System enforces per-key rate limits and gas tracking | P9 (Homeostatic Self-Regulation) |
 | 8 | Energy Estimation | `est` | hkask-cns | 2 | System estimates energy costs for regulated operations | P9 (Homeostatic Self-Regulation) |
@@ -60,7 +60,7 @@ Each domain's contracts trace upward through constraining principles to a single
 
 1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation, tool governance, inference governance
 2. **P4 (Clear Boundaries)** is the primary constraining principle on CNS governance contracts — the OCAP membrane that enforces boundaries. It does not serve as a goal principle in CNS.
-3. **P8 (Semantic Grounding)** owns all type-level identity contracts: `EnergyCost`, `EnergyDelta` newtypes
+3. **P8 (Semantic Grounding)** owns all type-level identity contracts: `GasCost`, `EnergyDelta` newtypes
 4. **P12 (Subscriber Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
 5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
 6. **P7 (Evolutionary Architecture)** owns all configurable-from-real-usage contracts: threshold calibration, replenish rate tuning
@@ -208,7 +208,7 @@ The CNS is structured into 8 sub-domains, each implementing a specific cyberneti
 ```
 hkask-cns/src/
 ├── algedonic.rs                  ← 4 contracts   — P9: Alert creation, escalation, severity classification
-├── runtime.rs                    ← 24 contracts  — P9: Variety monitoring, outcome tracking, energy budgets
+├── runtime.rs                    ← 24 contracts  — P9: Variety monitoring, outcome tracking, gas budgets
 ├── governed_tool.rs              ← 3 contracts   — P4: Tool membrane, OCAP gate, consumption channels
 ├── governed_inference.rs         ← 2 contracts   — P4: Inference membrane, agent attribution
 ├── circuit_breaker.rs            ← 3 contracts   — P4: Failure gating, state transitions
@@ -218,7 +218,7 @@ hkask-cns/src/
 ├── gas_report.rs                 ← P9: Aggregate gas queries across agents and time windows
 ├── calibrated_energy_estimator.rs ← P9: Self-regulating per-server gas cost estimator
 ├── composite_energy_estimator.rs ← P9: Routes inference to token estimator, others to table
-├── wallet_budget.rs              ← P9/P4: Wallet-backed energy budget (rJoule debits)
+├── wallet_budget.rs              ← P9/P4: Wallet-backed gas budget (rJoule debits)
 ├── wallet_energy_estimator.rs    ← P9: Wallet-aware composite estimator with gas→rJoule rate
 └── wallet_gas_calibrator.rs      ← P9: Runtime calibration of wallet gas→rJoule conversion
 ```
@@ -228,13 +228,13 @@ hkask-cns/src/
 | Sub-Domain | Principle | Core Module | Contracts | Key Function |
 |------------|-----------|-------------|-----------|--------------|
 | 1. Algedonic | P9 | `algedonic.rs` | 4 | Alert creation, escalation, severity classification |
-| 2. Runtime | P9 | `runtime.rs` | 24 | Variety monitoring, outcome tracking, energy budget registration |
+| 2. Runtime | P9 | `runtime.rs` | 24 | Variety monitoring, outcome tracking, gas budget registration |
 | 3. Governed Tool | P4 | `governed_tool.rs` | 3 | Tool membrane, OCAP gate, consumption channels |
 | 4. Governed Inference | P4 | `governed_inference.rs` | 2 | Inference membrane, agent attribution |
 | 5. Circuit Breaker | P4 | `circuit_breaker.rs` | 3 | Failure gating, state transitions |
 | 6. API Metering | P9 | `api_metering.rs` | 8 | Rate limiting, span creation, alert classification |
 | 7. Gas Cost Calibration | P9 | `dynamic_gas_table.rs` + `gas_report.rs` + `calibrated_energy_estimator.rs` | 4 | Per-server gas cost calibration via EMA |
-| 8. Wallet-Backed Energy | P9 + P4 | `wallet_budget.rs` + `wallet_energy_estimator.rs` + `wallet_gas_calibrator.rs` | 3 | Wallet-backed energy budget with gas→rJoule conversion |
+| 8. Wallet-Backed Energy | P9 + P4 | `wallet_budget.rs` + `wallet_energy_estimator.rs` + `wallet_gas_calibrator.rs` | 3 | Wallet-backed gas budget with gas→rJoule conversion |
 
 **Codebase Reference:** `crates/hkask-cns/src/` — 76 `expect:`-annotated contracts across 8 sub-domains.
 
@@ -298,13 +298,13 @@ kask cns health
 
 ```mermaid
 erDiagram
-    EnergyBudget ||--o{ EnergyCost : "consumes in units of"
-    EnergyBudget ||--|| EnergyAccount : "draws from"
-    EnergyBudget ||--o{ DepletionSignal : "emits on exhaustion"
-    EnergyBudget ||--o{ ReplenishmentCycle : "restores via"
-    EnergyBudget }o--|| P9_Homeostatic : "regulated by"
-    EnergyBudget }o--|| P4_OCAP : "bounded by"
-    EnergyBudget {
+    GasBudget ||--o{ GasCost : "consumes in units of"
+    GasBudget ||--|| EnergyAccount : "draws from"
+    GasBudget ||--o{ DepletionSignal : "emits on exhaustion"
+    GasBudget ||--o{ ReplenishmentCycle : "restores via"
+    GasBudget }o--|| P9_Homeostatic : "regulated by"
+    GasBudget }o--|| P4_OCAP : "bounded by"
+    GasBudget {
         string userExpectation "User expects the system to prevent runaway agent resource consumption"
     }
 ```
@@ -340,7 +340,7 @@ erDiagram
 | FR-E-T1 | budget_never_exceeds_cap — property test: remaining + reserved ≤ cap |
 | FR-E-T2 | available_never_negative — property test: available ≥ 0 |
 | FR-E-T3 | replenish_never_exceeds_cap — property test: remaining ≤ cap after replenish |
-| FR-E-T4 | `EnergyCost` newtype contract test |
+| FR-E-T4 | `GasCost` newtype contract test |
 
 
 ### 2.2 Algedonic Signalling (`algedonic`)
@@ -392,7 +392,7 @@ erDiagram
 erDiagram
     CnsRuntime ||--o{ VarietyMonitor : "owns"
     CnsRuntime ||--o{ OutcomeTracker : "owns"
-    CnsRuntime ||--o{ EnergyBudget : "registers"
+    CnsRuntime ||--o{ GasBudget : "registers"
     CnsRuntime ||--o{ CnsObserver : "subscribes"
     VarietyMonitor ||--o{ SpanNamespace : "counters"
     OutcomeTracker ||--o{ RuntimeAlert : "emits"
@@ -424,7 +424,7 @@ erDiagram
 | FR-R14 | `CnsRuntime::increment_variety(domain, state_name)` | [P9] Goal: Homeostatic Self-Regulation — variety counter drives loop closure; [P4] Constraining: Clear Boundaries |
 | FR-R15 | `CnsRuntime::check_variety(domain) -> Option<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — variety check drives loop closure; [P4] Constraining: Clear Boundaries |
 | FR-R16 | `CnsRuntime::register_energy_budget(agent, budget)` | [P9] Goal: Homeostatic Self-Regulation — budget registration enables energy tracking; [P4] Constraining: Clear Boundaries |
-| FR-R17 | `CnsRuntime::replenish_agent_budget(agent, amount) -> EnergyCost` | [P9] Goal: Homeostatic Self-Regulation — budget replenishment drives energy loop; [P4] Constraining: Clear Boundaries |
+| FR-R17 | `CnsRuntime::replenish_agent_budget(agent, amount) -> GasCost` | [P9] Goal: Homeostatic Self-Regulation — budget replenishment drives energy loop; [P4] Constraining: Clear Boundaries |
 | FR-R18 | `CnsRuntime::agent_gas_status(agent) -> Option<AgentEnergyStatus>` | [P9] Goal: Homeostatic Self-Regulation — gas status query drives energy loop; [P8] Constraining: Semantic Grounding |
 
 #### P3 Blocking Variants (1)
@@ -463,7 +463,7 @@ erDiagram
 
 ### 2.4 Tool Governance (`gov-tool`)
 
-**Goal Principle:** P9 (Homeostatic Self-Regulation) — tool execution gated by energy budget and OCAP checks
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — tool execution gated by gas budget and OCAP checks
 **Constraining Principles:** P4 (Clear Boundaries — OCAP membrane enforcement), P12 (Affirmative Consent — agent identity is the consent anchor)
 **Crate:** `hkask-cns` | **Source:** `src/governed_tool.rs`
 
@@ -471,7 +471,7 @@ erDiagram
 erDiagram
     GovernedTool ||--|| McpTool : "wraps"
     GovernedTool ||--|| CyberneticsLoop : "bound to"
-    GovernedTool ||--|| EnergyBudget : "checks"
+    GovernedTool ||--|| GasBudget : "checks"
     GovernedTool ||--|| AgentIdentity : "requires"
     GovernedTool }o--|| P9_Homeostatic : "goal"
     GovernedTool }o--|| P4_OCAP : "constrained by"
@@ -501,7 +501,7 @@ erDiagram
 
 ### 2.5 Inference Governance (`gov-inf`)
 
-**Goal Principle:** P9 (Homeostatic Self-Regulation) — inference calls gated by energy budget and provider membrane
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — inference calls gated by gas budget and provider membrane
 **Constraining Principles:** P4 (Clear Boundaries — provider membrane), P12 (Affirmative Consent — agent identity is required for attribution)
 **Crate:** `hkask-cns` | **Source:** `src/governed_inference.rs`
 
@@ -514,7 +514,7 @@ erDiagram
     GovernedInference }o--|| P9_Homeostatic : "goal"
     GovernedInference }o--|| P4_OCAP : "constrained by"
     GovernedInference {
-        string userExpectation "User expects inference calls gated behind energy budget checks"
+        string userExpectation "User expects inference calls gated behind gas budget checks"
     }
 ```
 
@@ -1449,8 +1449,8 @@ erDiagram
         string visibility "Public | Sovereign"
         bool tombstone
     }
-    AgentPod ||--|| EnergyBudget : regulated_by
-    EnergyBudget {
+    AgentPod ||--|| GasBudget : regulated_by
+    GasBudget {
         string agent_id FK
         u64 remaining
         u64 reserved

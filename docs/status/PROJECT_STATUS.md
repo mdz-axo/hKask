@@ -12,16 +12,23 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.31.0 — Training provider architecture refactor + MCP media tool split. 103 tests pass across affected crates.
+**Current session:** v0.31.0 — Gas system rename (Energy* → Gas*), budget persistence, escalation, Well/Wallet system with SQLite persistence, auto-draw, stale reservation detection, consumption velocity. 109 CNS tests pass.
 
-**This session (2026-06-25):**
-- Training provider architecture refactored: 2,829-line monolith → 6 files (2,156 lines). `AxolotlProvider`/`UnslothProvider`/`TrainerHarness` deleted. Cloud-only hosts with harness injection. 33 tests pass.
-- MCP media tools split: 2,239-line monolith → 4 files (gallery/processing/audio/generation). All 36 tools preserved. 26 tests pass.
-- Build: clean (affected crates: 0 errors, 0 warnings). Tests: 103/103 pass (adapter 44, media 26, training 33).
+**This session (2026-07-01):**
+- Gas rename: Energy* types → Gas* across 25 files. Curation concepts preserved.
+- Budget persistence: JSON save/load with Well state, async I/O, version envelope.
+- Escalation: exhaustion alerts via algedonic pathway (CurationInput::Alert).
+- Stale reservation auto-release: 5-minute timeout prevents hold-settle leaks.
+- Consumption velocity: per-agent gas burned tracked across ticks.
+- Well system: WellManager with auto-create, replenish, exhaustion alert dampening.
+- Wallet system: SQLite-backed WalletStore + WalletManager, integrated into spend path.
+- Auto-draw: synchronous Well→Wallet draw on low balance during spend.
+- 10 new CNS spans for Well/Wallet/Curator lifecycle.
+- Build: clean. Tests: 109/109 pass.
 
-**Note:** `hkask-cli` build is clean (pre-existing compile errors resolved as of v0.31.0).
+**Note:** `hkask-cli` build is clean (pre-existing compile errors resolved).
 
-**Previous (2026-06-23):** v0.30.0 — AgentService pub-field refactoring complete. 1460 tests pass. Document alignment sweep.
+**Previous (2026-06-25):** v0.31.0 — Training provider architecture refactor + MCP media tool split.
 
 ---
 
@@ -113,7 +120,7 @@ All 34 workspace members (excluding fuzz targets).
 | Skills | 39 (72 registry manifests, 294 Jinja2 templates) |
 | MCP servers | 14 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
-| CNS spans | 90 |
+| CNS spans | 100+ |
 
 ---
 
@@ -269,11 +276,12 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 | Priority | Task |
 |----------|------|
-| MEDIUM | Integration tests for multi-pod sync: CNS span emission, CuratorSync polling, cross-pod contradictory triple recall, TeamPod bot sharing |
-| LOW | Citation compliance: 23 files have fewer footnote citations than `##` sections (PS-07 gap). Audit complete 2026-06-11 — see §Citation Audit below. |
-| LOW | `CuratorSync` integration test — verify sync loop picks up triples within 1s |
-| NOT YET DONE | End-to-end onboarding smoke test (needs live Okapi) |
-| DEFERRED | Pod container export (`kask pod export-container`) — ζ.5 (container boundary) |
+| MEDIUM | Integration tests for multi-pod sync: CNS span emission, CuratorSync polling |
+| LOW | Citation compliance: 23 files have fewer footnotes than `##` sections. Methodology: `docs/status/citation-audit-methodology.md`. Script: `docs/ci/check-citations.sh`. |
+| LOW | End-to-end onboarding smoke test (needs live Okapi) |
+| DEFERRED | Pod container export (`kask pod export-container`) |
+| DEFERRED | `acquire_budget()` dead code removal |
+| DEFERRED | CyberneticsLoop pass-through method cleanup (9 methods of pure indirection) |
 
 ### Communication Server — Remaining Items
 

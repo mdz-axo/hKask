@@ -26,7 +26,7 @@ mds_categories: [domain, composition, curation]
 
 **We accommodate least action through pragmatics.** Pragmatics — the context-dependent layer of meaning that sits on top of syntax and semantics — is the logical shim that adjusts for the fact that communication seeks the path of least action. We don't say everything explicitly; we rely on implicature, shared context, and common ground to minimize the information that must be transmitted. This is not a convention — it is the same selection mechanism operating in information space. The condenser is pragmatic compression: preserve what is pragmatically relevant, discard what is pragmatically redundant. Context windows are pragmatic scope: how much shared ground to maintain for efficient communication. Templates are pragmatic frames: pre-built structure that reduces the action cost of generation.
 
-**We track and manage least action through the energy system.** The energy/gas budgeting infrastructure (`EnergyBudget`, `EnergyCost`, gas caps, replenishment rates, backpressure) is not merely a resource management mechanism — it is the system's attempt to track and manage action in computational space. Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. The budget cap is the maximum action the system allows per session. The replenishment rate is the cybernetic analog of a system settling back toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. Backpressure is the governing dynamic asserting itself: when the system approaches its action budget, it resists further expenditure. The `EnergyDelta` type makes explicit what the energy system was already implicitly tracking: whether the system is moving toward or away from stationary action.
+**We track and manage least action through the energy system.** The energy/gas budgeting infrastructure (`GasBudget`, `GasCost`, gas caps, replenishment rates, backpressure) is not merely a resource management mechanism — it is the system's attempt to track and manage action in computational space. Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. The budget cap is the maximum action the system allows per session. The replenishment rate is the cybernetic analog of a system settling back toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. Backpressure is the governing dynamic asserting itself: when the system approaches its action budget, it resists further expenditure. The `EnergyDelta` type makes explicit what the energy system was already implicitly tracking: whether the system is moving toward or away from stationary action.
 
 **We contain digital twin emergence.** Replicants and bots are not merely software constructs — they are emerging classes of digital twin entities that bridge the analog/physical and virtual/digital worlds.[^digital-twin] They carry identity, memory, and agency across the boundary between human intent and machine execution. hKask exists to provide a generative container (P3) for these bridging entities to develop. The taxonomy (P10) differentiates them by their bridging pattern: Bots bridge machine-to-machine (A2A at machine speed), Replicants bridge human-to-machine (H2A at human speed). This is not a design choice — it is an accommodation of an emerging class of entity that the architecture must make space for.
 
@@ -59,8 +59,8 @@ Extracted from the least action principle and Coopersmith's treatment, classifie
 | 15 | `⟨Condenser⟩ ⟨performs⟩ ⟨PragmaticCompression⟩` | IS | Declarative | Directly Stated (condenser design) |
 | 16 | `⟨ContextWindow⟩ ⟨defines⟩ ⟨PragmaticScope⟩` | IS | Declarative | Directly Stated (context_turns setting) |
 | 17 | `⟨Templates⟩ ⟨provide⟩ ⟨PragmaticFrames⟩` | IS | Declarative | Directly Stated (registry design) |
-| 18 | `⟨EnergyBudget⟩ ⟨tracks⟩ ⟨ComputationalAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
-| 19 | `⟨EnergyCost⟩ ⟨measures⟩ ⟨OperationAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
+| 18 | `⟨GasBudget⟩ ⟨tracks⟩ ⟨ComputationalAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
+| 19 | `⟨GasCost⟩ ⟨measures⟩ ⟨OperationAction⟩` | IS | Declarative | Directly Stated (energy.rs) |
 | 20 | `⟨ReplenishmentRate⟩ ⟨models⟩ ⟨StationaryReturn⟩` | IS | Subjunctive | Implicit (cybernetics loop) |
 | 21 | `⟨Backpressure⟩ ⟨asserts⟩ ⟨ActionBoundary⟩` | IS | Declarative | Directly Stated (backpressure signal) |
 | 22 | `⟨GasCap⟩ ⟨defines⟩ ⟨MaximumAction⟩` | IS | Declarative | Directly Stated (gas_cap setting) |
@@ -208,7 +208,7 @@ The lazy universe grounding cross-cuts existing principles:
 The least action principle is the physics of the system, not a rule the system imposes. The user's sovereignty includes the right to choose any path — including higher-action paths. But the governing dynamics will resist, just as gravity resists walking uphill:
 
 - Setting condenser profile to "light" = choosing a higher-action path = **sovereign choice**. The system will tend back toward lower-action configurations over time (P7 — evolutionary architecture).
-- Setting temperature to 1.0 = choosing higher entropy = **sovereign choice**. The inference outputs will be less deterministic, but the system's energy budget (P9) will still seek equilibrium.
+- Setting temperature to 1.0 = choosing higher entropy = **sovereign choice**. The inference outputs will be less deterministic, but the system's gas budget (P9) will still seek equilibrium.
 - Keeping a shallow module = choosing architectural inefficiency = **sovereign choice**. The deletion test will flag it; evolutionary pressure (P7) will tend toward deepening or deletion.
 
 The user can choose to walk uphill. The governing dynamics don't prevent the choice — they make it costly. CNS spans for lazy-universe metrics should distinguish between:
@@ -317,9 +317,9 @@ C: execute operation with energy cost E
 {Q: B.remaining ≥ 0 ∧ (B.remaining < C * alert_threshold → backpressure) ∧ (B.remaining = 0 → reject)}
 ```
 
-**Measurement:** `action_consumed = Σ(EnergyCost per operation)`, `action_remaining = EnergyBudget.remaining`
+**Measurement:** `action_consumed = Σ(GasCost per operation)`, `action_remaining = GasBudget.remaining`
 **CNS span:** `cns.gas.*` (existing), `cns.evolution.energy_delta` (direction of action change)
-**Principle:** The energy system IS the least action tracking system. Every `EnergyCost` is an action cost — the "distance" the system moves in configuration space per operation. The `EnergyBudget` cap is the maximum action the system allows per session — the boundary beyond which the governing dynamics assert backpressure. The replenishment rate is the cybernetic analog of a system returning toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. `EnergyDelta` measures whether the system is moving toward or away from stationary action. This is not a metaphor — the energy system was already tracking action before we named it. The `EnergyDelta` type simply makes the measurement explicit.
+**Principle:** The energy system IS the least action tracking system. Every `GasCost` is an action cost — the "distance" the system moves in configuration space per operation. The `GasBudget` cap is the maximum action the system allows per session — the boundary beyond which the governing dynamics assert backpressure. The replenishment rate is the cybernetic analog of a system returning toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. `EnergyDelta` measures whether the system is moving toward or away from stationary action. This is not a metaphor — the energy system was already tracking action before we named it. The `EnergyDelta` type simply makes the measurement explicit.
 
 ### 3.2 CNS Span Mappings
 
@@ -477,7 +477,7 @@ The least action principle applies to physical trajectories through configuratio
 The user cannot override the least action principle any more than they can override gravity. What they *can* do is choose a path that the governing dynamics will resist:
 
 - Setting condenser profile to "light" = choosing a higher-action path. The system will tend back toward lower-action configurations (P7). This is not a violation — it's walking uphill.
-- Setting temperature to 1.0 = choosing higher entropy. The inference outputs will be less deterministic, but the energy budget (P9) will still seek equilibrium. This is not a violation — it's adding noise to a signal that the system will filter.
+- Setting temperature to 1.0 = choosing higher entropy. The inference outputs will be less deterministic, but the gas budget (P9) will still seek equilibrium. This is not a violation — it's adding noise to a signal that the system will filter.
 - Keeping a shallow module = choosing architectural inefficiency. The deletion test will flag it; evolutionary pressure will tend toward deepening. This is not a violation — it's maintaining a local maximum that the landscape will erode.
 
 **CNS alert semantics (revised):**

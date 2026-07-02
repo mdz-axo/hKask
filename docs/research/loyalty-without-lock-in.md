@@ -83,7 +83,7 @@ hKask's skill architecture is structurally anti-lock-in:
 - **Skills are local files** — `manifest.yaml` + `*.j2` templates, stored in the user's registry crate. They are copyable, versionable, forkable, and shareable independent of any platform.
 - **The registry is local** — `SqliteRegistry` indexes skills on the user's filesystem. No marketplace. No remote dependency.
 - **Selection intelligence lives in Jinja2/LLM** (P3 Generative Space) — the cascade (`select → populate → execute`) runs locally. The skill is a self-contained artifact that carries its own execution logic.
-- **Energy budgets are user-denominated** — `gas.cap` and `rjoule.cap` are set per-skill. 1 rJ = 250,000 gas cycles. The user controls the budget, not the provider.
+- **Gas budgets are user-denominated** — `gas.cap` and `rjoule.cap` are set per-skill. 1 rJ = 250,000 gas cycles. The user controls the budget, not the provider.
 
 The contrast with MCP is structural: an MCP tool is "call this remote function." A hKask skill is "this is what it is (What), why it exists (Why), how it works (How), who made it (Who), when (When), and where it operates (Where)." The protocol is not "do this" — it is "know this."
 
@@ -118,7 +118,7 @@ For hKask, that primitive is the 5W1H ontological framework (P5.2):
 | **When** | When was it published? Versioned? | Temporal ordering; staleness detection; convergence windows |
 | **Where** | Which pod namespace? What domain? | Pod boundary enforcement (P4.1); domain scoping |
 | **Why** | What principle does it serve? What goal? | Magna Carta anchoring (P1–P4); reject artifacts that violate sovereignty |
-| **How** | What's the cascade? Energy budget? Convergence threshold? | Composability validation; resource drain prevention |
+| **How** | What's the cascade? Gas budget? Convergence threshold? | Composability validation; resource drain prevention |
 
 A pod receiving a skill from another pod can verify all six dimensions independently — no central registry, no trusted authority, no platform mediation required. The ontology IS the protocol.
 
@@ -130,7 +130,7 @@ The Curator daemon (P12.1) already exists as a per-system regulatory loop. Its c
 |---|---|---|
 | `system_state_gather` | Local pod health, CNS spans, bot success rates | Cross-pod 5W1H consistency, federation health, peer pod state |
 | `metacognition-diagnose` | Local alert cascades, resource exhaustion | Ontological conflicts between pods, skill composition failures, trust degradation |
-| `metacognition-calibrate` | Local threshold tuning, energy budget adjustment | Federation trust thresholds, convergence window sizing, sync interval tuning |
+| `metacognition-calibrate` | Local threshold tuning, gas budget adjustment | Federation trust thresholds, convergence window sizing, sync interval tuning |
 | `metacognition-escalate` | Administrator alerts for local issues | Cross-pod conflict escalation, federation integrity violations, sovereignty breaches |
 
 The critical architectural principle: the federated curator is a **capability surface**, not a control surface. It does not block, gate, or reject. It surfaces the 5W1H answers — "this artifact was authored by pod X, serves principle P3, has a convergence threshold of 0.15, and its content hash is Y." The user retains sovereignty (P1). The curator's job is to make ontological answers visible and verifiable, enabling the user to make capability decisions without performing the analysis themselves.

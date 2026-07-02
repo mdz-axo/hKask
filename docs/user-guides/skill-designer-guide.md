@@ -35,7 +35,7 @@ A skill process manifest must include:
 1. `manifest.functional_role: flowdef`
 2. top-level `convergence` block including `convergence_field` (quality gate)
 3. top-level `gas` block (compute cycle budget — prevents infinite loops)
-4. top-level `rjoule` block (inference energy budget — caps LLM spend, 1 rJ = 250,000 gas)
+4. top-level `rjoule` block (inference gas budget — caps LLM spend, 1 rJ = 250,000 gas)
 5. at least one explicit `action: loop` step with `loop_target` ordinal
 6. a convergence check step (KnowAct) that outputs `convergence_metric` in [0,1]
 7. stable `step_n_result` wiring between steps

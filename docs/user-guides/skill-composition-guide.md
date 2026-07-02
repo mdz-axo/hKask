@@ -136,7 +136,7 @@ A Skill's output IS its convergence report. When `kask run <skill>` completes, t
 | `gas_cap` | Total compute gas budget (prevents infinite loops) |
 | `gas_remaining` | Remaining compute gas |
 | `rjoule_used` | Total inference rJoules consumed across all select steps |
-| `rjoule_cap` | Total inference energy budget (caps LLM spend) |
+| `rjoule_cap` | Total inference gas budget (caps LLM spend) |
 | `gas_pct` | Percentage of gas budget consumed |
 
 The report is the proof that the kata ran and either achieved its target or exhausted its energy allocation. The dual budget system ensures the skill cannot run forever — it converges on quality, exhausts compute gas, or exhausts inference rJoules. A template chain that runs once and returns raw output has no convergence report — it produced output and stopped, with no evidence that quality was pursued iteratively. That's the difference between a recipe and a skill.
@@ -155,7 +155,7 @@ The `improvement_gate` field controls how threshold and improvement combine:
 - `threshold_only` (default for all 43 skills): only check threshold.
 - `either`: must satisfy threshold OR improvement.
 
-The dual energy budget (gas + rJoule) is a third independent gate — the cascade cannot run forever because both budgets are finite and hard-limited.
+The dual gas budget (gas + rJoule) is a third independent gate — the cascade cannot run forever because both budgets are finite and hard-limited.
 
 ### The Skill-Kata Isomorphism
 
@@ -175,7 +175,7 @@ Skills bring mastery. Mastery enforces excellence. To be a valid skill in the hK
 ```
 1. Be a FlowDef (not KnowAct, not WordAct) — only FlowDef has the choice/escalate/abort/loop machinery
 2. Declare a measurable quality target (convergence.threshold) — what "done" means
-3. Declare an energy budget (gas.cap) — the maximum resource expenditure
+3. Declare an gas budget (gas.cap) — the maximum resource expenditure
 4. Contain a PDCA loop (evaluate → check → improve → loop) — the iterative improvement ratchet
 5. Exit on excellence (threshold met → abort) OR energy exhaustion (max_iterations or gas exceeded → maxed_out/escalate)
 6. Report which exit condition fired (convergence.converged | maxed_out | escalated) and what was achieved
@@ -183,7 +183,7 @@ Skills bring mastery. Mastery enforces excellence. To be a valid skill in the hK
 
 A template that lacks any of these six properties is not a skill — it is a prompt (KnowAct), a persona (WordAct), or a tool invocation. It may be useful. It may be composed INTO a skill as a step within the PDCA loop. But it is not itself a valid hKask skill.
 
-The two exit rails — quality threshold and energy budget — form the ratchet. The skill cannot exit until it has either achieved its quality goal or exhausted its energy allocation. Every iteration either improves quality (moving toward the threshold) or consumes budget (moving toward exhaustion). The skill converges on one or the other; it cannot run forever.
+The two exit rails — quality threshold and gas budget — form the ratchet. The skill cannot exit until it has either achieved its quality goal or exhausted its energy allocation. Every iteration either improves quality (moving toward the threshold) or consumes budget (moving toward exhaustion). The skill converges on one or the other; it cannot run forever.
 
 ### Shared Infrastructure
 
@@ -201,7 +201,7 @@ As of v0.30.0, 43 skills have been upgraded to full PDCA FlowDef manifests with 
    - Group D (Structured Process): threshold 0.05, improvement 0.05, max 3 iterations (tight — checklist-complete)
    - Group E (Meta-Management): threshold 0.15, improvement 0.10, max 3 iterations
    - Group F (Kata & Coaching): threshold 0.15, improvement 0.10, max 3 iterations (CNS-grounded in future)
-4. **Dual energy budgets** replace the old single gas model:
+4. **Dual gas budgets** replace the old single gas model:
    - `gas` (compute cycles): cap 100,000, cost 100 per loop pass — prevents infinite PDCA iteration
    - `rjoule` (inference energy): cap varies by skill (10K–120K rJ), 1 rJ = 250,000 gas cycles — caps LLM inference spend
 5. **Timeout enforcement**: Per-step `timeout_seconds` enforced via `tokio::time::timeout` with retry per `error_handling.on_timeout`.

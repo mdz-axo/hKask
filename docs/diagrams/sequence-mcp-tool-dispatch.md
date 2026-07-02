@@ -10,7 +10,7 @@ mds_categories: ["composition", "trust"]
 
 # MCP Tool Dispatch Sequence
 
-**Purpose:** Trace the full MCP tool invocation path from `McpDispatcher::invoke()` through the `GovernedTool` OCAP membrane, to the `RawMcpToolPort` transport layer, with all CNS span emission points, energy budget checks, and error-rejection paths.
+**Purpose:** Trace the full MCP tool invocation path from `McpDispatcher::invoke()` through the `GovernedTool` OCAP membrane, to the `RawMcpToolPort` transport layer, with all CNS span emission points, gas budget checks, and error-rejection paths.
 
 **Related:** [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) §P4 — Clear Boundaries (OCAP), [MDS.md](../architecture/core/MDS.md) §6
 
@@ -25,7 +25,7 @@ When a caller requests tool execution through the `McpPort` trait, the dispatch 
 2. **OCAP Membrane (`GovernedTool::invoke`)** — The security boundary where all governance decisions are made. A 7-step hold-settle pipeline:
    - **Step 0:** Cryptographic token signature verification (`token.verify()`)
    - **Step 1:** OCAP authority check — two paths: exact-match (ad-hoc invocation tokens) or domain-based matching via `capabilities_match()` (agent capability tokens)
-   - **Step 2:** Energy budget check — `can_proceed()` + `reserve_gas()` hold; emits `GasDepleted` span on rejection, `GasReserved` on success
+   - **Step 2:** Gas budget check — `can_proceed()` + `reserve_gas()` hold; emits `GasDepleted` span on rejection, `GasReserved` on success
    - **Step 3:** CNS observability — emits `cns.tool.invoked` span
    - **Step 4:** Delegate to inner `ToolPort` (the raw MCP transport)
    - **Step 5:** Settle gas — `settle_gas()` with refund for over-estimation; emits `GasSettled` + `ToolConsumptionEvent` on direct channel
@@ -83,14 +83,14 @@ sequenceDiagram
         Disp-->>Caller: TemplateError::CapabilityDenied
     end
 
-    %% Step 2: Energy budget
+    %% Step 2: Gas budget
     Gov->>+Cyber: can_proceed(agent, estimated_cost)
     alt Budget exceeded
         Cyber-->>Gov: false
         Gov->>+Sink: persist(GasDepleted event)
         Sink-->>-Gov: ()
-        Gov-->>Disp: ToolPortError::EnergyBudgetExceeded
-        Disp-->>Caller: TemplateError::Mcp(EnergyBudgetExceeded)
+        Gov-->>Disp: ToolPortError::GasBudgetExceeded
+        Disp-->>Caller: TemplateError::Mcp(GasBudgetExceeded)
     end
     Cyber-->>-Gov: true
     Gov->>+Cyber: reserve_gas(agent, estimated_cost)
@@ -246,7 +246,7 @@ sequenceDiagram
 - `crates/hkask-mcp/src/dispatch.rs:36–114` — `RawMcpToolPort` struct and `ToolPort` impl — live peer check, `call_tool()`, error flag handling, result parsing
 - `crates/hkask-mcp/src/dispatch.rs:229–272` — `McpPort::invoke()` — server_id lookup → GovernedTool delegation → ToolPortError → TemplateError mapping
 - `crates/hkask-cns/src/governed_tool.rs:79–87` — `GovernedTool` struct with inner port, cybernetics loop, event sink, energy estimator, agent WebID
-- `crates/hkask-cns/src/governed_tool.rs:188–474` — `ToolPort` impl — 7-step OCAP membrane: token verify → authority check (exact + domain fallback) → energy budget hold → CNS invoked span → inner delegation → gas settle + consumption event → CNS completed span → quality tracking
+- `crates/hkask-cns/src/governed_tool.rs:188–474` — `ToolPort` impl — 7-step OCAP membrane: token verify → authority check (exact + domain fallback) → gas budget hold → CNS invoked span → inner delegation → gas settle + consumption event → CNS completed span → quality tracking
 - `crates/hkask-cns/src/governed_tool.rs:151–157` — `verify_capability_exact()` — exact tool-name match via `is_valid_for()`
 - `crates/hkask-cns/src/governed_tool.rs:164–167` — `verify_capability_domain()` — domain-based match via `capabilities_match()`
 - `crates/hkask-cns/src/governed_tool.rs:173–185` — `verify_capability_domain_fallback()` — async tool metadata lookup + domain match

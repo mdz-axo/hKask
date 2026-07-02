@@ -1098,6 +1098,50 @@ documents:
     code_artifacts: [ALL]
     disposition: keep
 
+  - path: docs/architecture/well-wallet-architecture.md
+    category: architecture
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [trust, domain, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [
+        crates/hkask-cns/src/well.rs,
+        crates/hkask-cns/src/wallet_manager.rs,
+        crates/hkask-cns/src/wallet_store.rs,
+      ]
+    governing_principles: [P3, P4, P5]
+    disposition: keep
+
+  - path: docs/status/gas-budget-system-status.md
+    category: status
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [
+        crates/hkask-cns/src/energy.rs,
+        crates/hkask-cns/src/energy_budget_management.rs,
+        crates/hkask-cns/src/cybernetics_loop.rs,
+      ]
+    disposition: keep
+
+  - path: docs/status/citation-audit-methodology.md
+    category: audit
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [docs/ci/check-citations.sh]
+    disposition: keep
+
   - path: "[REMOVED] docs/plans/mcp-server-roadmap.md"
     category: plan
     status: Superseded
