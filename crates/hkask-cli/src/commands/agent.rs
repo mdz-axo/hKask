@@ -1,259 +1,130 @@
-//! Agent registration and bot listing — delegates to AgentService.
+//! Agent registration and listing — delegates to AgentService.
 //!
-//! All domain operations (A2A, store) come from AgentService.
-//! No direct Database::open(), A2ARuntime::new(), or AgentRegistryStore::new().
+//! All domain operations come from AgentService. Each command builds its
+//! context once at the entry point and uses it directly.
 
 use std::path::PathBuf;
-use std::str::FromStr;
+
+use hkask_agents::a2a::AgentReceipt;
+use hkask_ports::git_cas::GixCasAdapter;
+use hkask_services_context::AgentService;
+use hkask_storage::RegisteredAgent;
+use hkask_types::agent_paths;
 
 use crate::block_on;
 use crate::cli::BotAction;
 use hex;
-use hkask_mcp::GixCasAdapter;
-use hkask_services_core::ServiceError;
-use hkask_storage::{AgentDefinition, RegisteredAgent};
-use hkask_types::{AgentKind, WebID, agent_paths};
 
-#[derive(Debug)]
-pub struct AgentReceipt {
-    pub webid: String,
-    pub token_hash: String,
-    pub registered_at: String,
+/// Revert an agent to a specific commit.
+pub(crate) fn revert_agent(
+    ctx: &AgentService,
+    name: &str,
+    commit: &str,
+    reason: &str,
+) -> Result<String, String> {
+    let adapter =
+        GixCasAdapter::from_env().map_err(|e| format!("Failed to init CAS adapter: {e}"))?;
+    let commit_hash: hkask_ports::git_cas::CommitHash = commit
+        .parse()
+        .map_err(|e: hkask_ports::git_cas::ParseHashError| format!("Invalid hash: {e}"))?;
+    let sanitized = agent_paths::sanitize_name(name);
+    let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+    let agent_dir = base.join("hkask").join("agents").join(sanitized);
+    let file = "agent.yaml".to_string();
+    let content = adapter
+        .get_content(&commit_hash, &file)
+        .map_err(|e| format!("CAS read failed: {e}"))?;
+    std::fs::create_dir_all(&agent_dir).map_err(|e| format!("mkdir: {e}"))?;
+    std::fs::write(agent_dir.join(&file), &content).map_err(|e| format!("Write failed: {e}"))?;
+    Ok(format!(
+        "Reverted {} to commit {} ({})",
+        name,
+        &commit[..8],
+        reason
+    ))
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  kind_filter is None or a valid AgentKind string; service context must be buildable
-/// post: returns all registered agents, optionally filtered by kind; empty vec if none match
-pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
-    let agents =
-        ctx.storage()
-            .agents
-            .clone()
-            .list()
-            .map_err(|e| ServiceError::AgentRegistryStore {
-                source: None,
-                message: e.to_string(),
-            })?;
-    Ok(match kind_filter.and_then(AgentKind::parse) {
-        Some(kind) => agents
-            .into_iter()
-            .filter(|a| a.definition.agent_kind == kind)
-            .collect(),
-        None => agents,
-    })
-}
-
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  name is a non-empty agent name string; agent must exist in registry
-/// post: returns the RegisteredAgent for the given name or ServiceError if not found
-pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
-    ctx.storage()
-        .agents
-        .clone()
-        .get(name)
-        .map_err(|e| ServiceError::AgentRegistryStore {
-            source: None,
-            message: e.to_string(),
-        })
-}
-
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  webid_str is a valid WebID; agent_type is a valid AgentKind; capabilities is a list of capability strings
-/// post: registers the agent via A2A, stores in registry, returns AgentReceipt with webid, token_hash, and timestamp
-pub async fn agent_register(
-    webid_str: &str,
-    agent_type: &str,
-    capabilities: Vec<String>,
-) -> Result<AgentReceipt, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
-    let webid = WebID::from_str(webid_str)?;
-    let kind = AgentKind::parse(agent_type).ok_or_else(|| ServiceError::InvalidAgentType {
-        source: None,
-        message: agent_type.to_string(),
-    })?;
-    let (_, a2a) = ctx.identity();
-    let token = a2a
-        .register_agent(webid, kind, capabilities.clone())
-        .await
-        .map_err(|e| ServiceError::A2A {
-            source: None,
-            message: e.to_string(),
-        })?;
-    // Build the self-contained agent definition YAML.
-    let source_yaml = format!(
-        "# Agent definition for {name} — registered via CLI.\n\
-         agent:\n  name: \"{name}\"\n  type: {kind}\n\n\
-         capabilities:\n{cap_lines}\n",
-        name = webid_str,
-        kind = agent_type,
-        cap_lines = capabilities
-            .iter()
-            .map(|c| format!("  - {c}"))
-            .collect::<Vec<_>>()
-            .join("\n"),
-    );
-
-    // Persist to agents/{name}/agent.yaml for discovery and REPL loading.
-    let yaml_path = agent_paths::agent_definition_yaml(webid_str);
-    if let Some(parent) = yaml_path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let _ = std::fs::write(&yaml_path, &source_yaml);
-
-    let def = AgentDefinition {
-        name: webid_str.to_string(),
-        agent_kind: kind,
-        charter: None,
-        capabilities,
-        rights: vec![],
-        responsibilities: vec![],
-        depends_on: vec![],
-        persona: None,
-        process_manifest: None,
-        voice_description: None,
-        voice_id: None,
-    };
-    let reg = RegisteredAgent {
-        definition: def,
-        token_hash: hex::encode(token.signature_bytes()),
-        registered_at: hkask_types::time::now_rfc3339(),
-        source_yaml,
-    };
-    ctx.storage()
-        .agents
-        .clone()
-        .insert(&reg)
-        .map_err(|e| ServiceError::AgentRegistryStore {
-            source: None,
-            message: e.to_string(),
-        })?;
-    Ok(AgentReceipt {
-        webid: webid_str.to_string(),
-        token_hash: hex::encode(token.signature_bytes()),
-        registered_at: reg.registered_at,
-    })
-}
-
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  name is a non-empty agent name string; agent must exist in registry
-/// post: removes the agent from the registry; returns Ok(()) or ServiceError if not found
-pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
-    ctx.storage()
-        .agents
-        .clone()
-        .remove(name)
-        .map_err(|e| ServiceError::AgentRegistryStore {
-            source: None,
-            message: e.to_string(),
-        })
-}
-
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  rt is a valid tokio Runtime; action is a BotAction variant (List or Status)
-/// post: for List — prints table of all agents (or "No agents registered"); for Status — prints detailed agent info
-pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
-    // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "bot", action = ?action, "CNS");
-    use crate::commands;
-    match action {
-        BotAction::List { kind } => {
-            let agents = block_on!(
-                rt,
-                commands::bot_list(kind.as_deref()),
-                "Failed to list agents"
-            );
-            if agents.is_empty() {
-                println!("No agents registered.");
-            } else {
-                println!(
-                    "{:<25} {:<12} {:<40} SOURCE",
-                    "NAME", "KIND", "CAPABILITIES"
-                );
-                println!("{}", "-".repeat(100));
-                for agent in &agents {
-                    println!(
-                        "{:<25} {:<12} {:<40} {}",
-                        agent.definition.name,
-                        agent.definition.agent_kind,
-                        agent.definition.capabilities.len(),
-                        agent.source_yaml
-                    );
+/// List and display agents.
+pub(crate) fn list_agents(ctx: &AgentService, kind_filter: Option<&str>) {
+    let agents = match ctx.storage().agents.list() {
+        Ok(all) => match kind_filter {
+            Some(kind_str) => {
+                if let Ok(kind) = kind_str.parse() {
+                    all.into_iter()
+                        .filter(|a| a.definition.agent_kind == kind)
+                        .collect()
+                } else {
+                    eprintln!("Unknown agent kind: {}", kind_str);
+                    return;
                 }
-                println!("\nTotal: {} agents", agents.len());
             }
+            None => all,
+        },
+        Err(e) => {
+            eprintln!("Failed to list agents: {}", e);
+            return;
         }
-        BotAction::Status { name } => {
-            let agent = block_on!(
-                rt,
-                commands::bot_status(&name),
-                "Failed to get agent status"
+    };
+    if agents.is_empty() {
+        println!("No agents registered.");
+    } else {
+        println!(
+            "{:<25} {:<12} {:<40} SOURCE",
+            "NAME", "KIND", "CAPABILITIES"
+        );
+        println!("{}", "-".repeat(100));
+        for agent in &agents {
+            println!(
+                "{:<25} {:<12} {:<40} {}",
+                agent.definition.name,
+                agent.definition.agent_kind,
+                agent.definition.capabilities.len(),
+                agent.source_yaml
             );
-            let def = &agent.definition;
-            println!("Agent: {}", def.name);
-            println!("  Kind: {}", def.agent_kind);
-            if let Some(c) = &def.charter {
-                println!("  Charter: {}", c.description);
-            }
-            println!("  Capabilities:");
-            for cap in &def.capabilities {
-                println!("    - {}", cap);
-            }
-            if !def.rights.is_empty() {
-                println!("  Rights:");
-                for r in &def.rights {
-                    println!("    - {}", r.to_display_string());
-                }
-            }
-            if !def.responsibilities.is_empty() {
-                println!("  Responsibilities:");
-                for r in &def.responsibilities {
-                    println!("    - {}", r.to_display_string());
-                }
-            }
-            println!("  Registered: {}", agent.registered_at);
-            println!("  Source: {}", agent.source_yaml);
         }
+        println!("\nTotal: {} agents", agents.len());
     }
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  rt is a valid tokio Runtime; action is an AgentAction variant (Register, Unregister, List, Capabilities)
-/// post: dispatches to the appropriate handler; prints results to stdout; exits on fatal errors
-pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) {
-    // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "agent", action = ?action, "CNS");
-    use crate::commands;
-    match action {
-        crate::cli::AgentAction::Register {
-            webid,
-            agent_type,
-            capabilities,
-        } => {
-            let caps: Vec<String> = capabilities
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .collect();
-            let receipt = block_on!(
-                rt,
-                commands::agent_register(&webid, &agent_type, caps),
-                "Registration failed"
-            );
-            println!("Agent registered:");
-            println!("  WebID: {}", receipt.webid);
-            println!("  Token: {}...", &receipt.token_hash[..16]);
-            println!("  Registered at: {}", receipt.registered_at);
+/// Show detailed status for one agent.
+pub(crate) fn show_agent_status(ctx: &AgentService, name: &str) {
+    let agent = match ctx.storage().agents.get(name) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("Agent not found: {}", e);
+            return;
         }
-        crate::cli::AgentAction::Unregister { name } => {
-            block_on!(rt, commands::agent_unregister(&name), "Unregister failed");
-            println!("Agent unregistered: {}", name);
+    };
+    let def = &agent.definition;
+    println!("Agent: {}", def.name);
+    println!("  Kind: {}", def.agent_kind);
+    if let Some(c) = &def.charter {
+        println!("  Charter: {}", c.description);
+    }
+    println!("  Capabilities:");
+    for cap in &def.capabilities {
+        println!("    - {}", cap);
+    }
+    if !def.rights.is_empty() {
+        println!("  Rights:");
+        for r in &def.rights {
+            println!("    - {}", r.to_display_string());
         }
-        crate::cli::AgentAction::List => {
-            let agents = block_on!(rt, commands::bot_list(None), "Failed to list agents");
+    }
+    if !def.responsibilities.is_empty() {
+        println!("  Responsibilities:");
+        for r in &def.responsibilities {
+            println!("    - {}", r.to_display_string());
+        }
+    }
+    println!("  Registered: {}", agent.registered_at);
+    println!("  Source: {}", agent.source_yaml);
+}
+
+/// List agents (compact format for `kask agent list`).
+pub(crate) fn list_agents_compact(ctx: &AgentService) {
+    match ctx.storage().agents.list() {
+        Ok(agents) => {
             if agents.is_empty() {
                 println!("No agents registered.");
             } else {
@@ -269,114 +140,93 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
                 }
             }
         }
-        crate::cli::AgentAction::Capabilities { name } => {
-            let agent = block_on!(
-                rt,
-                commands::bot_status(&name),
-                "Failed to get capabilities"
-            );
+        Err(e) => eprintln!("Failed to list agents: {}", e),
+    }
+}
+
+/// Show capabilities for one agent.
+pub(crate) fn show_agent_capabilities(ctx: &AgentService, name: &str) {
+    match ctx.storage().agents.get(name) {
+        Ok(agent) => {
             println!("Capabilities for {}:", agent.definition.name);
             for cap in &agent.definition.capabilities {
                 println!("  - {}", cap);
             }
         }
+        Err(e) => eprintln!("Agent not found: {}", e),
+    }
+}
+
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  rt is a valid tokio Runtime; action is a BotAction variant (List or Status)
+/// post: for List — prints table of all agents; for Status — prints detailed agent info
+pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
+    tracing::info!(target: "cns.cli", operation = "bot", action = ?action, "CNS");
+    let ctx = super::helpers::build_agent_service();
+    match action {
+        BotAction::List { kind } => list_agents(&ctx, kind.as_deref()),
+        BotAction::Status { name } => show_agent_status(&ctx, &name),
+    }
+}
+
+/// expect: "I can access all hKask functionality through the kask CLI"
+/// pre:  rt is a valid tokio Runtime; action is an AgentAction variant
+pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) {
+    tracing::info!(target: "cns.cli", operation = "agent", action = ?action, "CNS");
+    let ctx = super::helpers::build_agent_service();
+    match action {
+        crate::cli::AgentAction::Register {
+            webid,
+            agent_type,
+            capabilities,
+        } => {
+            let caps: Vec<String> = capabilities
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .collect();
+            let receipt = block_on!(
+                rt,
+                register_agent(&ctx, &webid, &agent_type, caps),
+                "Registration failed"
+            );
+            println!("Agent registered:");
+            println!("  WebID: {}", receipt.webid);
+            println!("  Token: {}...", &receipt.token_hash[..16]);
+            println!("  Registered at: {}", receipt.registered_at);
+        }
+        crate::cli::AgentAction::Unregister { name } => match ctx.storage().agents.remove(&name) {
+            Ok(()) => println!("Agent unregistered: {}", name),
+            Err(e) => eprintln!("Failed to unregister: {}", e),
+        },
+        crate::cli::AgentAction::List => list_agents_compact(&ctx),
+        crate::cli::AgentAction::Capabilities { name } => show_agent_capabilities(&ctx, &name),
         crate::cli::AgentAction::Revert {
             name,
             commit,
             reason,
-        } => {
-            let adapter = GixCasAdapter::from_env().unwrap_or_else(|e| {
-                eprintln!("Failed to initialize CAS adapter: {}", e);
-                std::process::exit(1);
-            });
-            let commit_hash: hkask_ports::git_cas::CommitHash =
-                commit
-                    .parse()
-                    .unwrap_or_else(|e: hkask_ports::git_cas::ParseHashError| {
-                        eprintln!("Invalid commit hash '{}': {}", commit, e);
-                        std::process::exit(1);
-                    });
-            let sanitized = agent_paths::sanitize_name(&name);
-            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-            let pod_dir = base.join("hkask").join("agents").join(&sanitized);
-            let pod_db_path = pod_dir.join("pod.db");
-            if !pod_db_path.exists() {
-                eprintln!(
-                    "Pod database not found at {}. Is the pod activated?",
-                    pod_db_path.display()
-                );
-                std::process::exit(1);
-            }
-
-            // Safety snapshot before revert
-            let safety_commit = block_on!(
-                rt,
-                adapter.snapshot_pod_dir(
-                    &pod_dir,
-                    &format!("safety: pre-revert {} ({})", name, reason)
-                ),
-                "Safety snapshot failed"
-            );
-            println!("Safety snapshot: {}", safety_commit);
-
-            // Restore pod.db from target commit
-            block_on!(
-                rt,
-                adapter.restore_file_from_commit(&pod_dir, &commit_hash, "pod.db", &pod_db_path),
-                "Restore failed"
-            );
-            println!("Agent '{}' reverted to commit {}.", name, commit_hash);
-            println!(
-                "\nTo undo this revert, restore from safety snapshot {}.",
-                safety_commit
-            );
-            println!(
-                "\n⚠️  Pod '{}' is still running with pre-revert state.",
-                name
-            );
-            println!("   Restart the pod to apply the restored database:");
-            println!(
-                "   kask pod deactivate {} && kask pod activate {}",
-                name, name
-            );
-        }
-        crate::cli::AgentAction::SpawnAgent {
-            source,
-            new_name,
-            commit,
-        } => {
-            let adapter = GixCasAdapter::from_env().unwrap_or_else(|e| {
-                eprintln!("Failed to initialize CAS adapter: {}", e);
-                std::process::exit(1);
-            });
-            let commit_hash: hkask_ports::git_cas::CommitHash =
-                commit
-                    .parse()
-                    .unwrap_or_else(|e: hkask_ports::git_cas::ParseHashError| {
-                        eprintln!("Invalid commit hash '{}': {}", commit, e);
-                        std::process::exit(1);
-                    });
-            let source_sanitized = agent_paths::sanitize_name(&source);
-            let target_sanitized = agent_paths::sanitize_name(&new_name);
-            let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-            let source_dir = base.join("hkask").join("agents").join(&source_sanitized);
-            let target_dir = base.join("hkask").join("agents").join(&target_sanitized);
-            std::fs::create_dir_all(&target_dir).unwrap_or_else(|e| {
-                eprintln!("Failed to create agent directory: {}", e);
-                std::process::exit(1);
-            });
-            let new_db_path = target_dir.join("pod.db");
-
-            // Restore pod.db from source agent's commit into the new agent dir
-            block_on!(
-                rt,
-                adapter.restore_file_from_commit(&source_dir, &commit_hash, "pod.db", &new_db_path),
-                "Spawn agent restore failed"
-            );
-            println!("Agent spawned from '{}' as '{}'.", source, new_name);
-            println!("  Source commit: {}", commit_hash);
-            println!("  Database:      {}", new_db_path.display());
-            println!("\nActivate with: kask pod activate {}", new_name);
-        }
+        } => match revert_agent(&ctx, &name, &commit, &reason) {
+            Ok(msg) => println!("{}", msg),
+            Err(e) => eprintln!("Revert failed: {}", e),
+        },
     }
+}
+
+// ── Async helpers (kept minimal — only for genuinely async operations) ────
+
+/// Register an agent — needs async because A2A registration is async.
+async fn register_agent(
+    ctx: &AgentService,
+    webid_str: &str,
+    agent_type: &str,
+    capabilities: Vec<String>,
+) -> Result<AgentReceipt, String> {
+    let webid: hkask_types::WebID = webid_str
+        .parse()
+        .map_err(|e| format!("Invalid WebID: {e}"))?;
+    let kind = hkask_agents::AgentKind::parse(agent_type)
+        .ok_or_else(|| format!("Unknown agent kind: {}", agent_type))?;
+    let (_, a2a) = ctx.identity();
+    a2a.register_agent(webid, kind, capabilities)
+        .await
+        .map_err(|e| format!("A2A registration failed: {e}"))
 }

@@ -12,7 +12,7 @@ use zeroize::Zeroizing;
 type Store = Arc<Mutex<UserStore>>;
 
 fn build_store() -> Store {
-    crate::commands::helpers::build_service_context()
+    crate::commands::helpers::build_agent_service()
         .storage()
         .users
         .clone()

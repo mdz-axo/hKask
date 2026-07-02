@@ -33,7 +33,7 @@ pub async fn token_issue(
     capabilities: Vec<String>,
     ttl: &str,
 ) -> Result<String, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     let webid = WebID::from_persona(replicant.as_bytes());
     let ttl_secs = parse_ttl(ttl).map_err(|e| ServiceError::Config {
         source: None,
@@ -90,7 +90,7 @@ pub async fn token_issue(
 
 /// List tokens for a replicant (or all replicants if None).
 pub fn token_list(replicant: Option<&str>) -> Result<Vec<TokenEntry>, ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     let agents =
         ctx.storage()
             .agents
@@ -115,7 +115,7 @@ pub fn token_list(replicant: Option<&str>) -> Result<Vec<TokenEntry>, ServiceErr
 
 /// Revoke a token by ID.
 pub async fn token_revoke(token_id: &str) -> Result<(), ServiceError> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     let (_system_webid, a2a) = ctx.identity();
     a2a.revoke_capability(token_id).await;
     Ok(())

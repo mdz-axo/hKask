@@ -44,7 +44,7 @@ fn resolve_editor() -> String {
 /// post: dispatches to compose, apply, list, show, evolve, skills, or off based on action variant
 pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
     // Build the shared service context.
-    let ctx = commands::helpers::build_service_context();
+    let ctx = commands::helpers::build_agent_service();
 
     match action {
         BundleAction::Compose {

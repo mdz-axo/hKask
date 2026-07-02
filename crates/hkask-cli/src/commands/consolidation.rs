@@ -17,7 +17,7 @@ pub fn run(
     // Resolve agent name — defaults to "curator" for the Curator agent
     let agent_name = agent.unwrap_or("curator");
 
-    let agent_service = super::helpers::build_service_context();
+    let agent_service = super::helpers::build_agent_service();
 
     // Passphrase verification using ConsolidationService.
     // Required when targeting a non-Curator agent as an additional auth gate.

@@ -5,6 +5,9 @@
 
 use std::path::{Path, PathBuf};
 
+use hkask_services_context::AgentService;
+use hkask_services_core::ServiceConfig;
+
 /// Unwrap a `Result` or print an error message and exit.
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  result is a `Result<T, E>`; label is a human-readable context string
@@ -19,190 +22,97 @@ pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T 
     }
 }
 
-/// Convenience: `build_service_context_inner(None)` with exit-on-failure.
-/// Preserves backward compatibility for all call sites that already
-/// expected a non-fallible return.
-pub fn build_service_context() -> hkask_services_context::AgentService {
-    or_exit(
-        build_service_context_inner(None),
-        "Failed to build service context",
-    )
-}
-
-/// Build an AgentService from environment config or pre-resolved secrets.
-/// Returns `Result` so callers that need graceful error handling (e.g. chat)
-/// can map the error to their own response type instead of exiting.
+/// Build an AgentService from environment config.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  if `from_secrets` is Some → (agent_name, ResolvedSecrets) used
-/// pre:  if `from_secrets` is None → ServiceConfig::from_env() used
-/// post: returns Ok(AgentService) or Err(String) describing the failure
-pub fn build_service_context_from_secrets(
-    from_secrets: Option<(&str, &hkask_services_onboarding::ResolvedSecrets)>,
-) -> Result<hkask_services_context::AgentService, String> {
-    build_service_context_inner(from_secrets)
-}
-
-fn build_service_context_inner(
-    from_secrets: Option<(&str, &hkask_services_onboarding::ResolvedSecrets)>,
-) -> Result<hkask_services_context::AgentService, String> {
-    let config = match from_secrets {
-        Some((name, secrets)) => hkask_services_core::ServiceConfig::from_secrets(
-            secrets.a2a_secret.clone(),
-            secrets.db_passphrase.clone(),
-            secrets.mcp_secret.clone(),
-            name.to_string(),
-        ),
-        None => hkask_services_core::ServiceConfig::from_env()
-            .map_err(|e| format!("Failed to resolve service config: {}", e))?,
-    };
-    match tokio::runtime::Handle::try_current() {
-        Ok(_handle) => {
-            // Already inside a tokio runtime — spawn on a separate OS thread
-            // to avoid nested block_on panics (Handle::block_on is forbidden
-            // from within a tokio worker or block_on context).
-            let (tx, rx) = std::sync::mpsc::channel();
-            let cfg = config.clone();
-            std::thread::spawn(move || {
-                let rt = tokio::runtime::Runtime::new()
-                    .expect("Failed to create tokio runtime for service build");
-                let result = rt.block_on(hkask_services_context::AgentService::build(cfg));
-                let _ = tx.send(result);
-            });
-            rx.recv()
-                .map_err(|_| "Service build thread panicked".to_string())
-                .and_then(|r| r.map_err(|e| e.to_string()))
-        }
-        Err(_) => {
-            let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-            rt.block_on(hkask_services_context::AgentService::build(config))
-                .map_err(|e| e.to_string())
-        }
-    }
+/// Always creates a fresh tokio runtime — safe to call from any context.
+/// This is the single entry point for one-shot CLI commands.
+pub fn build_agent_service() -> AgentService {
+    let config = or_exit(
+        ServiceConfig::from_env(),
+        "Failed to resolve service config",
+    );
+    let rt =
+        tokio::runtime::Runtime::new().expect("Failed to create tokio runtime for service build");
+    or_exit(
+        rt.block_on(AgentService::build(config)),
+        "Failed to build AgentService",
+    )
 }
 
 /// Write content to a file or print to stdout.
 pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
     match output {
         Some(path) => {
-            if let Some(parent) = path.parent()
-                && let Err(e) = std::fs::create_dir_all(parent)
-            {
-                eprintln!(
-                    "Failed to create output directory {}: {}",
-                    parent.display(),
-                    e
-                );
+            std::fs::write(path, content).unwrap_or_else(|e| {
+                eprintln!("Failed to write {} to {}: {}", label, path.display(), e);
                 std::process::exit(1);
-            }
-            if let Err(e) = std::fs::write(path, content) {
-                eprintln!("Failed to write {}: {}", label, e);
-                std::process::exit(1);
-            }
-            println!("{} written to {}", label, path.display());
+            });
         }
         None => println!("{}", content),
     }
 }
 
-#[macro_export]
-macro_rules! block_on {
-    ($rt:expr, $fut:expr, $label:literal) => {
-        $crate::commands::helpers::or_exit($rt.block_on($fut), $label)
-    };
-}
-
+/// Resolve the current user's WebID for commands that need an author identity.
 pub fn resolve_user_webid() -> hkask_types::WebID {
-    if let Ok(uuid_str) = std::env::var("HKASK_WEBID")
-        && let Ok(webid) = uuid_str.parse::<hkask_types::WebID>()
-    {
-        return webid;
-    }
-    hkask_types::WebID::from_persona(b"cli-user")
+    let name = std::env::var("HKASK_USER_WEBID").unwrap_or_else(|_| "cli-user".to_string());
+    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
 }
 
+/// Start a specific MCP server.
 pub fn start_mcp_server(
     rt: &tokio::runtime::Runtime,
-    ctx: &hkask_services_context::AgentService,
+    ctx: &AgentService,
     server_id: &str,
-    command: &str,
+    binary: &str,
 ) -> bool {
-    match rt.block_on(ctx.infra().mcp.clone().start_server(server_id, command)) {
-        Ok(()) => {
-            tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started");
-            true
-        }
+    let mcp_runtime = ctx.infra().mcp.clone();
+    let replicant_name = ctx.config().agent_name.clone();
+    let mut env = std::collections::HashMap::new();
+    env.insert("HKASK_MCP_HOST".to_string(), replicant_name);
+    match rt.block_on(
+        mcp_runtime
+            .as_ref()
+            .start_server_with_env(server_id, binary, env),
+    ) {
+        Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.cli", server_id = %server_id, error = %e, "Failed to start MCP server");
+            eprintln!("Failed to start MCP server '{}': {}", server_id, e);
             false
         }
     }
 }
 
-pub fn print_item_list<T>(
-    items: &[T],
-    empty_label: &str,
-    label: &str,
-    format_item: impl Fn(&T) -> String,
-) {
-    if items.is_empty() {
-        println!("{}", empty_label);
-        return;
-    }
-    println!("{} ({}):", label, items.len());
-    for item in items {
-        println!("  {}", format_item(item));
-    }
-    println!("{} total.", items.len());
-}
-
+/// Start MCP servers with custom environment.
 pub fn start_mcp_servers_with_env(
     rt: &tokio::runtime::Runtime,
-    ctx: &hkask_services_context::AgentService,
+    ctx: &AgentService,
     servers: &[(&str, &str)],
     replicant_name: &str,
-) -> usize {
-    let mut extra_env = std::collections::HashMap::new();
-    extra_env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
-    let mut started = 0;
-    for (server_id, command) in servers {
-        match rt.block_on(ctx.infra().mcp.clone().start_server_with_env(
+) {
+    let mcp_runtime = ctx.infra().mcp.clone();
+    let mut env = std::collections::HashMap::new();
+    env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
+    for (server_id, binary) in servers {
+        if let Err(e) = rt.block_on(mcp_runtime.as_ref().start_server_with_env(
             server_id,
-            command,
-            extra_env.clone(),
+            binary,
+            env.clone(),
         )) {
-            Ok(()) => {
-                started += 1;
-                tracing::info!(target: "hkask.cli", server_id = %server_id, "MCP server started");
-            }
-            Err(e) => {
-                tracing::warn!(target: "hkask.cli", server_id = %server_id, error = %e, "Failed to start MCP server");
-            }
+            eprintln!("Failed to start MCP server '{}': {}", server_id, e);
         }
     }
-    started
 }
 
-/// Resolve the `deploy/k8s/` source directory for manifest operations.
-///
-/// Tries in order:
-/// 1. `HKASK_DEPLOY_DIR` env var (for installed or custom paths)
-/// 2. `deploy/k8s/` relative to current working directory (dev / repo root)
-///
-/// Used by both `pod::export_k8s` and `curator::copy_conduit_manifests`.
-/// Single source of truth for deploy directory resolution.
-pub fn resolve_deploy_dir() -> Result<PathBuf, String> {
-    if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
-        let p = PathBuf::from(&d);
-        if p.is_dir() {
-            return Ok(p);
-        }
-        return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}"));
+/// Resolve an agent name from an optional argument or environment.
+pub fn resolve_agent_name(agent: Option<&str>) -> String {
+    if let Some(name) = agent {
+        return name.to_string();
     }
-    let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
-    let candidate = cwd.join("deploy").join("k8s");
-    if candidate.is_dir() {
-        return Ok(candidate);
-    }
-    Err("Cannot find deploy/k8s/. Set HKASK_DEPLOY_DIR or run from repo root.".into())
+    std::env::var("HKASK_MCP_HOST").unwrap_or_else(|_| "anonymous".to_string())
+}
+
+/// Resolve a WebID from an optional argument or derive from agent name.
+pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
+    let name = resolve_agent_name(agent);
+    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
 }

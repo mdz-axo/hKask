@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// Authenticate a replicant and resolve the agent-specific DB path.
 /// Returns (db_path, db_passphrase) after successful login.
 fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, String), String> {
-    let ctx = crate::commands::helpers::build_service_context();
+    let ctx = crate::commands::helpers::build_agent_service();
     let store = ctx.storage().users.clone();
 
     // Authenticate

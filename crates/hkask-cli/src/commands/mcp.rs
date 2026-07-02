@@ -1,14 +1,6 @@
 //! MCP command handlers for `kask mcp`
 
 use crate::cli::McpAction;
-use hkask_mcp::BUILTIN_SERVERS;
-
-fn build_service_context(rt: &tokio::runtime::Runtime) -> hkask_services_context::AgentService {
-    let ctx = super::helpers::build_service_context();
-    let replicant_name = ctx.config().agent_name.clone();
-    super::helpers::start_mcp_servers_with_env(rt, &ctx, BUILTIN_SERVERS, &replicant_name);
-    ctx
-}
 
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is a valid tokio Runtime; action is a valid McpAction variant
@@ -16,7 +8,7 @@ fn build_service_context(rt: &tokio::runtime::Runtime) -> hkask_services_context
 pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
     match action {
         McpAction::ListServers => {
-            let ctx = build_service_context(rt);
+            let ctx = super::helpers::build_agent_service();
             let servers = rt.block_on(ctx.infra().mcp.clone().list_servers());
             println!("MCP servers:");
             if servers.is_empty() {
@@ -28,7 +20,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             }
         }
         McpAction::ListTools => {
-            let ctx = build_service_context(rt);
+            let ctx = super::helpers::build_agent_service();
             let tools = rt.block_on(ctx.infra().mcp.clone().discover_tools());
             println!("Available tools:");
             if tools.is_empty() {
@@ -40,7 +32,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             }
         }
         McpAction::GetTool { name } => {
-            let ctx = build_service_context(rt);
+            let ctx = super::helpers::build_agent_service();
             match rt.block_on(ctx.infra().mcp.clone().get_tool_info(&name)) {
                 Some(info) => {
                     println!("Tool: {}", info.name);
@@ -69,7 +61,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             use hkask_templates::McpPort;
             let input_value: serde_json::Value =
                 super::helpers::or_exit(serde_json::from_str(&input), "parse JSON input");
-            let ctx = build_service_context(rt);
+            let ctx = super::helpers::build_agent_service();
             let from = super::helpers::resolve_user_webid();
             let to = super::helpers::resolve_user_webid();
             let token = ctx

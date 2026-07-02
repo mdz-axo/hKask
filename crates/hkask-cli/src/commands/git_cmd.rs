@@ -105,7 +105,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             repo,
             message,
         } => {
-            let ctx = super::helpers::build_service_context();
+            let ctx = super::helpers::build_agent_service();
 
             let result = block_on!(
                 rt,

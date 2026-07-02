@@ -18,7 +18,7 @@ pub fn run_goal(action: crate::cli::GoalAction) {
 }
 
 fn create(text: &str, visibility: &str) -> Result<(), String> {
-    let ctx = super::helpers::build_service_context();
+    let ctx = super::helpers::build_agent_service();
     let owner = WebID::from_persona(b"cli-user");
     let vis = Visibility::parse_str(visibility).ok_or_else(|| {
         format!(
@@ -38,7 +38,7 @@ fn create(text: &str, visibility: &str) -> Result<(), String> {
 }
 
 fn list(state: Option<&str>) -> Result<(), String> {
-    let ctx = super::helpers::build_service_context();
+    let ctx = super::helpers::build_agent_service();
     let owner = WebID::from_persona(b"cli-user");
     let filter = match state {
         Some(s) => Some(
@@ -57,7 +57,7 @@ fn list(state: Option<&str>) -> Result<(), String> {
 }
 
 fn set_state(id: &str, state: &str) -> Result<(), String> {
-    let ctx = super::helpers::build_service_context();
+    let ctx = super::helpers::build_agent_service();
     let owner = WebID::from_persona(b"cli-user");
     let goal_id: hkask_types::id::GoalID = id
         .parse()
