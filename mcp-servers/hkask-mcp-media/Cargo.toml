@@ -37,8 +37,6 @@ ab_glyph.workspace = true
 uuid.workspace = true
 nom-exif.workspace = true
 face_id = { version = "0.4", optional = true }
-hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
-hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
 
 [lib]
 name = "hkask_mcp_media"
