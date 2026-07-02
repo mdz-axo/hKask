@@ -166,6 +166,22 @@ impl GasBudgetManager {
 
     /// Replenish all registered budgets, skipping agents with active Curation overrides.
     pub async fn replenish_all_budgets(&self) {
+        // G9: Auto-release stale reservations before replenishing
+        {
+            let mut budgets = self.gas_budgets.write().await;
+            for (agent, budget) in budgets.iter_mut() {
+                if let Some(stale) = budget.stale_reservation() {
+                    budget.release_stale_reservation();
+                    tracing::warn!(
+                        target: "cns.cybernetics",
+                        agent = %agent,
+                        released = stale.0,
+                        "Auto-released stale gas reservation — caller never settled"
+                    );
+                }
+            }
+        }
+
         let budget_ids: Vec<WebID> = {
             let budgets = self.gas_budgets.read().await;
             budgets.keys().cloned().collect()
@@ -342,6 +358,16 @@ impl GasBudgetManager {
         budgets
             .iter()
             .map(|(id, budget)| (*id, AgentGasStatus::from(budget)))
+            .collect()
+    }
+
+    /// Return wallet-backed agents whose balance is zero.
+    pub async fn wallet_exhausted_agents(&self) -> Vec<WebID> {
+        let wallets = self.wallet_budgets.read().await;
+        wallets
+            .iter()
+            .filter(|(_, wb)| !wb.can_proceed(GasCost(1)))
+            .map(|(id, _)| *id)
             .collect()
     }
 

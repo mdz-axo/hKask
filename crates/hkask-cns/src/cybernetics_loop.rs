@@ -610,22 +610,42 @@ impl HkaskLoop for CyberneticsLoop {
         // E04: Detect and escalate budget exhaustion via algedonic pathway
         {
             let statuses = self.gas_budget_manager.all_agent_statuses().await;
-            let exhausted: Vec<_> = statuses
+            let gas_exhausted: Vec<_> = statuses
                 .into_iter()
                 .filter(|(_, s)| s.remaining.0 == 0 && s.hard_limit)
                 .collect();
-            for (agent, status) in &exhausted {
+
+            // G10: Wallet-backed budget exhaustion
+            let wallet_exhausted = self.gas_budget_manager.wallet_exhausted_agents().await;
+
+            let alert_entries: Vec<(String, String)> = gas_exhausted
+                .iter()
+                .map(|(agent, status)| {
+                    (
+                        format!("gas_budget:{agent}"),
+                        format!(
+                            "Agent {agent} gas budget exhausted (cap: {}, remaining: 0)",
+                            status.cap.0
+                        ),
+                    )
+                })
+                .chain(wallet_exhausted.iter().map(|agent| {
+                    (
+                        format!("wallet_budget:{agent}"),
+                        format!("Agent {agent} wallet balance exhausted"),
+                    )
+                }))
+                .collect();
+
+            for (domain, message) in &alert_entries {
                 let alert = RuntimeAlert {
-                    domain: format!("gas_budget:{agent}"),
-                    deficit: status.cap.0,
+                    domain: domain.clone(),
+                    deficit: 1,
                     threshold: 1,
                     severity: AlertSeverity::Warning,
                     escalated: false,
                     timestamp: chrono::Utc::now(),
-                    message: format!(
-                        "Agent {agent} gas budget exhausted (cap: {}, remaining: 0)",
-                        status.cap.0
-                    ),
+                    message: message.clone(),
                 };
                 let sent = if let Some(ref tx) = self.alerts_tx {
                     tx.send(CurationInput::Alert(alert.clone())).is_ok()

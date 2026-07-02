@@ -100,7 +100,14 @@ pub struct GasBudget {
     reserved: GasCost,
     #[serde(default = "default_priority")]
     priority: f64,
+    /// Timestamp of the most recent reservation.
+    /// Used to detect stale (never-settled) reservations.
+    #[serde(default)]
+    last_reservation: Option<chrono::DateTime<chrono::Utc>>,
 }
+
+/// Stale reservations older than this are auto-released.
+pub const RESERVATION_TIMEOUT_SECS: i64 = 300;
 
 impl GasBudget {
     pub fn new(cap: GasCost) -> Self {
@@ -114,6 +121,7 @@ impl GasBudget {
             reserved: GasCost::ZERO,
             priority: 1.0,
             cap,
+            last_reservation: None,
         }
     }
     pub fn unlimited() -> Self {
@@ -160,6 +168,7 @@ impl GasBudget {
         self.cap = new_cap;
         self.remaining = new_cap;
         self.reserved = GasCost::ZERO;
+        self.last_reservation = None;
         tracing::warn!(target: "cns.gas", operation = "reset_to", new_cap = %new_cap.0, "CNS");
     }
 
@@ -180,6 +189,7 @@ impl GasBudget {
             });
         }
         self.reserved = GasCost(self.reserved.0.saturating_add(gas.0));
+        self.last_reservation = Some(chrono::Utc::now());
         debug_assert!(
             self.reserved.0 <= self.remaining.0,
             "invariant: reserved ≤ remaining"
@@ -197,6 +207,9 @@ impl GasBudget {
         // if estimation-overrun detection is required. This method enforces
         // actual <= remaining (budget cap), not actual <= reserved.
         self.reserved = GasCost(self.reserved.0.saturating_sub(reserved_gas.0));
+        if self.reserved.0 == 0 {
+            self.last_reservation = None;
+        }
         if self.hard_limit && actual_gas.0 > self.remaining.0 {
             tracing::warn!(target: "cns.gas", operation = "settle", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, actual = %actual_gas.0, outcome = "budget_exceeded", "CNS");
             return Err(GasError::BudgetExceeded {
@@ -248,6 +261,25 @@ impl GasBudget {
     }
     pub(crate) fn usage_ratio(&self) -> f64 {
         1.0 - (self.remaining.0 as f64 / self.cap.0.max(1) as f64)
+    }
+
+    /// Check whether the current reservation is stale (never settled within timeout).
+    pub fn stale_reservation(&self) -> Option<GasCost> {
+        let ts = self.last_reservation?;
+        let elapsed = (chrono::Utc::now() - ts).num_seconds();
+        if elapsed > RESERVATION_TIMEOUT_SECS && self.reserved.0 > 0 {
+            Some(self.reserved)
+        } else {
+            None
+        }
+    }
+
+    /// Auto-release a stale reservation. Returns the amount released.
+    pub fn release_stale_reservation(&mut self) -> GasCost {
+        let amount = self.reserved;
+        self.reserved = GasCost::ZERO;
+        self.last_reservation = None;
+        amount
     }
 }
 
