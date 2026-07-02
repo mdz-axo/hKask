@@ -170,14 +170,16 @@ impl WellManager {
     pub fn load_state(&mut self, state: &serde_json::Value) {
         if let Some(gas) = state.get("default_well_gas").and_then(|v| v.as_u64())
             && let Some(default_id) = self.default_well
-                && let Some(well) = self.wells.get_mut(&default_id) {
-                    well.gas_available = GasCost(gas);
-                }
+            && let Some(well) = self.wells.get_mut(&default_id)
+        {
+            well.gas_available = GasCost(gas);
+        }
         if let Some(rj) = state.get("default_well_rjoule").and_then(|v| v.as_u64())
             && let Some(default_id) = self.default_well
-                && let Some(well) = self.wells.get_mut(&default_id) {
-                    well.rjoule_available = rj;
-                }
+            && let Some(well) = self.wells.get_mut(&default_id)
+        {
+            well.rjoule_available = rj;
+        }
     }
 }
 

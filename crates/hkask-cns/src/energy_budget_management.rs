@@ -102,9 +102,10 @@ impl GasBudgetManager {
     pub async fn can_proceed(&self, agent: &WebID, gas: GasCost) -> bool {
         // 1. Check SQLite-backed WalletManager
         if let Some(ref wm) = self.wallet_manager
-            && wm.has_wallet(agent).await {
-                return wm.can_proceed(agent, gas).await;
-            }
+            && wm.has_wallet(agent).await
+        {
+            return wm.can_proceed(agent, gas).await;
+        }
         // 2. Check WalletBackedBudget (rJoule-backed, Hedera)
         let wallet_budgets = self.wallet_budgets.read().await;
         if let Some(budget) = wallet_budgets.get(agent) {
@@ -131,9 +132,10 @@ impl GasBudgetManager {
     pub async fn reserve_gas(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
         // 1. Check SQLite-backed WalletManager
         if let Some(ref wm) = self.wallet_manager
-            && wm.has_wallet(agent).await {
-                return wm.spend(agent, gas).await;
-            }
+            && wm.has_wallet(agent).await
+        {
+            return wm.spend(agent, gas).await;
+        }
         // 2. Check WalletBackedBudget (rJoule)
         let wallet_budgets = self.wallet_budgets.read().await;
         if let Some(budget) = wallet_budgets.get(agent) {
@@ -159,9 +161,10 @@ impl GasBudgetManager {
     ) -> Result<GasCost, GasError> {
         // 1. Wallet manager: spend already deducted, no hold-settle needed
         if let Some(ref wm) = self.wallet_manager
-            && wm.has_wallet(agent).await {
-                return Ok(actual_gas); // already spent during reserve
-            }
+            && wm.has_wallet(agent).await
+        {
+            return Ok(actual_gas); // already spent during reserve
+        }
         // 2. Wallet-backed budget (rJoule)
         let wallet_budgets = self.wallet_budgets.read().await;
         if let Some(budget) = wallet_budgets.get(agent) {
@@ -243,17 +246,18 @@ impl GasBudgetManager {
             for (agent, budget) in budgets.iter() {
                 let current = budget.remaining().0;
                 if let Some(&previous) = prev.get(agent)
-                    && current < previous {
-                        let burned = previous - current;
-                        tracing::debug!(
-                            target: "cns.cybernetics",
-                            agent = %agent,
-                            gas_burned = burned,
-                            remaining = current,
-                            cap = budget.cap().0,
-                            "Gas consumption velocity"
-                        );
-                    }
+                    && current < previous
+                {
+                    let burned = previous - current;
+                    tracing::debug!(
+                        target: "cns.cybernetics",
+                        agent = %agent,
+                        gas_burned = burned,
+                        remaining = current,
+                        cap = budget.cap().0,
+                        "Gas consumption velocity"
+                    );
+                }
                 prev.insert(*agent, current);
             }
         }

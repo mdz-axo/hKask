@@ -61,10 +61,7 @@ impl WalletManager {
         initial_rjoule: u64,
     ) -> Result<i64, GasError> {
         let store = self.store()?;
-        if store
-            .has_wallet(&agent)
-            .map_err(GasError::Persistence)?
-        {
+        if store.has_wallet(&agent).map_err(GasError::Persistence)? {
             return Err(GasError::Persistence(format!(
                 "Wallet already exists for agent {agent}"
             )));
@@ -79,9 +76,7 @@ impl WalletManager {
             (initial_gas, initial_rjoule)
         };
 
-        let id = store
-            .next_wallet_id()
-            .map_err(GasError::Persistence)?;
+        let id = store.next_wallet_id().map_err(GasError::Persistence)?;
         store
             .insert_wallet(&agent, id, actual_gas.0 as i64, actual_rj as i64)
             .map_err(GasError::Persistence)?;
