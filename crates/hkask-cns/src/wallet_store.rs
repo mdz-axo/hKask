@@ -27,7 +27,7 @@ impl WalletStore {
         Ok(Self { conn })
     }
 
-    fn lock(&self) -> Result<std::sync::MutexGuard<Connection>, String> {
+    fn lock(&self) -> Result<std::sync::MutexGuard<'_, Connection>, String> {
         self.conn.lock().map_err(|e| format!("Lock error: {e}"))
     }
 
