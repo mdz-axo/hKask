@@ -3,6 +3,8 @@
 //! Thin wrapper around the filesystem server library. The server struct and
 //! tool methods live in lib.rs for fuzz testability (P5 Testing Discipline).
 
+#![allow(unused_crate_dependencies)] // All deps used in this binary — lint produces false positives
+
 use hkask_mcp_filesystem::FileSystemServer;
 use std::path::PathBuf;
 

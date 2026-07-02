@@ -19,6 +19,8 @@
 //! If `SkillService` gains execution methods in the future, this server should be migrated
 //! to use them.
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
 use hkask_inference::{InferenceConfig, InferenceRouter};

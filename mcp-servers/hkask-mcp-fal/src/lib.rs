@@ -9,6 +9,8 @@
 //!   infrastructure. Parses the DAG, topologically sorts nodes, executes each
 //!   model call, resolves `$references`, and returns output URLs + metadata.
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 use hkask_fal::FalClient;
 use hkask_mcp::{
     DaemonClient, McpError, ServerContext,

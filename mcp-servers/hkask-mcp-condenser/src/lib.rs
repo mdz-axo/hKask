@@ -20,6 +20,8 @@
 //! HTTP client or inference URL configuration is needed — the router handles
 //! provider dispatch (DeepInfra, Together AI) automatically.
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
 use hkask_condenser::engine::CondenserEngine;

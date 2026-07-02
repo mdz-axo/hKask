@@ -17,6 +17,8 @@
 //! The CommunicationServer struct and tool methods are exported from the library
 //! target to enable testability (P5 Testing Discipline).
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)

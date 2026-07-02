@@ -3,6 +3,8 @@
 //! Thin dispatcher: setup → route to command handler → done.
 //! All business logic and display formatting lives in the `commands` module.
 
+#![allow(unused_crate_dependencies)] // All deps used in this binary — lint produces false positives
+
 use clap::Parser;
 use hkask_cli::cli::Commands;
 use hkask_cli::commands;

@@ -2,6 +2,8 @@
 //!
 //! Thin wrapper around the Fal workflow execution server library.
 
+#![allow(unused_crate_dependencies)] // All deps used in this binary — lint produces false positives
+
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();

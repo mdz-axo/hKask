@@ -5,6 +5,8 @@
 //! cross-pod semantic search, memory recall, spec drift detection,
 //! and algedonic event history.
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)

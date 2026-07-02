@@ -8,6 +8,8 @@
 //! (kanban pattern) for fuzz test construction and P5 Testing Discipline
 //! compliance.
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 pub mod convert;
 pub mod ocr;
 pub mod tools;

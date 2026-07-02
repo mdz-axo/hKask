@@ -8,6 +8,8 @@
 //!   HKASK_GATEWAY_SERVER_KEY  — Path to server private key (PEM)
 //!   HKASK_GATEWAY_CLIENT_CA   — Path to client CA certificate (PEM)
 
+#![allow(unused_crate_dependencies)] // All deps used in this binary — lint produces false positives
+
 use hkask_mcp_cloud_gateway::server::{GatewayConfig, run};
 use std::path::PathBuf;
 

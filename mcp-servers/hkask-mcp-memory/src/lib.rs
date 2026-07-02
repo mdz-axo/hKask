@@ -24,6 +24,8 @@
 //! - `memory_backup` — Export the memory database to a local backup file
 //! - `memory_restore` — Restore the memory database from a local backup file
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 pub mod cogat;
 pub mod types;
 

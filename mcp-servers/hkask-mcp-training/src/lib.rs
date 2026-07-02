@@ -46,6 +46,8 @@
 //! - `HKASK_AXOLOTL_PATH` — Path to axolotl CLI (for Axolotl host)
 //! - `HKASK_PYTHON_PATH` — Path to python3 interpreter (for Unsloth host)
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 pub mod adapters;
 pub mod dataset;
 pub mod huggingface;

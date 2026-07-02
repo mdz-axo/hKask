@@ -14,6 +14,8 @@
 //! - replica_discover — discover an academic author's work and generate corpus.yaml
 //! - replica_cache_work — cache extracted work content to disk
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 pub mod golem;
 pub mod types;
 

@@ -23,5 +23,7 @@
 //!                                    └── Forward to DaemonHandler::dispatch_tool
 //! ```
 
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 pub mod auth;
 pub mod server;

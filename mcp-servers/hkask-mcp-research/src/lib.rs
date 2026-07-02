@@ -1,3 +1,5 @@
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
 mod cache;
 mod db;
 pub mod providers;
