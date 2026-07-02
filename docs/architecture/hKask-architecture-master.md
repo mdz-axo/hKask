@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-06-30
+last_updated: 2026-07-02
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -390,7 +390,8 @@ CLOUD SERVER (single binary, all crates compiled)
   Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, three-tier (Curator/Team/Replicant)
 
 Access (all via HTTPS/Caddy):
-  Browser (xterm.js) - primary
+  Browser (xterm.js) - primary terminal
+  Browser (WSS chat) - streaming agent conversation (GET /api/v1/chat/ws)
   SSH (optional) - power users
   Matrix (Element) - chat clients
   mTLS (port 9443) - remote IDE agents and MCP servers
@@ -647,7 +648,7 @@ See `docs/architecture/well-wallet-architecture.md` for full architecture.
 
 ## REPL Architecture
 
-The interactive REPL (`kask chat`) implements four features that govern inference behavior:
+The interactive REPL (`kask chat`) implements four features that govern inference behavior. For browser-based streaming chat without a terminal, the WSS endpoint (`GET /api/v1/chat/ws`) provides the same memory pipeline and MCP tool integration over a persistent WebSocket connection. See `docs/plans/wss-chat-endpoint.md`.
 
 ### Context Injection
 

@@ -3,7 +3,7 @@ title: "WSS Chat Endpoint — WebSocket Streaming Chat for hKask"
 audience: [architects, developers]
 last_updated: 2026-07-02
 version: "0.31.0"
-status: "Proposed — design review"
+status: "Implemented — Phase 1 complete (2026-07-02). Tools-through-streaming + WSS handler + MCP auto-discovery."
 domain: "Communication"
 mds_categories: [domain, composition, lifecycle]
 anchored_on: [PRINCIPLES.md P1, P2, P3, P4, P5, P9, P12]

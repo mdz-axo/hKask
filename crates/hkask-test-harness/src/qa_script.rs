@@ -508,12 +508,7 @@ fn execute_run_command(
         if next.is_none() {
             return Err(err);
         }
-        eprintln!(
-            "[QA:{}] step {} FAILED: {}",
-            "run_command",
-            step.ordinal(),
-            err
-        );
+        eprintln!("[QA:run_command] step {} FAILED: {}", step.ordinal(), err);
         Ok((stdout, next))
     }
 }
@@ -1282,7 +1277,7 @@ steps:
 "#,
             tmpfile = tmpfile.display()
         );
-        std::fs::write(&path_in(&dir, "test-manifest.yaml"), yaml).unwrap();
+        std::fs::write(path_in(&dir, "test-manifest.yaml"), yaml).unwrap();
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let result = rt
@@ -1436,7 +1431,7 @@ steps:
         let result = rt
             .block_on(run_script(
                 Path::new(workspace_root()),
-                &Path::new("registry/manifests/qa-comm-integration-gate.yaml"),
+                Path::new("registry/manifests/qa-comm-integration-gate.yaml"),
             ))
             .unwrap();
 
@@ -1462,7 +1457,7 @@ steps:
         let result = rt
             .block_on(run_script(
                 Path::new(workspace_root()),
-                &Path::new("registry/manifests/qa-condenser-health-check.yaml"),
+                Path::new("registry/manifests/qa-condenser-health-check.yaml"),
             ))
             .unwrap();
 
@@ -1481,7 +1476,7 @@ steps:
         let result = rt
             .block_on(run_script(
                 Path::new(workspace_root()),
-                &Path::new("registry/manifests/qa-keystore-security-gate.yaml"),
+                Path::new("registry/manifests/qa-keystore-security-gate.yaml"),
             ))
             .unwrap();
 
@@ -1500,7 +1495,7 @@ steps:
         let result = rt
             .block_on(run_script(
                 Path::new(workspace_root()),
-                &Path::new("registry/manifests/qa-memory-privacy-boundary.yaml"),
+                Path::new("registry/manifests/qa-memory-privacy-boundary.yaml"),
             ))
             .unwrap();
 

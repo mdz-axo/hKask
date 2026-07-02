@@ -18,6 +18,8 @@ This document is the authoritative specification for the hKask interactive REPL 
 
 **Scope:** Covers the REPL loop, slash command registry, single-agent turn pipeline, memory infrastructure, gas governance, inference configuration, tool-augmented execution, and future features toward parity with leading AI REPL providers (primarily Zed). Does NOT cover the HTTP API surface (`hkask-api`) or standalone CLI commands (`kask bundle`, `kask sovereignty`, etc.) except where they are directly invoked from the REPL. Multi-agent ensemble turn pipeline is deferred (2026-06-14); see §7 for forward-looking design notes.
 
+**Alternative surface:** The WSS chat endpoint (`GET /api/v1/chat/ws`) provides a browser-compatible WebSocket-based streaming chat interface with MCP tool auto-discovery. See `docs/plans/wss-chat-endpoint.md` for the design and `crates/hkask-api/src/routes/chat_ws.rs` for the implementation.
+
 ## 2. Design Principles
 
 ### 2.1 User Sovereignty First (Magna Carta P1–P4)

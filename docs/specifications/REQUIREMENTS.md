@@ -440,6 +440,26 @@ Curation: Merge | Revise | Defer | Discard
 
 ---
 
+### REQ-COM-005: WebSocket Streaming Chat
+
+- **Category:** Composition, Lifecycle
+- **Text:** When interacting with agents via a browser or API client, I want a persistent WSS (WebSocket Secure) chat endpoint with streaming token output and MCP tool integration, so I can have real-time bidirectional conversations with full memory pipeline support.
+- **Criteria:**
+  - [x] `GET /api/v1/chat/ws` — WebSocket upgrade with session cookie auth
+  - [x] JSON protocol: `{"type":"prompt"}` → `{"type":"token",...}` → `{"type":"done",...}`
+  - [x] `ChatService::chat_stream()` — full pipeline: prepare_chat → streaming inference → episodic storage (sovereignty-gated)
+  - [x] `ChatStreamEvent` enum — transport-agnostic streaming event type (Token, Done, Error)
+  - [x] MCP tool auto-discovery — tools resolved at connection time and passed to inference
+  - [x] `generate_stream_with_model()` accepts `tools: Option<&[ChatToolDefinition]>` — threaded through all 5 backends
+  - [x] Multi-turn over single persistent connection
+  - [x] Ping/Pong keepalive
+  - [ ] Cancel mid-generation (Phase 2)
+  - [ ] Bearer token auth (Phase 2)
+- **Implementation:** `crates/hkask-api/src/routes/chat_ws.rs`, `crates/hkask-services-chat/src/chat/service.rs` (`chat_stream()`), `crates/hkask-ports/src/inference_port.rs` (tools in streaming trait)
+- **Tests:** — (integration test deferred to Phase 2)
+- **Status:** Implemented (Phase 1)
+- **Curation:** Merge — foundational for browser-based chat UIs
+
 ## 11. Deferred Requirements
 
 | ID | Requirement | Reason | ADR |

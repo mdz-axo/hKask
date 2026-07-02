@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-30
+last_updated: 2026-07-02
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -96,6 +96,8 @@ Archived (2026-06-17): ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, neve
 | Document | Description |
 |----------|-------------|
 | [`deployment-and-backup.md`](plans/deployment-and-backup.md) | Deployment & Multi-User Plan — includes admin install, K8s, operations, Cloud Gateway, QA pipeline |
+| [`wss-chat-endpoint.md`](plans/wss-chat-endpoint.md) | WSS Chat Endpoint — design space, protocol spec, approach comparison (Approach B: Full-Pipeline WSS) |
+| [`wss-chat-endpoint-implementation.md`](plans/wss-chat-endpoint-implementation.md) | WSS Chat Endpoint — concrete file-by-file implementation guide for Approach B |
 | [`TODO.md`](plans/TODO.md) | Open work |
 
 ### Research

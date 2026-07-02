@@ -1,7 +1,7 @@
 ---
 title: "hKask Functional Specification"
 audience: "hKask developers and architects"
-last_updated: 2026-07-01
+last_updated: 2026-07-02
 version: "0.31.0"
 status: "Active"
 domain: "architecture"
@@ -47,9 +47,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 18 | Communication | `comm` | hkask-communication | 25 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
 | 19 | Keystore | `keystore` | hkask-keystore | 5 | User's keys are generated, stored, and rotated securely | P1 (User Sovereignty) |
 | 20 | Type System | `types` | hkask-types | 40 | System types are semantically grounded and provenance-aware | P8 (Semantic Grounding) |
-| 21 | API Surface | `api` | hkask-api | 25 | User accesses all functionality through a REST API with sovereignty enforcement | P1 + P4 (Sovereignty + Boundaries) |
+| 21 | API Surface | `api` | hkask-api | 28 | User accesses all functionality through a REST API with sovereignty enforcement and streaming WebSocket chat | P1 + P4 (Sovereignty + Boundaries) |
 | 22 | CLI Surface | `cli` | kask | 12 | User accesses all functionality through a single binary CLI | P3 (Generative Space) |
-| 23 | Web Interface | `web` | hkask-api (hkask-api deferred) | 19 | User signs in via OAuth and gets a browser terminal | P1 + P4 ⚠️ DEFERRED — hkask-api crate not yet implemented |
+| 23 | Web Interface | `web` | hkask-api | 21 | User signs in via OAuth and gets a browser terminal with streaming WSS chat | P1 + P4 (Sovereignty + Boundaries) |
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | Users share a server with scoped data and admin-managed membership | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
 | 26 | Deployment | `deploy` | hkask-cli + hkask-agents | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
@@ -1187,9 +1187,11 @@ Representative domains:
 
 ### 3.12 API Surface (`hkask-api`)
 
-**25 contracts** — P1 + P4 (Sovereignty + Boundaries)
+**28 contracts** — P1 + P4 (Sovereignty + Boundaries)
 - REST endpoints for all service operations (P1)
 - MCP protocol handler (P1)
+- WebSocket chat endpoint (`GET /api/v1/chat/ws`) with MCP tool auto-discovery and streaming inference (P3, P4)
+- WebSocket terminal endpoint (`GET /api/v1/terminal/ws`) for browser-based PTY sessions (P3)
 - Authentication, authorization, rate limiting
 
 ### 3.13 CLI (`kask`)
@@ -1205,13 +1207,13 @@ Representative domains:
 - `hkask-test-harness` — integration test infrastructure
 - Test fixtures, mock implementations, property-based testing
 
-### 3.15 Web Interface (`hkask-api` + `hkask-api`)
+### 3.15 Web Interface (`hkask-api`)
 
-**Goal Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal access via OAuth sessions scoped to user WebID
-**Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal sessions emit CNS observability
-**Crates:** `hkask-api` (hkask-api is deferred — not yet implemented) | **Reference:** `docs/plans/deployment-and-backup.md`
+**Goal Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal and streaming chat access via OAuth sessions scoped to user WebID
+**Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal and chat sessions emit CNS observability
+**Crates:** `hkask-api` | **Reference:** `docs/plans/deployment-and-backup.md`, `docs/plans/wss-chat-endpoint.md`
 
-The web interface is the primary deployment surface: users visit a URL, sign in with GitHub or Google, and get an xterm.js terminal connected via WebSocket to a server-spawned `kask repl` PTY. There is no client binary — the browser is the client. SSH is an optional power-user feature (`kask ssh-key add`), not the primary access method.
+The web interface provides two browser-based surfaces: (1) an xterm.js terminal connected via WebSocket to a server-spawned `kask repl` PTY, and (2) a persistent WSS chat endpoint (`GET /api/v1/chat/ws`) for bidirectional streaming agent conversation with MCP tool auto-discovery. There is no client binary — the browser is the client.
 
 #### Production Contracts (12)
 

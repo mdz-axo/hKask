@@ -3,7 +3,7 @@ title: "WSS Chat Endpoint — Implementation Guide (Approach B)"
 audience: [developers]
 last_updated: 2026-07-02
 version: "0.31.0"
-status: "Proposed — design review"
+status: "Implemented — Phase 1 complete (2026-07-02). All steps executed; tools-through-streaming added as bonus."
 domain: "Communication"
 parent_plan: "docs/plans/wss-chat-endpoint.md"
 anchored_on: [PRINCIPLES.md P1, P2, P3, P4, P5, P9, P12]

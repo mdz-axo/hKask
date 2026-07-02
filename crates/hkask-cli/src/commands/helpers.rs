@@ -36,7 +36,7 @@ pub fn build_agent_service_from_secrets(
     build_agent_service_inner(from_secrets)
 }
 
-/// Shared implementation — always creates a fresh tokio runtime.
+/// Shared implementation — safe to call from any context.
 fn build_agent_service_inner(
     from_secrets: Option<(&str, &ResolvedSecrets)>,
 ) -> Result<AgentService, String> {
@@ -50,10 +50,23 @@ fn build_agent_service_inner(
         None => ServiceConfig::from_env()
             .map_err(|e| format!("Failed to resolve service config: {}", e))?,
     };
-    let rt =
-        tokio::runtime::Runtime::new().map_err(|e| format!("Failed to create runtime: {}", e))?;
-    rt.block_on(AgentService::build(config))
-        .map_err(|e| e.to_string())
+    // `Runtime::block_on` panics if the current thread is driving a tokio
+    // runtime (e.g., when called from within `rt.block_on(...)`). Use
+    // `block_in_place` to move blocking work to the blocking thread pool.
+    match tokio::runtime::Handle::try_current() {
+        Ok(_handle) => tokio::task::block_in_place(|| {
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| format!("Failed to create runtime: {}", e))?;
+            rt.block_on(AgentService::build(config))
+                .map_err(|e| e.to_string())
+        }),
+        Err(_) => {
+            let rt = tokio::runtime::Runtime::new()
+                .map_err(|e| format!("Failed to create runtime: {}", e))?;
+            rt.block_on(AgentService::build(config))
+                .map_err(|e| e.to_string())
+        }
+    }
 }
 
 /// Write content to a file or print to stdout.
@@ -168,5 +181,21 @@ pub fn print_item_list<T>(
     println!("{} ({}):", label, items.len());
     for item in items {
         println!("  - {}", format_item(item));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression: `build_agent_service()` must not panic when called from
+    /// inside `rt.block_on()`. The old `build_service_context_inner` used
+    /// `Handle::block_on` which panicked with "Cannot start a runtime from
+    /// within a runtime" when a tokio handle was active.
+    #[test]
+    fn build_agent_service_from_within_block_on() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // This must not panic — the original bug caused a panic here
+        let _svc = rt.block_on(async { build_agent_service() });
     }
 }

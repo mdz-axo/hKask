@@ -282,10 +282,10 @@ async fn handle_chat_ws(socket: WebSocket, state: ApiState) {
                                         }
                                     };
 
-                                    if let Ok(json) = serde_json::to_string(&server_msg) {
-                                        if ws_sender.send(Message::Text(json.into())).await.is_err() {
-                                            return; // Client disconnected
-                                        }
+                                    if let Ok(json) = serde_json::to_string(&server_msg)
+                                        && ws_sender.send(Message::Text(json.into())).await.is_err()
+                                    {
+                                        return; // Client disconnected
                                     }
                                 }
                             }
