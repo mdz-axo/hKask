@@ -532,10 +532,11 @@ fn open_curator_stores(
         .cloned()
         .unwrap_or_else(|| {
             let p = hkask_types::agent_paths::agent_pod_db("curator");
-            if let Some(parent) = p.parent() {
+            let resolved = hkask_types::agent_paths::resolve_under_data_dir(&p);
+            if let Some(parent) = resolved.parent() {
                 std::fs::create_dir_all(parent).ok();
             }
-            p.to_string_lossy().to_string()
+            resolved.to_string_lossy().to_string()
         });
 
     let db = match ctx.credentials.get("HKASK_DB_PASSPHRASE") {

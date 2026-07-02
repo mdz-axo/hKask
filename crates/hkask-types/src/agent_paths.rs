@@ -81,6 +81,29 @@ use std::path::PathBuf;
 /// Root directory for agent artifacts.
 pub const AGENTS_DIR: &str = "agents";
 
+/// Resolve a relative agent path against the hKask data directory.
+///
+/// Checks `HKASK_DATA_DIR` env var, falls back to CWD. This ensures
+/// agent databases end up in a predictable location regardless of where
+/// the MCP server process is spawned from.
+#[must_use]
+pub fn resolve_under_data_dir(relative: &std::path::Path) -> std::path::PathBuf {
+    if let Ok(dir) = std::env::var("HKASK_DATA_DIR") {
+        return std::path::PathBuf::from(dir).join(relative);
+    }
+    if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
+        return std::path::PathBuf::from(xdg).join("hkask").join(relative);
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        return std::path::PathBuf::from(home)
+            .join(".local")
+            .join("share")
+            .join("hkask")
+            .join(relative);
+    }
+    relative.to_path_buf()
+}
+
 /// Get the directory for a specific agent.
 pub fn agent_dir(agent_name: &str) -> PathBuf {
     PathBuf::from(AGENTS_DIR).join(sanitize_name(agent_name))

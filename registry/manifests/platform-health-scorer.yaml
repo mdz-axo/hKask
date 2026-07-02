@@ -142,6 +142,8 @@ steps:
 
   - ordinal: 7
     action: loop
+    gas_cap: 200
+    timeout_seconds: 10
     description: Re-enter cycle if convergence not met.
     input_mapping:
       loop_target: 1

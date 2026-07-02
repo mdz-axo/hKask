@@ -30,8 +30,6 @@ pub fn run(action: QaAction) {
                     .strip_prefix(&workspace_root)
                     .unwrap_or(&script)
                     .to_path_buf()
-            } else if script.starts_with("registry/") {
-                script
             } else {
                 script
             };
@@ -119,37 +117,44 @@ pub fn run(action: QaAction) {
 }
 
 /// Try to set up MCP dispatch for QA manifests with mcp_tool steps.
-/// Returns None if MCP infrastructure isn't available (graceful degradation).
+/// Creates McpRuntime directly (no AgentService/database needed) and starts
+/// the specific servers referenced by mcp_tool manifests.
 fn setup_mcp_dispatch(
     rt: &tokio::runtime::Runtime,
 ) -> Option<hkask_test_harness::qa_script::McpDispatchFn> {
-    use hkask_mcp::BUILTIN_SERVERS;
+    use hkask_mcp::McpRuntime;
 
-    // Build AgentService and start MCP servers (same pattern as kask mcp)
-    // Build AgentService and start MCP servers
-    let ctx = crate::commands::helpers::build_agent_service();
+    let runtime = McpRuntime::new();
 
-    let replicant_name = ctx.config().agent_name.clone();
-    crate::commands::helpers::start_mcp_servers_with_env(
-        rt,
-        &ctx,
-        BUILTIN_SERVERS,
-        &replicant_name,
-    );
+    // Start the MCP servers that QA dispatch smoke tests need.
+    // These are the ones referenced in qa-mcp-dispatch-smoke.yaml.
+    let servers: &[(&str, &str)] = &[
+        ("skill", "hkask-mcp-skill"),
+        ("kanban", "hkask-mcp-kata-kanban"),
+        ("condenser", "hkask-mcp-condenser"),
+    ];
 
-    let mcp = ctx.infra().mcp.clone();
+    for (server_id, binary) in servers {
+        if let Err(e) = rt.block_on(runtime.start_server(server_id, binary)) {
+            eprintln!(
+                "Note: MCP server '{}' unavailable ({}) — mcp_tool steps will use stub",
+                server_id, e
+            );
+            return None;
+        }
+    }
 
-    // Build dispatch closure: maps (tool_name, tool_params) → Result<output, error>
+    let mcp = Arc::new(runtime);
+
+    // Build dispatch closure: maps (tool_name, tool_params) → text output
     let dispatch: hkask_test_harness::qa_script::McpDispatchFn =
         Arc::new(move |tool_name: String, tool_params: String| {
             let mcp = mcp.clone();
             Box::pin(async move {
-                // Parse params JSON
                 let args: serde_json::Map<String, serde_json::Value> =
                     match serde_json::from_str(&tool_params) {
                         Ok(serde_json::Value::Object(map)) => map,
-                        Ok(_) => serde_json::Map::new(),
-                        Err(_) => serde_json::Map::new(),
+                        _ => serde_json::Map::new(),
                     };
 
                 // Resolve server_id from tool registry
@@ -163,7 +168,6 @@ fn setup_mcp_dispatch(
                     }
                 };
 
-                // Dispatch via McpRuntime (bypasses OCAP governance — QA is internal audit)
                 match mcp.call_tool(&server_id, &tool_name, args).await {
                     Ok(result) => {
                         let text: String = result

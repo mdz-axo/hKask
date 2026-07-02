@@ -689,7 +689,7 @@ Options:
     --uninstall         Remove hKask
     --build-only        Build without installing
     --debug             Build in debug mode
-    --system            Install system-wide (binary in /usr/local/libexec/hkask, symlink in /usr/local/bin)
+    --system            Install system-wide (symlink in /usr/local/bin)
     --skip-deps         Skip system dependency installation
     --skip-rust         Skip Rust installation
     --skip-conduit      Skip Conduit Matrix homeserver setup

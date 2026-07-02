@@ -892,7 +892,9 @@ pub async fn run(
                     .get("HKASK_MEMORY_DB")
                     .cloned()
                     .unwrap_or_else(|| {
-                        let default_path = hkask_types::agent_paths::agent_memory_db(&replicant);
+                        let relative_path = hkask_types::agent_paths::agent_memory_db(&replicant);
+                        let default_path =
+                            hkask_types::agent_paths::resolve_under_data_dir(&relative_path);
                         if let Some(parent) = default_path.parent() {
                             std::fs::create_dir_all(parent).ok();
                         }

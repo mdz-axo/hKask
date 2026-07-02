@@ -2612,7 +2612,8 @@ pub async fn run(
                     .get("HKASK_TRAINING_DB")
                     .cloned()
                     .unwrap_or_else(|| {
-                        hkask_types::agent_paths::agent_training_db(&replicant)
+                        let relative = hkask_types::agent_paths::agent_training_db(&replicant);
+                        hkask_types::agent_paths::resolve_under_data_dir(&relative)
                             .to_string_lossy()
                             .to_string()
                     });

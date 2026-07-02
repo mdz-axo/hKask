@@ -37,6 +37,15 @@ const EMBEDDED_INVENTORY: &str = include_str!("../../../docs/status/public-seam-
 /// compile-time embedded one. Used in development.
 const INVENTORY_PATH_ENV: &str = "HKASK_SEAM_INVENTORY_PATH";
 
+/// Expected variety per seam domain.
+///
+/// Seam watching observes a small number of distinct drift states per check
+/// cycle (coverage up/down/stable, new/removed crate) — not hundreds of
+/// individual items. Setting expected variety to the item count (e.g., 212)
+/// would create a perpetual `deficit ≈ item_count` because variety grows
+/// by 1 per cycle, not by the count of covered items.
+const SEAM_EXPECTED_VARIETY: u64 = 10;
+
 // ── Seam Drift ───────────────────────────────────────────────────────────────
 
 /// Per-crate coverage delta since last snapshot.
@@ -188,22 +197,26 @@ impl SeamWatcher {
     /// Register all per-crate seam domains in the CNS runtime's VarietyMonitor.
     ///
     /// Each crate gets a domain `seam:{crate_name}` with expected variety
-    /// set to its current covered item count. The CNS will alert when
-    /// covered items drop below this baseline.
+    /// set to `SEAM_EXPECTED_VARIETY` — a small constant reflecting the limited
+    /// number of distinct drift states per check cycle (coverage up/down/stable,
+    /// new/removed). The algedonic check supplements, not replaces, the
+    /// snapshot-based drift detection in `check_drift`.
     ///
     /// Called once at startup after load.
     pub async fn register_domains(&self, runtime: &CnsRuntime) {
         for (crate_name, coverage) in &self.inventory.crates {
             let domain = format!("seam:{}", crate_name);
-            let expected = coverage.covered_items;
 
-            runtime.calibrate_threshold(&domain, expected).await;
+            runtime
+                .calibrate_threshold(&domain, SEAM_EXPECTED_VARIETY)
+                .await;
 
             tracing::debug!(
                 target: "cns.architecture.seam",
                 crate_name = %crate_name,
                 domain = %domain,
-                expected_variety = %expected,
+                expected_variety = SEAM_EXPECTED_VARIETY,
+                covered_items = %coverage.covered_items,
                 coverage_pct = %coverage.coverage_pct,
                 "Registered seam variety domain"
             );

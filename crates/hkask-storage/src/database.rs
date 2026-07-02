@@ -125,15 +125,18 @@ impl Database {
         // reserved plaintext region. After PRAGMA key is set, SQLCipher tries to
         // decrypt page 1 and the HMAC fails.
         //
-        // Fix: bump plaintext header size to 32 BEFORE setting the key, and keep it
-        // at 32 permanently. This is a valid SQLCipher configuration used by many
-        // deployments. Existing databases retain their stored header_size — no
-        // migration needed since the broken old code never successfully created a DB.
+        // Fix: bump plaintext header size to 32 BEFORE setting the key on new DBs.
+        //
+        // Existing databases retain their stored header_size — SQLCipher reads it
+        // automatically from the database file header. Old databases (pre-fix)
+        // have header_size=0, newer ones have header_size=32. Both are valid.
+        // The 0u8 logged below for existing DBs is a placeholder; the actual
+        // value is stored in and read from the database file itself.
         let header_size = if !salt_existed {
             conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
             32u8
         } else {
-            0u8 // stored in database file, read automatically by SQLCipher
+            0u8 // placeholder — actual value stored in and read from database
         };
         Self::configure_encryption(&conn, passphrase, &salt)?;
         if salt_existed {
