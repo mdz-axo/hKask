@@ -1,9 +1,9 @@
 ---
 title: "hKask Deployment & Multi-User Plan"
 audience: [architects, developers]
-last_updated: 2026-06-30
+last_updated: 2026-07-01
 version: "0.31.0"
-status: "Draft — Aligned with FUNCTIONAL_SPECIFICATION.md Domain 26"
+status: "Active — Phases 1-5 implemented, Phase 6 deferred"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle]
 anchored_on: [PRINCIPLES.md §0, P1, P2, P3, P9, P12]
@@ -16,7 +16,7 @@ reviewed_via: [pragmatic-laziness, essentialist, grill-me, coding-guidelines]
 
 **Decision:** There is no client — no binary, no install, no SSH setup. Users visit a website, sign in with GitHub or Google, and get a terminal. The "client" is a browser tab running xterm.js connected to the server via WebSocket. The server spawns `kask repl` on a PTY and pipes I/O. That is the entire product surface.
 
-**Status:** Partially implemented. Phases 1–4 code exists (routes, types, CLI scaffolding). Awaiting Phase 5 integration (CNS instrumentation, CLI commands, end-to-end verification). See §15 for per-phase status.
+**Status:** Phases 1–5 implemented. Phase 6 (hardening) deferred. See §15 for per-phase status.
 
 ---
 
@@ -803,8 +803,8 @@ curl -s https://api.deepinfra.com/v1/openai/chat/completions \
 | **Phase 2 — Terminal** | `/api/v1/terminal/ws` WebSocket endpoint, PTY spawn + I/O pipe, static `/terminal` page with xterm.js | Phase 1 | ✅ Implemented |
 | **Phase 3 — Export** | `BackupArchive` type, `kask export create`, CNS spans | Phase 1 | ✅ Implemented (types, HTTP routes, CLI commands, CNS spans done) |
 | **Phase 4 — Upload & Replicants** | `kask export upload`, replicant rename/delete, `MigrationReceipt` | Phase 3 | ✅ Implemented (types, HTTP routes, CLI commands done) |
-| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload → rename → verify | Phase 4 | 🔴 Not started |
-| **Phase 6 — Harden** | Interruption testing, multi-user isolation, backup auto-export tuning | Phase 5 | 🔴 Not started (deferred) |
+| **Phase 5 — Integration** | End-to-end: deploy → OAuth sign-in → terminal → export → upload → rename → verify. Includes 9 HTTP integration tests (in-memory server, health endpoint, auth-gating, CNS health), K8s manifest hardening (NetworkPolicies, PDB, init containers, readiness probes), and Dockerfile optimization. | Phase 4 | ✅ Implemented (2026-07-01) |
+| **Phase 6 — Harden** | Interruption testing, multi-user isolation stress tests, backup auto-export tuning, health endpoint with Matrix connectivity check. K8s readiness probe uses `/health` endpoint (DB + Conduit checks). | Phase 5 | 🔴 Deferred |
 
 ---
 

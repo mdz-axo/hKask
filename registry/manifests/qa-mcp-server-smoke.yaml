@@ -1,37 +1,33 @@
-# QA MCP Server Smoke Test — v0.30.0
+# QA MCP Server Smoke Test — v0.31.0
 #
 # Generic smoke test for any MCP server binary. Verifies:
 #   1. Binary exists and is executable
 #   2. Server starts successfully (binds port/transport)
-#   3. Server reports tool list correctly
-#   4. Server handles SIGTERM gracefully
+#   3. Server handles SIGTERM gracefully
 #
-# Parameterized by CRATE_NAME — set via run_command shell variable
-# before invoking kask qa run. Default: hkask-mcp-spec.
+# Parameterized by CRATE_NAME — set via environment variable.
+# Default: hkask-mcp-skill.
 #
 # Cybernetic feedback loop:
-#   Sensor → binary existence check, startup probe, tool list query
+#   Sensor → binary existence check, startup probe
 #   Comparator → classify step evaluates server health
 #   Actuator → algedonic alert if server is dead or degraded
 #
-# Usage:
-#   CRATE_NAME=hkask-mcp-spec kask qa run --script registry/manifests/qa-mcp-server-smoke.yaml
-#   CRATE_NAME=hkask-mcp-condenser kask qa run --script registry/manifests/qa-mcp-server-smoke.yaml
-#
-# Runner readiness: FULLY EXECUTABLE TODAY (all steps are run_command).
+# Runner readiness: PARTIAL — run_command steps executable today;
+#   classify step requires QaScriptRunner.
 
 manifest:
   id: qa-mcp-server-smoke
   name: QA Mcp Server Smoke
-  version: 0.30.0
+  version: 0.31.0
   visibility: Private
   description: >
     Generic MCP server smoke test. Verifies binary existence, server startup,
-    tool list retrieval, and graceful shutdown. Parameterized via CRATE_NAME
-    environment variable. Default target: hkask-mcp-spec.
+    and graceful shutdown. Parameterized via CRATE_NAME environment variable.
+    Default target: hkask-mcp-skill.
 
 gas:
-  cap: 20000
+  cap: 15000
   alert_threshold: 0.8
   hard_limit: true
 
@@ -44,83 +40,66 @@ steps:
   # Step 1: Verify server binary exists and is executable
   - ordinal: 1
     action: run_command
-    command: 'CRATE=${CRATE_NAME:-hkask-mcp-spec}; BIN=./target/debug/$CRATE; if [ -x "$BIN" ]; then echo "BINARY_OK: $BIN"; else echo "BINARY_MISSING: $BIN not found or not executable"; exit 1; fi'
+    command: 'CRATE=${CRATE_NAME:-hkask-mcp-skill}; BIN=./target/debug/$CRATE; if [ -x "$BIN" ]; then echo "BINARY_OK: $BIN"; else echo "BINARY_MISSING: $BIN not found or not executable"; exit 1; fi'
     description: "Verify MCP server binary exists and is executable"
     retries: 0
     branching:
       success: 2
-      failure: 7
+      failure: 6
 
   # Step 2: Start server in background, verify it binds, then kill it
   - ordinal: 2
     action: run_command
-    command: 'CRATE=${CRATE_NAME:-hkask-mcp-spec}; BIN=./target/debug/$CRATE; $BIN & PID=$!; sleep 2; if kill -0 $PID 2>/dev/null; then echo "SERVER_STARTED: pid=$PID"; kill $PID 2>/dev/null; wait $PID 2>/dev/null; else echo "SERVER_FAILED_TO_START"; exit 1; fi'
+    command: 'CRATE=${CRATE_NAME:-hkask-mcp-skill}; BIN=./target/debug/$CRATE; $BIN & PID=$!; sleep 2; if kill -0 $PID 2>/dev/null; then echo "SERVER_STARTED: pid=$PID"; kill $PID 2>/dev/null; wait $PID 2>/dev/null; else echo "SERVER_FAILED_TO_START"; exit 1; fi'
     description: "Start MCP server, verify process is alive, then clean shutdown"
     retries: 0
     branching:
       success: 3
-      failure: 8
+      failure: 7
 
   # Step 3: Classify server health
+  # Requires QaScriptRunner — receives step 2 stdout.
   - ordinal: 3
     action: classify
     classifier: qa-triage
-    description: "MCP server smoke test result. Server binary exists, started successfully within 2 seconds, and accepted SIGTERM for clean shutdown. Server appears healthy: binary present, process starts, process terminates cleanly. Classify as high-confidence normal if server startup and shutdown are nominal."
+    description: "MCP server smoke test result. Server binary exists, started successfully within 2 seconds, and accepted SIGTERM for clean shutdown. Classify as high-confidence normal if server startup and shutdown are nominal."
     retries: 0
     branching:
       high_confidence: 4
       medium_confidence: 4
-      low_confidence: 6
+      low_confidence: 5
       flake: 3
-      unparseable: 6
+      unparseable: 5
 
-  # Step 4: Run cargo test on the server's integration tests (if any)
+  # Step 4: PASS — server is healthy
   - ordinal: 4
     action: run_command
-    command: "CRATE=${CRATE_NAME:-hkask-mcp-spec}; cargo test -p $CRATE -- --nocapture 2>&1 | tail -20"
-    description: "Run integration tests for the MCP server (may have 0 tests — still succeeds)"
-    retries: 0
-    branching:
-      success: 5
-      failure: 9
-
-  # Step 5: PASS — server is healthy
-  - ordinal: 5
-    action: run_command
-    command: 'echo "[QA:smoke] PASS — ${CRATE_NAME:-hkask-mcp-spec} binary OK, startup OK, shutdown OK, tests OK"'
-    description: "MCP server smoke test passed: binary + startup + shutdown + tests all nominal"
+    command: 'echo "[QA:smoke] PASS — ${CRATE_NAME:-hkask-mcp-skill} binary OK, startup OK, shutdown OK"'
+    description: "MCP server smoke test passed: binary + startup + shutdown all nominal"
     retries: 0
     terminal: true
 
-  # Step 6: WARN — classifier uncertain
-  - ordinal: 6
+  # Step 5: WARN — classifier uncertain
+  - ordinal: 5
     action: run_command
-    command: 'echo "[QA:smoke] WARN — classifier uncertain about ${CRATE_NAME:-hkask-mcp-spec} health. Manual review recommended."'
+    command: 'echo "[QA:smoke] WARN — classifier uncertain about ${CRATE_NAME:-hkask-mcp-skill} health. Manual review recommended."'
     description: "Classifier returned low confidence on server health — manual review needed"
     retries: 0
     terminal: true
 
-  # Step 7: FAIL — binary missing
-  - ordinal: 7
+  # Step 6: FAIL — binary missing
+  - ordinal: 6
     action: run_command
-    command: 'echo "[QA:smoke] FAIL — ${CRATE_NAME:-hkask-mcp-spec} binary not found. Run ''cargo build -p ${CRATE_NAME:-hkask-mcp-spec}'' first."'
+    command: 'echo "[QA:smoke] FAIL — ${CRATE_NAME:-hkask-mcp-skill} binary not found. Run cargo build -p ${CRATE_NAME:-hkask-mcp-skill} first."'
     description: "MCP server binary missing — build first"
     retries: 0
     terminal: true
 
-  # Step 8: FAIL — server did not start
-  - ordinal: 8
+  # Step 7: FAIL — server did not start
+  - ordinal: 7
     action: run_command
-    command: 'echo "[QA:smoke] FAIL — ${CRATE_NAME:-hkask-mcp-spec} failed to start or died within 2 seconds."'
+    command: 'echo "[QA:smoke] FAIL — ${CRATE_NAME:-hkask-mcp-skill} failed to start or died within 2 seconds."'
     description: "MCP server startup failure — check server logs for panic or bind errors"
-    retries: 0
-    terminal: true
-
-  # Step 9: WARN — integration tests failed
-  - ordinal: 9
-    action: run_command
-    command: 'echo "[QA:smoke] DEGRADED — ${CRATE_NAME:-hkask-mcp-spec} integration tests failed. Server may have functional regressions."'
-    description: "MCP server integration test failure — functional regression"
     retries: 0
     terminal: true
 

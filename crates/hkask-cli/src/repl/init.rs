@@ -490,8 +490,13 @@ pub(super) fn init_repl_state(
     // Load rich agent definition from stored YAML for persona + process manifest.
     // Falls back to reading agents/{name}/agent.yaml when source_yaml is stale
     // (e.g., from pre-fix onboarding or CLI agent registration).
-    let rich_def = rt
-        .block_on(crate::commands::bot_status(&state.current_agent))
+    // Uses the existing service context directly (AgentRegistryStore::get is sync)
+    // rather than calling bot_status, which would construct a duplicate
+    // AgentService and panic with nested block_on when inside rt.block_on.
+    let rich_def = ctx
+        .storage()
+        .agents
+        .get(&state.current_agent)
         .ok()
         .and_then(|agent| {
             hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)

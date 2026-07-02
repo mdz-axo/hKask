@@ -1,19 +1,24 @@
-# QA Autonomous Script Manifest
-# ℏKask v0.30.0 — Classifier-driven interactive test pipeline
+# QA Autonomous Cycle — v0.31.0
 #
-# Runs an autonomous QA cycle: fuzz → classify → branch on confidence.
+# Classifier-driven autonomous QA pipeline: fuzz → classify → branch on confidence.
 # High confidence → auto-repair. Medium → escalate. Low → investigate.
-# Loop actions retry until a condition is met or max iterations exhausted.
+# Loop actions retry until condition met or max iterations exhausted.
+#
+# Pre-requisites:
+#   - cargo-bolero must be installed (cargo install bolero)
+#   - QaScriptRunner with classify + loop support
+#
+# Runner readiness: NEEDS TOOLING — requires bolero installation
+#   and QaScriptRunner with classify + loop support.
 
 manifest:
   id: qa-autonomous
   name: QA Autonomous Cycle
-  version: 0.30.0
+  version: 0.31.0
   description: >
-    Autonomous QA pipeline that runs bolero fuzz tests, classifies failures with
-    the LLM classifier, and branches on confidence: high-confidence failures
-    trigger auto-repair, medium-confidence get escalated, and low-confidence
-    get flagged for investigation. Loop actions retry with backoff.
+    Autonomous QA pipeline that runs bolero fuzz tests, classifies failures
+    with the LLM classifier, and branches on confidence. Requires
+    cargo-bolero and QaScriptRunner with classify + loop support.
   editor: system
   visibility: Public
 
@@ -94,7 +99,7 @@ steps:
   # Step 7: Fuzz failure → log and exit
   - ordinal: 7
     action: run_command
-    command: "echo '[QA] Fuzz execution failed — check cargo bolero installation'"
+    command: "echo '[QA] Fuzz execution failed — check cargo bolero installation: cargo install bolero'"
     description: "Log fuzz execution failure"
     cns_span: cns.qa.autonomous.fuzz_failed
 

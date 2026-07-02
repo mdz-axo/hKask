@@ -1,21 +1,28 @@
-# QA MCP Dispatch Smoke — v0.30.0
+# QA MCP Dispatch Smoke — v0.31.0
 #
-# Minimal end-to-end test of the QA runner's MCP tool dispatch.
-# Calls condenser_ping, episodic_ping, and skill_ping — tools that
-# require no API keys, databases, or external services.
+# End-to-end test of MCP tool dispatch. Calls ping tools across
+# multiple MCP servers to verify McpRuntime → Peer → rmcp dispatch.
 #
-# This script validates that McpRuntime-based dispatch works across
-# all 12 registered MCP servers.
+# Targets:
+#   - skill_ping (hkask-mcp-skill)
+#   - kanban_board_list (hkask-mcp-kata-kanban)
+#   - condenser_ping (hkask-mcp-condenser)
+#
+# All steps use mcp_tool action — requires QaScriptRunner with
+# MCP dispatch support.
+#
+# Runner readiness: NEEDS RUNNER — all steps are mcp_tool.
 
 manifest:
   id: qa-mcp-dispatch-smoke
   name: QA MCP Dispatch Smoke
-  version: 0.30.0
+  version: 0.31.0
   visibility: Private
   description: >
     End-to-end smoke test for MCP tool dispatch in the QA runner.
-    Calls condenser_ping, episodic_ping, and skill_ping to verify
-    McpRuntime → Peer → rmcp JSON-RPC dispatch works.
+    Calls skill_ping, kanban_board_list, and condenser_ping to verify
+    McpRuntime → Peer → rmcp JSON-RPC dispatch works across servers.
+    All steps require QaScriptRunner with mcp_tool support.
 
 gas:
   cap: 10000
@@ -45,7 +52,7 @@ steps:
       success: 3
       failure: 6
 
-  # Step 3: Call condener_ping (may need model download)
+  # Step 3: Call condenser_ping
   - ordinal: 3
     action: mcp_tool
     tool_name: condenser_ping

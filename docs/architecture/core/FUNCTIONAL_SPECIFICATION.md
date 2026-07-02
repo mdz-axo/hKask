@@ -1321,18 +1321,20 @@ This is distinct from the sovereignty export (SQLCipher archive) described in §
 
 ---
 
-### 3.18 Deployment (`deploy`)
+3.18 Deployment (`deploy`)
 
 **Goal Principle:** P5 (Essentialism) — single binary, zero-config deployment, sidecar generation
 **Constraining Principles:** P4 (Clear Boundaries) — Caddy TLS perimeter, Conduit Matrix boundary; P1 (User Sovereignty) — OAuth sign-in per user; P12 (Replicant Host Mandate) — every session has an owner
 **Crates:** `hkask-api`, `kask` (CLI) | **Reference:** `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md`
 
-The deployment domain covers the cloud server provisioning model: one `kask` binary, one server, multi-user access via browser terminal. Sidecar services (Caddy for TLS, Conduit for Matrix) are generated via `kask matrix deploy-sidecar` as Docker Compose configuration — the user owns the Docker runtime. There is no client binary. The browser is the client.
+The deployment domain covers the cloud server provisioning model: one `kask` binary, one server, multi-user access via browser terminal. Two deployment paths are supported: **Docker Compose** (single VPS with systemd, generated via `kask matrix deploy-sidecar`) and **Kubernetes** (cluster deployment with 18 YAML manifests in `deploy/k8s/`, including Litestream S3 backup, NetworkPolicies, PDB, and health probes). There is no client binary. The browser is the client.
 
 **Deployment topology:**
 
 ```mermaid
 erDiagram
+
+#### Production Contracts (17)
     CloudServer ||--|| Caddy : "TLS + reverse proxy"
     CloudServer ||--|| Conduit : "Matrix homeserver"
     CloudServer ||--o{ UserSession : "spawns per user"
@@ -1386,8 +1388,13 @@ erDiagram
 | FR-DP10 | OAuth callback provisions `HumanUser` record, default replicant, wallet on first sign-in | [P1] Goal: User Sovereignty — auto-provisioning from verified identity; [P2] Constraining: Affirmative Consent — user explicitly clicks "Sign in with GitHub" |
 | FR-DP11 | `GET /api/cns/health` returns `{ overall_deficit, critical_count, warning_count, healthy }` | [P4] Goal: Clear Boundaries — health check is the deployment liveness probe; [P9] Constraining: Homeostatic Self-Regulation — CNS drives health signal |
 | FR-DP12 | Zero client-side install: browser terminal via xterm.js + WebSocket | [P5] Goal: Essentialism — no client binary, no SSH setup required; [P3] Constraining: Generative Space — user gets full `kask repl` via browser |
+| FR-DP13 | `GET /health` returns `{ healthy, db, conduit }` — DB query + Matrix/Conduit reachability check | [P4] Goal: Clear Boundaries — readiness probe gates traffic until all dependencies are reachable; [P9] Constraining: Homeostatic Self-Regulation — fail closed when dependencies degraded |
+| FR-DP14 | K8s Deployment with Litestream sidecar + init container: WAL replication to S3, restore on restart | [P5] Goal: Essentialism — one PVC, one SQLite, one backup stream; [P1] Constraining: User Sovereignty — database survives node loss |
+| FR-DP15 | K8s NetworkPolicies restrict ingress: `hkask` namespace only from ingress controller, `hkask-conduit` only from ingress + `hkask` | [P4] Goal: Clear Boundaries — network isolation enforces namespace separation; [P1] Constraining: User Sovereignty — compromised Conduit cannot reach kask API |
+| FR-DP16 | K8s PodDisruptionBudget (`maxUnavailable: 0`) prevents voluntary eviction of sole kask pod | [P5] Goal: Essentialism — single replica, no need for HA complexity; [P9] Constraining: Homeostatic Self-Regulation — cluster must not sacrifice the sole regulator |
+| FR-DP17 | K8s init container (`wait-for-conduit`) polls Matrix homeserver before kask starts | [P4] Goal: Clear Boundaries — startup ordering enforced at infrastructure level, not application retry logic |
 
-#### Test Contracts (4)
+#### Test Contracts (5)
 
 | FR# | Test Name |
 |-----|-----------|
@@ -1395,6 +1402,7 @@ erDiagram
 | FR-DP-T2 | `deploy_sidecar_generates_valid_docker_compose` |
 | FR-DP-T3 | `oauth_callback_provisions_human_user_and_session` |
 | FR-DP-T4 | `health_endpoint_returns_cns_status` |
+| FR-DP-T5 | `integration_e2e` — 9 HTTP tests against in-memory server (landing, terminal, health, auth-gating, CNS) |
 
 ---
 
@@ -1560,7 +1568,7 @@ ER diagrams in `FUNCTIONAL_SPECIFICATION.md` §2–§4 are documentation artifac
 
 ### 4. Deployment Domain Implementation
 
-Domain 26 (Deployment) is documented as a specification (`FUNCTIONAL_SPECIFICATION.md` §3.18) but not implemented. The deployment plan (`docs/plans/deployment-and-backup.md`) is in Draft/Aligned status. Implementation is a separate project phase.
+Domain 26 (Deployment) is implemented through Phase 5 (end-to-end HTTP integration tests, K8s manifest hardening, health endpoint with DB + Conduit checks). The deployment plan (`docs/plans/deployment-and-backup.md`) is Active status. K8s manifests live in `deploy/k8s/` (18 YAML files). Phase 6 (hardening: interruption testing, multi-user isolation stress tests, backup auto-export tuning) is deferred.
 
 ### 5. Principle Conflict Resolution Formalization
 
@@ -1576,14 +1584,14 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 
 | Field | Value |
 |-------|-------|
-| Version | v0.28.0 |
+| Version | v0.31.0 |
 | Created | 2026-06-16 |
 | Status | Active — anchor for contract vocabulary and the Testing Discipline |
-| Last Updated | 2026-06-18 |
-| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + 61 new (web 19 + multi-user 12 + backup 18 + deployment 16, spec written) |
+| Last Updated | 2026-07-01 |
+| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + deployment (17 production, 5 test) |
 | Build Status | `cargo check` workspace — PASS |
 | Governance | PRINCIPLES.md §0–§1.4 |
-| Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md` |
+| Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `deploy/k8s/README.md`, `docs/diagrams/` |
 | ERDs | §2 — 8 CNS domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model |
 
 

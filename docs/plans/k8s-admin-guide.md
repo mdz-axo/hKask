@@ -62,7 +62,7 @@ Namespace: hkask       Namespace: hkask-conduit
 
 **What is Kubernetes?** Kubernetes (K8s for short) is a program that manages containers across multiple computers. You tell it "I want 1 copy of this container running at all times" and it makes that happen. If the container crashes, K8s restarts it. If the computer dies, K8s moves the container to another computer. K8s doesn't run your program itself — it tells other programs (container runtimes) to run it, and then watches to make sure they stay running.
 
-**Why not just run `./kask serve` on a VPS?** You can. A single VPS with systemd works fine for personal use. K8s gives you three things a VPS doesn't: (1) automatic restart when your program crashes, (2) automatic TLS certificates via cert-manager, (3) declarative configuration — your entire deployment is 13 YAML files you can version-control and recreate from scratch in 5 minutes.
+**Why not just run `./kask serve` on a VPS?** You can. A single VPS with systemd works fine for personal use. K8s gives you three things a VPS doesn't: (1) automatic restart when your program crashes, (2) automatic TLS certificates via cert-manager, (3) declarative configuration — your entire deployment is 18 YAML files you can version-control and recreate from scratch in 5 minutes.
 
 ---
 

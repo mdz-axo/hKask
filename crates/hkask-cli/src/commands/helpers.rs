@@ -57,15 +57,20 @@ fn build_service_context_inner(
             .map_err(|e| format!("Failed to resolve service config: {}", e))?,
     };
     match tokio::runtime::Handle::try_current() {
-        Ok(handle) => {
-            let (tx, rx) = tokio::sync::oneshot::channel();
+        Ok(_handle) => {
+            // Already inside a tokio runtime — spawn on a separate OS thread
+            // to avoid nested block_on panics (Handle::block_on is forbidden
+            // from within a tokio worker or block_on context).
+            let (tx, rx) = std::sync::mpsc::channel();
             let cfg = config.clone();
-            handle.spawn(async move {
-                let _ = tx.send(hkask_services_context::AgentService::build(cfg).await);
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new()
+                    .expect("Failed to create tokio runtime for service build");
+                let result = rt.block_on(hkask_services_context::AgentService::build(cfg));
+                let _ = tx.send(result);
             });
-            handle
-                .block_on(rx)
-                .map_err(|_| "Service build task panicked".to_string())
+            rx.recv()
+                .map_err(|_| "Service build thread panicked".to_string())
                 .and_then(|r| r.map_err(|e| e.to_string()))
         }
         Err(_) => {
