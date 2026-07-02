@@ -53,7 +53,33 @@ classDiagram
         }
         class FederationDispatch {
             <<interface>>
-            +dispatch(req) Result
+            +register_peer(replica, domain, matrix_domain, matrix_id)
+            +invite(peer) Result
+            +accept(peer) Result
+            +reject(peer) Result
+            +pause(peer, reason) Result
+            +resume(peer) Result
+            +revoke(peer, reason) Result
+            +leave(reason) Result
+            +linked_peers() Vec~ReplicaId~
+            +link_state(peer) Option~String~
+        }
+        class CnsStoragePort {
+            <<interface>>
+            +query_algedonic(since, limit) Result~Vec~NuEvent~~
+        }
+        class FederationTransport {
+            <<interface>>
+            +send(peer, message) Result
+            +recv() Result
+            +simulate_partition(peer)
+            +heal_partition(peer)
+        }
+        class FederationSyncPort {
+            <<interface>>
+            +query_public_since(cursor, limit) Result~Vec~FederatedTriple~~
+            +cursor_for(source) u64
+            +advance_cursor(source, cursor)
         }
     }
 
@@ -368,7 +394,7 @@ classDiagram
 - [x] Core foundation: every service subcrate depends on `hkask-services-core`
 - [x] Context DI: ChatService, MemoryService, CuratorService, BundleService take `&AgentService`
 - [x] Embedded: WalletService, ServiceDaemonHandler live in `InfraContext`
-- [x] Port interfaces: InferencePort, ToolPort, CircuitBreakerPort, CnsObserver, RegistryIndex, SkillRegistryIndex, FederationDispatch
+- [x] Port interfaces (10 total): InferencePort, ToolPort, CircuitBreakerPort, CnsObserver, RegistryIndex, SkillRegistryIndex, FederationDispatch, CnsStoragePort, FederationTransport, FederationSyncPort
 
 ---
 

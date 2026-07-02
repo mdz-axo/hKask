@@ -22,7 +22,7 @@ The binary entry point (`crates/hkask-cli/src/main.rs`) is a thin dispatcher. On
 
 1. Loads `.env` and parses CLI arguments via Clap.
 2. Initializes the tracing subscriber (JSON or human-readable, debug or default filter).
-3. Creates a Tokio single-threaded runtime.
+3. Creates a Tokio multi-threaded runtime.
 4. Checks fusion model configuration (P9: proactive cost-safety).
 5. Initializes a lightweight `SqliteRegistry` for CLI subcommand use.
 6. Emits a CNS span (`command_dispatched`) and routes to the matching command handler.
@@ -139,12 +139,12 @@ flowchart TD
 - `crates/hkask-cli/src/cli/helpers.rs:26–42` — Logging initialization
 - `crates/hkask-cli/src/commands/serve.rs:20–69` — API serve command → `ServiceConfig::from_env` → `AgentService::build` → `ApiState::from_service_context` → `create_router` → `axum::serve`
 - `crates/hkask-services-core/src/config.rs:140–204` — `ServiceConfig::from_env()` — env vars + keystore secret resolution
-- `crates/hkask-services-context/src/context_impl/build/:30–76` — `AgentService::build()` — 4-phase canonical assembly
-- `crates/hkask-services-context/src/context_impl/build/:168–292` — `build_foundation()` — DB open, 7 stores, CNS runtime, seam watcher
-- `crates/hkask-services-context/src/context_impl/build/:324–530` — `build_loops()` — LoopSystem, CyberneticsLoop, Inference, Memory, Curator, Federation
-- `crates/hkask-services-context/src/context_impl/build/:547–712` — `build_mcp_and_pods()` — GovernedTool, McpDispatcher, CapabilityChecker, ActivePods, CuratorPod, DaemonListener
-- `crates/hkask-services-context/src/context_impl/build/:744–820` — `build_registry_and_wallet()` — SqliteRegistry, AgentRegistryStore, A2A restore, WalletService
-- `crates/hkask-services-context/src/context_impl/build/:95–146` — `into_service()` — AgentServiceWiring → AgentService
+- `crates/hkask-services-context/src/context_impl/build/mod.rs:30–76` — `AgentService::build()` — 4-phase canonical assembly
+- `crates/hkask-services-context/src/context_impl/build/foundation.rs:168–292` — `build_foundation()` — DB open, 7 stores, CNS runtime, seam watcher
+- `crates/hkask-services-context/src/context_impl/build/loops.rs:324–530` — `build_loops()` — LoopSystem, CyberneticsLoop, Inference, Memory, Curator, Federation
+- `crates/hkask-services-context/src/context_impl/build/mcp_pods.rs:547–712` — `build_mcp_and_pods()` — GovernedTool, McpDispatcher, CapabilityChecker, ActivePods, CuratorPod, DaemonListener
+- `crates/hkask-services-context/src/context_impl/build/reg_wallet.rs:744–820` — `build_registry_and_wallet()` — SqliteRegistry, AgentRegistryStore, A2A restore, WalletService
+- `crates/hkask-services-context/src/context_impl/build/mod.rs:95–146` — `into_service()` — AgentServiceWiring → AgentService
 - `crates/hkask-api/src/lib.rs:102–155` — `ApiState::with_defaults()` + `from_service_context()`
 - `crates/hkask-api/src/lib.rs:201–279` — `create_router()` — axum router + middleware layers
 - `crates/hkask-cns/src/runtime.rs:290–310` — `CnsRuntime` struct and initialization
