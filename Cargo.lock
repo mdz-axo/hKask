@@ -606,7 +606,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
 dependencies = [
  "axum-core 0.5.6",
- "base64 0.22.1",
+ "base64",
  "bytes",
  "form_urlencoded",
  "futures-util",
@@ -684,12 +684,6 @@ dependencies = [
  "gloo-timers",
  "tokio",
 ]
-
-[[package]]
-name = "base64"
-version = "0.21.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
 name = "base64"
@@ -3462,7 +3456,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3314d5adb5d94bcdf56771f2e50dbbc80bb4bdf88967526706205ac9eff24eb"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "bytes",
  "headers-core",
  "http",
@@ -3637,7 +3631,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum 0.8.9",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "ed25519-dalek",
  "futures-util",
@@ -3688,16 +3682,14 @@ version = "0.31.0"
 name = "hkask-capability"
 version = "0.31.0"
 dependencies = [
- "base64 0.21.7",
+ "base64",
  "chrono",
  "ed25519-dalek",
  "hex",
  "hkask-types",
- "hmac",
  "serde",
  "serde_json",
  "sha2",
- "subtle",
  "thiserror 2.0.18",
  "uuid",
  "zeroize",
@@ -3709,7 +3701,7 @@ version = "0.31.0"
 dependencies = [
  "anyhow",
  "axum 0.8.9",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "clap",
  "crossterm",
@@ -3843,7 +3835,6 @@ name = "hkask-federation"
 version = "0.31.0"
 dependencies = [
  "async-trait",
- "blake3",
  "chrono",
  "hkask-agents",
  "hkask-cns",
@@ -3869,7 +3860,6 @@ dependencies = [
  "hkask-cns",
  "hkask-types",
  "serde",
- "serde_json",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -3878,7 +3868,7 @@ dependencies = [
 name = "hkask-inference"
 version = "0.31.0"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "chrono",
  "futures-util",
  "hkask-keystore",
@@ -3900,7 +3890,6 @@ version = "0.31.0"
 dependencies = [
  "aes-gcm",
  "argon2",
- "chrono",
  "dirs 6.0.0",
  "ed25519-dalek",
  "hex",
@@ -3911,7 +3900,6 @@ dependencies = [
  "rand 0.9.4",
  "serde_json",
  "sha2",
- "subtle",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
@@ -3974,7 +3962,6 @@ dependencies = [
 name = "hkask-mcp-cloud-gateway"
 version = "0.31.0"
 dependencies = [
- "anyhow",
  "dotenvy",
  "hkask-capability",
  "hkask-mcp",
@@ -3996,7 +3983,7 @@ name = "hkask-mcp-communication"
 version = "0.31.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64",
  "dotenvy",
  "hkask-bridge-dublincore",
  "hkask-bridge-pko",
@@ -4019,7 +4006,7 @@ name = "hkask-mcp-companies"
 version = "0.31.0"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "dirs 6.0.0",
  "dotenvy",
@@ -4095,7 +4082,7 @@ version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "dirs 6.0.0",
  "dotenvy",
@@ -4194,7 +4181,7 @@ version = "0.31.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "dotenvy",
  "face_id",
@@ -4284,7 +4271,7 @@ version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "blake3",
  "chrono",
  "dotenvy",
@@ -4337,7 +4324,7 @@ version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "blake3",
  "chrono",
  "dotenvy",
@@ -4399,7 +4386,6 @@ dependencies = [
  "hkask-types",
  "serde",
  "serde_json",
- "serde_yaml_neo",
  "sha2",
  "thiserror 2.0.18",
  "uuid",
@@ -4447,12 +4433,11 @@ name = "hkask-services-context"
 version = "0.31.0"
 dependencies = [
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "blake3",
  "chrono",
  "ed25519-dalek",
  "futures-util",
- "hex",
  "hkask-agents",
  "hkask-capability",
  "hkask-cns",
@@ -4471,8 +4456,6 @@ dependencies = [
  "hkask-types",
  "hkask-wallet",
  "hkask-wallet-types",
- "parking_lot",
- "rand 0.9.4",
  "reqwest",
  "rusqlite",
  "serde",
@@ -4508,7 +4491,7 @@ dependencies = [
 name = "hkask-services-corpus"
 version = "0.31.0"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "chrono",
  "hkask-capability",
  "hkask-inference",
@@ -4546,7 +4529,6 @@ dependencies = [
  "hkask-types",
  "serde_json",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -4587,7 +4569,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "serde_yaml_neo",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4635,7 +4616,6 @@ dependencies = [
  "serde_yaml_neo",
  "tempfile",
  "thiserror 2.0.18",
- "tokio",
  "tracing",
  "uuid",
 ]
@@ -4657,7 +4637,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "serde_yaml_neo",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4670,7 +4649,7 @@ version = "0.31.0"
 dependencies = [
  "aes-gcm",
  "argon2",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "hex",
  "hkask-capability",
@@ -4722,8 +4701,6 @@ name = "hkask-test-harness"
 version = "0.31.0"
 dependencies = [
  "chrono",
- "dirs 6.0.0",
- "dotenvy",
  "hkask-capability",
  "hkask-cns",
  "hkask-ledger",
@@ -4778,7 +4755,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "serde_yaml_neo",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -4809,7 +4785,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "subtle",
  "thiserror 2.0.18",
  "tokio",
  "tonic",
@@ -4823,7 +4798,6 @@ name = "hkask-wallet-types"
 version = "0.31.0"
 dependencies = [
  "chrono",
- "hex",
  "hkask-types",
  "rusqlite",
  "serde",
@@ -5008,7 +4982,7 @@ version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96547c2556ec9d12fb1578c4eaf448b04993e7fb79cbaad930a656880a6bdfa0"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "bytes",
  "futures-channel",
  "futures-util",
@@ -5540,7 +5514,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b8f66fe41fa46a5c83ed1c717b7e0b4635988f427083108c8cf0a882cc13441"
 dependencies = [
  "ahash",
- "base64 0.22.1",
+ "base64",
  "bytecount",
  "email_address",
  "fancy-regex",
@@ -5964,7 +5938,7 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a872689adca327ce6dbadaac93bd9558ae3a7c5ab4c3177596dd01492085f747"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "blake3",
  "chacha20poly1305",
  "hmac",
@@ -6467,7 +6441,7 @@ version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51e219e79014df21a225b1860a479e2dcd7cbd9130f4defd4bd0e191ea31d67d"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "chrono",
  "getrandom 0.2.17",
  "http",
@@ -6701,7 +6675,7 @@ version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d30c53c26bc5b31a98cd02d20f25a7c8567146caf63ed593a9d87b2775291be"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "serde_core",
 ]
 
@@ -7637,7 +7611,7 @@ version = "0.12.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "bytes",
  "encoding_rs",
  "futures-channel",
@@ -7707,7 +7681,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d1f571c72940a19d9532fe52dbea8bc9912bf1d766c2970bb824056b86f3f59"
 dependencies = [
  "async-trait",
- "base64 0.22.1",
+ "base64",
  "chrono",
  "futures",
  "pastey 0.2.3",
@@ -7835,7 +7809,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "597a01993f22d291320b7c9267675e7395775e95269ff526e2c8c3ed5e13175b"
 dependencies = [
  "as_variant",
- "base64 0.22.1",
+ "base64",
  "bytes",
  "form_urlencoded",
  "getrandom 0.2.17",
@@ -7951,7 +7925,7 @@ version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "146ace2cd59b60ec80d3e801a84e7e6a91e3e01d18a9f5d896ea7ca16a6b8e08"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "ed25519-dalek",
  "pkcs8",
  "rand 0.8.6",
@@ -9071,7 +9045,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum 0.7.9",
- "base64 0.22.1",
+ "base64",
  "bytes",
  "h2",
  "http",
@@ -9426,7 +9400,7 @@ version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea7109cdcd5864d4eeb1b58a1648dc9bf520360d7af16ec26d0a9354bafcfc0"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "cookie_store",
  "der 0.8.0",
  "flate2",
@@ -9450,7 +9424,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e994ba84b0bd1b1b0cf92878b7ef898a5c1760108fe7b6010327e274917a808c"
 dependencies = [
- "base64 0.22.1",
+ "base64",
  "http",
  "httparse",
  "log",
@@ -9599,7 +9573,7 @@ checksum = "c022a277687e4e8685d72b95a7ca3ccfec907daa946678e715f8badaa650883d"
 dependencies = [
  "aes",
  "arrayvec",
- "base64 0.22.1",
+ "base64",
  "base64ct",
  "cbc",
  "chacha20poly1305",
@@ -10227,7 +10201,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08db1edfb05d9b3c1542e521aea074442088292f00b5f28e435c714a98f85031"
 dependencies = [
  "assert-json-diff",
- "base64 0.22.1",
+ "base64",
  "deadpool",
  "futures",
  "http",

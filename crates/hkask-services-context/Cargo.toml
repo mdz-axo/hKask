@@ -34,9 +34,6 @@ hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
 reqwest.workspace = true
 rusqlite.workspace = true
-rand.workspace = true
-parking_lot.workspace = true
-hex.workspace = true
 blake3.workspace = true
 base64.workspace = true
 futures-util.workspace = true

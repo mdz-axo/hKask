@@ -9,7 +9,6 @@ description = "Wallet value types — RJoule, WalletConfig, ChainId, API key typ
 hkask-types = { path = "../hkask-types" }
 serde.workspace = true
 chrono.workspace = true
-hex.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 rusqlite = { workspace = true, optional = true }

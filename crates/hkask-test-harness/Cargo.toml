@@ -24,8 +24,6 @@ proptest = "1"
 thiserror.workspace = true
 tracing.workspace = true
 hkask-ledger = { path = "../hkask-ledger" }
-dirs = "6"
-dotenvy.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

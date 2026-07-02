@@ -19,7 +19,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 thiserror.workspace = true
 dotenvy.workspace = true
-anyhow.workspace = true
 x509-parser = "0.17"
 
 [lib]

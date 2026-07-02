@@ -17,8 +17,7 @@ serde_json.workspace = true
 serde_yaml_neo.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
-	uuid.workspace = true
+uuid.workspace = true
 hex.workspace = true
 blake3.workspace = true
 
