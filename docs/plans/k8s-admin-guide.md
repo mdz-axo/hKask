@@ -675,6 +675,24 @@ kubectl -n hkask-conduit top pods
 kubectl top nodes
 ```
 
+### Disk Space
+
+```bash
+# Check PVC usage (how much of the 20Gi is used)
+kubectl -n hkask exec deploy/hkask -c kask -- df -h /data
+
+# Conduit PVC
+kubectl -n hkask-conduit exec deploy/conduit -- df -h /data
+
+# Watch for growth over time (Litestream WAL accumulation if S3 is down)
+watch -n 60 'kubectl -n hkask exec deploy/hkask -c kask -- du -sh /data'
+```
+
+**Watch thresholds:** If `/data` exceeds 80% (16Gi of 20Gi), investigate.
+Causes: Litestream WAL accumulation (S3 unreachable), agent pod databases growing,
+or sovereignty export archives accumulating. The most common cause is S3
+connectivity loss — Litestream buffers WAL segments locally until S3 recovers.
+
 ### Updating Configuration
 
 ```bash
@@ -728,28 +746,34 @@ When a new Pod is created, this exact sequence happens. Understanding it helps y
 2. Kubelet pulls container images
    └── Pod shows as "Pending" or "ContainerCreating"
 
-3. Init container starts (litestream-restore)
-   └── Pod shows as "Init:0/1"
+3. Init container 1: wait-for-conduit
+   └── Pod shows as "Init:0/2"
+   └── Polls http://conduit.hkask-conduit.svc.cluster.local:8008/_matrix/client/versions
+   └── Loops until Conduit responds with 200 OK
+
+4. Init container 2: litestream-restore
+   └── Pod shows as "Init:1/2"
    └── Tries to restore /data/kask.db from S3
    └── If no replica exists, exits successfully (empty DB is fine)
    └── If restore succeeds, exits successfully
 
-4. Init container completes
+5. Both init containers complete
    └── Pod shows as "PodInitializing"
 
-5. Main containers start simultaneously:
+6. Main containers start simultaneously:
    └── kask container: calls `kask serve`
    └── litestream container: calls `litestream replicate`
 
-6. Readiness probes start checking
+7. Readiness probes start checking
    └── Pod shows as "1/2" then "2/2" as each container passes
+   └── Readiness probe hits `/health` — only passes when DB + Conduit are reachable
 
-7. Pod is "Running" and "Ready"
+8. Pod is "Running" and "Ready"
    └── Service starts routing traffic to it
    └── Ingress starts routing external traffic to it
 ```
 
-**Key insight:** The init container (`litestream-restore`) and the sidecar container (`litestream` running `replicate`) are DIFFERENT containers using the SAME image (`litestream/litestream:0.5.0`) with different commands. The init container runs `restore` once and exits. The sidecar runs `replicate` continuously.
+**Key insight:** Two init containers run sequentially: `wait-for-conduit` polls the Conduit homeserver until it's ready, then `litestream-restore` pulls the latest database snapshot from S3. The sidecar container (`litestream` running `replicate`) handles continuous WAL replication after startup.
 
 ---
 

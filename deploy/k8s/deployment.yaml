@@ -19,11 +19,26 @@ spec:
       # before pod termination (default 30s is too short for S3 writes).
       terminationGracePeriodSeconds: 60
 
-      # Init container: restore database from S3 before kask starts.
-      # Runs once, must complete before main containers start. This
-      # prevents the race where kask opens /data/kask.db before the
-      # litestream sidecar has restored it on a fresh pod.
+      # Init containers run to completion before main containers start.
       initContainers:
+        # 1. Wait for Conduit to be ready before starting kask.
+        #    Polls Conduit's versions endpoint until it responds 200.
+        - name: wait-for-conduit
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Conduit at http://conduit.hkask-conduit.svc.cluster.local:8008..."
+              until wget -qO- http://conduit.hkask-conduit.svc.cluster.local:8008/_matrix/client/versions > /dev/null 2>&1; do
+                echo "  Conduit not ready, retrying in 2s..."
+                sleep 2
+              done
+              echo "Conduit is ready."
+
+        # 2. Restore database from S3 before kask starts.
+        #    Prevents the race where kask opens /data/kask.db before
+        #    the litestream sidecar has restored it on a fresh pod.
         - name: litestream-restore
           image: litestream/litestream:0.5.0
           args:
@@ -130,9 +145,9 @@ spec:
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /health
               port: 3000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 10
 
         # litestream sidecar: continuous WAL replication to S3

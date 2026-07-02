@@ -3,34 +3,23 @@
 //! REQ: P3-deploy-landing-page — P3 Headless: single static HTML landing page with OAuth sign-in.
 //! expect: "I see a single static landing page with OAuth sign-in options"
 //!
-//! Also serves as the Kubernetes liveness/readiness probe.
-//! Returns 503 if the database is unreachable so k8s can restart the pod.
+//! Also serves as the Kubernetes liveness probe — returns immediately (static HTML)
+//! to prove the HTTP server is alive. The readiness probe uses `/health` instead.
 
-use crate::ApiState;
-use axum::extract::State;
 use axum::response::IntoResponse;
 
 /// GET / — landing page with logo and sign-in buttons.
-/// Doubles as a health probe: returns 503 if the database is unreachable.
+/// Kept static for fast k8s liveness probe response.
 #[utoipa::path(
     get,
     path = "/",
     tag = "landing",
     responses(
         (status = 200, description = "Landing page HTML", content_type = "text/html"),
-        (status = 503, description = "Database unavailable — health probe failure"),
     ),
 )]
-pub async fn landing_page(State(state): State<ApiState>) -> impl IntoResponse {
-    // DB health check for k8s liveness/readiness probes.
-    // If UserStore is unreachable, return 503 so k8s restarts the pod.
-    if state.agent_service.storage().users.lock().is_err() {
-        return axum::response::Response::builder()
-            .status(axum::http::StatusCode::SERVICE_UNAVAILABLE)
-            .body(axum::body::Body::from("database unavailable"))
-            .unwrap();
-    }
-    axum::response::Html(LANDING_HTML).into_response()
+pub async fn landing_page() -> impl IntoResponse {
+    axum::response::Html(LANDING_HTML)
 }
 
 const LANDING_HTML: &str = r###"<!DOCTYPE html>
