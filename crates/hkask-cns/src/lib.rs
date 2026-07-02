@@ -44,10 +44,10 @@ pub use contract_events::{
 pub use cybernetics_loop::CyberneticsLoop;
 pub use dynamic_gas_table::DynamicGasTable;
 pub use energy::{
-    AgentEnergyStatus, DEFAULT_ENERGY_ALERT_THRESHOLD, EnergyBudget, EnergyCost, EnergyDelta,
-    EnergyError,
+    AgentGasStatus, DEFAULT_GAS_ALERT_THRESHOLD, GasBudget, GasCost, GasDelta,
+    GasError,
 };
-pub use energy_budget_management::EnergyBudgetManager;
+pub use energy_budget_management::GasBudgetManager;
 pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 pub use governed_inference::GovernedInference;
 pub use governed_tool::{EnergyEstimator, GovernedTool};

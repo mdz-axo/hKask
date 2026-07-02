@@ -97,9 +97,9 @@ async fn governed_tool_full_membrane_ocap_domain_path() {
     loop6
         .write()
         .await
-        .register_energy_budget(
+        .register_gas_budget(
             agent,
-            hkask_cns::energy::EnergyBudget::new(hkask_cns::energy::EnergyCost(10_000)),
+            hkask_cns::energy::GasBudget::new(hkask_cns::energy::GasCost(10_000)),
         )
         .await;
 

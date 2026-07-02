@@ -17,7 +17,7 @@
 use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, RuntimeAlert, cns_health_check,
 };
-use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost};
+use crate::energy::{AgentGasStatus, GasBudget, GasCost};
 use crate::set_points::DEFAULT_VARIETY_MAX_DEFICIT;
 use crate::slo_manager::{SloDataProvider, SloManager};
 
@@ -261,7 +261,7 @@ struct CnsState {
     algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
     tracker: VarietyMonitor,
     outcome: HashMap<String, OutcomeTracker>,
-    energy_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, EnergyBudget>>>,
+    gas_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, GasBudget>>>,
     slo_manager: SloManager,
 }
 
@@ -273,13 +273,13 @@ impl CnsState {
         )));
         let tracker = VarietyMonitor::new();
         let outcome = HashMap::new();
-        let energy_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+        let gas_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         let slo_manager = SloManager::with_seed_slos();
         Self {
             algedonic,
             tracker,
             outcome,
-            energy_budgets,
+            gas_budgets,
             slo_manager,
         }
     }
@@ -718,9 +718,9 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — budget cap enforces resource boundary
     /// pre:  agent is valid, budget is valid
     /// post: budget registered for agent
-    pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
+    pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
         let state = self.state.read().await;
-        let mut budgets = state.energy_budgets.write().await;
+        let mut budgets = state.gas_budgets.write().await;
         budgets.insert(agent, budget);
     }
 
@@ -735,9 +735,9 @@ impl CnsRuntime {
     /// \[P4\] Constraining: Clear Boundaries — cap enforcement prevents over-replenishment
     /// pre:  agent is registered, amount > 0
     /// post: budget replenished, returns actual amount added
-    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) -> EnergyCost {
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: GasCost) -> GasCost {
         let state = self.state.read().await;
-        let mut budgets = state.energy_budgets.write().await;
+        let mut budgets = state.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.replenish_by(amount);
             let remaining = budget.remaining();
@@ -750,7 +750,7 @@ impl CnsRuntime {
             );
             remaining
         } else {
-            EnergyCost::ZERO
+            GasCost::ZERO
         }
     }
 
@@ -765,10 +765,10 @@ impl CnsRuntime {
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// pre:  agent is valid
     /// post: returns Some(status) if budget exists, None otherwise
-    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
+    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
         let state = self.state.read().await;
-        let budgets = state.energy_budgets.read().await;
-        budgets.get(agent).map(AgentEnergyStatus::from)
+        let budgets = state.gas_budgets.read().await;
+        budgets.get(agent).map(AgentGasStatus::from)
     }
 
     // ── SLO Management ────────────────────────────────────────────────────

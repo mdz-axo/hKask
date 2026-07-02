@@ -16,7 +16,7 @@
 //! converts max_tokens to gas units (1 token ≈ 1 gas unit by default).
 
 use crate::cybernetics_loop::CyberneticsLoop;
-use crate::energy::EnergyCost;
+use crate::energy::GasCost;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferencePort, InferenceResult};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
@@ -110,7 +110,7 @@ impl InferencePort for GovernedInference {
         model_override: Option<&str>,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        let estimated_cost = EnergyCost(estimate_inference_cost(parameters));
+        let estimated_cost = GasCost(estimate_inference_cost(parameters));
         let model_name = model_override.unwrap_or("default").to_string();
         let agent = self.agent;
         let cybernetics = Arc::clone(&self.cybernetics);
@@ -231,7 +231,7 @@ impl InferencePort for GovernedInference {
             };
             let loop6 = cybernetics.read().await;
             if let Err(e) = loop6
-                .settle_gas(&agent, estimated_cost, EnergyCost(actual_cost))
+                .settle_gas(&agent, estimated_cost, GasCost(actual_cost))
                 .await
             {
                 warn!(

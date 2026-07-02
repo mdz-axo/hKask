@@ -83,7 +83,7 @@ impl InferenceLoop {
     /// Read-only accessor for the L1 domain metric.
     ///
     /// Returns `(remaining, cap)` — the loop's token budget state as a
-    /// sense signal. The L6 budget (CyberneticsLoop's EnergyBudget) is the
+    /// sense signal. The L6 budget (CyberneticsLoop's GasBudget) is the
     /// authoritative regulator; this counter is a read-only mirror.
     #[must_use]
     pub fn token_usage(&self) -> (u64, u64) {

@@ -9,7 +9,7 @@ use std::fs;
 use std::sync::Arc;
 
 use hkask_agents::InferenceLoop;
-use hkask_cns::{EnergyBudget, EnergyCost, GovernedTool};
+use hkask_cns::{GasBudget, GasCost, GovernedTool};
 
 use super::{ManifestState, TalkConfig, ToolPrompt};
 use hkask_mcp::RawMcpToolPort;
@@ -308,10 +308,10 @@ pub(super) fn init_repl_state(
             .cybernetics
             .read()
             .await
-            .register_energy_budget(
+            .register_gas_budget(
                 agent_webid,
-                EnergyBudget::new(EnergyCost(repl_settings.gas_cap))
-                    .with_replenish_rate(EnergyCost(repl_settings.gas_cap / 10))
+                GasBudget::new(GasCost(repl_settings.gas_cap))
+                    .with_replenish_rate(GasCost(repl_settings.gas_cap / 10))
                     .with_alert_threshold(0.8)
                     .with_hard_limit(true),
             )

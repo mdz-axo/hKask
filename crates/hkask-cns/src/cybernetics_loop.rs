@@ -28,8 +28,8 @@
 //! in `SetPoints` + regulation actions via `InferenceRegulation`.
 
 use crate::dampener::Dampener;
-use crate::energy::{AgentEnergyStatus, EnergyBudget, EnergyCost, EnergyError};
-use crate::energy_budget_management::EnergyBudgetManager;
+use crate::energy::{AgentGasStatus, GasBudget, GasCost, GasError};
+use crate::energy_budget_management::GasBudgetManager;
 use crate::runtime::CnsRuntime;
 use crate::set_points::SetPoints;
 use crate::slo_manager::SloDataProvider;
@@ -54,7 +54,7 @@ use tokio::sync::{RwLock, mpsc};
 /// alerts. It may NOT regulate the Curation Loop.
 pub struct CyberneticsLoop {
     cns: Arc<RwLock<CnsRuntime>>,
-    energy_budget_manager: EnergyBudgetManager,
+    gas_budget_manager: GasBudgetManager,
     set_points: SetPoints,
     /// Cascade detection — prevents unbounded sense→act cycles
     max_iterations: u32,
@@ -72,6 +72,8 @@ pub struct CyberneticsLoop {
     /// SLO data provider for periodic SLO evaluation. If set, SLOs are evaluated
     /// on each tick and breaches are escalated through the algedonic pathway.
     slo_provider: Option<Arc<dyn SloDataProvider>>,
+    /// Path for persisting gas budgets across restarts.
+    budget_persistence_path: Option<std::path::PathBuf>,
 }
 
 impl CyberneticsLoop {
@@ -92,7 +94,7 @@ impl CyberneticsLoop {
         let max_iterations = set_points.max_iterations;
         let slf = Self {
             cns,
-            energy_budget_manager: EnergyBudgetManager::new(),
+            gas_budget_manager: GasBudgetManager::new(),
             set_points,
             max_iterations,
             dampener,
@@ -102,6 +104,7 @@ impl CyberneticsLoop {
             slo_provider: None,
             curator_directive_rx: None,
             loop_quality: Arc::new(RwLock::new(LoopQuality::default())),
+            budget_persistence_path: None,
         };
         if slf.event_sink.is_none() && slf.alerts_tx.is_none() {
             tracing::warn!(target: "cns.cybernetics", "CyberneticsLoop constructed with no alert pathway — alerts will be lost until with_alerts_channel() or with_event_sink() is called");
@@ -153,6 +156,30 @@ impl CyberneticsLoop {
         self
     }
 
+    /// Enable gas budget persistence across restarts.
+    ///
+    /// Budgets are saved to the given path after each replenishment cycle.
+    /// On startup, call `load_budgets()` to restore saved budgets.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_budget_persistence(mut self, path: std::path::PathBuf) -> Self {
+        self.budget_persistence_path = Some(path);
+        self
+    }
+
+    /// Load previously persisted gas budgets from the configured path.
+    /// Returns the number of budgets loaded (0 if no file or first run).
+    pub async fn load_budgets(&self) -> Result<usize, String> {
+        if let Some(ref path) = self.budget_persistence_path {
+            let count = self.gas_budget_manager.load_all(path).await?;
+            if count > 0 {
+                tracing::info!(target: "cns.cybernetics", count = count, "Loaded persisted gas budgets");
+            }
+            Ok(count)
+        } else {
+            Ok(0)
+        }
+    }
+
     /// Record a tool outcome in the CNS runtime for outcome quality tracking.
     ///
     /// Delegates to `CnsRuntime::record_outcome`. Called by `GovernedTool`
@@ -165,66 +192,58 @@ impl CyberneticsLoop {
             .await;
     }
 
-    pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
-        self.energy_budget_manager
-            .register_energy_budget(agent, budget)
+    pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
+        self.gas_budget_manager
+            .register_gas_budget(agent, budget)
             .await;
     }
 
     /// Register a wallet-backed budget for an agent (Phase 5).
     /// Wallet budgets are checked before gas budgets in the membrane.
     pub async fn register_wallet_budget(&self, agent: WebID, budget: WalletBackedBudget) {
-        self.energy_budget_manager
+        self.gas_budget_manager
             .register_wallet_budget(agent, budget)
             .await;
     }
 
-    pub async fn can_proceed(&self, agent: &WebID, gas: EnergyCost) -> bool {
-        self.energy_budget_manager.can_proceed(agent, gas).await
+    pub async fn can_proceed(&self, agent: &WebID, gas: GasCost) -> bool {
+        self.gas_budget_manager.can_proceed(agent, gas).await
     }
 
     /// Returns `None` if agent has no registered budget.
-    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentEnergyStatus> {
-        self.energy_budget_manager.agent_gas_status(agent).await
+    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
+        self.gas_budget_manager.agent_gas_status(agent).await
     }
 
     /// Hold-settle pattern: gas reserved but not consumed. Call settle_gas() after.
-    pub async fn reserve_gas(
-        &self,
-        agent: &WebID,
-        gas: EnergyCost,
-    ) -> Result<EnergyCost, EnergyError> {
-        self.energy_budget_manager.reserve_gas(agent, gas).await
+    pub async fn reserve_gas(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
+        self.gas_budget_manager.reserve_gas(agent, gas).await
     }
 
     /// If actual < reserved, the difference is refunded.
     pub async fn settle_gas(
         &self,
         agent: &WebID,
-        reserved_gas: EnergyCost,
-        actual_gas: EnergyCost,
-    ) -> Result<EnergyCost, EnergyError> {
-        self.energy_budget_manager
+        reserved_gas: GasCost,
+        actual_gas: GasCost,
+    ) -> Result<GasCost, GasError> {
+        self.gas_budget_manager
             .settle_gas(agent, reserved_gas, actual_gas)
             .await
     }
 
     /// For estimated cost, prefer `reserve_gas` + `settle_gas`.
-    pub async fn acquire_budget(
-        &self,
-        agent: &WebID,
-        gas: EnergyCost,
-    ) -> Result<EnergyCost, EnergyError> {
-        self.energy_budget_manager.acquire_budget(agent, gas).await
+    pub async fn acquire_budget(&self, agent: &WebID, gas: GasCost) -> Result<GasCost, GasError> {
+        self.gas_budget_manager.acquire_budget(agent, gas).await
     }
 
     pub async fn replenish_all_budgets(&self) {
-        self.energy_budget_manager.replenish_all_budgets().await;
+        self.gas_budget_manager.replenish_all_budgets().await;
     }
 
     /// Used by CuratorDirective::ReplenishBudget.
-    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: EnergyCost) {
-        self.energy_budget_manager
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: GasCost) {
+        self.gas_budget_manager
             .replenish_agent_budget(agent, amount)
             .await;
     }
@@ -264,7 +283,7 @@ impl CyberneticsLoop {
             }
         }
 
-        self.energy_budget_manager.expire_overrides().await;
+        self.gas_budget_manager.expire_overrides().await;
     }
 
     async fn handle_curation_directive(&self, directive: CuratorDirective) {
@@ -295,7 +314,7 @@ impl CyberneticsLoop {
                 new_threshold,
             } => self.apply_calibrate_threshold(&domain, new_threshold).await,
             CuratorDirective::OverrideEnergyBudget { agent, new_budget } => {
-                self.apply_override_energy_budget(agent, new_budget).await
+                self.apply_override_gas_budget(agent, new_budget).await
             }
             CuratorDirective::ClearOverride { agent } => self.apply_clear_override(agent).await,
             CuratorDirective::ReplenishBudget {
@@ -337,21 +356,21 @@ impl CyberneticsLoop {
     }
 
     /// Metacognitive override — recorded in active_overrides so replenish skips it.
-    async fn apply_override_energy_budget(&self, agent: WebID, new_budget: u64) {
-        self.energy_budget_manager
-            .apply_override_energy_budget(agent, EnergyCost(new_budget))
+    async fn apply_override_gas_budget(&self, agent: WebID, new_budget: u64) {
+        self.gas_budget_manager
+            .apply_override_gas_budget(agent, GasCost(new_budget))
             .await;
     }
 
     /// Removes agent from active_overrides, resuming normal replenishment.
     async fn apply_clear_override(&self, agent: WebID) {
-        self.energy_budget_manager.apply_clear_override(agent).await;
+        self.gas_budget_manager.apply_clear_override(agent).await;
     }
 
     /// Priority-scaled: when priority is provided, replenishment is weighted.
     async fn apply_replenish_budget(&self, agent: WebID, amount: u64, priority: Option<f64>) {
-        self.energy_budget_manager
-            .apply_replenish_budget(agent, EnergyCost(amount), priority)
+        self.gas_budget_manager
+            .apply_replenish_budget(agent, GasCost(amount), priority)
             .await;
     }
 
@@ -393,7 +412,7 @@ impl HkaskLoop for CyberneticsLoop {
         let mut signals = Vec::new();
 
         // Energy signals: per-agent remaining ratio
-        let budget_ratios = self.energy_budget_manager.energy_ratios().await;
+        let budget_ratios = self.gas_budget_manager.gas_ratios().await;
         for (remaining, cap) in budget_ratios {
             let ratio = remaining.0 as f64 / cap.0.max(1) as f64;
             signals.push(Signal::new(
@@ -409,7 +428,7 @@ impl HkaskLoop for CyberneticsLoop {
         // Set-point: 0.1 (alert when below 10% of capacity).
         // This is a simplified model — the full implementation would use
         // a 30-day moving average as the denominator.
-        let wallet_ratios = self.energy_budget_manager.wallet_balance_ratios().await;
+        let wallet_ratios = self.gas_budget_manager.wallet_balance_ratios().await;
         for (ratio, _cap) in wallet_ratios {
             signals.push(Signal::new(
                 LoopId::Cybernetics,
@@ -421,7 +440,7 @@ impl HkaskLoop for CyberneticsLoop {
 
         // Key health signals: 1.0 = exhausted/expired, 0.0 = healthy.
         // Set-point: 0.0 (any non-zero value = alert).
-        let key_alerts = self.energy_budget_manager.wallet_key_alerts().await;
+        let key_alerts = self.gas_budget_manager.wallet_key_alerts().await;
         for (_agent, _reason) in &key_alerts {
             signals.push(Signal::new(
                 LoopId::Cybernetics,
@@ -586,6 +605,26 @@ impl HkaskLoop for CyberneticsLoop {
 
     async fn act(&self, actions: &[LoopAction]) {
         self.replenish_all_budgets().await;
+
+        // E04: Detect and escalate budget exhaustion
+        let exhausted = self.gas_budget_manager.exhausted_agents().await;
+        if !exhausted.is_empty() {
+            for (agent, cap) in exhausted {
+                tracing::warn!(
+                    target: "cns.cybernetics",
+                    agent = %agent,
+                    cap = cap.0,
+                    "Budget exhausted — agent has zero remaining gas"
+                );
+            }
+        }
+
+        // E02: Persist budgets after each replenishment cycle
+        if let Some(ref path) = self.budget_persistence_path {
+            if let Err(e) = self.gas_budget_manager.save_all(path).await {
+                tracing::error!(target: "cns.cybernetics", path = %path.display(), error = %e, "Failed to persist gas budgets");
+            }
+        }
         let has_energy_depletion = actions.iter().any(|a| {
             a.parameters.get("reason").and_then(|v| v.as_str()) == Some("energy_budget_low")
         });

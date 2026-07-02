@@ -3,13 +3,13 @@
 // These tests exercise the public seams of `hkask-cns` together with
 // `hkask-wallet` and `hkask-storage` to verify end-to-end behavior:
 //
-// 1. WalletBackedBudget reserve/settle through EnergyBudgetManager.
+// 1. WalletBackedBudget reserve/settle through GasBudgetManager.
 // 2. WalletEnergyEstimator calibration propagates into WalletBackedBudget costs.
-// 3. EnergyBudget replenishment after partial settlement refunds.
+// 3. GasBudget replenishment after partial settlement refunds.
 
 use hkask_cns::WalletEnergyEstimator;
-use hkask_cns::energy::{EnergyBudget, EnergyCost};
-use hkask_cns::energy_budget_management::EnergyBudgetManager;
+use hkask_cns::energy::{GasBudget, GasCost};
+use hkask_cns::energy_budget_management::GasBudgetManager;
 use hkask_cns::wallet_budget::WalletBackedBudget;
 use hkask_storage::WalletStore;
 use hkask_storage::database::in_memory_db;
@@ -99,12 +99,12 @@ async fn manager_wallet_budget_reserve_settle_debits_encumbrance() {
         make_wallet_budget_with_key(GAS_PER_RJOULE, 10_000, 2_000, 5_000);
 
     let agent = hkask_types::WebID::new();
-    let mgr = EnergyBudgetManager::new();
+    let mgr = GasBudgetManager::new();
     mgr.register_wallet_budget(agent, budget).await;
 
     // gas_per_rjoule = GAS_PER_RJOULE → GAS_PER_RJOULE gas = 1 rJ. Encumbrance has 2000 rJ.
     let reserved = mgr
-        .reserve_gas(&agent, EnergyCost(GAS_PER_RJOULE))
+        .reserve_gas(&agent, GasCost(GAS_PER_RJOULE))
         .await
         .unwrap();
     assert_eq!(reserved.0, GAS_PER_RJOULE);
@@ -112,8 +112,8 @@ async fn manager_wallet_budget_reserve_settle_debits_encumbrance() {
     let settled = mgr
         .settle_gas(
             &agent,
-            EnergyCost(GAS_PER_RJOULE),
-            EnergyCost(GAS_PER_RJOULE),
+            GasCost(GAS_PER_RJOULE),
+            GasCost(GAS_PER_RJOULE),
         )
         .await
         .unwrap();
@@ -137,17 +137,17 @@ async fn calibrated_gas_per_rjoule_changes_budget_cost() {
         make_wallet_budget_with_key(estimator.gas_per_rjoule, 10_000, 2_000, 5_000);
 
     let agent = hkask_types::WebID::new();
-    let mgr = EnergyBudgetManager::new();
+    let mgr = GasBudgetManager::new();
     mgr.register_wallet_budget(agent, budget).await;
 
     // At doubled rate, GAS_PER_RJOULE*2 gas = 1 rJ.
-    mgr.reserve_gas(&agent, EnergyCost(GAS_PER_RJOULE * 2))
+    mgr.reserve_gas(&agent, GasCost(GAS_PER_RJOULE * 2))
         .await
         .unwrap();
     mgr.settle_gas(
         &agent,
-        EnergyCost(GAS_PER_RJOULE * 2),
-        EnergyCost(GAS_PER_RJOULE * 2),
+        GasCost(GAS_PER_RJOULE * 2),
+        GasCost(GAS_PER_RJOULE * 2),
     )
     .await
     .unwrap();
@@ -164,22 +164,22 @@ async fn calibrated_gas_per_rjoule_changes_budget_cost() {
 #[tokio::test]
 async fn energy_budget_refunds_and_replenishes_after_settlement() {
     let agent = hkask_types::WebID::new();
-    let mgr = EnergyBudgetManager::new();
+    let mgr = GasBudgetManager::new();
 
     // Cap 100, default replenish_rate = cap / 10 = 10.
-    let budget = EnergyBudget::new(EnergyCost(100));
-    mgr.register_energy_budget(agent, budget).await;
+    let budget = GasBudget::new(GasCost(100));
+    mgr.register_gas_budget(agent, budget).await;
 
     // Reserve 100, settle only 50 → implicit refund of 50.
-    mgr.reserve_gas(&agent, EnergyCost(100)).await.unwrap();
-    mgr.settle_gas(&agent, EnergyCost(100), EnergyCost(50))
+    mgr.reserve_gas(&agent, GasCost(100)).await.unwrap();
+    mgr.settle_gas(&agent, GasCost(100), GasCost(50))
         .await
         .unwrap();
 
     let status_after_settle = mgr.agent_gas_status(&agent).await.unwrap();
     assert_eq!(
         status_after_settle.remaining,
-        EnergyCost(50),
+        GasCost(50),
         "remaining should be 50 after settling half the reservation"
     );
 
@@ -188,7 +188,7 @@ async fn energy_budget_refunds_and_replenishes_after_settlement() {
     let status_after_replenish = mgr.agent_gas_status(&agent).await.unwrap();
     assert_eq!(
         status_after_replenish.remaining,
-        EnergyCost(60),
+        GasCost(60),
         "remaining should increase by replenish_rate"
     );
 
@@ -199,7 +199,7 @@ async fn energy_budget_refunds_and_replenishes_after_settlement() {
     let status_at_cap = mgr.agent_gas_status(&agent).await.unwrap();
     assert_eq!(
         status_at_cap.remaining,
-        EnergyCost(100),
+        GasCost(100),
         "remaining should never exceed cap"
     );
 }

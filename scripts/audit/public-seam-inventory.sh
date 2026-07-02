@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # Public Seam Inventory Generator
-#
-# Scans all workspace crates, counts public items and their contract
-# annotations, and produces a machine-readable JSON inventory consumed
-# by the SeamWatcher (crates/hkask-cns/src/seam_watcher.rs).
-#
+# Scans workspace crates, counts public items and contract annotations.
+# Produces JSON consumed by SeamWatcher (embedded via include_str!).
 # Usage: ./scripts/audit/public-seam-inventory.sh
 
 set -euo pipefail
@@ -38,7 +35,6 @@ echo "==> Public Seam Inventory Generator"
 echo "    Workspace: $WORKSPACE_ROOT"
 echo ""
 
-# Discover crates
 CRATES=$(grep -E '^\s*"[^"]*"' Cargo.toml 2>/dev/null | sed 's/.*"\(.*\)".*/\1/' | sort -u)
 
 TOTAL_ITEMS=0
@@ -46,18 +42,17 @@ TOTAL_COVERED=0
 TOTAL_TESTS=0
 JSON_PARTS=""
 
-for crate_path in $CRATES; do
-    if [ ! -d "$crate_path" ] || [ ! -f "$crate_path/Cargo.toml" ]; then
-        continue
-    fi
+scan_crate() {
+    local crate_path="$1"
+    local crate_name src_dir pub_items contracts tests uncovered cov entry
+
     crate_name=$(basename "$crate_path")
     src_dir="$crate_path/src"
     if [ ! -d "$src_dir" ]; then
-        # MCP servers sometimes have flat structures
         if [ -f "$crate_path/main.rs" ]; then
             src_dir="$crate_path"
         else
-            continue
+            return
         fi
     fi
 
@@ -68,7 +63,6 @@ for crate_path in $CRATES; do
         n=$(count_tests "$f"); tests=$((tests + n))
     done < <(find "$src_dir" -name '*.rs' -print0 2>/dev/null)
 
-    # integration tests
     if [ -d "$crate_path/tests" ]; then
         while IFS= read -r -d '' f; do
             n=$(count_tests "$f"); tests=$((tests + n))
@@ -76,6 +70,8 @@ for crate_path in $CRATES; do
     fi
 
     uncovered=$((pub_items - contracts))
+    if [ "$uncovered" -lt 0 ]; then uncovered=0; fi
+
     cov="0.0"
     if [ "$pub_items" -gt 0 ]; then
         cov=$(echo "scale=1; $contracts * 100.0 / $pub_items" | bc 2>/dev/null || echo "0.0")
@@ -91,52 +87,20 @@ for crate_path in $CRATES; do
     else
         JSON_PARTS="$JSON_PARTS,$entry"
     fi
+}
+
+for crate_path in $CRATES; do
+    if [ ! -d "$crate_path" ] || [ ! -f "$crate_path/Cargo.toml" ]; then continue; fi
+    scan_crate "$crate_path"
 done
 
-# Also scan MCP servers
 for crate_path in $(find mcp-servers -maxdepth 2 -name Cargo.toml -exec dirname {} \; 2>/dev/null | sort); do
-    crate_name=$(basename "$crate_path")
-    src_dir="$crate_path/src"
-    if [ ! -d "$src_dir" ]; then
-        if [ -f "$crate_path/main.rs" ]; then
-            src_dir="$crate_path"
-        else
-            continue
-        fi
-    fi
-
-    pub_items=0; contracts=0; tests=0
-    while IFS= read -r -d '' f; do
-        n=$(count_pub_items "$f"); pub_items=$((pub_items + n))
-        n=$(count_contracts "$f"); contracts=$((contracts + n))
-        n=$(count_tests "$f"); tests=$((tests + n))
-    done < <(find "$src_dir" -name '*.rs' -print0 2>/dev/null)
-
-    if [ -d "$crate_path/tests" ]; then
-        while IFS= read -r -d '' f; do
-            n=$(count_tests "$f"); tests=$((tests + n))
-        done < <(find "$crate_path/tests" -name '*.rs' -print0 2>/dev/null)
-    fi
-
-    uncovered=$((pub_items - contracts))
-    cov="0.0"
-    if [ "$pub_items" -gt 0 ]; then
-        cov=$(echo "scale=1; $contracts * 100.0 / $pub_items" | bc 2>/dev/null || echo "0.0")
-    fi
-
-    TOTAL_ITEMS=$((TOTAL_ITEMS + pub_items))
-    TOTAL_COVERED=$((TOTAL_COVERED + contracts))
-    TOTAL_TESTS=$((TOTAL_TESTS + tests))
-
-    entry="\"$crate_name\": {\"crate_name\":\"$crate_name\",\"total_items\":$pub_items,\"covered_items\":$contracts,\"uncovered_items\":$uncovered,\"coverage_pct\":$cov,\"req_tests\":$tests}"
-    if [ -z "$JSON_PARTS" ]; then
-        JSON_PARTS="$entry"
-    else
-        JSON_PARTS="$JSON_PARTS,$entry"
-    fi
+    scan_crate "$crate_path"
 done
 
 TOTAL_UNCOVERED=$((TOTAL_ITEMS - TOTAL_COVERED))
+if [ "$TOTAL_UNCOVERED" -lt 0 ]; then TOTAL_UNCOVERED=0; fi
+
 WS_COV="0.0"
 if [ "$TOTAL_ITEMS" -gt 0 ]; then
     WS_COV=$(echo "scale=1; $TOTAL_COVERED * 100.0 / $TOTAL_ITEMS" | bc 2>/dev/null || echo "0.0")

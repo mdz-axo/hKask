@@ -4433,7 +4433,6 @@ name = "hkask-services-context"
 version = "0.31.0"
 dependencies = [
  "async-trait",
- "base64",
  "blake3",
  "chrono",
  "ed25519-dalek",

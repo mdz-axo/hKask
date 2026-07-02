@@ -23,7 +23,7 @@
 //! gas leaks from over-estimation.
 
 use crate::cybernetics_loop::CyberneticsLoop;
-use crate::energy::EnergyCost;
+use crate::energy::GasCost;
 use crate::types::loops::ToolConsumptionEvent;
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, capabilities_match};
 use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
@@ -226,7 +226,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         }
 
         // Step 2: Reserve energy budget (hold-settle pattern)
-        let estimated_cost = EnergyCost(estimated_cost);
+        let estimated_cost = GasCost(estimated_cost);
         let loop6 = self.cybernetics.read().await;
         if !loop6.can_proceed(&self.agent, estimated_cost).await {
             // Emit cns.gas.depleted span
@@ -336,7 +336,7 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
         };
         let loop6 = self.cybernetics.read().await;
         if let Err(e) = loop6
-            .settle_gas(&self.agent, estimated_cost, EnergyCost(actual_cost))
+            .settle_gas(&self.agent, estimated_cost, GasCost(actual_cost))
             .await
         {
             warn!(

@@ -12,7 +12,7 @@
 //! expect: "I can access all hKask functionality through the kask CLI"
 
 use hkask_agents::InferenceLoop;
-use hkask_cns::{CyberneticsLoop, EnergyCost};
+use hkask_cns::{CyberneticsLoop, GasCost};
 use hkask_types::WebID;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -47,7 +47,7 @@ impl EnergyGuard {
             cybernetics_loop
                 .read()
                 .await
-                .can_proceed(webid, EnergyCost(heuristic))
+                .can_proceed(webid, GasCost(heuristic))
                 .await
         });
         if !can {
@@ -57,7 +57,7 @@ impl EnergyGuard {
             cybernetics_loop
                 .read()
                 .await
-                .reserve_gas(webid, EnergyCost(heuristic))
+                .reserve_gas(webid, GasCost(heuristic))
                 .await
         });
         Some(Self {
@@ -84,7 +84,7 @@ impl EnergyGuard {
             self.cybernetics_loop
                 .read()
                 .await
-                .settle_gas(&self.webid, EnergyCost(self.heuristic), EnergyCost(actual))
+                .settle_gas(&self.webid, GasCost(self.heuristic), GasCost(actual))
                 .await
         });
         // Sync InferenceLoop's sense signal from the authoritative L6 budget.

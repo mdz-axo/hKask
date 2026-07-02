@@ -193,11 +193,11 @@ impl PerPodCnsRuntime {
         self.inner.variety_for_domain(&domain).await
     }
 
-    pub async fn register_energy_budget(&self, agent: WebID, budget: hkask_cns::EnergyBudget) {
-        self.inner.register_energy_budget(agent, budget).await;
+    pub async fn register_gas_budget(&self, agent: WebID, budget: hkask_cns::GasBudget) {
+        self.inner.register_gas_budget(agent, budget).await;
     }
 
-    pub async fn agent_energy_status(&self, agent: &WebID) -> Option<hkask_cns::AgentEnergyStatus> {
+    pub async fn agent_energy_status(&self, agent: &WebID) -> Option<hkask_cns::AgentGasStatus> {
         self.inner.agent_gas_status(agent).await
     }
 }

@@ -1,6 +1,6 @@
 //! WalletBackedBudget — Energy budget variant backed by a wallet's rJoule balance.
 //!
-//! Unlike the standard `EnergyBudget` which replenishes periodically from a
+//! Unlike the standard `GasBudget` which replenishes periodically from a
 //! dimensionless gas pool, `WalletBackedBudget` converts gas costs to rJoules
 //! and debits a real wallet. This is the payment mechanism for paid agents.
 //!
@@ -10,12 +10,12 @@
 //! 3. Tool executes
 //! 4. `settle(reserved_gas, actual_gas)` — debits actual rJoule cost
 //!
-//! # Coexistence with EnergyBudget
+//! # Coexistence with GasBudget
 //! `WalletBackedBudget` is an additional budget type, not a replacement.
 //! The existing gas system continues for non-wallet-backed agents.
-//! Both coexist in the `GovernedTool` membrane via `EnergyBudgetManager`.
+//! Both coexist in the `GovernedTool` membrane via `GasBudgetManager`.
 
-use crate::energy::{EnergyCost, EnergyError};
+use crate::energy::{GasCost, GasError};
 use chrono::Utc;
 use hkask_types::id::{ApiKeyId, WalletId};
 #[cfg(test)]
@@ -92,7 +92,7 @@ impl WalletBackedBudget {
     /// instead of the raw wallet balance. This enforces the encumbrance
     /// membrane: only explicitly allocated rJoules can be spent.
     /// When no key is attached, falls back to direct wallet balance check.
-    pub fn can_proceed(&self, gas: EnergyCost) -> bool {
+    pub fn can_proceed(&self, gas: GasCost) -> bool {
         let cost_rj = self.gas_to_rjoules(gas.0);
 
         // If a key is attached, check encumbrance instead of wallet balance
@@ -146,11 +146,11 @@ impl WalletBackedBudget {
     ///
     /// When an API key is attached, checks the encumbrance (not wallet balance).
     /// The actual debit happens at `settle()` time via `consume_encumbrance`.
-    pub fn reserve(&self, gas: EnergyCost) -> Result<EnergyCost, EnergyError> {
+    pub fn reserve(&self, gas: GasCost) -> Result<GasCost, GasError> {
         if !self.can_proceed(gas) {
-            return Err(EnergyError::BudgetExceeded {
+            return Err(GasError::BudgetExceeded {
                 requested: gas,
-                remaining: EnergyCost(0),
+                remaining: GasCost(0),
             });
         }
         // Reservation is optimistic — can_proceed already verified encumbrance/wallet.
@@ -167,27 +167,27 @@ impl WalletBackedBudget {
     /// When no key is attached, debits directly from wallet balance.
     pub fn settle(
         &self,
-        reserved_gas: EnergyCost,
-        actual_gas: EnergyCost,
-    ) -> Result<EnergyCost, EnergyError> {
+        reserved_gas: GasCost,
+        actual_gas: GasCost,
+    ) -> Result<GasCost, GasError> {
         let actual_rj = self.gas_to_rjoules(actual_gas.0);
 
         if let Some(key_id) = self.key_id {
             // Consume from encumbrance (atomic — no separate check+deduct)
             self.wallet_manager
                 .consume(key_id, actual_rj)
-                .map_err(|_e| EnergyError::BudgetExceeded {
+                .map_err(|_e| GasError::BudgetExceeded {
                     requested: actual_gas,
-                    remaining: EnergyCost(0),
+                    remaining: GasCost(0),
                 })?;
         } else {
             // Direct wallet debit
             let reserved_rj = self.gas_to_rjoules(reserved_gas.0);
             self.wallet_manager
                 .settle_rjoules(self.wallet_id, reserved_rj, actual_rj)
-                .map_err(|_e| EnergyError::BudgetExceeded {
+                .map_err(|_e| GasError::BudgetExceeded {
                     requested: actual_gas,
-                    remaining: EnergyCost(0),
+                    remaining: GasCost(0),
                 })?;
         }
 
@@ -296,7 +296,7 @@ mod tests {
     fn wallet_budget_rejects_exhausted_key_even_with_active_encumbrance() {
         let budget = make_wallet_budget_with_key(1_000, 1_000);
         assert!(
-            !budget.can_proceed(EnergyCost(1_000)),
+            !budget.can_proceed(GasCost(1_000)),
             "exhausted key must be rejected by wallet-backed budget"
         );
     }
@@ -306,12 +306,12 @@ mod tests {
         let budget = make_wallet_budget_with_key(0, 5_000);
         // GAS_PER_RJOULE gas → 1 rJ. Encumbrance has 2000 rJ.
         assert!(
-            budget.can_proceed(EnergyCost(GAS_PER_RJOULE)),
+            budget.can_proceed(GasCost(GAS_PER_RJOULE)),
             "spend within encumbrance should be allowed"
         );
         // GAS_PER_RJOULE * 2000 gas → 2000 rJ — exactly the encumbrance amount
         assert!(
-            budget.can_proceed(EnergyCost(GAS_PER_RJOULE * 2000)),
+            budget.can_proceed(GasCost(GAS_PER_RJOULE * 2000)),
             "spend equal to encumbrance should be allowed"
         );
     }
@@ -321,7 +321,7 @@ mod tests {
         let budget = make_wallet_budget_with_key(0, 5_000);
         // GAS_PER_RJOULE * 3000 gas → 3000 rJ. Encumbrance has only 2000 rJ.
         assert!(
-            !budget.can_proceed(EnergyCost(GAS_PER_RJOULE * 3000)),
+            !budget.can_proceed(GasCost(GAS_PER_RJOULE * 3000)),
             "spend exceeding encumbrance must be rejected"
         );
     }
@@ -343,11 +343,11 @@ mod tests {
     fn wallet_budget_reserve_settle_flow() {
         let budget = make_wallet_budget_with_key(0, 5_000);
         // Reserve GAS_PER_RJOULE gas (1 rJ)
-        let reserved = budget.reserve(EnergyCost(GAS_PER_RJOULE)).unwrap();
+        let reserved = budget.reserve(GasCost(GAS_PER_RJOULE)).unwrap();
         assert_eq!(reserved.0, GAS_PER_RJOULE);
 
         // Settle with actual = reserved (exact match)
-        let settled = budget.settle(reserved, EnergyCost(GAS_PER_RJOULE)).unwrap();
+        let settled = budget.settle(reserved, GasCost(GAS_PER_RJOULE)).unwrap();
         assert_eq!(settled.0, GAS_PER_RJOULE);
 
         // Verify encumbrance was debited: 2000 - 1 = 1999 remaining
@@ -364,7 +364,7 @@ mod tests {
     fn wallet_budget_reserve_rejects_insufficient_encumbrance() {
         let budget = make_wallet_budget_with_key(0, 5_000);
         // GAS_PER_RJOULE * 3000 gas → 3000 rJ, but encumbrance only has 2000
-        let result = budget.reserve(EnergyCost(GAS_PER_RJOULE * 3000));
+        let result = budget.reserve(GasCost(GAS_PER_RJOULE * 3000));
         assert!(
             result.is_err(),
             "reserve should fail when encumbrance insufficient"
@@ -376,21 +376,21 @@ mod tests {
         let budget = make_wallet_budget_with_key(0, 5_000);
         // Encumbrance = 2000 rJ. At default rate, GAS_PER_RJOULE*1500 gas → 1500 rJ.
         assert!(
-            budget.can_proceed(EnergyCost(GAS_PER_RJOULE * 1500)),
+            budget.can_proceed(GasCost(GAS_PER_RJOULE * 1500)),
             "1500 rJ should fit in 2000 rJ encumbrance at default rate"
         );
 
         // Halve the rate: same gas → 3000 rJ, exceeding encumbrance.
         budget.wallet_manager.set_gas_per_rjoule(GAS_PER_RJOULE / 2);
         assert!(
-            !budget.can_proceed(EnergyCost(GAS_PER_RJOULE * 1500)),
+            !budget.can_proceed(GasCost(GAS_PER_RJOULE * 1500)),
             "3000 rJ should exceed 2000 rJ encumbrance at halved rate"
         );
 
         // Double the rate: same gas → 750 rJ, fitting again.
         budget.wallet_manager.set_gas_per_rjoule(GAS_PER_RJOULE * 2);
         assert!(
-            budget.can_proceed(EnergyCost(GAS_PER_RJOULE * 1500)),
+            budget.can_proceed(GasCost(GAS_PER_RJOULE * 1500)),
             "750 rJ should fit in 2000 rJ encumbrance at doubled rate"
         );
     }
