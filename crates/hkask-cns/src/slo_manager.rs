@@ -85,7 +85,7 @@ impl SloManager {
     /// Create an empty SLO manager.
     ///
     /// expect: "The system initializes SLO management with no definitions"
-    /// [P9] Motivating: Homeostatic Self-Regulation — SLOs are the contract layer
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — SLOs are the contract layer
     /// post: returns SloManager with empty SLO list
     pub fn new() -> Self {
         Self { slos: Vec::new() }
@@ -94,7 +94,7 @@ impl SloManager {
     /// Create a manager pre-loaded with seed SLOs.
     ///
     /// expect: "The system initializes with baseline SLO definitions"
-    /// [P9] Motivating: Homeostatic Self-Regulation — seed SLOs establish baseline
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — seed SLOs establish baseline
     /// post: returns SloManager with 3 seed SLOs
     pub fn with_seed_slos() -> Self {
         Self {
@@ -105,7 +105,7 @@ impl SloManager {
     /// Register an SLO definition.
     ///
     /// expect: "The system accepts SLO definitions for evaluation"
-    /// [P9] Motivating: Homeostatic Self-Regulation — extensible SLO registry
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — extensible SLO registry
     /// pre:  slo.slo_id is unique (caller's responsibility)
     /// post: SLO is added to the registry
     pub fn register(&mut self, slo: SloDefinition) {
@@ -135,8 +135,8 @@ impl SloManager {
     /// Evaluate all active SLOs against the data provider.
     ///
     /// expect: "The system evaluates SLOs against measured data"
-    /// [P9] Motivating: Homeostatic Self-Regulation — SLO evaluation drives feedback
-    /// [P8] Constraining: Semantic Grounding — evaluations are computed, not guessed
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — SLO evaluation drives feedback
+    /// `[P8]` Constraining: Semantic Grounding — evaluations are computed, not guessed
     /// pre:  data_provider is operational
     /// post: returns one SloEvaluation per active SLO; errors are logged per-SLO,
     ///       not failing the entire batch

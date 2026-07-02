@@ -1,4 +1,4 @@
-//! Gix-based Git CAS Adapter — implements [`GitCASPort`] with the `gix` crate.
+//! Gix-based Git CAS Adapter — implements `GitCASPort` with the `gix` crate.
 //! # REQ: F8 — pure Rust gitoxide, no CLI git subprocess.
 //! expect: "Git CAS operations use pure Rust gitoxide without CLI subprocess"
 //!

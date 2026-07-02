@@ -7,7 +7,7 @@ use hkask_ports::git_cas::{CommitHash, DiffKind, FileDiff, GitCasError, RepoId};
 impl GixCasAdapter {
     /// Resolve a symbolic ref (branch, tag) to a commit SHA.
     ///
-    /// This is an admin-level operation — not part of the [`GitCASPort`]
+    /// This is an admin-level operation — not part of the `GitCASPort`
     /// backup contract. Used by the API git archive route.
     #[must_use = "result must be used"]
     pub async fn resolve_ref(
@@ -30,7 +30,7 @@ impl GixCasAdapter {
 
     /// Diff two commits.
     ///
-    /// This is an admin-level operation — not part of the [`GitCASPort`]
+    /// This is an admin-level operation — not part of the `GitCASPort`
     /// backup contract. Used by the CLI `kask git diff` command.
     #[must_use = "result must be used"]
     pub async fn diff(

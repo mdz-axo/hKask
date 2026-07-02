@@ -21,7 +21,7 @@ impl TokenRegistryStore {
     /// Initialize the delegation_tokens table.
     ///
     /// expect: "Token issuance is persisted for consent audit"
-    /// [P2] Motivating: Affirmative Consent — audit trail for delegation tokens
+    /// `[P2]` Motivating: Affirmative Consent — audit trail for delegation tokens
     /// post: delegation_tokens table created if not exists
     pub fn initialize_schema(&self) -> Result<(), hkask_types::InfrastructureError> {
         let conn = self.lock_conn()?;

@@ -5,7 +5,7 @@
 //!
 //! ## Design
 //!
-//! - **Query layer**: reads raw events from the NuEventStore via [`NuEventStore::query_algedonic`].
+//! - **Query layer**: reads raw events from the NuEventStore via `NuEventStore::query_algedonic`.
 //! - **Aggregation**: groups events by agent and tool, sums reserved/consumed/depleted metrics.
 //! - **Limitation**: GasDepleted events use `CyclePhase::Sense` and are not captured by `query_algedonic`
 //!   (which filters `phase = 'act'`). A future iteration may add a dedicated query method.

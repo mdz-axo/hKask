@@ -776,8 +776,8 @@ impl CnsRuntime {
     /// Evaluate all registered SLOs against the given data provider.
     ///
     /// expect: "The system evaluates SLOs against measured data and emits CNS spans"
-    /// [P9] Motivating: Homeostatic Self-Regulation — SLO evaluation is the platform contract layer
-    /// [P8] Constraining: Semantic Grounding — evaluations are computed from ν-event data
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — SLO evaluation is the platform contract layer
+    /// `[P8]` Constraining: Semantic Grounding — evaluations are computed from ν-event data
     /// pre:  provider is operational
     /// post: returns SloEvaluation list with CNS spans emitted
     pub async fn evaluate_slos(
@@ -791,7 +791,7 @@ impl CnsRuntime {
     /// Register a new SLO definition at runtime.
     ///
     /// expect: "The system supports dynamic SLO registration"
-    /// [P9] Motivating: Homeostatic Self-Regulation — the SLO registry is extensible
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — the SLO registry is extensible
     /// pre:  slo.slo_id is unique
     /// post: SLO added to the registry
     pub async fn register_slo(&self, slo: hkask_types::cns::SloDefinition) {
@@ -815,8 +815,8 @@ impl CnsRuntime {
     /// Breached SLOs are emitted as RuntimeAlert with the SLO ID as domain.
     ///
     /// expect: "The system closes the SLO feedback loop by escalating breaches"
-    /// [P9] Motivating: Homeostatic Self-Regulation — SLO breach escalation
-    /// [P8] Constraining: Semantic Grounding — breaches are measured, not guessed
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — SLO breach escalation
+    /// `[P8]` Constraining: Semantic Grounding — breaches are measured, not guessed
     /// pre:  provider is operational
     /// post: SLOs evaluated; breached Critical SLOs produce algedonic alerts
     pub async fn evaluate_and_escalate_slos(
