@@ -153,6 +153,8 @@ enum StepDef {
         command: Option<String>,
         max_iterations: u32,
         #[serde(default)]
+        iteration_delay_secs: u64,
+        #[serde(default)]
         terminal: bool,
         #[serde(default)]
         branching: Option<BranchTarget>,
@@ -670,14 +672,16 @@ async fn execute_loop(
     state: &mut RunnerState,
     step: &StepDef,
 ) -> Result<(String, Option<u32>), RunnerError> {
-    let (command, max_iterations) = match step {
+    let (command, max_iterations, delay_secs) = match step {
         StepDef::Loop {
             command,
             max_iterations,
+            iteration_delay_secs,
             ..
         } => (
             command.as_deref().unwrap_or("echo 'loop_iteration'"),
             *max_iterations,
+            *iteration_delay_secs,
         ),
         _ => unreachable!(),
     };
@@ -707,6 +711,10 @@ async fn execute_loop(
             iteration, max_iterations
         );
         state.previous_stdout = stdout;
+
+        if delay_secs > 0 && iteration < max_iterations {
+            tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+        }
     }
 
     // All iterations exhausted
