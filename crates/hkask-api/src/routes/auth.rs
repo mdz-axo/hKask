@@ -18,18 +18,20 @@ use axum::{
 use hkask_types::identity::OAuthProvider;
 use serde::Deserialize;
 use tracing;
+use utoipa::IntoParams;
+use utoipa::ToSchema;
 
 use crate::ApiState;
 use crate::middleware::session::extract_cookie;
 
 /// Query parameters for OAuth login initiation.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
 pub struct LoginQuery {
     pub provider: Option<String>,
 }
 
 /// Query parameters for OAuth callback.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams, ToSchema)]
 pub struct CallbackQuery {
     pub provider: Option<String>,
     pub code: Option<String>,
@@ -148,6 +150,16 @@ struct GitHubEmail {
 /// pre:  provider query param is "github" or "google"
 /// post: redirects to provider's OAuth authorize URL
 /// post: sets state cookie for CSRF verification
+#[utoipa::path(
+    get,
+    path = "/api/v1/auth/login",
+    tag = "auth",
+    params(LoginQuery),
+    responses(
+        (status = 302, description = "Redirect to OAuth provider"),
+        (status = 400, description = "Invalid OAuth provider"),
+    ),
+)]
 pub async fn login(
     State(_state): State<ApiState>,
     Query(query): Query<LoginQuery>,
@@ -190,6 +202,16 @@ pub async fn login(
 /// pre:  code is a valid OAuth authorization code; state matches cookie
 /// post: session created, session cookie set, redirected to /terminal
 /// post: new HumanUser + ReplicantIdentity created on first sign-in
+#[utoipa::path(
+    get,
+    path = "/api/v1/auth/callback",
+    tag = "auth",
+    params(CallbackQuery),
+    responses(
+        (status = 302, description = "Redirect to /terminal after successful authentication"),
+        (status = 400, description = "Invalid callback parameters"),
+    ),
+)]
 pub async fn callback(
     State(state): State<ApiState>,
     Query(query): Query<CallbackQuery>,

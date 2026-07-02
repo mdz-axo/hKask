@@ -8,12 +8,16 @@ use crate::{
     PodStatusResponse, TemplateResponse,
 };
 
-use crate::routes::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
-use crate::routes::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 use crate::routes::{
+    A2AAgentResponse, A2ARegisterRequest, A2ARegisterResponse, AgentListResponse, ApiBundleSummary,
+    ApplyBundleResponse, ArchiveRequest, ArchiveResponse, BundleListResponse, CallbackQuery,
+    ComposeBundleRequest, ComposeBundleResponse, CreateGoalRequest, DeactivateBundleResponse,
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
-    EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,
-    ResolveEscalationRequest, ResolveEscalationResponse,
+    EscalationStatsResponse, EvolveBundleResponse, ExportRequest, ExportResponse, GoalListResponse,
+    GoalResponse, InviteResponse, ListEscalationsResponse, LoginQuery, MetacognitionStatusResponse,
+    RenameRequest, ReplicantInfo, ReplicantListResponse, ResolveEscalationRequest,
+    ResolveEscalationResponse, ResolveShaResponse, SetGoalStateRequest, SettingsResponse,
+    UpdateSettingsRequest, UploadRequest,
 };
 
 // Handler-local types needed in schemas
@@ -100,6 +104,35 @@ use crate::routes::cns::CnsSubscribeParams;
         GoalListResponse,
         // CNS subscribe params
         CnsSubscribeParams,
+        // Auth schemas
+        LoginQuery,
+        CallbackQuery,
+        // Admin schemas
+        InviteResponse,
+        // Export schemas
+        ExportRequest,
+        ExportResponse,
+        UploadRequest,
+        // Replicant schemas
+        ReplicantInfo,
+        ReplicantListResponse,
+        RenameRequest,
+        // Settings schemas
+        SettingsResponse,
+        UpdateSettingsRequest,
+        // A2A schemas
+        A2AAgentResponse,
+        A2ARegisterRequest,
+        A2ARegisterResponse,
+        AgentListResponse,
+        // Bundle schemas
+        ApiBundleSummary,
+        ApplyBundleResponse,
+        BundleListResponse,
+        ComposeBundleRequest,
+        ComposeBundleResponse,
+        DeactivateBundleResponse,
+        EvolveBundleResponse,
     )),
     modifiers(&SecurityAddon),
     tags(
@@ -117,10 +150,19 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "sovereignty", description = "Sovereignty governance — consent grant/revoke and access checks under Magna Carta P1–P4"),
         (name = "specs", description = "MDS specification management — capture, list, coherence assessment, and writing-quality checks (MDS §3)"),
         (name = "consolidation", description = "Context consolidation — episodic→semantic memory condensation with passphrase-gated authorization"),
+        (name = "admin", description = "Admin — invite creation, listing, session management, and server config (FUNCTIONAL_SPECIFICATION.md §3.16)"),
+        (name = "auth", description = "Authentication — OAuth sign-in with GitHub/Google, session management, and invite acceptance (P1, P12)"),
+        (name = "export", description = "Export — sovereignty archive creation, upload, and download for data portability (P1)"),
+        (name = "landing", description = "Landing page — static HTML welcome page with OAuth sign-in (P3)"),
+        (name = "pods", description = "Pod lifecycle — create, list, activate, deactivate, and status (Pattern D)"),
+        (name = "replicants", description = "Replicant management — list, rename, and delete replicants (P1)"),
+        (name = "settings", description = "Settings — read/write REPL inference settings with P3 equal surface exposure"),
+        (name = "terminal", description = "Terminal — browser-based xterm.js WebSocket terminal (P3, P12)"),
+        (name = "wallet", description = "Wallet — API key management, withdrawal fee estimation (P9)"),
     ),
     info(
         title = "hKask API",
-        version = "0.30.0",
+        version = "0.31.0",
         description = "A Minimal Viable Container for Replicants — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2)."
     ),
     servers(

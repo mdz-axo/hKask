@@ -110,11 +110,7 @@ async fn manager_wallet_budget_reserve_settle_debits_encumbrance() {
     assert_eq!(reserved.0, GAS_PER_RJOULE);
 
     let settled = mgr
-        .settle_gas(
-            &agent,
-            GasCost(GAS_PER_RJOULE),
-            GasCost(GAS_PER_RJOULE),
-        )
+        .settle_gas(&agent, GasCost(GAS_PER_RJOULE), GasCost(GAS_PER_RJOULE))
         .await
         .unwrap();
     assert_eq!(settled.0, GAS_PER_RJOULE);

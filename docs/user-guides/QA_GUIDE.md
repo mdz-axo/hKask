@@ -1,10 +1,14 @@
-# hKask QA System Guide
-
-**Version:** v0.30.0  
-**Last updated:** 2026-06-19  
-**Audience:** Developers and operators of hKask
-
 ---
+title: "hKask QA System Guide"
+audience: [developers, operators]
+last_updated: 2026-07-01
+version: "0.31.0"
+status: "Active"
+domain: "Quality Assurance"
+mds_categories: [domain, lifecycle, curation]
+---
+
+# hKask QA System Guide
 
 ## Table of Contents
 

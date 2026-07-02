@@ -34,6 +34,15 @@ use crate::middleware::session::extract_cookie;
 /// pre:  request contains valid `hkask_session` cookie
 /// post: WebSocket upgraded, `kask repl` spawned with user's WebID
 /// post: bidirectional byte stream between WebSocket and process stdio
+#[utoipa::path(
+    get,
+    path = "/api/v1/terminal/ws",
+    tag = "terminal",
+    responses(
+        (status = 101, description = "WebSocket upgrade — bidirectional terminal session"),
+        (status = 401, description = "Missing or invalid session"),
+    ),
+)]
 pub async fn terminal_ws(
     State(state): State<ApiState>,
     headers: axum::http::HeaderMap,

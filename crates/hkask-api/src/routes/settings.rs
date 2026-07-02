@@ -12,12 +12,13 @@ use axum::routing::get;
 
 use crate::middleware::auth::AuthContext;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 
 use crate::ApiState;
 
 /// JSON shape for the settings response.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SettingsResponse {
     pub tool_loop_limit: usize,
     pub context_turns: usize,
@@ -69,7 +70,7 @@ fn save_settings(settings: &SettingsResponse) -> Result<(), String> {
 
 /// JSON shape for updating settings. All fields optional — only present
 /// fields are applied; omitted fields keep their current value.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateSettingsRequest {
     pub tool_loop_limit: Option<usize>,
     pub context_turns: Option<usize>,
@@ -94,6 +95,14 @@ pub fn settings_router() -> OpenApiRouter<ApiState> {
 }
 
 /// GET /api/settings — return current settings.
+#[utoipa::path(
+    get,
+    path = "/api/settings",
+    tag = "settings",
+    responses(
+        (status = 200, description = "Current settings", body = SettingsResponse),
+    ),
+)]
 async fn get_settings(
     State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -102,6 +111,16 @@ async fn get_settings(
 }
 
 /// PUT /api/settings — update settings, merge with current values.
+#[utoipa::path(
+    put,
+    path = "/api/settings",
+    tag = "settings",
+    request_body = UpdateSettingsRequest,
+    responses(
+        (status = 200, description = "Settings updated", body = SettingsResponse),
+        (status = 500, description = "Failed to persist settings"),
+    ),
+)]
 async fn update_settings(
     State(_state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

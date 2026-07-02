@@ -63,7 +63,7 @@ impl WalletManager {
         let store = self.store()?;
         if store
             .has_wallet(&agent)
-            .map_err(|e| GasError::Persistence(e))?
+            .map_err(GasError::Persistence)?
         {
             return Err(GasError::Persistence(format!(
                 "Wallet already exists for agent {agent}"
@@ -81,10 +81,10 @@ impl WalletManager {
 
         let id = store
             .next_wallet_id()
-            .map_err(|e| GasError::Persistence(e))?;
+            .map_err(GasError::Persistence)?;
         store
             .insert_wallet(&agent, id, actual_gas.0 as i64, actual_rj as i64)
-            .map_err(|e| GasError::Persistence(e))?;
+            .map_err(GasError::Persistence)?;
         Ok(id)
     }
 
@@ -93,7 +93,7 @@ impl WalletManager {
         let store = self.store()?;
         let row = store
             .get_wallet(agent)
-            .map_err(|e| GasError::Persistence(e))?
+            .map_err(GasError::Persistence)?
             .ok_or_else(|| GasError::Persistence(format!("No wallet for agent {agent}")))?;
 
         let balance = row.gas_balance as u64;
@@ -106,7 +106,7 @@ impl WalletManager {
                     let new_balance = (balance + drawn.0) as i64;
                     store
                         .update_gas_balance(agent, new_balance)
-                        .map_err(|e| GasError::Persistence(e))?;
+                        .map_err(GasError::Persistence)?;
                     balance + drawn.0
                 } else {
                     balance
@@ -122,7 +122,7 @@ impl WalletManager {
         let new_balance = effective_balance.saturating_sub(spent) as i64;
         store
             .update_gas_balance(agent, new_balance)
-            .map_err(|e| GasError::Persistence(e))?;
+            .map_err(GasError::Persistence)?;
         Ok(GasCost(spent))
     }
 
@@ -131,7 +131,7 @@ impl WalletManager {
         let store = self.store()?;
         let row = store
             .get_wallet(agent)
-            .map_err(|e| GasError::Persistence(e))?
+            .map_err(GasError::Persistence)?
             .ok_or_else(|| GasError::Persistence(format!("No wallet for agent {agent}")))?;
         Ok(WalletBalance {
             gas: row.gas_balance as u64,
@@ -144,13 +144,13 @@ impl WalletManager {
         let store = self.store()?;
         let row = store
             .get_wallet(agent)
-            .map_err(|e| GasError::Persistence(e))?
+            .map_err(GasError::Persistence)?
             .ok_or_else(|| GasError::Persistence(format!("No wallet for agent {agent}")))?;
 
         let new_balance = (row.gas_balance as u64).saturating_add(amount.0) as i64;
         store
             .update_gas_balance(agent, new_balance)
-            .map_err(|e| GasError::Persistence(e))?;
+            .map_err(GasError::Persistence)?;
         Ok(amount)
     }
 

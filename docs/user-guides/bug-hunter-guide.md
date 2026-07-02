@@ -1,13 +1,11 @@
 ---
 title: "Bug Hunter's Guide"
+audience: [developers, agents, operators]
+last_updated: 2026-07-01
 version: "0.31.0"
-date: 2026-06-21
 status: "Active"
 domain: "Quality Assurance"
-anchored_to:
-  - "docs/research/bug-hunting-as-autopoietic-skill-unified.md"
-  - "docs/research/bug-hunting-skill-corrected-design.md"
-principles: [P1, P2, P5, P8, P9, P12]
+mds_categories: [domain, lifecycle, curation]
 ---
 
 # Bug Hunter's Guide

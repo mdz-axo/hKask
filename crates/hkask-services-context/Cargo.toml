@@ -31,3 +31,6 @@ hkask-communication = { path = "../hkask-communication" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
 rusqlite.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

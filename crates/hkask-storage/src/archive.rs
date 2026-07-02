@@ -34,7 +34,7 @@ pub struct BackupMeta {
 /// Receipt returned after restoring an export archive.
 ///
 /// expect: "My user data and sovereignty boundaries are stored under my control"
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct MigrationReceipt {
     /// Number of triples imported.
     pub triple_count: i64,

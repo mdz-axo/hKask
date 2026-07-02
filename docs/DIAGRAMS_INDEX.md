@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Verifiable registry of all Mermaid diagrams in the hKask documentation corpus. Per the Mermaid-First Mandate from `DOCUMENTATION_STANDARDS.md` §4: every interaction pattern, data flow, and object model is diagrammed. Every diagram carries `DIAGRAM_ALIGNMENT` metadata.
 
-Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-30.
+Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-07-01.
 
 ---
 
@@ -33,7 +33,7 @@ Verification status:** All diagram `verified-against` paths checked against curr
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:636`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
+| DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [MDS.md](architecture/core/MDS.md) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:317`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
 | DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [MDS.md](architecture/core/MDS.md) §2 | `crates/hkask-ports/src/` (7 port traits) | ✅ VERIFIED |
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [MDS.md](architecture/core/MDS.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
 | DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [MDS.md](architecture/core/MDS.md) §5 | `crates/hkask-templates/src/executor.rs` | ✅ VERIFIED |
@@ -70,9 +70,9 @@ Verification status:** All diagram `verified-against` paths checked against curr
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-FW-001 | MDS RDF/Turtle Semantic Graph | [`MDS.md`](architecture/core/MDS.md) §1.1 | `docs/architecture/MDS.md` | ✅ VERIFIED |
-| DIAG-FW-002 | MDS Entity Relationship Diagram (Spec ↔ Goal ↔ Curation) | [`MDS.md`](architecture/core/MDS.md) §1.2 | `docs/architecture/MDS.md` | ✅ VERIFIED |
-| DIAG-FW-003 | MVSDD Cycle Sequence Diagram (Specify → Grant → Compose → Curate → Reflect) | [`MDS.md`](architecture/core/MDS.md) §4.3 | `docs/architecture/MDS.md` | ✅ VERIFIED |
+| DIAG-FW-001 | MDS RDF/Turtle Semantic Graph | [`MDS.md`](architecture/core/MDS.md) §1.1 | `docs/architecture/core/MDS.md` | ✅ VERIFIED |
+| DIAG-FW-002 | MDS Entity Relationship Diagram (Spec ↔ Goal ↔ Curation) | [`MDS.md`](architecture/core/MDS.md) §1.2 | `docs/architecture/core/MDS.md` | ✅ VERIFIED |
+| DIAG-FW-003 | MVSDD Cycle Sequence Diagram (Specify → Grant → Compose → Curate → Reflect) | [`MDS.md`](architecture/core/MDS.md) §4.3 | `docs/architecture/core/MDS.md` | ✅ VERIFIED |
 | DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | [`MDS.md`](architecture/core/MDS.md) §6.1 | `crates/hkask-ports/src/` | ✅ VERIFIED |
 | DIAG-FW-005 | Kata PDCA State Machine — Plan → Do → Check → Act with Kanban integration | [state-kata-pdca.md](diagrams/state-kata-pdca.md) | `crates/hkask-services-kata-kanban/src/kata/`, `crates/hkask-services-kata-kanban/src/kanban/` | ✅ VERIFIED |
 
@@ -120,7 +120,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 ## References
 
 [^mds]: hKask Team. (2026). *MDS — Minimal Domain Specification*. `docs/architecture/MDS.md`.
-[^doc-standards]: hKask Team. (2026). *Documentation Standards*. `do../specifications/standards/DOCUMENTATION_STANDARDS.md`.
+[^doc-standards]: hKask Team. (2026). *Documentation Standards*. `docs/specifications/DOCUMENTATION_STANDARDS.md`.
 
 ---
 

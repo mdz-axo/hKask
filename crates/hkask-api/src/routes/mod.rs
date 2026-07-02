@@ -29,6 +29,7 @@ pub(crate) mod wallet;
 // Re-export router functions
 pub use a2a::a2a_router;
 pub use auth::auth_router;
+pub use auth::{CallbackQuery, LoginQuery};
 
 pub use bundles::bundles_router;
 pub use chat::chat_router;
@@ -37,6 +38,7 @@ pub use consolidation::consolidation_router;
 pub use curator::curator_router;
 pub use episodic::episodic_router;
 pub use export::export_router;
+pub use export::{ExportRequest, ExportResponse, UploadRequest};
 pub use git::git_router;
 pub use goal::goal_router;
 pub use landing::landing_page;
@@ -54,6 +56,7 @@ pub use wallet::wallet_router;
 
 // Re-export domain-local types that may be used externally
 pub use a2a::{A2AAgentResponse, A2ARegisterRequest, A2ARegisterResponse, AgentListResponse};
+pub use admin::InviteResponse;
 pub use bundles::{
     ApiBundleSummary, ApplyBundleResponse, BundleListResponse, ComposeBundleRequest,
     ComposeBundleResponse, DeactivateBundleResponse, EvolveBundleResponse,
@@ -69,6 +72,8 @@ pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
 pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
 pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
+pub use replicant::{RenameRequest, ReplicantInfo, ReplicantListResponse};
+pub use settings::{SettingsResponse, UpdateSettingsRequest};
 pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, SovereigntyStatusResponse};
 pub use spec::{
     SpecCaptureRequestDto, SpecCoherenceResponse, SpecListResponse, SpecWritingQualityResponse,

@@ -22,5 +22,6 @@ hkask-improv = { path = "../hkask-improv" }
 hkask-templates = { path = "../hkask-templates" }
 
 [dev-dependencies]
+hkask-cns = { path = "../hkask-cns" }
 proptest = "1"
 serde_json.workspace = true

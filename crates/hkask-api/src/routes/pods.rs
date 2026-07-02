@@ -90,6 +90,14 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceError> {
     })
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/pods",
+    tag = "pods",
+    responses(
+        (status = 200, description = "List all active pods", body = ListPodsResponse),
+    ),
+)]
 async fn list_pods(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -119,6 +127,17 @@ async fn list_pods(
     Json(ListPodsResponse { pods })
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/pods",
+    tag = "pods",
+    request_body = CreatePodRequest,
+    responses(
+        (status = 200, description = "Pod created", body = CreatePodResponse),
+        (status = 400, description = "Invalid request"),
+        (status = 403, description = "Insufficient capability"),
+    ),
+)]
 async fn create_pod(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -172,6 +191,18 @@ async fn create_pod(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/pods/{id}/activate",
+    tag = "pods",
+    params(
+        ("id" = String, Path, description = "Pod ID"),
+    ),
+    responses(
+        (status = 204, description = "Pod activated"),
+        (status = 400, description = "Invalid pod ID"),
+    ),
+)]
 async fn activate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -190,6 +221,18 @@ async fn activate_pod(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/pods/{id}/deactivate",
+    tag = "pods",
+    params(
+        ("id" = String, Path, description = "Pod ID"),
+    ),
+    responses(
+        (status = 204, description = "Pod deactivated"),
+        (status = 400, description = "Invalid pod ID"),
+    ),
+)]
 async fn deactivate_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -208,6 +251,18 @@ async fn deactivate_pod(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/pods/{id}/status",
+    tag = "pods",
+    params(
+        ("id" = String, Path, description = "Pod ID"),
+    ),
+    responses(
+        (status = 200, description = "Pod status", body = PodStatusResponse),
+        (status = 400, description = "Invalid pod ID"),
+    ),
+)]
 async fn pod_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

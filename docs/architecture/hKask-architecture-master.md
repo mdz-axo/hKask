@@ -2,7 +2,7 @@
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
 last_updated: 2026-06-30
-version: "0.30.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, lifecycle, curation]
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Replicants") v0.30.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Replicants") v0.31.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -72,7 +72,7 @@ manifest.yaml + *.j2  ──[skill-translator reverse]──▶  SKILL.md
 
 #### Template Header Standard
 
-> **Incorporated from:** `docs/architecture/reference/template-header-standard.md`
+<!-- Content provenance: absorbed from docs/architecture/reference/template-header-standard.md during 2026-06-24 consolidation -->
 
 Every Jinja2 template and YAML manifest carries a header identifying its functional role:
 
@@ -155,7 +155,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 
 ##### Curator Persona & Behavioral Specification
 
-> **Incorporated from:** `docs/architecture/reference/hKask-Curator-persona.md`
+<!-- Content provenance: absorbed from docs/architecture/reference/hKask-Curator-persona.md during 2026-06-24 consolidation -->
 
 The Curator is a **daemon**, not a replicant — always running, hosts daemon-level operations, responds in <3s latency target. Persona traits:
 
@@ -203,7 +203,7 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 
 This isomorphism was the original architectural intent, as evidenced by the deployment model's backup design ("Backup as portable archive. Encrypted SQLCipher file. Export from one server, upload to another"). The migration from centralized `PodManager` to per-pod `PodDeployment` was completed in v0.30.0.
 
-> **Incorporated from:** `docs/architecture/core/SOLID_POD_ISOMORPHISM.md`, `docs/architecture/core/MULTI_POD_ARCHITECTURE.md`
+<!-- Content provenance: absorbed from docs/architecture/core/SOLID_POD_ISOMORPHISM.md and docs/architecture/core/MULTI_POD_ARCHITECTURE.md during 2026-06-24 consolidation -->
 
 ##### Solid Pod Ontological Model (RDF/Turtle)
 
@@ -574,7 +574,7 @@ Error occurs → SelfHealer::attempt(error, context)
 
 **Design constraints:** No runtime code modification; idempotent file operations; process-scoped env changes; full audit trail via CNS; never silently ignore errors.
 
-> **Incorporated from:** `docs/architecture/energy-gas-payments-api-keys.md`, `docs/architecture/specs/rjoule-cost-system.md`, `docs/architecture/specs/hkask-ledger.md`, `docs/architecture/specs/provider-intelligence.md`
+<!-- Content provenance: absorbed from docs/architecture/energy-gas-payments-api-keys.md, specs/rjoule-cost-system.md, specs/hkask-ledger.md, specs/provider-intelligence.md during 2026-06-24 consolidation -->
 
 #### Energy, Gas, and API Key System
 
@@ -958,7 +958,7 @@ Kata implements the Toyota Kata methodology (Rother, 2009) as a cybernetic capab
 
 ### Kata-Kanban-CNS Integration
 
-> **Incorporated from:** `docs/architecture/kata-kanban-integration.md`
+<!-- Content provenance: absorbed from docs/architecture/kata-kanban-integration.md during 2026-06-24 consolidation -->
 
 #### Coaching Loop
 
@@ -1323,7 +1323,7 @@ kask init --profile server
 
 ## Deep-Module Audit — Public Surface Justifications
 
-> **Incorporated from:** `docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md`
+<!-- Content provenance: absorbed from docs/architecture/PUBLIC_SURFACE_JUSTIFICATIONS.md during 2026-06-24 consolidation -->
 
 **Threshold:** ≤7 public items per crate (Ousterhout deep-module discipline, P5). Exceptions must pass the deletion test with documented rationale.
 
@@ -1361,7 +1361,7 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 
 ## API Documentation (utoipa)
 
-> **Incorporated from:** `docs/architecture/reference/utoipa-implementation.md`
+<!-- Content provenance: absorbed from docs/architecture/reference/utoipa-implementation.md during 2026-06-24 consolidation -->
 
 API documentation is auto-generated at build time from type annotations via utoipa. Dependencies: `utoipa 5.5` (with `axum_extras`, `uuid`, `chrono` features), `utoipa-axum 0.2`. All request/response types derive `ToSchema`; endpoints are registered via `OpenApiRouter::new().route()` with utoipa-axum auto-discovery from handler signatures and `ToSchema` derives. Generated artifacts: `docs/generated/openapi.json` (OpenAPI 3.1), `docs/generated/cli-reference.md`. CLI: `kask docs openapi`, `kask docs cli`, `kask docs all`.
 
@@ -1410,34 +1410,33 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ```
 docs/architecture/
-├── hKask-architecture-master.md                # THIS FILE (index + four-loop + energy + self-healing + pod + curator + TUI)
+├── hKask-architecture-master.md                # THIS FILE (index + 4 patterns, absorbed: loop, energy, self-healing, pod, curator, TUI)
 ├── matrix-integration-architecture.md          # Matrix transport, Conduit
-
-├── specs/
-│   ├── hkask-ledger.md                         # Specification (triple-entry ledger)
-│   └── rjoule-cost-system.md                   # Specification (rJoule cost system)
+├── well-wallet-architecture.md                 # Wallet architecture
+├── federation/
+│   └── FEDERATION_V2.md                        # Federation v2 spec
 ├── core/
 │   ├── magna-carta.md                          # Foundation (4 principles)
 │   ├── PRINCIPLES.md                           # P1-P12 incl. dual-axis framework
 │   ├── MDS.md                                  # 5 categories, 12 tools
 │   ├── TESTING_DISCIPLINE.md                   # Testing + QA operations
-│   ├── CNS-DOMAIN-SPECIFICATION.md             # CNS 8 sub-domains
-│   ├── FUNCTIONAL_SPECIFICATION.md             # AgentService functional spec
-│   ├── SOLID_POD_ISOMORPHISM.md                # Pod drift analysis (content absorbed into master)
-│   └── MULTI_POD_ARCHITECTURE.md               # 3-tier pod structure (content absorbed into master)
+│   ├── FUNCTIONAL_SPECIFICATION.md             # AgentService functional spec (absorbed CNS-DOMAIN-SPECIFICATION)
+│   └── TEMPLATE_AUTHORSHIP.md                  # Template authorship conventions
 ├── ADRs/
 │   ├── _TEMPLATE.md                            # ADR template
 │   ├── ADR-031-consolidation-authorization.md  # Active
-│   └── ADR-035-replicant-server-mode.md        # Active
-└── reference/
-    └── hKask-Curator-persona.md                # Persona spec (content absorbed into master)
+│   ├── ADR-035-replicant-server-mode.md        # Active
+│   ├── ADR-036-gix-migration.md                # Active
+│   ├── ADR-037-blake3-content-addressing.md    # Active
+│   ├── ADR-041-dynamic-model-discovery.md      # Active
+│   └── ADR-042-port-promotion-rule.md          # Active
 ```
 
-**Total:** 18 architecture documents (8 core + 2 root + 2 specs + 2 ADRs + 1 Matrix + 3 whose content is absorbed into master).
+**Active on disk (2026-07-01):** 7 core files + 3 root files + 7 ADRs + 1 federation = 18 documents.
 
 **Merged into this document (2026-06-24):** loop-architecture.md, energy-gas-payments-api-keys.md, self-healing.md, provider-intelligence.md. Pod and Curator content absorbed from SOLID_POD_ISOMORPHISM, MULTI_POD_ARCHITECTURE, and hKask-Curator-persona.
 
-**Archived (2026-06-22):** QA_PLAN (merged into TESTING_DISCIPLINE), P12 mandate (merged into PRINCIPLES), OPEN_QUESTIONS_POD (merged into OPEN_QUESTIONS).
+**Directories consolidated (2026-06-24):** `reference/`, `specs/`, `mandates/` no longer exist. Content absorbed or archived.
 
 ---
 

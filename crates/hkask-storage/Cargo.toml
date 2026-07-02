@@ -26,6 +26,7 @@ zeroize.workspace = true
 rand.workspace = true
 aes-gcm.workspace = true
 base64.workspace = true
+utoipa.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

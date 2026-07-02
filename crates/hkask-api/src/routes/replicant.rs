@@ -5,11 +5,12 @@
 
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::ApiState;
 use crate::middleware::AuthContext;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ReplicantInfo {
     pub name: String,
     pub webid: String,
@@ -18,19 +19,27 @@ pub struct ReplicantInfo {
     pub last_login: Option<i64>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ReplicantListResponse {
     pub replicants: Vec<ReplicantInfo>,
     pub active: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RenameRequest {
     pub from: String,
     pub to: String,
 }
 
 /// GET /api/v1/replicants
+#[utoipa::path(
+    get,
+    path = "/api/v1/replicants",
+    tag = "replicants",
+    responses(
+        (status = 200, description = "List of replicants for the authenticated user", body = ReplicantListResponse),
+    ),
+)]
 pub async fn list_replicants(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -71,6 +80,16 @@ pub async fn list_replicants(
 }
 
 /// POST /api/v1/replicants/rename
+#[utoipa::path(
+    post,
+    path = "/api/v1/replicants/rename",
+    tag = "replicants",
+    request_body = RenameRequest,
+    responses(
+        (status = 200, description = "Replicant renamed"),
+        (status = 400, description = "Invalid request"),
+    ),
+)]
 pub async fn rename_replicant(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -92,6 +111,18 @@ pub async fn rename_replicant(
 }
 
 /// DELETE /api/v1/replicants/{name}
+#[utoipa::path(
+    delete,
+    path = "/api/v1/replicants/{name}",
+    tag = "replicants",
+    params(
+        ("name" = String, Path, description = "Replicant name"),
+    ),
+    responses(
+        (status = 200, description = "Replicant deleted"),
+        (status = 400, description = "Invalid request"),
+    ),
+)]
 pub async fn delete_replicant(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,

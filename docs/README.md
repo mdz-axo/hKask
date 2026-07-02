@@ -80,16 +80,16 @@ Archived (2026-06-17): ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, neve
 
 | Document | MDS | Description |
 |----------|-----|-------------|
-| [`DOCUMENTATION_STANDARDS.md`](specifications/standards/DOCUMENTATION_STANDARDS.md) | all | Metadata, citation, diagram, lifecycle mandates. Includes Writing Excellence (Appendix A), Handoff Lifecycle (Appendix B), Dependency Policy (Appendix C). |
+| [`DOCUMENTATION_STANDARDS.md`](specifications/DOCUMENTATION_STANDARDS.md) | all | Metadata, citation, diagram, lifecycle mandates. Includes Writing Excellence (Appendix A), Handoff Lifecycle (Appendix B), Dependency Policy (Appendix C). |
 
 ### System Specifications — WHAT the system does
 
 | Document | MDS | Description |
 |----------|-----|-------------|
-| [`REQUIREMENTS.md`](specifications/specs/REQUIREMENTS.md) | all | Implemented requirements as goal specs |
-| [`REPL-specification.md`](specifications/specs/REPL-specification.md) | domain, composition, lifecycle | REPL specification — `kask chat` |
-| [`wallet-specification.md`](specifications/specs/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate specification |
-| [`salience-specification.md`](specifications/specs/salience-specification.md) | domain, composition | Passage salience algorithm |
+| [`REQUIREMENTS.md`](specifications/REQUIREMENTS.md) | all | Implemented requirements as goal specs |
+| [`REPL-specification.md`](specifications/REPL-specification.md) | domain, composition, lifecycle | REPL specification — `kask chat` |
+| [`wallet-specification.md`](specifications/wallet-specification.md) | domain, composition, trust, lifecycle | Wallet crate specification |
+| [`salience-specification.md`](specifications/salience-specification.md) | domain, composition | Passage salience algorithm |
 
 ### Plans
 
@@ -127,11 +127,11 @@ Archived (2026-06-17): ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, neve
 
 | Document | Description |
 |----------|-------------|
-| [`QA_GUIDE.md`](guides/QA_GUIDE.md) | QA system operations — fuzz triage, mutation analysis, autonomous scripts |
-| [`lora-training-guide.md`](guides/lora-training-guide.md) | LoRA training — dataset prep to CNS-verified deployment |
-| [`kata-user-guide.md`](guides/kata-user-guide.md) | Toyota Kata — research, technical build, kanban integration |
-| [`bug-hunter-guide.md`](guides/bug-hunter-guide.md) | Bug hunting methodology and expedition execution |
-| [`skill-designer-guide.md`](guides/skill-designer-guide.md) | Skill design — creating, packaging, registering |
+| [`QA_GUIDE.md`](user-guides/QA_GUIDE.md) | QA system operations — fuzz triage, mutation analysis, autonomous scripts |
+| [`lora-training-guide.md`](user-guides/lora-training-guide.md) | LoRA training — dataset prep to CNS-verified deployment |
+| [`kata-user-guide.md`](user-guides/kata-user-guide.md) | Toyota Kata — research, technical build, kanban integration |
+| [`bug-hunter-guide.md`](user-guides/bug-hunter-guide.md) | Bug hunting methodology and expedition execution |
+| [`skill-designer-guide.md`](user-guides/skill-designer-guide.md) | Skill design — creating, packaging, registering |
 
 ### User Guides
 
@@ -144,8 +144,9 @@ Archived (2026-06-17): ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, neve
 | [`skill-composition-guide.md`](user-guides/skill-composition-guide.md) | Skill composition — bundling and cascade ordering |
 | [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | LoRA adapter store — lifecycle, routing, deployment |
 | [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | Company research and portfolio management |
-| [`ACP-ZED-CONFIGURATION.md`](user-guides/ACP-ZED-CONFIGURATION.md) | ACP IDE agent configuration |
 | [`ENVIRONMENT.md`](user-guides/ENVIRONMENT.md) | Environment variables index and naming clarifications |
+
+> **Missing:** `ACP-ZED-CONFIGURATION.md` was referenced but does not exist on disk. Recovery from git history recommended.
 
 ---
 

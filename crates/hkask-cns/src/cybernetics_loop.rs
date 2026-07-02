@@ -715,8 +715,8 @@ impl HkaskLoop for CyberneticsLoop {
                 } else {
                     false
                 };
-                if !sent {
-                    if let Some(ref sink) = self.event_sink {
+                if !sent
+                    && let Some(ref sink) = self.event_sink {
                         let event = NuEvent::new(
                             WebID::from_persona(b"cns"),
                             Span::from_kind(SpanKind::VarietyAlgedonicAlert),
@@ -733,7 +733,6 @@ impl HkaskLoop for CyberneticsLoop {
                             tracing::error!(target: "cns.cybernetics", error = %e, "Failed to persist budget exhaustion alert");
                         }
                     }
-                }
             }
         }
 

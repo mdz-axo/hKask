@@ -12,6 +12,15 @@ use axum::response::IntoResponse;
 
 /// GET / — landing page with logo and sign-in buttons.
 /// Doubles as a health probe: returns 503 if the database is unreachable.
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "landing",
+    responses(
+        (status = 200, description = "Landing page HTML", content_type = "text/html"),
+        (status = 503, description = "Database unavailable — health probe failure"),
+    ),
+)]
 pub async fn landing_page(State(state): State<ApiState>) -> impl IntoResponse {
     // DB health check for k8s liveness/readiness probes.
     // If UserStore is unreachable, return 503 so k8s restarts the pod.

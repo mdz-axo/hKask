@@ -6,12 +6,23 @@
 use crate::middleware::AuthContext;
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::ApiState;
 
 /// POST /api/v1/admin/invite
 ///
 /// expect: "As an admin I can create an invite code for a new member"
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/invite",
+    tag = "admin",
+    responses(
+        (status = 200, description = "Invite code created successfully", body = InviteResponse),
+        (status = 403, description = "Forbidden — not an admin"),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
 pub async fn create_invite(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -39,6 +50,16 @@ pub async fn create_invite(
 /// GET /api/v1/admin/invite
 ///
 /// expect: "As an admin I can see all invites I've sent and their status"
+#[utoipa::path(
+    get,
+    path = "/api/v1/admin/invite",
+    tag = "admin",
+    responses(
+        (status = 200, description = "List of pending invites"),
+        (status = 403, description = "Forbidden — not an admin"),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
 pub async fn list_invites(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -66,6 +87,15 @@ pub async fn list_invites(
 /// GET /api/v1/admin/sessions
 ///
 /// expect: "As an admin I can see all active sessions on my server"
+#[utoipa::path(
+    get,
+    path = "/api/v1/admin/sessions",
+    tag = "admin",
+    responses(
+        (status = 200, description = "List of active sessions"),
+        (status = 403, description = "Forbidden — not an admin"),
+    ),
+)]
 pub async fn list_sessions(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
@@ -89,8 +119,17 @@ pub async fn list_sessions(
 /// GET /api/v1/admin/config
 ///
 /// expect: "As an admin I can view the server configuration"
+#[utoipa::path(
+    get,
+    path = "/api/v1/admin/config",
+    tag = "admin",
+    responses(
+        (status = 200, description = "Server configuration"),
+        (status = 403, description = "Forbidden — not an admin"),
+    ),
+)]
 pub async fn get_config(
-    State(_): State<ApiState>,
+    State(_state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     Ok(Json(serde_json::json!({
@@ -99,7 +138,7 @@ pub async fn get_config(
     })))
 }
 
-#[derive(Serialize)]
-struct InviteResponse {
+#[derive(Serialize, ToSchema)]
+pub struct InviteResponse {
     code: String,
 }

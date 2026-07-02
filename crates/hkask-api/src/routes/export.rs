@@ -12,17 +12,18 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Instant;
 use tracing;
+use utoipa::ToSchema;
 
 use crate::ApiState;
 use crate::middleware::AuthContext;
 use hkask_storage::{BackupArchive, MigrationReceipt, Store, TripleStore};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct ExportRequest {
     pub passphrase: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ExportResponse {
     pub archive_path: String,
     pub triple_count: u64,
@@ -31,6 +32,17 @@ pub struct ExportResponse {
 }
 
 /// POST /api/v1/export/create
+#[utoipa::path(
+    post,
+    path = "/api/v1/export/create",
+    tag = "export",
+    request_body = ExportRequest,
+    responses(
+        (status = 200, description = "Export archive created successfully", body = ExportResponse),
+        (status = 400, description = "Bad request — passphrase too short or empty archive"),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
 pub async fn export_create(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -99,7 +111,7 @@ pub async fn export_create(
 
 // ── Upload ────────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UploadRequest {
     pub archive_base64: String,
     pub passphrase: String,
@@ -108,6 +120,17 @@ pub struct UploadRequest {
 /// POST /api/v1/export/upload
 ///
 /// expect: "My API access is scoped to my sovereignty boundaries"
+#[utoipa::path(
+    post,
+    path = "/api/v1/export/upload",
+    tag = "export",
+    request_body = UploadRequest,
+    responses(
+        (status = 200, description = "Archive uploaded and imported successfully", body = MigrationReceipt),
+        (status = 400, description = "Bad request — invalid passphrase or corrupted archive"),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
 pub async fn export_upload(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

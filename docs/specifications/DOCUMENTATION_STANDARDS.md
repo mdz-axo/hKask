@@ -21,12 +21,12 @@ non-negotiable biases of this project:
    team-originated; every significant design choice carries a footnoted
    citation with a URL.
 3. **Writing Excellence Mandate** — every document must pass at least
-   three of the four perspective tests defined in the companion
-   [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) protocol (Hopper,
-   Lovelace, Schriver, Gentle).
+   three of the four perspective tests defined in Appendix A (Hopper,
+   Lovelace, Schriver, Gentle). The original `WRITING_EXCELLENCE.md`
+   was absorbed into Appendix A during the 2026-06-24 consolidation.
 4. **Stewardship Mandate** — documents that introduce, describe, or
    modify a context of participant collaboration honour the
-   stewardship principles in [`PRINCIPLES.md`](../../architecture/core/PRINCIPLES.md) §4.
+   stewardship principles in [`PRINCIPLES.md`](architecture/core/PRINCIPLES.md) §4.
     Specifically: declare the shared goal of the context (PS-01),
     document the bounded lexicon of its domain (PS-02), name the mode
     of play it supports (PS-03), and prefer invitational over
@@ -34,9 +34,9 @@ non-negotiable biases of this project:
     Rhetoric section per PS-05.
 
 The Writing Excellence protocol defines the voice, style, structural
-discipline, and quality rubric for the corpus. It grounds itself in the work
-of four women whose contributions to technical communication define
-excellence: Grace Hopper (clarity as access), Ada Lovelace (precision as
+discipline, and quality rubric for the corpus (see Appendix A). It grounds
+itself in the work of four women whose contributions to technical communication
+define excellence: Grace Hopper (clarity as access), Ada Lovelace (precision as
 vision), Karen Schriver (design for the reader), and Anne Gentle
 (documentation as living system). The protocol is not aspirational — it
 is the operational quality standard that governs publication decisions.
@@ -290,9 +290,9 @@ cross-references within the repository are verified.)
 
 ## 9. Writing Excellence
 
-The voice, style, and quality discipline for this corpus is defined in the
-companion [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) protocol. That
-document operationalizes four independent dimensions of documentation
+The voice, style, and quality discipline for this corpus is defined in
+Appendix A (Writing Excellence Protocol). That protocol
+operationalizes four independent dimensions of documentation
 quality — each grounded in the work of a woman who shaped the field:
 
 | Dimension | Exemplar | Test |
@@ -304,7 +304,7 @@ quality — each grounded in the work of a woman who shaped the field:
 
 The publication standard is **3 of 4 dimensions passing**. Different
 document types naturally emphasize different dimensions. Passing only 1 is
-poor quality and blocks publication. See `WRITING_EXCELLENCE.md` §3 for
+poor quality and blocks publication. See Appendix A §A.5 for
 the full rubric, scoring guidance, and strongest-fit mappings per document
 type.
 
@@ -332,7 +332,7 @@ Before a document is merged:
 - [ ] All internal links resolve
 - [ ] No aspirational content (if document is in `architecture/` or `status/`)
 - [ ] `Last-Updated` date reflects the date of the final edit
-- [ ] Writing Excellence: document passes ≥ 3 of 4 perspective tests (see [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) §3)
+- [ ] Writing Excellence: document passes ≥ 3 of 4 perspective tests (see Appendix A §A.5)
     - [ ] Hopper (accessibility) — zero-context reader can accomplish the task
     - [ ] Lovelace (precision) — reader can write a test from spec alone
     - [ ] Schriver (findability) — answer found within 30 seconds
@@ -403,7 +403,7 @@ This documentation standard itself maps to the 5 MDS categories:
 
 ## 12. Stewardship
 
-> **Incorporated from:** `docs/specifications/policies/DOCUMENT_OWNERSHIP.md`
+> **Provenance:** This section incorporates content from `DOCUMENT_OWNERSHIP.md` (absorbed during 2026-06-24 consolidation).
 
 ### 12.1 Directory Ownership
 
@@ -475,7 +475,7 @@ This documentation standard itself maps to the 5 MDS categories:
 
 ## Appendix A: Writing Excellence Protocol
 
-> **Incorporated from:** docs/specifications/standards/WRITING_EXCELLENCE.md
+> **Provenance:** Content absorbed from `WRITING_EXCELLENCE.md` during 2026-06-24 consolidation.
 
 This appendix is the canonical Writing Excellence Protocol. §9 above provides a summary reference; this appendix contains the complete specification.
 
@@ -560,7 +560,7 @@ Four independent dimensions of documentation quality, each grounded in the work 
 
 ## Appendix B: Handoff Lifecycle Policy
 
-> **Incorporated from:** docs/specifications/policies/HANDOFF_LIFECYCLE.md
+> **Provenance:** Content absorbed from `HANDOFF_LIFECYCLE.md` during 2026-06-24 consolidation.
 
 This appendix is the canonical Handoff Lifecycle Policy. §11 above provides a summary; this appendix contains the complete specification including archive procedures, hygiene rules, relationships, and verification commands.
 
@@ -632,7 +632,7 @@ ls docs/archive/handoffs/ 2>/dev/null && echo "VIOLATION: Handoffs in archive/ d
 
 ## Appendix C: Dependency Policy
 
-> **Incorporated from:** docs/specifications/standards/DEPENDENCY_POLICY.md
+> **Provenance:** Content absorbed from `DEPENDENCY_POLICY.md` during 2026-06-24 consolidation.
 
 **Purpose:** Ensure hKask runs on the most recent stable versions of Rust and dependencies while maintaining build stability.
 
