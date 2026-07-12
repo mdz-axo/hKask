@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Verdict:** the source corpus and early QA artifacts exist, but the John Brooks replica and the Qwen3.6-27B RunPod/Unsloth workflow are **not ready for unattended or production use through the MCP servers**. This is a code-and-artifact status report, not a forecast.
 
-See the [readiness flowchart](../diagrams/flowchart-replica-corpus-training-readiness.md) for the verified pipeline boundary.
+See the readiness flowchart (inlined in this document) for the verified pipeline boundary.
 
 ## Observed artifacts
 

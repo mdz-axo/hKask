@@ -33,9 +33,9 @@ const CORPUS_WEBID: &str = "corpus";
 // ── QA Generation Parameters ─────────────────────────────────────────
 
 /// Number of Bloom taxonomy QA prompts to generate per qualified chunk.
-/// Produces 3 QAs at consecutive rotating Bloom levels (factual/conceptual/
-/// analyze/evaluate/create) for comprehensive cognitive coverage.
-const QA_PROMPTS_PER_CHUNK: usize = 3;
+/// Produces 5 QAs — one per Bloom level (factual/conceptual/analyze/evaluate/create)
+/// — for comprehensive cognitive coverage at every tier.
+const QA_PROMPTS_PER_CHUNK: usize = 5;
 
 /// Minimum instruction length (chars) for QA quality filtering.
 /// Filters out placeholder or malformed instructions.
@@ -151,7 +151,7 @@ struct BuildPromptsArgs {
     #[arg(short = 'n', long, default_value = "0")]
     max_prompts: usize,
     /// Bloom's taxonomy weight distribution: factual,conceptual,analyze,evaluate,create
-    #[arg(long, default_value = "20,20,20,20,20")]
+    #[arg(long, default_value = "1,1,1,1,1")]
     type_distribution: String,
     /// Generate cross-reference prompts: group chunks by shared concepts and produce
     /// synthesis QAs that require consulting multiple passages (RA-DIT method).
@@ -163,6 +163,15 @@ struct BuildPromptsArgs {
     /// Max cross-reference prompts to generate (0 = unlimited)
     #[arg(long, default_value = "0")]
     cross_ref_max_prompts: usize,
+    /// Path to memory DB for embedding-based context retrieval
+    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    db_path: String,
+    /// Passphrase for the memory DB
+    #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
+    passphrase: String,
+    /// Number of context passages to retrieve via embedding similarity (default: 3)
+    #[arg(long, default_value = "3")]
+    context_k: usize,
 }
 
 #[derive(Parser)]
@@ -687,13 +696,187 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
             .partial_cmp(&a.salience)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
+
+    // ── Scaffold: open memory DB for embedding-based context retrieval ──────
+    let semantic = match SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM) {
+        Ok(s) => {
+            let count = s.embedding_count().unwrap_or(0);
+            println!("  Memory DB: {} ({} embeddings)", args.db_path, count);
+            Some(s)
+        }
+        Err(e) => {
+            println!(
+                "  Warning: could not open memory DB at {} — context scaffold disabled: {}",
+                args.db_path, e
+            );
+            None
+        }
+    };
+
+    // Build entity_ref → (text, source) lookup from all chunks for neighbor retrieval.
+    let text_map: std::collections::HashMap<&str, &str> = all_chunks
+        .iter()
+        .map(|c| (c.entity_ref.as_str(), c.text.as_str()))
+        .collect();
+    let source_map: std::collections::HashMap<&str, &str> = all_chunks
+        .iter()
+        .map(|c| (c.entity_ref.as_str(), c.source.as_str()))
+        .collect();
+
+    // Issue 4 fix: Bulk-load all embeddings once instead of O(n) individual get() calls.
+    // Build entity_ref → normalized vector lookup for KNN queries.
+    let emb_map: std::collections::HashMap<String, Vec<f32>> = semantic
+        .as_ref()
+        .and_then(|sem| sem.embeddings_by_prefix("corpus:researcher:").ok())
+        .map(|embs| {
+            embs.into_iter()
+                .map(|(er, v)| {
+                    let mag = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
+                    let norm: Vec<f32> = if mag > 0.0 {
+                        v.iter().map(|x| x / mag).collect()
+                    } else {
+                        v
+                    };
+                    (er, norm)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    println!("  Bulk-loaded {} embeddings for scaffold", emb_map.len());
+
+    // ── Scaffold: build concept graph (concept → chunk_count) ──────────────
+    let mut concept_connections: std::collections::HashMap<&str, usize> =
+        std::collections::HashMap::new();
+    for chunk in &all_chunks {
+        for concept in &chunk.concepts {
+            *concept_connections.entry(concept.as_str()).or_default() += 1;
+        }
+    }
+
     let mut out = String::new();
     let mut ti = 0usize;
     for tc in sorted.iter().take(limit) {
+        // ── Scaffold: retrieve K nearest neighbors via embedding similarity ───
+        // Issue 4 fix: use bulk-loaded emb_map instead of per-chunk DB get().
+        // Issue 1 fix: convert L2 distance to cosine similarity: cos = 1 - L2²/2
+        //   (valid for normalized vectors where L2² = 2 - 2*cos)
+        // Issue 3 fix: use source_map for human-readable source names.
+        let context_passages: Vec<serde_json::Value> = {
+            let query_vec = match emb_map.get(&tc.entity_ref) {
+                Some(v) => v.clone(),
+                None => Vec::new(),
+            };
+            if query_vec.is_empty() {
+                Vec::new()
+            } else if let Some(ref sem) = semantic {
+                match sem.search_similar(&query_vec, args.context_k + 1) {
+                    Ok(neighbors) => neighbors
+                        .iter()
+                        .filter(|n| n.embedding.entity_ref != tc.entity_ref)
+                        .take(args.context_k)
+                        .map(|n| {
+                            let er = n.embedding.entity_ref.as_str();
+                            let text = text_map.get(er).copied().unwrap_or("");
+                            let source = source_map.get(er).copied().unwrap_or(er);
+                            // L2 distance → cosine similarity for normalized vectors
+                            let cosine = 1.0 - (n.distance * n.distance) / 2.0;
+                            serde_json::json!({
+                                "source": source,
+                                "similarity": cosine.max(0.0),
+                                "text": text,
+                            })
+                        })
+                        .collect(),
+                    Err(_) => Vec::new(),
+                }
+            } else {
+                Vec::new()
+            }
+        };
+
+        // ── Scaffold: build concept graph for this chunk ───────────────────
+        // Issue 2 fix: concept salience = connected_chunks (corpus-wide centrality),
+        // not the chunk's salience. A concept connected to 50 chunks is more central
+        // than one connected to 3, regardless of which chunk we're processing.
+        let concept_graph: Vec<serde_json::Value> = tc
+            .concepts
+            .iter()
+            .map(|concept| {
+                let connected = concept_connections
+                    .get(concept.as_str())
+                    .copied()
+                    .unwrap_or(1);
+                serde_json::json!({
+                    "concept": concept,
+                    "connected_chunks": connected,
+                })
+            })
+            .collect();
+
+        // Format scaffold as human-readable text for the system prompt.
+        let context_text = if context_passages.is_empty() {
+            "(none — no embedding context available)".to_string()
+        } else {
+            context_passages
+                .iter()
+                .enumerate()
+                .map(|(i, p)| {
+                    let source = p["source"].as_str().unwrap_or("?");
+                    let sim = p["similarity"].as_f64().unwrap_or(0.0);
+                    let text = p["text"].as_str().unwrap_or("");
+                    let truncated = if text.len() > 2000 {
+                        let mut end = 2000;
+                        while end > 0 && !text.is_char_boundary(end) {
+                            end -= 1;
+                        }
+                        &text[..end]
+                    } else {
+                        text
+                    };
+                    format!(
+                        "[{}] Source: {}, Similarity: {:.2}\n    {}",
+                        i + 1,
+                        source,
+                        sim,
+                        truncated
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        };
+
+        let concept_graph_text = if concept_graph.is_empty() {
+            "(none)".to_string()
+        } else {
+            concept_graph
+                .iter()
+                .map(|g| {
+                    let concept = g["concept"].as_str().unwrap_or("?");
+                    let connected = g["connected_chunks"].as_u64().unwrap_or(0);
+                    format!("- {} (connected to {} chunks)", concept, connected)
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+
         // Generate QA_PROMPTS_PER_CHUNK QAs per chunk at consecutive Bloom levels
         for offset in 0..QA_PROMPTS_PER_CHUNK {
             let qt = type_rotation[(ti + offset) % type_rotation.len()];
-            let prompt = serde_json::json!({"chunk_ref": tc.entity_ref, "source": tc.source, "concepts": tc.concepts, "salience": tc.salience, "qa_type": qt.as_str(), "system": format!("You are a Company Research Analyst training data generator. Given a passage from investment literature, generate ONE question-answer pair.\n\n{}\n\nOutput JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).\n\nGround the answer in the passage. Do not invent facts.", qa_type_instruction(qt)), "user": format!("Generate a {} QA pair from this passage:\n\n---\n{}\n---\n\nConcepts: {}\n\nInclude this chunk_ref in your output: {}", qt.as_str(), tc.text, tc.concepts.join(", "), tc.entity_ref)});
+            let system = format!(
+                "You are a Capabilities Researcher training data generator. Given a primary passage from investment literature, generate ONE question-answer pair.\n\n{}\n\nOutput JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).\n\nGround the answer in the primary passage. Do not invent facts.\n\n## Context Passages (retrieved via embedding similarity)\n{}\n\n## Concept Graph (salience-weighted)\n{}",
+                qa_type_instruction(qt),
+                context_text,
+                concept_graph_text
+            );
+            let prompt = serde_json::json!({
+                "chunk_ref": tc.entity_ref,
+                "source": tc.source,
+                "concepts": tc.concepts,
+                "salience": tc.salience,
+                "qa_type": qt.as_str(),
+                "system": system,
+                "user": format!("Generate a {} QA pair from this passage:\n\n---\n{}\n---\n\nConcepts: {}\n\nInclude this chunk_ref in your output: {}", qt.as_str(), tc.text, tc.concepts.join(", "), tc.entity_ref),
+            });
             out.push_str(&serde_json::to_string(&prompt)?);
             out.push('\n');
         }
@@ -1077,14 +1260,17 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
                     if v.len() != batch.len() {
                         eprintln!(
                             "  WARN: embed batch returned {} vectors for {} inputs — padding",
-                            v.len(), batch.len()
+                            v.len(),
+                            batch.len()
                         );
-                        let v_len = v.len(); all_v.extend(v);
+                        let v_len = v.len();
+                        all_v.extend(v);
                         for _ in v_len..batch.len() {
                             all_v.push(Vec::new());
                         }
                     } else {
-                        let v_len = v.len(); all_v.extend(v);
+                        let v_len = v.len();
+                        all_v.extend(v);
                     }
                 }
                 Err(e) => {
@@ -1095,7 +1281,11 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
                 }
             }
         }
-        println!("  Embedded: {} / {} instructions", all_v.iter().filter(|v| !v.is_empty()).count(), all_v.len());
+        println!(
+            "  Embedded: {} / {} instructions",
+            all_v.iter().filter(|v| !v.is_empty()).count(),
+            all_v.len()
+        );
 
         // Pre-normalize all embeddings so cosine similarity becomes a dot product.
         // This is the critical performance fix: the old code called cosine_similarity
@@ -1147,14 +1337,19 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
         // K = 2.5% of N (per SemDeDup: more clusters = fewer within-cluster
         // comparisons). For N=17,891, K≈447 clusters, avg ~40 items/cluster.
         let k = ((n as f64) * 0.025).round().max(2.0) as usize;
-        println!("  SemDeDup: {} embedded QAs, {} clusters (K=2.5% of N)", n, k);
+        println!(
+            "  SemDeDup: {} embedded QAs, {} clusters (K=2.5% of N)",
+            n, k
+        );
 
         let assignments = kmeans_cluster(&normalized, &embedded_indices, k, 10);
         let clusters = assignments.len();
         let max_cluster = assignments.iter().map(|c| c.len()).max().unwrap_or(0);
         let avg_cluster = n / clusters.max(1);
-        println!("  K-means: {} clusters (avg {} items, max {})",
-            clusters, avg_cluster, max_cluster);
+        println!(
+            "  K-means: {} clusters (avg {} items, max {})",
+            clusters, avg_cluster, max_cluster
+        );
 
         // Within each cluster: greedy dedup by cosine > threshold.
         // Sort by instruction length descending (longer = more specific = keep first).
@@ -1162,13 +1357,17 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
         for cluster_indices in &assignments {
             let mut sorted = cluster_indices.clone();
             sorted.sort_by(|&a, &b| {
-                filtered[b].instruction.len().cmp(&filtered[a].instruction.len())
+                filtered[b]
+                    .instruction
+                    .len()
+                    .cmp(&filtered[a].instruction.len())
             });
 
             let mut kept_in_cluster: Vec<usize> = Vec::new();
             for &i in &sorted {
                 let is_dup = kept_in_cluster.iter().any(|&k| {
-                    let dot: f32 = normalized[i].iter()
+                    let dot: f32 = normalized[i]
+                        .iter()
                         .zip(normalized[k].iter())
                         .map(|(a, b)| a * b)
                         .sum();
@@ -1202,7 +1401,10 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
         filtered.len() - deduped_count
     );
     if no_embedding_count > 0 {
-        println!("  No embedding: {} QAs used exact-match dedup", no_embedding_count);
+        println!(
+            "  No embedding: {} QAs used exact-match dedup",
+            no_embedding_count
+        );
     }
     let mut tc = std::collections::HashMap::new();
     for (_, qa) in &deduped {
@@ -1282,17 +1484,16 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
             }
         }
     }
-    println!("  Stored: {} QA h_mems (5W1H: What, dual-axis: DC+BIBO/PKO)", stored);
+    println!(
+        "  Stored: {} QA h_mems (5W1H: What, dual-axis: DC+BIBO/PKO)",
+        stored
+    );
     if store_failures > 0 {
-        eprintln!(
-            "  WARNING: {} QA h_mems failed to store",
-            store_failures
-        );
+        eprintln!("  WARNING: {} QA h_mems failed to store", store_failures);
     }
     println!(
         "  Provenance: {}/{} QAs have chunk_ref (traceable to source passage)",
-        with_chunk_ref,
-        deduped_count
+        with_chunk_ref, deduped_count
     );
 
     // Store QA embeddings — now using the SAME index as h_mem storage

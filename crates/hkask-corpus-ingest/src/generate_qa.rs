@@ -27,6 +27,79 @@ pub struct QaPrompt {
     pub user: String,
 }
 
+/// Per-Bloom-level LLM sampling parameters.
+///
+/// The constraint gradient is on THINKING and RANDOMNESS, not output length.
+/// All levels use the same max_tokens — the cognitive demand varies through:
+/// - temperature: 0.1 (deterministic) → 0.8 (divergent)
+/// - top_p: 0.85 (focused) → 0.98 (wide nucleus)
+/// - min_p: 0.05 (filters noise) → 0.01 (allows rare tokens)
+/// - disable_thinking: true for factual (direct output, no reasoning tokens)
+/// - frequency_penalty: higher for factual (concise), lower for create
+/// - presence_penalty: higher for create (novel concepts), lower for factual
+///
+/// Research basis:
+/// - Renze (2024, EMNLP): low temp for factual accuracy, high for creativity
+/// - Peeperkorn et al. (2024, ICCC): min_p filters incoherent tokens at high temp
+/// - min-p sampling paper (2024): min_p adapts to model confidence dynamically
+fn bloom_params(qa_type: &str) -> LLMParameters {
+    match qa_type {
+        "factual" => LLMParameters {
+            temperature: 0.1,
+            top_p: 0.85,
+            min_p: 0.05,
+            max_tokens: 4096,
+            disable_thinking: true,  // direct output, no chain-of-thought
+            frequency_penalty: 0.3,  // discourage repetitive phrasing
+            presence_penalty: 0.2,
+            ..Default::default()
+        },
+        "conceptual" => LLMParameters {
+            temperature: 0.3,
+            top_p: 0.92,
+            min_p: 0.03,
+            max_tokens: 4096,
+            frequency_penalty: 0.2,
+            presence_penalty: 0.1,
+            ..Default::default()
+        },
+        "analyze" => LLMParameters {
+            temperature: 0.5,
+            top_p: 0.95,
+            min_p: 0.02,
+            max_tokens: 4096,
+            frequency_penalty: 0.1,
+            presence_penalty: 0.1,
+            ..Default::default()
+        },
+        "evaluate" => LLMParameters {
+            temperature: 0.5,
+            top_p: 0.95,
+            min_p: 0.02,
+            max_tokens: 4096,
+            frequency_penalty: 0.1,
+            presence_penalty: 0.1,
+            ..Default::default()
+        },
+        "create" => LLMParameters {
+            temperature: 0.8,
+            top_p: 0.98,
+            min_p: 0.01,
+            max_tokens: 4096,
+            frequency_penalty: 0.0,
+            presence_penalty: 0.3,  // encourage novel concepts
+            ..Default::default()
+        },
+        _ => LLMParameters {
+            temperature: 0.3,
+            top_p: 0.95,
+            min_p: 0.02,
+            max_tokens: 4096,
+            ..Default::default()
+        },
+    }
+}
+
 /// CLI arguments for the generate-qa subcommand.
 #[derive(clap::Parser)]
 pub struct GenerateQaArgs {
@@ -160,11 +233,7 @@ pub async fn run_generate_qa(args: GenerateQaArgs) -> Result<(), Box<dyn std::er
             };
             let combined_prompt = format!("{system}\n\n{truncated_user}");
 
-            let params = LLMParameters {
-                temperature: 0.3,
-                max_tokens: 4096,
-                ..Default::default()
-            };
+            let params = bloom_params(qa_type);
 
             let model_override: Option<String> = std::env::var("HKASK_QA_MODEL").ok();
 

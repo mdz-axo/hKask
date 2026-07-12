@@ -48,12 +48,12 @@ Your Domain (hkask.yourdomain.com)
 │  Restores on pod restart    │
 └────────────────────────────┘
 
-Namespace: hkask       Namespace: hkask-conduit
+Namespace: hkask       Namespace: conduit
 ```
 
 ### The Conduit Sidecar
 
-Conduit is a lightweight Matrix homeserver deployed as a separate Pod in the `hkask-conduit` namespace. It provides:
+Conduit is a lightweight Matrix homeserver deployed as a separate Pod in the `conduit` namespace. It provides:
 
 - **Agent-to-agent (A2A) communication**: Replicants register as Matrix users and communicate through rooms.
 - **7R7 listener integration**: The `SevenR7Listener` polls Matrix rooms and emits CNS observation spans.
@@ -81,7 +81,7 @@ The master passphrase for SQLCipher encryption goes in `deploy/k8s/secret.yaml` 
 
 Two namespaces provide security boundaries:
 - **`hkask`**: kask Deployment, ConfigMap, Secret, PVC, Service, Ingress
-- **`hkask-conduit`**: Conduit Deployment, Service, NetworkPolicy
+- **`conduit`**: Conduit Deployment, Service, NetworkPolicy
 
 NetworkPolicies restrict cross-namespace traffic. If Conduit is compromised, it cannot access kask's Secrets.
 
@@ -96,7 +96,7 @@ NetworkPolicies restrict cross-namespace traffic. If Conduit is compromised, it 
 ```bash
 # View pods
 kubectl -n hkask get pods
-kubectl -n hkask-conduit get pods
+kubectl -n conduit get pods
 
 # View logs
 kubectl -n hkask logs deploy/kask

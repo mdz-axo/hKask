@@ -1494,7 +1494,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADRs/ADR-047-storage-modularization.md`](ADRs/ADR-047-storage-modularization.md) | Storage crate modularization — 9 sub-crates behind facade |
 | [`ADRs/ADR-048-cns-type-decomposition.md`](ADRs/ADR-048-cns-type-decomposition.md) | CNS type system decomposition — CnsSpan reduced to 7 variants, domain enums per crate |
 
-**Also present:** [`ADR-043-database-driver.md`](ADRs/ADR-043-database-driver.md) — Database driver abstraction.
+**Also present:** [`ADRs/ADR-043-database-driver.md`](ADRs/ADR-043-database-driver.md) — Database driver abstraction.
 
 **Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, never adopted). **Archived (retroactive, 2026-06-15):** ADR-024–027. Recoverable via git history.
 
@@ -1518,7 +1518,7 @@ Detailed lookup tables and diagrams in `reference/`:
 ```
 docs/architecture/
 ├── hKask-architecture-master.md                # THIS FILE (index + 4 patterns, absorbed: loop, energy, self-healing, pod, curator, TUI)
-├── ADR-043-database-driver.md                  # Database driver abstraction (pending move to ADRs/)
+├── ADRs/ADR-043-database-driver.md                  # Database driver abstraction (pending move to ADRs/)
 ├── database-providers.md                       # Database provider comparison
 ├── matrix-integration-architecture.md          # Matrix transport, Conduit
 ├── well-wallet-architecture.md                 # Wallet architecture
@@ -5443,7 +5443,7 @@ flowchart TD
 
 This reference diagram shows the routing used by eligible financial-data tools. An exchange-qualified symbol prefers EODHD; a plain symbol prefers FMP. The in-memory learning state can select the alternate provider when the default is classified as flaky or stale. A failed primary request is retried through the alternate provider. `company_screener` and `research_search` are outside this path.
 
-See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server-merged-from-hkask-mcp-companiesmd) for the tool-boundary details.
+See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server) for the tool-boundary details.
 
 ```mermaid
 sequenceDiagram
@@ -5506,7 +5506,7 @@ status: VERIFIED
 
 This reference diagram shows the durable forecast loop. A DCF or calibrated forecast writes an owner-scoped structured JSON snapshot; an optional same-symbol revision references its parent. `forecast_record` reloads the snapshot, retrieves current financial data for decomposition, appends the outcome, and independently sends an experience to the daemon when configured.
 
-See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server-merged-from-hkask-mcp-companiesmd) for request fields and ownership boundaries.
+See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server) for request fields and ownership boundaries.
 
 ```mermaid
 sequenceDiagram

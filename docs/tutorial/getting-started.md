@@ -107,7 +107,7 @@ Displays: set points (target thresholds), current values, algedonic alerts (crit
 ## 7. View CNS Spans
 
 ```bash
-./target/release/kask cns spans --recent 10
+./target/release/kask cns alerts
 ```
 
 Each span has a namespace (`cns.tool.reserved`, `cns.inference.completed`, `cns.guard.violation`), timestamp, and domain-specific payload.

@@ -171,7 +171,7 @@ hKask's README opens with a design philosophy: "Austere and efficient recombinat
 
 #### The Loom: Rust as Invariant Logic
 
-The loom is everything compiled. It is the `kask` binary — 40 core crates, 15 MCP servers, ~192,700 lines of Rust. It is:
+The loom is everything compiled. It is the `kask` binary — 45 core crates, 15 MCP servers, ~192,700 lines of Rust. It is:
 
 - **The CNS** (`hkask-cns`). The cybernetic loop: sense, compare, compute, act, verify. This loop does not change based on configuration. It is structural — a `Loop` trait with fixed semantics, `LoopAction` types with fixed authority hierarchy.
 
@@ -2209,7 +2209,7 @@ sequenceDiagram
         OCAP->>CNS: Emit cns.tool.completed ν-event
         OCAP-->>CLI: Tool result (with energy cost)
     else OCAP check fails
-        OCAP->>CNS: Emit cns.tool.denied ν-event
+        OCAP->>CNS: Emit cns.tool ToolError ν-event
         OCAP-->>CLI: Error: capability denied (P4 violation)
     end
 ```

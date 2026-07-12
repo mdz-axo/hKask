@@ -20,7 +20,7 @@ All 15 MCP servers registered in `hkask-mcp::BUILTIN_SERVERS`. Each server follo
 | `hkask-mcp-memory` | Unified episodic + semantic memory with cloud backup | 16 | Standard |
 | `hkask-mcp-condenser` | Context condensation (thin wrapper over `hkask-condenser`) | 7 | Standard |
 | `hkask-mcp-research` | Web search, extraction, and feed-based research | 17 | Standard |
-| [`hkask-mcp-companies`](#companies-mcp-server-merged-from-hkask-mcp-companiesmd) | Company financial data, valuation, research, and portfolio tools | 41 | Standard |
+| [`hkask-mcp-companies`](#companies-mcp-server) | Company financial data, valuation, research, and portfolio tools | 41 | Standard |
 | `hkask-mcp-communication` | Thin MCP wrapper over core communication crate | 9 | Communication |
 | `hkask-mcp-curator` | System observability, escalation management, regulatory memory | 16 | Curator |
 | `hkask-mcp-filesystem` | Filesystem and shell access (OCAP-governed, path allowlisting) | 12 | Restricted |
@@ -54,7 +54,7 @@ bootstrap_mcp_server(name, target, host_env_var)
 4. CNS ν-event emitted (`cns.tool.reserved`)
 5. Tool implementation executed
 6. Energy settled (`cns.tool.completed`)
-7. If OCAP denied → `cns.tool.denied` ν-event, error returned
+7. If OCAP denied → `cns.tool` with `SpanKind::ToolError` ν-event, error returned
 
 ## Capability Tiers
 
@@ -71,7 +71,7 @@ All servers are registered in `crates/hkask-mcp/src/lib.rs` in the `BUILTIN_SERV
 
 ---
 
-## Companies MCP Server (Merged from hkask-mcp-companies.md)
+## Companies MCP Server
 
 
 # Companies MCP Server Reference
