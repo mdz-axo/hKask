@@ -27,6 +27,7 @@ fn condenser_params() -> LLMParameters {
         disable_thinking: true,
         adapter: None,
         bypass_fusion: false,
+        fusion_config: None,
     }
 }
 
