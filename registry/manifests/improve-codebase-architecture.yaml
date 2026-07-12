@@ -48,6 +48,18 @@ inputs:
     type: array
     required: false
 
+fusion:
+  judge: deepseek-v4-pro
+  panel:
+    - Kimi2.7
+    - Qwen3.7 Max
+    - GLM5.2
+  mode: deliberation
+  skills:
+    - deep-module
+    - essentialist
+  max_rounds: 3
+
 steps:
   - ordinal: 1
     action: select
@@ -133,6 +145,7 @@ steps:
       primary_result: "{{ step_3_result | default({}) }}"
       convergence_description: "findings are coherent, actionable, and no high-severity ambiguity remains"
       include_blockers: true
+    fusion: false
 
   - ordinal: 7
     action: loop

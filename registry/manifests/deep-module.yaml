@@ -62,6 +62,17 @@ inputs:
     type: object
     required: false
 
+fusion:
+  judge: deepseek-v4-pro
+  panel:
+    - Kimi2.7
+    - Qwen3.7 Max
+    - GLM5.2
+  mode: synthesis
+  skills:
+    - deep-module
+  max_rounds: 3
+
 steps:
   - ordinal: 1
     action: select
@@ -111,6 +122,7 @@ steps:
     timeout_seconds: 30
     input_mapping:
       primary_result: "{{ step_3_result }}"
+    fusion: false
 
   - ordinal: 5
     action: loop

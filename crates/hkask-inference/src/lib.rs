@@ -42,6 +42,7 @@ pub mod embedding_router;
 pub mod fal_backend;
 pub mod fal_workflow;
 pub mod fusion_orchestrator;
+pub mod dual_model_port;
 pub mod inference_router;
 pub mod kilocode_backend;
 pub mod model_constants;

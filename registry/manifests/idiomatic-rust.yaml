@@ -53,6 +53,18 @@ inputs:
     description: "Specific aspect to focus on from previous challenge critique"
     required: false
 
+fusion:
+  judge: deepseek-v4-pro
+  panel:
+    - Kimi2.7
+    - Qwen3.7 Max
+    - GLM5.2
+  mode: critique
+  skills:
+    - coding-guidelines
+    - deep-module
+  max_rounds: 3
+
 steps:
   - ordinal: 1
     action: select
@@ -114,6 +126,7 @@ steps:
       assessment: "{{ step_1_result }}"
       design_proposal: "{{ step_2_result }}"
       critique: "{{ step_3_result }}"
+    fusion: false
 
   - ordinal: 5
     action: loop

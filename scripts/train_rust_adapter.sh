@@ -358,6 +358,10 @@ def load_and_format(dataset_id, formatter, split="train", max_samples=0):
 
 # ── Load datasets based on MODE ────────────────────────────────────────────
 
+# In 'both' mode, cap each dataset to 100K to avoid tokenization deadlock
+# on very large combined datasets (723K+ examples causes multiprocessing hang).
+MAX_PER_DATASET = 100000 if MODE == "both" else MAX_SAMPLES
+
 datasets_list = []
 
 if MODE in ("coding", "both"):
@@ -365,7 +369,7 @@ if MODE in ("coding", "both"):
         "Fortytwo-Network/Strandset-Rust-v1",
         format_strandset,
         split="train",
-        max_samples=MAX_SAMPLES,
+        max_samples=MAX_PER_DATASET,
     )
     datasets_list.append(("coding", coding_ds))
 
@@ -374,7 +378,7 @@ if MODE in ("analysis", "both"):
         "introspector/rust-analyser",
         format_introspector,
         split="train",
-        max_samples=MAX_SAMPLES,
+        max_samples=MAX_PER_DATASET,
     )
     datasets_list.append(("analysis", analysis_ds))
 
@@ -427,14 +431,6 @@ def fmt_msgs(ex):
 print("Formatting with chat template...", flush=True)
 train_ds = train_ds.map(fmt_msgs, remove_columns=train_ds.column_names, num_proc=4)
 
-# Pre-tokenize to avoid SFTTrainer internal tokenization deadlock on large datasets
-print("Pre-tokenizing dataset (this avoids SFTTrainer tokenization deadlock)...", flush=True)
-def tokenize_fn(ex):
-    tokens = tokenizer(ex["text"], truncation=True, max_length=MAX_SEQ_LENGTH, padding=False)
-    return {"input_ids": tokens["input_ids"], "attention_mask": tokens["attention_mask"], "labels": tokens["input_ids"]}
-train_ds = train_ds.map(tokenize_fn, remove_columns=["text"], num_proc=4)
-print(f"Pre-tokenized {len(train_ds)} examples", flush=True)
-
 # ── Train ─────────────────────────────────────────────────────────────────
 
 # Custom trainer that re-samples the eval set before each evaluation.
@@ -458,7 +454,7 @@ trainer = DynamicEvalSFTTrainer(
     train_dataset=train_ds, eval_dataset=None,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=7)],
     args=SFTConfig(
-        max_seq_length=MAX_SEQ_LENGTH,
+        max_seq_length=MAX_SEQ_LENGTH, dataset_text_field="text",
         per_device_train_batch_size=PER_DEVICE_BATCH,
         gradient_accumulation_steps=GRAD_ACCUM,
         num_train_epochs=NUM_EPOCHS,
@@ -470,7 +466,7 @@ trainer = DynamicEvalSFTTrainer(
         save_total_limit=3, bf16=True, optim="adamw_8bit",
         weight_decay=WEIGHT_DECAY, max_grad_norm=MAX_GRAD_NORM,
         lr_scheduler_type="cosine", output_dir=OUTPUT_DIR,
-        report_to="none", dataset_num_proc=4,
+        report_to="none", dataset_num_proc=1,
     ),
 )
 print("\n=== STARTING TRAINING ===", flush=True)

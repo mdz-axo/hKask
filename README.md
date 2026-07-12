@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
-| 2 | **Essential Tools** | 15 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter) |
+| 2 | **Essential Tools** | 15 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter, KiloCode) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Templates + manifests compose into iterative PDCA Skill loops (43 skills, 2 templates, 1 bundle) |
@@ -93,8 +93,8 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-improv` | Constructive interaction protocol (plussing, yes-and, yes-but, freestyling, riffing) |
 | `hkask-condenser` | Context condensation engine (7 tools, 51 tests) |
 | `hkask-codegraph` | Native code understanding engine (tree-sitter, FTS5, recursive CTE traversal, context assembly) |
-| `hkask-acp` | Agent Communication Protocol |
-| `hkask-adapter` | External provider adapters (Hugging Face, etc.) |
+| `hkask-acp` | Agent Client Protocol — IDE integration for coding agents |
+| `hkask-adapter` | Trained adapter lifecycle — store, expertise, endpoint lifecycle, provider cost model |
 | `hkask-test-harness` | Test infrastructure (TestDb, TestWebId, mocks, strategies) |
 | `hkask-mcp-cloud-gateway` | Cloud MCP gateway for remote tool dispatch |
 | `hkask-guard` | Content safety guard — mandatory LLM boundary scanning, OWASP LLM Top 10 aligned |
@@ -106,23 +106,23 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 ### Services (10 crates)
 | Crate | Purpose |
 |-------|--------|
-| `hkask-services-core` | Core service traits and port definitions |
+| `hkask-services-core` | Service-layer foundation — ServiceError, ServiceConfig, HkaskSettings |
 | `hkask-services-context` | AgentService context, CNS runtime, cybernetic loops |
-| `hkask-services-runtime` | Runtime orchestration (lifecycle, daemon, events) |
+| `hkask-services-runtime` | Runtime services — text classification, provider intelligence, daemon handler |
 | `hkask-services-chat` | Chat session management and history |
-| `hkask-services-compose` | Skill composition and bundle orchestration |
+| `hkask-services-compose` | Prompt composition with cognition config (exemplar retrieval, prose generation) |
 | `hkask-services-corpus` | Document corpus management and indexing |
 | `hkask-services-kata-kanban` | Toyota Kata coaching/improvement + Kanban board coordination |
 | `hkask-services-onboarding` | First-run and user onboarding |
-| `hkask-services-skill` | Skill registry and discovery |
-| `hkask-services-wallet` | Crypto wallet and chain port selection |
+| `hkask-services-skill` | Skill discovery, publishing, hashing, auditing, and bundle composition |
+| `hkask-services-wallet` | Gas budgeting, price feeds, CNS integration |
 
 ### Wallet, Identity & Ledger (3 crates)
 | Crate | Purpose |
 |-------|--------|
-| `hkask-wallet` | Multi-chain wallet (Hedera, Hinkal optional) |
+| `hkask-wallet` | rJoule wallet — self-custody multi-chain deposits, API key issuance, Hinkal privacy |
 | `hkask-wallet-types` | Wallet value types and data structures |
-| `hkask-ledger` | Triple-entry accounting ledger |
+| `hkask-ledger` | Double-entry accounting ledger (cost, crypto, securities) |
 
 ### Ontology & Interface (4 crates)
 | Crate | Purpose |
@@ -135,7 +135,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 ### MCP Servers (15 crates)
 - `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
 - `hkask-mcp-research` — Web search, extraction, and feed-based research
-- `hkask-mcp-skill` — Skill registry and discovery MCP interface
+- `hkask-mcp-skill` — Skill invocation (exposes registered skills as callable MCP tools)
 - `hkask-mcp-curator` — Curator daemon tools (algedonic log, escalations, memory recall, semantic search)
 - `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
 - `hkask-mcp-communication` — Thin MCP wrapper over core communication crate
@@ -145,9 +145,9 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 - `hkask-mcp-memory` — Unified episodic + semantic memory with cloud backup
 - `hkask-mcp-training` — Model training (QA pairs and training data for fine-tuning pipelines)
 - `hkask-mcp-kata-kanban` — Kata-Kanban workflow coordination
-- `hkask-mcp-filesystem` — Secure filesystem operations with path allowlisting
-- `hkask-mcp-codegraph` — Code understanding tools (query, traverse, impact analysis, context assembly, dead code detection)
-- `hkask-mcp-scenarios` — Scenario planning and superforecasting (Tetlock GJP methodology)
+- `hkask-mcp-filesystem` — OCAP-governed filesystem + shell access (7 tools: fs.read/write/…, shell.exec)
+- `hkask-mcp-codegraph` — Code understanding tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code)
+- `hkask-mcp-scenarios` — Scenario planning (MAIA event-tree forecasting, Fermi decomposition, Bayesian calibration)
 
 ---
 
@@ -170,7 +170,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **API Route Groups** | 21 |
 | **Build/Clippy/Fmt/Test/UnusedDeps** | All passing |
 | **Skills** | 43 (79 registry manifests, 317 Jinja2 templates) |
-| **Codegraph** | 10 MCP tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed) |
+| **Codegraph** | 11 MCP tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) |
 | **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
 
 ---

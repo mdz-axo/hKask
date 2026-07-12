@@ -53,6 +53,17 @@ inputs:
     type: string
     required: false
 
+fusion:
+  judge: deepseek-v4-pro
+  panel:
+    - Kimi2.7
+    - Qwen3.7 Max
+    - GLM5.2
+  mode: critique
+  skills:
+    - pragmatic-semantics
+  max_rounds: 3
+
 steps:
   - ordinal: 1
     action: populate
@@ -90,6 +101,7 @@ steps:
     timeout_seconds: 30
     input_mapping:
       primary_result: "{{ step_2_result }}"
+    fusion: false
 
   - ordinal: 4
     action: loop

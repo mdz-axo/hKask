@@ -41,6 +41,17 @@ inputs:
     type: array
     required: false
 
+fusion:
+  judge: deepseek-v4-pro
+  panel:
+    - Kimi2.7
+    - Qwen3.7 Max
+    - GLM5.2
+  mode: deliberation
+  skills:
+    - essentialist
+  max_rounds: 3
+
 steps:
   - ordinal: 1
     action: select
@@ -91,6 +102,7 @@ steps:
     input_mapping:
       critique_result: "{{ step_2_result }}"
       revision_result: "{{ step_3_result }}"
+    fusion: false
 
   - ordinal: 5
     action: loop
