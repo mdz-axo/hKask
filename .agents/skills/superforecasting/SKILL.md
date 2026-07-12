@@ -62,13 +62,15 @@ Superforecasting pipeline following Tetlock's Good Judgment Project methodology.
 4. Make many small updates most of the time, and occasional large updates when evidence is very strong.
 5. Update the prior probability to the posterior probability based on the accumulated evidence.
 
-### stage_5_synthesis
+,### stage_5_synthesis
 
 1. Integrate multiple causal models and perspectives into a "dragonfly eye" view.
 2. Identify clashing causal forces pushing toward YES vs. NO.
 3. Steelman the strongest opposing arguments, making them as persuasive as possible.
-4. Aggregate the judgments of different models, noting where they agree and diverge.
-5. Synthesize an integrated probability from the multiple perspectives.
+4. Generate 3-5 distinct causal models, each with an implied probability.
+5. Apply MCDA-style weighted aggregation: score each model against evidence alignment, reference class stability, causal mechanism clarity, and model confidence criteria. Compute composite scores and detect compensation masking.
+6. Synthesize an integrated probability using the MCDA-weighted average of model probabilities.
+7. Aggregate the judgments of different models, noting where they agree and diverge.
 
 ### stage_6_calibration
 
@@ -111,7 +113,7 @@ Superforecasting pipeline following Tetlock's Good Judgment Project methodology.
 | `stage_2_outside_view.j2` | WordAct | Establish base rates by identifying reference classes and determining how often similar events occur. Produces the outside-view starting probability.  |
 | `stage_3_inside_view.j2` | WordAct | Generate multiple causal hypotheses for how the outcome could occur. Evaluate each hypothesis against case-specific evidence and adjust from the outside-view anchor.  |
 | `stage_4_evidence_update.j2` | WordAct | Incorporate new evidence via Bayesian updating with likelihood ratios. Revise the prior probability based on evidence strength.  |
-| `stage_5_synthesis.j2` | WordAct | Synthesize a dragonfly-eye view by integrating multiple causal models and perspectives. Steel-man dissenting views and produce a synthesized probability.  |
+,| `stage_5_synthesis.j2` | WordAct | Synthesize a dragonfly-eye view by integrating multiple causal models and perspectives. Applies MCDA-style weighted scoring of models against evidence quality criteria, steel-man dissenting views, and produce a synthesized probability with model weights and compensation masking warnings.  |
 | `stage_6_calibration.j2` | WordAct | Calibrate the final probability using the full 0-100% scale. Justify precision against known calibration principles and the pipeline's evidence trail.  |
 | `stage_7_record.j2` | WordAct | Create a structured forecast record with resolution criteria and expiration date for later tracking, Brier scoring, and post-mortem analysis.  |
 | `forecast-quality-gate.j2` | KnowAct | Independent quality gate that evaluates forecast calibration realism, confidence justification, evidence trail completeness, and record quality without self-assessment bias. Produces calibrated 0–1 scores plus a gate_pass determination with actionable fix notes.  |

@@ -204,8 +204,8 @@ future enhancement.
 - [ ] Human-in-the-loop checkpoints
 - [ ] Automatic reference class lookup from knowledge base
 - [ ] Brier score tracking and feedback
-- [ ] Wire `mcda/weight-and-score` delegation into stage 5 (synthesis) — interface gap: MCDA expects `alternatives` + `criteria` (decision options), while synthesis produces `causal_models` (analytical perspectives on one binary outcome); an adapter template is needed to bridge the semantic mismatch
-- [ ] Wire `hypothesis-framer` sub-question independence validation into stage 1 (Fermi) — interface gap: hypothesis-framer templates are designed for research question framing (FINER + PICO), not Fermi sub-question independence checking; a lightweight independence validator is a better fit
+- [x] MCDA-style weighted aggregation in stage 5 (synthesis) — causal models scored against evidence alignment, reference class stability, causal mechanism clarity, and model confidence criteria, with compensation masking detection. Embedded in the synthesis template rather than delegated via template_ref to avoid flow step ordinal shifts.
+- [ ] Sub-question independence validation in stage 1 (Fermi) — hypothesis-framer interface mismatch: FINER/PICO evaluates research question quality, not Fermi sub-question independence. A lightweight independence check embedded in the Fermi template is a better fit than cross-skill delegation.
 
 ## References
 
