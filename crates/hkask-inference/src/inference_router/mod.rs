@@ -167,14 +167,17 @@ impl InferenceRouter {
 
     /// Compute the effective model name, applying the fusion override when active.
     ///
-    /// When `config.fusion` is Some AND `params.bypass_fusion` is false,
-    /// the fusion model ID is used regardless of the explicit or default model.
-    /// Otherwise, falls back to the explicit model or config.default_model.
+    /// Priority: per-call `params.fusion_config` > global `config.fusion` >
+    /// explicit model > default model. When `params.bypass_fusion` is true,
+    /// all fusion overrides are skipped.
     fn effective_model(&self, explicit: Option<&str>, params: &LLMParameters) -> String {
-        if !params.bypass_fusion
-            && let Some(ref fusion) = self.config.fusion
-        {
-            return fusion.model_id();
+        if !params.bypass_fusion {
+            if let Some(fusion) = &params.fusion_config {
+                return fusion.model_id();
+            }
+            if let Some(ref fusion) = self.config.fusion {
+                return fusion.model_id();
+            }
         }
         explicit.unwrap_or(&self.config.default_model).to_string()
     }
@@ -359,6 +362,69 @@ mod tests {
         let default = config.default_model.clone();
         let router = InferenceRouter::new(config);
         let params = LLMParameters::default();
+        assert_eq!(router.effective_model(None, &params), default);
+    }
+
+    // ── C2: Per-call fusion_config override ───────────────────────────
+
+    /// REQ: P9-inf-fusion-per-call-override
+    /// expect: "Per-call fusion_config overrides global config judge model" [P9]
+    #[test]
+    fn per_call_fusion_config_overrides_global() {
+        let config = config_with_fusion(Some("global-judge"), Some(&["Kimi2.7"]));
+        let router = InferenceRouter::new(config);
+        let params = LLMParameters {
+            bypass_fusion: false,
+            fusion_config: Some(FusionConfig {
+                judge: "manifest-judge".to_string(),
+                panel: vec!["Qwen3.7 Max".to_string()],
+                mode: FusionMode::Critique,
+                skills: Vec::new(),
+                max_rounds: 3,
+            }),
+            ..Default::default()
+        };
+        assert_eq!(router.effective_model(None, &params), "manifest-judge");
+    }
+
+    /// REQ: P9-inf-fusion-per-call-no-global
+    /// expect: "Per-call fusion_config used when no global config exists" [P9]
+    #[test]
+    fn per_call_fusion_config_without_global() {
+        let config = config_with_fusion(None, None);
+        let router = InferenceRouter::new(config);
+        let params = LLMParameters {
+            bypass_fusion: false,
+            fusion_config: Some(FusionConfig {
+                judge: "manifest-only-judge".to_string(),
+                panel: vec!["GLM5.2".to_string()],
+                mode: FusionMode::Synthesis,
+                skills: Vec::new(),
+                max_rounds: 5,
+            }),
+            ..Default::default()
+        };
+        assert_eq!(router.effective_model(None, &params), "manifest-only-judge");
+    }
+
+    /// REQ: P9-inf-fusion-per-call-bypass
+    /// expect: "Bypass flag overrides per-call fusion_config" [P9]
+    #[test]
+    fn per_call_fusion_config_bypassed() {
+        let config = config_with_fusion(Some("global-judge"), Some(&["Kimi2.7"]));
+        let default = config.default_model.clone();
+        let router = InferenceRouter::new(config);
+        let params = LLMParameters {
+            bypass_fusion: true,
+            fusion_config: Some(FusionConfig {
+                judge: "manifest-judge".to_string(),
+                panel: vec!["Qwen3.7 Max".to_string()],
+                mode: FusionMode::Synthesis,
+                skills: Vec::new(),
+                max_rounds: 5,
+            }),
+            ..Default::default()
+        };
         assert_eq!(router.effective_model(None, &params), default);
     }
 

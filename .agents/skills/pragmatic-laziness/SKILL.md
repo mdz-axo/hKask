@@ -63,6 +63,16 @@ Procedural composition skill that finds the path of least action through meaning
 | `lazy-stationary-action.j2` | KnowAct | Phase 3 of the 3-phase lazy loop. Apply the deletion test and brachistochrone rule to find the least-action configuration. Consumes outputs from Phase 1 (decomposition) and Phase 2 (loops).  |
 | `pragmatic-laziness-converge.j2` | KnowAct | δS = 0 convergence check. Compares current and previous configurations to decide whether the lazy loop has reached a stationary point.  |
 
+,## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. Pragmatic-laziness uses **synthesis mode** (compose best elements)
+to match least-action pathfinding.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - `lazy-decompose.j2`: Public.

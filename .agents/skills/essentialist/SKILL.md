@@ -51,6 +51,16 @@ General-purpose recursive eliminative interrogation. Enforces "always take away,
 |----------|------|--------|
 | `essentialist-flow.j2` | `KnowAct` | Run the 3-gate eliminative interrogation loop in either autonomous (agent evaluates and recommends without pause) or advisory (agent recommends, human accepts/rejects/overrides per gate) mode. Classify every finding by constraint-force (Prohibition → required, Guideline → suggested), escalate to human on retry exhaustion (3 max), abort on zero-delta completion. Delegates reasoning to deep-module (G1, G2) and coding-guidelines (G3) templates. |
 
+,## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. The essentialist uses **critique mode** (draft → panel critiques →
+revise) to match the 3-gate challenge loop.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - Visibility: Public — this skill's templates are shared across agents.

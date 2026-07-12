@@ -826,6 +826,39 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 | `tdd` | Red-Green-Refactor, contract-first |
 | `idiomatic-rust` | Type-driven design, ownership as architecture |
 
+,#### Per-Manifest Fusion Configuration
+
+In addition to the global env-var config, each skill's flow manifest can declare its own `FusionConfig` via a `fusion:` block. This enables per-skill judge models, panels, deliberation modes, and skill anchors without affecting other skills:
+
+```yaml
+# In a flow manifest (e.g., registry/manifests/superforecasting.yaml)
+fusion:
+  judge: deepseek-v4-pro
+  panel:
+    - Kimi2.7
+    - Qwen3.7 Max
+    - GLM5.2
+    - Minimax3
+  mode: synthesis
+  skills:
+    - superforecasting
+  max_rounds: 5
+```
+
+When the `fusion:` block is present, all `select` steps in that manifest use this config instead of the global config. Per-step `fusion: false` bypasses fusion for deterministic steps (convergence checks, quality gates).
+
+**Resolution priority** (highest to lowest):
+1. `step.fusion: Some(false)` → bypass fusion (single-model)
+2. `step.dual_model: true` → bypass fusion (dual-model has its own mechanism)
+3. `step.fusion: Some(true)` or `None` → inherit manifest config
+4. `manifest.fusion: Some(config)` → per-manifest config (`LLMParameters.fusion_config`)
+5. `manifest.fusion: None` → global config (`HKASK_FUSION_*` env vars)
+6. `params.bypass_fusion: true` → bypass everything
+
+**Types:** `FusionConfig`, `FusionMode`, `FusionSkill` live in `hkask-types::fusion` (shared across `hkask-templates`, `hkask-inference`). `LLMParameters.fusion_config: Option<FusionConfig>` carries the per-call override through the `InferencePort` trait.
+
+**Dual-model classification** (orthogonal to fusion): When `step.dual_model: true`, the executor runs two peer models from different jurisdictions in parallel and merges JSON outputs via set union. This uses `HKASK_CLASSIFIER_MODEL_A` / `HKASK_CLASSIFIER_MODEL_B` (defaults: `KC/qwen/qwen3-235b-a22b-2507` and `DI/google/gemma-4-E4B-it`). Dual-model always bypasses fusion — the two systems solve different problems (deliberation quality vs. epistemic integrity).
+
 **Bypass:** Chat uses the user's chosen model directly (`bypass_fusion=true`). Skills and tool invocations route through fusion when active (`bypass_fusion=false`). The condenser, daemon narratives, and summarization always bypass fusion.
 
 **Configuration:**
@@ -840,7 +873,7 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 
 **REPL commands:** `/fusion` (status), `/fusion on`, `/fusion off`.
 
-**Crates:** `hkask-inference` (`config.rs`, `inference_router.rs`, `fusion_orchestrator.rs`).
+,**Crates:** `hkask-types` (`fusion.rs` — config types), `hkask-inference` (`config.rs`, `inference_router.rs`, `fusion_orchestrator.rs`), `hkask-templates` (`manifest.rs`, `executor.rs` — per-manifest fusion wiring).
 
 ---
 
