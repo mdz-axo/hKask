@@ -1572,8 +1572,8 @@ classDiagram
 
 ### Related Documentation
 
-- [`class-service-layer.md`](class-service-layer.md) — Service layer class diagram (hexagonal ports)
-- [`sequence-mcp-tool-dispatch.md`](sequence-mcp-tool-dispatch.md) — MCP tool dispatch sequence
+- [Service Layer Class Diagram](../explanation/architecture-patterns.md#service-layer-class-diagram) — Service layer class diagram (hexagonal ports)
+- [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence
 - [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (four patterns, crate-to-loop mapping)
 - [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
 
@@ -1655,8 +1655,8 @@ The pipeline emits tracing events for cybernetic observability:
 
 ### Related Documentation
 
-- [`class-codegraph-types.md`](class-codegraph-types.md) — Type system class diagram
-- [`sequence-mcp-tool-dispatch.md`](sequence-mcp-tool-dispatch.md) — MCP tool dispatch sequence (applies to codegraph tools)
+- [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
+- [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence (applies to codegraph tools)
 - [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (crate-to-loop mapping)
 - [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
 
@@ -1750,8 +1750,8 @@ Three triggers keep `symbols_fts` synchronized with `symbols`:
 
 ### Related Documentation
 
-- [`class-codegraph-types.md`](class-codegraph-types.md) — Type system class diagram
-- [`flowchart-codegraph-pipeline.md`](flowchart-codegraph-pipeline.md) — Indexing pipeline flowchart
+- [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
+- [CodeGraph Indexing Pipeline](#codegraph-indexing-pipeline) — Indexing pipeline flowchart
 - [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master
 
 
@@ -1865,9 +1865,9 @@ sequenceDiagram
 
 ### Related Documentation
 
-- [`erd-codegraph-schema.md`](erd-codegraph-schema.md) — Database schema ERD
-- [`class-codegraph-types.md`](class-codegraph-types.md) — Type system class diagram
-- [`sequence-mcp-tool-dispatch.md`](sequence-mcp-tool-dispatch.md) — MCP tool dispatch with OCAP enforcement
+- [CodeGraph Database Schema](#codegraph-database-schema) — Database schema ERD
+- [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
+- [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch with OCAP enforcement
 - [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master
 
 
@@ -1878,7 +1878,7 @@ sequenceDiagram
 
 # Proposed CodeGraph IndexPipeline Lifecycle
 
-> **Status: proposed, not current behavior.** `IndexPipeline` currently exposes `index_file`, `index_directory`, `finalize`, and `staleness_seconds`; it does not hold an explicit lifecycle-state enum, threshold-driven stale transition, snapshot lifecycle, or automatic re-index trigger. The implementation flow is documented in [CodeGraph Indexing Pipeline](flowchart-codegraph-pipeline.md).
+> **Status: proposed, not current behavior.** `IndexPipeline` currently exposes `index_file`, `index_directory`, `finalize`, and `staleness_seconds`; it does not hold an explicit lifecycle-state enum, threshold-driven stale transition, snapshot lifecycle, or automatic re-index trigger. The implementation flow is documented in [CodeGraph Indexing Pipeline](#codegraph-indexing-pipeline).
 
 This state model remains as a design reference if hKask later introduces an explicit lifecycle controller around the pipeline. It must not be used to describe current operational behavior.
 
@@ -1941,9 +1941,9 @@ Current behavior is limited to call-driven indexing. `finalize()` resets the sta
 
 ### Related Documentation
 
-- [`erd-codegraph-schema.md`](erd-codegraph-schema.md) — Database schema ERD
-- [`flowchart-codegraph-pipeline.md`](flowchart-codegraph-pipeline.md) — Indexing pipeline detail
-- [`sequence-codegraph-agent.md`](sequence-codegraph-agent.md) — Agent interaction workflow
+- [CodeGraph Database Schema](#codegraph-database-schema) — Database schema ERD
+- [CodeGraph Indexing Pipeline](#codegraph-indexing-pipeline) — Indexing pipeline detail
+- [CodeGraph Agent Workflow](#codegraph-agent-workflow) — Agent interaction workflow
 - [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (CNS feedback loop)
 
 

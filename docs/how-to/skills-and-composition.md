@@ -1138,6 +1138,6 @@ status: VERIFIED
 ## Cross-reference
 
 
-- [Kata PDCA lifecycle state machine](state-kata-pdca.md)
+- [Kata PDCA lifecycle state machine](#kata-pdca-lifecycle-state-machine)
 - [Architecture master: Kata](../architecture/hKask-architecture-master.md#kata--cybernetic-capability-development)
 

@@ -20,7 +20,7 @@ All 15 MCP servers registered in `hkask-mcp::BUILTIN_SERVERS`. Each server follo
 | `hkask-mcp-memory` | Unified episodic + semantic memory with cloud backup | 16 | Standard |
 | `hkask-mcp-condenser` | Context condensation (thin wrapper over `hkask-condenser`) | 7 | Standard |
 | `hkask-mcp-research` | Web search, extraction, and feed-based research | 17 | Standard |
-| [`hkask-mcp-companies`](hkask-mcp-companies.md) | Company financial data, valuation, research, and portfolio tools | 41 | Standard |
+| [`hkask-mcp-companies`](#companies-mcp-server-merged-from-hkask-mcp-companiesmd) | Company financial data, valuation, research, and portfolio tools | 41 | Standard |
 | `hkask-mcp-communication` | Thin MCP wrapper over core communication crate | 9 | Communication |
 | `hkask-mcp-curator` | System observability, escalation management, regulatory memory | 16 | Curator |
 | `hkask-mcp-filesystem` | Filesystem and shell access (OCAP-governed, path allowlisting) | 12 | Restricted |
@@ -98,7 +98,7 @@ Eligible symbol-based financial-data requests route by symbol shape: exchange-qu
 
 `company_screener` is an FMP-specific endpoint, not a dual-provider query. `research_search` queries optional Exa, Tavily, and Brave providers independently of FMP/EODHD.
 
-See [Companies provider routing](../../diagrams/sequence-companies-provider-routing.md).
+See [Companies provider routing](../../architecture/hKask-architecture-master.md#companies-mcp-provider-routing).
 
 ## Valuation semantics
 
@@ -112,7 +112,7 @@ The active model does **not** implement a separate SG&A line, an exit-multiple t
 
 `dcf_valuation` and `calibrate_forecast` persist an owner-scoped structured JSON snapshot with a `forecast_id`. `forecast_get` retrieves a record and recorded outcomes; `forecast_list` returns the owner's records for one symbol. Passing `revision_of` creates a same-symbol child forecast after validating that the parent belongs to the current owner. `forecast_record` appends its outcome to the forecast and reloads the snapshot for decomposition, so restart does not discard calibration history.
 
-This is a durable owner-scoped feedback loop. It is not a general-purpose document store. See [Companies forecast feedback](../../diagrams/sequence-companies-forecast-feedback.md).
+This is a durable owner-scoped feedback loop. It is not a general-purpose document store. See [Companies forecast feedback](../../architecture/hKask-architecture-master.md#companies-mcp-forecast-feedback).
 
 ## Portfolio storage and safety boundary
 
@@ -145,5 +145,5 @@ The valuation boundary validates finite values, documented rate and horizon rang
 
 - [MCP server index](README.md)
 - [Companies server README](../../../mcp-servers/hkask-mcp-companies/README.md)
-- [Companies provider-routing diagram](../../diagrams/sequence-companies-provider-routing.md)
+- [Companies provider-routing diagram](../../architecture/hKask-architecture-master.md#companies-mcp-provider-routing)
 - [Documentation standards](../../specifications/DOCUMENTATION_STANDARDS.md)

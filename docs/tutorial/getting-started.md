@@ -132,9 +132,9 @@ Each span has a namespace (`cns.tool.reserved`, `cns.inference.completed`, `cns.
 
 ## 9. Next Steps
 
-- **How-To Guides:** [Create an agent pod](../how-to/create-agent-pod.md), [Design a skill](../how-to/design-a-skill.md), [Bootstrap an MCP server](../how-to/bootstrap-mcp-server.md)
-- **Reference:** [Crate API reference](../reference/api/), [Skill registry](../reference/skills/README.md), [CNS span registry](../reference/cns-spans.md)
-- **Explanation:** [CNS homeostatic loop](../explanation/cns-homeostatic-loop.md), [Hexagonal ports](../explanation/hexagonal-ports.md), [OCAP dispatch](../explanation/ocap-mcp-dispatch.md)
+- **How-To Guides:** [Create an agent pod](../how-to/agents-and-pods.md), [Design a skill](../how-to/skills-and-composition.md), [Bootstrap an MCP server](../how-to/skills-and-composition.md)
+- **Reference:** [Crate API reference](../reference/api-reference.md), [Skill registry](../reference/skills/README.md), [CNS span registry](../reference/cns-spans.md)
+- **Explanation:** [CNS homeostatic loop](../explanation/cns-and-loops.md), [Hexagonal ports](../explanation/architecture-patterns.md), [OCAP dispatch](../explanation/sovereignty-and-ocap.md)
 
 ---
 

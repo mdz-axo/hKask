@@ -687,7 +687,7 @@ Remaining responsibility clusters still in CNS:
 5. **Seam Watching** — `SeamWatcher`, `SeamDrift`, `SeamSummary` (candidate for extraction)
 6. **Spans** — `AcpSpan`, `ClassifySpan`, `ContractSpan`, `InfraSpan`, `QaSpan`, `SloSpan`, `SeamSpan` (candidate for extraction)
 
-See also: [flowchart-cns-homeostatic-loop.md](flowchart-cns-homeostatic-loop.md) for the sense→compare→compute→act cycle, and [flowchart-cns-regulation.md](flowchart-cns-regulation.md) for regulation policy dispatch.
+See also: [CNS Homeostatic Loop](#cns-homeostatic-loop--mermaid-flowchart) for the sense→compare→compute→act cycle, and [CNS Regulation Pipeline](#cns-regulation-pipeline--5-phase-cybernetic-cycle) for regulation policy dispatch.
 
 ```mermaid
 classDiagram

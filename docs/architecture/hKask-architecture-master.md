@@ -480,7 +480,7 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
 | [`core/TESTING_DISCIPLINE.md`](core/TESTING_DISCIPLINE.md) | Testing discipline — property-based testing, CNS verification, proptest framework |
 | [`SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
 | [`CNS Domain Specification`](core/FUNCTIONAL_SPECIFICATION.md#cns-domain-specification) | CNS Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
-| [`hkask-ledger.md`](../reference/api/hkask-ledger.md) | Ledger specification — triple-entry accounting, three-domain schema |
+| [`hkask-ledger.md`](../reference/api-reference.md) | Ledger specification — triple-entry accounting, three-domain schema |
 
 **TUI specification** — 22 windows with 15 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation. Diagrams: [class hierarchy](../reference/api-reference.md#tui-window-trait-hierarchy), [event dispatch](../reference/api-reference.md#tui-event-dispatch-pipeline), [workspace lifecycle](../reference/api-reference.md#tui-workspace-state-lifecycle), [bridge wiring](../reference/api-reference.md#tui-bridge-wiring-architecture).
 
@@ -1494,7 +1494,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADRs/ADR-047-storage-modularization.md`](ADRs/ADR-047-storage-modularization.md) | Storage crate modularization — 9 sub-crates behind facade |
 | [`ADRs/ADR-048-cns-type-decomposition.md`](ADRs/ADR-048-cns-type-decomposition.md) | CNS type system decomposition — CnsSpan reduced to 7 variants, domain enums per crate |
 
-**Also present:** [`ADR-043-database-driver.md`](ADR-043-database-driver.md) — Database driver abstraction (lives at architecture root, pending move to ADRs/).
+**Also present:** [`ADR-043-database-driver.md`](ADRs/ADR-043-database-driver.md) — Database driver abstraction.
 
 **Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, never adopted). **Archived (retroactive, 2026-06-15):** ADR-024–027. Recoverable via git history.
 
