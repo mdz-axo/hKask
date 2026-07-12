@@ -1144,8 +1144,10 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
 
         // K-means clustering on normalized vectors (dot product = cosine similarity)
         let n = embedded_indices.len();
-        let k = (n as f64).sqrt().round().max(2.0) as usize;
-        println!("  SemDeDup: {} embedded QAs, {} clusters (K=√N)", n, k);
+        // K = 2.5% of N (per SemDeDup: more clusters = fewer within-cluster
+        // comparisons). For N=17,891, K≈447 clusters, avg ~40 items/cluster.
+        let k = ((n as f64) * 0.025).round().max(2.0) as usize;
+        println!("  SemDeDup: {} embedded QAs, {} clusters (K=2.5% of N)", n, k);
 
         let assignments = kmeans_cluster(&normalized, &embedded_indices, k, 10);
         let clusters = assignments.len();

@@ -1,7 +1,7 @@
 ---
 title: "Reference Documentation — Index"
 audience: [developers, operators, agents]
-last_updated: 2026-07-07
+last_updated: 2026-07-12
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -15,31 +15,7 @@ Neutral, complete, descriptive-only documentation of the hKask system as it is. 
 
 ## Crate API Reference
 
-| Crate | Document | Description |
-|-------|----------|-------------|
-| `hkask-types` | [hkask-types.md](api/hkask-types.md) | ID types, NuEvent, ObservableSpan, visibility, error types (24 public modules) |
-| `hkask-ports` | [hkask-ports.md](api/hkask-ports.md) | Hexagonal port traits: InferencePort, ToolPort, CnsObserver, FederationDispatch (8 traits) |
-| `hkask-cns` | [hkask-cns.md](api/hkask-cns.md) | Cybernetic Nervous System: CnsRuntime, CyberneticsLoop, GovernedTool, SetPoints, GasBudget |
-| `hkask-mcp` | [hkask-mcp.md](api/hkask-mcp.md) | MCP runtime, dispatch, DaemonClient, bootstrap_mcp_server, mcp_server! macro |
-| `hkask-codegraph` | [hkask-codegraph.md](api/hkask-codegraph.md) | Code understanding engine: Symbol, Edge, IndexPipeline, AssembledContext |
-| `hkask-agents` | [hkask-agents.md](api/hkask-agents.md) | Agent system: PodManager, CuratorAgent, ConsentManager, A2ARuntime |
-| `hkask-memory` | [hkask-memory.md](api/hkask-memory.md) | Memory pipelines: EpisodicMemory, SemanticMemory, ConsolidationBridge |
-| `hkask-inference` | [hkask-inference.md](api/hkask-inference.md) | Inference router: multi-provider dispatch, FusionOrchestrator |
-| `hkask-templates` | [hkask-templates.md](api/hkask-templates.md) | Template system: Registry, ManifestExecutor, SkillLoader, Vocabulary |
-| `hkask-capability` | [hkask-capability.md](api/hkask-capability.md) | OCAP: DelegationToken, CapabilityChecker, TokenRegistry |
-| `hkask-guard` | [hkask-guard.md](api/hkask-guard.md) | Content safety: ContentGuard, GuardConfig, GuardResult |
-| `hkask-database` | [hkask-database.md](api/hkask-database.md) | Database abstraction: DatabaseDriver, SqliteDriver, PostgresDriver |
-| `hkask-storage` | [hkask-storage.md](api/hkask-storage.md) | Storage facade: HMemStore, NuEventStore, EmbeddingStore, sub-crates |
-| `hkask-cli` | [hkask-cli.md](api/hkask-cli.md) | CLI: 37 subcommands, flags, environment variables |
-| `hkask-api` | [hkask-api.md](api/hkask-api.md) | HTTP API: 21 route groups, request/response types |
-| `hkask-keystore` | [hkask-keystore.md](api/hkask-keystore.md) | OS keychain + AES-256-GCM encryption |
-| `hkask-wallet` | [hkask-wallet.md](api/hkask-wallet.md) | Wallet: WalletManager, ChainPort, ApiKeyIssuer, PriceFeed |
-| `hkask-ledger` | [hkask-ledger.md](api/hkask-ledger.md) | Ledger: double-entry accounting, LedgerTransaction, Posting |
-| `hkask-improv` | [hkask-improv.md](api/hkask-improv.md) | Improv: Plussing, Yes And, Yes But, Freestyling, Riffing |
-| `hkask-condenser` | [hkask-condenser.md](api/hkask-condenser.md) | Condenser: CondenserEngine, CompressedOutput, health signals |
-| `hkask-communication` | [hkask-communication.md](api/hkask-communication.md) | Communication: MatrixTransport, AgentRegistry, 7R7 listener |
-| `hkask-federation` | [hkask-federation.md](api/hkask-federation.md) | Federation: FederationDispatch, CRDT sync, link lifecycle |
-| `hkask-acp` | [hkask-acp.md](api/hkask-acp.md) | ACP: HkaskAcpAgent, AcpError, SessionState |
+- [Consolidated API Reference](api-reference.md) — All 45 crates in a single document, organized by category (Foundation, Infrastructure, Service, Wallet/Identity/Ledger, Ontology/Interface). Every public type, trait, function, and re-export verified against source code.
 
 ## Skill & Template Registry
 
