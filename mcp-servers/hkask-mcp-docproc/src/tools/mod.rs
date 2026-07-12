@@ -3,3 +3,4 @@ pub mod corpus;
 pub mod document;
 pub mod semantic;
 pub mod storage;
+pub mod tagging;

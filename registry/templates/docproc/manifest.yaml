@@ -32,3 +32,9 @@ templates:
     type: KnowAct
     lexicon_terms: [consolidate, merge, synthesize]
     description: Consolidate overlapping passages into a single comprehensive passage using Dublin Core metadata and PKO provenance.
+
+  - id: docproc/tag-chunks
+    path: tag-chunks.j2
+    type: KnowAct
+    lexicon_terms: [tag, classify, ontology]
+    description: Extract multi-dimensional ontology tags (5W1H, Dublin Core, PKO, FIBO, GOLEM, expertise level) from text passages for corpus annotation.

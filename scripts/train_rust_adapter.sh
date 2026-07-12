@@ -98,6 +98,10 @@ MAX_GRAD_NORM = 0.3
 WEIGHT_DECAY = 0.01
 MAX_SAMPLES = int(os.environ.get("MAX_SAMPLES", "0"))  # 0 = all
 MODE = os.environ.get("MODE", "coding")
+# PiSSA: SVD-based LoRA initialization from principal singular values.
+# 30-50% faster convergence, 3-5% better accuracy vs vanilla LoRA. Zero cost (~2s init).
+# Must keep dropout=0 — random dropout would discard principal components.
+INIT_LORA_WEIGHTS = os.environ.get("INIT_LORA_WEIGHTS", "pissa_niter_4")
 
 random.seed(SEED)
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
@@ -358,9 +362,9 @@ def load_and_format(dataset_id, formatter, split="train", max_samples=0):
 
 
 # Keep all data for training — eval is dynamically re-sampled from the
-# training set before each eval step (2.5%, non-contiguous, re-shuffled each time).
+# training set before each eval step (2%, non-contiguous, re-shuffled each time).
 # This prevents overfitting to a fixed eval set and keeps eval time reasonable.
-EVAL_RATIO = 0.025
+EVAL_RATIO = 0.02
 
 # ── Load model BEFORE datasets ─────────────────────────────────────────────
 # Model weights must be fully downloaded and cached before any dataset .map()
@@ -380,6 +384,7 @@ model = FastLanguageModel.get_peft_model(
     lora_dropout=LORA_DROPOUT, bias="none",
     use_gradient_checkpointing="unsloth", random_state=SEED,
     max_seq_length=MAX_SEQ_LENGTH,
+    init_lora_weights=INIT_LORA_WEIGHTS,
 )
 tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
 tt = sum(p.numel() for p in model.parameters())
@@ -394,7 +399,7 @@ MAX_PER_DATASET = MAX_SAMPLES
 
 datasets_list = []
 
-if MODE in ("coding", "both"):
+if MODE in ("coding", "both", "all"):
     coding_ds = load_and_format(
         "Fortytwo-Network/Strandset-Rust-v1",
         format_strandset,
@@ -403,7 +408,7 @@ if MODE in ("coding", "both"):
     )
     datasets_list.append(("coding", coding_ds))
 
-if MODE in ("analysis", "both"):
+if MODE in ("analysis", "both", "all"):
     analysis_ds = load_and_format(
         "introspector/rust-analyser",
         format_introspector,
@@ -412,8 +417,25 @@ if MODE in ("analysis", "both"):
     )
     datasets_list.append(("analysis", analysis_ds))
 
+if MODE in ("reasoning", "all"):
+    # OpenThoughts-114k linked dataset — clean ChatML from HF dataset repo
+    print("Loading Axolotl-Partners/openthoughts-114k-linked (split=train)...", flush=True)
+    reasoning_ds = load_dataset("json", data_files="hf://datasets/Axolotl-Partners/openthoughts-114k-linked/train.jsonl", split="train")
+    print(f"  Loaded {len(reasoning_ds)} records", flush=True)
+    # Already in ChatML format (messages field) — just validate
+    def is_valid_msg(ex):
+        msgs = ex.get("messages", [])
+        return len(msgs) >= 3 and all(m.get("content", "").strip() for m in msgs)
+    reasoning_ds = reasoning_ds.filter(is_valid_msg, num_proc=4)
+    print(f"  Valid examples: {len(reasoning_ds)}", flush=True)
+    if MAX_PER_DATASET > 0 and len(reasoning_ds) > MAX_PER_DATASET:
+        indices = random.sample(range(len(reasoning_ds)), MAX_PER_DATASET)
+        reasoning_ds = reasoning_ds.select(indices)
+        print(f"  Truncated to {len(reasoning_ds)} samples", flush=True)
+    datasets_list.append(("reasoning", reasoning_ds))
+
 if not datasets_list:
-    print(f"FATAL: Unknown MODE={MODE}. Use 'coding', 'analysis', or 'both'.", flush=True)
+    print(f"FATAL: Unknown MODE={MODE}. Use 'coding', 'analysis', 'reasoning', 'both', or 'all'.", flush=True)
     sys.exit(1)
 
 # Combine datasets
@@ -503,6 +525,10 @@ if [ "$MODE" = "analysis" ]; then
     export HF_REPO="Axolotl-Partners/qwen36-rust-analysis-lora"
 elif [ "$MODE" = "both" ]; then
     export HF_REPO="Axolotl-Partners/qwen36-rust-combined-lora"
+elif [ "$MODE" = "reasoning" ]; then
+    export HF_REPO="Axolotl-Partners/qwen36-reasoning-lora"
+elif [ "$MODE" = "all" ]; then
+    export HF_REPO="Axolotl-Partners/qwen36-rust-reasoning-all-lora"
 else
     export HF_REPO="Axolotl-Partners/qwen36-rust-coding-lora"
 fi

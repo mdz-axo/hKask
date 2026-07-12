@@ -8,7 +8,6 @@
 //! Usage: cargo run -p hkask-corpus-ingest -- <COMMAND>
 
 mod generate_qa;
-mod investment_concepts;
 
 use std::path::PathBuf;
 
@@ -68,14 +67,40 @@ struct TaggedChunk {
     entity_ref: String,
     source: String,
     text: String,
+    #[serde(default)]
     concepts: Vec<String>,
+    #[serde(default)]
     methods: Vec<String>,
+    #[serde(default)]
     authors: Vec<String>,
+    #[serde(default)]
     salience: f32,
-    /// PKO provenance: original chunk refs this chunk was consolidated from.
-    /// Empty for pass-through (singleton) chunks. Populated by consolidate-chunks MCP tool.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     consolidated_from: Vec<String>,
+    /// 5W1H interrogatory dimensions (from ontology tagging).
+    #[serde(default)]
+    dimensions: Vec<String>,
+    /// Dublin Core type (e.g., "bibo:Book").
+    #[serde(default)]
+    dc_type: String,
+    /// Dublin Core subject keywords.
+    #[serde(default)]
+    dc_subject: Vec<String>,
+    /// PKO process concepts.
+    #[serde(default)]
+    pko_concepts: Vec<String>,
+    /// FIBO financial concepts.
+    #[serde(default)]
+    fibo_concepts: Vec<String>,
+    /// GOLEM narrative concepts.
+    #[serde(default)]
+    golem_concepts: Vec<String>,
+    /// Other analytical concepts.
+    #[serde(default)]
+    other_concepts: Vec<String>,
+    /// Expertise level: "practitioner", "analyst", or "researcher".
+    #[serde(default)]
+    expertise_level: String,
 }
 
 #[derive(Parser)]
@@ -89,8 +114,6 @@ struct Cli {
 enum Command {
     /// Compute embeddings and store in memory DB
     Embed(EmbedArgs),
-    /// Tag chunks with investment concepts, compute salience, store h_mems
-    Salience(SalienceArgs),
     /// Build QA generation prompts from qualifying chunks
     BuildPrompts(BuildPromptsArgs),
     /// Ingest generated QAs, deduplicate, store as h_mems
@@ -121,21 +144,6 @@ struct EmbedArgs {
     dry_run: bool,
 }
 
-#[derive(Parser)]
-struct SalienceArgs {
-    #[arg(default_value = "corpus/chunks/chunks.jsonl")]
-    chunks_jsonl: PathBuf,
-    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
-    db_path: String,
-    #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
-    passphrase: String,
-    /// Output JSONL with tagged chunks + salience scores
-    #[arg(short = 'o', long, default_value = "corpus/chunks/tagged_chunks.jsonl")]
-    output: PathBuf,
-    /// Dry run — tag and score without storing h_mems
-    #[arg(long)]
-    dry_run: bool,
-}
 
 #[derive(Parser)]
 struct BuildPromptsArgs {
@@ -245,7 +253,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     match cli.command {
         Command::Embed(args) => run_embed(args).await,
-        Command::Salience(args) => run_salience(args).await,
         Command::BuildPrompts(args) => run_build_prompts(args),
         Command::IngestQa(args) => run_ingest_qa(args).await,
         Command::Ocr(args) => run_ocr(args).await,
@@ -390,204 +397,6 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
 
 // ── Salience ────────────────────────────────────────────────────────
 
-async fn run_salience(args: SalienceArgs) -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Salience ===");
-    println!("  Chunks: {}", args.chunks_jsonl.display());
-    println!("  DB:     {}", args.db_path);
-    println!("  Output: {}", args.output.display());
-    println!();
-
-    let all_chunks = read_chunks(&args.chunks_jsonl)?;
-    println!("  Loaded: {} chunks", all_chunks.len());
-
-    // ── Phase 1: Tag chunks with investment concepts ──────────────
-    println!("  Tagging...");
-    let concept_strings: Vec<String> = investment_concepts::all_concepts();
-    let method_strings: Vec<String> = investment_concepts::INVESTMENT_METHODS
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    let author_strings: Vec<String> = investment_concepts::INVESTMENT_AUTHORS
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    let empty: Vec<String> = Vec::new();
-
-    let all_tags: Vec<EntityTags> = all_chunks
-        .iter()
-        .map(|c| {
-            let mut tags = salience::tag_entities(
-                &c.text,
-                &author_strings,  // characters → authors
-                &empty,           // places
-                &empty,           // events
-                &concept_strings, // concepts
-            );
-            // Add methods separately
-            let lower = c.text.to_lowercase();
-            tags.methods = method_strings
-                .iter()
-                .filter(|m| lower.contains(&m.to_lowercase()))
-                .cloned()
-                .collect();
-            tags
-        })
-        .collect();
-
-    let tagged_count = all_tags.iter().filter(|t| t.tag_count() > 0).count();
-    let total_tags: usize = all_tags.iter().map(|t| t.tag_count()).sum();
-    println!(
-        "  Tagged: {}/{} chunks ({} total tag matches)",
-        tagged_count,
-        all_chunks.len(),
-        total_tags
-    );
-
-    // ── Phase 2: Compute graph centrality salience ────────────────
-    println!("  Computing salience...");
-    let salience_scores = salience::compute_salience_batch(&all_tags);
-
-    let max_sal = salience_scores.iter().cloned().fold(0.0f32, f32::max);
-    let mean_sal = salience_scores.iter().sum::<f32>() / salience_scores.len().max(1) as f32;
-    let nonzero = salience_scores.iter().filter(|&&s| s > 0.0).count();
-    println!(
-        "  Salience: max={max_sal:.3}, mean={mean_sal:.3}, nonzero={nonzero}/{}",
-        salience_scores.len()
-    );
-
-    // ── Phase 3: Build tagged output ──────────────────────────────
-    let tagged_chunks: Vec<TaggedChunk> = all_chunks
-        .iter()
-        .zip(all_tags.iter())
-        .zip(salience_scores.iter())
-        .map(|((chunk, tags), &salience_score)| TaggedChunk {
-            entity_ref: chunk.entity_ref.clone(),
-            source: chunk.source.clone(),
-            text: chunk.text.clone(),
-            concepts: tags.concepts.clone(),
-            methods: tags.methods.clone(),
-            authors: tags.characters.clone(),
-            salience: salience_score,
-            consolidated_from: Vec::new(),
-        })
-        .collect();
-
-    // Write output JSONL
-    let mut out = String::new();
-    for tc in &tagged_chunks {
-        out.push_str(&serde_json::to_string(tc)?);
-        out.push('\n');
-    }
-    std::fs::write(&args.output, &out)?;
-    println!(
-        "  Wrote: {} ({} tagged chunks)",
-        args.output.display(),
-        tagged_chunks.len()
-    );
-
-    if args.dry_run {
-        // Show distribution
-        let high = tagged_chunks.iter().filter(|t| t.salience > 0.5).count();
-        let mid = tagged_chunks
-            .iter()
-            .filter(|t| t.salience > 0.2 && t.salience <= 0.5)
-            .count();
-        let low = tagged_chunks
-            .iter()
-            .filter(|t| t.salience > 0.0 && t.salience <= 0.2)
-            .count();
-        let zero = tagged_chunks.iter().filter(|t| t.salience == 0.0).count();
-        println!(
-            "  Distribution: high(>0.5)={high}, mid(0.2-0.5)={mid}, low(0-0.2)={low}, zero={zero}"
-        );
-
-        // Show top chunks by salience
-        println!("\n  Top-{} by salience:", TOP_DISPLAY_COUNT);
-        let mut sorted: Vec<&TaggedChunk> = tagged_chunks.iter().collect();
-        sorted.sort_by(|a, b| {
-            b.salience
-                .partial_cmp(&a.salience)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        for tc in sorted.iter().take(TOP_DISPLAY_COUNT) {
-            println!(
-                "    [{:.3}] {} — concepts: {:?}",
-                tc.salience,
-                tc.source,
-                &tc.concepts[..3.min(tc.concepts.len())]
-            );
-        }
-
-        println!("\n  Dry run complete. Use without --dry-run to store h_mems.");
-        return Ok(());
-    }
-
-    // ── Phase 4: Store salience as semantic h_mems ────────────────
-    let semantic = SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM)?;
-
-    // Map concept names to their frequency for ranking
-    use std::collections::HashMap;
-    let mut concept_freq: HashMap<String, usize> = HashMap::new();
-    for tags in &all_tags {
-        for c in &tags.concepts {
-            *concept_freq.entry(c.clone()).or_default() += 1;
-        }
-    }
-    let mut top_concepts: Vec<(String, usize)> = concept_freq.into_iter().collect();
-    top_concepts.sort_by(|a, b| b.1.cmp(&a.1));
-    println!("\n  Top-{} concepts:", TOP_CONCEPTS_DISPLAY);
-    for (concept, freq) in top_concepts.iter().take(TOP_CONCEPTS_DISPLAY) {
-        println!("    {concept}: {freq}");
-    }
-
-    // Store salience h_mems with provenance metadata.
-    // Salience is graph-derived (Inherited provenance, Medium confidence).
-    // Confidence is capped at 0.5 to reflect tag-coverage dependency.
-    let tag_coverage = tagged_count as f64 / all_chunks.len() as f64;
-    let webid = hkask_types::WebID::from_persona(CORPUS_WEBID.as_bytes());
-    let mut stored = 0usize;
-    let mut skipped = 0usize;
-
-    for tc in &tagged_chunks {
-        let value = serde_json::json!({
-            "salience": tc.salience,
-            "concepts": tc.concepts,
-            "methods": tc.methods,
-            "authors": tc.authors,
-            "source": tc.source,
-            "provenance": {
-                "mode": "inherited",
-                "method": "graph_centrality",
-                "tag_coverage": tag_coverage,
-                "confidence_modifier": -0.1
-            }
-        });
-        // Inherited provenance: cap confidence at 0.5 regardless of salience.
-        // Direct measurement would be 0.8+; graph-derived is inherently uncertain.
-        let confidence = (tc.salience as f64).clamp(0.01, 0.5);
-        let h_mem = HMem::new("corpus:salience", &tc.entity_ref, value, webid)
-            .with_visibility(Visibility::Public)
-            .with_confidence(confidence);
-
-        match semantic.store(h_mem) {
-            Ok(()) => stored += 1,
-            Err(e) => {
-                skipped += 1;
-                eprintln!("  WARN: store {}: {e}", tc.entity_ref);
-            }
-        }
-    }
-
-    println!("\n=== Done ===");
-    println!("  Salience h_mems stored: {stored}");
-    println!("  Skipped (errors):       {skipped}");
-    println!("  Tag coverage:           {:.1}%", tag_coverage * 100.0);
-    println!("  Confidence cap:         0.5 (inherited provenance)");
-    if skipped > 0 {
-        eprintln!("  WARNING: {} salience h_mems failed to store", skipped);
-    }
-    Ok(())
-}
 
 // ── Shared helpers ──────────────────────────────────────────────────
 
@@ -679,16 +488,12 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
     println!("=== Build Prompts ===");
     let all_chunks = read_tagged_chunks(&args.tagged_jsonl)?;
     println!("  Loaded: {} tagged chunks", all_chunks.len());
-    let qualifying: Vec<&TaggedChunk> = all_chunks
-        .iter()
-        .filter(|c| c.salience >= args.min_salience && c.concepts.len() >= args.min_concepts)
-        .collect();
-    println!(
-        "  Qualifying: {} (salience >= {:.2}, concepts >= {})",
-        qualifying.len(),
-        args.min_salience,
-        args.min_concepts
-    );
+    // No qualifying filter — all chunks generate QAs.
+    // The old filter (salience >= 0.05, concepts >= 2) excluded 76% of the corpus
+    // because it depended on the deleted hardcoded investment_concepts.rs tagger.
+    // With ontology-anchored tagging, every chunk has at least 5W1H dimensions.
+    let qualifying: Vec<&TaggedChunk> = all_chunks.iter().collect();
+    println!("  All chunks: {} (no filter — ontology tagging ensures coverage)", qualifying.len());
     let type_rotation = parse_type_distribution(&args.type_distribution);
     let limit = if args.max_prompts > 0 {
         args.max_prompts.min(qualifying.len())
@@ -909,21 +714,41 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
         // Generate QA_PROMPTS_PER_CHUNK QAs per chunk at consecutive Bloom levels
         for offset in 0..QA_PROMPTS_PER_CHUNK {
             let qt = type_rotation[(ti + offset) % type_rotation.len()];
-            // 5W1H / Dublin Core / PKO ontological context
+            // 5W1H / Dublin Core / PKO ontological context with ontology-tagged fields
+            let dimensions_str = if tc.dimensions.is_empty() {
+                "what".to_string()
+            } else {
+                tc.dimensions.join(", ")
+            };
+            let expertise = if tc.expertise_level.is_empty() {
+                "analyst"
+            } else {
+                tc.expertise_level.as_str()
+            };
+            let dc_type = if tc.dc_type.is_empty() { "bibo:Document" } else { tc.dc_type.as_str() };
+            let dc_subject = if tc.dc_subject.is_empty() { &tc.concepts } else { &tc.dc_subject };
+
             let ontology_text = if tc.consolidated_from.is_empty() {
                 format!(
-                    "5W1H: What=training QA pair ({} level). Where=primary passage from {}. Why=concepts prioritized by graph centrality.\nDublin Core: dcterms:source={}, dcterms:type=bibo:Document, dcterms:subject={}\nPKO: pko:producedBy=corpus QA generation pipeline",
-                    qt.as_str(), tc.source, tc.source, tc.concepts.join(", ")
+                    "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:producedBy=corpus QA generation pipeline\nDomain concepts: FIBO={}, GOLEM={}, PKO={}, other={}",
+                    dimensions_str, qt.as_str(), expertise,
+                    tc.source, dc_type, dc_subject.join(", "),
+                    tc.fibo_concepts.join(", "), tc.golem_concepts.join(", "),
+                    tc.pko_concepts.join(", "), tc.other_concepts.join(", ")
                 )
             } else {
                 format!(
-                    "5W1H: What=training QA pair ({} level). Where=consolidated passage from {}. Why=concepts prioritized by graph centrality.\nDublin Core: dcterms:source={}, dcterms:type=bibo:Document, dcterms:subject={}\nPKO: pko:wasExtractedFrom={} original passages (consolidation preserved all unique information), pko:producedBy=corpus QA generation pipeline",
-                    qt.as_str(), tc.source, tc.source, tc.concepts.join(", "), tc.consolidated_from.len()
+                    "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:wasExtractedFrom={} original passages (consolidation preserved all unique information), pko:producedBy=corpus QA generation pipeline\nDomain concepts: FIBO={}, GOLEM={}, PKO={}, other={}",
+                    dimensions_str, qt.as_str(), expertise,
+                    tc.source, dc_type, dc_subject.join(", "),
+                    tc.consolidated_from.len(),
+                    tc.fibo_concepts.join(", "), tc.golem_concepts.join(", "),
+                    tc.pko_concepts.join(", "), tc.other_concepts.join(", ")
                 )
             };
 
             let system = format!(
-                "You are a Capabilities Researcher training data generator. Given a primary passage from capabilities and research literature, generate ONE question-answer pair.\n\n{}\n\nOutput JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).\n\nGround the answer in the primary passage. Do not invent facts.\n\n## Ontological Context\n{}\n\n## Context Passages (retrieved via embedding similarity)\n{}\n\n## Concept Graph (salience-weighted)\n{}",
+                "You are a Capabilities Researcher training data generator. Given a primary passage from capabilities and research literature, generate ONE question-answer pair. Calibrate question depth to the expertise level indicated in the ontological context below.\n\n{}\n\nOutput JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).\n\nGround the answer in the primary passage. Do not invent facts.\n\n## Ontological Context\n{}\n\n## Context Passages (retrieved via embedding similarity)\n{}\n\n## Concept Graph (salience-weighted)\n{}",
                 qa_type_instruction(qt),
                 ontology_text,
                 context_text,

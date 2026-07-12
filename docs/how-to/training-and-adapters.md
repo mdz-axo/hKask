@@ -150,7 +150,9 @@ Train LoRA adapters for Qwen3.6-27B specialized for Rust programming:
 |------|---------|------|-------|---------|
 | `--rust-coding` | `Fortytwo-Network/Strandset-Rust-v1` | 191K | Code generation, bug detection, review, refactoring, docs | `qwen36-rust-coding-lora` |
 | `--rust-analysis` | `introspector/rust-analyser` | 533K | Symbol resolution, type inference, semantic analysis | `qwen36-rust-analysis-lora` |
-| `--rust-both` | Combined | 724K | All of the above | `qwen36-rust-combined-lora` |
+| `--rust-both` | Combined Rust | 724K | All Rust coding + analysis | `qwen36-rust-combined-lora` |
+| `--rust-reasoning` | `Axolotl-Partners/openthoughts-114k-linked` | 114K | General reasoning with ontology sidecar metadata | `qwen36-reasoning-lora` |
+| `--rust-all` | All three combined | 838K | Rust coding + analysis + reasoning | `qwen36-rust-reasoning-all-lora` |
 
 ### Step 1: Launch a Pod
 
@@ -165,7 +167,7 @@ This launches an H100 NVL pod (falls back to A100 80GB) and prints the SSH comma
 Paste the one command shown in the output. For example:
 
 ```bash
-MODE=coding curl -sL https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/1394b763400304f2cfe70c50d16a34a916c6c580/train_rust_adapter.sh | bash
+MODE=coding curl -sL https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/492e1f01bbe9fc91f4c1ff6bc8ad3a2e7cedaec6/train_rust_adapter.sh | bash
 ```
 
 The command returns immediately — all output goes to `/workspace/training.log`.
@@ -213,12 +215,14 @@ ssh root@<SSH_HOST> -p <SSH_PORT> 'tail -f /workspace/rust_eval.log'
 | Model | `unsloth/Qwen3.6-27B` | Unsloth-optimized BF16 checkpoint |
 | LoRA Rank | 16 | Lower rank reduces overfit risk |
 | LoRA Alpha | 32 | α=2r (standard scaling ratio) |
-| LoRA Dropout | 0 | Unsloth kernel optimization requires 0 |
+| LoRA Dropout | 0 | Required for PiSSA — random dropout would discard principal components |
+| LoRA Init | `pissa_niter_4` | SVD-based init from principal singular values. 30-50% faster convergence |
 | Learning Rate | 1e-4 | Conservative for large datasets |
 | Max Seq Length | 6144 | Accommodates code + context |
-| Epochs | 3 | With early stopping (patience=10) |
+| Epochs | 3 | With early stopping (patience=7) |
 | Warmup | 50 steps | Fixed steps — avoids excessive warmup |
 | Eval Steps | 50 | Frequent eval to catch best checkpoint |
+| Eval Ratio | 2% | Dynamic re-sampling from training set |
 | Batch Size | 1 × 4 accumulation = 4 | Fits 80GB VRAM |
 
 ### Datasets
@@ -252,6 +256,13 @@ ssh root@<SSH_HOST> -p <SSH_PORT> 'tail -f /workspace/rust_eval.log'
 - `parsing` — Syntax tree generation, tokenization
 
 Adapters trained on this data may require AGPL-compatible distribution terms.
+
+**OpenThoughts-114k Linked (Apache-2.0):** 114K verified reasoning traces from DeepSeek-R1, covering math, science, code, and puzzles. The linked dataset (`Axolotl-Partners/openthoughts-114k-linked`) includes:
+
+- `train.jsonl` — Clean ChatML training data (original system prompts, no ontology noise)
+- `metadata.jsonl` — Sidecar with extracted PKO reasoning steps (avg 160.7 steps/example, 93.9% unique step distributions), Dublin Core annotations, and 5W1H grounding
+
+The metadata sidecar is for downstream tooling (filtering, knowledge graphs, analysis) — it is not embedded in the training data.
 
 ### Output
 

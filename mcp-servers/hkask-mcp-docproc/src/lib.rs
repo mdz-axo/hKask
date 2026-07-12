@@ -888,6 +888,30 @@ fn default_max_chunks_per_cluster() -> usize {
     5
 }
 
+// ── Tag chunks request (ontology annotation) ───────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TagChunksRequest {
+    /// Path to chunks JSONL (entity_ref, source, text, word_count per line).
+    pub chunks_jsonl: String,
+    /// Output path for tagged chunks JSONL with ontology annotations.
+    pub output: String,
+    /// Path to the SQLCipher memory DB for h_mem storage.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// Max concurrent LLM tagging calls.
+    #[serde(default = "default_tag_concurrency")]
+    pub concurrency: usize,
+    /// If true, only report stats without LLM calls or writing output.
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+fn default_tag_concurrency() -> usize {
+    128
+}
+
 // ── Extract outcome enum ───────────────────────────────────────────────────
 
 enum ExtractOutcome {
@@ -909,6 +933,7 @@ impl DocProcServer {
             + Self::semantic_router()
             + Self::storage_router()
             + Self::corpus_router()
+            + Self::tagging_router()
     }
 }
 

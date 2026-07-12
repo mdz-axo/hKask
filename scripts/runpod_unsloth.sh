@@ -26,6 +26,8 @@ for arg in "$@"; do
         --rust-coding) MODE="rust-coding" ;;
         --rust-analysis) MODE="rust-analysis" ;;
         --rust-both) MODE="rust-both" ;;
+        --rust-reasoning) MODE="rust-reasoning" ;;
+        --rust-all) MODE="rust-all" ;;
         --rust-eval) MODE="rust-eval" ;;
         *) echo "Unknown option: $arg"; exit 1 ;;
     esac
@@ -68,8 +70,8 @@ env = [
     {'key': 'HF_TOKEN', 'value': os.environ['HF_TOKEN']},
     {'key': 'RUNPOD_API_KEY', 'value': os.environ['RUNPOD_API_KEY']},
     {'key': 'PUBLIC_KEY', 'value': os.environ['RUNPOD_PUBLIC_KEY']},
-    {'key': 'HF_HOME', 'value': '/workspace/.cache/huggingface'},
-    {'key': 'PIP_CACHE_DIR', 'value': '/workspace/.cache/pip'},
+    {'key': 'HF_HOME', 'value': '/kask-models/.cache/huggingface'},
+    {'key': 'PIP_CACHE_DIR', 'value': '/kask-models/.cache/pip'},
     {'key': 'POD_INACTIVITY_TIMEOUT', 'value': '14400'},
     {'key': 'WANDB_DISABLED', 'value': 'true'},
     {'key': 'PYTORCH_CUDA_ALLOC_CONF', 'value': 'expandable_segments:True'},
@@ -84,18 +86,23 @@ elif mode == 'rust-analysis':
     pod_name = 'rust-analysis'
 elif mode == 'rust-both':
     pod_name = 'rust-combined'
+elif mode == 'rust-reasoning':
+    pod_name = 'rust-reasoning'
+elif mode == 'rust-all':
+    pod_name = 'rust-all'
 elif mode == 'rust-eval':
     pod_name = 'rust-eval'
 else:
     pod_name = 'qwen36-unsloth'
 payload = {
-    'query': 'mutation DeployPod(\$input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: \$input) { id, name, costPerHr } }',
+    'query': 'mutation DeployPod($input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: $input) { id, name, costPerHr } }',
     'variables': {
         'input': {
             'cloudType': os.environ['CLOUD_TYPE'],
             'gpuCount': 1,
+            'networkVolumeId': '8vjgpume6h',
+            'volumeMountPath': '/kask-models',
             'volumeInGb': 200,
-            'volumeMountPath': '/workspace',
             'containerDiskInGb': 60,
             'minVcpuCount': 4,
             'minMemoryInGb': 30,
@@ -174,7 +181,7 @@ fi
 # ── Instructions ─────────────────────────────────────────────────────────
 TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/bfedff55f47bcf0286ff49584635e25912147c97/train_unsloth.sh"
 EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/a64ac5b58963d828a4d6591d816ee54fc9a221a7/eval_unsloth.sh"
-RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/b61f696104003b043e5db7c57892d59599ef9eb9/train_rust_adapter.sh"
+RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/492e1f01bbe9fc91f4c1ff6bc8ad3a2e7cedaec6/train_rust_adapter.sh"
 RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/eae9bcdd2605a0b80e81af728d89278b0c368ce9/eval_rust_adapter.sh"
 
 if [ "$MODE" = "eval" ]; then
@@ -197,13 +204,19 @@ if [ "$MODE" = "eval" ]; then
     echo ""
     echo "Results saved to /workspace/eval_results/ on the pod."
     echo "==============================================="
-elif [ "$MODE" = "rust-coding" ] || [ "$MODE" = "rust-analysis" ] || [ "$MODE" = "rust-both" ]; then
+elif [ "$MODE" = "rust-coding" ] || [ "$MODE" = "rust-analysis" ] || [ "$MODE" = "rust-both" ] || [ "$MODE" = "rust-reasoning" ] || [ "$MODE" = "rust-all" ]; then
     if [ "$MODE" = "rust-coding" ]; then
         RUST_MODE="coding"
         REPO="Axolotl-Partners/qwen36-rust-coding-lora"
     elif [ "$MODE" = "rust-analysis" ]; then
         RUST_MODE="analysis"
         REPO="Axolotl-Partners/qwen36-rust-analysis-lora"
+    elif [ "$MODE" = "rust-reasoning" ]; then
+        RUST_MODE="reasoning"
+        REPO="Axolotl-Partners/qwen36-reasoning-lora"
+    elif [ "$MODE" = "rust-all" ]; then
+        RUST_MODE="all"
+        REPO="Axolotl-Partners/qwen36-rust-reasoning-all-lora"
     else
         RUST_MODE="both"
         REPO="Axolotl-Partners/qwen36-rust-combined-lora"
