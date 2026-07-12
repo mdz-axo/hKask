@@ -1,0 +1,176 @@
+# Capabilities Researcher — Full Pipeline Manifest v4.0
+# Traces from raw files through trained LoRA adapter.
+#
+# Type: PipelineManifest
+# Persona: Business and Economics Researcher — Capability-Performance Gap Analysis
+# Source: 105 files (PDF + HTML) from Clones/Library/Researcher
+# Target: 5,000 Bloom-balanced QAs for LoRA training on Qwen3.6-27B via Unsloth/RunPod
+id: capabilities-researcher-pipeline
+version: "4.0"
+type: pipeline
+energy_budget:
+  gas_cap: 500000
+  rjoule_cap: 5
+description: >
+  Full corpus pipeline for the Capabilities Researcher persona.
+  Analyzes the gap between organizational/system capabilities and
+  actual performance using economic theory, systems thinking,
+  computing principles, scientific method, and institutional analysis.
+  Produces Bloom taxonomy QAs and a John Brooks style replica.
+
+steps:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 0: Raw Files → Extracted Text
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: extract_text
+    description: "Extract text from 105 source files (PDF + HTML)"
+    tool: docproc_convert
+    params:
+      path: "/home/mdz-axolotl/Clones/Library/Researcher"
+      output: "corpus/extracted/researcher"
+    verify:
+      field: total_documents
+      min: 80
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 1: Text → Chunks
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: chunk_all
+    description: "Chunk extracted text into ~500-token passages"
+    tool: docproc_chunk
+    params:
+      input_dir: "corpus/extracted/researcher"
+      output: "corpus/chunks/chunks.jsonl"
+      max_tokens: 256
+      overlap_tokens: 64
+      entity_ref_prefix: "corpus:researcher"
+      index: true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 2: Chunks → Embeddings + Tags
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: embed_chunks
+    description: "Embed chunks via Qwen3-Embedding-0.6B (1024-dim)"
+    tool: corpus_embed
+    params:
+      chunks_jsonl: "corpus/chunks/chunks.jsonl"
+      db_path: "corpus/memory/corpus_memory.db"
+      batch_size: 100
+
+  - id: compute_salience
+    description: "Tag with concepts from economics/systems/computing domains, compute salience"
+    tool: corpus_salience
+    params:
+      db_path: "corpus/memory/corpus_memory.db"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 3: Tagged Chunks → Bloom QA Prompts
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: build_prompts
+    description: >
+      Build Bloom taxonomy prompts: 3 QAs per qualified chunk with
+      capability-performance gap analysis framing.
+      Bloom levels: factual (identify capabilities/metrics),
+      conceptual (explain mechanisms), analyze (compare patterns),
+      evaluate (assess evidence), create (design interventions).
+    tool: corpus_build_prompts
+    params:
+      tagged_jsonl: "corpus/chunks/tagged_chunks.jsonl"
+      output: "corpus/qa_pairs/prompts_bloom.jsonl"
+      min_salience: 0.05
+      min_concepts: 2
+      cross_reference: true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 4: Prompts → Generated QAs
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: generate_qas
+    description: >
+      Generate QA pairs via DeepSeek V4 Pro.
+      3 parallel workers, 12 concurrency each.
+      Incremental writes every 10 completions for crash safety.
+    tool: corpus_generate_qa
+    params:
+      prompts_jsonl: "corpus/qa_pairs/prompts_bloom.jsonl"
+      concurrency: 12
+      workers: 3
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 5: Raw QAs → Balanced Training Set
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: select_quality
+    description: >
+      Balanced Bloom selection: 1,000 QAs per taxonomy level, 80/10/10 split.
+      Concept coverage validation. Sorted by output length.
+      Chat format with Capabilities Researcher system prompt.
+    tool: scripts/pipeline.sh
+    params:
+      target_per_level: 1000
+      train_split: 0.80
+      val_split: 0.10
+      test_split: 0.10
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 6: QAs → Embedding Store + h_mems
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: ingest_qas
+    description: "Deduplicate (0.92 cosine), store h_mems, embed QA vectors"
+    tool: corpus_ingest_qa
+    params:
+      generated_jsonl: "corpus/qa_pairs/bloom_flat.jsonl"
+      output: "corpus/qa_pairs/train.jsonl"
+      db_path: "corpus/memory/corpus_memory.db"
+      dedup_threshold: 0.92
+      embed_qas: true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 7: Persona (Optional — inference-time style matching)
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: build_replica
+    description: "Build John Brooks replica centroids from researcher corpus"
+    tool: replica_build
+    params:
+      config_path: "corpus/replica/john-brooks.yaml"
+      db_path: "corpus/memory/corpus_memory.db"
+    optional: true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 8: LoRA Training (RunPod + Unsloth + Qwen3.6-27B)
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: train_lora
+    description: "Train Capabilities Researcher LoRA adapter on RunPod"
+    tool: training_submit
+    params:
+      provider: runpod
+      base_model: "unsloth/Qwen3.6-27B"
+      train_path: "corpus/qa_pairs/train_chat.jsonl"
+      val_path: "corpus/qa_pairs/val_chat.jsonl"
+      config:
+        load_in_4bit: false
+        load_in_16bit: true
+        full_finetuning: false
+        rank: 64
+        alpha: 64
+        lora_dropout: 0
+        target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+        use_gradient_checkpointing: unsloth
+        chat_template_kwargs: {"enable_thinking": false, "add_generation_prompt": false}
+        learning_rate: 2.0e-4
+        epochs: 3
+        per_device_train_batch_size: 1
+        gradient_accumulation_steps: 4
+        max_seq_length: 4096   # Auto-adjust based on P95 × 1.2 from pre-flight
+        warmup_steps: 672
+        lr_scheduler_type: cosine
+        optim: adamw_8bit
+        weight_decay: 0.01
+        max_grad_norm: 0.3
+        precision: bf16
+        eval_steps: 200
+        save_steps: 400
+        early_stopping_patience: 5
+        save_total_limit: 3
+        env:
+          PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+          HF_DEACTIVATE_ASYNC_LOAD: "1"
+    requires_consent: true

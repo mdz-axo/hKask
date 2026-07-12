@@ -1,0 +1,6 @@
+# cargo-audit configuration for hKask
+#
+# Run: cargo audit
+
+[advisories]
+ignore = []

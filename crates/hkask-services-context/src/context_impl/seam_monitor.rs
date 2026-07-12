@@ -1,0 +1,67 @@
+//! Seam drift monitor — periodic public-seam drift detection.
+
+use hkask_cns::{CnsRuntime, SeamWatcher};
+use hkask_types::event::NuEventSink;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+pub(crate) fn spawn_seam_drift_check(
+    seam_watcher: &Arc<RwLock<Option<SeamWatcher>>>,
+    cns_runtime: &Arc<RwLock<CnsRuntime>>,
+    event_sink: &Arc<dyn NuEventSink>,
+) {
+    let watcher_lock = Arc::clone(seam_watcher);
+    let cns = Arc::clone(cns_runtime);
+    let sink = Arc::clone(event_sink);
+
+    let interval_secs: u64 = std::env::var("HKASK_SEAM_CHECK_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1800);
+
+    tokio::spawn(async move {
+        tracing::info!(
+            target: "cns.architecture.seam",
+            interval_secs = %interval_secs,
+            "Seam periodic drift check started — watching every {}s",
+            interval_secs
+        );
+        {
+            let cns_rt = cns.read().await;
+            let mut guard = watcher_lock.write().await;
+            if let Some(ref mut watcher) = *guard {
+                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
+                if !drifts.is_empty() {
+                    tracing::info!(
+                        target: "cns.architecture.seam",
+                        drift_count = %drifts.len(),
+                        "Initial seam drift check complete"
+                    );
+                }
+            }
+        }
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+        loop {
+            interval.tick().await;
+            let cns_rt = cns.read().await;
+            let mut guard = watcher_lock.write().await;
+            if let Some(ref mut watcher) = *guard {
+                let _ = watcher.refresh();
+                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
+                if !drifts.is_empty() {
+                    let degradations: Vec<_> =
+                        drifts.iter().filter(|d| d.delta_pct < 0.0).collect();
+                    let improvements: Vec<_> =
+                        drifts.iter().filter(|d| d.delta_pct > 0.0).collect();
+                    tracing::info!(
+                        target: "cns.architecture.seam",
+                        total_drifts = %drifts.len(),
+                        degradations = %degradations.len(),
+                        improvements = %improvements.len(),
+                        "Periodic seam drift check complete"
+                    );
+                }
+            }
+        }
+    });
+}

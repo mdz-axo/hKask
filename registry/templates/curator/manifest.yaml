@@ -1,0 +1,49 @@
+# Template crate manifest for curator skill
+# hKask v0.28.0
+
+crate:
+  name: curator
+  version: "0.28.0"
+  description: >
+    The canonical system persona for hKask. Gathers system state, diagnoses
+    issues, calibrates thresholds, escalates critical alerts, and maintains
+    system homeostasis through metacognitive selection and intervention.
+
+templates:
+  - id: curator/metacognition-calibrate
+    path: metacognition-calibrate.j2
+    type: KnowAct
+    status: dormant
+    description: >
+      Calibrate system thresholds and energy budgets. Budget computation
+      merged into diagnose template output (adjust_budget remediation action).
+      Separate invocation deferred until per-bot success_rate/avg_energy_used
+      data is collected by CNS.
+
+  - id: curator/metacognition-diagnose
+    path: metacognition-diagnose.j2
+    type: KnowAct
+    status: wired
+    description: >
+      Diagnose system issues from bot reports and CNS alerts. Invoked by
+      MetacognitionLoop::compute_with_templates() via ManifestExecutor::
+      execute_knowact(). Produces diagnosis + remediation_plan with
+      calibrated actions.
+
+  - id: curator/metacognition-escalate
+    path: metacognition-escalate.j2
+    type: KnowAct
+    status: wired
+    description: >
+      Format human-facing escalation notifications. Invoked by
+      MetacognitionLoop::act() when escalations are batched and
+      ManifestExecutor is available.
+
+  - id: curator/system_state_gather
+    path: system_state_gather.j2
+    type: KnowAct
+    status: dormant
+    description: >
+      Gather and synthesize current system state. Deferred until
+      CNS collects uptime, active_sessions, dispatch_success_rate,
+      and per-bot success_rate/avg_latency_ms metrics.

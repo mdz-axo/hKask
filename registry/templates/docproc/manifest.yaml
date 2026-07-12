@@ -1,0 +1,34 @@
+# Template crate manifest for docproc skill
+# hKask v0.31.0
+
+crate:
+  name: docproc
+  version: "0.31.0"
+  description: >
+    Document processing templates for hierarchical memory extraction,
+    RAG-based question answering, and QA pair generation from documents.
+
+templates:
+  - id: docproc/extract-hmems
+    path: extract-hmems.j2
+    type: KnowAct
+    lexicon_terms: [extract, classify, structure]
+    description: Extract hierarchical memory elements from documents.
+
+  - id: docproc/rag-answer
+    path: rag-answer.j2
+    type: KnowAct
+    lexicon_terms: [answer, cite, synthesize]
+    description: Answer questions from retrieved context passages with citations.
+
+  - id: docproc/generate-qa
+    path: generate-qa.j2
+    type: KnowAct
+    lexicon_terms: [generate, question, answer]
+    description: Generate QA pairs from document content.
+
+  - id: docproc/consolidate-chunks
+    path: consolidate-chunks.j2
+    type: KnowAct
+    lexicon_terms: [consolidate, merge, synthesize]
+    description: Consolidate overlapping passages into a single comprehensive passage using Dublin Core metadata and PKO provenance.

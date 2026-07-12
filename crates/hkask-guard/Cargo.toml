@@ -1,0 +1,12 @@
+[package]
+name = "hkask-guard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask content safety guard — mandatory input/output scanning for all LLM boundaries, OWASP LLM Top 10 aligned"
+
+[dependencies]
+hkask-cns = { path = "../hkask-cns" }
+hkask-types = { path = "../hkask-types" }
+llm-guard = "0.2"
+tracing.workspace = true

@@ -1,0 +1,27 @@
+[package]
+name = "hkask-services-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask service-layer foundation — ServiceError, ServiceConfig, HkaskSettings"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-database = { path = "../hkask-database" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-keystore = { path = "../hkask-keystore" }
+chrono.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_neo.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+dirs = "6"
+dotenvy.workspace = true
+minijinja.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

@@ -1,0 +1,179 @@
+//! ObservableSpan trait — decouples CNS observability from the monolithic CnsSpan enum.
+//!
+//! `SpanNamespace::from_observable()` bridges domain span enums to the
+//! validated namespace construction path. The trait is dyn-compatible —
+//! domain crates can use either `&dyn ObservableSpan` or monomorphized
+//! generics via `from_observable(&impl ObservableSpan)`.
+//!
+//! # Relationship to SpanNamespace
+//!
+//! `SpanNamespace` (in `event.rs`) is a validated string wrapper that enforces
+//! the canonical namespace set. `ObservableSpan` is the trait that typed span
+//! enums implement — it provides the canonical namespace string that feeds into
+//! `SpanNamespace` construction.
+//!
+//! # Design
+//!
+//! ```text
+//! ObservableSpan (trait)
+//!   ├── CnsSpan (canonical CNS spans — hkask-types)
+//!   ├── FederationSpan (future: federation-specific spans — hkask-federation)
+//!   ├── WalletSpan (future: wallet-specific spans — hkask-wallet)
+//!   └── ... (per-domain span enums)
+//! ```
+//!
+//! # Example
+//!
+//! ```rust,ignore
+//! use hkask_types::ObservableSpan;
+//!
+//! #[derive(Debug, Clone)]
+//! enum MyDomainSpan { OperationA, OperationB }
+//!
+//! impl ObservableSpan for MyDomainSpan {
+//!     fn as_str(&self) -> &'static str {
+//!         match self {
+//!             Self::OperationA => "mydomain.operation_a",
+//!             Self::OperationB => "mydomain.operation_b",
+//!         }
+//!     }
+//! }
+//! ```
+
+/// Trait for typed observability spans that can be emitted through the CNS
+/// infrastructure — both as structured NuEvents (persisted + queried) and
+/// as tracing log events (for external consumers like OpenTelemetry exporters).
+///
+/// A canonical dot-separated namespace string (e.g. `"cns.tool.web_search"`)
+/// identifies the span domain. Call sites choose between three emission paths:
+///
+/// - `emit()` — log-only, no persistence. For call sites without a sink.
+/// - `emit_to(sink, ...)` — produce a NuEvent, persist through the sink, AND log.
+///   The primary path. CNS consumers (CurationLoop, AlgedonicManager) react to
+///   persisted events.
+/// - `to_event(...)` — produce a NuEvent without persisting. For call sites that
+///   batch events or need custom routing.
+pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 'static {
+    /// Canonical dot-separated namespace string.
+    /// Must match the canonical namespace set byte-for-byte (P8 — Semantic Grounding).
+    fn as_str(&self) -> &'static str;
+
+    /// Emit a structured tracing event through the CNS infrastructure.
+    ///
+    /// Default implementation emits an info-level event with `target = "cns"`,
+    /// `cns_domain` set to `self.as_str()`, and `operation` as provided.
+    ///
+    /// This is the log-only convenience path. Prefer `emit_to()` when a
+    /// `NuEventSink` is available — it persists the event for CNS consumers.
+    fn emit(&self, operation: &str) {
+        tracing::info!(
+            target: "cns",
+            cns_domain = %self.as_str(),
+            operation = %operation,
+            "CNS",
+        );
+    }
+
+    /// Produce a structured NuEvent for this span (without persisting).
+    ///
+    /// Returns `None` if the span's namespace string is not registered in
+    /// the canonical namespace set. Callers should fall back to `emit()`
+    /// when `None` is returned.
+    fn to_event(
+        &self,
+        operation: &str,
+        observer: &crate::WebID,
+        phase: crate::event::CyclePhase,
+        observation: serde_json::Value,
+    ) -> Option<crate::event::NuEvent> {
+        let ns = crate::event::SpanNamespace::parse(self.as_str())?;
+        let span = crate::event::Span::new(ns, operation);
+        Some(crate::event::NuEvent::new(
+            *observer,
+            span,
+            phase,
+            observation,
+            0,
+        ))
+    }
+
+    /// Emit and persist through a NuEventSink.
+    ///
+    /// Attempts to produce a NuEvent via `to_event()`. If the namespace is
+    /// canonical, persists through the sink and logs. On namespace miss or
+    /// persistence failure, degrades gracefully to log-only via `emit()`.
+    fn emit_to(
+        &self,
+        sink: &dyn crate::event::NuEventSink,
+        operation: &str,
+        observer: &crate::WebID,
+        phase: crate::event::CyclePhase,
+        observation: serde_json::Value,
+    ) {
+        if let Some(event) = self.to_event(operation, observer, phase, observation)
+            && let Err(e) = sink.persist(&event)
+        {
+            tracing::warn!(
+                target: "cns",
+                domain = %self.as_str(),
+                operation = %operation,
+                error = %e,
+                "CNS event persistence failed — continuing with log-only",
+            );
+        }
+        self.emit(operation);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    enum TestSpan {
+        Alpha,
+        Beta,
+    }
+
+    impl std::fmt::Display for TestSpan {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.as_str())
+        }
+    }
+
+    impl std::str::FromStr for TestSpan {
+        type Err = ();
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s {
+                "test.alpha" => Ok(Self::Alpha),
+                "test.beta" => Ok(Self::Beta),
+                _ => Err(()),
+            }
+        }
+    }
+
+    impl ObservableSpan for TestSpan {
+        fn as_str(&self) -> &'static str {
+            match self {
+                Self::Alpha => "test.alpha",
+                Self::Beta => "test.beta",
+            }
+        }
+    }
+
+    #[test]
+    fn observable_span_round_trips_through_display_and_fromstr() {
+        let span = TestSpan::Alpha;
+        let s = span.to_string();
+        assert_eq!(s, "test.alpha");
+        let parsed: TestSpan = s.parse().unwrap();
+        assert_eq!(parsed.as_str(), "test.alpha");
+    }
+
+    #[test]
+    fn cns_span_implements_observable_span() {
+        use crate::cns::CnsSpan;
+        let span = CnsSpan::Inference;
+        assert_eq!(span.as_str(), "cns.inference");
+    }
+}

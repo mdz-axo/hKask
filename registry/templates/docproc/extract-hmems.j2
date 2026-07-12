@@ -1,0 +1,20 @@
+{# Template: docproc/extract-hmems.j2 #}
+{# Goal: Extract RDF triples from text with confidence scores. #}
+{# Type: KnowAct — rendered by hkask-mcp-docproc via minijinja #}
+
+Extract up to {{ limit | default(10) }} factual RDF triples from the following text.
+
+Each triple should be in the form (subject, predicate, object) where:
+- subject: an entity mentioned in the text (prefix with '{{ namespace | default("corpus") }}:')
+- predicate: a relationship or property (use standard RDF predicates: rdf:type, schema:name, schema:author, schema:mentions, schema:relatedTo)
+- object: another entity, a literal value, or a type
+
+For each triple, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.
+
+Example: {"subject": "corpus:Damodaran", "predicate": "schema:author", "object": "Investment Valuation", "confidence": 0.98}
+
+Text:
+{{ text }}
+
+Respond in JSON format:
+{"triples": [{"subject": "...", "predicate": "...", "object": "...", "confidence": 0.95}]}

@@ -1,0 +1,16 @@
+{# embedding/symbol-embedding.j2 — Format a code symbol for embedding vector generation.
+   Rendered per-symbol during the codegraph index_embeddings tool.
+
+   Input context:
+     kind:       string — SymbolKind (function, struct, trait, impl, module, etc.)
+     name:       string — Qualified name (e.g., "hkask_mcp::runtime::McpRuntime::start")
+     signature:  string — First line of the definition
+     doc:        string | None — Doc comment, if any
+     file:       string — Relative file path
+     visibility: string — "public", "crate", or "private"
+#}
+{{ kind }} {{ name }}{% if visibility != "private" %} ({{ visibility }}){% endif %}:
+{{ signature }}
+{% if doc %}
+// {{ doc }}
+{% endif %}

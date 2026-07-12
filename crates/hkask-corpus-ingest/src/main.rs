@@ -1,0 +1,1286 @@
+//! Company Researcher corpus tool — embed + salience for investment literature.
+//!
+//! Subcommands:
+//!   embed    — Compute Qwen3-Embedding-0.6B vectors and store in memory DB
+//!   salience — Tag chunks with investment concepts, compute graph-centrality
+//!              salience scores, store as semantic h_mems
+//!
+//! Usage: cargo run -p hkask-corpus-ingest -- <COMMAND>
+
+mod generate_qa;
+mod investment_concepts;
+
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand};
+use generate_qa::{GenerateQaArgs, run_generate_qa};
+use hkask_inference::config::InferenceConfig;
+use hkask_inference::embedding_router::EmbeddingRouter;
+use hkask_inference::model_constants;
+use hkask_memory::SemanticMemory;
+use hkask_memory::salience::{self, EntityTags};
+use hkask_storage::HMem;
+use hkask_types::Visibility;
+use serde::{Deserialize, Serialize};
+
+/// Qwen3-Embedding-0.6B output dimension.
+const EMBEDDING_DIM: usize = 1024;
+
+/// Owner WebID for stored h_mems — use a fixed persona for corpus operations.
+const CORPUS_WEBID: &str = "corpus";
+
+// ── QA Generation Parameters ─────────────────────────────────────────
+
+/// Number of Bloom taxonomy QA prompts to generate per qualified chunk.
+/// Produces 3 QAs at consecutive rotating Bloom levels (factual/conceptual/
+/// analyze/evaluate/create) for comprehensive cognitive coverage.
+const QA_PROMPTS_PER_CHUNK: usize = 3;
+
+/// Minimum instruction length (chars) for QA quality filtering.
+/// Filters out placeholder or malformed instructions.
+const MIN_INSTRUCTION_LENGTH: usize = 30;
+
+/// Minimum output length (chars) for QA quality filtering.
+/// Set to 50 to preserve factual-level QAs (which naturally produce shorter
+/// answers) while still filtering empty/malformed outputs.
+const MIN_OUTPUT_LENGTH: usize = 50;
+
+/// Display limit for top-salience chunks in diagnostics.
+const TOP_DISPLAY_COUNT: usize = 5;
+
+/// Display limit for top concept frequencies.
+const TOP_CONCEPTS_DISPLAY: usize = 20;
+
+#[derive(Debug, Deserialize)]
+struct Chunk {
+    entity_ref: String,
+    source: String,
+    text: String,
+    /// Word count — used for chunk size distribution reporting at load time.
+    #[allow(dead_code)]
+    word_count: usize,
+}
+
+/// Chunk enriched with investment entity tags and graph salience.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct TaggedChunk {
+    entity_ref: String,
+    source: String,
+    text: String,
+    concepts: Vec<String>,
+    methods: Vec<String>,
+    authors: Vec<String>,
+    salience: f32,
+}
+
+#[derive(Parser)]
+#[command(name = "corpus-ingest")]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Compute embeddings and store in memory DB
+    Embed(EmbedArgs),
+    /// Tag chunks with investment concepts, compute salience, store h_mems
+    Salience(SalienceArgs),
+    /// Build QA generation prompts from qualifying chunks
+    BuildPrompts(BuildPromptsArgs),
+    /// Ingest generated QAs, deduplicate, store as h_mems
+    IngestQa(IngestQaArgs),
+    /// OCR scanned PDFs using vision model fallback
+    Ocr(OcrArgs),
+    /// Generate QA pairs from prompts using LLM inference
+    GenerateQa(GenerateQaArgs),
+    /// Purge QA h_mems and embeddings by entity-ref prefix
+    PurgeQa(PurgeQaArgs),
+}
+
+#[derive(Parser)]
+struct EmbedArgs {
+    #[arg(default_value = "corpus/chunks/chunks.jsonl")]
+    chunks_jsonl: PathBuf,
+    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    db_path: String,
+    #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
+    passphrase: String,
+    #[arg(short = 'b', long, default_value = "50")]
+    batch_size: usize,
+    #[arg(short = 's', long, default_value = "0")]
+    start_at: usize,
+    #[arg(short = 'n', long, default_value = "0")]
+    max_chunks: usize,
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Parser)]
+struct SalienceArgs {
+    #[arg(default_value = "corpus/chunks/chunks.jsonl")]
+    chunks_jsonl: PathBuf,
+    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    db_path: String,
+    #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
+    passphrase: String,
+    /// Output JSONL with tagged chunks + salience scores
+    #[arg(short = 'o', long, default_value = "corpus/chunks/tagged_chunks.jsonl")]
+    output: PathBuf,
+    /// Dry run — tag and score without storing h_mems
+    #[arg(long)]
+    dry_run: bool,
+}
+
+#[derive(Parser)]
+struct BuildPromptsArgs {
+    /// Path to tagged chunks with salience scores
+    #[arg(default_value = "corpus/chunks/tagged_chunks.jsonl")]
+    tagged_jsonl: PathBuf,
+    /// Output file for generation prompts (one JSON per line)
+    #[arg(short = 'o', long, default_value = "corpus/qa_pairs/prompts.jsonl")]
+    output: PathBuf,
+    /// Minimum salience to qualify (default: 0.05)
+    #[arg(long, default_value = "0.05")]
+    min_salience: f32,
+    /// Minimum concepts for a chunk to qualify (default: 2)
+    #[arg(long, default_value = "2")]
+    min_concepts: usize,
+    /// Maximum prompts to output (0 = all qualifying)
+    #[arg(short = 'n', long, default_value = "0")]
+    max_prompts: usize,
+    /// Bloom's taxonomy weight distribution: factual,conceptual,analyze,evaluate,create
+    #[arg(long, default_value = "20,20,20,20,20")]
+    type_distribution: String,
+    /// Generate cross-reference prompts: group chunks by shared concepts and produce
+    /// synthesis QAs that require consulting multiple passages (RA-DIT method).
+    #[arg(long)]
+    cross_reference: bool,
+    /// Max chunks per cross-reference group (default: 3)
+    #[arg(long, default_value = "3")]
+    cross_ref_max_chunks: usize,
+    /// Max cross-reference prompts to generate (0 = unlimited)
+    #[arg(long, default_value = "0")]
+    cross_ref_max_prompts: usize,
+}
+
+#[derive(Parser)]
+struct IngestQaArgs {
+    /// Path to generated QAs JSONL (from LLM output)
+    #[arg(default_value = "corpus/qa_pairs/generated.jsonl")]
+    generated_jsonl: PathBuf,
+    /// Output: deduplicated training-ready QAs
+    #[arg(short = 'o', long, default_value = "corpus/qa_pairs/train.jsonl")]
+    output: PathBuf,
+    /// Path to memory DB for h_mem storage
+    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    db_path: String,
+    #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
+    passphrase: String,
+    /// Maximum cosine similarity for dedup (0.92 = strict, 0.85 = loose)
+    #[arg(long, default_value = "0.92")]
+    dedup_threshold: f64,
+    /// Dry run — validate and dedup without storing
+    #[arg(long)]
+    dry_run: bool,
+    /// Store QA embedding vectors in EmbeddingStore for KNN similarity search
+    #[arg(long)]
+    embed_qas: bool,
+    /// Dataset name for training_qa_pair h_mems (consumed by training_assemble_dataset)
+    #[arg(long, default_value = "corpus-researcher")]
+    dataset: String,
+}
+
+#[derive(Parser)]
+struct PurgeQaArgs {
+    /// Entity-ref prefix to purge (e.g. "corpus:qa" for old schema, "training:qa:corpus-researcher" for new)
+    #[arg(long, default_value = "corpus:qa")]
+    prefix: String,
+    /// Path to memory DB
+    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    db_path: String,
+    #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
+    passphrase: String,
+}
+
+#[derive(Parser)]
+struct OcrArgs {
+    /// PDF file or directory of PDFs to OCR
+    #[arg(default_value = "corpus/extracted/books")]
+    path: PathBuf,
+    /// Output directory for extracted text
+    #[arg(short = 'o', long, default_value = "corpus/extracted/books")]
+    output: PathBuf,
+    /// Skip files that already have non-empty txt extraction
+    #[arg(long)]
+    skip_existing: bool,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = dotenvy::dotenv();
+    tracing_subscriber::fmt::init();
+
+    // Qwen3-Embedding-0.6B uses 1024 dimensions.
+    // Override the default (also 1024) to be explicit about the coupling
+    // between this binary and the embedding model. The env var is read by
+    // Database::initialize_schema to create the vec0 virtual table.
+    // SAFETY: Set before any multi-threaded code runs (called in main before tokio).
+    unsafe { std::env::set_var("HKASK_EMBEDDING_DIM", "1024") };
+
+    let cli = Cli::parse();
+    match cli.command {
+        Command::Embed(args) => run_embed(args).await,
+        Command::Salience(args) => run_salience(args).await,
+        Command::BuildPrompts(args) => run_build_prompts(args),
+        Command::IngestQa(args) => run_ingest_qa(args).await,
+        Command::Ocr(args) => run_ocr(args).await,
+        Command::GenerateQa(args) => run_generate_qa(args).await,
+        Command::PurgeQa(args) => run_purge_qa(args).await,
+    }
+}
+
+// ── Embed ──────────────────────────────────────────────────────────
+
+async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let emb_model = model_constants::embedding_model();
+
+    println!("=== Embed ===");
+    println!("  Chunks: {}", args.chunks_jsonl.display());
+    println!("  DB:     {}", args.db_path);
+    println!("  Model:  {} ({} dim)", emb_model, EMBEDDING_DIM);
+    println!("  Batch:  {}", args.batch_size);
+    println!();
+
+    let all_chunks = read_chunks(&args.chunks_jsonl)?;
+    println!("  Loaded: {} chunks", all_chunks.len());
+
+    let end = if args.max_chunks > 0 {
+        (args.start_at + args.max_chunks).min(all_chunks.len())
+    } else {
+        all_chunks.len()
+    };
+    let chunks_to_embed = &all_chunks[args.start_at..end];
+    println!(
+        "  To embed: {} (indices {}-{})",
+        chunks_to_embed.len(),
+        args.start_at,
+        end - 1
+    );
+
+    if args.dry_run {
+        println!("  Dry run. Would embed {} chunks.", chunks_to_embed.len());
+        return Ok(());
+    }
+
+    let semantic = SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM)?;
+    println!(
+        "  Existing embeddings: {}",
+        semantic.embedding_count().unwrap_or(0)
+    );
+
+    let inf_cfg = InferenceConfig::from_env();
+    let embedder = EmbeddingRouter::new(inf_cfg);
+
+    let total = chunks_to_embed.len();
+    let mut embedded = 0usize;
+    let mut failed = 0usize;
+    let mut batch_idx = 0usize;
+
+    'batches: for batch in chunks_to_embed.chunks(args.batch_size) {
+        let texts: Vec<&str> = batch.iter().map(|c| c.text.as_str()).collect();
+        let vectors = loop {
+            match embedder.embed_sentences(&emb_model, &texts).await {
+                Ok(v) => break v,
+                Err(e) => {
+                    batch_idx += 1;
+                    let backoff_secs = 2u64.pow(batch_idx.min(6).try_into().unwrap()) * 10;
+                    let backoff = std::time::Duration::from_secs(backoff_secs);
+                    eprintln!(
+                        "  ERROR embedding batch (attempt {}): {} — retrying in {:?}",
+                        batch_idx, e, backoff
+                    );
+                    if batch_idx >= 5 {
+                        eprintln!(
+                            "  GIVING UP after 5 retries on this batch — {} chunks failed",
+                            batch.len()
+                        );
+                        failed += batch.len();
+                        continue 'batches;
+                    }
+                    tokio::time::sleep(backoff).await;
+                }
+            }
+        };
+        batch_idx = 0; // reset backoff on success
+        for (chunk, vector) in batch.iter().zip(vectors.iter()) {
+            match semantic.store_embedding(&chunk.entity_ref, vector, &emb_model) {
+                Ok(_) => {
+                    let webid = hkask_types::WebID::from_persona(CORPUS_WEBID.as_bytes());
+                    let text_h_mem = HMem::new(
+                        &chunk.entity_ref,
+                        "text",
+                        serde_json::json!(chunk.text),
+                        webid,
+                    )
+                    .with_visibility(Visibility::Public)
+                    .with_confidence(1.0);
+                    let provenance_h_mem = HMem::new(
+                        &chunk.entity_ref,
+                        "corpus_provenance",
+                        serde_json::json!({
+                            "source": chunk.source,
+                            "word_count": chunk.word_count,
+                            "embedding_model": emb_model,
+                            "embedding_dimensions": vector.len(),
+                            "ingest_kind": "corpus_chunk",
+                        }),
+                        webid,
+                    )
+                    .with_visibility(Visibility::Public)
+                    .with_confidence(1.0);
+                    match (semantic.store(text_h_mem), semantic.store(provenance_h_mem)) {
+                        (Ok(()), Ok(())) => embedded += 1,
+                        (text_result, provenance_result) => {
+                            eprintln!(
+                                "  ERROR storing provenance for {}: text={:?}, provenance={:?}",
+                                chunk.entity_ref,
+                                text_result.err(),
+                                provenance_result.err()
+                            );
+                            failed += 1;
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("  ERROR storing {}: {}", chunk.entity_ref, e);
+                    failed += 1;
+                }
+            }
+        }
+        println!(
+            "  [{}/{}] {} embedded, {} failed",
+            embedded + failed,
+            total,
+            embedded,
+            failed
+        );
+    }
+
+    println!("\n=== Done ===");
+    println!("  Embedded: {}", embedded);
+    println!("  Failed:   {}", failed);
+    println!("  Store:    {}", semantic.embedding_count().unwrap_or(0));
+    Ok(())
+}
+
+// ── Salience ────────────────────────────────────────────────────────
+
+async fn run_salience(args: SalienceArgs) -> Result<(), Box<dyn std::error::Error>> {
+    println!("=== Salience ===");
+    println!("  Chunks: {}", args.chunks_jsonl.display());
+    println!("  DB:     {}", args.db_path);
+    println!("  Output: {}", args.output.display());
+    println!();
+
+    let all_chunks = read_chunks(&args.chunks_jsonl)?;
+    println!("  Loaded: {} chunks", all_chunks.len());
+
+    // ── Phase 1: Tag chunks with investment concepts ──────────────
+    println!("  Tagging...");
+    let concept_strings: Vec<String> = investment_concepts::all_concepts();
+    let method_strings: Vec<String> = investment_concepts::INVESTMENT_METHODS
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let author_strings: Vec<String> = investment_concepts::INVESTMENT_AUTHORS
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let empty: Vec<String> = Vec::new();
+
+    let all_tags: Vec<EntityTags> = all_chunks
+        .iter()
+        .map(|c| {
+            let mut tags = salience::tag_entities(
+                &c.text,
+                &author_strings,  // characters → authors
+                &empty,           // places
+                &empty,           // events
+                &concept_strings, // concepts
+            );
+            // Add methods separately
+            let lower = c.text.to_lowercase();
+            tags.methods = method_strings
+                .iter()
+                .filter(|m| lower.contains(&m.to_lowercase()))
+                .cloned()
+                .collect();
+            tags
+        })
+        .collect();
+
+    let tagged_count = all_tags.iter().filter(|t| t.tag_count() > 0).count();
+    let total_tags: usize = all_tags.iter().map(|t| t.tag_count()).sum();
+    println!(
+        "  Tagged: {}/{} chunks ({} total tag matches)",
+        tagged_count,
+        all_chunks.len(),
+        total_tags
+    );
+
+    // ── Phase 2: Compute graph centrality salience ────────────────
+    println!("  Computing salience...");
+    let salience_scores = salience::compute_salience_batch(&all_tags);
+
+    let max_sal = salience_scores.iter().cloned().fold(0.0f32, f32::max);
+    let mean_sal = salience_scores.iter().sum::<f32>() / salience_scores.len().max(1) as f32;
+    let nonzero = salience_scores.iter().filter(|&&s| s > 0.0).count();
+    println!(
+        "  Salience: max={max_sal:.3}, mean={mean_sal:.3}, nonzero={nonzero}/{}",
+        salience_scores.len()
+    );
+
+    // ── Phase 3: Build tagged output ──────────────────────────────
+    let tagged_chunks: Vec<TaggedChunk> = all_chunks
+        .iter()
+        .zip(all_tags.iter())
+        .zip(salience_scores.iter())
+        .map(|((chunk, tags), &salience_score)| TaggedChunk {
+            entity_ref: chunk.entity_ref.clone(),
+            source: chunk.source.clone(),
+            text: chunk.text.clone(),
+            concepts: tags.concepts.clone(),
+            methods: tags.methods.clone(),
+            authors: tags.characters.clone(),
+            salience: salience_score,
+        })
+        .collect();
+
+    // Write output JSONL
+    let mut out = String::new();
+    for tc in &tagged_chunks {
+        out.push_str(&serde_json::to_string(tc)?);
+        out.push('\n');
+    }
+    std::fs::write(&args.output, &out)?;
+    println!(
+        "  Wrote: {} ({} tagged chunks)",
+        args.output.display(),
+        tagged_chunks.len()
+    );
+
+    if args.dry_run {
+        // Show distribution
+        let high = tagged_chunks.iter().filter(|t| t.salience > 0.5).count();
+        let mid = tagged_chunks
+            .iter()
+            .filter(|t| t.salience > 0.2 && t.salience <= 0.5)
+            .count();
+        let low = tagged_chunks
+            .iter()
+            .filter(|t| t.salience > 0.0 && t.salience <= 0.2)
+            .count();
+        let zero = tagged_chunks.iter().filter(|t| t.salience == 0.0).count();
+        println!(
+            "  Distribution: high(>0.5)={high}, mid(0.2-0.5)={mid}, low(0-0.2)={low}, zero={zero}"
+        );
+
+        // Show top chunks by salience
+        println!("\n  Top-{} by salience:", TOP_DISPLAY_COUNT);
+        let mut sorted: Vec<&TaggedChunk> = tagged_chunks.iter().collect();
+        sorted.sort_by(|a, b| {
+            b.salience
+                .partial_cmp(&a.salience)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        for tc in sorted.iter().take(TOP_DISPLAY_COUNT) {
+            println!(
+                "    [{:.3}] {} — concepts: {:?}",
+                tc.salience,
+                tc.source,
+                &tc.concepts[..3.min(tc.concepts.len())]
+            );
+        }
+
+        println!("\n  Dry run complete. Use without --dry-run to store h_mems.");
+        return Ok(());
+    }
+
+    // ── Phase 4: Store salience as semantic h_mems ────────────────
+    let semantic = SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM)?;
+
+    // Map concept names to their frequency for ranking
+    use std::collections::HashMap;
+    let mut concept_freq: HashMap<String, usize> = HashMap::new();
+    for tags in &all_tags {
+        for c in &tags.concepts {
+            *concept_freq.entry(c.clone()).or_default() += 1;
+        }
+    }
+    let mut top_concepts: Vec<(String, usize)> = concept_freq.into_iter().collect();
+    top_concepts.sort_by(|a, b| b.1.cmp(&a.1));
+    println!("\n  Top-{} concepts:", TOP_CONCEPTS_DISPLAY);
+    for (concept, freq) in top_concepts.iter().take(TOP_CONCEPTS_DISPLAY) {
+        println!("    {concept}: {freq}");
+    }
+
+    // Store salience h_mems with provenance metadata.
+    // Salience is graph-derived (Inherited provenance, Medium confidence).
+    // Confidence is capped at 0.5 to reflect tag-coverage dependency.
+    let tag_coverage = tagged_count as f64 / all_chunks.len() as f64;
+    let webid = hkask_types::WebID::from_persona(CORPUS_WEBID.as_bytes());
+    let mut stored = 0usize;
+    let mut skipped = 0usize;
+
+    for tc in &tagged_chunks {
+        let value = serde_json::json!({
+            "salience": tc.salience,
+            "concepts": tc.concepts,
+            "methods": tc.methods,
+            "authors": tc.authors,
+            "source": tc.source,
+            "provenance": {
+                "mode": "inherited",
+                "method": "graph_centrality",
+                "tag_coverage": tag_coverage,
+                "confidence_modifier": -0.1
+            }
+        });
+        // Inherited provenance: cap confidence at 0.5 regardless of salience.
+        // Direct measurement would be 0.8+; graph-derived is inherently uncertain.
+        let confidence = (tc.salience as f64).clamp(0.01, 0.5);
+        let h_mem = HMem::new("corpus:salience", &tc.entity_ref, value, webid)
+            .with_visibility(Visibility::Public)
+            .with_confidence(confidence);
+
+        match semantic.store(h_mem) {
+            Ok(()) => stored += 1,
+            Err(e) => {
+                skipped += 1;
+                eprintln!("  WARN: store {}: {e}", tc.entity_ref);
+            }
+        }
+    }
+
+    println!("\n=== Done ===");
+    println!("  Salience h_mems stored: {stored}");
+    println!("  Skipped (errors):       {skipped}");
+    println!("  Tag coverage:           {:.1}%", tag_coverage * 100.0);
+    println!("  Confidence cap:         0.5 (inherited provenance)");
+    if skipped > 0 {
+        eprintln!("  WARNING: {} salience h_mems failed to store", skipped);
+    }
+    Ok(())
+}
+
+// ── Shared helpers ──────────────────────────────────────────────────
+
+fn read_chunks(path: &PathBuf) -> Result<Vec<Chunk>, Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(path)?;
+    Ok(content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect())
+}
+
+fn read_tagged_chunks(path: &PathBuf) -> Result<Vec<TaggedChunk>, Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(path)?;
+    Ok(content
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect())
+}
+
+// ── Build Prompts ────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+enum QaType {
+    Factual,
+    Conceptual,
+    Analyze,
+    Evaluate,
+    Create,
+}
+
+impl QaType {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Factual => "factual",
+            Self::Conceptual => "conceptual",
+            Self::Analyze => "analyze",
+            Self::Evaluate => "evaluate",
+            Self::Create => "create",
+        }
+    }
+}
+
+fn parse_type_distribution(spec: &str) -> Vec<QaType> {
+    let nums: Vec<usize> = spec
+        .split(',')
+        .filter_map(|s| s.trim().parse().ok())
+        .collect();
+    let types = [
+        QaType::Factual,
+        QaType::Conceptual,
+        QaType::Analyze,
+        QaType::Evaluate,
+        QaType::Create,
+    ];
+    let mut result = Vec::new();
+    for (i, &count) in nums.iter().enumerate() {
+        for _ in 0..count {
+            if i < types.len() {
+                result.push(types[i]);
+            }
+        }
+    }
+    result
+}
+
+fn qa_type_instruction(qt: QaType) -> &'static str {
+    match qt {
+        QaType::Factual => {
+            "Generate a FACTUAL question: identify specific capabilities, resources, performance metrics, or gap measurements from the passage. What does the system have? What does it achieve? Answer directly from the text."
+        }
+        QaType::Conceptual => {
+            "Generate a CONCEPTUAL question: explain the mechanisms linking capabilities to outcomes. How does a described capability theoretically translate into performance? What models or frameworks explain the capability-performance relationship?"
+        }
+        QaType::Analyze => {
+            "Generate an ANALYZE question: compare capability-performance relationships across contexts. Identify patterns in where gaps emerge. Distinguish structural factors from situational ones. Break down the components of a system to understand how they interact."
+        }
+        QaType::Evaluate => {
+            "Generate an EVALUATE question: assess explanations for capability-performance gaps. Critique the evidence. Judge whether claimed causal links are supported. Determine if an identified gap is economically significant or merely measurement noise. Consider what alternative explanations need to be ruled out."
+        }
+        QaType::Create => {
+            "Generate a CREATE question: design interventions to close capability-performance gaps. Synthesize multi-domain strategies. Formulate testable hypotheses about what would happen if specific capabilities were deployed differently. Integrate concepts from the passage into a novel analytical framework."
+        }
+    }
+}
+
+fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::Error>> {
+    println!("=== Build Prompts ===");
+    let all_chunks = read_tagged_chunks(&args.tagged_jsonl)?;
+    println!("  Loaded: {} tagged chunks", all_chunks.len());
+    let qualifying: Vec<&TaggedChunk> = all_chunks
+        .iter()
+        .filter(|c| c.salience >= args.min_salience && c.concepts.len() >= args.min_concepts)
+        .collect();
+    println!(
+        "  Qualifying: {} (salience >= {:.2}, concepts >= {})",
+        qualifying.len(),
+        args.min_salience,
+        args.min_concepts
+    );
+    let type_rotation = parse_type_distribution(&args.type_distribution);
+    let limit = if args.max_prompts > 0 {
+        args.max_prompts.min(qualifying.len())
+    } else {
+        qualifying.len()
+    };
+    let mut sorted: Vec<&&TaggedChunk> = qualifying.iter().collect();
+    sorted.sort_by(|a, b| {
+        b.salience
+            .partial_cmp(&a.salience)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let mut out = String::new();
+    let mut ti = 0usize;
+    for tc in sorted.iter().take(limit) {
+        // Generate QA_PROMPTS_PER_CHUNK QAs per chunk at consecutive Bloom levels
+        for offset in 0..QA_PROMPTS_PER_CHUNK {
+            let qt = type_rotation[(ti + offset) % type_rotation.len()];
+            let prompt = serde_json::json!({"chunk_ref": tc.entity_ref, "source": tc.source, "concepts": tc.concepts, "salience": tc.salience, "qa_type": qt.as_str(), "system": format!("You are a Company Research Analyst training data generator. Given a passage from investment literature, generate ONE question-answer pair.\n\n{}\n\nOutput JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).\n\nGround the answer in the passage. Do not invent facts.", qa_type_instruction(qt)), "user": format!("Generate a {} QA pair from this passage:\n\n---\n{}\n---\n\nConcepts: {}\n\nInclude this chunk_ref in your output: {}", qt.as_str(), tc.text, tc.concepts.join(", "), tc.entity_ref)});
+            out.push_str(&serde_json::to_string(&prompt)?);
+            out.push('\n');
+        }
+        ti += QA_PROMPTS_PER_CHUNK;
+    }
+    std::fs::write(&args.output, &out)?;
+    println!("  Wrote: {} prompts to {}", ti, args.output.display());
+
+    if args.cross_reference {
+        let cr_count = build_cross_reference_prompts(&qualifying, &args);
+        println!("  Cross-reference: {} prompts appended", cr_count);
+    }
+
+    Ok(())
+}
+
+// ── Ingest QAs ───────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct GeneratedQa {
+    instruction: String,
+    output: String,
+    #[serde(rename = "type", default)]
+    qa_type: String,
+    #[serde(default)]
+    difficulty: u8,
+    #[serde(default)]
+    concepts: Vec<String>,
+    #[serde(default)]
+    source: String,
+    /// Provenance: which chunk this QA was generated from (for traceability).
+    #[serde(default)]
+    chunk_ref: Option<String>,
+    /// Exact quotations from the source chunk that support the answer.
+    #[serde(default)]
+    evidence_quotes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeneratedQaEnvelope {
+    chunk_ref: String,
+    source: String,
+    qa_type: String,
+    response: GeneratedQaResponse,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeneratedQaResponse {
+    instruction: String,
+    output: String,
+    #[serde(rename = "type", default)]
+    qa_type: String,
+    #[serde(default)]
+    difficulty: u8,
+    #[serde(default)]
+    concepts: Vec<String>,
+    #[serde(default)]
+    evidence_quotes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum GeneratedQaRecord {
+    Flat(GeneratedQa),
+    Envelope(GeneratedQaEnvelope),
+}
+
+impl GeneratedQaRecord {
+    fn into_generated_qa(self) -> GeneratedQa {
+        match self {
+            Self::Flat(qa) => qa,
+            Self::Envelope(envelope) => GeneratedQa {
+                instruction: envelope.response.instruction,
+                output: envelope.response.output,
+                qa_type: if envelope.response.qa_type.is_empty() {
+                    envelope.qa_type
+                } else {
+                    envelope.response.qa_type
+                },
+                difficulty: envelope.response.difficulty,
+                concepts: envelope.response.concepts,
+                source: envelope.source,
+                chunk_ref: Some(envelope.chunk_ref),
+                evidence_quotes: envelope.response.evidence_quotes,
+            },
+        }
+    }
+}
+
+fn has_admissible_qa_provenance(qa: &GeneratedQa) -> bool {
+    !qa.source.trim().is_empty()
+        && qa
+            .chunk_ref
+            .as_ref()
+            .is_some_and(|chunk_ref| !chunk_ref.trim().is_empty())
+}
+
+fn build_cross_reference_prompts(qualifying: &[&TaggedChunk], args: &BuildPromptsArgs) -> usize {
+    use std::collections::HashMap;
+
+    println!("  Building cross-reference prompts...");
+
+    // Group chunks by shared concepts: concept → list of (chunk, salience)
+    let mut concept_groups: HashMap<&str, Vec<&&TaggedChunk>> = HashMap::new();
+    for chunk in qualifying {
+        for concept in &chunk.concepts {
+            concept_groups
+                .entry(concept.as_str())
+                .or_default()
+                .push(chunk);
+        }
+    }
+
+    // Keep only groups with 2+ chunks, sort each by salience descending
+    let mut groups: Vec<(&str, Vec<&&TaggedChunk>)> = concept_groups
+        .into_iter()
+        .filter(|(_, chunks)| chunks.len() >= 2)
+        .collect();
+    groups.sort_by(|(_, a), (_, b)| {
+        b.len().cmp(&a.len()).then_with(|| {
+            let a_max = a.iter().map(|c| c.salience).fold(0.0f32, f32::max);
+            let b_max = b.iter().map(|c| c.salience).fold(0.0f32, f32::max);
+            b_max
+                .partial_cmp(&a_max)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+    });
+
+    println!("  Found {} concept groups with 2+ chunks", groups.len());
+
+    let cross_ref_types = ["comparative", "diagnostic", "causal", "applied"];
+    let mut out = String::new();
+    let mut count = 0;
+
+    for (concept, chunks) in groups.iter() {
+        if args.cross_ref_max_prompts > 0 && count >= args.cross_ref_max_prompts {
+            break;
+        }
+
+        // Sort chunks by salience, then take top-N
+        let mut sorted_chunks: Vec<&&TaggedChunk> = chunks.to_vec();
+        sorted_chunks.sort_by(|a, b| {
+            b.salience
+                .partial_cmp(&a.salience)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let top: Vec<&&TaggedChunk> = sorted_chunks
+            .into_iter()
+            .take(args.cross_ref_max_chunks)
+            .collect();
+
+        let qt = cross_ref_types[count % cross_ref_types.len()];
+
+        // Build passage block with source attribution
+        let mut passages = String::new();
+        for (i, chunk) in top.iter().enumerate() {
+            passages.push_str(&format!(
+                "[Passage {} — source: {}, salience: {:.2}]\n{}\n\n",
+                i + 1,
+                chunk.entity_ref,
+                chunk.salience,
+                chunk.text
+            ));
+        }
+
+        let chunk_refs: Vec<&str> = top.iter().map(|c| c.entity_ref.as_str()).collect();
+
+        let prompt = serde_json::json!({
+            "chunk_refs": chunk_refs,
+            "concept": concept,
+            "qa_type": qt,
+            "cross_reference": true,
+            "system": format!(
+                "You are a Company Research Analyst synthesizing knowledge across multiple sources.\n\nGiven {} passages from different parts of the investment literature, all related to the concept '{}', generate ONE question-answer pair that requires synthesizing information from MULTIPLE passages.\n\nThe question should test cross-reference understanding:\n- comparative: compare/contrast perspectives across passages\n- diagnostic: identify patterns or tensions that emerge only when reading multiple passages\n- causal: trace how ideas connect or influence each other across sources\n\nThe answer MUST cite which passages it draws from (e.g., 'Per Passage 1, ... while Passage 3 notes ...').\n\nOutput JSON with: instruction, output, type, difficulty (3-5), concepts (list including '{}'), source (all sources), chunk_ref (comma-separated chunk references).\n\nDo not invent facts. Ground every claim in the passages.",
+                top.len(), concept, concept
+            ),
+            "user": format!("Generate a {} cross-reference QA pair from these {} passages about '{}':\n\n{}\nConcepts: {}", qt, top.len(), concept, passages, concept)
+        });
+
+        match serde_json::to_string(&prompt) {
+            Ok(s) => {
+                out.push_str(&s);
+                out.push('\n');
+                count += 1;
+            }
+            Err(e) => eprintln!("  WARN: cross-ref prompt serialization failed: {e}"),
+        }
+    }
+
+    // Append to output file
+    if count > 0 {
+        let mut existing = std::fs::read_to_string(&args.output).unwrap_or_default();
+        existing.push_str(&out);
+        std::fs::write(&args.output, &existing).ok();
+    }
+
+    count
+}
+
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+    let mag_a = (a.iter().map(|x| x * x).sum::<f32>()).sqrt();
+    let mag_b = (b.iter().map(|x| x * x).sum::<f32>()).sqrt();
+    if mag_a == 0.0 || mag_b == 0.0 {
+        0.0
+    } else {
+        dot / (mag_a * mag_b)
+    }
+}
+
+async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Error>> {
+    println!("=== Ingest QAs ===");
+    let content = std::fs::read_to_string(&args.generated_jsonl)?;
+    let mut malformed = 0usize;
+    let qas: Vec<GeneratedQa> = content
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter_map(
+            |line| match serde_json::from_str::<GeneratedQaRecord>(line) {
+                Ok(record) => Some(record.into_generated_qa()),
+                Err(error) => {
+                    malformed += 1;
+                    eprintln!("  WARN: rejected malformed QA record: {error}");
+                    None
+                }
+            },
+        )
+        .collect();
+    println!("  Parsed: {} ({} malformed rejected)", qas.len(), malformed);
+
+    let filtered: Vec<&GeneratedQa> = qas
+        .iter()
+        .filter(|q| {
+            q.instruction.len() >= MIN_INSTRUCTION_LENGTH
+                && q.output.len() >= MIN_OUTPUT_LENGTH
+                && !q.qa_type.is_empty()
+                && has_admissible_qa_provenance(q)
+        })
+        .collect();
+    println!(
+        "  Quality filter: {} (removed {} malformed, short, empty, or untraceable)",
+        filtered.len(),
+        qas.len() - filtered.len()
+    );
+    let use_embed = args.dedup_threshold < 1.0;
+    let emb_model = model_constants::embedding_model();
+    let mut deduped: Vec<&GeneratedQa> = Vec::new();
+    let mut emb_kept: Vec<(Vec<f32>, &GeneratedQa)> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if use_embed {
+        let inf_cfg = InferenceConfig::from_env();
+        let embedder = EmbeddingRouter::new(inf_cfg);
+        let instructions: Vec<&str> = filtered.iter().map(|q| q.instruction.as_str()).collect();
+        let mut all_v: Vec<Vec<f32>> = Vec::new();
+        for batch in instructions.chunks(50) {
+            match embedder.embed_sentences(&emb_model, batch).await {
+                Ok(v) => all_v.extend(v),
+                Err(e) => {
+                    eprintln!("  WARN: embed batch: {e}");
+                    for _ in 0..batch.len() {
+                        all_v.push(Vec::new());
+                    }
+                }
+            }
+        }
+        for (i, qa) in filtered.iter().enumerate() {
+            if i < all_v.len() && !all_v[i].is_empty() {
+                let mut dup = false;
+                for (ev, _) in &emb_kept {
+                    if cosine_similarity(&all_v[i], ev) > args.dedup_threshold as f32 {
+                        dup = true;
+                        break;
+                    }
+                }
+                if !dup {
+                    emb_kept.push((all_v[i].clone(), qa));
+                    deduped.push(qa);
+                }
+            } else if seen.insert(qa.instruction.to_lowercase()) {
+                deduped.push(qa);
+            }
+        }
+    } else {
+        for qa in &filtered {
+            if seen.insert(qa.instruction.to_lowercase()) {
+                deduped.push(qa);
+            }
+        }
+    }
+    println!(
+        "  Deduped: {} (removed {})",
+        deduped.len(),
+        filtered.len() - deduped.len()
+    );
+    let mut tc = std::collections::HashMap::new();
+    for qa in &deduped {
+        *tc.entry(&qa.qa_type).or_insert(0) += 1;
+    }
+    println!("  Types: {:?}", tc);
+    if args.dry_run {
+        println!("  Dry run. Would store {} QAs.", deduped.len());
+        return Ok(());
+    }
+    let train: String = deduped
+        .iter()
+        .map(|q| {
+            serde_json::to_string(
+                &serde_json::json!({"instruction": q.instruction, "input": "", "output": q.output}),
+            )
+            .unwrap_or_default()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&args.output, train + "\n")?;
+    println!(
+        "  Wrote: {} QAs to {}",
+        deduped.len(),
+        args.output.display()
+    );
+    let semantic = SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM)?;
+    let webid = hkask_types::WebID::from_persona(CORPUS_WEBID.as_bytes());
+    let mut stored = 0;
+    let mut store_failures = 0;
+    let mut with_chunk_ref = 0;
+    for (i, qa) in deduped.iter().enumerate() {
+        if qa.chunk_ref.is_some() {
+            with_chunk_ref += 1;
+        }
+        // Schema aligns with training_ingest_qa / training_assemble_dataset:
+        //   entity   = training:qa:{dataset}:{source}:{i}
+        //   attribute = training_qa_pair
+        //   value    = {question, answer, bloom_level, source, dataset, ...provenance}
+        // The training server queries by attribute "training_qa_pair" and reads
+        // question/answer/bloom_level/dataset/source from the value.
+        let entity = format!("training:qa:{}:{}:{}", args.dataset, qa.source, i);
+        let v = serde_json::json!({
+            "question": qa.instruction,
+            "answer": qa.output,
+            "bloom_level": qa.qa_type,
+            "source": qa.source,
+            "dataset": args.dataset,
+            // Provenance fields (ignored by training_assemble_dataset but useful for auditing)
+            "difficulty": qa.difficulty,
+            "concepts": qa.concepts,
+            "chunk_ref": qa.chunk_ref,
+            "evidence_quotes": qa.evidence_quotes,
+        });
+        let h_mem = HMem::new(&entity, "training_qa_pair", v, webid)
+            .with_visibility(Visibility::Public)
+            .with_confidence(0.8);
+        match semantic.store(h_mem) {
+            Ok(()) => stored += 1,
+            Err(e) => {
+                store_failures += 1;
+                eprintln!("  WARN: store qa {}: {e}", i);
+            }
+        }
+    }
+    println!("  Stored: {} QA h_mems", stored);
+    if store_failures > 0 {
+        eprintln!(
+            "  WARNING: {} QA h_mems failed to store ({} failures)",
+            store_failures, store_failures
+        );
+    }
+    println!(
+        "  Provenance: {}/{} QAs have chunk_ref (traceable to source passage)",
+        with_chunk_ref,
+        deduped.len()
+    );
+    if args.embed_qas && !emb_kept.is_empty() {
+        println!(
+            "  Embedding {} QA vectors for KNN search...",
+            emb_kept.len()
+        );
+        let mut embedded_count = 0;
+        let mut embed_failures = 0;
+        // emb_kept order matches deduped — use same index as h_mem storage.
+        // Entity ref must match the h_mem entity for KNN-to-h_mem correlation.
+        for (i, (vec, qa)) in emb_kept.iter().enumerate() {
+            let entity = format!("training:qa:{}:{}:{}", args.dataset, qa.source, i);
+            match semantic.store_embedding(&entity, vec, &emb_model) {
+                Ok(_) => embedded_count += 1,
+                Err(e) => {
+                    embed_failures += 1;
+                    eprintln!("  WARN: embed qa {}: {e}", i);
+                }
+            }
+        }
+        println!("  Embedded: {} QA vectors", embedded_count);
+        if embed_failures > 0 {
+            eprintln!("  WARNING: {} QA embeddings failed", embed_failures);
+        }
+    }
+    Ok(())
+}
+
+// ── Purge QA ──────────────────────────────────────────────────────
+
+async fn run_purge_qa(args: PurgeQaArgs) -> Result<(), Box<dyn std::error::Error>> {
+    println!("=== Purge QAs ===");
+    println!("  DB:     {}", args.db_path);
+    println!("  Prefix: {}", args.prefix);
+    println!();
+
+    let semantic = SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM)?;
+    println!(
+        "  Embeddings before purge: {}",
+        semantic.embedding_count().unwrap_or(0)
+    );
+
+    // Purge embeddings with matching entity_ref prefix
+    let purged_embeddings = semantic.purge_by_prefix(&args.prefix)?;
+    println!("  Purged embeddings: {}", purged_embeddings);
+
+    // Purge h_mems with matching entity prefix.
+    // HMemStore doesn't have a prefix-purge API, so we query by attribute
+    // and delete matching h_mems individually.
+    // Old schema: entity="corpus:qa", attribute="qa:N"
+    // New schema: entity="training:qa:...", attribute="training_qa_pair"
+    let mut purged_h_mems = 0usize;
+    let mut h_mem_errors = 0usize;
+
+    // For old-schema data (entity="corpus:qa"), the attributes are "qa:0", "qa:1", etc.
+    // We need to query all h_mems with entity matching the prefix and delete them.
+    // HMemStore::query_by_entity does a LIKE query, but we need prefix matching.
+    // The simplest approach: query all h_mems and filter by entity prefix.
+    // But that's expensive for large DBs. Instead, we use the fact that old-schema
+    // h_mems have entity="corpus:qa" exactly, and new-schema have entity starting
+    // with "training:qa:".
+    //
+    // For old schema: query_by_entity("corpus:qa") deletes all with that exact entity.
+    // For new schema: we'd need prefix matching, but purge_by_prefix already handles
+    // the embeddings. For h_mems, we query by attribute.
+    if args.prefix == "corpus:qa" {
+        // Old schema: entity is exactly "corpus:qa", attributes are "qa:N"
+        let h_mems = semantic.query_deduped(&args.prefix)?;
+        for h_mem in &h_mems {
+            match semantic.delete_h_mem(&h_mem.id) {
+                Ok(()) => purged_h_mems += 1,
+                Err(_) => h_mem_errors += 1,
+            }
+        }
+    } else {
+        // New schema or custom prefix: query by attribute "training_qa_pair"
+        // and filter by entity prefix.
+        let h_mems = semantic.query_by_attribute("training_qa_pair")?;
+        for h_mem in &h_mems {
+            if h_mem.entity.starts_with(&args.prefix) {
+                match semantic.delete_h_mem(&h_mem.id) {
+                    Ok(()) => purged_h_mems += 1,
+                    Err(_) => h_mem_errors += 1,
+                }
+            }
+        }
+    }
+
+    println!("  Purged h_mems:     {}", purged_h_mems);
+    if h_mem_errors > 0 {
+        eprintln!("  WARNING: {} h_mem deletions failed", h_mem_errors);
+    }
+    println!(
+        "  Embeddings after purge: {}",
+        semantic.embedding_count().unwrap_or(0)
+    );
+    Ok(())
+}
+
+// ── OCR ───────────────────────────────────────────────────────────
+
+async fn run_ocr(args: OcrArgs) -> Result<(), Box<dyn std::error::Error>> {
+    use hkask_services_corpus::ocr_pdf_bytes;
+
+    println!("=== OCR Scanned PDFs ===");
+    println!("  Path:   {}", args.path.display());
+    println!("  Output: {}", args.output.display());
+    println!();
+
+    let pdfs: Vec<std::path::PathBuf> = if args.path.is_dir() {
+        std::fs::read_dir(&args.path)?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "pdf"))
+            .map(|e| e.path())
+            .collect()
+    } else {
+        vec![args.path.clone()]
+    };
+
+    let mut processed = 0usize;
+    let mut failed = 0usize;
+    let mut skipped = 0usize;
+
+    for pdf_path in &pdfs {
+        let stem = pdf_path.file_stem().unwrap_or_default().to_string_lossy();
+        let out_path = args.output.join(format!("{}.txt", stem));
+
+        if args.skip_existing && out_path.exists() {
+            let existing = std::fs::read_to_string(&out_path).unwrap_or_default();
+            if existing.trim().len() > 100 {
+                skipped += 1;
+                continue;
+            }
+        }
+
+        let bytes = std::fs::read(pdf_path)?;
+        let url = pdf_path.to_string_lossy().to_string();
+        println!(
+            "  [{}/{}] OCR: {}",
+            processed + failed + skipped + 1,
+            pdfs.len(),
+            stem
+        );
+
+        match ocr_pdf_bytes(&bytes, &url).await {
+            Ok(text) => {
+                let words = text.split_whitespace().count();
+                if words > 0 {
+                    std::fs::write(&out_path, &text)?;
+                    println!("    -> {} words extracted", words);
+                    processed += 1;
+                } else {
+                    println!("    -> 0 words (empty OCR result)");
+                    failed += 1;
+                }
+            }
+            Err(e) => {
+                eprintln!("    -> FAILED: {}", e);
+                failed += 1;
+            }
+        }
+    }
+
+    println!("\n=== Done ===");
+    println!("  Processed: {}", processed);
+    println!("  Failed:    {}", failed);
+    println!("  Skipped:   {}", skipped);
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn envelope_generation_record_normalizes_with_source_provenance() {
+        let record: GeneratedQaRecord = serde_json::from_str(
+            r#"{"chunk_ref":"corpus:researcher:example:0","source":"example.md","qa_type":"analyze","response":{"instruction":"Explain the mechanism behind this result.","output":"The source describes a causal relationship supported by its stated evidence.","type":"analyze"}}"#,
+        )
+        .expect("envelope record should deserialize");
+        let qa = record.into_generated_qa();
+
+        assert_eq!(qa.chunk_ref.as_deref(), Some("corpus:researcher:example:0"));
+        assert!(has_admissible_qa_provenance(&qa));
+    }
+
+    #[test]
+    fn untraceable_qa_is_not_admissible() {
+        let qa = GeneratedQa {
+            instruction: "Explain this finding in detail.".to_string(),
+            output: "The evidence supports the finding.".to_string(),
+            qa_type: "analyze".to_string(),
+            difficulty: 3,
+            concepts: Vec::new(),
+            source: String::new(),
+            chunk_ref: None,
+            evidence_quotes: Vec::new(),
+        };
+
+        assert!(!has_admissible_qa_provenance(&qa));
+    }
+
+    #[test]
+    fn evidence_must_be_an_exact_quote_from_the_referenced_chunk() {
+        let qa = GeneratedQa {
+            instruction: "Explain this finding in detail.".to_string(),
+            output: "The evidence supports the finding.".to_string(),
+            qa_type: "analyze".to_string(),
+            difficulty: 3,
+            concepts: Vec::new(),
+            source: "example.md".to_string(),
+            chunk_ref: Some("corpus:researcher:example:0".to_string()),
+            evidence_quotes: vec!["The evidence supports the finding.".to_string()],
+        };
+        let chunks = std::collections::HashMap::from([(
+            "corpus:researcher:example:0".to_string(),
+            "The evidence supports the finding.".to_string(),
+        )]);
+
+        assert!(has_source_supported_evidence(&qa, &chunks));
+    }
+}

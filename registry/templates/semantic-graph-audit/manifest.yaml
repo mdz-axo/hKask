@@ -1,0 +1,14 @@
+# Template crate manifest for semantic-graph-audit skill
+# hKask v0.31.0
+
+crate:
+  name: semantic-graph-audit
+  version: "0.31.0"
+  description: >
+    Domain-agnostic semantic dependency graph analysis. Accepts any directed
+    graph (code modules, crates, skills, ADRs, CNS spans, decision trees, data
+    flows), classifies edges by constraint force, detects cycles/redundancies/
+    gaps/orphans, and evaluates graph health through pragmatic-semantics,
+    pragmatic-cybernetics, essentialist, and grill-me lenses.
+
+templates: []

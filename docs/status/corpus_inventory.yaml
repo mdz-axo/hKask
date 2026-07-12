@@ -1,0 +1,725 @@
+# hKask Documentation Corpus Inventory
+# Auto-generated: 2026-07-01
+# Covers all .md files under docs/ (excluding docs/archive/) plus root OPEN_QUESTIONS.md
+# Total documents: 57
+
+documents:
+  # ── Docs Root ─────────────────────────────────────────────────────────────
+  - path: docs/README.md
+    category: index
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/DIAGRAMS_INDEX.md
+    category: index
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/OPEN_QUESTIONS.md
+    category: status
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: OPEN_QUESTIONS.md
+    category: status
+    status: Active
+    last_updated: 2026-06-10
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  # ── Architecture — Master & Top-Level ─────────────────────────────────────
+  - path: docs/architecture/hKask-architecture-master.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [
+        crates/hkask-types,
+        crates/hkask-ports,
+        crates/hkask-agents,
+        crates/hkask-services-core,
+      ]
+    disposition: keep
+
+  - path: docs/architecture/matrix-integration-architecture.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [composition, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-communication]
+    disposition: keep
+
+  - path: docs/architecture/well-wallet-architecture.md
+    category: architecture
+    status: Draft
+    last_updated: 2026-07-01
+    version: "0.32.0-draft"
+    mds_categories: [trust, domain, lifecycle]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts:
+      [
+        crates/hkask-wallet,
+        crates/hkask-wallet-types,
+        crates/hkask-cns,
+        crates/hkask-ledger,
+      ]
+    disposition: keep
+
+  # ── Architecture — ADRs ───────────────────────────────────────────────────
+  - path: docs/architecture/ADRs/ADR-031-consolidation-authorization.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.30.0"
+    mds_categories: [trust]
+    staleness_signal: stale
+    drift_verdict: stale
+    code_artifacts: [crates/hkask-cns, crates/hkask-keystore]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-035-replicant-server-mode.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [composition, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-agents]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-036-gix-migration.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-27
+    version: "0.31.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-storage]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-037-blake3-content-addressing.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-27
+    version: "0.31.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-storage]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-041-dynamic-model-discovery.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.31.0"
+    mds_categories: [lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-adapter]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/ADR-042-port-promotion-rule.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-ports]
+    disposition: keep
+
+  - path: docs/architecture/ADRs/_TEMPLATE.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-07
+    version: "0.31.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  # ── Architecture — Core ───────────────────────────────────────────────────
+  - path: docs/architecture/core/FUNCTIONAL_SPECIFICATION.md
+    category: architecture
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [crates/hkask-types, crates/hkask-ports, crates/hkask-agents]
+    disposition: keep
+
+  - path: docs/architecture/core/MDS.md
+    category: architecture
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-types]
+    disposition: keep
+
+  - path: docs/architecture/core/PRINCIPLES.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.30.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: stale
+    drift_verdict: stale
+    code_artifacts: [crates/hkask-types, crates/hkask-ports, crates/hkask-cns]
+    disposition: keep
+
+  - path: docs/architecture/core/TEMPLATE_AUTHORSHIP.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-templates]
+    disposition: keep
+
+  - path: docs/architecture/core/TESTING_DISCIPLINE.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.30.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: stale
+    drift_verdict: stale
+    code_artifacts: [crates/hkask-test-harness]
+    disposition: keep
+
+  - path: docs/architecture/core/magna-carta.md
+    category: architecture
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-types, crates/hkask-ports, crates/hkask-cns]
+    disposition: keep
+
+  # ── Architecture — Federation ─────────────────────────────────────────────
+  - path: docs/architecture/federation/FEDERATION_V2.md
+    category: architecture
+    status: Draft
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-federation, crates/hkask-communication]
+    disposition: keep
+
+  # ── Diagrams ──────────────────────────────────────────────────────────────
+  - path: docs/diagrams/class-service-layer.md
+    category: diagram
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [composition, domain]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [
+        crates/hkask-services-core,
+        crates/hkask-services-chat,
+        crates/hkask-services-curator,
+        crates/hkask-services-compose,
+        crates/hkask-services-skill,
+        crates/hkask-services-kata-kanban,
+        crates/hkask-services-corpus,
+        crates/hkask-services-wallet,
+        crates/hkask-services-onboarding,
+        crates/hkask-services-runtime,
+        crates/hkask-ports,
+      ]
+    disposition: keep
+
+  - path: docs/diagrams/erd-schema.md
+    category: diagram
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [crates/hkask-storage, crates/hkask-wallet, crates/hkask-agents]
+    disposition: keep
+
+  - path: docs/diagrams/flowchart-bootstrap.md
+    category: diagram
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [crates/hkask-cli, crates/hkask-api, crates/hkask-services-context]
+    disposition: keep
+
+  - path: docs/diagrams/sequence-mcp-tool-dispatch.md
+    category: diagram
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [composition, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-mcp, crates/hkask-cns]
+    disposition: keep
+
+  - path: docs/diagrams/state-adapter-lifecycle.md
+    category: diagram
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-adapter]
+    disposition: keep
+
+  - path: docs/diagrams/state-kata-pdca.md
+    category: diagram
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, curation, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services-kata-kanban]
+    disposition: keep
+
+  # ── Generated ─────────────────────────────────────────────────────────────
+  - path: docs/generated/cli-reference.md
+    category: generated
+    status: Active
+    last_updated: 2026-06-12
+    version: "0.30.0"
+    mds_categories: [interface]
+    staleness_signal: stale
+    drift_verdict: stale
+    code_artifacts: [crates/hkask-cli]
+    disposition: keep
+
+  # ── Plans ─────────────────────────────────────────────────────────────────
+  - path: docs/plans/TODO.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/plans/deployment-and-backup.md
+    category: plan
+    status: Draft
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-api, crates/hkask-services-context]
+    disposition: keep
+
+  - path: docs/plans/k8s-admin-guide.md
+    category: plan
+    status: Active
+    last_updated: 2026-06-26
+    version: "0.31.0"
+    mds_categories: [lifecycle, composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/plans/platform-engineering-perspective.md
+    category: plan
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/plans/replica-lora-training.md
+    category: plan
+    status: Draft
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-adapter, crates/hkask-mcp]
+    disposition: keep
+
+  # ── Research ──────────────────────────────────────────────────────────────
+  - path: docs/research/dokkodo-mindset-research-report.md
+    category: research
+    status: Active
+    last_updated: 2026-06-19
+    version: "0.31.0"
+    mds_categories: [domain, composition, curation, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/research/lazy-universe-research.md
+    category: research
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/research/loyalty-without-lock-in.md
+    category: research
+    status: Draft
+    last_updated: 2026-06-26
+    version: "0.31.0-draft"
+    mds_categories: [domain, composition, trust, curation]
+    staleness_signal: none
+    drift_verdict: na
+    code_artifacts: [crates/hkask-federation]
+    disposition: keep
+
+  # ── Specifications ────────────────────────────────────────────────────────
+  - path: docs/specifications/DOCUMENTATION_STANDARDS.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/specifications/REPL-specification.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-cli, crates/hkask-tui]
+    disposition: keep
+
+  - path: docs/specifications/REQUIREMENTS.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/specifications/salience-specification.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-18
+    version: "0.31.0"
+    mds_categories: [domain, composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-condenser]
+    disposition: keep
+
+  - path: docs/specifications/wallet-specification.md
+    category: specification
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [
+        crates/hkask-wallet,
+        crates/hkask-wallet-types,
+        crates/hkask-ledger,
+        crates/hkask-keystore,
+      ]
+    disposition: keep
+
+  # ── Status ────────────────────────────────────────────────────────────────
+  - path: docs/status/PROJECT_STATUS.md
+    category: status
+    status: Active
+    last_updated: 2026-06-30
+    version: "0.31.0"
+    mds_categories: [lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/status/citation-audit-methodology.md
+    category: status
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [curation, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/status/documentation-alignment-2026-07-01.md
+    category: status
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/status/gas-budget-system-status.md
+    category: status
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [trust, lifecycle, domain]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-cns, crates/hkask-ledger]
+    disposition: keep
+
+  # ── User Guides ───────────────────────────────────────────────────────────
+  - path: docs/user-guides/AGENT-POD-CREATION-GUIDE.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.31.0"
+    mds_categories: [domain]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-agents]
+    disposition: keep
+
+  - path: docs/user-guides/COMPANIES-GUIDE.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-24
+    version: "0.31.0"
+    mds_categories: [domain, composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/user-guides/ENVIRONMENT.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-28
+    version: "0.31.0"
+    mds_categories: [domain, composition, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: []
+    disposition: keep
+
+  - path: docs/user-guides/QA_GUIDE.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [domain, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-test-harness]
+    disposition: keep
+
+  - path: docs/user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md
+    category: user-guide
+    status: Draft
+    last_updated: 2026-06-18
+    version: "0.31.0"
+    mds_categories: [domain, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services-onboarding]
+    disposition: keep
+
+  - path: docs/user-guides/bug-hunter-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-07-01
+    version: "0.31.0"
+    mds_categories: [domain, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-wallet, crates/hkask-cns]
+    disposition: keep
+
+  - path: docs/user-guides/kanban-user-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-24
+    version: "0.31.0"
+    mds_categories: [domain, composition, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services-kata-kanban]
+    disposition: keep
+
+  - path: docs/user-guides/kata-user-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-18
+    version: "0.31.0"
+    mds_categories: [composition, lifecycle]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services-kata-kanban]
+    disposition: keep
+
+  - path: docs/user-guides/lora-adapter-store-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.31.0"
+    mds_categories: [composition, lifecycle, trust]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts:
+      [crates/hkask-adapter, crates/hkask-types, crates/hkask-storage]
+    disposition: keep
+
+  - path: docs/user-guides/lora-training-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-17
+    version: "0.31.0"
+    mds_categories: [composition, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-adapter, crates/hkask-types, crates/hkask-mcp]
+    disposition: keep
+
+  - path: docs/user-guides/skill-composition-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-23
+    version: "0.31.0"
+    mds_categories: [composition, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services-compose]
+    disposition: keep
+
+  - path: docs/user-guides/skill-designer-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-23
+    version: "0.31.0"
+    mds_categories: [composition, lifecycle, curation]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-templates, crates/hkask-services-skill]
+    disposition: keep
+
+  - path: docs/user-guides/skill-user-guide.md
+    category: user-guide
+    status: Active
+    last_updated: 2026-06-23
+    version: "0.31.0"
+    mds_categories: [composition]
+    staleness_signal: none
+    drift_verdict: aligned
+    code_artifacts: [crates/hkask-services-skill]
+    disposition: keep
+
+# ── Summary ─────────────────────────────────────────────────────────────────
+summary:
+  generated: 2026-07-01
+  corpus_version: "0.31.0"
+
+  total_documents: 58
+
+  active_aligned: 48
+  active_partial: 0
+  stale: 4
+  missing: 0
+  na: 2
+
+  disposition_create: 0
+  disposition_keep: 58
+
+  drift_by_verdict:
+    aligned: 52
+    stale: 4
+    partial: 0
+    na: 2
+
+  category_counts:
+    architecture: 17
+    specification: 5
+    user-guide: 13
+    research: 3
+    status: 6
+    plan: 5
+    generated: 1
+    diagram: 6
+    index: 2
+
+  documents_with_code_artifacts: 41

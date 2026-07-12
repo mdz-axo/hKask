@@ -1,0 +1,31 @@
+[package]
+name = "hkask-mcp-scenarios"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Scenario planning MCP server — MAIA event-tree forecasting with Fermi decomposition and Bayesian calibration"
+
+[lib]
+name = "hkask_mcp_scenarios"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-scenarios"
+path = "src/main.rs"
+
+[dependencies]
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+hkask-forecast = { path = "../../crates/hkask-forecast" }
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -1,0 +1,33 @@
+[package]
+name = "hkask-mcp-codegraph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Code understanding MCP server — thin wrapper around hkask-codegraph domain crate"
+
+[dependencies]
+hkask-codegraph = { path = "../../crates/hkask-codegraph" }
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-ports = { path = "../../crates/hkask-ports" }
+hkask-inference = { path = "../../crates/hkask-inference" }
+hkask-cns = { path = "../../crates/hkask-cns" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+rusqlite = { workspace = true }
+anyhow = { workspace = true }
+dotenvy = { workspace = true }
+minijinja = { workspace = true }
+
+[lib]
+name = "hkask_mcp_codegraph"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-codegraph"
+path = "src/main.rs"

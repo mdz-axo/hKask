@@ -1,0 +1,17 @@
+# Template crate manifest for platform-loyalty-scorecard skill
+# hKask v0.31.0
+
+crate:
+  name: platform-loyalty-scorecard
+  version: "0.31.0"
+  description: >
+    The ultimate loyalty metric. Aggregates six dimensions of the loyalty
+    contract into a single score (0.0–1.0): sovereignty, consent, portability,
+    governance, self-service, and satisfaction. Operationalizes the Magna Carta.
+
+templates:
+  - id: platform-loyalty-scorecard/convergence-check
+    path: convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, converge, classify, verify, calibrate]
+    description: Compute normalized convergence metric for loyalty scorecard PDCA cycles.

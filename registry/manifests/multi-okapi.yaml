@@ -1,0 +1,23 @@
+# Multi-Provider Inference Configuration
+# ℏKask v0.28.0
+
+manifest:
+  id: multi-okapi
+  category: runtime-config
+  name: Multi-Okapi Inference
+  description: Multi-provider inference configuration for Okapi inference routing.
+  version: 0.28.0
+  editor: curator-or-human-admin
+  visibility: Public
+
+providers:
+  - id: fireworks-cloud
+    prefix: FW
+    endpoint: https://api.fireworks.ai/inference
+    capabilities: [inference, embedding]
+    priority: 1
+  - id: deepinfra-cloud
+    prefix: DI
+    endpoint: https://api.deepinfra.com/v1/openai
+    capabilities: [inference, embedding]
+    priority: 2

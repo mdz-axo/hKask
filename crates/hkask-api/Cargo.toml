@@ -1,0 +1,50 @@
+[package]
+name = "hkask-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HTTP API with utoipa OpenAPI for hKask"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-capability = { path = "../hkask-capability" }
+hkask-agents = { path = "../hkask-agents" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-keystore = { path = "../hkask-keystore" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-memory = { path = "../hkask-memory" }
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-context = { path = "../hkask-services-context" }
+hkask-services-chat = { path = "../hkask-services-chat" }
+hkask-services-onboarding = { path = "../hkask-services-onboarding" }
+hkask-services-wallet = { path = "../hkask-services-wallet" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-services-skill = { path = "../hkask-services-skill" }
+hkask-wallet = { path = "../hkask-wallet" }
+ed25519-dalek.workspace = true
+hex.workspace = true
+axum.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+base64.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+thiserror.workspace = true
+async-stream.workspace = true
+futures-util.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+tokio-stream = "0.1"
+uuid.workspace = true
+chrono.workspace = true
+subtle.workspace = true
+cookie = "0.18"
+
+[dev-dependencies]
+hkask-database = { path = "../hkask-database" }
+proptest = "1"

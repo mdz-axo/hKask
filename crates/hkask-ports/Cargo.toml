@@ -1,0 +1,24 @@
+[package]
+name = "hkask-ports"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and registries"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-capability = { path = "../hkask-capability" }
+hkask-wallet-types = { path = "../hkask-wallet-types" }
+serde.workspace = true
+serde_json.workspace = true
+futures-util.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+hex.workspace = true
+blake3.workspace = true
+sha2.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+serde_yaml_neo.workspace = true
+tokio.workspace = true

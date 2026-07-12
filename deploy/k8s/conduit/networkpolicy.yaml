@@ -1,0 +1,33 @@
+# NetworkPolicy: restrict ingress to conduit namespace.
+# Only allows traffic from the ingress controller (nginx),
+# kask namespace (kask → conduit Matrix API calls),
+# and intra-namespace traffic.
+# Egress is unrestricted (Conduit may need to reach the internet for federation).
+#
+# Combined with the separate namespace, this enforces the design goal:
+# "A compromised Conduit can't access kask's secrets."
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: conduit-deny-all-except-ingress-and-kask
+  namespace: hkask-conduit
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from nginx-ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+    # Allow from hkask namespace (kask pod needs Matrix API access to Conduit)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hkask
+    # Allow from within the same namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: hkask-conduit

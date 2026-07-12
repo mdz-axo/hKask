@@ -1,0 +1,29 @@
+[package]
+name = "hkask-acp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "ACP (Agent Client Protocol) replicant — presents hKask coding agents in IDEs via the Agent Client Protocol"
+
+[dependencies]
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-types = { path = "../hkask-types" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-capability = { path = "../hkask-capability" }
+tokio.workspace = true
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+dotenvy.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

@@ -1,0 +1,38 @@
+[package]
+name = "hkask-services-context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask context service — AgentService, PerAgentMemory, loop construction"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-runtime = { path = "../hkask-services-runtime" }
+hkask-services-wallet = { path = "../hkask-services-wallet" }
+hkask-agents = { path = "../hkask-agents" }
+hkask-cns = { path = "../hkask-cns" }
+hkask-storage-guard = { path = "../hkask-storage-guard" }
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-memory = { path = "../hkask-memory" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-database = { path = "../hkask-database" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-types = { path = "../hkask-types" }
+hkask-capability = { path = "../hkask-capability" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-wallet = { path = "../hkask-wallet" }
+hkask-federation = { path = "../hkask-federation" }
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+hkask-communication = { path = "../hkask-communication" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-keystore = { path = "../hkask-keystore" }
+rusqlite.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

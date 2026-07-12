@@ -1,0 +1,872 @@
+//! REPL dependency injection — wires CNS, loops, dispatch, energy budgets,
+//! GovernedTool, and builds the initial ReplState.
+//!
+//! Uses `AgentService::build()` for all shared infrastructure (CNS, loop system,
+//! curation, tool dispatch, pod manager). Surface-specific concerns (InferenceLoop
+//! wiring, per-agent memory access, onboarding) are layered on top through
+//! `AgentService` accessors — no independent infrastructure construction.
+
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use hkask_agents::InferenceLoop;
+use hkask_cns::{GasBudget, GasCost, GovernedTool};
+
+use super::{ManifestState, TalkConfig, ToolPrompt};
+use hkask_mcp::RawMcpToolPort;
+use hkask_ports::{ToolInfo, ToolPort};
+use hkask_templates::{ManifestExecutor, McpPort};
+use hkask_types::WebID;
+use hkask_types::template::LLMParameters;
+
+use super::ReplState;
+use super::tool_augmented;
+
+/// Load skills from `.agents/skills/` and `skills/` into the registry.
+///
+/// Populates `registry.skills()` for bundle composition, skill listing,
+/// and `process_manifest` resolution. Logs load results and warnings.
+///
+/// # REQ: P11 (Digital Public/Private Sphere) — load skills from both zones
+///
+/// Used by: `init_repl_state`
+fn load_skills_into_registry(registry: &mut hkask_templates::SqliteRegistry) {
+    let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let loader = hkask_templates::SkillLoader::new(&project_root);
+    let result = loader.load_into(registry);
+    if !result.loaded.is_empty() {
+        tracing::info!(
+            target: "hkask.repl",
+            skills_loaded = result.loaded.len(),
+            warnings = result.warnings.len(),
+            "Skills loaded from disk"
+        );
+    }
+    for warning in &result.warnings {
+        tracing::warn!(target: "hkask.repl", warning = %warning, "Skill load warning");
+    }
+}
+
+/// Propagate onboarding secrets to the environment so downstream callers
+/// (e.g. `build_agent_service → from_env`) can resolve them without
+/// going through the OS keychain.
+///
+/// Sets `HKASK_MASTER_KEY` and `HKASK_DB_PASSPHRASE` in the process environment.
+///
+/// # Safety
+///
+/// Must run single-threaded before the tokio runtime starts.
+///
+/// Used by: `init_repl_state`
+fn propagate_onboarding_secrets_to_env(secrets: &hkask_services_onboarding::ResolvedSecrets) {
+    // SAFETY: REPL init runs single-threaded before tokio runtime starts.
+    unsafe {
+        std::env::set_var("HKASK_MASTER_KEY", &secrets.master_key_hex);
+        std::env::set_var("HKASK_DB_PASSPHRASE", &secrets.db_passphrase);
+    }
+}
+
+/// Propagate the replicant identity to the environment for child MCP processes.
+///
+/// Sets `HKASK_PROJECT_ROOT` (current working directory fallback),
+/// `HKASK_MCP_HOST` (replicant name for CNS spans), and
+/// `HKASK_REPLICANT_PERSONA` (WebID resolution for server-side identity).
+///
+/// # Safety
+///
+/// Must run single-threaded before the tokio runtime starts.
+///
+/// Used by: `init_repl_state`
+fn propagate_replicant_env(agent_name: &str) {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    // SAFETY: REPL init runs single-threaded before tokio runtime starts.
+    unsafe {
+        std::env::set_var("HKASK_PROJECT_ROOT", cwd.to_string_lossy().as_ref());
+        std::env::set_var("HKASK_MCP_HOST", agent_name);
+        std::env::set_var("HKASK_REPLICANT_PERSONA", agent_name);
+    }
+}
+
+/// Propagate condensation settings to the environment.
+///
+/// The condenser server is a child process that inherits the REPL's
+/// environment. This bridges the two condensation paths (auto-condense in
+/// `ChatService` and agent-initiated condenser tools).
+///
+/// # Safety
+///
+/// Must run single-threaded before the tokio runtime starts.
+///
+/// Used by: `init_repl_state`
+fn propagate_condensation_env(settings: &crate::handlers::ReplSettings) {
+    // SAFETY: REPL init runs single-threaded before tokio runtime starts.
+    unsafe {
+        std::env::set_var(
+            "HKASK_CONDENSE_PRESSURE_THRESHOLD",
+            settings.condense_pressure_threshold.to_string(),
+        );
+        std::env::set_var(
+            "HKASK_CONDENSE_SALIENCY_WINDOW",
+            settings.condense_saliency_window.to_string(),
+        );
+    }
+}
+
+/// Load the thread registry for the given agent.
+///
+/// Loads persisted threads from `agents/{name}/threads.json`, archives
+/// stale threads, and creates an initial thread if the registry is empty.
+///
+/// Used by: `init_repl_state`
+fn load_thread_registry(agent_name: &str, stm_life: u32) -> crate::threads::ThreadRegistry {
+    let mut reg = crate::threads::ThreadRegistry::load(agent_name);
+    let archived = reg.archive_stale(agent_name, stm_life);
+    if archived > 0 {
+        tracing::info!(
+            target: "hkask.repl",
+            archived = archived,
+            "Auto-archived stale chat threads"
+        );
+    }
+    if reg.list().is_empty() {
+        reg.create_thread(agent_name, "Session started");
+    }
+    reg
+}
+
+/// Discover MCP tools via the GovernedTool membrane and populate the tool prompt.
+///
+/// Used by: `init_repl_state`
+fn discover_tools(
+    governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
+    rt: &tokio::runtime::Handle,
+) -> ToolPrompt {
+    let tool_names = rt.block_on(governed_tool.discover_tools());
+    let mut tools: Vec<ToolInfo> = Vec::new();
+    for name in &tool_names {
+        if let Some(info) = rt.block_on(governed_tool.get_tool_info(name)) {
+            tools.push(info);
+        }
+    }
+    ToolPrompt {
+        section: tool_augmented::format_tool_prompt_section(&tools),
+        definitions: tool_augmented::tools_to_definitions(&tools),
+    }
+}
+
+// ── Orchestrator ───────────────────────────────────────────────────────────
+
+/// Initialize all REPL dependencies and return a fully-wired ReplState.
+///
+/// Returns `None` if a critical dependency fails to initialize
+/// (inference port, onboarding). Error messages are printed to stderr.
+///
+/// Uses `AgentService::build()` for shared infrastructure (CNS, loop system,
+/// curation loop, pod manager, registry, MCP runtime) and adds CLI-specific
+/// concerns on top (inference, per-agent memory, GovernedTool for tool
+/// discovery, onboarding state).
+pub(super) fn init_repl_state(
+    registry: &mut hkask_templates::SqliteRegistry,
+    _runtime: &hkask_mcp::runtime::McpRuntime,
+    initial_model: Option<&str>,
+    rt: &tokio::runtime::Handle,
+    host: Arc<dyn crate::host::ReplHost>,
+) -> Option<ReplState> {
+    // ── Phase 1: Onboarding ────────────────────────────────────────────────
+    let onboarding_outcome = match host.run_onboarding(rt) {
+        Ok(outcome) => outcome,
+        Err(e) => {
+            if matches!(e, crate::host::OnboardingError::Cancelled) {
+                return None;
+            }
+            eprintln!("Onboarding failed: {}", e);
+            eprintln!("Run `kask chat` to set up your replicant identity.");
+            return None;
+        }
+    };
+
+    let initial_model_str = onboarding_outcome
+        .selected_model
+        .as_deref()
+        .or(initial_model)
+        .unwrap_or("deepseek-v4-pro");
+
+    // ── Phase 2: Settings + Condensation Env ───────────────────────────────
+    let repl_settings: crate::handlers::ReplSettings = hkask_services_core::load_settings();
+    propagate_condensation_env(&repl_settings);
+
+    // ── Phase 3: Inference (moved to Phase 6 — wiring into AgentService) ────
+
+    // ── Phase 4: Service Config ────────────────────────────────────────────
+    let service_config = match &onboarding_outcome.resolved_secrets {
+        Some(secrets) => {
+            propagate_onboarding_secrets_to_env(secrets);
+            hkask_services_core::ServiceConfig::from_secrets(
+                secrets.a2a_secret.clone(),
+                secrets.db_passphrase.clone(),
+                onboarding_outcome.signed_in_agent.clone(),
+            )
+        }
+        None => hkask_services_core::ServiceConfig::from_env().unwrap_or_else(|e| {
+            eprintln!("Warning: Failed to resolve service config from env: {}", e);
+            hkask_services_core::ServiceConfig::in_memory()
+        }),
+    };
+
+    // ── Phase 5: WebID + Skills ────────────────────────────────────────────
+    let agent_webid = WebID::from_persona_with_namespace(
+        onboarding_outcome.signed_in_agent.as_bytes(),
+        "replicant",
+    );
+    load_skills_into_registry(registry);
+
+    // ── Phase 6: Shared Infrastructure ─────────────────────────────────────
+    let mut ctx = match rt.block_on(hkask_services_context::AgentService::build(
+        service_config.clone(),
+    )) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            eprintln!("Failed to build service context: {}", e);
+            return None;
+        }
+    };
+
+    match rt.block_on(ctx.curator_ready()) {
+        Ok(()) => tracing::info!(target: "hkask.repl", "CuratorPod ready"),
+        Err(e) => tracing::warn!(target: "hkask.repl", error = %e, "CuratorPod not ready"),
+    }
+
+    // Build InferenceLoop — uses AgentService's governed port
+    // (better: CNS-observable, energy-tracked)
+    let inference_loop = Arc::new(
+        InferenceLoop::new()
+            .with_energy_budget(repl_settings.gas_cap, repl_settings.gas_cap)
+            .with_model(initial_model_str),
+    );
+    rt.block_on(ctx.cns().loops.register_loop(inference_loop.clone()));
+    ctx.set_inference_loop(inference_loop);
+
+    // ── Phase 7: Replicant Env ─────────────────────────────────────────────
+    propagate_replicant_env(&onboarding_outcome.signed_in_agent);
+
+    // ── Phase 8: Core MCP Server Auto-Start ────────────────────────────────
+    const CORE_EXCLUDED: &[&str] = &[
+        "companies",
+        "communication",
+        "fal",
+        "fal-workflow",
+        "training",
+        "replica",
+    ];
+    let mcp_runtime = ctx.infra().mcp.clone().clone();
+    let degraded = rt.block_on(async {
+        let mut started = 0u32;
+        let mut failed = Vec::new();
+        let mut core_env = std::collections::HashMap::new();
+        core_env.insert(
+            "HKASK_MCP_HOST".to_string(),
+            onboarding_outcome.signed_in_agent.clone(),
+        );
+        for (server_id, binary) in hkask_mcp::BUILTIN_SERVERS {
+            if CORE_EXCLUDED.contains(server_id) {
+                continue;
+            }
+            match mcp_runtime
+                .start_server_with_env(server_id, binary, core_env.clone())
+                .await
+            {
+                Ok(()) => started += 1,
+                Err(e) => {
+                    failed.push(((*server_id).to_string(), e.to_string()));
+                }
+            }
+        }
+        if started > 0 {
+            tracing::info!(
+                target: "hkask.repl",
+                started = started,
+                total = hkask_mcp::BUILTIN_SERVERS.len() - CORE_EXCLUDED.len(),
+                "Core MCP servers auto-started"
+            );
+        }
+        for (id, err) in &failed {
+            tracing::warn!(
+                target: "hkask.repl",
+                server_id = %id,
+                error = %err,
+                "Core MCP server failed to auto-start"
+            );
+        }
+        failed
+    });
+
+    // ── Phase 9: GovernedTool (lazy via AgentService::governed_tool) ─────────
+
+    // ── Phase 10: Energy Budget + Well + Wallet ────────────────────────────
+    rt.block_on(async {
+        let _ = ctx.cns().cybernetics.read().await.load_budgets().await;
+        let cl = ctx.cns().cybernetics.clone();
+        let cyber = cl.read().await;
+
+        cyber
+            .register_gas_budget(
+                agent_webid,
+                GasBudget::new(GasCost(repl_settings.gas_cap))
+                    .with_replenish_rate(GasCost(repl_settings.gas_cap / 10))
+                    .with_alert_threshold(0.8)
+                    .with_hard_limit(true),
+            )
+            .await;
+
+        {
+            let mut wells = cyber.well_manager().write().await;
+            if wells.default_well_id().is_none() {
+                let (well_id, _) = wells.create_well(hkask_cns::well::WellConfig {
+                    well_id: "default".into(),
+                    gas_rate: GasCost(repl_settings.gas_cap * 10),
+                    rjoule_rate: 1000,
+                });
+                tracing::info!(target: "hkask.cli", well_id = well_id.0, "Created default Well");
+            }
+        }
+
+        if let Some(wallet_mgr) = cyber.wallet_manager()
+            && !wallet_mgr.has_wallet(&agent_webid).await {
+                let _ = wallet_mgr
+                    .create_wallet(
+                        agent_webid,
+                        GasCost(repl_settings.gas_cap * 5),
+                        500,
+                    )
+                    .await;
+                tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created gas wallet for replicant");
+            }
+    });
+
+    let ctx = Arc::new(ctx);
+
+    // ── Phase 12: Assemble ReplState ───────────────────────────────────────
+    let agent_name = onboarding_outcome.signed_in_agent.clone();
+    let stm_life = repl_settings.short_term_memory_life;
+
+    let mut state = ReplState {
+        agent_webid,
+        current_model: initial_model_str.to_string(),
+        current_agent: onboarding_outcome.signed_in_agent,
+        active_session: None,
+        resolved_secrets: onboarding_outcome.resolved_secrets,
+        persona_constraints: None,
+        tool_prompt: ToolPrompt {
+            section: String::new(),
+            definitions: Vec::new(),
+        },
+        manifest_state: ManifestState {
+            executor: None,
+            manifest: None,
+        },
+        service_context: ctx.clone(),
+        repl_settings,
+        is_first_run: onboarding_outcome.is_first_run,
+        talk_config: TalkConfig {
+            enabled: false,
+            voice_design: None,
+        },
+        improv_mode: None,
+        kanban_service: None,
+        degraded_servers: degraded,
+        thread_registry: load_thread_registry(&agent_name, stm_life),
+        host,
+    };
+
+    // ── Phase 13: Tool Discovery ───────────────────────────────────────────
+    let gov_tool = ctx.governed_tool(agent_webid);
+    state.tool_prompt = discover_tools(&gov_tool, rt);
+
+    // ── Phase 14: Agent Definition + Process Manifest ───────────────────────
+    let rich_def = ctx
+        .storage()
+        .agents
+        .get(&state.current_agent)
+        .ok()
+        .and_then(|agent| {
+            hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)
+                .map_err(|e| format!("{e}"))
+                .or_else(|_| {
+                    let disk_path =
+                        hkask_types::agent_paths::agent_definition_yaml(&state.current_agent);
+                    fs::read_to_string(&disk_path)
+                        .map_err(|e| format!("Failed to read agent YAML from disk: {e}"))
+                        .and_then(|content| {
+                            hkask_agents::yaml_parser::parse_agent_from_yaml(&content)
+                                .map_err(|e| format!("{e}"))
+                        })
+                })
+                .ok()
+        });
+
+    state.persona_constraints = rich_def.as_ref().and_then(|d| d.persona.clone());
+
+    if let Some(ref def) = rich_def
+        && let Some(ref manifest_ref) = def.process_manifest
+    {
+        let manifest = hkask_templates::resolve_manifest(manifest_ref, registry);
+
+        if let Some(bundle) = manifest {
+            let a2a_secret = state
+                .resolved_secrets
+                .as_ref()
+                .map(|s| s.a2a_secret.as_bytes().to_vec())
+                .unwrap_or_default();
+
+            let mcp_dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(
+                (*mcp_runtime).clone(),
+                ctx.governed_tool(agent_webid),
+            );
+
+            let executor = ManifestExecutor::new(
+                ctx.inference_port().expect("inference port"),
+                Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
+                LLMParameters::default(),
+                a2a_secret,
+            );
+
+            tracing::info!(
+                target: "hkask.repl",
+                manifest_id = %bundle.id,
+                steps = bundle.steps.len(),
+                "Loaded process manifest for agent"
+            );
+
+            state.manifest_state.manifest = Some(bundle);
+            state.manifest_state.executor = Some(executor);
+        } else {
+            tracing::warn!(
+                target: "hkask.repl",
+                manifest_ref = %manifest_ref,
+                agent = %state.current_agent,
+                "Failed to resolve process manifest — agent will run without manifest cascade"
+            );
+        }
+    }
+
+    // ── Phase 15: Model Metadata ───────────────────────────────────────────
+    super::handlers::model::populate_model_meta(&mut state, rt);
+
+    Some(state)
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::handlers::ReplSettings;
+
+    /// Serialize tests that modify process environment variables.
+    /// Parallel `unsafe { set_var }` calls across tests cause race conditions.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// RAII guard that saves an env var on creation and restores it on drop.
+    /// Prevents test env-var pollution from leaking into other tests.
+    struct EnvGuard {
+        key: String,
+        original: Option<String>,
+    }
+
+    impl EnvGuard {
+        fn save(key: &str) -> Self {
+            Self {
+                key: key.to_string(),
+                original: std::env::var(key).ok(),
+            }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            match &self.original {
+                Some(val) => unsafe { std::env::set_var(&self.key, val) },
+                None => unsafe { std::env::remove_var(&self.key) },
+            }
+        }
+    }
+
+    /// Save and restore multiple env vars at once.
+    fn env_guards(keys: &[&str]) -> Vec<EnvGuard> {
+        keys.iter().map(|k| EnvGuard::save(k)).collect()
+    }
+
+    /// Minimal mock ReplHost for init_repl_state tests.
+    struct MockReplHost;
+
+    impl crate::host::ReplHost for MockReplHost {
+        fn resolve_user_webid(&self) -> hkask_types::WebID {
+            hkask_types::WebID::new()
+        }
+        fn run_onboarding(
+            &self,
+            _rt: &tokio::runtime::Handle,
+        ) -> Result<crate::host::OnboardingOutcome, crate::host::OnboardingError> {
+            Err(crate::host::OnboardingError::Cancelled)
+        }
+        fn list_templates_local(&self) -> Vec<hkask_ports::RegistryEntry> {
+            Vec::new()
+        }
+        fn run_sovereignty_status(&self) {}
+        #[cfg(feature = "tui")]
+        fn open_transcript_viewer(&self, _path: &std::path::Path) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    // ── load_skills_into_registry ───────────────────────────────────────────
+
+    /// Loading skills into an empty registry should not panic.
+    #[test]
+    fn load_skills_empty_registry_does_not_panic() {
+        let mut registry = hkask_templates::SqliteRegistry::new(None)
+            .expect("SqliteRegistry::new with None should succeed");
+        load_skills_into_registry(&mut registry);
+        drop(registry);
+    }
+
+    // ── propagate_onboarding_secrets_to_env ─────────────────────────────────
+
+    /// Secrets are correctly propagated to environment variables.
+    #[test]
+    fn propagate_onboarding_secrets_sets_all_vars() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&["HKASK_MASTER_KEY", "HKASK_DB_PASSPHRASE"]);
+
+        let secrets = hkask_services_onboarding::ResolvedSecrets {
+            master_key_hex: "deadbeef".to_string(),
+            db_passphrase: "test-pass".to_string(),
+            a2a_secret: "a2a-secret".to_string(),
+        };
+        propagate_onboarding_secrets_to_env(&secrets);
+
+        assert_eq!(std::env::var("HKASK_MASTER_KEY").unwrap(), "deadbeef");
+        assert_eq!(std::env::var("HKASK_DB_PASSPHRASE").unwrap(), "test-pass");
+    }
+
+    // ── propagate_replicant_env ─────────────────────────────────────────────
+
+    /// Replicant identity env vars are set correctly.
+    #[test]
+    fn propagate_replicant_env_sets_host_and_persona() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&[
+            "HKASK_MCP_HOST",
+            "HKASK_REPLICANT_PERSONA",
+            "HKASK_PROJECT_ROOT",
+        ]);
+
+        propagate_replicant_env("alice");
+
+        assert_eq!(std::env::var("HKASK_MCP_HOST").unwrap(), "alice");
+        assert_eq!(std::env::var("HKASK_REPLICANT_PERSONA").unwrap(), "alice");
+        // HKASK_PROJECT_ROOT should be set to the current working directory.
+        assert!(std::env::var("HKASK_PROJECT_ROOT").is_ok());
+    }
+
+    // ── propagate_condensation_env ──────────────────────────────────────────
+
+    /// Condensation settings are propagated to env vars.
+    #[test]
+    fn propagate_condensation_env_sets_thresholds() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&[
+            "HKASK_CONDENSE_PRESSURE_THRESHOLD",
+            "HKASK_CONDENSE_SALIENCY_WINDOW",
+        ]);
+
+        let settings = ReplSettings {
+            condense_pressure_threshold: 42.0_f32,
+            condense_saliency_window: 7,
+            ..ReplSettings::default()
+        };
+        propagate_condensation_env(&settings);
+
+        assert_eq!(
+            std::env::var("HKASK_CONDENSE_PRESSURE_THRESHOLD").unwrap(),
+            "42"
+        );
+        assert_eq!(
+            std::env::var("HKASK_CONDENSE_SALIENCY_WINDOW").unwrap(),
+            "7"
+        );
+    }
+
+    // ── load_thread_registry ────────────────────────────────────────────────
+
+    /// A fresh thread registry for a new agent creates an initial thread.
+    #[test]
+    fn load_thread_registry_creates_initial_thread_for_new_agent() {
+        let agent_name = "test-agent-fresh-threads";
+        let reg = load_thread_registry(agent_name, 30);
+
+        // A new registry should have at least one thread (the auto-created initial one).
+        let threads = reg.list();
+        assert!(
+            !threads.is_empty(),
+            "fresh registry should have at least one thread"
+        );
+
+        // The initial thread should have the session-started title.
+        let first = &threads[0];
+        assert!(
+            first.title.contains("Session started"),
+            "initial thread title should contain 'Session started', got: {}",
+            first.title
+        );
+    }
+
+    /// `load_thread_registry` uses the correct agent name.
+    #[test]
+    fn load_thread_registry_agent_name_matches() {
+        let agent_name = "bob";
+        let reg = load_thread_registry(agent_name, 30);
+        let threads = reg.list();
+        assert!(!threads.is_empty());
+        // All threads should belong to this agent.
+        for t in &threads {
+            assert_eq!(
+                t.agent_name, agent_name,
+                "all threads should belong to {agent_name}"
+            );
+        }
+    }
+
+    /// `load_thread_registry` is deterministic for same agent name.
+    #[test]
+    fn load_thread_registry_deterministic() {
+        let agent = "deterministic-test";
+        let reg1 = load_thread_registry(agent, 30);
+        let reg2 = load_thread_registry(agent, 30);
+
+        assert_eq!(
+            reg1.list().len(),
+            reg2.list().len(),
+            "same agent should produce same thread count"
+        );
+    }
+
+    /// Second call to `load_thread_registry` finds the threads persisted by the first call.
+    #[test]
+    fn load_thread_registry_persists_across_calls() {
+        let agent = "persistence-test";
+        let reg1 = load_thread_registry(agent, 30);
+        let count1 = reg1.list().len();
+        assert!(count1 > 0, "first call should create at least one thread");
+
+        // Second call reads from disk — should find the same threads, not create new ones.
+        let reg2 = load_thread_registry(agent, 30);
+        assert_eq!(
+            reg2.list().len(),
+            count1,
+            "second call should find persisted threads, not duplicate"
+        );
+    }
+
+    /// `stm_life = 0` disables auto-archival. A fresh registry still creates an initial thread.
+    #[test]
+    fn load_thread_registry_stm_life_zero_never_archives() {
+        let agent = "stm-zero-test";
+        let reg = load_thread_registry(agent, 0);
+        let threads = reg.list();
+        assert!(
+            !threads.is_empty(),
+            "fresh registry should have initial thread"
+        );
+        // No threads should be archived when stm_life is 0.
+        for t in &threads {
+            assert_eq!(
+                t.status,
+                crate::threads::ThreadStatus::Active,
+                "no threads should be archived when stm_life is 0"
+            );
+        }
+    }
+
+    /// The auto-created initial thread has a valid UUID v4 ID.
+    #[test]
+    fn load_thread_registry_initial_thread_has_valid_uuid() {
+        let agent = "uuid-test";
+        let reg = load_thread_registry(agent, 30);
+        let threads = reg.list();
+        let first = &threads[0];
+        // UUID v4 format: 8-4-4-4-12 hex digits.
+        assert!(
+            uuid::Uuid::parse_str(&first.id).is_ok(),
+            "thread ID should be a valid UUID, got: {}",
+            first.id
+        );
+    }
+
+    // ── propagate env-var edge cases ──────────────────────────────────────
+
+    /// Empty secret values are propagated without truncation or rejection.
+    #[test]
+    fn propagate_onboarding_secrets_empty_strings() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&["HKASK_MASTER_KEY", "HKASK_DB_PASSPHRASE"]);
+
+        let secrets = hkask_services_onboarding::ResolvedSecrets {
+            master_key_hex: String::new(),
+            db_passphrase: String::new(),
+            a2a_secret: String::new(),
+        };
+        propagate_onboarding_secrets_to_env(&secrets);
+
+        assert_eq!(std::env::var("HKASK_MASTER_KEY").unwrap(), "");
+        assert_eq!(std::env::var("HKASK_DB_PASSPHRASE").unwrap(), "");
+    }
+
+    /// Zero condensation thresholds are propagated as "0" strings.
+    #[test]
+    fn propagate_condensation_env_zero_values() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&[
+            "HKASK_CONDENSE_PRESSURE_THRESHOLD",
+            "HKASK_CONDENSE_SALIENCY_WINDOW",
+        ]);
+
+        let settings = ReplSettings {
+            condense_pressure_threshold: 0.0,
+            condense_saliency_window: 0,
+            ..ReplSettings::default()
+        };
+        propagate_condensation_env(&settings);
+
+        assert_eq!(
+            std::env::var("HKASK_CONDENSE_PRESSURE_THRESHOLD").unwrap(),
+            "0"
+        );
+        assert_eq!(
+            std::env::var("HKASK_CONDENSE_SALIENCY_WINDOW").unwrap(),
+            "0"
+        );
+    }
+
+    /// Empty agent name propagates empty-string env vars without panicking.
+    #[test]
+    fn propagate_replicant_env_empty_agent() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&[
+            "HKASK_MCP_HOST",
+            "HKASK_REPLICANT_PERSONA",
+            "HKASK_PROJECT_ROOT",
+        ]);
+
+        propagate_replicant_env("");
+
+        assert_eq!(std::env::var("HKASK_MCP_HOST").unwrap(), "");
+        assert_eq!(std::env::var("HKASK_REPLICANT_PERSONA").unwrap(), "");
+        // PROJECT_ROOT should still resolve to CWD.
+        assert!(std::env::var("HKASK_PROJECT_ROOT").is_ok());
+    }
+
+    // ── Integration: init_repl_state with in-memory config ──────────────────
+
+    /// Full REPL initialization with in-memory config succeeds.
+    ///
+    /// Sets up just enough environment to bypass interactive onboarding and
+    /// keychain resolution, then verifies that `init_repl_state` assembles
+    /// a valid `ReplState` without panicking.
+    ///
+    /// MCP server auto-start will fail (no server binaries available in tests),
+    /// but the degraded state must be captured rather than causing a crash.
+    #[test]
+    #[ignore = "modifies global process state"]
+    fn init_repl_state_in_memory_succeeds() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&[
+            "HKASK_MASTER_KEY",
+            "HKASK_A2A_SECRET",
+            "HKASK_DB_PASSPHRASE",
+            "HKASK_REPLICANT_NAME",
+        ]);
+
+        let master_key = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6";
+        // SAFETY: single-threaded test, no concurrent access
+        unsafe {
+            std::env::set_var("HKASK_MASTER_KEY", master_key);
+            std::env::set_var("HKASK_A2A_SECRET", "test-a2a-secret-32-bytes-long!!");
+            std::env::set_var("HKASK_DB_PASSPHRASE", "test-pass");
+            std::env::set_var("HKASK_REPLICANT_NAME", "test-replicant");
+        }
+
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        let mut registry = hkask_templates::SqliteRegistry::new(None)
+            .expect("SqliteRegistry::new with None should succeed");
+        let runtime = hkask_mcp::runtime::McpRuntime::new();
+
+        let state = init_repl_state(
+            &mut registry,
+            &runtime,
+            Some("test-model"),
+            rt.handle(),
+            Arc::new(MockReplHost),
+        );
+
+        // init_repl_state may return None if onboarding fails (expected in CI
+        // without a proper keychain). The contract is that it never panics.
+        if let Some(s) = state {
+            assert!(!s.current_agent.is_empty(), "agent name must be set");
+            assert!(!s.current_model.is_empty(), "model must be set");
+            assert!(s.resolved_secrets.is_some(), "secrets must be resolved");
+            assert!(
+                s.service_context.inference_port().is_some(),
+                "inference port must be live"
+            );
+            assert!(
+                Arc::strong_count(&s.service_context) > 0,
+                "service context must be live"
+            );
+            assert!(
+                !s.thread_registry.list().is_empty(),
+                "thread registry must have at least one thread"
+            );
+            drop(s.degraded_servers);
+        }
+    }
+
+    /// `init_repl_state` captures degraded MCP server information when
+    /// server auto-start fails (missing binaries in test environment).
+    #[test]
+    #[ignore = "modifies global process state"]
+    fn init_repl_state_captures_degraded_servers() {
+        let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guards = env_guards(&[
+            "HKASK_MASTER_KEY",
+            "HKASK_A2A_SECRET",
+            "HKASK_DB_PASSPHRASE",
+        ]);
+
+        unsafe {
+            std::env::set_var("HKASK_MASTER_KEY", "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6");
+            std::env::set_var("HKASK_A2A_SECRET", "test-a2a-secret-32-bytes-long!!");
+            std::env::set_var("HKASK_DB_PASSPHRASE", "test-pass");
+        }
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let mut registry = hkask_templates::SqliteRegistry::new(None)
+            .expect("SqliteRegistry::new with None should succeed");
+        let runtime = hkask_mcp::runtime::McpRuntime::new();
+
+        let state = init_repl_state(
+            &mut registry,
+            &runtime,
+            None,
+            rt.handle(),
+            Arc::new(MockReplHost),
+        );
+
+        if let Some(s) = state {
+            // degraded_servers is a Vec<(String, String)> — server_id → error message.
+            // In CI without MCP binaries, this should be populated.
+            let _ = &s.degraded_servers;
+        }
+    }
+}

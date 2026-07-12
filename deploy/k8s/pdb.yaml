@@ -1,0 +1,13 @@
+# PodDisruptionBudget: prevent voluntary disruptions from evicting the
+# sole kask pod. With replicas=1, any eviction means downtime.
+# maxUnavailable: 0 means the cluster must not voluntarily evict this pod.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hkask-pdb
+  namespace: hkask
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: hkask

@@ -1,0 +1,888 @@
+//! hKask MCP Companies — Dual-provider company financial data (FMP + EODHD)
+//!
+//! Tools are provider-agnostic: each tool routes to FMP or EODHD based on
+//! symbol characteristics, with automatic fallback. EODHD responses are
+//! normalized to match FMP format so analysis functions work transparently.
+//!
+//! ## Financial data tools
+//! - `company_profile` — Company profile by symbol
+//! - `stock_quote` — Real-time stock quote
+//! - `income_statement` — Income statements
+//! - `balance_sheet` — Balance sheet statements
+//! - `cash_flow_statement` — Cash flow statements
+//! - `key_metrics` — Key financial metrics
+//! - `historical_price` — Historical price data
+//! - `symbol_search` — Symbol search
+//!
+//! ## MAIA fundamental analysis
+//! - `moat_check` — Competitive moat: gross margin stability + WC signal
+//! - `management_scorecard` — CEO capital allocation scorecard (ROIC vs IC)
+//! - `working_capital_cycle` — CFO working capital analysis (DPO, DSO, CCC)
+//!
+//! ## Valuation tools
+//! - `dcf_valuation` — Two-stage 11-line-item DCF (Damodaran 2012)
+//! - `reverse_dcf` — Market-implied growth rate (Mauboussin's Expectations Investing)
+//! - `ep_valuation` — Economic Profit / Residual Income Model (Bergen et al. 2025)
+//! - `comparable_analysis` — Peer multiples + DCF overlay
+//! - `scenario_analysis` — Schwartz 2×2 scenario matrix
+//! - `sensitivity_analysis` — Driver-by-driver intrinsic value sensitivity
+//! - `monte_carlo_dcf` — N-simulation Monte Carlo with histogram
+//! - `calibrate_forecast` — Fermi decomposition + Bayesian update (Tetlock)
+//! - `forecast_record` — Forecast-vs-actual decomposition (11-line-item gap)
+//!
+//! ## Research & screening
+//! - `research_search` — Multi-provider claim search with classification
+//! - `stock_screener` — Natural language screening
+//! - `expectations_gap` — Market-implied vs management vs analyst growth gap
+//!
+//! ## Portfolio tools
+//! - `ledger_import` — Import CSV/JSON (auto-creates portfolio)
+//! - `ledger_export` — Export CSV/JSON
+//! - `portfolio_list` — List all portfolios
+//! - `portfolio_delete` — Delete a portfolio
+//! - `transaction_note_append` — Annotate a transaction
+//! - `note_add` — Add a research note to a security
+//! - `note_list` — List notes with optional date/tag filtering
+//! - `note_delete` — Delete a note
+//! - `file_attach` — Attach a file (base64) to a security
+//! - `file_list` — List attached files for a security
+//! - `file_delete` — Delete an attached file
+//! - `portfolio_attribution` — What moved the portfolio
+//! - `portfolio_characteristics` — Weighted-average fundamentals
+//! - `portfolio_comparison` — Side-by-side comparison
+//! - `portfolio_returns` — TWR and IRR for any date range
+//!
+//! ## Data quality framework (FinGPT §3.2)
+//! - CNS `data_quality` spans on every valuation tool — staleness, CV, confidence
+//! - `SignalQuality` on DCF/scenario outputs — outlier flags, cyclicality detection
+//! - `LearningState` temporal coherence — RLSP-style market signal feedback
+//! - `ResearchClaimClassifier` — category tagging, numeric extraction, ticker detection
+//! - Treasury stock adjustment — hKask non-standard: TS treated as committed capital
+//!
+//! ## FIBO anchoring
+//! Balance sheet items under `fibo-fbc-pas-fpas`, ratios under `fibo-fbc-fct-ra`,
+//! securities under `fibo-sec-sec-ast`, indices under `fibo-ind-ind-ind`.
+
+#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+
+// Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
+
+use chrono::Datelike;
+use hkask_mcp::server::{McpToolError, execute_tool, validate_identifier};
+use hkask_mcp::{DaemonClient, DaemonResponse};
+use hkask_types::time::now_rfc3339;
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use uuid::Uuid;
+
+mod analysis;
+pub mod data_quality;
+pub mod economic_profit;
+pub mod fibo;
+mod financial_model;
+mod portfolio;
+mod providers;
+pub mod research;
+mod scenarios;
+mod screener;
+mod superforecast;
+pub mod types;
+
+use portfolio::{PersistedForecast, PortfolioManager};
+
+use types::*;
+pub mod tools;
+
+// ── Forecast store ───────────────────────────────────────────────────
+
+/// A stored forecast model for later decomposition during `forecast_record`.
+#[derive(Debug, Clone)]
+struct StoredForecast {
+    model: financial_model::ProjectedModel,
+    assumptions: financial_model::ProjectionAssumptions,
+    current_price: f64,
+    intrinsic_per_share: f64,
+}
+
+impl StoredForecast {
+    fn snapshot(&self) -> serde_json::Value {
+        serde_json::json!({
+            "model": {
+                "periods": self.model.periods.iter().map(|period| serde_json::json!({
+                    "period": period.period, "year": period.year, "revenue": period.revenue,
+                    "cogs": period.cogs, "gross_profit": period.gross_profit, "da": period.da,
+                    "ebit": period.ebit, "tax": period.tax, "nopat": period.nopat,
+                    "capex": period.capex, "change_in_nwc": period.change_in_nwc,
+                    "free_cash_flow": period.free_cash_flow, "discount_factor": period.discount_factor,
+                    "present_value": period.present_value,
+                })).collect::<Vec<_>>(),
+                "terminal_value": self.model.terminal_value,
+                "terminal_pv": self.model.terminal_pv,
+                "enterprise_value": self.model.enterprise_value,
+                "net_debt": self.model.net_debt,
+                "equity_value": self.model.equity_value,
+                "intrinsic_per_share": self.model.intrinsic_per_share,
+            },
+            "assumptions": {
+                "revenue_growth": self.assumptions.revenue_growth,
+                "gross_margin": self.assumptions.gross_margin,
+                "da_to_revenue": self.assumptions.da_to_revenue,
+                "capex_to_revenue": self.assumptions.capex_to_revenue,
+                "nwc_to_revenue": self.assumptions.nwc_to_revenue,
+                "tax_rate": self.assumptions.tax_rate,
+                "discount_rate": self.assumptions.discount_rate,
+                "terminal_growth": self.assumptions.terminal_growth,
+                "total_years": self.assumptions.total_years,
+                "stage1_years": self.assumptions.stage1_years,
+            },
+            "current_price": self.current_price,
+            "intrinsic_per_share": self.intrinsic_per_share,
+        })
+    }
+
+    fn from_snapshot(snapshot: &serde_json::Value) -> Result<Self, String> {
+        let number = |value: &serde_json::Value, key: &str| {
+            value
+                .get(key)
+                .and_then(serde_json::Value::as_f64)
+                .ok_or_else(|| format!("forecast snapshot missing numeric '{key}'"))
+        };
+        let integer = |value: &serde_json::Value, key: &str| {
+            value
+                .get(key)
+                .and_then(serde_json::Value::as_u64)
+                .ok_or_else(|| format!("forecast snapshot missing integer '{key}'"))
+        };
+        let model = snapshot
+            .get("model")
+            .ok_or_else(|| "forecast snapshot missing model".to_string())?;
+        let assumptions = snapshot
+            .get("assumptions")
+            .ok_or_else(|| "forecast snapshot missing assumptions".to_string())?;
+        let periods = model
+            .get("periods")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| "forecast snapshot missing periods".to_string())?
+            .iter()
+            .map(|period| {
+                Ok(financial_model::ProjectedLineItems {
+                    period: integer(period, "period")? as usize,
+                    year: number(period, "year")?,
+                    revenue: number(period, "revenue")?,
+                    cogs: number(period, "cogs")?,
+                    gross_profit: number(period, "gross_profit")?,
+                    da: number(period, "da")?,
+                    ebit: number(period, "ebit")?,
+                    tax: number(period, "tax")?,
+                    nopat: number(period, "nopat")?,
+                    capex: number(period, "capex")?,
+                    change_in_nwc: number(period, "change_in_nwc")?,
+                    free_cash_flow: number(period, "free_cash_flow")?,
+                    discount_factor: number(period, "discount_factor")?,
+                    present_value: number(period, "present_value")?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        Ok(Self {
+            model: financial_model::ProjectedModel {
+                periods,
+                terminal_value: number(model, "terminal_value")?,
+                terminal_pv: number(model, "terminal_pv")?,
+                enterprise_value: number(model, "enterprise_value")?,
+                net_debt: number(model, "net_debt")?,
+                equity_value: number(model, "equity_value")?,
+                intrinsic_per_share: number(model, "intrinsic_per_share")?,
+            },
+            assumptions: financial_model::ProjectionAssumptions {
+                revenue_growth: number(assumptions, "revenue_growth")?,
+                gross_margin: number(assumptions, "gross_margin")?,
+                da_to_revenue: number(assumptions, "da_to_revenue")?,
+                capex_to_revenue: number(assumptions, "capex_to_revenue")?,
+                nwc_to_revenue: number(assumptions, "nwc_to_revenue")?,
+                tax_rate: number(assumptions, "tax_rate")?,
+                discount_rate: number(assumptions, "discount_rate")?,
+                terminal_growth: number(assumptions, "terminal_growth")?,
+                total_years: integer(assumptions, "total_years")? as u8,
+                stage1_years: integer(assumptions, "stage1_years")? as u8,
+            },
+            current_price: number(snapshot, "current_price")?,
+            intrinsic_per_share: number(snapshot, "intrinsic_per_share")?,
+        })
+    }
+}
+
+/// Extract the terminal multiple implied by the projected model.
+fn projected_terminal_multiple(model: &financial_model::ProjectedModel) -> f64 {
+    if let Some(last) = model.periods.last() {
+        if last.free_cash_flow > 0.0 {
+            model.terminal_value / last.free_cash_flow
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    }
+}
+
+/// Approximate a current price from a valuation multiple and historical data.
+fn current_price_from_multiple(multiple: f64, hist: &financial_model::HistoricalSnapshot) -> f64 {
+    let latest_fcf =
+        hist.latest_revenue() * hist.gross_margin() - hist.latest_da() - hist.latest_capex();
+    if hist.shares_outstanding > 0.0 {
+        (latest_fcf * multiple) / hist.shares_outstanding
+    } else {
+        0.0
+    }
+}
+
+// ── Validation ──────────────────────────────────────────────────────
+
+fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
+    // Allow exchange-qualified symbols (e.g., VOD.L, BMW.DE) for EODHD
+    validate_identifier("symbol", symbol, 32)
+}
+
+/// Extract a symbol from a query string for learning state tracking.
+/// Handles: "symbol=AAPL", "symbol=VOD.L", "query=..." (search queries).
+fn parse_symbol_from_query(query: &str) -> Option<String> {
+    if let Some(sym) = query.strip_prefix("symbol=") {
+        let sym = sym.split('&').next().unwrap_or(sym);
+        if !sym.is_empty() {
+            return Some(sym.to_string());
+        }
+    }
+    // For symbol_search, the query IS the search term — use it directly.
+    if let Some(q) = query.strip_prefix("query=")
+        && !q.is_empty()
+    {
+        return Some(q.to_string());
+    }
+    None
+}
+
+// ── Server struct ──────────────────────────────────────────────────
+
+/// Learning state — tracks user feedback per (tool, symbol, provider) to adapt
+/// provider routing. Uses Beta(α+1, β+1) conjugate prior (same statistical
+/// foundation as CNS ToolStats Layer 2) for Bayesian reliability tracking.
+///
+/// Temporal coherence (FinGPT RLSP-inspired): also tracks price snapshots
+/// at fetch time so we can detect when a provider returned stale data.
+///
+/// Statistical foundation: each (symbol, provider) maintains α = successes+1,
+/// β = failures+1. The posterior success probability is α/(α+β). A provider
+/// is flaky when P(success) < 0.70 with at least 5 observations.
+#[derive(Debug, Clone, Default)]
+pub struct LearningState {
+    /// (symbol, provider) → (α_successes, β_failures, n_total)
+    /// Beta posterior: P(success) = α / (α+β)
+    provider_scores: std::collections::HashMap<(String, String), (u64, u64, u64)>,
+    /// Temporal snapshots: (symbol, provider) → most recent snapshot.
+    temporal_snapshots: std::collections::HashMap<(String, String), data_quality::TemporalSnapshot>,
+}
+
+impl LearningState {
+    /// Record a user rating for a tool result. Updates Beta conjugate prior.
+    ///
+    /// Scores 4–5 count as successes (the data was useful/accurate).
+    /// Scores 1–3 count as failures (the data missed or misled).
+    /// None (comments only) counts as an observation without success/failure.
+    pub fn record(&mut self, symbol: &str, provider: &str, score: Option<u8>) {
+        let key = (symbol.to_string(), provider.to_string());
+        let entry = self.provider_scores.entry(key).or_insert((1, 1, 0));
+        if let Some(s) = score {
+            entry.2 += 1; // only count scored observations toward threshold
+            if s >= 4 {
+                entry.0 += 1; // α: success
+            } else {
+                entry.1 += 1; // β: failure
+            }
+        }
+        // Comments-only ratings don't affect probability or threshold
+    }
+
+    /// Beta posterior success probability: α / (α + β).
+    pub fn success_probability(&self, symbol: &str, provider: &str) -> Option<f64> {
+        let key = (symbol.to_string(), provider.to_string());
+        let (alpha, beta, n) = self.provider_scores.get(&key)?;
+        if *n == 0 {
+            return None;
+        }
+        Some(*alpha as f64 / (*alpha + *beta) as f64)
+    }
+
+    /// Number of observations for this (symbol, provider).
+    pub fn observation_count(&self, symbol: &str, provider: &str) -> u64 {
+        self.provider_scores
+            .get(&(symbol.to_string(), provider.to_string()))
+            .map(|(_, _, n)| *n)
+            .unwrap_or(0)
+    }
+
+    /// Record a temporal snapshot for later coherence checking.
+    pub fn record_temporal_snapshot(
+        &mut self,
+        symbol: &str,
+        provider: &str,
+        price: f64,
+        latest_filing_date: Option<String>,
+    ) {
+        let key = (symbol.to_string(), provider.to_string());
+        self.temporal_snapshots.insert(
+            key,
+            data_quality::TemporalSnapshot {
+                fetched_at: now_rfc3339(),
+                price_at_fetch: price,
+                latest_filing_date,
+            },
+        );
+    }
+
+    /// Check temporal coherence for a symbol/provider: how stale was the
+    /// data at fetch time? Returns None if no snapshot exists.
+    pub fn check_staleness(&self, symbol: &str, provider: &str) -> Option<u32> {
+        let key = (symbol.to_string(), provider.to_string());
+        let snapshot = self.temporal_snapshots.get(&key)?;
+        let now = chrono::Utc::now();
+        snapshot.staleness_days(&now)
+    }
+
+    /// Check if a provider should be avoided for a given symbol.
+    /// Uses Beta posterior: flaky when P(success) < 0.70 with ≥5 observations.
+    pub fn is_flaky(&self, symbol: &str, provider: &str) -> bool {
+        if let Some(prob) = self.success_probability(symbol, provider) {
+            prob < 0.70 && self.observation_count(symbol, provider) >= 5
+        } else {
+            false
+        }
+    }
+
+    /// Check if a provider consistently returns stale data for a symbol.
+    pub fn is_chronically_stale(&self, symbol: &str, provider: &str) -> bool {
+        self.check_staleness(symbol, provider)
+            .map(|days| days > 90)
+            .unwrap_or(false)
+    }
+
+    /// Get the preferred provider for a symbol based on learning.
+    /// Emits a CNS routing span when learning overrides the default provider.
+    pub fn preferred_provider(&self, symbol: &str, default_provider: &str) -> Option<String> {
+        let fmp_flaky = self.is_flaky(symbol, "FMP") || self.is_chronically_stale(symbol, "FMP");
+        let eodhd_flaky =
+            self.is_flaky(symbol, "EODHD") || self.is_chronically_stale(symbol, "EODHD");
+
+        let result = if fmp_flaky && !eodhd_flaky {
+            Some("EODHD".to_string())
+        } else if eodhd_flaky && !fmp_flaky {
+            Some("FMP".to_string())
+        } else {
+            None
+        };
+
+        // CNS routing span: when learning overrides the default, emit observability
+        if let Some(ref chosen) = result {
+            let fmp_prob = self.success_probability(symbol, "FMP").unwrap_or(1.0);
+            let eodhd_prob = self.success_probability(symbol, "EODHD").unwrap_or(1.0);
+            tracing::debug!(
+                target: "cns.mcp.companies.routing",
+                symbol = %symbol,
+                default = %default_provider,
+                chosen = %chosen,
+                fmp_success_prob = %fmp_prob,
+                eodhd_success_prob = %eodhd_prob,
+                fmp_stale = %self.is_chronically_stale(symbol, "FMP"),
+                eodhd_stale = %self.is_chronically_stale(symbol, "EODHD"),
+                "Provider routing: learning override active"
+            );
+        }
+
+        result
+    }
+
+    /// Export learning state as JSON for CNS consumption / persistence.
+    pub fn export_state(&self) -> serde_json::Value {
+        let mut map = serde_json::Map::new();
+        for ((symbol, provider), (alpha, beta, n)) in &self.provider_scores {
+            let prob = if *n > 0 {
+                *alpha as f64 / (*alpha + *beta) as f64
+            } else {
+                1.0
+            };
+            let key = format!("{symbol}@{provider}");
+            map.insert(
+                key,
+                serde_json::json!({
+                    "symbol": symbol,
+                    "provider": provider,
+                    "alpha": alpha,
+                    "beta": beta,
+                    "observations": n,
+                    "success_probability": prob,
+                }),
+            );
+        }
+        serde_json::Value::Object(map)
+    }
+}
+
+hkask_mcp::mcp_server!(
+    struct CompaniesServer {
+        pub client: reqwest::Client,
+        pub fmp_api_key: String,
+        pub eodhd_api_key: String,
+        pub exa_api_key: Option<String>,
+        pub tavily_api_key: Option<String>,
+        pub brave_api_key: Option<String>,
+        pub portfolio: PortfolioManager,
+        pub learning: std::sync::Arc<std::sync::Mutex<LearningState>>,
+        pub fermi_defaults: superforecast::FermiDefaults,
+    }
+);
+
+impl CompaniesServer {
+    async fn fetch(
+        &self,
+        tool: &str,
+        symbol: &str,
+        extra: &[(&str, &str)],
+    ) -> Result<serde_json::Value, McpToolError> {
+        let l = self
+            .learning
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        providers::companies_get(
+            &self.client,
+            tool,
+            symbol,
+            &self.fmp_api_key,
+            &self.eodhd_api_key,
+            extra,
+            Some(&l),
+        )
+        .await
+    }
+    async fn save_forecast(&self, forecast: PersistedForecast) -> Result<(), McpToolError> {
+        let portfolio = self.portfolio.clone();
+        tokio::task::spawn_blocking(move || portfolio.save_forecast(&forecast))
+            .await
+            .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
+            .map_err(McpToolError::internal)
+    }
+
+    async fn get_persisted_forecast(
+        &self,
+        forecast_id: String,
+    ) -> Result<Option<PersistedForecast>, McpToolError> {
+        let portfolio = self.portfolio.clone();
+        tokio::task::spawn_blocking(move || portfolio.get_forecast(&forecast_id))
+            .await
+            .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
+            .map_err(McpToolError::internal)
+    }
+
+    async fn list_persisted_forecasts(
+        &self,
+        symbol: String,
+    ) -> Result<Vec<PersistedForecast>, McpToolError> {
+        let portfolio = self.portfolio.clone();
+        tokio::task::spawn_blocking(move || portfolio.list_forecasts(&symbol))
+            .await
+            .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
+            .map_err(McpToolError::internal)
+    }
+
+    async fn record_persisted_forecast_outcome(
+        &self,
+        forecast_id: String,
+        outcome: serde_json::Value,
+    ) -> Result<(), McpToolError> {
+        let portfolio = self.portfolio.clone();
+        tokio::task::spawn_blocking(move || {
+            portfolio.record_forecast_outcome(&forecast_id, outcome)
+        })
+        .await
+        .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
+        .map_err(McpToolError::internal)
+    }
+
+    /// Record a tool call as a narrative experience in the agent's memory.
+    fn record_experience(
+        &self,
+        tool: &str,
+        input_summary: &str,
+        outcome: &str,
+        detail: serde_json::Value,
+    ) {
+        if let Some(ref daemon) = self.daemon {
+            let value = serde_json::json!({
+                "tool": tool,
+                "input": input_summary,
+                "outcome": outcome,
+                "detail": detail,
+                "timestamp": now_rfc3339(),
+            });
+            let daemon_clone = daemon.clone();
+            let replicant = self.replicant.clone();
+            let tool_name = tool.to_string();
+            tokio::spawn(async move {
+                match daemon_clone
+                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .await
+                {
+                    Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
+                        tracing::debug!(target: "cns.mcp.companies.memory", tool = %tool_name, "Experience stored via daemon");
+                    }
+                    Ok(other) => {
+                        tracing::warn!(target: "cns.mcp.companies.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "cns.mcp.companies.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                    }
+                }
+            });
+        }
+    }
+}
+
+// ── Combined tool router (P5 Essentialism — modular tool groups) ──────────
+
+impl CompaniesServer {
+    fn combined_router() -> rmcp::handler::server::router::tool::ToolRouter<Self> {
+        Self::financial_data_router()
+            + Self::analysis_router()
+            + Self::portfolio_router()
+            + Self::analytics_router()
+            + Self::valuation_router()
+            + Self::economic_profit_router()
+            + Self::expectations_router()
+    }
+}
+
+#[rmcp::tool_handler(router = Self::combined_router())]
+impl rmcp::ServerHandler for CompaniesServer {}
+
+// ── Entry point ─────────────────────────────────────────────────────
+
+/// Run the companies MCP server (used by binary target).
+pub async fn run(
+    replicant: String,
+    daemon_client: Option<DaemonClient>,
+) -> Result<(), hkask_mcp::McpError> {
+    hkask_mcp::run_server(
+        "hkask-mcp-companies",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let fmp_api_key = ctx
+                .credentials
+                .get("HKASK_FMP_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            let eodhd_api_key = ctx
+                .credentials
+                .get("HKASK_EODHD_API_KEY")
+                .expect("required credential checked by run_stdio_server")
+                .clone();
+            let exa_api_key = ctx.credentials.get("HKASK_EXA_API_KEY").cloned();
+            let tavily_api_key = ctx.credentials.get("HKASK_TAVILY_API_KEY").cloned();
+            let brave_api_key = ctx.credentials.get("HKASK_BRAVE_API_KEY").cloned();
+            Ok(CompaniesServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                reqwest::Client::new(),
+                fmp_api_key,
+                eodhd_api_key,
+                exa_api_key,
+                tavily_api_key,
+                brave_api_key,
+                PortfolioManager::new(ctx.webid),
+                std::sync::Arc::new(std::sync::Mutex::new(LearningState::default())),
+                superforecast::FermiDefaults::from_env(),
+            ))
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_FMP_API_KEY",
+                "Financial Modeling Prep API key",
+            ),
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_EODHD_API_KEY",
+                "EOD Historical Data (EODHD) API key",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_EXA_API_KEY",
+                "Exa API key for fundamental research search",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_TAVILY_API_KEY",
+                "Tavily API key for fundamental research search",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_BRAVE_API_KEY",
+                "Brave Search API key for fundamental research search",
+            ),
+        ],
+    )
+    .await
+}
+
+// ── Tracer-bullet contracts ───────────────────────────────────────
+
+#[cfg(test)]
+mod poison_tests;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── durable forecast snapshots ─────────────────────────────────
+
+    #[test]
+    fn stored_forecast_snapshot_reconstructs_decomposition_model() {
+        let stored = StoredForecast {
+            model: financial_model::ProjectedModel {
+                periods: vec![financial_model::ProjectedLineItems {
+                    period: 1,
+                    year: 2026.0,
+                    revenue: 120.0,
+                    cogs: 72.0,
+                    gross_profit: 48.0,
+                    da: 4.0,
+                    ebit: 44.0,
+                    tax: 9.0,
+                    nopat: 35.0,
+                    capex: 6.0,
+                    change_in_nwc: 2.0,
+                    free_cash_flow: 27.0,
+                    discount_factor: 0.9,
+                    present_value: 24.3,
+                }],
+                terminal_value: 300.0,
+                terminal_pv: 270.0,
+                enterprise_value: 294.3,
+                net_debt: 20.0,
+                equity_value: 274.3,
+                intrinsic_per_share: 27.43,
+            },
+            assumptions: financial_model::ProjectionAssumptions::default(),
+            current_price: 20.0,
+            intrinsic_per_share: 27.43,
+        };
+
+        let reconstructed = StoredForecast::from_snapshot(&stored.snapshot()).unwrap();
+        assert_eq!(reconstructed.model.periods.len(), 1);
+        assert_eq!(reconstructed.model.periods[0].free_cash_flow, 27.0);
+        assert_eq!(
+            reconstructed.assumptions.discount_rate,
+            stored.assumptions.discount_rate
+        );
+        assert_eq!(
+            reconstructed.intrinsic_per_share,
+            stored.intrinsic_per_share
+        );
+    }
+
+    // ── expectations_gap: Gordon Growth Model formula ──────────────
+
+    #[test]
+    fn gordon_growth_formula_contract() {
+        let target_return = 0.15f64;
+        let avg_net_margin = 0.10f64;
+        let price_to_sales = 2.0f64;
+        let implied_growth = (target_return - avg_net_margin / price_to_sales) / 2.0;
+        assert!(
+            (implied_growth - 0.05).abs() < 0.0001,
+            "implied growth = 5%"
+        );
+        let hist_growth = 0.03f64;
+        let gap = implied_growth - hist_growth;
+        assert!(
+            (gap - 0.02).abs() < 0.0001,
+            "positive expectations gap = 2%"
+        );
+    }
+
+    #[test]
+    fn gordon_growth_formula_insufficient_data_null_output() {
+        let ps = 0.0;
+        let avg_net_margin = 0.10;
+        let implied: Option<f64> = if ps > 0.0 && avg_net_margin > 0.0 {
+            Some((0.15 - avg_net_margin / ps) / 2.0)
+        } else {
+            None
+        };
+        assert!(implied.is_none(), "zero P/S = no implied growth");
+        let ps = 2.0;
+        let avg_net_margin = 0.0;
+        let implied: Option<f64> = if ps > 0.0 && avg_net_margin > 0.0 {
+            Some((0.15 - avg_net_margin / ps) / 2.0)
+        } else {
+            None
+        };
+        assert!(implied.is_none(), "zero margin = no implied growth");
+    }
+
+    // ── working_capital_cycle: CFO rating boundaries ───────────────
+
+    #[test]
+    fn cfo_rating_boundaries_contract() {
+        let perfect = [20.0, 20.0, 20.0, 20.0];
+        let score = analysis::gross_margin_stability(&perfect);
+        assert!(score > 0.99, "identical spreads = near-perfect stability");
+        assert!(score > 0.8, "= stable CFO rating");
+        let moderate = [20.0, 35.0, 10.0, 40.0];
+        let score = analysis::gross_margin_stability(&moderate);
+        assert!(
+            score > 0.5 && score <= 0.8,
+            "moderate variance = moderate CFO rating: {score}"
+        );
+    }
+
+    #[test]
+    fn cfo_rating_single_period_defaults() {
+        let single = analysis::gross_margin_stability(&[30.0]);
+        assert!((single - 1.0).abs() < 0.001, "single period = 1.0");
+    }
+
+    // ── portfolio_attribution: weight + contribution formulas ───────
+
+    #[test]
+    fn attribution_weight_and_contribution_contract() {
+        let positions = [
+            ("AAPL", 60000.0, 0.15),
+            ("MSFT", 30000.0, 0.05),
+            ("GOOGL", 10000.0, -0.10),
+        ];
+        let total_mv: f64 = positions.iter().map(|(_, mv, _)| mv).sum();
+        assert!((total_mv - 100000.0).abs() < 0.01, "total MV = $100K");
+        let weights: Vec<f64> = positions.iter().map(|(_, mv, _)| mv / total_mv).collect();
+        assert!((weights[0] - 0.60).abs() < 0.001, "AAPL weight = 60%");
+        assert!((weights[1] - 0.30).abs() < 0.001, "MSFT weight = 30%");
+        assert!((weights[2] - 0.10).abs() < 0.001, "GOOGL weight = 10%");
+        let contributions: Vec<f64> = weights
+            .iter()
+            .zip(positions.iter())
+            .map(|(w, (_, _, r))| w * r * 10000.0)
+            .collect();
+        assert!((contributions[0] - 900.0).abs() < 1.0, "AAPL = 900 bps");
+        assert!((contributions[1] - 150.0).abs() < 1.0, "MSFT = 150 bps");
+        assert!(
+            (contributions[2] - (-100.0)).abs() < 1.0,
+            "GOOGL = -100 bps"
+        );
+        let total_return_bps: f64 = contributions.iter().sum();
+        let portfolio_return = total_return_bps / 10000.0;
+        assert!(
+            (portfolio_return - 0.095).abs() < 0.001,
+            "portfolio return = 9.5%"
+        );
+    }
+
+    // ── result_feedback: score validation + conversational prompts ─
+
+    #[test]
+    fn result_feedback_score_range_contract() {
+        // Valid scores: 1–5
+        for s in 1..=5u8 {
+            let valid = (1..=5).contains(&s);
+            assert!(valid, "score {s} should be accepted");
+        }
+        // Invalid scores: 0 and 6+
+        for s in [0u8, 6, 10, 255] {
+            let valid = (1..=5).contains(&s);
+            assert!(!valid, "score {s} should be rejected");
+        }
+    }
+
+    #[test]
+    fn result_feedback_both_optional() {
+        let _score: Option<u8> = None;
+        let _comments: &str = "";
+        assert!(_score.is_none() && _comments.is_empty(), "both optional");
+        let score: Option<u8> = Some(4);
+        assert!(score.is_some(), "score only is valid feedback");
+        let comments: &str = "missing sector field";
+        assert!(!comments.is_empty(), "comments only is valid feedback");
+    }
+    // ── Learning loop integration: feedback → state → routing ────────
+
+    #[test]
+    fn learning_loop_flaky_provider_override() {
+        let mut state = LearningState::default();
+
+        // No data → no provider preference
+        assert!(!state.is_flaky("AAPL", "FMP"));
+        assert!(state.preferred_provider("AAPL", "FMP").is_none());
+
+        // Feed 5 low-score ratings for FMP on AAPL (scores 1-2 → failures)
+        for _ in 0..5 {
+            state.record("AAPL", "FMP", Some(1));
+        }
+        // Beta: α=1, β=6, prob = 1/7 ≈ 0.14 < 0.70 → flaky
+        assert!(state.is_flaky("AAPL", "FMP"));
+        assert_eq!(
+            state.preferred_provider("AAPL", "FMP"),
+            Some("EODHD".to_string()),
+            "FMP flaky → should prefer EODHD"
+        );
+
+        // EODHD is not flaky for AAPL
+        assert!(!state.is_flaky("AAPL", "EODHD"));
+
+        // MSFT has no data → no preference
+        assert!(state.preferred_provider("MSFT", "FMP").is_none());
+    }
+
+    #[test]
+    fn learning_loop_both_flaky_no_override() {
+        let mut state = LearningState::default();
+
+        // Feed flaky ratings for both providers
+        for _ in 0..5 {
+            state.record("VOD.L", "FMP", Some(2));
+            state.record("VOD.L", "EODHD", Some(1));
+        }
+        assert!(state.is_flaky("VOD.L", "FMP"));
+        assert!(state.is_flaky("VOD.L", "EODHD"));
+        // Both flaky → no preference (let default routing handle it)
+        assert!(state.preferred_provider("VOD.L", "FMP").is_none());
+    }
+
+    #[test]
+    fn learning_loop_recovery_after_accurate_ratings() {
+        let mut state = LearningState::default();
+
+        // Make FMP flaky with 5 failures
+        for _ in 0..5 {
+            state.record("AAPL", "FMP", Some(1));
+        }
+        assert!(state.is_flaky("AAPL", "FMP"));
+
+        // Feed 10 accurate ratings (score 4-5 → successes)
+        // Beta needs more evidence to recover: 5β + 10α → α=11, β=6, prob=11/17≈0.647
+        // Still < 0.70 — Beta is conservative. Feed 15 successes.
+        for _ in 0..15 {
+            state.record("AAPL", "FMP", Some(5));
+        }
+        // Beta: α=16, β=6, prob = 16/22 ≈ 0.727 > 0.70 → recovered
+        assert!(
+            !state.is_flaky("AAPL", "FMP"),
+            "should recover after sufficient high scores raise Beta posterior above 0.70"
+        );
+    }
+
+    #[test]
+    fn learning_loop_insufficient_data_no_override() {
+        let mut state = LearningState::default();
+
+        // Only 3 ratings — below the total >= 5 threshold
+        for _ in 0..3 {
+            state.record("AAPL", "FMP", Some(1));
+        }
+        assert!(
+            !state.is_flaky("AAPL", "FMP"),
+            "3 ratings < 5 threshold → not enough data"
+        );
+        assert!(state.preferred_provider("AAPL", "FMP").is_none());
+    }
+}

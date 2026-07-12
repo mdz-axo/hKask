@@ -1,0 +1,298 @@
+//! Curator types — CuratorHandle (capability handle) and CuratorDirective (Curation → Cybernetics).
+//!
+//! Lives in hkask-types as the single source of truth for curator types.
+//!
+//! Per the Authority DAG: Curation (Loop 5) → Cybernetics (Loop 6).
+//! The Curator's types must live in a crate that both Curator (hkask-agents)
+//! and Cybernetics (hkask-cns) can depend on without inversion.
+//!
+//! NOTE: hkask-types must NOT depend on hkask-capability (cycle prevention).
+//! Methods that need capability tokens (e.g., `issue_consolidation_token`) live
+//! as free functions or extension traits in crates that have the capability dep.
+
+use crate::DataCategory;
+use crate::id::WebID;
+use crate::visibility::Visibility;
+
+// ── CuratorHandle — Loop 5 capability handle ────────────────────────────────
+
+/// The Curator's capability handle. Single replicant — the user's
+/// counterpart in `kask chat`. Can read all loop state and write
+/// governance/observability policy.
+///
+/// **Singleton invariant:** There is exactly one Curator per hKask system.
+/// `CurationLoop` owns the single `CuratorHandle` instance; all other code
+/// accesses it through `CuratorContext::handle()`. Construct via
+/// `CuratorHandle::system()` — the `new(WebID)` constructor is `pub(crate)`
+/// to prevent external callers from creating additional handles.
+#[derive(Clone)]
+pub struct CuratorHandle {
+    curator_id: WebID,
+}
+
+impl CuratorHandle {
+    pub fn new_test() -> Self {
+        Self {
+            curator_id: WebID::new(),
+        }
+    }
+
+    /// Create the system CuratorHandle using the system WebID.
+    ///
+    /// The Curator is a singleton — the user's counterpart in `kask chat`.
+    /// This constructor enforces that convention by deriving the ID from
+    /// the "curator" persona.
+    pub fn system() -> Self {
+        Self {
+            curator_id: WebID::from_persona(b"curator"),
+        }
+    }
+
+    pub fn curator_id(&self) -> &WebID {
+        &self.curator_id
+    }
+
+    /// Curator can read everything EXCEPT private episodic memory
+    pub fn can_read(&self, category: &DataCategory) -> bool {
+        !matches!(category, DataCategory::EpisodicMemory)
+    }
+
+    /// Curator can write to shared and public categories that it governs
+    pub fn can_write(&self, category: &DataCategory) -> bool {
+        matches!(
+            category.default_visibility(),
+            Visibility::Shared | Visibility::Public
+        )
+    }
+}
+
+// ── CuratorDirective — Curation → Cybernetics directives ────────────────────
+
+/// Severity level for domain escalations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EscalationSeverity {
+    /// Informational — no action needed.
+    Info,
+    /// Warning — attention recommended.
+    Warning,
+    /// Critical — immediate attention required.
+    Critical,
+}
+
+impl std::fmt::Display for EscalationSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Info => write!(f, "info"),
+            Self::Warning => write!(f, "warning"),
+            Self::Critical => write!(f, "critical"),
+        }
+    }
+}
+
+/// Directives the Curator issues to Cybernetics.
+///
+/// Per ARL IP-3: when the Curation Confidence Gate is in the transition zone
+/// (0.3 < R̄ < 0.8), the regulated response is `SeekMoreEvidence`, which
+/// is routed through Cybernetics to the Inference Loop.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CuratorDirective {
+    CalibrateThreshold {
+        domain: String,
+        new_threshold: u64,
+    },
+    UpdateCapabilities {
+        agent: WebID,
+        additions: Vec<String>,
+        removals: Vec<String>,
+    },
+    /// Override energy budget beyond Cybernetics set-points.
+    ///
+    /// This is the Curation-level metacognitive override. Cybernetics
+    /// uses `ActionType::AdjustEnergyBudget` for automatic within-bounds
+    /// regulation. Curation uses `OverrideEnergyBudget` to exceed bounds.
+    OverrideEnergyBudget {
+        agent: WebID,
+        new_budget: u64,
+    },
+    /// IP-3: Confidence-gated metacognitive directive.
+    /// The Curator requests additional evidence to increase confidence
+    /// in a pending decision. Routed through Cybernetics to Inference.
+    SeekMoreEvidence {
+        /// The decision context requiring more evidence.
+        context: String,
+        /// Which evidence channel to verify (from sensitivity analysis).
+        /// E.g., "llm_confidence", "template_match", "validation_result".
+        channel: String,
+        /// Current R̄ from the Curation Confidence Gate.
+        confidence: String,
+    },
+    /// Replenish an agent's energy budget by a specific amount.
+    ///
+    /// Used when an agent has exhausted its budget but Curation
+    /// \[NORMATIVE\] determines it should continue operating. This is the Curator's (P9 — Homeostatic Self-Regulation).
+    /// ability to inject gas into the system, analogous to Ethereum's
+    /// gas refund mechanism but governed by human/curator authority.
+    ReplenishBudget {
+        agent: WebID,
+        amount: u64,
+        /// Priority weight for replenishment scaling (0.0–1.0).
+        /// When present, Cybernetics scales the replenishment amount by this priority.
+        /// Defaults to 1.0 (full replenishment).
+        priority: Option<f64>,
+    },
+    /// Clear a Curation override on an agent's energy budget.
+    ///
+    /// Removes the agent from the active-overrides registry so that
+    /// normal replenishment resumes. This is the inverse of `OverrideEnergyBudget`.
+    ClearOverride {
+        agent: WebID,
+    },
+    /// Escalate a domain-level variety deficit or quality threat to the user.
+    ///
+    /// Narrows the variety gap: the system has ~500 distinct operations but
+    /// only ~6 regulatory action types. This directive lets the Curator
+    /// surface domain-specific concerns with severity and evidence for
+    /// human review.
+    EscalateDomain {
+        /// Domain identifier (e.g., "inference", "storage", "federation").
+        domain: String,
+        /// Severity of the escalation.
+        severity: EscalationSeverity,
+        /// Human-readable summary of the evidence.
+        evidence: String,
+    },
+    /// Invite a remote server to join the federation.
+    InviteToFederation {
+        peer_replica: String,
+        peer_server_domain: String,
+        peer_matrix_domain: String,
+        peer_curator_matrix_id: String,
+        message: Option<String>,
+    },
+    /// Accept a pending federation invitation.
+    AcceptFederationInvite {
+        invitation_id: String,
+    },
+    /// Reject a pending federation invitation.
+    RejectFederationInvite {
+        invitation_id: String,
+        reason: Option<String>,
+    },
+    /// Pause federation sync with a peer (security measure).
+    PauseFederationLink {
+        peer_replica: String,
+        reason: String,
+    },
+    /// Resume federation sync with a paused peer.
+    ResumeFederationLink {
+        peer_replica: String,
+    },
+    /// Permanently revoke a single member from the federation.
+    RevokeFederationMember {
+        peer_replica: String,
+        reason: String,
+    },
+    /// Voluntarily leave the federation.
+    LeaveFederation {
+        reason: String,
+    },
+    /// Dissolve all federation links.
+    DissolveFederation {
+        reason: String,
+    },
+}
+
+impl CuratorDirective {
+    /// Returns the snake_case variant name for logging and fingerprinting.
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            CuratorDirective::CalibrateThreshold { .. } => "calibrate_threshold",
+            CuratorDirective::UpdateCapabilities { .. } => "update_capabilities",
+            CuratorDirective::OverrideEnergyBudget { .. } => "override_energy_budget",
+            CuratorDirective::SeekMoreEvidence { .. } => "seek_more_evidence",
+            CuratorDirective::ReplenishBudget { .. } => "replenish_budget",
+            CuratorDirective::ClearOverride { .. } => "clear_override",
+            CuratorDirective::InviteToFederation { .. } => "invite_to_federation",
+            CuratorDirective::AcceptFederationInvite { .. } => "accept_federation_invite",
+            CuratorDirective::RejectFederationInvite { .. } => "reject_federation_invite",
+            CuratorDirective::PauseFederationLink { .. } => "pause_federation_link",
+            CuratorDirective::ResumeFederationLink { .. } => "resume_federation_link",
+            CuratorDirective::RevokeFederationMember { .. } => "revoke_federation_member",
+            CuratorDirective::LeaveFederation { .. } => "leave_federation",
+            CuratorDirective::DissolveFederation { .. } => "dissolve_federation",
+            CuratorDirective::EscalateDomain { .. } => "escalate_domain",
+        }
+    }
+
+    /// Returns the agent targeted by this directive, if applicable.
+    ///
+    /// Directives that target a domain rather than an agent
+    /// (e.g., `CalibrateThreshold`, `SeekMoreEvidence`) return `None`.
+    pub fn agent_target(&self) -> Option<WebID> {
+        match self {
+            CuratorDirective::CalibrateThreshold { .. } => None,
+            CuratorDirective::UpdateCapabilities { agent, .. } => Some(*agent),
+            CuratorDirective::OverrideEnergyBudget { agent, .. } => Some(*agent),
+            CuratorDirective::SeekMoreEvidence { .. } => None,
+            CuratorDirective::ReplenishBudget { agent, .. } => Some(*agent),
+            CuratorDirective::ClearOverride { agent } => Some(*agent),
+            CuratorDirective::EscalateDomain { .. } => None,
+            // Federation directives don't target individual agents
+            CuratorDirective::InviteToFederation { .. }
+            | CuratorDirective::AcceptFederationInvite { .. }
+            | CuratorDirective::RejectFederationInvite { .. }
+            | CuratorDirective::PauseFederationLink { .. }
+            | CuratorDirective::ResumeFederationLink { .. }
+            | CuratorDirective::RevokeFederationMember { .. }
+            | CuratorDirective::LeaveFederation { .. }
+            | CuratorDirective::DissolveFederation { .. } => None,
+        }
+    }
+
+    /// Whether this directive is a metacognitive override.
+    ///
+    /// Metacognitive overrides are higher-order Curation interventions that
+    /// reconfigure Cybernetics regulation itself. They are subject to the
+    /// override cooldown in addition to per-fingerprint dedup, because
+    /// override oscillation is especially destabilizing.
+    pub fn is_metacognitive(&self) -> bool {
+        matches!(
+            self,
+            CuratorDirective::OverrideEnergyBudget { .. }
+                | CuratorDirective::SeekMoreEvidence { .. }
+        )
+    }
+}
+
+// ── CurationThresholdConfig — spec coherence/drift thresholds ───────────────
+
+fn default_coherence_threshold() -> f64 {
+    0.7
+}
+fn default_drift_threshold() -> f64 {
+    0.5
+}
+
+/// Configurable thresholds for Curation decisions (spec coherence, drift).
+///
+/// Consolidated from `hkask-cns/src/types/curation.rs` into `hkask-types`
+/// (curation regulates cybernetics — its config belongs in the foundation layer).
+/// YAML loading remains in `hkask-cns` (requires `serde_yaml_neo`).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct CurationThresholdConfig {
+    #[serde(default = "default_coherence_threshold")]
+    pub coherence_threshold: f64,
+    #[serde(default = "default_drift_threshold")]
+    pub drift_threshold: f64,
+}
+
+impl Default for CurationThresholdConfig {
+    fn default() -> Self {
+        Self {
+            coherence_threshold: default_coherence_threshold(),
+            drift_threshold: default_drift_threshold(),
+        }
+    }
+}

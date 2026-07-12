@@ -1,0 +1,48 @@
+[package]
+name = "hkask-repl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask REPL — interactive agent session with slash-command dispatch"
+
+[dependencies]
+hkask-agents = { path = "../hkask-agents" }
+hkask-capability = { path = "../hkask-capability" }
+hkask-cns = { path = "../hkask-cns" }
+hkask-improv = { path = "../hkask-improv" }
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-memory = { path = "../hkask-memory" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-services-chat = { path = "../hkask-services-chat" }
+hkask-services-context = { path = "../hkask-services-context" }
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-kata-kanban = { path = "../hkask-services-kata-kanban" }
+hkask-services-onboarding = { path = "../hkask-services-onboarding" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-database = { path = "../hkask-database" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-types = { path = "../hkask-types" }
+hkask-inference = { path = "../hkask-inference" }
+hkask-tui = { path = "../hkask-tui", optional = true }
+hkask-communication = { path = "../hkask-communication", optional = true }
+hkask-wallet = { path = "../hkask-wallet" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+rustyline = "18.0.0"
+async-trait.workspace = true
+thiserror.workspace = true
+	dirs = "6"
+	base64.workspace = true
+rmcp.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = []
+tui = ["hkask-tui"]
+communication = ["hkask-communication"]

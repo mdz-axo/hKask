@@ -1,0 +1,202 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hkask
+  namespace: hkask
+  labels:
+    app: hkask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hkask
+  template:
+    metadata:
+      labels:
+        app: hkask
+    spec:
+      # Graceful shutdown: give Litestream time to flush final WAL
+      # before pod termination (default 30s is too short for S3 writes).
+      terminationGracePeriodSeconds: 60
+
+      # Init containers run to completion before main containers start.
+      initContainers:
+        # 1. Wait for Conduit to be ready before starting kask.
+        #    Polls Conduit's versions endpoint until it responds 200.
+        - name: wait-for-conduit
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Conduit at http://conduit.hkask-conduit.svc.cluster.local:8008..."
+              until wget -qO- http://conduit.hkask-conduit.svc.cluster.local:8008/_matrix/client/versions > /dev/null 2>&1; do
+                echo "  Conduit not ready, retrying in 2s..."
+                sleep 2
+              done
+              echo "Conduit is ready."
+
+        # 2. Restore database from S3 before kask starts.
+        #    Prevents the race where kask opens /data/kask.db before
+        #    the litestream sidecar has restored it on a fresh pod.
+        - name: litestream-restore
+          image: litestream/litestream:0.5.0
+          args:
+            - restore
+            - -if-replica-exists
+            - -config
+            - /etc/litestream.yml
+            - /data/kask.db
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          env:
+            - name: LITESTREAM_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-access-key-id
+            - name: LITESTREAM_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-secret-access-key
+      containers:
+        # kask (main application)
+        - name: kask
+          image: ghcr.io/mdz-axo/hkask:kask-main
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: POD_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HKASK_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: domain
+            - name: HKASK_BASE_URL
+              value: "https://$(HKASK_DOMAIN)"
+            - name: HKASK_MATRIX_URL
+              value: "http://conduit.hkask-conduit.svc.cluster.local:8008"
+            - name: CONDUIT_SERVER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: conduit-server-name
+            - name: LITESTREAM_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-bucket
+            - name: LITESTREAM_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-endpoint
+            - name: LITESTREAM_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-region
+            - name: LITESTREAM_FORCE_PATH_STYLE
+              valueFrom:
+                configMapKeyRef:
+                  name: hkask-config
+                  key: litestream-force-path-style
+            - name: HKASK_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: master-passphrase
+            - name: HKASK_OAUTH_GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: oauth-github-client-id
+            - name: HKASK_OAUTH_GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: oauth-github-client-secret
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+        # litestream sidecar: continuous WAL replication to S3
+        - name: litestream
+          image: litestream/litestream:0.5.0
+          args:
+            - replicate
+            - -config
+            - /etc/litestream.yml
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: litestream-config
+              mountPath: /etc/litestream.yml
+              subPath: litestream.yml
+          env:
+            - name: LITESTREAM_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-access-key-id
+            - name: LITESTREAM_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hkask-secrets
+                  key: litestream-secret-access-key
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - litestream
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hkask-data
+        - name: litestream-config
+          configMap:
+            name: hkask-config
+            items:
+              - key: litestream.yml
+                path: litestream.yml

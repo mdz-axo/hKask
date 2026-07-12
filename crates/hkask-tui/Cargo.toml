@@ -1,0 +1,21 @@
+[package]
+name = "hkask-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Terminal UI workspace for hKask — multi-window agent interface"
+
+[dependencies]
+ratatui.workspace = true
+crossterm.workspace = true
+portable-pty = "0.9"
+anyhow.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+dirs = "5"
+
+[dev-dependencies]
+ratatui.workspace = true

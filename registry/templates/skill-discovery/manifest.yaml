@@ -1,0 +1,39 @@
+# Template crate manifest for skill-discovery skill
+# hKask v0.28.0
+
+crate:
+  name: skill-discovery
+  version: "0.30.0"
+  description: >
+    Find, evaluate, and install skills for hKask. Registry crate (manifest.yaml + *.j2)
+    is the canonical source of truth. Detect capability gaps in the skill corpus,
+    search for candidate registry crates, validate format and quality, and guide
+    installation. Full lifecycle from gap to verified skill.
+
+templates:
+  - id: skill-discovery/skill-discovery-detect-gap
+    path: skill-discovery-detect-gap.j2
+    type: KnowAct
+    lexicon_terms: [detect, classify, assess, prioritize, recommend]
+    description: >
+      Detect capability gaps in the registry corpus. Analyze task patterns against
+      existing registry crate descriptions and template_type coverage. Classify gaps
+      (coverage, feature, automation, governance) and prioritize by impact.
+
+  - id: skill-discovery/skill-discovery-evaluate
+    path: skill-discovery-evaluate.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, validate, verify, classify, discriminate]
+    description: >
+      Evaluate a candidate registry crate against format, quality, and safety criteria.
+      Check manifest structure, .j2 frontmatter validity, Magna Carta
+      compliance, and CNS span validity. Produce scored recommendation.
+
+  - id: skill-discovery/skill-discovery-convergence-check
+    path: skill-discovery-convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, converge, classify, prioritize, verify]
+    description: >
+      Compute a normalized convergence metric for discovery iterations.
+      Synthesizes gap detection + candidate evaluation into `convergence_metric`
+      in [0,1], where 0 means the capability gap is sufficiently resolved.

@@ -1,0 +1,45 @@
+[package]
+name = "hkask-mcp-kata-kanban"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Kata-Kanban workflow coordination MCP server"
+
+[dependencies]
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-services-kata-kanban = { path = "../../crates/hkask-services-kata-kanban" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-database = { path = "../../crates/hkask-database" }
+hkask-test-harness = { path = "../../crates/hkask-test-harness" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+rusqlite.workspace = true
+r2d2.workspace = true
+r2d2_sqlite.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+dotenvy.workspace = true
+chrono.workspace = true
+
+[lib]
+name = "hkask_mcp_kata_kanban"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-kata-kanban"
+path = "src/main.rs"
+
+[dev-dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-services-kata-kanban = { path = "../../crates/hkask-services-kata-kanban" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-test-harness = { path = "../../crates/hkask-test-harness" }
+proptest = "1"
+tempfile.workspace = true
+rusqlite.workspace = true
+r2d2.workspace = true
+r2d2_sqlite.workspace = true

@@ -1,0 +1,66 @@
+# hKask Cargo Configuration
+
+[build]
+# Use release profile optimizations for faster builds in development
+# Uncomment for development:
+# profile = "dev"
+
+# Target-specific linker configuration for cross-compilation
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+# mold is ~10x faster than GNU ld for dev iteration
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[env]
+# Set environment variables for builds
+# RUST_LOG = "debug"
+
+# Net configuration
+[net]
+git-fetch-with-cli = true
+
+# Profile: Release (optimized for production)
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Profile: Release with debug info (for profiling)
+[profile.release-debug]
+inherits = "release"
+debug = true
+strip = false
+
+# Profile: Dev (optimized for development speed)
+[profile.dev]
+opt-level = 0
+debug = true
+split-debuginfo = "unpacked"
+panic = "unwind"
+
+# Compile deps with mild opts for faster top-level iteration.
+# Dependencies change rarely; pre-optimizing them speeds up the main crate.
+[profile.dev.package."*"]
+opt-level = 1
+
+# Profile: Dev with optimizations (for faster dev builds)
+[profile.dev-fast]
+inherits = "dev"
+opt-level = 1
+lto = "off"
+
+# Profile: Test (optimized for testing)
+[profile.test]
+opt-level = 1
+debug = true
+
+# Profile: Bench (optimized for benchmarks)
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

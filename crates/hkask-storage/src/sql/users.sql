@@ -1,0 +1,77 @@
+-- Human users (contact info for recovery only)
+CREATE TABLE IF NOT EXISTS human_users (
+    user_id TEXT PRIMARY KEY,
+
+    -- Human's contact info (encrypted)
+    email_enc BLOB NOT NULL,
+    phone_enc BLOB,
+
+    -- Auth credentials
+    passphrase_hash TEXT NOT NULL,
+    salt TEXT NOT NULL,
+    master_salt TEXT NOT NULL,
+
+    -- Metadata
+    created_at INTEGER NOT NULL,
+    last_active INTEGER,
+    passphrase_set_at INTEGER,
+    -- Multi-user role (defaults to Member)
+    role TEXT NOT NULL DEFAULT 'member',
+    -- OAuth identity provider
+    oauth_provider TEXT,
+    oauth_provider_user_id TEXT,
+    oauth_display_name TEXT
+);
+
+-- Replicant identities (user logs in AS a replicant)
+-- Note: email/phone stored ONLY in human_users to avoid duplication
+CREATE TABLE IF NOT EXISTS replicant_identities (
+    replicant_name TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    replicant_webid TEXT UNIQUE NOT NULL,
+    wallet_id TEXT,
+    first_name_enc BLOB NOT NULL,
+    last_name_enc BLOB NOT NULL,
+    persona_yaml TEXT,
+    is_primary INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    last_login INTEGER,
+    FOREIGN KEY (user_id) REFERENCES human_users(user_id)
+);
+
+-- Active sessions
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id TEXT PRIMARY KEY,
+    replicant_name TEXT NOT NULL,
+    replicant_webid TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    session_key_salt TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    last_active INTEGER NOT NULL,
+    FOREIGN KEY (replicant_name) REFERENCES replicant_identities(replicant_name),
+    FOREIGN KEY (user_id) REFERENCES human_users(user_id)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_replicant_identities_user ON replicant_identities(user_id);
+CREATE INDEX IF NOT EXISTS idx_replicant_identities_webid ON replicant_identities(replicant_webid);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_replicant ON user_sessions(replicant_name);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at);
+
+-- Multi-user invitations
+CREATE TABLE IF NOT EXISTS invites (
+    invite_id TEXT PRIMARY KEY,
+    created_by TEXT NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    accepted_at INTEGER,
+    accepted_user_id TEXT,
+    FOREIGN KEY (created_by) REFERENCES human_users(user_id),
+    FOREIGN KEY (accepted_user_id) REFERENCES human_users(user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code);
+CREATE INDEX IF NOT EXISTS idx_invites_created_by ON invites(created_by);

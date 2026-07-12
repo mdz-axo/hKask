@@ -1,0 +1,28 @@
+[package]
+name = "hkask-services-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask runtime services — text classification, provider intelligence, daemon handler"
+
+[dependencies]
+hkask-services-core = { path = "../hkask-services-core" }
+hkask-guard = { path = "../hkask-guard" }
+
+hkask-agents = { path = "../hkask-agents" }
+hkask-mcp = { path = "../hkask-mcp" }
+hkask-storage = { path = "../hkask-storage" }
+hkask-types = { path = "../hkask-types" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-cns = { path = "../hkask-cns" }
+hkask-ledger = { path = "../hkask-ledger" }
+hkask-database = { path = "../hkask-database" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+serde_yaml_neo.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+chrono.workspace = true

@@ -1,0 +1,33 @@
+[package]
+name = "hkask-mcp-communication"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask MCP Communication — thin MCP wrapper over core communication crate"
+
+[lib]
+name = "hkask_mcp_communication"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-communication"
+path = "src/main.rs"
+
+[dependencies]
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-communication = { path = "../../crates/hkask-communication" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64 = "0.22"
+schemars.workspace = true
+anyhow.workspace = true
+dotenvy.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+hkask-test-harness = { path = "../../crates/hkask-test-harness" }
+proptest = "1"

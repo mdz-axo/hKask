@@ -1,0 +1,779 @@
+//! Chat window — the primary AI interaction surface.
+//!
+//! Renders the conversation history (messages, tool calls, CNS alerts)
+//! and a mode-aware prompt input line. This is the TUI equivalent of
+//! the rustyline REPL, with additional visual structure.
+//!
+//! # TuiMode State Machine (from other agent's plan §2.3)
+//!
+//! ```text
+//! Chat ──'/'──▶ Command ──Esc/Enter──▶ Chat
+//! Chat ──'/curator chat'──▶ Curator ──Esc──▶ Chat
+//! ```
+//!
+//! Mode transitions emit `cns.tui.mode_switch { from, to }` spans.
+//!
+//! # Prompt Mode Prefixes (P12 Replicant Host Mandate)
+//!
+//! - `REPL ▸` in cyan — normal chat mode
+//! - `CMD  ▸` in yellow — slash-command entry
+//! - `CRTR ▸` in magenta — direct curator address
+
+use std::sync::Arc;
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Modifier, Style, Stylize};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+
+use crate::repl_bridge::{InferenceState, ReplBridge};
+use crate::window::{Window, WindowId, WindowKind};
+
+/// The interaction mode for the chat window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TuiMode {
+    /// Normal chat — user input goes to the agent
+    Chat,
+    /// Slash-command entry — input starts with '/'
+    Command,
+    /// Direct curator chat (P12.1 dual-presence)
+    Curator,
+}
+
+impl TuiMode {
+    /// Returns the prompt prefix for this mode.
+    pub fn prompt_prefix(&self) -> &'static str {
+        match self {
+            TuiMode::Chat => "REPL ▸ ",
+            TuiMode::Command => "CMD  ▸ ",
+            TuiMode::Curator => "CRTR ▸ ",
+        }
+    }
+
+    /// Returns the prompt color for this mode.
+    pub fn prompt_color(&self) -> Color {
+        match self {
+            TuiMode::Chat => Color::Cyan,
+            TuiMode::Command => Color::Yellow,
+            TuiMode::Curator => Color::Magenta,
+        }
+    }
+
+    /// Determine the next mode based on input.
+    /// Returns (new_mode, input_consumed).
+    pub fn transition(self, input: &str) -> (Self, bool) {
+        match self {
+            TuiMode::Chat => {
+                if input == "/curator chat" || input == "/curator" {
+                    (TuiMode::Curator, true)
+                } else if input.starts_with('/') {
+                    (TuiMode::Command, false)
+                } else {
+                    (TuiMode::Chat, false)
+                }
+            }
+            TuiMode::Command => {
+                (TuiMode::Chat, true) // Command dispatched, return to chat
+            }
+            TuiMode::Curator => {
+                if input == "/repl" || input == "/chat" {
+                    (TuiMode::Chat, true)
+                } else {
+                    (TuiMode::Curator, false)
+                }
+            }
+        }
+    }
+}
+
+/// A single message in the chat history.
+#[derive(Debug, Clone)]
+pub struct TuiChatMessage {
+    /// Who sent this message
+    pub sender: MessageSender,
+    /// The message content (may contain markdown)
+    pub content: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MessageSender {
+    /// The human user
+    User,
+    /// The AI agent/replicant
+    Agent(String),
+    /// The Curator daemon (dual-presence)
+    Curator,
+    /// A CNS alert (interleaved into the stream)
+    CnsAlert,
+    /// Tool execution result
+    Tool(String),
+}
+
+/// The chat window — conversation history + input.
+pub struct ChatWindow {
+    id: WindowId,
+    agent_name: String,
+    model: String,
+    /// Current interaction mode
+    mode: TuiMode,
+    /// Conversation message history
+    messages: Vec<TuiChatMessage>,
+    /// Current input buffer
+    input: String,
+    /// Cursor position in input
+    cursor_pos: usize,
+    /// Scroll position in message history
+    scroll_offset: u16,
+    /// Bridge to the inference engine
+    bridge: Arc<dyn ReplBridge>,
+    /// Current inference state for async polling
+    inference_state: InferenceState,
+    /// Spinner frame counter for "Thinking..." animation
+    spinner_frame: u8,
+    /// Partial streaming text shown during inference
+    streaming_partial: String,
+}
+
+impl ChatWindow {
+    pub fn new(id: WindowId, agent_name: &str, model: &str, bridge: Arc<dyn ReplBridge>) -> Self {
+        let mut messages = Vec::new();
+        messages.push(TuiChatMessage {
+            sender: MessageSender::Curator,
+            content: format!(
+                "hKask v{} — Agent: {} | Model: {} | Type /help for commands",
+                env!("CARGO_PKG_VERSION"),
+                agent_name,
+                model
+            ),
+        });
+
+        Self {
+            id,
+            agent_name: agent_name.to_string(),
+            model: model.to_string(),
+            mode: TuiMode::Chat,
+            messages,
+            input: String::new(),
+            cursor_pos: 0,
+            scroll_offset: 0,
+            bridge,
+            inference_state: InferenceState::Idle,
+            spinner_frame: 0,
+            streaming_partial: String::new(),
+        }
+    }
+
+    /// Add a message to the history and auto-scroll to bottom.
+    /// Drops oldest messages when exceeding MAX_MESSAGES.
+    fn add_message(&mut self, sender: MessageSender, content: String) {
+        const MAX_MESSAGES: usize = 500;
+        if self.messages.len() >= MAX_MESSAGES {
+            let excess = self.messages.len() - MAX_MESSAGES + 1;
+            self.messages.drain(0..excess);
+            // Adjust scroll offset so the user doesn't jump
+            self.scroll_offset = self.scroll_offset.saturating_sub(excess as u16);
+        }
+        self.messages.push(TuiChatMessage { sender, content });
+        // Only auto-scroll to bottom if user was already at the bottom
+        if self.scroll_offset == 0 {
+            // already at bottom, stay there
+        }
+    }
+
+    /// Export chat history to a markdown file.
+    fn export_to_markdown(&mut self) {
+        let ts = chrono::Local::now().format("%Y%m%d-%H%M%S");
+        let filename = format!("kask-chat-{}.md", ts);
+        let mut md = String::new();
+        md.push_str(&format!("# hKask Chat Export — {}\n\n", ts));
+        md.push_str(&format!(
+            "**Agent:** {} | **Model:** {}\n\n---\n\n",
+            self.agent_name, self.model
+        ));
+        for msg in &self.messages {
+            match &msg.sender {
+                MessageSender::User => md.push_str(&format!("**You:** {}\n\n", msg.content)),
+                MessageSender::Agent(name) => {
+                    md.push_str(&format!("**{}:** {}\n\n", name, msg.content))
+                }
+                MessageSender::Curator => md.push_str(&format!("**Curator:** {}\n\n", msg.content)),
+                MessageSender::CnsAlert => md.push_str(&format!("> ⚠ *{}*\n\n", msg.content)),
+                MessageSender::Tool(name) => {
+                    md.push_str(&format!("```\n[{}]\n{}\n```\n\n", name, msg.content))
+                }
+            }
+        }
+        match std::fs::write(&filename, &md) {
+            Ok(_) => {
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!("Chat exported to {}", filename),
+                );
+            }
+            Err(e) => {
+                self.add_message(MessageSender::CnsAlert, format!("Export failed: {}", e));
+            }
+        }
+    }
+
+    /// Execute a slash command (REPL-compatible subset).
+    fn execute_slash_command(&mut self, cmd: &str) {
+        let parts: Vec<&str> = cmd.split_whitespace().collect();
+        let primary = parts
+            .first()
+            .map(|s| s.trim_start_matches('/'))
+            .unwrap_or("");
+
+        match primary {
+            "help" => {
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /tui /export /curator".into(),
+                );
+            }
+            "quit" | "exit" => {
+                // Handled by global keybinding; here we just acknowledge
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    "Use Ctrl+Q to quit the TUI.".into(),
+                );
+            }
+            "clear" => {
+                self.messages.clear();
+                self.scroll_offset = 0;
+            }
+            "model" => {
+                let sub = parts.get(1).copied().unwrap_or("");
+                if sub.is_empty() {
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        format!(
+                            "Current model: {} (context: {} tokens)",
+                            self.bridge.model_name(),
+                            (1.0 / (self.bridge.context_pressure() + 0.001)) as u32
+                        ),
+                    );
+                } else {
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        format!("Model switch to '{}' requested. Use `kask chat --model {}` to change models.", sub, sub),
+                    );
+                }
+            }
+            "status" => {
+                let gas = self.bridge.gas_remaining();
+                let cap = self.bridge.gas_cap();
+                let alerts = self.bridge.cns_alert_count();
+                let ctx = self.bridge.context_pressure();
+                let (mcp_loaded, mcp_total) = self.bridge.mcp_status();
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!(
+                        "Agent: {} | Model: {} | Gas: {}/{} ({:.0}%) | CNS alerts: {} | Context: {:.0}% | MCP: {}/{}",
+                        self.agent_name, self.bridge.model_name(),
+                        gas, cap, if cap > 0 { (gas as f64 / cap as f64) * 100.0 } else { 100.0 },
+                        alerts, ctx * 100.0, mcp_loaded, mcp_total,
+                    ),
+                );
+            }
+            "mcp" => {
+                let (loaded, total) = self.bridge.mcp_status();
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!(
+                        "MCP Servers: {}/{} loaded. Use `kask mcp` CLI for full management.",
+                        loaded, total
+                    ),
+                );
+            }
+            "repl" => {
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    "REPL settings: /repl show | /repl set <key> <value>".into(),
+                );
+            }
+            "agent" => {
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!("Current agent: {}", self.agent_name),
+                );
+            }
+            "curator" => {
+                self.mode = TuiMode::Curator;
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    "Switched to Curator mode. Type /repl to return to chat.".into(),
+                );
+            }
+            "tui" => {
+                let sub = parts.get(1).copied().unwrap_or("");
+                match sub {
+                    "theme" => {
+                        self.add_message(
+                            MessageSender::CnsAlert,
+                            "TUI themes: coming in Tier 2.".into(),
+                        );
+                    }
+                    "help" => {
+                        self.add_message(MessageSender::CnsAlert,
+                            "TUI keybindings: ^Q quit, ^T tab, ^W close, ^P palette, ^H/J/K/L navigate, ^=/- resize".into());
+                    }
+                    _ => {
+                        self.add_message(
+                            MessageSender::CnsAlert,
+                            "/tui [theme|help] — TUI configuration commands".into(),
+                        );
+                    }
+                }
+            }
+            "export" => {
+                self.export_to_markdown();
+            }
+            _ => {
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!(
+                        "Unknown command: /{}. Type /help for available commands.",
+                        primary
+                    ),
+                );
+            }
+        }
+    }
+
+    /// Send the current input as a user message.
+    fn send_input(&mut self) {
+        let input = std::mem::take(&mut self.input);
+        self.cursor_pos = 0;
+
+        if input.is_empty() {
+            return;
+        }
+
+        // Check for mode transitions
+        let (new_mode, consumed) = self.mode.transition(&input);
+        let old_mode = self.mode;
+        self.mode = new_mode;
+
+        if old_mode != new_mode && consumed {
+            tracing::info!(
+                target: "cns.tui.mode_switch",
+                from = ?old_mode,
+                to = ?new_mode,
+                "CNS"
+            );
+            self.add_message(
+                MessageSender::CnsAlert,
+                format!("Mode: {:?} → {:?}", old_mode, new_mode),
+            );
+            return;
+        }
+
+        // Handle slash commands
+        if input.starts_with('/') {
+            self.execute_slash_command(&input);
+            self.mode = TuiMode::Chat;
+            return;
+        }
+
+        // Normal chat message — use async inference
+        self.add_message(MessageSender::User, input.clone());
+        self.bridge.start_inference(input);
+        self.inference_state = InferenceState::Thinking;
+    }
+}
+
+impl Window for ChatWindow {
+    fn id(&self) -> WindowId {
+        self.id
+    }
+
+    fn title(&self) -> &str {
+        match self.mode {
+            TuiMode::Chat => "Chat",
+            TuiMode::Command => "Chat [CMD]",
+            TuiMode::Curator => "Chat [Curator]",
+        }
+    }
+
+    fn kind(&self) -> WindowKind {
+        WindowKind::Chat
+    }
+
+    fn render(&self, f: &mut Frame, area: Rect, is_focused: bool) {
+        // Guard: skip rendering on degenerate areas from deep splits.
+        if area.height < 5 {
+            return;
+        }
+        // Split area: message history (fill) | input line (3)
+        let vert = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Min(1),
+                ratatui::layout::Constraint::Length(3),
+            ])
+            .split(area);
+
+        self.render_messages(f, vert[0]);
+        self.render_input(f, vert[1], is_focused);
+    }
+
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
+        match key.code {
+            KeyCode::Enter => {
+                self.send_input();
+                true
+            }
+            KeyCode::Char(c) => {
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    return false;
+                }
+                self.input.insert(self.cursor_pos, c);
+                self.cursor_pos += 1;
+                true
+            }
+            KeyCode::Backspace => {
+                if self.cursor_pos > 0 {
+                    self.cursor_pos -= 1;
+                    self.input.remove(self.cursor_pos);
+                }
+                true
+            }
+            KeyCode::Delete => {
+                if self.cursor_pos < self.input.len() {
+                    self.input.remove(self.cursor_pos);
+                }
+                true
+            }
+            KeyCode::Left => {
+                if self.cursor_pos > 0 {
+                    self.cursor_pos -= 1;
+                }
+                true
+            }
+            KeyCode::Right => {
+                if self.cursor_pos < self.input.len() {
+                    self.cursor_pos += 1;
+                }
+                true
+            }
+            KeyCode::Home => {
+                self.cursor_pos = 0;
+                true
+            }
+            KeyCode::End => {
+                self.cursor_pos = self.input.len();
+                true
+            }
+            KeyCode::PageUp => {
+                self.scroll_offset = self.scroll_offset.saturating_add(5);
+                true
+            }
+            KeyCode::PageDown => {
+                self.scroll_offset = self.scroll_offset.saturating_sub(5);
+                true
+            }
+            KeyCode::Esc => {
+                if self.mode == TuiMode::Command || self.mode == TuiMode::Curator {
+                    self.mode = TuiMode::Chat;
+                    self.input.clear();
+                    self.cursor_pos = 0;
+                } else {
+                    // Clear input on Esc in chat mode
+                    self.input.clear();
+                    self.cursor_pos = 0;
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn can_close(&self) -> bool {
+        // At least one chat window should remain open
+        true
+    }
+
+    fn on_focus(&mut self) {
+        // Nothing needed on focus gain for now
+    }
+
+    fn on_blur(&mut self) {
+        // Nothing needed on focus loss for now
+    }
+
+    fn tick(&mut self) {
+        // Poll async inference and display results
+        let state = self.bridge.poll_inference();
+        match state {
+            InferenceState::Done(result) => {
+                if result.budget_exhausted {
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        "Gas budget exhausted — turn blocked by cybernetic regulator.".into(),
+                    );
+                } else {
+                    let sender = match self.mode {
+                        TuiMode::Curator => MessageSender::Curator,
+                        _ => MessageSender::Agent(self.agent_name.clone()),
+                    };
+                    self.add_message(sender, result.text.clone());
+                    if result.iterations > 1 {
+                        self.add_message(
+                            MessageSender::Tool("usage".into()),
+                            format!(
+                                "{} tokens ({} prompt + {} completion) across {} iterations — gas: {}",
+                                result.total_tokens, result.prompt_tokens,
+                                result.completion_tokens, result.iterations, result.gas_cost,
+                            ),
+                        );
+                    }
+                }
+                self.inference_state = InferenceState::Idle;
+            }
+            InferenceState::Thinking => {
+                self.spinner_frame = self.spinner_frame.wrapping_add(1);
+                self.streaming_partial = self.bridge.streaming_text();
+                self.inference_state = InferenceState::Thinking;
+            }
+            other => {
+                self.inference_state = other;
+            }
+        }
+    }
+}
+
+impl ChatWindow {
+    /// Render the scrollable message history.
+    fn render_messages(&self, f: &mut Frame, area: Rect) {
+        let mut lines: Vec<Line> = Vec::new();
+
+        // Show messages from newest to oldest (or scrolled)
+        let visible = self.messages.iter().rev().skip(self.scroll_offset as usize);
+
+        for msg in visible {
+            let prefix = match &msg.sender {
+                MessageSender::User => Span::styled(
+                    "You ▸ ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                MessageSender::Agent(name) => Span::styled(
+                    format!("{} ▸ ", name),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                MessageSender::Curator => Span::styled(
+                    "Curator ▸ ",
+                    Style::default()
+                        .fg(Color::Magenta)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                MessageSender::CnsAlert => Span::styled(
+                    "── CNS: ",
+                    Style::default()
+                        .fg(Color::Rgb(183, 145, 99)) // Richmond Gold
+                        .add_modifier(Modifier::BOLD),
+                ),
+                MessageSender::Tool(name) => Span::styled(
+                    format!("[tool:{}] ", name),
+                    Style::default().fg(Color::Yellow),
+                ),
+            };
+
+            // Split content into lines and prepend prefix to first line
+            for (i, content_line) in msg.content.lines().enumerate() {
+                if i == 0 {
+                    lines.push(Line::from(vec![
+                        prefix.clone(),
+                        Span::raw(content_line.to_string()),
+                    ]));
+                } else {
+                    lines.push(Line::from(Span::raw(format!("       {}", content_line))));
+                }
+            }
+
+            // Add a blank line between messages
+            lines.push(Line::from(""));
+        }
+
+        if lines.is_empty() {
+            lines.push(Line::from(Span::styled(
+                "Type a message to begin. /help for commands.",
+                Style::default().fg(Color::DarkGray),
+            )));
+        }
+
+        // Show streaming text during inference
+        if matches!(self.inference_state, InferenceState::Thinking)
+            && !self.streaming_partial.is_empty()
+        {
+            let prefix = Span::styled(
+                format!("{} ▸ ", self.agent_name),
+                Style::default().fg(Color::Cyan).bold(),
+            );
+            for line in self.streaming_partial.lines() {
+                lines.push(Line::from(vec![
+                    prefix.clone(),
+                    Span::styled(line.to_string(), Style::default().fg(Color::Gray)),
+                ]));
+            }
+        }
+
+        let messages = Paragraph::new(lines).wrap(Wrap { trim: false });
+        f.render_widget(messages, area);
+    }
+
+    /// Render the mode-aware prompt input line.
+    fn render_input(&self, f: &mut Frame, area: Rect, is_focused: bool) {
+        let border_style = if is_focused {
+            Style::default().fg(Color::Cyan)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        let block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(border_style);
+
+        let inner = block.inner(area);
+        f.render_widget(block, area);
+
+        // Input text with cursor
+        let input_style = if is_focused {
+            Style::default().fg(Color::White)
+        } else {
+            Style::default().fg(Color::Gray)
+        };
+
+        // Rebuild the line properly
+        let mut final_spans = Vec::new();
+
+        // Show thinking spinner during inference
+        if matches!(self.inference_state, InferenceState::Thinking) {
+            let spinners = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            let s = spinners[self.spinner_frame as usize % spinners.len()];
+            final_spans.push(Span::styled(
+                format!(" {} Thinking... ", s),
+                Style::default().fg(Color::Yellow),
+            ));
+        } else {
+            final_spans.push(Span::styled(
+                self.mode.prompt_prefix(),
+                Style::default()
+                    .fg(self.mode.prompt_color())
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
+
+        if is_focused && !self.input.is_empty() {
+            let before = &self.input[..self.cursor_pos.min(self.input.len())];
+            final_spans.push(Span::styled(before.to_string(), input_style));
+
+            if self.cursor_pos < self.input.len() {
+                let at = self.input.chars().nth(self.cursor_pos).unwrap_or(' ');
+                final_spans.push(Span::styled(
+                    at.to_string(),
+                    Style::default().fg(Color::Black).bg(Color::Cyan),
+                ));
+                let after = &self.input[self.cursor_pos + 1..];
+                if !after.is_empty() {
+                    final_spans.push(Span::styled(after.to_string(), input_style));
+                }
+            } else {
+                final_spans.push(Span::styled(
+                    " ",
+                    Style::default().fg(Color::Black).bg(Color::Cyan),
+                ));
+            }
+        } else {
+            final_spans.push(Span::styled(self.input.clone(), input_style));
+            if is_focused {
+                // Show cursor at end
+                final_spans.push(Span::styled(
+                    " ",
+                    Style::default().fg(Color::Black).bg(Color::Cyan),
+                ));
+            }
+        }
+
+        let prompt_widget = Paragraph::new(Line::from(final_spans));
+        f.render_widget(prompt_widget, inner);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mode_chat_to_command_on_slash() {
+        let (mode, consumed) = TuiMode::Chat.transition("/help");
+        assert_eq!(mode, TuiMode::Command);
+        assert!(!consumed);
+    }
+
+    #[test]
+    fn mode_chat_to_curator() {
+        let (mode, consumed) = TuiMode::Chat.transition("/curator");
+        assert_eq!(mode, TuiMode::Curator);
+        assert!(consumed);
+    }
+
+    #[test]
+    fn mode_chat_stays_on_plain_text() {
+        let (mode, _) = TuiMode::Chat.transition("hello world");
+        assert_eq!(mode, TuiMode::Chat);
+    }
+
+    #[test]
+    fn mode_command_returns_to_chat() {
+        let (mode, consumed) = TuiMode::Command.transition("anything");
+        assert_eq!(mode, TuiMode::Chat);
+        assert!(consumed);
+    }
+
+    #[test]
+    fn mode_curator_to_chat_on_repl() {
+        let (mode, consumed) = TuiMode::Curator.transition("/repl");
+        assert_eq!(mode, TuiMode::Chat);
+        assert!(consumed);
+    }
+
+    #[test]
+    fn mode_curator_stays_on_plain_text() {
+        let (mode, _) = TuiMode::Curator.transition("message to curator");
+        assert_eq!(mode, TuiMode::Curator);
+    }
+
+    #[test]
+    fn prompt_prefixes_are_distinct() {
+        assert_ne!(
+            TuiMode::Chat.prompt_prefix(),
+            TuiMode::Command.prompt_prefix()
+        );
+        assert_ne!(
+            TuiMode::Chat.prompt_prefix(),
+            TuiMode::Curator.prompt_prefix()
+        );
+        assert_ne!(
+            TuiMode::Command.prompt_prefix(),
+            TuiMode::Curator.prompt_prefix()
+        );
+    }
+
+    #[test]
+    fn prompt_colors_are_visible() {
+        // All mode colors should be different
+        let chat_color = TuiMode::Chat.prompt_color();
+        let cmd_color = TuiMode::Command.prompt_color();
+        let curator_color = TuiMode::Curator.prompt_color();
+        assert_ne!(chat_color, cmd_color);
+        assert_ne!(chat_color, curator_color);
+        assert_ne!(cmd_color, curator_color);
+    }
+}

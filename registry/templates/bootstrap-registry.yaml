@@ -1,0 +1,913 @@
+# Bootstrap Registry — core template definitions loaded at startup.
+# Each entry maps to a RegistryEntry struct. Template types use domain-aligned names:
+#   WordAct  — Jinja2 prompts ("what to say")
+#   KnowAct  — Jinja2 cognition ("how to think")
+#   FlowDef  — YAML process manifests ("what to do")
+#
+# cascade_level is always 0 at bootstrap; matroshka_limit is set at runtime.
+# required_capabilities is always [] at bootstrap.
+
+- id: wordact/selector
+  template_type: WordAct
+  name: "Template Selector"
+  lexicon_terms:
+    - recognize
+    - classify
+    - match
+    - discriminate
+  description: "Selects best-fit template for input context"
+  source_path: registry/templates/wordact/selector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: wordact/render
+  template_type: WordAct
+  name: "Prompt Render"
+  lexicon_terms:
+    - render
+    - compose
+    - format
+  description: "Renders prompt with context binding"
+  source_path: registry/templates/wordact/render.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: wordact/execute
+  template_type: WordAct
+  name: "Prompt Execute"
+  lexicon_terms:
+    - execute
+    - respond
+    - complete
+  description: "Executes rendered prompt via inference"
+  source_path: registry/templates/wordact/execute.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/detect
+  template_type: KnowAct
+  name: "Drift Detection"
+  lexicon_terms:
+    - detect
+    - drift
+    - calibrate
+  description: "Detects cognitive drift in agent behavior"
+  source_path: registry/templates/knowact/detect.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/calibrate
+  template_type: KnowAct
+  name: "Calibration"
+  lexicon_terms:
+    - calibrate
+    - baseline
+    - adjust
+  description: "Calibrates agent responses to baseline"
+  source_path: registry/templates/knowact/calibrate.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: knowact/prompt-strategy
+  template_type: KnowAct
+  name: "Prompt Strategy Selection"
+  lexicon_terms:
+    - classify
+    - select
+    - frame
+  description: "Keyword-based heuristic for prompt framing"
+  source_path: registry/templates/knowact/prompt-strategy.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: metacognition/ellipsis-analysis
+  template_type: KnowAct
+  name: "Ellipsis Analysis"
+  lexicon_terms:
+    - read
+    - detect
+    - classify
+    - calibrate
+    - analyze
+  description: "Bloom Method: detect meaning in gaps and omissions"
+  source_path: registry/templates/metacognition/ellipsis-analysis.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/recognize-ensemble
+  template_type: KnowAct
+  name: "GML Recognize Ensemble"
+  # Note: This is GML "state ensemble" recognition — distinct from hKask ensemble module (deferred 2026-06-14).
+  lexicon_terms:
+    - recognize
+    - discriminate
+    - parse
+  description: "Parse concept into states and ports"
+  source_path: registry/templates/gml/recognize-ensemble.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/bind-effector
+  template_type: KnowAct
+  name: "GML Bind Effector"
+  lexicon_terms:
+    - analogy
+    - infer
+    - bind
+  description: "Apply effector, infer state-shift"
+  source_path: registry/templates/gml/bind-effector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/compute-equilibrium
+  template_type: KnowAct
+  name: "GML Compute Equilibrium"
+  lexicon_terms:
+    - calculate
+    - compare
+  description: "Calculate R̄, n_H, distribution"
+  source_path: registry/templates/gml/compute-equilibrium.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/assess-coherence
+  template_type: KnowAct
+  name: "GML Assess Coherence"
+  lexicon_terms:
+    - evaluate
+    - reflect
+    - calibrate
+  description: "Evaluate network homeostasis"
+  source_path: registry/templates/gml/assess-coherence.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: gml/reframe-concept
+  template_type: KnowAct
+  name: "GML Reframe Concept"
+  lexicon_terms:
+    - abduct
+    - generate
+    - synthesize
+  description: "Generate alternative frames"
+  source_path: registry/templates/gml/reframe-concept.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: coding-guidelines/guidelines-assess
+  template_type: KnowAct
+  name: "Coding Guidelines Assess"
+  lexicon_terms:
+    - assess
+    - orient
+    - detect
+    - classify
+    - discriminate
+  description: "Assess a coding task against four behavioral principles before implementation"
+  source_path: registry/templates/coding-guidelines/guidelines-assess.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: coding-guidelines/guidelines-apply
+  template_type: KnowAct
+  name: "Coding Guidelines Apply"
+  lexicon_terms:
+    - constrain
+    - apply
+    - regulate
+    - simplify
+    - specify
+  description: "Generate constrained implementation directives with guardrails against over-engineering"
+  source_path: registry/templates/coding-guidelines/guidelines-apply.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: coding-guidelines/guidelines-verify
+  template_type: KnowAct
+  name: "Coding Guidelines Verify"
+  lexicon_terms:
+    - verify
+    - evaluate
+    - discriminate
+    - calibrate
+    - audit
+  description: "Verify implementation against four principles with compliance scoring"
+  source_path: registry/templates/coding-guidelines/guidelines-verify.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-compact
+  template_type: KnowAct
+  name: "Handoff Compact"
+  lexicon_terms:
+    - compact
+    - distill
+    - extract
+    - summarize
+    - crystallize
+  description: "Compress session context into structured summary for handoff"
+  source_path: registry/templates/handoff/handoff-compact.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-artifacts
+  template_type: KnowAct
+  name: "Handoff Artifacts"
+  lexicon_terms:
+    - catalog
+    - reference
+    - classify
+    - detect
+    - redact
+  description: "Catalog artifacts by reference and detect sensitive data for redaction"
+  source_path: registry/templates/handoff/handoff-artifacts.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-skills-suggest
+  template_type: KnowAct
+  name: "Handoff Skills Suggest"
+  lexicon_terms:
+    - suggest
+    - match
+    - prioritize
+    - analyze
+    - recommend
+  description: "Suggest relevant skills and extract open questions for next session"
+  source_path: registry/templates/handoff/handoff-skills-suggest.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: handoff/handoff-compose
+  template_type: WordAct
+  name: "Handoff Compose"
+  lexicon_terms:
+    - compose
+    - synthesize
+    - structure
+    - redact
+    - document
+  description: "Assemble final handoff document with redaction and skill suggestions"
+  source_path: registry/templates/handoff/handoff-compose.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: flowdef/dispatch
+  template_type: FlowDef
+  name: "Dispatch"
+  lexicon_terms:
+    - dispatch
+    - route
+    - invoke
+  description: "Dispatches tool calls via ACP/MCP"
+  source_path: registry/templates/flowdef/dispatch.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: flowdef/memory/recall
+  template_type: FlowDef
+  name: "Memory Recall"
+  lexicon_terms:
+    - recall
+    - retrieve
+    - remember
+  description: "Recalls semantic/episodic memory triples"
+  source_path: registry/templates/flowdef/memory_recall.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/goal-capture
+  template_type: FlowDef
+  name: "Goal Capture"
+  lexicon_terms:
+    - specify
+    - require
+    - elicit
+  description: "Elicit user intent as binding requirement"
+  source_path: registry/templates/spec/goal-capture.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/constraint-bind
+  template_type: FlowDef
+  name: "Constraint Bind"
+  lexicon_terms:
+    - constrain
+    - require
+  description: "Attach OCAP boundaries to goals"
+  source_path: registry/templates/spec/constraint-bind.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/curate-collection
+  template_type: FlowDef
+  name: "Curate Collection"
+  lexicon_terms:
+    - curate
+    - cultivate
+  description: "Evaluate collection coherence and completeness"
+  source_path: registry/templates/spec/curate-collection.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/reconcile-conflicts
+  template_type: FlowDef
+  name: "Reconcile Conflicts"
+  lexicon_terms:
+    - reconcile
+  description: "Resolve goal tensions without collapsing them"
+  source_path: registry/templates/spec/reconcile-conflicts.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/contextualise
+  template_type: FlowDef
+  name: "Contextualise"
+  lexicon_terms:
+    - contextualise
+  description: "Situate artifact within meaningful environment"
+  source_path: registry/templates/spec/contextualise.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: spec/selector
+  template_type: FlowDef
+  name: "Spec Selector"
+  lexicon_terms:
+    - recognize
+    - match
+  description: "Route input to best-fit specification template"
+  source_path: registry/templates/spec/selector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: skill-bundler/compose-bundle
+  template_type: FlowDef
+  name: "Compose Skill Bundle"
+  lexicon_terms:
+    - compose
+    - decompose
+    - reconcile
+    - curate
+    - sequence
+    - evaluate
+    - calibrate
+  description: "Analyze a set of skills and produce a FlowDef bundle manifest with conflicts, complementarities, and cascade steps"
+  source_path: registry/templates/skill-bundler/compose-bundle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: skill-bundler/apply-bundle
+  template_type: FlowDef
+  name: "Apply Skill Bundle"
+  lexicon_terms:
+    - sequence
+    - curate
+    - orient
+    - reconcile
+    - evaluate
+    - calibrate
+  description: "Apply an existing bundle to a session interaction following cascade order and conflict resolutions"
+  source_path: registry/templates/skill-bundler/apply-bundle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: skill-bundler/evolve-bundle
+  template_type: FlowDef
+  name: "Evolve Skill Bundle"
+  lexicon_terms:
+    - compose
+    - reconcile
+    - calibrate
+    - cultivate
+    - evaluate
+  description: "Re-compose a bundle when skills have evolved, preserving unchanged configuration and updating what has changed"
+  source_path: registry/templates/skill-bundler/evolve-bundle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Kata-Starter ───────────────────────────────────────────────────────
+- id: kata-starter/starter-cycle
+  template_type: FlowDef
+  name: "Starter Kata Cycle"
+  lexicon_terms:
+    - practice
+    - routine
+    - habit
+    - sequence
+  description: "Starter Kata practice cycle for building foundational habits"
+  source_path: registry/templates/kata-starter/starter-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-selector
+  template_type: KnowAct
+  name: "Starter Kata Selector"
+  lexicon_terms:
+    - select
+    - practice
+    - habit
+    - routine
+  description: "Select appropriate starter routine based on learner state"
+  source_path: registry/templates/kata-starter/starter-selector.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-five-questions
+  template_type: FlowDef
+  name: "Starter Five Questions Drill"
+  lexicon_terms:
+    - question
+    - coach
+    - practice
+  description: "Five Questions Drill — practice asking the 5 coaching questions"
+  source_path: registry/templates/kata-starter/starter-five-questions.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-pdca-cycle
+  template_type: FlowDef
+  name: "Starter PDCA Cycle"
+  lexicon_terms:
+    - plan
+    - experiment
+    - check
+    - act
+  description: "PDCA Cycle — Plan-Do-Check-Act experimentation practice"
+  source_path: registry/templates/kata-starter/starter-pdca-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-starter/starter-observation-drill
+  template_type: FlowDef
+  name: "Starter Observation Drill"
+  lexicon_terms:
+    - observe
+    - discriminate
+    - fact
+    - interpret
+  description: "Observation Drill — distinguish facts from interpretations"
+  source_path: registry/templates/kata-starter/starter-observation-drill.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Kata-Improvement ───────────────────────────────────────────────────
+- id: kata-improvement/improvement-cycle
+  template_type: FlowDef
+  name: "Improvement Kata Cycle"
+  lexicon_terms:
+    - sequence
+    - iterate
+    - measure
+    - experiment
+  description: "4-step Improvement Kata: Direction → Current → Target → Iterate"
+  source_path: registry/templates/kata-improvement/improvement-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step1-direction
+  template_type: WordAct
+  name: "Improvement Step 1: Direction"
+  lexicon_terms:
+    - challenge
+    - capability
+    - goal
+    - orient
+  description: "Step 1: Understand the Direction and challenge from above"
+  source_path: registry/templates/kata-improvement/improvement-step1-direction.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step2-current
+  template_type: WordAct
+  name: "Improvement Step 2: Current Condition"
+  lexicon_terms:
+    - observe
+    - measure
+    - assess
+  description: "Step 2: Grasp the Current Condition with facts and data"
+  source_path: registry/templates/kata-improvement/improvement-step2-current.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step3-target
+  template_type: WordAct
+  name: "Improvement Step 3: Target Condition"
+  lexicon_terms:
+    - specify
+    - target
+    - constrain
+  description: "Step 3: Establish the Next Target Condition with metrics and deadline"
+  source_path: registry/templates/kata-improvement/improvement-step3-target.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-improvement/improvement-step4-experiment
+  template_type: WordAct
+  name: "Improvement Step 4: Experiment"
+  lexicon_terms:
+    - experiment
+    - predict
+    - obstacle
+  description: "Step 4: Iterate/Experiment toward Target Condition via PDCA"
+  source_path: registry/templates/kata-improvement/improvement-step4-experiment.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Kata-Coaching ──────────────────────────────────────────────────────
+- id: kata-coaching/coaching-cycle
+  template_type: FlowDef
+  name: "Coaching Kata Cycle"
+  lexicon_terms:
+    - sequence
+    - coach
+    - question
+    - dialogue
+  description: "5-question Coaching Kata dialogue flow to teach scientific thinking"
+  source_path: registry/templates/kata-coaching/coaching-cycle.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q1-target
+  template_type: WordAct
+  name: "Coaching Q1: Target Condition"
+  lexicon_terms:
+    - target
+    - condition
+    - goal
+  description: "Question 1: What is the Target Condition?"
+  source_path: registry/templates/kata-coaching/coaching-q1-target.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q2-actual
+  template_type: WordAct
+  name: "Coaching Q2: Actual Condition"
+  lexicon_terms:
+    - observe
+    - measure
+    - assess
+  description: "Question 2: What is the Actual Condition now?"
+  source_path: registry/templates/kata-coaching/coaching-q2-actual.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q3-obstacles
+  template_type: WordAct
+  name: "Coaching Q3: Obstacles"
+  lexicon_terms:
+    - obstacle
+    - focus
+    - prioritize
+  description: "Question 3: What obstacles? Which ONE are you addressing?"
+  source_path: registry/templates/kata-coaching/coaching-q3-obstacles.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q4-experiment
+  template_type: WordAct
+  name: "Coaching Q4: Next Experiment"
+  lexicon_terms:
+    - experiment
+    - predict
+    - expect
+  description: "Question 4: What is your Next Step? What do you expect?"
+  source_path: registry/templates/kata-coaching/coaching-q4-experiment.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: kata-coaching/coaching-q5-learn
+  template_type: WordAct
+  name: "Coaching Q5: Learn"
+  lexicon_terms:
+    - learn
+    - feedback
+    - measure
+    - reflect
+  description: "Question 5: How quickly can we go and see What we Learned?"
+  source_path: registry/templates/kata-coaching/coaching-q5-learn.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: bug-hunt/bug-hunt-expedition
+  template_type: FlowDef
+  name: "Bug Hunt Expedition"
+  lexicon_terms:
+    - hunt
+    - explore
+    - probe
+    - detect
+    - classify
+    - report
+    - charter
+  description: "Run a bug hunting expedition against a target crate using Weinberg quality criteria, Beizer taxonomy, Bach HTSM, and Hendrickson charters"
+  source_path: registry/templates/bug-hunt/bug-hunt-expedition.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+# ── Media ────────────────────────────────────────────────────────────────
+# ── Platform Engineering Templates ──────────────────────────────────────────
+
+- id: platform-governance-transparency-reporter/query-spans
+  template_type: KnowAct
+  name: "Governance Query Spans"
+  lexicon_terms:
+    - query
+    - classify
+    - extract
+    - observe
+    - retrieve
+  description: "Query CNS spans for governance events within a time window"
+  source_path: registry/templates/platform-governance-transparency-reporter/query-spans.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-governance-transparency-reporter/convergence-check
+  template_type: KnowAct
+  name: "Governance Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for governance transparency PDCA cycles"
+  source_path: registry/templates/platform-governance-transparency-reporter/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-consent-auditor/detect-anomalies
+  template_type: KnowAct
+  name: "Consent Anomaly Detection"
+  lexicon_terms:
+    - detect
+    - flag
+    - identify
+    - classify
+    - assess
+  description: "Detect anomalous patterns in DelegationToken data"
+  source_path: registry/templates/platform-consent-auditor/detect-anomalies.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-consent-auditor/convergence-check
+  template_type: KnowAct
+  name: "Consent Audit Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for consent audit PDCA cycles"
+  source_path: registry/templates/platform-consent-auditor/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-portability-verifier/verify-integrity
+  template_type: KnowAct
+  name: "Portability Integrity Verification"
+  lexicon_terms:
+    - verify
+    - validate
+    - check
+    - compare
+    - audit
+  description: "Verify backup file integrity with 5 checks"
+  source_path: registry/templates/platform-portability-verifier/verify-integrity.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-portability-verifier/convergence-check
+  template_type: KnowAct
+  name: "Portability Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for portability verification PDCA cycles"
+  source_path: registry/templates/platform-portability-verifier/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-health-scorer/compute-score
+  template_type: KnowAct
+  name: "Health Score Computation"
+  lexicon_terms:
+    - compute
+    - aggregate
+    - weight
+    - score
+    - synthesize
+  description: "Compute composite platform health score from weighted dimensions"
+  source_path: registry/templates/platform-health-scorer/compute-score.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-health-scorer/convergence-check
+  template_type: KnowAct
+  name: "Health Score Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for health score PDCA cycles"
+  source_path: registry/templates/platform-health-scorer/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-loyalty-scorecard/compute-loyalty
+  template_type: KnowAct
+  name: "Loyalty Score Computation"
+  lexicon_terms:
+    - compute
+    - aggregate
+    - weight
+    - score
+    - synthesize
+  description: "Compute composite loyalty score from six Magna Carta dimensions"
+  source_path: registry/templates/platform-loyalty-scorecard/compute-loyalty.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-loyalty-scorecard/convergence-check
+  template_type: KnowAct
+  name: "Loyalty Scorecard Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for loyalty scorecard PDCA cycles"
+  source_path: registry/templates/platform-loyalty-scorecard/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-bulkhead-auditor/map-domains
+  template_type: KnowAct
+  name: "Bulkhead Domain Mapping"
+  lexicon_terms:
+    - map
+    - analyze
+    - compute
+    - detect
+    - assess
+  description: "Map failure domains from dependency graph with blast radius"
+  source_path: registry/templates/platform-bulkhead-auditor/map-domains.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-bulkhead-auditor/convergence-check
+  template_type: KnowAct
+  name: "Bulkhead Audit Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for bulkhead audit PDCA cycles"
+  source_path: registry/templates/platform-bulkhead-auditor/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-wardley-mapper/classify-evolution
+  template_type: KnowAct
+  name: "Wardley Evolution Classification"
+  lexicon_terms:
+    - inventory
+    - classify
+    - map
+    - assess
+    - strategize
+  description: "Classify components on Wardley evolution axis (Genesis→Commodity)"
+  source_path: registry/templates/platform-wardley-mapper/classify-evolution.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-wardley-mapper/convergence-check
+  template_type: KnowAct
+  name: "Wardley Mapper Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for Wardley mapping PDCA cycles"
+  source_path: registry/templates/platform-wardley-mapper/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-dx-analyzer/compute-dora
+  template_type: KnowAct
+  name: "DORA Metrics Computation"
+  lexicon_terms:
+    - compute
+    - measure
+    - classify
+    - evaluate
+    - assess
+  description: "Compute DORA metrics from CNS skill lifecycle spans"
+  source_path: registry/templates/platform-dx-analyzer/compute-dora.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-dx-analyzer/convergence-check
+  template_type: KnowAct
+  name: "DX Analyzer Convergence Check"
+  lexicon_terms:
+    - evaluate
+    - converge
+    - classify
+    - verify
+    - calibrate
+  description: "Compute convergence for DX analysis PDCA cycles"
+  source_path: registry/templates/platform-dx-analyzer/convergence-check.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7
+
+- id: platform-engineer/persona
+  template_type: WordAct
+  name: "Platform Engineer Persona"
+  lexicon_terms:
+    - observe
+    - diagnose
+    - audit
+    - recommend
+    - measure
+    - verify
+    - escalate
+  description: "Platform Engineer replicant persona — synthesis of exemplars (Vogels, Hightower, Majors, Forsgren, Wardley, Allspaw, Nygard, Kim, Humble)"
+  source_path: registry/templates/platform-engineer/persona.j2
+  required_capabilities: []
+  cascade_level: 0
+  matroshka_limit: 7

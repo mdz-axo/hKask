@@ -1,0 +1,80 @@
+# hKask CI — one stable-toolchain pipeline plus one independent nightly check.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  ci:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "hKask CI"
+          git config --global user.email "ci@hkask.local"
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt,clippy
+      - name: Format
+        run: cargo fmt --check
+      - name: Install linker and system dependencies
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test and doctest
+        env:
+          CARGO_PROFILE_TEST_OPT_LEVEL: 0
+          CARGO_PROFILE_TEST_DEBUG: 0
+        run: cargo test --workspace
+      - name: Documentation
+        run: cargo doc --workspace --no-deps
+      - name: Stamp version
+        run: bash scripts/ci/stamp-version.sh
+      - name: Prohibited visual UI and monitoring infrastructure
+        run: |
+          violations=$(grep -rPni '(?i)grafana|prometheus|dashboard|visual[\s.]*ui' crates/ --include='*.rs' 2>/dev/null || true)
+          if [ -n "$violations" ]; then
+            echo "$violations"
+            echo "::error::Visual UI/monitoring infrastructure prohibited — headless system only (P3 §5)"
+            exit 1
+          fi
+      - name: Hardcoded secrets
+        run: |
+          violations=$(grep -rPni '(?i)\b(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)\b\s*=\s*"[^"]+"' crates/ --include='*.rs' --exclude-dir=tests 2>/dev/null || true)
+          if [ -n "$violations" ]; then
+            echo "$violations"
+            echo "::error::Hardcoded secrets found — use env vars or keystore"
+            exit 1
+          fi
+      - name: Structured library errors
+        run: bash scripts/check-string-errors.sh
+
+  unused-deps:
+    name: Unused Dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: nightly
+      - name: Install linker and system dependencies
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - uses: Swatinem/rust-cache@v2
+      - run: RUSTFLAGS="-D unused_crate_dependencies" cargo +nightly check --workspace

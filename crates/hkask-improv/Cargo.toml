@@ -1,0 +1,11 @@
+[package]
+name = "hkask-improv"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Improv interaction skill for hKask agents — Plussing, Yes And, Yes But, Freestyling, Riffing"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+serde.workspace = true
+thiserror.workspace = true
