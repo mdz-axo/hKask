@@ -457,7 +457,7 @@ class DynamicEvalSFTTrainer(_BaseSFTTrainer):
 
 trainer = DynamicEvalSFTTrainer(
     model=model, processing_class=tokenizer,
-    train_dataset=train_ds, eval_dataset=None,
+    train_dataset=train_ds, eval_dataset=train_ds.select(range(min(100, len(train_ds)))),
     callbacks=[EarlyStoppingCallback(early_stopping_patience=7)],
     args=SFTConfig(
         max_seq_length=MAX_SEQ_LENGTH, dataset_text_field="text",
