@@ -21,20 +21,26 @@ Federation solves this without violating sovereignty. Instances remain independe
 
 ## The FederationDispatch Contract
 
-The `FederationDispatch` trait (in `hkask-ports`) defines the port contract:
+The `FederationDispatch` trait (in `hkask-ports/src/federation.rs:90`) defines the port contract:
 
 ```rust
-pub trait FederationDispatch {
-    fn dispatch(&self, message: FederationMessage)
-        -> Result<FederationResponse, FederationDispatchError>;
-    fn sync_crdt(&self, peer: ReplicaId)
-        -> Result<CrdtSyncResult, FederationDispatchError>;
-    fn resolve_link(&self, link: FederationLink)
-        -> Result<LinkResolution, FederationDispatchError>;
+pub trait FederationDispatch: Send + Sync {
+    async fn register_peer(&self, replica: ReplicaId, server_domain: String,
+                          matrix_domain: String, matrix_id: String);
+    async fn invite(&self, peer: ReplicaId, message: Option<String>)
+        -> Result<(), FederationDispatchError>;
+    async fn accept(&self, peer: ReplicaId) -> Result<(), FederationDispatchError>;
+    async fn reject(&self, peer: ReplicaId, reason: Option<String>)
+        -> Result<(), FederationDispatchError>;
+    async fn pause(&self, peer: ReplicaId, reason: String) -> Result<(), FederationDispatchError>;
+    async fn resume(&self, peer: ReplicaId) -> Result<(), FederationDispatchError>;
+    async fn revoke(&self, peer: ReplicaId, reason: String) -> Result<(), FederationDispatchError>;
+    async fn leave(&self, reason: String) -> Result<(), FederationDispatchError>;
+    async fn dissolve(&self, reason: String) -> Result<(), FederationDispatchError> { ... }
 }
 ```
 
-This trait lives in the ports layer — instances can swap federation implementations without changing the agents that use them.
+The trait models the full federation member lifecycle: register → invite → accept/reject → pause/resume → revoke → leave/dissolve. This trait lives in the ports layer — instances can swap federation implementations without changing the agents that use them.
 
 ## CRDT-Based Sync
 

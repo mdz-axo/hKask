@@ -73,7 +73,7 @@ Core spans used across 2+ crates. This is the foundational enum implementing `Ob
 
 `WebSearch`, `Condenser`, `Training`, `Replica`, `Research`, `Communication`, `Registry`, `Wallet`, `Media`, `Kanban`, `Memory`, `Companies`, `Docproc`, `Filesystem`, `Curator`, `Other` (catch-all).
 
-### 3.2 AcpSpan — Agent Communication Protocol
+### 3.2 AcpSpan — Agent Client Protocol
 
 **File:** `crates/hkask-cns/src/acp_span.rs`
 

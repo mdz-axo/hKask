@@ -21,6 +21,7 @@ use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, EntityTags};
 use hkask_storage::HMem;
 use hkask_types::Visibility;
+use hkask_types::visibility::Dimension;
 use serde::{Deserialize, Serialize};
 
 /// Qwen3-Embedding-0.6B output dimension.
@@ -913,14 +914,111 @@ fn build_cross_reference_prompts(qualifying: &[&TaggedChunk], args: &BuildPrompt
 }
 
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.is_empty() || b.is_empty() || a.len() != b.len() {
+        return 0.0;
+    }
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let mag_a = (a.iter().map(|x| x * x).sum::<f32>()).sqrt();
     let mag_b = (b.iter().map(|x| x * x).sum::<f32>()).sqrt();
     if mag_a == 0.0 || mag_b == 0.0 {
         0.0
     } else {
-        dot / (mag_a * mag_b)
+        (dot / (mag_a * mag_b)).clamp(0.0, 1.0)
     }
+}
+
+// ── K-means clustering for SemDeDup ──────────────────────────────────
+//
+// Simple Lloyd's algorithm on pre-normalized vectors. Uses dot product
+// (cosine similarity on normalized vectors) for centroid assignment.
+// Returns clusters as Vecs of indices into `embedded_indices`.
+//
+// Reference: SemDeDup (Abbas et al., 2023) — cluster embeddings with K-means,
+// then deduplicate only within clusters. Reduces O(N²) to O(N²/K).
+
+fn kmeans_cluster(
+    vectors: &[Vec<f32>],
+    embedded_indices: &[usize],
+    k: usize,
+    max_iter: usize,
+) -> Vec<Vec<usize>> {
+    let n = embedded_indices.len();
+    if n == 0 || k == 0 {
+        return Vec::new();
+    }
+    let dim = vectors[embedded_indices[0]].len();
+
+    // Initialize centroids: evenly spaced selection from the data points
+    let mut centroids: Vec<Vec<f32>> = Vec::with_capacity(k);
+    let step = n / k;
+    for i in 0..k {
+        let idx = embedded_indices[(i * step).min(n - 1)];
+        centroids.push(vectors[idx].clone());
+    }
+
+    let mut assignments = vec![0usize; n];
+
+    for _iter in 0..max_iter {
+        // Assignment step: assign each point to nearest centroid (max dot product)
+        let mut changed = false;
+        for (i, &data_idx) in embedded_indices.iter().enumerate() {
+            let v = &vectors[data_idx];
+            let mut best_cluster = 0;
+            let mut best_sim = f32::MIN;
+            for (c, centroid) in centroids.iter().enumerate() {
+                let dot: f32 = v.iter().zip(centroid.iter()).map(|(a, b)| a * b).sum();
+                if dot > best_sim {
+                    best_sim = dot;
+                    best_cluster = c;
+                }
+            }
+            if assignments[i] != best_cluster {
+                assignments[i] = best_cluster;
+                changed = true;
+            }
+        }
+
+        if !changed {
+            break;
+        }
+
+        // Update step: compute new centroids as mean of assigned points
+        let mut new_centroids = vec![vec![0.0f32; dim]; k];
+        let mut counts = vec![0usize; k];
+        for (i, &data_idx) in embedded_indices.iter().enumerate() {
+            let c = assignments[i];
+            counts[c] += 1;
+            for (d, &val) in vectors[data_idx].iter().enumerate() {
+                new_centroids[c][d] += val;
+            }
+        }
+        for c in 0..k {
+            if counts[c] > 0 {
+                // Normalize centroid (so dot product = cosine similarity)
+                let mag = (new_centroids[c].iter().map(|x| x * x).sum::<f32>()).sqrt();
+                if mag > 0.0 {
+                    for val in &mut new_centroids[c] {
+                        *val /= mag;
+                    }
+                }
+            } else {
+                // Empty cluster: reinitialize from a data point
+                let fallback = embedded_indices[c % n];
+                new_centroids[c] = vectors[fallback].clone();
+            }
+        }
+        centroids = new_centroids;
+    }
+
+    // Group indices by cluster
+    let mut clusters: Vec<Vec<usize>> = vec![Vec::new(); k];
+    for (i, &data_idx) in embedded_indices.iter().enumerate() {
+        clusters[assignments[i]].push(data_idx);
+    }
+
+    // Remove empty clusters
+    clusters.retain(|c| !c.is_empty());
+    clusters
 }
 
 async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Error>> {
@@ -957,11 +1055,15 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
         filtered.len(),
         qas.len() - filtered.len()
     );
+
     let use_embed = args.dedup_threshold < 1.0;
     let emb_model = model_constants::embedding_model();
-    let mut deduped: Vec<&GeneratedQa> = Vec::new();
-    let mut emb_kept: Vec<(Vec<f32>, &GeneratedQa)> = Vec::new();
+    // Unified dedup tracking: each entry is (normalized_embedding_or_none, &GeneratedQa)
+    // This fixes the index divergence bug where emb_kept and deduped had different orderings.
+    let mut deduped: Vec<(Option<Vec<f32>>, &GeneratedQa)> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut no_embedding_count = 0usize;
+
     if use_embed {
         let inf_cfg = InferenceConfig::from_env();
         let embedder = EmbeddingRouter::new(inf_cfg);
@@ -969,7 +1071,22 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
         let mut all_v: Vec<Vec<f32>> = Vec::new();
         for batch in instructions.chunks(50) {
             match embedder.embed_sentences(&emb_model, batch).await {
-                Ok(v) => all_v.extend(v),
+                Ok(v) => {
+                    // Guard against partial returns: if the API returns fewer
+                    // vectors than inputs, pad with empty to maintain alignment
+                    if v.len() != batch.len() {
+                        eprintln!(
+                            "  WARN: embed batch returned {} vectors for {} inputs — padding",
+                            v.len(), batch.len()
+                        );
+                        let v_len = v.len(); all_v.extend(v);
+                        for _ in v_len..batch.len() {
+                            all_v.push(Vec::new());
+                        }
+                    } else {
+                        let v_len = v.len(); all_v.extend(v);
+                    }
+                }
                 Err(e) => {
                     eprintln!("  WARN: embed batch: {e}");
                     for _ in 0..batch.len() {
@@ -978,47 +1095,127 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
                 }
             }
         }
-        for (i, qa) in filtered.iter().enumerate() {
-            if i < all_v.len() && !all_v[i].is_empty() {
-                let mut dup = false;
-                for (ev, _) in &emb_kept {
-                    if cosine_similarity(&all_v[i], ev) > args.dedup_threshold as f32 {
-                        dup = true;
-                        break;
+        println!("  Embedded: {} / {} instructions", all_v.iter().filter(|v| !v.is_empty()).count(), all_v.len());
+
+        // Pre-normalize all embeddings so cosine similarity becomes a dot product.
+        // This is the critical performance fix: the old code called cosine_similarity
+        // (which recomputes magnitudes) in an O(n²) loop. Pre-normalizing reduces
+        // each comparison from 3 full-vector iterations to 1.
+        let normalized: Vec<Vec<f32>> = all_v
+            .iter()
+            .map(|v| {
+                if v.is_empty() {
+                    Vec::new()
+                } else {
+                    let mag = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
+                    if mag > 0.0 {
+                        v.iter().map(|x| x / mag).collect()
+                    } else {
+                        v.clone()
                     }
                 }
-                if !dup {
-                    emb_kept.push((all_v[i].clone(), qa));
-                    deduped.push(qa);
+            })
+            .collect();
+
+        let threshold = args.dedup_threshold as f32;
+
+        // ── SemDeDup Algorithm (Abbas et al., 2023) ──────────────────────
+        //
+        // Reference: "SemDeDup: Data-efficient learning at web-scale through
+        // semantic deduplication" (arXiv:2303.09540, NeurIPS 2023)
+        //
+        // 1. Embed all data points (done above)
+        // 2. K-means cluster the embeddings into K clusters
+        // 3. Within each cluster only, compute pairwise cosine similarity
+        //    and remove pairs above threshold ε
+        //
+        // Complexity: O(N²/K) instead of O(N²).
+        // With N=17,891 and K≈134 (√N), each cluster has ~134 items.
+        // Within-cluster: 134 × 134²/2 ≈ 1.2M comparisons vs 160M brute force.
+
+        // Collect indices of QAs that have valid embeddings
+        let embedded_indices: Vec<usize> = (0..filtered.len())
+            .filter(|&i| i < normalized.len() && !normalized[i].is_empty())
+            .collect();
+        let no_embed_indices: Vec<usize> = (0..filtered.len())
+            .filter(|&i| i >= normalized.len() || normalized[i].is_empty())
+            .collect();
+        no_embedding_count = no_embed_indices.len();
+
+        // K-means clustering on normalized vectors (dot product = cosine similarity)
+        let n = embedded_indices.len();
+        let k = (n as f64).sqrt().round().max(2.0) as usize;
+        println!("  SemDeDup: {} embedded QAs, {} clusters (K=√N)", n, k);
+
+        let assignments = kmeans_cluster(&normalized, &embedded_indices, k, 10);
+        let clusters = assignments.len();
+        let max_cluster = assignments.iter().map(|c| c.len()).max().unwrap_or(0);
+        let avg_cluster = n / clusters.max(1);
+        println!("  K-means: {} clusters (avg {} items, max {})",
+            clusters, avg_cluster, max_cluster);
+
+        // Within each cluster: greedy dedup by cosine > threshold.
+        // Sort by instruction length descending (longer = more specific = keep first).
+        // This follows D4 (Tirumala et al. 2023): keep the most informative example.
+        for cluster_indices in &assignments {
+            let mut sorted = cluster_indices.clone();
+            sorted.sort_by(|&a, &b| {
+                filtered[b].instruction.len().cmp(&filtered[a].instruction.len())
+            });
+
+            let mut kept_in_cluster: Vec<usize> = Vec::new();
+            for &i in &sorted {
+                let is_dup = kept_in_cluster.iter().any(|&k| {
+                    let dot: f32 = normalized[i].iter()
+                        .zip(normalized[k].iter())
+                        .map(|(a, b)| a * b)
+                        .sum();
+                    dot > threshold
+                });
+                if !is_dup {
+                    kept_in_cluster.push(i);
+                    deduped.push((Some(normalized[i].clone()), &filtered[i]));
                 }
-            } else if seen.insert(qa.instruction.to_lowercase()) {
-                deduped.push(qa);
+            }
+        }
+
+        // QAs without embeddings: fall back to exact-match dedup
+        for &i in &no_embed_indices {
+            if seen.insert(filtered[i].instruction.to_lowercase()) {
+                deduped.push((None, &filtered[i]));
             }
         }
     } else {
         for qa in &filtered {
             if seen.insert(qa.instruction.to_lowercase()) {
-                deduped.push(qa);
+                deduped.push((None, qa));
             }
         }
     }
+
+    let deduped_count = deduped.len();
     println!(
         "  Deduped: {} (removed {})",
-        deduped.len(),
-        filtered.len() - deduped.len()
+        deduped_count,
+        filtered.len() - deduped_count
     );
+    if no_embedding_count > 0 {
+        println!("  No embedding: {} QAs used exact-match dedup", no_embedding_count);
+    }
     let mut tc = std::collections::HashMap::new();
-    for qa in &deduped {
+    for (_, qa) in &deduped {
         *tc.entry(&qa.qa_type).or_insert(0) += 1;
     }
     println!("  Types: {:?}", tc);
     if args.dry_run {
-        println!("  Dry run. Would store {} QAs.", deduped.len());
+        println!("  Dry run. Would store {} QAs.", deduped_count);
         return Ok(());
     }
+
+    // Write training JSONL
     let train: String = deduped
         .iter()
-        .map(|q| {
+        .map(|(_, q)| {
             serde_json::to_string(
                 &serde_json::json!({"instruction": q.instruction, "input": "", "output": q.output}),
             )
@@ -1029,24 +1226,25 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
     std::fs::write(&args.output, train + "\n")?;
     println!(
         "  Wrote: {} QAs to {}",
-        deduped.len(),
+        deduped_count,
         args.output.display()
     );
+
+    // Store h_mems with 5W1H dimension and Dublin Core / PKO ontology metadata.
+    // The dimension anchors each QA pair in the curator's 5W1H core ontology
+    // (Dimension::What = a thing/state). The value JSON carries the dual-axis
+    // metadata: Dublin Core (state: what is this, where from, who made it)
+    // and PKO (process: how was this produced, extracted from what).
     let semantic = SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM)?;
     let webid = hkask_types::WebID::from_persona(CORPUS_WEBID.as_bytes());
     let mut stored = 0;
     let mut store_failures = 0;
     let mut with_chunk_ref = 0;
-    for (i, qa) in deduped.iter().enumerate() {
+
+    for (i, (emb, qa)) in deduped.iter().enumerate() {
         if qa.chunk_ref.is_some() {
             with_chunk_ref += 1;
         }
-        // Schema aligns with training_ingest_qa / training_assemble_dataset:
-        //   entity   = training:qa:{dataset}:{source}:{i}
-        //   attribute = training_qa_pair
-        //   value    = {question, answer, bloom_level, source, dataset, ...provenance}
-        // The training server queries by attribute "training_qa_pair" and reads
-        // question/answer/bloom_level/dataset/source from the value.
         let entity = format!("training:qa:{}:{}:{}", args.dataset, qa.source, i);
         let v = serde_json::json!({
             "question": qa.instruction,
@@ -1054,15 +1252,26 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
             "bloom_level": qa.qa_type,
             "source": qa.source,
             "dataset": args.dataset,
-            // Provenance fields (ignored by training_assemble_dataset but useful for auditing)
+            // Provenance fields
             "difficulty": qa.difficulty,
             "concepts": qa.concepts,
             "chunk_ref": qa.chunk_ref,
             "evidence_quotes": qa.evidence_quotes,
+            // 5W1H + dual-axis ontology metadata
+            "ontology": {
+                "dimension": "what",
+                "anchor": "dual_axis",
+                "dc_type": "bibo:Document",
+                "dc_source": qa.source,
+                "dc_subject": qa.concepts,
+                "pko_produced_by": "docproc_generate_qa",
+                "pko_extracted_from": qa.chunk_ref,
+            },
         });
         let h_mem = HMem::new(&entity, "training_qa_pair", v, webid)
             .with_visibility(Visibility::Public)
-            .with_confidence(0.8);
+            .with_confidence(0.8)
+            .with_dimension(Dimension::What);
         match semantic.store(h_mem) {
             Ok(()) => stored += 1,
             Err(e) => {
@@ -1071,28 +1280,35 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
             }
         }
     }
-    println!("  Stored: {} QA h_mems", stored);
+    println!("  Stored: {} QA h_mems (5W1H: What, dual-axis: DC+BIBO/PKO)", stored);
     if store_failures > 0 {
         eprintln!(
-            "  WARNING: {} QA h_mems failed to store ({} failures)",
-            store_failures, store_failures
+            "  WARNING: {} QA h_mems failed to store",
+            store_failures
         );
     }
     println!(
         "  Provenance: {}/{} QAs have chunk_ref (traceable to source passage)",
         with_chunk_ref,
-        deduped.len()
+        deduped_count
     );
-    if args.embed_qas && !emb_kept.is_empty() {
+
+    // Store QA embeddings — now using the SAME index as h_mem storage
+    // (fixes the index divergence bug where emb_kept had different ordering)
+    if args.embed_qas {
+        let to_embed: Vec<(usize, &Vec<f32>)> = deduped
+            .iter()
+            .enumerate()
+            .filter_map(|(i, (emb, _))| emb.as_ref().map(|e| (i, e)))
+            .collect();
         println!(
             "  Embedding {} QA vectors for KNN search...",
-            emb_kept.len()
+            to_embed.len()
         );
         let mut embedded_count = 0;
         let mut embed_failures = 0;
-        // emb_kept order matches deduped — use same index as h_mem storage.
-        // Entity ref must match the h_mem entity for KNN-to-h_mem correlation.
-        for (i, (vec, qa)) in emb_kept.iter().enumerate() {
+        for (i, vec) in &to_embed {
+            let qa = deduped[*i].1;
             let entity = format!("training:qa:{}:{}:{}", args.dataset, qa.source, i);
             match semantic.store_embedding(&entity, vec, &emb_model) {
                 Ok(_) => embedded_count += 1,

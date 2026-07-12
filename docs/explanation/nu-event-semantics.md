@@ -31,11 +31,11 @@ A ν-event is an **assertion**, not a trace. It says "at time T, observer O witn
 
 ## ObservableSpan vs NuEvent
 
-This distinction is crucial. `ObservableSpan` (at `crates/hkask-types/src/observable_span.rs:47`) is a trait that typed span enums implement — it produces a canonical dot-separated namespace string like `"cns.tool.web_search"`. `CnsSpan` is the primary implementor, but the trait is designed to be domain-extensible: `FederationSpan`, `WalletSpan`, and other domain span enums can implement it. A span is a **trace** — it marks where in the system something happened.
+This distinction is crucial. `ObservableSpan` (at `crates/hkask-types/src/observable_span.rs:56`) is a trait that typed span enums implement — it produces a canonical dot-separated namespace string like `"cns.tool.web_search"`. `CnsSpan` is the primary implementor, but the trait is designed to be domain-extensible: `FederationSpan`, `WalletSpan`, and other domain span enums can implement it. A span is a **trace** — it marks where in the system something happened.
 
 A `NuEvent` contains a `Span`, but it adds: *who*, *when*, *what*, *which phase*, and *what was the regulatory outcome*. A span says "tool invoked"; a ν-event says "Agent A invoked the web_search tool in the Sense phase, observing {server, tool, estimated_cost}, with no regulation applied, at recursion depth 0."
 
-The bridging function is `SpanNamespace::from_observable()` — it takes any `impl ObservableSpan`, validates against the canonical namespace set in `CANONICAL_NAMESPACES` (94 entries at v0.31.0, listed in `event.rs:111-284`), and produces a validated `SpanNamespace` for `NuEvent` construction. This design decouples domain span definitions from namespace validation: domain crates define their spans; the event system validates.
+The bridging function is `SpanNamespace::from_observable()` — it takes any `impl ObservableSpan`, validates against the canonical namespace set in `CANONICAL_NAMESPACES` (139 entries at v0.31.0), and produces a validated `SpanNamespace` for `NuEvent` construction. This design decouples domain span definitions from namespace validation: domain crates define their spans; the event system validates.
 
 ## The Emission Contract
 

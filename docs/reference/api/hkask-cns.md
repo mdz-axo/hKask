@@ -17,7 +17,7 @@ Cybernetic Nervous System — homeostatic self-regulation for the hKask agent pl
 
 | Module | Description |
 |---|---|
-| `acp_span` | ACP (Agent Communication Protocol) span types |
+| `acp_span` | ACP (Agent Client Protocol) span types |
 | `api_metering` | API key metering: rate limits, CNS spans, alerts. Types: `ApiMeter`, `ApiMeteringAlert`, `ApiRequestSpan`, `EndpointWeight`, `RateLimitStatus`, `endpoint_weight()` |
 | `calibrated_energy_estimator` | Self-regulating per-server gas estimator. Types: `CalibratedEnergyEstimator`, constants `DEFAULT_CALIBRATION_INTERVAL`, `DEFAULT_INITIAL_LOOKBACK` |
 | `circuit_breaker` | Regulation circuit breaker: `CircuitBreaker` (implements `CircuitBreakerPort`) |

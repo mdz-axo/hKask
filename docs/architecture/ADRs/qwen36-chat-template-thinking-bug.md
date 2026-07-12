@@ -1,3 +1,13 @@
+---
+title: "ADR: Qwen3.6 Chat Template — enable_thinking Default Bug"
+audience: [developers, ML engineers]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Training"
+mds_categories: [domain, lifecycle]
+---
+
 # ADR: Qwen3.6 Chat Template — enable_thinking Default Bug
 
 **Date:** 2026-07-10 | **Severity:** Critical | **Status:** Fixed

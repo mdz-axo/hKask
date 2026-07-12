@@ -11,7 +11,7 @@ last-verified-against: "3d1a876f"
 
 # hkask-acp — API Reference
 
-**Purpose:** Agent Communication Protocol (ACP) replicant. Presents coding agents in IDEs via the ACP protocol, reusing hKask's existing inference, memory, and MCP infrastructure.
+**Purpose:** Agent Client Protocol (ACP) replicant. Presents coding agents in IDEs via the ACP protocol, reusing hKask's existing inference, memory, and MCP infrastructure.
 
 ## Public Modules
 

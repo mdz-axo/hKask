@@ -1,3 +1,13 @@
+---
+title: "Qwen3.6-27B Training — Gap Analysis"
+audience: [developers, ML engineers]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Training"
+mds_categories: [domain, curation]
+---
+
 # Qwen3.6-27B Training — Gap Analysis vs Reference
 
 **Date:** 2026-07-10 | **Reference:** `docs/reference/qwen36-training-hyperparameters.md`
