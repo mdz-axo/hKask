@@ -1564,6 +1564,12 @@ classDiagram
     IndexPipeline ..> CodeGraphError : may raise
     GraphStore ..> CodeGraphError : may raise
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### Diagram Notes
 
@@ -1636,6 +1642,12 @@ flowchart TD
 
 
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### Pipeline Stages
 
@@ -1725,6 +1737,12 @@ erDiagram
     symbols_fts ||--|| symbols : "FTS5 content sync"
     symbols_vec ||--o| symbols : "optional vector index"
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### Notable Indexes
 
@@ -1846,6 +1864,12 @@ sequenceDiagram
     Pipeline-->>-Server: IndexStats {files, symbols, edges}
     Server-->>-Agent: {files_indexed, symbols_added, total_symbols, total_edges}
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### Tool Summary
 
@@ -1931,6 +1955,12 @@ stateDiagram-v2
     note right of Ready : Proposed serving state
     note left of Stale : Proposed CNS-driven re-index trigger
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implementation Gap
 
@@ -2127,6 +2157,12 @@ classDiagram
     KanbanWindow ..> ReplBridge : uses
     KanbanWindow ..> KanbanDataBridge : uses
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ## Key Relationships
 
@@ -2234,6 +2270,12 @@ flowchart TD
     L --> L1
     L1 --> L2 --> L3 --> L4 --> L5
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-007
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ## Key Decision Points
 
@@ -2328,6 +2370,12 @@ stateDiagram-v2
         or on any key press.
     end note
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-008
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ## Split Tree Structure
 
@@ -2490,6 +2538,12 @@ flowchart TD
 
     C -.-> IMPL
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REF-009
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ## Dependency Rule
 

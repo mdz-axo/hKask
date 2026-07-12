@@ -653,7 +653,7 @@ fn parse_type_distribution(spec: &str) -> Vec<QaType> {
 fn qa_type_instruction(qt: QaType) -> &'static str {
     match qt {
         QaType::Factual => {
-            "Generate a FACTUAL question: identify specific capabilities, resources, performance metrics, or gap measurements from the passage. What does the system have? What does it achieve? Answer directly from the text."
+            "Extract ONE fact from passage. Generate FACTUAL question: identify specific capabilities, resources, metrics from passage. Direct answer from text. No explanation. No elaboration. Question asks what system has or achieves. Answer states fact. Keep output concise — caveman mode: drop filler, articles, hedging. Preserve all technical accuracy."
         }
         QaType::Conceptual => {
             "Generate a CONCEPTUAL question: explain the mechanisms linking capabilities to outcomes. How does a described capability theoretically translate into performance? What models or frameworks explain the capability-performance relationship?"

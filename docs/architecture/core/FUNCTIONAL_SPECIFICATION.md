@@ -144,6 +144,12 @@ graph TD
     SVC --> TYPES[hkask-types]
     SVC --> STORAGE[hkask-storage]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 Domain crates **never** depend on service layer subcrates. MCP servers **never** depend on service layer subcrates for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface exception: `hkask-mcp-replica` imports for delegation only.
 
@@ -177,6 +183,12 @@ graph TD
     CUL -.->|"via transport"| TR
     CYL -.->|"via transport"| TR
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 **Key rules:** Domain loops signal their governing meta loop but never each other directly. Transport is a dumb pipe, not a regulator. The Curation Loop is the single authority that can override any meta loop's decision.
 
@@ -320,6 +332,12 @@ erDiagram
         string userExpectation "User expects the system to prevent runaway agent resource consumption"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (16)
 
@@ -373,6 +391,12 @@ erDiagram
         string userExpectation "User expects the system to alert when regulation thresholds are breached"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (4)
 
@@ -415,6 +439,12 @@ erDiagram
         string userExpectation "User expects unified CNS observability and regulation feedback"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### P9 Production Contracts (18)
 
@@ -492,6 +522,12 @@ erDiagram
         string userExpectation "User expects tool execution gated behind OCAP capability checks"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (3)
 
@@ -529,6 +565,12 @@ erDiagram
         string userExpectation "User expects inference calls gated behind gas budget checks"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-007
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (2)
 
@@ -562,6 +604,12 @@ erDiagram
         string userExpectation "User expects system to prevent cascading failures in external service calls"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-008
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (3)
 
@@ -590,6 +638,12 @@ erDiagram
         string userExpectation "User expects per-key rate limits and gas tracking for API stability"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-009
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (8)
 
@@ -634,6 +688,12 @@ erDiagram
         string userExpectation "User expects energy costs estimated for regulated operations"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-010
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (2)
 
@@ -1396,6 +1456,12 @@ erDiagram
         string location "cloud-only"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-011
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 #### Production Contracts (12)
 
@@ -1660,6 +1726,12 @@ erDiagram
         bool is_critical
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-012
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 ### 4.2 Deployment Domain Entity Model
 
@@ -1704,6 +1776,12 @@ erDiagram
         string host
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-013
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 ### 4.3 Contract-Anchoring ERD
 
@@ -1739,6 +1817,12 @@ erDiagram
         string message "CNS"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FS-014
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+status: VERIFIED
+-->
 
 ---
 

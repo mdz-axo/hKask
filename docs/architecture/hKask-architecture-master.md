@@ -371,6 +371,12 @@ graph TD
     style Curator fill:#f3e1ff
     style Agents fill:#fff3e1
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 **The composition chain:**
 1. **Skills drive Agents.** Pods created from FlowDef templates. Personas are WordAct. Cognitive strategies are KnowAct. Templates are the loom; agents are the fabric.
@@ -908,6 +914,12 @@ graph TD
     SVC --> TYPES[hkask-types]
     SVC --> STORAGE[hkask-storage]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 Domain crates **never** depend on service layer subcrates. MCP servers **never** depend on service layer subcrates for orchestration (P1 Prohibition — out-of-process isolation). Tri-surface MCP servers (those that are direct surfaces for a service) may import specific service layer subcrates for delegation only — see constraint 1 below.
 
@@ -1013,6 +1025,12 @@ graph TD
     SVC --> STORAGE["hkask-storage (hMemStore)"]
     SVC -.-> AGENTS["hkask-agents (ActivePods)"]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 `hkask-mcp-kata-kanban` depends on `hkask-services-kata-kanban` — permitted as a tri-surface for KanbanService.
 
@@ -1085,6 +1103,12 @@ sequenceDiagram
         KataEngine->>CNS: cns.kata.improv.effectiveness (degradation)
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 #### PDCA → Kanban State Mapping
 
@@ -1167,6 +1191,12 @@ stateDiagram-v2
         CNS: Inference
     end note
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### Key Features
 
@@ -1186,6 +1216,12 @@ graph TD
     ADAPTER --> STORAGE["hkask-storage (define_store!)"]
     ADAPTER --> INFERENCE["hkask-inference (provider routing)"]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 Adapter and endpoint operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Training }`, `CnsSpan::Inference`, and `CnsSpan::Gas`.
 
@@ -1241,6 +1277,12 @@ graph TD
     DH -->|"store_experience → dual encoding"| PM
     DH -->|"every 10: generate_narrative"| IP
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-007
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### Startup Flow
 
@@ -1312,6 +1354,12 @@ graph TD
     AGENT -->|"auth + capability + store_experience"| DL
     DL --> MEM
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-008
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### ACP Protocol vs MCP vs A2A
 
@@ -1948,6 +1996,12 @@ graph TD
     style hKask fill:#e1f5ff
     style Human fill:#f3e1ff
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-009
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 #### `kask matrix status-sidecar` (On-Demand CLI)
 
@@ -2273,6 +2327,12 @@ sequenceDiagram
     C->>H: /sync event: agent response
     H->>H: Display: "You have 3 meetings today..."
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-010
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### 3.3 Agent-to-Agent (A2A) Flow — Same Install
 
@@ -2305,6 +2365,12 @@ sequenceDiagram
     
     A2-->>Cu: "Acknowledged. Logging health report."
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-011
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### 3.4 Agent-to-Agent (A2A) Flow — Cross-Install via Federation
 
@@ -2356,6 +2422,12 @@ sequenceDiagram
     M1->>Cu1: route response to Alpha
     Cu1->>A1: Deliver response
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-012
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### 3.5 The Inbox/REPL Equivalence
 
@@ -2390,6 +2462,12 @@ graph TD
     Agent -.-> E2
     E1 --- E2
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-013
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 **The inbox is what a REPL looks like from the transport layer. The REPL is what an inbox looks like from the agent layer.** The agent never knows about queues, sync tokens, or Matrix event types. It only knows about turns, history recall, and episodic memory — exactly what `ChatService::execute_turn()` already provides.
 
@@ -2437,6 +2515,12 @@ graph TD
     
     CONDUIT -.->|Federation<br/>optional| OTHER[Other Matrix<br/>Homeservers]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-014
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ---
 
@@ -3967,6 +4051,12 @@ stateDiagram-v2
 
     Revoked --> [*]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-015
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ### 3.3 The Degraded State (PC-2 Resolution)
 
@@ -4780,6 +4870,12 @@ erDiagram
     gallery_images ||--o{ gallery_tags : "image_id FK"
     gallery_images ||--o{ face_registry : "image_id FK"
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-016
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 <!-- DIAGRAM_ALIGNMENT
   id: DIAG-PL-010
@@ -5134,6 +5230,12 @@ erDiagram
     api_keys ||--|| encumbrances : "key_id"
     encumbrances }o--|| wallet_balances : "wallet_id"
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-017
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ## Node-to-Code Mapping
 
@@ -5252,6 +5354,12 @@ erDiagram
         TEXT accepted_user_id FK "Nullable: accepting user_id"
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-018
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 ## Cardinality Notes
 
@@ -5390,6 +5498,12 @@ classDiagram
     DbConnection --> DbProvider : typed by
     DbConfig --> DbProvider : selects
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-019
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 
 ### Database Connection Lifecycle
@@ -5432,6 +5546,12 @@ flowchart TD
     V --> W([Stores Ready])
     F --> X([Error Exit])
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-020
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 
 ### Companies MCP Provider Routing — Sequence
@@ -5595,6 +5715,12 @@ flowchart TD
     Calibration --> Assess
     Assess --> End
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-021
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+status: VERIFIED
+-->
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FW-007

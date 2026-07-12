@@ -70,6 +70,12 @@ flowchart TD
     PANEL -->|"N perspectives"| JUDGE
     JUDGE -->|"synthesis"| OUTPUT
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -178,6 +184,12 @@ flowchart TD
     SYNTH --> TRACK
     TRACK --> ASSESS
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -279,6 +291,12 @@ flowchart TD
     STORE -->|"algedonic events"| CURATOR
     STORE -->|"replay_weighted()"| CNS
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -394,6 +412,12 @@ flowchart TD
     REQ -->|"ledger_import"| LEDGER
     LEDGER -->|"portfolio_returns,\nattribution"| REQ
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -650,6 +674,12 @@ sequenceDiagram
         Note over Sem: recall_dedup::dedup_h_mems(filtered)
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 ## Confidence Flow Through Pipeline
 
@@ -681,6 +711,12 @@ sequenceDiagram
         Bridge->>+Sem: store_consolidated(episodic_c)
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 ## Per-Agent SQLCipher Isolation
 
@@ -791,6 +827,12 @@ flowchart TD
         MS
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-007
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 
 ### Classification-to-Memory Sequence
@@ -855,6 +897,12 @@ sequenceDiagram
         end
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-008
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 
 
 ### Dual-Model Classification Flow
@@ -915,4 +963,10 @@ flowchart TD
         D
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-COG-009
+verified_date: 2026-07-12
+verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
+status: VERIFIED
+-->
 

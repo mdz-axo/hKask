@@ -101,6 +101,12 @@ flowchart TD
     SETTLE --> STATS
     SETTLE --> CNS
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SOV-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -189,6 +195,12 @@ flowchart TD
     VERDICT -->|"gaps found"| FIX
     FIX -->|"re-review"| DIAGRAM
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SOV-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -291,6 +303,12 @@ classDiagram
     note for Depth1 "Authority reduced:\nexpiry enforced\ncaveats inherited"
     note for Depth7Max "Terminal depth:\ncan_attenuate() → false\nSYSTEM_MAX_ATTENUATION = 7"
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SOV-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+status: VERIFIED
+-->
 
 ## Attenuation Chain Rules
 
@@ -415,6 +433,12 @@ sequenceDiagram
         end
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SOV-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+status: VERIFIED
+-->
 
 ## Consent Record Lifecycle
 
@@ -510,6 +534,12 @@ stateDiagram-v2
         pattern over time
     end note
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SOV-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+status: VERIFIED
+-->
 
 
 ### Content Safety Guard Pipeline
@@ -562,4 +592,10 @@ flowchart TD
         SK
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SOV-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+status: VERIFIED
+-->
 

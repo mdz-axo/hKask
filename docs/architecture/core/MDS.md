@@ -628,6 +628,12 @@ graph TD
     SERVICES --> TYPES[hkask-types]
     SERVICES --> STORAGE[hkask-storage]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MDS-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-services-context/src/context_impl.rs
+status: VERIFIED
+-->
 
 Domain crates **never** depend on service layer subcrates. MCP servers **never** depend on service layer subcrates for orchestration (P1 Prohibition).
 

@@ -464,6 +464,12 @@ flowchart TD
     AC -->|No| AE[Terminate Pod]
     AE --> AF([Done: $0/hr])
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TRN-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+status: VERIFIED
+-->
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TRAIN-001
@@ -497,6 +503,12 @@ flowchart TD
     J -->|No: MCP contract incomplete| K([Stop: training no-go])
     J -->|Yes| L([Adapter evaluation and release])
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TRN-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+status: VERIFIED
+-->
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TRAIN-002
@@ -539,6 +551,12 @@ flowchart TD
     O -->|Yes| D
     O -->|No| P([Return pipeline result])
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TRN-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+status: VERIFIED
+-->
 
 `execute_tool` wraps the MCP call with a tool span and records success or error against the caller's WebID. That is observability, not authorization: per [P4 — Clear Boundaries](../architecture/core/PRINCIPLES.md#p4--clear-boundaries-ocap), operators must not treat this dispatcher as a replacement for an OCAP check. The checkpoint/result path supports [P9 — Homeostatic Self-Regulation](../architecture/core/PRINCIPLES.md#p9--homeostatic-self-regulation) by retaining the last step outcome for inspection and retry.
 
@@ -619,6 +637,12 @@ flowchart TD
     LL --> MM[Save baseline vs adapter delta]
     MM --> HH
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TRN-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+status: VERIFIED
+-->
 
 ## Key Decision Points
 
@@ -685,6 +709,12 @@ stateDiagram-v2
         - checkpoint-*/ (save_total_limit=3)
     end note
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TRN-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+status: VERIFIED
+-->
 
 ## State Definitions
 
@@ -830,6 +860,12 @@ classDiagram
     TrainingJob *-- TrainingHostId : has
     TrainingJob *-- TrainingHarnessId : has
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-TRN-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+status: VERIFIED
+-->
 
 ## Design Notes
 

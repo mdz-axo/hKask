@@ -140,6 +140,12 @@ flowchart TD
     ALG --> CURATOR["CurationLoop\n(Curator metacognition)"]
     VERIFY -->|"Block / Stagnation"| ALG
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -256,6 +262,12 @@ flowchart TD
 
     A -->|"escalate"| S2
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -358,6 +370,12 @@ flowchart TD
     CTX -->|"CalibrateThreshold"| CNS
     CTX -->|"OverrideEnergyBudget"| CNS
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -490,6 +508,12 @@ flowchart LR
 
     CHARTER --> PROBE --> ORACLE --> TAX --> REPORT
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -641,6 +665,12 @@ flowchart TD
     BRANCH -->|"next step"| RUN
     BRANCH -->|"terminal"| REPORT
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -822,6 +852,12 @@ classDiagram
     %% StorageGuard — extracted to hkask-storage-guard
     StorageGuardLoop ..> HkaskLoop : implements (in hkask-storage-guard)
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ## Coupling Analysis — Current State
 
@@ -945,6 +981,12 @@ flowchart TD
     style A fill:#0f3460,stroke:#e94560,color:#fff
     style E fill:#533483,stroke:#e94560,color:#fff
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-007
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 **Node-to-code mapping:**
 
@@ -1239,6 +1281,12 @@ flowchart TD
     V_BLOCK -->|"persist"| STORE
     A3 -->|"live channel"| CUR[(Curation inbox)]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-008
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 **Node-to-code mapping:**
 
@@ -1431,6 +1479,12 @@ sequenceDiagram
         Sink-->>-Rtm: ()
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-009
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ## SpanParent Relationship Model
 
@@ -1445,6 +1499,12 @@ sequenceDiagram
     Child->>+Child: persisted with parent reference
     Note over Parent,Child: Enables trace reconstruction:<br/>parent_id → child_id chain
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-010
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ## ToolSpanGuard Drop Behavior
 
@@ -1640,6 +1700,12 @@ sequenceDiagram
         end
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-011
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ## AlgedonicManager Internal State
 
@@ -1662,6 +1728,12 @@ sequenceDiagram
     AM->>+AM: alerts.push(new_alert)
     Note over AM: alerts accumulate — no flush
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-012
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ## Alert Lifecycle Summary
 
@@ -1781,6 +1853,12 @@ stateDiagram-v2
         - duration: Duration
     end note
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-013
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 **Node-to-code mapping:**
 
@@ -1861,6 +1939,12 @@ flowchart TD
     style ACT fill:#a22,stroke:#333,color:#fff
     style OBSERVE fill:#2a6,stroke:#333,color:#fff
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-014
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ## Phase Details
 
@@ -1957,6 +2041,12 @@ flowchart TD
         AA
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-CNS-015
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+status: VERIFIED
+-->
 
 ## Thresholds
 

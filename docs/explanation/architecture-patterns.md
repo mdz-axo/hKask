@@ -101,6 +101,12 @@ flowchart TD
     FED -.implements.-> FD
     WALLET -.implements.-> CBP
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -223,6 +229,12 @@ flowchart LR
     EXE -->|"emits spans"| CNS
     EXE -->|"invokes tools"| GOV
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -335,6 +347,12 @@ flowchart TD
     SW -->|"drift alerts"| REG
     TS -->|"reserve estimates"| REG
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -424,6 +442,12 @@ flowchart TD
     S1B -.->|"algedonic\n(bypass S2)"| S3
     S3 -.->|"CuratorDirective\nCalibrateThreshold"| S2
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -508,6 +532,12 @@ flowchart TD
     DC --> NOUN["Noun identity:\nresource type, creator,\ndate, format"]
     PKO --> VERB["Verb identity:\nprocedure, step,\nexecution, agent role"]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -559,6 +589,12 @@ flowchart TD
     AS --> CNS_CTX["CnsContext\n(variety, regulation,\nloop orchestration, events)"]
     AS --> STOR["StorageContext\n(registry, goals, agents, users,\nsovereignty, wallet store)"]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -1084,6 +1120,12 @@ classDiagram
     services_runtime::ProviderIntelligence ..> services_foundation::ServiceError : uses
     services_corpus::EmbedService ..> services_runtime::ServiceDaemonHandler : uses
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-007
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ---
 
@@ -1235,6 +1277,12 @@ classDiagram
 
     note for InferenceRouter "Multi-provider:\n- DeepInfra\n- Together AI\n- fal.ai\n- OpenRouter\n- KiloCode"
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-008
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 **Trait-to-file mapping:**
 
@@ -1626,6 +1674,12 @@ classDiagram
     %% ── Infra is transparent via #[error(transparent)] ──────────────────
     ServiceError ..> Infra : "#[error(transparent)]"
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-009
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ## Entity Counts
 
@@ -1782,6 +1836,12 @@ flowchart TD
 
     Sort -.-> DepGraph
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-010
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ## Template Type Taxonomy
 
@@ -1885,6 +1945,12 @@ flowchart TD
         CNS
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-011
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ## Subsystems
 
@@ -2043,6 +2109,12 @@ sequenceDiagram
     Gov-->>-Disp: Result<Value, ToolPortError>
     Disp-->>-Caller: Result<Value, TemplateError>
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-012
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ---
 
@@ -2079,6 +2151,12 @@ sequenceDiagram
 
     Note over Guard,Log: Drop: if neither ok() nor error() called, emits "dropped" span
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-013
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ---
 
@@ -2121,6 +2199,12 @@ sequenceDiagram
 
     Gates-->>-Main: StartupGateResult { authenticated, assigned, denied_tools }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-014
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 ---
 
@@ -2220,6 +2304,12 @@ sequenceDiagram
         OCAP-->>CLI: Error: capability denied (P4 violation)
     end
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ARCH-015
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+status: VERIFIED
+-->
 
 **Node-to-code mapping:**
 

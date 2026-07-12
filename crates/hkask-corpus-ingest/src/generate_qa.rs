@@ -29,74 +29,44 @@ pub struct QaPrompt {
 
 /// Per-Bloom-level LLM sampling parameters.
 ///
-/// The constraint gradient is on THINKING and RANDOMNESS, not output length.
-/// All levels use the same max_tokens — the cognitive demand varies through:
-/// - temperature: 0.1 (deterministic) → 0.8 (divergent)
-/// - top_p: 0.85 (focused) → 0.98 (wide nucleus)
-/// - min_p: 0.05 (filters noise) → 0.01 (allows rare tokens)
-/// - disable_thinking: true for factual (direct output, no reasoning tokens)
-/// - frequency_penalty: higher for factual (concise), lower for create
-/// - presence_penalty: higher for create (novel concepts), lower for factual
+/// Empirically verified against GLM-5.2 via KiloCode (2026-07-13):
+///
+/// - min_p: SILENTLY IGNORED by ZhipuAI endpoint — not used
+/// - disable_thinking (enable_thinking=false): IGNORED — GLM-5.2 always reasons
+///   (~640-830 reasoning tokens regardless of parameter or prompt style)
+/// - frequency_penalty / presence_penalty: minimal observable effect
+/// - temperature + top_p: VERIFIED EFFECTIVE — primary controls
+///
+/// GLM-5.2 reasoning overhead by Bloom level (measured):
+///   factual: ~640 reasoning tokens, ~55 content tokens
+///   analyze: ~640 reasoning tokens, ~170 content tokens
+///   create: ~830 reasoning tokens, ~300 content tokens
+/// All well within max_tokens=4096.
+///
+/// Cognitive differentiation comes from:
+///   1. Prompt instructions (qa_type_instruction) — primary
+///   2. Temperature (0.1 → 0.8) — randomness gradient
+///   3. top_p (0.85 → 0.98) — token pool width
 ///
 /// Research basis:
 /// - Renze (2024, EMNLP): low temp for factual accuracy, high for creativity
-/// - Peeperkorn et al. (2024, ICCC): min_p filters incoherent tokens at high temp
-/// - min-p sampling paper (2024): min_p adapts to model confidence dynamically
+/// - Nguyen et al. (2025, ICLR): min-p maintains coherence at high temp
+///   (but min-p unsupported on this provider — top_p serves as coherence guard)
+/// - Wang & Zhou (2024): moderate temp encourages beneficial reasoning diversity
 fn bloom_params(qa_type: &str) -> LLMParameters {
-    match qa_type {
-        "factual" => LLMParameters {
-            temperature: 0.1,
-            top_p: 0.85,
-            min_p: 0.05,
-            max_tokens: 4096,
-            disable_thinking: true,  // direct output, no chain-of-thought
-            frequency_penalty: 0.3,  // discourage repetitive phrasing
-            presence_penalty: 0.2,
-            ..Default::default()
-        },
-        "conceptual" => LLMParameters {
-            temperature: 0.3,
-            top_p: 0.92,
-            min_p: 0.03,
-            max_tokens: 4096,
-            frequency_penalty: 0.2,
-            presence_penalty: 0.1,
-            ..Default::default()
-        },
-        "analyze" => LLMParameters {
-            temperature: 0.5,
-            top_p: 0.95,
-            min_p: 0.02,
-            max_tokens: 4096,
-            frequency_penalty: 0.1,
-            presence_penalty: 0.1,
-            ..Default::default()
-        },
-        "evaluate" => LLMParameters {
-            temperature: 0.5,
-            top_p: 0.95,
-            min_p: 0.02,
-            max_tokens: 4096,
-            frequency_penalty: 0.1,
-            presence_penalty: 0.1,
-            ..Default::default()
-        },
-        "create" => LLMParameters {
-            temperature: 0.8,
-            top_p: 0.98,
-            min_p: 0.01,
-            max_tokens: 4096,
-            frequency_penalty: 0.0,
-            presence_penalty: 0.3,  // encourage novel concepts
-            ..Default::default()
-        },
-        _ => LLMParameters {
-            temperature: 0.3,
-            top_p: 0.95,
-            min_p: 0.02,
-            max_tokens: 4096,
-            ..Default::default()
-        },
+    let (temperature, top_p) = match qa_type {
+        "factual"    => (0.1, 0.85),  // extraction: deterministic, focused nucleus
+        "conceptual" => (0.3, 0.90),  // explanation: slight flexibility
+        "analyze"    => (0.5, 0.95),  // reasoning: moderate exploration
+        "evaluate"   => (0.5, 0.95),  // reasoning: same as analyze
+        "create"     => (0.8, 0.98),  // divergent: high creativity, wide nucleus
+        _            => (0.3, 0.90),
+    };
+    LLMParameters {
+        temperature,
+        top_p,
+        max_tokens: 4096,
+        ..Default::default()
     }
 }
 

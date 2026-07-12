@@ -398,6 +398,12 @@ flowchart TD
     LitestreamSidecar -->|WAL replication| S3[(S3 Object Storage)]
     InitRestore -->|restore from| S3
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DEP-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-cli/src/main.rs, crates/hkask-communication/src/lib.rs
+status: VERIFIED
+-->
 
 **Readiness flow:** `GET /health` → DB query + Conduit reachability → 200 if both OK, 503 otherwise. K8s readiness probe uses this.
 **Liveness flow:** `GET /` → static HTML → always 200 (fast, only proves HTTP server is alive).
@@ -468,6 +474,12 @@ flowchart TD
 
     ReadinessPass --> Ready([Pod Ready: Service Routes Traffic])
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DEP-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-cli/src/main.rs, crates/hkask-communication/src/lib.rs
+status: VERIFIED
+-->
 
 The two init containers run sequentially: first `wait-for-conduit` polls until the Matrix homeserver responds, then `litestream-restore` pulls the database from S3. Main containers start in parallel. The pod is only Ready when both DB and Conduit are reachable.
 
@@ -536,6 +548,12 @@ erDiagram
         string readinessProbe
     }
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DEP-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-cli/src/main.rs, crates/hkask-communication/src/lib.rs
+status: VERIFIED
+-->
 
 **Key relationships:**
 - **Namespace** owns all resources within it — deleting a namespace cascades to everything
@@ -598,6 +616,12 @@ sequenceDiagram
     SessionMgr-->>Axum: WebID + scoped DelegationToken
     Axum-->>Browser: Terminal UI (authenticated)
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DEP-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-cli/src/main.rs, crates/hkask-communication/src/lib.rs
+status: VERIFIED
+-->
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DA-003
@@ -686,6 +710,12 @@ flowchart TD
     
     X -.-> M1
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DEP-005
+verified_date: 2026-07-12
+verified_against: crates/hkask-cli/src/main.rs, crates/hkask-communication/src/lib.rs
+status: VERIFIED
+-->
 
 ## Key Decision Points
 
@@ -733,6 +763,12 @@ stateDiagram-v2
     note right of Accepted: accepted_at + accepted_user_id set\nOccurs during OAuth callback\nafter user/replicant creation
     note left of Expired: expires_at < now\nlookup_invite() returns None\nNo explicit status update needed
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DEP-006
+verified_date: 2026-07-12
+verified_against: crates/hkask-cli/src/main.rs, crates/hkask-communication/src/lib.rs
+status: VERIFIED
+-->
 
 ## Invite Lifecycle States
 

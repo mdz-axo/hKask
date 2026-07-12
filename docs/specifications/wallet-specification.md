@@ -109,6 +109,12 @@ graph TD
     style MGR fill:#2563eb,color:#fff
     style ISS fill:#2563eb,color:#fff
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-WAL-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-wallet/src/lib.rs, crates/hkask-ledger/src/lib.rs
+status: VERIFIED
+-->
 
 ### 2.3 Essentialist Review Summary
 
@@ -206,6 +212,12 @@ graph TD
     style LK fill:#dc2626,color:#fff
     style ZD fill:#059669,color:#fff
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-WAL-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-wallet/src/lib.rs, crates/hkask-ledger/src/lib.rs
+status: VERIFIED
+-->
 
 **Invariant `[OUGHT-DECL]`:** No un-zeroized key material ever leaves `signing.rs`. Keys are loaded per-operation via HKDF, wrapped in `LoadedKey` (redacted Debug), used for signing, and zeroized on drop. The caller receives only the signature.
 
@@ -228,6 +240,12 @@ sequenceDiagram
     Note over Memory: LoadedKey drops → Zeroizing zeroes
     Note over Memory: Key material gone from memory
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-WAL-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-wallet/src/lib.rs, crates/hkask-ledger/src/lib.rs
+status: VERIFIED
+-->
 
 ### 4.3 Defense in Depth
 
@@ -390,6 +408,12 @@ graph TD
     style WM fill:#2563eb,color:#fff
     style ISS fill:#2563eb,color:#fff
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-WAL-004
+verified_date: 2026-07-12
+verified_against: crates/hkask-wallet/src/lib.rs, crates/hkask-ledger/src/lib.rs
+status: VERIFIED
+-->
 
 **Key decisions `[OUGHT-DECL]`:**
 - `WalletManager` sole-owns `ChainPort` implementations

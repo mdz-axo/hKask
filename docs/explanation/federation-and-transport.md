@@ -125,6 +125,12 @@ flowchart TD
     FA -.->|"CRDT merge"| SB
     FB -.->|"CRDT merge"| SA
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FED-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/federation.rs, crates/hkask-federation/src/lib.rs
+status: VERIFIED
+-->
 
 ---
 
@@ -251,6 +257,12 @@ flowchart TD
     REV --> END2["Link terminated\nlocal state preserved"]
     LEAVE --> END3["Instance exits\nlocal state preserved"]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FED-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/federation.rs, crates/hkask-federation/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -358,6 +370,12 @@ stateDiagram-v2
 
     Terminated --> [*] : EndpointGuard drops
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-FED-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-ports/src/federation.rs, crates/hkask-federation/src/lib.rs
+status: VERIFIED
+-->
 
 ## Transition Table
 

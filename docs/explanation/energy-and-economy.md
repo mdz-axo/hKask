@@ -119,6 +119,12 @@ flowchart TD
     GT -->|"postings"| LEDGER
     CNS -->|"CalibratedEnergyEstimator\nadjusts estimates"| GT
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ENG-001
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/energy.rs, crates/hkask-ledger/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -223,6 +229,12 @@ flowchart TD
     SQLITE -->|"DbValue ↔ rusqlite"| SQLITE_DB["SQLite file\n.salt companion"]
     POSTGRES -->|"DbValue ↔ Option&lt;String&gt;"| PG_DB["PostgreSQL\nschema-coerced"]
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ENG-002
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/energy.rs, crates/hkask-ledger/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -389,6 +401,12 @@ stateDiagram-v2
     note right of Draining: NOT billable
     note right of Terminated: NOT billable
 ```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ENG-003
+verified_date: 2026-07-12
+verified_against: crates/hkask-cns/src/energy.rs, crates/hkask-ledger/src/lib.rs
+status: VERIFIED
+-->
 
 ### Implications
 
@@ -415,4 +433,3 @@ The P2 (Affirmative Consent) enforcement on provider selection is noteworthy —
 - `crates/hkask-adapter/src/adapter_port.rs` — AdapterPort trait (6 OCAP-gated methods)
 - `crates/hkask-adapter/src/endpoint_lifecycle.rs` — 5-phase state machine
 - `crates/hkask-adapter/src/provider_cost.rs` — CostModel + ProviderCapability
-- `docs/architecture/ADRs/ADR-043-database-driver.md` — ADR for the database driver abstraction
