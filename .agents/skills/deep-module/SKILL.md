@@ -64,6 +64,15 @@ Module design discipline based on John Ousterhout's *A Philosophy of Software De
 | `deep-module-design.j2` | `KnowAct` | Design a deep module interface from deletion test results. Minimize public surface, hide information, design for caller mental model, unify config and errors. Produce a module specification with ≤7 public functions. |
 | `deep-module-convergence-check.j2` | `KnowAct` | Compute normalized convergence metric for module-depth cycles. Outputs `convergence_metric` in [0,1], where 0 means deletion/surface/depth checks indicate an acceptable deep-module shape. |
 
+## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. This skill uses **synthesis mode** — Compose module assessments.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - All templates are `KnowAct` type with `Public` visibility.

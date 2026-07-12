@@ -43,7 +43,7 @@ Neutral, complete, descriptive-only documentation of the hKask system as it is. 
 
 ## Skill & Template Registry
 
-- [Skill Registry Index](skills/README.md) — All 38 skills + 2 templates + 1 bundle with FlowDef parameters
+- [Skill Registry Index](skills/README.md) — All 43 skills + 2 templates + 1 bundle with FlowDef parameters
 
 ## CNS Span Registry
 

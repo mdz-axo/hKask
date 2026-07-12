@@ -70,6 +70,15 @@ Max 3 iterations. Escalates to Curator if not converged after max iterations.
 | `revise.j2` | KnowAct | Produce a revised draft that addresses each critique point.  |
 | `self-critique-convergence-check.j2` | KnowAct | Compute normalized convergence metric for self-critique revision PDCA cycles. Returns convergence_metric plus rationale and blockers.  |
 
+## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. This skill uses **deliberation mode** — Multi-round refinement matches iterative critique.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - `generate.j2`: Public.

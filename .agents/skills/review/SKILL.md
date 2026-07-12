@@ -63,6 +63,15 @@ Self-critique a reasoning output for contradictions, unsupported claims, logical
 | `review-structured-eval.j2` | KnowAct | Convert review context into structured critique outputs for FlowDef loops.  |
 | `review-convergence-check.j2` | KnowAct | Compute normalized convergence metric for review PDCA cycles.  |
 
+## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. This skill uses **critique mode** — Draft → critique → revise matches self-critique.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - `self_critique.j2`: Public.

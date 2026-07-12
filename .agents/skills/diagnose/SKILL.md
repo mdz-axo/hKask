@@ -46,6 +46,15 @@ Disciplined diagnosis loop for hard bugs and performance regressions. Cybernetic
 | `diagnose-fix.j2` | `KnowAct` | Apply fix with regression test (before the fix). Verify original repro no longer reproduces. Clean up instrumentation. Write post-mortem. |
 | `diagnose-convergence-check.j2` | `KnowAct` | Compute normalized convergence metric for diagnosis cycles. Outputs `convergence_metric` in [0,1], where 0 means root cause and fix confidence are sufficient for exit. |
 
+## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. This skill uses **critique mode** — Draft → panel critiques → revise matches the diagnosis loop.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - All templates are `KnowAct` type with `Public` visibility

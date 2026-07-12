@@ -62,6 +62,15 @@ Idiomatic Rust design through Graydon Hoare's lens. Convergent inquiry loop: anc
 | `idiomatic-rust-challenge.j2` | KnowAct | Adversarial review of a Rust design proposal. Find gaps, test edge cases, challenge assumptions, identify deeper connections. Produce a scored critique with specific refinement directives. Few-shot: if the critique score is below threshold, loop back to design with concrete targets.  |
 | `idiomatic-rust-convergence.j2` | KnowAct | Compute a normalized convergence metric for an idiomatic-rust inquiry cycle. Synthesizes design quality, critique depth, and connection richness into a score in [0,1] where 0 means maximally idiomatic.  |
 
+## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. This skill uses **critique mode** — Draft → challenge → refine matches Rust design review.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - `idiomatic-rust-inquiry.j2`: Public.

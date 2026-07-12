@@ -102,6 +102,15 @@ Bug hunting: explores a target crate for threats to user-defined quality. Applie
 | `bug-hunt-expedition.j2` | KnowAct | Legacy monolithic expedition template (v0.30.0). Retained for backward compatibility. Prefer the decomposed pipeline: charter → probe → oracle → taxonomize → report.  |
 | `bug-hunt-convergence-check.j2` | KnowAct | Compute normalized convergence metric for bug-hunt PDCA cycles. Saturation detection with stability check — severity-weighted unresolved findings + Beizer taxonomy coverage.  |
 
+## Fusion Mode
+
+This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
+When enabled, all analysis steps route through a multi-model panel with judge
+synthesis. This skill uses **best-of-n mode** — Pick the best diagnosis from multiple models.
+
+The convergence check step has `fusion: false` to ensure deterministic rubric
+evaluation uses single-model inference.
+
 ## Constraints
 
 - `bug-hunt-charter.j2`: Public.

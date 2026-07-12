@@ -9,9 +9,7 @@
 //! - P3.1 Social Generativity: dual-model classification requires two peer
 //!   models from different jurisdictions. This port provides the second peer.
 
-use hkask_ports::{
-    ChatToolDefinition, InferenceError, InferencePort, InferenceResult,
-};
+use hkask_ports::{ChatToolDefinition, InferenceError, InferencePort, InferenceResult};
 use hkask_types::template::LLMParameters;
 use std::future::Future;
 use std::pin::Pin;
@@ -61,5 +59,4 @@ impl InferencePort for DualModelPort {
         self.inner
             .generate_with_model(prompt, params, Some(effective), tools)
     }
-
 }

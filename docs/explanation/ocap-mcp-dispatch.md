@@ -68,6 +68,6 @@ This means P4.1 (pod boundary = OCAP perimeter) is enforced by construction: the
 
 ## How This Enforces P4 (Clear Boundaries)
 
-The Magna Carta at `docs/architecture/core/magna-carta.md` defines P4 as a dual enforcement gate: `require_capability` (do you hold a token?) and `require_sovereignty` (does the data owner consent?). `GovernedTool` enforces the capability half; `SovereigntyChecker` enforces the sovereignty half. Together they form the unbypassable two-gate membrane. Every tool invocation, memory access, and template execution passes through both. The `CapabilityChecker` at `crates/hkask-capability/src/verification.rs` would provide a unified check entry point, combining both gates into a single fail-closed decision.
+The Magna Carta at `docs/architecture/core/magna-carta.md` defines P4 as a dual enforcement gate: `require_capability` (do you hold a token?) and `require_sovereignty` (does the data owner consent?). `GovernedTool` enforces the capability half; `SovereigntyChecker` enforces the sovereignty half. Together they form the unbypassable two-gate membrane. Every tool invocation, memory access, and template execution passes through both. The `CapabilityChecker` at `crates/hkask-capability/src/verification.rs` provides a unified check entry point, combining both gates into a single fail-closed decision.
 
 The system trusts the type system, not runtime configuration. If the code compiles with these membranes in place, the boundaries hold.

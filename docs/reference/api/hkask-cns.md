@@ -42,7 +42,7 @@ Cybernetic Nervous System — homeostatic self-regulation for the hKask agent pl
 | `slo_manager` | SLO evaluation: `SloManager`, `SloDataProvider`, `SloDataPoint`, `SloManagerError` |
 | `slo_span` | SLO span: `SloSpan` |
 | `slo_types` | SLO types: `SloDefinition`, `SloEvaluation`, `SloSeverity`, `seed_slos()` |
-| `storage_guard` | Autonomous disk space management (Loop 7): `StorageGuardLoop`, `StorageGuardConfig`, `walk_dir()` |
+| `storage_guard` | Moved to `hkask-storage-guard` crate. See that crate for `StorageGuardLoop`, `StorageGuardConfig`, `walk_dir()`. |
 | `types` | Loop core types: re-exports from `hkask_types::loops` |
 | `wallet_budget` | Wallet-backed energy budgets: `WalletBackedBudget` |
 | `wallet_energy_estimator` | Wallet-aware energy estimation: `WalletEnergyEstimator` |

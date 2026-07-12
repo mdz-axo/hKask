@@ -104,10 +104,9 @@ Every artifact in hKask has both a state identity and a process identity — it 
 
 | MCP Server | Process Axis | State Axis | Domain Bridge |
 |---|---|---|---|
-| **kanban** | PKO | DC+BIBO | — |
+| **kata-kanban** | PKO | DC+BIBO | — |
 | **docproc** | PKO | DC+BIBO | — |
 | **research** | PKO | DC+BIBO | — |
-| **spec** | PKO | DC+BIBO | — |
 | **skill** | PKO | DC+BIBO | — |
 | **companies** | PKO | DC+BIBO | FIBO (financial concepts) |
 | **replica** | PKO | DC+BIBO | GOLEM (narrative structure) |
@@ -117,6 +116,9 @@ Every artifact in hKask has both a state identity and a process identity — it 
 | **condenser** | PKO | DC+BIBO | — (DC is the connective tissue for graph saliency) |
 | **curator** | PKO | DC+BIBO | — (the curator IS the 5W1H core applied as Socratic inquiry) |
 | **communication** | PKO | DC+BIBO | — (deferred) |
+| **filesystem** | PKO | DC+BIBO | — |
+| **codegraph** | PKO | DC+BIBO | — |
+| **scenarios** | PKO | DC+BIBO | — |
 
 **Bridge locations:**
 - Process axis vocabulary: `crates/hkask-bridge-pko/` (shared crate)

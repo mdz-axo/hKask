@@ -125,6 +125,6 @@ last-verified-against: "91bfc585c"
 | Kata & Coaching | 4 skills + 1 composition | Skills + Composition |
 | Meta & Maintenance | 4 | Skills |
 | Specialized | 12 skills + 1 template | Skills + Template |
-| **Catalogued here** | **38 skills + 1 template + 1 composition** | **40 capabilities** |
+| **Catalogued here** | **43 skills + 2 templates + 1 bundle** | **46 capabilities** |
 
-> **Filesystem reality:** `registry/manifests/` contains 93 FlowDef manifests; only a subset (catalogued above) are agent-facing skills — the remainder are infrastructure / process manifests (see "Open issues"). `registry/templates/` contains 81 template crates; `.agents/skills/` contains 40 SKILL.md directories (39 matching a manifest + `qa-script-builder`). The catalogued skill count (~38) and the manifest count (93) differ precisely because skill-vs-infrastructure is not yet labelled (see Open issues). See `docs/status/documentation-inventory-2026-07-07.md` for prior count analysis.
+> **Filesystem reality:** `registry/templates/` contains 79 FlowDef manifests across 81 template directories; `.agents/skills/` contains 45 SKILL.md directories (43 skills + 2 templates). The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory.

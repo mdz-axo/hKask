@@ -6,7 +6,7 @@ description: "Code understanding: query, traverse, analyze, and assemble context
 
 # Codegraph
 
-Code understanding engine skill. Any replicant that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the `hkask-mcp-codegraph` MCP server's 10 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed) through a convergent PDCA cycle that iterates until the replicant has sufficient code understanding to act.
+Code understanding engine skill. Any replicant that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the `hkask-mcp-codegraph` MCP server's 11 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) through a convergent PDCA cycle that iterates until the replicant has sufficient code understanding to act.
 
 ## When to Use
 
