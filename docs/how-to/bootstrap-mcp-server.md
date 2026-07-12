@@ -13,8 +13,8 @@ last-verified-against: "3d1a876f"
 
 **Goal:** Create a new hKask MCP server with N tools and register it in `BUILTIN_SERVERS`.
 
-hKask has 16 MCP servers (memory, condenser, research, companies, communication, curator,
-fal, fal-workflow, media, docproc, training, replica, kanban, skill, filesystem, codegraph).
+hKask has 15 MCP servers (memory, condenser, research, companies, communication, curator,
+media, docproc, training, replica, kanban, skill, filesystem, codegraph, scenarios).
 Every server follows the same bootstrap pattern defined in `hkask-mcp`.
 
 ---
@@ -163,67 +163,81 @@ The `Parameters<T>` wrapper is from `rmcp` and handles JSON-RPC parameter deseri
 
 ---
 
-## Step 3: Implement the `Server` Trait
+## Step 3: Apply the `tool_router` Macro
 
-The `rmcp` crate requires you to implement `rmcp::Server` for your type. The `#[tool]` attribute
-generates the `tool_box` and `call_tool` methods. You implement `into_service` to return the service:
+The canonical pattern uses rmcp's `#[tool_router(server_handler)]` attribute on the `impl` block
+that contains your `#[tool]`-annotated methods. The macro generates the `Server` trait
+implementation (`tool_box`, `call_tool`, `into_service`) automatically — no manual `Server`
+impl is needed.
 
 ```rust
-use rmcp::{
-    Server, ServiceExt,
-    transport::stdio::{stdio_server, StdInTransport},
-};
+use rmcp::tool_router;
 
-#[derive(Debug, Clone)]
-pub struct ExampleServerRouter(ExampleServer);
-
-impl Server for ExampleServerRouter {
-    fn into_service(self) -> impl ServiceExt<rmcp::RoleServer> {
-        self.0
+#[tool_router(server_handler)]
+impl ExampleServer {
+    #[tool(description = "Liveness check")]
+    pub async fn example_ping(&self) -> String {
+        execute_tool(self, "example_ping", async {
+            Ok(serde_json::json!({
+                "status": "ok",
+                "server": "example",
+            }))
+        }).await
     }
+
+    // ... other #[tool] methods ...
 }
 ```
 
-This pattern wraps your annotated struct in a newtype that implements `Server`.
+The `#[tool_router(server_handler)]` attribute must be placed on the `impl` block that holds
+all your `#[tool]`-annotated methods. It wires them into the MCP protocol handler so that
+`run_server()` can call `serve()` on the returned server.
 
 ---
 
 ## Step 4: Write the `run()` Function
 
-Every hKask MCP server has a `run()` function that accepts the bootstrap result:
+Every hKask MCP server has a `run()` function that accepts the bootstrap result and calls
+`run_server()` with a factory closure. The server is constructed **inside** the closure —
+this is the canonical pattern used by all hKask MCP servers (see `hkask-mcp-codegraph`):
 
 ```rust
-use hkask_mcp::{DaemonClient, McpError, bootstrap_mcp_server};
+use hkask_mcp::{DaemonClient, McpError, run_server};
 
 pub async fn run(
     replicant: String,
     daemon_client: Option<DaemonClient>,
 ) -> Result<(), McpError> {
-    // Build server state
-    let server = ExampleServer::new(
-        hkask_types::WebID::new(),
-        replicant,
-        daemon_client,
-        Some(inference_port()?), // wire your inference port
-        std::collections::HashMap::new(),
-    );
-
-    let router = ExampleServerRouter(server);
-    let service = router.serve().await?;
-
-    hkask_mcp::run_server(
-        "example",
+    let db_path = std::env::var("EXAMPLE_DB").ok();
+    run_server(
+        "hkask-mcp-example",
         env!("CARGO_PKG_VERSION"),
-        |ctx| {
-            // ctx contains the WebID resolved during MCP negotiation
-            // You can use ctx.webid() if needed
-            let _ = ctx;
-            Ok(service)
+        |_ctx| {
+            // Build the server inside the closure.
+            // The WebID is created fresh here; the closure may also
+            // inspect _ctx for credential resolution if needed.
+            let webid = hkask_types::WebID::new();
+            let server = ExampleServer::new(
+                webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                Some(inference_port()?),
+                std::collections::HashMap::new(),
+            );
+            Ok(server)
         },
         vec![], // credentials (see CredentialRequirement)
     ).await
 }
 ```
+
+Key points:
+
+- The factory closure receives a `ServerContext` and returns `Result<S, McpError>`.
+- Any configuration read from environment variables (e.g., `HKASK_CODEGRAPH_DB`) is captured
+  **outside** the closure and moved in, so it is read once at startup.
+- `replicant` and `daemon_client` are cloned into the closure — they are `String` /
+  `Option<DaemonClient>` (both `Clone`).
 
 Two variants are available:
 

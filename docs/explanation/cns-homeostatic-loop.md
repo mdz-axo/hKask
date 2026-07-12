@@ -15,7 +15,7 @@ The CNS (Cybernetic Nervous System) is the component of hKask that other documen
 
 ## What the CNS Is
 
-The CNS is a closed-loop controller implemented as a cybernetic feedback loop. Its core type is `CyberneticsLoop` (`crates/hkask-cns/src/cybernetics_loop.rs`), which implements the `HkaskLoop` trait (`crates/hkask-cns/src/types/loops/core.rs`). The `HkaskLoop` trait defines a five-phase cycle:
+The CNS is a closed-loop controller implemented as a cybernetic feedback loop. Its core type is `CyberneticsLoop` (`crates/hkask-cns/src/cybernetics_loop.rs`), which implements the `HkaskLoop` trait (`crates/hkask-cns/src/types/loops/loop_trait.rs`). The `HkaskLoop` trait defines a five-phase cycle:
 
 ```
 sense → compare → compute → act → verify_impact
@@ -100,7 +100,7 @@ The `ToolStats` component (`tool_stats`) builds per-tool `LogNormal` cost distri
 
 ## Action Types and When Each Fires
 
-The `ActionType` enum (`crates/hkask-cns/src/types/loops/actions.rs:94`) defines nine action categories:
+The `ActionType` enum (`crates/hkask-types/src/loops/actions.rs:195`, re-exported by `hkask-cns`) defines nine action categories:
 
 | ActionType | When it fires | Target |
 |-----------|---------------|--------|
@@ -118,7 +118,7 @@ The capability hierarchy is deliberate: `AdjustEnergyBudget` and `OverrideEnergy
 
 ## Algedonic Escalation
 
-"Algedonic" (from Greek *algos*, pain, and *hedone*, pleasure) describes the mechanism by which the CNS communicates threat levels to the Curator. The `AlgedonicManager` (`crates/hkask-cns/src/algedonic/`) classifies alerts by severity:
+"Algedonic" (from Greek *algos*, pain, and *hedone*, pleasure) describes the mechanism by which the CNS communicates threat levels to the Curator. The `AlgedonicManager` (`crates/hkask-cns/src/algedonic.rs`) classifies alerts by severity:
 
 - **Info:** Positive signals (`Notify` actions, seam coverage improvements)
 - **Warning:** Deviations that are correctable autonomously (energy below 20% but above 0%, variety deficit elevated but below critical, tool reliability degraded)

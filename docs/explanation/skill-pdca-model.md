@@ -82,7 +82,7 @@ A **Skill** wraps templates in `BundleManifestStep` entries with `action: "rende
 
 ## LoopAction: The CNS Analog
 
-While skills execute PDCA at the template level, CNS loops execute PDCA at the regulatory level. The `Loop` trait (`crates/hkask-cns/src/types/loops/core.rs`) defines the same sense→compare→compute→act→verify cycle, but for system regulation rather than skill execution:
+While skills execute PDCA at the template level, CNS loops execute PDCA at the regulatory level. The `Loop` trait (`crates/hkask-cns/src/types/loops/loop_trait.rs`) defines the same sense→compare→compute→act→verify cycle, but for system regulation rather than skill execution:
 
 ```rust
 pub trait Loop: Send + Sync {

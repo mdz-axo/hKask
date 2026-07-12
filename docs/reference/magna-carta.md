@@ -190,10 +190,10 @@ implemented in `hkask-guard` and aligned with OWASP Top 10 for LLM Applications.
 kask sovereignty verify --principle generative_space
 
 # List exposed inference settings
-kask settings inference
+kask settings show
 
-# Check guard configuration
-kask guard status
+# Verify guard configuration (structural — no runtime guard command exists)
+kask sovereignty verify --principle generative_space
 ```
 
 ---
@@ -344,13 +344,13 @@ P1–P4 enforcement is observable through CNS spans:
 
 ```bash
 # View sovereignty-related spans
-kask cns query --target cns.sovereignty
+kask cns alerts
 
 # View tool invocation spans (OCAP enforcement)
-kask cns query --target cns.tool
+kask cns alerts
 
 # View P4 startup gate spans
-kask cns query --target cns.mcp
+kask cns alerts
 ```
 
 ### Consent Management

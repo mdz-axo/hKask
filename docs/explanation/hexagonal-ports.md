@@ -1,7 +1,7 @@
 ---
 title: "Hexagonal Ports and Adapters — Explanation"
 audience: [architects, developers]
-last_updated: 2026-07-07
+last_updated: 2026-07-12
 version: "0.31.0"
 status: "Active"
 domain: "Core"
@@ -21,9 +21,19 @@ This design exists because hKask's dependency graph imposes a strict Authority D
 
 As the crate-level documentation in `crates/hkask-ports/src/lib.rs` states: "Port traits that enable crates to depend on abstractions rather than concrete implementations. Per the Authority DAG, domain crates depend on these port traits (not on each other)."
 
-## The Eight Port Traits
+## The Port Traits
 
-The `hkask-ports` crate defines eight trait contracts, each guarding a distinct architectural boundary:
+The `hkask-ports` crate defines **17 trait contracts**, each guarding a distinct architectural boundary. They group into five concerns:
+
+| Concern | Traits |
+|---------|--------|
+| CNS regulation | `CircuitBreakerPort`, `CnsStoragePort`, `CnsObserver` |
+| Federation | `FederationTransport`, `FederationSyncPort`, `FederationDispatch` |
+| Storage and registry | `EmbeddingPort`, `RegistryPort`, `RegistryIndex`, `SkillRegistryIndex`, `GitCASPort` |
+| Inference and tools | `InferencePort`, `ToolPort` |
+| Governance and pipelines | `ConsentPort`, `EscalationPort`, `WalletBudgetPort`, `StepExecutor` |
+
+The eight traits documented in detail below are the primary infrastructure boundaries. The remaining nine are listed in §9.
 
 ### 1. `InferencePort` (`crates/hkask-ports/src/inference_port.rs`)
 
@@ -113,7 +123,26 @@ The hexagonal pattern in hKask serves three purposes, each grounded in a specifi
 **Testability.** The CNS must be testable without external dependencies. `CnsStoragePort` means the `CyberneticsLoop` test suite runs against in-memory data. `ToolPort` means the OCAP enforcement tests don't need running MCP servers. `InferencePort` means the prompt assembly tests don't burn API credits.
 
 **Provider independence.** The `InferencePort` abstraction means the system can route to any LLM provider (DeepSeek, Anthropic, Groq, OpenAI, Ollama, or a local model) without changing agent logic. The `CircuitBreakerPort` means the circuit breaker implementation can be swapped — today it is a simple failure-counting breaker in `hkask-cns`, but it could become an adaptive breaker without touching the inference loop.
+> Provider list updated: DeepInfra, Together AI, fal.ai, OpenRouter, KiloCode.
 
 **OCAP enforcement at boundaries.** The `ToolPort` is not just a convenience abstraction — it is a **security boundary**. The `DelegationToken` requirement is not advisory; it is enforced by the trait's contract. Any implementor of `ToolPort` must reject unauthenticated invocations. The hexagon's perimeter is also the capability security perimeter.
 
 For a visual reference, see the [Ports Trait Hierarchy Class Diagram](../diagrams/class-ports-trait-hierarchy.md) (DIAG-IC-002 in the Diagram Index), which renders the complete trait hierarchy with method signatures and implementor relationships.
+
+---
+
+## Additional Port Traits (§9)
+
+The following nine traits are defined in `hkask-ports` but are not given full section treatment above. They are listed here for completeness and agent-correctness.
+
+| Trait | File | Purpose |
+|-------|------|---------|
+| `FederationDispatch` | `federation.rs` | High-level federation orchestration: `register_peer`, `invite`, `sync`, `remove_peer`. The primary federation trait referenced in AGENTS.md Key Docs. |
+| `GitCASPort` | `git_cas/port.rs` | Content-addressed storage boundary: `store_blob`, `get_blob`, `hash_exists`. Guards the Git object store abstraction. |
+| `WalletBudgetPort` | `wallet_budget_port.rs` | Wallet-backed gas budgeting: `get_balance`, `reserve_gas`, `release_gas`. Enables CNS energy management to query wallet state. |
+| `StepExecutor` | `pipeline_runner.rs` | Pipeline step execution boundary for multi-step agent workflows. |
+| `SkillRegistryIndex` | `registry.rs` | Read-only skill registry access: `list_skills`, `get_skill_metadata`. Used by `SkillAuditor` and bundle composition. |
+| `RegistryIndex` | `registry.rs` | Read-only template registry access: `list_templates`, `get_template`. Used by the cascade resolver. |
+| `RegistryPort` | `registry_port.rs` | Full registry access (read + write): `insert_template`, `get_template`, `list_templates`. The mutable counterpart to `RegistryIndex`. |
+| `EscalationPort` | `escalation.rs` | Escalation queue access: `push_escalation`, `list_escalations`, `resolve_escalation`. Bridges CNS algedonic alerts to Curator action. |
+| `ConsentPort` | `consent_port.rs` | Consent store access: `check_consent`, `grant_consent`, `revoke_consent`. Enforces P1 sovereignty at the data-access boundary. |

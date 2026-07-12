@@ -122,7 +122,7 @@ export HKASK_DELEGATION_TOKEN='{"token_id":"...","capabilities":[...],"expires_a
 Revoke a token:
 
 ```bash
-kask token revoke --token-id <token_id>
+kask token revoke <token_id>
 ```
 
 Check capability enforcement at the pod level:
@@ -225,10 +225,10 @@ Verify that OCAP enforcement is active:
 
 ```bash
 # Check tool spans to see OCAP gate activity
-kask cns query --target cns.tool
+kask cns alerts
 
 # Check MCP startup gates
-kask cns query --target cns.mcp
+kask cns alerts
 ```
 
 Three startup gates control MCP server access:
@@ -283,7 +283,7 @@ Track sovereignty enforcement through CNS spans:
 
 ```bash
 # View consent-related spans
-kask cns query --target cns.sovereignty
+kask cns alerts
 
 # Key events:
 #   consent_granted — consent was granted for a category
@@ -306,18 +306,18 @@ curl -H "Authorization: Bearer $HKASK_API_KEY" \
 
 When access is denied, CNS emits spans that help trace the root cause:
 
-### `cns.tool.denied` (CNS Span)
+### `cns.tool` (ToolError) (CNS Span)
 
-Emitted when a tool invocation is blocked by OCAP enforcement. Look for:
+Emitted when a tool invocation fails, including OCAP denials. Look for error messages containing "CapabilityDenied" or "EnergyBudgetExceeded" in the observation field:
 
 - **Token signature invalid** → `ToolPortError::CapabilityDenied("Token failed cryptographic verification")` — check token validity and trusted roots
 - **No capability for tool** → `ToolPortError::CapabilityDenied("Token does not authorize tool: X")` — issue a token with the required capability
 - **Gas budget exceeded** → `ToolPortError::EnergyBudgetExceeded(...)` — increase the energy cap or reduce consumption
 - **No CapabilityChecker configured** → `AgentPodError::CapabilityDenied` (fail-closed)
 
-### `cns.sovereignty.denied` (CNS Span)
+### `cns.sovereignty` (consent_checked) (CNS Span)
 
-Emitted when consent is denied:
+Emitted when a consent check is performed. The observation field contains the result (`granted` or `denied`):
 
 - **No consent grant** → `has_consent()` returns `false` — run `kask sovereignty grant`
 - **Storage error** → `unwrap_or(false)` in `has_consent()` — check database connectivity

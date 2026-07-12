@@ -11,7 +11,7 @@ last-verified-against: "e17e69e2"
 
 # hkask-mcp — API Reference
 
-MCP (Model Context Protocol) runtime and dispatch layer. Provides server management, capability-based dispatch with OCP, URL validation, adapter lifecycle, and server scaffolding for all 16 hKask MCP server binaries.
+MCP (Model Context Protocol) runtime and dispatch layer. Provides server management, capability-based dispatch with OCP, URL validation, adapter lifecycle, and server scaffolding for all 15 hKask MCP server binaries.
 
 ## Public Modules
 
@@ -28,7 +28,7 @@ MCP (Model Context Protocol) runtime and dispatch layer. Provides server managem
 
 ### `MCPBootstrap`
 
-Result of the standard MCP server daemon bootstrap flow, used by all 12 MCP server binaries.
+Result of the standard MCP server daemon bootstrap flow, used by all 15 MCP server binaries.
 
 **Fields:**
 | Field | Type | Description |
@@ -42,7 +42,7 @@ Unix socket client for communication with the hKask daemon. Constructed via `Dae
 
 ### `ToolContext`
 
-Trait implemented by all 14 hKask MCP server structs. Canonical interface for identity and outcome recording.
+Trait implemented by all 15 hKask MCP server structs. Canonical interface for identity and outcome recording.
 
 **Methods:**
 - `webid(&self) -> &WebID` — agent identity for capability tokens and ownership
@@ -102,6 +102,7 @@ Canonical registry of all built-in MCP servers. Type: `&[(&str, &str)]` — `(se
 | `skill` | `hkask-mcp-skill` |
 | `filesystem` | `hkask-mcp-filesystem` |
 | `codegraph` | `hkask-mcp-codegraph` |
+| `scenarios` | `hkask-mcp-scenarios` |
 
 All consumers that start MCP servers must use this list. Subsets are permitted for intentionally-sandboxed environments but must reference this constant as the upper bound.
 
@@ -114,7 +115,7 @@ pub async fn bootstrap_mcp_server(
     server_name: &str,
     target: &str,
     host_env_var: &str,
-) -> MCPBootstrap
+) -> Result<MCPBootstrap, McpError>
 ```
 
 Standard MCP server bootstrap flow:

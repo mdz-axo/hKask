@@ -1,7 +1,7 @@
 ---
 title: "MDS — Minimal Domain Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-07-11
+last_updated: 2026-07-12
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -528,38 +528,43 @@ bash docs/ci/check-links.sh    # Zero broken cross-references
 
 `AgentService` is the **single source of truth** for all shared infrastructure in hKask. **Boundary:** In-process only. MCP servers do NOT depend on `AgentService` (P1 Prohibition — out-of-process isolation).
 
-All 28 fields are **private** and exposed through **individual named accessor methods** — one method per field or small domain-coherent pair. This replaces the earlier 8-group-method tuple pattern.
+All 9 fields are **private** and exposed through **20 public methods** grouped by concern. Four nested sub-context structs (`InfraContext`, `GovernanceContext`, `CnsContext`, `StorageContext`) consolidate domain-coherent infrastructure; the remaining 5 fields hold cross-cutting state (WebID, curator signal, config, inference loop, governed tool).
 
-| Method | Returns | Category |
-|--------|---------|----------|
-| `config()` | `&ServiceConfig` | Configuration |
-| `wallet()` | `Option<&Arc<WalletService>>` | Payments |
-| `wallet_store()` | `Option<&Arc<WalletStore>>` | Payments |
-| `memory()` | `(&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>)` | Memory |
-| `registry()` | `&Arc<tokio::sync::Mutex<SqliteRegistry>>` | Storage |
-| `goal_repo()` | `&Arc<SqliteGoalRepository>` | Storage |
-| `cns_runtime()` | `&Arc<RwLock<CnsRuntime>>` | CNS |
-| `cybernetics_loop()` | `&Arc<RwLock<CyberneticsLoop>>` | CNS |
-| `loop_system()` | `&Arc<LoopSystem>` | CNS |
-| `event_sink()` | `&Arc<dyn NuEventSink>` | CNS |
-| `seam_watcher()` | `&Arc<RwLock<Option<SeamWatcher>>>` | CNS |
-| `capability_checker()` | `&Arc<CapabilityChecker>` | Governance |
-| `mcp_dispatcher()` | `&Arc<McpDispatcher>` | Governance |
-| `escalation_queue()` | `&Arc<EscalationQueue>` | Governance |
-| `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
-| `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
-| `active_pods()` | `&Arc<ActivePods>` | Coordination |
-| `identity()` | `(&WebID, &Arc<hkask_agents::A2ARuntime>)` | Identity |
-| `sovereignty()` | `SovereigntyService` | Sovereignty |
-| `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
-| `sovereignty_boundary_store()` | `&SovereigntyBoundaryStore` | Sovereignty |
-| `spec_store()` | `&SqliteSpecStore` | Surface-specific |
-| `agent_registry_store()` | `&hkask_storage::AgentRegistryStore` | Surface-specific |
-| `user_store()` | `&Arc<std::sync::Mutex<UserStore>>` | Surface-specific |
-| `daemon_handler()` | `&Arc<ServiceDaemonHandler>` | Daemon |
-| `matrix_transport()` | `Option<&Arc<tokio::sync::Mutex<MatrixTransport>>>` | Communication |
+#### Sub-Contexts
 
-**Design rationale:** Individual accessors replaced the 8-group-method tuple pattern because callers typically need one field, not an entire domain group, and individual methods are self-documenting.
+| Sub-Context | Field | Contains |
+|-------------|-------|----------|
+| `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
+| `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
+| `CnsContext` | `cns` | `runtime` (CnsRuntime), `cybernetics` (CyberneticsLoop), `loops` (LoopSystem), `events` (NuEventSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `StorageContext` | `storage` | `registry` (SqliteRegistry), `goals` (SqliteGoalRepository), `agents` (AgentRegistryStore), `users` (UserStore), `sovereignty` (SovereigntyBoundaryStore), `wallet` (WalletStore) |
+
+#### Public Methods (20)
+
+| Method | Returns | Group |
+|--------|---------|-------|
+| `build(config)` | `Result<Self, ServiceError>` (async) | Construction |
+| `infra()` | `&InfraContext` | Context accessor |
+| `governance()` | `&GovernanceContext` | Context accessor |
+| `cns()` | `&CnsContext` | Context accessor |
+| `storage()` | `&StorageContext` | Context accessor |
+| `config()` | `&ServiceConfig` | Identity |
+| `webid()` | `&WebID` | Identity |
+| `identity()` | `(&WebID, &Arc<A2ARuntime>)` | Identity |
+| `seam_summary()` | `Option<SeamSummary>` (async) | CNS / Infra |
+| `curator_ready()` | `Result<(), String>` (async, `&mut self`) | CNS / Infra |
+| `governed_tool(webid)` | `Arc<GovernedTool<RawMcpToolPort>>` | CNS / Infra |
+| `inference_loop()` | `Option<&Arc<InferenceLoop>>` | CNS / Infra |
+| `set_inference_loop(il)` | `()` (`&mut self`) | CNS / Infra |
+| `inference_port()` | `Option<Arc<dyn InferencePort>>` | CNS / Infra |
+| `gas_remaining()` | `Option<u64>` | CNS / Infra |
+| `gas_cap()` | `Option<u64>` | CNS / Infra |
+| `build_per_agent_memory(db, sink)` | `PerAgentMemory` (assoc. fn) | Memory |
+| `per_agent_memory(agent_name)` | `Result<PerAgentMemory, ServiceError>` | Memory |
+| `consolidate_agent_memory(agent_name, request)` | `Result<ConsolidationOutcome, ServiceError>` | Memory |
+| `consolidation_status_for(agent_name)` | `Result<(usize, usize, usize), ServiceError>` | Memory |
+
+**Design rationale:** The nested sub-context pattern groups domain-coherent infrastructure into deep modules (Ousterhout) — callers access a sub-context once and navigate its public fields, rather than calling individual accessors for every field. Cross-cutting concerns (gas, governed tool, per-agent memory consolidation) remain direct methods on `AgentService` because they span multiple sub-contexts or require coordination logic.
 
 ### Service Layer Contracts
 
@@ -645,4 +650,4 @@ Domain crates **never** depend on service layer subcrates. MCP servers **never**
 
 ### Interface Equivalence
 
-Both CLI and API surfaces use identical `AgentService` accessors and the same `consolidate_agent_memory` entry point. The only surface-specific methods are `daemon_handler()` (CLI daemon mode only) and `matrix_transport()` (REPL only). All remaining 26 accessors are equivalent across surfaces.
+Both CLI and API surfaces use identical `AgentService` accessors and the same `consolidate_agent_memory` entry point. All 20 public methods are equivalent across surfaces — surface-specific state (daemon handler, Matrix transport) is accessed via the `infra()` sub-context, not through dedicated accessor methods.

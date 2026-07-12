@@ -55,7 +55,7 @@
 
 | Skill | When to Activate |
 |-------|-----------------|
-| **kata** (Bundle) | Toyota Kata system — starter + improvement + coaching. |
+| **kata** (Bundle — registry manifest, not a `.agents/skills/` directory) | Toyota Kata system — starter + improvement + coaching. |
 | **kata-coaching** | 5-question Coaching Kata dialogue. |
 | **kata-improvement** | 4-step Improvement Kata PDCA pattern. |
 | **kata-starter** | Foundational kata practice routines. |
@@ -97,19 +97,30 @@
 From Magna Carta (P1–P4) and P12. Violations **must be deleted**.
 
 | # | Prohibition | Principle |
-|---|-------------|-----------|
+|---|-------------|----------|
 | 1 | No `todo!()`, `unimplemented!()`, `#[deprecated]`, unused traits, or stubs | P5 · P3 |
 | 2 | No anonymous agency — every action has an authenticated author | P12 · P1 |
 | 3 | No hidden parameters or admin-gated settings | P3 |
 | 4 | No pass-through abstractions (deep-module discipline) | P5 · P7 |
 
-See CI invariants job for current enforcement of hierarchy and constraint force classification.
+### CI-Enforced Gates
+
+Mechanical CI enforcement (inline steps in the `ci` job in `.github/workflows/ci.yml`, not a separate job):
+
+| Gate | Enforcement | Script |
+|------|-------------|--------|
+| Visual-UI/monitoring infrastructure prohibited | `grep` scan for grafana/prometheus/dashboard imports | inline in `ci.yml` |
+| No hardcoded secrets | Environment variables or keystore only | inline in `ci.yml` |
+| No `Result<_, String>` | Use `thiserror` enums for library errors | `scripts/check-string-errors.sh` |
+| No unused crate dependencies | `nightly -D unused_crate_dependencies` | separate nightly job |
+
+Prohibitions #1–#4 above are design discipline. Only #1 is partially CI-gated via `clippy -D warnings` (catches `todo!()`/`unimplemented!()`). Prohibitions #2–#4 are enforced by code review, not mechanical gates.
 
 ---
 
 ## Tooling Policy
 
-hKask is a Rust project. Python is **not** an acceptable project dependency. Ad-hoc Python scripts are permitted during exploration but must be deleted before work is complete. Generated artifacts (JSON manifests, inventories) must also be removed.
+hKask is a Rust project. Python is **not** an acceptable project dependency. Ad-hoc Python scripts are permitted during exploration but must be deleted before work is complete. Ad-hoc generated artifacts (one-off JSON inventories, scratch manifests) must also be removed. Permanent generated docs under `docs/generated/` and skill `manifest.yaml` files are part of the system and excluded.
 
 Preferred auxiliary tooling: shell (`bash`) under `scripts/`, Rust binaries or `build.rs` for source/Cargo metadata.
 
@@ -126,15 +137,15 @@ Preferred auxiliary tooling: shell (`bash`) under `scripts/`, Rust binaries or `
 - `crates/hkask-types/src/error.rs` — `InfrastructureError`, `DatabaseErrorKind`, `McpErrorKind`
 - `crates/hkask-ports/src/lib.rs` — Hexagonal port traits
 - `crates/hkask-ports/src/federation.rs` — `FederationDispatch`, `FederationDispatchError`
-- `crates/hkask-cns/src/types/loops/mod.rs` — `LoopAction`, `LoopActionParams`, `ActionType`, `ImpactReport`, `ActionDecision`, `LoopQuality`
+- `crates/hkask-cns/src/types/loops/mod.rs` — `LoopAction`, `LoopActionParams`, `ActionType`, `ImpactReport`, `ActionDecision`, `LoopQuality` (re-exported from `hkask-types`)
 - `crates/hkask-cns/src/types/loops/loop_trait.rs` — `Loop` trait, `HkaskLoop`, `ExperienceClassification`
-- `crates/hkask-cns/src/regulation_policy.rs` — `RegulationPolicy`, `RegulationRule`
-- `crates/hkask-cns/src/sensor_provider.rs` — `SensorProvider` trait, `SensorRegistry`
-- `crates/hkask-cns/src/tool_stats.rs` — Statistical learning: LogNormal cost distributions, Beta reliability tracking
+- `crates/hkask-cns/src/regulation_policy.rs` — `RegulationPolicy`, `RegulationRule` (`pub(crate)` — internal regulation rules)
+- `crates/hkask-cns/src/sensor_provider.rs` — `SensorProvider` trait, `SensorRegistry` (`pub(crate)` — internal sensor registration)
+- `crates/hkask-cns/src/tool_stats.rs` — Statistical learning: LogNormal cost distributions, Beta reliability tracking (`ToolStats` re-exported at crate root)
 - `crates/hkask-mcp/src/lib.rs` — `bootstrap_mcp_server`, `impl_tool_context!`, `MCPBootstrap`
 - `crates/hkask-codegraph/src/lib.rs` — Code understanding engine: types, graph, indexer, context assembly
 - `crates/hkask-codegraph/src/types.rs` — Core types: Symbol, Edge, SymbolKind, EdgeKind, Visibility, Complexity
-- `mcp-servers/hkask-mcp-codegraph/src/lib.rs` — CodeGraph MCP server: 10 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed)
+- `mcp-servers/hkask-mcp-codegraph/src/lib.rs` — CodeGraph MCP server: 11 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code)
 - `crates/hkask-agents/src/curator_agent/metacognition/mod.rs` — Curator metacognition
 - Dependency governance: CI unused-deps job (`nightly -D unused_crate_dependencies`)
 - Feature gating: `hkask-communication` matrix feature, `hkask-cli` communication/tui/api features

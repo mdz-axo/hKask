@@ -22,7 +22,7 @@ A **span** is a typed identifier that pins an observation to a canonical dot-sep
 
 | Concept | Role | Contains |
 |---|---|---|
-| **ObservableSpan** (trait) | Typed span enums implement this; provides `as_str()` and `emit()` | Canonical namespace string |
+| **ObservableSpan** (trait) | Typed span enums implement this; provides `as_str()`, `emit()`, `to_event()`, and `emit_to()` | Canonical namespace string |
 | **Span** (struct) | Pair of `SpanNamespace` + path (e.g., `cns.tool` + `invoked` → `cns.tool.invoked`) | Namespace + full path |
 | **SpanNamespace** (newtype) | Validated string wrapper; construction validates against `CANONICAL_NAMESPACES` | Dot-separated namespace string |
 | **NuEvent** (struct) | Full cybernetic observation: who observed, what span, what phase, what was observed | Span, `WebID`, `CyclePhase`, `observation` (JSON), `regulation`, `outcome`, recursion depth |
@@ -283,7 +283,7 @@ let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 |---|---|---|
 | **What it is** | A typed span identifier with a canonical namespace string | A full cybernetic observation record |
 | **Implements** | `Display + Debug + Send + Sync + 'static` | `Serialize + Deserialize + Clone` |
-| **Key fields** | `as_str() -> &'static str`, `emit(operation)` | `id` (EventID), `span` (Span), `observer_webid` (WebID), `phase` (CyclePhase), `observation` (JSON Value), `regulation`, `outcome`, `recursion_depth` |
+| **Key fields** | `as_str() -> &'static str`, `emit(operation)`, `to_event(operation, observer, phase, observation) -> Option<NuEvent>`, `emit_to(sink, operation, observer, phase, observation)` | `id` (EventID), `span` (Span), `observer_webid` (WebID), `phase` (CyclePhase), `observation` (JSON Value), `regulation`, `outcome`, `recursion_depth` |
 | **How emitted** | `tracing::info!(target: "cns", cns_domain = ..., operation = ...)` | Constructed explicitly, persisted via `NuEventSink` |
 | **Validation** | Namespace string validated at `SpanNamespace` construction against `CANONICAL_NAMESPACES` | None beyond serde deserialization |
 | **Purpose** | Lightweight, type-safe span emission | Persistent audit trail with full provenance |

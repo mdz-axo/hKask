@@ -3,8 +3,8 @@ title: "CNS Regulation Pipeline — 5-Phase Cybernetic Cycle"
 diataxis: reference
 verified_against:
   - crates/hkask-cns/src/cybernetics_loop.rs
-  - crates/hkask-cns/src/types/loops/core.rs
-  - crates/hkask-cns/src/types/loops/actions.rs
+  - crates/hkask-types/src/loops/core.rs
+  - crates/hkask-types/src/loops/actions.rs
   - crates/hkask-cns/src/types/loops/signals.rs
   - crates/hkask-cns/src/dampener.rs
 last_verified_commit: "3d1a876f"
@@ -282,7 +282,7 @@ flowchart TD
 |---|---|
 | Sense phase | `cybernetics_loop.rs:734-778` (`sense()`) |
 | SignalMetric enum (all 22 variants) | `types/loops/signals.rs:12-96` |
-| Compare phase | `types/loops/core.rs:53-56` (`compare()`) |
+| Compare phase | `crates/hkask-types/src/loops/core.rs:53-56` (`compare()`) |
 | Predictive gate | `cybernetics_loop.rs:784-821` |
 | EnergyRemaining / InferenceThrottleMode | `cybernetics_loop.rs:825-902` |
 | VarietyDeficit / Escalate | `cybernetics_loop.rs:905-919` |
@@ -295,15 +295,15 @@ flowchart TD
 | ToolReliability / Escalate | `cybernetics_loop.rs:1061-1082` |
 | try_substitute (substitution ladder) | `cybernetics_loop.rs:261-327` |
 | default_substitution_ladder | `cybernetics_loop.rs:1762-1777` |
-| Act phase | `types/loops/core.rs:62` (`act()`) |
+| Act phase | `crates/hkask-types/src/loops/core.rs:62` (`act()`) |
 | Verify phase / verify_impact | `cybernetics_loop.rs:1348-1550` |
 | classify_decision (Accept/Stage/Block) | `cybernetics_loop.rs:1742-1760` |
-| ActionDecision enum | `types/loops/core.rs:159-168` |
-| ImpactReport struct | `types/loops/core.rs:98-147` |
+| ActionDecision enum | `crates/hkask-types/src/loops/core.rs:159-168` |
+| ImpactReport struct | `crates/hkask-types/src/loops/core.rs:98-147` |
 | StagnationDetector | `dampener.rs:200-289` |
 | RegulatoryPlateau alert emission | `cybernetics_loop.rs:1465-1501` |
-| ActionType enum (all 10 variants) | `types/loops/actions.rs:96-128` |
-| LoopQuality / effectiveness_score | `types/loops/core.rs:278-286` |
+| ActionType enum (all 9 variants) | `crates/hkask-types/src/loops/actions.rs:195-227` |
+| LoopQuality / effectiveness_score | `crates/hkask-types/src/loops/core.rs:278-286` |
 
 **Substitution ladders (per metric):**
 

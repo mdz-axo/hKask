@@ -220,11 +220,20 @@ pub(super) async fn wire_manifest_executor(
     config: &ServiceConfig,
 ) -> Result<(), ServiceError> {
     if let Some(inference_port) = loops.inference_port.clone() {
+        // Wire dual-model inference using the secondary classifier model.
+        let model_b = hkask_inference::model_constants::classifier_model_secondary();
         let executor = Arc::new(hkask_templates::ManifestExecutor::new(
-            inference_port,
+            inference_port.clone(),
             mcp_dispatcher.clone() as Arc<dyn hkask_templates::McpPort>,
             hkask_types::LLMParameters::default(),
             config.a2a_secret.clone(),
+        )
+        .with_dual_inference(
+            Arc::new(hkask_inference::dual_model_port::DualModelPort::new(
+                inference_port,
+                model_b.clone(),
+            )),
+            model_b,
         ));
         loops.curator_context.set_manifest_executor(executor).await;
         tracing::info!(target: "hkask.startup", "ManifestExecutor wired into CuratorContext — template-driven metacognition enabled");

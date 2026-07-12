@@ -162,7 +162,7 @@ Published 'diagnose' as 'mdz-axolotl--diagnose' to public zone: skills/mdz-axolo
 Start the REPL and use the `/skill` command:
 
 ```bash
-kask repl
+kask chat
 ```
 
 Inside the REPL:
@@ -314,7 +314,7 @@ Every skill execution consumes **gas** from the agent's energy budget:
 Gas consumption is observable via CNS spans:
 
 ```bash
-kask cns query --target cns.tool
+kask cns alerts
 ```
 
 Look for `cns.tool.invoked` (pre-invocation) and `cns.tool.completed` (post-invocation with

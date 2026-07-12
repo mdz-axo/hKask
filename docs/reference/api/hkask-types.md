@@ -26,6 +26,7 @@ Foundation types for the hKask agent platform. Provides canonical ID types, even
 | `curator` | Curation configuration: `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity` |
 | `error` | Cross-cutting error types: `InfrastructureError`, `McpErrorKind`, `DatabaseErrorKind`, `NotFound`, `CapabilityDenied`, `DimensionMismatch` |
 | `event` | Event primitives: `NuEvent`, `NuEventSink`, `Span`, `SpanKind`, `SpanNamespace`, `SpanCategory`, `CyclePhase` |
+| `fusion` | Fusion types |
 | `goal` | Goal state tracking: `GoalState` |
 | `id` | Type-safe UUID identifier system: `Id<T>`, `IdKind`, `WebID`, and all concrete ID type aliases |
 | `identity` | Agent identity types |
@@ -35,6 +36,7 @@ Foundation types for the hKask agent platform. Provides canonical ID types, even
 | `observable_span` | `ObservableSpan` trait for decoupled CNS observability |
 | `retry` | Retry policy types |
 | `secret` | Secret reference handling |
+| `server_config` | Server configuration types |
 | `skill` | Skill polarity: `SkillPolarity` |
 | `template` | LLM parameter types: `LLMParameters` |
 | `template_type` | Template type classification: `TemplateType` |
@@ -130,8 +132,10 @@ Trait for persisting NuEvents. Single method: `fn persist(&self, event: &NuEvent
 Trait for typed observability spans. Dyn-compatible (`Display + Debug + Send + Sync + 'static`).
 
 **Methods:**
-- `as_str(&self) -> &'static str` — canonical dot-separated namespace string (e.g., `"cns.tool.web_search"`)
-- `emit(&self, operation: &str)` — emit a structured tracing event with `target = "cns"`
+- `as_str(&self) -> &'static str` — canonical dot-separated namespace string (e.g., `"cns.tool.web_search"`). Required method.
+- `emit(&self, operation: &str)` — emit a structured tracing event with `target = "cns"` (log-only, no persistence). Default implementation.
+- `to_event(&self, operation: &str, observer: &WebID, phase: CyclePhase, observation: serde_json::Value) -> Option<NuEvent>` — produces a `NuEvent` without persisting. Returns `None` if the namespace string is not registered in the canonical namespace set. Default implementation.
+- `emit_to(&self, sink: &dyn NuEventSink, operation: &str, observer: &WebID, phase: CyclePhase, observation: serde_json::Value)` — the PRIMARY path: produces a `NuEvent` via `to_event()`, persists through the sink, and logs. On namespace miss or persistence failure, degrades gracefully to log-only via `emit()`. Default implementation.
 
 ### `SpanKind`
 
@@ -210,4 +214,4 @@ enum_str_ops!(SkillPolarity, {
 
 ## Re-exports from Crate Root
 
-`AgentKind`, `PersonaConstraints`, `AgentDefinition`, `Charter`, `Contact`, `RegisteredAgent`, `Responsibility`, `Right`, `ScheduledTask`, `UserProfile`, `CircuitState`, `Ed25519PublicKey`, `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState`, `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity`, `InfrastructureError`, `McpErrorKind`, `NuEvent`, `NuEventSink`, `GoalState`, all 17 ID type aliases, `WebID`, `LoopId`, `ObservableSpan`, `SkillPolarity`, `LLMParameters`, `TemplateType`, `TimedWord`, `TranscriptBundle`, `TranscriptSegment`, `Confidence`, `Dimension`, `Visibility`.
+`AgentKind`, `PersonaConstraints`, `AgentDefinition`, `Charter`, `Contact`, `RegisteredAgent`, `Responsibility`, `Right`, `ScheduledTask`, `UserProfile`, `CircuitState`, `Ed25519PublicKey`, `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState`, `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity`, `InfrastructureError`, `McpErrorKind`, `NuEvent`, `NuEventSink`, `GoalState`, all 17 ID type aliases, `WebID`, `LoopId`, `ActionDecision`, `ActionType`, `BudgetOption`, `Deviation`, `DeviationDirection`, `ExperienceClassification`, `ImpactReport`, `LoopAction`, `LoopActionParams`, `LoopQuality`, `RegulationData`, `Signal`, `SignalMetric`, `TriggerOrigin`, `ObservableSpan`, `SkillPolarity`, `LLMParameters`, `TemplateType`, `TimedWord`, `TranscriptBundle`, `TranscriptSegment`, `Confidence`, `Dimension`, `Visibility`.

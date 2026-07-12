@@ -96,8 +96,8 @@ flowchart TD
 | SetPoints | `crates/hkask-cns/src/set_points.rs` |
 | SetPointCalibrator | `crates/hkask-cns/src/set_point_calibrator.rs` |
 | ObservableSpan trait | `crates/hkask-types/src/observable_span.rs` |
-| LoopAction enum | `crates/hkask-cns/src/types/loops/actions.rs` |
-| ImpactReport | `crates/hkask-cns/src/types/loops/core.rs` |
+| LoopAction enum | `crates/hkask-types/src/loops/actions.rs` |
+| ImpactReport | `crates/hkask-types/src/loops/core.rs` |
 | Algedonic escalation | `crates/hkask-cns/src/runtime.rs` |
 | CurationLoop | `crates/hkask-agents/src/curator/curation_loop.rs` |
 | Contract events | `crates/hkask-cns/src/contract_events.rs` |

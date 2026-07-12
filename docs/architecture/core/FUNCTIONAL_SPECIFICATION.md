@@ -14,7 +14,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 **Version:** v0.31.0
 **Created:** 2026-06-16
 **Status:** Active — anchor for the Testing Discipline. Contracts use `expect:` + `[P{N}]` annotations with CNS-observed behavioral contracts.
-**Last Updated:** 2026-07-05
+**Last Updated:** 2026-07-12
 **Decision:** 2026-06-21 — Contract system simplified. REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. Enforcement is through CNS span observation and property-based testing.
 
 > This document maps the complete system to its motivating principles and enumerates functional requirements per domain. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
@@ -79,41 +79,49 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 
 **Crates:** `hkask-services-core` through `hkask-services-wallet` — 10 subcrates providing shared business logic for CLI and API surfaces.
 
+**MCP layer distinction:** `hkask-mcp` is the runtime library (`McpRuntime`, `McpDispatcher`, `RawMcpToolPort`) linked in-process by `AgentService`. The `mcp-servers/` directory contains individual out-of-process server implementations (`hkask-mcp-codegraph`, `hkask-mcp-research`, etc.) that never depend on `AgentService` (P1 Prohibition — out-of-process isolation).
+
 **Canonical specification:** This Service Layer Architecture section — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
 ### 1.5.1 AgentService Structure
 
-`AgentService` is the canonical service layer owning all shared infrastructure. All **28 fields** are **private** and exposed through **individual named accessor methods** (replacing the earlier grouped-tuple pattern). `AgentService::build(config)` assembles all shared infrastructure once at startup.
+`AgentService` is the canonical service layer owning all shared infrastructure. All **9 fields** are **private** — four nested sub-context structs (`InfraContext`, `GovernanceContext`, `CnsContext`, `StorageContext`) consolidate domain-coherent infrastructure, while five cross-cutting fields hold WebID, curator signal, config, inference loop, and governed tool state. `AgentService::build(config)` assembles all shared infrastructure once at startup.
 
-| Method | Returns | Category |
-|--------|---------|----------|
-| `config()` | `&ServiceConfig` | Configuration |
-| `wallet()` | `Option<&Arc<WalletService>>` | Payments |
-| `wallet_store()` | `Option<&Arc<WalletStore>>` | Payments |
-| `memory()` | `(&Arc<dyn EpisodicStoragePort>, &Arc<dyn SemanticStoragePort>)` | Memory |
-| `registry()` | `&Arc<tokio::sync::Mutex<SqliteRegistry>>` | Storage |
-| `goal_repo()` | `&Arc<SqliteGoalRepository>` | Storage |
-| `cns_runtime()` | `&Arc<RwLock<CnsRuntime>>` | CNS |
-| `cybernetics_loop()` | `&Arc<RwLock<CyberneticsLoop>>` | CNS |
-| `loop_system()` | `&Arc<LoopSystem>` | CNS |
-| `event_sink()` | `&Arc<dyn NuEventSink>` | CNS |
-| `seam_watcher()` | `&Arc<RwLock<Option<SeamWatcher>>>` | CNS |
-| `capability_checker()` | `&Arc<CapabilityChecker>` | Governance |
-| `mcp_dispatcher()` | `&Arc<McpDispatcher>` | Governance |
-| `escalation_queue()` | `&Arc<EscalationQueue>` | Governance |
-| `inference_port()` | `Option<Arc<dyn InferencePort>>` | Coordination |
-| `mcp_runtime()` | `&Arc<McpRuntime>` | Coordination |
-| `pod_factory()` | `&Arc<PodFactory>` | Coordination |
-| `active_pods()` | `&Arc<ActivePods>` | Coordination |
-| `identity()` | `(&WebID, &Arc<hkask_agents::A2ARuntime>)` | Identity |
-| `sovereignty()` | `SovereigntyService` | Sovereignty |
-| `curation_inbox_tx()` | `&Option<mpsc::UnboundedSender<CurationInput>>` | Internal |
-| `sovereignty_boundary_store()` | `&SovereigntyBoundaryStore` | Sovereignty |
-| `spec_store()` | `&SqliteSpecStore` | Surface-specific |
-| `agent_registry_store()` | `&hkask_storage::AgentRegistryStore` | Surface-specific |
-| `user_store()` | `&Arc<std::sync::Mutex<UserStore>>` | Surface-specific |
-| `daemon_handler()` | `&Arc<ServiceDaemonHandler>` | Daemon |
-| `matrix_transport()` | `Option<&Arc<tokio::sync::Mutex<MatrixTransport>>>` | Communication |
+#### Sub-Contexts
+
+| Sub-Context | Field | Contains |
+|-------------|-------|----------|
+| `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
+| `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
+| `CnsContext` | `cns` | `runtime` (CnsRuntime), `cybernetics` (CyberneticsLoop), `loops` (LoopSystem), `events` (NuEventSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `StorageContext` | `storage` | `registry` (SqliteRegistry), `goals` (SqliteGoalRepository), `agents` (AgentRegistryStore), `users` (UserStore), `sovereignty` (SovereigntyBoundaryStore), `wallet` (WalletStore) |
+
+#### Public Methods (20)
+
+| Method | Returns | Group |
+|--------|---------|-------|
+| `build(config)` | `Result<Self, ServiceError>` (async) | Construction |
+| `infra()` | `&InfraContext` | Context accessor |
+| `governance()` | `&GovernanceContext` | Context accessor |
+| `cns()` | `&CnsContext` | Context accessor |
+| `storage()` | `&StorageContext` | Context accessor |
+| `config()` | `&ServiceConfig` | Identity |
+| `webid()` | `&WebID` | Identity |
+| `identity()` | `(&WebID, &Arc<A2ARuntime>)` | Identity |
+| `seam_summary()` | `Option<SeamSummary>` (async) | CNS / Infra |
+| `curator_ready()` | `Result<(), String>` (async, `&mut self`) | CNS / Infra |
+| `governed_tool(webid)` | `Arc<GovernedTool<RawMcpToolPort>>` | CNS / Infra |
+| `inference_loop()` | `Option<&Arc<InferenceLoop>>` | CNS / Infra |
+| `set_inference_loop(il)` | `()` (`&mut self`) | CNS / Infra |
+| `inference_port()` | `Option<Arc<dyn InferencePort>>` | CNS / Infra |
+| `gas_remaining()` | `Option<u64>` | CNS / Infra |
+| `gas_cap()` | `Option<u64>` | CNS / Infra |
+| `build_per_agent_memory(db, sink)` | `PerAgentMemory` (assoc. fn) | Memory |
+| `per_agent_memory(agent_name)` | `Result<PerAgentMemory, ServiceError>` | Memory |
+| `consolidate_agent_memory(agent_name, request)` | `Result<ConsolidationOutcome, ServiceError>` | Memory |
+| `consolidation_status_for(agent_name)` | `Result<(usize, usize, usize), ServiceError>` | Memory |
+
+**Design rationale:** The nested sub-context pattern groups domain-coherent infrastructure into deep modules (Ousterhout) — callers access a sub-context once and navigate its public fields, rather than calling individual accessors for every field. Cross-cutting concerns (gas, governed tool, per-agent memory consolidation) remain direct methods on `AgentService` because they span multiple sub-contexts or require coordination logic.
 
 Both CLI and API surfaces compose `AgentService` and add only presentation-specific fields:
 
@@ -179,8 +187,8 @@ The service layer was extracted from duplicated surface logic using the **strang
 | Service | Extracted From | When | Constraint |
 |---------|---------------|------|------------|
 | `hkask-storage` (backup was absorbed, v0.31.0) | former monolithic service crate | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
-| `AgentService` (28-field consolidation) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
-| Named accessor pattern (individual methods) | 8-group-method tuple pattern | v0.28.0 | P5 (Essentialism — callers typically need one field, not a group) |
+| `AgentService` (9-field consolidation, 4 nested sub-contexts) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
+| Nested sub-context pattern (`InfraContext`, `GovernanceContext`, `CnsContext`, `StorageContext`) | Flat 28-field struct with individual accessors | v0.31.0 | P5 (Essentialism — deep modules, callers navigate sub-context fields directly) |
 | `AgentService::consolidate_agent_memory` | `hkask-memory::consolidation_ops` direct DB open bypass | v0.30.0 | P2 (Affirmative Consent) + P4 (Clear Boundaries) — single consent-checked, OCAP-gated entry point |
 
 ### 1.5.5 Pod Export & K8s Deployment (v0.31.0)

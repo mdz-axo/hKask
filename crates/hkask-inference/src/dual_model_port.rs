@@ -10,7 +10,7 @@
 //!   models from different jurisdictions. This port provides the second peer.
 
 use hkask_ports::{
-    ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
+    ChatToolDefinition, InferenceError, InferencePort, InferenceResult,
 };
 use hkask_types::template::LLMParameters;
 use std::future::Future;
@@ -62,26 +62,4 @@ impl InferencePort for DualModelPort {
             .generate_with_model(prompt, params, Some(effective), tools)
     }
 
-    fn generate_stream(
-        &self,
-        prompt: &str,
-        params: &LLMParameters,
-        tools: Option<&[ChatToolDefinition]>,
-    ) -> Pin<Box<dyn InferenceStreamChunk + Send + '_>> {
-        let model = self.model.clone();
-        self.inner
-            .generate_stream_with_model(prompt, params, Some(&model), tools)
-    }
-
-    fn generate_stream_with_model(
-        &self,
-        prompt: &str,
-        params: &LLMParameters,
-        model_override: Option<&str>,
-        tools: Option<&[ChatToolDefinition]>,
-    ) -> Pin<Box<dyn InferenceStreamChunk + Send + '_>> {
-        let effective = model_override.unwrap_or(&self.model);
-        self.inner
-            .generate_stream_with_model(prompt, params, Some(effective), tools)
-    }
 }

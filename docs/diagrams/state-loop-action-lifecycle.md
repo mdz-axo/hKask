@@ -8,7 +8,7 @@ diataxis: reference
 **Diataxis quadrant:** Reference  
 **Domain ontology tier:** Core  
 **Purpose:** State diagram for the `LoopAction` enum lifecycle — the finite state machine that governs corrective actions taken by the CNS homeostatic loop.  
-**Verified against:** `crates/hkask-cns/src/types/loops/actions.rs`, `crates/hkask-cns/src/types/loops/core.rs`  
+**Verified against:** `crates/hkask-types/src/loops/actions.rs`, `crates/hkask-types/src/loops/core.rs`, `crates/hkask-cns/src/types/loops/loop_trait.rs`
 last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
 
 ```mermaid
@@ -74,12 +74,12 @@ stateDiagram-v2
 
 | State | Type/Enum | Source |
 |-------|-----------|--------|
-| `LoopAction` | struct | `crates/hkask-cns/src/types/loops/actions.rs` |
-| `LoopActionParams` | struct | `crates/hkask-cns/src/types/loops/actions.rs` |
-| `ActionType` | enum (5 variants) | `crates/hkask-cns/src/types/loops/actions.rs` |
-| `ActionDecision` | struct | `crates/hkask-cns/src/types/loops/core.rs` |
-| `ImpactReport` | struct | `crates/hkask-cns/src/types/loops/core.rs` |
-| `LoopQuality` | enum | `crates/hkask-cns/src/types/loops/core.rs` |
+| `LoopAction` | struct | `crates/hkask-types/src/loops/actions.rs` |
+| `LoopActionParams` | struct | `crates/hkask-types/src/loops/actions.rs` |
+| `ActionType` | enum (9 variants) | `crates/hkask-types/src/loops/actions.rs` |
+| `ActionDecision` | struct | `crates/hkask-types/src/loops/core.rs` |
+| `ImpactReport` | struct | `crates/hkask-types/src/loops/core.rs` |
+| `LoopQuality` | enum | `crates/hkask-types/src/loops/core.rs` |
 | `CyberneticsLoop` | struct | `crates/hkask-cns/src/cybernetics_loop.rs` |
 
 **Cardinality:** Exactly 5 `ActionType` variants (verified from source). `LoopAction` is created once per CNS loop iteration. Each action produces exactly 1 `ImpactReport`.

@@ -197,6 +197,7 @@ RUSTFLAGS="-D unused_crate_dependencies" cargo +nightly check --workspace
 - `docs/how-to/` — Task-oriented guides: install, configure, bootstrap MCP, invoke skills, audit sovereignty
 - `docs/reference/` — API reference, skill registry, CNS span registry, Magna Carta
 - `docs/explanation/` — Architecture decisions: hexagonal ports, CNS loop, OCAP dispatch, ν-events
+- `docs/architecture/` — ADRs, master architecture, provider/federation/database architecture
 - `.github/workflows/ci.yml` — CI pipeline (fmt → clippy + unused-deps + build → test + doc → invariants)
 - `.github/workflows/audit.yml` — Weekly dependency audit (cargo-deny + cargo-audit)
 - `docs/ci/verify-docs.sh` — Documentation health check (10-step verification, runs in CI)
