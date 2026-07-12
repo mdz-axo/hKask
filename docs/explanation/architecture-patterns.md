@@ -157,7 +157,7 @@ The following nine traits are defined in `hkask-ports` but are not given full se
 | `EscalationPort` | `escalation.rs` | Escalation queue access: `push_escalation`, `list_escalations`, `resolve_escalation`. Bridges CNS algedonic alerts to Curator action. |
 | `ConsentPort` | `consent_port.rs` | Consent store access: `check_consent`, `grant_consent`, `revoke_consent`. Enforces P1 sovereignty at the data-access boundary. |
 
-For a visual reference, see the [Ports Trait Hierarchy Class Diagram](../diagrams/class-ports-trait-hierarchy.md) (DIAG-IC-002 in the Diagram Index), which renders the complete trait hierarchy with method signatures and implementor relationships.
+For a visual reference, see the Ports Trait Hierarchy Class Diagram (inlined below in "Inlined Diagrams" section) (DIAG-IC-002 in the Diagram Index), which renders the complete trait hierarchy with method signatures and implementor relationships.
 
 ---
 
@@ -578,3 +578,1654 @@ The three-surface equivalence means that no architectural capability is hidden b
 
 - Ousterhout, J. (2018). *A Philosophy of Software Design*. El Camino Real. The deep-module discipline (deletion test, interface minimalism) is applied to port trait design.
 - Miller, M. (2006). "Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control." PhD thesis, Johns Hopkins University. The OCAP membrane pattern underlying `GovernedTool`.
+---
+
+## Template Authorship (Merged from TEMPLATE_AUTHORSHIP.md)
+
+
+# Template Authorship Policy
+
+**hKask v0.31.0 — How to decide whether a template is skill-bound or infrastructure.**
+
+## Decision Tree
+
+When adding a new `.j2` template, answer these questions in order:
+
+```
+Q1: Does the template describe a process with measurable quality improvement?
+    └─ YES → Q2
+    └─ NO  → Q3
+
+Q2: Does the process benefit from iterative refinement (PDCA loop)?
+    └─ YES → SKILL-BOUND
+         ├─ Create a FlowDef manifest in registry/manifests/<name>.yaml
+         ├─ Add convergence section with threshold, improvement_ratio, max_iterations
+         ├─ Add gas and rjoule budget fields
+         ├─ Add a terminal `loop` action for PDCA re-entry
+         └─ Create a SKILL.md companion in .agents/skills/<name>/ (derived, not canonical)
+    └─ NO  → Q3
+
+Q3: Is the template a routing, dispatching, or model-tier selection concern?
+    └─ YES → INFRASTRUCTURE
+         ├─ Place in registry/manifests/ as <name>.yaml with functional_role: flowdef
+         ├─ Do NOT add convergence (no PDCA loop)
+         ├─ Do add gas and rjoule budget fields if any step performs inference
+         └─ Mark with visibility: Public
+    └─ NO  → Q4
+
+Q4: Is the template a base type (WordAct, KnowAct, FlowDef dispatch)?
+    └─ YES → INFRASTRUCTURE (base type)
+         ├─ Register in bootstrap-registry.yaml
+         ├─ No standalone manifest needed
+         └─ Document in registry/templates/<name>/README.md
+    └─ NO  → Q5
+
+Q5: Is the template a utility that is imported/included by other templates?
+    └─ YES → INFRASTRUCTURE (utility)
+         ├─ No manifest needed
+         ├─ Document the include API in the template header
+         └─ Register in bootstrap-registry.yaml only if dispatched directly
+    └─ NO  → SKILL-BOUND (default for new cognitive processes)
+```
+
+## Budget Requirements
+
+| Manifest Type | gas.cap | rjoule.cap | cost_per_iteration | convergence |
+|--------------|---------|------------|-------------------|-------------|
+| Skill (PDCA) | Required (standard: 100000) | Required (standard: 2) | Required (100) | Required |
+| Infrastructure dispatch | Required (50000) | Required (1) | Required (100) | Not applicable |
+| Web tool | Required (2048–8192) | Required (0–1) | Not applicable | Not applicable |
+| QA script | Required (10000–50000) | Required (1) | Not applicable | Not applicable |
+
+## SKILL.md ≠ Skill Invariant
+
+**The canonical artifact of a skill is its FlowDef manifest (`.yaml`) and its executable templates (`.j2`).**
+
+The `SKILL.md` file is a derived companion document. It teaches the Zed coding agent the methodology but is **not** what the hKask runtime executes. Editing a `SKILL.md` does not change the skill's behavior in `kask chat` sessions.
+
+All meta-skills (skill-maintenance, skill-logic-audit, etc.) **must** operate on the `.yaml` manifest and `.j2` templates as their primary truth source. They may read `SKILL.md` for methodology context, but any findings or recommendations that reference only `SKILL.md` content without verifying against the manifest and templates are **Epistemically Unsound** and must carry confidence: Hypothesis (Speculative) at maximum.
+
+## Naming Convention
+
+- **Manifest filename:** Must match `manifest.id`. Example: `coding-guidelines.yaml` with `manifest.id: coding-guidelines`
+- **Template directory:** Must match `manifest.id`. Example: `registry/templates/coding-guidelines/` for `manifest.id: coding-guidelines`
+- **SKILL.md directory:** Should match `manifest.id`. Example: `.agents/skills/coding-guidelines/SKILL.md`
+- **Template ref paths:** Use `<manifest.id>/<template-name>` format. Example: `coding-guidelines/guidelines-assess`
+
+Name mismatches (e.g., `scenario-planning` manifest referencing `scenario-builder/` templates) create discoverability failures and must be corrected.
+
+## Audit
+
+Before committing a new manifest or template:
+
+```bash
+# Verify manifest.id matches filename
+grep "id:" registry/manifests/<name>.yaml | head -1
+
+# Verify template directory exists and matches
+ls registry/templates/$(grep "id:" registry/manifests/<name>.yaml | awk '{print $2}')/
+
+# Verify all template_refs resolve
+grep "template_ref:" registry/manifests/<name>.yaml | while read -r ref; do
+  path="registry/templates/$(echo "$ref" | awk '{print $2}').j2"
+  [ -f "$path" ] || echo "MISSING: $path"
+done
+
+# Verify budget fields are present
+grep -c "gas:" registry/manifests/<name>.yaml
+grep -c "rjoule:" registry/manifests/<name>.yaml
+```
+
+## rJoule/Gas Budget Calibration
+
+All manifest budgets are currently **uncalibrated** — they are placeholder values set during
+authorship without runtime measurement. The `WalletGasCalibrator` in `hkask-cns` provides
+the infrastructure for calibration.
+
+### Calibration Procedure
+
+```bash
+# 1. Run a representative execution of the skill with CNS span logging enabled
+kask run <skill-name> --cns-spans
+
+# 2. Extract the actual gas and rjoule consumption from CNS spans
+kask cns alerts
+
+# 3. Compare against the manifest's declared budget
+#    If actual > declared: the manifest budget is too low (will cause aborts)
+#    If actual < 50% of declared: the manifest budget is too loose (wasteful)
+
+# 4. Update the manifest with calibrated values
+#    rjoule.cap = ceil(actual_rjoule * 1.2)    # 20% headroom
+#    gas.cap   = ceil(actual_gas * 1.2)
+```
+
+### System Constants
+
+| Constant | Value | Location |
+|----------|-------|----------|
+| `GAS_PER_RJOULE` | 250000 | `crates/hkask-wallet-types/src/lib.rs` |
+| `RJOULE_TO_GAS` | 250000 | Used in CSkill files, reverse of above |
+
+### Known Uncalibrated Budgets
+
+All skill manifests currently use uncalibrated placeholder values:
+
+| Budget | Standard Value | Calibrated? |
+|--------|---------------|-------------|
+| `gas.cap` for skills | 100000 | No — placeholder |
+| `gas.cap` for sequential-inquiry | 120000 | No — 20% above standard, not measured |
+| `rjoule.cap` for skills | 2 | No — placeholder |
+| `rjoule.cap` for superforecasting | 5 | No — justified by complexity but unmeasured |
+| `rjoule.cap` for coding-guidelines, tdd | 3 | No — placeholder |
+
+Calibration should be run as part of the v0.32.0 release cycle after the CNS
+`WalletGasCalibrator` has been validated against production inference workloads.
+
+---
+
+## Inlined Diagrams
+
+The following Mermaid diagrams were inlined from the former `docs/diagrams/` directory per DOCUMENTATION_STANDARDS §1.
+
+### Service Layer Decomposition — Class Diagram
+
+*Inlined from `docs/diagrams/class-service-layer.md`*
+
+
+# Service Layer Class Diagram
+
+The hKask service layer comprises **10 subcrates** decomposed from the original monolithic `hkask-services-core` crate, following the Strangler Fig pattern (archived ADR-040). Every subcrate depends on `hkask-services-core` as its universal foundation. `hkask-services-context` provides `AgentService`, the canonical DI container that assembles all shared infrastructure (CNS, governance, storage, infra). Domain services (chat, compose, skill, kata-kanban, corpus, wallet, onboarding, runtime) are thin orchestrators that delegate to domain crates via `AgentService` or port traits. Curator metacognition and escalation handling were merged into `ChatService` and `services-context::governance` respectively.
+
+```mermaid
+classDiagram
+    direction TB
+
+    %% ── Ports (Hexagonal Interfaces) ──────────────────────────────────────
+    namespace ports {
+        class InferencePort {
+            <<interface>>
+            +infer(prompt, params) InferenceResult
+            +infer_stream(prompt, params) Stream
+        }
+        class ToolPort {
+            <<interface>>
+            +name() String
+            +description() String
+            +execute(input) Result
+        }
+        class CircuitBreakerPort {
+            <<interface>>
+            +check() Outcome
+            +record_success()
+            +record_failure()
+        }
+        class CnsObserver {
+            <<interface>>
+            +on_event(event) bool
+        }
+        class RegistryIndex {
+            <<interface>>
+            +list_entries() Vec~RegistryEntry~
+            +get(name) Option~RegistryEntry~
+        }
+        class SkillRegistryIndex {
+            <<interface>>
+            +list_skills() Vec~Skill~
+            +get_skill(name) Option~Skill~
+        }
+        class FederationDispatch {
+            <<interface>>
+            +register_peer(replica, domain, matrix_domain, matrix_id)
+            +invite(peer) Result
+            +accept(peer) Result
+            +reject(peer) Result
+            +pause(peer, reason) Result
+            +resume(peer) Result
+            +revoke(peer, reason) Result
+            +leave(reason) Result
+            +linked_peers() Vec~ReplicaId~
+            +link_state(peer) Option~String~
+        }
+        class CnsStoragePort {
+            <<interface>>
+            +query_algedonic(since, limit) Result~Vec~NuEvent~~
+        }
+        class FederationTransport {
+            <<interface>>
+            +send(peer, message) Result
+            +recv() Result
+            +simulate_partition(peer)
+            +heal_partition(peer)
+        }
+        class FederationSyncPort {
+            <<interface>>
+            +query_public_since(cursor, limit) Result~Vec~FederatedTriple~~
+            +cursor_for(source) u64
+            +advance_cursor(source, cursor)
+        }
+    }
+
+    %% ── Foundation ────────────────────────────────────────────────────────
+    namespace services_foundation {
+        class ServiceError {
+            +enum ServiceError
+            GoalNotFound, Escalation, EscalationNotFound
+            Metacognition, Inference
+        }
+        class ServiceConfig {
+            +default_model: String
+            +inference_config: InferenceConfig
+            +db_path: PathBuf
+            +load() ServiceConfig
+        }
+        class HkaskSettings {
+            +enabled_features: Vec~String~
+            +save()
+        }
+        class InferenceContext {
+            +shared_port: Arc~dyn InferencePort~
+            +default_model: String
+        }
+    }
+
+    %% ── Context (DI Container) ────────────────────────────────────────────
+    namespace services_context {
+        class AgentService {
+            -infra: InfraContext
+            -governance: GovernanceContext
+            -cns: CnsContext
+            -storage: StorageContext
+            -system_webid: WebID
+            +build(config) AgentService
+            +config() &ServiceConfig
+            +webid() &WebID
+            +governance() &GovernanceContext
+            +infra() &InfraContext
+            +cns() &CnsContext
+            +storage() &StorageContext
+            +identity() (&WebID, &A2ARuntime)
+            +curator_ready() Result
+            +build_per_agent_memory(db) PerAgentMemory
+        }
+        class PerAgentMemory {
+            +episodic_storage: Arc~dyn EpisodicStoragePort~
+            +semantic_storage: Arc~dyn SemanticStoragePort~
+            +consolidation_service: ConsolidationService
+        }
+    }
+
+    %% ── Chat Service (includes merged CuratorService) ──────────────────
+    namespace services_chat {
+        class ChatService {
+            +chat(ctx, request) ChatTurnResponse
+            +prepare_chat(ctx, bot_id) PreparedChat
+            +run_curator_metacognition(ctx) Result~String~
+            +list_escalations(ctx) Vec~EscalationResponse~
+            +resolve(ctx, id, resolved_by) Result
+            +dismiss(ctx, id, dismissed_by) Result
+        }
+        class MemoryService {
+            +has_memory_consent(ctx, owner, category) bool
+            +recall_semantic(port, input, token) Option~String~
+            +recall_episodic(port, input, token) Vec~RecalledEpisode~
+            +store_episode(port, episode)
+            +paired_recall(episodic, semantic) Vec~RecalledEpisode~
+        }
+        class ChatTurnRequest {
+            +prompt: String
+            +bot_id: String
+            +model_override: Option~String~
+        }
+        class ChatTurnResponse {
+            +response: String
+            +tool_calls: Vec~StructuredToolCall~
+            +token_usage: TokenUsage
+        }
+        class EscalationResponse {
+            +id: String
+            +template_id: String
+            +status: String
+            +confidence: f64
+        }
+    }
+
+    %% ── Compose Service ───────────────────────────────────────────────────
+    namespace services_compose {
+        class ComposeService {
+            +compose(request) ComposeResult
+        }
+        class ComposeRequest {
+            +prompt: String
+            +db_path: PathBuf
+            +cognition: CognitionConfig
+            +inference_ctx: InferenceContext
+        }
+        class ComposeResult {
+            +generated_prose: String
+            +exemplar_count: u32
+            +validation: Option~CentroidValidation~
+        }
+    }
+
+    %% ── Kata-Kanban Service ───────────────────────────────────────────────
+    namespace services_kata_kanban {
+        class KataEngine {
+            -inference: Arc~dyn InferencePort~
+            -registry: Arc~dyn RegistryIndex~
+            -history: KataHistory
+            +from_env() KataEngine
+            +load_manifest(path) KataManifest
+            +run_bundle(bundle) KataResult
+            +execute(state) KataResult
+        }
+        class KanbanService {
+            +create_board(owner, name) Board
+            +add_task(board_id, spec) Task
+            +move_task(task_id, status) Task
+            +verify_task(task_id, criterion) Verification
+            +dejam(board_id) Vec~UnjamItem~
+        }
+        class Board {
+            +board_id: BoardId
+            +name: String
+            +owner: WebID
+            +columns: Vec~ColumnDef~
+        }
+        class Task {
+            +task_id: TaskId
+            +title: String
+            +status: TaskStatus
+            +priority: Priority
+            +owner: WebID
+        }
+    }
+
+    %% ── Runtime Services ──────────────────────────────────────────────────
+    namespace services_runtime {
+        class ServiceDaemonHandler {
+            -pod_manager: Arc~ActivePods~
+            -user_store: Arc~Mutex~UserStore~~
+            +handle_assign(request) Result
+            +handle_capability(query) Result
+        }
+        class ProviderIntelligence {
+            +fetch_state(provider) ProviderState
+            +usage_status(provider) UsageStatus
+        }
+    }
+
+    %% ── Skill Service ─────────────────────────────────────────────────────
+    namespace services_skill {
+        class SkillAuditor {
+            -registry: &dyn RegistryIndex
+            -skill_index: &dyn SkillRegistryIndex
+            +audit_all() SkillAuditReport
+        }
+        class SkillAuditReport {
+            +health_score: SkillHealthScore
+            +defects: Vec~Defect~
+        }
+        class BundleService {
+            +compose(skill_ids) BundleComposeResult
+            +evolve(bundle, delta) BundleComposeResult
+        }
+    }
+
+    %% ── Wallet Service ────────────────────────────────────────────────────
+    namespace services_wallet {
+        class WalletService {
+            -manager: Arc~WalletManager~
+            -issuer: Arc~ApiKeyIssuer~
+            +build(config, store, sink) WalletService
+            +balance() WalletBalance
+            +deposit_address() DepositAddress
+            +withdraw(amount, to) TxHash
+            +create_api_key(caps) ApiKeyMaterial
+        }
+    }
+
+    %% ── Onboarding Service ────────────────────────────────────────────────
+    namespace services_onboarding {
+        class OnboardingService {
+            +resolve_secrets() ResolvedSecrets
+            +register_matrix(config) MatrixRegistrationResult
+            +sign_in(user) SignInOutcome
+        }
+    }
+
+    %% ── Corpus Service ────────────────────────────────────────────────────
+    namespace services_corpus {
+        class DiscoveryService {
+            +discover(request) DiscoverResult
+        }
+        class EmbedService {
+            +embed(config) EmbedResult
+            +embed_progress() EmbedProgress
+        }
+        class DiscoverResult {
+            +works: Vec~DiscoveredWork~
+        }
+        class EmbedResult {
+            +phase: EmbedPhase
+            +entities: Vec~Entity~
+        }
+    }
+
+    %% ── Surfaces (Consumers) ──────────────────────────────────────────────
+    namespace surfaces {
+        class CLI {
+            <<binary>>
+            +main()
+        }
+        class API {
+            <<server>>
+            +routes()
+            +openapi_spec()
+        }
+    }
+
+    %% ═══ DEPENDENCY RELATIONSHIPS ═════════════════════════════════════════
+
+    %% Foundation: every service crate depends on core
+    services_chat::ChatService ..> services_foundation::ServiceError : uses
+    services_chat::ChatService ..> services_foundation::InferenceContext : uses
+    services_compose::ComposeService ..> services_foundation::ServiceError : uses
+    services_kata_kanban::KataEngine ..> services_foundation::ServiceError : uses
+    services_runtime::ServiceDaemonHandler ..> services_foundation::ServiceError : uses
+    services_skill::SkillAuditor ..> services_foundation::ServiceError : uses
+    services_skill::BundleService ..> services_foundation::ServiceError : uses
+    services_wallet::WalletService ..> services_foundation::ServiceError : uses
+    services_onboarding::OnboardingService ..> services_foundation::ServiceError : uses
+    services_corpus::DiscoveryService ..> services_foundation::ServiceError : uses
+
+    %% Context (DI container): services parameterized on AgentService
+    services_chat::ChatService ..> services_context::AgentService : takes &AgentService
+    services_chat::MemoryService ..> services_context::AgentService : takes &AgentService
+    services_skill::BundleService ..> services_context::AgentService : takes &AgentService
+    services_context::AgentService ..> services_context::PerAgentMemory : build_per_agent_memory()
+    services_context::AgentService o-- services_foundation::ServiceConfig : config
+
+    %% Context embeds wallet and daemon in InfraContext
+    services_context::AgentService o-- services_wallet::WalletService : wallet (optional)
+    services_context::AgentService o-- services_runtime::ServiceDaemonHandler : daemon
+
+    %% Port dependency: core, context, and services use port traits
+    services_foundation::InferenceContext o-- "1" ports::InferencePort : shared_port
+    services_kata_kanban::KataEngine o-- "1" ports::InferencePort : inference
+    services_kata_kanban::KataEngine o-- "1" ports::RegistryIndex : registry
+    services_skill::SkillAuditor o-- "1" ports::RegistryIndex : registry
+    services_skill::SkillAuditor o-- "1" ports::SkillRegistryIndex : skill_index
+    services_skill::BundleService ..> ports::InferencePort : uses
+    services_skill::BundleService ..> ports::SkillRegistryIndex : uses
+
+    %% Surfaces depend on service subcrates
+    surfaces::CLI ..> services_context::AgentService : uses
+    surfaces::CLI ..> services_chat::ChatService : uses
+    surfaces::CLI ..> services_compose::ComposeService : uses
+    surfaces::CLI ..> services_wallet::WalletService : uses
+    surfaces::CLI ..> services_skill::SkillAuditor : uses
+    surfaces::CLI ..> services_skill::BundleService : uses
+    surfaces::CLI ..> services_kata_kanban::KataEngine : uses
+    surfaces::CLI ..> services_kata_kanban::KanbanService : uses
+    surfaces::CLI ..> services_onboarding::OnboardingService : uses
+    surfaces::CLI ..> services_corpus::DiscoveryService : uses
+    surfaces::CLI ..> services_corpus::EmbedService : uses
+    surfaces::CLI ..> services_runtime::ProviderIntelligence : uses
+    surfaces::CLI ..> services_foundation::ServiceConfig : uses
+
+    surfaces::API ..> services_context::AgentService : uses
+    surfaces::API ..> services_chat::ChatService : uses
+    surfaces::API ..> services_wallet::WalletService : uses
+    surfaces::API ..> services_skill::SkillAuditor : uses
+    surfaces::API ..> services_foundation::ServiceConfig : uses
+
+    %% Runtime depends on context
+    services_runtime::ProviderIntelligence ..> services_foundation::ServiceError : uses
+    services_corpus::EmbedService ..> services_runtime::ServiceDaemonHandler : uses
+```
+
+---
+
+## DIAGRAM_ALIGNMENT
+
+| Field | Value |
+|-------|-------|
+| **ID** | `DIAG-IC-008` |
+| **Verified Date** | 2026-07-12 |
+| **Verified Against** | `crates/hkask-services-core through hkask-services-wallet/src/lib.rs`, `crates/hkask-ports/src/lib.rs`, `crates/hkask-services-core through hkask-services-wallet/Cargo.toml`, `crates/hkask-cli/Cargo.toml`, `crates/hkask-api/Cargo.toml` |
+| **Status** | `VERIFIED` |
+
+### Verification checklist
+
+- [x] 10 subcrates enumerated (core, chat, compose, context, kata-kanban, runtime, skill, wallet, onboarding, corpus)
+- [x] Key public structs per subcrate matched to `lib.rs` re-exports
+- [x] Port traits (`<<interface>>`) from `hkask-ports/src/lib.rs` verified
+- [x] CLI deps: 10 `hkask-services-core through hkask-services-wallet` crates in `hkask-cli/Cargo.toml`
+- [x] API deps: 6 `hkask-services-core through hkask-services-wallet` crates in `hkask-api/Cargo.toml` lines 19–25
+- [x] Core foundation: every service subcrate depends on `hkask-services-core`
+- [x] Context DI: ChatService, MemoryService, BundleService take `&AgentService`
+- [x] Embedded: WalletService, ServiceDaemonHandler live in `InfraContext`
+- [x] Port interfaces (10 total): InferencePort, ToolPort, CircuitBreakerPort, CnsObserver, RegistryIndex, SkillRegistryIndex, FederationDispatch, CnsStoragePort, FederationTransport, FederationSyncPort
+
+---
+
+## Cross-Reference
+
+- **MDS.md § AgentService Specification** ([`docs/architecture/core/MDS.md`](../architecture/core/MDS.md#agentservice-specification)) — defines the 25 accessor methods on `AgentService`, the bounded context, and the service layer contract table listing all 10 subcrates with their contract prefixes and counts.
+- **MDS.md § 1.4 Service Layer Subsystems** — domain ontology table mapping each subcrate to its domain, contract prefix, and decomposition status.
+- **PRINCIPLES.md** — P5 (Essentialism) governs the service layer: thin orchestration, delegates to domain crates, ≤7 public functions per module.
+- **ADR-040** — Strangler Fig decomposition of the monolithic `hkask-services-core` into 10 subcrates (2026-06-27). CuratorService merged into ChatService.
+
+
+### Hexagonal Ports Trait Hierarchy
+
+*Inlined from `docs/diagrams/class-ports-trait-hierarchy.md`*
+
+
+# Hexagonal Ports Trait Hierarchy — Class Diagram
+
+**Diataxis quadrant:** Reference  
+**Domain ontology tier:** Core  
+**Purpose:** Show the hexagonal ports/adapter interface hierarchy — the trait contracts that define hKask's dependency inversion boundary.  
+**Verified against:** `crates/hkask-ports/src/lib.rs`, `crates/hkask-ports/src/federation.rs`  
+last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
+
+```mermaid
+classDiagram
+    class InferencePort {
+        <<trait>>
+        +infer(request: InferenceRequest) Result~InferenceResult, InferenceError~
+        +infer_stream(request: InferenceRequest) Stream~InferenceStreamChunk~
+        +list_models() Vec~ModelInfo~
+    }
+
+    class ToolPort {
+        <<trait>>
+        +invoke(name: String, params: Value) Result~Value, ToolPortError~
+        +list_tools() Vec~ToolInfo~
+        +describe_tool(name: String) Option~ToolInfo~
+    }
+
+    class CircuitBreakerPort {
+        <<trait>>
+        +check() CircuitState
+        +record_success()
+        +record_failure()
+        +reset()
+    }
+
+    class CnsObserver {
+        <<trait>>
+        +emit(event: NuEvent)
+        +observe(span: ObservableSpan)
+    }
+
+    class CnsStoragePort {
+        <<trait>>
+        +store_event(event: WeightedEvent) Result~(), Error~
+        +query_events(filter: EventFilter) Vec~WeightedEvent~
+        +apply_decay(config: DecayConfig)
+    }
+
+    class ConsentPort {
+        <<trait>>
+        +has_consent(resource: String, action: String) bool
+        +grant(resource: String, action: String, scope: ConsentScope)
+        +revoke(resource: String, action: String)
+        +list_grants() Vec~ConsentGrant~
+    }
+
+    class FederationDispatch {
+        <<trait>>
+        +dispatch(message: FederationMessage) Result~FederationResponse, FederationDispatchError~
+        +sync_crdt(peer: ReplicaId) Result~CrdtSyncResult, FederationDispatchError~
+        +resolve_link(link: FederationLink) Result~LinkResolution, FederationDispatchError~
+    }
+
+    class EmbeddingPort {
+        <<trait>>
+        +embed(text: String) Result~Vec~f32~, EmbeddingError~
+        +embed_batch(texts: Vec~String~) Result~Vec~Vec~f32~~, EmbeddingError~
+        +similarity(a: Vec~f32~, b: Vec~f32~) f32
+    }
+
+    class WalletBudgetPort {
+        <<trait>>
+        +gas_to_rjoules(gas: u64) RJoule
+        +get_encumbrance(key_id) Option~Encumbrance~
+        +can_afford(wallet_id, cost_rj) bool
+        +get_balance(wallet_id) Result
+        +consume(key_id, gas_rj) Result
+        +settle_rjoules(wallet_id, reserved, actual) Result
+        +gas_per_rjoule() u64
+        +set_gas_per_rjoule(rate)
+        +emit_key_alert(key_id, exhausted, expired)
+        +get_api_key(key_id) Option~ApiKeyCapability~
+    }
+
+    class InferencePort <<trait>> InferencePort
+    class ToolPort <<trait>> ToolPort
+    class CircuitBreakerPort <<trait>> CircuitBreakerPort
+    class CnsObserver <<trait>> CnsObserver
+
+    InferencePort <|.. InferenceRouter : implements
+    ToolPort <|.. McpDispatcher : implements
+    ToolPort <|.. GovernedTool : decorates (OCAP)
+    CircuitBreakerPort <|.. CircuitBreaker : implements
+    CnsObserver <|.. CnsRuntime : implements
+    WalletBudgetPort <|.. WalletManager : implements (in hkask-wallet)
+
+    GovernedTool --> ToolPort : delegates to
+    GovernedTool --> CircuitBreakerPort : checks before dispatch
+    InferenceRouter --> CircuitBreakerPort : checks before inference
+    CnsRuntime --> CnsStoragePort : persists events
+    ConsentPort --> CnsObserver : emits on denial
+    FederationDispatch --> CnsObserver : emits sync events
+    CyberneticsLoop --> WalletBudgetPort : regulates via port (not concrete)
+
+    note for GovernedTool "OCAP membrane:\n1. Check capability\n2. Reserve energy\n3. Emit ν-event\n4. Delegate\n5. Settle energy\n6. Emit ν-event"
+
+    note for InferenceRouter "Multi-provider:\n- DeepInfra\n- Together AI\n- fal.ai\n- OpenRouter\n- KiloCode"
+```
+
+**Trait-to-file mapping:**
+
+| Trait | Source File |
+|-------|------------|
+| `InferencePort` | `crates/hkask-ports/src/inference_port.rs` |
+| `ToolPort` | `crates/hkask-ports/src/tool.rs` |
+| `CircuitBreakerPort` | `crates/hkask-ports/src/lib.rs` |
+| `CnsObserver` | `crates/hkask-ports/src/cns.rs` |
+| `CnsStoragePort` | `crates/hkask-ports/src/cns.rs` |
+| `ConsentPort` | `crates/hkask-ports/src/consent_port.rs` |
+| `FederationDispatch` | `crates/hkask-ports/src/federation.rs` |
+| `EmbeddingPort` | `crates/hkask-ports/src/embedding_port.rs` |
+| `WalletBudgetPort` | `crates/hkask-ports/src/wallet_budget_port.rs` |
+
+**Cardinality:** 9 port traits defined in `hkask-ports`. `InferenceRouter` (in `hkask-inference`) implements `InferencePort`. `McpDispatcher` (in `hkask-mcp`) implements `ToolPort`. `GovernedTool` (in `hkask-cns`) decorates `ToolPort` with OCAP membrane. `CircuitBreaker` (in `hkask-cns`) implements `CircuitBreakerPort`. `CnsRuntime` (in `hkask-cns`) implements `CnsObserver`. `WalletManager` (in `hkask-wallet`) implements `WalletBudgetPort` — CNS consumes the port, not the concrete type.
+
+
+### ServiceError Hierarchy — Class Diagram
+
+*Inlined from `docs/diagrams/class-service-error-hierarchy.md`*
+
+
+# ServiceError Hierarchy
+
+The hKask error architecture follows a three-layer Miller separation design (see `crates/hkask-types/src/error.rs` doc comment). At the base, `InfrastructureError` carries transport-level failures (Database, Serialization, LockPoisoned, Io, NotFound) shared across all crates. Domain crate errors (InferenceError, EmbeddingGenerationError, WalletError) compose from `InfrastructureError` via `#[from]`. At the top, `ServiceError` unifies 49 domain-tagged variants into a single canonical error vocabulary. `ServiceError::domain()` returns a `DomainKind` for routing and observability; `ServiceError::kind()` returns a semantic `ErrorKind` (NotFound, Forbidden, etc.) for HTTP status mapping to `ApiError`.
+
+```mermaid
+classDiagram
+    direction TB
+
+    %% ── Foundation Types (hkask-types) ──────────────────────────────────
+    namespace types {
+        class InfrastructureError {
+            <<enumeration>>
+            Database(message, kind)
+            Serialization(String)
+            LockPoisoned
+            NotFound(String)
+            Io(String)
+        }
+        class DatabaseErrorKind {
+            <<enumeration>>
+            Connection
+            Query
+            Constraint
+            Migration
+            Other
+        }
+        class McpErrorKind {
+            <<enumeration>>
+            Internal
+            Unavailable
+            Timeout
+            NotFound
+            InvalidArgument
+            PermissionDenied
+            RateLimited
+            FailedPrecondition
+        }
+    }
+
+    %% ── ServiceError Core (hkask-services-core) ────────────────────────
+    namespace core {
+        class ServiceError {
+            <<enumeration>>
+            +domain() DomainKind
+            +kind() ErrorKind
+        }
+        class ErrorKind {
+            <<enumeration>>
+            NotFound
+            Conflict
+            Forbidden
+            BadRequest
+            ServiceUnavailable
+        }
+        class DomainKind {
+            <<enumeration>>
+            Agent
+            Consent
+            Curator
+            Federation
+            Inference
+            Infrastructure
+            Memory
+            Pod
+            Storage
+            User
+            Wallet
+        }
+    }
+
+    %% ── ServiceError Variants by Domain ─────────────────────────────────
+    namespace curator {
+        class EscalationNotFound {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Escalation {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Metacognition {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace agent {
+        class AgentNotFound {
+            source: Option~BoxErr~
+            message: String
+        }
+        class InvalidAgentType {
+            source: Option~BoxErr~
+            message: String
+        }
+        class AgentRegistrationFailed {
+            source: Option~BoxErr~
+            message: String
+        }
+        class A2A {
+            source: Option~BoxErr~
+            message: String
+        }
+        class AgentRegistry {
+            source: Option~BoxErr~
+            message: String
+        }
+        class AgentRegistryStore {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace consent {
+        class Consent {
+            source: Option~BoxErr~
+            message: String
+            kind: Option~ErrorKind~
+        }
+        class ConsentDenied {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace storage {
+        class Storage {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Registry {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Template {
+            source: Option~BoxErr~
+            message: String
+            kind: Option~ErrorKind~
+        }
+        class GoalRepo {
+            source: Option~BoxErr~
+            message: String
+        }
+        class UserStore {
+            source: Option~BoxErr~
+            message: String
+        }
+        class ConsentStore {
+            source: Option~BoxErr~
+            message: String
+        }
+        class SovereigntyStore {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Archival {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace memory {
+        class HMem {
+            source: Option~BoxErr~
+            message: String
+        }
+        class EpisodicMemory {
+            source: Option~BoxErr~
+            message: String
+        }
+        class SemanticMemory {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Consolidation {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace infrastructure {
+        class Infra {
+            wraps: InfrastructureError
+        }
+        class Config {
+            source: Option~BoxErr~
+            message: String
+        }
+        class RegistryInitFailed {
+            source: Option~BoxErr~
+            message: String
+        }
+        class RegistryLoadFailed {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Matrix {
+            source: Option~BoxErr~
+            message: String
+        }
+        class RateLimited {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Keystore {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Gas {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Cns {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace pod {
+        class PodNotFound {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Pod {
+            source: Option~BoxErr~
+            message: String
+            kind: Option~ErrorKind~
+        }
+    }
+
+    namespace inference {
+        class InferencePort {
+            source: Option~BoxErr~
+            message: String
+            retryable: bool
+        }
+        class Embedding {
+            source: Option~BoxErr~
+            message: String
+            retryable: bool
+        }
+    }
+
+    namespace user {
+        class UserNotFound {
+            source: Option~BoxErr~
+            message: String
+        }
+        class LoginFailed {
+            source: Option~BoxErr~
+            message: String
+        }
+        class InvalidPassphrase {
+            source: Option~BoxErr~
+            message: String
+        }
+        class ValidationError {
+            source: Option~BoxErr~
+            message: String
+        }
+        class InvalidWebID {
+            source: Option~uuid::Error~
+            message: String
+        }
+        class Forbidden {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace wallet {
+        class Wallet {
+            source: Option~BoxErr~
+            message: String
+        }
+        class McpTool {
+            kind: McpErrorKind
+            server: String
+            tool: String
+            message: String
+        }
+        class Embed {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Compose {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Skill {
+            source: Option~BoxErr~
+            message: String
+        }
+        class Verification {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    namespace federation {
+        class Federation {
+            source: Option~BoxErr~
+            message: String
+        }
+    }
+
+    %% ── API Layer (hkask-api) ───────────────────────────────────────────
+    namespace api {
+        class ApiError {
+            <<enumeration>>
+            NotFound(resource, id)
+            Unauthorized(reason)
+            Forbidden(reason)
+            BadRequest(message)
+            Conflict(message)
+            ServiceUnavailable(reason)
+            Internal(message)
+        }
+        class ServiceErrorResponse {
+            +newtype wrapper
+            +from(ServiceError)
+            +into_response()
+        }
+    }
+
+    %% ── Composition: variant → ServiceError ─────────────────────────────
+    ServiceError *-- curator : "3 variants"
+    ServiceError *-- agent : "6 variants"
+    ServiceError *-- consent : "2 variants"
+    ServiceError *-- storage : "8 variants"
+    ServiceError *-- memory : "4 variants"
+    ServiceError *-- infrastructure : "9 variants"
+    ServiceError *-- pod : "2 variants"
+    ServiceError *-- inference : "2 variants"
+    ServiceError *-- user : "6 variants"
+    ServiceError *-- wallet : "6 variants"
+    ServiceError *-- federation : "1 variant"
+
+    %% ── Infra variant wraps InfrastructureError ─────────────────────────
+    Infra ..> InfrastructureError : wraps
+    InfrastructureError *-- DatabaseErrorKind : classifies
+    McpTool ..> McpErrorKind : carries
+
+    %% ── Domain classification ───────────────────────────────────────────
+    ServiceError ..> DomainKind : domain()
+    ServiceError ..> ErrorKind : kind()
+
+    %% ── Consent/Pod/Template carry optional ErrorKind ───────────────────
+    Consent ..> ErrorKind : optional kind field
+    Pod ..> ErrorKind : optional kind field
+    Template ..> ErrorKind : optional kind field
+
+    %% ── From domain crate errors → ServiceError ─────────────────────────
+    ServiceError ..> InferencePort : "From<InferenceError>"
+    ServiceError ..> Embedding : "From<EmbeddingGenerationError>"
+    ServiceError ..> InvalidWebID : "From<uuid::Error>"
+    ServiceError ..> Wallet : "From<WalletError>"
+    ServiceError ..> Infra : "From<PoisonError<T>>"
+    ServiceError ..> Infra : "From<InfrastructureError> (#[from])"
+
+    %% ── ApiError mapping ────────────────────────────────────────────────
+    ServiceErrorResponse ..> ApiError : delegates to
+    ServiceError ..> ServiceErrorResponse : "From<ServiceError>"
+    ServiceError ..> ApiError : "Into<ApiError> → HTTP status"
+
+    %% ── Infra is transparent via #[error(transparent)] ──────────────────
+    ServiceError ..> Infra : "#[error(transparent)]"
+```
+
+## Entity Counts
+
+| Layer | Type | Count |
+|-------|------|-------|
+| `ServiceError` | enum variants | 49 |
+| `DomainKind` | enum variants | 11 |
+| `ErrorKind` | enum variants | 5 |
+| `InfrastructureError` | enum variants | 5 |
+| `DatabaseErrorKind` | enum variants | 5 |
+| `McpErrorKind` | enum variants | 8 |
+| `ApiError` | enum variants | 7 |
+
+## ErrorKind → HTTP Status Mapping (via `ServiceError → ApiError`)
+
+| `ErrorKind` | HTTP Status | Example ServiceError variants |
+|-------------|-------------|-------------------------------|
+| `NotFound` | 404 | EscalationNotFound, AgentNotFound, PodNotFound, UserNotFound |
+| `Conflict` | 409 | AgentRegistrationFailed |
+| `Forbidden` | 403 | ConsentDenied, A2A, InvalidWebID |
+| `BadRequest` | 400 | InvalidAgentType, InvalidPassphrase, ValidationError |
+| `ServiceUnavailable` | 503 | InferencePort(retryable), Embedding(retryable), RateLimited, Keystore |
+
+Variants with an explicit `kind: Option<ErrorKind>` field (Consent, Pod, Template) dispatch to the corresponding HTTP status; when `kind` is `None`, they fall through to `500 Internal Server Error`.
+
+## `From` Impls (Domain → ServiceError)
+
+| Source Error | ServiceError Variant | Notes |
+|---|---|---|
+| `InferenceError` | `InferencePort` | Sets `retryable` based on variant (Connection/CircuitOpen = true) |
+| `EmbeddingGenerationError` | `Embedding` | Sets `retryable` based on variant (Connection/Api = true) |
+| `WalletError` | `Wallet` | Wraps source in `Box<dyn Error>` |
+| `uuid::Error` | `InvalidWebID` | Preserves source as `Option<uuid::Error>` (typed) |
+| `PoisonError<T>` | `Infra(LockPoisoned)` | Generic `T`, delegates to `InfrastructureError::LockPoisoned` |
+| `InfrastructureError` | `Infra` | Via `#[from]` attribute — transparent pass-through |
+
+## DIAGRAM_ALIGNMENT
+
+Diagram generated by **diataxis-diagram class** skill from `crates/hkask-services-core/src/error/mod.rs` (v0.31.0). Variant count, domain groupings, and relationships verified against the `domain()`, `kind()`, and `From` impl blocks at time of generation.
+
+### Verification checklist
+
+- [x] 49 `ServiceError` variants match the source enum definition
+- [x] 11 `DomainKind` variants correspond to `domain()` match arms
+- [x] 5 `ErrorKind` variants: NotFound, Conflict, Forbidden, BadRequest, ServiceUnavailable
+- [x] 5 `InfrastructureError` variants: Database, Serialization, LockPoisoned, NotFound, Io
+- [x] 8 `McpErrorKind` variants match `crates/hkask-types/src/error.rs`
+- [x] 7 `ApiError` variants: NotFound, Unauthorized, Forbidden, BadRequest, Conflict, ServiceUnavailable, Internal
+- [x] 6 domain `From` impls verified (InferenceError, EmbeddingGenerationError, uuid::Error, WalletError, PoisonError, InfrastructureError)
+- [x] `Consent`, `Pod`, `Template` carry optional `kind: Option<ErrorKind>` for runtime dispatch
+- [x] `InferencePort` and `Embedding` carry `retryable: bool`
+- [x] `McpTool` variant carries `McpErrorKind` for retryability and observability
+
+## Cross-Reference
+
+- [`FUNCTIONAL_SPECIFICATION.md`](../architecture/core/FUNCTIONAL_SPECIFICATION.md) — §2 error contract definitions, §5 contract anchoring
+- [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md) — P5 (no pass-through abstractions), P7 (interface minimalism)
+- [`crates/hkask-services-core/src/error/mod.rs`](../../crates/hkask-services-core/src/error/mod.rs) — canonical source
+- [`crates/hkask-types/src/error.rs`](../../crates/hkask-types/src/error.rs) — InfrastructureError, McpErrorKind
+- [`crates/hkask-api/src/error.rs`](../../crates/hkask-api/src/error.rs) — ApiError mapping, ServiceErrorResponse newtype
+
+
+### Template Manifest Cascade Execution
+
+*Inlined from `docs/diagrams/flowchart-template-cascade.md`*
+
+
+# Template Manifest Cascade Execution
+
+## Description
+
+The `ManifestExecutor` in `hkask-templates` drives the select → populate → execute cascade for `BundleManifest` execution. Steps are sorted by ordinal and dispatched by `action`: **select** (render selector template → inference → parse JSON result), **populate** (render template with context map → produce filled prompt), and **execute** (invoke MCP tool via `McpPort` with context-bound parameters). Three template types compose the skill taxonomy: **WordAct** renders system prompts, **FlowDef** orchestrates multi-step PDCA cascades, and **KnowAct** drives metacognition decisions. The recursive cascade is bounded by the matryoshka depth limit (`SYSTEM_MAX_RECURSION` = 7). Every execute step routes through `GovernedTool` for energy accounting (gas + rJoule budgets). The PDCA convergence loop re-enters from `loop_target` until the threshold is met, max iterations exhausted, or `abort`/`escalate` is triggered.
+
+**Key source:** `crates/hkask-templates/src/executor.rs:69-84` (`ManifestExecutor` struct), `executor.rs:209-686` (`execute_manifest` cascade loop), `executor.rs:230` (`matryoshka_limit = SYSTEM_MAX_RECURSION`), `executor.rs:386-475` (loop action with depth guard), `executor.rs:232-245` (gas + rJoule tracking), `crates/hkask-capability/src/token_types.rs:14` (`SYSTEM_MAX_RECURSION = 7`).
+
+```mermaid
+flowchart TD
+    Start(["execute_manifest(manifest, context)"]) --> Sort[Sort steps by ordinal]
+    Sort --> Init[Initialize convergence context<br/>gas_cap / rjoule_cap / matryoshka_limit=7]
+    Init --> Loop{"cascade loop<br/>iteration ≤ max_iterations?"}
+
+    Loop -->|yes| StepDispatch{"step.action?"}
+
+    %% ── abort / escalate (terminal exits) ──
+    StepDispatch -->|"abort"| Converged(["exit: converged<br/>cns.skill.converged"])
+    StepDispatch -->|"escalate"| Escalated(["exit: escalated<br/>cns.skill.escalated"])
+
+    %% ── choice (branching) ──
+    StepDispatch -->|"choice"| EvalChoice[evaluate_choice()<br/>parse condition → target ordinal]
+    EvalChoice --> Jump{target found?}
+    Jump -->|yes| StepDispatch
+    Jump -->|no| NextStep
+
+    %% ── loop (recursive re-entry) ──
+    StepDispatch -->|"loop"| IncDepth[recursion_depth += 1]
+    IncDepth --> DepthCheck{"depth > matryoshka_limit (7)?"}
+    DepthCheck -->|yes| DepthExceeded(["exit: maxed_out<br/>Matryoshka depth exceeded"])
+    DepthCheck -->|no| CheckConv{convergence met?<br/>or max_iterations exhausted?}
+    CheckConv -->|yes| MaxedOut(["exit: maxed_out<br/>energy_spent"])
+    CheckConv -->|no| Reenter[Reset step_idx → loop_target<br/>continue cascade]
+    Reenter --> StepDispatch
+
+    %% ── select (template → inference → parse) ──
+    StepDispatch -->|"select"| RenderSelect[render_step_template()<br/>minijinja or inline]
+    RenderSelect --> Infer[inference.generate()<br/>LLMParameters + timeout]
+    Infer --> Parse[parse_json_response()]
+    Parse --> UpdateCtx[Update context map]
+    UpdateCtx --> DeductGas["Deduct gas + rJoule<br/>per-token energy accounting"]
+
+    %% ── populate (template fill) ──
+    StepDispatch -->|"populate"| RenderPop[render_step_template()<br/>fill template with context]
+    RenderPop --> UpdateCtxPop[Store populated result<br/>in context map]
+
+    %% ── execute (MCP tool invoke) ──
+    StepDispatch -->|"execute"| BindParams[bind_parameters()<br/>resolve dot-path refs]
+    BindParams --> GovTool[GovernedTool.invoke()<br/>OCAP: DelegationToken check<br/>energy budget debited]
+    GovTool --> ToolResult[Tool result → context map]
+    ToolResult --> DeductGasExec["Deduct gas + rJoule"]
+
+    %% ── convergence & budget checks ──
+    DeductGas --> GasCheck{"gas_hard_limit &<br/>gas_used ≥ gas_cap?"}
+    GasCheck -->|yes| GasExhausted(["exit: maxed_out<br/>cns.skill.gas_exhausted"])
+    GasCheck -->|no| RJCheck{"rjoule_hard_limit &<br/>rjoule_used ≥ rjoule_cap?"}
+    RJCheck -->|yes| RJExhausted(["exit: maxed_out<br/>cns.skill.rjoule_exhausted"])
+    RJCheck -->|no| NextStep[step_idx += 1<br/>advance to next step]
+
+    DeductGasExec --> GasCheck
+
+    UpdateCtxPop --> NextStep
+
+    NextStep --> MoreSteps{"more steps?"}
+    MoreSteps -->|yes| StepDispatch
+    MoreSteps -->|no| EndIter{"iteration ≥ max_iterations?"}
+    EndIter -->|yes| MaxedOut
+    EndIter -->|no| Loop
+
+    Loop -->|no, cascading| MaxedOut
+
+    %% ── Template type taxonomy (legend) ──
+    subgraph TemplateTypes["Template Types (WordAct / FlowDef / KnowAct)"]
+        WA[WordAct<br/>render system prompt<br/>agent persona + charter]
+        FD[FlowDef<br/>orchestrate PDCA steps<br/>select → populate → execute]
+        KA[KnowAct<br/>metacognition decisions<br/>single-template invocation]
+    end
+
+    WA -.->|"rendered by"| RenderSelect
+    FD -.->|"cascade orchestrated by"| StepDispatch
+    KA -.->|"invoked via"| Infer
+
+    %% ── Dependency graph constraint ──
+    subgraph DepCheck["Acyclic Dependency Constraint"]
+        DepGraph["steps form a DAG<br/>ordinal ordering enforced<br/>no cyclic dependencies<br/>loop re-entry is bounded"]
+    end
+
+    Sort -.-> DepGraph
+```
+
+## Template Type Taxonomy
+
+| Type | Purpose | Invocation | Example |
+|------|---------|------------|---------|
+| **WordAct** | Render system prompt / persona | Step `action: "populate"` with persona context | Agent persona YAML → system prompt |
+| **FlowDef** | Orchestrate multi-step PDCA cascade | `execute_manifest()` full cascade | Kata improvement cycles, skill bundles |
+| **KnowAct** | Single-template metacognition decision | `execute_knowact()` direct call | `metacognition-diagnose.j2`, `metacognition-escalate.j2` |
+
+## Energy Accounting (Gas + rJoule)
+
+Every select and execute step deducts from two parent-allocated budgets:
+
+| Budget | Unit | Deduction | Hard Limit |
+|--------|------|-----------|------------|
+| **Gas** | `u64` cycles | `gas_cost_per_iter` per step + per-token inference cost | `gas_hard_limit`: cascade aborts if `gas_used ≥ gas_cap` |
+| **rJoule** | `f64` energy | Per-token cost from inference provider/model config | `rjoule_hard_limit`: cascade aborts if `rjoule_used ≥ rjoule_cap` |
+
+Alert thresholds (`gas_alert_threshold`, `rjoule_alert_threshold`) fire CNS warnings once per cascade when usage exceeds the threshold fraction.
+
+## Matryoshka Depth Limit
+
+The recursive cascade is bounded by `SYSTEM_MAX_RECURSION` (7), shared across all depth-constrained systems:
+
+- Capability attenuation chain: max 7 levels (`SYSTEM_MAX_ATTENUATION`)
+- Template cascade recursion: max 7 nested loops
+- Improv cascade: max 7 total mode applications
+- Goal sub-goal nesting: max 7 levels
+
+When `recursion_depth > matryoshka_limit`, the cascade exits with `maxed_out` / `energy_spent`.
+
+---
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-IC-004
+verified_date: 2026-07-01
+verified_against: crates/hkask-templates/src/executor.rs (ManifestExecutor:69-84, execute_manifest:209-686, matryoshka_limit:230, loop action:386-475, select:478-512, gas tracking:232-245/493-526, rJoule tracking:240-245/528-545), crates/hkask-capability/src/token_types.rs (SYSTEM_MAX_RECURSION:14), crates/hkask-api/src/routes/templates.rs (TemplateResponse:30-40, WordAct/FlowDef/KnowAct taxonomy:27-28), crates/hkask-improv/src/cascade.rs (MATRYOSHKA_LIMIT:17-21)
+status: VERIFIED
+-->
+
+## Cross-Reference
+
+- [`hKask-architecture-master.md` § Template System & Cascade Execution](../architecture/hKask-architecture-master.md#template-system--cascade-execution)
+- [`executor.rs`](crates/hkask-templates/src/executor.rs) — `ManifestExecutor`, `execute_manifest()`, PDCA cascade loop
+- [`token_types.rs`](crates/hkask-capability/src/token_types.rs) — `SYSTEM_MAX_RECURSION` = 7
+- [`cascade.rs`](crates/hkask-improv/src/cascade.rs) — `MATRYOSHKA_LIMIT`, improv cascade
+- [Template registry routes](crates/hkask-api/src/routes/templates.rs) — WordAct / FlowDef / KnowAct API
+
+
+### Classification + Guard Architecture Overview
+
+*Inlined from `docs/diagrams/flowchart-architecture-overview.md`*
+
+
+# Classification + Guard Architecture Overview
+
+How dual-model classification, content safety guard, drift detection, and
+memory storage compose. P3.1 Social Generativity governs the entire pipeline —
+no single model gates shared memory, and no LLM boundary is unguarded.
+
+Related: `crates/hkask-guard/src/lib.rs`, `crates/hkask-services-runtime/src/dual_classify.rs`, `docs/architecture/core/PRINCIPLES.md` §P3.1
+
+```mermaid
+flowchart TD
+    subgraph "P3.1 Social Generativity"
+        direction TB
+        G["ContentGuard\n(llm-guard, OWASP Top 10)"]
+        MA["Model A\nQwen/KiloCode\nChina"]
+        MB["Model B\nGemma 4/DeepInfra\nUS"]
+        I["Dual Integrator\nJaccard + Merge"]
+        CD["Drift Detection\ncns.classify.drift"]
+        FD["Fidelity Check\ncns.classify.dual_fidelity"]
+        SM[("Shared Memory\nhMems + provenance")]
+    end
+
+    IN([Source Text]) --> G
+    G -->|"cns.guard.violation\n(refuse)"| RJ([Refused])
+    G -->|pass| MA
+    G -->|pass| MB
+    MA --> I
+    MB --> I
+    I --> FD
+    FD -->|"agreement < 0.6\ncns.classify.dual_fidelity"| CD
+    FD --> SM
+    I --> CD
+    CD -->|"divergence > 30%\nor asymmetry > 2.0\ncns.classify.drift"| CNS([CNS Alert])
+
+    subgraph "Never Disableable"
+        G
+    end
+
+    subgraph "Mandatory Peer Models"
+        MA
+        MB
+        I
+    end
+
+    subgraph "Observable"
+        FD
+        CD
+        CNS
+    end
+```
+
+## Subsystems
+
+| Subsystem | Crate | OWASP Alignment |
+|---|---|---|
+| ContentGuard | `hkask-guard` | LLM01, LLM02, LLM04, LLM06 |
+| Dual Classifier | `hkask-services-runtime` | LLM09 (Misinformation — cross-jurisdiction) |
+| Drift Detection | `hkask-services-runtime` | Operational monitoring |
+| Memory Storage | `hkask-storage` | Provenance-tagged hMems |
+
+
+### MCP Tool Dispatch — Sequence Diagram
+
+*Inlined from `docs/diagrams/sequence-mcp-tool-dispatch.md`*
+
+
+# MCP Tool Dispatch Sequence
+
+**Purpose:** Trace the full MCP tool invocation path from `McpDispatcher::invoke()` through the `GovernedTool` OCAP membrane, to the `RawMcpToolPort` transport layer, with all CNS span emission points, gas budget checks, and error-rejection paths.
+
+**Related:** [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) §P4 — Clear Boundaries (OCAP), [MDS.md](../architecture/core/MDS.md) §6
+
+---
+
+## Dispatch Flow Description
+
+When a caller requests tool execution through the `McpPort` trait, the dispatch flows through three architectural layers:
+
+1. **Dispatcher (`McpDispatcher::invoke`)** — Resolves caller identity and tool metadata (`server_id`), then delegates to the governed membrane. Maps `ToolPortError` variants into `TemplateError` for the caller.
+
+2. **OCAP Membrane (`GovernedTool::invoke`)** — The security boundary where all governance decisions are made. A 7-step hold-settle pipeline:
+   - **Step 0:** Cryptographic token signature verification (`token.verify()`)
+   - **Step 1:** OCAP authority check — two paths: exact-match (ad-hoc invocation tokens) or domain-based matching via `capabilities_match()` (agent capability tokens)
+   - **Step 2:** Gas budget check — `can_proceed()` + `reserve_gas()` hold; emits `GasDepleted` span on rejection, `GasReserved` on success
+   - **Step 3:** CNS observability — emits `cns.tool.invoked` span
+   - **Step 4:** Delegate to inner `ToolPort` (the raw MCP transport)
+   - **Step 5:** Settle gas — `settle_gas()` with refund for over-estimation; emits `GasSettled` + `ToolConsumptionEvent` on direct channel
+   - **Step 6:** CNS outcome — emits `cns.tool.completed` span (parented to invoked span)
+   - **Step 7:** Record outcome for quality tracking via `CyberneticsLoop::record_outcome()`
+
+3. **Transport (`RawMcpToolPort::invoke`)** — Checks for live Peer connection, calls `McpRuntime::call_tool()` over rmcp stdio, parses `CallToolResult` into `serde_json::Value`.
+
+Per-tool CNS span emission at the server level uses `ToolSpanGuard` (via `execute_tool()`), which emits via `tracing::info!(target: "cns.tool")`. The `Drop` implementation ensures forgotten spans still emit a "dropped" status.
+
+Startup-time P4 enforcement uses `verify_startup_gates()`: Gate 1 (authentication), Gate 2 (role assignment), Gate 3 (per-tool capability query). Gate 3 denials are non-fatal — the server starts in degraded mode.
+
+---
+
+## Tool Dispatch Sequence
+
+```mermaid
+sequenceDiagram
+    participant Caller as Caller
+    participant Disp as McpDispatcher
+    participant Gov as GovernedTool
+    participant Cyber as CyberneticsLoop
+    participant Sink as NuEventSink
+    participant Raw as RawMcpToolPort
+    participant Rtm as McpRuntime
+    participant Peer as MCP Server (Peer)
+
+    Caller->>+Disp: invoke(tool, input, token)
+    Disp->>+Disp: get_tool_info(tool) → server_id
+
+    opt GovernedTool absent
+        Disp-->>Caller: TemplateError::Mcp(NotConnected)
+    end
+
+    Disp->>+Gov: invoke(server, tool, input, token)
+
+    %% Step 0: Cryptographic verification
+    Gov->>+Gov: token.verify()
+    alt Invalid signature
+        Gov-->>Disp: ToolPortError::CapabilityDenied
+        Disp-->>Caller: TemplateError::CapabilityDenied
+    end
+
+    %% Step 1: OCAP authority
+    Gov->>+Gov: verify_capability_exact(token, tool)
+    alt Exact match fails
+        Gov->>+Raw: get_tool_info(tool)
+        Raw->>+Rtm: get_tool_info(tool)
+        Rtm-->>-Raw: Option<ToolInfo>
+        Raw-->>-Gov: required_capability
+        Gov->>+Gov: verify_capability_domain(token, required)
+    end
+    alt Authority denied
+        Gov-->>Disp: ToolPortError::CapabilityDenied
+        Disp-->>Caller: TemplateError::CapabilityDenied
+    end
+
+    %% Step 2: Gas budget
+    Gov->>+Cyber: can_proceed(agent, estimated_cost)
+    alt Budget exceeded
+        Cyber-->>Gov: false
+        Gov->>+Sink: persist(GasDepleted event)
+        Sink-->>-Gov: ()
+        Gov-->>Disp: ToolPortError::GasBudgetExceeded
+        Disp-->>Caller: TemplateError::Mcp(GasBudgetExceeded)
+    end
+    Cyber-->>-Gov: true
+    Gov->>+Cyber: reserve_gas(agent, estimated_cost)
+    Cyber-->>-Gov: Ok(())
+    Gov->>+Sink: persist(GasReserved event)
+    Sink-->>-Gov: ()
+
+    %% Step 3: Invoked span
+    Gov->>+Sink: persist(cns.tool.invoked)
+    Sink-->>-Gov: ()
+
+    %% Step 4: Delegate to inner tool
+    Gov->>+Raw: invoke(server, tool, args, token)
+    Raw->>+Rtm: get_peer(server)
+    alt No live connection
+        Rtm-->>Raw: None
+        Raw->>+Rtm: tool_exists(tool)
+        alt Tool not found
+            Rtm-->>Raw: false
+            Raw-->>Gov: ToolPortError::NotFound
+        else Registered but not connected
+            Rtm-->>Raw: true
+            Raw-->>Gov: ToolPortError::InvocationFailed
+        end
+    end
+    Rtm-->>Raw: Some(Peer)
+
+    Raw->>+Rtm: call_tool(server, tool, arguments)
+    Rtm->>+Peer: call_tool(CallToolRequestParams)
+    Peer-->>-Rtm: CallToolResult
+    Rtm-->>-Raw: CallToolResult
+
+    alt is_error flag set
+        Raw-->>Gov: ToolPortError::InvocationFailed
+    end
+    Raw->>+Raw: parse_call_result → Value
+    Raw-->>-Gov: Ok(Value)
+
+    %% Step 5: Settle gas
+    Gov->>+Cyber: settle_gas(agent, reserved, actual)
+    Cyber-->>-Gov: Ok(refund)
+    Gov->>+Sink: persist(GasSettled event)
+    Sink-->>-Gov: ()
+    opt ToolConsumptionEvent channel wired
+        Gov->>+Cyber: send(ToolConsumptionEvent)
+        Cyber-->>-Gov: ()
+    end
+
+    %% Step 6: Completed span
+    Gov->>+Sink: persist(cns.tool.completed, parent=invoked)
+    Sink-->>-Gov: ()
+
+    %% Step 7: Quality tracking
+    Gov->>+Cyber: record_outcome(server, success, error_kind)
+    Cyber-->>-Gov: ()
+
+    Gov-->>-Disp: Result<Value, ToolPortError>
+    Disp-->>-Caller: Result<Value, TemplateError>
+```
+
+---
+
+## Per-Tool CNS Span (Server Side)
+
+```mermaid
+sequenceDiagram
+    participant Tool as MCP Tool Handler
+    participant Guard as ToolSpanGuard
+    participant Log as tracing (cns.tool)
+
+    Tool->>+Guard: new(tool_name, caller)
+    Tool->>+Guard: with_ontology(concept) [optional]
+    Tool->>+Tool: business logic → Result<Value, McpToolError>
+    Tool->>+Guard: finish(result)
+
+    alt Ok
+        Guard->>+Log: info! (outcome=ok, caller, ontology)
+        Log-->>-Guard: ()
+        Guard->>+Tool: record_tool_outcome("success")
+        Guard-->>-Tool: JSON output
+    else Err
+        Guard->>+Log: info! (outcome=error, error_kind, caller)
+        Log-->>-Guard: ()
+        Guard->>+Tool: record_tool_outcome("error")
+        opt heal callback set
+            Guard->>+Guard: heal_error_cb(output, tool_name)
+        end
+        opt experience callback set
+            Guard->>+Guard: experience_cb("error")
+        end
+        Guard-->>-Tool: JSON error string
+    end
+
+    Note over Guard,Log: Drop: if neither ok() nor error() called, emits "dropped" span
+```
+
+---
+
+## P4 Startup Gates (Verification)
+
+```mermaid
+sequenceDiagram
+    participant Main as Server main()
+    participant Gates as verify_startup_gates()
+    participant Daemon as DaemonClient
+    participant Handler as DaemonHandler
+
+    Main->>+Gates: verify_startup_gates(client, replicant, role, tools)
+
+    Gates->>+Daemon: auth_query(replicant)
+    Daemon->>+Handler: check_auth(replicant)
+    Handler-->>-Daemon: (authenticated, webid?)
+    Daemon-->>-Gates: AuthResponse
+    alt Not authenticated
+        Gates-->>Main: McpError::Auth
+    end
+
+    Gates->>+Daemon: assignment_query(replicant, role)
+    Daemon->>+Handler: check_assignment(replicant, role)
+    Handler-->>-Daemon: bool
+    Daemon-->>-Gates: AssignmentResponse
+    alt Not assigned
+        Gates-->>Main: McpError::RoleAssignment
+    end
+
+    loop each required tool
+        Gates->>+Daemon: capability_query(replicant, tool)
+        Daemon->>+Handler: check_capability(replicant, tool)
+        Handler-->>-Daemon: bool
+        Daemon-->>-Gates: CapabilityResponse
+        alt Denied
+            Note over Gates: Collect into denied_tools (non-fatal)
+        end
+    end
+
+    Gates-->>-Main: StartupGateResult { authenticated, assigned, denied_tools }
+```
+
+---
+
+## DIAGRAM_ALIGNMENT
+
+| Field | Value |
+|-------|-------|
+| **id** | `DIAG-IC-007` |
+| **verified_date** | `2026-06-30` |
+| **verified_against** | `crates/hkask-mcp/src/`, `crates/hkask-cns/src/governed_tool.rs`, `crates/hkask-capability/src/verification/checker.rs` |
+| **status** | `VERIFIED` |
+
+### Verification notes
+
+- `crates/hkask-mcp/src/dispatch.rs:187–282` — `McpDispatcher` struct, `McpPort` impl, `with_governed_tool()`, invocation routing through membrane
+- `crates/hkask-mcp/src/dispatch.rs:36–114` — `RawMcpToolPort` struct and `ToolPort` impl — live peer check, `call_tool()`, error flag handling, result parsing
+- `crates/hkask-mcp/src/dispatch.rs:229–272` — `McpPort::invoke()` — server_id lookup → GovernedTool delegation → ToolPortError → TemplateError mapping
+- `crates/hkask-cns/src/governed_tool.rs:79–87` — `GovernedTool` struct with inner port, cybernetics loop, event sink, energy estimator, agent WebID
+- `crates/hkask-cns/src/governed_tool.rs:188–474` — `ToolPort` impl — 7-step OCAP membrane: token verify → authority check (exact + domain fallback) → gas budget hold → CNS invoked span → inner delegation → gas settle + consumption event → CNS completed span → quality tracking
+- `crates/hkask-cns/src/governed_tool.rs:151–157` — `verify_capability_exact()` — exact tool-name match via `is_valid_for()`
+- `crates/hkask-cns/src/governed_tool.rs:164–167` — `verify_capability_domain()` — domain-based match via `capabilities_match()`
+- `crates/hkask-cns/src/governed_tool.rs:173–185` — `verify_capability_domain_fallback()` — async tool metadata lookup + domain match
+- `crates/hkask-capability/src/verification/checker.rs:20–33` — `CapabilityChecker` struct — signing key, trusted roots, root enforcement flag
+- `crates/hkask-capability/src/verification/checker.rs:112–120` — `verify()` — signature verification with optional root anchoring (fail-closed on empty roots)
+- `crates/hkask-mcp/src/runtime.rs:124–367` — `McpRuntime` — server registry, tool registry, live connections, `start_server()`, `call_tool()`, `get_tool_info()`
+- `crates/hkask-mcp/src/runtime.rs:290–307` — `McpRuntime::call_tool()` — direct Peer invocation via rmcp `CallToolRequestParams`
+- `crates/hkask-mcp/src/server.rs:241–403` — `ToolSpanGuard` — per-tool CNS span with `ok()`, `error()`, `finish()`, `Drop` guard for forgotten spans
+- `crates/hkask-mcp/src/server.rs:446–458` — `execute_tool()` — automatic span emission + outcome recording
+- `crates/hkask-mcp/src/server.rs:462–478` — `execute_tool_semantic()` — span with ontology concept tagging
+- `crates/hkask-mcp/src/server.rs:852–861` — `emit_tool_span_with_caller()` — `tracing::info!(target: "cns.tool")` with caller WebID
+- `crates/hkask-mcp/src/startup.rs:101–190` — `verify_startup_gates()` — Gate 1 (auth), Gate 2 (assignment), Gate 3 (capability per tool, non-fatal denial)
+- `crates/hkask-mcp/src/startup.rs:44–52` — `StartupGateResult` — authenticated, assigned, denied_tools fields
+- `docs/architecture/core/PRINCIPLES.md:52–56` — P4 Clear Boundaries (OCAP) — pod boundary as enforcement perimeter
+- `docs/DIAGRAMS_INDEX.md:27` — DIAG-DC-005 — existing MCP Tool Dispatch with OCAP constraint enforcement
+
+---
+
+## Cross-References
+
+| Reference | Description |
+|-----------|-------------|
+| [PRINCIPLES.md §P4](../architecture/core/PRINCIPLES.md) | Clear Boundaries (OCAP) — P4.1 Pod Boundary as OCAP Enforcement Perimeter |
+| [DIAGRAMS_INDEX.md DIAG-DC-005](../DIAGRAMS_INDEX.md) | Existing MCP Tool Dispatch with OCAP constraint enforcement (MDS.md §6) |
+
+
+### MCP Bootstrap and Tool Dispatch — Sequence
+
+*Inlined from `docs/diagrams/sequence-mcp-bootstrap.md`*
+
+
+# MCP Bootstrap and Tool Dispatch — Sequence Diagram
+
+**Diataxis quadrant:** How-To / Explanation  
+**Domain ontology tier:** Core  
+**Purpose:** Show the startup sequence for an MCP server and the tool dispatch path through the OCAP membrane. Used as reference for bootstrapping new MCP servers.  
+**Verified against:** `crates/hkask-mcp/src/lib.rs`, `crates/hkask-mcp/src/dispatch.rs`, `crates/hkask-cns/src/governed_tool.rs`  
+last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
+
+```mermaid
+sequenceDiagram
+    participant CLI as kask daemon start
+    participant BOOT as bootstrap_mcp_server
+    participant GATES as verify_startup_gates
+    participant CTX as ToolContext
+    participant OCAP as GovernedTool membrane
+    participant TOOL as Tool implementation
+    participant CNS as CnsRuntime (span emission)
+
+    CLI->>BOOT: Start MCP server (e.g., hkask-mcp-codegraph)
+    BOOT->>BOOT: Register tools via mcp_server! macro
+    BOOT->>CTX: Build ToolContext (name, version, description)
+    CTX->>GATES: verify_startup_gates()
+    
+    alt Startup gates pass
+        GATES-->>CTX: StartupGateResult::Passed
+        BOOT->>BOOT: run_stdio_server()
+        Note over BOOT: Server listening on stdio
+    else Startup gates fail
+        GATES-->>CTX: StartupGateResult::Failed(reason)
+        BOOT-->>CLI: Error: startup gates not satisfied
+    end
+
+    Note over CLI,TOOL: --- Tool invocation at runtime ---
+
+    CLI->>OCAP: Tool invocation request (tool_name, params, capability_token)
+    
+    alt OCAP check passes
+        OCAP->>OCAP: Reserve energy from gas budget
+        OCAP->>CNS: Emit cns.tool.reserved ν-event
+        OCAP->>TOOL: Delegate to tool implementation
+        TOOL-->>OCAP: Tool result
+        OCAP->>OCAP: Settle energy consumption
+        OCAP->>CNS: Emit cns.tool.completed ν-event
+        OCAP-->>CLI: Tool result (with energy cost)
+    else OCAP check fails
+        OCAP->>CNS: Emit cns.tool.denied ν-event
+        OCAP-->>CLI: Error: capability denied (P4 violation)
+    end
+```
+
+**Node-to-code mapping:**
+
+| Step | Source |
+|------|--------|
+| `bootstrap_mcp_server` | `crates/hkask-mcp/src/lib.rs` |
+| `mcp_server!` macro | `crates/hkask-mcp/src/lib.rs` |
+| `verify_startup_gates` | `crates/hkask-mcp/src/startup.rs` |
+| `ToolContext` + `impl_tool_context!` | `crates/hkask-mcp/src/lib.rs` |
+| GovernedTool OCAP membrane | `crates/hkask-cns/src/governed_tool.rs` |
+| Energy reserve/settle | `crates/hkask-cns/src/energy.rs` |
+| CNS span emission | `crates/hkask-cns/src/runtime.rs` |
+| `BUILTIN_SERVERS` (16 registrations) | `crates/hkask-mcp/src/lib.rs` |
+
+**Cardinality:** 16 MCP servers registered in `BUILTIN_SERVERS` constant. Each follows this bootstrap sequence. Tool dispatch flows through a single `GovernedTool` instance per invocation. 6 OCAP membrane steps per invocation: OCAP check → energy reserve → ν-event → delegate → settle → ν-event.
+

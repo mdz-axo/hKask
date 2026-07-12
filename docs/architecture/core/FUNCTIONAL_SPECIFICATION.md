@@ -1812,3 +1812,135 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 [^fowler-strangler]: Fowler, M. (2004). "StranglerFigApplication." martinfowler.com. <https://martinfowler.com/bliki/StranglerFigApplication.html>.
 
 ---
+
+---
+
+## Bloom QA Pipeline (Merged from BLOOM_QA_PIPELINE.md)
+
+
+# Capabilities Researcher — Bloom QA Pipeline
+
+**Version:** 4.0 | **Pipeline:** `corpus/pipeline-capabilities-researcher.yaml`
+
+## Persona
+
+**Business and Economics Researcher** — analyzes the gap between what organizations, markets, and systems are capable of and what they actually achieve. Draws on economic theory, systems thinking, computing principles, scientific method, and institutional analysis. Core question: *What is the economic significance of unrealized potential?*
+
+## Analytical Framework
+
+```
+Capabilities (what a system CAN do)
+    ├── Economic: transaction costs, agency, information asymmetry
+    ├── Systems: feedback loops, emergence, path dependence
+    ├── Computing: information theory, algorithmic efficiency
+    ├── Scientific: hypothesis testing, empirical evidence
+    └── Institutional: culture, governance, historical context
+    │
+    ▼
+Performance (what a system ACTUALLY achieves)
+    │
+    ▼
+GAP ← Economic significance? Why does it exist? How to close it?
+```
+
+## Bloom's Taxonomy (Capability-Performance Frame)
+
+| Level | Application |
+|-------|------------|
+| **Factual** | Identify capabilities, resources, performance metrics, gap measurements |
+| **Conceptual** | Explain mechanisms linking capabilities to outcomes. What models fit? |
+| **Analyze** | Compare capability-performance relationships across contexts. Find patterns. |
+| **Evaluate** | Assess evidence for gap explanations. Critique frameworks. Judge significance. |
+| **Create** | Design interventions. Synthesize multi-domain strategies. Formulate hypotheses. |
+
+## Pipeline (8 Phases)
+
+| Phase | Input | Output |
+|-------|-------|--------|
+| 0 | 105 source files (PDF/HTML) | Extracted text |
+| 1 | Extracted text | Chunks (~500 tokens) |
+| 2 | Chunks | Embeddings + salience tags |
+| 3 | Tagged chunks | Bloom taxonomy prompts (3× per chunk) |
+| 4 | Prompts | Generated QAs (DeepSeek V4 Pro) |
+| 5 | Raw QAs | Balanced train/val/test (1,000/level) |
+| 6 | Training set | h_mems + embedding vectors |
+| 7 | Embeddings | John Brooks persona centroids |
+| 8 | Chat format QAs | LoRA adapter (Qwen3.6-27B, RunPod/Unsloth) |
+
+## Artifacts
+
+| File | Purpose |
+|------|---------|
+| `corpus/qa_pairs/prompts_bloom.jsonl` | Bloom taxonomy prompts |
+| `corpus/qa_pairs/train_chat.jsonl` | Training QAs (chat format) |
+| `corpus/qa_pairs/val_chat.jsonl` | Validation QAs |
+| `corpus/qa_pairs/test_chat.jsonl` | Test QAs |
+| `corpus/memory/corpus_memory.db` | Semantic memory + embeddings |
+| `corpus/replica/john-brooks.yaml` | Persona build config |
+
+---
+
+## Cross-Reference QA (Merged from CROSS_REFERENCE_QA.md)
+
+
+# Cross-Reference QA Generation — Design Note
+
+**Added:** 2026-07-09 | **Flag:** `corpus-ingest build-prompts --cross-reference`  
+**Research Basis:** RA-DIT (Lin et al., 2024), Self-RAG (Asai et al., 2023)
+
+## Problem
+
+Standard QA generation from individual text chunks produces shallow QAs that test recall of single passages. Investment reasoning requires synthesis across sources — comparing Damodaran's DCF to Fabozzi's RIM, diagnosing competitive position from Greenwald's framework applied to Porter's five forces. Single-chunk QAs cannot capture this.
+
+## Solution
+
+`build-prompts --cross-reference` groups tagged chunks by shared investment concepts, selects the top-N most salient chunks per concept group, and generates prompts that require the LLM to synthesize across multiple passages with explicit source citation.
+
+### Algorithm
+
+```
+1. Group all qualifying chunks by shared concepts (HashMap<concept, Vec<chunk>>)
+2. Filter to groups with 2+ chunks
+3. Sort groups by: (a) chunk count descending, (b) max salience descending
+4. For each group:
+   a. Sort chunks by salience, take top-N (default: 3)
+   b. Assign QA type by rotation: comparative → diagnostic → causal → applied
+   c. Generate prompt with all passages + citation requirement
+   d. Append to prompts.jsonl with `"cross_reference": true` marker
+```
+
+### Prompt Structure
+
+The system prompt explicitly requires:
+- Synthesis across multiple passages
+- Source citation per claim ("Per Passage 1, ... while Passage 3 notes ...")
+- Grounding in provided text, not invented facts
+- QA types that inherently require multi-source reasoning: comparative (contrast perspectives), diagnostic (identify cross-source patterns/tensions), causal (trace idea connections), applied (multi-source diagnosis of a scenario)
+
+### Traceability
+
+Each cross-reference prompt records:
+- `chunk_refs: ["corpus:book:damodaran:12", "corpus:book:fabozzi:45", ...]` — all source chunks
+- `concept: "valuation_methods"` — the shared concept anchoring the synthesis
+- `cross_reference: true` — flag distinguishing from single-chunk prompts
+
+## Research Basis
+
+**RA-DIT** (Lin et al., 2024, "RA-DIT: Retrieval-Augmented Dual Instruction Tuning") demonstrates that retrieval-augmented generation quality improves when the LLM is explicitly trained/fine-tuned to attend across multiple retrieved passages rather than treating them as independent context blocks. Cross-reference prompting implements this at the generation level — requiring the LLM to compare, contrast, and synthesize before generating.
+
+**Self-RAG** (Asai et al., 2023, "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection") shows that models trained to cite sources produce more factually grounded outputs. The mandatory citation requirement ("cite which passages") reduces hallucination.
+
+**GraphRAG** (Microsoft Research, 2024) demonstrates that knowledge-graph-structured retrieval (our concept-grouped chunks) outperforms flat KNN for multi-hop reasoning tasks. Our concept grouping via `EntityTags` provides lightweight graph structure without a full knowledge graph.
+
+## Usage
+
+```bash
+corpus-ingest build-prompts \
+  --cross-reference \
+  --cross-ref-max-chunks 3 \
+  --cross-ref-max-prompts 500 \
+  --min-salience 0.05 \
+  --min-concepts 2
+```
+
+Expected output: ~500 cross-reference prompts appended to `corpus/qa_pairs/prompts.jsonl`, interleaved with standard single-chunk prompts. The LLM consuming these prompts generates QAs that test synthesis, not recall.

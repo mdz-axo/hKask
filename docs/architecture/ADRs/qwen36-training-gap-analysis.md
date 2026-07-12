@@ -10,7 +10,7 @@ mds_categories: [domain, curation]
 
 # Qwen3.6-27B Training — Gap Analysis vs Reference
 
-**Date:** 2026-07-10 | **Reference:** `docs/reference/qwen36-training-hyperparameters.md`
+**Date:** 2026-07-10 | **Reference:** `docs/how-to/training-and-adapters.md` (Qwen3.6 Training Hyperparameters section)
 
 ## Parameters Fixed ✅
 

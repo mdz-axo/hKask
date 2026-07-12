@@ -1324,3 +1324,1197 @@ Terminal UI workspace for hKask — multi-window agent interface.
 - [Skill Registry Index](skills/README.md) — All 43 skills + 2 templates + 1 bundle with FlowDef parameters
 - [CLI Reference](../generated/cli-reference.md) — Auto-generated from `kask --help`
 - [OpenAPI Specification](../generated/openapi.json) — OpenAPI 3.1.0 spec for the HTTP API
+---
+
+## Inlined Diagrams
+
+The following Mermaid diagrams were inlined from the former `docs/diagrams/` directory per DOCUMENTATION_STANDARDS §1.
+
+### CodeGraph Type System — Class Diagram
+
+*Inlined from `docs/diagrams/class-codegraph-types.md`*
+
+
+# CodeGraph Type System
+
+The `hkask-codegraph` crate provides a native Rust code understanding engine. It uses tree-sitter to parse Rust source into a semantic graph stored in SQLite, with FTS5 keyword search, recursive CTE graph traversal, impact analysis, dead code detection, and token-budgeted context assembly for LLM prompts.
+
+This diagram shows the core type hierarchy and the relationships between the indexing pipeline, graph store, search engine, and MCP server layer.
+
+```mermaid
+classDiagram
+    namespace CoreTypes {
+        class Symbol {
+            +Option~i64~ id
+            +String name
+            +SymbolKind kind
+            +String file
+            +usize start_line
+            +usize end_line
+            +String signature
+            +Visibility visibility
+            +Option~String~ doc_comment
+            +Complexity complexity
+        }
+        class Edge {
+            +Option~i64~ id
+            +i64 from_id
+            +i64 to_id
+            +EdgeKind kind
+            +String file
+            +usize line
+            +String target_name
+        }
+        class SearchResult {
+            +Symbol symbol
+            +f64 rank
+        }
+        class TraversalNode {
+            +Symbol symbol
+            +usize depth
+            +String edge_kind
+        }
+        class AssembledContext {
+            +Uuid context_id
+            +String text
+            +Vec~String~ symbols
+            +usize estimated_tokens
+        }
+        class DeadCodeFinding {
+            +String symbol_name
+            +String kind
+            +String file
+            +usize line
+        }
+        class FileIndexResult {
+            +String path
+            +usize symbols
+            +usize edges
+            +u64 duration_ms
+            +bool skipped
+        }
+        class IndexStats {
+            +usize files
+            +usize symbols
+            +usize edges
+        }
+    }
+
+    namespace Enums {
+        class SymbolKind {
+            <<enumeration>>
+            Function
+            Method
+            Struct
+            Enum
+            EnumVariant
+            Trait
+            Impl
+            Module
+            Const
+            Static
+            TypeAlias
+            Macro
+            Test
+        }
+        class EdgeKind {
+            <<enumeration>>
+            Calls
+            Imports
+            Implements
+            Contains
+            References
+            Inherits
+        }
+        class Visibility {
+            <<enumeration>>
+            Public
+            Crate
+            Private
+        }
+        class Complexity {
+            <<enumeration>>
+            NotComputed
+            Computed
+            Unparseable
+        }
+        class Direction {
+            <<enumeration>>
+            Forward
+            Reverse
+        }
+        class ContextBudget {
+            <<enumeration>>
+            Minimal
+            Focused
+            Standard
+            Full
+        }
+        class CodeGraphError {
+            <<enumeration>>
+            Parse
+            Index
+            Database
+            Traversal
+            Serialization
+            Io
+            Internal
+        }
+    }
+
+    namespace Engine {
+        class GraphStore {
+            -Connection conn
+            +open_in_memory() Result
+            +open(path) Result
+            +conn() Connection
+            +upsert_file() i64
+            +insert_symbols() Vec~i64~
+            +insert_edges()
+            +initialize_fts()
+            +compute_pagerank()
+        }
+        class IndexPipeline {
+            -GraphStore store
+            -Instant last_full_index_at
+            +new(store) Self
+            +staleness_seconds() u64
+            +index_directory(path) Vec~FileIndexResult~
+            +index_file(path) FileIndexResult
+            +stats() IndexStats
+            +store() GraphStore
+        }
+        class search {
+            +search(conn, query, limit) Vec~SearchResult~
+        }
+        class traversal {
+            +traverse(conn, symbol_id, direction, max_depth) Vec~TraversalNode~
+            +find_symbol_id(conn, name) Option~i64~
+            +impact_analysis(conn, symbol_id, max_depth) ImpactResult
+        }
+        class analysis {
+            +find_dead_code(conn) Vec~DeadCodeFinding~
+            +find_high_complexity(conn, cyclo_threshold, cog_threshold) Vec~Finding~
+        }
+        class context {
+            +assemble_context(conn, query, budget) AssembledContext
+        }
+    }
+
+    namespace MCPServer {
+        class CodeGraphServer {
+            +WebID webid
+            +String replicant
+            +Option~DaemonClient~ daemon
+            +CapabilityTier capability_tier
+            -Arc~Mutex~IndexPipeline~~ pipeline
+            -Option~EmbeddingRouter~ embed_router
+            -Environment jinja
+            +new(replicant, daemon, db_path) Result
+            +codegraph_query()
+            +codegraph_traverse()
+            +codegraph_impact()
+            +codegraph_analysis()
+            +codegraph_context()
+            +codegraph_structure()
+            +codegraph_stats()
+            +codegraph_reindex()
+            +codegraph_feedback()
+            +codegraph_index_embeddings()
+        }
+    }
+
+    Symbol "1" --> "1" SymbolKind : kind
+    Symbol "1" --> "1" Visibility : visibility
+    Symbol "1" --> "1" Complexity : complexity
+    Edge "1" --> "1" EdgeKind : kind
+    Symbol "1" o-- "0..*" Edge : source
+    Symbol "1" o-- "0..*" Edge : target
+
+    GraphStore "1" --> "*" Symbol : stores
+    GraphStore "1" --> "*" Edge : stores
+    IndexPipeline "1" --> "1" GraphStore : owns
+    IndexPipeline "1" --> "*" FileIndexResult : produces
+    IndexPipeline "1" --> "1" IndexStats : produces
+
+    search ..> GraphStore : reads
+    search ..> SearchResult : produces
+    traversal ..> GraphStore : reads
+    traversal ..> TraversalNode : produces
+    analysis ..> GraphStore : reads
+    analysis ..> DeadCodeFinding : produces
+    context ..> GraphStore : reads
+    context ..> AssembledContext : produces
+    context ..> ContextBudget : uses
+
+    CodeGraphServer "1" --> "1" IndexPipeline : owns
+    CodeGraphServer ..> search : delegates
+    CodeGraphServer ..> traversal : delegates
+    CodeGraphServer ..> analysis : delegates
+    CodeGraphServer ..> context : delegates
+
+    search ..> CodeGraphError : may raise
+    traversal ..> CodeGraphError : may raise
+    analysis ..> CodeGraphError : may raise
+    context ..> CodeGraphError : may raise
+    IndexPipeline ..> CodeGraphError : may raise
+    GraphStore ..> CodeGraphError : may raise
+```
+
+### Diagram Notes
+
+- **Symbol** and **Edge** are the core data types. Every Rust function, struct, trait, impl, module, etc. becomes a Symbol. Relationships (calls, imports, containment, trait implementations, inheritance) become Edges.
+- **GraphStore** wraps a SQLite connection with `code_files`, `symbols`, `edges` tables plus `symbols_fts` (FTS5) and `symbols_vec` (sqlite-vec 0.1 for embeddings).
+- **IndexPipeline** coordinates the full indexing flow: walk files → SHA-256 hash → parse with tree-sitter → extract symbols/edges → batch insert → resolve edge targets.
+- **CodeGraphServer** is the thin MCP wrapper exposing 11 tools: `codegraph_query`, `codegraph_traverse`, `codegraph_impact`, `codegraph_analysis`, `codegraph_dead_code`, `codegraph_context`, `codegraph_structure`, `codegraph_stats`, `codegraph_reindex`, `codegraph_feedback`, `codegraph_index_embeddings`.
+- **ContextBudget** controls token limits for LLM prompt assembly: Minimal (512), Focused (2048), Standard (4096), Full (8192).
+- **CodeGraphError** uses `thiserror` with variants for Parse, Index, Database, Traversal, Serialization, Io, and Internal.
+
+### Related Documentation
+
+- [`class-service-layer.md`](class-service-layer.md) — Service layer class diagram (hexagonal ports)
+- [`sequence-mcp-tool-dispatch.md`](sequence-mcp-tool-dispatch.md) — MCP tool dispatch sequence
+- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (four patterns, crate-to-loop mapping)
+- [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
+
+
+### CodeGraph Indexing Pipeline — Flowchart
+
+*Inlined from `docs/diagrams/flowchart-codegraph-pipeline.md`*
+
+
+# CodeGraph Indexing Pipeline
+
+The `IndexPipeline` coordinates the end-to-end flow from source files on disk to a searchable code graph in SQLite. It uses incremental BLAKE3 content hashes to skip unchanged files, parses Rust source with tree-sitter, extracts symbols and edges, resolves references by name, and computes PageRank when finalized.
+
+Key design invariants:
+- **Incremental skip**: Per-file BLAKE3 hash-on-read before tree-sitter work
+- **Sequential directory indexing**: Files are indexed one at a time; each successful file writes symbols and resolvable edges to SQLite
+- **Staleness tracking**: `last_full_index_at` is reset by `finalize()` and exposed by `staleness_seconds()`
+
+```mermaid
+flowchart TD
+    Start([Start: index_directory or reindex]) --> WalkDir[Walk workspace, find .rs files]
+    WalkDir --> NextFile{Next file?}
+    NextFile -->|No| ComputePR[Compute PageRank across all nodes]
+    NextFile -->|Yes| ReadFile[Read file bytes]
+    ReadFile --> Hash[BLAKE3 content hash]
+    Hash --> HashCheck{Hash matches stored?}
+    HashCheck -->|Yes: skip| NextFile
+    HashCheck -->|No: changed| Parse[tree-sitter parse Rust CST]
+    Parse --> ParseErr{Parse OK?}
+    ParseErr -->|Error| LogErr[Log parse error, skip file]
+    LogErr --> NextFile
+    ParseErr -->|OK| Extract[Extract symbols and edges from CST]
+    Extract --> UpsertFile[Upsert file record with hash]
+    UpsertFile --> InsertSyms[Batch insert symbols]
+    InsertSyms --> ResolveEdges[Resolve edge targets by qualified name]
+    ResolveEdges --> InsertEdges[Batch insert edges]
+    InsertEdges --> NextFile
+    ComputePR --> Health[Emit index health event]
+    Health --> End([End: return index results])
+
+    subgraph PerFile["Per-file sequential processing"]
+        ReadFile
+        Hash
+        HashCheck
+        Parse
+        ParseErr
+        Extract
+    end
+
+    subgraph SqliteWrites["SQLite writes"]
+        UpsertFile
+        InsertSyms
+        ResolveEdges
+        InsertEdges
+    end
+
+
+```
+
+### Pipeline Stages
+
+| Stage | Component | What Happens |
+|-------|-----------|-------------|
+| **Walk** | `walkdir` | Discover all `.rs` files in workspace |
+| **Hash** | `blake3` | BLAKE3 content hash; compare to `code_files.content_hash` |
+| **Parse** | `tree-sitter-rust` | Build Concrete Syntax Tree from source bytes |
+| **Extract** | `extractor.rs` | Walk CST, produce `Vec<Symbol>` + `Vec<Edge>` with qualified names |
+| **Insert** | `store.rs` | Batch insert symbols (ID assigned), resolve edge targets by name lookup |
+| **Rank** | `pagerank` | Compute PageRank across all nodes for importance weighting |
+| **Health** | tracing | Emit `cns.codegraph.index_health` after `finalize()` |
+
+### CNS Spans
+
+The pipeline emits tracing events for cybernetic observability:
+- `cns.codegraph.file_indexed` — symbols, edges, and elapsed time for a changed file
+- `cns.codegraph.index_health` — total files, symbols, edges, and zero staleness after `finalize()`
+
+`staleness_seconds()` exposes elapsed time since `finalize()` for a caller that needs to monitor index freshness.
+
+### Related Documentation
+
+- [`class-codegraph-types.md`](class-codegraph-types.md) — Type system class diagram
+- [`sequence-mcp-tool-dispatch.md`](sequence-mcp-tool-dispatch.md) — MCP tool dispatch sequence (applies to codegraph tools)
+- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (crate-to-loop mapping)
+- [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
+
+
+### CodeGraph Database Schema — ERD
+
+*Inlined from `docs/diagrams/erd-codegraph-schema.md`*
+
+
+# CodeGraph Database Schema
+
+The codegraph engine stores its semantic graph in SQLite with 3 base tables, 2 virtual tables, 9 indexes, and 3 FTS5 sync triggers. WAL mode enables concurrent readers during write transactions. Foreign keys are enforced at the database level for edge integrity.
+
+The schema follows the same SQLite-native pattern as hKask's storage layer — no external graph database, no in-memory graph. All traversal is done via recursive CTEs in SQL.
+
+```mermaid
+erDiagram
+    code_files {
+        INTEGER id PK
+        TEXT path UK "relative path from workspace root"
+        TEXT content_hash "blake3 SHA-256 hex"
+        TEXT indexed_at "datetime of last index"
+    }
+
+    symbols {
+        INTEGER id PK
+        INTEGER file_id FK "references code_files.id"
+        TEXT name "qualified name e.g. hkask_mcp::runtime::start"
+        TEXT kind "function|method|struct|enum|trait|impl|module|const|static|type_alias|macro|test"
+        TEXT signature "first line of definition"
+        TEXT visibility "public|crate|private"
+        INTEGER start_line "1-based inclusive"
+        INTEGER end_line "1-based inclusive"
+        TEXT doc_comment "optional doc comment"
+        TEXT complexity_json "JSON: NotComputed|Computed|Unparseable"
+        REAL pagerank "default 0.0, computed post-index"
+    }
+
+    edges {
+        INTEGER id PK
+        INTEGER from_id FK "references symbols.id ON DELETE CASCADE"
+        INTEGER to_id FK "references symbols.id ON DELETE CASCADE"
+        TEXT kind "calls|imports|implements|contains|references|inherits"
+        INTEGER file_id FK "references code_files.id ON DELETE CASCADE"
+        INTEGER line "line where relationship occurs"
+    }
+
+    symbols_fts {
+        TEXT name "FTS5-indexed"
+        TEXT signature "FTS5-indexed"
+        TEXT doc_comment "FTS5-indexed"
+    }
+
+    symbols_vec {
+        BLOB embedding "float[384] vector for semantic search"
+    }
+
+    code_files ||--o{ symbols : "contains"
+    code_files ||--o{ edges : "located in"
+    symbols ||--o{ edges : "source of"
+    symbols ||--o{ edges : "target of"
+    symbols_fts ||--|| symbols : "FTS5 content sync"
+    symbols_vec ||--o| symbols : "optional vector index"
+```
+
+### Notable Indexes
+
+| Index | Table | Columns | Purpose |
+|-------|-------|---------|---------|
+| `idx_symbols_name` | symbols | name | Name-based lookup (`find_symbol_id`) |
+| `idx_symbols_kind` | symbols | kind | Filter by symbol type |
+| `idx_symbols_file` | symbols | file_id | Per-file symbol queries |
+| `idx_symbols_pagerank` | symbols | pagerank DESC | Top-symbols ranking (`codegraph_structure`) |
+| `idx_edges_from` | edges | from_id | Forward traversal (dependencies) |
+| `idx_edges_to` | edges | to_id | Reverse traversal (callers) |
+| `idx_edges_kind` | edges | kind | Filter by relationship type |
+
+### FTS5 Triggers
+
+Three triggers keep `symbols_fts` synchronized with `symbols`:
+- `symbols_ai` — AFTER INSERT: copies name, signature, doc_comment into FTS index
+- `symbols_ad` — AFTER DELETE: removes from FTS index
+- `symbols_au` — AFTER UPDATE: delete old + insert new (no in-place FTS update)
+
+### Design Decisions
+
+- **Recursive CTEs, not in-memory graphs.** Traversal is pure SQL (`WITH RECURSIVE`), bounded by `max_depth`. This avoids loading the entire graph into memory and allows concurrent reads through WAL mode.
+- **SHA-256 content hashing.** Every indexed file's hash is stored in `code_files.content_hash`. On re-index, files with matching hashes are skipped — no tree-sitter work for unchanged code.
+- **sqlite-vec is optional.** The `symbols_vec` table uses `CREATE VIRTUAL TABLE IF NOT EXISTS`. If sqlite-vec isn't loaded, FTS5 keyword search still works — vector search degrades gracefully.
+- **Foreign keys enforced.** `ON DELETE CASCADE` on both `symbols` and `edges` foreign keys ensures referential integrity without manual cleanup.
+
+### Related Documentation
+
+- [`class-codegraph-types.md`](class-codegraph-types.md) — Type system class diagram
+- [`flowchart-codegraph-pipeline.md`](flowchart-codegraph-pipeline.md) — Indexing pipeline flowchart
+- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master
+
+
+### CodeGraph Agent Workflow — Sequence
+
+*Inlined from `docs/diagrams/sequence-codegraph-agent.md`*
+
+
+# CodeGraph Agent Workflow
+
+An agent uses the codegraph MCP server to understand the codebase, trace dependencies, assess change impact, and assemble context for LLM prompts. This sequence shows the three most common interaction patterns: search, impact analysis, and context assembly with feedback.
+
+All codegraph tools follow the same OCAP-gated MCP dispatch pattern established by `sequence-mcp-tool-dispatch.md`. This diagram focuses on the codegraph-specific logic after the security gateway.
+
+```mermaid
+sequenceDiagram
+    participant Agent as Agent (via MCP)
+    participant Server as CodeGraphServer
+    participant Pipeline as IndexPipeline (Mutex)
+    participant Store as GraphStore (SQLite)
+    participant FTS as symbols_fts (FTS5)
+    participant CNS as CNS (tracing)
+
+    Note over Agent,CNS: ── Pattern 1: Search & Traverse ──
+
+    Agent->>+Server: codegraph_query(query="McpRuntime", limit=10)
+    Server->>Server: ensure_indexed()
+    Server->>+Pipeline: lock()
+    Pipeline-->>-Server: &IndexPipeline
+    Server->>+Store: conn()
+    Store-->>-Server: &Connection
+    Server->>+FTS: MATCH query, ORDER BY rank, LIMIT 10
+    FTS-->>-Server: Vec~SearchResult~ (BM25 ranked)
+    Server-->>-Agent: [{symbol, rank}, ...]
+
+    Agent->>+Server: codegraph_traverse(symbol="McpRuntime", direction="reverse", max_depth=3)
+    Server->>+Store: find_symbol_id("McpRuntime")
+    Store-->>-Server: Some(id=142)
+    Server->>+Store: RECURSIVE CTE: edges WHERE to_id=142, depth≤3
+    Store-->>-Server: [{deep_callee(d=2), calls}, ...]
+    Server-->>-Agent: [TraversalNode{callee: fn deep_callee(), depth: 2, edge: calls}]
+
+    Note over Agent,CNS: ── Pattern 2: Impact Analysis ──
+
+    Agent->>+Server: codegraph_impact(symbol="McpRuntime", max_depth=5)
+    Server->>+Store: traverse(symbol_id, Reverse, 5)
+    Store-->>-Server: Vec~TraversalNode~ (all dependents)
+    Server->>Server: classify_risk per symbol
+    Note right of Server: Critical: public traits<br/>High: public types<br/>Medium: impls, crate-visible<br/>Low: private/test
+    Server-->>-Agent: {symbol, total_affected: 12, affected: [{risk: critical}, ...]}
+
+    Note over Agent,CNS: ── Pattern 3: Context Assembly + Feedback ──
+
+    Agent->>+Server: codegraph_context(query="authentication", budget="focused")
+    Server->>+FTS: search("authentication", max=20, BM25)
+    FTS-->>-Server: SearchResults
+    Server->>+Store: rank by PageRank, apply budget (2048 tokens, 20 symbols)
+    Store-->>-Server: AssembledContext{text, symbols, estimated_tokens}
+    Server-->>-Agent: {context_id: uuid, text: "...", symbols: [...], estimated_tokens: 1800}
+
+    Note over Agent: Agent uses context in LLM prompt,<br/>observes which symbols were actually referenced
+
+    Agent->>+Server: codegraph_feedback(context_id, symbols_provided, symbols_used)
+    Server->>+CNS: tracing::info!("cns.codegraph.context_efficiency", ratio=0.65)
+    CNS-->>-Server: span emitted
+    Server-->>-Agent: {recorded: true, ratio: 0.65}
+
+    Note over Agent,CNS: ── Pattern 4: Re-index ──
+
+    Agent->>+Server: codegraph_reindex()
+    Server->>+Pipeline: index_directory(workspace_root)
+    loop For each .rs file
+        Pipeline->>Pipeline: BLAKE3 hash, compare to stored
+        alt hash changed
+            Pipeline->>Pipeline: tree-sitter parse → extract symbols/edges
+            Pipeline->>+Store: batch insert symbols, resolve edges
+            Store-->>-Pipeline: name→id mapping
+            Pipeline->>+CNS: cns.codegraph.file_indexed
+            CNS-->>-Pipeline: span emitted
+        else hash matches
+            Pipeline->>Pipeline: skip (returned in results as skipped:true)
+        end
+    end
+    Pipeline->>Store: compute PageRank
+
+    Pipeline->>+CNS: cns.codegraph.index_health (staleness_seconds=0)
+    CNS-->>-Pipeline: span emitted
+    Pipeline-->>-Server: IndexStats {files, symbols, edges}
+    Server-->>-Agent: {files_indexed, symbols_added, total_symbols, total_edges}
+```
+
+### Tool Summary
+
+| Tool | What it does | Key query |
+|------|-------------|-----------|
+| `codegraph_query` | FTS5 keyword search with BM25 ranking | `SELECT ... FROM symbols_fts WHERE MATCH ? ORDER BY rank` |
+| `codegraph_traverse` | Recursive CTE: forward (deps) or reverse (callers) | `WITH RECURSIVE trav AS (SELECT e.to_id ... UNION SELECT e.to_id ...)` |
+| `codegraph_impact` | Reverse traversal + risk classification | Same CTE + `classify_risk(symbol)` per result |
+| `codegraph_analysis` | Dead code detection or complexity hotspots | `symbols WHERE id NOT IN (SELECT to_id FROM edges)` |
+| `codegraph_context` | Token-budgeted context assembly for LLM prompts | FTS5 search → PageRank sort → budget cap |
+| `codegraph_feedback` | Signal-to-noise tracking (G12 feedback loop) | CNS span: `cns.codegraph.context_efficiency` |
+
+### CNS Spans Emitted
+
+| Span | Trigger | Target |
+|------|---------|--------|
+| `cns.codegraph.file_indexed` | Per-file index complete | G7: file-level observability |
+| `cns.codegraph.index_health` | After full re-index | X6: staleness reset to 0 |
+| `cns.codegraph.context_efficiency` | After `codegraph_feedback` | G12: ratio of used/provided symbols |
+| `cns.codegraph.embeddings` | After `codegraph_index_embeddings` batch | G13: embedding batch complete |
+
+### Related Documentation
+
+- [`erd-codegraph-schema.md`](erd-codegraph-schema.md) — Database schema ERD
+- [`class-codegraph-types.md`](class-codegraph-types.md) — Type system class diagram
+- [`sequence-mcp-tool-dispatch.md`](sequence-mcp-tool-dispatch.md) — MCP tool dispatch with OCAP enforcement
+- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master
+
+
+### CodeGraph IndexPipeline Lifecycle — State
+
+*Inlined from `docs/diagrams/state-codegraph-pipeline.md`*
+
+
+# Proposed CodeGraph IndexPipeline Lifecycle
+
+> **Status: proposed, not current behavior.** `IndexPipeline` currently exposes `index_file`, `index_directory`, `finalize`, and `staleness_seconds`; it does not hold an explicit lifecycle-state enum, threshold-driven stale transition, snapshot lifecycle, or automatic re-index trigger. The implementation flow is documented in [CodeGraph Indexing Pipeline](flowchart-codegraph-pipeline.md).
+
+This state model remains as a design reference if hKask later introduces an explicit lifecycle controller around the pipeline. It must not be used to describe current operational behavior.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Uninitialized : CodeGraphServer::new()
+    Uninitialized --> Indexing : first ensure_indexed()
+
+    state Indexing {
+        [*] --> Walking : index_directory()
+        Walking --> Hashing : per file
+        Hashing --> SkipFile : hash matches stored
+        Hashing --> Parsing : hash changed
+        Parsing --> Extracting : tree-sitter CST → symbols + edges
+        Extracting --> Inserting : persist symbols and resolved edges
+        Inserting --> Walking : next file
+        SkipFile --> Walking : next file
+        Walking --> Ranking : all files done
+        Ranking --> [*] : compute PageRank
+        }
+
+        Indexing --> Ready : finalize() — PageRank computed
+
+    state Ready {
+        [*] --> Serving : staleness_seconds < threshold
+        Serving --> Serving : query/traverse/impact/context
+        --
+        note right of Serving : CNS span: cns.codegraph.index_health
+    }
+
+    Ready --> Stale : staleness_seconds > threshold OR file changed on disk
+
+    state Stale {
+        [*] --> AwaitingTrigger : CNS alert emitted
+        AwaitingTrigger --> AwaitingTrigger : queries still served from last snapshot
+    }
+
+    Stale --> Indexing : codegraph_reindex() called
+    Ready --> Indexing : codegraph_reindex() called (explicit)
+
+    Ready --> [*] : CodeGraphServer dropped
+    Stale --> [*] : CodeGraphServer dropped
+
+    note left of Uninitialized : Store opened (file or in-memory)<br/>schema initialized (idempotent)
+    note right of Indexing : Proposed controller behavior<br/>Current implementation indexes sequentially<br/>and uses BLAKE3 incremental skip
+    note right of Ready : Proposed serving state
+    note left of Stale : Proposed CNS-driven re-index trigger
+```
+
+### Implementation Gap
+
+The following behavior is shown only as a future design target and requires a lifecycle controller to implement it:
+
+- Explicit `Uninitialized`, `Indexing`, `Ready`, and `Stale` states.
+- A staleness threshold and CNS-driven re-index trigger.
+- A stable snapshot-serving contract while indexing.
+- A documented controller boundary that owns state transitions and synchronization.
+
+Current behavior is limited to call-driven indexing. `finalize()` resets the staleness clock, computes PageRank, and emits `cns.codegraph.index_health`; `staleness_seconds()` merely reports the elapsed time for an external caller.
+
+### Related Documentation
+
+- [`erd-codegraph-schema.md`](erd-codegraph-schema.md) — Database schema ERD
+- [`flowchart-codegraph-pipeline.md`](flowchart-codegraph-pipeline.md) — Indexing pipeline detail
+- [`sequence-codegraph-agent.md`](sequence-codegraph-agent.md) — Agent interaction workflow
+- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (CNS feedback loop)
+
+
+### TUI Window Trait Hierarchy
+
+*Inlined from `docs/diagrams/class-tui-window-hierarchy.md`*
+
+# TUI Window Trait Hierarchy
+
+**Type:** class diagram | **Target:** `hkask-tui` window architecture | **Diataxis quadrant:** Reference
+
+The `hkask-tui` crate uses a single `Window` trait (9 methods) implemented by 22 concrete window types. Windows that connect to an MCP server additionally implement `McpTabbedWindow` for two-tab Chat/Data layout. All data flows through 15 domain-specific bridge traits, each providing a focused surface for one service domain.
+
+## Diagram
+
+```mermaid
+classDiagram
+    namespace core {
+        class Window {
+            <<interface>>
+            +id() WindowId
+            +title() str
+            +kind() WindowKind
+            +render(Frame, Rect, bool)
+            +handle_key(KeyEvent) bool
+            +can_close() bool
+            +on_focus()
+            +on_blur()
+            +tick()
+        }
+        class McpTabbedWindow {
+            <<interface>>
+            +active_tab() McpTab
+            +set_active_tab(McpTab)
+            +chat_state_mut() McpChatState
+            +mcp_server_name() str
+            +render_chat_tab(Frame, Rect)
+            +render_data_tab(Frame, Rect)
+            +handle_chat_key(KeyEvent) Option~String~
+        }
+        class WindowId {
+            +Uuid
+        }
+        class WindowKind {
+            <<enumeration>>
+            Chat
+            CnsMonitor
+            Backup
+            Registry
+            Pods
+            Kanban
+            Wallet
+            Memory
+            Companies
+            Matrix
+            Configuration
+            Curator
+            Terminal
+            Editor
+            Training
+            Media
+            Skills
+            Research
+            Docproc
+            Replica
+            Logo
+            Scenarios
+        }
+        class WindowBridges {
+            +bridge: Arc~dyn ReplBridge~
+            +wallet_bridge: Option~Arc~dyn WalletDataBridge~~
+            +config_bridge: Option~Arc~dyn ConfigDataBridge~~
+            +backup_bridge: Option~Arc~dyn BackupDataBridge~~
+            +registry_bridge: Option~Arc~dyn RegistryDataBridge~~
+            +memory_bridge: Option~Arc~dyn MemoryDataBridge~~
+            +kanban_bridge: Option~Arc~dyn KanbanDataBridge~~
+            +matrix_bridge: Option~Arc~dyn MatrixDataBridge~~
+            +media_bridge: Option~Arc~dyn MediaDataBridge~~
+            +training_bridge: Option~Arc~dyn TrainingDataBridge~~
+            +companies_bridge: Option~Arc~dyn CompaniesDataBridge~~
+            +research_bridge: Option~Arc~dyn ResearchDataBridge~~
+            +docproc_bridge: Option~Arc~dyn DocprocDataBridge~~
+            +replica_bridge: Option~Arc~dyn ReplicaDataBridge~~
+            +skills_bridge: Option~Arc~dyn SkillsDataBridge~~
+            +scenarios_bridge: Option~Arc~dyn ScenariosDataBridge~~
+        }
+    }
+    namespace bridges {
+        class ReplBridge {
+            <<interface>>
+            +start_inference(String)
+            +poll_inference() InferenceState
+            +streaming_text() String
+            +send_message_blocking(str) TuiTurnResult
+            +agent_name() str
+            +model_name() str
+            +gas_remaining() u64
+            +gas_cap() u64
+            +cns_alert_count() u32
+            +context_pressure() f64
+            +mcp_status() (usize, usize)
+            +pod_counts() (usize, usize, usize)
+            +cns_domains() Vec~(String, bool)~
+            +send_curator_message(str) String
+            +start_scoped_inference(String, str)
+        }
+        class WalletDataBridge {
+            <<interface>>
+            +wallet_balance() (u64, u64, u64)
+            +wallet_transactions(usize) Vec~WalletTxSummary~
+            +gas_per_rjoule() u64
+            +transaction_count() u64
+        }
+    }
+    namespace windows {
+        class ChatWindow
+        class CnsMonitorWindow
+        class CuratorWindow
+        class KanbanWindow
+        class WalletWindow
+        class MemoryWindow
+        class CompaniesWindow
+        class MatrixWindow
+        class TrainingWindow
+        class MediaWindow
+        class SkillsWindow
+        class ResearchWindow
+        class DocprocWindow
+        class ReplicaWindow
+        class ScenariosWindow
+        class RegistryWindow
+        class BackupWindow
+        class ConfigurationWindow
+        class PodsWindow
+        class TerminalWindow
+        class EditorWindow
+        class LogoWindow
+    }
+    Window <|-- ChatWindow : implements
+    Window <|-- CnsMonitorWindow : implements
+    Window <|-- CuratorWindow : implements
+    Window <|-- KanbanWindow : implements
+    Window <|-- WalletWindow : implements
+    Window <|-- MemoryWindow : implements
+    Window <|-- CompaniesWindow : implements
+    Window <|-- MatrixWindow : implements
+    Window <|-- TrainingWindow : implements
+    Window <|-- MediaWindow : implements
+    Window <|-- SkillsWindow : implements
+    Window <|-- ResearchWindow : implements
+    Window <|-- DocprocWindow : implements
+    Window <|-- ReplicaWindow : implements
+    Window <|-- ScenariosWindow : implements
+    Window <|-- RegistryWindow : implements
+    Window <|-- BackupWindow : implements
+    Window <|-- ConfigurationWindow : implements
+    Window <|-- PodsWindow : implements
+    Window <|-- TerminalWindow : implements
+    Window <|-- EditorWindow : implements
+    Window <|-- LogoWindow : implements
+    Window <|-- McpTabbedWindow : extends
+    McpTabbedWindow <|-- KanbanWindow : implements
+    McpTabbedWindow <|-- MemoryWindow : implements
+    McpTabbedWindow <|-- MatrixWindow : implements
+    McpTabbedWindow <|-- TrainingWindow : implements
+    McpTabbedWindow <|-- MediaWindow : implements
+    McpTabbedWindow <|-- CompaniesWindow : implements
+    McpTabbedWindow <|-- ResearchWindow : implements
+    McpTabbedWindow <|-- DocprocWindow : implements
+    McpTabbedWindow <|-- ReplicaWindow : implements
+    McpTabbedWindow <|-- SkillsWindow : implements
+    Window o-- WindowKind : kind
+    Window ..> WindowBridges : created via
+    WindowBridges o-- ReplBridge : 1
+    WindowBridges o-- WalletDataBridge : 0..1
+    ChatWindow ..> ReplBridge : uses
+    KanbanWindow ..> ReplBridge : uses
+    KanbanWindow ..> KanbanDataBridge : uses
+```
+
+## Key Relationships
+
+| From | To | Cardinality | Notes |
+|------|----|------------|-------|
+| `Window` trait | 22 concrete windows | 1 implements N | Object-safe trait, `Box<dyn Window>` storage |
+| `McpTabbedWindow` trait | 10 MCP-scoped windows | 1 implements N | Two-tab Chat/Data pattern |
+| `WindowBridges` | `ReplBridge` | 1:1 | Required — every window needs chat |
+| `WindowBridges` | Domain bridges | 1:0..1 each | Optional — wired via builder pattern |
+| `ChatWindow` | `ReplBridge` | uses | Async inference + streaming text |
+
+## Bridge Trait Surface
+
+Each of the 15 domain bridge traits exposes ≤7 methods, following deep-module discipline:
+
+| Bridge | Methods | Purpose |
+|--------|---------|---------|
+| `ReplBridge` | 15 | Chat/inference — the primary interaction bridge; exceeds ≤7 |
+| `WalletDataBridge` | 4 | rJoule balance, transactions, conversion rate |
+| `ConfigDataBridge` | 1 | Configuration snapshot |
+| `BackupDataBridge` | 5 | Snapshots, restore, verify, prune |
+| `RegistryDataBridge` | 6 | Templates, skills, styles, bundles |
+| `MemoryDataBridge` | 4 | Episodic/semantic memory, consolidation |
+| `KanbanDataBridge` | 5 | Task board CRUD + status transitions |
+| `MatrixDataBridge` | 4 | Rooms, messages, connection status |
+| `MediaDataBridge` | 4 | Gallery status, images, audio, video |
+| `TrainingDataBridge` | 4 | Adapters, sessions, deployments |
+| `CompaniesDataBridge` | 3 | Profiles, financials, portfolios |
+| `ResearchDataBridge` | 4 | Web search, RSS feeds, extraction |
+| `DocprocDataBridge` | 4 | Chunking, QA pairs, RDF extraction |
+| `ReplicaDataBridge` | 3 | Replica CRUD + generation |
+| `SkillsDataBridge` | 4 | Skill list, install, activate, execute |
+| `ScenariosDataBridge` | 5 | Event trees, forecasts, calibration |
+
+---
+
+*Generated from `crates/hkask-tui/src/window.rs`, `bridges/mod.rs`, `mcp_tabbed.rs`, `window_catalog.rs` — v0.31.0*
+
+
+### TUI Event Dispatch Pipeline
+
+*Inlined from `docs/diagrams/flowchart-tui-event-dispatch.md`*
+
+# TUI Event Dispatch Pipeline
+
+**Type:** flowchart | **Target:** `TuiSession::run` + key event routing | **Diataxis quadrant:** Reference
+
+Describes how keyboard input flows from crossterm event polling through the TUI session, global keybindings, command palette, and focused window dispatch. The workspace tick loop handles background state updates (CNS polling, gas tracking).
+
+```mermaid
+flowchart TD
+    A([TuiSession::run]) --> B[Show splash screen]
+    B --> C[Restore saved layout]
+    C --> D{Event poll}
+    D -->|Key press| E{Palette open?}
+    D -->|Resize| F[ratatui auto-resize]
+    D -->|Other| D
+    E -->|Yes| G[palette.handle_key]
+    E -->|No| H{Global binding?}
+    H -->|Yes| I[execute global action]
+    H -->|No| J[route to focused window]
+    G --> K[Render frame]
+    I --> K
+    J --> K
+    F --> K
+    K --> L[Tick workspace]
+    L --> M{should_quit?}
+    M -->|No| D
+    M -->|Yes| N[Save layout]
+    N --> O([Exit])
+
+    subgraph "Global Key Actions"
+        I1["Ctrl+Q → quit"] 
+        I2["Ctrl+N → new chat"]
+        I3["Ctrl+T → new tab"]
+        I4["Ctrl+W → close tab"]
+        I5["Ctrl+P → command palette"]
+        I6["Ctrl+H/J/K/L → focus nav"]
+        I7["Ctrl+Shift+H → split H"]
+        I8["Ctrl+Shift+J → split V"]
+        I9["Ctrl+=/- → resize"]
+        I10["Ctrl+1-9 → switch tab"]
+        I11["Tab → focus next*"]
+        I12["? → help overlay"]
+    end
+
+    subgraph "Tab Exception: MCP Windows"
+        T1{Window is MCP-tabbed?}
+        T2["Tab → toggle Chat/Data"]
+        T3["Tab → focus next window"]
+    end
+
+    I11 --> T1
+    T1 -->|Kanban, Memory, Matrix, Media, Training, Companies, Research, Docproc, Replica, Skills, Terminal| T2
+    T1 -->|Other windows| T3
+
+    subgraph "Tick Loop"
+        L1["root.tick() → all windows"]
+        L2["update gas_remaining"]
+        L3["update cns_status"]
+        L4["update context_pressure"]
+        L5["update model name"]
+    end
+
+    L --> L1
+    L1 --> L2 --> L3 --> L4 --> L5
+```
+
+## Key Decision Points
+
+| Decision | Condition | Action |
+|----------|-----------|--------|
+| Palette interception | `workspace.palette_open == true` | Route ALL keys to `command_palette.handle_key()` |
+| Global vs. window | Key matches global binding table | Execute global action immediately |
+| Tab routing | Focused window is MCP-tabbed | Let window handle Tab (Chat/Data toggle) |
+| Tab routing | Focused window is not MCP-tabbed | Workspace handles Tab (focus-next) |
+| Quit guard | `should_quit == true` | Break event loop, save layout, restore terminal |
+
+## Temporal Properties
+
+| Property | Value | Notes |
+|----------|-------|-------|
+| Event poll interval | 16ms (~60 FPS) | `tick_rate` from `TuiSession` |
+| Tick frequency | Every frame | Background updates: CNS, gas, pressure |
+| Splash duration | Configurable | Dismissed by key press or timeout |
+| Layout save | On quit | JSON serialized per-agent in `~/.config/hkask/agents/{name}/` |
+
+## Cybernetic Notes
+
+The event dispatch loop is a **negative feedback loop**: input → render → tick (model update) → render. The key routing exception for MCP-tabbed windows (hardcoded list, Finding #5 in architecture review) creates a **variety deficit** — new MCP-tabbed window kinds won't receive Tab key routing unless the list is updated.
+
+---
+
+*Generated from `crates/hkask-tui/src/lib.rs:145-218`, `workspace.rs:543-646`, `mcp_tabbed.rs` — v0.31.0*
+
+
+### TUI Workspace State Lifecycle
+
+*Inlined from `docs/diagrams/state-tui-workspace-lifecycle.md`*
+
+# TUI Workspace State Lifecycle
+
+**Type:** state diagram | **Target:** `Workspace` struct + `SplitNode` tree management | **Diataxis quadrant:** Reference
+
+Tracks the workspace from initialization through tab, split, and focus management. The `SplitNode` binary tree is the core data structure — windows live in leaf nodes, and splits create internal nodes. Layout persistence serializes the tree structure (without window state) to JSON.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Init: TuiSession::new
+    Init --> Splash: show_splash()
+    Splash --> Running: dismiss (key/timeout)
+    Splash --> Init: build_logo_buffer (once)
+
+    Running --> PaletteOpen: Ctrl+P
+    PaletteOpen --> Running: Esc / Ctrl+P / Enter (select)
+    PaletteOpen --> WindowOpened: Enter on window kind
+
+    Running --> HelpVisible: '?'
+    HelpVisible --> Running: '?' (toggle)
+
+    state Running {
+        [*] --> SinglePane: default layout
+        SinglePane --> SplitView: Ctrl+Shift+H / Ctrl+Shift+J
+        SplitView --> SinglePane: close all but one
+
+        state SplitView {
+            [*] --> FocusedLeaf
+            FocusedLeaf --> FocusedLeaf: Tab / Ctrl+HJKL (navigate)
+            FocusedLeaf --> Resized: Ctrl+= / Ctrl+- (adjust ratio)
+            Resized --> FocusedLeaf
+        }
+
+        state "Tab Management" as Tabs {
+            [*] --> ActiveTab
+            ActiveTab --> SwitchedTab: Ctrl+1-9
+            ActiveTab --> NewTab: Ctrl+T
+            NewTab --> ActiveTab: auto-focus
+            ActiveTab --> TabClosed: Ctrl+W
+            TabClosed --> ActiveTab: focus prev/next
+            TabClosed --> [*]: empty → quit
+        }
+    }
+
+    WindowOpened --> Running: new window added to split tree
+
+    Running --> LayoutSaved: Ctrl+Q (quit)
+    LayoutSaved --> [*]: ratatui::restore()
+
+    note left of Running
+        Event loop: poll (16ms) → render → tick
+        Focus routing: palette → global → window
+        Tick: root.tick() + status bar updates
+    end note
+
+    note right of Splash
+        SplashScreen renders half-block
+        Unicode pixels from build_logo_buffer.
+        Dismisses after configurable duration
+        or on any key press.
+    end note
+```
+
+## Split Tree Structure
+
+```
+Workspace
+  tabs: Vec<Tab>
+  active_tab: usize
+  focused_window: Option<WindowId>
+  │
+  └─ Tab
+       name: String
+       root: SplitNode
+            │
+            ├─ Leaf(Option<Box<dyn Window>>)  ← window lives here
+            ├─ Horizontal { left, right, ratio }
+            └─ Vertical   { top, bottom, ratio }
+```
+
+## State Transitions by Operation
+
+| Operation | From | To | Side Effects |
+|-----------|------|----|-------------|
+| `split_focused` | Leaf | Horizontal/Vertical split | Existing window preserved, new Chat window adjacent |
+| `new_tab` | Any | New tab with single Chat leaf | Active tab switches to new tab |
+| `close_tab` | Multi-tab | N-1 tabs | Focus moves to first window in remaining tab |
+| `focus_next` | Focused leaf | Next leaf in tree* | `on_blur` on old, `on_focus` on new |
+| `resize_focused` | Any split | Split with adjusted ratio | Ratio clamped to [0.1, 0.9] |
+| `restore_layout` | Any | Reconstructed from JSON | All windows recreated, old tabs/windows dropped |
+
+\* Focus order follows depth-first leaf enumeration (`collect_ids`).
+
+## Layout Persistence
+
+Serialized to `~/.config/hkask/agents/{agent_name}/tui_layout.json`:
+
+```json
+{
+  "version": 1,
+  "tabs": [
+    {
+      "name": "Chat",
+      "root": {
+        "Horizontal": {
+          "left": { "Vertical": { "top": { "Leaf": { "kind": "hKask" } }, ... } },
+          "right": { "Leaf": { "kind": "Curator" } },
+          "ratio": 0.65
+        }
+      }
+    }
+  ],
+  "active_tab": 0
+}
+```
+
+Window state (chat messages, input buffers) is NOT persisted — only the structural layout. The `SavedSplit` enum mirrors `SplitNode` but uses `WindowKind` strings instead of live window objects.
+
+---
+
+*Generated from `crates/hkask-tui/src/workspace.rs`, `layout.rs`, `window.rs` — v0.31.0*
+
+
+### TUI Bridge Wiring Architecture
+
+*Inlined from `docs/diagrams/flowchart-tui-bridge-wiring.md`*
+
+# TUI Bridge Wiring Architecture
+
+**Type:** flowchart | **Target:** Bridge injection from CLI into TUI windows | **Diataxis quadrant:** Reference
+
+The `hkask-tui` crate defines bridge traits; `hkask-repl` implements them on `TuiReplBridge`. The `hkask-cli` crate wires them via the `with_bridges!` macro-generated builder methods. This separation enforces the dependency rule: TUI never depends on CLI.
+
+```mermaid
+flowchart TD
+    subgraph "hkask-cli (entry point)"
+        A([main]) --> B[Create AgentService context]
+        B --> C[Create TuiReplBridge from ReplState]
+        C --> D[TuiSession::new bridge]
+        D --> E{Wire optional bridges}
+    end
+
+    subgraph "Bridge Injection via with_bridges! macro"
+        E1["with_wallet_bridge - optional"]
+        E2["with_config_bridge - optional"]
+        E3["with_backup_bridge - optional"]
+        E4["with_registry_bridge - optional"]
+        E5["with_memory_bridge - optional"]
+        E6["with_kanban_bridge - optional"]
+        E7["with_matrix_bridge - optional"]
+        E8["with_media_bridge - optional"]
+        E9["with_training_bridge - optional"]
+        E10["with_companies_bridge - optional"]
+        E11["with_research_bridge - optional"]
+        E12["with_docproc_bridge - optional"]
+        E13["with_replica_bridge - optional"]
+        E14["with_skills_bridge - optional"]
+        E15["with_scenarios_bridge - optional"]
+    end
+
+    E --> E1
+    E --> E2
+    E --> E3
+    E --> E4
+    E --> E5
+    E --> E6
+    E --> E7
+    E --> E8
+    E --> E9
+    E --> E10
+    E --> E11
+    E --> E12
+    E --> E13
+    E --> E14
+    E --> E15
+
+    subgraph "TuiSession (lib.rs)"
+        S["TuiSession.bridges: WorkspaceBridges"]
+        S --> S1[Stored as Option Arc dyn Trait]
+    end
+
+    subgraph "Window Factory (window_catalog.rs)"
+        WF[create_window] --> WF1{match WindowKind}
+        WF1 --> WF2[mk_bridge! macro: conditionally wire]
+        WF2 --> WF3[Box dyn Window]
+    end
+
+    subgraph "Window Implementation"
+        W[Window receives Option Arc dyn Trait]
+        W --> W1[Method checks is_some at render time]
+        W1 --> W2{Has bridge?}
+        W2 -->|Yes| W3[Render live data]
+        W2 -->|No| W4[Render placeholder / empty state]
+    end
+
+    E1 --> S
+    E2 --> S
+    E3 --> S
+    E4 --> S
+    E5 --> S
+    E6 --> S
+    E7 --> S
+    E8 --> S
+    E9 --> S
+    E10 --> S
+    E11 --> S
+    E12 --> S
+    E13 --> S
+    E14 --> S
+    E15 --> S
+
+    S --> WF
+    WF3 --> W
+
+    subgraph "Bridge Impl Location: hkask-repl/src/tui_bridges.rs"
+        IMPL["impl Trait for TuiReplBridge"]
+        IMPL --> IMPL1[ConfigDataBridge: reads ReplSettings]
+        IMPL --> IMPL2[WalletDataBridge: delegates to WalletService]
+        IMPL --> IMPL3[KanbanDataBridge: delegates to KanbanState]
+        IMPL --> IMPL4[... 12 more impls ...]
+    end
+
+    C -.-> IMPL
+```
+
+## Dependency Rule
+
+```
+hkask-cli ──→ hkask-tui (uses traits + TuiSession)
+hkask-cli ──→ hkask-repl (implements bridges)
+hkask-repl ──→ hkask-tui (implements traits)
+hkask-tui ──✗→ hkask-cli (PROHIBITED — would be circular)
+```
+
+## Bridge Lifecycle
+
+| Phase | Action | Location |
+|-------|--------|----------|
+| 1. Trait definition | `trait WalletDataBridge { ... }` | `hkask-tui/src/bridges/wallet.rs` |
+| 2. Mock implementation | `impl WalletDataBridge for MockWalletBridge` | Same file (tests + dev) |
+| 3. Live implementation | `impl WalletDataBridge for TuiReplBridge` | `hkask-repl/src/tui_bridges.rs` |
+| 4. Injection | `session.with_wallet_bridge(bridge)` | `hkask-cli` (builder pattern) |
+| 5. Window wiring | `mk_bridge!(WalletWindow, ctx.wallet_bridge, ...)` | `window_catalog.rs` |
+| 6. Consumption | `self.wallet.as_ref().map(|w| w.wallet_balance())` | Window `render()` |
+
+## Key Architectural Decision
+
+Bridges are `Option<Arc<dyn Trait>>` — windows gracefully degrade when a bridge isn't wired. This means:
+- The TUI works in test mode (no services) with mock bridges
+- Missing bridges show "No data" / placeholder content, never panic
+- Adding a new service requires: bridge trait + mock + live impl + `with_bridges!` macro entry + `create_window` match arm (5 sites)
+
+---
+
+*Generated from `crates/hkask-tui/src/bridges/mod.rs`, `window_catalog.rs`, `crates/hkask-repl/src/tui_bridges.rs` — v0.31.0*
+

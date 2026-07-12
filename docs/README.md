@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-07-07
+last_updated: 2026-07-12
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -14,9 +14,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 ### Diataxis Structure
 
-Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tutorials, how-to guides, reference, and explanation — supplemented by architecture, diagrams, specifications, and legacy user guides.
+Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tutorials, how-to guides, reference, and explanation — supplemented by architecture, specifications, and the diagram verification registry.
 
 > **Lifecycle:** Retired documents are moved to `docs/archive/`. Git history preserves all versions.
+>
+> **Diagram policy:** Per `DOCUMENTATION_STANDARDS.md` §1, all Mermaid diagrams are inline in the documents they describe. The former `docs/diagrams/` directory has been consolidated — see [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) for the verification registry.
 
 ---
 
@@ -30,57 +32,26 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 
 ## How-To Guides (`how-to/`)
 
-Task-oriented guides (20):
-
 | Guide | What You'll Do |
 |-------|----------------|
-| [`install-and-run.md`](how-to/install-and-run.md) | Install hKask and run your first session |
-| [`configure-database-backend.md`](how-to/configure-database-backend.md) | Set up SQLite, SQLCipher, or PostgreSQL |
-| [`configure-feature-gates.md`](how-to/configure-feature-gates.md) | Enable/disable compilation features |
-| [`configure-guard.md`](how-to/configure-guard.md) | Configure the OCAP guard membrane |
-| [`bootstrap-mcp-server.md`](how-to/bootstrap-mcp-server.md) | Create a new MCP server |
-| [`create-agent-pod.md`](how-to/create-agent-pod.md) | Create and manage agent pods |
-| [`deploy-k8s.md`](how-to/deploy-k8s.md) | Deploy on Kubernetes |
-| [`train-qwen36-unsloth-runpod.md`](how-to/train-qwen36-unsloth-runpod.md) | Train Qwen3.6-27B on RunPod with Unsloth — single-command deployment |
-| [`backup-and-restore.md`](how-to/backup-and-restore.md) | Backup and restore hKask data |
-| [`setup-matrix-transport.md`](how-to/setup-matrix-transport.md) | Configure Matrix transport |
-| [`use-repl.md`](how-to/use-repl.md) | Use the `kask chat` REPL |
-| [`use-tui.md`](how-to/use-tui.md) | Use the TUI interface |
-| [`use-kanban.md`](how-to/use-kanban.md) | Coordinate tasks with Kanban boards |
-| [`invoke-a-skill.md`](how-to/invoke-a-skill.md) | Install, activate, and invoke skills |
-| [`compose-skills.md`](how-to/compose-skills.md) | Compose skills into bundles |
-| [`design-a-skill.md`](how-to/design-a-skill.md) | Design, package, and register a new skill |
-| [`run-kata-cycle.md`](how-to/run-kata-cycle.md) | Run a Toyota Kata improvement cycle |
-| [`train-lora-adapter.md`](how-to/train-lora-adapter.md) | Current LoRA training availability and blocked MCP workflow |
-| [`read-cns-alerts.md`](how-to/read-cns-alerts.md) | Read and interpret CNS alerts |
-| [`audit-sovereignty.md`](how-to/audit-sovereignty.md) | Audit sovereignty compliance |
+| [`install-and-configure.md`](how-to/install-and-configure.md) | Install hKask, configure, and run your first session (includes bootstrap diagram) |
+| [`agents-and-pods.md`](how-to/agents-and-pods.md) | Create and manage agent pods (includes pod lifecycle state diagram) |
+| [`deployment-and-transport.md`](how-to/deployment-and-transport.md) | Deploy on Kubernetes, configure Matrix transport, OAuth/invite flow (includes 6 deployment diagrams) |
+| [`skills-and-composition.md`](how-to/skills-and-composition.md) | Install, invoke, compose skills; run Kata cycles (includes 2 kata/skills diagrams) |
+| [`training-and-adapters.md`](how-to/training-and-adapters.md) | Train Qwen3.6-27B on RunPod with Unsloth; LoRA adapter training (includes 6 training diagrams + Qwen3.6 hyperparameter reference) |
+| [`sovereignty-and-observability.md`](how-to/sovereignty-and-observability.md) | Audit sovereignty compliance, read CNS alerts |
 
 ---
 
 ## Reference (`reference/`)
 
-### API Reference (23 crates)
-
-| Crate | Crate | Crate |
-|-------|-------|-------|
-| [`hkask-acp`](reference/api/hkask-acp.md) | [`hkask-agents`](reference/api/hkask-agents.md) | [`hkask-api`](reference/api/hkask-api.md) |
-| [`hkask-capability`](reference/api/hkask-capability.md) | [`hkask-cli`](reference/api/hkask-cli.md) | [`hkask-cns`](reference/api/hkask-cns.md) |
-| [`hkask-codegraph`](reference/api/hkask-codegraph.md) | [`hkask-communication`](reference/api/hkask-communication.md) | [`hkask-condenser`](reference/api/hkask-condenser.md) |
-| [`hkask-database`](reference/api/hkask-database.md) | [`hkask-federation`](reference/api/hkask-federation.md) | [`hkask-guard`](reference/api/hkask-guard.md) |
-| [`hkask-improv`](reference/api/hkask-improv.md) | [`hkask-inference`](reference/api/hkask-inference.md) | [`hkask-keystore`](reference/api/hkask-keystore.md) |
-| [`hkask-ledger`](reference/api/hkask-ledger.md) | [`hkask-mcp`](reference/api/hkask-mcp.md) | [`hkask-memory`](reference/api/hkask-memory.md) |
-| [`hkask-ports`](reference/api/hkask-ports.md) | [`hkask-storage`](reference/api/hkask-storage.md) | [`hkask-templates`](reference/api/hkask-templates.md) |
-| [`hkask-types`](reference/api/hkask-types.md) | [`hkask-wallet`](reference/api/hkask-wallet.md) | |
-
-### Other Reference
-
 | Document | Description |
 |----------|-------------|
-| [`reference/skills/`](reference/skills/) | Skills registry — manifests and metadata |
-| [`reference/cns-spans.md`](reference/cns-spans.md) | CNS span catalog and namespaces |
-| [`reference/magna-carta.md`](reference/magna-carta.md) | Magna Carta — 4 inviolable sovereignty principles |
-| [`qwen36-training-hyperparameters.md`](reference/qwen36-training-hyperparameters.md) | Qwen3.6-27B training hyperparameters — provenance and rationale |
-| [`reference/mcp-servers/`](reference/mcp-servers/) | MCP server reference (15 built-in servers) |
+| [`api-reference.md`](reference/api-reference.md) | API reference for hKask crates (includes 9 inlined CodeGraph + TUI diagrams) |
+| [`cns-spans.md`](reference/cns-spans.md) | CNS span catalog and namespaces |
+| [`magna-carta.md`](reference/magna-carta.md) | Magna Carta — 4 inviolable sovereignty principles |
+| [`mcp-servers/README.md`](reference/mcp-servers/README.md) | MCP server reference — 15 built-in servers (includes Companies MCP server) |
+| [`skills/README.md`](reference/skills/README.md) | Skills registry — manifests and metadata |
 
 ---
 
@@ -88,19 +59,12 @@ Task-oriented guides (20):
 
 | Document | Topic |
 |----------|-------|
-| [`dual-axis-ontology.md`](explanation/dual-axis-ontology.md) | PKO + DC/BIBO dual-axis ontological framework |
-| [`hexagonal-ports.md`](explanation/hexagonal-ports.md) | Hexagonal architecture — port/adaptor contracts |
-| [`loom-and-thread.md`](explanation/loom-and-thread.md) | Loom and thread concurrency model |
-| [`cns-homeostatic-loop.md`](explanation/cns-homeostatic-loop.md) | CNS homeostatic regulation loop |
-| [`curator-metacognition.md`](explanation/curator-metacognition.md) | Curator metacognition and self-reflection |
-| [`database-driver-abstraction.md`](explanation/database-driver-abstraction.md) | Database driver abstraction layer |
-| [`energy-gas-system.md`](explanation/energy-gas-system.md) | Energy and gas payment system |
-| [`federation-model.md`](explanation/federation-model.md) | Federation dispatch model |
-| [`good-regulator.md`](explanation/good-regulator.md) | Conant-Ashby Good Regulator theorem application |
-| [`nu-event-semantics.md`](explanation/nu-event-semantics.md) | ν-event semantic model and observability |
-| [`ocap-mcp-dispatch.md`](explanation/ocap-mcp-dispatch.md) | OCAP-attenuated MCP tool dispatch |
-| [`skill-pdca-model.md`](explanation/skill-pdca-model.md) | Skill PDCA loop model |
-| [`vsm-mapping.md`](explanation/vsm-mapping.md) | Viable System Model mapping to hKask |
+| [`architecture-patterns.md`](explanation/architecture-patterns.md) | Hexagonal ports, service layer, template cascade, MCP dispatch patterns (includes 7 inlined diagrams + template authorship) |
+| [`cns-and-loops.md`](explanation/cns-and-loops.md) | CNS homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
+| [`cognition-and-replica.md`](explanation/cognition-and-replica.md) | Memory pipeline, classification, embedding architecture (includes 4 inlined diagrams) |
+| [`sovereignty-and-ocap.md`](explanation/sovereignty-and-ocap.md) | OCAP attenuation, consent flow, guard pipeline (includes 4 inlined diagrams) |
+| [`federation-and-transport.md`](explanation/federation-and-transport.md) | Federation dispatch model, adapter lifecycle (includes 1 inlined diagram) |
+| [`energy-and-economy.md`](explanation/energy-and-economy.md) | Energy and gas payment system |
 
 ---
 
@@ -108,31 +72,22 @@ Task-oriented guides (20):
 
 | Document | Description |
 |----------|-------------|
-| [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, four-loop decomposition, economic layer, self-healing, pod architecture, Curator persona |
-| [`matrix-integration-architecture.md`](architecture/matrix-integration-architecture.md) | Matrix transport, Conduit sidecar, integration architecture |
-| [`well-wallet-architecture.md`](architecture/well-wallet-architecture.md) | Wallet architecture |
-| [`database-providers.md`](architecture/database-providers.md) | Database provider architecture |
-| [`ADR-043-database-driver.md`](architecture/ADR-043-database-driver.md) | ADR-043 — database driver abstraction |
+| [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, four-loop decomposition, economic layer, pod architecture, Curator persona. Includes merged sections: Database Providers, Matrix Integration, Well Wallet, Scenarios–Companies Bridge, Federation V2, and 8 inlined storage/database/scenarios diagrams. |
+| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry — all diagrams now inline |
 
 ### Core (`architecture/core/`)
 
 | Document | Description |
 |----------|-------------|
+| [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, 14 inline ERD/flowchart diagrams. Includes merged Bloom QA Pipeline and Cross-Reference QA sections. |
 | [`magna-carta.md`](architecture/core/magna-carta.md) | User sovereignty charter — 4 inviolable principles |
 | [`PRINCIPLES.md`](architecture/core/PRINCIPLES.md) | Architecture principles (P1-P12), dual-axis framework |
 | [`MDS.md`](architecture/core/MDS.md) | Minimal Domain Specification — 5 categories |
 | [`TESTING_DISCIPLINE.md`](architecture/core/TESTING_DISCIPLINE.md) | Contract-anchored testing — DbC, PBT, fuzz, mutation |
-| [`FUNCTIONAL_SPECIFICATION.md`](architecture/core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains |
 
 ### ADRs (`architecture/ADRs/`)
 
-Active ADRs: ADR-031 (consolidation authorization), ADR-035 (replicant server mode). Archived (2026-06-17): ADR-030, ADR-032–034, ADR-036–037. See directory for full index.
-
----
-
-## Diagrams (`diagrams/`)
-
-45 standalone Mermaid diagrams across 5 types — flowchart, sequence, state, class, ERD — plus 14 inline functional-specification diagrams. See [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) for the curated verification registry.
+17 ADRs covering consolidation authorization, replicant server mode, gix migration, BLAKE3 content addressing, dynamic model discovery, port promotion, database driver, nested runtime panics, ledger-wallet separation, CLI bootstrap, REPL extraction, storage modularization, CNS type decomposition, ledger database driver compliance, Qwen3.6 chat template and training gap analysis. See directory for full index.
 
 ---
 
@@ -148,35 +103,12 @@ Active ADRs: ADR-031 (consolidation authorization), ADR-035 (replicant server mo
 
 ---
 
-## Legacy User Guides (`user-guides/`)
-
-These user guides lack how-to equivalents and remain as legacy references:
-
-| Document | Description |
-|----------|-------------|
-| [`API_GUIDE.md`](user-guides/API_GUIDE.md) | REST API usage guide |
-| [`COMPANIES-GUIDE.md`](user-guides/COMPANIES-GUIDE.md) | Company research and portfolio management |
-| [`bug-hunter-guide.md`](user-guides/bug-hunter-guide.md) | Bug hunting methodology and expedition execution |
-| [`lora-adapter-store-guide.md`](user-guides/lora-adapter-store-guide.md) | LoRA adapter store — lifecycle, routing, deployment |
-| [`QA_GUIDE.md`](user-guides/QA_GUIDE.md) | QA system operations — fuzz triage, mutation analysis, autonomous scripts |
-
----
-
 ## Other Documents
 
 | Document | Description |
 |----------|-------------|
 | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects — open crossroads and future design decisions |
-| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry |
-| [`generated/cli-reference.md`](generated/cli-reference.md) | Auto-generated CLI reference |
-| [`generated/openapi.json`](generated/openapi.json) | OpenAPI 3.1.0 specification |
-| [`plans/k8s-admin-guide.md`](plans/k8s-admin-guide.md) | Kubernetes deployment and backup guide |
-| [`plans/wss-chat-endpoint.md`](plans/wss-chat-endpoint.md) | WSS Chat Endpoint — design space |
-| [`plans/wss-chat-endpoint-implementation.md`](plans/wss-chat-endpoint-implementation.md) | WSS Chat Endpoint — implementation guide |
-| [`plans/TODO.md`](plans/TODO.md) | Open work |
-| [`research/lazy-universe-research.md`](research/lazy-universe-research.md) | Least-action principle — research grounding |
-| [`status/PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | Build, test, and CI health |
-| [`status/replica-corpus-training-readiness.md`](status/replica-corpus-training-readiness.md) | Verified readiness of the replica, corpus, and RunPod/Unsloth workflow |
+| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry — all diagrams now inline in parent documents |
 
 ---
 
