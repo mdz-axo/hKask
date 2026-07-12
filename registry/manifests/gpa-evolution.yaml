@@ -33,10 +33,7 @@ convergence:
   #
   # IS: The Rust executor's check_convergence() with improvement_gate:
   # "threshold_only" only checks quality <= threshold (executor.rs L884-890).
-  # The improvement_ratio field is ignored when gate is threshold_only.
-  # We set it to 0.0 for documentation; it has no runtime effect.
   threshold: 0.10
-  improvement_ratio: 0.0
   improvement_gate: threshold_only
   max_iterations: 5
   min_iterations: 2

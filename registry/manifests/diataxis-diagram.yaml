@@ -37,7 +37,6 @@ convergence:
   # phrasing, marginal clarity) can survive convergence — they're taste, not
   # correctness.
   threshold: 0.15
-  improvement_ratio: 0.05
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1

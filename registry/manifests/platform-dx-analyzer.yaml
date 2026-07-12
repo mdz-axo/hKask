@@ -27,7 +27,6 @@ manifest:
 
 convergence:
   threshold: 0.10
-  improvement_ratio: 0.05
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1

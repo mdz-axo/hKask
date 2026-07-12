@@ -25,7 +25,6 @@ convergence:
   # identified, but not every bug class has been exhaustively searched.
   # For exhaustive elimination, chain with `diagnose` on specific findings.
   threshold: 0.25
-  improvement_ratio: 0.05
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1

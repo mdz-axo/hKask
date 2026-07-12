@@ -128,6 +128,7 @@ steps:
     template_ref: scenario-builder/implications-indicators
     gas_cap: 5000
     timeout_seconds: 60
+    condition: "step_5_result.gate_pass"
     input_mapping:
       refined_question: "{{ step_1_result.refined_question | default(focal_question) }}"
       scenarios: "{{ step_4_result.scenarios | default([]) }}"
