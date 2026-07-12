@@ -4871,13 +4871,6 @@ erDiagram
     gallery_images ||--o{ face_registry : "image_id FK"
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-MASTER-016
-verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
-status: VERIFIED
--->
-
-<!-- DIAGRAM_ALIGNMENT
   id: DIAG-PL-010
   verified_date: 2026-06-30
   verified_against: crates/hkask-storage/src/
@@ -5715,13 +5708,6 @@ flowchart TD
     Calibration --> Assess
     Assess --> End
 ```
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-MASTER-021
-verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
-status: VERIFIED
--->
-
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FW-007
 verified_date: 2026-07-10

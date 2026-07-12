@@ -1875,13 +1875,6 @@ When `recursion_depth > matryoshka_limit`, the cascade exits with `maxed_out` / 
 
 ---
 
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-IC-004
-verified_date: 2026-07-01
-verified_against: crates/hkask-templates/src/executor.rs (ManifestExecutor:69-84, execute_manifest:209-686, matryoshka_limit:230, loop action:386-475, select:478-512, gas tracking:232-245/493-526, rJoule tracking:240-245/528-545), crates/hkask-capability/src/token_types.rs (SYSTEM_MAX_RECURSION:14), crates/hkask-api/src/routes/templates.rs (TemplateResponse:30-40, WordAct/FlowDef/KnowAct taxonomy:27-28), crates/hkask-improv/src/cascade.rs (MATRYOSHKA_LIMIT:17-21)
-status: VERIFIED
--->
-
 ## Cross-Reference
 
 - [`hKask-architecture-master.md` § Template System & Cascade Execution](../architecture/hKask-architecture-master.md#template-system--cascade-execution)

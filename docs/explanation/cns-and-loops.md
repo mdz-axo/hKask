@@ -889,13 +889,6 @@ status: VERIFIED
 
 After extraction, CNS core retains: `CyberneticsLoop`, `CnsRuntime`, `Algedonic`, `Dampener`, `RegulationPolicy`, `GovernedTool`, `GovernedInference`, `SensorProvider`, `SetPoints`, `StrategyEvaluator`, `SystemSimulator`, `ToolStats`, `WalletBackedBudget`, `WalletGasCalibrator` — all cohesive regulation logic.
 
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-IC-012
-verified_date: 2026-07-11
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-cns/src/runtime.rs, crates/hkask-cns/src/wallet_budget.rs, crates/hkask-cns/src/wallet_gas_calibrator.rs, crates/hkask-cns/src/slo_manager.rs, crates/hkask-cns/src/seam_watcher.rs, crates/hkask-cns/src/governed_tool.rs, crates/hkask-storage-guard/src/lib.rs, crates/hkask-ports/src/wallet_budget_port.rs
-status: VERIFIED
--->
-
 
 ### CNS Homeostatic Loop
 
@@ -1519,13 +1512,6 @@ The `Drop` impl enforces that a span is always emitted — even if the code path
 
 ---
 
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-TO-004
-verified_date: 2026-07-01
-verified_against: >
-  crates/hkask-mcp/src/server/tool_span.rs:18-189 (ToolSpanGuard, Drop impl, emit_tool_span),
-  crates/hkask-cns/src/runtime.rs:295-299 (CnsRuntime struct),
-  crates/hkask-cns/src/runtime.rs:540-615 (increment_variety, check_variety, subscriber dispatch),
   crates/hkask-types/src/event.rs:16-93 (NuEvent, parent_event, with_parent builder),
   crates/hkask-types/src/event.rs:105-157 (CANONICAL_NAMESPACES),
   crates/hkask-types/src/event.rs:320-429 (Span, SpanKind, namespace_and_path),
@@ -1749,13 +1735,6 @@ status: VERIFIED
 
 ---
 
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-TO-005
-verified_date: 2026-07-01
-verified_against: >
-  crates/hkask-cns/src/algedonic.rs:26-33 (AlertSeverity),
-  crates/hkask-cns/src/algedonic.rs:37-136 (RuntimeAlert, threshold classification, should_escalate),
-  crates/hkask-cns/src/algedonic.rs:139-296 (AlgedonicManager, check, check_outcome, set_outcome_thresholds, set_expected_variety),
   crates/hkask-cns/src/algedonic.rs:299-307 (cns_health_check),
   crates/hkask-cns/src/runtime.rs:52-106 (VarietyTracker, EMA, deficit),
   crates/hkask-cns/src/runtime.rs:191-255 (VarietyMonitor, counter, domains),

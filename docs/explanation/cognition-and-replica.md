@@ -711,13 +711,6 @@ sequenceDiagram
         Bridge->>+Sem: store_consolidated(episodic_c)
     end
 ```
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-COG-006
-verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/event.rs, crates/hkask-memory/src/lib.rs
-status: VERIFIED
--->
-
 ## Per-Agent SQLCipher Isolation
 
 | Dimension | Episodic | Semantic |

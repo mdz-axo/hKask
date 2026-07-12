@@ -1,4 +1,4 @@
-//! Company Researcher corpus tool — embed + salience for investment literature.
+//! Company Researcher corpus tool — embed + salience for capabilities and research literature.
 //!
 //! Subcommands:
 //!   embed    — Compute Qwen3-Embedding-0.6B vectors and store in memory DB
@@ -72,6 +72,10 @@ struct TaggedChunk {
     methods: Vec<String>,
     authors: Vec<String>,
     salience: f32,
+    /// PKO provenance: original chunk refs this chunk was consolidated from.
+    /// Empty for pass-through (singleton) chunks. Populated by consolidate-chunks MCP tool.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    consolidated_from: Vec<String>,
 }
 
 #[derive(Parser)]
@@ -464,6 +468,7 @@ async fn run_salience(args: SalienceArgs) -> Result<(), Box<dyn std::error::Erro
             methods: tags.methods.clone(),
             authors: tags.characters.clone(),
             salience: salience_score,
+            consolidated_from: Vec::new(),
         })
         .collect();
 
@@ -862,9 +867,23 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
         // Generate QA_PROMPTS_PER_CHUNK QAs per chunk at consecutive Bloom levels
         for offset in 0..QA_PROMPTS_PER_CHUNK {
             let qt = type_rotation[(ti + offset) % type_rotation.len()];
+            // 5W1H / Dublin Core / PKO ontological context
+            let ontology_text = if tc.consolidated_from.is_empty() {
+                format!(
+                    "5W1H: What=training QA pair ({} level). Where=primary passage from {}. Why=concepts prioritized by graph centrality.\nDublin Core: dcterms:source={}, dcterms:type=bibo:Document, dcterms:subject={}\nPKO: pko:producedBy=corpus QA generation pipeline",
+                    qt.as_str(), tc.source, tc.source, tc.concepts.join(", ")
+                )
+            } else {
+                format!(
+                    "5W1H: What=training QA pair ({} level). Where=consolidated passage from {}. Why=concepts prioritized by graph centrality.\nDublin Core: dcterms:source={}, dcterms:type=bibo:Document, dcterms:subject={}\nPKO: pko:wasExtractedFrom={} original passages (consolidation preserved all unique information), pko:producedBy=corpus QA generation pipeline",
+                    qt.as_str(), tc.source, tc.source, tc.concepts.join(", "), tc.consolidated_from.len()
+                )
+            };
+
             let system = format!(
-                "You are a Capabilities Researcher training data generator. Given a primary passage from investment literature, generate ONE question-answer pair.\n\n{}\n\nOutput JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).\n\nGround the answer in the primary passage. Do not invent facts.\n\n## Context Passages (retrieved via embedding similarity)\n{}\n\n## Concept Graph (salience-weighted)\n{}",
+                "You are a Capabilities Researcher training data generator. Given a primary passage from capabilities and research literature, generate ONE question-answer pair.\n\n{}\n\nOutput JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).\n\nGround the answer in the primary passage. Do not invent facts.\n\n## Ontological Context\n{}\n\n## Context Passages (retrieved via embedding similarity)\n{}\n\n## Concept Graph (salience-weighted)\n{}",
                 qa_type_instruction(qt),
+                ontology_text,
                 context_text,
                 concept_graph_text
             );
@@ -1070,7 +1089,7 @@ fn build_cross_reference_prompts(qualifying: &[&TaggedChunk], args: &BuildPrompt
             "qa_type": qt,
             "cross_reference": true,
             "system": format!(
-                "You are a Company Research Analyst synthesizing knowledge across multiple sources.\n\nGiven {} passages from different parts of the investment literature, all related to the concept '{}', generate ONE question-answer pair that requires synthesizing information from MULTIPLE passages.\n\nThe question should test cross-reference understanding:\n- comparative: compare/contrast perspectives across passages\n- diagnostic: identify patterns or tensions that emerge only when reading multiple passages\n- causal: trace how ideas connect or influence each other across sources\n\nThe answer MUST cite which passages it draws from (e.g., 'Per Passage 1, ... while Passage 3 notes ...').\n\nOutput JSON with: instruction, output, type, difficulty (3-5), concepts (list including '{}'), source (all sources), chunk_ref (comma-separated chunk references).\n\nDo not invent facts. Ground every claim in the passages.",
+                "You are a Company Research Analyst synthesizing knowledge across multiple sources.\n\nGiven {} passages from different parts of the capabilities and research literature, all related to the concept '{}', generate ONE question-answer pair that requires synthesizing information from MULTIPLE passages.\n\nThe question should test cross-reference understanding:\n- comparative: compare/contrast perspectives across passages\n- diagnostic: identify patterns or tensions that emerge only when reading multiple passages\n- causal: trace how ideas connect or influence each other across sources\n\nThe answer MUST cite which passages it draws from (e.g., 'Per Passage 1, ... while Passage 3 notes ...').\n\nOutput JSON with: instruction, output, type, difficulty (3-5), concepts (list including '{}'), source (all sources), chunk_ref (comma-separated chunk references).\n\nDo not invent facts. Ground every claim in the passages.",
                 top.len(), concept, concept
             ),
             "user": format!("Generate a {} cross-reference QA pair from these {} passages about '{}':\n\n{}\nConcepts: {}", qt, top.len(), concept, passages, concept)

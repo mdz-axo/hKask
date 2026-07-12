@@ -329,13 +329,6 @@ status: VERIFIED
 
 ---
 
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-DC-004
-verified_date: 2026-07-01
-verified_against: crates/hkask-capability/src/token_types.rs (SYSTEM_MAX_ATTENUATION:17, DelegationToken:51-68, can_attenuate:336-338, attenuate:347-354, attenuate_with_expiry:364-398, verify_attenuation_chain:447-464, is_valid_for:405-412, grants_resource:416-418), crates/hkask-capability/src/verification/checker.rs (CapabilityChecker:20-33, check:155-166, verify:126-134, grant:195-207, attenuate:243-251), crates/hkask-capability/src/resources.rs (capabilities_match)
-status: VERIFIED
--->
-
 ## Cross-Reference
 
 - [`hKask-architecture-master.md` § OCAP Capability Model](../architecture/hKask-architecture-master.md#ocap-capability-model)
@@ -461,13 +454,6 @@ When `has_consent()` returns `false`, the `emit_consent_denied()` method fires a
 The `SovereigntyConsent` trait impl translates storage errors into `false`, enforcing the Magna Carta's fail-closed default deny.
 
 ---
-
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-TO-006-CM
-verified_date: 2026-07-01
-verified_against: crates/hkask-agents/src/consent.rs (ConsentManager:136-144, ConsentRecord:38-44, has_consent:316-338, emit_consent_denied:344-366, grant_consent:243-273, revoke_consent:283-300, SovereigntyConsent:388-395, load_from_store:185-225, persist:228-232)
-status: VERIFIED
--->
 
 ## Cross-Reference
 

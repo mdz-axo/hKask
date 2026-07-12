@@ -617,13 +617,6 @@ sequenceDiagram
     Axum-->>Browser: Terminal UI (authenticated)
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-DEP-004
-verified_date: 2026-07-12
-verified_against: crates/hkask-cli/src/main.rs, crates/hkask-communication/src/lib.rs
-status: VERIFIED
--->
-
-<!-- DIAGRAM_ALIGNMENT
 id: DIAG-DA-003
 verified_date: 2026-07-01
 verified_against: >

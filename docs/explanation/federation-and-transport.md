@@ -404,13 +404,6 @@ status: VERIFIED
 
 ---
 
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-DC-008
-verified_date: 2026-06-30
-verified_against: crates/hkask-adapter/src/endpoint_lifecycle.rs (EndpointPhase enum, valid_next, new, transition), crates/hkask-adapter/src/adapter_router/mod.rs (create_endpoint:506, infer:585, teardown_endpoint:613-631, EndpointGuard drop:700)
-status: VERIFIED
--->
-
 ## Cross-Reference
 
 - [`hKask-architecture-master.md` § LoRA Adapter Lifecycle & Inference Composition](../architecture/hKask-architecture-master.md#lora-adapter-lifecycle--inference-composition)
