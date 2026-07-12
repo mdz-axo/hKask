@@ -439,21 +439,21 @@ train_ds = train_ds.map(fmt_msgs, remove_columns=train_ds.column_names, num_proc
 
 # ── Train ─────────────────────────────────────────────────────────────────
 
-# Custom trainer that re-samples the eval set before each evaluation.
-# This prevents overfitting to a fixed eval set and keeps eval time bounded.
+# Dynamic eval: override the public evaluate() method to re-sample before eval.
+# The public API is stable across transformers versions, unlike _evaluate().
 from trl import SFTTrainer as _BaseSFTTrainer
 
 class DynamicEvalSFTTrainer(_BaseSFTTrainer):
     """SFTTrainer that re-samples eval examples from the training set before each eval."""
 
-    def _evaluate(self, ignore_keys=None, metric_key_prefix="eval"):
-        # Re-sample eval set from the pre-tokenized training set
+    def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval"):
+        # Re-sample eval set from the training set
         n = len(self.train_dataset)
         k = max(1, int(n * EVAL_RATIO))
         indices = random.sample(range(n), k)
-        self.eval_dataset = self.train_dataset.select(indices)
+        eval_dataset = self.train_dataset.select(indices)
         print(f"  [dynamic eval] sampled {k} examples from {n} training examples", flush=True)
-        return super()._evaluate(ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
+        return super().evaluate(eval_dataset=eval_dataset, ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
 
 trainer = DynamicEvalSFTTrainer(
     model=model, processing_class=tokenizer,
