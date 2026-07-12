@@ -31,7 +31,7 @@ All 15 MCP servers registered in `hkask-mcp::BUILTIN_SERVERS`. Each server follo
 | `hkask-mcp-scenarios` | Scenario planning and calibrated event-tree forecasting | 18 | Standard |
 | `hkask-mcp-kata-kanban` | Kata-Kanban workflow coordination | 8 | Standard |
 | `hkask-mcp-skill` | Skill invocation (exposes registered skills as callable tools) | 15 | Standard |
-| `hkask-mcp-codegraph` | Code understanding (query, traverse, impact, context, embed) | 10 | Standard |
+| `hkask-mcp-codegraph` | Code understanding (query, traverse, impact, context, embed) | 11 | Standard |
 
 ## Bootstrap Pattern
 

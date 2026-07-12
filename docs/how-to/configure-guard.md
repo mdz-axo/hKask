@@ -1,7 +1,7 @@
 ---
 title: "How to Configure the Content Guard — How-To Guide"
 audience: [operators, developers]
-last_updated: 2026-07-07
+last_updated: 2026-07-12
 version: "0.31.0"
 status: "Active"
 domain: "Core"

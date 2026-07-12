@@ -147,7 +147,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Trust, Composition
 - **Text:** When an agent needs a tool, I want MCP server dispatch, so I can route tool calls to the correct server.
 - **Criteria:**
-  11 MCP servers registered in workspace
+  - [x] 15 MCP servers registered in workspace
   - [x] `McpRuntime` manages server lifecycle
   - [x] `GovernedTool` enforces OCAP before dispatch (`SecurityGateway` described in spec; see TODO.md P2-06)
   - [x] Stdio transport via rmcp (in-process and HTTP transports deferred)

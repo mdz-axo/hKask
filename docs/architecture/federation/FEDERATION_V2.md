@@ -589,7 +589,7 @@ kask cns federation thresholds
 | `crates/hkask-types/src/curator.rs` | `CuratorHandle`, `CuratorDirective`, `CurationThresholdConfig` |
 | `crates/hkask-types/src/curation.rs` | `OcapTokenKind` (extend with `Federation`) |
 | `crates/hkask-types/src/cns.rs` | `CnsSpan` (extend with 18 federation spans) |
-| `crates/hkask-types/src/loops.rs` | `LoopId` (6 variants) |
+| `crates/hkask-types/src/loops/mod.rs` | `LoopId` (6 variants) |
 | `crates/hkask-agents/src/curator/semantic_index.rs` | `SemanticIndex` — model for federation index |
 | `crates/hkask-agents/src/curator/semantic_sync.rs` | `CuratorSync` — model for `FederationSync` polling loop |
 | `crates/hkask-memory/src/recall_dedup.rs` | `eav_hash()` — EAV content hashing used as CRDT key |

@@ -129,7 +129,7 @@ kask cns alerts
 
 | Constant | Value | Location |
 |----------|-------|----------|
-| `GAS_PER_RJOULE` | 250000 | `crates/hkask-wallet/src/lib.rs` |
+| `GAS_PER_RJOULE` | 250000 | `crates/hkask-wallet-types/src/lib.rs` |
 | `RJOULE_TO_GAS` | 250000 | Used in CSkill files, reverse of above |
 
 ### Known Uncalibrated Budgets
