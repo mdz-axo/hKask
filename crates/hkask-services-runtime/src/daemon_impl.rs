@@ -404,6 +404,7 @@ async fn generate_narrative(
         temperature: 0.7,
         max_tokens: 256,
         bypass_fusion: true,
+        fusion_config: None,
         ..LLMParameters::default()
     };
 

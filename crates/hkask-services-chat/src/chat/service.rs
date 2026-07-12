@@ -342,6 +342,7 @@ impl ChatService {
             disable_thinking: false,
             adapter: None,
             bypass_fusion: chat_bypass,
+            fusion_config: None,
         });
         // Always enforce the service-layer bypass decision — a caller's
         // params_override must not silently defeat the cost-safety guard.
@@ -521,6 +522,7 @@ impl ChatService {
                 disable_thinking: false,
                 adapter: None,
                 bypass_fusion: chat_bypass,
+                fusion_config: None,
             });
             params.bypass_fusion = chat_bypass;
 

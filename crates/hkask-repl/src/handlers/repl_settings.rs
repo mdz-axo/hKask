@@ -444,6 +444,7 @@ pub fn to_llm_params(settings: &ReplSettings) -> LLMParameters {
         disable_thinking: settings.disable_thinking,
         adapter: None,
         bypass_fusion: false,
+        fusion_config: None,
     }
 }
 

@@ -73,6 +73,7 @@ impl ChatService {
             disable_thinking: true,
             adapter: None,
             bypass_fusion: true,
+            fusion_config: None,
         };
 
         let port = ctx.infra().inference.clone()?;

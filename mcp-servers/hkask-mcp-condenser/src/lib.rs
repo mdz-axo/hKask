@@ -359,6 +359,7 @@ impl CondenserServer {
                 disable_thinking: true,
                 adapter: None,
                 bypass_fusion: true,
+                fusion_config: None,
             };
 
             let result = match self
