@@ -12,7 +12,7 @@ source: "hkask-services-core through hkask-services-wallet/src/lib.rs, hkask-por
 
 # Service Layer Class Diagram
 
-The hKask service layer comprises **11 subcrates** decomposed from the original monolithic `hkask-services-core` crate, following the Strangler Fig pattern (archived ADR-040). Every subcrate depends on `hkask-services-core` as its universal foundation. `hkask-services-context` provides `AgentService`, the canonical DI container that assembles all shared infrastructure (CNS, governance, storage, infra). Domain services (chat, curator, compose, skill, kata-kanban, corpus, wallet, onboarding, runtime) are thin orchestrators that delegate to domain crates via `AgentService` or port traits.
+The hKask service layer comprises **10 subcrates** decomposed from the original monolithic `hkask-services-core` crate, following the Strangler Fig pattern (archived ADR-040). Every subcrate depends on `hkask-services-core` as its universal foundation. `hkask-services-context` provides `AgentService`, the canonical DI container that assembles all shared infrastructure (CNS, governance, storage, infra). Domain services (chat, compose, skill, kata-kanban, corpus, wallet, onboarding, runtime) are thin orchestrators that delegate to domain crates via `AgentService` or port traits. Curator metacognition and escalation handling were merged into `ChatService` and `services-context::governance` respectively.
 
 ```mermaid
 classDiagram
@@ -132,11 +132,15 @@ classDiagram
         }
     }
 
-    %% ── Chat Service ──────────────────────────────────────────────────────
+    %% ── Chat Service (includes merged CuratorService) ──────────────────
     namespace services_chat {
         class ChatService {
             +chat(ctx, request) ChatTurnResponse
             +prepare_chat(ctx, bot_id) PreparedChat
+            +run_curator_metacognition(ctx) Result~String~
+            +list_escalations(ctx) Vec~EscalationResponse~
+            +resolve(ctx, id, resolved_by) Result
+            +dismiss(ctx, id, dismissed_by) Result
         }
         class MemoryService {
             +has_memory_consent(ctx, owner, category) bool
@@ -155,6 +159,12 @@ classDiagram
             +tool_calls: Vec~StructuredToolCall~
             +token_usage: TokenUsage
         }
+        class EscalationResponse {
+            +id: String
+            +template_id: String
+            +status: String
+            +confidence: f64
+        }
     }
 
     %% ── Compose Service ───────────────────────────────────────────────────
@@ -172,22 +182,6 @@ classDiagram
             +generated_prose: String
             +exemplar_count: u32
             +validation: Option~CentroidValidation~
-        }
-    }
-
-    %% ── Curator Service ───────────────────────────────────────────────────
-    namespace services_curator {
-        class CuratorService {
-            +list_escalations(ctx) Vec~EscalationResponse~
-            +resolve(ctx, id, resolved_by) Result
-            +dismiss(ctx, id, dismissed_by) Result
-            +metacognition(ctx) Result~String~
-        }
-        class EscalationResponse {
-            +id: String
-            +template_id: String
-            +status: String
-            +confidence: f64
         }
     }
 
@@ -314,8 +308,6 @@ classDiagram
     services_chat::ChatService ..> services_foundation::ServiceError : uses
     services_chat::ChatService ..> services_foundation::InferenceContext : uses
     services_compose::ComposeService ..> services_foundation::ServiceError : uses
-    services_compose::ComposeRequest o-- services_foundation::InferenceContext : composes
-    services_curator::CuratorService ..> services_foundation::ServiceError : uses
     services_kata_kanban::KataEngine ..> services_foundation::ServiceError : uses
     services_runtime::ServiceDaemonHandler ..> services_foundation::ServiceError : uses
     services_skill::SkillAuditor ..> services_foundation::ServiceError : uses
@@ -327,7 +319,6 @@ classDiagram
     %% Context (DI container): services parameterized on AgentService
     services_chat::ChatService ..> services_context::AgentService : takes &AgentService
     services_chat::MemoryService ..> services_context::AgentService : takes &AgentService
-    services_curator::CuratorService ..> services_context::AgentService : takes &AgentService
     services_skill::BundleService ..> services_context::AgentService : takes &AgentService
     services_context::AgentService ..> services_context::PerAgentMemory : build_per_agent_memory()
     services_context::AgentService o-- services_foundation::ServiceConfig : config
@@ -348,7 +339,6 @@ classDiagram
     %% Surfaces depend on service subcrates
     surfaces::CLI ..> services_context::AgentService : uses
     surfaces::CLI ..> services_chat::ChatService : uses
-    surfaces::CLI ..> services_curator::CuratorService : uses
     surfaces::CLI ..> services_compose::ComposeService : uses
     surfaces::CLI ..> services_wallet::WalletService : uses
     surfaces::CLI ..> services_skill::SkillAuditor : uses
@@ -363,7 +353,6 @@ classDiagram
 
     surfaces::API ..> services_context::AgentService : uses
     surfaces::API ..> services_chat::ChatService : uses
-    surfaces::API ..> services_curator::CuratorService : uses
     surfaces::API ..> services_wallet::WalletService : uses
     surfaces::API ..> services_skill::SkillAuditor : uses
     surfaces::API ..> services_foundation::ServiceConfig : uses
@@ -380,19 +369,19 @@ classDiagram
 | Field | Value |
 |-------|-------|
 | **ID** | `DIAG-IC-008` |
-| **Verified Date** | 2026-06-30 |
+| **Verified Date** | 2026-07-12 |
 | **Verified Against** | `crates/hkask-services-core through hkask-services-wallet/src/lib.rs`, `crates/hkask-ports/src/lib.rs`, `crates/hkask-services-core through hkask-services-wallet/Cargo.toml`, `crates/hkask-cli/Cargo.toml`, `crates/hkask-api/Cargo.toml` |
 | **Status** | `VERIFIED` |
 
 ### Verification checklist
 
-- [x] 11 subcrates enumerated (core, chat, compose, context, curator, kata-kanban, runtime, skill, wallet, onboarding, corpus)
+- [x] 10 subcrates enumerated (core, chat, compose, context, kata-kanban, runtime, skill, wallet, onboarding, corpus)
 - [x] Key public structs per subcrate matched to `lib.rs` re-exports
 - [x] Port traits (`<<interface>>`) from `hkask-ports/src/lib.rs` verified
-- [x] CLI deps: 11 `hkask-services-core through hkask-services-wallet` crates in `hkask-cli/Cargo.toml` lines 36–46
+- [x] CLI deps: 10 `hkask-services-core through hkask-services-wallet` crates in `hkask-cli/Cargo.toml`
 - [x] API deps: 6 `hkask-services-core through hkask-services-wallet` crates in `hkask-api/Cargo.toml` lines 19–25
 - [x] Core foundation: every service subcrate depends on `hkask-services-core`
-- [x] Context DI: ChatService, MemoryService, CuratorService, BundleService take `&AgentService`
+- [x] Context DI: ChatService, MemoryService, BundleService take `&AgentService`
 - [x] Embedded: WalletService, ServiceDaemonHandler live in `InfraContext`
 - [x] Port interfaces (10 total): InferencePort, ToolPort, CircuitBreakerPort, CnsObserver, RegistryIndex, SkillRegistryIndex, FederationDispatch, CnsStoragePort, FederationTransport, FederationSyncPort
 
@@ -400,7 +389,7 @@ classDiagram
 
 ## Cross-Reference
 
-- **MDS.md § AgentService Specification** ([`docs/architecture/core/MDS.md`](../architecture/core/MDS.md#agentservice-specification)) — defines the 25 accessor methods on `AgentService`, the bounded context, and the service layer contract table listing all 11 subcrates with their contract prefixes and counts.
+- **MDS.md § AgentService Specification** ([`docs/architecture/core/MDS.md`](../architecture/core/MDS.md#agentservice-specification)) — defines the 25 accessor methods on `AgentService`, the bounded context, and the service layer contract table listing all 10 subcrates with their contract prefixes and counts.
 - **MDS.md § 1.4 Service Layer Subsystems** — domain ontology table mapping each subcrate to its domain, contract prefix, and decomposition status.
 - **PRINCIPLES.md** — P5 (Essentialism) governs the service layer: thin orchestration, delegates to domain crates, ≤7 public functions per module.
-- **ADR-040** — Strangler Fig decomposition of the monolithic `hkask-services-core` into 11 subcrates (2026-06-27).
+- **ADR-040** — Strangler Fig decomposition of the monolithic `hkask-services-core` into 10 subcrates (2026-06-27). CuratorService merged into ChatService.

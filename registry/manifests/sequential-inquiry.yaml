@@ -137,10 +137,7 @@ steps:
     timeout_seconds: 30
     input_mapping:
       primary_result: "{{ step_1_result }}"
-      delegation_results:
-        hypothesis_framer: "{{ step_2_result }}"
-        mcda: "{{ step_3_result }}"
-        diagnose: "{{ step_4_result }}"
+      delegation_results: "{{ {'hypothesis_framer': step_2_result, 'mcda': step_3_result, 'diagnose': step_4_result} }}"
 
   - ordinal: 6
     action: loop

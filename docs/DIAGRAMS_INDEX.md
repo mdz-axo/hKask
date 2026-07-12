@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-07-10
+last_updated: 2026-07-12
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -43,7 +43,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [flowchart-template-cascade.md](diagrams/flowchart-template-cascade.md) | `crates/hkask-templates/src/` (minijinja integration); standalone: covers select → populate → execute cascade | ✅ VERIFIED 2026-07-01 |
 | DIAG-IC-006 | LLM Routing and Failover (Inference Router — DI/TG/FA/OR) | [FUNCTIONAL_SPECIFICATION.md](architecture/core/FUNCTIONAL_SPECIFICATION.md) §2.5 | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs`; inline diagram: GovernedInference ERD | ✅ VERIFIED 2026-07-01 |
 | DIAG-IC-007 | MCP Tool Dispatch Sequence with OCAP Enforcement | [sequence-mcp-tool-dispatch.md](diagrams/sequence-mcp-tool-dispatch.md) | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-IC-008 | Service Layer Decomposition — 11 subcrates, ports, CLI/API consumers | [class-service-layer.md](diagrams/class-service-layer.md) | `crates/hkask-services-core through hkask-services-wallet/src/`, `crates/hkask-ports/src/` | ✅ VERIFIED 2026-07-01 |
+| DIAG-IC-008 | Service Layer Decomposition — 10 subcrates, ports, CLI/API consumers | [class-service-layer.md](diagrams/class-service-layer.md) | `crates/hkask-services-core through hkask-services-wallet/src/`, `crates/hkask-ports/src/` | ✅ VERIFIED 2026-07-12 |
 | DIAG-IC-009 | CodeGraph Agent Workflow — search, traverse, impact, context assembly, feedback loop | [sequence-codegraph-agent.md](diagrams/sequence-codegraph-agent.md) | `mcp-servers/hkask-mcp-codegraph/src/lib.rs:243-632`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs` | ✅ VERIFIED 2026-07-04 |
 | DIAG-IC-010 | Companies provider routing — symbol selection, learning override, fallback, EODHD normalization | [sequence-companies-provider-routing.md](diagrams/sequence-companies-provider-routing.md) | `mcp-servers/hkask-mcp-companies/src/providers.rs:84-247`, `mcp-servers/hkask-mcp-companies/src/lib.rs:340-361` | ✅ VERIFIED 2026-07-10 |
 | DIAG-IC-011 | Companies forecast feedback — durable snapshot, revision, outcome, and daemon experience flow | [sequence-companies-forecast-feedback.md](diagrams/sequence-companies-forecast-feedback.md) | `mcp-servers/hkask-mcp-companies/src/tools/analytics.rs:438-457`, `mcp-servers/hkask-mcp-companies/src/tools/valuation.rs:634-659,774-915`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:303-400` | ✅ VERIFIED 2026-07-10 |

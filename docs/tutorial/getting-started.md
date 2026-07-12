@@ -25,7 +25,7 @@ cd hKask
 cargo build --release
 ```
 
-The workspace contains 40 crates and 15 MCP servers. The initial build will take several minutes.
+The workspace contains 45 crates and 15 MCP servers. The initial build will take several minutes.
 
 Verify the binary:
 

@@ -129,6 +129,14 @@ impl ManifestExecutor {
         self
     }
 
+    /// Set the template base path for resolving template_ref values.
+    /// Useful for integration tests that need to point to a test fixture directory.
+    #[must_use]
+    pub fn with_template_base_path(mut self, path: PathBuf) -> Self {
+        self.template_base_path = path;
+        self
+    }
+
     /// Check whether dual-model inference is configured.
     pub fn has_dual_inference(&self) -> bool {
         self.inference_b.is_some()

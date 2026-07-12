@@ -790,6 +790,26 @@ fn has_admissible_qa_provenance(qa: &GeneratedQa) -> bool {
             .is_some_and(|chunk_ref| !chunk_ref.trim().is_empty())
 }
 
+/// Check that at least one evidence quote from the QA appears verbatim in the
+/// referenced chunk text. This enforces provenance: the QA's evidence must be
+/// an exact quote from the source chunk, not a paraphrase or fabrication.
+fn has_source_supported_evidence(
+    qa: &GeneratedQa,
+    chunks: &std::collections::HashMap<String, String>,
+) -> bool {
+    let Some(ref chunk_ref) = qa.chunk_ref else {
+        return false;
+    };
+    let Some(chunk_text) = chunks.get(chunk_ref) else {
+        return false;
+    };
+    !qa.evidence_quotes.is_empty()
+        && qa
+            .evidence_quotes
+            .iter()
+            .any(|quote| chunk_text.contains(quote.as_str()))
+}
+
 fn build_cross_reference_prompts(qualifying: &[&TaggedChunk], args: &BuildPromptsArgs) -> usize {
     use std::collections::HashMap;
 

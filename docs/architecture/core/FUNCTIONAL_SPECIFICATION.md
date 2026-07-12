@@ -1,7 +1,7 @@
 ---
 title: "hKask Functional Specification"
 audience: "hKask developers and architects"
-last_updated: 2026-07-04
+last_updated: 2026-07-12
 version: "0.31.0"
 status: "Active"
 domain: "architecture"
@@ -42,7 +42,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 13 | Inference Engine | `inference` | hkask-inference | 94 | System regulates LLM calls across provider boundaries | P9 + P4 (Homeostatic + Boundary) |
 | 14 | Template Engine | `templates` | hkask-templates | 53 | System renders skill templates into executable prompts | P3 (Generative Space) |
 | 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | System provides single-responsibility tool servers | P5 (Essentialism) |
-| 16 | Service Layer | `services` | the service layer subcrates | 305+ | System composes a single service layer shared by CLI and API (11 subcrates: core, chat, compose, context, corpus, curator, kata-kanban, onboarding, runtime, skill, wallet) | P5 + P7 (Essentialism + Evolution) |
+| 16 | Service Layer | `services` | the service layer subcrates | 305+ | System composes a single service layer shared by CLI and API (10 subcrates: core, chat, compose, context, corpus, kata-kanban, onboarding, runtime, skill, wallet) | P5 + P7 (Essentialism + Evolution) |
 | 17 | Agent Runtime | `agents` | hkask-agents | 159 | User's agents operate within sovereignty boundaries | P1 (User Sovereignty) |
 | 18 | Communication | `comm` | hkask-communication | 25 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
 | 19 | Keystore | `keystore` | hkask-keystore | 5 | User's keys are generated, stored, and rotated securely | P1 (User Sovereignty) |
@@ -77,7 +77,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 
 ## 1.5 Service Layer Architecture
 
-**Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 subcrates providing shared business logic for CLI and API surfaces.
+**Crates:** `hkask-services-core` through `hkask-services-wallet` — 10 subcrates providing shared business logic for CLI and API surfaces.
 
 **Canonical specification:** This Service Layer Architecture section — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
@@ -1117,7 +1117,7 @@ Memory provides the generative substrate for experience and knowledge: episodic 
 
 ### 3.7 Service Layer (`the service layer subcrates` subcrates)
 
-**65 expect:-annotated contracts** — P5 + P7 (Essentialism + Evolution) plus mixed P1/P2/P3/P4/P9 concerns. The service layer wraps many underlying domains with `expect:` annotations distributed across 11 subcrates.
+**65 expect:-annotated contracts** — P5 + P7 (Essentialism + Evolution) plus mixed P1/P2/P3/P4/P9 concerns. The service layer wraps many underlying domains with `expect:` annotations distributed across 10 subcrates.
 
 The crate uses `expect:` + `[P{N}]` annotations across its surface. This is the largest remaining annotation target.
 

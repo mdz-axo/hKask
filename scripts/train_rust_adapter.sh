@@ -427,6 +427,14 @@ def fmt_msgs(ex):
 print("Formatting with chat template...", flush=True)
 train_ds = train_ds.map(fmt_msgs, remove_columns=train_ds.column_names, num_proc=4)
 
+# Pre-tokenize to avoid SFTTrainer internal tokenization deadlock on large datasets
+print("Pre-tokenizing dataset (this avoids SFTTrainer tokenization deadlock)...", flush=True)
+def tokenize_fn(ex):
+    tokens = tokenizer(ex["text"], truncation=True, max_length=MAX_SEQ_LENGTH, padding=False)
+    return {"input_ids": tokens["input_ids"], "attention_mask": tokens["attention_mask"], "labels": tokens["input_ids"]}
+train_ds = train_ds.map(tokenize_fn, remove_columns=["text"], num_proc=4)
+print(f"Pre-tokenized {len(train_ds)} examples", flush=True)
+
 # ── Train ─────────────────────────────────────────────────────────────────
 
 # Custom trainer that re-samples the eval set before each evaluation.
@@ -437,15 +445,11 @@ class DynamicEvalSFTTrainer(_BaseSFTTrainer):
     """SFTTrainer that re-samples eval examples from the training set before each eval."""
 
     def _evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval"):
-        # Re-sample eval set from the full training set
+        # Re-sample eval set from the pre-tokenized training set
         n = len(self.train_dataset)
         k = max(1, int(n * EVAL_RATIO))
         indices = random.sample(range(n), k)
-        sampled = self.train_dataset.select(indices)
-        # Format with chat template if not already done
-        if "text" not in sampled.column_names:
-            sampled = sampled.map(fmt_msgs, remove_columns=sampled.column_names)
-        self.eval_dataset = sampled
+        self.eval_dataset = self.train_dataset.select(indices)
         print(f"  [dynamic eval] sampled {k} examples from {n} training examples", flush=True)
         return super()._evaluate(eval_dataset=self.eval_dataset, ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
 
@@ -454,7 +458,7 @@ trainer = DynamicEvalSFTTrainer(
     train_dataset=train_ds, eval_dataset=None,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=7)],
     args=SFTConfig(
-        max_seq_length=MAX_SEQ_LENGTH, dataset_text_field="text",
+        max_seq_length=MAX_SEQ_LENGTH,
         per_device_train_batch_size=PER_DEVICE_BATCH,
         gradient_accumulation_steps=GRAD_ACCUM,
         num_train_epochs=NUM_EPOCHS,
@@ -466,7 +470,7 @@ trainer = DynamicEvalSFTTrainer(
         save_total_limit=3, bf16=True, optim="adamw_8bit",
         weight_decay=WEIGHT_DECAY, max_grad_norm=MAX_GRAD_NORM,
         lr_scheduler_type="cosine", output_dir=OUTPUT_DIR,
-        report_to="none", dataset_num_proc=1,
+        report_to="none", dataset_num_proc=4,
     ),
 )
 print("\n=== STARTING TRAINING ===", flush=True)

@@ -30,8 +30,8 @@ Neutral, complete, descriptive-only documentation of the hKask system as it is. 
 | `hkask-guard` | [hkask-guard.md](api/hkask-guard.md) | Content safety: ContentGuard, GuardConfig, GuardResult |
 | `hkask-database` | [hkask-database.md](api/hkask-database.md) | Database abstraction: DatabaseDriver, SqliteDriver, PostgresDriver |
 | `hkask-storage` | [hkask-storage.md](api/hkask-storage.md) | Storage facade: HMemStore, NuEventStore, EmbeddingStore, sub-crates |
-| `hkask-cli` | [hkask-cli.md](api/hkask-cli.md) | CLI: 33 subcommands, flags, environment variables |
-| `hkask-api` | [hkask-api.md](api/hkask-api.md) | HTTP API: 26 route groups, request/response types |
+| `hkask-cli` | [hkask-cli.md](api/hkask-cli.md) | CLI: 37 subcommands, flags, environment variables |
+| `hkask-api` | [hkask-api.md](api/hkask-api.md) | HTTP API: 21 route groups, request/response types |
 | `hkask-keystore` | [hkask-keystore.md](api/hkask-keystore.md) | OS keychain + AES-256-GCM encryption |
 | `hkask-wallet` | [hkask-wallet.md](api/hkask-wallet.md) | Wallet: WalletManager, ChainPort, ApiKeyIssuer, PriceFeed |
 | `hkask-ledger` | [hkask-ledger.md](api/hkask-ledger.md) | Ledger: double-entry accounting, LedgerTransaction, Posting |
