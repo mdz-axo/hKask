@@ -284,7 +284,6 @@ AdapterRouter
   ├── HashMap<ProviderId, AdapterProviderBackend>
   │     ├── TogetherAdapterBackend  (real HTTP upload + inference)
   │     ├── RunpodAdapterBackend    (vLLM skeleton)
-  │     └── BasetenAdapterBackend   (skeleton)
   └── Mutex<HashMap<Uuid, EndpointRecord>>  (active endpoints)
 ```
 
@@ -358,7 +357,6 @@ Three cloud inference providers are supported, each with a `CostModel` and `Prov
 |----------|-------------|-------------------|------------|-------------|-------------|
 | **Together AI** | Real HTTP | $1.10/hr | ~3 min | 500 MB | llama-3.3-70b, llama-3.1-70b, qwen2.5-72b |
 | **Runpod** | vLLM skeleton | $0.79/hr | ~5 min | 500 MB | llama-3.3-70b, llama-3.1-70b, qwen2.5-72b, mixtral-8x7b |
-| **Baseten** | vLLM skeleton | $0.85/hr | ~4 min | 256 MB | llama-3.3-70b, qwen2.5-72b |
 
 ```rust
 pub struct CostModel {

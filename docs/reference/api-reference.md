@@ -52,7 +52,7 @@ ID types, nu-event, and visibility types for hKask.
 | `id` | Type-safe UUID identifier system: `Id<T>`, `IdKind`, `WebID`, and all concrete ID type aliases |
 | `identity` | Agent identity types |
 | `keychain_keys` | Keychain key storage |
-| `loops` | Loop identifier: `LoopId` |
+| `loops` | Loop type system: `LoopId`, `LoopAction`, `LoopActionParams`, `ActionType`, `ActionDecision`, `ImpactReport`, `LoopQuality`, `Signal`, `SignalMetric`, `Deviation`, `DeviationDirection`, `BudgetOption`, `RegulationData`, `TriggerOrigin`, `ExperienceClassification` (15 types) |
 | `macros` | Shared macros: `enum_str_ops!` |
 | `observable_span` | `ObservableSpan` trait for decoupled CNS observability |
 | `retry` | Retry policy types |
@@ -689,23 +689,27 @@ Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, Op
 | Module | Description |
 |--------|-------------|
 | `chat_protocol` | Chat protocol types. Re-exports: `FusionPlugin` |
+| `cline_backend` | Cline cloud inference backend (`CL/` prefix) — OpenAI-compatible gateway |
 | `config` | `InferenceConfig`, `ProviderConfig`, `ProviderId`, `FusionConfig`, `FusionMode`, `FusionSkill` |
 | `deepinfra_backend` | DeepInfra provider backend (`DI/` prefix) |
+| `dual_model_port` | Dual-model inference port — wraps an `InferencePort` with a fixed model override |
 | `embedding_router` | `EmbeddingRouter` |
 | `fal_backend` | fal.ai provider backend (`FA/` prefix) |
+| `fal_workflow` | Fal workflow execution engine — DAG parsing, topological sort, multi-node orchestration |
 | `fusion_orchestrator` | Multi-model fusion: `orchestrate()` |
 | `inference_router` | `InferenceRouter` |
 | `kilocode_backend` | KiloCode provider backend (`KC/` prefix) |
-| `runpod_backend` | RunPod serverless backend (`RP/` prefix) |
-| `baseten_backend` | Baseten serverless backend (`BT/` prefix) |
 | `model_constants` | Model name constants |
+| `ollama_backend` | Ollama local inference backend (`OM/` prefix) — no API key required |
+| `ollama_registry` | Ollama model/adapter registry — register hKask GGUFs and LoRA adapters as Ollama models |
 | `openai_backend` | OpenAI provider backend |
 | `openrouter_backend` | OpenRouter provider backend (`OR/` prefix) |
+| `runpod_backend` | RunPod serverless backend (`RP/` prefix) |
 | `together_backend` | Together AI provider backend (`TG/` prefix) |
 
 **Key Public Types:**
 
-`ProviderId` — Enum: `DeepInfra`, `Fal`, `Together`, `Runpod`, `Baseten`, `OpenRouter`, `KiloCode`. Methods: `parse_from_model()`, `prefix_model()`, `as_str()`.
+`ProviderId` — Enum: `DeepInfra`, `Fal`, `Together`, `Runpod`, `OpenRouter`, `KiloCode`, `Ollama`, `Cline`. Methods: `parse_from_model()`, `prefix_model()`, `as_str()`.
 
 `InferenceRouter` — Multi-provider inference router. Implements `InferencePort`. Routes requests based on model name prefix.
 
@@ -719,7 +723,7 @@ Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, Op
 
 **Public Functions:** `orchestrate(router, prompt, params, tools, fusion) -> Result<InferenceResult, InferenceError>`.
 
-**Model Naming Convention:** `DI/` (DeepInfra), `FA/` (fal.ai), `TG/` (Together AI), `OR/` (OpenRouter), `KC/` (KiloCode), `RP/` (RunPod serverless), `BT/` (Baseten serverless), no prefix = default provider.
+**Model Naming Convention:** `DI/` (DeepInfra), `FA/` (fal.ai), `TG/` (Together AI), `OR/` (OpenRouter), `KC/` (KiloCode), `RP/` (RunPod serverless), `OM/` (Ollama local), `CL/` (Cline), no prefix = default provider.
 
 **Re-exports at Crate Root:** `FusionPlugin`, `FusionConfig`, `FusionMode`, `FusionSkill`, `InferenceConfig`, `ProviderConfig`, `ProviderId`, `EmbeddingRouter`, `InferenceRouter`.
 
@@ -1764,7 +1768,7 @@ Three triggers keep `symbols_fts` synchronized with `symbols`:
 
 An agent uses the codegraph MCP server to understand the codebase, trace dependencies, assess change impact, and assemble context for LLM prompts. This sequence shows the three most common interaction patterns: search, impact analysis, and context assembly with feedback.
 
-All codegraph tools follow the same OCAP-gated MCP dispatch pattern established by `sequence-mcp-tool-dispatch.md`. This diagram focuses on the codegraph-specific logic after the security gateway.
+All codegraph tools follow the same OCAP-gated MCP dispatch pattern established by the [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence). This diagram focuses on the codegraph-specific logic after the security gateway.
 
 ```mermaid
 sequenceDiagram
