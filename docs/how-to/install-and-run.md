@@ -13,7 +13,7 @@ last-verified-against: "3d1a876f"
 
 **Goal:** Compile hKask from source, verify the installation, initialize a profile, and configure the environment.
 
-hKask is a Rust workspace of 40 foundation crates, 15 MCP servers, and ~864 tests. It compiles to a single `kask` binary.
+hKask is a Rust workspace of 45 crates, 15 MCP servers, and ~864 tests. It compiles to a single `kask` binary.
 
 ---
 
@@ -63,7 +63,7 @@ Build the release binary:
 cargo build --release
 ```
 
-Expected output: a single binary at `target/release/kask`. The full workspace build compiles ~40 foundation crates and 15 MCP servers.
+Expected output: a single binary at `target/release/kask`. The full workspace build compiles 45 crates and 15 MCP servers.
 
 For a faster development build (no optimizations):
 
@@ -242,7 +242,7 @@ RUSTFLAGS="-D unused_crate_dependencies" cargo +nightly check --workspace
 
 ### Disk space during build
 
-The full workspace builds ~193K LOC across 40+ crates. Ensure at least 10 GB free disk space in `target/`. Clean up with:
+The full workspace builds ~193K LOC across 45 crates. Ensure at least 10 GB free disk space in `target/`. Clean up with:
 
 ```bash
 cargo clean

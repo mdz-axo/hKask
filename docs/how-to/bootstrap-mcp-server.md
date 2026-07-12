@@ -210,7 +210,7 @@ pub async fn run(
 ) -> Result<(), McpError> {
     let db_path = std::env::var("EXAMPLE_DB").ok();
     run_server(
-        "hkask-mcp-example",
+        "example",
         env!("CARGO_PKG_VERSION"),
         |_ctx| {
             // Build the server inside the closure.

@@ -103,7 +103,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Indexing is incremental — SHA-256 content hash comparison skips unchanged files on re-index
   - [x] Index staleness is CNS-observable — drives algedonic alerts when the index is stale
   - [x] Context feedback loop tracks symbol usage ratio to improve future assembly (`codegraph_feedback`)
-- **Implementation:** `hkask-codegraph` (domain crate: types, graph store, indexer, search, traversal, analysis, context assembly), `hkask-mcp-codegraph` (MCP server: 10 tools)
+- **Implementation:** `hkask-codegraph` (domain crate: types, graph store, indexer, search, traversal, analysis, context assembly), `hkask-mcp-codegraph` (MCP server: 11 tools)
 - **Tests:** `component1_parser.rs`, `component3_pipeline.rs`, `component7_impact.rs` (22 tests total)
 - **Status:** Implemented (v0.31.0)
 - **Curation:** Merge — two-crate pattern matches `hkask-condenser`; no service layer needed

@@ -1,3 +1,13 @@
+---
+title: "Capabilities Researcher — Bloom QA Pipeline"
+audience: [developers, researchers]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "QA"
+mds_categories: [domain, curation]
+---
+
 # Capabilities Researcher — Bloom QA Pipeline
 
 **Version:** 4.0 | **Pipeline:** `corpus/pipeline-capabilities-researcher.yaml`

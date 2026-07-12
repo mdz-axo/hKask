@@ -1,3 +1,13 @@
+---
+title: "Fusion System Design Recommendations"
+audience: [developers, agents]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Core"
+mds_categories: [domain, composition]
+---
+
 # Fusion System Design Recommendations
 
 **Composed using:** pragmatic-laziness, essentialist, grill-me, coding-guidelines

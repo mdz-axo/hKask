@@ -547,11 +547,11 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 ##### CodeGraph — Native Code Understanding Subsystem
 
-**What it is:** A self-contained code understanding engine that builds a semantic graph from Rust source code, stores it in SQLite, and exposes 10 MCP tools for agents to query, traverse, analyze, and assemble context from the codebase.
+**What it is:** A self-contained code understanding engine that builds a semantic graph from Rust source code, stores it in SQLite, and exposes 11 MCP tools for agents to query, traverse, analyze, and assemble context from the codebase.
 
 **Two-crate pattern** (matching `hkask-condenser` + `hkask-mcp-condenser`):
 - `hkask-codegraph` — domain library: tree-sitter parser, indexer, graph engine (FTS5 search, recursive CTE traversal, PageRank), dead code analysis, context assembly
-- `hkask-mcp-codegraph` — thin MCP wrapper: 10 tools, OCAP-gated, capability tier enforcement, embedding router integration
+- `hkask-mcp-codegraph` — thin MCP wrapper: 11 tools, OCAP-gated, capability tier enforcement, embedding router integration
 
 **Key design invariants:**
 - **G1**: Per-file SHA-256 hash-on-read — incremental indexing skips unchanged files
@@ -561,14 +561,15 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **SQLite-native graph (no external DB):** 3 base tables (`code_files`, `symbols`, `edges`), 2 virtual tables (`symbols_fts` for FTS5 keyword search, `symbols_vec` for sqlite-vec semantic search), 9 indexes, 3 FTS5 sync triggers. All graph traversal is recursive CTE in SQL — no in-memory graph, no external graph database. WAL mode for concurrent readers during writes.
 
-**10 MCP tools:**
+**11 MCP tools:**
 
 | Tool | Query | CNS Span |
 |------|-------|----------|
 | `codegraph_query` | FTS5 BM25 search | — |
 | `codegraph_traverse` | Recursive CTE (forward/reverse, depth-bounded) | — |
 | `codegraph_impact` | Reverse traversal + risk classification (Critical/High/Medium/Low) | — |
-| `codegraph_analysis` | Dead code (zero inbound edges) or complexity hotspots (cyclomatic > 10) | — |
+| `codegraph_analysis` | Complexity hotspots (cyclomatic > 10) | — |
+| `codegraph_dead_code` | Dead code detection (zero inbound non-test edges, non-public, not in test modules) | — |
 | `codegraph_context` | FTS5 → PageRank sort → budget cap (512/2048/4096/8192 tokens) | — |
 | `codegraph_structure` | Top symbols by PageRank | — |
 | `codegraph_stats` | File/symbol/edge count + connectivity health | — |
@@ -578,13 +579,13 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **CNS integration:** Two spans for cybernetic observability — `cns.codegraph.index_staleness` (seconds since last full index, drives algedonic alerts when stale) and `cns.codegraph.context_efficiency` (signal-to-noise ratio, enables self-tuning context assembly).
 
-**OCAP governance:** All 10 tools are OCAP-gated through the standard MCP `CapabilityTier` mechanism. 7 tools call `ensure_indexed()` (lazy initialization) before executing; 3 tools (`stats`, `reindex`, `index_embeddings`) skip this guard.
+**OCAP governance:** All 11 tools are OCAP-gated through the standard MCP `CapabilityTier` mechanism. 8 tools call `ensure_indexed()` (lazy initialization) before executing; 3 tools (`stats`, `reindex`, `index_embeddings`) skip this guard.
 
 **Crates:** `hkask-codegraph`, `hkask-mcp-codegraph`
 
 **Current implementation diagrams:** [`class-codegraph-types.md`](../diagrams/class-codegraph-types.md), [`erd-codegraph-schema.md`](../diagrams/erd-codegraph-schema.md), [`flowchart-codegraph-pipeline.md`](../diagrams/flowchart-codegraph-pipeline.md), [`sequence-codegraph-agent.md`](../diagrams/sequence-codegraph-agent.md). The [`state-codegraph-pipeline.md`](../diagrams/state-codegraph-pipeline.md) document is a proposed lifecycle model, not current implementation behavior.
 
-**Plan:** Original plan absorbed into the [`hkask-codegraph`](../../crates/hkask-codegraph/) crate (Complete — 22 tests, 10 tools, CNS integration)
+**Plan:** Original plan absorbed into the [`hkask-codegraph`](../../crates/hkask-codegraph/) crate (Complete — 22 tests, 11 tools, CNS integration)
 
 **If removed:** Agents lose the ability to understand the codebase they operate on — all codebase context must be provided manually in prompts. Reduces agent autonomy from code-aware to text-only. P3 (Generative Space) partially degraded.
 
@@ -822,9 +823,9 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 | `essentialist` | 3-gate challenge loop |
 | `superforecasting` | Fermi decomposition, Bayesian updating |
 | `mcda` | Weighted scoring, sensitivity analysis |
-| `hypothesis-framer` | FINER criteria, PICO framework, hypothesis/aims formulation |
 | `tdd` | Red-Green-Refactor, contract-first |
-| `idiomatic-rust` | Type-driven design, ownership as architecture |
+
+**Note:** `hypothesis-framer` and `idiomatic-rust` are listed in the skill catalog but not yet implemented as `FusionSkill` variants. To add them, extend the `FusionSkill` enum in `hkask-types/src/fusion.rs` and add a methodology prompt in `fusion_orchestrator.rs::skill_prompt()`.
 
 ,#### Per-Manifest Fusion Configuration
 

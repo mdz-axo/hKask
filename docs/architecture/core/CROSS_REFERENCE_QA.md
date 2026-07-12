@@ -1,3 +1,13 @@
+---
+title: "Cross-Reference QA Generation — Design Note"
+audience: [developers, researchers]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "QA"
+mds_categories: [domain, curation]
+---
+
 # Cross-Reference QA Generation — Design Note
 
 **Added:** 2026-07-09 | **Flag:** `corpus-ingest build-prompts --cross-reference`  

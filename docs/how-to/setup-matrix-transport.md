@@ -46,45 +46,49 @@ matrix:
 
 ## 3. Register Your Agent
 
-Agents are registered in the `AgentRegistry` which maps agent IDs to Matrix rooms:
+Agents are registered on the Matrix homeserver via the CLI. The `register-agent` subcommand creates a Matrix account for the agent:
 
 ```bash
-kask matrix register --agent-id "my-agent" --display-name "My hKask Agent"
+kask matrix register-agent "my-agent" --homeserver "https://matrix.example.com"
 ```
 
-This creates a Matrix room for the agent and registers it in the local agent registry.
+This registers the agent on the specified homeserver. To create a human user account instead, use `kask matrix register-user`.
 
 ## 4. Verify Registration
 
 ```bash
-kask matrix status
+kask matrix status-sidecar
 ```
 
 Expected output shows:
-- Connection status: `Connected`
-- Homeserver: your configured URL
-- Registered agents: list of agent IDs
+- Docker container health (Conduit, Caddy)
+- API reachability
+- Database status
+
+For agent-to-agent message delivery, use the REPL slash commands within a `kask chat` session (see [Use the REPL](use-repl.md) for the `/matrix` and `/msg` commands).
 
 ## 5. Test A2A Message Delivery
 
-Send a test message between agents:
+A2A messaging is performed through the REPL, not the CLI. Start a chat session and use the `/msg` slash command:
 
 ```bash
-kask matrix send --to "other-agent" --message "Hello from hKask"
+kask chat
 ```
 
-Or from within a chat session:
+Inside the REPL:
 
 ```
-kask> /matrix send other-agent "Hello from hKask"
+/msg <room_id> "Hello from hKask"
 ```
+
+See [Use the REPL](use-repl.md) for the full `/matrix` and `/msg` slash command reference.
 
 ## 6. Monitor Message Flow
 
-Matrix transport events emit CNS spans:
+Matrix transport events emit CNS spans. Subscribe to the communication namespace:
 
 ```bash
-kask cns spans --namespace cns.communication --recent 10
+kask cns subscribe --agent curator --spans cns.communication
 ```
 
 ## Troubleshooting
@@ -93,7 +97,7 @@ kask cns spans --namespace cns.communication --recent 10
 |-------|-------------|-----|
 | `Connection refused` | Homeserver unreachable | Verify URL and network access |
 | `Authentication failed` | Invalid credentials | Check username/password |
-| `Room not found` | Agent not registered | Run `kask matrix register` |
+| `Room not found` | Agent not registered | Run `kask matrix register-agent` |
 | `Feature not enabled` | `matrix` feature disabled | Rebuild with `--features matrix` |
 
 ## Notes

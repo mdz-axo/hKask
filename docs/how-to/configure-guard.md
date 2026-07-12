@@ -156,7 +156,7 @@ In the REPL, type a prompt injection attempt. The guard should block it before t
 Guard violations emit CNS spans. Verify:
 
 ```bash
-kask cns query --target cns.guard
+kask cns subscribe --agent curator --spans cns.guard.input,cns.guard.output
 ```
 
 You should see:

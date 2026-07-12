@@ -1,3 +1,13 @@
+---
+title: "How to Train Rust Adapters on RunPod with Unsloth — How-To Guide"
+audience: [operators, developers, ml-engineers]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Training"
+mds_categories: [domain, lifecycle]
+---
+
 # How to Train Rust Adapters on RunPod with Unsloth
 
 ## Overview

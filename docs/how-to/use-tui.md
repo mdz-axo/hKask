@@ -18,7 +18,7 @@ last-verified-against: "3d1a876f"
 ## 1. Start the TUI
 
 ```bash
-kask tui
+kask chat --tui
 ```
 
 Or from within a chat session:

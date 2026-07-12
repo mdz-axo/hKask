@@ -356,11 +356,41 @@ def load_and_format(dataset_id, formatter, split="train", max_samples=0):
     return ds
 
 
-# ── Load datasets based on MODE ────────────────────────────────────────────
 
-# In 'both' mode, cap each dataset to 100K to avoid tokenization deadlock
-# on very large combined datasets (723K+ examples causes multiprocessing hang).
-MAX_PER_DATASET = 100000 if MODE == "both" else MAX_SAMPLES
+# Keep all data for training — eval is dynamically re-sampled from the
+# training set before each eval step (2.5%, non-contiguous, re-shuffled each time).
+# This prevents overfitting to a fixed eval set and keeps eval time reasonable.
+EVAL_RATIO = 0.025
+
+# ── Load model BEFORE datasets ─────────────────────────────────────────────
+# Model weights must be fully downloaded and cached before any dataset .map()
+# calls spawn multiprocessing workers. Otherwise the workers and the main
+# process compete for HuggingFace cache locks, causing a futex deadlock.
+
+print(f"\nLoading {MODEL_ID}...", flush=True)
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name=MODEL_ID, max_seq_length=MAX_SEQ_LENGTH,
+    load_in_4bit=False, load_in_16bit=True, full_finetuning=False,
+)
+print(f"GPU: {torch.cuda.memory_allocated()/1e9:.1f}GB", flush=True)
+
+model = FastLanguageModel.get_peft_model(
+    model, r=LORA_R, lora_alpha=LORA_ALPHA,
+    target_modules=TARGET_MODULES,
+    lora_dropout=LORA_DROPOUT, bias="none",
+    use_gradient_checkpointing="unsloth", random_state=SEED,
+    max_seq_length=MAX_SEQ_LENGTH,
+)
+tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
+tt = sum(p.numel() for p in model.parameters())
+print(f"Trainable: {tr/1e6:.1f}M / {tt/1e9:.2f}B ({100*tr/tt:.2f}%)", flush=True)
+
+# ── Load and format datasets ───────────────────────────────────────────────
+
+# In 'both' mode, use the full combined dataset. The deadlock was caused by
+# model download competing with dataset workers for HF cache locks, not by
+# dataset size. Loading the model first fixes it.
+MAX_PER_DATASET = MAX_SAMPLES
 
 datasets_list = []
 
@@ -396,32 +426,8 @@ else:
     for name, ds in datasets_list:
         print(f"  {name}: {len(ds)} examples", flush=True)
 
-# Keep all data for training — eval is dynamically re-sampled from the
-# training set before each eval step (2.5%, non-contiguous, re-shuffled each time).
-# This prevents overfitting to a fixed eval set and keeps eval time reasonable.
-EVAL_RATIO = 0.025
 eval_size = max(1, int(len(train_ds) * EVAL_RATIO))
 print(f"Train: {len(train_ds)} | Eval: {eval_size} dynamically re-sampled ({EVAL_RATIO*100:.1f}%)", flush=True)
-
-# ── Load model ─────────────────────────────────────────────────────────────
-
-print(f"\nLoading {MODEL_ID}...", flush=True)
-model, tokenizer = FastLanguageModel.from_pretrained(
-    model_name=MODEL_ID, max_seq_length=MAX_SEQ_LENGTH,
-    load_in_4bit=False, load_in_16bit=True, full_finetuning=False,
-)
-print(f"GPU: {torch.cuda.memory_allocated()/1e9:.1f}GB", flush=True)
-
-model = FastLanguageModel.get_peft_model(
-    model, r=LORA_R, lora_alpha=LORA_ALPHA,
-    target_modules=TARGET_MODULES,
-    lora_dropout=LORA_DROPOUT, bias="none",
-    use_gradient_checkpointing="unsloth", random_state=SEED,
-    max_seq_length=MAX_SEQ_LENGTH,
-)
-tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
-tt = sum(p.numel() for p in model.parameters())
-print(f"Trainable: {tr/1e6:.1f}M / {tt/1e9:.2f}B ({100*tr/tt:.2f}%)", flush=True)
 
 # ── Format with chat template ──────────────────────────────────────────────
 

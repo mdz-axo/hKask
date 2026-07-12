@@ -236,7 +236,12 @@ impl ManifestExecutor {
         })?;
 
         let prompt = self.load_template(template_ref, context)?;
-        let params = self.default_params.clone();
+        let mut params = self.default_params.clone();
+        // Dual-model rendering bypasses fusion — it has its own multi-model
+        // mechanism (two peer models). Routing through fusion would cause
+        // inconsistent behavior (model A via panel+judge, model B direct).
+        params.bypass_fusion = true;
+        params.fusion_config = None;
         const DEFAULT_TIMEOUT_SECS: u64 = 120;
         let timeout_dur = std::time::Duration::from_secs(DEFAULT_TIMEOUT_SECS);
 

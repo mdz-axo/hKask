@@ -1,3 +1,13 @@
+---
+title: "Template Authorship Policy"
+audience: [developers, agents]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Core"
+mds_categories: [domain, composition]
+---
+
 # Template Authorship Policy
 
 **hKask v0.31.0 — How to decide whether a template is skill-bound or infrastructure.**
@@ -104,7 +114,7 @@ the infrastructure for calibration.
 kask run <skill-name> --cns-spans
 
 # 2. Extract the actual gas and rjoule consumption from CNS spans
-kask cns query --span-namespace cns.prompt.<skill-name> --fields gas_consumed,rjoule_consumed
+kask cns alerts
 
 # 3. Compare against the manifest's declared budget
 #    If actual > declared: the manifest budget is too low (will cause aborts)

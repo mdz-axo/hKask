@@ -1,3 +1,13 @@
+---
+title: "Diataxis Quality Review — Dual Classification + Guard"
+audience: [developers, agents]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Core"
+mds_categories: [domain, composition]
+---
+
 # Diataxis Quality Review — Dual Classification + Guard
 
 Evaluated against diataxis quality gates and the hKask `diataxis-diagram` skill registry.

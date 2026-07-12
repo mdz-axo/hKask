@@ -55,7 +55,7 @@ impl std::str::FromStr for FusionMode {
             "critique" => Ok(FusionMode::Critique),
             "deliberation" => Ok(FusionMode::Deliberation),
             "pi" => Ok(FusionMode::PlanImplement),
-            _ => Ok(FusionMode::Synthesis),
+            _ => Err(()),
         }
     }
 }
@@ -140,13 +140,13 @@ fn default_max_rounds() -> u32 {
 impl FusionConfig {
     /// Return the kask default fusion configuration.
     ///
-    /// Reads judge model from `HKASK_FUSION_JUDGE` (default: `"deepseek-v4-pro"`)
-    /// and panel models from `HKASK_FUSION_PANEL` (comma-separated,
+    /// Reads judge model from `HKASK_FUSION_JUDGE_MODEL` (default: `"deepseek-v4-pro"`)
+    /// and panel models from `HKASK_FUSION_PANEL_MODELS` (comma-separated,
     /// default: `"Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3"`).
     pub fn kask_default() -> Self {
-        let judge =
-            std::env::var("HKASK_FUSION_JUDGE").unwrap_or_else(|_| "deepseek-v4-pro".to_string());
-        let panel = std::env::var("HKASK_FUSION_PANEL")
+        let judge = std::env::var("HKASK_FUSION_JUDGE_MODEL")
+            .unwrap_or_else(|_| "deepseek-v4-pro".to_string());
+        let panel = std::env::var("HKASK_FUSION_PANEL_MODELS")
             .unwrap_or_else(|_| "Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3".to_string())
             .split(',')
             .map(|s| s.trim().to_string())
@@ -166,6 +166,24 @@ impl FusionConfig {
     pub fn model_id(&self) -> String {
         self.judge.clone()
     }
+
+    /// Human-readable description of the fusion setup.
+    #[must_use]
+    pub fn description(&self) -> String {
+        let skills_str = if self.skills.is_empty() {
+            String::new()
+        } else {
+            let names: Vec<&str> = self.skills.iter().map(FusionSkill::as_str).collect();
+            format!(" [{}]", names.join(", "))
+        };
+        format!(
+            "{} panel models judged by {} (mode: {}){}",
+            self.panel.len(),
+            self.judge,
+            self.mode.as_str(),
+            skills_str
+        )
+    }
 }
 
 impl FusionSkill {
@@ -183,25 +201,5 @@ impl FusionSkill {
             FusionSkill::MCDA => "mcda",
             FusionSkill::TestDrivenDevelopment => "tdd",
         }
-    }
-}
-
-impl FusionConfig {
-    /// Human-readable description of the fusion setup.
-    #[must_use]
-    pub fn description(&self) -> String {
-        let skills_str = if self.skills.is_empty() {
-            String::new()
-        } else {
-            let names: Vec<&str> = self.skills.iter().map(FusionSkill::as_str).collect();
-            format!(" [{}]", names.join(", "))
-        };
-        format!(
-            "{} panel models judged by {} (mode: {}){}",
-            self.panel.len(),
-            self.judge,
-            self.mode.as_str(),
-            skills_str
-        )
     }
 }

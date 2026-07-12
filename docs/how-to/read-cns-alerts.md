@@ -193,16 +193,16 @@ Query CNS spans by namespace to focus on specific subsystems:
 
 ```bash
 # Sovereignty-related spans (P1–P2 enforcement)
-kask cns query --target cns.sovereignty
+kask cns subscribe --agent curator --spans cns.sovereignty
 
 # Tool invocation spans (P4 OCAP enforcement)
-kask cns query --target cns.tool
+kask cns subscribe --agent curator --spans cns.tool
 
 # MCP startup gate spans
-kask cns query --target cns.mcp
+kask cns subscribe --agent curator --spans cns.mcp
 
 # Federation spans
-kask cns query --target cns.federation
+kask cns subscribe --agent curator --spans cns.federation
 ```
 
 ### Live Event Subscription
@@ -256,7 +256,7 @@ For the full span catalog, see `docs/reference/cns-spans.md` (100+ entries acros
 
 2. **Check variety counters** — `kask cns variety` to see which namespace is deficient
 
-3. **Query recent spans** — `kask cns query --target <namespace>` to see what events led to the alert
+3. **Check recent alerts** — `kask cns alerts` to see active alerts, or `kask cns subscribe --agent curator --spans <namespace>` to monitor a specific namespace
 
 4. **Check the energy budget** — `kask cns health` shows gas status; depletion can cascade into tool failures
 

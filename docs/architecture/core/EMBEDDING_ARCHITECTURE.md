@@ -1,3 +1,13 @@
+---
+title: "Embedding Architecture — QA Pipeline"
+audience: [developers, researchers]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "QA"
+mds_categories: [domain, curation]
+---
+
 # Embedding Architecture — QA Pipeline
 
 **Date:** 2026-07-10 | **Model:** Qwen3-Embedding-0.6B (1024-dim)

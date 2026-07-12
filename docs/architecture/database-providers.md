@@ -1,3 +1,13 @@
+---
+title: "Database Provider Selection"
+audience: [developers, operators]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Infrastructure"
+mds_categories: [domain, trust]
+---
+
 # Database Provider Selection
 
 Select your database via HKASK_DB_PROVIDER env var.

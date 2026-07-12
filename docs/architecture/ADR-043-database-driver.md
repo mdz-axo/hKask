@@ -1,3 +1,13 @@
+---
+title: "ADR-043: Database Driver Abstraction"
+audience: [developers, architects]
+last_updated: 2026-07-12
+version: "0.31.0"
+status: "Active"
+domain: "Infrastructure"
+mds_categories: [domain, composition, trust]
+---
+
 # ADR-043: Database Driver Abstraction
 
 Status: Accepted | Date: 2026-07-31 | Version: 0.31.0 | Updated: 2026-08-01
