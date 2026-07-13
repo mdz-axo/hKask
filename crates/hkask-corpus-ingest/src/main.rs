@@ -21,6 +21,7 @@ use hkask_memory::salience::{self, EntityTags};
 use hkask_storage::HMem;
 use hkask_types::Visibility;
 use hkask_types::visibility::Dimension;
+use hkask_types::corpus::TaggedChunk;
 use serde::{Deserialize, Serialize};
 
 /// Qwen3-Embedding-0.6B output dimension.
@@ -62,47 +63,6 @@ struct Chunk {
 }
 
 /// Chunk enriched with investment entity tags and graph salience.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct TaggedChunk {
-    entity_ref: String,
-    source: String,
-    text: String,
-    #[serde(default)]
-    concepts: Vec<String>,
-    #[serde(default)]
-    methods: Vec<String>,
-    #[serde(default)]
-    authors: Vec<String>,
-    #[serde(default)]
-    salience: f32,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    consolidated_from: Vec<String>,
-    /// 5W1H interrogatory dimensions (from ontology tagging).
-    #[serde(default)]
-    dimensions: Vec<String>,
-    /// Dublin Core type (e.g., "bibo:Book").
-    #[serde(default)]
-    dc_type: String,
-    /// Dublin Core subject keywords.
-    #[serde(default)]
-    dc_subject: Vec<String>,
-    /// PKO process concepts.
-    #[serde(default)]
-    pko_concepts: Vec<String>,
-    /// FIBO financial concepts.
-    #[serde(default)]
-    fibo_concepts: Vec<String>,
-    /// GOLEM narrative concepts.
-    #[serde(default)]
-    golem_concepts: Vec<String>,
-    /// Other analytical concepts.
-    #[serde(default)]
-    other_concepts: Vec<String>,
-    /// Expertise level: "practitioner", "analyst", or "researcher".
-    #[serde(default)]
-    expertise_level: String,
-}
-
 #[derive(Parser)]
 #[command(name = "corpus-ingest")]
 struct Cli {
@@ -728,22 +688,27 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
             let dc_type = if tc.dc_type.is_empty() { "bibo:Document" } else { tc.dc_type.as_str() };
             let dc_subject = if tc.dc_subject.is_empty() { &tc.concepts } else { &tc.dc_subject };
 
+            // Format ontology_tags as readable string: "fibo: ROIC, DCF | golem: metaphor | pko: analysis"
+            let tags_str: String = tc.ontology_tags
+                .iter()
+                .map(|(ns, concepts)| format!("{}: {}", ns, concepts.join(", ")))
+                .collect::<Vec<_>>()
+                .join(" | ");
+
             let ontology_text = if tc.consolidated_from.is_empty() {
                 format!(
-                    "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:producedBy=corpus QA generation pipeline\nDomain concepts: FIBO={}, GOLEM={}, PKO={}, other={}",
+                    "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:producedBy=corpus QA generation pipeline\nOntology tags: {}",
                     dimensions_str, qt.as_str(), expertise,
                     tc.source, dc_type, dc_subject.join(", "),
-                    tc.fibo_concepts.join(", "), tc.golem_concepts.join(", "),
-                    tc.pko_concepts.join(", "), tc.other_concepts.join(", ")
+                    if tags_str.is_empty() { "(none)" } else { &tags_str }
                 )
             } else {
                 format!(
-                    "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:wasExtractedFrom={} original passages (consolidation preserved all unique information), pko:producedBy=corpus QA generation pipeline\nDomain concepts: FIBO={}, GOLEM={}, PKO={}, other={}",
+                    "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:wasExtractedFrom={} original passages (consolidation preserved all unique information), pko:producedBy=corpus QA generation pipeline\nOntology tags: {}",
                     dimensions_str, qt.as_str(), expertise,
                     tc.source, dc_type, dc_subject.join(", "),
                     tc.consolidated_from.len(),
-                    tc.fibo_concepts.join(", "), tc.golem_concepts.join(", "),
-                    tc.pko_concepts.join(", "), tc.other_concepts.join(", ")
+                    if tags_str.is_empty() { "(none)" } else { &tags_str }
                 )
             };
 

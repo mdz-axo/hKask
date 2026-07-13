@@ -95,7 +95,7 @@ elif mode == 'rust-eval':
 else:
     pod_name = 'qwen36-unsloth'
 payload = {
-    'query': 'mutation DeployPod($input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: $input) { id, name, costPerHr } }',
+    'query': 'mutation DeployPod(\$input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: \$input) { id, name, costPerHr } }',
     'variables': {
         'input': {
             'cloudType': os.environ['CLOUD_TYPE'],
@@ -181,7 +181,7 @@ fi
 # ── Instructions ─────────────────────────────────────────────────────────
 TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/bfedff55f47bcf0286ff49584635e25912147c97/train_unsloth.sh"
 EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/a64ac5b58963d828a4d6591d816ee54fc9a221a7/eval_unsloth.sh"
-RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/492e1f01bbe9fc91f4c1ff6bc8ad3a2e7cedaec6/train_rust_adapter.sh"
+RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/9a3c2f3fa4f720c6ce6e5380ba7d8aeb1b1d8afe/train_rust_adapter.sh"
 RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/eae9bcdd2605a0b80e81af728d89278b0c368ce9/eval_rust_adapter.sh"
 
 if [ "$MODE" = "eval" ]; then

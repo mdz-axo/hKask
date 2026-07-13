@@ -9,10 +9,15 @@
 #   MODE=coding   → Strandset-Rust-v1 (191K examples, 15 task categories)
 #   MODE=analysis → introspector/rust-analyser (533K semantic analysis traces)
 #   MODE=both     → Combined dataset (coding + analysis)
+#   MODE=reasoning → OpenThoughts-114k (reasoning traces)
+#   MODE=all      → All three combined (coding + analysis + reasoning)
 # Default: coding
 # ============================================================================
 set -euo pipefail
 exec > /workspace/training.log 2>&1
+
+# Crash handler: copy logs to persistent volume on error
+trap 'cp /workspace/training.log /kask-models/crash_$(date +%s).log 2>/dev/null || true' ERR TERM
 
 MODE="${MODE:-coding}"
 
@@ -31,8 +36,8 @@ echo "============================================"
 
 export DEBIAN_FRONTEND=noninteractive
 export PATH="$HOME/.local/bin:$PATH"
-export HF_HOME=/workspace/.cache/huggingface
-export PIP_CACHE_DIR=/workspace/.cache/pip
+export HF_HOME=/kask-models/.cache/huggingface
+export PIP_CACHE_DIR=/kask-models/.cache/pip
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export HF_DEACTIVATE_ASYNC_LOAD=1
 export HF_XET_HIGH_PERFORMANCE=1

@@ -9,6 +9,7 @@ use crate::tools::semantic::{GUARD, configured_qa_model};
 use crate::*;
 use hkask_storage::HMem;
 use hkask_types::Visibility;
+use hkask_types::corpus::TaggedChunk;
 use serde::Serialize;
 
 /// Minimal chunk for tagging (from chunks.jsonl).
@@ -23,9 +24,10 @@ struct InputChunk {
 }
 
 /// Ontology tags extracted by the LLM from a passage.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 struct OntologyTags {
     /// 5W1H interrogatory dimensions (at least one required).
+    #[serde(default)]
     dimensions: Vec<String>,
     /// Dublin Core BIBO type (e.g., "bibo:Book").
     #[serde(default)]
@@ -33,51 +35,12 @@ struct OntologyTags {
     /// Dublin Core subject keywords.
     #[serde(default)]
     dc_subject: Vec<String>,
-    /// PKO process concepts.
+    /// Flexible ontology tags keyed by namespace (e.g., "fibo", "golem", "omc", "pko", "other").
     #[serde(default)]
-    pko_concepts: Vec<String>,
-    /// FIBO financial concepts (empty if not financial).
-    #[serde(default)]
-    fibo_concepts: Vec<String>,
-    /// GOLEM narrative/literary concepts (empty if not narrative).
-    #[serde(default)]
-    golem_concepts: Vec<String>,
-    /// General analytical/research concepts not fitting FIBO or GOLEM.
-    #[serde(default)]
-    other_concepts: Vec<String>,
+    ontology_tags: std::collections::HashMap<String, Vec<String>>,
     /// Expertise level: "practitioner", "analyst", or "researcher".
     #[serde(default)]
     expertise_level: String,
-}
-
-/// Tagged chunk output (sidecar metadata alongside original chunk data).
-#[derive(Debug, Clone, Serialize)]
-struct TaggedChunkOutput {
-    entity_ref: String,
-    source: String,
-    text: String,
-    word_count: usize,
-    /// 5W1H interrogatory dimensions.
-    dimensions: Vec<String>,
-    /// Dublin Core type.
-    dc_type: String,
-    /// Dublin Core subject keywords.
-    dc_subject: Vec<String>,
-    /// All concepts unioned across PKO, FIBO, GOLEM, and other.
-    concepts: Vec<String>,
-    /// PKO process concepts.
-    pko_concepts: Vec<String>,
-    /// FIBO financial concepts.
-    fibo_concepts: Vec<String>,
-    /// GOLEM narrative concepts.
-    golem_concepts: Vec<String>,
-    /// Other analytical concepts.
-    other_concepts: Vec<String>,
-    /// Expertise level.
-    expertise_level: String,
-    /// Graph-centrality salience score (computed after all chunks tagged).
-    #[serde(skip_serializing)]
-    salience: f32,
 }
 
 fn read_input_chunks(path: &str) -> Result<Vec<InputChunk>, McpToolError> {
@@ -101,7 +64,7 @@ fn read_input_chunks(path: &str) -> Result<Vec<InputChunk>, McpToolError> {
 /// salience = connectivity × (0.5 + 0.5 × diversity)
 /// where connectivity = neighbor_count / (n-1) and diversity = concept_count / 10.
 /// Dimensions (5W1H) contribute to connectivity but not diversity.
-fn compute_salience(tagged: &[TaggedChunkOutput]) -> Vec<f32> {
+fn compute_salience(tagged: &[TaggedChunk]) -> Vec<f32> {
     let n = tagged.len();
     if n == 0 {
         return Vec::new();
@@ -211,7 +174,6 @@ impl DocProcServer {
                 let text = chunk.text.clone();
                 let source = chunk.source.clone();
                 let chunk_id = chunk.entity_ref.clone();
-
                 let handle = tokio::spawn(async move {
                     let _permit = sem.acquire().await;
 
@@ -244,63 +206,78 @@ impl DocProcServer {
                         ..Default::default()
                     };
 
-                    match router
-                        .generate_with_model(&prompt, &params, model_override.as_deref(), None)
-                        .await
-                    {
-                        Ok(response) => {
-                            let output_scan = GUARD.scan_output(&response.text);
-                            let content = output_scan.output.content(&response.text);
-                            let cleaned = strip_json_fences(content);
-
-                            match serde_json::from_str::<OntologyTags>(&cleaned) {
-                                Ok(tags) => {
-                                    if tags.dimensions.is_empty() {
-                                        // Ensure at least one 5W1H dimension
-                                        let mut fixed = tags;
-                                        fixed.dimensions = vec!["what".to_string()];
-                                        let mut results = results.lock().unwrap();
-                                        results[i] = Some(fixed);
-                                    } else {
-                                        let mut results = results.lock().unwrap();
-                                        results[i] = Some(tags);
+                    // H2: Retry with exponential backoff (3 attempts)
+                    let mut _last_error = String::new();
+                    let response: Option<_> = {
+                        let mut attempts = 0u32;
+                        loop {
+                            match router
+                                .generate_with_model(&prompt, &params, model_override.as_deref(), None)
+                                .await
+                            {
+                                Ok(resp) => break Some(resp),
+                                Err(e) => {
+                                    attempts += 1;
+                                    _last_error = format!("{}", e);
+                                    if attempts >= 3 {
+                                        break None;
                                     }
-                                    completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                                }
-                                Err(_) => {
-                                    // Fallback: minimal tags
-                                    let fallback = OntologyTags {
-                                        dimensions: vec!["what".to_string()],
-                                        dc_type: "bibo:Document".to_string(),
-                                        dc_subject: Vec::new(),
-                                        pko_concepts: Vec::new(),
-                                        fibo_concepts: Vec::new(),
-                                        golem_concepts: Vec::new(),
-                                        other_concepts: Vec::new(),
-                                        expertise_level: "analyst".to_string(),
-                                    };
-                                    let mut results = results.lock().unwrap();
-                                    results[i] = Some(fallback);
-                                    failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                    let backoff = std::time::Duration::from_secs(
+                                        2u64.pow(attempts) * 5
+                                    );
+                                    tokio::time::sleep(backoff).await;
                                 }
                             }
                         }
-                        Err(_) => {
-                            let fallback = OntologyTags {
-                                dimensions: vec!["what".to_string()],
-                                dc_type: "bibo:Document".to_string(),
-                                dc_subject: Vec::new(),
-                                pko_concepts: Vec::new(),
-                                fibo_concepts: Vec::new(),
-                                golem_concepts: Vec::new(),
-                                other_concepts: Vec::new(),
-                                expertise_level: "analyst".to_string(),
-                            };
-                            let mut results = results.lock().unwrap();
-                            results[i] = Some(fallback);
-                            failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        }
+                    };
+
+                    let parse_result = if let Some(response) = response {
+                        // Got a response — parse it
+                        let output_scan = GUARD.scan_output(&response.text);
+                        let content = output_scan.output.content(&response.text);
+                        let cleaned = strip_json_fences(content);
+                        serde_json::from_str::<OntologyTags>(&cleaned)
+                            .map(|mut tags| {
+                                // Validate dimensions against 5W1H allowlist
+                                let valid_dims: Vec<String> = tags.dimensions.iter()
+                                    .filter(|d| matches!(d.as_str(), "who"|"what"|"when"|"where"|"why"|"how"))
+                                    .cloned()
+                                    .collect();
+                                tags.dimensions = if valid_dims.is_empty() {
+                                    vec!["what".to_string()]
+                                } else {
+                                    valid_dims
+                                };
+                                // Validate expertise_level
+                                if !matches!(tags.expertise_level.as_str(), "practitioner"|"analyst"|"researcher") {
+                                    tags.expertise_level = "analyst".to_string();
+                                }
+                                tags
+                            })
+                            .ok()
+                    } else {
+                        None
+                    };
+
+                    if let Some(tags) = parse_result {
+                        let mut results = results.lock().unwrap();
+                        results[i] = Some(tags);
+                        completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    } else {
+                        // Fallback: minimal tags after retries exhausted
+                        let fallback = OntologyTags {
+                            dimensions: vec!["what".to_string()],
+                            dc_type: "bibo:Document".to_string(),
+                            dc_subject: Vec::new(),
+                            ontology_tags: std::collections::HashMap::new(),
+                            expertise_level: "analyst".to_string(),
+                        };
+                        let mut results = results.lock().unwrap();
+                        results[i] = Some(fallback);
+                        failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     }
+
+
                 });
                 handles.push(handle);
             }
@@ -316,7 +293,7 @@ impl DocProcServer {
 
             // Build tagged chunk outputs with salience
             let tags_guard = results.lock().unwrap();
-            let mut tagged: Vec<TaggedChunkOutput> = chunks
+            let mut tagged: Vec<TaggedChunk> = chunks
                 .iter()
                 .enumerate()
                 .map(|(i, chunk)| {
@@ -324,25 +301,22 @@ impl DocProcServer {
                         dimensions: vec!["what".to_string()],
                         dc_type: "bibo:Document".to_string(),
                         dc_subject: Vec::new(),
-                        pko_concepts: Vec::new(),
-                        fibo_concepts: Vec::new(),
-                        golem_concepts: Vec::new(),
-                        other_concepts: Vec::new(),
+                        ontology_tags: std::collections::HashMap::new(),
                         expertise_level: "analyst".to_string(),
                     });
 
-                    // Union all concept lists (HashSet for true dedup, not just consecutive)
+                    // Union all ontology_tags values (HashSet for true dedup)
                     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
                     let mut concepts: Vec<String> = Vec::new();
-                    for list in [&tags.pko_concepts, &tags.fibo_concepts, &tags.golem_concepts, &tags.other_concepts] {
-                        for c in list {
+                    for (_ns, concept_list) in &tags.ontology_tags {
+                        for c in concept_list {
                             if seen.insert(c.clone()) {
                                 concepts.push(c.clone());
                             }
                         }
                     }
 
-                    TaggedChunkOutput {
+                    TaggedChunk {
                         entity_ref: chunk.entity_ref.clone(),
                         source: chunk.source.clone(),
                         text: chunk.text.clone(),
@@ -350,13 +324,12 @@ impl DocProcServer {
                         dimensions: tags.dimensions,
                         dc_type: tags.dc_type,
                         dc_subject: tags.dc_subject,
+                        ontology_tags: tags.ontology_tags,
                         concepts,
-                        pko_concepts: tags.pko_concepts,
-                        fibo_concepts: tags.fibo_concepts,
-                        golem_concepts: tags.golem_concepts,
-                        other_concepts: tags.other_concepts,
                         expertise_level: tags.expertise_level,
                         salience: 0.0,
+                        consolidated_from: Vec::new(),
+                        ontology: None,
                     }
                 })
                 .collect();
@@ -392,11 +365,8 @@ impl DocProcServer {
                     "dimensions": chunk.dimensions,
                     "dc_type": chunk.dc_type,
                     "dc_subject": chunk.dc_subject,
+                    "ontology_tags": chunk.ontology_tags,
                     "concepts": chunk.concepts,
-                    "pko_concepts": chunk.pko_concepts,
-                    "fibo_concepts": chunk.fibo_concepts,
-                    "golem_concepts": chunk.golem_concepts,
-                    "other_concepts": chunk.other_concepts,
                     "expertise_level": chunk.expertise_level,
                     "salience": chunk.salience,
                     "source": chunk.source,

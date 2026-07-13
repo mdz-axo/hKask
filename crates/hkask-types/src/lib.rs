@@ -5,6 +5,7 @@ pub mod agent;
 pub mod agent_paths;
 pub mod agent_registry;
 pub mod cns;
+pub mod corpus;
 pub mod crypto;
 pub mod curation;
 pub mod curator;

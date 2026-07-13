@@ -15,41 +15,7 @@ use crate::tools::semantic::{GUARD, configured_qa_model};
 use crate::*;
 use serde::Serialize;
 
-/// Tagged chunk as produced by the salience phase.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct TaggedChunk {
-    entity_ref: String,
-    source: String,
-    text: String,
-    #[serde(default)]
-    concepts: Vec<String>,
-    #[serde(default)]
-    methods: Vec<String>,
-    #[serde(default)]
-    authors: Vec<String>,
-    #[serde(default)]
-    salience: f32,
-    /// Provenance: original chunk refs consolidated into this chunk (pko:wasExtractedFrom).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    consolidated_from: Vec<String>,
-    /// Dublin Core metadata for consolidated chunks.
-    /// dcterms:type (bibo:Document), dcterms:subject, dcterms:source.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    ontology: Option<ChunkOntology>,
-}
-
-/// Dublin Core + PKO metadata attached to consolidated chunks.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct ChunkOntology {
-    /// Dublin Core type (always "bibo:Document" for consolidated chunks).
-    dc_type: String,
-    /// Dublin Core subject — the concepts as ontology terms.
-    dc_subject: Vec<String>,
-    /// Dublin Core source — the original source file.
-    dc_source: String,
-    /// PKO provenance — wasExtractedFrom the original chunk refs.
-    pko_extracted_from: Vec<String>,
-}
+use hkask_types::corpus::{TaggedChunk, ChunkOntology};
 
 fn read_tagged_chunks(path: &str) -> Result<Vec<TaggedChunk>, McpToolError> {
     let content = std::fs::read_to_string(path).map_err(|e| {
@@ -445,18 +411,7 @@ impl DocProcServer {
                         .collect::<std::collections::HashSet<String>>()
                         .into_iter()
                         .collect();
-                    let methods: Vec<String> = cluster
-                        .iter()
-                        .flat_map(|&idx| chunks[idx].methods.iter().cloned())
-                        .collect::<std::collections::HashSet<String>>()
-                        .into_iter()
-                        .collect();
-                    let authors: Vec<String> = cluster
-                        .iter()
-                        .flat_map(|&idx| chunks[idx].authors.iter().cloned())
-                        .collect::<std::collections::HashSet<String>>()
-                        .into_iter()
-                        .collect();
+
                     let salience = cluster
                         .iter()
                         .map(|&idx| chunks[idx].salience)
@@ -476,16 +431,79 @@ impl DocProcServer {
                         pko_extracted_from: consolidated_from.clone(),
                     };
 
+                    // Merge ontology tags from all cluster members
+                    let dimensions: Vec<String> = cluster
+                        .iter()
+                        .flat_map(|&idx| chunks[idx].dimensions.iter().cloned())
+                        .collect::<std::collections::HashSet<String>>()
+                        .into_iter()
+                        .collect();
+                    let dc_type = chunks[cluster[0]].dc_type.clone();
+                    let dc_subject: Vec<String> = cluster
+                        .iter()
+                        .flat_map(|&idx| chunks[idx].dc_subject.iter().cloned())
+                        .collect::<std::collections::HashSet<String>>()
+                        .into_iter()
+                        .collect();
+                    // Merge ontology_tags: union all concept lists per namespace
+                    let mut merged_tags: std::collections::HashMap<String, std::collections::HashSet<String>> =
+                        std::collections::HashMap::new();
+                    for &idx in cluster {
+                        for (ns, concepts) in &chunks[idx].ontology_tags {
+                            merged_tags
+                                .entry(ns.clone())
+                                .or_default()
+                                .extend(concepts.iter().cloned());
+                        }
+                    }
+                    let ontology_tags: std::collections::HashMap<String, Vec<String>> = merged_tags
+                        .into_iter()
+                        .map(|(ns, set)| (ns, set.into_iter().collect()))
+                        .collect();
+                    // Rebuild concepts cache from merged ontology_tags
+                    let concepts: Vec<String> = {
+                        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+                        let mut v = Vec::new();
+                        for concepts_list in ontology_tags.values() {
+                            for c in concepts_list {
+                                if seen.insert(c.clone()) {
+                                    v.push(c.clone());
+                                }
+                            }
+                        }
+                        v
+                    };
+                    // Take highest expertise level (researcher > analyst > practitioner)
+                    let expertise_level = cluster
+                        .iter()
+                        .map(|&idx| match chunks[idx].expertise_level.as_str() {
+                            "researcher" => 3,
+                            "analyst" => 2,
+                            "practitioner" => 1,
+                            _ => 0,
+                        })
+                        .max()
+                        .map(|level| match level {
+                            3 => "researcher",
+                            2 => "analyst",
+                            _ => "practitioner",
+                        })
+                        .unwrap_or("analyst")
+                        .to_string();
+
                     consolidated.push(TaggedChunk {
                         entity_ref,
                         source: source.clone(),
                         text,
                         concepts,
-                        methods,
-                        authors,
                         salience,
                         consolidated_from,
                         ontology: Some(ontology),
+                        dimensions,
+                        dc_type,
+                        dc_subject,
+                        expertise_level,
+                        ..Default::default()
                     });
                 }
             }

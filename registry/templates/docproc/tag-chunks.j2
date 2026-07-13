@@ -31,11 +31,19 @@ Classify which interrogatory pronouns this passage answers. A passage can answer
 Extract any procedural/process concepts:
 - **pko_concepts**: List of process-related concepts (e.g., "procedure", "method", "analysis", "evaluation", "decision process", "feedback loop")
 
-### 4. Domain-Specific Concepts
-Based on the passage content, extract domain concepts from the relevant ontology:
-- **fibo_concepts**: Financial Industry Business Ontology terms (competitive advantage, return on capital, discounted cash flow, cost of capital, economic profit, barrier to entry, margin of safety, etc.) — only if the passage discusses financial/investment topics
-- **golem_concepts**: Narrative/literary concepts (metaphor, analogy, narrative structure, character development, storytelling, rhetoric, etc.) — only if the passage uses narrative or literary devices
-- **other_concepts**: General analytical/research concepts not fitting FIBO or GOLEM (systems thinking, cognitive bias, innovation, complexity, emergence, feedback, adaptation, etc.)
+### 4. Domain-Specific Ontology Tags (flexible)
+Extract domain concepts from whichever ontologies are relevant to this passage.
+Use the ontology namespace as the key and the specific concepts as values.
+Only include ontologies that have relevant concepts in this passage.
+
+Available ontologies (use the key shown):
+- **"fibo"**: Financial Industry Business Ontology — competitive advantage, return on capital, discounted cash flow, cost of capital, economic profit, barrier to entry, margin of safety, etc. (financial/investment topics)
+- **"golem"**: Narrative/literary concepts — metaphor, analogy, narrative structure, character development, storytelling, rhetoric, etc. (narrative/literary devices)
+- **"omc"**: MovieLabs Ontology for Media Creation — creative work, scene, participant, sequence, shot, set, task, version, etc. (media/design/creative processes)
+- **"pko"**: Procedural Knowledge Ontology — procedure, step, action, function, analysis, evaluation, feedback loop, etc. (process/method concepts)
+- **"other"**: General analytical/research concepts — systems thinking, cognitive bias, innovation, complexity, emergence, feedback, adaptation, etc. (concepts not fitting the above)
+
+You may also add other ontology namespaces if the passage clearly relates to a domain not listed above.
 
 ### 5. Expertise Level
 What level of expertise does this passage support questions at?
@@ -60,16 +68,17 @@ Schema:
   "dimensions": ["what", "why"],
   "dc_type": "bibo:Book",
   "dc_subject": ["competitive advantage", "return on capital"],
-  "pko_concepts": ["analysis", "evaluation"],
-  "fibo_concepts": ["competitive advantage", "ROIC"],
-  "golem_concepts": [],
-  "other_concepts": ["systems thinking"],
+  "ontology_tags": {
+    "fibo": ["competitive advantage", "ROIC"],
+    "pko": ["analysis", "evaluation"],
+    "other": ["systems thinking"]
+  },
   "expertise_level": "analyst"
 }
 
 Rules:
 - "dimensions" must contain at least one 5W1H interrogatory
-- "fibo_concepts" and "golem_concepts" can be empty arrays if not applicable
+- "fibo_concepts", "golem_concepts", and "omc_concepts" can be empty arrays if not applicable
 - "other_concepts" captures analytical/research concepts that don't fit FIBO or GOLEM
 - "expertise_level" is one of: "practitioner", "analyst", "researcher"
 - All concept lists contain specific terms found in or implied by the passage
