@@ -288,8 +288,14 @@ impl InferenceConfig {
             ollama_api_key: om.api_key,
             cline_base_url,
             cline_api_key,
-            timeout_secs: 120,
-            pool_max_idle: 5,
+            timeout_secs: std::env::var("HKASK_HTTP_TIMEOUT_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(120),
+            pool_max_idle: std::env::var("HKASK_HTTP_POOL_MAX_IDLE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(256),
             default_model: std::env::var("HKASK_DEFAULT_MODEL")
                 .unwrap_or_else(|_| "KC/z-ai/glm-5.2".to_string()),
             fusion,

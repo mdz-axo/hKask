@@ -105,6 +105,7 @@ MAX_GRAD_NORM = 0.3
 WEIGHT_DECAY = 0.01
 MAX_SAMPLES = int(os.environ.get("MAX_SAMPLES", "0"))  # 0 = all
 MODE = os.environ.get("MODE", "coding")
+RESUME_FROM = os.environ.get("RESUME_FROM", "")  # checkpoint path to resume from
 # PiSSA: SVD-based LoRA initialization from principal singular values.
 # 30-50% faster convergence, 3-5% better accuracy vs vanilla LoRA. Zero cost (~2s init).
 # Must keep dropout=0 — random dropout would discard principal components.
@@ -386,6 +387,7 @@ print(f"\nLoading {MODEL_ID}...", flush=True)
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=MODEL_ID, max_seq_length=MAX_SEQ_LENGTH,
     load_in_4bit=False, load_in_16bit=True, full_finetuning=False,
+    attn_implementation="sdpa",
 )
 print(f"GPU: {torch.cuda.memory_allocated()/1e9:.1f}GB", flush=True)
 
@@ -506,7 +508,9 @@ trainer = SFTTrainer(
     ),
 )
 print("\n=== STARTING TRAINING ===", flush=True)
-trainer.train()
+if RESUME_FROM:
+    print(f"Resuming from {RESUME_FROM}", flush=True)
+trainer.train(resume_from_checkpoint=RESUME_FROM if RESUME_FROM else None)
 print("=== TRAINING COMPLETE ===", flush=True)
 print(f"Finished: {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}", flush=True)
 
