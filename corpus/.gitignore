@@ -10,5 +10,8 @@ memory/
 # Generated QA pairs — intermediate LLM output, ingested into train.jsonl
 qa_pairs/generated.jsonl
 
+# QA generation run log — runtime output from `kask qa generate`
+generate_qa.log
+
 # Python cache
 __pycache__/
