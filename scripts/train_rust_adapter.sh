@@ -17,7 +17,7 @@ set -euo pipefail
 exec > /workspace/training.log 2>&1
 
 # Crash handler: copy logs to persistent volume on error
-trap 'cp /workspace/training.log /kask-models/crash_$(date +%s).log 2>/dev/null || true' ERR TERM
+trap 'cp /workspace/training.log /workspace/crash_$(date +%s).log 2>/dev/null || true' ERR TERM
 
 MODE="${MODE:-coding}"
 
@@ -36,8 +36,8 @@ echo "============================================"
 
 export DEBIAN_FRONTEND=noninteractive
 export PATH="$HOME/.local/bin:$PATH"
-export HF_HOME=/kask-models/.cache/huggingface
-export PIP_CACHE_DIR=/kask-models/.cache/pip
+export HF_HOME=/workspace/.cache/huggingface
+export PIP_CACHE_DIR=/workspace/.cache/pip
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export HF_DEACTIVATE_ASYNC_LOAD=1
 export HF_XET_HIGH_PERFORMANCE=1
@@ -106,7 +106,9 @@ MODE = os.environ.get("MODE", "coding")
 # PiSSA: SVD-based LoRA initialization from principal singular values.
 # 30-50% faster convergence, 3-5% better accuracy vs vanilla LoRA. Zero cost (~2s init).
 # Must keep dropout=0 — random dropout would discard principal components.
-INIT_LORA_WEIGHTS = os.environ.get("INIT_LORA_WEIGHTS", "pissa_niter_4")
+# NOTE: Unsloth's get_peft_model doesn't support pissa_niter_4. Use "gaussian" (default).
+# To use PiSSA, switch to vanilla PEFT get_peft_model instead of Unsloth's.
+INIT_LORA_WEIGHTS = os.environ.get("INIT_LORA_WEIGHTS", "gaussian")
 
 random.seed(SEED)
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)

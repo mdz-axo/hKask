@@ -64,14 +64,14 @@ gql() { curl -s --max-time 30 -X POST "$API" -H "Content-Type: application/json"
 
 # ── Build GraphQL payload with Python (avoids shell-interpolation JSON bugs) ─
 build_payload() {
-    CLOUD_TYPE="$1" GPU_TYPE="$2" python3 -c "
+    CLOUD_TYPE="$1" GPU_TYPE="$2" python3 << 'PYEOF'
 import json, os
 env = [
     {'key': 'HF_TOKEN', 'value': os.environ['HF_TOKEN']},
     {'key': 'RUNPOD_API_KEY', 'value': os.environ['RUNPOD_API_KEY']},
     {'key': 'PUBLIC_KEY', 'value': os.environ['RUNPOD_PUBLIC_KEY']},
-    {'key': 'HF_HOME', 'value': '/kask-models/.cache/huggingface'},
-    {'key': 'PIP_CACHE_DIR', 'value': '/kask-models/.cache/pip'},
+    {'key': 'HF_HOME', 'value': '/workspace/.cache/huggingface'},
+    {'key': 'PIP_CACHE_DIR', 'value': '/workspace/.cache/pip'},
     {'key': 'POD_INACTIVITY_TIMEOUT', 'value': '14400'},
     {'key': 'WANDB_DISABLED', 'value': 'true'},
     {'key': 'PYTORCH_CUDA_ALLOC_CONF', 'value': 'expandable_segments:True'},
@@ -95,14 +95,13 @@ elif mode == 'rust-eval':
 else:
     pod_name = 'qwen36-unsloth'
 payload = {
-    'query': 'mutation DeployPod(\$input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: \$input) { id, name, costPerHr } }',
+    'query': 'mutation DeployPod($input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: $input) { id, name, costPerHr } }',
     'variables': {
         'input': {
             'cloudType': os.environ['CLOUD_TYPE'],
             'gpuCount': 1,
-            'networkVolumeId': '8vjgpume6h',
-            'volumeMountPath': '/kask-models',
             'volumeInGb': 200,
+            'volumeMountPath': '/workspace',
             'containerDiskInGb': 60,
             'minVcpuCount': 4,
             'minMemoryInGb': 30,
@@ -117,7 +116,7 @@ payload = {
     }
 }
 print(json.dumps(payload))
-"
+PYEOF
 }
 
 deploy() {
@@ -181,7 +180,7 @@ fi
 # ── Instructions ─────────────────────────────────────────────────────────
 TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/bfedff55f47bcf0286ff49584635e25912147c97/train_unsloth.sh"
 EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/a64ac5b58963d828a4d6591d816ee54fc9a221a7/eval_unsloth.sh"
-RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/9a3c2f3fa4f720c6ce6e5380ba7d8aeb1b1d8afe/train_rust_adapter.sh"
+RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/7fe06af72b07aa9c4dd023b0612dbc346ef813ad/train_rust_adapter.sh"
 RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/eae9bcdd2605a0b80e81af728d89278b0c368ce9/eval_rust_adapter.sh"
 
 if [ "$MODE" = "eval" ]; then
