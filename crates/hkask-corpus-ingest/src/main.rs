@@ -109,7 +109,7 @@ struct EmbedArgs {
     /// Embedding batch size
     #[arg(short = 'b', long, default_value = "50")]
     batch_size: usize,
-    /// LLM concurrency for ontology tagging + h_mem decimation
+    /// LLM concurrency (single call per chunk)
     #[arg(short = 'c', long, default_value = "196")]
     concurrency: usize,
     #[arg(short = 's', long, default_value = "0")]
@@ -324,7 +324,7 @@ fn strip_json_fences(text: &str) -> &str {
 }
 
 /// Extracted triple from LLM response.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct ExtractedTriple {
     subject: String,
     predicate: String,
@@ -449,107 +449,37 @@ fn default_expertise() -> String {
     "analyst".to_string()
 }
 
-/// Call both dual classifier models for ontology tagging, merge results.
-async fn dual_classify_ontology(
+/// Combined response from classify-chunks.j2 template (ontology tags + RDF triples).
+#[derive(Debug, Deserialize, Default, Clone)]
+struct ClassifyResponse {
+    #[serde(default)]
+    ontology: OntologyTags,
+    #[serde(default)]
+    triples: Vec<ExtractedTriple>,
+}
+
+/// Single-shot classification: one LLM call produces both ontology tags and h_mem triples.
+async fn classify_chunk(
     router: &InferenceRouter,
-    model_a: &str,
-    model_b: &str,
+    model: &str,
     template: &CompiledTemplate,
     text: &str,
     source: &str,
     chunk_id: &str,
-    max_retries: usize,
-) -> OntologyTags {
-    let mut vars = std::collections::HashMap::new();
-    vars.insert("text", text.to_string());
-    vars.insert("source", source.to_string());
-    vars.insert("chunk_id", chunk_id.to_string());
-    let prompt = template.render(&vars);
-    if prompt.is_empty() {
-        tracing::warn!(target: "corpus.embed", chunk = %chunk_id, "Ontology template render returned empty");
-        return OntologyTags::default();
-    }
-
-    let params = LLMParameters {
-        temperature: 0.1,
-        max_tokens: 4096,
-        ..Default::default()
-    };
-
-    // Call both models concurrently with retry
-    let (result_a, result_b) = tokio::join!(
-        llm_call_with_retry(router, &prompt, &params, model_a, max_retries),
-        llm_call_with_retry(router, &prompt, &params, model_b, max_retries),
-    );
-
-    let tags_a = parse_ontology(&result_a, chunk_id, "A");
-    let tags_b = parse_ontology(&result_b, chunk_id, "B");
-
-    match (tags_a, tags_b) {
-        (Some(a), Some(b)) => merge_ontology_tags(a, b),
-        (Some(a), None) | (None, Some(a)) => a,
-        (None, None) => {
-            tracing::warn!(target: "corpus.embed", chunk = %chunk_id, "Both classifiers failed for ontology tagging");
-            OntologyTags::default()
-        }
-    }
-}
-
-/// Merge two ontology tag sets (union).
-fn merge_ontology_tags(a: OntologyTags, b: OntologyTags) -> OntologyTags {
-    let mut dims: std::collections::HashSet<String> = a.dimensions.into_iter().collect();
-    dims.extend(b.dimensions);
-
-    let mut dc_subject: std::collections::HashSet<String> = a.dc_subject.into_iter().collect();
-    dc_subject.extend(b.dc_subject);
-
-    let mut merged_tags: std::collections::HashMap<String, std::collections::HashSet<String>> =
-        std::collections::HashMap::new();
-    for (ns, concepts) in &a.ontology_tags {
-        merged_tags
-            .entry(ns.clone())
-            .or_default()
-            .extend(concepts.iter().cloned());
-    }
-    for (ns, concepts) in &b.ontology_tags {
-        merged_tags
-            .entry(ns.clone())
-            .or_default()
-            .extend(concepts.iter().cloned());
-    }
-
-    OntologyTags {
-        dimensions: dims.into_iter().collect(),
-        dc_type: a.dc_type,
-        dc_subject: dc_subject.into_iter().collect(),
-        ontology_tags: merged_tags
-            .into_iter()
-            .map(|(ns, set)| (ns, set.into_iter().collect()))
-            .collect(),
-        expertise_level: a.expertise_level,
-    }
-}
-
-/// Call both dual classifier models for h_mem decimation, merge and store triples.
-async fn dual_decimate_hmems(
-    router: &InferenceRouter,
-    model_a: &str,
-    model_b: &str,
-    template: &CompiledTemplate,
-    text: &str,
     namespace: &str,
     semantic: &SemanticMemory,
     webid: hkask_types::WebID,
     max_retries: usize,
-) -> usize {
+) -> (OntologyTags, usize) {
     let mut vars = std::collections::HashMap::new();
     vars.insert("text", text.to_string());
+    vars.insert("source", source.to_string());
+    vars.insert("chunk_id", chunk_id.to_string());
     vars.insert("namespace", namespace.to_string());
-    vars.insert("limit", "15".to_string());
     let prompt = template.render(&vars);
     if prompt.is_empty() {
-        tracing::warn!(target: "corpus.embed", "h_mem template render returned empty");
-        return 0;
+        tracing::warn!(target: "corpus.embed", chunk = %chunk_id, "Template render returned empty");
+        return (OntologyTags::default(), 0);
     }
 
     let params = LLMParameters {
@@ -558,33 +488,27 @@ async fn dual_decimate_hmems(
         ..Default::default()
     };
 
-    let (result_a, result_b) = tokio::join!(
-        llm_call_with_retry(router, &prompt, &params, model_a, max_retries),
-        llm_call_with_retry(router, &prompt, &params, model_b, max_retries),
-    );
-
-    let triples_a = parse_triples(&result_a, "A");
-    let triples_b = parse_triples(&result_b, "B");
-
-    // Merge: deduplicate triples by (subject, predicate, object)
-    let mut seen: std::collections::HashSet<(String, String, String)> =
-        std::collections::HashSet::new();
-    let mut merged: Vec<ExtractedTriple> = Vec::new();
-    for resp in [triples_a, triples_b].into_iter().flatten() {
-        for triple in resp.triples {
-            let key = (
-                triple.subject.clone(),
-                triple.predicate.clone(),
-                triple.object.clone(),
-            );
-            if seen.insert(key) {
-                merged.push(triple);
-            }
+    let result = llm_call_with_retry(router, &prompt, &params, model, max_retries);
+    let response = match result.await {
+        Some(r) => r,
+        None => {
+            tracing::warn!(target: "corpus.embed", chunk = %chunk_id, model = %model, "LLM call failed after retries");
+            return (OntologyTags::default(), 0);
         }
-    }
+    };
 
+    let cleaned = strip_json_fences(&response.text);
+    let classified: ClassifyResponse = match serde_json::from_str(cleaned) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(target: "corpus.embed", chunk = %chunk_id, model = %model, error = %e, "Failed to parse classification JSON");
+            return (OntologyTags::default(), 0);
+        }
+    };
+
+    // Store h_mem triples
     let mut stored = 0usize;
-    for triple in &merged {
+    for triple in &classified.triples {
         let dim = predicate_to_dimension(&triple.predicate);
         let h_mem = HMem::new(
             &triple.subject,
@@ -609,13 +533,13 @@ async fn dual_decimate_hmems(
             }
         }
     }
-    stored
+
+    (classified.ontology, stored)
 }
 
 async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
     let emb_model = model_constants::embedding_model();
     let model_a = model_constants::classifier_model();
-    let model_b = model_constants::classifier_model_secondary();
 
     println!("=== Embed + Tag + Decimate ===");
     println!("  Chunks:       {}", args.chunks_jsonl.display());
@@ -623,8 +547,7 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
     println!("  Replica DB:   {}", args.replica_db);
     println!("  Replica:      {}", args.replica_name);
     println!("  Embed model:  {} ({} dim)", emb_model, EMBEDDING_DIM);
-    println!("  Classifier A: {}", model_a);
-    println!("  Classifier B: {}", model_b);
+    println!("  Classifier:   {}", model_a);
     println!("  Concurrency:  {}", args.concurrency);
     println!();
 
@@ -668,17 +591,12 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
     let router = Arc::new(InferenceRouter::new(inf_cfg));
     let webid = hkask_types::WebID::from_persona(args.replica_name.as_bytes());
 
-    // Compile templates once — reused for all chunks
-    let tag_template = CompiledTemplate::load("tag-chunks").unwrap_or_else(|| {
-        eprintln!("  FATAL: Could not load tag-chunks.j2 template");
+    // Compile template once
+    let classify_template = CompiledTemplate::load("classify-chunks").unwrap_or_else(|| {
+        eprintln!("  FATAL: Could not load classify-chunks.j2 template");
         std::process::exit(1);
     });
-    let hmem_template = CompiledTemplate::load("extract-hmems").unwrap_or_else(|| {
-        eprintln!("  FATAL: Could not load extract-hmems.j2 template");
-        std::process::exit(1);
-    });
-    let tag_template = Arc::new(tag_template);
-    let hmem_template = Arc::new(hmem_template);
+    let classify_template = Arc::new(classify_template);
     let max_retries = 3;
 
     // Phase 1: Embed all chunks (batch API) → replica DB
@@ -756,8 +674,9 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
     }
     println!();
 
-    // Phase 2: Dual classifier — ontology tagging + h_mem decimation (concurrent)
-    println!("\n  Phase 2: Dual classifier (ontology tagging + h_mem decimation)...");
+    // Phase 2: Single-shot classification (ontology tags + h_mem triples in one call)
+    println!("\n  Phase 2: Classification (combined ontology + h_mem, single model)...");
+    println!("    Model: {}", model_a);
     let sem = Arc::new(tokio::sync::Semaphore::new(args.concurrency));
     let total = chunks_to_process.len();
     let completed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -781,10 +700,8 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
         let completed = Arc::clone(&completed);
         let failed = Arc::clone(&failed);
         let h_mems_total = Arc::clone(&h_mems_total);
-        let tag_template = Arc::clone(&tag_template);
-        let hmem_template = Arc::clone(&hmem_template);
+        let classify_template = Arc::clone(&classify_template);
         let model_a = model_a.clone();
-        let model_b = model_b.clone();
         let entity_ref = chunk.entity_ref.clone();
         let source = chunk.source.clone();
         let text = chunk.text.clone();
@@ -795,30 +712,19 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
         let handle = tokio::spawn(async move {
             let _permit = sem.acquire().await;
 
-            // Run ontology tagging + h_mem decimation concurrently
-            let (ontology_tags, h_mems_stored) = tokio::join!(
-                dual_classify_ontology(
-                    &router,
-                    &model_a,
-                    &model_b,
-                    &tag_template,
-                    &text,
-                    &source,
-                    &entity_ref,
-                    max_retries
-                ),
-                dual_decimate_hmems(
-                    &router,
-                    &model_a,
-                    &model_b,
-                    &hmem_template,
-                    &text,
-                    &replica_name,
-                    &semantic,
-                    webid,
-                    max_retries
-                ),
-            );
+            let (ontology_tags, h_mems_stored) = classify_chunk(
+                &router,
+                &model_a,
+                &classify_template,
+                &text,
+                &source,
+                &entity_ref,
+                &replica_name,
+                &semantic,
+                webid,
+                max_retries,
+            )
+            .await;
 
             {
                 let mut guard = results.lock().unwrap();
@@ -827,7 +733,6 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
 
             h_mems_total.fetch_add(h_mems_stored, std::sync::atomic::Ordering::Relaxed);
             let c = completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-            let f = failed.load(std::sync::atomic::Ordering::Relaxed);
             let elapsed = start_time.elapsed().as_secs_f64();
             let rate = c as f64 / elapsed.max(1.0);
 
@@ -837,7 +742,7 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
                     c,
                     total,
                     c,
-                    f,
+                    failed.load(std::sync::atomic::Ordering::Relaxed),
                     h_mems_total.load(std::sync::atomic::Ordering::Relaxed),
                     rate
                 );
