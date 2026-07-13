@@ -176,8 +176,8 @@ if [ -z "$SSH_HOST" ] || [ -z "$SSH_PORT" ]; then
 fi
 
 # ── Instructions ─────────────────────────────────────────────────────────
-RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/c369209c955e4bed07d9460ecff1965b272ca996/train_rust_adapter.sh"
-RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/9408c631d5722629ea99229799e923687c914714/eval_rust_adapter.sh"
+RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/d94895a4487d945c02ab14f64b7c4dfc9cb41e93/train_rust_adapter.sh"
+RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/b0e77a278ba87f710ad20677f81b544219651480/eval_rust_adapter.sh"
 
 if [ "$MODE" = "rust-eval" ]; then
     echo ""

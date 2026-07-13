@@ -12,11 +12,12 @@
 //! - `HKASK_MODEL_DEFAULT` — fallback when provider-specific not set
 
 /// Fast classifier model for summarization, classification, and non-thinking tasks.
-/// DeepInfra hosts the same Qwen3-235B-A22B model and handles high concurrency.
-pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/Qwen/Qwen3-235B-A22B-Instruct-2507";
+/// Qwen3-30B-A3B: 30B total, 3B active MoE — fast at high concurrency.
+pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/Qwen/Qwen3-30B-A3B";
 
 /// Recommended secondary classifier for dual-model epistemic integrity.
-pub const DEFAULT_CLASSIFIER_MODEL_SECONDARY: &str = "DI/google/gemma-4-26B-A4B-it";
+/// Gemma 4 31B Turbo — different model family, fast variant.
+pub const DEFAULT_CLASSIFIER_MODEL_SECONDARY: &str = "DI/google/gemma-4-31B-it-turbo";
 
 /// Default embedding model.
 pub const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";

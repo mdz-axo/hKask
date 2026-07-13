@@ -33,6 +33,12 @@ echo "=== INSTALLING DEPS ==="
 pip install --cache-dir "$PIP_CACHE_DIR" -q unsloth unsloth_zoo 2>&1 | tail -3
 pip install --cache-dir "$PIP_CACHE_DIR" -q datasets peft tqdm 2>&1 | tail -3
 
+echo "=== INSTALLING QWEN KERNELS ==="
+pip install --cache-dir "$PIP_CACHE_DIR" -q "flash-linear-attention[cuda]" tilelang 2>&1 | tail -3
+# causal-conv1d needs --no-build-isolation to use the installed PyTorch's CUDA
+# headers instead of the system CUDA toolkit (which may mismatch).
+pip install --cache-dir "$PIP_CACHE_DIR" -q causal-conv1d --no-build-isolation 2>&1 | tail -3
+
 cat > /workspace/eval_rust.py << 'PYEOF'
 import os, sys, json, re, time, ast
 import torch

@@ -97,10 +97,10 @@ TARGET_MODULES = ["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","dow
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 3
 PER_DEVICE_BATCH = 1
-GRAD_ACCUM = 4
-WARMUP_STEPS = 50
-EVAL_STEPS = 50
-SAVE_STEPS = 100
+GRAD_ACCUM = 16
+WARMUP_STEPS = 100
+EVAL_STEPS = 200
+SAVE_STEPS = 200
 MAX_GRAD_NORM = 0.3
 WEIGHT_DECAY = 0.01
 MAX_SAMPLES = int(os.environ.get("MAX_SAMPLES", "0"))  # 0 = all
@@ -119,7 +119,7 @@ print(f"Rust Adapter Training | {time.strftime('%Y-%m-%d %H:%M:%S')} | MODE={MOD
 print(f"GPU: {torch.cuda.get_device_name(0)}")
 print(f"LoRA: r={LORA_R}, alpha={LORA_ALPHA}, dropout={LORA_DROPOUT}")
 print(f"LR: {LEARNING_RATE}, epochs={NUM_EPOCHS}, warmup={WARMUP_STEPS}")
-print(f"Eval: every {EVAL_STEPS} steps, patience=7")
+print(f"Eval: every {EVAL_STEPS} steps, patience=7, fixed held-out split")
 print("=" * 60)
 
 # ── Dataset formatting ─────────────────────────────────────────────────────
@@ -369,10 +369,11 @@ def load_and_format(dataset_id, formatter, split="train", max_samples=0):
 
 
 
-# Keep all data for training — eval is dynamically re-sampled from the
-# training set before each eval step (2%, non-contiguous, re-shuffled each time).
-# This prevents overfitting to a fixed eval set and keeps eval time reasonable.
-EVAL_RATIO = 0.02
+# Hold out a fixed eval split from the combined training set.
+# A fixed 1000-example set gives a stable early-stopping signal and fast eval.
+# Re-sampling from the training set (old approach) measured training loss, not
+# generalization, and 2% of 838K = 16,760 examples made each eval take hours.
+EVAL_SIZE = 1000
 
 # ── Load model BEFORE datasets ─────────────────────────────────────────────
 # Model weights must be fully downloaded and cached before any dataset .map()
@@ -465,8 +466,11 @@ else:
     for name, ds in datasets_list:
         print(f"  {name}: {len(ds)} examples", flush=True)
 
-eval_size = max(1, int(len(train_ds) * EVAL_RATIO))
-print(f"Train: {len(train_ds)} | Eval: {eval_size} dynamically re-sampled ({EVAL_RATIO*100:.1f}%)", flush=True)
+# Split off a fixed held-out eval set before formatting.
+holdout = min(EVAL_SIZE, len(train_ds) // 10)
+eval_ds = train_ds.select(range(holdout))
+train_ds = train_ds.select(range(holdout, len(train_ds)))
+print(f"Train: {len(train_ds)} | Eval: {len(eval_ds)} (fixed held-out split)", flush=True)
 
 # ── Format with chat template ──────────────────────────────────────────────
 
@@ -475,28 +479,15 @@ def fmt_msgs(ex):
 
 print("Formatting with chat template...", flush=True)
 train_ds = train_ds.map(fmt_msgs, remove_columns=train_ds.column_names, num_proc=4)
+eval_ds = eval_ds.map(fmt_msgs, remove_columns=eval_ds.column_names, num_proc=4)
 
 # ── Train ─────────────────────────────────────────────────────────────────
 
-# Dynamic eval: override the public evaluate() method to re-sample before eval.
-# The public API is stable across transformers versions, unlike _evaluate().
-from trl import SFTTrainer as _BaseSFTTrainer
+from trl import SFTTrainer
 
-class DynamicEvalSFTTrainer(_BaseSFTTrainer):
-    """SFTTrainer that re-samples eval examples from the training set before each eval."""
-
-    def evaluate(self, eval_dataset=None, ignore_keys=None, metric_key_prefix="eval"):
-        # Re-sample eval set from the training set
-        n = len(self.train_dataset)
-        k = max(1, int(n * EVAL_RATIO))
-        indices = random.sample(range(n), k)
-        eval_dataset = self.train_dataset.select(indices)
-        print(f"  [dynamic eval] sampled {k} examples from {n} training examples", flush=True)
-        return super().evaluate(eval_dataset=eval_dataset, ignore_keys=ignore_keys, metric_key_prefix=metric_key_prefix)
-
-trainer = DynamicEvalSFTTrainer(
+trainer = SFTTrainer(
     model=model, processing_class=tokenizer,
-    train_dataset=train_ds, eval_dataset=train_ds.select(range(min(100, len(train_ds)))),
+    train_dataset=train_ds, eval_dataset=eval_ds,
     callbacks=[EarlyStoppingCallback(early_stopping_patience=7)],
     args=SFTConfig(
         max_seq_length=MAX_SEQ_LENGTH, dataset_text_field="text",
