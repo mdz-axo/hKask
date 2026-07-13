@@ -312,7 +312,8 @@ fn predicate_to_dimension(predicate: &str) -> Dimension {
     }
 }
 
-/// Strip JSON code fences from LLM output.
+/// Strip JSON code fences from LLM output. Handles thinking-mode responses where
+/// the model prepends reasoning text before the JSON.
 fn strip_json_fences(text: &str) -> &str {
     let trimmed = text.trim();
     let stripped = trimmed
@@ -320,7 +321,17 @@ fn strip_json_fences(text: &str) -> &str {
         .or_else(|| trimmed.strip_prefix("```"))
         .unwrap_or(trimmed)
         .trim();
-    stripped.strip_suffix("```").unwrap_or(stripped).trim()
+    let stripped = stripped.strip_suffix("```").unwrap_or(stripped).trim();
+    // If the response contains reasoning text before the JSON, find the JSON object.
+    // Look for the first '{' and the last '}' — the JSON is between them.
+    if let Some(start) = stripped.find('{') {
+        if let Some(end) = stripped.rfind('}') {
+            if end > start {
+                return &stripped[start..=end];
+            }
+        }
+    }
+    stripped
 }
 
 /// Extracted triple from LLM response.

@@ -80,3 +80,6 @@ tmp_qa/
 
 # Corrupt .git backups (never commit)
 .git.corrupt-backup-*
+
+# Embedding pipeline log — runtime output from `kask embed-corpus run`
+corpus/embed_output.log

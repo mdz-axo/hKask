@@ -1,16 +1,0 @@
-=== Embed + Tag + Decimate ===
-  Chunks:       corpus/chunks/chunks.jsonl
-  Output JSONL: corpus/chunks/tagged_ontology.jsonl
-  Replica DB:   corpus/memory/john-brooks.db
-  Replica:      john-brooks
-  Embed model:  DI/Qwen/Qwen3-Embedding-0.6B (1024 dim)
-  Classifier:   DI/Qwen/Qwen3-30B-A3B
-  Concurrency:  196
-
-  Loaded: 33299 chunks
-  To process: 33299 (indices 0-33298)
-[2m2026-07-13T14:50:14.389011Z[0m [31mERROR[0m [2mr2d2[0m[2m:[0m database is locked
-  Existing embeddings: 0
-
-  Phase 1: Embedding...
-  [50/33299] embedded  [100/33299] embedded  [150/33299] embedded  [200/33299] embedded  [250/33299] embedded  [300/33299] embedded  [350/33299] embedded  [400/33299] embedded  [450/33299] embedded  [500/33299] embedded  [550/33299] embedded  [600/33299] embedded  [650/33299] embedded  [700/33299] embedded  [750/33299] embedded  [800/33299] embedded  [850/33299] embedded  [900/33299] embedded  [950/33299] embedded  [1000/33299] embedded  [1050/33299] embedded  [1100/33299] embedded  [1150/33299] embedded  [1200/33299] embedded  [1250/33299] embedded  [1300/33299] embedded  [1350/33299] embedded  [1400/33299] embedded  [1450/33299] embedded  [1500/33299] embedded  [1550/33299] embedded  [1600/33299] embedded  [1650/33299] embedded  [1700/33299] embedded  [1750/33299] embedded  [1800/33299] embedded  [1850/33299] embedded  [1900/33299] embedded  [1950/33299] embedded  [2000/33299] embedded  [2050/33299] embedded  [2100/33299] embedded  [2150/33299] embedded  [2200/
