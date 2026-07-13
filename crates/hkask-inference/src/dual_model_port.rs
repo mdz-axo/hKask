@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 /// Wraps an `InferencePort` and overrides the model for all calls.
 ///
-/// Construct with `DualModelPort::new(existing_port, "DI/google/gemma-4-E4B-it")`.
+/// Construct with `DualModelPort::new(existing_port, "DI/google/gemma-4-26B-A4B-it")`.
 /// All `generate()` calls are delegated to `generate_with_model()` with the
 /// configured model as the override.
 #[derive(Clone)]

@@ -66,7 +66,7 @@ fn default_embedding_model() -> String {
 
 fn default_classifier_model() -> String {
     // See registry/classify/hmem-extractor.yaml for model rationale and fallback.
-    "KC/qwen/qwen3-235b-a22b-2507".to_string()
+    "DI/Qwen/Qwen3-235B-A22B-Instruct-2507".to_string()
 }
 
 fn default_ocr_model() -> String {

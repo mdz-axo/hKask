@@ -110,7 +110,7 @@ struct EmbedArgs {
     #[arg(short = 'b', long, default_value = "50")]
     batch_size: usize,
     /// LLM concurrency for ontology tagging + h_mem decimation
-    #[arg(short = 'c', long, default_value = "128")]
+    #[arg(short = 'c', long, default_value = "196")]
     concurrency: usize,
     #[arg(short = 's', long, default_value = "0")]
     start_at: usize,

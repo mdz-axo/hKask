@@ -272,8 +272,12 @@ impl Database {
             )
         });
 
+        let pool_size = std::env::var("HKASK_DB_POOL_SIZE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(64);
         let pool = r2d2::Pool::builder()
-            .max_size(4)
+            .max_size(pool_size)
             .build(manager)
             .map_err(|e| DatabaseError::SqlCipher(e.to_string()))?;
 

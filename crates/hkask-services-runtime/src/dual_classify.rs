@@ -529,7 +529,7 @@ pub fn build_dual_config(
             domain: DomainKind::Wallet,
             kind: ErrorKind::ServiceUnavailable,
             source: None,
-            message: "Dual-model classification requires HKASK_CLASSIFIER_MODEL_B (or settings.classifier_model_b or YAML model_b). Single-model classification with single-jurisdiction bias is not permitted. Set model B to a peer model from a different jurisdiction (e.g., DI/google/gemma-4-E4B-it).".to_string(),
+            message: "Dual-model classification requires HKASK_CLASSIFIER_MODEL_B (or settings.classifier_model_b or YAML model_b). Single-model classification with single-jurisdiction bias is not permitted. Set model B to a peer model from a different jurisdiction (e.g., DI/google/gemma-4-26B-A4B-it).".to_string(),
         }
     })?;
 

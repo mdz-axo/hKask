@@ -13,10 +13,10 @@
 
 /// Fast classifier model for summarization, classification, and non-thinking tasks.
 /// DeepInfra hosts the same Qwen3-235B-A22B model and handles high concurrency.
-pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/qwen/qwen3-235b-a22b-2507";
+pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/Qwen/Qwen3-235B-A22B-Instruct-2507";
 
 /// Recommended secondary classifier for dual-model epistemic integrity.
-pub const DEFAULT_CLASSIFIER_MODEL_SECONDARY: &str = "DI/google/gemma-4-E4B-it";
+pub const DEFAULT_CLASSIFIER_MODEL_SECONDARY: &str = "DI/google/gemma-4-26B-A4B-it";
 
 /// Default embedding model.
 pub const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";

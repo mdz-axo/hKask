@@ -2,7 +2,7 @@
 
 /// Strip a recognized 2-letter provider prefix from a model name.
 ///
-/// "KC/qwen/qwen3-235b-a22b-2507" → "qwen/qwen3-235b-a22b-2507"
+/// "DI/Qwen/Qwen3-235B-A22B-Instruct-2507" → "qwen/qwen3-235b-a22b-2507"
 /// "qwen/qwen3.5-35b-a3b"        → "qwen/qwen3.5-35b-a3b" (no recognized prefix)
 ///
 /// Used before sending model IDs to classifier base URLs, which determine

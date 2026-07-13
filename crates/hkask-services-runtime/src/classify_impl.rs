@@ -116,7 +116,7 @@ pub struct ClassifierDef {
     pub model: String,
     /// Second peer model for dual-model epistemic integrity.
     /// When set, classification runs against both peer models.
-    /// Provider prefix supported (e.g., "DI/google/gemma-4-E4B-it").
+    /// Provider prefix supported (e.g., "DI/google/gemma-4-26B-A4B-it").
     /// Empty = single-model mode.
     #[serde(default)]
     pub model_b: String,
