@@ -1,0 +1,70 @@
+# Axolotl config — Qwen3.6-27B Rust + Reasoning LoRA
+# Combined training: Rust coding (191K) + Rust analysis (533K) + OpenThoughts reasoning (114K)
+# Optimizations vs custom Unsloth script:
+#   - liger_kernel: fused MLP + RMSNorm kernels
+#   - cut_cross_entropy: faster loss computation
+#   - LoRA kernel optimizations (auto-enabled)
+#   - SDPA attention (PyTorch native flash attention on H100)
+# NOTE: sample_packing disabled — requires flash-attn for cross-sample masking
+
+base_model: unsloth/Qwen3.6-27B
+adapter: lora
+load_in_4bit: false
+load_in_8bit: false
+
+sequence_len: 6144
+bf16: true
+
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0
+peft_init_lora_weights: pissa_niter_4
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+datasets:
+  - path: /workspace/data/strandset.jsonl
+    type: chat_template
+  - path: /workspace/data/introspector.jsonl
+    type: chat_template
+  - path: Axolotl-Partners/openthoughts-114k-linked
+    type: chat_template
+    data_files: train.jsonl
+
+# Training
+num_epochs: 3
+learning_rate: 1e-4
+warmup_steps: 100
+micro_batch_size: 1
+eval_batch_size: 1
+gradient_accumulation_steps: 16
+gradient_checkpointing: true
+lr_scheduler: cosine
+weight_decay: 0.01
+max_grad_norm: 0.3
+optim: adamw_8bit
+
+# Eval — fixed held-out split
+val_set_size: 0.0012  # ~1000 examples out of 838K
+eval_steps: 200
+save_steps: 200
+save_total_limit: 3
+
+# Optimizations
+liger_kernel: true
+flash_attention: false  # uses SDPA (PyTorch native flash attention on H100)
+cut_cross_entropy: true
+
+# Output
+output_dir: /workspace/outputs
+hub_model_id: Axolotl-Partners/qwen36-rust-reasoning-all-lora
+hub_strategy: end
+
+# Misc
+strict: false
