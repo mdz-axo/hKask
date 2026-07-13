@@ -20,10 +20,9 @@
 # ============================================================================
 set -euo pipefail
 
-MODE="train"
+MODE="rust-coding"
 for arg in "$@"; do
     case "$arg" in
-        --eval) MODE="eval" ;;
         --rust-coding) MODE="rust-coding" ;;
         --rust-analysis) MODE="rust-analysis" ;;
         --rust-both) MODE="rust-both" ;;
@@ -78,10 +77,8 @@ env = [
     {'key': 'PYTORCH_CUDA_ALLOC_CONF', 'value': 'expandable_segments:True'},
     {'key': 'HF_DEACTIVATE_ASYNC_LOAD', 'value': '1'},
 ]
-mode = os.environ.get('MODE', 'train')
-if mode == 'eval':
-    pod_name = 'qwen36-eval'
-elif mode == 'rust-coding':
+mode = os.environ.get('MODE', 'rust-coding')
+if mode == 'rust-coding':
     pod_name = 'rust-coding'
 elif mode == 'rust-analysis':
     pod_name = 'rust-analysis'
@@ -94,7 +91,7 @@ elif mode == 'rust-all':
 elif mode == 'rust-eval':
     pod_name = 'rust-eval'
 else:
-    pod_name = 'qwen36-unsloth'
+    pod_name = 'rust-coding'
 payload = {
     'query': 'mutation DeployPod($input: PodFindAndDeployOnDemandInput!) { podFindAndDeployOnDemand(input: $input) { id, name, costPerHr } }',
     'variables': {
@@ -179,32 +176,30 @@ if [ -z "$SSH_HOST" ] || [ -z "$SSH_PORT" ]; then
 fi
 
 # ── Instructions ─────────────────────────────────────────────────────────
-TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/bfedff55f47bcf0286ff49584635e25912147c97/train_unsloth.sh"
-EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/a64ac5b58963d828a4d6591d816ee54fc9a221a7/eval_unsloth.sh"
-RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/3b59fbc19a8a1bbe478bf024cf465d98bc016e69/train_rust_adapter.sh"
-RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/eae9bcdd2605a0b80e81af728d89278b0c368ce9/eval_rust_adapter.sh"
+RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/c369209c955e4bed07d9460ecff1965b272ca996/train_rust_adapter.sh"
+RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/9408c631d5722629ea99229799e923687c914714/eval_rust_adapter.sh"
 
-if [ "$MODE" = "eval" ]; then
+if [ "$MODE" = "rust-eval" ]; then
     echo ""
     echo "==============================================="
-    echo "POD READY: ${POD_ID}  |  \$${COST}/hr  |  EVAL MODE"
+    echo "POD READY: ${POD_ID}  |  \$${COST}/hr  |  RUST EVAL MODE"
     echo ""
     echo "→ Dashboard:"
     echo "  https://www.runpod.io/console/pods/${POD_ID}"
     echo ""
-    echo "→ Run evaluation (paste ONE command in Web Terminal or SSH):"
+    echo "→ Run eval (paste ONE command):"
     echo ""
-    echo "  curl -sL ${EVAL_URL} | bash"
+    echo "  curl -sL ${RUST_EVAL_URL} | bash"
     echo ""
     echo "→ Or via SSH:"
-    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'curl -sL ${EVAL_URL} | bash'"
+    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'curl -sL ${RUST_EVAL_URL} | bash'"
     echo ""
     echo "→ Monitor:"
-    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'tail -f /workspace/eval.log'"
+    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'tail -f /workspace/rust_eval.log'"
     echo ""
     echo "Results saved to /workspace/eval_results/ on the pod."
     echo "==============================================="
-elif [ "$MODE" = "rust-coding" ] || [ "$MODE" = "rust-analysis" ] || [ "$MODE" = "rust-both" ] || [ "$MODE" = "rust-reasoning" ] || [ "$MODE" = "rust-all" ]; then
+else
     if [ "$MODE" = "rust-coding" ]; then
         RUST_MODE="coding"
         REPO="Axolotl-Partners/qwen36-rust-coding-lora"
@@ -240,46 +235,5 @@ elif [ "$MODE" = "rust-coding" ] || [ "$MODE" = "rust-analysis" ] || [ "$MODE" =
     echo ""
     echo "Dashboard: https://www.runpod.io/console/pods/${POD_ID}"
     echo "Results:   HF → ${REPO}"
-    echo "==============================================="
-elif [ "$MODE" = "rust-eval" ]; then
-    echo ""
-    echo "==============================================="
-    echo "POD READY: ${POD_ID}  |  \$${COST}/hr  |  RUST EVAL MODE"
-    echo ""
-    echo "→ Dashboard:"
-    echo "  https://www.runpod.io/console/pods/${POD_ID}"
-    echo ""
-    echo "→ Run eval (paste ONE command):"
-    echo ""
-    echo "  curl -sL ${RUST_EVAL_URL} | bash"
-    echo ""
-    echo "→ Or via SSH:"
-    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'curl -sL ${RUST_EVAL_URL} | bash'"
-    echo ""
-    echo "→ Monitor:"
-    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'tail -f /workspace/rust_eval.log'"
-    echo ""
-    echo "Results saved to /workspace/eval_results/ on the pod."
-    echo "==============================================="
-else
-    echo ""
-    echo "==============================================="
-    echo "POD READY: ${POD_ID}  |  \$${COST}/hr"
-    echo ""
-    echo "→ Open the pod dashboard and choose Connect → Web Terminal:"
-    echo "  https://www.runpod.io/console/pods/${POD_ID}"
-    echo ""
-    echo "→ Paste this ONE command:"
-    echo ""
-    echo "  curl -sL ${TRAIN_URL} | bash"
-    echo ""
-    echo "→ Or via SSH (requires SSH key on your RunPod account):"
-    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'curl -sL ${TRAIN_URL} | bash'"
-    echo ""
-    echo "→ Monitor:"
-    echo "  ssh root@${SSH_HOST} -p ${SSH_PORT} 'tail -f /workspace/training.log'"
-    echo ""
-    echo "Dashboard: https://www.runpod.io/console/pods/${POD_ID}"
-    echo "Results:   HF → Axolotl-Partners/qwen36-distill-opus-dsv4-lora"
     echo "==============================================="
 fi

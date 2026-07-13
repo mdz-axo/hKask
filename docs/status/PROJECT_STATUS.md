@@ -188,7 +188,7 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 - Multi-LoRA inference: `LLMParameters.adapter` field added to `hkask-types`. `InferenceRouter::generate` + `generate_with_model` append `#adapter` to model name for Baseten multi-LoRA serving.
 - Tests: 3→14 (7 SqliteAdapterStore/JobStore tests, 4 chunking tests).
 - Docs: `docs/architecture/PUBLIC_SURFACE-hkask-mcp-training.md` created, `docs/research/training-decomposition-traces.md` updated (completed items, provider table, Baseten/Runpod design decisions, deferred items).
-- Infrastructure: Unsloth BF16 LoRA training pipeline for Qwen3.6-27B on RunPod community pods (bare pod + curl, single-command launch). Deployed as `scripts/runpod_unsloth.sh` + `scripts/train_unsloth.sh` (canonical copy on HF). See `docs/how-to/train-qwen36-unsloth-runpod.md`.
+- Infrastructure: Unsloth BF16 LoRA training pipeline for Qwen3.6-27B on RunPod community pods (bare pod + curl, single-command launch). Deployed as `scripts/runpod_unsloth.sh` + `scripts/train_rust_adapter.sh` (canonical copy on HF). See `docs/how-to/training-and-adapters.md`.
 - Deferred: `training_monitor_health` (needs active usage data), `training_ab_test` (needs multiple active versions). Fireworks AI provider removed (billing inefficiency). OpenRouter added as replacement inference provider.
 - Build: ✅ All 18 workspace members compile. 14/14 training tests pass.
 
