@@ -59,8 +59,10 @@ pip install --cache-dir "$PIP_CACHE_DIR" -q \
     datasets trl peft accelerate requests huggingface_hub
 
 echo "=== INSTALLING QWEN KERNELS ==="
-pip install --cache-dir "$PIP_CACHE_DIR" -q \
-    "flash-linear-attention[cuda]" tilelang
+pip install --cache-dir "$PIP_CACHE_DIR" -q "flash-linear-attention[cuda]" tilelang
+# causal-conv1d needs --no-build-isolation to use the installed PyTorch's CUDA
+# headers instead of the system CUDA toolkit (which may mismatch).
+pip install --cache-dir "$PIP_CACHE_DIR" -q causal-conv1d --no-build-isolation
 
 unset PIP_CONSTRAINT
 
@@ -106,9 +108,8 @@ MODE = os.environ.get("MODE", "coding")
 # PiSSA: SVD-based LoRA initialization from principal singular values.
 # 30-50% faster convergence, 3-5% better accuracy vs vanilla LoRA. Zero cost (~2s init).
 # Must keep dropout=0 — random dropout would discard principal components.
-# NOTE: Unsloth's get_peft_model doesn't support pissa_niter_4. Use "gaussian" (default).
-# To use PiSSA, switch to vanilla PEFT get_peft_model instead of Unsloth's.
-INIT_LORA_WEIGHTS = os.environ.get("INIT_LORA_WEIGHTS", "gaussian")
+# Uses HuggingFace PEFT's get_peft_model (not Unsloth's) which supports pissa_niter_4.
+INIT_LORA_WEIGHTS = os.environ.get("INIT_LORA_WEIGHTS", "pissa_niter_4")
 
 random.seed(SEED)
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
@@ -379,20 +380,29 @@ EVAL_RATIO = 0.02
 # process compete for HuggingFace cache locks, causing a futex deadlock.
 
 print(f"\nLoading {MODEL_ID}...", flush=True)
+# Use Unsloth for kernel patching (faster training), but PEFT for LoRA config
+# so we can use PiSSA initialization (not supported by Unsloth's get_peft_model).
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=MODEL_ID, max_seq_length=MAX_SEQ_LENGTH,
     load_in_4bit=False, load_in_16bit=True, full_finetuning=False,
 )
 print(f"GPU: {torch.cuda.memory_allocated()/1e9:.1f}GB", flush=True)
 
-model = FastLanguageModel.get_peft_model(
-    model, r=LORA_R, lora_alpha=LORA_ALPHA,
+# Apply PEFT LoRA with PiSSA initialization via HuggingFace PEFT
+from peft import LoraConfig, get_peft_model
+peft_config = LoraConfig(
+    r=LORA_R,
+    lora_alpha=LORA_ALPHA,
     target_modules=TARGET_MODULES,
-    lora_dropout=LORA_DROPOUT, bias="none",
-    use_gradient_checkpointing="unsloth", random_state=SEED,
-    max_seq_length=MAX_SEQ_LENGTH,
-    init_lora_weights=INIT_LORA_WEIGHTS,
+    lora_dropout=LORA_DROPOUT,
+    bias="none",
+    task_type="CAUSAL_LM",
+    init_lora_weights=INIT_LORA_WEIGHTS,  # "pissa_niter_4" for SVD-based init
 )
+model = get_peft_model(model, peft_config)
+
+# Enable gradient checkpointing for memory efficiency
+model.gradient_checkpointing_enable()
 tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
 tt = sum(p.numel() for p in model.parameters())
 print(f"Trainable: {tr/1e6:.1f}M / {tt/1e9:.2f}B ({100*tr/tt:.2f}%)", flush=True)

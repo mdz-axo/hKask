@@ -180,7 +180,7 @@ fi
 # ── Instructions ─────────────────────────────────────────────────────────
 TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/bfedff55f47bcf0286ff49584635e25912147c97/train_unsloth.sh"
 EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/a64ac5b58963d828a4d6591d816ee54fc9a221a7/eval_unsloth.sh"
-RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/7fe06af72b07aa9c4dd023b0612dbc346ef813ad/train_rust_adapter.sh"
+RUST_TRAIN_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/3b59fbc19a8a1bbe478bf024cf465d98bc016e69/train_rust_adapter.sh"
 RUST_EVAL_URL="https://huggingface.co/datasets/Axolotl-Partners/qwen36-distill-opus-dsv4/raw/eae9bcdd2605a0b80e81af728d89278b0c368ce9/eval_rust_adapter.sh"
 
 if [ "$MODE" = "eval" ]; then
