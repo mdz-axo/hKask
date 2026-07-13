@@ -15,7 +15,7 @@ use crate::tools::semantic::{GUARD, configured_qa_model};
 use crate::*;
 use serde::Serialize;
 
-use hkask_types::corpus::{TaggedChunk, ChunkOntology};
+use hkask_types::corpus::{ChunkOntology, TaggedChunk};
 
 fn read_tagged_chunks(path: &str) -> Result<Vec<TaggedChunk>, McpToolError> {
     let content = std::fs::read_to_string(path).map_err(|e| {
@@ -491,19 +491,21 @@ impl DocProcServer {
                         .unwrap_or("analyst")
                         .to_string();
 
+                    let word_count = text.split_whitespace().count();
                     consolidated.push(TaggedChunk {
                         entity_ref,
                         source: source.clone(),
                         text,
-                        concepts,
-                        salience,
-                        consolidated_from,
-                        ontology: Some(ontology),
+                        word_count,
                         dimensions,
                         dc_type,
                         dc_subject,
+                        ontology_tags,
+                        concepts,
                         expertise_level,
-                        ..Default::default()
+                        salience,
+                        consolidated_from,
+                        ontology: Some(ontology),
                     });
                 }
             }

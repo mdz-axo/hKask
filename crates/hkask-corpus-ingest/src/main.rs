@@ -10,18 +10,22 @@
 mod generate_qa;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use generate_qa::{GenerateQaArgs, run_generate_qa};
 use hkask_inference::config::InferenceConfig;
 use hkask_inference::embedding_router::EmbeddingRouter;
+use hkask_inference::inference_router::InferenceRouter;
 use hkask_inference::model_constants;
 use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, EntityTags};
+use hkask_ports::inference_port::InferencePort;
 use hkask_storage::HMem;
 use hkask_types::Visibility;
-use hkask_types::visibility::Dimension;
 use hkask_types::corpus::TaggedChunk;
+use hkask_types::template::LLMParameters;
+use hkask_types::visibility::Dimension;
 use serde::{Deserialize, Serialize};
 
 /// Qwen3-Embedding-0.6B output dimension.
@@ -72,7 +76,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Compute embeddings and store in memory DB
+    /// Embed chunks, tag with ontology, decimate to h_mems (dual classifier)
     Embed(EmbedArgs),
     /// Build QA generation prompts from qualifying chunks
     BuildPrompts(BuildPromptsArgs),
@@ -88,14 +92,26 @@ enum Command {
 
 #[derive(Parser)]
 struct EmbedArgs {
+    /// Input: raw chunks JSONL
     #[arg(default_value = "corpus/chunks/chunks.jsonl")]
     chunks_jsonl: PathBuf,
-    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
-    db_path: String,
+    /// Output: tagged JSONL (reference corpus — chunks + ontology tags)
+    #[arg(long, default_value = "corpus/chunks/tagged_ontology.jsonl")]
+    output_jsonl: PathBuf,
+    /// Output: replica memory DB (h_mems + embeddings)
+    #[arg(short = 'd', long, default_value = "corpus/memory/john-brooks.db")]
+    replica_db: String,
+    /// Replica name (used for entity_ref prefix in h_mems)
+    #[arg(long, default_value = "john-brooks")]
+    replica_name: String,
     #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
     passphrase: String,
+    /// Embedding batch size
     #[arg(short = 'b', long, default_value = "50")]
     batch_size: usize,
+    /// LLM concurrency for ontology tagging + h_mem decimation
+    #[arg(short = 'c', long, default_value = "128")]
+    concurrency: usize,
     #[arg(short = 's', long, default_value = "0")]
     start_at: usize,
     #[arg(short = 'n', long, default_value = "0")]
@@ -104,11 +120,10 @@ struct EmbedArgs {
     dry_run: bool,
 }
 
-
 #[derive(Parser)]
 struct BuildPromptsArgs {
-    /// Path to tagged chunks with salience scores
-    #[arg(default_value = "corpus/chunks/tagged_chunks.jsonl")]
+    /// Path to tagged chunks with ontology tags
+    #[arg(default_value = "corpus/chunks/tagged_ontology.jsonl")]
     tagged_jsonl: PathBuf,
     /// Output file for generation prompts (one JSON per line)
     #[arg(short = 'o', long, default_value = "corpus/qa_pairs/prompts.jsonl")]
@@ -136,7 +151,7 @@ struct BuildPromptsArgs {
     #[arg(long, default_value = "0")]
     cross_ref_max_prompts: usize,
     /// Path to memory DB for embedding-based context retrieval
-    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    #[arg(short = 'd', long, default_value = "corpus/memory/john-brooks.db")]
     db_path: String,
     /// Passphrase for the memory DB
     #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
@@ -155,7 +170,7 @@ struct IngestQaArgs {
     #[arg(short = 'o', long, default_value = "corpus/qa_pairs/train.jsonl")]
     output: PathBuf,
     /// Path to memory DB for h_mem storage
-    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    #[arg(short = 'd', long, default_value = "corpus/memory/john-brooks.db")]
     db_path: String,
     #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
     passphrase: String,
@@ -179,7 +194,7 @@ struct PurgeQaArgs {
     #[arg(long, default_value = "corpus:qa")]
     prefix: String,
     /// Path to memory DB
-    #[arg(short = 'd', long, default_value = "corpus/memory/corpus_memory.db")]
+    #[arg(short = 'd', long, default_value = "corpus/memory/john-brooks.db")]
     db_path: String,
     #[arg(short = 'p', long, default_value = "hkask-default-passphrase-2024")]
     passphrase: String,
@@ -221,16 +236,396 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-// ── Embed ──────────────────────────────────────────────────────────
+// ── Embed + Tag + Decimate ─────────────────────────────────────────
+//
+// This step produces TWO separate outputs:
+//   1. JSONL reference corpus — chunks + ontology tags (tag-chunks.j2 template)
+//   2. Replica memory DB — h_mems (decimated triples) + embeddings (extract-hmems.j2 template)
+//
+// Both LLM operations use the dual classifier models (A + B) on DeepInfra at
+// high concurrency. Embedding vectors go into the replica DB for KNN + style matching.
+
+/// Compiled Jinja2 template — compiled once, reused for all chunks.
+struct CompiledTemplate {
+    env: minijinja::Environment<'static>,
+}
+
+impl CompiledTemplate {
+    fn load(template_name: &str) -> Option<Self> {
+        let template_root =
+            std::env::var("HKASK_TEMPLATE_ROOT").unwrap_or_else(|_| "registry".to_string());
+        let template_path = std::path::Path::new(&template_root)
+            .join("templates/docproc")
+            .join(format!("{template_name}.j2"));
+        let content = std::fs::read_to_string(&template_path).ok()?;
+        let mut env = minijinja::Environment::new();
+        env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+        // Environment owns the template source via Arc<str> internally
+        env.add_template_owned("tpl", content).ok()?;
+        Some(Self { env })
+    }
+
+    fn render(&self, vars: &std::collections::HashMap<&str, String>) -> String {
+        let ctx = serde_json::to_value(vars).unwrap_or_default();
+        self.env
+            .get_template("tpl")
+            .and_then(|t| t.render(minijinja::Value::from_serialize(&ctx)))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default()
+    }
+}
+
+/// Map an RDF predicate to a 5W1H dimension.
+fn predicate_to_dimension(predicate: &str) -> Dimension {
+    let p = predicate.to_lowercase();
+    if p.contains("type") || p.contains("category") || p.contains("class") {
+        Dimension::What
+    } else if p.contains("author")
+        || p.contains("creator")
+        || p.contains("actor")
+        || p.contains("person")
+        || p.contains("agent")
+        || p.contains("mentions")
+    {
+        Dimension::Who
+    } else if p.contains("location") || p.contains("place") || p.contains("origin") {
+        Dimension::Where
+    } else if p.contains("date") || p.contains("time") || p.contains("duration") {
+        Dimension::When
+    } else if p.contains("cause")
+        || p.contains("reason")
+        || p.contains("motivation")
+        || p.contains("purpose")
+        || p.contains("related")
+    {
+        Dimension::Why
+    } else if p.contains("method")
+        || p.contains("technique")
+        || p.contains("procedure")
+        || p.contains("uses")
+        || p.contains("employs")
+        || p.contains("exhibits")
+    {
+        Dimension::How
+    } else {
+        Dimension::What
+    }
+}
+
+/// Strip JSON code fences from LLM output.
+fn strip_json_fences(text: &str) -> &str {
+    let trimmed = text.trim();
+    let stripped = trimmed
+        .strip_prefix("```json")
+        .or_else(|| trimmed.strip_prefix("```"))
+        .unwrap_or(trimmed)
+        .trim();
+    stripped.strip_suffix("```").unwrap_or(stripped).trim()
+}
+
+/// Extracted triple from LLM response.
+#[derive(Debug, Deserialize)]
+struct ExtractedTriple {
+    subject: String,
+    predicate: String,
+    object: String,
+    #[serde(default = "default_confidence")]
+    confidence: f64,
+}
+
+fn default_confidence() -> f64 {
+    0.8
+}
+
+/// LLM call with exponential backoff retry. Returns None if all retries fail.
+async fn llm_call_with_retry(
+    router: &InferenceRouter,
+    prompt: &str,
+    params: &LLMParameters,
+    model: &str,
+    max_retries: usize,
+) -> Option<hkask_ports::inference_types::InferenceResult> {
+    for attempt in 0..=max_retries {
+        match router
+            .generate_with_model(prompt, params, Some(model), None)
+            .await
+        {
+            Ok(r) => return Some(r),
+            Err(e) => {
+                if attempt < max_retries {
+                    let backoff = std::time::Duration::from_secs(
+                        2u64.pow((attempt + 1).min(6).try_into().unwrap()) * 5,
+                    );
+                    tracing::warn!(
+                        target: "corpus.embed",
+                        model = %model,
+                        attempt = attempt + 1,
+                        max_retries,
+                        error = %e,
+                        "LLM call failed — retrying after backoff"
+                    );
+                    tokio::time::sleep(backoff).await;
+                } else {
+                    tracing::error!(
+                        target: "corpus.embed",
+                        model = %model,
+                        error = %e,
+                        "LLM call failed after {} retries", max_retries
+                    );
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Parse ontology tags from LLM result.
+fn parse_ontology(
+    result: &Option<hkask_ports::inference_types::InferenceResult>,
+    chunk_id: &str,
+    model_label: &str,
+) -> Option<OntologyTags> {
+    result.as_ref().map(|r| {
+        let cleaned = strip_json_fences(&r.text);
+        serde_json::from_str::<OntologyTags>(cleaned).unwrap_or_else(|e| {
+            tracing::warn!(
+                target: "corpus.embed",
+                chunk = %chunk_id,
+                model = %model_label,
+                error = %e,
+                "Failed to parse ontology JSON from LLM"
+            );
+            OntologyTags::default()
+        })
+    })
+}
+
+/// Parse triples from LLM result.
+fn parse_triples(
+    result: &Option<hkask_ports::inference_types::InferenceResult>,
+    model_label: &str,
+) -> Option<TripleResponse> {
+    result.as_ref().map(|r| {
+        let cleaned = strip_json_fences(&r.text);
+        serde_json::from_str::<TripleResponse>(cleaned).unwrap_or_else(|e| {
+            tracing::warn!(
+                target: "corpus.embed",
+                model = %model_label,
+                error = %e,
+                "Failed to parse triple JSON from LLM"
+            );
+            TripleResponse {
+                triples: Vec::new(),
+            }
+        })
+    })
+}
+
+#[derive(Debug, Deserialize)]
+struct TripleResponse {
+    #[serde(default)]
+    triples: Vec<ExtractedTriple>,
+}
+
+/// Ontology tags from LLM response (tag-chunks.j2 output).
+#[derive(Debug, Deserialize, Default, Clone)]
+struct OntologyTags {
+    #[serde(default)]
+    dimensions: Vec<String>,
+    #[serde(default = "default_dc_type")]
+    dc_type: String,
+    #[serde(default)]
+    dc_subject: Vec<String>,
+    #[serde(default)]
+    ontology_tags: std::collections::HashMap<String, Vec<String>>,
+    #[serde(default = "default_expertise")]
+    expertise_level: String,
+}
+
+fn default_dc_type() -> String {
+    "bibo:Document".to_string()
+}
+fn default_expertise() -> String {
+    "analyst".to_string()
+}
+
+/// Call both dual classifier models for ontology tagging, merge results.
+async fn dual_classify_ontology(
+    router: &InferenceRouter,
+    model_a: &str,
+    model_b: &str,
+    template: &CompiledTemplate,
+    text: &str,
+    source: &str,
+    chunk_id: &str,
+    max_retries: usize,
+) -> OntologyTags {
+    let mut vars = std::collections::HashMap::new();
+    vars.insert("text", text.to_string());
+    vars.insert("source", source.to_string());
+    vars.insert("chunk_id", chunk_id.to_string());
+    let prompt = template.render(&vars);
+    if prompt.is_empty() {
+        tracing::warn!(target: "corpus.embed", chunk = %chunk_id, "Ontology template render returned empty");
+        return OntologyTags::default();
+    }
+
+    let params = LLMParameters {
+        temperature: 0.1,
+        max_tokens: 4096,
+        ..Default::default()
+    };
+
+    // Call both models concurrently with retry
+    let (result_a, result_b) = tokio::join!(
+        llm_call_with_retry(router, &prompt, &params, model_a, max_retries),
+        llm_call_with_retry(router, &prompt, &params, model_b, max_retries),
+    );
+
+    let tags_a = parse_ontology(&result_a, chunk_id, "A");
+    let tags_b = parse_ontology(&result_b, chunk_id, "B");
+
+    match (tags_a, tags_b) {
+        (Some(a), Some(b)) => merge_ontology_tags(a, b),
+        (Some(a), None) | (None, Some(a)) => a,
+        (None, None) => {
+            tracing::warn!(target: "corpus.embed", chunk = %chunk_id, "Both classifiers failed for ontology tagging");
+            OntologyTags::default()
+        }
+    }
+}
+
+/// Merge two ontology tag sets (union).
+fn merge_ontology_tags(a: OntologyTags, b: OntologyTags) -> OntologyTags {
+    let mut dims: std::collections::HashSet<String> = a.dimensions.into_iter().collect();
+    dims.extend(b.dimensions);
+
+    let mut dc_subject: std::collections::HashSet<String> = a.dc_subject.into_iter().collect();
+    dc_subject.extend(b.dc_subject);
+
+    let mut merged_tags: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    for (ns, concepts) in &a.ontology_tags {
+        merged_tags
+            .entry(ns.clone())
+            .or_default()
+            .extend(concepts.iter().cloned());
+    }
+    for (ns, concepts) in &b.ontology_tags {
+        merged_tags
+            .entry(ns.clone())
+            .or_default()
+            .extend(concepts.iter().cloned());
+    }
+
+    OntologyTags {
+        dimensions: dims.into_iter().collect(),
+        dc_type: a.dc_type,
+        dc_subject: dc_subject.into_iter().collect(),
+        ontology_tags: merged_tags
+            .into_iter()
+            .map(|(ns, set)| (ns, set.into_iter().collect()))
+            .collect(),
+        expertise_level: a.expertise_level,
+    }
+}
+
+/// Call both dual classifier models for h_mem decimation, merge and store triples.
+async fn dual_decimate_hmems(
+    router: &InferenceRouter,
+    model_a: &str,
+    model_b: &str,
+    template: &CompiledTemplate,
+    text: &str,
+    namespace: &str,
+    semantic: &SemanticMemory,
+    webid: hkask_types::WebID,
+    max_retries: usize,
+) -> usize {
+    let mut vars = std::collections::HashMap::new();
+    vars.insert("text", text.to_string());
+    vars.insert("namespace", namespace.to_string());
+    vars.insert("limit", "15".to_string());
+    let prompt = template.render(&vars);
+    if prompt.is_empty() {
+        tracing::warn!(target: "corpus.embed", "h_mem template render returned empty");
+        return 0;
+    }
+
+    let params = LLMParameters {
+        temperature: 0.1,
+        max_tokens: 4096,
+        ..Default::default()
+    };
+
+    let (result_a, result_b) = tokio::join!(
+        llm_call_with_retry(router, &prompt, &params, model_a, max_retries),
+        llm_call_with_retry(router, &prompt, &params, model_b, max_retries),
+    );
+
+    let triples_a = parse_triples(&result_a, "A");
+    let triples_b = parse_triples(&result_b, "B");
+
+    // Merge: deduplicate triples by (subject, predicate, object)
+    let mut seen: std::collections::HashSet<(String, String, String)> =
+        std::collections::HashSet::new();
+    let mut merged: Vec<ExtractedTriple> = Vec::new();
+    for resp in [triples_a, triples_b].into_iter().flatten() {
+        for triple in resp.triples {
+            let key = (
+                triple.subject.clone(),
+                triple.predicate.clone(),
+                triple.object.clone(),
+            );
+            if seen.insert(key) {
+                merged.push(triple);
+            }
+        }
+    }
+
+    let mut stored = 0usize;
+    for triple in &merged {
+        let dim = predicate_to_dimension(&triple.predicate);
+        let h_mem = HMem::new(
+            &triple.subject,
+            &triple.predicate,
+            serde_json::json!(triple.object),
+            webid,
+        )
+        .with_visibility(Visibility::Public)
+        .with_confidence(triple.confidence)
+        .with_dimension(dim);
+
+        match semantic.store(h_mem) {
+            Ok(()) => stored += 1,
+            Err(e) => {
+                tracing::warn!(
+                    target: "corpus.embed",
+                    entity = %triple.subject,
+                    predicate = %triple.predicate,
+                    error = %e,
+                    "Failed to store triple h_mem"
+                );
+            }
+        }
+    }
+    stored
+}
 
 async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
     let emb_model = model_constants::embedding_model();
+    let model_a = model_constants::classifier_model();
+    let model_b = model_constants::classifier_model_secondary();
 
-    println!("=== Embed ===");
-    println!("  Chunks: {}", args.chunks_jsonl.display());
-    println!("  DB:     {}", args.db_path);
-    println!("  Model:  {} ({} dim)", emb_model, EMBEDDING_DIM);
-    println!("  Batch:  {}", args.batch_size);
+    println!("=== Embed + Tag + Decimate ===");
+    println!("  Chunks:       {}", args.chunks_jsonl.display());
+    println!("  Output JSONL: {}", args.output_jsonl.display());
+    println!("  Replica DB:   {}", args.replica_db);
+    println!("  Replica:      {}", args.replica_name);
+    println!("  Embed model:  {} ({} dim)", emb_model, EMBEDDING_DIM);
+    println!("  Classifier A: {}", model_a);
+    println!("  Classifier B: {}", model_b);
+    println!("  Concurrency:  {}", args.concurrency);
     println!();
 
     let all_chunks = read_chunks(&args.chunks_jsonl)?;
@@ -241,34 +636,58 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         all_chunks.len()
     };
-    let chunks_to_embed = &all_chunks[args.start_at..end];
+    let chunks_to_process = &all_chunks[args.start_at..end];
     println!(
-        "  To embed: {} (indices {}-{})",
-        chunks_to_embed.len(),
+        "  To process: {} (indices {}-{})",
+        chunks_to_process.len(),
         args.start_at,
         end - 1
     );
 
     if args.dry_run {
-        println!("  Dry run. Would embed {} chunks.", chunks_to_embed.len());
+        println!(
+            "  Dry run. Would process {} chunks.",
+            chunks_to_process.len()
+        );
         return Ok(());
     }
 
-    let semantic = SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM)?;
+    // Replica DB: h_mems + embeddings
+    let semantic = Arc::new(SemanticMemory::open(
+        &args.replica_db,
+        &args.passphrase,
+        EMBEDDING_DIM,
+    )?);
     println!(
         "  Existing embeddings: {}",
         semantic.embedding_count().unwrap_or(0)
     );
 
     let inf_cfg = InferenceConfig::from_env();
-    let embedder = EmbeddingRouter::new(inf_cfg);
+    let embedder = EmbeddingRouter::new(inf_cfg.clone());
+    let router = Arc::new(InferenceRouter::new(inf_cfg));
+    let webid = hkask_types::WebID::from_persona(args.replica_name.as_bytes());
 
-    let total = chunks_to_embed.len();
+    // Compile templates once — reused for all chunks
+    let tag_template = CompiledTemplate::load("tag-chunks").unwrap_or_else(|| {
+        eprintln!("  FATAL: Could not load tag-chunks.j2 template");
+        std::process::exit(1);
+    });
+    let hmem_template = CompiledTemplate::load("extract-hmems").unwrap_or_else(|| {
+        eprintln!("  FATAL: Could not load extract-hmems.j2 template");
+        std::process::exit(1);
+    });
+    let tag_template = Arc::new(tag_template);
+    let hmem_template = Arc::new(hmem_template);
+    let max_retries = 3;
+
+    // Phase 1: Embed all chunks (batch API) → replica DB
+    println!("\n  Phase 1: Embedding...");
     let mut embedded = 0usize;
-    let mut failed = 0usize;
+    let mut embed_failed = 0usize;
     let mut batch_idx = 0usize;
 
-    'batches: for batch in chunks_to_embed.chunks(args.batch_size) {
+    'embed_batch: for batch in chunks_to_process.chunks(args.batch_size) {
         let texts: Vec<&str> = batch.iter().map(|c| c.text.as_str()).collect();
         let vectors = loop {
             match embedder.embed_sentences(&emb_model, &texts).await {
@@ -276,28 +695,21 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
                 Err(e) => {
                     batch_idx += 1;
                     let backoff_secs = 2u64.pow(batch_idx.min(6).try_into().unwrap()) * 10;
-                    let backoff = std::time::Duration::from_secs(backoff_secs);
-                    eprintln!(
-                        "  ERROR embedding batch (attempt {}): {} — retrying in {:?}",
-                        batch_idx, e, backoff
-                    );
                     if batch_idx >= 5 {
-                        eprintln!(
-                            "  GIVING UP after 5 retries on this batch — {} chunks failed",
-                            batch.len()
-                        );
-                        failed += batch.len();
-                        continue 'batches;
+                        eprintln!("  GIVING UP on batch after 5 retries: {e}");
+                        embed_failed += batch.len();
+                        continue 'embed_batch;
                     }
-                    tokio::time::sleep(backoff).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(backoff_secs)).await;
                 }
             }
         };
-        batch_idx = 0; // reset backoff on success
+        batch_idx = 0;
+
         for (chunk, vector) in batch.iter().zip(vectors.iter()) {
             match semantic.store_embedding(&chunk.entity_ref, vector, &emb_model) {
                 Ok(_) => {
-                    let webid = hkask_types::WebID::from_persona(CORPUS_WEBID.as_bytes());
+                    // Store text + provenance h_mems in replica DB
                     let text_h_mem = HMem::new(
                         &chunk.entity_ref,
                         "text",
@@ -306,6 +718,7 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
                     )
                     .with_visibility(Visibility::Public)
                     .with_confidence(1.0);
+
                     let provenance_h_mem = HMem::new(
                         &chunk.entity_ref,
                         "corpus_provenance",
@@ -320,43 +733,185 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
                     )
                     .with_visibility(Visibility::Public)
                     .with_confidence(1.0);
-                    match (semantic.store(text_h_mem), semantic.store(provenance_h_mem)) {
-                        (Ok(()), Ok(())) => embedded += 1,
-                        (text_result, provenance_result) => {
-                            eprintln!(
-                                "  ERROR storing provenance for {}: text={:?}, provenance={:?}",
-                                chunk.entity_ref,
-                                text_result.err(),
-                                provenance_result.err()
-                            );
-                            failed += 1;
-                        }
-                    }
+
+                    let _ = semantic.store(text_h_mem).map_err(|e| {
+                        tracing::warn!(target: "corpus.embed", entity = %chunk.entity_ref, error = %e, "Failed to store text h_mem");
+                    });
+                    let _ = semantic.store(provenance_h_mem).map_err(|e| {
+                        tracing::warn!(target: "corpus.embed", entity = %chunk.entity_ref, error = %e, "Failed to store provenance h_mem");
+                    });
+                    embedded += 1;
                 }
                 Err(e) => {
-                    eprintln!("  ERROR storing {}: {}", chunk.entity_ref, e);
-                    failed += 1;
+                    eprintln!("  ERROR storing embedding {}: {e}", chunk.entity_ref);
+                    embed_failed += 1;
                 }
             }
         }
-        println!(
-            "  [{}/{}] {} embedded, {} failed",
-            embedded + failed,
-            total,
-            embedded,
-            failed
+        print!(
+            "\r  [{}/{}] embedded",
+            embedded + embed_failed,
+            chunks_to_process.len()
         );
     }
+    println!();
+
+    // Phase 2: Dual classifier — ontology tagging + h_mem decimation (concurrent)
+    println!("\n  Phase 2: Dual classifier (ontology tagging + h_mem decimation)...");
+    let sem = Arc::new(tokio::sync::Semaphore::new(args.concurrency));
+    let total = chunks_to_process.len();
+    let completed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let failed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let h_mems_total = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+
+    // Results collected for JSONL output
+    let results: Arc<std::sync::Mutex<Vec<OntologyTags>>> = Arc::new(std::sync::Mutex::new(vec![
+            OntologyTags::default();
+            chunks_to_process.len()
+        ]));
+
+    let start_time = std::time::Instant::now();
+    let mut handles = Vec::with_capacity(chunks_to_process.len());
+
+    for (idx, chunk) in chunks_to_process.iter().enumerate() {
+        let router = Arc::clone(&router);
+        let semantic = Arc::clone(&semantic);
+        let sem = Arc::clone(&sem);
+        let results = Arc::clone(&results);
+        let completed = Arc::clone(&completed);
+        let failed = Arc::clone(&failed);
+        let h_mems_total = Arc::clone(&h_mems_total);
+        let tag_template = Arc::clone(&tag_template);
+        let hmem_template = Arc::clone(&hmem_template);
+        let model_a = model_a.clone();
+        let model_b = model_b.clone();
+        let entity_ref = chunk.entity_ref.clone();
+        let source = chunk.source.clone();
+        let text = chunk.text.clone();
+        let replica_name = args.replica_name.clone();
+        let webid = webid;
+        let max_retries = max_retries;
+
+        let handle = tokio::spawn(async move {
+            let _permit = sem.acquire().await;
+
+            // Run ontology tagging + h_mem decimation concurrently
+            let (ontology_tags, h_mems_stored) = tokio::join!(
+                dual_classify_ontology(
+                    &router,
+                    &model_a,
+                    &model_b,
+                    &tag_template,
+                    &text,
+                    &source,
+                    &entity_ref,
+                    max_retries
+                ),
+                dual_decimate_hmems(
+                    &router,
+                    &model_a,
+                    &model_b,
+                    &hmem_template,
+                    &text,
+                    &replica_name,
+                    &semantic,
+                    webid,
+                    max_retries
+                ),
+            );
+
+            {
+                let mut guard = results.lock().unwrap();
+                guard[idx] = ontology_tags;
+            }
+
+            h_mems_total.fetch_add(h_mems_stored, std::sync::atomic::Ordering::Relaxed);
+            let c = completed.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            let f = failed.load(std::sync::atomic::Ordering::Relaxed);
+            let elapsed = start_time.elapsed().as_secs_f64();
+            let rate = c as f64 / elapsed.max(1.0);
+
+            if c.is_multiple_of(10) || c == 1 {
+                eprintln!(
+                    "\r  [{}/{}] {} ok, {} fail, {} h_mems ({:.1}/s)",
+                    c,
+                    total,
+                    c,
+                    f,
+                    h_mems_total.load(std::sync::atomic::Ordering::Relaxed),
+                    rate
+                );
+            }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        if handle.await.is_err() {
+            failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
+    // Phase 3: Write tagged JSONL (reference corpus)
+    println!("\n  Phase 3: Writing tagged JSONL...");
+    let results_guard = results.lock().unwrap();
+    let mut out = String::new();
+    for (idx, chunk) in chunks_to_process.iter().enumerate() {
+        let tags = &results_guard[idx];
+
+        // Build concepts from ontology_tags (union of all values)
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut concepts: Vec<String> = Vec::new();
+        for concepts_list in tags.ontology_tags.values() {
+            for c in concepts_list {
+                if seen.insert(c.clone()) {
+                    concepts.push(c.clone());
+                }
+            }
+        }
+
+        let tagged = serde_json::json!({
+            "entity_ref": chunk.entity_ref,
+            "source": chunk.source,
+            "text": chunk.text,
+            "word_count": chunk.word_count,
+            "dimensions": if tags.dimensions.is_empty() { vec!["what".to_string()] } else { tags.dimensions.clone() },
+            "dc_type": tags.dc_type,
+            "dc_subject": tags.dc_subject,
+            "ontology_tags": tags.ontology_tags,
+            "concepts": concepts,
+            "expertise_level": tags.expertise_level,
+            "salience": 0.0,
+            "consolidated_from": Vec::<String>::new(),
+            "ontology": null,
+        });
+        out.push_str(&serde_json::to_string(&tagged).unwrap_or_default());
+        out.push('\n');
+    }
+    std::fs::write(&args.output_jsonl, &out)?;
+
+    let elapsed = start_time.elapsed();
+    let c = completed.load(std::sync::atomic::Ordering::Relaxed);
+    let f = failed.load(std::sync::atomic::Ordering::Relaxed);
+    let hm = h_mems_total.load(std::sync::atomic::Ordering::Relaxed);
 
     println!("\n=== Done ===");
-    println!("  Embedded: {}", embedded);
-    println!("  Failed:   {}", failed);
-    println!("  Store:    {}", semantic.embedding_count().unwrap_or(0));
+    println!("  Embedded:          {}", embedded);
+    println!("  Embed failures:    {}", embed_failed);
+    println!("  Classified:        {}/{}", c, total);
+    println!("  Classification failures: {}", f);
+    println!("  h_mems stored:    {}", hm);
+    println!("  Time:              {:.1}s", elapsed.as_secs_f64());
+    println!("  JSONL output:      {}", args.output_jsonl.display());
+    println!("  Replica DB:        {}", args.replica_db);
+    println!(
+        "  DB embeddings:     {}",
+        semantic.embedding_count().unwrap_or(0)
+    );
     Ok(())
 }
 
 // ── Salience ────────────────────────────────────────────────────────
-
 
 // ── Shared helpers ──────────────────────────────────────────────────
 
@@ -453,7 +1008,10 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
     // because it depended on the deleted hardcoded investment_concepts.rs tagger.
     // With ontology-anchored tagging, every chunk has at least 5W1H dimensions.
     let qualifying: Vec<&TaggedChunk> = all_chunks.iter().collect();
-    println!("  All chunks: {} (no filter — ontology tagging ensures coverage)", qualifying.len());
+    println!(
+        "  All chunks: {} (no filter — ontology tagging ensures coverage)",
+        qualifying.len()
+    );
     let type_rotation = parse_type_distribution(&args.type_distribution);
     let limit = if args.max_prompts > 0 {
         args.max_prompts.min(qualifying.len())
@@ -480,38 +1038,42 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
         .map(|c| (c.entity_ref.as_str(), c.source.as_str()))
         .collect();
 
-    let emb_map: std::collections::HashMap<String, Vec<f32>> = match SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM) {
-        Ok(sem) => {
-            let count = sem.embedding_count().unwrap_or(0);
-            println!("  Memory DB: {} ({} embeddings)", args.db_path, count);
-            match sem.embeddings_by_prefix("corpus:researcher:") {
-                Ok(embs) => {
-                    let map: std::collections::HashMap<String, Vec<f32>> = embs
-                        .into_iter()
-                        .map(|(er, v)| {
-                            let mag = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
-                            let norm: Vec<f32> = if mag > 0.0 {
-                                v.iter().map(|x| x / mag).collect()
-                            } else {
-                                v
-                            };
-                            (er, norm)
-                        })
-                        .collect();
-                    println!("  Bulk-loaded {} normalized embeddings for in-memory KNN", map.len());
-                    map
-                }
-                Err(e) => {
-                    println!("  Warning: embedding query failed — scaffold disabled: {e}");
-                    std::collections::HashMap::new()
+    let emb_map: std::collections::HashMap<String, Vec<f32>> =
+        match SemanticMemory::open(&args.db_path, &args.passphrase, EMBEDDING_DIM) {
+            Ok(sem) => {
+                let count = sem.embedding_count().unwrap_or(0);
+                println!("  Memory DB: {} ({} embeddings)", args.db_path, count);
+                match sem.embeddings_by_prefix("corpus:researcher:") {
+                    Ok(embs) => {
+                        let map: std::collections::HashMap<String, Vec<f32>> = embs
+                            .into_iter()
+                            .map(|(er, v)| {
+                                let mag = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
+                                let norm: Vec<f32> = if mag > 0.0 {
+                                    v.iter().map(|x| x / mag).collect()
+                                } else {
+                                    v
+                                };
+                                (er, norm)
+                            })
+                            .collect();
+                        println!(
+                            "  Bulk-loaded {} normalized embeddings for in-memory KNN",
+                            map.len()
+                        );
+                        map
+                    }
+                    Err(e) => {
+                        println!("  Warning: embedding query failed — scaffold disabled: {e}");
+                        std::collections::HashMap::new()
+                    }
                 }
             }
-        }
-        Err(e) => {
-            println!("  Warning: could not open memory DB — scaffold disabled: {e}");
-            std::collections::HashMap::new()
-        }
-    };
+            Err(e) => {
+                println!("  Warning: could not open memory DB — scaffold disabled: {e}");
+                std::collections::HashMap::new()
+            }
+        };
 
     // Group embeddings by source file for scoped KNN search.
     // Context passages from unrelated sources aren't useful — the LLM needs
@@ -527,7 +1089,10 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
                 .push((&chunk.entity_ref, v));
         }
     }
-    println!("  Source-grouped KNN: {} source groups", emb_by_source.len());
+    println!(
+        "  Source-grouped KNN: {} source groups",
+        emb_by_source.len()
+    );
 
     // ── Scaffold: build concept graph (concept → chunk_count) ──────────────
     let mut concept_connections: std::collections::HashMap<&str, usize> =
@@ -569,11 +1134,7 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
                     .iter()
                     .filter(|(er, _)| er.as_str() != tc.entity_ref)
                     .map(|(er, v)| {
-                        let dot: f32 = query_vec
-                            .iter()
-                            .zip(v.iter())
-                            .map(|(a, b)| a * b)
-                            .sum();
+                        let dot: f32 = query_vec.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
                         (*er, dot)
                     })
                     .collect();
@@ -583,17 +1144,17 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
                         b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
                     });
                     // Sort only the top K (much smaller than full array)
-                    scored[..k].sort_by(|a, b| {
-                        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-                    });
+                    scored[..k]
+                        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                     scored.into_iter().take(k).collect()
                 } else {
-                    scored.sort_by(|a, b| {
-                        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-                    });
+                    scored
+                        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                     scored.into_iter().collect()
                 };
-                top_k.into_iter().map(|(er, sim)| {
+                top_k
+                    .into_iter()
+                    .map(|(er, sim)| {
                         let text = text_map.get(er.as_str()).copied().unwrap_or("");
                         let source = source_map.get(er.as_str()).copied().unwrap_or(er);
                         serde_json::json!({
@@ -685,11 +1246,20 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
             } else {
                 tc.expertise_level.as_str()
             };
-            let dc_type = if tc.dc_type.is_empty() { "bibo:Document" } else { tc.dc_type.as_str() };
-            let dc_subject = if tc.dc_subject.is_empty() { &tc.concepts } else { &tc.dc_subject };
+            let dc_type = if tc.dc_type.is_empty() {
+                "bibo:Document"
+            } else {
+                tc.dc_type.as_str()
+            };
+            let dc_subject = if tc.dc_subject.is_empty() {
+                &tc.concepts
+            } else {
+                &tc.dc_subject
+            };
 
             // Format ontology_tags as readable string: "fibo: ROIC, DCF | golem: metaphor | pko: analysis"
-            let tags_str: String = tc.ontology_tags
+            let tags_str: String = tc
+                .ontology_tags
                 .iter()
                 .map(|(ns, concepts)| format!("{}: {}", ns, concepts.join(", ")))
                 .collect::<Vec<_>>()
@@ -698,17 +1268,33 @@ fn run_build_prompts(args: BuildPromptsArgs) -> Result<(), Box<dyn std::error::E
             let ontology_text = if tc.consolidated_from.is_empty() {
                 format!(
                     "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:producedBy=corpus QA generation pipeline\nOntology tags: {}",
-                    dimensions_str, qt.as_str(), expertise,
-                    tc.source, dc_type, dc_subject.join(", "),
-                    if tags_str.is_empty() { "(none)" } else { &tags_str }
+                    dimensions_str,
+                    qt.as_str(),
+                    expertise,
+                    tc.source,
+                    dc_type,
+                    dc_subject.join(", "),
+                    if tags_str.is_empty() {
+                        "(none)"
+                    } else {
+                        &tags_str
+                    }
                 )
             } else {
                 format!(
                     "5W1H: passage answers interrogatories [{}]. QA at {} level for {} expertise.\nDublin Core: dcterms:source={}, dcterms:type={}, dcterms:subject={}\nPKO: pko:wasExtractedFrom={} original passages (consolidation preserved all unique information), pko:producedBy=corpus QA generation pipeline\nOntology tags: {}",
-                    dimensions_str, qt.as_str(), expertise,
-                    tc.source, dc_type, dc_subject.join(", "),
+                    dimensions_str,
+                    qt.as_str(),
+                    expertise,
+                    tc.source,
+                    dc_type,
+                    dc_subject.join(", "),
                     tc.consolidated_from.len(),
-                    if tags_str.is_empty() { "(none)" } else { &tags_str }
+                    if tags_str.is_empty() {
+                        "(none)"
+                    } else {
+                        &tags_str
+                    }
                 )
             };
 
