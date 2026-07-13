@@ -1,29 +1,39 @@
-# Capabilities Researcher — Full Pipeline Manifest v4.0
+# Capabilities Researcher — Full Pipeline Manifest v5.0
 # Traces from raw files through trained LoRA adapter.
 #
 # Type: PipelineManifest
 # Persona: Business and Economics Researcher — Capability-Performance Gap Analysis
-# Source: 105 files (PDF + HTML) from Clones/Library/Researcher
-# Target: 5,000 Bloom-balanced QAs for LoRA training on Qwen3.6-27B via Unsloth/RunPod
+# Source: 106 files (PDF + HTML) from Clones/Library/Researcher
+# Target: Bloom-balanced QAs for LoRA training + John Brooks style replica
+#
+# Architecture: Two outputs from the embed step:
+#   1. JSONL reference corpus — chunks + ontology tags (tag-chunks.j2 template)
+#   2. Replica memory DB — h_mems (decimated triples) + embeddings (extract-hmems.j2 template)
+#
+# Dual classifier models (both on DeepInfra, 196 concurrency):
+#   Model A: DI/Qwen/Qwen3-235B-A22B-Instruct-2507 (primary)
+#   Model B: DI/google/gemma-4-26B-A4B-it (secondary)
+# Embedding: DI/Qwen/Qwen3-Embedding-0.6B (1024-dim)
+# QA generation: DI/zai-org/GLM-5.2
+
 id: capabilities-researcher-pipeline
-version: "4.0"
+version: "5.0"
 type: pipeline
 energy_budget:
   gas_cap: 500000
   rjoule_cap: 5
 description: >
   Full corpus pipeline for the Capabilities Researcher persona.
-  Analyzes the gap between organizational/system capabilities and
-  actual performance using economic theory, systems thinking,
-  computing principles, scientific method, and institutional analysis.
-  Produces Bloom taxonomy QAs and a John Brooks style replica.
+  Produces two separate outputs: a JSONL reference corpus with ontology tags
+  and a John Brooks replica memory DB with h_mems and embeddings.
+  Dual classifier LLM calls on DeepInfra at 196 concurrency.
 
 steps:
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 0: Raw Files → Extracted Text
   # ═══════════════════════════════════════════════════════════════════════
   - id: extract_text
-    description: "Extract text from 105 source files (PDF + HTML)"
+    description: "Extract text from 106 source files (PDF + HTML)"
     tool: docproc_convert
     params:
       path: "/home/mdz-axolotl/Clones/Library/Researcher"
@@ -36,7 +46,7 @@ steps:
   # Phase 1: Text → Chunks
   # ═══════════════════════════════════════════════════════════════════════
   - id: chunk_all
-    description: "Chunk extracted text into ~500-token passages"
+    description: "Chunk extracted text into ~256-token passages"
     tool: docproc_chunk
     params:
       input_dir: "corpus/extracted/researcher"
@@ -47,95 +57,110 @@ steps:
       index: true
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 2: Chunks → Embeddings + Tags
+  # Phase 2: Embed + Tag + Decimate (dual classifier, high concurrency)
+  # Produces TWO outputs:
+  #   1. corpus/chunks/tagged_ontology.jsonl — JSONL reference corpus
+  #   2. corpus/memory/john-brooks.db — replica memory DB (h_mems + embeddings)
   # ═══════════════════════════════════════════════════════════════════════
-  - id: embed_chunks
-    description: "Embed chunks via Qwen3-Embedding-0.6B (1024-dim)"
-    tool: corpus_embed
+  - id: embed_tag_decimate
+    description: >
+      Embed chunks (Qwen3-Embedding-0.6B), tag with ontology tags (tag-chunks.j2),
+      decimate to h_mems (extract-hmems.j2). Dual classifier models A + B on
+      DeepInfra at 196 concurrency. Two outputs: tagged JSONL + replica DB.
+    tool: corpus_ingest_embed
     params:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
-      db_path: "corpus/memory/corpus_memory.db"
-      batch_size: 100
-
-  - id: compute_salience
-    description: "Tag with concepts from economics/systems/computing domains, compute salience"
-    tool: corpus_salience
-    params:
-      db_path: "corpus/memory/corpus_memory.db"
+      output_jsonl: "corpus/chunks/tagged_ontology.jsonl"
+      replica_db: "corpus/memory/john-brooks.db"
+      replica_name: "john-brooks"
+      passphrase: "hkask-default-passphrase-2024"
+      batch_size: 50
+      concurrency: 196
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 3: Tagged Chunks → Bloom QA Prompts
+  # Phase 3: Dedup (near-identical chunk removal)
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: dedup_chunks
+    description: "Remove near-identical chunks (cosine > 0.85)"
+    tool: docproc_dedup_chunks
+    params:
+      tagged_jsonl: "corpus/chunks/tagged_ontology.jsonl"
+      output: "corpus/chunks/deduped.jsonl"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
+      threshold: 0.85
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 4: Consolidate (LLM synthesis of related chunks)
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: consolidate_chunks
+    description: "Cluster related chunks (cosine > 0.75), LLM-synthesize multi-chunk clusters"
+    tool: docproc_consolidate_chunks
+    params:
+      tagged_jsonl: "corpus/chunks/deduped.jsonl"
+      output: "corpus/chunks/consolidated.jsonl"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
+      threshold: 0.75
+      concurrency: 128
+      max_chunks_per_cluster: 5
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 5: Build Bloom QA Prompts (5 per chunk, KNN scaffold)
   # ═══════════════════════════════════════════════════════════════════════
   - id: build_prompts
     description: >
-      Build Bloom taxonomy prompts: 3 QAs per qualified chunk with
-      capability-performance gap analysis framing.
-      Bloom levels: factual (identify capabilities/metrics),
-      conceptual (explain mechanisms), analyze (compare patterns),
-      evaluate (assess evidence), create (design interventions).
-    tool: corpus_build_prompts
+      Build Bloom taxonomy prompts: 5 QAs per chunk (factual/conceptual/analyze/evaluate/create).
+      KNN scaffold from replica DB embeddings. Ontology context in prompt.
+    tool: corpus_ingest_build_prompts
     params:
-      tagged_jsonl: "corpus/chunks/tagged_chunks.jsonl"
-      output: "corpus/qa_pairs/prompts_bloom.jsonl"
-      min_salience: 0.05
-      min_concepts: 2
-      cross_reference: true
+      tagged_jsonl: "corpus/chunks/consolidated.jsonl"
+      output: "corpus/qa_pairs/prompts.jsonl"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 4: Prompts → Generated QAs
+  # Phase 6: Generate QAs (GLM-5.2, per-Bloom sampling, 128 concurrency)
   # ═══════════════════════════════════════════════════════════════════════
   - id: generate_qas
     description: >
-      Generate QA pairs via DeepSeek V4 Pro.
-      3 parallel workers, 12 concurrency each.
-      Incremental writes every 10 completions for crash safety.
-    tool: corpus_generate_qa
+      Generate QA pairs via GLM-5.2 on DeepInfra. Per-Bloom sampling parameters.
+      196 concurrency. Incremental writes every 10 completions.
+    tool: corpus_ingest_generate_qa
     params:
-      prompts_jsonl: "corpus/qa_pairs/prompts_bloom.jsonl"
-      concurrency: 12
-      workers: 3
+      prompts_jsonl: "corpus/qa_pairs/prompts.jsonl"
+      output: "corpus/qa_pairs/generated.jsonl"
+      concurrency: 196
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 5: Raw QAs → Balanced Training Set
-  # ═══════════════════════════════════════════════════════════════════════
-  - id: select_quality
-    description: >
-      Balanced Bloom selection: 1,000 QAs per taxonomy level, 80/10/10 split.
-      Concept coverage validation. Sorted by output length.
-      Chat format with Capabilities Researcher system prompt.
-    tool: scripts/pipeline.sh
-    params:
-      target_per_level: 1000
-      train_split: 0.80
-      val_split: 0.10
-      test_split: 0.10
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Phase 6: QAs → Embedding Store + h_mems
+  # Phase 7: Ingest QAs (SemDeDup + 5W1H + ontology sidecar)
   # ═══════════════════════════════════════════════════════════════════════
   - id: ingest_qas
-    description: "Deduplicate (0.92 cosine), store h_mems, embed QA vectors"
-    tool: corpus_ingest_qa
+    description: "SemDeDup (K-means, K=2.5% of N), store h_mems, embed QA vectors"
+    tool: corpus_ingest_ingest_qa
     params:
-      generated_jsonl: "corpus/qa_pairs/bloom_flat.jsonl"
+      generated_jsonl: "corpus/qa_pairs/generated.jsonl"
       output: "corpus/qa_pairs/train.jsonl"
-      db_path: "corpus/memory/corpus_memory.db"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
       dedup_threshold: 0.92
       embed_qas: true
+      dataset: "corpus-researcher"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 7: Persona (Optional — inference-time style matching)
+  # Phase 8: Replica Build (style centroids from corpus)
   # ═══════════════════════════════════════════════════════════════════════
   - id: build_replica
     description: "Build John Brooks replica centroids from researcher corpus"
     tool: replica_build
     params:
       config_path: "corpus/replica/john-brooks.yaml"
-      db_path: "corpus/memory/corpus_memory.db"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
     optional: true
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 8: LoRA Training (RunPod + Unsloth + Qwen3.6-27B)
+  # Phase 9: LoRA Training (RunPod + Unsloth + Qwen3.6-27B)
   # ═══════════════════════════════════════════════════════════════════════
   - id: train_lora
     description: "Train Capabilities Researcher LoRA adapter on RunPod"
@@ -159,7 +184,7 @@ steps:
         epochs: 3
         per_device_train_batch_size: 1
         gradient_accumulation_steps: 4
-        max_seq_length: 4096   # Auto-adjust based on P95 × 1.2 from pre-flight
+        max_seq_length: 4096
         warmup_steps: 672
         lr_scheduler_type: cosine
         optim: adamw_8bit
