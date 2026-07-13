@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# RunPod Unsloth Training — Qwen3.6-27B Distillation
+# RunPod Training — Qwen3.6-27B Rust + Reasoning Adapters
 # ============================================================================
 # PREREQUISITE: Add your SSH public key at https://www.runpod.io/console/user/settings
 #   If you haven't: ssh-keygen -t ed25519 && cat ~/.ssh/id_ed25519.pub
@@ -11,11 +11,12 @@
 #   3. You paste ONE command to start training
 #
 # Usage: bash scripts/runpod_unsloth.sh [MODE]
-#   (no arg)  Launch for reasoning distillation training
-#   --eval    Launch for adapter evaluation
 #   --rust-coding   Train Rust coding adapter (Strandset-Rust-v1)
 #   --rust-analysis Train Rust analysis adapter (introspector/rust-analyser)
 #   --rust-both     Train combined Rust adapter (coding + analysis)
+#   --rust-reasoning Train reasoning adapter (OpenThoughts-114k)
+#   --rust-all      Train all three combined (coding + analysis + reasoning)
+#   --rust-eval     Launch for adapter evaluation
 # ============================================================================
 set -euo pipefail
 
