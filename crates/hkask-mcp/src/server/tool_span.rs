@@ -60,7 +60,7 @@ impl ToolSpanGuard {
     /// use hkask_bridge_pko::STEP_EXECUTION;
     /// ToolSpanGuard::new("my_tool", &caller)
     ///     .with_ontology(STEP_EXECUTION);
-/// ```
+    /// ```
     #[must_use]
     pub fn with_ontology(mut self, concept: &'static str) -> Self {
         self.ontology = Some(concept);

@@ -218,7 +218,7 @@ impl CnsSpan {
     ///
     /// CnsSpan::Tool { subsystem: ToolSubsystem::Media }
     ///     .emit("invoked");
-/// ```
+    /// ```
     pub fn emit(&self, operation: &str) {
         tracing::info!(
             target: "cns",
