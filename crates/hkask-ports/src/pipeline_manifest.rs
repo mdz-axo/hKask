@@ -184,7 +184,7 @@ mod tests {
         );
         assert_eq!(
             manifest.steps.last().map(|step| step.tool.as_str()),
-            Some("training_submit")
+            Some("axolotl_train")
         );
     }
 
