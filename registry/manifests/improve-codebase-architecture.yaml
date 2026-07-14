@@ -96,7 +96,7 @@ steps:
     template_ref: improve-codebase-architecture/arch-deepen
     gas_cap: 8000
     timeout_seconds: 120
-    condition: "step_2_result.candidates | default([]) | length > 0"
+    condition: "{{ (step_2_result.candidates | default([])) | length > 0 }}"
     input_mapping:
       selected_candidate: "{{ step_2_result.selected_candidate | default(step_2_result.candidates[0] | default({})) }}"
       friction_points: "{{ step_1_result.friction_points | default([]) }}"

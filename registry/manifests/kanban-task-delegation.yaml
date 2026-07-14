@@ -47,7 +47,6 @@ steps:
       — spawning is consent-mediated (P1).
     renderer: minijinja
     template_ref: kanban-task-delegation/configure-spawn
-    classifier: true
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:

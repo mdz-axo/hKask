@@ -48,7 +48,6 @@ steps:
       This is the board-level situational awareness step.
     renderer: minijinja
     template_ref: kanban-task-management/monitor-board
-    classifier: true
     gas_cap: 4000
     timeout_seconds: 30
     output_schema:
@@ -96,7 +95,6 @@ steps:
       Update the task's deliverable list as work progresses.
     renderer: minijinja
     template_ref: kanban-task-management/track-deliverables
-    classifier: true
     gas_cap: 4000
     timeout_seconds: 45
 
@@ -124,7 +122,6 @@ steps:
       with feedback in the comment thread.
     renderer: minijinja
     template_ref: kanban-task-management/verify-completion
-    classifier: true
     gas_cap: 6000
     timeout_seconds: 60
     output_schema:
@@ -162,7 +159,6 @@ steps:
       to situations the board operator cannot resolve alone.
     renderer: minijinja
     template_ref: kanban-task-management/escalate
-    classifier: true
     gas_cap: 3000
     timeout_seconds: 30
 

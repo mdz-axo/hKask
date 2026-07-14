@@ -156,7 +156,6 @@ steps:
       guard forces convergence when elimination plateaus.
     renderer: minijinja
     template_ref: falsifiability/falsifiability-convergence-check
-    classifier: true
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:

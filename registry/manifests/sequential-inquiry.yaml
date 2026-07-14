@@ -145,13 +145,9 @@ steps:
     description: >
       Compute normalized convergence metric. Scores whether the thought
       chain is verified AND all delegation requests have been resolved.
-      Routed through classifier model (cheaper, tuned for structured evaluation).
+      Single-model inference (the convergence check is deterministic — fusion disabled for rubric stability).
     renderer: minijinja
     template_ref: sequential-inquiry/sequential-inquiry-convergence-check
-    # NOTE: classifier: true is currently a NO-OP — BundleManifestStep has no classifier
-    # field, so serde silently ignores this. The convergence step uses the default model,
-    # not a cheaper classifier model. See SMELL 9 documentation.
-    classifier: true
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:

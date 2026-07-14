@@ -40,6 +40,8 @@ struct ConvergenceConfig {
 struct StepEntry {
     ordinal: u32,
     #[serde(default)]
+    action: Option<String>,
+    #[serde(default)]
     template_ref: Option<String>,
     #[serde(default)]
     input_mapping: Option<HashMap<String, String>>,
@@ -181,6 +183,44 @@ fn all_manifests_pass_flowdef_cross_validation() {
                 finding.category,
                 finding.description
             ));
+        }
+
+        // Validate convergence_field references an output-producing step (SMELL 11 fix).
+        let ordinal_actions: HashMap<u32, String> = manifest
+            .steps
+            .iter()
+            .filter_map(|s| s.action.as_ref().map(|a| (s.ordinal, a.clone())))
+            .collect();
+        const NON_OUTPUT: &[&str] = &["loop", "abort", "escalate", "choice"];
+        if let Some(conv) = &manifest.convergence
+            && let Some(field) = &conv.convergence_field
+            && let Some(n_str) = field.strip_prefix("step_")
+            && let Some(end) = n_str.find('_')
+            && let Ok(n) = n_str[..end].parse::<u32>()
+            && let Some(action) = ordinal_actions.get(&n)
+            && NON_OUTPUT.contains(&action.as_str())
+        {
+            errors.push(format!(
+                "{}: [critical] convergence_field references step {n} which is a '{action}' step (produces no result)",
+                path.display()
+            ));
+        }
+
+        // Validate loop_target references a declared ordinal (SMELL 11 fix).
+        let declared: std::collections::HashSet<u32> =
+            manifest.steps.iter().map(|s| s.ordinal).collect();
+        for step in &manifest.steps {
+            if let Some(mapping) = &step.input_mapping
+                && let Some(lt) = mapping.get("loop_target")
+                && let Ok(n) = lt.trim().parse::<u32>()
+                && !declared.contains(&n)
+            {
+                errors.push(format!(
+                    "{}: [critical] step {} loop_target {n} references no existing step",
+                    path.display(),
+                    step.ordinal
+                ));
+            }
         }
 
         // Validate each step's input_mapping against template contract

@@ -64,10 +64,7 @@ steps:
       current evolutionary position.
 
     renderer: minijinja
-    # Cross-crate ref: templates exist in the wardley-mapper/ crate, not platform-wardley-mapper/.
-    # The platform-wardley-mapper crate has only 2 customized .j2 (classify-evolution, convergence-check);
-    # the other 4 use the generic wardley-mapper/ templates. See SMELL 7 documentation.
-    template_ref: wardley-mapper/inventory-components
+    template_ref: platform-wardley-mapper/inventory-components
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -108,7 +105,7 @@ steps:
       - Future (far right): Platform Engineer replicant → Genesis
 
     renderer: minijinja
-    template_ref: wardley-mapper/map-value-chain
+    template_ref: platform-wardley-mapper/map-value-chain
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -128,7 +125,7 @@ steps:
       - Compare against previous_map to detect drift and velocity.
 
     renderer: minijinja
-    template_ref: wardley-mapper/identify-movement
+    template_ref: platform-wardley-mapper/identify-movement
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -149,7 +146,7 @@ steps:
       Output: structured JSON + Mermaid diagram of the Wardley Map.
 
     renderer: minijinja
-    template_ref: wardley-mapper/synthesize-recommendations
+    template_ref: platform-wardley-mapper/synthesize-recommendations
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -189,7 +186,7 @@ ocap:
   required_capabilities:
     - resource: template
       action: render
-      template_id: platform-wardley-mapper/inventory-components
+      template_id: platform-platform-wardley-mapper/inventory-components
       gas_budget: 5000
     - resource: template
       action: render
@@ -197,15 +194,15 @@ ocap:
       gas_budget: 5000
     - resource: template
       action: render
-      template_id: platform-wardley-mapper/map-value-chain
+      template_id: platform-platform-wardley-mapper/map-value-chain
       gas_budget: 5000
     - resource: template
       action: render
-      template_id: platform-wardley-mapper/identify-movement
+      template_id: platform-platform-wardley-mapper/identify-movement
       gas_budget: 5000
     - resource: template
       action: render
-      template_id: platform-wardley-mapper/synthesize-recommendations
+      template_id: platform-platform-wardley-mapper/synthesize-recommendations
       gas_budget: 5000
     - resource: template
       action: render

@@ -47,7 +47,6 @@ steps:
       from the user's natural-language project description.
     renderer: minijinja
     template_ref: kanban-task-decomposition/gather-context
-    classifier: true
     gas_cap: 3000
     timeout_seconds: 30
     output_schema:
@@ -178,7 +177,6 @@ steps:
       the described order? Are there gaps in the integration plan?
     renderer: minijinja
     template_ref: kanban-task-decomposition/review-tasks
-    classifier: true
     gas_cap: 4000
     timeout_seconds: 30
 

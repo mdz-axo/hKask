@@ -205,6 +205,48 @@ pub struct TemplateSummary {
     pub render_act: usize,
 }
 
+/// A typed cross-step reference defect found by `validate_flowdef_refs`.
+/// Replaces fragile string-matching for severity (SMELL 4 fix).
+#[derive(Debug, Clone)]
+pub enum FlowDefDefect {
+    ConvergenceFieldNonExistent { step: u32 },
+    ConvergenceFieldNonOutput { step: u32, action: String },
+    LoopTargetInvalid { target: u32 },
+    InputMappingBadRef { step: u32 },
+    TemplatesNotBuilt { count: usize },
+}
+
+impl FlowDefDefect {
+    /// The health-score penalty for this defect.
+    pub fn penalty(&self) -> f64 {
+        match self {
+            Self::TemplatesNotBuilt { .. } => 0.15,
+            _ => 0.10,
+        }
+    }
+
+    /// The human-readable defect message.
+    pub fn message(&self) -> String {
+        match self {
+            Self::ConvergenceFieldNonExistent { step } => format!(
+                "convergence_field references step {step}_result but no step {step} exists (silently never converges)"
+            ),
+            Self::ConvergenceFieldNonOutput { step, action } => format!(
+                "convergence_field references step {step} which is a '{action}' step (produces no result; must reference an output-producing step)"
+            ),
+            Self::LoopTargetInvalid { target } => {
+                format!("loop_target {target} references no existing step")
+            }
+            Self::InputMappingBadRef { step } => format!(
+                "input_mapping references step {step}_result but no step {step} exists (resolves to empty at runtime)"
+            ),
+            Self::TemplatesNotBuilt { count } => format!(
+                "FlowDef references {count} template_ref(s) but the crate manifest declares 0 templates (templates not built — skill non-executable)"
+            ),
+        }
+    }
+}
+
 // ── Internal implementation ──────────────────────────────────────────────
 
 /// Extract every `step_<N>_result` ordinal referenced in `s`. These occur in
@@ -355,16 +397,8 @@ impl<'a> SkillAuditor<'a> {
         }
 
         for d in self.validate_flowdef_refs(name) {
-            // SMELL 4: the penalty is coupled to the defect message text via .contains().
-            // If the message wording changes, the penalty changes silently. A typed defect
-            // enum with severity would be more robust. A "templates not built" defect makes the skill non-executable — penalize
-            // harder than a bad cross-step reference (which degrades but doesn't crash).
-            score -= if d.contains("templates not built") {
-                0.15
-            } else {
-                0.10
-            };
-            defects.push(d);
+            score -= d.penalty();
+            defects.push(d.message());
         }
 
         if zed.present && reg.present && zed.name != reg.crate_name && !reg.crate_name.is_empty() {
@@ -454,7 +488,7 @@ impl<'a> SkillAuditor<'a> {
     ///   none (`templates: []`) was never built — flag it as non-executable.
     ///
     /// Surfaces silent self-harming gaps as CI-visible defects.
-    fn validate_flowdef_refs(&self, name: &str) -> Vec<String> {
+    fn validate_flowdef_refs(&self, name: &str) -> Vec<FlowDefDefect> {
         let path = self
             .project_root
             .join("registry")
@@ -530,15 +564,14 @@ impl<'a> SkillAuditor<'a> {
                 } else if let Some(rest) = line.trim_start().strip_prefix("convergence_field:") {
                     for n in extract_step_refs(rest) {
                         if !ordinals.contains(&n) {
-                            defects.push(format!(
-                                "convergence_field references step {n}_result but no step {n} exists (silently never converges)"
-                            ));
+                            defects.push(FlowDefDefect::ConvergenceFieldNonExistent { step: n });
                         } else if let Some(action) = step_actions.get(&n)
                             && NON_OUTPUT_ACTIONS.contains(&action.as_str())
                         {
-                            defects.push(format!(
-                                "convergence_field references step {n} which is a '{action}' step (produces no result; must reference an output-producing step)"
-                            ));
+                            defects.push(FlowDefDefect::ConvergenceFieldNonOutput {
+                                step: n,
+                                action: action.clone(),
+                            });
                         }
                     }
                 }
@@ -551,7 +584,7 @@ impl<'a> SkillAuditor<'a> {
                 && let Ok(n) = rest.trim().parse::<u32>()
                 && !ordinals.contains(&n)
             {
-                defects.push(format!("loop_target {n} references no existing step"));
+                defects.push(FlowDefDefect::LoopTargetInvalid { target: n });
             }
         }
 
@@ -570,9 +603,7 @@ impl<'a> SkillAuditor<'a> {
         let mut bad_input: Vec<u32> = bad_input.into_iter().collect();
         bad_input.sort_unstable();
         for n in bad_input {
-            defects.push(format!(
-                "input_mapping references step {n}_result but no step {n} exists (resolves to empty at runtime)"
-            ));
+            defects.push(FlowDefDefect::InputMappingBadRef { step: n });
         }
 
         // template_ref build-completeness. A FlowDef that references templates but
@@ -598,10 +629,9 @@ impl<'a> SkillAuditor<'a> {
             })
             .unwrap_or(0);
         if declared_count == 0 && !template_refs.is_empty() {
-            defects.push(format!(
-                "FlowDef references {} template_ref(s) but the crate manifest declares 0 templates (templates not built — skill non-executable)",
-                template_refs.len()
-            ));
+            defects.push(FlowDefDefect::TemplatesNotBuilt {
+                count: template_refs.len(),
+            });
         }
 
         defects

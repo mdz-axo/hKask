@@ -47,7 +47,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
 /// Error healing callback: (error_string, operation_name).
 type HealCallback = Arc<dyn Fn(&str, &str) + Send + Sync>;
@@ -1794,6 +1794,14 @@ fn resolve_operand(s: &str, context: &HashMap<String, Value>) -> Option<Value> {
     if let Ok(n) = s.parse::<f64>() {
         return Some(serde_json::json!(n));
     }
+    // SMELL 10 fix: log when an operand is not found in context — this makes a
+    // silently-false condition (e.g. step_1_result.mode == 'plussing' where
+    // step_1_result.mode is missing) observable for debugging.
+    warn!(
+        target: "cns.skill.cascade",
+        operand = s,
+        "condition operand not found in context; treating as literal string"
+    );
     Some(Value::String(s.to_string()))
 }
 
