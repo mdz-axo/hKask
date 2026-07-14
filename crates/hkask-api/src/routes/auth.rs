@@ -429,13 +429,12 @@ pub async fn callback(
 
 /// GitHub token exchange response.
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)] // populated by serde deserialization
 struct GitHubTokenResponse {
     access_token: String,
     #[serde(default)]
-    token_type: String,
+    _token_type: String,
     #[serde(default)]
-    scope: String,
+    _scope: String,
 }
 
 /// Exchange OAuth code for access token.
