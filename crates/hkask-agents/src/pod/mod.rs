@@ -13,7 +13,7 @@
 //!
 //! ```text
 //! Populated → Registered → Activated → Deactivated
-//! ```
+//! ```rust,no_run
 //!
 //! # Security Model
 //!

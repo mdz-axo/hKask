@@ -280,7 +280,7 @@ impl Confidence {
     ///
     /// ```text
     /// R(t) = exp(-t / S)
-    /// ```
+    /// ```rust,no_run
     ///
     /// Where:
     /// - `t` is days since most recent recall

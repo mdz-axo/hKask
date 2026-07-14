@@ -20,7 +20,7 @@ const CHARS_PER_TOKEN: usize = 4;
 /// \[NORMATIVE\] For `GovernedTool` usage, the `args` Value should contain: (P8 — Semantic Grounding).
 /// ```json
 /// { "prompt": "...", "max_tokens": N }
-/// ```
+/// ```rust,no_run
 ///
 /// If args don't contain the expected fields, falls back to a flat cost of 1.
 pub(crate) struct InferenceEnergyEstimator;

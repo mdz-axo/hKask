@@ -13,7 +13,7 @@
 //! agents/{name}/threads/
 //!   _active            — currently active thread ID (plain text)
 //!   {uuid}.json        — thread metadata + conversation turns
-//! ```
+//! ```rust,no_run
 //!
 //! Each thread file is a JSON object:
 //! ```json
@@ -26,7 +26,7 @@
 //!     {"role": "assistant", "content": "...", "timestamp": "..."}
 //!   ]
 //! }
-//! ```
+//! ```rust,no_run
 //!
 //! Turns are capped at 200 entries (100 exchanges). Beyond that, oldest turns
 //! are pruned on save — they remain in long-term episodic memory.

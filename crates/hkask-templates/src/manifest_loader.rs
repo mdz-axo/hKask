@@ -30,7 +30,7 @@ use tracing::info;
 ///   ...
 /// error_handling:
 ///   ...
-/// ```
+/// ```rust,no_run
 ///
 /// This wrapper flattens the `manifest:` inner fields with the top-level
 /// config fields into a single `BundleManifest`.

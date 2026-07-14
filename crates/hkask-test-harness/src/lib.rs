@@ -412,7 +412,7 @@ pub enum MockToolState {
 /// let path = dir.path().join("test.txt");
 /// std::fs::write(&path, b"data")?;
 /// // dir and contents deleted when `dir` goes out of scope
-/// ```
+/// ```rust,no_run
 ///
 /// post: returns TempDir that auto-cleans on drop
 pub fn temp_dir() -> TempDir {
@@ -430,7 +430,7 @@ pub fn temp_dir() -> TempDir {
 /// let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
 /// let event = test_event(span, CyclePhase::Observation, None);
 /// assert!(event.observer_webid.as_uuid().is_set());
-/// ```
+/// ```rust,no_run
 ///
 /// pre:  span is a valid Span, phase is a valid Phase
 /// post: returns NuEvent with random observer if observer is None, depth=0, test observation
@@ -454,7 +454,7 @@ pub fn test_event(span: Span, phase: CyclePhase, observer: Option<WebID>) -> NuE
 /// ```ignore
 /// let h_mem = test_h_mem("entity:test", "attribute:name", json!("value"), None);
 /// assert_eq!(h_mem.entity, "entity:test");
-/// ```
+/// ```rust,no_run
 ///
 /// pre:  entity and attribute are non-empty, value is valid JSON
 /// post: returns HMem with random owner if owner is None, specified owner otherwise

@@ -15,7 +15,7 @@
 //!     → UserStore ─────┤
 //!     → WalletStore ───┤
 //!     → NuEventStore ──┘
-//! ```
+//! ```rust,no_run
 //!
 //! # REQ tags
 //!

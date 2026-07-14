@@ -9,7 +9,7 @@
 //! ```text
 //! Chat ──'/'──▶ Command ──Esc/Enter──▶ Chat
 //! Chat ──'/curator chat'──▶ Curator ──Esc──▶ Chat
-//! ```
+//! ```rust,no_run
 //!
 //! Mode transitions emit `cns.tui.mode_switch { from, to }` spans.
 //!

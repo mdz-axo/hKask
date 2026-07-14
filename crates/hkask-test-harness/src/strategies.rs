@@ -9,7 +9,7 @@
 //!     #[test]
 //!     fn my_test(e in strategies::any_nu_event()) { ... }
 //! }
-//! ```
+//! ```rust,no_run
 //!
 //! # Principle grounding
 //! - P8 (Semantic Grounding): strategies generate well-formed values

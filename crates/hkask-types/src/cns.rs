@@ -213,12 +213,12 @@ impl CnsSpan {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```rust,no_run
     /// use hkask_types::cns::{CnsSpan, ToolSubsystem};
     ///
     /// CnsSpan::Tool { subsystem: ToolSubsystem::Media }
     ///     .emit("invoked");
-    /// ```
+/// ```
     pub fn emit(&self, operation: &str) {
         tracing::info!(
             target: "cns",

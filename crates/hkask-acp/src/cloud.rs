@@ -12,7 +12,7 @@
 //! HKASK_SERVER_CA=/path/to/ca.crt
 //! HKASK_DELEGATION_TOKEN=eyJ...
 //! hkask-acp
-//! ```
+//! ```rust,no_run
 //!
 //! When `HKASK_CLOUD_GATEWAY` is set, the ACP agent connects via mTLS
 //! instead of the local Unix socket. Discovery is automatic at startup.

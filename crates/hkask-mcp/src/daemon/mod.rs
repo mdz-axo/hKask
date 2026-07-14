@@ -11,7 +11,7 @@
 //! {"type":"auth_query","replicant":"bob"}
 //! {"type":"assignment_query","replicant":"bob","role":"research"}
 //! {"type":"capability_query","replicant":"bob","tool":"web_search"}
-//! ```
+//! ```rust,no_run
 //!
 //! Response (daemon → MCP binary):
 //! ```json

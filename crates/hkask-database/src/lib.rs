@@ -11,7 +11,7 @@
 //!   └── Arc<dyn DatabaseDriver>           ← provider-agnostic handle
 //!         ├── SqliteDriver(r2d2::Pool)    ← rusqlite + WAL + SQLCipher
 //!         └── PostgresDriver(sqlx::PgPool) ← sqlx + pgvector + pgcrypto
-//! ```
+//! ```rust,no_run
 //!
 //! # Provider evolution
 //!

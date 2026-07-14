@@ -15,7 +15,7 @@
 //! ~/.ollama/models/blobs/sha256-*        ← Ollama imports + dedups by digest
 //!        ▼
 //! routable as OM/hkask/<name>
-//! ```
+//! ```rust,no_run
 //!
 //! # Storage authority (single, not duplicated)
 //!

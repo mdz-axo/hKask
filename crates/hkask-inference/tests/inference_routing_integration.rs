@@ -11,7 +11,7 @@
 //! InferenceRouter
 //!   ├── DeepInfraBackend — DI/ prefix → POST /v1/chat/completions
 //!   └── TogetherBackend  — TG/ prefix → POST /v1/chat/completions
-//! ```
+//! ```rust,no_run
 //!
 //! # REQ tags
 //!

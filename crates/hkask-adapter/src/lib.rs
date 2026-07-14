@@ -12,7 +12,7 @@
 //!   ├── AdapterPort       — trait boundary (6 OCAP-gated methods)
 //!   ├── EndpointGuard     — RAII teardown on drop
 //!   └── ProviderSelection — user-in-the-loop provider picker (P2 consent)
-//! ```
+//! ```rust,no_run
 //!
 //! # Internal Seam Pattern
 //!

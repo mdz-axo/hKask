@@ -17,7 +17,7 @@
 //!         │     ├── Horizontal { left, right, ratio }
 //!         │     └── Vertical   { top, bottom, ratio }
 //!         └── StatusBar (global)
-//! ```
+//! ```rust,no_run
 //!
 //! # Entry Point
 //!

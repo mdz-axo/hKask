@@ -22,7 +22,7 @@
 //! EmbeddingRouter
 //!   ├── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
 //!   └── OpenRouterEmbedding — OR/ prefix → /v1/embeddings
-//! ```
+//! ```rust,no_run
 //!
 //! # Model Naming
 //!

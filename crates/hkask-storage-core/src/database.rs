@@ -8,7 +8,7 @@
 //! ```text
 //! Database::open(path, passphrase)  →  writes salt file, no SQLite connection
 //! Database::connect()               →  creates r2d2 pool with encryption + WAL + schema
-//! ```
+//! ```rust,no_run
 //!
 //! `open()` handles file infrastructure. `connect()` handles everything
 //! SQLite-related. One path for each. No dual-path bugs.

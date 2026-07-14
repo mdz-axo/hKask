@@ -34,7 +34,7 @@
 //!     portfolios/       Financial portfolio/watchlist data (FMP, EODHD responses)
 //!     artifacts/        Agent-specific artifacts — styles, bots, templates, bundles
 //!     agent.yaml        Self-contained agent definition (identity, charter, capabilities)
-//! ```
+//! ```rust,no_run
 //!
 //! # Wiring Plan
 //!

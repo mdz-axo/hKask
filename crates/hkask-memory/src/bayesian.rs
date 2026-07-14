@@ -61,7 +61,7 @@ const LOG_ODDS_EPSILON: f64 = 1e-6;
 /// L₂  = ln(c₂ / (1 − c₂))       // log-odds of source 2
 /// L   = L₁ + L₂                 // additive: independent evidence
 /// c   = 1 / (1 + exp(−L))       // convert back to probability
-/// ```
+/// ```rust,no_run
 ///
 /// # Properties
 ///
