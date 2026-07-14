@@ -287,7 +287,7 @@ pub fn integrate_dual_triples(
 ///
 /// pre:  config.model_a and config.model_b are valid ClassifierConfigs
 ///       with API keys resolved
-/// post: returns Vec<DualTripleExtraction> in input order; partial failures
+/// post: returns `Vec<DualTripleExtraction>` in input order; partial failures
 ///       integrate what's available and flag divergence
 #[must_use = "result must be used"]
 pub async fn extract_triples_dual_batch(

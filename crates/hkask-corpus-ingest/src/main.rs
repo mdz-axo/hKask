@@ -5,7 +5,7 @@
 //!   salience — Tag chunks with investment concepts, compute graph-centrality
 //!              salience scores, store as semantic h_mems
 //!
-//! Usage: cargo run -p hkask-corpus-ingest -- <COMMAND>
+//! Usage: `cargo run -p hkask-corpus-ingest -- <COMMAND>`
 
 mod generate_qa;
 

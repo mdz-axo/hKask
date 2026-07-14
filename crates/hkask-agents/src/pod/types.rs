@@ -307,7 +307,7 @@ impl AgentPersona {
     /// using the canonical [`CapabilitySpec`] parser.
     ///
     /// expect: "The system provides bounded agent pod identity with capability-gated lifecycle management"
-    /// post: returns Vec<DelegationResource>
+    /// post: returns `Vec<DelegationResource>`
     pub fn capability_resources(&self) -> Vec<DelegationResource> {
         self.capabilities
             .iter()

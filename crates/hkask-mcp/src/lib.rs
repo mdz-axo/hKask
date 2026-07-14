@@ -117,7 +117,7 @@ pub struct MCPBootstrap {
 ///   (defaults to `"HKASK_MCP_HOST"` for most servers; the curator uses `"HKASK_CURATOR_REPLICANT"`)
 ///
 /// expect: "Every MCP action has an authenticated host identity."
-/// [P12] Motivating: every action has an authenticated author.
+/// \[P12\] Motivating: every action has an authenticated author.
 /// pre: `host_env_var` names a non-empty host identity environment variable.
 /// post: returns an error before daemon verification when the host identity is absent.
 /// \[P1\] Constraining: User Sovereignty — anonymous agency is never synthesized.

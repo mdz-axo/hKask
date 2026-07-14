@@ -82,7 +82,7 @@ pub struct ChatMessage {
 ///
 /// Injected into the `plugins` array of a chat completion request
 /// to enable multi-model deliberation via OpenRouter's Fusion pipeline.
-/// See: <https://openrouter.ai/docs/guides/features/plugins/fusion>
+/// See: https://openrouter.ai/docs/guides/features/plugins/fusion
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FusionPlugin {
     /// Must be "fusion" for the fusion plugin.

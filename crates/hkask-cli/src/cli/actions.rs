@@ -509,11 +509,11 @@ pub enum ReplicantAction {
         /// Admin replicant name issuing the invite
         #[arg(long)]
         by: String,
-        /// Single invitee: "Name <email>" format
+        /// Single invitee: `Name <email>` format
         #[arg(long)]
         invitee: Option<String>,
-        /// Batch invitees: comma-separated "Name <email>" pairs
-        /// Example: "Alice Smith <alice@x.com>, Bob Jones <bob@y.com>"
+        /// Batch invitees: comma-separated `Name <email>` pairs
+        /// Example: `Alice Smith <alice@x.com>, Bob Jones <bob@y.com>`
         #[arg(long, value_delimiter = ',')]
         invitees: Vec<String>,
         /// Send invites via email (requires MXroute config)
@@ -731,7 +731,7 @@ pub enum SkillAction {
     /// SKILL.md content via the default model, and writes `.agents/skills/<name>/SKILL.md`.
     /// This is the P5.1 derivation path — SKILL.md is generated, not hand-authored.
     Derive {
-        /// Skill name (the registry/templates/<name> crate directory).
+        /// Skill name (the `registry/templates/<name>` crate directory).
         name: String,
     },
     /// Run the dual-layer skill audit and optionally fail the process for CI.

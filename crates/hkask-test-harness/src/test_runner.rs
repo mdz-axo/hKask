@@ -294,7 +294,7 @@ pub struct ContractAudit {
 ///
 /// Returns `None` if the crate source directory doesn't exist.
 ///
-/// pre:  workspace_root exists and contains crates/<crate_name>/src/
+/// pre:  workspace_root exists and contains `crates/<crate_name>/src/`
 /// post: returns ContractAudit with counts and uncontracted function list
 pub fn discover_uncontracted_functions(
     crate_name: &str,
@@ -377,7 +377,7 @@ fn walk_rs_files(dir: &std::path::Path, f: &mut dyn FnMut(&std::path::Path)) {
 
 /// Inventory of all REQ-tagged contracts in a crate.
 ///
-/// pre:  workspace_root exists and contains crates/<crate_name>/src/
+/// pre:  workspace_root exists and contains `crates/<crate_name>/src/`
 /// post: returns Vec of ContractEntry with REQ tag, pre/post, and quality flags
 pub fn inventory_contracts(crate_name: &str, workspace_root: &str) -> Option<Vec<ContractEntry>> {
     let src_dir = format!("{}/crates/{}/src", workspace_root, crate_name);

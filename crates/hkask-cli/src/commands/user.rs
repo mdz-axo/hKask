@@ -479,7 +479,7 @@ pub(crate) struct InviteTarget {
     email: String,
 }
 
-/// Parse "Name <email>" format. Returns Err if format is invalid.
+/// Parse `Name <email>` format. Returns Err if format is invalid.
 fn parse_invitee(input: &str) -> Result<InviteTarget, String> {
     let input = input.trim();
     let (name, email) = if let Some(lt) = input.rfind('<') {

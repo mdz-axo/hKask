@@ -413,20 +413,39 @@ impl ManifestExecutor {
                     "CNS"
                 );
 
-                // Evaluate step condition — skip if false
-                if let Some(ref cond) = step.condition
-                    && !evaluate_step_condition(cond, &context)
-                {
-                    info!(
-                        target: "cns.skill.cascade",
-                        iteration = iteration,
-                        step = step.ordinal,
-                        condition = %cond,
-                        skipped = true,
-                        "CNS"
-                    );
-                    step_idx += 1;
-                    continue;
+                // Evaluate step condition — skip if false.
+                // Conditions may be Jinja expressions ({{ ... }}), which are rendered
+                // against the context first, or truthy/comparison expressions evaluated
+                // by evaluate_step_condition (supports ==, !=, <, <=, >, >=, AND/OR/NOT).
+                if let Some(ref cond) = step.condition {
+                    let resolved_cond = if cond.contains("{{") {
+                        match render_minijinja(cond, &context, &self.template_base_path) {
+                            Ok(rendered) => rendered.trim().to_string(),
+                            Err(e) => {
+                                info!(
+                                    target: "cns.skill.cascade",
+                                    step = step.ordinal,
+                                    error = %e,
+                                    "condition render failed; treating as false"
+                                );
+                                String::from("false")
+                            }
+                        }
+                    } else {
+                        cond.clone()
+                    };
+                    if !evaluate_step_condition(&resolved_cond, &context) {
+                        info!(
+                            target: "cns.skill.cascade",
+                            iteration = iteration,
+                            step = step.ordinal,
+                            condition = %resolved_cond,
+                            skipped = true,
+                            "CNS"
+                        );
+                        step_idx += 1;
+                        continue;
+                    }
                 }
 
                 match step.action.as_str() {
@@ -575,6 +594,21 @@ impl ManifestExecutor {
                                 manifest.convergence.improvement_ratio,
                             );
                             break 'cascade;
+                        }
+
+                        // Bind loop input_mapping (except loop_target) into context so
+                        // carried state (e.g. prior_probability) is available next iteration.
+                        if let Some(ref mapping) = step.input_mapping
+                            && let Value::Object(map) = mapping
+                        {
+                            for (k, v) in map {
+                                if k == "loop_target" {
+                                    continue;
+                                }
+                                let bound =
+                                    resolve_mapping_value(v, &context, &self.template_base_path);
+                                context.insert(k.clone(), bound);
+                            }
                         }
 
                         // Re-enter: reset step index to loop target
@@ -1001,6 +1035,18 @@ impl ManifestExecutor {
         _rjoule_hard_limit: bool,
         manifest_fusion_config: Option<&hkask_types::fusion::FusionConfig>,
     ) -> Result<HashMap<String, Value>> {
+        // Apply input_mapping: resolve {{ }} string values (and $ref objects) from the
+        // context and promote them to top-level template variables. Without this, mapped
+        // names referenced in .j2 templates (e.g. {{ tasks }}) would render empty.
+        if let Some(ref mapping) = step.input_mapping
+            && let Value::Object(map) = mapping
+        {
+            for (k, v) in map {
+                let bound = resolve_mapping_value(v, &context, &self.template_base_path);
+                context.insert(k.clone(), bound);
+            }
+        }
+
         let prompt = self.render_step_template(step, &context)?;
 
         let mut params = self.default_params.clone();
@@ -1556,6 +1602,63 @@ fn resolve_dot_path(path: &str, context: &HashMap<String, Value>) -> Option<Valu
     Some(current)
 }
 
+/// Resolve an input_mapping value into a concrete JSON value for template binding.
+///
+/// Handles three forms used in manifests:
+/// - `{{ expr }}` string → rendered through minijinja with `| tojson` and parsed back
+///   to a JSON value (so `{{ tasks }}` in a template receives the real array/object,
+///   not a stringified repr that would double-encode under `| tojson`).
+/// - `{"$ref": "dot.path"}` object → the referenced context value (populate-style).
+/// - literal (string/number/bool/array) → as-is, recursing into containers.
+fn resolve_mapping_value(
+    value: &Value,
+    context: &HashMap<String, Value>,
+    base: &std::path::Path,
+) -> Value {
+    match value {
+        Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.starts_with("{{") && trimmed.ends_with("}}") {
+                let inner = trimmed[2..trimmed.len() - 2].trim();
+                let wrapped = format!("{{{{ ({inner}) | tojson }}}}");
+                match render_minijinja(&wrapped, context, base) {
+                    Ok(json_str) => {
+                        serde_json::from_str(json_str.trim()).unwrap_or_else(|_| value.clone())
+                    }
+                    Err(_) => value.clone(),
+                }
+            } else if trimmed.contains("{{") {
+                render_minijinja(s, context, base)
+                    .map(Value::String)
+                    .unwrap_or_else(|_| value.clone())
+            } else {
+                value.clone()
+            }
+        }
+        Value::Object(map) => {
+            if let Some(Value::String(ref_path)) = map.get("$ref") {
+                if let Some(v) = context.get(ref_path.as_str()) {
+                    return v.clone();
+                }
+                if let Some(v) = resolve_dot_path(ref_path, context) {
+                    return v;
+                }
+            }
+            let mut out = serde_json::Map::new();
+            for (k, v) in map {
+                out.insert(k.clone(), resolve_mapping_value(v, context, base));
+            }
+            Value::Object(out)
+        }
+        Value::Array(arr) => Value::Array(
+            arr.iter()
+                .map(|v| resolve_mapping_value(v, context, base))
+                .collect(),
+        ),
+        other => other.clone(),
+    }
+}
+
 impl ManifestExecutor {
     /// Compute compound quality from nested inner skill convergence reports.
     fn compute_compound_quality(
@@ -1634,6 +1737,11 @@ fn evaluate_step_condition(condition: &str, context: &HashMap<String, Value>) ->
         return !evaluate_step_condition(inner.trim(), context);
     }
 
+    // Comparison: <lhs> <op> <rhs>  (e.g. step_1_result.mode == 'plussing', count > 0)
+    if let Some((lhs, op, rhs)) = parse_step_comparison(condition) {
+        return eval_step_comparison(lhs, op, rhs, context);
+    }
+
     // Simple variable check: is it truthy in context?
     // Also resolve dot-paths like "step_1_result.intervention_needed"
     let key = condition;
@@ -1647,6 +1755,87 @@ fn evaluate_step_condition(condition: &str, context: &HashMap<String, Value>) ->
         Some(Value::Object(o)) => !o.is_empty(),
         Some(Value::Null) => false,
         None => false,
+    }
+}
+
+/// Parse a leaf comparison expression into (lhs, operator, rhs).
+/// Operators: <=, >=, ==, !=, <, > (two-char checked before one-char to avoid
+/// prefix collisions). Returns None if no operator is present.
+fn parse_step_comparison(condition: &str) -> Option<(&str, &str, &str)> {
+    let c = condition.trim();
+    for op in &["<=", ">=", "==", "!=", "<", ">"] {
+        if let Some(pos) = c.find(op) {
+            let lhs = c[..pos].trim();
+            let rhs = c[pos + op.len()..].trim();
+            if lhs.is_empty() || rhs.is_empty() {
+                continue;
+            }
+            return Some((lhs, op, rhs));
+        }
+    }
+    None
+}
+
+/// Resolve an operand to a JSON value: a quoted literal, a context dot-path/key,
+/// a number literal, or a bare-word string literal.
+fn resolve_operand(s: &str, context: &HashMap<String, Value>) -> Option<Value> {
+    let s = s.trim();
+    if s.len() >= 2
+        && ((s.starts_with('\'') && s.ends_with('\'')) || (s.starts_with('"') && s.ends_with('"')))
+    {
+        return Some(Value::String(s[1..s.len() - 1].to_string()));
+    }
+    if let Some(v) = context.get(s) {
+        return Some(v.clone());
+    }
+    if let Some(v) = resolve_dot_path(s, context) {
+        return Some(v);
+    }
+    if let Ok(n) = s.parse::<f64>() {
+        return Some(serde_json::json!(n));
+    }
+    Some(Value::String(s.to_string()))
+}
+
+/// Evaluate a leaf comparison. Numeric for ordering ops; structural (==/!=) for
+/// equality. Falls back to string ordering for non-numeric <, <=, >, >=.
+fn eval_step_comparison(lhs: &str, op: &str, rhs: &str, context: &HashMap<String, Value>) -> bool {
+    let l = match resolve_operand(lhs, context) {
+        Some(v) => v,
+        None => return false,
+    };
+    let r = match resolve_operand(rhs, context) {
+        Some(v) => v,
+        None => return false,
+    };
+    match op {
+        "==" => l == r,
+        "!=" => l != r,
+        "<" | "<=" | ">" | ">=" => match (l.as_f64(), r.as_f64()) {
+            (Some(a), Some(b)) => match op {
+                "<" => a < b,
+                "<=" => a <= b,
+                ">" => a > b,
+                _ => a >= b,
+            },
+            _ => {
+                let ls = l
+                    .as_str()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| l.to_string());
+                let rs = r
+                    .as_str()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| r.to_string());
+                match op {
+                    "<" => ls < rs,
+                    "<=" => ls <= rs,
+                    ">" => ls > rs,
+                    _ => ls >= rs,
+                }
+            }
+        },
+        _ => false,
     }
 }
 

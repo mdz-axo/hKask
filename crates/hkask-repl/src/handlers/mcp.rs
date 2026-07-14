@@ -11,11 +11,11 @@ use super::super::builtin_servers;
 /// Handle /mcp — manage MCP server connections with affirmative consent.
 ///
 /// Subcommands:
-///   /mcp list                        — show all available servers with numbered status
-///   /mcp start <name>                — start a server by name (e.g. condenser)
-///   /mcp start <n>                   — start a server by number from /mcp list
-///   /mcp start <n>,<m>,<a>-<b>       — start by commas, ranges, and comparisons
-///   /mcp start <=6,>8               — start first 6 and everything after 8
+///   /mcp list                         — show all available servers with numbered status
+///   /mcp start `name`                 — start a server by name (e.g. condenser)
+///   /mcp start `n`                    — start a server by number from /mcp list
+///   /mcp start `n,m,a-b`              — start by commas, ranges, and comparisons
+///   /mcp start `<=6,>8`               — start first 6 and everything after 8
 ///   /mcp start all                   — start all available servers
 ///
 /// Comparison operators: <4, <=3, >=7, >8

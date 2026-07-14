@@ -598,7 +598,7 @@ impl KanbanService {
     /// \[P1\] Motivating: User Sovereignty — an agent supplies its own acceptance.
     /// pre:  task_id refers to an existing unassigned task; actor is authenticated.
     /// post: task.assignee is set to actor; a different agent cannot be assigned by this call.
-    /// [P12] Constraining: No anonymous agency — the accepted assignment has an actor WebID.
+    /// \[P12\] Constraining: No anonymous agency — the accepted assignment has an actor WebID.
     #[must_use = "result must be used"]
     pub fn task_claim(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
         let mut task = self
