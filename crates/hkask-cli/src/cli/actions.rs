@@ -743,6 +743,23 @@ pub enum SkillAction {
         #[arg(long)]
         json: bool,
     },
+    /// Run a skill FlowDef end-to-end via the ManifestExecutor (smoke test).
+    ///
+    /// Loads `registry/manifests/<name>.yaml`, runs the PDCA cascade to a
+    /// terminal step (converged / maxed_out / escalated), and prints the
+    /// convergence report. Requires inference configured. Exercises the real
+    /// minijinja render + inference + `step_N_result` threading — the runtime
+    /// contract the static `flowdef_cross_validation` test cannot see.
+    Run {
+        /// Skill name (the `registry/manifests/<name>.yaml` FlowDef).
+        name: String,
+        /// Input key=value pairs (repeatable). Values parse as JSON if valid, else strings.
+        #[arg(long = "input", value_name = "KEY=VALUE")]
+        inputs: Vec<String>,
+        /// Emit machine-readable JSON instead of human-readable summary.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Kata actions — list, inspect, and execute kata manifests

@@ -46,13 +46,13 @@ Superforecasting pipeline following Tetlock's Good Judgment Project methodology.
 3. Determine the historical frequency, sample size, and data quality for each reference class.
 4. Establish a starting probability anchor based on the base rates before considering case-specific details.
 
-### stage_3_inside_view
+### stage_3_inside_view (delegated split)
 
-1. Generate 3-5 distinct causal hypotheses for how the forecasted outcome could occur.
-2. Identify the necessary conditions for each hypothesis to be true and assess their likelihood.
-3. Gather evidence for and against each hypothesis.
-4. Estimate the probability of each hypothesis being true, ensuring internal consistency.
-5. Combine the hypothesis probabilities to adjust from the outside-view anchor.
+The former single inside-view step is split into three FlowDef steps. Generation and counterfactual analysis are delegated to the `falsifiability` skill; probability estimation stays in superforecasting.
+
+1. **Generate causal hypotheses (delegate to falsifiability).** Invoke `falsifiability/falsifiability-hypothesize` with `admitted_target` = the forecasting question, `domain` = "forecasting", `context` = the sub-questions and outside-view output. Produces 3–7 ranked candidate causal pathways with forced diversity (≥1 primary, ≥1 alternative, ≥1 contamination/false-positive, ≥1 opposing-outcome), each with a Platt-form prediction and a falsifier; discards vibes at generation.
+2. **Construct counterfactuals / necessary conditions (delegate to falsifiability).** Invoke `falsifiability/falsifiability-counterfactual` with the generated `hypotheses`, `admitted_target`, `domain`. For each hypothesis construct the minimal do(not X) counterfactual, hold confounders fixed, and derive the testable consequence that distinguishes the counterfactual world from the factual one. Flag irreducible causes.
+3. **Estimate probabilities and combine (superforecasting).** Invoke `superforecasting/stage_3_probability_estimate` with the `hypotheses`, `counterfactuals`, `starting_probability` (the outside-view anchor), and `outside_view_output`. For each hypothesis weigh evidence pro/con against its counterfactual's testable consequence, assign an individual probability, enforce internal consistency, and combine to adjust from the outside-view anchor — producing `hypothesis_probabilities.combined_probability` (the inside-view posterior fed to stage 4 as the prior).
 
 ### stage_4_evidence_update
 
@@ -111,7 +111,7 @@ Superforecasting pipeline following Tetlock's Good Judgment Project methodology.
 | `stage_0_triage.j2` | WordAct | Triage a forecasting question to determine difficulty level and whether it falls in the Goldilocks zone warranting full pipeline investment.  |
 | `stage_1_fermi_decompose.j2` | WordAct | Fermi-decompose the forecasting question into independent, tractable sub-questions. Separate knowns from unknowns and document assumptions.  |
 | `stage_2_outside_view.j2` | WordAct | Establish base rates by identifying reference classes and determining how often similar events occur. Produces the outside-view starting probability.  |
-| `stage_3_inside_view.j2` | WordAct | Generate multiple causal hypotheses for how the outcome could occur. Evaluate each hypothesis against case-specific evidence and adjust from the outside-view anchor.  |
+| `stage_3_probability_estimate.j2` | WordAct | Inside-view probability estimation — takes pre-generated hypotheses (from `falsifiability/falsifiability-hypothesize`) and counterfactuals (from `falsifiability/falsifiability-counterfactual`), weighs evidence pro/con against each counterfactual's testable consequence, assigns individual probabilities, enforces internal consistency, and combines to adjust from the outside-view anchor. Replaces the former `stage_3_inside_view.j2`. |
 | `stage_4_evidence_update.j2` | WordAct | Incorporate new evidence via Bayesian updating with likelihood ratios. Revise the prior probability based on evidence strength.  |
 ,| `stage_5_synthesis.j2` | WordAct | Synthesize a dragonfly-eye view by integrating multiple causal models and perspectives. Applies MCDA-style weighted scoring of models against evidence quality criteria, steel-man dissenting views, and produce a synthesized probability with model weights and compensation masking warnings.  |
 | `stage_6_calibration.j2` | WordAct | Calibrate the final probability using the full 0-100% scale. Justify precision against known calibration principles and the pipeline's evidence trail.  |
@@ -124,7 +124,7 @@ Superforecasting pipeline following Tetlock's Good Judgment Project methodology.
 - `stage_0_triage.j2`: Public.
 - `stage_1_fermi_decompose.j2`: Public.
 - `stage_2_outside_view.j2`: Public.
-- `stage_3_inside_view.j2`: Public.
+- `stage_3_probability_estimate.j2`: Public. (Inside-view generation + counterfactual analysis are delegated to `falsifiability/falsifiability-hypothesize` and `falsifiability/falsifiability-counterfactual`.)
 - `stage_4_evidence_update.j2`: Public.
 - `stage_5_synthesis.j2`: Public.
 - `stage_6_calibration.j2`: Public.

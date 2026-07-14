@@ -699,7 +699,7 @@ charter:
     recommendations. Never modifies code or configuration without
     human approval (P2).
 capabilities:
-  # Existing hKask skills (available now)
+  # Existing hKask skills (available now — templates built)
   - semantic-graph-audit
   - deep-module
   - pragmatic-cybernetics
@@ -711,18 +711,19 @@ capabilities:
   - handoff
   - adversarial-red-team
   - scenario-builder
+  - task-breakdown             # Built: 6 KnowAct templates (plan, decompose, evaluate, quality-gate, convergence, write-plan)
+  - platform-health-scorer         # 6 templates built
+  - platform-dx-analyzer           # 5 templates built
+  - platform-wardley-mapper        # 6 templates built
+  - platform-bulkhead-auditor      # 5 templates built
+  - platform-consent-auditor       # 5 templates built
+  - platform-portability-verifier  # 5 templates built
+  - platform-governance-transparency-reporter  # 4 templates built
+  - platform-loyalty-scorecard     # 8 templates built
 
-  # New skills to develop (proposed in §4.2)
+  # New skills to develop (not yet built)
   - platform-slo-evaluator        # DORA: SLO compliance → error budgets
   - platform-contract-auditor      # CI: trait ↔ impl drift detection
-  - platform-health-scorer         # Aggregate: 0.0-1.0 health score
-  - platform-dx-analyzer           # DORA + SPACE: skill delivery metrics
-  - platform-wardley-mapper        # Strategy: component evolution map
-  - platform-bulkhead-auditor      # Resilience: blast radius analysis
-  - platform-consent-auditor       # Sovereignty: DelegationToken audit
-  - platform-portability-verifier  # Sovereignty: export/import integrity
-  - platform-governance-transparency-reporter  # Governance: decision log
-  - platform-loyalty-scorecard     # Ultimate: loyalty score + trend
 ```
 
 ### 11.2 Operating Cadence

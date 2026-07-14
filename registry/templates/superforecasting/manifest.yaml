@@ -47,14 +47,18 @@ templates:
       how often similar events occur. Produces the outside-view starting
       probability.
 
-  - id: superforecasting/stage_3_inside_view
-    path: stage_3_inside_view.j2
+  - id: superforecasting/stage_3_probability_estimate
+    path: stage_3_probability_estimate.j2
     type: WordAct
-    lexicon_terms: [propose, analyze, predict]
+    lexicon_terms: [assess, weigh, estimate, combine, update]
     description: >
-      Generate multiple causal hypotheses for how the outcome could occur.
-      Evaluate each hypothesis against case-specific evidence and adjust
-      from the outside-view anchor.
+      Inside-view probability estimation. Takes pre-generated hypotheses (from
+      falsifiability/falsifiability-hypothesize) and their counterfactual
+      necessary-conditions (from falsifiability/falsifiability-counterfactual),
+      weighs evidence pro/con against each counterfactual's testable consequence,
+      assigns individual probabilities, enforces internal consistency, and
+      combines to adjust from the outside-view anchor. Replaces the probability
+      half of the former stage_3_inside_view step.
 
   - id: superforecasting/stage_4_evidence_update
     path: stage_4_evidence_update.j2

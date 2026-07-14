@@ -15,7 +15,7 @@ This pipeline implements Philip Tetlock's Fermi-ization methodology from the Goo
 | 0 | `stage_0_triage.j2` | Classify question difficulty (Goldilocks zone) | 2,048 |
 | 1 | `stage_1_fermi_decompose.j2` | Decompose into tractable sub-questions | 4,096 |
 | 2 | `stage_2_outside_view.j2` | Establish base rates from reference classes | 4,096 |
-| 3 | `stage_3_inside_view.j2` | Generate and evaluate causal hypotheses | 4,096 |
+| 3 | `falsifiability-hypothesize` → `falsifiability-counterfactual` → `stage_3_probability_estimate.j2` | Generate causal hypotheses + counterfactual necessary-conditions (delegated to falsifiability), then estimate probabilities and adjust from the outside-view anchor | 4,096 |
 | 4 | `stage_4_evidence_update.j2` | Bayesian belief revision | 4,096 |
 | 5 | `stage_5_synthesis.j2` | Dragonfly eye aggregation of perspectives | 4,096 |
 | 6 | `stage_6_calibration.j2` | Assign precise, calibrated probability | 4,096 |
