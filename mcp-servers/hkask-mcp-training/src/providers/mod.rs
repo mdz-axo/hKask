@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(params.r, 16);
         assert_eq!(params.alpha, 32);
         assert_eq!(params.dropout, 0.0);
-        assert_eq!(params.target_modules.len(), 4);
+        assert_eq!(params.target_modules.len(), 7);
         assert!(!params.use_rslora);
     }
 
