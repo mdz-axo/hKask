@@ -13,5 +13,8 @@ qa_pairs/generated.jsonl
 # QA generation run log — runtime output from `kask qa generate`
 generate_qa.log
 
+# QA ingestion run log — runtime output from `kask qa ingest`
+ingest_qa.log
+
 # Python cache
 __pycache__/

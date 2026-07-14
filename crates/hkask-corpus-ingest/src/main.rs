@@ -1278,12 +1278,12 @@ struct GeneratedQaEnvelope {
 
 #[derive(Debug, Deserialize)]
 struct GeneratedQaResponse {
-    instruction: String,
-    output: String,
+    instruction: serde_json::Value,
+    output: serde_json::Value,
     #[serde(rename = "type", default)]
     qa_type: String,
     #[serde(default)]
-    difficulty: u8,
+    difficulty: serde_json::Value,
     #[serde(default)]
     concepts: Vec<String>,
     #[serde(default)]
