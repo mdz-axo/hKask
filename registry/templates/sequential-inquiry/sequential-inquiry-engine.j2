@@ -184,18 +184,21 @@ During thinking, you may recognize a thought needs analysis beyond what reasonin
 | `hypothesis-framer` | A candidate hypothesis needs formal validation | FINER feasibility check + PICO structuring → refined hypothesis + null hypothesis + testability assessment |
 | `mcda` | Multiple alternatives need weighted comparison | Criteria weighting + scoring + compensation masking detection + sensitivity analysis → ranked recommendation |
 | `diagnose` | A bug symptom or failure pattern needs root cause | Repro strategy + 3-5 falsifiable hypotheses + instrumentation plan → most likely cause + fix strategy |
+| `falsifiability` | A counterfactual scenario must be explored, or a claim's testability must be ruled on, or multiple explanations need hard elimination (not probabilistic reweighting) | Admissibility gate (Popper) + multiple hypotheses (Chamberlin) + minimal counterfactuals (Pearl do-operator) + discriminating tests (Platt) + elimination → corroborated survivor or bounded irreducible remainder |
 
 ### Delegation Request Format
 
 ```json
 {
-  "skill": "hypothesis-framer|mcda|diagnose",
+  "skill": "hypothesis-framer|mcda|diagnose|falsifiability",
   "reason": "Why this thought needs deeper analysis from this skill",
   "thought_number": 4,
   "params": {
     "hypothesis": "For hypothesis-framer: the candidate hypothesis",
     "alternatives": ["For mcda: list of alternatives to compare"],
     "symptom": "For diagnose: bug description or failure pattern",
+    "target": "For falsifiability: the claim, question, or causal hypothesis under analysis",
+    "observations": "For falsifiability: optional — observations already in hand to eliminate against; omit to receive a discriminating-test design instead of a verdict",
     "domain": "Domain context"
   }
 }
@@ -204,7 +207,7 @@ During thinking, you may recognize a thought needs analysis beyond what reasonin
 ### Rules
 - One request per distinct analysis need
 - Max 3 requests per cycle (prioritize highest-value deep dives)
-- **ONLY delegate to these three skills:** `hypothesis-framer`, `mcda`, `diagnose`. Any other skill name is an error — no delegate exists for it.
+- **ONLY delegate to these four skills:** `hypothesis-framer`, `mcda`, `diagnose`, `falsifiability`. Any other skill name is an error — no delegate exists for it.
 - Delegation supplements, not replaces, reasoning
 - Results arrive next cycle via `prior_delegation_results`
 - If you delegated last cycle and got results back, incorporate them — don't re-delegate the same thing

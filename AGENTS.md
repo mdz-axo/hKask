@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**44 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **47 capabilities total.**
+**45 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **48 capabilities total.**
 
 | Type | Behavior |
 |------|----------|
@@ -49,6 +49,7 @@
 | **grill-me** | Socratic questioning to stress-test understanding. |
 | **zoom-out** | Broader context on unfamiliar code. |
 | **sequential-inquiry** | Dynamic chain-of-thought with automatic deep-dive delegation. |
+| **falsifiability** | Domain-agnostic eliminative inference (Popper/Platt/Chamberlin + Pearl counterfactuals). Rule out the untestable, eliminate the falsified, corroborate survivors. Delegation target. |
 | **metacognition** | Self-reflective goal decomposition, progress assessment, and strategy calibration. Any replicant. |
 | **semantic-graph-audit** | Domain-agnostic semantic dependency graph analysis. Detects cycles, redundancies, gaps, orphans. |
 

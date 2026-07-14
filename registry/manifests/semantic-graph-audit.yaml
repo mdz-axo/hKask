@@ -23,6 +23,9 @@ convergence:
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 0
+  # CAUTION: convergence_field is a manual string-to-ordinal sync. If steps are
+  # added/removed/reordered, update this field. The audit (validate_flowdef_refs)
+  # catches references to non-output steps (loop/abort/escalate) — see SMELL 8.
   convergence_field: step_4_result.convergence_metric
   on_not_reached: escalate
 

@@ -64,6 +64,9 @@ steps:
       current evolutionary position.
 
     renderer: minijinja
+    # Cross-crate ref: templates exist in the wardley-mapper/ crate, not platform-wardley-mapper/.
+    # The platform-wardley-mapper crate has only 2 customized .j2 (classify-evolution, convergence-check);
+    # the other 4 use the generic wardley-mapper/ templates. See SMELL 7 documentation.
     template_ref: wardley-mapper/inventory-components
     gas_cap: 5000
     timeout_seconds: 60

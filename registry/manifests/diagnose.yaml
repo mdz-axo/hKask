@@ -100,16 +100,19 @@ steps:
 
   - ordinal: 3
     action: select
-    description: Generate 3-5 ranked falsifiable hypotheses for the root cause.
+    description: >
+      Delegate falsifiable root-cause hypothesis generation to the falsifiability
+      skill's hypothesize stage (the shared Chamberlin/Platt method). Generates
+      3-7 ranked candidate root causes with forced diversity, Platt-form
+      predictions, and falsifiers; discards vibes at generation.
     renderer: minijinja
-    template_ref: diagnose/diagnose-hypothesise.j2
+    template_ref: falsifiability/falsifiability-hypothesize
     gas_cap: 4096
-    timeout_seconds: 45
+    timeout_seconds: 60
     input_mapping:
-      bug_description: "{{ bug_description }}"
-      symptom: "{{ symptom | default('') }}"
-      repro_confidence: "{{ step_2_result.repro_confidence | default('low') }}"
-      code_context: "{{ code_context | default({}) }}"
+      admitted_target: "{{ symptom | default(bug_description, true) }}"
+      domain: "bug diagnosis"
+      context: "{{ code_context | default({}) }}"
 
   - ordinal: 4
     action: select
@@ -176,7 +179,7 @@ ocap:
       gas_budget: 6000
     - resource: template
       action: render
-      template_id: diagnose/diagnose-hypothesise
+      template_id: falsifiability/falsifiability-hypothesize
       gas_budget: 4096
     - resource: template
       action: render

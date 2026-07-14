@@ -27,14 +27,6 @@ templates:
       Build a feedback loop for the bug. Evaluate repro strategies, select the
       fastest deterministic signal, and confirm the bug reproduces before hypothesising.
 
-  - id: diagnose/diagnose-hypothesise
-    path: diagnose-hypothesise.j2
-    type: KnowAct
-    lexicon_terms: [infer, discriminate, rank, predict, evaluate]
-    description: >
-      Generate 3-5 ranked falsifiable hypotheses for the bug's root cause.
-      Each hypothesis must state a prediction. Present to user before testing.
-
   - id: diagnose/diagnose-instrument
     path: diagnose-instrument.j2
     type: KnowAct

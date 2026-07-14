@@ -35,8 +35,8 @@ templates:
     description: >
       Chamberlin multiple working hypotheses. Generate 3-7 candidate explanations
       for the admitted question with no early commitment. Each hypothesis must
-      carry a falsifiable prediction in Platt form: "if X, then observation Y
-      under condition Z." Hypotheses with no possible falsifying observation are
+      carry a falsifiable prediction in Platt form — if X, then observation Y
+      under condition Z. Hypotheses with no possible falsifying observation are
       discarded at generation, not carried forward.
 
   - id: falsifiability/falsifiability-counterfactual
@@ -45,8 +45,8 @@ templates:
     lexicon_terms: [construct, intervene, isolate, derive, test]
     description: >
       Pearl/Halpern counterfactual generation. For each surviving hypothesis,
-      construct the minimal counterfactual — "if the proposed cause had not
-      occurred (do(not X)), would the effect still obtain?" — and derive the
+      construct the minimal counterfactual — if the proposed cause had not
+      occurred (do(not X)), would the effect still obtain? — and derive the
       concrete testable consequence that distinguishes the counterfactual world
       from the factual one.
 

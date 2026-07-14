@@ -189,19 +189,46 @@ fn all_manifests_pass_flowdef_cross_validation() {
                 continue;
             };
 
-            // Resolve template path: template_ref is like "gpa-evolution/gpa-sample-trajectories"
-            // The .j2 file is at templates/<template_ref>.j2
-            let template_path = templates_dir.join(format!("{template_ref}.j2"));
-            if !template_path.exists() {
+            // Skip non-path refs (dynamic, anchors, non-standard resolution schemes
+            // like process/memory/*, composition/*, inference/* — these are resolved by
+            // different engines, not the minijinja executor).
+            if template_ref.contains("${")
+                || template_ref.contains("#")
+                || template_ref.contains("{{")
+                || template_ref.starts_with("process/")
+                || template_ref.starts_with("composition/")
+                || template_ref.starts_with("inference/")
+            {
+                continue;
+            }
+
+            // Resolve template path matching the executor's direct-path resolution:
+            // exact <ref> first, then <ref>.j2 fallback (if ref doesn't end with .j2).
+            // A missing template makes the skill non-executable — tag as [critical]
+            // so the test fails (the dead-check bug that previously let these through
+            // because the error wasn't tagged and was silently ignored).
+            let exact = templates_dir.join(template_ref);
+            let with_j2 = templates_dir.join(format!("{template_ref}.j2"));
+            let with_yaml = templates_dir.join(format!("{template_ref}.yaml"));
+            let template_path = if exact.exists() {
+                exact
+            } else if !template_ref.ends_with(".j2") && with_j2.exists() {
+                with_j2
+            } else if with_yaml.exists() {
+                // Media workflow config (.yaml) — resolved by a different engine, not
+                // minijinja. Skip contract validation (the .yaml uses a different schema).
+                continue;
+            } else {
                 errors.push(format!(
-                    "{}: step {} template_ref '{}' does not resolve to a file at {}",
+                    "{}: [critical] step {} template_ref '{}' does not resolve to a file at {} or {}",
                     path.display(),
                     step.ordinal,
                     template_ref,
-                    template_path.display()
+                    exact.display(),
+                    with_j2.display()
                 ));
                 continue;
-            }
+            };
 
             let contract_inputs = parse_template_contract_inputs(&template_path);
 

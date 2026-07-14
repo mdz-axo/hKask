@@ -355,7 +355,9 @@ impl<'a> SkillAuditor<'a> {
         }
 
         for d in self.validate_flowdef_refs(name) {
-            // A "templates not built" defect makes the skill non-executable — penalize
+            // SMELL 4: the penalty is coupled to the defect message text via .contains().
+            // If the message wording changes, the penalty changes silently. A typed defect
+            // enum with severity would be more robust. A "templates not built" defect makes the skill non-executable — penalize
             // harder than a bad cross-step reference (which degrades but doesn't crash).
             score -= if d.contains("templates not built") {
                 0.15

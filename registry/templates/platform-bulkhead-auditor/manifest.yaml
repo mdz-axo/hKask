@@ -9,6 +9,26 @@ crate:
     detects single points of failure, and recommends isolation strategies.
 
 templates:
+  - id: platform-bulkhead-auditor/map-domains
+    path: map-domains.j2
+    type: KnowAct
+    lexicon_terms: [map, analyze, compute, detect, assess]
+    description: Map failure domains from the crate dependency graph. Compute per-component blast radius.
+  - id: platform-bulkhead-auditor/compute-radius
+    path: compute-radius.j2
+    type: KnowAct
+    lexicon_terms: [compute, assess, map]
+    description: Compute blast radius for each component — the number of downstream components affected if it fails.
+  - id: platform-bulkhead-auditor/detect-spof
+    path: detect-spof.j2
+    type: KnowAct
+    lexicon_terms: [detect, identify, recommend]
+    description: Detect single points of failure and recommend bulkhead isolation strategies.
+  - id: platform-bulkhead-auditor/synthesize-report
+    path: synthesize-report.j2
+    type: KnowAct
+    lexicon_terms: [synthesize, report, summarize]
+    description: Synthesize the bulkhead audit report with SPOF findings and prioritized recommendations.
   - id: platform-bulkhead-auditor/convergence-check
     path: convergence-check.j2
     type: KnowAct

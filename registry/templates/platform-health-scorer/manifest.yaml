@@ -6,9 +6,34 @@ crate:
   version: "0.31.0"
   description: >
     Platform health scoring. Aggregates SLO compliance, contract violations,
-    test pass rate, and CNS variety into a single health score (0.0–1.0).
+    test pass rate, and CNS variety into a single health score (0.0-1.0).
 
 templates:
+  - id: platform-health-scorer/query-slos
+    path: query-slos.j2
+    type: KnowAct
+    lexicon_terms: [query, retrieve, compute]
+    description: Query SLO evaluations from the CNS event store. Computes average error budget remaining, burn rate, breach count.
+  - id: platform-health-scorer/query-contracts
+    path: query-contracts.j2
+    type: KnowAct
+    lexicon_terms: [query, retrieve, compute]
+    description: Query contract violations from CI checks. Computes violation density, most-violated contracts, trend.
+  - id: platform-health-scorer/query-tests
+    path: query-tests.j2
+    type: KnowAct
+    lexicon_terms: [query, retrieve, compute]
+    description: Query test pass rate from CNS spans. Computes pass ratio, failing crates, flaky test count.
+  - id: platform-health-scorer/query-cns
+    path: query-cns.j2
+    type: KnowAct
+    lexicon_terms: [query, retrieve, compute]
+    description: "Query CNS variety metrics: overall deficit, critical/warning count, variety EMA. Computes variety health score."
+  - id: platform-health-scorer/compute-score
+    path: compute-score.j2
+    type: KnowAct
+    lexicon_terms: [compute, aggregate, score]
+    description: Aggregate SLO, contract, test, and CNS variety metrics into a single platform health score (0.0-1.0).
   - id: platform-health-scorer/convergence-check
     path: convergence-check.j2
     type: KnowAct
