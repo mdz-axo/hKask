@@ -177,7 +177,7 @@ mod tests {
             serde_yaml_neo::from_str(yaml).expect("authoritative corpus FlowDef must parse");
 
         assert_eq!(manifest.id, "capabilities-researcher-pipeline");
-        assert_eq!(manifest.version, "4.0");
+        assert_eq!(manifest.version, "6.0");
         assert_eq!(
             manifest.steps.first().map(|step| step.tool.as_str()),
             Some("docproc_convert")
