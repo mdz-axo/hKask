@@ -7,7 +7,6 @@ description = "Double-entry accounting ledger — immutable transactions for cos
 
 [dependencies]
 hkask-database = { path = "../hkask-database" }
-hkask-types = { path = "../hkask-types" }
 uuid.workspace = true
 chrono.workspace = true
 serde.workspace = true
