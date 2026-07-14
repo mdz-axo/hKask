@@ -83,3 +83,4 @@ tmp_qa/
 
 # Embedding pipeline log — runtime output from `kask embed-corpus run`
 corpus/embed_output.log
+corpus/replica_build.log
