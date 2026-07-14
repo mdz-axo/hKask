@@ -36,6 +36,9 @@ export TMPDIR=/workspace/tmp
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export HF_DEACTIVATE_ASYNC_LOAD=1
 export HF_XET_HIGH_PERFORMANCE=1
+# Axolotl installs PyTorch cu130 but the RunPod image has CUDA 12.4.
+# libnvJitLink.so.13 lives in the nvidia/cu13 pip package — must add to LD_LIBRARY_PATH.
+export LD_LIBRARY_PATH=/usr/local/lib/python3.11/dist-packages/nvidia/cu13/lib:${LD_LIBRARY_PATH:-}
 mkdir -p "$HF_HOME" "$PIP_CACHE_DIR" "$TMPDIR"
 
 echo "" && echo "=== SYSTEM ==="
@@ -133,10 +136,9 @@ liger_kernel: true
 flash_attention: false
 cut_cross_entropy: true
 
-# Output
+# Output — no hub_model_id (avoids 403 if HF namespace doesn't exist yet).
+# Script uploads to HF manually after training completes.
 output_dir: /workspace/outputs
-hub_model_id: mdz-axolotl/capabilities-researcher-pissa-lora
-hub_strategy: end
 
 # Misc
 strict: false
