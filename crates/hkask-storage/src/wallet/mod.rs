@@ -30,7 +30,7 @@ impl WalletStore {
     /// `encumbrances`, `deposit_addresses`, `deposit_references`.
     ///
     /// expect: "The system provides durable storage for wallet data"
-    /// [P3] Motivating: Generative Space — wallet schema
+    /// \[P3\] Motivating: Generative Space — wallet schema
     /// post: all wallet tables exist
     fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(

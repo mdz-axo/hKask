@@ -595,7 +595,7 @@ impl KanbanService {
     /// Claim an unassigned task as the authenticated actor.
     ///
     /// expect: "I can accept an unassigned task only as myself."
-    /// [P1] Motivating: User Sovereignty — an agent supplies its own acceptance.
+    /// \[P1\] Motivating: User Sovereignty — an agent supplies its own acceptance.
     /// pre:  task_id refers to an existing unassigned task; actor is authenticated.
     /// post: task.assignee is set to actor; a different agent cannot be assigned by this call.
     /// [P12] Constraining: No anonymous agency — the accepted assignment has an actor WebID.

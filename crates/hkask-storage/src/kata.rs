@@ -252,7 +252,7 @@ impl KataHistoryStore {
     /// Delete entries before a date.
     ///
     /// expect: "The system provides durable storage for kata history data"
-    /// [P3] Motivating: Generative Space — delete old entries
+    /// \[P3\] Motivating: Generative Space — delete old entries
     /// pre:  before_date is a valid ISO date
     /// post: entries before date deleted
     /// post: returns count of deleted entries

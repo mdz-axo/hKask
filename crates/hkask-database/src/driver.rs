@@ -74,7 +74,7 @@ pub trait DatabaseDriver: Send + Sync {
 ///
 /// expect: "The system provides ergonomic query helpers over the DatabaseDriver trait"
 /// pre:  driver is connected; sql is valid for the provider; params match placeholders
-/// post: returns Ok(Vec<T>) with one element per query result row, Err(DbError) on failure
+/// post: returns Ok(`Vec<T>`) with one element per query result row, Err(DbError) on failure
 ///
 /// Replaces the `stmt.query_map(params, |row| { ... })` pattern from raw rusqlite.
 ///

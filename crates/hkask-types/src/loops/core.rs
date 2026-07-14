@@ -95,7 +95,7 @@ impl ImpactReport {
     /// Construct an ImpactReport, computing `improved` from the metric semantics.
     ///
     /// expect: "The system closes the cybernetic feedback loop by measuring action impact"
-    /// [P9] Homeostatic Self-Regulation — impact verification closes the regulation cycle
+    /// \[P9\] Homeostatic Self-Regulation — impact verification closes the regulation cycle
     /// pre:  metric is a valid SignalMetric; before and after are sane numeric values
     /// post: returns ImpactReport with delta=after-before, improved computed per metric semantics
     ///
@@ -195,7 +195,7 @@ impl LoopQuality {
     /// Compute loop quality from the cycle's inputs and outputs.
     ///
     /// expect: "The system measures its own regulatory effectiveness"
-    /// [P9] Homeostatic Self-Regulation — loop quality enables CNS self-observation
+    /// \[P9\] Homeostatic Self-Regulation — loop quality enables CNS self-observation
     /// pre:  elapsed_ms is measured wall-clock time; deviations and actions are from
     ///       the same regulation cycle
     /// post: returns LoopQuality with gain, fidelity_score, effectiveness_score, and

@@ -175,7 +175,7 @@ impl OllamaBackend {
     /// OpenAI content-array format Ollama's OpenAI-compatible layer accepts.
     ///
     /// expect: "The system regulates text/image/speech generation through provider membranes"
-    /// [P9] Motivating: Homeostatic Self-Regulation -- regulated multimodal generation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation -- regulated multimodal generation
     /// pre:  model is a vision-capable Ollama tag (e.g. `qwen3-vl:8b`)
     /// pre:  prompt is non-empty
     /// pre:  images is non-empty (at least one base64-encoded image)

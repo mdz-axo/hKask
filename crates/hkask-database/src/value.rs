@@ -135,7 +135,7 @@ impl From<bool> for DbValue {
         Self::Bool(b)
     }
 }
-/// Convert a Vec<u8> into a DbValue::Blob.
+/// Convert a `Vec<u8>` into a DbValue::Blob.
 ///
 /// expect: "The system converts Rust types to database values"
 /// post: returns DbValue::Blob(b)

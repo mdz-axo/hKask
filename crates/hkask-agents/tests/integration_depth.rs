@@ -8,7 +8,50 @@
 //! - pod_meta table population
 
 use hkask_agents::pod::{ActivePods, AgentPersona, PodKind};
+use hkask_ports::CnsObserver;
 use hkask_types::AgentKind;
+use hkask_types::event::{NuEvent, SpanNamespace};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+/// Poll the Curator index until the expected entity appears or timeout expires.
+///
+/// CuratorSync runs on a 1-second polling interval with blocking filesystem I/O
+/// and SQLCipher key derivation per tick. A fixed sleep cannot guarantee the
+/// sync has completed; this polling loop absorbs scheduling jitter gracefully.
+async fn wait_for_curator_sync(
+    pods: &ActivePods,
+    entity: &str,
+    timeout: Duration,
+) -> Result<(), String> {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if let Ok(ci) = pods.curator_index().await {
+            let idx = ci.read().map_err(|e| format!("lock: {e}"))?;
+            let h_mems = idx.query_by_entity(entity).unwrap_or_default();
+            if !h_mems.is_empty() {
+                return Ok(());
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    Err(format!(
+        "Curator did not sync entity '{}' within {:.1}s",
+        entity,
+        timeout.as_secs_f64()
+    ))
+}
+
+/// Gracefully cancel the CuratorSync background task and wait for teardown.
+///
+/// Without this, the Tokio runtime may forcibly drop the CuratorSync while it
+/// holds SQLCipher connections inside `spawn_blocking`, causing a SIGSEGV from
+/// the `sqlite_vec` global auto-extension accessing freed memory.
+async fn cleanup_curator(cancel_tx: tokio::sync::watch::Sender<bool>) {
+    cancel_tx.send(true).ok();
+    // Let the CuratorSync task exit its poll loop and drop connections cleanly
+    tokio::time::sleep(Duration::from_millis(200)).await;
+}
 
 fn setup(tmp: &tempfile::TempDir) -> ActivePods {
     ActivePods::new_test_harness(tmp.path())
@@ -38,7 +81,7 @@ async fn create_replicant(pods: &ActivePods, name: &str) -> hkask_types::PodID {
 #[tokio::test]
 async fn recall_semantic_routes_through_curator() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_curator(&tmp).await;
+    let (pods, cancel_tx) = setup_curator(&tmp).await;
     let pod_id = create_replicant(&pods, "alice").await;
     let ctx = pods.context(&pod_id).await.expect("PodContext");
 
@@ -46,23 +89,20 @@ async fn recall_semantic_routes_through_curator() {
     ctx.store_semantic("RoutingTest", "value", serde_json::json!("42"), 0.9)
         .expect("store_semantic");
 
-    // Wait for CuratorSync to pick it up
-    tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
-
-    // Verify Curator index has it (direct check)
-    let ci = pods.curator_index().await.expect("curator index");
-    let idx = ci.read().unwrap();
-    let h_mems = idx.query_by_entity("RoutingTest").unwrap_or_default();
-    assert!(!h_mems.is_empty(), "Curator should have synced the h_mem");
+    // Poll until CuratorSync picks it up (absorbs 1s tick interval + FS/DB overhead)
+    wait_for_curator_sync(&pods, "RoutingTest", Duration::from_secs(10))
+        .await
+        .expect("CuratorSync should pick up the h_mem");
 
     // Now verify PodContext::recall_semantic routes through Curator
-    // (it should return the Curator index result, not local)
     let results = ctx.recall_semantic("RoutingTest").expect("recall_semantic");
     assert!(
         !results.is_empty(),
         "recall_semantic should return Curator-synced h_mem"
     );
     assert_eq!(results[0].entity, "RoutingTest");
+
+    cleanup_curator(cancel_tx).await;
 }
 
 #[tokio::test]
@@ -84,10 +124,6 @@ async fn recall_semantic_falls_back_to_local_when_curator_unavailable() {
 }
 
 // ── #2: CNS cns.semantic.published observer notification ─────────────────────
-
-use hkask_ports::CnsObserver;
-use hkask_types::event::{NuEvent, SpanNamespace};
-use std::sync::Mutex;
 
 /// Test observer that records received CNS events
 struct TestObserver {
@@ -122,7 +158,7 @@ impl CnsObserver for TestObserver {
 #[tokio::test]
 async fn cns_semantic_published_notifies_observer() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_curator(&tmp).await;
+    let (pods, cancel_tx) = setup_curator(&tmp).await;
     let pod_id = create_replicant(&pods, "alice").await;
     let ctx = pods.context(&pod_id).await.expect("PodContext");
 
@@ -145,6 +181,10 @@ async fn cns_semantic_published_notifies_observer() {
         "CNS observer should receive cns.semantic.published event, got {}",
         count
     );
+
+    cleanup_curator(cancel_tx).await;
+
+    cleanup_curator(cancel_tx).await;
 }
 
 // ── #3: CuratorPod singleton enforcement ─────────────────────────────────────
@@ -152,7 +192,7 @@ async fn cns_semantic_published_notifies_observer() {
 #[tokio::test]
 async fn second_curator_pod_is_rejected() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_curator(&tmp).await;
+    let (pods, cancel_tx) = setup_curator(&tmp).await;
 
     // Attempt to create a second CuratorPod
     let persona = AgentPersona::system("curator2", AgentKind::Bot);
@@ -167,6 +207,8 @@ async fn second_curator_pod_is_rejected() {
         "Error should mention CuratorPod: {}",
         err
     );
+
+    cleanup_curator(cancel_tx).await;
 }
 
 // ── #4: source_pod provenance preserved ──────────────────────────────────────
@@ -174,14 +216,17 @@ async fn second_curator_pod_is_rejected() {
 #[tokio::test]
 async fn source_pod_provenance_round_trips() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_curator(&tmp).await;
+    let (pods, cancel_tx) = setup_curator(&tmp).await;
     let pod_id = create_replicant(&pods, "alice").await;
     let ctx = pods.context(&pod_id).await.expect("PodContext");
 
     ctx.store_semantic("ProvTest", "value", serde_json::json!("provenance"), 0.9)
         .expect("store_semantic");
 
-    tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+    // Poll until CuratorSync picks it up
+    wait_for_curator_sync(&pods, "ProvTest", Duration::from_secs(10))
+        .await
+        .expect("CuratorSync should pick up the h_mem");
 
     // Check Curator index — the h_mem should carry source_pod provenance
     let ci = pods.curator_index().await.expect("curator index");
@@ -198,6 +243,8 @@ async fn source_pod_provenance_round_trips() {
         pod_id,
         "Source pod should match the pod that wrote the h_mem"
     );
+
+    cleanup_curator(cancel_tx).await;
 }
 
 // ── #5: pod_meta table populated ─────────────────────────────────────────────
@@ -205,7 +252,7 @@ async fn source_pod_provenance_round_trips() {
 #[tokio::test]
 async fn pod_meta_table_contains_metadata() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (_pods, _cancel) = setup_curator(&tmp).await;
+    let (_pods, cancel_tx) = setup_curator(&tmp).await;
 
     // Open the curator pod database directly with the canonical DB passphrase.
     use hkask_storage::Database;
@@ -257,4 +304,6 @@ async fn pod_meta_table_contains_metadata() {
         !created.is_empty(),
         "pod_meta.created_at should be non-empty"
     );
+
+    cleanup_curator(cancel_tx).await;
 }

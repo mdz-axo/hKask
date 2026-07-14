@@ -120,7 +120,7 @@ pub struct MCPBootstrap {
 /// [P12] Motivating: every action has an authenticated author.
 /// pre: `host_env_var` names a non-empty host identity environment variable.
 /// post: returns an error before daemon verification when the host identity is absent.
-/// [P1] Constraining: User Sovereignty — anonymous agency is never synthesized.
+/// \[P1\] Constraining: User Sovereignty — anonymous agency is never synthesized.
 #[must_use = "MCPBootstrap must be passed to the server's run() function"]
 pub async fn bootstrap_mcp_server(
     server_name: &str,

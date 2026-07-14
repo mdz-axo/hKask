@@ -1,7 +1,7 @@
 //! Core types for the code graph.
 //!
 //! D1 fix: Visibility is an enum, not a string (idiomatic-rust Principle 1).
-//! D2 fix: Complexity is a type-state enum (Option<usize> → NotComputed | Computed | Unparseable).
+//! D2 fix: Complexity is a type-state enum (`Option<usize>` → NotComputed | Computed | Unparseable).
 
 use serde::{Deserialize, Serialize};
 

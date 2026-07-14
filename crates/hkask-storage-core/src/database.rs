@@ -327,11 +327,11 @@ pub fn check_passphrase(path: &str, passphrase: &str) -> Result<(), DatabaseErro
 }
 
 /// expect: "A passphrase mistake never destroys my encrypted database."
-/// [P1] Motivating: User Sovereignty — user data remains under the user's control.
+/// \[P1\] Motivating: User Sovereignty — user data remains under the user's control.
 /// pre: `path` identifies a SQLCipher database and `passphrase` is non-empty.
 /// post: returns an opened database only when the passphrase verifies.
 /// inv: never deletes or modifies the database or its salt file.
-/// [P4] Constraining: Clear Boundaries — recovery is an explicit operation, not an implicit side effect.
+/// \[P4\] Constraining: Clear Boundaries — recovery is an explicit operation, not an implicit side effect.
 pub fn open_or_repair(path: &str, passphrase: &str) -> Result<Database, DatabaseError> {
     let db = Database::open(path, passphrase)?;
     db.sqlite_pool()?;

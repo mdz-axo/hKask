@@ -50,9 +50,9 @@ impl RuntimeAlert {
     /// or threshold is 0.
     ///
     /// expect: "The system creates algedonic alerts when variety deficit exceeds threshold"
-    /// [P9] Motivating: Homeostatic Self-Regulation — algedonic feedback loop
-    /// [P4] Constraining: Clear Boundaries — cap enforcement through binary classification
-    /// [P5] Constraining: Essentialism — simplest possible threshold model
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — algedonic feedback loop
+    /// \[P4\] Constraining: Clear Boundaries — cap enforcement through binary classification
+    /// \[P5\] Constraining: Essentialism — simplest possible threshold model
     /// pre:  domain is non-empty, threshold > 0
     /// post: returns Some(RuntimeAlert) with severity based on deficit vs threshold,
     ///       or None if preconditions violated

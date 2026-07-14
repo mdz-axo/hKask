@@ -371,8 +371,8 @@ impl CnsRuntime {
     /// Attach a self-healing callback for automatic error recovery on depletion.
     ///
     /// expect: "The system provides configurable error recovery for homeostatic self-regulation"
-    /// [P9] Motivating: Homeostatic Self-Regulation — heal callback closes the recovery loop
-    /// [P4] Constraining: Clear Boundaries — callback is user-owned, CNS does not self-modify
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — heal callback closes the recovery loop
+    /// \[P4\] Constraining: Clear Boundaries — callback is user-owned, CNS does not self-modify
     /// pre:  cb is valid
     /// post: CnsRuntime with heal callback configured
     pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
@@ -385,8 +385,8 @@ impl CnsRuntime {
     /// Called by the CyberneticsLoop when SetPointsConfig is loaded.
     ///
     /// expect: "The system provides configurable outcome quality thresholds for homeostatic regulation"
-    /// [P9] Motivating: Homeostatic Self-Regulation — threshold configuration enables loop tuning
-    /// [P7] Constraining: Evolutionary Architecture — thresholds emerged from real usage data
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — threshold configuration enables loop tuning
+    /// \[P7\] Constraining: Evolutionary Architecture — thresholds emerged from real usage data
     /// pre:  warning >= 0.0, critical >= 0.0, warning > critical
     /// post: outcome thresholds updated for all domains
     pub async fn set_outcome_thresholds(&self, warning: f64, critical: f64) {
@@ -425,8 +425,8 @@ impl CnsRuntime {
     /// regulatory actions are actually improving system state.
     ///
     /// expect: "The system provides homeostatic self-regulation through variety tracking, algedonic alerting, and ν-event observation"
-    /// [P9] Motivating: Homeostatic Self-Regulation — cycle recording enables metacognitive feedback
-    /// [P8] Constraining: Semantic Grounding — Accept/Stage/Block counts are measured, not guessed
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — cycle recording enables metacognitive feedback
+    /// \[P8\] Constraining: Semantic Grounding — Accept/Stage/Block counts are measured, not guessed
     /// pre:  entry signals and actions are non-empty
     /// post: regulation health counters updated, history appended
     pub async fn record_regulation_cycle(&self, entry: RegulationCycleEntry) {
@@ -447,8 +447,8 @@ impl CnsRuntime {
     /// across all recorded regulation cycles.
     ///
     /// expect: "The system provides observability into CNS regulation state"
-    /// [P9] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
-    /// [P8] Constraining: Semantic Grounding — pure measurement, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
+    /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns RegulationHealth with current Accept/Stage/Block counts
     pub async fn regulation_health(&self) -> RegulationHealth {
         let state = self.state.read().await;
@@ -460,8 +460,8 @@ impl CnsRuntime {
     /// Returns up to `n` most recent cycles, newest first.
     ///
     /// expect: "The system provides observability into CNS regulation state"
-    /// [P9] Motivating: Homeostatic Self-Regulation — history enables trend analysis for loop tuning
-    /// [P8] Constraining: Semantic Grounding — pure measurement, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — history enables trend analysis for loop tuning
+    /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns up to n entries, newest first; never exceeds MAX_REGULATION_HISTORY
     pub async fn regulation_history(&self, n: usize) -> Vec<RegulationCycleEntry> {
         let state = self.state.read().await;
@@ -477,9 +477,9 @@ impl CnsRuntime {
     /// Access the tool stats learner for recording and querying tool distributions.
     ///
     /// expect: "The system provides observability into CNS regulation state"
-    /// [P9] Motivating: Homeostatic Self-Regulation — tool stats inform energy and reliability decisions
-    /// [P8] Constraining: Semantic Grounding — LogNormal distributions are computed from measured data
-    /// post: returns Arc<ToolStats> shared reference
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — tool stats inform energy and reliability decisions
+    /// \[P8\] Constraining: Semantic Grounding — LogNormal distributions are computed from measured data
+    /// post: returns `Arc<ToolStats>` shared reference
     pub async fn tool_stats(&self) -> Arc<ToolStats> {
         let state = self.state.read().await;
         Arc::clone(&state.tool_stats)
@@ -580,7 +580,7 @@ impl CnsRuntime {
     /// across agent rebuilds.
     ///
     /// expect: "Variety counters reset cleanly across sessions"
-    /// [P9] Motivating: Homeostatic Self-Regulation — clean session state
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — clean session state
     /// post: all VarietyTracker counts and EMAs are zeroed
     pub async fn reset_variety(&self) {
         let mut state = self.state.write().await;
@@ -1008,8 +1008,8 @@ impl CnsRuntime {
     /// Get all registered SLOs.
     ///
     /// expect: "The system provides observability into CNS regulation state"
-    /// [P9] Motivating: Homeostatic Self-Regulation — SLO listing enables platform contract auditing
-    /// [P8] Constraining: Semantic Grounding — pure observation, no transformation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — SLO listing enables platform contract auditing
+    /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns all registered SloDefinitions
     pub async fn slos(&self) -> Vec<crate::slo_types::SloDefinition> {
         let state = self.state.read().await;

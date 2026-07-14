@@ -73,7 +73,7 @@ impl NuEventStore {
     /// Initialize the nu_events and loop_cursors tables (idempotent).
     ///
     /// expect: "The system provides durable storage for event data"
-    /// [P3] Motivating: Generative Space — nu_events schema
+    /// \[P3\] Motivating: Generative Space — nu_events schema
     /// post: nu_events and loop_cursors tables exist
     fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
