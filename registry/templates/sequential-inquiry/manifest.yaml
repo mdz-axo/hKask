@@ -7,11 +7,11 @@ crate:
   description: >
     Dynamic chain-of-thought reasoning engine with branching, revision,
     hypothesis testing, and automatic deep-dive delegation to specialized
-    skills (hypothesis-framer, mcda, diagnose). Subsumes the deprecated
-    sequential-thinking skill. The engine decides at runtime whether
-    delegation is needed — no pre-selection. Templates: reasoning engine,
-    three delegation targets (hypothesis-framer, mcda, diagnose), and a
-    convergence check.
+    skills (hypothesis-framer, mcda, diagnose, falsifiability). Subsumes the
+    deprecated sequential-thinking skill. The engine decides at runtime
+    whether delegation is needed — no pre-selection. Templates: reasoning
+    engine, four delegation targets (hypothesis-framer, mcda, diagnose,
+    falsifiability), and a convergence check.
 
 templates:
   - id: sequential-inquiry/sequential-inquiry-engine
@@ -46,6 +46,16 @@ templates:
     description: >
       Delegation target — disciplined diagnosis loop when the engine detects
       a bug or regression requiring reproduce → anchor → hypothesize → fix.
+
+  - id: sequential-inquiry/sequential-inquiry-delegate-falsifiability
+    path: sequential-inquiry-delegate-falsifiability.j2
+    type: KnowAct
+    lexicon_terms: [delegate, falsify, eliminate, counterfactual, corroborate]
+    description: >
+      Delegation target — eliminative inference engine when the engine branches
+      on a counterfactual scenario or needs to rule out the untestable. Applies
+      the Popper/Platt/Chamberlin/Pearl method: admit → hypothesize →
+      counterfactual → discriminate → eliminate.
 
   - id: sequential-inquiry/sequential-inquiry-convergence-check
     path: sequential-inquiry-convergence-check.j2

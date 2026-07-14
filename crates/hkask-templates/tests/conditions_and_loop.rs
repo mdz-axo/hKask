@@ -299,6 +299,70 @@ async fn condition_eq_skips_step_when_not_matching() {
     );
 }
 
+// ── Fix C (deeper): {{ }} mapping must resolve arrays/objects to real JSON values,
+// not stringified reprs that double-encode under | tojson in the template body. ────
+
+#[tokio::test]
+async fn select_input_mapping_resolves_arrays_and_objects() {
+    let dir = std::env::temp_dir().join("hkask-select-mapping-struct");
+    std::fs::create_dir_all(&dir).expect("mkdir");
+    write_templates(
+        &dir,
+        &[
+            (
+                "s1.j2",
+                r#"produce structured data
+{"items": [{"id": 1}, {"id": 2}], "config": {"x": 10}, "convergence_metric": 0.0}"#,
+            ),
+            (
+                "s2.j2",
+                r#"items={{ items | tojson }} cfg={{ config.x }}
+{"convergence_metric": 0.0}"#,
+            ),
+        ],
+    );
+    let mut s2 = step(2, "select", Some("s2.j2"), None);
+    s2.input_mapping = Some(serde_json::json!({
+        "items": "{{ step_1_result.items }}",
+        "config": "{{ step_1_result.config }}"
+    }));
+    let (mock, prompts) = ScriptedPort::new(vec![
+        r#"{"items": [{"id": 1}, {"id": 2}], "config": {"x": 10}, "convergence_metric": 0.0}"#,
+        r#"{"convergence_metric": 0.0}"#,
+    ]);
+    let executor = ManifestExecutor::new(
+        Arc::new(mock),
+        Arc::new(NoopMcpPort),
+        LLMParameters::default(),
+        b"test-secret".to_vec(),
+    )
+    .with_template_base_path(dir);
+    let _ = executor
+        .execute_manifest(
+            &manifest(
+                vec![step(1, "select", Some("s1.j2"), None), s2, abort_step(3)],
+                "step_1_result.convergence_metric",
+            ),
+            HashMap::new(),
+        )
+        .await;
+    let captured = prompts.lock().unwrap();
+    let s2_prompt = &captured[1];
+    // If `items` resolved to a real array, | tojson yields [{"id":1}, ...] (unescaped braces,
+    // compact — no space after colon). If it were a stringified repr, | tojson would
+    // double-encode to "[{\"id\":1}, ...]".
+    assert!(
+        s2_prompt.contains("{\"id\":1}"),
+        "items should resolve to a real array (not a double-encoded string). Prompt:\n{}",
+        s2_prompt
+    );
+    assert!(
+        s2_prompt.contains("cfg=10"),
+        "config should resolve to a real object so config.x == 10. Prompt:\n{}",
+        s2_prompt
+    );
+}
+
 // ── Fix B: loop input_mapping carries state into the next iteration ──────────
 
 #[tokio::test]

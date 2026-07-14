@@ -69,7 +69,7 @@ steps:
     action: populate
     description: Render the self-critique prompt from current reasoning context.
     renderer: minijinja
-    template_ref: review/self-critique
+    template_ref: review/self_critique
     gas_cap: 2000
     timeout_seconds: 30
     input_mapping:

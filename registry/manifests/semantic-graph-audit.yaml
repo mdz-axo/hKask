@@ -22,8 +22,8 @@ convergence:
   threshold: 0.15
   improvement_gate: threshold_only
   max_iterations: 3
-  min_iterations: 1
-  convergence_field: step_5_result.convergence_metric
+  min_iterations: 0
+  convergence_field: step_4_result.convergence_metric
   on_not_reached: escalate
 
 gas:

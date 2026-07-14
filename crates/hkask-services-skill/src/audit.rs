@@ -207,6 +207,35 @@ pub struct TemplateSummary {
 
 // ── Internal implementation ──────────────────────────────────────────────
 
+/// Extract every `step_<N>_result` ordinal referenced in `s`. These occur in
+/// FlowDef `convergence_field` values and `input_mapping` Jinja `{{ }}` values.
+fn extract_step_refs(s: &str) -> Vec<u32> {
+    let mut out = Vec::new();
+    let mut rest = s;
+    while let Some(i) = rest.find("step_") {
+        rest = &rest[i + 5..];
+        let mut digits = String::new();
+        for c in rest.chars() {
+            if c.is_ascii_digit() {
+                digits.push(c);
+            } else {
+                break;
+            }
+        }
+        if !digits.is_empty() && rest[digits.len()..].starts_with("_result") {
+            if let Ok(n) = digits.parse::<u32>() {
+                out.push(n);
+            }
+            rest = &rest[digits.len() + 7..];
+        } else {
+            rest = &rest[digits.len().max(1)..];
+        }
+    }
+    out
+}
+
+// ── Internal implementation continues ─────────────────────────────────────
+
 impl<'a> SkillAuditor<'a> {
     fn collect_skill_names(&self) -> Result<Vec<String>, SkillAuditError> {
         let mut names = HashSet::new();
@@ -325,6 +354,17 @@ impl<'a> SkillAuditor<'a> {
             }
         }
 
+        for d in self.validate_flowdef_refs(name) {
+            // A "templates not built" defect makes the skill non-executable — penalize
+            // harder than a bad cross-step reference (which degrades but doesn't crash).
+            score -= if d.contains("templates not built") {
+                0.15
+            } else {
+                0.10
+            };
+            defects.push(d);
+        }
+
         if zed.present && reg.present && zed.name != reg.crate_name && !reg.crate_name.is_empty() {
             score -= 0.10;
             defects.push(format!(
@@ -400,6 +440,169 @@ impl<'a> SkillAuditor<'a> {
             }
         }
         "skill".to_string()
+    }
+
+    /// Validate cross-step references in the FlowDef manifest
+    /// (`registry/manifests/<name>.yaml`):
+    /// - `convergence_field` must NOT reference a loop/abort/escalate/choice step
+    ///   (which produce no step_N_result), else the skill never converges.
+    /// - every `step_N_result` reference in `convergence_field` and `input_mapping`,
+    ///   plus `loop_target`, must point to a declared step ordinal.
+    /// - a FlowDef that references templates but whose own crate manifest declares
+    ///   none (`templates: []`) was never built — flag it as non-executable.
+    ///
+    /// Surfaces silent self-harming gaps as CI-visible defects.
+    fn validate_flowdef_refs(&self, name: &str) -> Vec<String> {
+        let path = self
+            .project_root
+            .join("registry")
+            .join("manifests")
+            .join(format!("{name}.yaml"));
+        let Ok(content) = fs::read_to_string(&path) else {
+            return Vec::new();
+        };
+
+        // One pass over the `steps:` block: collect ordinals, per-step action, and
+        // template_refs. (ordinal/action/template_ref only occur inside steps.)
+        let mut ordinals: HashSet<u32> = HashSet::new();
+        let mut step_actions: std::collections::HashMap<u32, String> =
+            std::collections::HashMap::new();
+        let mut template_refs: Vec<(u32, String)> = Vec::new();
+        let mut in_steps = false;
+        let mut current_ordinal: Option<u32> = None;
+        for line in content.lines() {
+            if line.starts_with("steps:") {
+                in_steps = true;
+                continue;
+            }
+            if in_steps && !line.is_empty() && !line.starts_with(' ') && !line.starts_with('\t') {
+                in_steps = false;
+                current_ordinal = None;
+            }
+            if !in_steps {
+                continue;
+            }
+            let t = line.trim_start();
+            if let Some(r) = t
+                .strip_prefix("- ordinal:")
+                .or_else(|| t.strip_prefix("ordinal:"))
+            {
+                if let Ok(n) = r.trim().parse::<u32>() {
+                    ordinals.insert(n);
+                    current_ordinal = Some(n);
+                }
+                continue;
+            }
+            if let Some(r) = t.strip_prefix("action:") {
+                if let Some(ord) = current_ordinal {
+                    step_actions.insert(ord, r.trim().trim_matches('"').to_string());
+                }
+                continue;
+            }
+            if let Some(r) = t.strip_prefix("template_ref:")
+                && let Some(ord) = current_ordinal
+            {
+                template_refs.push((ord, r.trim().trim_matches('"').to_string()));
+            }
+        }
+        if ordinals.is_empty() {
+            return Vec::new(); // not a FlowDef manifest (infrastructure config, no steps)
+        }
+
+        let mut defects = Vec::new();
+
+        // convergence_field (control-flow: determines convergence) — must NOT reference
+        // a loop/abort/escalate/choice step (which produce no step_N_result), else
+        // check_convergence reads None and the skill never converges. Custom action
+        // vocabularies (render/evaluate/flowdef/...) are assumed to produce output.
+        const NON_OUTPUT_ACTIONS: &[&str] = &["loop", "abort", "escalate", "choice"];
+        let mut in_convergence = false;
+        for line in content.lines() {
+            if line.starts_with("convergence:") {
+                in_convergence = true;
+                continue;
+            }
+            if in_convergence {
+                if !line.is_empty() && !line.starts_with(' ') && !line.starts_with('\t') {
+                    in_convergence = false;
+                } else if let Some(rest) = line.trim_start().strip_prefix("convergence_field:") {
+                    for n in extract_step_refs(rest) {
+                        if !ordinals.contains(&n) {
+                            defects.push(format!(
+                                "convergence_field references step {n}_result but no step {n} exists (silently never converges)"
+                            ));
+                        } else if let Some(action) = step_actions.get(&n)
+                            && NON_OUTPUT_ACTIONS.contains(&action.as_str())
+                        {
+                            defects.push(format!(
+                                "convergence_field references step {n} which is a '{action}' step (produces no result; must reference an output-producing step)"
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // loop_target (control-flow: re-entry point) — must be a declared ordinal.
+        for line in content.lines() {
+            if let Some(rest) = line.trim_start().strip_prefix("loop_target:")
+                && let Ok(n) = rest.trim().parse::<u32>()
+                && !ordinals.contains(&n)
+            {
+                defects.push(format!("loop_target {n} references no existing step"));
+            }
+        }
+
+        // input_mapping data refs (lines containing Jinja {{ }}) — every step_N_result
+        // referenced must exist, else resolve_mapping_value yields empty at runtime.
+        let mut bad_input: HashSet<u32> = HashSet::new();
+        for line in content.lines() {
+            if line.contains("{{") {
+                for n in extract_step_refs(line) {
+                    if !ordinals.contains(&n) {
+                        bad_input.insert(n);
+                    }
+                }
+            }
+        }
+        let mut bad_input: Vec<u32> = bad_input.into_iter().collect();
+        bad_input.sort_unstable();
+        for n in bad_input {
+            defects.push(format!(
+                "input_mapping references step {n}_result but no step {n} exists (resolves to empty at runtime)"
+            ));
+        }
+
+        // template_ref build-completeness. A FlowDef that references templates but
+        // whose own crate manifest declares none (`templates: []`) was never built —
+        // the .j2 templates don't exist and the skill is non-executable. This targets
+        // the "templates never authored" class precisely (the only such skill today is
+        // semantic-graph-audit). Per-ref .j2 path mismatches in FlowDefs whose crates DO
+        // declare templates are a separate, lower-severity cohort (often latent because
+        // those skills are invoked as KnowAct, not via the FlowDef) — left to a follow-up.
+        let crate_manifest_path = self
+            .project_root
+            .join("registry")
+            .join("templates")
+            .join(name)
+            .join("manifest.yaml");
+        let declared_count = fs::read_to_string(&crate_manifest_path)
+            .ok()
+            .and_then(|c| {
+                let m = serde_yaml_neo::from_str::<serde_yaml_neo::Value>(&c).ok()?;
+                m.get("templates")
+                    .and_then(|v| v.as_sequence())
+                    .map(|s| s.len())
+            })
+            .unwrap_or(0);
+        if declared_count == 0 && !template_refs.is_empty() {
+            defects.push(format!(
+                "FlowDef references {} template_ref(s) but the crate manifest declares 0 templates (templates not built — skill non-executable)",
+                template_refs.len()
+            ));
+        }
+
+        defects
     }
 
     fn audit_zed_layer(&self, name: &str) -> Result<ZedLayerInfo, SkillAuditError> {
@@ -787,6 +990,71 @@ mod tests {
         assert!(
             score.is_active(),
             "complete skill should be active, got score {} with defects {:?}",
+            score.health_score,
+            score.defects
+        );
+    }
+
+    /// A FlowDef manifest with non-existent cross-step references must be flagged:
+    /// bad convergence_field, bad input_mapping step ref, and bad loop_target each
+    /// surface a defect and drop the score below active.
+    #[test]
+    fn flowdef_broken_cross_step_refs_are_flagged() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let name = "test-broken";
+
+        // Zed layer (present so the missing-companion dock doesn't mask the cross-step defects).
+        let zed_dir = root.join(".agents").join("skills").join(name);
+        fs::create_dir_all(&zed_dir).unwrap();
+        fs::write(
+            zed_dir.join("SKILL.md"),
+            "---\nname: test-broken\nvisibility: public\ndescription: \"Broken cross-step refs for audit validation.\"\n---\n\n# Test Broken\n\nInstructions.\n",
+        )
+        .unwrap();
+
+        // Registry crate (clean j2 so no frontmatter defects).
+        let reg_dir = root.join("registry").join("templates").join(name);
+        fs::create_dir_all(&reg_dir).unwrap();
+        fs::write(
+            reg_dir.join("manifest.yaml"),
+            "crate:\n  name: test-broken\n  version: \"0.31.0\"\n  description: Broken refs.\ntemplates:\n  - id: test-broken/s1\n    path: s1.j2\n    type: KnowAct\n    lexicon_terms: [classify]\n    description: Minimal.\n",
+        )
+        .unwrap();
+        fs::write(
+            reg_dir.join("s1.j2"),
+            "[inference]\ntemplate_type: KnowAct\nlexicon_terms:\n- classify\ncontract:\n  input:\n    x: string\n  output:\n    y: string\n  energy_cap: 4096\n  visibility: Public\n---\n{# goal: Minimal. #}\n{{ x }}\n",
+        )
+        .unwrap();
+
+        fs::create_dir_all(root.join("registry").join("manifests")).unwrap();
+        // FlowDef manifest with THREE broken cross-step refs: convergence_field -> step 9
+        // (none), input_mapping -> step 7 (none), loop_target -> 5 (none).
+        fs::write(
+            root.join("registry").join("manifests").join(format!("{name}.yaml")),
+            "manifest:\n  id: test-broken\n  category: skill\n  name: Test Broken\n  description: Broken refs.\n  functional_role: flowdef\n  version: 0.31.0\n  editor: test\n  visibility: Public\nconvergence:\n  threshold: 0.15\n  max_iterations: 3\n  min_iterations: 0\n  convergence_field: step_9_result.convergence_metric\n  on_not_reached: escalate\nsteps:\n  - ordinal: 1\n    action: select\n    description: step1\n    renderer: minijinja\n    template_ref: test-broken/s1\n    gas_cap: 4096\n    timeout_seconds: 30\n    input_mapping:\n      bad: \"{{ step_7_result.x | default(null) }}\"\n  - ordinal: 2\n    action: loop\n    description: loop\n    input_mapping:\n      loop_target: 5\n",
+        )
+        .unwrap();
+
+        let registry = hkask_templates::Registry::new();
+        let auditor = SkillAuditor::new(&registry, &registry, root);
+        let score = auditor.audit_skill(name).expect("audit");
+        let defects = score.defects.join("; ");
+        assert!(
+            defects.contains("convergence_field references step 9"),
+            "missing convergence_field defect: {defects}"
+        );
+        assert!(
+            defects.contains("input_mapping references step 7"),
+            "missing input_mapping defect: {defects}"
+        );
+        assert!(
+            defects.contains("loop_target 5 references no existing step"),
+            "missing loop_target defect: {defects}"
+        );
+        assert!(
+            !score.is_active(),
+            "3 broken refs (-0.30) should drop below active (0.8); got {} defects {:?}",
             score.health_score,
             score.defects
         );

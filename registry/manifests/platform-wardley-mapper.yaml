@@ -64,7 +64,7 @@ steps:
       current evolutionary position.
 
     renderer: minijinja
-    template_ref: platform-wardley-mapper/inventory-components
+    template_ref: wardley-mapper/inventory-components
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -105,7 +105,7 @@ steps:
       - Future (far right): Platform Engineer replicant → Genesis
 
     renderer: minijinja
-    template_ref: platform-wardley-mapper/map-value-chain
+    template_ref: wardley-mapper/map-value-chain
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -125,7 +125,7 @@ steps:
       - Compare against previous_map to detect drift and velocity.
 
     renderer: minijinja
-    template_ref: platform-wardley-mapper/identify-movement
+    template_ref: wardley-mapper/identify-movement
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
@@ -146,7 +146,7 @@ steps:
       Output: structured JSON + Mermaid diagram of the Wardley Map.
 
     renderer: minijinja
-    template_ref: platform-wardley-mapper/synthesize-recommendations
+    template_ref: wardley-mapper/synthesize-recommendations
     gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
