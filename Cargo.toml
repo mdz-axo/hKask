@@ -165,7 +165,7 @@ url = "2"
 dotenvy = "0.15"
 
 # Matrix protocol
-matrix-sdk = { version = "0.16", default-features = false, features = ["native-tls"] }
+matrix-sdk = { version = "0.16", default-features = false, features = ["rustls-tls"] }
 
 [workspace.lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("hedera"))'] }

@@ -208,10 +208,18 @@ impl WalletDataBridge for TuiReplBridge {
 impl MemoryDataBridge for TuiReplBridge {
     fn memory_summary(&self) -> MemorySummary {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let mem = state
-            .service_context
-            .per_agent_memory(&state.current_agent)
-            .expect("per-agent memory");
+        let mem = match state.service_context.per_agent_memory(&state.current_agent) {
+            Ok(m) => m,
+            Err(_) => {
+                return MemorySummary {
+                    episodic_count: 0,
+                    episodic_budget: 0,
+                    semantic_count: 0,
+                    semantic_low_confidence: 0,
+                    consolidation_candidates: 0,
+                };
+            }
+        };
         let episodic_count = mem
             .episodic_storage
             .episodic_storage_usage(&state.agent_webid)

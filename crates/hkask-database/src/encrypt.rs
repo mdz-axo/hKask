@@ -9,6 +9,7 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use base64::Engine;
 use blake3::Hasher;
+use rand::RngCore;
 
 const PREFIX: &str = "ENCv1:";
 const NONCE_LEN: usize = 12;
@@ -31,9 +32,7 @@ impl Encryptor {
     pub fn encrypt(&self, plaintext: &str) -> String {
         let cipher = Aes256Gcm::new(&self.key);
         let mut nonce_bytes = [0u8; NONCE_LEN];
-        for byte in nonce_bytes.iter_mut() {
-            *byte = rand::random();
-        }
+        rand::rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
         let ct = cipher
             .encrypt(nonce, plaintext.as_bytes())
