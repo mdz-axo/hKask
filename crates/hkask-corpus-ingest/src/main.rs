@@ -1301,21 +1301,50 @@ impl GeneratedQaRecord {
     fn into_generated_qa(self) -> GeneratedQa {
         match self {
             Self::Flat(qa) => qa,
-            Self::Envelope(envelope) => GeneratedQa {
-                instruction: envelope.response.instruction,
-                output: envelope.response.output,
-                qa_type: if envelope.response.qa_type.is_empty() {
-                    envelope.qa_type
-                } else {
-                    envelope.response.qa_type
-                },
-                difficulty: envelope.response.difficulty,
-                concepts: envelope.response.concepts,
-                source: envelope.source,
-                chunk_ref: Some(envelope.chunk_ref),
-                evidence_quotes: envelope.response.evidence_quotes,
-            },
+            Self::Envelope(envelope) => {
+                let instruction = value_to_string(&envelope.response.instruction);
+                let output = value_to_string(&envelope.response.output);
+                let difficulty = value_to_u8(&envelope.response.difficulty);
+                GeneratedQa {
+                    instruction,
+                    output,
+                    qa_type: if envelope.response.qa_type.is_empty() {
+                        envelope.qa_type
+                    } else {
+                        envelope.response.qa_type
+                    },
+                    difficulty,
+                    concepts: envelope.response.concepts,
+                    source: envelope.source,
+                    chunk_ref: Some(envelope.chunk_ref),
+                    evidence_quotes: envelope.response.evidence_quotes,
+                }
+            }
         }
+    }
+}
+
+/// Extract a string from a serde_json::Value — handles both String and
+/// Object<{"answer": "..."}> formats that the LLM may produce.
+fn value_to_string(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Object(map) => map
+            .get("answer")
+            .or_else(|| map.get("instruction"))
+            .or_else(|| map.get("output"))
+            .map(|v| value_to_string(v))
+            .unwrap_or_default(),
+        serde_json::Value::Number(n) => n.to_string(),
+        _ => v.to_string(),
+    }
+}
+
+/// Extract a u8 difficulty from a serde_json::Value — handles int and float.
+fn value_to_u8(v: &serde_json::Value) -> u8 {
+    match v {
+        serde_json::Value::Number(n) => n.as_u64().unwrap_or(2) as u8,
+        _ => 2,
     }
 }
 
