@@ -78,8 +78,10 @@ MODEL_ID = "unsloth/Qwen3.6-27B"
 MAX_SEQ_LENGTH = 4096
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "/workspace/outputs")
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
-HF_REPO = os.environ.get("HF_REPO", "capabilities-researcher/qwen36-pissa-lora")
-HF_DATASET = os.environ.get("HF_DATASET", "capabilities-researcher/corpus-qa")
+HF_REPO = os.environ.get("HF_REPO", "mdz-axolotl/capabilities-researcher-pissa-lora")
+# Dataset: local JSONL files (uploaded via SCP)
+TRAIN_FILE = "/workspace/data/train_chat.jsonl"
+VAL_FILE = "/workspace/data/val_chat.jsonl"
 SEED = 3407
 
 # PiSSA LoRA configuration
@@ -113,7 +115,7 @@ print(f"GPU: {torch.cuda.get_device_name(0)}")
 print(f"LoRA: r={LORA_R}, alpha={LORA_ALPHA}, dropout={LORA_DROPOUT}")
 print(f"PiSSA init: {INIT_LORA_WEIGHTS}")
 print(f"LR: {LEARNING_RATE}, epochs={NUM_EPOCHS}, warmup={WARMUP_STEPS}")
-print(f"Dataset: {HF_DATASET}")
+print(f"Dataset: {TRAIN_FILE}")
 print("=" * 60)
 
 # ── Load model BEFORE datasets (avoids HF cache lock deadlock) ─────────────
@@ -143,13 +145,18 @@ tr = sum(p.numel() for p in model.parameters() if p.requires_grad)
 tt = sum(p.numel() for p in model.parameters())
 print(f"Trainable: {tr/1e6:.1f}M / {tt/1e9:.2f}B ({100*tr/tt:.2f}%)", flush=True)
 
-# ── Load dataset from HuggingFace ──────────────────────────────────────────
-print(f"\nLoading dataset {HF_DATASET}...", flush=True)
-ds = load_dataset(HF_DATASET)
-train_ds = ds["train"]
-val_ds = ds.get("validation", ds["train"].select(range(min(1000, len(ds["train"]) // 10))))
+# ── Load dataset from local JSONL files ────────────────────────────────────
+print(f"\nLoading {TRAIN_FILE}...", flush=True)
+train_ds = load_dataset("json", data_files=TRAIN_FILE, split="train")
+print(f"  Train: {len(train_ds)} examples", flush=True)
 
-print(f"Train: {len(train_ds)} | Eval: {len(val_ds)}", flush=True)
+val_ds = load_dataset("json", data_files=VAL_FILE, split="train")
+print(f"  Val: {len(val_ds)} examples", flush=True)
+
+# Hold out a fixed eval split
+EVAL_SIZE = min(1000, len(val_ds))
+eval_ds = val_ds.select(range(EVAL_SIZE))
+print(f"Train: {len(train_ds)} | Eval: {len(eval_ds)}", flush=True)
 
 # Validate format
 def is_valid(ex):
