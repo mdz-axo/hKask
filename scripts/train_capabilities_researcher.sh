@@ -48,6 +48,10 @@ pip install --cache-dir "$PIP_CACHE_DIR" -q --upgrade pip setuptools wheel
 echo "=== INSTALLING AXOLOTL ==="
 pip install --cache-dir "$PIP_CACHE_DIR" -q axolotl
 
+# Fix torchvision version mismatch — axolotl install may upgrade PyTorch to cu130
+# but leave torchvision at cu124, causing 'operator torchvision::nms does not exist'
+pip install --cache-dir "$PIP_CACHE_DIR" -q "torchvision>=0.24.0" --index-url https://download.pytorch.org/whl/cu130 2>/dev/null || true
+
 echo "=== VERIFY KERNELS ==="
 python3 -c "
 import torch
