@@ -55,12 +55,12 @@ pub struct QaPrompt {
 /// - Wang & Zhou (2024): moderate temp encourages beneficial reasoning diversity
 fn bloom_params(qa_type: &str) -> LLMParameters {
     let (temperature, top_p) = match qa_type {
-        "factual"    => (0.1, 0.85),  // extraction: deterministic, focused nucleus
-        "conceptual" => (0.3, 0.90),  // explanation: slight flexibility
-        "analyze"    => (0.5, 0.95),  // reasoning: moderate exploration
-        "evaluate"   => (0.5, 0.95),  // reasoning: same as analyze
-        "create"     => (0.8, 0.98),  // divergent: high creativity, wide nucleus
-        _            => (0.3, 0.90),
+        "factual" => (0.1, 0.85),    // extraction: deterministic, focused nucleus
+        "conceptual" => (0.3, 0.90), // explanation: slight flexibility
+        "analyze" => (0.5, 0.95),    // reasoning: moderate exploration
+        "evaluate" => (0.5, 0.95),   // reasoning: same as analyze
+        "create" => (0.8, 0.98),     // divergent: high creativity, wide nucleus
+        _ => (0.3, 0.90),
     };
     LLMParameters {
         temperature,
@@ -258,6 +258,14 @@ pub async fn run_generate_qa(args: GenerateQaArgs) -> Result<(), Box<dyn std::er
                         .or_else(|| trimmed.strip_prefix("```"))
                         .unwrap_or(trimmed);
                     let cleaned = cleaned.strip_suffix("```").unwrap_or(cleaned).trim();
+                    // Handle thinking-mode: extract JSON from reasoning + JSON response.
+                    let cleaned = match cleaned.find('{') {
+                        Some(start) => match cleaned.rfind('}') {
+                            Some(end) if end > start => &cleaned[start..end + 1],
+                            _ => cleaned,
+                        },
+                        None => cleaned,
+                    };
 
                     let qa_entry = match serde_json::from_str::<serde_json::Value>(cleaned) {
                         Ok(v) => {
