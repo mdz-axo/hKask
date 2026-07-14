@@ -19,7 +19,6 @@ use hkask_inference::embedding_router::EmbeddingRouter;
 use hkask_inference::inference_router::InferenceRouter;
 use hkask_inference::model_constants;
 use hkask_memory::SemanticMemory;
-use hkask_memory::salience::{self, EntityTags};
 use hkask_ports::inference_port::InferencePort;
 use hkask_storage::HMem;
 use hkask_types::Visibility;
@@ -49,12 +48,6 @@ const MIN_INSTRUCTION_LENGTH: usize = 30;
 /// Set to 50 to preserve factual-level QAs (which naturally produce shorter
 /// answers) while still filtering empty/malformed outputs.
 const MIN_OUTPUT_LENGTH: usize = 50;
-
-/// Display limit for top-salience chunks in diagnostics.
-const TOP_DISPLAY_COUNT: usize = 5;
-
-/// Display limit for top concept frequencies.
-const TOP_CONCEPTS_DISPLAY: usize = 20;
 
 #[derive(Debug, Deserialize)]
 struct Chunk {
@@ -324,12 +317,11 @@ fn strip_json_fences(text: &str) -> &str {
     let stripped = stripped.strip_suffix("```").unwrap_or(stripped).trim();
     // If the response contains reasoning text before the JSON, find the JSON object.
     // Look for the first '{' and the last '}' — the JSON is between them.
-    if let Some(start) = stripped.find('{') {
-        if let Some(end) = stripped.rfind('}') {
-            if end > start {
-                return &stripped[start..=end];
-            }
-        }
+    if let Some(start) = stripped.find('{')
+        && let Some(end) = stripped.rfind('}')
+        && end > start
+    {
+        return &stripped[start..=end];
     }
     stripped
 }
@@ -390,55 +382,7 @@ async fn llm_call_with_retry(
     None
 }
 
-/// Parse ontology tags from LLM result.
-fn parse_ontology(
-    result: &Option<hkask_ports::inference_types::InferenceResult>,
-    chunk_id: &str,
-    model_label: &str,
-) -> Option<OntologyTags> {
-    result.as_ref().map(|r| {
-        let cleaned = strip_json_fences(&r.text);
-        serde_json::from_str::<OntologyTags>(cleaned).unwrap_or_else(|e| {
-            tracing::warn!(
-                target: "corpus.embed",
-                chunk = %chunk_id,
-                model = %model_label,
-                error = %e,
-                "Failed to parse ontology JSON from LLM"
-            );
-            OntologyTags::default()
-        })
-    })
-}
-
-/// Parse triples from LLM result.
-fn parse_triples(
-    result: &Option<hkask_ports::inference_types::InferenceResult>,
-    model_label: &str,
-) -> Option<TripleResponse> {
-    result.as_ref().map(|r| {
-        let cleaned = strip_json_fences(&r.text);
-        serde_json::from_str::<TripleResponse>(cleaned).unwrap_or_else(|e| {
-            tracing::warn!(
-                target: "corpus.embed",
-                model = %model_label,
-                error = %e,
-                "Failed to parse triple JSON from LLM"
-            );
-            TripleResponse {
-                triples: Vec::new(),
-            }
-        })
-    })
-}
-
-#[derive(Debug, Deserialize)]
-struct TripleResponse {
-    #[serde(default)]
-    triples: Vec<ExtractedTriple>,
-}
-
-/// Ontology tags from LLM response (tag-chunks.j2 output).
+/// Combined response from classify-chunks.j2 template (ontology tags + RDF triples).
 #[derive(Debug, Deserialize, Default, Clone)]
 struct OntologyTags {
     #[serde(default)]
@@ -470,6 +414,7 @@ struct ClassifyResponse {
 }
 
 /// Single-shot classification: one LLM call produces both ontology tags and h_mem triples.
+#[allow(clippy::too_many_arguments)]
 async fn classify_chunk(
     router: &InferenceRouter,
     model: &str,
@@ -717,8 +662,6 @@ async fn run_embed(args: EmbedArgs) -> Result<(), Box<dyn std::error::Error>> {
         let source = chunk.source.clone();
         let text = chunk.text.clone();
         let replica_name = args.replica_name.clone();
-        let webid = webid;
-        let max_retries = max_retries;
 
         let handle = tokio::spawn(async move {
             let _permit = sem.acquire().await;
@@ -1333,7 +1276,7 @@ fn value_to_string(v: &serde_json::Value) -> String {
             .get("answer")
             .or_else(|| map.get("instruction"))
             .or_else(|| map.get("output"))
-            .map(|v| value_to_string(v))
+            .map(value_to_string)
             .unwrap_or_default(),
         serde_json::Value::Number(n) => n.to_string(),
         _ => v.to_string(),
@@ -1359,6 +1302,7 @@ fn has_admissible_qa_provenance(qa: &GeneratedQa) -> bool {
 /// Check that at least one evidence quote from the QA appears verbatim in the
 /// referenced chunk text. This enforces provenance: the QA's evidence must be
 /// an exact quote from the source chunk, not a paraphrase or fabrication.
+#[cfg(test)]
 fn has_source_supported_evidence(
     qa: &GeneratedQa,
     chunks: &std::collections::HashMap<String, String>,
@@ -1476,20 +1420,6 @@ fn build_cross_reference_prompts(qualifying: &[&TaggedChunk], args: &BuildPrompt
     }
 
     count
-}
-
-fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-    if a.is_empty() || b.is_empty() || a.len() != b.len() {
-        return 0.0;
-    }
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let mag_a = (a.iter().map(|x| x * x).sum::<f32>()).sqrt();
-    let mag_b = (b.iter().map(|x| x * x).sum::<f32>()).sqrt();
-    if mag_a == 0.0 || mag_b == 0.0 {
-        0.0
-    } else {
-        (dot / (mag_a * mag_b)).clamp(0.0, 1.0)
-    }
 }
 
 // ── K-means clustering for SemDeDup ──────────────────────────────────
@@ -1651,7 +1581,7 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
                             all_v.push(Vec::new());
                         }
                     } else {
-                        let v_len = v.len();
+                        let _v_len = v.len();
                         all_v.extend(v);
                     }
                 }
@@ -1757,7 +1687,7 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
                 });
                 if !is_dup {
                     kept_in_cluster.push(i);
-                    deduped.push((Some(normalized[i].clone()), &filtered[i]));
+                    deduped.push((Some(normalized[i].clone()), filtered[i]));
                 }
             }
         }
@@ -1765,7 +1695,7 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
         // QAs without embeddings: fall back to exact-match dedup
         for &i in &no_embed_indices {
             if seen.insert(filtered[i].instruction.to_lowercase()) {
-                deduped.push((None, &filtered[i]));
+                deduped.push((None, filtered[i]));
             }
         }
     } else {
@@ -1827,7 +1757,7 @@ async fn run_ingest_qa(args: IngestQaArgs) -> Result<(), Box<dyn std::error::Err
     let mut store_failures = 0;
     let mut with_chunk_ref = 0;
 
-    for (i, (emb, qa)) in deduped.iter().enumerate() {
+    for (i, (_emb, qa)) in deduped.iter().enumerate() {
         if qa.chunk_ref.is_some() {
             with_chunk_ref += 1;
         }
