@@ -8,16 +8,11 @@ use crate::commands;
 use hkask_ports::{InferencePort, SkillZone};
 use hkask_services_skill as skill;
 use hkask_services_skill::audit::{SkillAuditor, SkillStatus};
-use hkask_templates::{
-    ManifestExecutor, McpPort, NoopMcpPort, Registry, SkillLoader, load_manifest_from_yaml,
-};
+use hkask_templates::{Registry, SkillLoader};
 use hkask_types::template::LLMParameters;
 use hkask_types::visibility::Visibility;
-use serde_json::Value;
 use serde_json::json;
-use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Default project root (current directory).
 fn project_root() -> PathBuf {
@@ -45,9 +40,6 @@ pub fn run_skill(action: SkillAction) {
         }
         SkillAction::Derive { name } => {
             skill_derive(&name);
-        }
-        SkillAction::Run { name, inputs, json } => {
-            skill_run(&name, &inputs, json);
         }
     }
 }
@@ -533,147 +525,6 @@ fn skill_derive(name: &str) {
         for w in &warnings {
             eprintln!("  - {w}");
         }
-    }
-}
-
-/// Run a skill FlowDef end-to-end via the ManifestExecutor (smoke test).
-///
-/// Loads `registry/manifests/<name>.yaml`, validates it is a skill FlowDef,
-/// builds a ManifestExecutor with the default inference port and NoopMcpPort,
-/// and runs the PDCA cascade to a terminal step. Prints the convergence report.
-/// Exit 0 on Ok (converged or maxed_out — ran to completion), 1 on Err or escalate.
-///
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// \[P3\] Motivating: Generative Space — one-shot end-to-end execution of a skill FlowDef
-/// pre:  `name` matches a `registry/manifests/<name>.yaml` skill FlowDef; inference is configured
-/// post: prints the convergence report (status, reason, iterations, quality, gas); exits 1 on failure/escalate
-fn skill_run(name: &str, inputs: &[String], json: bool) {
-    let root = project_root();
-    let manifest_path = root
-        .join("registry")
-        .join("manifests")
-        .join(format!("{name}.yaml"));
-
-    let content = match std::fs::read_to_string(&manifest_path) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!(
-                "Skill '{name}' not found ({}): {e}",
-                manifest_path.display()
-            );
-            std::process::exit(1);
-        }
-    };
-
-    let manifest = match load_manifest_from_yaml(&content) {
-        Ok(m) => m,
-        Err(e) => {
-            eprintln!(
-                "Failed to parse manifest '{}': {e}",
-                manifest_path.display()
-            );
-            std::process::exit(1);
-        }
-    };
-
-    if !manifest.is_skill() {
-        eprintln!(
-            "'{name}' is not an agent skill FlowDef; `kask skill run` is for skill FlowDefs only (use `kask kata start` for kata manifests)."
-        );
-        std::process::exit(1);
-    }
-
-    let validation = manifest.validate();
-    if !validation.errors.is_empty() {
-        eprintln!("Manifest '{name}' failed validation:");
-        for e in &validation.errors {
-            eprintln!("  - {e}");
-        }
-        std::process::exit(1);
-    }
-
-    // Build initial context from --input key=value args.
-    // Values parse as JSON when valid (arrays/numbers/bools/objects), else strings.
-    let mut context: HashMap<String, Value> = HashMap::new();
-    for pair in inputs {
-        let (k, v) = match pair.split_once('=') {
-            Some(kv) => kv,
-            None => {
-                eprintln!("Invalid --input '{pair}': expected KEY=VALUE");
-                std::process::exit(1);
-            }
-        };
-        let value =
-            serde_json::from_str::<Value>(v).unwrap_or_else(|_| Value::String(v.to_string()));
-        context.insert(k.to_string(), value);
-    }
-
-    let inference = resolve_default_inference_port();
-    let mcp = Arc::new(NoopMcpPort) as Arc<dyn McpPort>;
-    let a2a_secret = std::env::var("HKASK_A2A_SECRET")
-        .unwrap_or_else(|_| "kask-skill-run-default-a2a-secret-32b!".to_string())
-        .into_bytes();
-    let executor = ManifestExecutor::new(inference, mcp, LLMParameters::default(), a2a_secret);
-
-    let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
-        eprintln!("Failed to create runtime: {e}");
-        std::process::exit(1);
-    });
-
-    eprintln!(
-        "Running skill '{name}' ({} steps, convergence field {})…",
-        manifest.steps.len(),
-        manifest.convergence.convergence_field
-    );
-
-    let final_context = match rt.block_on(executor.execute_manifest(&manifest, context)) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Skill '{name}' failed during execution: {e}");
-            std::process::exit(1);
-        }
-    };
-
-    let conv = final_context
-        .get("_convergence")
-        .cloned()
-        .unwrap_or(Value::Null);
-    let status = conv
-        .get("status")
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown");
-    let reason = conv.get("reason").and_then(|v| v.as_str()).unwrap_or("");
-    let iters = conv
-        .get("iterations_completed")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-    let quality = conv.get("quality_at_exit");
-    let gas_used = conv.get("gas_used").and_then(|v| v.as_u64()).unwrap_or(0);
-
-    if json {
-        let out = serde_json::json!({
-            "skill": name,
-            "steps": manifest.steps.len(),
-            "convergence": conv,
-            "gas_used": gas_used,
-        });
-        println!("{}", serde_json::to_string_pretty(&out).unwrap_or_default());
-    } else {
-        println!("Skill run complete: {name}");
-        println!("  Status:     {status}");
-        if !reason.is_empty() {
-            println!("  Reason:     {reason}");
-        }
-        println!("  Iterations: {iters}");
-        if let Some(q) = quality {
-            println!("  Quality:    {q}");
-        }
-        println!("  Gas used:   {gas_used}");
-    }
-
-    // Exit nonzero only on escalate; converged/maxed_out both ran to completion.
-    if status == "escalated" {
-        std::process::exit(1);
     }
 }
 
