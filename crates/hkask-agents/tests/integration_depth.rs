@@ -26,7 +26,7 @@ async fn wait_for_curator_sync(
 ) -> Result<(), String> {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
-        if let Ok(ci) = pods.curator_index().await {
+        if let Some(ci) = pods.curator_index().await {
             let idx = ci.read().map_err(|e| format!("lock: {e}"))?;
             let h_mems = idx.query_by_entity(entity).unwrap_or_default();
             if !h_mems.is_empty() {
@@ -183,8 +183,6 @@ async fn cns_semantic_published_notifies_observer() {
     );
 
     cleanup_curator(cancel_tx).await;
-
-    cleanup_curator(cancel_tx).await;
 }
 
 // ── #3: CuratorPod singleton enforcement ─────────────────────────────────────
@@ -229,18 +227,21 @@ async fn source_pod_provenance_round_trips() {
         .expect("CuratorSync should pick up the h_mem");
 
     // Check Curator index — the h_mem should carry source_pod provenance
-    let ci = pods.curator_index().await.expect("curator index");
-    let idx = ci.read().unwrap();
-    let h_mems = idx.query_by_entity("ProvTest").unwrap_or_default();
-    assert!(!h_mems.is_empty(), "HMem should be synced");
+    let (source_opt, source_pod) = {
+        let ci = pods.curator_index().await.expect("curator index");
+        let idx = ci.read().unwrap();
+        let h_mems = idx.query_by_entity("ProvTest").unwrap_or_default();
+        assert!(!h_mems.is_empty(), "HMem should be synced");
 
-    // Extract source pod from h_mem provenance — must round-trip now that
-    // PodIDs are deterministic (PodID::from_name("{kind}:{name}")).
-    let source = hkask_agents::curator::SemanticIndex::source_pod_of(&h_mems[0]);
-    assert!(source.is_some(), "HMem should have source_pod provenance");
+        // Extract source pod from h_mem provenance — must round-trip now that
+        // PodIDs are deterministic (PodID::from_name("{kind}:{name}")).
+        let source = hkask_agents::curator::SemanticIndex::source_pod_of(&h_mems[0]);
+        assert!(source.is_some(), "HMem should have source_pod provenance");
+        (source, pod_id)
+    };
     assert_eq!(
-        source.unwrap(),
-        pod_id,
+        source_opt.unwrap(),
+        source_pod,
         "Source pod should match the pod that wrote the h_mem"
     );
 

@@ -56,6 +56,20 @@ templates:
     generates_spans:
       - cns.task-breakdown.evaluate
 
+  - id: task-breakdown/task-breakdown-quality-gate
+    path: task-breakdown-quality-gate.j2
+    type: KnowAct
+    lexicon_terms:
+      [evaluate, audit, verify, score, calibrate, discriminate]
+    description: >
+      Independent quality gate (fusion: false) — evaluates the plan WITHOUT
+      self-assessment bias, distinct from the producer-coupled evaluate step. Scores
+      the six criteria independently, flags compensation masking, and detects bias
+      deltas vs the producer's self-assessment. Mirrors superforecasting's
+      forecast-quality-gate separation of concerns.
+    generates_spans:
+      - cns.task-breakdown.quality-gate
+
   - id: task-breakdown/task-breakdown-convergence
     path: task-breakdown-convergence.j2
     type: KnowAct

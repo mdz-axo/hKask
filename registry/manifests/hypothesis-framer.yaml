@@ -19,6 +19,10 @@ manifest:
   visibility: Public
 
 convergence:
+  # 0.05 — "decision-ready" band: research framing must be near-zero-defect (FINER
+  # compliant, PICO-complete, testable, aims aligned) before committing to a study.
+  # Tighter than the 0.15 "maximally correct" band used by generative skills, because
+  # a flawed framing invalidates everything downstream of it.
   threshold: 0.05
   improvement_gate: threshold_only
   max_iterations: 3
@@ -123,12 +127,22 @@ steps:
       finer_result: "{{ step_1_result }}"
       pico_result: "{{ step_2_result }}"
       operationalize_result: "{{ step_3_result }}"
+      prior_metric: "{{ prior_metric | default(null) }}"
 
   - ordinal: 5
     action: loop
-    description: Re-enter hypothesis-framer cycle if convergence is not met.
+    description: >
+      Re-enter hypothesis-framer cycle if convergence is not met. NOTE: FINER (step 1)
+      is skipped on re-entry — the topic has already been evaluated as FINER-viable on
+      the first pass; re-running it every iteration is wasteful (mirrors superforecasting's
+      triage-skip). PICO (step 2) and operationalize (step 3) are where blockers live, and
+      finer_result persists in context for operationalize to read. If FINER itself is the
+      blocker (a dimension < 4), the loop cannot fix it -> escalate to human. The prior
+      iteration's convergence_metric is carried forward so the convergence check's
+      materiality guard can detect a stable-but-unconverged framing.
     input_mapping:
-      loop_target: 1
+      loop_target: 2
+      prior_metric: "{{ step_4_result.convergence_metric }}"
 
 error_handling:
   on_gas_exceeded: abort

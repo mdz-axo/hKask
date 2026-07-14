@@ -44,7 +44,7 @@ convergence:
   # pass provides no improvement-tracking benefit and guarantees a non-converged
   # write-plan execution. A first-pass-perfect plan (metric <= 0.15) converges now.
   min_iterations: 0
-  convergence_field: step_4_result.convergence_metric
+  convergence_field: step_5_result.convergence_metric
   on_not_reached: escalate
 
 gas:
@@ -125,18 +125,39 @@ steps:
   - ordinal: 4
     action: select
     description: >
-      CONVERGE — compute normalized metric from evaluation scores. Below 0.15 means
-      the plan is complete, correctly ordered, properly sized, and free of red flags.
+      QUALITY-GATE — independent evaluation of the plan (fusion: false, deterministic
+      rubric, no self-assessment bias). Scores the six criteria independently of the
+      producer-coupled evaluate step and flags compensation masking. Mirrors
+      superforecasting's forecast-quality-gate separation of concerns.
+    renderer: minijinja
+    template_ref: task-breakdown/task-breakdown-quality-gate
+    gas_cap: 4096
+    timeout_seconds: 60
+    input_mapping:
+      tasks: "{{ step_2_result.tasks | default([]) }}"
+      slices: "{{ step_2_result.slices | default([]) }}"
+      dependency_graph: "{{ step_1_result.dependency_graph | default([]) }}"
+      evaluation_result: "{{ step_3_result }}"
+    fusion: false
+
+  - ordinal: 5
+    action: select
+    description: >
+      CONVERGE — compute normalized metric from the INDEPENDENT gate's scores (not the
+      producer's self-assessment). Below 0.15 means the plan is complete, correctly
+      ordered, properly sized, and free of red flags. Applies the materiality guard
+      using the carried prior_metric to detect a stable-but-unconverged plan.
     renderer: minijinja
     template_ref: task-breakdown/task-breakdown-convergence
     gas_cap: 2048
     timeout_seconds: 30
     input_mapping:
-      evaluation_result: "{{ step_3_result }}"
+      evaluation_result: "{{ step_4_result }}"
       iteration: "{{ loop_context.iteration | default(1) }}"
+      prior_metric: "{{ prior_metric | default(null) }}"
     fusion: false
 
-  - ordinal: 5
+  - ordinal: 6
     action: select
     description: >
       WRITE-PLAN — finalize tasks/plan.md (overview, architecture decisions, phased
@@ -152,16 +173,19 @@ steps:
       tasks: "{{ step_2_result.tasks | default([]) }}"
       slices: "{{ step_2_result.slices | default([]) }}"
       risks: "{{ step_1_result.risks | default([]) }}"
-      evaluation_result: "{{ step_3_result }}"
+      evaluation_result: "{{ step_4_result }}"
 
-  - ordinal: 6
+  - ordinal: 7
     action: loop
     description: >
       If convergence not met (metric > 0.15) and refinement directives exist, loop
       back to DECOMPOSE (step 2) with directives as focused, task-addressable
-      improvement targets. Each iteration narrows the gap.
+      improvement targets. Carries the prior convergence_metric forward so the next
+      convergence check's materiality guard can detect a stable-but-unconverged plan.
+      Each iteration narrows the gap.
     input_mapping:
       loop_target: 2
+      prior_metric: "{{ step_5_result.convergence_metric }}"
 
 error_handling:
   on_gas_exceeded: abort
@@ -184,6 +208,10 @@ ocap:
       action: render
       template_id: task-breakdown/task-breakdown-evaluate
       gas_budget: 6144
+    - resource: template
+      action: render
+      template_id: task-breakdown/task-breakdown-quality-gate
+      gas_budget: 4096
     - resource: template
       action: render
       template_id: task-breakdown/task-breakdown-convergence
