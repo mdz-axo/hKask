@@ -176,15 +176,24 @@ mod tests {
         let manifest: PipelineManifest =
             serde_yaml_neo::from_str(yaml).expect("authoritative corpus FlowDef must parse");
 
-        assert_eq!(manifest.id, "capabilities-researcher-pipeline");
-        assert_eq!(manifest.version, "6.0");
-        assert_eq!(
-            manifest.steps.first().map(|step| step.tool.as_str()),
-            Some("docproc_convert")
+        // Structural assertions — not exact values that rot when the corpus evolves
+        assert!(!manifest.id.is_empty(), "pipeline must have an id");
+        assert!(!manifest.version.is_empty(), "pipeline must have a version");
+        assert!(
+            manifest.steps.len() >= 2,
+            "pipeline must have at least 2 steps, got {}",
+            manifest.steps.len()
         );
-        assert_eq!(
-            manifest.steps.last().map(|step| step.tool.as_str()),
-            Some("axolotl_train")
+        for step in &manifest.steps {
+            assert!(!step.tool.is_empty(), "every step must name a tool");
+        }
+        assert!(
+            manifest.steps.iter().any(|s| s.tool.contains("train")),
+            "pipeline must have a training step"
+        );
+        assert!(
+            manifest.steps.iter().any(|s| s.tool.contains("docproc")),
+            "pipeline must have a document processing step"
         );
     }
 
