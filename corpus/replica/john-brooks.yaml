@@ -14,7 +14,7 @@
 # Usage:
 #   replica_build {
 #     config_path: "corpus/replica/john-brooks.yaml"
-#     db_path: "corpus/memory/corpus_memory.db"
+#     db_path: "corpus/memory/john-brooks.db"
 #     passphrase: "hkask-default-passphrase-2024"
 #   }
 
