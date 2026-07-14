@@ -1,0 +1,92 @@
+# Axolotl Config — Capabilities Researcher LoRA with PiSSA
+# Base: unsloth/Qwen3.6-27B (dense, 27B, bf16)
+# Training data: 80,947 ChatML QAs (Capabilities Researcher corpus)
+#
+# PiSSA (Principal Singular Values and Singular Vectors Adaptation):
+#   - Initializes LoRA A/B from SVD of pre-trained weight matrices
+#   - Faster convergence than standard LoRA (skips warmup phase)
+#   - Consistently outperforms LoRA at same rank (NeurIPS 2024)
+#   - dropout must be 0 (avoids random discarding of principal components)
+#
+# Hyperparameter sources:
+#   - PiSSA repo (MuLabPKU/PiSSA): r=128, alpha=128, dropout=0 for math
+#   - Unsloth Qwen3.5 guide: r=16, alpha=32, 2:1 ratio for 27B
+#   - Reddit r/LocalLLaMA Qwen3 findings: r=8-16 preserves /think behavior
+#   - Axolotl Qwen3 guide: cut_cross_entropy + liger_kernel + LoRA kernels
+#   - Rust-reasoning config (scripts/axolotl_rust_all.yml): pissa_niter_4,
+#     grad_accum 16, liger_kernel, SDPA, early_stopping 25
+#   - Spheron PEFT guide: pissa_niter_4 for models >30B (fast SVD, <2 min init)
+#   - PEFT docs: pissa_niter_16 ≈ full SVD quality; niter_4 is faster
+#
+# VRAM: ~56GB for bf16 LoRA on 27B (fits on single H100 80GB)
+
+base_model: unsloth/Qwen3.6-27B
+adapter: lora
+load_in_4bit: false
+load_in_8bit: false
+trust_remote_code: true
+
+# Qwen3 built-in chat template (includes thinking mode support)
+chat_template: qwen3
+
+sequence_len: 4096
+bf16: true
+
+# PiSSA LoRA configuration
+# r=16: balances expressiveness with knowledge preservation for QA tasks
+# alpha=32: 2:1 alpha:r ratio (standard practice, Unsloth recommended)
+# dropout=0: REQUIRED for PiSSA — principal components must not be randomly dropped
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0
+peft_init_lora_weights: pissa_niter_4    # Fast SVD, <2 min init for 27B
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+datasets:
+  - path: corpus/qa_pairs/train_chat.jsonl
+    type: chat_template
+  - path: corpus/qa_pairs/val_chat.jsonl
+    type: chat_template
+
+# Training
+# lr=1e-4: PiSSA converges faster than LoRA, lower LR prevents overshooting
+# warmup=100: sufficient for 65K samples at grad_accum 16 (effective batch 16)
+# epochs=3: standard for SFT
+num_epochs: 3
+learning_rate: 1e-4
+warmup_steps: 100
+micro_batch_size: 1
+eval_batch_size: 1
+gradient_accumulation_steps: 16
+gradient_checkpointing: true
+lr_scheduler: cosine
+weight_decay: 0.01
+max_grad_norm: 0.3
+optim: adamw_8bit
+
+# Eval — small held-out split from training data
+val_set_size: 0.0012
+eval_steps: 200
+save_steps: 200
+save_total_limit: 5
+early_stopping_patience: 25
+
+# Optimizations (from Qwen official Axolotl guide + rust-reasoning config)
+liger_kernel: true                    # Fused MLP + RMSNorm kernels
+flash_attention: false                # SDPA (PyTorch native flash attention on H100)
+cut_cross_entropy: true               # Faster loss computation
+
+# Output
+output_dir: /workspace/outputs
+hub_model_id: capabilities-researcher/qwen36-pissa-lora
+hub_strategy: end
+
+# Misc
+strict: false
