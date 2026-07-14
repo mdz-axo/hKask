@@ -71,14 +71,15 @@ role of `mcda` and `diagnose`:
   + `falsifiability-eliminate`, keeping its bug-specific FR#/spec anchoring.
 - **hypothesis-framer** step 10 (testability assessment) delegates to
   `falsifiability-admit`.
-- **superforecasting** `stage_3_inside_view` (necessary conditions, evidence
-  for/against each causal hypothesis) delegates to `falsifiability-counterfactual`
-  + `falsifiability-eliminate`, while keeping its Bayesian update
-  (`stage_4_evidence_update`) as its own concern. The clean seam: this skill
-  *eliminates* by hard falsification; superforecasting *reweights* by Bayesian
-  updating. They are complementary, not competing — a hypothesis can be
-  eliminated here (ruled out) and down-weighted there (made unlikely); the
-  former is terminal, the latter revisable.
+- **superforecasting** inside view is split: hypothesis generation delegates
+  to `falsifiability-hypothesize` (Chamberlin/Platt) and necessary-conditions
+  counterfactual analysis to `falsifiability-counterfactual` (Pearl do-operator);
+  probability estimation and the Bayesian update (`stage_4_evidence_update`)
+  stay in superforecasting. The clean seam: this skill *eliminates* by hard
+  falsification; superforecasting *reweights* by Bayesian updating. They are
+  complementary, not competing — a hypothesis can be eliminated here (ruled
+  out) and down-weighted there (made unlikely); the former is terminal, the
+  latter revisable.
 
 Refactoring the three consumers to delegate here (rather than each
 reimplementing the method) follows the strangler-fig pattern: one domain at a

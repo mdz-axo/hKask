@@ -1,0 +1,73 @@
+# QA Falsifiability Skill Gate — v0.31.0
+#
+# Closes out the falsifiability skill work: codifies the two static gates that
+# validate the new skill and its FlowDef-level delegations (diagnose step 3,
+# sequential-inquiry 4th delegate, superforecasting inside-view split) into a
+# single repeatable, CNS-observed check runnable via `kask qa run`.
+#
+# What this gate asserts (both must pass):
+#   1. flowdef_cross_validation — all skill FlowDefs' input_mapping keys resolve
+#      to template contracts, convergence_field points at a real ordinal, every
+#      template_ref resolves (across crates), and OCAP matches the templates used.
+#      Covers: falsifiability.yaml, diagnose.yaml (step 3 → falsifiability-hypothesize),
+#      sequential-inquiry.yaml (4th delegate), superforecasting.yaml (inside-view split).
+#   2. kask skill audit — every skill scores >= 0.8 with 0 defects (covers SKILL.md
+#      ↔ registry-crate consistency and cross-step ref defects via validate_flowdef_refs).
+#
+# This is a DETERMINISTIC gate (cargo test + audit exit codes), so it uses no
+# classify step and no inference — it runs green in CI and degrades nowhere.
+# Runtime end-to-end execution of a skill FlowDef happens in the REPL (the
+# authenticated, OCAP-gated, CNS-observed session) — NOT via a CLI side door.
+# That REPL run is the one residual left to a human with inference configured;
+# this gate is the mechanical precondition for it.
+#
+# Constraint force: GUARDRAIL — a regression in a FlowDef rewire would fail here.
+
+manifest:
+  id: qa-falsifiability-skill-gate
+  category: qa-script
+  name: QA Falsifiability Skill Gate
+  version: 0.31.0
+  visibility: Private
+  description: >
+    Static gate for the falsifiability skill and its FlowDef-level delegations
+    (diagnose, sequential-inquiry, superforecasting). Runs the flowdef
+    cross-validation test and the dual-layer skill audit; both must pass.
+    Deterministic — no inference, no classify step. Runtime end-to-end runs in
+    the REPL, not here.
+
+gas:
+  cap: 15000
+  hard_limit: true
+
+steps:
+  # Step 1: Run both static gates. Exit 0 only if cross-validation reports
+  # "all critical checks passed" AND the audit reports 47/47 skills active.
+  - ordinal: 1
+    action: run_command
+    command: 'A=$(cargo test -p hkask-test-harness flowdef_cross_validation 2>&1 | tail -4); B=$(kask skill audit 2>&1); echo "== cross-validation =="; echo "$A"; echo "== audit (affected) =="; echo "$B" | grep -E "falsifiability|diagnose|superforecasting|sequential-inquiry|Skills active|Audit failed"; if echo "$A" | grep -q "test result: ok" && echo "$B" | grep -q "Skills active:" && ! echo "$B" | grep -q "Audit failed"; then echo "GATE_PASS"; else echo "GATE_FAIL"; exit 1; fi'
+    description: "Run flowdef cross-validation + skill audit; pass only if both green."
+    retries: 0
+    branching:
+      success: 2
+      failure: 3
+
+  # Step 2: PASS — both static gates green.
+  - ordinal: 2
+    action: run_command
+    command: 'echo "[QA:falsifiability] PASS — flowdef cross-validation (all critical checks passed) + skill audit (47/47 active). Falsifiability skill and FlowDef delegations (diagnose, sequential-inquiry, superforecasting) structurally valid."'
+    description: "Both static gates passed."
+    retries: 0
+    terminal: true
+
+  # Step 3: FAIL — a gate regressed.
+  - ordinal: 3
+    action: run_command
+    command: 'echo "[QA:falsifiability] FAIL — a static gate regressed. Inspect cross-validation findings or audit defects; a FlowDef rewire broke an input_mapping/contract/convergence_field/template_ref/OCAP binding."'
+    description: "A static gate failed — FlowDef rewire regression."
+    retries: 0
+    terminal: true
+
+cns:
+  emit_spans: true
+  alert: qa.falsifiability.skillgate
