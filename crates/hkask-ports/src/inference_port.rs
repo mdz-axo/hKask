@@ -116,43 +116,6 @@ impl From<InferenceResult> for InferenceStreamChunk {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct TextOnlyInference;
-
-    impl InferencePort for TextOnlyInference {
-        fn generate(
-            &self,
-            _prompt: &str,
-            _parameters: &LLMParameters,
-            _tools: Option<&[ChatToolDefinition]>,
-        ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>>
-        {
-            Box::pin(async {
-                Err(InferenceError::Generation(
-                    "text generation must not be used for vision".to_string(),
-                ))
-            })
-        }
-    }
-
-    #[tokio::test]
-    async fn default_vision_inference_rejects_images() {
-        let result = TextOnlyInference
-            .generate_vision(
-                "describe",
-                &["image-data".to_string()],
-                &LLMParameters::default(),
-                None,
-            )
-            .await;
-
-        assert!(matches!(result, Err(InferenceError::VisionUnsupported(_))));
-    }
-}
-
 /// Blanket impl — enables `InferenceLoop<Arc<dyn InferencePort>>` default type param.
 /// Vtable dispatch only at construction; hot path uses static dispatch.
 impl InferencePort for Arc<dyn InferencePort> {
@@ -207,5 +170,42 @@ impl InferencePort for Arc<dyn InferencePort> {
         m: Option<&str>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         self.as_ref().generate_vision(p, imgs, pa, m)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TextOnlyInference;
+
+    impl InferencePort for TextOnlyInference {
+        fn generate(
+            &self,
+            _prompt: &str,
+            _parameters: &LLMParameters,
+            _tools: Option<&[ChatToolDefinition]>,
+        ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>>
+        {
+            Box::pin(async {
+                Err(InferenceError::Generation(
+                    "text generation must not be used for vision".to_string(),
+                ))
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn default_vision_inference_rejects_images() {
+        let result = TextOnlyInference
+            .generate_vision(
+                "describe",
+                &["image-data".to_string()],
+                &LLMParameters::default(),
+                None,
+            )
+            .await;
+
+        assert!(matches!(result, Err(InferenceError::VisionUnsupported(_))));
     }
 }

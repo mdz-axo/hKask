@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**43 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **46 capabilities total.**
+**44 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **47 capabilities total.**
 
 | Type | Behavior |
 |------|----------|
@@ -25,6 +25,7 @@
 | Skill | When to Activate |
 |-------|-----------------|
 | **bug-hunt** | Bug hunting. Run expeditions against target crates. |
+| **task-breakdown** | Decompose work into verifiable vertical-slice tasks with acceptance criteria. Convergent planning PDCA. |
 | **tdd** | Building features or fixing bugs. RED→GREEN→REFACTOR. |
 | **diagnose** | Debugging hard bugs or performance regressions. |
 | **deep-module** | Module design. Deletion test, interface minimalism. |
