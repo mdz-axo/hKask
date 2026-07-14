@@ -19,8 +19,6 @@ use crate::energy::{GasCost, GasError};
 use chrono::Utc;
 use hkask_ports::WalletBudgetPort;
 use hkask_types::id::{ApiKeyId, WalletId};
-#[cfg(test)]
-use hkask_wallet::price_feed::StaticPriceFeed;
 use hkask_wallet_types::{ApiKeyCapability, RJoule};
 use std::sync::Arc;
 

@@ -4,9 +4,7 @@
 //! FusionConfig to LLMParameters.fusion_config, and that per-step fusion
 //! overrides work as expected.
 
-use hkask_ports::{
-    ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
-};
+use hkask_ports::{ChatToolDefinition, InferenceError, InferencePort, InferenceResult};
 use hkask_templates::bundle::cascade::CascadePhase;
 use hkask_templates::bundle::config::{
     BundleAuditConfig, BundleCnsConfig, BundleGasConfig, ConvergenceConfig, ErrorHandlingConfig,

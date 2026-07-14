@@ -308,7 +308,7 @@ impl DocProcServer {
                     // Union all ontology_tags values (HashSet for true dedup)
                     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
                     let mut concepts: Vec<String> = Vec::new();
-                    for (_ns, concept_list) in &tags.ontology_tags {
+                    for concept_list in tags.ontology_tags.values() {
                         for c in concept_list {
                             if seen.insert(c.clone()) {
                                 concepts.push(c.clone());
@@ -371,7 +371,7 @@ impl DocProcServer {
                     "salience": chunk.salience,
                     "source": chunk.source,
                 });
-                let h_mem = HMem::new(entity, "ontology_tags", v, webid.clone())
+                let h_mem = HMem::new(entity, "ontology_tags", v, webid)
                     .with_visibility(Visibility::Public)
                     .with_confidence(0.9);
                 match semantic.store(h_mem) {

@@ -13,7 +13,6 @@
 
 use crate::tools::semantic::{GUARD, configured_qa_model};
 use crate::*;
-use serde::Serialize;
 
 use hkask_types::corpus::{ChunkOntology, TaggedChunk};
 

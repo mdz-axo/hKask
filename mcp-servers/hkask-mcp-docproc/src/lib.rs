@@ -1059,7 +1059,7 @@ mod tests {
     fn chunk_word_bounds_defaults() {
         // Default max_tokens comes from HkaskSettings (256).
         // 256 tokens / 1.33 ≈ 192 words max, min = max(64/1.33=48, 192/4=48) = 48
-        let (max_w, min_w) = chunk_word_bounds(None, None);
+        let (max_w, _min_w) = chunk_word_bounds(None, None);
         assert!(
             max_w > 180 && max_w < 200,
             "max_words should be ~192, got {max_w}"

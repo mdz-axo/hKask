@@ -171,31 +171,6 @@ pub async fn bootstrap_mcp_server(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn bootstrap_rejects_missing_host_identity() {
-        let err = match bootstrap_mcp_server(
-            "test-server",
-            "hkask.mcp.test",
-            "HKASK_TEST_MISSING_BOOTSTRAP_HOST",
-        )
-        .await
-        {
-            Ok(_) => panic!("missing host identity must prevent bootstrap"),
-            Err(err) => err,
-        };
-
-        assert!(matches!(
-            err,
-            McpError::MissingHostIdentity { env_var }
-                if env_var == "HKASK_TEST_MISSING_BOOTSTRAP_HOST"
-        ));
-    }
-}
-
 /// Macro to validate an identifier field and return early on error.
 ///
 /// Eliminates the repeated 3-line pattern:
@@ -325,4 +300,29 @@ macro_rules! mcp_server {
 
         $crate::impl_tool_context!($name);
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn bootstrap_rejects_missing_host_identity() {
+        let err = match bootstrap_mcp_server(
+            "test-server",
+            "hkask.mcp.test",
+            "HKASK_TEST_MISSING_BOOTSTRAP_HOST",
+        )
+        .await
+        {
+            Ok(_) => panic!("missing host identity must prevent bootstrap"),
+            Err(err) => err,
+        };
+
+        assert!(matches!(
+            err,
+            McpError::MissingHostIdentity { env_var }
+                if env_var == "HKASK_TEST_MISSING_BOOTSTRAP_HOST"
+        ));
+    }
 }
