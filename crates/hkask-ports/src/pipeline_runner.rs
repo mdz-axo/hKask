@@ -10,6 +10,26 @@ use crate::pipeline_manifest::{PipelineManifest, PipelineStep};
 use crate::pipeline_state::PipelineState;
 use serde::Serialize;
 
+/// Typed errors for pipeline execution.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum PipelineError {
+    /// Step requires affirmative consent (P2) before execution.
+    #[error("Step '{step_id}' requires affirmative consent (P2). Approve before running.")]
+    ConsentRequired { step_id: String },
+
+    /// Step execution failed with a message from the executor.
+    #[error("Step '{step_id}' failed: {message}")]
+    StepFailed { step_id: String, message: String },
+
+    /// Pipeline state save/load failed.
+    #[error("State I/O error: {0}")]
+    StateIo(String),
+
+    /// Output verification failed — field value did not meet the gate.
+    #[error("Verification failed for step '{step_id}': {message}")]
+    VerificationFailed { step_id: String, message: String },
+}
+
 /// Output from running a full pipeline.
 #[derive(Debug, Clone, Serialize)]
 pub struct PipelineRunResult {
@@ -24,7 +44,7 @@ pub struct PipelineRunResult {
 /// Callback for executing a single pipeline step.
 /// Implementors dispatch to MCP tools, subprocesses, or direct function calls.
 pub trait StepExecutor: Send + Sync {
-    fn execute(&self, step: &PipelineStep) -> Result<serde_json::Value, String>;
+    fn execute(&self, step: &PipelineStep) -> Result<serde_json::Value, PipelineError>;
 }
 
 /// The pipeline runner — orchestrates PipelineManifest execution.
@@ -37,7 +57,7 @@ pub struct PipelineRunner {
 impl PipelineRunner {
     /// Create a runner from an already-parsed manifest.
     /// Loads or creates checkpoint state from the default path.
-    pub fn new(manifest: PipelineManifest) -> Result<Self, String> {
+    pub fn new(manifest: PipelineManifest) -> Result<Self, PipelineError> {
         let state_path = PipelineState::default_path(&manifest.id);
         let mut state = PipelineState::load_or_create(&manifest.id, &manifest.version, &state_path);
 
@@ -45,7 +65,7 @@ impl PipelineRunner {
             state.started_at = Some(chrono::Utc::now().to_rfc3339());
             state
                 .save(&state_path)
-                .map_err(|e| format!("save state: {e}"))?;
+                .map_err(|e| PipelineError::StateIo(e.to_string()))?;
         }
 
         Ok(Self {
@@ -65,7 +85,7 @@ impl PipelineRunner {
         &mut self,
         step: &PipelineStep,
         executor: &dyn StepExecutor,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, PipelineError> {
         // Resume: skip completed steps
         if self.state.is_complete(&step.id) {
             return Ok(self.state.steps[&step.id].output.clone());
@@ -73,32 +93,33 @@ impl PipelineRunner {
 
         // P2: Affirmative consent gate
         if step.requires_consent {
-            return Err(format!(
-                "Step '{}' requires affirmative consent (P2). Approve before running.",
-                step.id
-            ));
+            return Err(PipelineError::ConsentRequired {
+                step_id: step.id.clone(),
+            });
         }
 
         self.state.mark_started(&step.id);
         self.state
             .save(&self.state_path)
-            .map_err(|e| format!("save state: {e}"))?;
+            .map_err(|e| PipelineError::StateIo(e.to_string()))?;
 
         match executor.execute(step) {
             Ok(output) => {
                 if let Err(e) = PipelineManifest::verify_output(step, &output) {
-                    self.state.mark_failed(&step.id, &e);
+                    let msg = e.to_string();
+                    self.state.mark_failed(&step.id, &msg);
                     self.state.save(&self.state_path).ok();
                     return Err(e);
                 }
                 self.state.mark_complete(&step.id, output.clone());
                 self.state
                     .save(&self.state_path)
-                    .map_err(|e| format!("save state: {e}"))?;
+                    .map_err(|e| PipelineError::StateIo(e.to_string()))?;
                 Ok(output)
             }
             Err(e) => {
-                self.state.mark_failed(&step.id, &e);
+                let msg = e.to_string();
+                self.state.mark_failed(&step.id, &msg);
                 self.state.save(&self.state_path).ok();
                 Err(e)
             }
@@ -147,7 +168,7 @@ mod tests {
 
     struct TestExecutor;
     impl StepExecutor for TestExecutor {
-        fn execute(&self, step: &PipelineStep) -> Result<serde_json::Value, String> {
+        fn execute(&self, step: &PipelineStep) -> Result<serde_json::Value, PipelineError> {
             Ok(serde_json::json!({"step": step.id, "count": 100}))
         }
     }

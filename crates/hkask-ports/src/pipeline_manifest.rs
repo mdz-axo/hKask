@@ -7,6 +7,7 @@
 //! Registered in `registry/manifests/` alongside skill manifests. Uses
 //! PipelineState from `hkask-ports::pipeline_state` for checkpoint/resume.
 
+use crate::pipeline_runner::PipelineError;
 use serde::{Deserialize, Serialize};
 
 /// A verification gate for a pipeline step's output.
@@ -111,7 +112,10 @@ pub struct PipelineStepOutput {
 
 impl PipelineManifest {
     /// Verify a step's output against its verification gate.
-    pub fn verify_output(step: &PipelineStep, output: &serde_json::Value) -> Result<(), String> {
+    pub fn verify_output(
+        step: &PipelineStep,
+        output: &serde_json::Value,
+    ) -> Result<(), PipelineError> {
         let Some(gate) = &step.verify else {
             return Ok(());
         };
@@ -127,10 +131,13 @@ impl PipelineManifest {
                 _ => false,
             };
             if !passes {
-                return Err(format!(
-                    "Verification failed for step '{}': field '{}' value {:?} < min {:?}",
-                    step.id, gate.field, field_val, min
-                ));
+                return Err(PipelineError::VerificationFailed {
+                    step_id: step.id.clone(),
+                    message: format!(
+                        "field '{}' value {:?} < min {:?}",
+                        gate.field, field_val, min
+                    ),
+                });
             }
         }
 
@@ -141,13 +148,15 @@ impl PipelineManifest {
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
             if field_val.len() < min_len {
-                return Err(format!(
-                    "Verification failed for step '{}': field '{}' length {} < min {}",
-                    step.id,
-                    gate.field,
-                    field_val.len(),
-                    min_len
-                ));
+                return Err(PipelineError::VerificationFailed {
+                    step_id: step.id.clone(),
+                    message: format!(
+                        "field '{}' length {} < min {}",
+                        gate.field,
+                        field_val.len(),
+                        min_len
+                    ),
+                });
             }
         }
 
@@ -155,10 +164,13 @@ impl PipelineManifest {
         if let Some(ref expected) = gate.equals {
             let field_val = output.get(&gate.field).unwrap_or(&serde_json::Value::Null);
             if field_val != expected {
-                return Err(format!(
-                    "Verification failed for step '{}': field '{}' value {:?} != expected {:?}",
-                    step.id, gate.field, field_val, expected
-                ));
+                return Err(PipelineError::VerificationFailed {
+                    step_id: step.id.clone(),
+                    message: format!(
+                        "field '{}' value {:?} != expected {:?}",
+                        gate.field, field_val, expected
+                    ),
+                });
             }
         }
 

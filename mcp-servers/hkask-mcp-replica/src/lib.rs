@@ -1131,9 +1131,12 @@ impl ReplicaServer {
             // docproc_* and replica_* tools require external MCP execution.
             struct ReplicaStepExecutor;
             impl StepExecutor for ReplicaStepExecutor {
-                fn execute(&self, step: &hkask_ports::pipeline_manifest::PipelineStep) -> Result<serde_json::Value, String> {
+                fn execute(&self, step: &hkask_ports::pipeline_manifest::PipelineStep) -> Result<serde_json::Value, hkask_ports::pipeline_runner::PipelineError> {
                     let params = step.params.clone().ok_or_else(|| {
-                        format!("Step '{}' requires parameters for tool '{}'", step.id, step.tool)
+                        hkask_ports::pipeline_runner::PipelineError::StepFailed {
+                            step_id: step.id.clone(),
+                            message: format!("Step '{}' requires parameters for tool '{}'", step.id, step.tool),
+                        }
                     })?;
                     match step.tool.as_str() {
                         "corpus_embed" | "corpus_build_prompts" | "corpus_ingest_qa" => {
@@ -1156,10 +1159,13 @@ impl ReplicaServer {
                             }))
                         }
                         _ => {
-                            Err(format!(
-                                "Step '{}' uses tool '{}' — external MCP execution required. Run via kask mcp invoke --server <tool-server> --tool {}.",
-                                step.id, step.tool, step.tool
-                            ))
+                            Err(hkask_ports::pipeline_runner::PipelineError::StepFailed {
+                                step_id: step.id.clone(),
+                                message: format!(
+                                    "Step '{}' uses tool '{}' — external MCP execution required. Run via kask mcp invoke --server <tool-server> --tool {}.",
+                                    step.id, step.tool, step.tool
+                                ),
+                            })
                         }
                     }
                 }
