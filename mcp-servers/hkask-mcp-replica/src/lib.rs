@@ -1124,7 +1124,7 @@ impl ReplicaServer {
                 .map_err(|e| McpToolError::invalid_argument(format!("Invalid manifest: {e}")))?;
 
             let mut runner = PipelineRunner::new(manifest)
-                .map_err(McpToolError::internal)?;
+                .map_err(|e| McpToolError::internal(e.to_string()))?;
 
             // Step executor — routes pipeline steps to the correct handler.
             // corpus_* tools are DEPRECATED — they return guidance to use docproc tools.
