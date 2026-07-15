@@ -68,6 +68,8 @@ jobs:
           fi
       - name: Structured library errors
         run: bash scripts/check-string-errors.sh
+      - name: Superforecasting conformance contract
+        run: bash scripts/check-forecast-conformance.sh
 
   # ── Lint — fmt + clippy, own cache (clippy artifacts) ───────────────────
   lint:

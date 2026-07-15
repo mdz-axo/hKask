@@ -66,7 +66,6 @@
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
-// PERSISTENCE PROBE marker
 
 use chrono::Datelike;
 use hkask_mcp::server::{McpToolError, execute_tool, validate_identifier};

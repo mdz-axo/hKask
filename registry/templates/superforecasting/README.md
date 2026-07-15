@@ -37,6 +37,40 @@ Based on Tetlock's **Ten Commandments for Aspiring Superforecasters**:
 6. **Precision Calibration** (Commandments 6-7) — Use full probability scale
 7. **Error Tracking** (Commandment 8) — Prepare for post-mortem analysis
 
+## Deterministic Primitives (Rust Conformance Contract)
+
+The natural-language pipeline above is backed by a small set of deterministic
+primitives in the `hkask-forecast` crate (`crates/hkask-forecast/src/lib.rs`) —
+the canonical pure-math core of the Tetlock methodology. The skill's LLM stages
+consume these formulas implicitly; the MCP servers (`hkask-mcp-scenarios`,
+`hkask-mcp-companies`) consume them explicitly via `hkask_forecast::*`.
+
+This table is the conformance contract: each skill stage is mapped to the
+`hkask-forecast` function that implements its deterministic core, or marked
+"natural-language only" when no pure-math core exists. The contract is
+mechanically verified by `scripts/check-forecast-conformance.sh` in CI.
+
+| Stage | `hkask-forecast` function | Notes |
+|-------|---------------------------|-------|
+| 0 Triage | — | Natural-language only. A deterministic heuristic (`triage_question`) lives in `hkask-mcp-scenarios` for tooling, but skill stage 0 is LLM judgment. |
+| 1 Fermi decomposition | `calibrate_from_fermi` | Confidence-weighted average of `FermiQuestion` estimates. |
+| 2 Outside view | `outside_view_adjustment` | Shrinkage estimator blending base rate with inside estimate. |
+| 3 Inside view (probability estimate) | — | Natural-language only. Hypothesis generation + counterfactual analysis are delegated to the `falsifiability` skill; probability estimation is LLM reasoning against the anchor. |
+| 4 Evidence update | `bayesian_update` | `posterior = prior × likelihood / evidence_base_rate`, clamped to [0.01, 0.99]. |
+| 5 Synthesis (MCDA) | — | Natural-language only. Dragonfly-eye MCDA aggregation is LLM reasoning. |
+| 6 Calibration | — | Natural-language only (forward-looking single-forecast calibration). Backward-looking 10-bin calibration tracking is `compute_calibration_curve` in `hkask-mcp-scenarios`. |
+| 7 Record | — | Natural-language only (forecast record structure). Persistent journal storage is `ForecastStore` in `hkask-mcp-scenarios`. |
+| Quality gate | — | Natural-language only (independent rubric evaluation). |
+| Convergence check | — | Natural-language only (materiality guard + weighted-penalty rubric). |
+| Brier scoring (cross-cutting) | `brier_score`, `brier_score_multi`, `brier_interpretation` | Used by stage 7 record feedback and the MCP servers' outcome tracking. |
+
+**Layering rule:** `hkask-forecast` holds pure-math primitives only — no domain
+types, no NLP, no I/O. Domain-shaped logic (`WeightedScenario`,
+`ForecastOutcome`, `ForecastStore`, event-tree marginalization, `FermiDefaults`
+env loading) stays in the MCP servers where it is consumed. The skill operates on
+natural language and does not call Rust directly, but its stage descriptions
+must stay consistent with the formulas the primitives implement.
+
 ## Usage
 
 ### Invoking the Pipeline

@@ -71,6 +71,16 @@ pub struct ChatRequest {
     /// Skipped from serialization when true (most models don't need it).
     #[serde(default = "default_enable_thinking", skip_serializing_if = "is_true")]
     pub enable_thinking: bool,
+    /// Qwen3/DeepInfra thinking-mode control, sent as
+    /// `chat_template_kwargs: {"enable_thinking": <bool>}`.
+    ///
+    /// DeepInfra ignores the top-level `enable_thinking` field — only the
+    /// `chat_template_kwargs` form actually toggles thinking. Set when
+    /// `disable_thinking` is true so structured-output calls (tagging, triples,
+    /// QA generation) stay fast (~2-4s vs ~90s) and never hit the HTTP timeout
+    /// mid-reasoning. Omitted when thinking is enabled (model default = on).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chat_template_kwargs: Option<serde_json::Value>,
     /// OpenAI-compatible tool definitions for native function calling.
     /// When present, the model may return `tool_calls` in its response.
     /// Skipped from serialization when None/empty to avoid confusing models
@@ -154,6 +164,11 @@ pub fn build_chat_request(
         n_probs,
         stream,
         enable_thinking: !params.disable_thinking,
+        chat_template_kwargs: if params.disable_thinking {
+            Some(serde_json::json!({"enable_thinking": false}))
+        } else {
+            None
+        },
         tools,
         tool_choice: None,
         plugins,
@@ -262,6 +277,12 @@ pub struct ChatChoice {
 pub struct ChatResponseMessage {
     pub role: String,
     pub content: String,
+    /// Thinking-mode reasoning trace (Qwen3, GLM-5.2 on DeepInfra).
+    /// Populated when the model thinks; the final answer lives in `content`.
+    /// Captured so callers can recover the answer when `content` is empty
+    /// (e.g. thinking exhausted the token budget before emitting `content`).
+    #[serde(default)]
+    pub reasoning_content: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -410,8 +431,18 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
         .map(|calls| map_tool_calls(calls))
         .unwrap_or_default();
 
+    // Thinking-mode models (Qwen3, GLM-5.2) put the final answer in `content`
+    // and deliberation in `reasoning_content`. When `content` is empty (the
+    // model spent its token budget reasoning), fall back to `reasoning_content`
+    // so downstream JSON extractors can still recover the answer.
+    let text = if !choice.message.content.is_empty() {
+        choice.message.content
+    } else {
+        choice.message.reasoning_content.unwrap_or_default()
+    };
+
     Ok(InferenceResult {
-        text: choice.message.content,
+        text,
         model: response.model,
         usage: InferenceUsage {
             prompt_tokens: response.usage.prompt_tokens,

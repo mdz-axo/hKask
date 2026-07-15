@@ -55,7 +55,7 @@ pub async fn openai_compatible_generate(
         Some(false),
         None,
         tools,
-        None<Vec<FusionPlugin>>,
+        None::<Vec<FusionPlugin>>,
     );
 
     let response = client

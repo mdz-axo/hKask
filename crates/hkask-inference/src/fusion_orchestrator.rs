@@ -52,9 +52,14 @@ fn skill_prompt(skill: &FusionSkill) -> &'static str {
              are its behavioral contracts explicit and verified?"
         }
         FusionSkill::Superforecasting => {
-            "Superforecasting (Tetlock): Use Fermi decomposition for estimates. Apply \
-             outside/inside views. Update probabilities with Bayesian evidence. Express \
-             uncertainty as calibrated probability ranges, not binary predictions."
+            "Superforecasting (Tetlock GJP 8-stage): Triage the question into the \
+             Goldilocks zone before investing effort. Fermi-decompose into sub-questions. \
+             Anchor on outside-view base rates, then adjust with inside-view evidence. \
+             Update with Bayesian likelihood ratios. Synthesize a dragonfly-eye view \
+             (steelman opposing models). Calibrate to a precise probability with a \
+             defensible range. Record for Brier-scored post-mortem. Run the independent \
+             quality gate and convergence check. Express uncertainty as calibrated \
+             probability ranges, not binary predictions."
         }
         FusionSkill::MCDA => {
             "Multi-Criteria Decision Analysis: Identify criteria, weight and score \
