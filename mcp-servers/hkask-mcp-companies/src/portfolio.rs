@@ -91,7 +91,7 @@ fn default_currency() -> String {
 
 fn check_request_size(size: usize, maximum: usize, subject: &str) -> Result<(), PortfolioError> {
     if size > maximum {
-        return Err(format!("{subject} exceeds maximum of {maximum} bytes"));
+        return Err(format!("{subject} exceeds maximum of {maximum} bytes").into());
     }
     Ok(())
 }
@@ -404,13 +404,13 @@ impl PortfolioManager {
     /// Verify a revision parent is visible to this owner and uses the same symbol.
     pub fn validate_forecast_revision(&self, id: &str, symbol: &str) -> Result<(), PortfolioError> {
         let Some(parent) = self.get_forecast(id)? else {
-            return Err(format!("forecast '{id}' not found for this owner"));
+            return Err(format!("forecast '{id}' not found for this owner").into());
         };
         if parent.symbol != symbol {
             return Err(format!(
                 "forecast '{id}' belongs to symbol '{}', not '{symbol}'",
                 parent.symbol
-            ));
+            ).into());
         }
         Ok(())
     }
@@ -470,7 +470,7 @@ impl PortfolioManager {
             .execute("DELETE FROM portfolios WHERE name = ?1", params![name])
             .map_err(|e| format!("delete: {e}"))?;
         if rows == 0 {
-            return Err(format!("portfolio '{name}' does not exist"));
+            return Err(format!("portfolio '{name}' does not exist").into());
         }
         Ok(())
     }
@@ -499,7 +499,7 @@ impl PortfolioManager {
             )
             .is_ok();
         if !exists {
-            return Err(format!("portfolio '{name}' does not exist"));
+            return Err(format!("portfolio '{name}' does not exist").into());
         }
         Ok(())
     }
@@ -902,7 +902,7 @@ impl PortfolioManager {
             if txs.len() == MAX_IMPORT_TRANSACTION_COUNT {
                 return Err(format!(
                     "import exceeds maximum of {MAX_IMPORT_TRANSACTION_COUNT} transactions"
-                ));
+                ).into());
             }
             let fields: Vec<&str> = line.split(',').map(|f| f.trim()).collect();
 
@@ -927,7 +927,7 @@ impl PortfolioManager {
             let notes = get_str("notes").unwrap_or_default();
 
             if date.is_empty() {
-                return Err(format!("line {line_num}: missing date"));
+                return Err(format!("line {line_num}: missing date").into());
             }
 
             txs.push(Transaction {
@@ -956,7 +956,7 @@ impl PortfolioManager {
         if txs.len() > MAX_IMPORT_TRANSACTION_COUNT {
             return Err(format!(
                 "import exceeds maximum of {MAX_IMPORT_TRANSACTION_COUNT} transactions"
-            ));
+            ).into());
         }
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
@@ -983,7 +983,7 @@ impl PortfolioManager {
                 Ok(1) => imported.push(tx.id.clone()),
                 Ok(0) => {} // duplicate, silently skipped
                 Ok(_) => unreachable!(),
-                Err(e) => return Err(format!("insert {}: {e}", tx.id)),
+                Err(e) => return Err(format!("insert {}: {e}", tx.id).into()),
             }
         }
         Ok(imported)
@@ -1243,7 +1243,7 @@ impl PortfolioManager {
             .execute("DELETE FROM notes WHERE id = ?1", params![note_id])
             .map_err(|e| format!("delete_note: {e}"))?;
         if rows == 0 {
-            return Err(format!("note '{note_id}' not found"));
+            return Err(format!("note '{note_id}' not found").into());
         }
         Ok(())
     }
@@ -1275,7 +1275,7 @@ impl PortfolioManager {
         if bytes.len() > MAX_DECODED_ATTACHMENT_BYTES {
             return Err(format!(
                 "decoded attachment exceeds maximum of {MAX_DECODED_ATTACHMENT_BYTES} bytes"
-            ));
+            ).into());
         }
 
         let id = uuid::Uuid::new_v4().to_string();
@@ -1298,9 +1298,9 @@ impl PortfolioManager {
                 return Err(format!(
                     "attach_file: {error}; failed to remove written file '{}': {cleanup_error}",
                     file_path.display()
-                ));
+                ).into());
             }
-            return Err(format!("attach_file: {error}"));
+            return Err(format!("attach_file: {error}").into());
         }
 
         Ok(id)
@@ -1368,7 +1368,7 @@ impl PortfolioManager {
         if rows == 0 {
             return Err(format!(
                 "delete_file: attachment file removed but metadata for '{file_id}' was not found"
-            ));
+            ).into());
         }
 
         Ok(())
