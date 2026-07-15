@@ -30,12 +30,12 @@ impl CompaniesServer {
             for tx in &txs {
                 if let Some(ref sym) = tx.symbol {
                     if tx.date <= req.from {
-                        match tx.tx_type.as_str() {
-                            "buy" => {
+                        match tx.tx_type {
+                            TxType::Buy => {
                                 *positions_start.entry(sym.clone()).or_insert(0.0) +=
                                     tx.quantity.unwrap_or(0.0)
                             }
-                            "sell" => {
+                            TxType::Sell => {
                                 *positions_start.entry(sym.clone()).or_insert(0.0) -=
                                     tx.quantity.unwrap_or(0.0)
                             }
@@ -43,12 +43,12 @@ impl CompaniesServer {
                         }
                     }
                     if tx.date <= req.to {
-                        match tx.tx_type.as_str() {
-                            "buy" => {
+                        match tx.tx_type {
+                            TxType::Buy => {
                                 *positions_end.entry(sym.clone()).or_insert(0.0) +=
                                     tx.quantity.unwrap_or(0.0)
                             }
-                            "sell" => {
+                            TxType::Sell => {
                                 *positions_end.entry(sym.clone()).or_insert(0.0) -=
                                     tx.quantity.unwrap_or(0.0)
                             }
@@ -209,12 +209,12 @@ impl CompaniesServer {
                 std::collections::HashMap::new();
             for tx in &txs {
                 if let Some(ref sym) = tx.symbol {
-                    match tx.tx_type.as_str() {
-                        "buy" => {
+                    match tx.tx_type {
+                        TxType::Buy => {
                             *positions.entry(sym.clone()).or_insert(0.0) +=
                                 tx.quantity.unwrap_or(0.0)
                         }
-                        "sell" => {
+                        TxType::Sell => {
                             *positions.entry(sym.clone()).or_insert(0.0) -=
                                 tx.quantity.unwrap_or(0.0)
                         }

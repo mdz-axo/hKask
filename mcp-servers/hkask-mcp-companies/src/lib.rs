@@ -89,7 +89,7 @@ mod screener;
 mod superforecast;
 pub mod types;
 
-use portfolio::{PersistedForecast, PortfolioError, PortfolioManager};
+use portfolio::{PersistedForecast, PortfolioError, PortfolioManager, TxType};
 
 use types::*;
 pub mod tools;

@@ -5591,7 +5591,8 @@ sequenceDiagram
         Route->>+FMP: fetch financial data
         FMP-->>-Route: response or failure
         opt FMP failure
-            Route->>+EODHD: retry request
+            Route->>Route: append .US suffix for plain symbols
+            Route->>+EODHD: retry request (exchange-qualified)
             EODHD-->>-Route: response or failure
             opt Successful EODHD financial response
                 Route->>Route: normalize to FMP-shaped JSON
@@ -5604,8 +5605,8 @@ sequenceDiagram
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-010
-verified_date: 2026-07-10
-verified_against: mcp-servers/hkask-mcp-companies/src/providers.rs:84-247; mcp-servers/hkask-mcp-companies/src/lib.rs:340-361
+verified_date: 2026-07-15
+verified_against: mcp-servers/hkask-mcp-companies/src/providers.rs:106-197; mcp-servers/hkask-mcp-companies/src/lib.rs:271-315
 status: VERIFIED
 -->
 

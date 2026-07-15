@@ -142,12 +142,71 @@ impl From<LedgerError> for PortfolioError {
 
 // ── Transaction ─────────────────────────────────────────────────────
 
+/// Transaction type — matches the SQLite CHECK constraint values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum TxType {
+    Buy,
+    Sell,
+    Dividend,
+    Deposit,
+    Withdrawal,
+}
+
+impl std::fmt::Display for TxType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Buy => write!(f, "buy"),
+            Self::Sell => write!(f, "sell"),
+            Self::Dividend => write!(f, "dividend"),
+            Self::Deposit => write!(f, "deposit"),
+            Self::Withdrawal => write!(f, "withdrawal"),
+        }
+    }
+}
+
+impl std::str::FromStr for TxType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            TxType::Buy => Ok(Self::Buy),
+            TxType::Sell => Ok(Self::Sell),
+            "dividend" => Ok(Self::Dividend),
+            "deposit" => Ok(Self::Deposit),
+            "withdrawal" => Ok(Self::Withdrawal),
+            _ => Err(format!("invalid transaction type: {s}")),
+        }
+    }
+}
+
+impl rusqlite::ToSql for TxType {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(rusqlite::types::ToSqlOutput::Owned(
+            rusqlite::types::Value::Text(self.to_string()),
+        ))
+    }
+}
+
+impl rusqlite::types::FromSql for TxType {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        match value {
+            rusqlite::types::ValueRef::Text(bytes) => {
+                let s = std::str::from_utf8(bytes)
+                    .map_err(|_| rusqlite::types::FromSqlError::InvalidType)?;
+                s.parse::<TxType>()
+                    .map_err(|e| rusqlite::types::FromSqlError::Other(e.into()))
+            }
+            _ => Err(rusqlite::types::FromSqlError::InvalidType),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
     pub id: String,
     pub date: String,
     #[serde(rename = "type")]
-    pub tx_type: String,
+    pub tx_type: TxType,
     pub symbol: Option<String>,
     pub quantity: Option<f64>,
     pub price: Option<f64>,
@@ -500,8 +559,8 @@ impl PortfolioManager {
         let amount_cents = (tx.amount.unwrap_or(0.0) * 100.0).round() as i64;
         let commission_cents = (tx.commission.unwrap_or(0.0) * 100.0).round() as i64;
 
-        match tx.tx_type.as_str() {
-            "buy" => {
+        match tx.tx_type {
+            TxType::Buy => {
                 let symbol = tx.symbol.as_deref().unwrap_or("UNKNOWN");
                 let pos_account = format!("portfolio:position/{symbol}");
 
@@ -538,7 +597,7 @@ impl PortfolioManager {
                     .commit(&ledger_tx)
                     .map_err(|e| format!("ledger commit buy: {e}"))?;
             }
-            "sell" => {
+            TxType::Sell => {
                 let symbol = tx.symbol.as_deref().unwrap_or("UNKNOWN");
                 let pos_account = format!("portfolio:position/{symbol}");
 
@@ -575,7 +634,7 @@ impl PortfolioManager {
                     .commit(&ledger_tx)
                     .map_err(|e| format!("ledger commit sell: {e}"))?;
             }
-            "dividend" | "deposit" => {
+            TxType::Dividend | TxType::Deposit => {
                 // External → Cash (income)
                 let tx_ref = format!("{reference}/{}", tx.tx_type);
                 let ledger_tx = LedgerTransaction {
@@ -721,8 +780,8 @@ impl PortfolioManager {
         let mut cash = 0.0f64;
 
         for tx in &txs {
-            match tx.tx_type.as_str() {
-                "buy" => {
+            match tx.tx_type {
+                TxType::Buy => {
                     let qty = tx.quantity.unwrap_or(0.0);
                     let price = tx.price.unwrap_or(0.0);
                     let comm = tx.commission.unwrap_or(0.0);
@@ -738,7 +797,7 @@ impl PortfolioManager {
                     }
                     cash -= qty * price + comm;
                 }
-                "sell" => {
+                TxType::Sell => {
                     let qty = tx.quantity.unwrap_or(0.0);
                     let price = tx.price.unwrap_or(0.0);
                     let comm = tx.commission.unwrap_or(0.0);
@@ -848,8 +907,9 @@ impl PortfolioManager {
                     .and_then(|s| s.parse().ok())
             };
 
-            let tx_type =
-                get_str("type").ok_or(format!("line {line_num}: missing 'type' column"))?;
+            let tx_type: TxType = get_str("type")
+                .ok_or(format!("line {line_num}: missing 'type' column"))?
+                .parse()?;
             let date = get_str("date").unwrap_or_default();
             let symbol = get_str("symbol");
             let quantity = get_f64("quantity");
@@ -1321,7 +1381,7 @@ mod tests {
         Transaction {
             id: id.to_string(),
             date: "2024-06-15".to_string(),
-            tx_type: tx_type.to_string(),
+            tx_type: tx_type.parse().unwrap(),
             symbol: Some(symbol.to_string()),
             quantity: Some(qty),
             price: Some(price),
@@ -1583,7 +1643,7 @@ mod tests {
         let deposit = Transaction {
             id: "d1".to_string(),
             date: "2024-06-15".to_string(),
-            tx_type: "deposit".to_string(),
+            tx_type: TxType::Deposit,
             symbol: None,
             quantity: None,
             price: None,
@@ -1923,7 +1983,7 @@ deposit,2024-01-01,,,,,10000.0
                 &Transaction {
                     id: uuid::Uuid::new_v4().to_string(),
                     date: date.to_string(),
-                    tx_type: tx_type.to_string(),
+                    tx_type: tx_type.parse().unwrap(),
                     symbol: sym.map(|s| s.to_string()),
                     quantity: *qty,
                     price: *price,
