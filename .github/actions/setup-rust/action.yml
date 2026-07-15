@@ -25,7 +25,8 @@ runs:
         components: ${{ inputs.components }}
         targets: ${{ inputs.targets }}
 
-    - name: Cache cargo registry
+    - name: Cache cargo registry and workspace artifacts
       uses: Swatinem/rust-cache@v2
       with:
         key: ${{ inputs.cache-key }}
+        cache-workspace-crates: true
