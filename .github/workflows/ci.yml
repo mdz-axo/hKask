@@ -94,10 +94,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - name: Configure Git identity
-        run: |
-          git config --global user.name "hKask CI"
-          git config --global user.email "ci@hkask.local"
       - name: Stamp version
         run: bash scripts/ci/stamp-version.sh
       - uses: ./.github/actions/setup-rust
@@ -116,12 +112,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-      - name: Configure Git identity
-        run: |
-          git config --global user.name "hKask CI"
-          git config --global user.email "ci@hkask.local"
-      - name: Stamp version
-        run: bash scripts/ci/stamp-version.sh
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: test-profile

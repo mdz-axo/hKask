@@ -87,10 +87,13 @@ async fn recall_semantic_falls_back_to_local_when_curator_unavailable() {
 
 // ── #2: CNS cns.semantic.published observer notification ─────────────────────
 
-/// Test observer that records received CNS events
+/// Test observer that records received CNS events.
+/// Uses `Notify` so tests can wait for event arrival deterministically
+/// instead of sleeping a fixed duration and hoping the event arrived.
 struct TestObserver {
     events: Mutex<Vec<NuEvent>>,
     interest: Vec<SpanNamespace>,
+    notify: tokio::sync::Notify,
 }
 
 impl TestObserver {
@@ -98,10 +101,14 @@ impl TestObserver {
         Self {
             events: Mutex::new(Vec::new()),
             interest,
+            notify: tokio::sync::Notify::new(),
         }
     }
     fn received_count(&self) -> usize {
         self.events.lock().unwrap().len()
+    }
+    async fn wait_for_event(&self) {
+        self.notify.notified().await;
     }
 }
 
@@ -112,6 +119,7 @@ impl CnsObserver for TestObserver {
     }
     async fn on_event(&self, event: &NuEvent) {
         self.events.lock().unwrap().push(event.clone());
+        self.notify.notify_one();
     }
     async fn on_depletion(&self, _signal: &hkask_ports::DepletionSignal) {}
     async fn on_backpressure(&self, _signal: &hkask_ports::BackpressureSignal) {}
@@ -134,8 +142,10 @@ async fn cns_semantic_published_notifies_observer() {
     ctx.store_semantic("CnsTest", "value", serde_json::json!("observed"), 0.8)
         .expect("store_semantic");
 
-    // Give the spawned CNS task time to complete
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    // Wait for the CNS event to arrive — deterministic, not a blind sleep
+    tokio::time::timeout(std::time::Duration::from_secs(2), observer.wait_for_event())
+        .await
+        .expect("CNS observer should receive event within 2s");
 
     let count = observer.received_count();
     assert!(
