@@ -110,49 +110,136 @@ pub(crate) fn configured_qa_model(requested_model: Option<String>) -> Option<Str
         })
 }
 
+/// Read ontology tags from a tagged chunks JSONL file.
+///
+/// Returns a map of `entity_ref` → formatted ontology context string
+/// (e.g. `"golem: metaphor, character development | fibo: ROIC"`).
+/// Used by `extract_triples_batch` to inject pre-classified ontology tags
+/// into the extraction prompt so the LLM uses the right predicates.
+fn read_ontology_tags(
+    path: &str,
+) -> Result<std::collections::HashMap<String, String>, McpToolError> {
+    let content = std::fs::read_to_string(path).map_err(|e| {
+        McpToolError::invalid_argument(format!("Cannot read tagged_jsonl '{path}': {e}"))
+    })?;
+    let mut map = std::collections::HashMap::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let entity_ref = v
+            .get("entity_ref")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if entity_ref.is_empty() {
+            continue;
+        }
+        if let Some(tags) = v.get("ontology_tags").and_then(|t| t.as_object()) {
+            let parts: Vec<String> = tags
+                .iter()
+                .map(|(ns, concepts)| {
+                    let list: Vec<String> = concepts
+                        .as_array()
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|c| c.as_str().map(String::from))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    format!("{ns}: {}", list.join(", "))
+                })
+                .collect();
+            if !parts.is_empty() {
+                map.insert(entity_ref.to_string(), parts.join(" | "));
+            }
+        }
+    }
+    Ok(map)
+}
+
 /// Map an RDF predicate to a 5W1H dimension.
 ///
 /// Migrated from the CLI binary's `predicate_to_dimension` function.
 /// Used by `docproc_extract_triples` to assign a Dimension to each stored h_mem.
 pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension {
+    use hkask_types::Dimension::*;
     let p = predicate.to_lowercase();
-    if p.contains("type")
-        || p.contains("is_a")
-        || p.contains("subclass")
-        || p.contains("name")
-        || p.contains("label")
-        || p.contains("title")
-    {
-        hkask_types::Dimension::What
-    } else if p.contains("location") || p.contains("place") || p.contains("located_in") {
-        hkask_types::Dimension::Where
-    } else if p.contains("time")
-        || p.contains("date")
-        || p.contains("when")
-        || p.contains("created")
-    {
-        hkask_types::Dimension::When
-    } else if p.contains("person")
-        || p.contains("author")
-        || p.contains("creator")
-        || p.contains("actor")
-    {
-        hkask_types::Dimension::Who
-    } else if p.contains("cause")
-        || p.contains("reason")
-        || p.contains("why")
-        || p.contains("motivation")
-    {
-        hkask_types::Dimension::Why
-    } else if p.contains("method")
-        || p.contains("process")
-        || p.contains("how")
-        || p.contains("uses")
-        || p.contains("uses_method")
-    {
-        hkask_types::Dimension::How
-    } else {
-        hkask_types::Dimension::What
+
+    // Curated mapping — exact or prefix match on known predicates
+    match p.as_str() {
+        // Who — agents, authors, characters, creators
+        "schema:author" | "schema:creator" | "schema:contributor" | "schema:actor"
+        | "golem:hascharacter" | "golem:hasnarrator" | "rdf:creator" => Who,
+
+        // When — temporal
+        "schema:datecreated"
+        | "schema:datemodified"
+        | "schema:datepublished"
+        | "dcterms:created"
+        | "dcterms:issued" => When,
+
+        // Where — spatial
+        "schema:location" | "golem:hassetting" | "dcterms:spatial" => Where,
+
+        // Why — causation, motivation, theme
+        "schema:causes" | "schema:resultof" | "golem:hasconflict" | "golem:allegoryof"
+        | "fibo:hasmotivation" => Why,
+
+        // How — methods, processes, resolution
+        "schema:uses"
+        | "schema:method"
+        | "golem:hasresolution"
+        | "golem:metaphorfor"
+        | "golem:illustrates"
+        | "golem:evokes" => How,
+
+        // What — everything else with a known predicate
+        _ if p.starts_with("golem:")
+            || p.starts_with("schema:")
+            || p.starts_with("rdf:")
+            || p.starts_with("fibo:")
+            || p.starts_with("dcterms:") =>
+        {
+            What
+        }
+
+        // Fallback: substring matching for unrecognized predicates
+        _ => {
+            if p.contains("type")
+                || p.contains("is_a")
+                || p.contains("subclass")
+                || p.contains("name")
+                || p.contains("label")
+                || p.contains("title")
+            {
+                What
+            } else if p.contains("location") || p.contains("place") || p.contains("located_in") {
+                Where
+            } else if p.contains("time") || p.contains("date") || p.contains("when")
+                || p.contains("created")
+            {
+                When
+            } else if p.contains("person") || p.contains("author") || p.contains("creator")
+                || p.contains("actor") || p.contains("character")
+            {
+                Who
+            } else if p.contains("cause") || p.contains("reason") || p.contains("why")
+                || p.contains("motivation") || p.contains("conflict")
+            {
+                Why
+            } else if p.contains("method") || p.contains("process") || p.contains("how")
+                || p.contains("uses") || p.contains("resolution")
+            {
+                How
+            } else {
+                What
+            }
+        }
     }
 }
 
@@ -517,12 +604,13 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Extract RDF h_mems (subject, predicate, object) from text using the inference engine. Uses the classifier model (Qwen3.6-35B-A3B) with 3-attempt retry. Reads chunks from chunks_jsonl, processes them concurrently, and stores triples as h_mems in the memory DB with entity=entity_ref from each chunk. Returns a summary (total_chunks, succeeded, failed, h_mems_stored)."
+        description = "Extract RDF h_mems (subject, predicate, object) from text using the inference engine. Uses the classifier model (Qwen3.6-35B-A3B) with 3-attempt retry. Reads chunks from chunks_jsonl, processes them concurrently, and stores triples as h_mems in the memory DB with entity=entity_ref from each chunk. When tagged_jsonl is provided, ontology tags from the tagging step are injected to guide predicate selection (GOLEM for narrative, schema.org for expository). Returns a summary (total_chunks, succeeded, failed, h_mems_stored)."
     )]
     pub async fn docproc_extract_triples(
         &self,
         Parameters(ExtractTriplesRequest {
             chunks_jsonl,
+            tagged_jsonl,
             db_path,
             passphrase,
             max_triples,
@@ -533,6 +621,7 @@ impl DocProcServer {
         execute_tool(self, "docproc_extract_triples", async {
             self.extract_triples_batch(
                 &chunks_jsonl,
+                tagged_jsonl.as_deref(),
                 max_triples,
                 &db_path,
                 &passphrase,
@@ -549,10 +638,15 @@ impl DocProcServer {
     /// Opens the DB once and shares it across all concurrent tasks via `Arc<SemanticMemory>`.
     /// Each chunk gets a 3-attempt retry with backoff. Triples are stored as h_mems
     /// with `entity = chunk.entity_ref`.
+    ///
+    /// When `tagged_jsonl` is provided, ontology tags from the tagging step are
+    /// read and injected into the extraction prompt per-chunk, so the LLM uses
+    /// the appropriate predicates (GOLEM for narrative, schema.org for expository).
     #[allow(clippy::too_many_arguments)]
     async fn extract_triples_batch(
         &self,
         chunks_path: &str,
+        tagged_jsonl: Option<&str>,
         max_triples: usize,
         db_path: &str,
         passphrase: &str,
@@ -607,6 +701,16 @@ impl DocProcServer {
             ));
         }
 
+        // Read ontology tags from tagged_jsonl (if provided) to inject into
+        // extraction prompts. Maps entity_ref → formatted ontology context.
+        let ontology_map: std::collections::HashMap<String, String> =
+            if let Some(tagged_path) = tagged_jsonl {
+                read_ontology_tags(tagged_path).unwrap_or_default()
+            } else {
+                std::collections::HashMap::new()
+            };
+        let ontology_map = Arc::new(ontology_map);
+
         // Open DB once, share across concurrent tasks
         let dim = embedding_dim();
         let semantic = Arc::new(
@@ -635,27 +739,46 @@ impl DocProcServer {
             let succeeded = Arc::clone(&succeeded);
             let failed = Arc::clone(&failed);
             let h_mems_stored = Arc::clone(&h_mems_stored);
+            let ontology_map = Arc::clone(&ontology_map);
 
             let handle = tokio::spawn(async move {
                 let _permit = sem.acquire().await;
 
                 // Build prompt from registry template
+                let ontology_context = ontology_map
+                    .get(&entity_ref)
+                    .cloned()
+                    .unwrap_or_default();
                 let mut vars: std::collections::HashMap<&str, String> =
                     std::collections::HashMap::new();
                 vars.insert("limit", max_triples.to_string());
                 vars.insert("namespace", ns.clone());
                 vars.insert("text", chunk_text.clone());
+                vars.insert("ontology_context", ontology_context.clone());
                 let prompt = render_docproc_template("extract-hmems", &vars);
                 let prompt = if prompt.is_empty() {
+                    // Fallback: includes GOLEM predicates and ontology context if available
+                    let ontology_hint = if ontology_context.is_empty() {
+                        String::new()
+                    } else {
+                        format!("
+
+Ontology tags for this passage: {ontology_context}
+Use GOLEM predicates (golem:hasCharacter, golem:hasEvent, golem:hasTheme, golem:illustrates, etc.) for narrative passages and standard RDF predicates (schema:author, rdf:type, etc.) for expository passages.")
+                    };
                     format!(
-                        "Extract up to {max_triples} factual RDF h_mems from the following text.\n\n\
-                         Each h_mem should be in the form (subject, predicate, object) where:\\
-                         - subject: an entity mentioned in the text (prefix with '{ns}:')\\
-                         - predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)\n\n\
-                         - object: another entity, a literal value, or a type\n\n\
-                         For each h_mem, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.\n\n\
-                         Text:\n{chunk_text}\n\n\
-                         Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
+                        "Extract up to {max_triples} factual RDF triples from the following text.
+
+First, classify the passage as narrative (story, characters, literary devices) or expository (concepts, analysis, arguments). Then extract triples using the appropriate predicates:
+  - Expository: schema:author, schema:mentions, rdf:type, fibo:returnOnCapital, etc.
+  - Narrative: golem:hasCharacter, golem:hasEvent, golem:hasTheme, golem:illustrates, golem:metaphorFor, etc.
+
+Each triple: (subject, predicate, object, confidence). Prefix subjects with '{ns}:'.{ontology_hint}
+
+Text:
+{chunk_text}
+
+Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
                     )
                 } else {
                     prompt
@@ -745,10 +868,14 @@ impl DocProcServer {
                     }
                 };
 
-                // Store triples as h_mems
+                // Store triples as h_mems — preserve subject in value for knowledge graph
                 let mut stored = 0usize;
                 if let Some(arr) = h_mems.get("h_mems").and_then(|v| v.as_array()) {
                     for triple in arr {
+                        let subject = triple
+                            .get("subject")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
                         let predicate = triple
                             .get("predicate")
                             .and_then(|v| v.as_str())
@@ -759,7 +886,13 @@ impl DocProcServer {
                             .and_then(|v| v.as_f64())
                             .unwrap_or(0.8);
                         let dimension = predicate_to_dimension(predicate);
-                        let h_mem = hkask_storage::HMem::new(&entity_ref, predicate, object, webid)
+                        // Store subject + object in value so build_prompts can format
+                        // triples as "subject --predicate--> object" with confidence.
+                        let value = json!({
+                            "subject": subject,
+                            "object": object,
+                        });
+                        let h_mem = hkask_storage::HMem::new(&entity_ref, predicate, value, webid)
                             .with_visibility(hkask_types::Visibility::Public)
                             .with_confidence(confidence)
                             .with_dimension(dimension);
@@ -1101,6 +1234,11 @@ fn default_batch_concurrency() -> usize {
 pub struct ExtractTriplesRequest {
     /// Path to chunks JSONL for batch processing. Reads (entity_ref, text) per line.
     pub chunks_jsonl: String,
+    /// Path to tagged chunks JSONL (from docproc_tag_chunks). When provided,
+    /// ontology tags are injected into the extraction prompt so the LLM uses
+    /// the appropriate predicates (GOLEM for narrative, schema.org for expository).
+    #[serde(default)]
+    pub tagged_jsonl: Option<String>,
     /// Path to the SQLCipher memory DB for h_mem storage.
     pub db_path: String,
     /// Passphrase for the memory DB.
