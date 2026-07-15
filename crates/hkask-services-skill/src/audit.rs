@@ -209,11 +209,38 @@ pub struct TemplateSummary {
 /// Replaces fragile string-matching for severity (SMELL 4 fix).
 #[derive(Debug, Clone)]
 pub enum FlowDefDefect {
-    ConvergenceFieldNonExistent { step: u32 },
-    ConvergenceFieldNonOutput { step: u32, action: String },
-    LoopTargetInvalid { target: u32 },
-    InputMappingBadRef { step: u32 },
-    TemplatesNotBuilt { count: usize },
+    ConvergenceFieldNonExistent {
+        step: u32,
+    },
+    ConvergenceFieldNonOutput {
+        step: u32,
+        action: String,
+    },
+    LoopTargetInvalid {
+        target: u32,
+    },
+    InputMappingBadRef {
+        step: u32,
+    },
+    TemplatesNotBuilt {
+        count: usize,
+    },
+    /// A `branching:` dispatch target (success/failure/classifier routes) references
+    /// a step ordinal that doesn't exist — the skill silently dead-ends at runtime.
+    BranchingTargetInvalid {
+        target: u32,
+    },
+    /// An `input_mapping` key doesn't match any input declared in the referenced
+    /// template's contract — the template won't receive that variable by name.
+    InputMappingContractMismatch {
+        step: u32,
+        key: String,
+    },
+    /// A `fusion.skills` composition reference doesn't resolve to a known skill —
+    /// the composition will fail at runtime.
+    CompositionRefInvalid {
+        skill_ref: String,
+    },
 }
 
 impl FlowDefDefect {
@@ -242,6 +269,15 @@ impl FlowDefDefect {
             ),
             Self::TemplatesNotBuilt { count } => format!(
                 "FlowDef references {count} template_ref(s) but the crate manifest declares 0 templates (templates not built — skill non-executable)"
+            ),
+            Self::BranchingTargetInvalid { target } => format!(
+                "branching target {target} references no existing step (silently dead-ends the skill)"
+            ),
+            Self::InputMappingContractMismatch { step, key } => format!(
+                "step {step} input_mapping key '{key}' does not match any input declared in template contract (template won't receive this variable)"
+            ),
+            Self::CompositionRefInvalid { skill_ref } => format!(
+                "fusion.skills references '{skill_ref}' which is not a known skill (composition will fail at runtime)"
             ),
         }
     }
@@ -588,6 +624,44 @@ impl<'a> SkillAuditor<'a> {
             }
         }
 
+        // branching dispatch targets (control-flow: success/failure/classifier
+        // routes) — each must be a declared ordinal. A typo here silently
+        // dead-ends the skill at runtime.
+        let mut bad_branch: HashSet<u32> = HashSet::new();
+        let mut in_branching = false;
+        let mut branching_indent: usize = 0;
+        for line in content.lines() {
+            let t = line.trim_start();
+            if t.starts_with("branching:") {
+                in_branching = true;
+                branching_indent = line.len() - t.len();
+                continue;
+            }
+            if in_branching {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let indent = line.len() - line.trim_start().len();
+                if indent <= branching_indent {
+                    in_branching = false;
+                    continue;
+                }
+                // Branching values are ordinals: "key: <integer>".
+                if let Some((_, val)) = t.split_once(':') {
+                    if let Ok(n) = val.trim().parse::<u32>() {
+                        if !ordinals.contains(&n) {
+                            bad_branch.insert(n);
+                        }
+                    }
+                }
+            }
+        }
+        let mut bad_branch: Vec<u32> = bad_branch.into_iter().collect();
+        bad_branch.sort_unstable();
+        for n in bad_branch {
+            defects.push(FlowDefDefect::BranchingTargetInvalid { target: n });
+        }
+
         // input_mapping data refs (lines containing Jinja {{ }}) — every step_N_result
         // referenced must exist, else resolve_mapping_value yields empty at runtime.
         let mut bad_input: HashSet<u32> = HashSet::new();
@@ -632,6 +706,100 @@ impl<'a> SkillAuditor<'a> {
             defects.push(FlowDefDefect::TemplatesNotBuilt {
                 count: template_refs.len(),
             });
+        }
+
+        // input_mapping ↔ template contract validation. Each step's input_mapping
+        // keys must match the referenced template's contract input fields, else the
+        // template silently won't receive the variable. Uses the shared
+        // parse_template_contract_inputs helper so the audit and the cross-validation
+        // test stay in sync.
+        if let Ok(manifest_val) = serde_yaml_neo::from_str::<serde_yaml_neo::Value>(&content) {
+            if let Some(steps) = manifest_val.get("steps").and_then(|v| v.as_sequence()) {
+                let templates_root = self.project_root.join("registry").join("templates");
+                for step in steps {
+                    let ordinal = step.get("ordinal").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                    let template_ref = step.get("template_ref").and_then(|v| v.as_str());
+                    let input_mapping = step.get("input_mapping").and_then(|v| v.as_mapping());
+                    let (Some(template_ref), Some(input_mapping)) = (template_ref, input_mapping)
+                    else {
+                        continue;
+                    };
+                    // Skip non-standard refs resolved by different engines.
+                    if template_ref.contains("${")
+                        || template_ref.contains('#')
+                        || template_ref.contains("{{")
+                        || template_ref.starts_with("process/")
+                        || template_ref.starts_with("composition/")
+                        || template_ref.starts_with("inference/")
+                    {
+                        continue;
+                    }
+                    // Resolve template path matching the executor's direct-path resolution.
+                    let exact = templates_root.join(template_ref);
+                    let with_j2 = templates_root.join(format!("{template_ref}.j2"));
+                    let with_yaml = templates_root.join(format!("{template_ref}.yaml"));
+                    let template_path = if exact.exists() {
+                        exact
+                    } else if !template_ref.ends_with(".j2") && with_j2.exists() {
+                        with_j2
+                    } else if with_yaml.exists() {
+                        continue; // Media workflow .yaml — different schema, skip
+                    } else {
+                        continue; // Missing — caught by build-completeness / cross-validation test
+                    };
+                    let Ok(template_content) = fs::read_to_string(&template_path) else {
+                        continue;
+                    };
+                    let contract_inputs =
+                        hkask_ports::flowdef_validation::parse_template_contract_inputs(
+                            &template_content,
+                        );
+                    if contract_inputs.is_empty() {
+                        continue;
+                    }
+                    let contract_keys: HashSet<&str> =
+                        contract_inputs.iter().map(|s| s.as_str()).collect();
+                    for (key, _) in input_mapping {
+                        let Some(key_str) = key.as_str() else {
+                            continue;
+                        };
+                        // Skip known infrastructure keys that aren't template contract inputs.
+                        if key_str == "convergence_description"
+                            || key_str == "include_blockers"
+                            || key_str == "loop_target"
+                        {
+                            continue;
+                        }
+                        if !contract_keys.contains(key_str) {
+                            defects.push(FlowDefDefect::InputMappingContractMismatch {
+                                step: ordinal,
+                                key: key_str.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+
+            // fusion.skills composition references — each must resolve to a known
+            // skill, else the composition will fail at runtime.
+            if let Some(skills) = manifest_val
+                .get("fusion")
+                .and_then(|v| v.get("skills"))
+                .and_then(|v| v.as_sequence())
+            {
+                if let Ok(known) = self.collect_skill_names() {
+                    for skill_ref in skills {
+                        let Some(ref_str) = skill_ref.as_str() else {
+                            continue;
+                        };
+                        if !known.iter().any(|s| s == ref_str) {
+                            defects.push(FlowDefDefect::CompositionRefInvalid {
+                                skill_ref: ref_str.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
         }
 
         defects
@@ -1087,6 +1255,73 @@ mod tests {
         assert!(
             !score.is_active(),
             "3 broken refs (-0.30) should drop below active (0.8); got {} defects {:?}",
+            score.health_score,
+            score.defects
+        );
+    }
+
+    /// A FlowDef manifest with an invalid branching target, an input_mapping
+    /// ↔ template contract mismatch, and a bad fusion.skills composition ref
+    /// must surface all three defects and drop the score below active.
+    #[test]
+    fn flowdef_branching_contract_composition_defects_are_flagged() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let name = "test-comp";
+
+        // Zed layer.
+        let zed_dir = root.join(".agents").join("skills").join(name);
+        fs::create_dir_all(&zed_dir).unwrap();
+        fs::write(
+            zed_dir.join("SKILL.md"),
+            "---\nname: test-comp\nvisibility: public\ndescription: \"Test branching, contract, composition defects.\"\n---\n\n# Test Comp\n\nInstructions.\n",
+        )
+        .unwrap();
+
+        // Registry crate with a template whose contract declares input `x`.
+        let reg_dir = root.join("registry").join("templates").join(name);
+        fs::create_dir_all(&reg_dir).unwrap();
+        fs::write(
+            reg_dir.join("manifest.yaml"),
+            "crate:\n  name: test-comp\n  version: \"0.31.0\"\n  description: Test comp.\ntemplates:\n  - id: test-comp/s1\n    path: s1.j2\n    type: KnowAct\n    lexicon_terms: [classify]\n    description: Minimal.\n",
+        )
+        .unwrap();
+        fs::write(
+            reg_dir.join("s1.j2"),
+            "[inference]\ntemplate_type: KnowAct\nlexicon_terms:\n- classify\ncontract:\n  input:\n    x: string\n  output:\n    y: string\n  energy_cap: 4096\n  visibility: Public\n---\n{# goal: Minimal. #}\n{{ x }}\n",
+        )
+        .unwrap();
+
+        fs::create_dir_all(root.join("registry").join("manifests")).unwrap();
+        // FlowDef manifest with THREE defects:
+        //   1. branching success -> step 9 (does not exist)
+        //   2. input_mapping key 'wrong_key' not in template contract (which has 'x')
+        //   3. fusion.skills references 'nonexistent-skill' (not a known skill)
+        fs::write(
+            root.join("registry").join("manifests").join(format!("{name}.yaml")),
+            "manifest:\n  id: test-comp\n  category: skill\n  name: Test Comp\n  description: Test comp.\n  functional_role: flowdef\n  version: 0.31.0\n  editor: test\n  visibility: Public\nconvergence:\n  threshold: 0.15\n  max_iterations: 3\n  min_iterations: 0\n  convergence_field: step_1_result.convergence_metric\n  on_not_reached: escalate\nfusion:\n  judge: test-judge\n  skills:\n    - test-comp\n    - nonexistent-skill\nsteps:\n  - ordinal: 1\n    action: select\n    description: step1\n    renderer: minijinja\n    template_ref: test-comp/s1\n    gas_cap: 4096\n    timeout_seconds: 30\n    input_mapping:\n      wrong_key: \"{{ situation }}\"\n    branching:\n      success: 9\n      failure: 2\n  - ordinal: 2\n    action: abort\n    description: abort\n",
+        )
+        .unwrap();
+
+        let registry = hkask_templates::Registry::new();
+        let auditor = SkillAuditor::new(&registry, &registry, root);
+        let score = auditor.audit_skill(name).expect("audit");
+        let defects = score.defects.join("; ");
+        assert!(
+            defects.contains("branching target 9 references no existing step"),
+            "missing branching defect: {defects}"
+        );
+        assert!(
+            defects.contains("input_mapping key 'wrong_key' does not match"),
+            "missing contract mismatch defect: {defects}"
+        );
+        assert!(
+            defects.contains("fusion.skills references 'nonexistent-skill'"),
+            "missing composition defect: {defects}"
+        );
+        assert!(
+            !score.is_active(),
+            "3 defects (-0.30) should drop below active (0.8); got {} defects {:?}",
             score.health_score,
             score.defects
         );

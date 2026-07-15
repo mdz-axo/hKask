@@ -128,6 +128,78 @@ pub fn validate_step_input_mapping(
     findings
 }
 
+/// Parse the contract input field names from a `.j2` template's frontmatter.
+///
+/// Supports two formats:
+///   YAML style: `contract:` → `input:` → field list
+///   TOML style: `[contract]` → `input: {field: type, ...}`
+///
+/// Returns the field names declared as contract inputs. Returns empty for
+/// templates that use a non-standard contract format (e.g. media `parameters:`).
+pub fn parse_template_contract_inputs(content: &str) -> Vec<String> {
+    // Try TOML-style [contract] first: `input: {field: type, field2: type}`
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("input:")
+            && trimmed.contains('{')
+            && let Some(start) = trimmed.find('{')
+            && let Some(end) = trimmed.rfind('}')
+        {
+            let inner = &trimmed[start + 1..end];
+            let mut inputs = Vec::new();
+            for pair in inner.split(',') {
+                if let Some(field) = pair.split(':').next() {
+                    let field = field.trim();
+                    if !field.is_empty() && !field.starts_with('#') {
+                        inputs.push(field.to_string());
+                    }
+                }
+            }
+            if !inputs.is_empty() {
+                return inputs;
+            }
+        }
+    }
+
+    // Fall back to YAML-style contract: → input: → field list
+    let mut in_contract = false;
+    let mut in_input = false;
+    let mut inputs = Vec::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("contract:") {
+            in_contract = true;
+            continue;
+        }
+        if in_contract && (trimmed.starts_with("output:") || trimmed == "---") {
+            in_contract = false;
+            in_input = false;
+            continue;
+        }
+        if in_contract && trimmed.starts_with("input:") {
+            in_input = true;
+            continue;
+        }
+        if in_contract && in_input {
+            if trimmed.starts_with("output:") || trimmed.is_empty() {
+                in_input = false;
+                continue;
+            }
+            // Lines like "  field_name: type" or "  field_name: object"
+            if let Some(field) = trimmed.split(':').next() {
+                let field = field.trim();
+                if !field.is_empty() && !field.starts_with('#') {
+                    inputs.push(field.to_string());
+                }
+            }
+        }
+    }
+
+    inputs
+}
+
 /// Validates that `convergence_field` references a step ordinal within the
 /// valid range (1..=num_steps).
 pub fn validate_convergence_field(

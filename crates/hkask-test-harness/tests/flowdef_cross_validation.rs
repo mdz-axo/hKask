@@ -11,7 +11,9 @@
 //! - P8 (Semantic Grounding): manifest↔template mismatches caught before runtime
 //! - P5 (Essentialism): one test, one purpose — cross-validate all manifests
 
-use hkask_ports::flowdef_validation::{validate_convergence_field, validate_step_input_mapping};
+use hkask_ports::flowdef_validation::{
+    parse_template_contract_inputs, validate_convergence_field, validate_step_input_mapping,
+};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -45,78 +47,6 @@ struct StepEntry {
     template_ref: Option<String>,
     #[serde(default)]
     input_mapping: Option<HashMap<String, String>>,
-}
-
-/// Parse the contract input fields from a .j2 template's frontmatter.
-/// Supports two formats:
-///   YAML style: `contract:` → `input:` → field list
-///   TOML style: `[contract]` → `input: {field: type, ...}`
-fn parse_template_contract_inputs(template_path: &Path) -> Vec<String> {
-    let Ok(content) = std::fs::read_to_string(template_path) else {
-        return Vec::new();
-    };
-
-    // Try TOML-style [contract] first: `input: {field: type, field2: type}`
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("input:")
-            && trimmed.contains('{')
-            && let Some(start) = trimmed.find('{')
-            && let Some(end) = trimmed.rfind('}')
-        {
-            let inner = &trimmed[start + 1..end];
-            let mut inputs = Vec::new();
-            for pair in inner.split(',') {
-                if let Some(field) = pair.split(':').next() {
-                    let field = field.trim();
-                    if !field.is_empty() && !field.starts_with('#') {
-                        inputs.push(field.to_string());
-                    }
-                }
-            }
-            if !inputs.is_empty() {
-                return inputs;
-            }
-        }
-    }
-
-    // Fall back to YAML-style contract: → input: → field list
-    let mut in_contract = false;
-    let mut in_input = false;
-    let mut inputs = Vec::new();
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-
-        if trimmed.starts_with("contract:") {
-            in_contract = true;
-            continue;
-        }
-        if in_contract && (trimmed.starts_with("output:") || trimmed == "---") {
-            in_contract = false;
-            in_input = false;
-            continue;
-        }
-        if in_contract && trimmed.starts_with("input:") {
-            in_input = true;
-            continue;
-        }
-        if in_contract && in_input {
-            if trimmed.starts_with("output:") || trimmed.is_empty() {
-                in_input = false;
-                continue;
-            }
-            // Lines like "  field_name: type" or "  field_name: object"
-            if let Some(field) = trimmed.split(':').next() {
-                let field = field.trim();
-                if !field.is_empty() && !field.starts_with('#') {
-                    inputs.push(field.to_string());
-                }
-            }
-        }
-    }
-
-    inputs
 }
 
 #[test]
@@ -270,7 +200,8 @@ fn all_manifests_pass_flowdef_cross_validation() {
                 continue;
             };
 
-            let contract_inputs = parse_template_contract_inputs(&template_path);
+            let template_content = std::fs::read_to_string(&template_path).unwrap_or_default();
+            let contract_inputs = parse_template_contract_inputs(&template_content);
 
             // Skip validation if the template uses a non-standard contract format
             // (e.g., media templates use `parameters:` with `- name:` entries).
