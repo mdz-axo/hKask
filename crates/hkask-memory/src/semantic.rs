@@ -605,105 +605,141 @@ impl SemanticMemory {
 
     /// Chunk text into passages for embedding.
     ///
-    /// Splits on paragraph boundaries (double newlines), then applies
-    /// min/max word count constraints. Long paragraphs are split at
-    /// sentence boundaries. Short paragraphs are concatenated until
-    /// min_words is reached.
+    /// Splits on structural boundaries (markdown headings, horizontal rules,
+    /// then paragraph breaks), applies min/max word count constraints, and
+    /// splits long paragraphs at the nearest sentence boundary. Short
+    /// paragraphs are concatenated until min_words is reached. When
+    /// `overlap_words` > 0, consecutive chunks share that many trailing words
+    /// so context spanning a chunk boundary survives.
     ///
     /// Returns (entity_ref, text) pairs with entity_ref formatted as
     /// `{entity_ref_prefix}:{chunk_index}`.
     ///
     /// expect: "I can store shared semantic h_mems for public knowledge"
     /// \[P3\] Motivating: Generative Space — chunks text into passage-sized units for embedding
-    /// \[P5\] Constraining: Essentialism — paragraph/sentence boundary splitting with min/max words
+    /// \[P5\] Constraining: Essentialism — structural/sentence boundary splitting with min/max words + overlap
     /// pre:  text is non-empty, entity_ref_prefix is non-empty
-    /// pre:  min_words > 0, max_words >= min_words
+    /// pre:  min_words > 0, max_words >= min_words, overlap_words <= max_words
     /// post: returns Vec of (entity_ref, text) chunks
     /// post: each chunk has word count between min_words and max_words (best-effort)
+    /// post: consecutive chunks share up to overlap_words trailing words when > 0
     pub fn chunk_text(
         text: &str,
         entity_ref_prefix: &str,
         min_words: usize,
         max_words: usize,
         sentence_boundary: &str,
+        overlap_words: usize,
     ) -> Vec<(String, String)> {
-        let paragraphs: Vec<&str> = text
-            .split("\n\n")
-            .map(|p| p.trim())
-            .filter(|p| !p.is_empty())
-            .collect();
+        // Structural splitting: headings/rules become their own paragraph units so
+        // chunks don't straddle unrelated sections (improves concept coherence, which
+        // the salience graph depends on).
+        let paragraphs = Self::split_structural(text);
 
         let mut passages = Vec::new();
         let mut buffer = String::new();
-        let mut buffer_words = 0;
-        let mut chunk_index = 0;
-        let boundary_bytes: Vec<u8> = sentence_boundary.bytes().collect();
+        let mut buffer_words = 0usize;
+        let mut chunk_index = 0usize;
+        let boundary_chars: Vec<char> =
+            sentence_boundary.chars().filter(|c| !c.is_whitespace()).collect();
+
+        // Flush the buffer as a chunk, optionally carrying `overlap_words` trailing
+        // words into the next buffer so consecutive chunks share context. `passages`
+        // is passed explicitly (not captured) so the long-paragraph branch can also
+        // push without a double-mutable-borrow conflict.
+        let flush = |passages: &mut Vec<(String, String)>,
+                     buffer: &mut String,
+                     buffer_words: &mut usize,
+                     chunk_index: &mut usize| {
+            if !buffer.is_empty() {
+                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                passages.push((entity_ref, buffer.trim().to_string()));
+                *chunk_index += 1;
+                if overlap_words > 0 {
+                    let tail: Vec<&str> =
+                        buffer.split_whitespace().rev().take(overlap_words).collect();
+                    let mut carried = String::new();
+                    for w in tail.into_iter().rev() {
+                        if !carried.is_empty() {
+                            carried.push(' ');
+                        }
+                        carried.push_str(w);
+                    }
+                    buffer.clear();
+                    *buffer = carried;
+                    *buffer_words = buffer.split_whitespace().count();
+                } else {
+                    buffer.clear();
+                    *buffer_words = 0;
+                }
+            }
+        };
 
         for paragraph in &paragraphs {
             let word_count = paragraph.split_whitespace().count();
 
             if buffer_words + word_count > max_words && buffer_words >= min_words {
-                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
-                passages.push((entity_ref, buffer.trim().to_string()));
-                chunk_index += 1;
-                buffer.clear();
-                buffer_words = 0;
+                flush(&mut passages, &mut buffer, &mut buffer_words, &mut chunk_index);
             }
 
             if word_count > max_words {
                 if !buffer.is_empty() && buffer_words >= min_words {
-                    let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
-                    passages.push((entity_ref, buffer.trim().to_string()));
-                    chunk_index += 1;
-                    buffer.clear();
-                    buffer_words = 0;
+                    flush(&mut passages, &mut buffer, &mut buffer_words, &mut chunk_index);
                 }
-
+                // Split a too-long paragraph at the nearest sentence boundary at or
+                // after max_words (look-ahead up to 25% of max_words), falling back
+                // to the last boundary before max_words, then a hard cut.
                 let words: Vec<&str> = paragraph.split_whitespace().collect();
-                let mut current = Vec::new();
-
-                for word in &words {
-                    current.push(*word);
-
-                    if current.len() >= max_words {
-                        let last = current.last().expect("non-empty current list");
-                        let ends_with_boundary = last
-                            .chars()
-                            .last()
-                            .map(|c| boundary_bytes.contains(&(c as u8)))
-                            .unwrap_or(false);
-
-                        if ends_with_boundary || current.len() >= max_words * 2 {
-                            let text = current.join(" ");
-                            if current.len() >= min_words {
-                                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
-                                passages.push((entity_ref, text));
-                                chunk_index += 1;
-                            } else if !buffer.is_empty() {
-                                buffer.push(' ');
-                                buffer.push_str(&text);
-                                buffer_words += current.len();
-                            } else {
-                                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
-                                passages.push((entity_ref, text));
-                                chunk_index += 1;
-                            }
-                            current = Vec::new();
+                let mut start = 0usize;
+                while start < words.len() {
+                    let target = (start + max_words).min(words.len());
+                    let look_ahead = (max_words / 4).max(1);
+                    let mut split_at = target;
+                    let mut found = false;
+                    for (i, w) in words.iter().enumerate().skip(target).take(look_ahead) {
+                        if Self::is_sentence_end(w, &boundary_chars, ABBREVS) {
+                            split_at = i + 1;
+                            found = true;
+                            break;
                         }
                     }
-                }
-
-                if !current.is_empty() {
-                    let text = current.join(" ");
-                    if !buffer.is_empty() {
-                        buffer.push(' ');
+                    if !found {
+                        let back_floor = start + min_words.min(words.len());
+                        for i in (back_floor..target).rev() {
+                            if Self::is_sentence_end(words[i], &boundary_chars, ABBREVS) {
+                                split_at = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                    let chunk_words = &words[start..split_at];
+                    let text = chunk_words.join(" ");
+                    let cw = chunk_words.len();
+                    if cw >= min_words {
+                        let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                        passages.push((entity_ref, text));
+                        chunk_index += 1;
+                        if overlap_words > 0 && split_at < words.len() {
+                            let back = split_at.saturating_sub(overlap_words);
+                            buffer.clear();
+                            buffer.push_str(&words[back..split_at].join(" "));
+                            buffer_words = overlap_words;
+                        } else {
+                            buffer.clear();
+                            buffer_words = 0;
+                        }
+                    } else if !buffer.is_empty() {
+                        if !buffer.is_empty() {
+                            buffer.push(' ');
+                        }
                         buffer.push_str(&text);
-                        buffer_words += current.len();
+                        buffer_words += cw;
                     } else {
                         let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
                         passages.push((entity_ref, text));
                         chunk_index += 1;
                     }
+                    start = split_at;
                 }
             } else {
                 if !buffer.is_empty() {
@@ -714,12 +750,104 @@ impl SemanticMemory {
             }
         }
 
-        if !buffer.is_empty() {
+        if !buffer.is_empty() && buffer_words >= min_words {
+            flush(&mut passages, &mut buffer, &mut buffer_words, &mut chunk_index);
+        } else if !buffer.is_empty() {
             let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
             passages.push((entity_ref, buffer.trim().to_string()));
         }
 
         passages
+    }
+
+    /// Abbreviations whose trailing period is NOT a sentence end. Curated for an
+    /// investment/research corpus: editorial forms plus common financial acronyms.
+    /// Short ambiguous words that occur constantly in prose (no, vol, pp, ch, p)
+    /// are deliberately excluded so they do NOT suppress real sentence ends.
+    const ABBREVS: &[&str] = &[
+        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st",
+        "inc", "corp", "ltd", "co", "vs", "etc", "e.g", "i.e", "cf", "fig",
+        "u.s", "u.k",
+        "q1", "q2", "q3", "q4", "yoy", "ebitda", "cagr", "roi", "roe", "roic",
+        "dcf", "gdp", "cpi", "eps", "fed", "sec", "wacc", "capm",
+    ];
+
+    /// True when `word` ends a sentence: its final non-quote char is a boundary
+    /// punctuation AND it is not a known abbreviation. Handles trailing quotes
+    /// (`asked."`) and numeric decimals (`3.14` — a digit before the period is
+    /// not a sentence end). Single-letter initials (`J.`) are not sentence ends.
+    fn is_sentence_end(word: &str, boundary_chars: &[char], abbrevs: &[&str]) -> bool {
+        let trimmed =
+            word.trim_end_matches(|c: char| matches!(c, '"' | '\'' | '\u{201d}' | '\u{201c}'));
+        let mut chars = trimmed.chars();
+        let last = match chars.next_back() {
+            Some(c) => c,
+            None => return false,
+        };
+        if !boundary_chars.contains(&last) {
+            return false;
+        }
+        if last == '.' && chars.next_back().is_some_and(|p| p.is_ascii_digit()) {
+            return false;
+        }
+        let stem = trimmed.trim_end_matches(|c: char| matches!(c, '.' | '!' | '?'));
+        let lower = stem.to_lowercase();
+        if abbrevs.contains(&lower.as_str()) {
+            return false;
+        }
+        if last == '.'
+            && stem.chars().count() == 1
+            && stem.chars().next().is_some_and(|c| c.is_uppercase())
+        {
+            return false;
+        }
+        true
+    }
+
+    /// Split text into paragraphs on structural boundaries: markdown headings,
+    /// horizontal rules, and blank-line breaks. Headings/rules always start a
+    /// new paragraph so chunks don't straddle unrelated sections.
+    fn split_structural(text: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut buf = String::new();
+        for line in text.lines() {
+            let trimmed = line.trim();
+            let is_heading = trimmed.starts_with('#')
+                && trimmed.chars().nth(1).is_none_or(|c| c == '#' || c.is_whitespace());
+            let is_rule = trimmed == "---" || trimmed == "***" || trimmed == "___";
+            if (is_heading || is_rule) && !buf.is_empty() {
+                let p = buf.trim().to_string();
+                if !p.is_empty() {
+                    out.push(p);
+                }
+                buf.clear();
+            }
+            if is_heading || is_rule {
+                let p = trimmed.to_string();
+                if !p.is_empty() {
+                    out.push(p);
+                }
+            } else {
+                if !buf.is_empty() {
+                    buf.push('\n');
+                }
+                buf.push_str(line);
+            }
+        }
+        let p = buf.trim().to_string();
+        if !p.is_empty() {
+            out.push(p);
+        }
+        let mut final_out = Vec::new();
+        for para in out {
+            for piece in para.split("\n\n") {
+                let t = piece.trim();
+                if !t.is_empty() {
+                    final_out.push(t.to_string());
+                }
+            }
+        }
+        final_out
     }
 
     /// Strip Project Gutenberg headers and footers from text.

@@ -91,34 +91,34 @@ impl GalleryState {
     /// Validate that the gallery path exists and is a directory.
     /// Canonicalizes the path to resolve `..` components and prevent
     /// path traversal attacks.
-    pub fn validate(&mut self) -> Result<(), String> {
+    pub fn validate(&mut self) -> Result<(), crate::MediaError> {
         self.path = self
             .path
             .canonicalize()
-            .map_err(|e| format!("Gallery path is not accessible: {}", e))?;
+            .map_err(|e| crate::MediaError::Io(format!("Gallery path is not accessible: {}", e)))?;
         if !self.path.exists() {
-            return Err(format!(
+            return Err(crate::MediaError::Io(format!(
                 "Gallery path does not exist: {}",
                 self.path.display()
-            ));
+            )));
         }
         if !self.path.is_dir() {
-            return Err(format!(
+            return Err(crate::MediaError::Io(format!(
                 "Gallery path is not a directory: {}",
                 self.path.display()
-            ));
+            )));
         }
         Ok(())
     }
 
     /// Ensure the .hkask-gallery metadata directory exists.
-    pub fn ensure_meta_dir(&self) -> Result<(), String> {
+    pub fn ensure_meta_dir(&self) -> Result<(), crate::MediaError> {
         std::fs::create_dir_all(&self.meta_dir).map_err(|e| {
-            format!(
+            crate::MediaError::Io(format!(
                 "Failed to create metadata directory {}: {}",
                 self.meta_dir.display(),
                 e
-            )
+            ))
         })
     }
 
@@ -269,7 +269,7 @@ mod tests {
         );
         let result = state.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("not accessible"));
+        assert!(result.unwrap_err().to_string().contains("not accessible"));
     }
 
     #[test]

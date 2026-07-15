@@ -41,6 +41,15 @@ pub mod types;
 
 use types::*;
 
+/// Outcome entry for Brier scoring.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct OutcomeEntry {
+    /// Event ID that this outcome applies to
+    pub event_id: String,
+    /// Whether the event occurred (true) or not (false)
+    pub occurred: bool,
+}
+
 // ── Request types for MCP tools ────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -105,10 +114,10 @@ pub struct CompaniesBridgeRequest {
 pub struct FullPipelineRequest {
     /// Subject: company ticker, industry, country, or technology domain
     pub subject: String,
-    /// Events as JSON array of ScenarioEvent objects (from scenario_brainstorm or manual construction)
-    pub events: String,
-    /// Optional: perspectives for dragonfly-eye synthesis, as JSON array of Perspective objects
-    pub perspectives: Option<String>,
+    /// Events for the scenario pipeline
+    pub events: Vec<ScenarioEvent>,
+    /// Optional: perspectives for dragonfly-eye synthesis
+    pub perspectives: Option<Vec<Perspective>>,
     /// Optional: project-level metadata for assessment
     pub perspective_count: Option<usize>,
     /// Optional: how many strategies were generated from the scenarios
@@ -129,22 +138,22 @@ pub struct CrossValidateRequest {
     pub source_a: String,
     /// First probability estimate (0.0-1.0)
     pub estimate_a: f64,
-    /// Fermi sub-questions for estimate A as JSON array
-    pub sub_questions_a: String,
+    /// Fermi sub-questions for estimate A
+    pub sub_questions_a: Vec<SubQuestion>,
     /// Label for the second estimate source (e.g., 'scenario_calibrate')
     pub source_b: String,
     /// Second probability estimate (0.0-1.0)
     pub estimate_b: f64,
-    /// Fermi sub-questions for estimate B as JSON array
-    pub sub_questions_b: String,
+    /// Fermi sub-questions for estimate B
+    pub sub_questions_b: Vec<SubQuestion>,
     /// Review threshold (default 0.15). Divergence above this triggers review.
     pub review_threshold: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct QuantifyRequest {
-    /// Events as JSON array of ScenarioEvent objects
-    pub events: String,
+    /// Events to quantify
+    pub events: Vec<ScenarioEvent>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -167,18 +176,18 @@ pub struct UpdateRequest {
 pub struct ScoreRequest {
     /// Forecast record ID
     pub forecast_id: String,
-    /// Events as JSON array of ScenarioEvent objects
-    pub events: String,
-    /// Outcomes: array of {event_id, occurred} objects as JSON
-    pub outcomes: String,
+    /// Events to score
+    pub events: Vec<ScenarioEvent>,
+    /// Outcomes for each event
+    pub outcomes: Vec<OutcomeEntry>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CalibrateRequest {
     /// The forecast question
     pub question: String,
-    /// Fermi sub-questions as JSON array of {question, estimate, confidence}
-    pub sub_questions: String,
+    /// Fermi sub-questions for calibration
+    pub sub_questions: Vec<SubQuestion>,
     /// Reference class description
     pub reference_class: Option<String>,
     /// Base rate from outside view
@@ -189,16 +198,16 @@ pub struct CalibrateRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SensitivityRequest {
-    /// Events as JSON array of ScenarioEvent objects
-    pub events: String,
+    /// Events to rank by uncertainty
+    pub events: Vec<ScenarioEvent>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SynthesizeRequest {
     /// Event ID to synthesize perspectives for
     pub event_id: String,
-    /// Perspectives as JSON array of Perspective objects
-    pub perspectives: String,
+    /// Perspectives to synthesize
+    pub perspectives: Vec<Perspective>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -262,14 +271,44 @@ pub struct AssessRequest {
 struct StatusRequest {}
 
 // ── Server struct ──────────────────────────────────────────────────────────
+// Manual struct definition (not using mcp_server! macro) so that
+// ToolContext::record_tool_outcome can be overridden to a no-op.
+// record_experience provides the detailed daemon write; the infrastructure
+// write from execute_tool_semantic is suppressed to avoid double-recording.
 
-hkask_mcp::mcp_server!(
-    struct ScenariosServer {
-        pub forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
-        pub tree_cache: std::sync::Mutex<Option<types::EventTree>>,
-        pub called_tools: std::sync::Mutex<HashSet<String>>,
+struct ScenariosServer {
+    pub webid: hkask_types::WebID,
+    pub replicant: String,
+    pub daemon: Option<hkask_mcp::DaemonClient>,
+    pub forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
+    pub tree_cache: std::sync::Mutex<Option<types::EventTree>>,
+    pub called_tools: std::sync::Mutex<HashSet<String>>,
+}
+
+impl ScenariosServer {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        webid: hkask_types::WebID,
+        replicant: String,
+        daemon: Option<hkask_mcp::DaemonClient>,
+        forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
+        tree_cache: std::sync::Mutex<Option<types::EventTree>>,
+        called_tools: std::sync::Mutex<HashSet<String>>,
+    ) -> Self {
+        Self { webid, replicant, daemon, forecast_store, tree_cache, called_tools }
     }
-);
+}
+
+impl hkask_mcp::server::ToolContext for ScenariosServer {
+    fn webid(&self) -> &hkask_types::WebID {
+        &self.webid
+    }
+    fn record_tool_outcome(&self, _tool: &str, _outcome: &str) {
+        // No-op: record_experience provides the detailed daemon write with
+        // full provenance. Suppressing the minimal infrastructure write
+        // avoids double-recording to the daemon store.
+    }
+}
 
 impl ScenariosServer {
     /// Map a tool name to its ontology anchor tier.
@@ -466,8 +505,7 @@ impl ScenariosServer {
     #[tool(description = "Run the complete scenario pipeline in a single call.")]
     pub async fn scenario_full(&self, Parameters(req): Parameters<FullPipelineRequest>) -> String {
         execute_tool_semantic(self, "scenario_full", Some(Self::ontology_anchor("scenario_full")), async {
-            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
+            let events = &req.events;
 
             // Step 1: Triage
             let triage_results: Vec<_> = events.iter().map(|e| {
@@ -493,9 +531,8 @@ impl ScenariosServer {
             }).collect();
 
             // Step 5: Synthesize (if perspectives provided)
-            let synth = req.perspectives.as_deref()
-                .and_then(|s| serde_json::from_str::<Vec<Perspective>>(s).ok())
-                .and_then(|ps| if ps.len() >= 2 { superforecast::synthesize_perspectives(&events[0].id, &ps).ok() } else { None });
+            let synth = req.perspectives.as_ref()
+                .and_then(|ps| if ps.len() >= 2 { superforecast::synthesize_perspectives(&events[0].id, ps).ok() } else { None });
 
             // Step 6: Assess
             let deps = events.iter().filter(|e| e.depends_on.is_some()).count();
@@ -553,7 +590,7 @@ impl ScenariosServer {
         Parameters(req): Parameters<CompaniesBridgeRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_from_companies", Some(Self::ontology_anchor("scenario_from_companies")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref());
+            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
             let companies_json: serde_json::Value = serde_json::from_str(&req.companies_output)
                 .map_err(|e| McpToolError::invalid_argument(format!("invalid companies output JSON: {}", e)))?;
 
@@ -619,15 +656,13 @@ impl ScenariosServer {
         Parameters(req): Parameters<CrossValidateRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_cross_validate", Some(Self::ontology_anchor("scenario_cross_validate")), async {
-            let sq_a: Vec<SubQuestion> = serde_json::from_str(&req.sub_questions_a)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid sub_questions_a JSON: {}", e)))?;
-            let sq_b: Vec<SubQuestion> = serde_json::from_str(&req.sub_questions_b)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid sub_questions_b JSON: {}", e)))?;
+            let sq_a = &req.sub_questions_a;
+            let sq_b = &req.sub_questions_b;
 
             let validation = superforecast::cross_validate(
                 &req.event_id,
-                &req.source_a, req.estimate_a, &sq_a,
-                &req.source_b, req.estimate_b, &sq_b,
+                &req.source_a, req.estimate_a, sq_a,
+                &req.source_b, req.estimate_b, sq_b,
                 req.review_threshold,
             );
 
@@ -794,7 +829,7 @@ impl ScenariosServer {
         Parameters(req): Parameters<BrainstormRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_brainstorm", Some(Self::ontology_anchor("scenario_brainstorm")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref());
+            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
             let research = req.research_context.as_deref().unwrap_or("No research context provided. Use scenario_research to gather web search results first, or provide context manually.");
 
             let persona_names: Vec<String> = req
@@ -896,8 +931,8 @@ impl ScenariosServer {
     )]
     pub async fn scenario_build(&self, Parameters(req): Parameters<BuildEventsRequest>) -> String {
         execute_tool_semantic(self, "scenario_build", Some(Self::ontology_anchor("scenario_build")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref());
-            let scenario_type = parse_scenario_type(req.scenario_type.as_deref());
+            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
+            let scenario_type = parse_scenario_type(req.scenario_type.as_deref())?;
             let max_events = req.max_events.unwrap_or(6);
             let context_str = req.context.as_deref().unwrap_or("");
 
@@ -1014,8 +1049,8 @@ impl ScenariosServer {
     )]
     pub async fn scenario_research(&self, Parameters(req): Parameters<ResearchRequest>) -> String {
         execute_tool_semantic(self, "scenario_research", Some(Self::ontology_anchor("scenario_research")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref());
-            let scenario_type = parse_scenario_type(req.scenario_type.as_deref());
+            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
+            let scenario_type = parse_scenario_type(req.scenario_type.as_deref())?;
             let max_events = req.max_events.unwrap_or(6);
 
             // Analyze research text for structural clues
@@ -1136,8 +1171,7 @@ impl ScenariosServer {
     )]
     pub async fn scenario_quantify(&self, Parameters(req): Parameters<QuantifyRequest>) -> String {
         execute_tool_semantic(self, "scenario_quantify", Some(Self::ontology_anchor("scenario_quantify")), async {
-            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
+            let events = &req.events;
 
             let tree = superforecast::build_event_tree(&events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
@@ -1260,26 +1294,16 @@ impl ScenariosServer {
     )]
     pub async fn scenario_score(&self, Parameters(req): Parameters<ScoreRequest>) -> String {
         execute_tool_semantic(self, "scenario_score", Some(Self::ontology_anchor("scenario_score")), async {
-            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
-
-            #[derive(Deserialize)]
-            struct OutcomeEntry {
-                event_id: String,
-                occurred: bool,
-            }
-            let outcomes: Vec<OutcomeEntry> = serde_json::from_str(&req.outcomes)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid outcomes JSON: {}", e)))?;
-
-            let outcome_pairs: Vec<(String, bool)> = outcomes
-                .into_iter()
-                .map(|o| (o.event_id, o.occurred))
+            let events = &req.events;
+            let outcome_pairs: Vec<(String, bool)> = req.outcomes
+                .iter()
+                .map(|o| (o.event_id.clone(), o.occurred))
                 .collect();
 
             let forecast_date = chrono::Utc::now().date_naive();
             let result = superforecast::score_forecast(
                 &req.forecast_id,
-                &events,
+                events,
                 &outcome_pairs,
                 forecast_date,
             );
@@ -1316,7 +1340,7 @@ impl ScenariosServer {
                 } else {
                     "Poorly calibrated — your forecasts are not beating a coin flip. Revisit your outside-view base rates and inside-view adjustments."
                 },
-                "auto_update_suggestions": superforecast::auto_update_suggestions(&events, &outcome_pairs),
+                "auto_update_suggestions": superforecast::auto_update_suggestions(events, &outcome_pairs),
                 "update_guidance": "The auto_update_suggestions above show suggested probability adjustments based on forecast error direction. Apply them via scenario_update to close the feedback loop. Each adjustment is clamped to ±15% and respects [0.01, 0.99] bounds.",
                 "reference": "Brier (1950). Score = (p - o)² where p = forecast probability, o = outcome (1 if occurred, 0 if not). Lower is better."
             });
@@ -1325,7 +1349,7 @@ impl ScenariosServer {
             {
                 let mut store = self.forecast_store.lock().unwrap_or_else(|e| e.into_inner());
                 let now = chrono::Utc::now().date_naive();
-                for event in &events {
+                for event in events {
                     let key = format!("{}:{}", req.forecast_id, event.id);
                     let event_outcome = outcome_pairs.iter().find(|(eid, _)| eid == &event.id);
                     if store.get(&key).is_none() {
@@ -1371,8 +1395,7 @@ impl ScenariosServer {
         Parameters(req): Parameters<CalibrateRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_calibrate", Some(Self::ontology_anchor("scenario_calibrate")), async {
-            let sub_questions: Vec<SubQuestion> = serde_json::from_str(&req.sub_questions)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid sub_questions JSON: {}", e)))?;
+            let sub_questions = &req.sub_questions;
 
             if sub_questions.is_empty() {
                 return Err(McpToolError::invalid_argument("at least one sub_question is required"));
@@ -1473,8 +1496,7 @@ impl ScenariosServer {
         Parameters(req): Parameters<SensitivityRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_sensitivity", Some(Self::ontology_anchor("scenario_sensitivity")), async {
-            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
+            let events = &req.events;
 
             let tree = superforecast::build_event_tree(&events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
@@ -1525,8 +1547,7 @@ impl ScenariosServer {
         Parameters(req): Parameters<SynthesizeRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_synthesize", Some(Self::ontology_anchor("scenario_synthesize")), async {
-            let perspectives: Vec<Perspective> = serde_json::from_str(&req.perspectives)
-                .map_err(|e| McpToolError::invalid_argument(format!("invalid perspectives JSON: {}", e)))?;
+            let perspectives = &req.perspectives;
 
             let synthesis = superforecast::synthesize_perspectives(&req.event_id, &perspectives)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
@@ -1789,22 +1810,28 @@ impl rmcp::ServerHandler for ScenariosServer {}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-fn parse_time_horizon(s: Option<&str>) -> TimeHorizon {
+fn parse_time_horizon(s: Option<&str>) -> Result<TimeHorizon, McpToolError> {
     match s {
-        Some("tactical") | Some("12-18mo") | Some("12mo") => TimeHorizon::Tactical,
-        Some("strategic") | Some("3-5yr") | Some("5yr") => TimeHorizon::Strategic,
-        Some("long_term") | Some("7-10yr") | Some("10yr") => TimeHorizon::LongTerm,
-        _ => TimeHorizon::Strategic,
+        None => Ok(TimeHorizon::Strategic),
+        Some("tactical") | Some("12-18mo") | Some("12mo") => Ok(TimeHorizon::Tactical),
+        Some("strategic") | Some("3-5yr") | Some("5yr") => Ok(TimeHorizon::Strategic),
+        Some("long_term") | Some("7-10yr") | Some("10yr") => Ok(TimeHorizon::LongTerm),
+        Some(other) => Err(McpToolError::invalid_argument(format!(
+            "unknown time_horizon: '{}', expected tactical/strategic/long_term", other
+        ))),
     }
 }
 
-fn parse_scenario_type(s: Option<&str>) -> ScenarioType {
+fn parse_scenario_type(s: Option<&str>) -> Result<ScenarioType, McpToolError> {
     match s {
-        Some("company_update") | Some("quarterly") => ScenarioType::CompanyUpdate,
-        Some("company_analysis") | Some("thesis") => ScenarioType::CompanyAnalysis,
-        Some("emerging_economic") | Some("disruption") => ScenarioType::EmergingEconomic,
-        Some("economic_potential") | Some("long_term") => ScenarioType::EconomicPotential,
-        _ => ScenarioType::CompanyAnalysis,
+        None => Ok(ScenarioType::CompanyAnalysis),
+        Some("company_update") | Some("quarterly") => Ok(ScenarioType::CompanyUpdate),
+        Some("company_analysis") | Some("thesis") => Ok(ScenarioType::CompanyAnalysis),
+        Some("emerging_economic") | Some("disruption") => Ok(ScenarioType::EmergingEconomic),
+        Some("economic_potential") | Some("long_term") => Ok(ScenarioType::EconomicPotential),
+        Some(other) => Err(McpToolError::invalid_argument(format!(
+            "unknown scenario_type: '{}', expected company_update/company_analysis/emerging_economic/economic_potential", other
+        ))),
     }
 }
 

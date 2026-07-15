@@ -1220,6 +1220,7 @@ impl ForecastStore {
             data_path: None,
             journal_path: None,
             journal_count: 0,
+            persistence_healthy: true,
         }
     }
 }

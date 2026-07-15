@@ -71,7 +71,7 @@ impl MediaServer {
                         Err(e) => {
                             return Ok(serde_json::json!({
                                 "status": "already_exists",
-                                "message": e,
+                                "message": e.to_string(),
                             }));
                         }
                     }
@@ -86,8 +86,8 @@ impl MediaServer {
 
             // Set up in-memory GalleryState
             let mut state = GalleryState::new(PathBuf::from(&path), gallery_mode.clone());
-            state.validate().map_err(McpToolError::invalid_argument)?;
-            state.ensure_meta_dir().map_err(McpToolError::internal)?;
+            state.validate().map_err(map_media_error)?;
+            state.ensure_meta_dir().map_err(map_media_error)?;
             state.gallery_id = Some(record.id.clone());
 
             // Scan for images
@@ -164,7 +164,7 @@ impl MediaServer {
                 })),
                 Err(e) => Ok(serde_json::json!({
                     "status": "no_gallery",
-                    "message": e,
+                    "message": e.to_string(),
                 })),
             }
         })
@@ -187,9 +187,7 @@ impl MediaServer {
             if query.trim().is_empty() {
                 return Err(McpToolError::invalid_argument("query must not be empty"));
             }
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(map_media_error)?;
 
             let all_tags = self
                 .gallery_store
@@ -288,7 +286,7 @@ impl MediaServer {
                     ))
                 })?
             } else if let Some(idx) = image_index {
-                let image_id = self.resolve_image_id(idx).map_err(McpToolError::invalid_argument)?;
+                let image_id = self.resolve_image_id(idx).map_err(map_media_error)?;
                 let tags = self
                     .gallery_store
                     .get_tags(&image_id)
@@ -313,7 +311,7 @@ impl MediaServer {
             };
 
             // Collect captions for all images in the gallery
-            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(map_media_error)?;
 
             let all_tags = self
                 .gallery_store
@@ -406,7 +404,7 @@ impl MediaServer {
         execute_tool(self, "gallery_refresh", async {
             let (gid, _old_count, added, total, persisted) = self
                 .rescan_existing_gallery(recursive)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             let mut pipeline_names = vec!["objects", "colors", "composition", "scene"];
             if include_faces {
@@ -643,9 +641,7 @@ impl MediaServer {
         }): Parameters<GalleryAnalyzeRequest>,
     ) -> String {
         execute_tool(self, "gallery_analyze", async {
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(map_media_error)?;
 
             // NOTE: A benign race exists between access_gallery() snapshot and the loop below.
             // If images are added/removed concurrently, resolve_image_id may fail for an index
@@ -717,7 +713,7 @@ impl MediaServer {
             face_id,
         }): Parameters<GalleryNameFaceRequest>,
     ) -> String {
-        execute_tool(self, "gallery_name_face", async {
+:         execute_tool(self, "gallery_name_face", async {
             let resolved_name = if let Some(ref fid) = face_id {
                 self.gallery_store
                     .get_face(fid)
@@ -734,11 +730,11 @@ impl MediaServer {
                         ));
                     }
                 }
-            };
+:             };
 
             let ga = self
                 .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             let all_tags = self
                 .gallery_store

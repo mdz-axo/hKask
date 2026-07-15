@@ -233,16 +233,21 @@ impl MediaServer {
     }
 
     /// Resolve an image index to a base64 data URL for vision LLM calls.
-    fn resolve_image_url(&self, image_index: usize) -> Result<String, String> {
+    fn resolve_image_url(&self, image_index: usize) -> Result<String, MediaError> {
         let ga = self.access_gallery()?;
 
         let img = self
             .gallery_store
             .get_image(&ga.gallery_id, Some(image_index), None)
-            .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
+            .map_err(|e| {
+                MediaError::ImageNotFound(format!(
+                    "Image not found at index {}: {}",
+                    image_index, e
+                ))
+            })?;
 
         let data = std::fs::read(&img.absolute_path)
-            .map_err(|e| format!("Failed to read image: {}", e))?;
+            .map_err(|e| MediaError::Io(format!("Failed to read image: {}", e)))?;
         let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
         let mime = match img.format.as_str() {
             "jpg" | "jpeg" => "image/jpeg",
@@ -257,25 +262,35 @@ impl MediaServer {
     }
 
     /// Resolve an image index to a filesystem path.
-    fn resolve_image_path(&self, image_index: usize) -> Result<PathBuf, String> {
+    fn resolve_image_path(&self, image_index: usize) -> Result<PathBuf, MediaError> {
         let ga = self.access_gallery()?;
 
         let img = self
             .gallery_store
             .get_image(&ga.gallery_id, Some(image_index), None)
-            .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
+            .map_err(|e| {
+                MediaError::ImageNotFound(format!(
+                    "Image not found at index {}: {}",
+                    image_index, e
+                ))
+            })?;
 
         Ok(PathBuf::from(&img.absolute_path))
     }
 
     /// Resolve an image index to its SQLite image ID for tag persistence.
-    fn resolve_image_id(&self, image_index: usize) -> Result<String, String> {
+    fn resolve_image_id(&self, image_index: usize) -> Result<String, MediaError> {
         let ga = self.access_gallery()?;
 
         let img = self
             .gallery_store
             .get_image(&ga.gallery_id, Some(image_index), None)
-            .map_err(|e| format!("Image not found at index {}: {}", image_index, e))?;
+            .map_err(|e| {
+                MediaError::ImageNotFound(format!(
+                    "Image not found at index {}: {}",
+                    image_index, e
+                ))
+            })?;
 
         Ok(img.id)
     }
@@ -284,7 +299,7 @@ impl MediaServer {
     ///
     /// Used by face matching where we have image IDs from tags/registry,
     /// not gallery indices.
-    fn resolve_image_url_by_id(&self, image_id: &str) -> Result<String, String> {
+    fn resolve_image_url_by_id(&self, image_id: &str) -> Result<String, MediaError> {
         let ga = self.access_gallery()?;
 
         // Look up the image's absolute path by its SQLite ID
@@ -298,15 +313,19 @@ impl MediaServer {
                     DbValue::Text(ga.gallery_id.to_string()),
                 ],
             )
-            .map_err(|e| format!("Image not found by ID {}: {}", image_id, e))?;
+            .map_err(|e| {
+                MediaError::ImageNotFound(format!("Image not found by ID {}: {}", image_id, e))
+            })?;
         let absolute_path: String = rows
             .first()
             .and_then(|r| r.get_str(0).ok())
-            .ok_or_else(|| format!("Image not found by ID {}", image_id))?
+            .ok_or_else(|| {
+                MediaError::ImageNotFound(format!("Image not found by ID {}", image_id))
+            })?
             .to_string();
 
-        let data =
-            std::fs::read(&absolute_path).map_err(|e| format!("Failed to read image: {}", e))?;
+        let data = std::fs::read(&absolute_path)
+            .map_err(|e| MediaError::Io(format!("Failed to read image: {}", e)))?;
         let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
         let mime = if absolute_path.ends_with(".png") {
             "image/png"
@@ -348,7 +367,11 @@ impl MediaServer {
     ///
     /// Returns a base64 data URL of the cropped face region, or the original
     /// image URL if cropping fails (graceful degradation).
-    fn crop_face_region(&self, image_id: &str, bbox: &serde_json::Value) -> Result<String, String> {
+    fn crop_face_region(
+        &self,
+        image_id: &str,
+        bbox: &serde_json::Value,
+    ) -> Result<String, MediaError> {
         let ga = self.access_gallery()?;
 
         let rows = self
@@ -361,16 +384,16 @@ impl MediaServer {
                     DbValue::Text(ga.gallery_id.to_string()),
                 ],
             )
-            .map_err(|e| format!("Image not found: {}", e))?;
+            .map_err(|e| MediaError::ImageNotFound(format!("Image not found: {}", e)))?;
         let absolute_path: String = rows
             .first()
             .and_then(|r| r.get_str(0).ok())
-            .ok_or_else(|| "Image not found".to_string())?
+            .ok_or(MediaError::ImageNotFound("Image not found".to_string()))?
             .to_string();
 
         // Read and crop the image
-        let img =
-            image::open(&absolute_path).map_err(|e| format!("Failed to open image: {}", e))?;
+        let img = image::open(&absolute_path)
+            .map_err(|e| MediaError::Io(format!("Failed to open image: {}", e)))?;
 
         let x_pct = bbox["x_pct"].as_f64().unwrap_or(0.0);
         let y_pct = bbox["y_pct"].as_f64().unwrap_or(0.0);
@@ -395,7 +418,7 @@ impl MediaServer {
         let mut buf = std::io::Cursor::new(Vec::new());
         cropped
             .write_to(&mut buf, image::ImageFormat::Jpeg)
-            .map_err(|e| format!("Failed to encode cropped image: {}", e))?;
+            .map_err(|e| MediaError::Io(format!("Failed to encode cropped image: {}", e)))?;
         let data = buf.into_inner();
         let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
         Ok(format!("data:image/jpeg;base64,{}", b64))
@@ -438,22 +461,20 @@ impl MediaServer {
     fn rescan_existing_gallery(
         &self,
         recursive: bool,
-    ) -> Result<(String, u64, u32, u32, u32), String> {
+    ) -> Result<(String, u64, u32, u32, u32), MediaError> {
         // Hold the lock for the entire scan→persist operation to prevent lost-update
         // races under concurrent calls. All operations inside are synchronous I/O
         // (std::fs + GalleryStore), so holding std::sync::Mutex is safe.
         let mut guard = self
             .gallery_state
             .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))?;
-        let state = guard
-            .as_mut()
-            .ok_or("No gallery organized. Use gallery_organize first.".to_string())?;
+            .map_err(|e| MediaError::Io(format!("Gallery state lock error: {}", e)))?;
+        let state = guard.as_mut().ok_or(MediaError::GalleryNotInitialized)?;
 
         let gallery_id = state
             .gallery_id
             .clone()
-            .ok_or_else(|| "Gallery not persisted — run gallery_organize first.".to_string())?;
+            .ok_or(MediaError::GalleryNotInitialized)?;
         let old_count = state.image_count;
 
         let scan_result = state.scan(recursive, None);
@@ -778,19 +799,19 @@ impl MediaServer {
 
 /// Load a font for meme text rendering. Tries the provided path first,
 /// then common system paths, then returns an error with guidance.
-fn load_meme_font(font_path: Option<&str>) -> Result<ab_glyph::FontVec, String> {
+fn load_meme_font(font_path: Option<&str>) -> Result<ab_glyph::FontVec, MediaError> {
     if let Some(path) = font_path {
         // Reject path traversal attempts — font_path must be a simple filename
         if path.contains('/') || path.contains('\\') || path.contains("..") {
-            return Err(format!(
+            return Err(MediaError::Io(format!(
                 "font_path must be a simple filename, not a path: '{}'",
                 path
-            ));
+            )));
         }
-        let data =
-            std::fs::read(path).map_err(|e| format!("Cannot read font at '{}': {}", path, e))?;
+        let data = std::fs::read(path)
+            .map_err(|e| MediaError::Io(format!("Cannot read font at '{}': {}", path, e)))?;
         return ab_glyph::FontVec::try_from_vec(data)
-            .map_err(|e| format!("Invalid font file at '{}': {:?}", path, e));
+            .map_err(|e| MediaError::Io(format!("Invalid font file at '{}': {:?}", path, e)));
     }
 
     // Try common system paths
@@ -810,7 +831,7 @@ fn load_meme_font(font_path: Option<&str>) -> Result<ab_glyph::FontVec, String> 
         }
     }
 
-    Err("No system font found".to_string())
+    Err(MediaError::Io("No system font found".to_string()))
 }
 
 /// Measure rendered text dimensions for centering.

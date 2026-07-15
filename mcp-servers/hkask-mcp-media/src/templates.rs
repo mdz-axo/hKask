@@ -25,12 +25,16 @@ pub fn create_env() -> Environment<'static> {
 }
 
 /// Render a template with string key-value variables.
-pub fn render(env: &Environment, name: &str, vars: &HashMap<&str, &str>) -> Result<String, String> {
-    let tmpl = env
-        .get_template(name)
-        .map_err(|e| format!("Template '{}' not found: {}", name, e))?;
+pub fn render(
+    env: &Environment,
+    name: &str,
+    vars: &HashMap<&str, &str>,
+) -> Result<String, crate::MediaError> {
+    let tmpl = env.get_template(name).map_err(|e| {
+        crate::MediaError::Template(format!("Template '{}' not found: {}", name, e))
+    })?;
     tmpl.render(vars)
-        .map_err(|e| format!("Render error for '{}': {}", name, e))
+        .map_err(|e| crate::MediaError::Template(format!("Render error for '{}': {}", name, e)))
 }
 
 // ── Embedded templates ──────────────────────────────────────────────────────

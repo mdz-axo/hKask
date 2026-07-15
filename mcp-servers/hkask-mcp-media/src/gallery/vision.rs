@@ -63,7 +63,7 @@ pub async fn detect_faces(
     template_env: &Environment<'static>,
     image_url: &str,
     vision_model: Option<&str>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<serde_json::Value>, crate::MediaError> {
     let mut vars = HashMap::new();
     vars.insert("detail_level", "detailed");
     let prompt = crate::templates::render(template_env, "tag_faces", &vars)?;
@@ -89,7 +89,7 @@ pub async fn detect_faces(
                 error = %e,
                 "Vision LLM face detection failed"
             );
-            format!("Vision LLM call failed: {}", e)
+            crate::MediaError::VisionApi(format!("Vision LLM call failed: {}", e))
         })?;
 
     // Try parsing as JSON array first
@@ -121,7 +121,7 @@ pub async fn validate_face_reference(
     template_env: &Environment<'static>,
     image_url: &str,
     vision_model: Option<&str>,
-) -> Result<FaceValidationResult, String> {
+) -> Result<FaceValidationResult, crate::MediaError> {
     let prompt = crate::templates::render(
         template_env,
         "validate_face_ref",
@@ -153,11 +153,11 @@ pub async fn validate_face_reference(
                 error = %e,
                 "Vision LLM face validation failed"
             );
-            format!("Vision LLM call failed: {}", e)
+            crate::MediaError::VisionApi(format!("Vision LLM call failed: {}", e))
         })?;
 
     let parsed: FaceValidationResult = serde_json::from_str(&result.text).map_err(|e| {
-        format!(
+        crate::MediaError::VisionParse(format!(
             "Failed to parse validation result: {} — raw: {}",
             e,
             &result.text[..200.min(result.text.len())]
@@ -187,7 +187,7 @@ pub async fn match_faces(
     reference_url: &str,
     query_url: &str,
     vision_model: Option<&str>,
-) -> Result<FaceMatchResult, String> {
+) -> Result<FaceMatchResult, crate::MediaError> {
     let prompt = crate::templates::render(
         template_env,
         "match_faces",
@@ -224,11 +224,11 @@ pub async fn match_faces(
                 error = %e,
                 "Vision LLM face match failed"
             );
-            format!("Vision LLM call failed: {}", e)
+            crate::MediaError::VisionApi(format!("Vision LLM call failed: {}", e))
         })?;
 
     let parsed: FaceMatchResult = serde_json::from_str(&result.text).map_err(|e| {
-        format!(
+        crate::MediaError::VisionParse(format!(
             "Failed to parse match result: {} — raw: {}",
             e,
             &result.text[..200.min(result.text.len())]
@@ -257,7 +257,7 @@ pub async fn detect_objects(
     template_env: &Environment<'static>,
     image_url: &str,
     vision_model: Option<&str>,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> Result<Vec<serde_json::Value>, crate::MediaError> {
     let mut vars: HashMap<&str, &str> = HashMap::new();
     vars.insert("detail_level", "detailed");
     vars.insert("max_objects", "20");
@@ -268,7 +268,7 @@ pub async fn detect_objects(
     let result = inference
         .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
         .await
-        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+        .map_err(|e| crate::MediaError::VisionApi(format!("Vision LLM call failed: {}", e)))?;
 
     if let Ok(objects) = serde_json::from_str::<Vec<serde_json::Value>>(&result.text) {
         Ok(objects)
@@ -287,7 +287,7 @@ pub async fn analyze_colors(
     template_env: &Environment<'static>,
     image_url: &str,
     vision_model: Option<&str>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, crate::MediaError> {
     let mut vars: HashMap<&str, &str> = HashMap::new();
     vars.insert("max_colors", "8");
     let prompt = crate::templates::render(template_env, "tag_colors", &vars)?;
@@ -297,7 +297,7 @@ pub async fn analyze_colors(
     let result = inference
         .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
         .await
-        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+        .map_err(|e| crate::MediaError::VisionApi(format!("Vision LLM call failed: {}", e)))?;
 
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result.text) {
         Ok(parsed)
@@ -317,7 +317,7 @@ pub async fn analyze_composition(
     template_env: &Environment<'static>,
     image_url: &str,
     vision_model: Option<&str>,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, crate::MediaError> {
     let prompt = crate::templates::render(template_env, "tag_composition", &HashMap::new())?;
 
     let params = LLMParameters::default();
@@ -325,7 +325,7 @@ pub async fn analyze_composition(
     let result = inference
         .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
         .await
-        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+        .map_err(|e| crate::MediaError::VisionApi(format!("Vision LLM call failed: {}", e)))?;
 
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&result.text) {
         Ok(parsed)
@@ -344,7 +344,7 @@ pub async fn caption_scene(
     template_env: &Environment<'static>,
     image_url: &str,
     vision_model: Option<&str>,
-) -> Result<String, String> {
+) -> Result<String, crate::MediaError> {
     let mut vars = HashMap::new();
     vars.insert("style", "descriptive");
     let prompt = crate::templates::render(template_env, "caption", &vars)?;
@@ -354,7 +354,7 @@ pub async fn caption_scene(
     let result = inference
         .generate_vision(&prompt, &[image_url.to_string()], &params, vision_model)
         .await
-        .map_err(|e| format!("Vision LLM call failed: {}", e))?;
+        .map_err(|e| crate::MediaError::VisionApi(format!("Vision LLM call failed: {}", e)))?;
 
     Ok(result.text.trim().to_string())
 }
