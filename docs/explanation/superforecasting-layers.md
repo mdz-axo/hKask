@@ -70,9 +70,12 @@ layer implements, which is why the conformance contract exists.
 Owns the **deterministic primitives** — the formulas Tetlock's methodology
 reduces to: confidence-weighted averaging (Fermi), shrinkage estimation (outside
 view), Bayes' theorem (evidence update), and Brier scoring (calibration
-tracking). Pure math, no domain types, no NLP, no I/O. This is the single source
-of truth for the deterministic core; both MCP servers consume it via
-`hkask_forecast::*` and convert their domain types with thin adapters.
+tracking). Pure math, no domain types, no NLP, no I/O. This is the single source of
+truth for the deterministic core; both MCP servers consume it via
+`hkask_forecast::*`. `hkask-mcp-companies` uses `hkask_forecast::FermiQuestion`
+directly as its Fermi sub-question type; `hkask-mcp-scenarios` keeps a local
+`SubQuestion` (embedded in domain aggregates) and converts it at the
+`calibrate_from_fermi` seam.
 
 ### Domain MCP servers (`hkask-mcp-scenarios`, `hkask-mcp-companies`)
 
@@ -86,13 +89,35 @@ domain-specific types and I/O:
   the pure-math core to `hkask_forecast`.
 - `hkask-mcp-companies` — FIBO-anchored financial forecasting, `WeightedScenario`
   with `intrinsic_per_share`, `distribute_scenario_probabilities`,
-  `expected_intrinsic`, `FermiDefaults` env loading, `ForecastOutcome`,
-  `forecast_record` tool. Delegates the pure-math core to `hkask_forecast` via
-  adapters that convert its local `SubQuestion` to `hkask_forecast::FermiQuestion`.
+  `expected_intrinsic`, `FermiDefaults` env loading, `forecast_record` tool.
+  Consumes `hkask_forecast::FermiQuestion` directly as its Fermi sub-question
+  type (no local duplicate, no adapter) and calls the canonical primitives
+  (`calibrate_from_fermi`, `outside_view_adjustment`, `brier_score`,
+  `brier_interpretation`) straight from `hkask_forecast`.
 
 Domain logic stays here, not in `hkask-forecast`, because it is entangled with
 domain types and I/O — moving it up would violate the deep-module discipline
 (the canonical library must remain a pure-math leaf with no domain dependencies).
+
+### Why `SubQuestion` survives in scenarios but not in companies
+
+Both servers once defined a local `SubQuestion { question, estimate, confidence }`
+byte-identical to `hkask_forecast::FermiQuestion`. The essentialist deletion test
+treats them differently because of how each is used:
+
+- **Companies** used `SubQuestion` as a standalone type with no embedding. Deleting
+  it and consuming `hkask_forecast::FermiQuestion` directly removed the duplicate
+  type *and* the `calibrate_from_fermi` conversion adapter in one move, with no
+  complexity reappearing at call sites. **Eliminated.**
+- **Scenarios** embeds `SubQuestion` inside domain aggregates — `ScenarioEvent.sub_questions`
+  and `Perspective.fermi_sub_questions`. Replacing it with `FermiQuestion` would be a
+  wide type migration across many struct definitions for a 3-line saving, with the
+  `calibrate_from_fermi` conversion adapter (4 lines) earning its keep as the seam.
+  Per the deep-module deletion test, complexity would reappear across N struct
+  definitions. **Retained** — the adapter is the cheaper seam than the migration.
+
+The asymmetry is deliberate, not accidental: eliminate duplication where the
+  duplicate is standalone; keep it where it is load-bearing in a domain aggregate.
 
 ## The conformance contract
 

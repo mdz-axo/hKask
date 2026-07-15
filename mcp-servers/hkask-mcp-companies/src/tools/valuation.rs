@@ -609,22 +609,22 @@ impl CompaniesServer {
 
             let growth_inside = match req.growth_estimate {
                 Some(e) => e,
-                None => superforecast::calibrate_from_fermi(&growth_fermi)
+                None => hkask_forecast::calibrate_from_fermi(&growth_fermi)
                     .map_err(|e| McpToolError::invalid_argument(e.to_string()))?,
             };
             let margin_inside = match req.margin_estimate {
                 Some(e) => e,
-                None => superforecast::calibrate_from_fermi(&margin_fermi)
+                None => hkask_forecast::calibrate_from_fermi(&margin_fermi)
                     .map_err(|e| McpToolError::invalid_argument(e.to_string()))?,
             };
 
             let ref_class = req.reference_class.unwrap_or_else(|| "S&P 500 large-cap, 2015-2025".into());
             let ref_count = req.reference_count.unwrap_or(500);
 
-            let (growth_calibrated, growth_conf) = superforecast::outside_view_adjustment(
+            let (growth_calibrated, growth_conf) = hkask_forecast::outside_view_adjustment(
                 0.55, growth_inside, ref_count,
             );
-            let (margin_calibrated, margin_conf) = superforecast::outside_view_adjustment(
+            let (margin_calibrated, margin_conf) = hkask_forecast::outside_view_adjustment(
                 0.50, margin_inside, ref_count,
             );
 
@@ -760,13 +760,13 @@ impl CompaniesServer {
             // Multiple: was actual multiple >= forecast? (binary direction)
             let multiple_higher = req.actual_multiple >= req.forecast_multiple;
             let p_multiple_up = 0.5;
-            let multiple_brier = superforecast::brier_score(p_multiple_up, multiple_higher);
+            let multiple_brier = hkask_forecast::brier_score(p_multiple_up, multiple_higher);
 
             // Price change: was actual return within 20% tolerance of forecast?
             let return_accurate = superforecast::within_tolerance(
                 req.forecast_price_change, req.actual_price_change, 0.20,
             );
-            let return_brier = superforecast::brier_score(0.7, return_accurate);
+            let return_brier = hkask_forecast::brier_score(0.7, return_accurate);
 
             let combined = (multiple_brier + return_brier) / 2.0;
 
@@ -966,7 +966,7 @@ impl CompaniesServer {
                     "multiple_direction": multiple_brier,
                     "return_accuracy": return_brier,
                     "combined": combined,
-                    "interpretation": superforecast::brier_interpretation(combined),
+                    "interpretation": hkask_forecast::brier_interpretation(combined),
                 },
                 "framework": "Forecast-Record-Score (Tetlock GJP). Brier scores on binary outcomes: multiple direction and return accuracy within 20% tolerance. When forecast_id is provided, runs full 11-line-item decomposition (revenue growth, gross margin, D&A, capex, NWC, multiple, net debt).",
             });
