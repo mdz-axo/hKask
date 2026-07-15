@@ -11,7 +11,6 @@ hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-templates = { path = "../hkask-templates" }
-hkask-mcp = { path = "../hkask-mcp" }
 hkask-git-cas = { path = "../hkask-git-cas" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
