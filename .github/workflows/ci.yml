@@ -1,36 +1,27 @@
-# hKask CI — pragmatically lazy: one compilation cache, no conflicts.
+# hKask CI — parallel jobs with separate caches to avoid conflicts.
 #
 # Architecture:
 #   invariants  ─── parallel, no compilation, <10s
-#   ci          ─── fmt → clippy → test → audit → doc → grep checks
+#   lint        ─── parallel, fmt + clippy, cache-key: clippy
+#   test        ─── parallel, cargo test + audit + doc, default cache
 #   unused-deps ─── parallel, nightly
 #
-# WHY ONE JOB FOR CLIPPY + TEST:
+# CACHE CONFLICT FIX:
 #
-# Clippy and rustc produce different artifacts in target/. In a parallel
-# design, the lint job's Swatinem cache OVERWRITES the test job's cache.
-# The test job never gets a cache hit — it recompiles from scratch every
-# time (15+ min).
+# The root cause of 15+ min builds was a Swatinem cache conflict: the
+# lint job (clippy artifacts) and test job (rustc artifacts) shared one
+# cache key. Whichever job saved last overwrote the other's artifacts.
+# The test job never got a cache hit — it recompiled from scratch every
+# time.
 #
-# In a single job, both clippy and rustc artifacts coexist in the same
-# target/ directory. Swatinem caches the entire target/. Both sets of
-# artifacts are preserved across runs. Both get cache hits.
+# Fix: each compilation job gets its OWN cache key. The lint job uses
+# cache-key: "clippy" (clippy-driver artifacts). The test job uses the
+# default key (rustc artifacts). They never overwrite each other.
 #
-# Timeline with warm cache:
-#   fmt:           instant
-#   clippy:        ~2 min (recompile changed workspace crates with clippy)
-#   test:          ~2 min (recompile changed workspace crates with rustc)
-#   test execution: ~30s (deterministic — direct tick, no polling)
-#   audit + doc:   ~1 min
-#   grep checks:   ~10s
-#   Total:         ~5-6 min
-#
-# Timeline cold (no cache):
-#   clippy:        ~5 min (full compile)
-#   test:          ~5 min (full recompile with rustc)
-#   Total:         ~10-12 min
-#
-# Both are reliably <15 min.
+# First run: both jobs compile from scratch (~5-7 min each, parallel).
+# Subsequent runs: both get cache hits (~2-3 min each, parallel).
+# Wall time: max(lint, test) = ~5-7 min cold, ~3-4 min warm.
+# Reliably <15 min.
 #
 # Tests are deterministic: CuratorSync::tick() called directly, CNS
 # observer uses Notify. No polling, no timeouts, no flakiness.
@@ -78,11 +69,27 @@ jobs:
       - name: Structured library errors
         run: bash scripts/check-string-errors.sh
 
-  # ── Main: fmt + clippy + test + audit + doc + grep invariants ───────────
-  # Single job so clippy and rustc artifacts share one target/ directory
-  # and one Swatinem cache. No cache conflicts between parallel jobs.
-  ci:
-    name: Build, Lint, and Test
+  # ── Lint — fmt + clippy, own cache (clippy artifacts) ───────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt,clippy
+          cache-key: clippy
+      - name: Install system dependencies
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # ── Test — cargo test + audit + doc, own cache (rustc artifacts) ────────
+  test:
+    name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -90,38 +97,14 @@ jobs:
       - name: Stamp version
         run: bash scripts/ci/stamp-version.sh
       - uses: ./.github/actions/setup-rust
-        with:
-          components: rustfmt,clippy
       - name: Install system dependencies
         run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
-      - name: Format
-        run: cargo fmt --check
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test and doctest
         run: cargo test --workspace
       - name: Skill audit
         run: cargo run --bin kask --quiet -- skill audit --fail-below 0.8
       - name: Documentation
         run: cargo doc --workspace --no-deps
-      - name: Prohibited visual UI and monitoring infrastructure
-        run: |
-          violations=$(grep -rPni '(?i)grafana|prometheus|dashboard|visual[\s.]*ui' crates/ --include='*.rs' 2>/dev/null || true)
-          if [ -n "$violations" ]; then
-            echo "$violations"
-            echo "::error::Visual UI/monitoring infrastructure prohibited — headless system only (P3 §5)"
-            exit 1
-          fi
-      - name: Hardcoded secrets
-        run: |
-          violations=$(grep -rPni '(?i)\b(api[_-]?key|api[_-]?secret|password|token|private[_-]?key)\b\s*=\s*"[^"]+"' crates/ --include='*.rs' --exclude-dir=tests 2>/dev/null || true)
-          if [ -n "$violations" ]; then
-            echo "$violations"
-            echo "::error::Hardcoded secrets found — use env vars or keystore"
-            exit 1
-          fi
-      - name: Structured library errors
-        run: bash scripts/check-string-errors.sh
 
   # ── Unused deps — independent nightly check ──────────────────────────────
   unused-deps:
