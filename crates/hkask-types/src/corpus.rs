@@ -1,5 +1,5 @@
-//! Corpus pipeline types — shared between CLI (hkask-corpus-ingest) and
-//! MCP server (hkask-mcp-docproc).
+//! Corpus pipeline types — shared between MCP server (hkask-mcp-docproc)
+//! and pipeline tools.
 //!
 //! Single source of truth for the TaggedChunk type that flows through the
 //! pipeline: tag → dedup → consolidate → build-prompts → ingest-qa.
@@ -23,8 +23,7 @@ pub struct ChunkOntology {
 /// A chunk annotated with multi-dimensional ontology tags.
 ///
 /// This is the canonical type that flows through the entire corpus pipeline.
-/// Both the CLI (hkask-corpus-ingest) and MCP server (hkask-mcp-docproc)
-/// use this struct — no local duplicates.
+/// The MCP server (hkask-mcp-docproc) uses this struct — no local duplicates.
 ///
 /// Design: open-world ontology tagging.
 /// - 5W1H dimensions and Dublin Core are structural (every chunk has them)

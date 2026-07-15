@@ -1,5 +1,7 @@
 //! Storage and query tools — cache, passage query, similarity.
 use crate::*;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
 #[tool_router(router = storage_router, vis = "pub")]
 impl DocProcServer {
@@ -296,4 +298,53 @@ impl DocProcServer {
         })
         .await
     }
+}
+
+// ── Request structs ────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CacheRequest {
+    /// Text content to cache.
+    pub content: String,
+    /// Label/key for the cached entry.
+    pub label: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct QueryRequest {
+    /// Natural language question to search for.
+    pub query: String,
+    /// Number of top results to return (default 5).
+    #[serde(default)]
+    pub top_k: Option<usize>,
+    /// If true, generate an LLM-augmented answer from retrieved passages.
+    #[serde(default)]
+    pub generate_answer: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ClearIndexRequest {
+    /// Reserved for future multi-index support.
+    #[serde(default)]
+    pub index_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PurgeQaRequest {
+    /// Entity-ref prefix to purge (e.g. "corpus:qa" for old schema, "training:qa:" for new).
+    #[serde(default = "default_purge_prefix")]
+    pub prefix: String,
+    /// Path to the SQLCipher memory DB.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    #[serde(default = "default_purge_passphrase")]
+    pub passphrase: String,
+}
+
+fn default_purge_prefix() -> String {
+    "corpus:qa".to_string()
+}
+
+fn default_purge_passphrase() -> String {
+    "hkask-default-passphrase-2024".to_string()
 }

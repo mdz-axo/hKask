@@ -11,7 +11,8 @@ use hkask_inference::model_constants::classifier_model;
 use hkask_storage::HMem;
 use hkask_types::Visibility;
 use hkask_types::corpus::TaggedChunk;
-use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Minimal chunk for tagging (from chunks.jsonl).
 #[derive(Debug, Clone, Deserialize)]
@@ -427,4 +428,31 @@ impl DocProcServer {
         })
         .await
     }
+}
+
+// ── Tag chunks request (ontology annotation) ───────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TagChunksRequest {
+    /// Path to chunks JSONL (entity_ref, source, text, word_count per line).
+    pub chunks_jsonl: String,
+    /// Output path for tagged chunks JSONL with ontology annotations.
+    pub output: String,
+    /// Path to the SQLCipher memory DB for h_mem storage.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// Max concurrent LLM tagging calls.
+    #[serde(default = "default_tag_concurrency")]
+    pub concurrency: usize,
+    /// If true, only report stats without LLM calls or writing output.
+    #[serde(default)]
+    pub dry_run: bool,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_owner")]
+    pub owner: String,
+}
+
+fn default_tag_concurrency() -> usize {
+    128
 }

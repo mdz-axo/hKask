@@ -1,5 +1,6 @@
 //! Semantic extraction tools — QA generation, h_mem extraction, embedding.
 use crate::*;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 // Content safety guard — mandatory at every LLM boundary (OWASP LLM01/02/04/06).
@@ -717,4 +718,99 @@ mod tests {
         let model = configured_qa_model(Some("OR/openai/gpt-5.6-terra".to_string()));
         assert_eq!(model.as_deref(), Some("OR/openai/gpt-5.6-terra"));
     }
+}
+
+// ── Request structs ────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GenerateQaRequest {
+    /// Single chunk text (mutually exclusive with texts for multi-chunk cross-reference)
+    #[serde(default)]
+    pub text: Option<String>,
+    /// Multiple chunks for cross-reference QA generation (RA-DIT method).
+    /// When set, generates QAs that require synthesizing across all passages.
+    #[serde(default)]
+    pub texts: Option<Vec<String>>,
+    pub chunk_id: String,
+    #[serde(default)]
+    pub bloom_levels: Option<Vec<String>>,
+    /// Optional provider-prefixed generation model (for example, `OR/openai/gpt-5.6-terra`).
+    /// When absent, uses `HKASK_QA_MODEL`, then `HKASK_DEFAULT_MODEL`.
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+/// A single prompt spec for batch QA generation.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BatchQaPrompt {
+    pub text: String,
+    pub chunk_id: String,
+    #[serde(default)]
+    pub bloom_levels: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GenerateQaBatchRequest {
+    /// Array of prompt specs to process.
+    pub prompts: Vec<BatchQaPrompt>,
+    /// Max concurrent LLM calls. Batch processing is currently sequential.
+    #[serde(default = "default_batch_concurrency")]
+    pub concurrency: usize,
+    /// Optional provider-prefixed generation model for every prompt in this batch.
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+fn default_batch_concurrency() -> usize {
+    4
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ExtractTriplesRequest {
+    /// Text to extract RDF h_mems from.
+    pub text: String,
+    /// Optional entity namespace prefix (e.g., "doc:myfile").
+    #[serde(default)]
+    pub namespace: Option<String>,
+    /// Maximum h_mems to extract (default 50).
+    #[serde(default)]
+    pub max_triples: Option<usize>,
+    /// Chunk reference (entity_ref) — used as the h_mem entity when storing triples.
+    /// When provided with db_path, triples are stored as h_mems with entity=chunk_ref.
+    #[serde(default)]
+    pub chunk_ref: Option<String>,
+    /// Path to the SQLCipher memory DB for h_mem storage.
+    /// When provided with chunk_ref, extracted triples are stored as h_mems.
+    #[serde(default)]
+    pub db_path: Option<String>,
+    /// Passphrase for the memory DB.
+    #[serde(default)]
+    pub passphrase: Option<String>,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_owner")]
+    pub owner: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EmbedRequest {
+    /// Texts to embed (passages or h_mem strings).
+    pub texts: Vec<String>,
+    /// Embedding model to use. If not set, uses the configured default.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Path to the SQLCipher memory DB for vector + h_mem storage.
+    /// When provided, embeddings and text/provenance h_mems are stored in the DB.
+    /// When omitted, vectors are returned as JSON (backward compatible).
+    #[serde(default)]
+    pub db_path: Option<String>,
+    /// Passphrase for the memory DB.
+    #[serde(default)]
+    pub passphrase: Option<String>,
+    /// Entity refs (chunk_ref) for each text — used as the h_mem entity and embedding key.
+    /// Must match `texts` length when provided. Required when `db_path` is set.
+    #[serde(default)]
+    pub entity_refs: Option<Vec<String>>,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_owner")]
+    pub owner: String,
 }

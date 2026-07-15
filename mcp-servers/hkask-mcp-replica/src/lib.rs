@@ -1108,7 +1108,7 @@ impl ReplicaServer {
     // ── Pipeline orchestration ─────────────────────────────────────────
 
     #[tool(
-        description = "Execute a corpus pipeline manifest with checkpoint/resume. Reads a PipelineManifest YAML, runs each step, checkpoints after each success. Corpus steps (corpus_embed, corpus_build_prompts, corpus_ingest_qa) execute as subprocesses. MCP steps (docproc_*, replica_*) are reported as needing external execution. Returns pipeline status with completed/skipped/failed counts."
+        description = "Execute a corpus pipeline manifest with checkpoint/resume. Reads a PipelineManifest YAML, runs each step, checkpoints after each success. Deprecated corpus_* tools return deprecation guidance pointing to docproc_* tools. MCP steps (docproc_*, replica_*, training_*) are reported as needing external execution via 'kask mcp invoke'. Returns pipeline status with completed/skipped/failed counts."
     )]
     pub async fn replica_pipeline_run(
         &self,
@@ -1126,87 +1126,42 @@ impl ReplicaServer {
             let mut runner = PipelineRunner::new(manifest)
                 .map_err(McpToolError::internal)?;
 
-            // Typed dispatcher for the corpus-ingest CLI contract. Manifest JSON is
-            // deserialized once at this boundary; it is never converted generically to argv.
+            // Step executor — routes pipeline steps to the correct handler.
+            // corpus_* tools are DEPRECATED — they return guidance to use docproc tools.
+            // docproc_* and replica_* tools require external MCP execution.
             struct ReplicaStepExecutor;
             impl StepExecutor for ReplicaStepExecutor {
                 fn execute(&self, step: &hkask_ports::pipeline_manifest::PipelineStep) -> Result<serde_json::Value, String> {
                     let params = step.params.clone().ok_or_else(|| {
                         format!("Step '{}' requires parameters for tool '{}'", step.id, step.tool)
                     })?;
-                    let mut cmd = std::process::Command::new("corpus-ingest");
-                    let subcommand = match step.tool.as_str() {
-                        "corpus_embed" => {
-                            let request: CorpusEmbedRequest = serde_json::from_value(params)
-                                .map_err(|e| format!("Invalid corpus_embed parameters: {e}"))?;
-                            let passphrase = database_passphrase().map_err(|e| e.to_string())?;
-                            cmd.arg("embed")
-                                .arg(request.chunks_jsonl)
-                                .arg("--db-path")
-                                .arg(request.db_path)
-                                .arg("--passphrase")
-                                .arg(passphrase);
-                            if let Some(batch_size) = request.batch_size {
-                                cmd.arg("--batch-size").arg(batch_size.to_string());
-                            }
-                            "embed"
-                        }
-                        "corpus_build_prompts" => {
-                            let request: CorpusBuildPromptsRequest = serde_json::from_value(params)
-                                .map_err(|e| format!("Invalid corpus_build_prompts parameters: {e}"))?;
-                            cmd.arg("build-prompts")
-                                .arg(request.tagged_jsonl)
-                                .arg("--output")
-                                .arg(request.output);
-                            if let Some(min_salience) = request.min_salience {
-                                cmd.arg("--min-salience").arg(min_salience.to_string());
-                            }
-                            if let Some(min_concepts) = request.min_concepts {
-                                cmd.arg("--min-concepts").arg(min_concepts.to_string());
-                            }
-                            if request.cross_reference.unwrap_or(false) {
-                                cmd.arg("--cross-reference");
-                            }
-                            "build-prompts"
-                        }
-                        "corpus_ingest_qa" => {
-                            let request: CorpusIngestQaRequest = serde_json::from_value(params)
-                                .map_err(|e| format!("Invalid corpus_ingest_qa parameters: {e}"))?;
-                            let passphrase = database_passphrase().map_err(|e| e.to_string())?;
-                            cmd.arg("ingest-qa");
-                            if let Some(generated_jsonl) = request.generated_jsonl {
-                                cmd.arg(generated_jsonl);
-                            }
-                            cmd.arg("--output")
-                                .arg(request.output)
-                                .arg("--db-path")
-                                .arg(request.db_path)
-                                .arg("--passphrase")
-                                .arg(passphrase);
-                            if let Some(dedup_threshold) = request.dedup_threshold {
-                                cmd.arg("--dedup-threshold").arg(dedup_threshold.to_string());
-                            }
-                            if request.embed_qas.unwrap_or(false) {
-                                cmd.arg("--embed-qas");
-                            }
-                            "ingest-qa"
+                    match step.tool.as_str() {
+                        "corpus_embed" | "corpus_build_prompts" | "corpus_ingest_qa" => {
+                            // DEPRECATED: these tools shelled out to corpus-ingest CLI which
+                            // has been deleted. Route users to docproc MCP tools instead.
+                            let replacement = match step.tool.as_str() {
+                                "corpus_embed" => "docproc_embed",
+                                "corpus_build_prompts" => "docproc_build_prompts",
+                                "corpus_ingest_qa" => "docproc_ingest_qa",
+                                _ => "unknown",
+                            };
+                            Ok(serde_json::json!({
+                                "deprecated": true,
+                                "original_tool": step.tool,
+                                "replacement": replacement,
+                                "server": "docproc",
+                                "message": format!("Use 'kask mcp invoke --server docproc --tool {}' instead", replacement),
+                                "step_id": step.id,
+                                "params": params,
+                            }))
                         }
                         _ => {
-                            return Err(format!(
+                            Err(format!(
                                 "Step '{}' uses tool '{}' — external MCP execution required. Run via kask mcp invoke --server <tool-server> --tool {}.",
                                 step.id, step.tool, step.tool
-                            ));
+                            ))
                         }
-                    };
-
-                    let output = cmd.output()
-                        .map_err(|e| format!("corpus-ingest {subcommand} failed: {e}"))?;
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    if !output.status.success() {
-                        return Err(format!("corpus-ingest {subcommand} failed: {stderr}"));
                     }
-                    Ok(serde_json::json!({"stdout": stdout.trim(), "stderr": stderr.trim()}))
                 }
             }
 

@@ -1,5 +1,7 @@
 //! Document processing tools — convert, OCR, chunk.
 use crate::*;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
 #[tool_router(router = document_router, vis = "pub")]
 impl DocProcServer {
@@ -820,4 +822,80 @@ fn is_supported_document(path: &std::path::Path) -> bool {
                 "pdf" | "html" | "htm" | "md" | "txt"
             )
         })
+}
+
+// ── Request structs ────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConvertRequest {
+    /// Path to a document file or a directory of documents to convert.
+    pub path: String,
+    /// Output directory for batch conversion. Required when `path` is a directory.
+    #[serde(default)]
+    pub output: Option<String>,
+    /// If true, skip text extraction and go directly to OCR.
+    #[serde(default)]
+    pub force_ocr: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct OcrRequest {
+    /// Path to the document file to OCR.
+    pub path: String,
+    /// Vision model to use for OCR (must be available in the inference catalog).
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Maximum tokens for OCR output.
+    #[serde(default = "default_ocr_max_tokens")]
+    pub max_tokens: u32,
+}
+
+fn default_ocr_max_tokens() -> u32 {
+    8192
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ChunkRequest {
+    /// Raw text to chunk. Mutually exclusive with `path` and `input_dir`.
+    #[serde(default)]
+    pub text: Option<String>,
+    /// Path to a document file to extract text from and chunk.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// Directory of extracted text files to chunk as one corpus.
+    #[serde(default)]
+    pub input_dir: Option<String>,
+    /// JSONL output path for directory mode. Required with `input_dir`.
+    #[serde(default)]
+    pub output: Option<String>,
+    /// Prefix for entity references in chunk output.
+    pub entity_ref_prefix: String,
+    /// Max tokens per chunk (single-tier mode). Default: 256 from HkaskSettings.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Overlap tokens between chunks (single-tier mode, default 64).
+    #[serde(default)]
+    pub overlap_tokens: Option<usize>,
+    /// Strip Project Gutenberg headers from text before chunking.
+    #[serde(default)]
+    pub strip_gutenberg: Option<bool>,
+    /// If true, produce coarse/medium/fine multi-tier output instead of single-tier.
+    #[serde(default)]
+    pub multi_tier: Option<bool>,
+    /// Max tokens for coarse tier (multi-tier mode, default 2048).
+    #[serde(default)]
+    pub coarse_max_tokens: Option<usize>,
+    /// Max tokens for medium tier (multi-tier mode, default 512).
+    #[serde(default)]
+    pub medium_max_tokens: Option<usize>,
+    /// Max tokens for fine tier (multi-tier mode, default 128).
+    #[serde(default)]
+    pub fine_max_tokens: Option<usize>,
+    /// If true, automatically index passages for later query via docproc_query (default true).
+    #[serde(default = "default_true")]
+    pub index: bool,
+}
+
+pub(crate) fn default_true() -> bool {
+    true
 }

@@ -255,24 +255,34 @@ steps:
       owner: "john-brooks"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 8: Convert to ChatML format for Axolotl training
+  # Phase 8: Assemble ChatML dataset (Rust MCP tool — no Python)
+  #
+  # training_assemble_dataset queries training_qa_pair h_mems from the DB
+  # (stored by docproc_ingest_qa in Phase 7), converts to ChatML format with
+  # the Capabilities Researcher system prompt, and writes train/val/test split.
   # ═══════════════════════════════════════════════════════════════════════
-  - id: convert_chatml
+  - id: assemble_chatml
     description: >
-      Convert training QAs to ChatML messages format with Capabilities
-      Researcher system prompt. 80/10/10 train/val/test split.
-    tool: script
+      Assemble stored QA h_mems into ChatML JSONL training dataset with
+      80/10/10 train/val/test split. Queries semantic memory for
+      training_qa_pair h_mems from the capabilities-researcher dataset.
+    tool: training_assemble_dataset
     params:
-      input: "corpus/qa_pairs/train.jsonl"
-      output_train: "corpus/qa_pairs/train_chat.jsonl"
-      output_val: "corpus/qa_pairs/val_chat.jsonl"
-      output_test: "corpus/qa_pairs/test_chat.jsonl"
+      dataset: "capabilities-researcher"
+      output_path: "corpus/qa_pairs/train_chat.jsonl"
       train_split: 0.80
-      val_split: 0.10
-      test_split: 0.10
+      system_prompt: >
+        You are a Capabilities Researcher. You analyze the gap between what
+        organizations, markets, and systems are capable of and what they
+        actually achieve. Your analysis draws on economic theory, systems
+        thinking, computing principles, and institutional analysis.
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 9: LoRA Training (Axolotl + PiSSA on RunPod H100)
+  # Phase 9: LoRA Training (RunPod H100 via training_submit MCP tool)
+  #
+  # training_submit sends the ChatML dataset to the RunPod training host
+  # which runs Axolotl + PiSSA. The training host is an external service —
+  # not a project dependency. The hKask codebase is pure Rust.
   #
   # PiSSA initializes LoRA matrices from principal singular values of
   # the weight matrices, giving better performance than standard LoRA
@@ -289,16 +299,12 @@ steps:
   #   - strict: false, early_stopping_patience: 25
   # ═══════════════════════════════════════════════════════════════════════
   - id: train_lora
-    description: "Train Capabilities Researcher LoRA adapter with PiSSA init"
-    tool: axolotl_train
+    description: "Submit LoRA training job with PiSSA init to RunPod H100"
+    tool: training_submit
     params:
-      config_file: "corpus/lora/axolotl-pissa-config.yaml"
+      dataset_path: "corpus/qa_pairs/train_chat.jsonl"
       base_model: "unsloth/Qwen3.6-27B"
-      train_path: "corpus/qa_pairs/train_chat.jsonl"
-      val_path: "corpus/qa_pairs/val_chat.jsonl"
-      hardware:
-        gpu: h100
-        provider: runpod
-      env:
-        PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      config_file: "corpus/lora/axolotl-pissa-config.yaml"
+      skill_name: "capabilities-researcher"
+      host: runpod
     requires_consent: true

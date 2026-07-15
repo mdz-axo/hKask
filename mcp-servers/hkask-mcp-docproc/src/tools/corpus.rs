@@ -13,6 +13,8 @@
 
 use crate::tools::semantic::{GUARD, configured_qa_model};
 use crate::*;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
 use hkask_types::corpus::{ChunkOntology, TaggedChunk};
 
@@ -1311,4 +1313,151 @@ fn kmeans_cluster(
         clusters[assignments[pi]].push(idx);
     }
     clusters.into_iter().filter(|c| !c.is_empty()).collect()
+}
+
+// ── Corpus pipeline request structs ───────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DedupChunksRequest {
+    /// Path to tagged chunks JSONL (from salience phase).
+    pub tagged_jsonl: String,
+    /// Output path for deduplicated tagged chunks JSONL.
+    pub output: String,
+    /// Path to the SQLCipher memory DB containing chunk embeddings.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// Entity-ref prefix for chunk embeddings in the DB (e.g. "corpus:researcher:").
+    #[serde(default = "default_corpus_prefix")]
+    pub prefix: String,
+    /// Cosine similarity threshold — chunks above this are near-duplicates.
+    #[serde(default = "default_dedup_threshold")]
+    pub threshold: f64,
+    /// If true, only report clustering stats without writing output.
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+fn default_corpus_prefix() -> String {
+    "corpus:researcher:".to_string()
+}
+
+fn default_dedup_threshold() -> f64 {
+    0.85
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConsolidateChunksRequest {
+    /// Path to tagged chunks JSONL (from dedup or salience phase).
+    pub tagged_jsonl: String,
+    /// Output path for consolidated tagged chunks JSONL.
+    pub output: String,
+    /// Path to the SQLCipher memory DB.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// Entity-ref prefix for chunk embeddings.
+    #[serde(default = "default_corpus_prefix")]
+    pub prefix: String,
+    /// Cosine similarity threshold for clustering (0.75 = semantic overlap).
+    #[serde(default = "default_consolidate_threshold")]
+    pub threshold: f64,
+    /// Max concurrent LLM consolidation calls.
+    #[serde(default = "default_consolidate_concurrency")]
+    pub concurrency: usize,
+    /// Max chunks per consolidation cluster (limits LLM context).
+    #[serde(default = "default_max_chunks_per_cluster")]
+    pub max_chunks_per_cluster: usize,
+    /// If true, only report clustering stats without LLM calls.
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+fn default_consolidate_threshold() -> f64 {
+    0.75
+}
+
+fn default_consolidate_concurrency() -> usize {
+    12
+}
+
+fn default_max_chunks_per_cluster() -> usize {
+    5
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BuildPromptsRequest {
+    /// Path to tagged chunks JSONL (from consolidate phase).
+    pub tagged_jsonl: String,
+    /// Output path for prompts JSONL (one JSON per line, consumed by generate_qa_batch).
+    pub output: String,
+    /// Path to the SQLCipher memory DB for embedding retrieval + h_mem knowledge graph.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// Number of KNN context passages to retrieve per chunk (default 3).
+    #[serde(default = "default_context_k")]
+    pub context_k: usize,
+    /// Number of Bloom-level QA prompts per chunk (default 5 — one per level).
+    #[serde(default = "default_prompts_per_chunk")]
+    pub prompts_per_chunk: usize,
+    /// Bloom's taxonomy weight distribution (e.g. "1,1,1,1,1" = equal).
+    #[serde(default = "default_type_distribution")]
+    pub type_distribution: String,
+    /// Generate cross-reference synthesis prompts.
+    #[serde(default)]
+    pub cross_reference: bool,
+    /// Max prompts to output (0 = all qualifying chunks).
+    #[serde(default)]
+    pub max_prompts: usize,
+    /// Owner persona for h_mem queries (e.g. "john-brooks").
+    #[serde(default = "default_owner")]
+    pub owner: String,
+}
+
+fn default_context_k() -> usize {
+    3
+}
+
+fn default_prompts_per_chunk() -> usize {
+    5
+}
+
+fn default_type_distribution() -> String {
+    "1,1,1,1,1".to_string()
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct IngestQaRequest {
+    /// Path to generated QAs JSONL (from docproc_generate_qa_batch).
+    pub generated_jsonl: String,
+    /// Output path for training-ready JSONL (instruction/input/output per line).
+    pub output: String,
+    /// Path to the SQLCipher memory DB for h_mem + embedding storage.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// SemDeDup cosine similarity threshold (0.89 = moderate, 0.92 = strict).
+    #[serde(default = "default_dedup_threshold_ingest")]
+    pub dedup_threshold: f64,
+    /// If true, validate and dedup without storing.
+    #[serde(default)]
+    pub dry_run: bool,
+    /// Store QA embedding vectors in EmbeddingStore for KNN search.
+    #[serde(default)]
+    pub embed_qas: bool,
+    /// Dataset name for training_qa_pair h_mems.
+    #[serde(default = "default_dataset")]
+    pub dataset: String,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_owner")]
+    pub owner: String,
+}
+
+fn default_dedup_threshold_ingest() -> f64 {
+    0.89
+}
+
+fn default_dataset() -> String {
+    "capabilities-researcher".to_string()
 }

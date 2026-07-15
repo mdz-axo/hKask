@@ -232,3 +232,45 @@ The loss drops fast in the first 200 steps (PiSSA advantage), then improves slow
 - With patience=25, minimum training is ~5,000 steps ≈ 14 hours ≈ $45.
 - The adapter at eval_loss 0.198 (step 3200) cost ~$35 total (including setup, failed attempts, and training).
 - Failed attempts (OOM, disk space, checkpoint resume) added ~$20 of wasted compute. Getting the config right the first time would save this.
+
+## v2: Improving Analysis Task Performance
+
+The v1 adapter (`qwen36-rust-reasoning-all-lora`, eval_loss 0.1872) produces concise Rust code quickly but is **overconfident on analysis tasks** — it says "no bug found" when bugs exist, and gives terse reviews without examining the code.
+
+### Root Cause
+
+Three converging causes:
+
+1. **Direct-answer targets**: The v1 preprocessing formatted `bug_detection` as `**Bug:** {description}\n**Fixed code:** {code}` — no reasoning trace. The model learns P(conclusion | code) directly and emits the most likely conclusion token immediately.
+2. **Shallow analysis data**: The 533K introspector examples are pattern extraction ("Element type: X, Name: Y"), not analytical reasoning. They teach terseness.
+3. **Capacity ceiling**: r=16 (79.7M params, 0.29%) is enough for codegen pattern-matching but thin for multi-step reasoning.
+
+The base model CAN reason (3,400–5,400 char responses with thinking traces), but the adapter's training format teaches it to bypass reasoning.
+
+### Fix: Two Levers
+
+| Lever | Change | Why |
+|-------|--------|-----|
+| **Format** | Add chain-of-thought to analysis targets (bug_detection, code_review, refactoring, optimization) | Forces deliberation before conclusion at inference |
+| **Capacity** | r=16 → r=32 (159.4M params, 0.59%) | More headroom for multi-step reasoning |
+
+### v2 Training Workflow (on RunPod)
+
+All v2 scripts (preprocessing, distillation, config, eval) live in the HuggingFace scripts repo (`Axolotl-Partners/rust-adapter-scripts`), not in hKask — hKask is a Rust project and Python is not an acceptable dependency.
+
+1. **Optional: Distill reasoning traces** — Use the base Qwen3.6-27B to generate CoT traces for the analysis subset (bug_detection, code_review, refactoring, optimization). The base model reasons well; capturing its traces lets the adapter learn to produce them. ~4h on H100.
+2. **Preprocess v2 data** — Reformat analysis targets with CoT scaffolding (or distilled traces if step 1 was run). Two system prompts: concise for codegen, thorough for analysis.
+3. **Train with v2 config** — Same optimizations as v1 (PiSSA, patience=25, SDPA, Liger, CCE) but r=32, alpha=64. PiSSA still applies at r=32. Expect ~26h, ~$83.
+4. **Eval with vLLM** — vLLM continuous batching gives 10-50x speedup over sequential HF generate (225 examples in ~15 min vs ~18h). Falls back to HF batched generation (4-8x) if vLLM doesn't support Qwen3.6's hybrid attention.
+
+### Immediate Alternative (No Retrain)
+
+Route analysis tasks to the base model (no adapter) and use the adapter only for code generation. The base model handles bug detection correctly but takes 77–112s per example — acceptable for analysis, not for codegen. This costs nothing and can be deployed while v2 training is planned.
+
+### System Prompt Split
+
+v2 uses two system prompts:
+- **Codegen** (concise): "You are a Rust programming expert. Provide idiomatic, correct, and well-structured Rust code."
+- **Analysis** (thorough): "You are a Rust code analysis expert. Before stating your conclusion, carefully trace through the code and check for common Rust pitfalls: arithmetic safety, ownership and borrowing, edge cases, and type correctness. Only conclude after you have examined the code."
+
+The analysis prompt explicitly delays the conclusion, which counteracts the overconfidence pattern.
