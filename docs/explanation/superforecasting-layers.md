@@ -166,30 +166,35 @@ tool), `choice`, and `loop`. A `compute` step invokes a canonical
 `hkask_forecast::*` primitive deterministically — no LLM round-trip, no MCP
 call, no inference cost.
 
-The superforecasting manifest uses `compute` for the calibration-feedback step
-in its PDCA loop re-entry:
+The superforecasting manifest now uses `compute` for **three deterministic stages**
+within the 16-step pipeline, replacing the LLM's arithmetic with canonical math:
 
-```yaml
-- ordinal: 13
-  action: compute
-  compute_ref: apply_calibration_adjustment
-  input_mapping:
-    prior: "{{ step_9_result.final_probability | default(0.5) }}"
-    overconfidence_bias: "{{ overconfidence_bias | default(0.0) }}"
-```
+| Step | Action | compute_ref | Role |
+|------|--------|------------|------|
+| 3 | compute | `calibrate_from_fermi` | Fermi weighted-average of LLM-produced sub-questions → inside estimate |
+| 5 | compute | `outside_view_adjustment` | Shrinkage blend of LLM-produced base rate with Fermi estimate → calibrated anchor |
+| 15 | compute | `apply_calibration_adjustment` | Calibration feedback in loop re-entry → adjusted prior |
 
-This is the **unified pipeline**: the skill's iterative loop runs an LLM for
-judgment stages (triage, decomposition, synthesis, calibration, record) and
-Rust for arithmetic stages (calibration feedback). The `overconfidence_bias`
-input defaults to 0.0 (no-op) until an external calibration curve supplies it —
-so the skill is self-contained but connects to the MCP server's learning loop
-when a bias is provided.
+The LLM stages (select) produce the **inputs**: triage judgment, sub-question
+decomposition, reference-class identification, evidence assessment, hypothesis
+reasoning, synthesis, calibration, record. The compute stages produce the
+**arithmetic**: weighted averages, shrinkage estimators, calibration
+adjustment. This is the **unified pipeline** — each stage uses the right tool.
+
+The `overconfidence_bias` input for step 15 defaults to 0.0 (no-op) until an
+external calibration curve (from `scenario_calibration`) supplies it — so the
+skill is self-contained but connects to the MCP server's learning loop when a
+bias is provided.
 
 The `compute` dispatch table supports all 7 conformance-checked primitives
 (`calibrate_from_fermi`, `outside_view_adjustment`, `bayesian_update`,
 `apply_calibration_adjustment`, `brier_score`, `brier_score_multi`,
 `brier_interpretation`), so any deterministic Tetlock stage can be retargeted
-from `select` to `compute` in the manifest without an engine change.
+from `select` to `compute` in the manifest without an engine change. The
+Bayesian update (`bayesian_update`) is the remaining stage that requires a
+template change (the evidence-update template must output likelihood ratios
+instead of a pre-computed posterior) before it can be retargeted — that is the
+one remaining `select` stage doing arithmetic.
 
 ## Common drift and how this model prevents it
 

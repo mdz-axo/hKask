@@ -25,7 +25,7 @@ convergence:
   improvement_gate: threshold_only
   max_iterations: 3
   min_iterations: 1
-  convergence_field: step_12_result.convergence_metric
+  convergence_field: step_14_result.convergence_metric
   on_not_reached: escalate
 
 gas:
@@ -104,6 +104,21 @@ steps:
       triage_output: "{{ step_1_result }}"
 
   - ordinal: 3
+    action: compute
+    description: >
+      Deterministic Fermi calibration — confidence-weighted average of the
+      sub-question estimates produced by stage 1. Replaces the LLM's arithmetic
+      with the canonical hkask_forecast::calibrate_from_fermi primitive.
+      Produces fermi_estimate (the inside-view estimate) consumed by the
+      outside-view adjustment compute step.
+    compute_ref: calibrate_from_fermi
+    gas_cap: 100
+    timeout_seconds: 5
+    input_mapping:
+      questions: "{{ step_2_result.sub_questions | default([]) }}"
+    fusion: false
+
+  - ordinal: 4
     action: select
     description: Build outside-view base-rate anchor.
     renderer: minijinja
@@ -115,7 +130,26 @@ steps:
       sub_questions: "{{ step_2_result.sub_questions | default([]) }}"
       knowns: "{{ step_2_result.knowns | default([]) }}"
 
-  - ordinal: 4
+  - ordinal: 5
+    action: compute
+    description: >
+      Deterministic outside-view adjustment — shrinkage estimator blending the
+      LLM-produced base rate (starting_probability) with the Fermi inside
+      estimate. Uses hkask_forecast::outside_view_adjustment. The reference_count
+      is proxied by the number of reference classes the LLM identified
+      (base_rates array length) — more classes means more data, less shrinkage.
+      Produces calibrated + confidence, the anchor consumed by the
+      probability-estimate stage.
+    compute_ref: outside_view_adjustment
+    gas_cap: 100
+    timeout_seconds: 5
+    input_mapping:
+      base_rate: "{{ step_4_result.starting_probability | default(0.5) }}"
+      inside_estimate: "{{ step_3_result.calibrated | default(0.5) }}"
+      reference_count: "{{ step_4_result.base_rates | default([]) | length }}"
+    fusion: false
+
+  - ordinal: 6
     action: select
     description: >
       Delegate causal-hypothesis generation to the falsifiability skill
@@ -129,9 +163,9 @@ steps:
     input_mapping:
       admitted_target: "{{ forecasting_question }}"
       domain: "{{ domain | default('forecasting') }}"
-      context: "{{ {'sub_questions': step_2_result.sub_questions | default([]), 'outside_view': step_3_result} }}"
+      context: "{{ {'sub_questions': step_2_result.sub_questions | default([]), 'outside_view': step_4_result} }}"
 
-  - ordinal: 5
+  - ordinal: 7
     action: select
     description: >
       Delegate necessary-conditions counterfactual analysis to the falsifiability
@@ -143,29 +177,31 @@ steps:
     gas_cap: 4096
     timeout_seconds: 60
     input_mapping:
-      hypotheses: "{{ step_4_result.hypotheses | default([]) }}"
+      hypotheses: "{{ step_6_result.hypotheses | default([]) }}"
       admitted_target: "{{ forecasting_question }}"
       domain: "{{ domain | default('forecasting') }}"
 
-  - ordinal: 6
+  - ordinal: 8
     action: select
     description: >
       Estimate per-hypothesis probabilities (informed by each counterfactual's
       testable consequence), enforce internal consistency, and combine to adjust
       from the outside-view anchor. The remaining inside-view work after
-      generation and counterfactual analysis were delegated.
+      generation and counterfactual analysis were delegated. The starting
+      probability now comes from the deterministic outside-view compute step
+      (step_5_result.calibrated), not the LLM's raw starting_probability.
     renderer: minijinja
     template_ref: superforecasting/stage_3_probability_estimate
     gas_cap: 4500
     timeout_seconds: 75
     input_mapping:
       forecasting_question: "{{ forecasting_question }}"
-      hypotheses: "{{ step_4_result.hypotheses | default([]) }}"
-      counterfactuals: "{{ step_5_result.counterfactuals | default([]) }}"
-      starting_probability: "{{ step_3_result.starting_probability | default(0.5) }}"
-      outside_view_output: "{{ step_3_result }}"
+      hypotheses: "{{ step_6_result.hypotheses | default([]) }}"
+      counterfactuals: "{{ step_7_result.counterfactuals | default([]) }}"
+      starting_probability: "{{ step_5_result.calibrated | default(0.5) }}"
+      outside_view_output: "{{ step_4_result }}"
 
-  - ordinal: 7
+  - ordinal: 9
     action: select
     description: Apply Bayesian updates from incoming evidence.
     renderer: minijinja
@@ -174,11 +210,11 @@ steps:
     timeout_seconds: 60
     input_mapping:
       forecasting_question: "{{ forecasting_question }}"
-      prior_probability: "{{ step_6_result.hypothesis_probabilities.combined_probability | default(step_3_result.starting_probability | default(0.5)) }}"
-      hypothesis_analysis: "{{ step_6_result.hypothesis_probabilities | default({}) }}"
+      prior_probability: "{{ step_8_result.hypothesis_probabilities.combined_probability | default(step_5_result.calibrated | default(0.5)) }}"
+      hypothesis_analysis: "{{ step_8_result.hypothesis_probabilities | default({}) }}"
       new_evidence: "{{ new_evidence | default([]) }}"
 
-  - ordinal: 8
+  - ordinal: 10
     action: select
     description: Synthesize multi-model dragonfly-eye view.
     renderer: minijinja
@@ -187,11 +223,11 @@ steps:
     timeout_seconds: 75
     input_mapping:
       forecasting_question: "{{ forecasting_question }}"
-      updated_probability: "{{ step_7_result.updated_probability | default(0.5) }}"
-      hypothesis_analysis: "{{ step_6_result.hypothesis_probabilities | default({}) }}"
-      inside_view_output: "{{ step_6_result }}"
+      updated_probability: "{{ step_9_result.updated_probability | default(0.5) }}"
+      hypothesis_analysis: "{{ step_8_result.hypothesis_probabilities | default({}) }}"
+      inside_view_output: "{{ step_8_result }}"
 
-  - ordinal: 9
+  - ordinal: 11
     action: select
     description: Calibrate final probability and confidence level.
     renderer: minijinja
@@ -200,11 +236,11 @@ steps:
     timeout_seconds: 45
     input_mapping:
       forecasting_question: "{{ forecasting_question }}"
-      synthesized_probability: "{{ step_8_result.synthesized_probability | default(step_7_result.updated_probability | default(0.5)) }}"
-      synthesis_output: "{{ step_8_result }}"
-      pipeline_outputs: "{{ {'triage': step_1_result, 'outside': step_3_result, 'inside': step_6_result, 'evidence': step_7_result, 'synthesis': step_8_result} }}"
+      synthesized_probability: "{{ step_10_result.synthesized_probability | default(step_9_result.updated_probability | default(0.5)) }}"
+      synthesis_output: "{{ step_10_result }}"
+      pipeline_outputs: "{{ {'triage': step_1_result, 'outside': step_4_result, 'inside': step_8_result, 'evidence': step_9_result, 'synthesis': step_10_result} }}"
 
-  - ordinal: 10
+  - ordinal: 12
     action: select
     description: Record structured forecast for later scoring/post-mortem.
     renderer: minijinja
@@ -213,13 +249,13 @@ steps:
     timeout_seconds: 45
     input_mapping:
       forecasting_question: "{{ forecasting_question }}"
-      final_probability: "{{ step_9_result.final_probability | default(step_8_result.synthesized_probability | default(0.5)) }}"
-      confidence_level: "{{ step_9_result.confidence_level | default('medium') }}"
-      pipeline_summary: "{{ {'triage_difficulty': step_1_result.difficulty_level | default('unknown'), 'sub_question_count': step_2_result.sub_questions | default([]) | length, 'reference_class_count': step_3_result.reference_classes | default([]) | length, 'hypothesis_count': step_4_result.hypotheses | default([]) | length, 'evidence_count': step_7_result.evidence_items | default([]) | length} }}"
+      final_probability: "{{ step_11_result.final_probability | default(step_10_result.synthesized_probability | default(0.5)) }}"
+      confidence_level: "{{ step_11_result.confidence_level | default('medium') }}"
+      pipeline_summary: "{{ {'triage_difficulty': step_1_result.difficulty_level | default('unknown'), 'sub_question_count': step_2_result.sub_questions | default([]) | length, 'reference_class_count': step_4_result.reference_classes | default([]) | length, 'hypothesis_count': step_6_result.hypotheses | default([]) | length, 'evidence_count': step_9_result.evidence_items | default([]) | length} }}"
       resolution_criteria: "{{ resolution_criteria | default('Outcome judged against explicit public evidence.') }}"
       expiration_date: "{{ expiration_date | default(null) }}"
 
-  - ordinal: 11
+  - ordinal: 13
     action: select
     description: Independent quality gate — evaluates calibration realism, confidence, evidence trail, and record completeness.
     renderer: minijinja
@@ -228,12 +264,12 @@ steps:
     timeout_seconds: 45
     input_mapping:
       forecasting_question: "{{ forecasting_question }}"
-      calibration_result: "{{ step_9_result }}"
-      record_result: "{{ step_10_result }}"
-      synthesis_output: "{{ step_8_result }}"
+      calibration_result: "{{ step_11_result }}"
+      record_result: "{{ step_12_result }}"
+      synthesis_output: "{{ step_10_result }}"
     fusion: false
 
-  - ordinal: 12
+  - ordinal: 14
     action: select
     description: Compute normalized convergence metric for forecasting cycle.
     renderer: minijinja
@@ -242,14 +278,14 @@ steps:
     timeout_seconds: 30
     input_mapping:
       triage_result: "{{ step_1_result }}"
-      calibration_result: "{{ step_9_result }}"
-      record_result: "{{ step_10_result }}"
-      gate_result: "{{ step_11_result }}"
+      calibration_result: "{{ step_11_result }}"
+      record_result: "{{ step_12_result }}"
+      gate_result: "{{ step_13_result }}"
       prior_probability: "{{ prior_probability | default(null) }}"
       new_evidence: "{{ new_evidence | default([]) }}"
     fusion: false
 
-  - ordinal: 13
+  - ordinal: 15
     action: compute
     description: >
       Apply the learned calibration bias to the prior probability before
@@ -261,11 +297,11 @@ steps:
     gas_cap: 100
     timeout_seconds: 5
     input_mapping:
-      prior: "{{ step_9_result.final_probability | default(0.5) }}"
+      prior: "{{ step_11_result.final_probability | default(0.5) }}"
       overconfidence_bias: "{{ overconfidence_bias | default(0.0) }}"
     fusion: false
 
-  - ordinal: 14
+  - ordinal: 16
     action: loop
     description: >
       Re-enter forecasting refinement cycle if convergence is not met.
@@ -277,7 +313,7 @@ steps:
       iterations (delta < 0.02 with no new evidence).
     input_mapping:
       loop_target: 2
-      prior_probability: "{{ step_13_result.adjusted | default(step_9_result.final_probability | default(0.5)) }}"
+      prior_probability: "{{ step_15_result.adjusted | default(step_11_result.final_probability | default(0.5)) }}"
 
 error_handling:
   on_gas_exceeded: abort
@@ -336,6 +372,14 @@ ocap:
       action: render
       template_id: superforecasting/superforecasting-convergence-check
       gas_budget: 2000
+    - resource: compute
+      action: execute
+      compute_ref: calibrate_from_fermi
+      gas_budget: 100
+    - resource: compute
+      action: execute
+      compute_ref: outside_view_adjustment
+      gas_budget: 100
     - resource: compute
       action: execute
       compute_ref: apply_calibration_adjustment
