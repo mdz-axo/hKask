@@ -82,17 +82,9 @@ The `client: reqwest::Client` field is created at startup with `reqwest::Client:
 
 **Constraint force:** Guardrail (P5 deep-module discipline) — pass-through field that adds no behavior.
 
-#### I-5: `ScenarioError::EmptyInput` variant is never constructed
+#### I-5: ~~`ScenarioError::EmptyInput` variant is never constructed~~ (FALSE FINDING — RETRACTED)
 
-**Files:** `types.rs:52-53` (definition), grep across crate: zero construction sites
-
-The `EmptyInput(String)` error variant exists in the enum but is never returned by any function. Dead code.
-
-**Essentialist G1 (Exist):** Delete the variant. No behavior vanishes.
-
-**Recommendation:** Remove `EmptyInput` from `ScenarioError`.
-
-**Constraint force:** Guideline (P5) — unused variants are dead code.
+**Retraction:** `EmptyInput` IS used in `superforecast::structure_framing_document` (line 415). The initial grep missed it due to a search pattern issue. This finding is retracted — no action needed.
 
 #### I-6: `depends_on` is `Vec<EventDependency>` but only `[0]` is ever used
 
@@ -256,13 +248,13 @@ Running the 3-gate eliminative interrogation on each finding:
 | Issue | G1 Exist | G2 Surface | G3 Contract | Verdict |
 |-------|----------|------------|-------------|---------|
 | I-4 (reqwest::Client) | FAIL — delete, nothing breaks | N/A | N/A | **Delete** |
-| I-5 (EmptyInput) | FAIL — delete, nothing breaks | N/A | N/A | **Delete** |
+| I-5 (EmptyInput) | RETRACTED — variant IS used | N/A | N/A | **No action** |
 | I-13 (combined_router) | FAIL — inline, nothing breaks | N/A | N/A | **Inline** |
 | I-1 (double recording) | PASS — removing record_experience loses provenance detail | PASS — 2 public items (infrastructure + detail) | PASS — each encodes different behavior | **Keep both, document trade-off** |
 | I-6 (depends_on Vec) | PASS — removing the Vec changes the type | FAIL — Vec implies many, only one used | FAIL — type permits ignored entries | **Fix type to Option** |
 | I-8 (variance_contribution) | PASS — the value is used | PASS — single field | PASS — but name is wrong | **Rename** |
 
-**Essentialism score:** 3 items (I-4, I-5, I-13) should be deleted/inlined. 15 total items → 20% reduction.
+**Essentialism score:** 2 items (I-4, I-13) should be deleted/inlined. 15 total items → 13% reduction. (I-5 retracted — EmptyInput IS used.)
 
 ---
 
@@ -293,7 +285,7 @@ Decomposing the 15 issues into the smallest possible independent action items, o
 | Step | Issue | Files | Effort | Verification |
 |------|-------|-------|--------|-------------|
 | 1.1 | Remove `reqwest::Client` field + constructor arg + Cargo.toml dep | `lib.rs:269,1838`, `Cargo.toml:23` | 5 min | `cargo build` |
-| 1.2 | Remove `EmptyInput` variant from `ScenarioError` | `types.rs:52-53` | 2 min | `cargo build` |
+| ~~1.2~~ | ~~Remove `EmptyInput` variant~~ | ~~RETRACTED: variant IS used~~ | — | — |
 | 1.3 | Inline `combined_router` → `scenario_router` | `lib.rs:375-379,1793` | 2 min | `cargo build` |
 
 ### Phase 2 — Naming and string fixes (no logic change)

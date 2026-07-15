@@ -713,7 +713,7 @@ impl MediaServer {
             face_id,
         }): Parameters<GalleryNameFaceRequest>,
     ) -> String {
-:         execute_tool(self, "gallery_name_face", async {
+        execute_tool(self, "gallery_name_face", async {
             let resolved_name = if let Some(ref fid) = face_id {
                 self.gallery_store
                     .get_face(fid)
@@ -730,11 +730,9 @@ impl MediaServer {
                         ));
                     }
                 }
-:             };
+            };
 
-            let ga = self
-                .access_gallery()
-                .map_err(map_media_error)?;
+            let ga = self.access_gallery().map_err(map_media_error)?;
 
             let all_tags = self
                 .gallery_store
@@ -786,7 +784,7 @@ impl MediaServer {
         execute_tool(self, "face_validate", async {
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             let (vision_model, _vision_label) = self.require_vision().await?;
 
@@ -819,14 +817,14 @@ impl MediaServer {
         execute_tool(self, "face_register", async {
             let image_id = self
                 .resolve_image_id(image_index)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             let (status, notes, validation) = if force {
                 ("valid", String::new(), None)
             } else {
                 let image_url = self
                     .resolve_image_url(image_index)
-                    .map_err(McpToolError::invalid_argument)?;
+                    .map_err(map_media_error)?;
 
                 let (vision_model, _vision_label) = self.require_vision().await?;
 
@@ -964,7 +962,7 @@ impl MediaServer {
             }
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             self.inference
                 .segment_object(&image_url, &object_description)
@@ -987,9 +985,7 @@ impl MediaServer {
         }): Parameters<GalleryTimelineRequest>,
     ) -> String {
         execute_tool(self, "gallery_timeline", async {
-            let ga = self
-                .access_gallery()
-                .map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(map_media_error)?;
 
             let mut dated_images: Vec<(String, String)> = Vec::new();
             for idx in 0..ga.image_count as usize {

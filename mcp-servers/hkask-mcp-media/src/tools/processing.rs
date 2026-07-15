@@ -18,7 +18,7 @@ impl MediaServer {
         execute_tool(self, "image_remove_background", async {
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             self.inference
                 .remove_background(&image_url)
@@ -47,7 +47,7 @@ impl MediaServer {
             }
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             self.inference
                 .image_to_image(&image_url, &style_prompt, strength)
@@ -86,7 +86,7 @@ impl MediaServer {
                 ));
             }
 
-            let ga = self.access_gallery().map_err(McpToolError::invalid_argument)?;
+            let ga = self.access_gallery().map_err(map_media_error)?;
 
             let mut paths = Vec::new();
 
@@ -118,8 +118,8 @@ impl MediaServer {
             } else if let Some(ref_idx) = similar_to_index {
                 let ref_path = self
                     .resolve_image_path(ref_idx)
-                    .map_err(McpToolError::invalid_argument)?;
-                let ref_image_id = self.resolve_image_id(ref_idx).map_err(McpToolError::invalid_argument)?;
+                    .map_err(map_media_error)?;
+                let ref_image_id = self.resolve_image_id(ref_idx).map_err(map_media_error)?;
                 let ref_tags = self
                     .gallery_store
                     .get_tags(&ref_image_id)
@@ -165,7 +165,7 @@ impl MediaServer {
                 }
                 let limit = indices.len().min(max_items);
                 for idx in indices.iter().take(limit) {
-                    paths.push(self.resolve_image_path(*idx).map_err(McpToolError::invalid_argument)?);
+                    paths.push(self.resolve_image_path(*idx).map_err(map_media_error)?);
                 }
             }
 
@@ -279,7 +279,7 @@ impl MediaServer {
                 .ffmpeg
                 .clip(&video_url, start_sec, end_sec)
                 .await
-                .map_err(McpToolError::internal)?;
+                .map_err(map_media_error)?;
 
             Ok(serde_json::json!({
                 "status": "clipped",
@@ -332,7 +332,7 @@ impl MediaServer {
                 .ffmpeg
                 .to_gif(&video_url, start, dur, w, f)
                 .await
-                .map_err(McpToolError::internal)?;
+                .map_err(map_media_error)?;
 
             Ok(serde_json::json!({
                 "status": "converted",
@@ -367,7 +367,7 @@ impl MediaServer {
             }
             let image_url = self
                 .resolve_image_url(image_index)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             self.inference
                 .image_to_video(&image_url, prompt.as_deref(), duration)
@@ -404,7 +404,7 @@ impl MediaServer {
                 .ffmpeg
                 .add_caption(&video_url, &text, pos, size)
                 .await
-                .map_err(McpToolError::internal)?;
+                .map_err(map_media_error)?;
 
             Ok(serde_json::json!({
                 "status": "captioned",
@@ -508,7 +508,7 @@ impl MediaServer {
             for idx in &image_indices {
                 paths.push(
                     self.resolve_image_path(*idx)
-                        .map_err(McpToolError::invalid_argument)?,
+                        .map_err(map_media_error)?,
                 );
             }
 
@@ -523,7 +523,7 @@ impl MediaServer {
                 .ffmpeg
                 .images_to_video(&paths, fps, fmt)
                 .await
-                .map_err(McpToolError::internal)?;
+                .map_err(map_media_error)?;
 
             Ok(serde_json::json!({
                 "status": "created",
@@ -558,7 +558,7 @@ impl MediaServer {
                 .ffmpeg
                 .concat(&video_urls)
                 .await
-                .map_err(McpToolError::internal)?;
+                .map_err(map_media_error)?;
 
             Ok(serde_json::json!({
                 "status": "concatenated",
@@ -661,7 +661,7 @@ impl MediaServer {
         execute_tool(self, "video_meme", async {
             let image_path = self
                 .resolve_image_path(image_index)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(map_media_error)?;
 
             let mut img =
                 image::open(&image_path).map_err(|e| McpToolError::internal(format!("Failed to open image: {}", e)))?;

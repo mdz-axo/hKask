@@ -210,7 +210,7 @@ impl MediaServer {
                 .ffmpeg
                 .capture_audio(duration_secs, output_path.as_deref())
                 .await
-                .map_err(McpToolError::internal)?;
+                .map_err(map_media_error)?;
 
             Ok(serde_json::json!({
                 "status": "captured",

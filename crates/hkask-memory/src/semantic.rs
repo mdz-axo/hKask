@@ -697,7 +697,7 @@ impl SemanticMemory {
                     let mut split_at = target;
                     let mut found = false;
                     for (i, w) in words.iter().enumerate().skip(target).take(look_ahead) {
-                        if Self::is_sentence_end(w, &boundary_chars, ABBREVS) {
+                        if Self::is_sentence_end(w, &boundary_chars, Self::ABBREVS) {
                             split_at = i + 1;
                             found = true;
                             break;
@@ -706,7 +706,7 @@ impl SemanticMemory {
                     if !found {
                         let back_floor = start + min_words.min(words.len());
                         for i in (back_floor..target).rev() {
-                            if Self::is_sentence_end(words[i], &boundary_chars, ABBREVS) {
+                            if Self::is_sentence_end(words[i], &boundary_chars, Self::ABBREVS) {
                                 split_at = i + 1;
                                 break;
                             }
