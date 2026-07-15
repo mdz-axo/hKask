@@ -647,12 +647,11 @@ impl<'a> SkillAuditor<'a> {
                     continue;
                 }
                 // Branching values are ordinals: "key: <integer>".
-                if let Some((_, val)) = t.split_once(':') {
-                    if let Ok(n) = val.trim().parse::<u32>() {
-                        if !ordinals.contains(&n) {
-                            bad_branch.insert(n);
-                        }
-                    }
+                if let Some((_, val)) = t.split_once(':')
+                    && let Ok(n) = val.trim().parse::<u32>()
+                    && !ordinals.contains(&n)
+                {
+                    bad_branch.insert(n);
                 }
             }
         }
@@ -786,17 +785,16 @@ impl<'a> SkillAuditor<'a> {
                 .get("fusion")
                 .and_then(|v| v.get("skills"))
                 .and_then(|v| v.as_sequence())
+                && let Ok(known) = self.collect_skill_names()
             {
-                if let Ok(known) = self.collect_skill_names() {
-                    for skill_ref in skills {
-                        let Some(ref_str) = skill_ref.as_str() else {
-                            continue;
-                        };
-                        if !known.iter().any(|s| s == ref_str) {
-                            defects.push(FlowDefDefect::CompositionRefInvalid {
-                                skill_ref: ref_str.to_string(),
-                            });
-                        }
+                for skill_ref in skills {
+                    let Some(ref_str) = skill_ref.as_str() else {
+                        continue;
+                    };
+                    if !known.iter().any(|s| s == ref_str) {
+                        defects.push(FlowDefDefect::CompositionRefInvalid {
+                            skill_ref: ref_str.to_string(),
+                        });
                     }
                 }
             }
