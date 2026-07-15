@@ -10,18 +10,17 @@
 //! and Brier scoring for calibration tracking.
 
 use crate::types::{
-    AssessInput, CalibrationBin, CalibrationCurve, CrossValidation,
-    DragonflySynthesis, EventTree, EventTreeNode, ForecastOutcome, FramingDocument, PersonaConfig,
-    Perspective, PhaseScore, ProjectAssessment, ScenarioError, ScenarioEvent, ScenarioType,
-    StakeholderConfig, StoredForecastRecord, SubQuestion, SubQuestionDivergence, TimeHorizon,
-    TriageAssessment, UseCase,
+    AssessInput, CalibrationBin, CalibrationCurve, CrossValidation, DragonflySynthesis, EventTree,
+    EventTreeNode, ForecastOutcome, FramingDocument, Perspective, PhaseScore, ProjectAssessment,
+    ScenarioError, ScenarioEvent, ScenarioType, StakeholderConfig, StoredForecastRecord,
+    SubQuestion, SubQuestionDivergence, TimeHorizon, TriageAssessment, UseCase,
 };
 use std::collections::{HashMap, HashSet};
 
 use hkask_forecast as forecast;
 
 // ── Re-exports from hkask-forecast (pure pass-throughs eliminated) ───────
-pub use forecast::{outside_view_adjustment, bayesian_update, brier_score, brier_interpretation};
+pub use forecast::{bayesian_update, brier_interpretation, brier_score, outside_view_adjustment};
 
 // ── Fermi decomposition ────────────────────────────────────────────────────
 
@@ -357,10 +356,7 @@ pub fn score_forecast(
         }
     }
 
-    let bs = match brier_score_multi(&probs, &outs) {
-        Ok(score) => score,
-        Err(_) => 0.33, // sentinel: worse_than_climatology threshold
-    };
+    let bs = brier_score_multi(&probs, &outs).unwrap_or(0.33);
 
     ForecastOutcome {
         forecast_id: forecast_id.to_string(),
@@ -513,10 +509,7 @@ pub fn structure_framing_document(
 /// weights — see Chermack (2011), Ch. 9 for the assessment framework.
 mod assess_tiers {
     pub const PREP_STRONG: f64 = 0.8;
-    pub const PREP_ADEQUATE: f64 = 0.6;
-    pub const PREP_WEAK: f64 = 0.3;
     pub const PREP_PERSPECTIVE_HIGH: usize = 3;
-    pub const PREP_PERSPECTIVE_MID: usize = 2;
     pub const EXP_STRONG: f64 = 0.75;
     pub const EXP_ADEQUATE: f64 = 0.5;
     pub const EXP_WEAK: f64 = 0.2;
@@ -626,15 +619,14 @@ pub fn assess_project(input: &AssessInput) -> ProjectAssessment {
     } else {
         0.0
     };
-    let dev_score = if dep_ratio > assess_tiers::DEV_RATIO_HIGH
-        && event_count >= assess_tiers::DEV_EVENT_MIN
-    {
-        assess_tiers::DEV_STRONG
-    } else if dep_ratio > assess_tiers::DEV_RATIO_MID {
-        assess_tiers::DEV_ADEQUATE
-    } else {
-        assess_tiers::DEV_WEAK
-    };
+    let dev_score =
+        if dep_ratio > assess_tiers::DEV_RATIO_HIGH && event_count >= assess_tiers::DEV_EVENT_MIN {
+            assess_tiers::DEV_STRONG
+        } else if dep_ratio > assess_tiers::DEV_RATIO_MID {
+            assess_tiers::DEV_ADEQUATE
+        } else {
+            assess_tiers::DEV_WEAK
+        };
     let mut dev_strengths = Vec::new();
     let mut dev_gaps = Vec::new();
     if dep_ratio > assess_tiers::DEV_RATIO_HIGH {
@@ -673,7 +665,8 @@ pub fn assess_project(input: &AssessInput) -> ProjectAssessment {
     // ── Phase 5: Project Assessment ──────────────────────────────
     // (Chermack, Ch. 9): Did the project improve decision quality? Learning outcomes?
     let assess_score = if !learning_events.is_empty()
-        && calibration_curve.is_some_and(|c| c.resolved_forecasts >= assess_tiers::ASSESS_RESOLVED_MIN)
+        && calibration_curve
+            .is_some_and(|c| c.resolved_forecasts >= assess_tiers::ASSESS_RESOLVED_MIN)
     {
         assess_tiers::ASSESS_STRONG
     } else if !learning_events.is_empty() {
@@ -1361,17 +1354,6 @@ pub fn convert_companies_output(
             deadline.format("%Y-%m-%d")
         );
 
-        // Probability from scenario analysis (simplified: equal weight with upside signal)
-        let prob = if upside > 0.2 {
-            0.65 // strong upside → higher probability
-        } else if upside > 0.0 {
-            0.55
-        } else if upside > -0.2 {
-            0.40
-        } else {
-            0.25 // strong downside → lower probability
-        };
-
         let growth = scenario.get("applied_growth").and_then(|v| v.as_f64());
         let margin = scenario.get("applied_margin").and_then(|v| v.as_f64());
 
@@ -1394,16 +1376,24 @@ pub fn convert_companies_output(
         // Probability: Fermi-calibrate from sub-questions when available.
         let prob = if !sub_questions.is_empty() {
             calibrate_from_fermi(&sub_questions).unwrap_or_else(|_| {
-                if upside > 0.2 { 0.65 }
-                else if upside > 0.0 { 0.55 }
-                else if upside > -0.2 { 0.40 }
-                else { 0.25 }
+                if upside > 0.2 {
+                    0.65
+                } else if upside > 0.0 {
+                    0.55
+                } else if upside > -0.2 {
+                    0.40
+                } else {
+                    0.25
+                }
             })
+        } else if upside > 0.2 {
+            0.65
+        } else if upside > 0.0 {
+            0.55
+        } else if upside > -0.2 {
+            0.40
         } else {
-            if upside > 0.2 { 0.65 }
-            else if upside > 0.0 { 0.55 }
-            else if upside > -0.2 { 0.40 }
-            else { 0.25 }
+            0.25
         };
 
         events.push(ScenarioEvent {
