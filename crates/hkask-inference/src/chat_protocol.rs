@@ -26,6 +26,19 @@ fn is_true(b: &bool) -> bool {
     *b
 }
 
+/// Skip an `i32` field from serialization when it is zero (the neutral default
+/// for `top_k`). Keeps the request body minimal for providers that reject or
+/// misinterpret non-standard sampling fields.
+fn is_zero_i32(v: &i32) -> bool {
+    *v == 0
+}
+
+/// Skip an `f32` field from serialization when it is zero (the neutral default
+/// for `min_p`, `typical_p`, `frequency_penalty`, `presence_penalty`).
+fn is_zero_f32(v: &f32) -> bool {
+    *v == 0.0
+}
+
 // ── Request types ────────────────────────────────────────────────────────────
 
 /// OpenAI-compatible chat completion request body.
@@ -35,13 +48,20 @@ pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
     pub temperature: f32,
     pub top_p: f32,
+    #[serde(default, skip_serializing_if = "is_zero_i32")]
     pub top_k: i32,
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub min_p: f32,
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub typical_p: f32,
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub frequency_penalty: f32,
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
     pub presence_penalty: f32,
     pub max_tokens: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub n_probs: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,

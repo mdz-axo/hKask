@@ -19,7 +19,7 @@ Consolidated public API surface for all 45 hKask crates, organized by category. 
 | Category | Crates | Count |
 |----------|--------|-------|
 | [Foundation](#foundation-crates) | types, storage, storage-core, database, memory, cns, templates, agents, keystore, mcp, cli, api, capability, ports | 14 |
-| [Infrastructure](#infrastructure-crates) | inference, communication, improv, condenser, codegraph, acp, adapter, test-harness, mcp-cloud-gateway, guard, repl, forecast, corpus-ingest, storage-guard | 14 |
+| [Infrastructure](#infrastructure-crates) | inference, communication, improv, condenser, codegraph, acp, adapter, test-harness, mcp-cloud-gateway, guard, repl, forecast, storage-guard | 13 |
 | [Service](#service-crates) | services-core, services-context, services-runtime, services-chat, services-compose, services-corpus, services-kata-kanban, services-onboarding, services-skill, services-wallet | 10 |
 | [Wallet/Identity/Ledger](#walletidentityledger) | wallet, wallet-types, ledger | 3 |
 | [Ontology/Interface](#ontologyinterface) | bridge-dublincore, bridge-pko, federation, tui | 4 |
@@ -970,14 +970,6 @@ Shared superforecasting computation engine — Fermi decomposition, outside/insi
 **Key Public Types:** `ForecastError` (enum), `FermiQuestion` (struct).
 
 **Public Functions:** `calibrate_from_fermi(questions) -> Result<f64, ForecastError>`, `outside_view_adjustment()`, `bayesian_update(prior, evidence_likelihood, evidence_base_rate) -> f64`, `brier_score(probability, outcome_occurred) -> f64`, `brier_score_multi(probabilities, outcomes) -> Result<f64, ForecastError>`, `brier_interpretation(score) -> &'static str`.
-
-**Feature Flags:** None.
-
----
-
-### hkask-corpus-ingest
-
-Company Researcher corpus embedder.
 
 **Feature Flags:** None.
 

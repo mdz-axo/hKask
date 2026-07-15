@@ -2,7 +2,6 @@
 //!
 //! Thin wrapper around the scenarios server library.
 
-#![allow(unused_crate_dependencies)]
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {

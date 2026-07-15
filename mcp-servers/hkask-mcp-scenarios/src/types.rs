@@ -8,6 +8,7 @@
 //! Brier scoring, event tree computation, dragonfly-eye synthesis, calibration tracking.
 
 use chrono::NaiveDate;
+use hkask_forecast::ForecastError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -38,17 +39,18 @@ pub enum ScenarioError {
     #[error("event '{0}' not found")]
     EventNotFound(String),
 
-    #[error("brier score: probabilities and outcomes have different lengths ({0} vs {1})")]
-    BrierLengthMismatch(usize, usize),
-
-    #[error("brier score: no data provided")]
-    BrierNoData,
+    /// Wrapped forecast-engine error (Fermi validation, Brier scoring).
+    #[error(transparent)]
+    Forecast(#[from] ForecastError),
 
     #[error("cannot synthesize: fewer than 2 perspectives provided")]
     InsufficientPerspectives,
 
     #[error("no stored forecasts found for calibration")]
     NoForecastData,
+
+    #[error("empty input: {0}")]
+    EmptyInput(String),
 }
 
 // ── Framing (Chermack Phase 1 + Schwartz Stage 1) ──────────────────────────
@@ -457,7 +459,26 @@ pub struct BrainstormProtocol {
     pub pipeline: Vec<String>,
 }
 
-// ── Chermack Project Assessment (P5) ────────────────────────────────────
+
+// ── Chermack Project Assessment (P5) ──────────────────────────────────────
+
+/// Input bundle for `assess_project`. Groups the 11 former positional
+/// parameters into a single struct so callers don't need to remember
+/// argument order.
+#[derive(Debug)]
+pub struct AssessInput<'a> {
+    pub project_id: &'a str,
+    pub subject: &'a str,
+    pub perspective_count: usize,
+    pub disagreement_score: f64,
+    pub event_count: usize,
+    pub events_with_deps: usize,
+    pub calibration_curve: Option<&'a CalibrationCurve>,
+    pub strategies_generated: usize,
+    pub strategies_implemented: usize,
+    pub learning_events: Vec<String>,
+    pub has_early_warning_indicators: bool,
+}
 
 /// Assessment of a scenario project's effectiveness.
 /// Based on Chermack's five-phase performance-based scenario system
