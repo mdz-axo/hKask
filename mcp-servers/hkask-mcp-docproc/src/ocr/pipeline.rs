@@ -23,6 +23,21 @@ use crate::ocr::complexity::score_page_complexity;
 use crate::ocr::routing::{SamplingState, route_page};
 use crate::ocr::verification::verify_output;
 
+/// Typed errors for OCR backend execution.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum OcrError {
+    #[error("OCR backend {backend} failed: {message}")]
+    BackendFailed { backend: String, message: String },
+    #[error("No OCR model configured. Set HKASK_OCR_MODEL env var or pass the 'model' parameter.")]
+    NoModel,
+    #[error("Model '{model}' exists but may not support vision input")]
+    NotVisionModel { model: String },
+    #[error("File is empty")]
+    EmptyFile,
+    #[error("OCR inference failed: {0}")]
+    InferenceFailed(String),
+}
+
 /// Trait for executing OCR on a single page image via a specific backend.
 ///
 /// Implementors plug in the concrete invocation path for each backend
@@ -43,15 +58,14 @@ pub trait OcrExecutor: Send + Sync {
 
     /// Execute OCR on a single page image.
     ///
-    /// Returns `Ok(OcrResult)` on success, or `Err(String)` with a
-    /// human-readable error message.
+    /// Returns `Ok(OcrResult)` on success, or `Err(OcrError)` on failure.
     async fn execute(
         &self,
         page_index: usize,
         backend: &OcrBackend,
         image: &DynamicImage,
         is_fallback: bool,
-    ) -> Result<OcrResult, String>;
+    ) -> Result<OcrResult, OcrError>;
 }
 
 /// Run the OCR pipeline on a set of page images.
@@ -765,7 +779,7 @@ mod tests {
             backend: &OcrBackend,
             _image: &DynamicImage,
             is_fallback: bool,
-        ) -> Result<OcrResult, String> {
+        ) -> Result<OcrResult, OcrError> {
             let mut count = self.call_count.lock().unwrap_or_else(|e| e.into_inner());
             let idx = *count;
             *count += 1;
@@ -780,7 +794,7 @@ mod tests {
                     was_fallback: is_fallback,
                 })
             } else {
-                Err("simulated failure".into())
+                Err(OcrError::InferenceFailed("simulated failure".into()))
             }
         }
     }
@@ -862,7 +876,7 @@ mod tests {
             backend: &OcrBackend,
             _image: &DynamicImage,
             is_fallback: bool,
-        ) -> Result<OcrResult, String> {
+        ) -> Result<OcrResult, OcrError> {
             let active = self
                 .active
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst)

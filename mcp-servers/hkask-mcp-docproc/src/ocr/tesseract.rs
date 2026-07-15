@@ -9,7 +9,7 @@ use image::DynamicImage;
 use std::process::Command;
 use std::time::Instant;
 
-use crate::ocr::pipeline::OcrExecutor;
+use crate::ocr::pipeline::{OcrError, OcrExecutor};
 
 /// Tesseract OCR executor using the system `tesseract` binary.
 ///
@@ -68,24 +68,30 @@ impl OcrExecutor for TesseractExecutor {
         backend: &OcrBackend,
         image: &DynamicImage,
         is_fallback: bool,
-    ) -> Result<OcrResult, String> {
+    ) -> Result<OcrResult, OcrError> {
         if *backend != OcrBackend::Tesseract {
-            return Err(format!(
-                "TesseractExecutor cannot handle backend {:?}",
-                backend
-            ));
+            return Err(OcrError::BackendFailed {
+                backend: format!("{:?}", backend),
+                message: "TesseractExecutor cannot handle this backend".into(),
+            });
         }
 
         let start = Instant::now();
 
         // Write image to temp file
-        let temp_dir = tempfile::tempdir().map_err(|e| format!("tempdir: {}", e))?;
+        let temp_dir = tempfile::tempdir().map_err(|e| OcrError::BackendFailed {
+            backend: "tesseract".into(),
+            message: format!("tempdir: {e}"),
+        })?;
         let input_path = temp_dir.path().join("page.png");
         let output_base = temp_dir.path().join("output");
 
         image
             .save(&input_path)
-            .map_err(|e| format!("Failed to save page image: {}", e))?;
+            .map_err(|e| OcrError::BackendFailed {
+                backend: "tesseract".into(),
+                message: format!("Failed to save page image: {e}"),
+            })?;
 
         // Build tesseract command with TSV confidence output.
         // `-c tessedit_create_tsv=1` enables TSV output alongside normal
@@ -110,13 +116,19 @@ impl OcrExecutor for TesseractExecutor {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("tesseract failed: {}", stderr.trim()));
+            return Err(OcrError::BackendFailed {
+                backend: "tesseract".into(),
+                message: format!("tesseract failed: {}", stderr.trim()),
+            });
         }
 
         // Read TSV output — extract both text and confidence in one pass (GAP-1)
         let tsv_path = output_base.with_extension("tsv");
-        let tsv_content = std::fs::read_to_string(&tsv_path)
-            .map_err(|e| format!("Failed to read tesseract TSV output: {}", e))?;
+        let tsv_content =
+            std::fs::read_to_string(&tsv_path).map_err(|e| OcrError::BackendFailed {
+                backend: "tesseract".into(),
+                message: format!("Failed to read tesseract TSV output: {e}"),
+            })?;
 
         let (text, confidence) = parse_tesseract_tsv(&tsv_content);
 
@@ -134,11 +146,17 @@ impl OcrExecutor for TesseractExecutor {
 }
 
 /// Format a user-friendly error when tesseract is not found.
-fn tesseract_error(detail: &str) -> String {
+fn tesseract_error(detail: &str) -> OcrError {
     if detail.contains("No such file") || detail.contains("not found") {
-        "tesseract is not installed. Install tesseract-ocr:\n  Ubuntu/Debian: sudo apt install tesseract-ocr tesseract-ocr-eng\n  macOS: brew install tesseract\n  Fedora: sudo dnf install tesseract".into()
+        OcrError::BackendFailed {
+            backend: "tesseract".into(),
+            message: "tesseract is not installed. Install tesseract-ocr:\n  Ubuntu/Debian: sudo apt install tesseract-ocr tesseract-ocr-eng\n  macOS: brew install tesseract\n  Fedora: sudo dnf install tesseract".into(),
+        }
     } else {
-        format!("Failed to run tesseract: {}", detail)
+        OcrError::BackendFailed {
+            backend: "tesseract".into(),
+            message: format!("Failed to run tesseract: {detail}"),
+        }
     }
 }
 

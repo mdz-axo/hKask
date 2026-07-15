@@ -53,7 +53,7 @@ impl DocProcServer {
                     let model = match self.resolve_ocr_model(None).await {
                         Ok(m) => m,
                         Err(guidance) => {
-                            return Err(McpToolError::failed_precondition(guidance));
+                            return Err(McpToolError::failed_precondition(guidance.to_string()));
                         }
                     };
 
@@ -77,7 +77,7 @@ impl DocProcServer {
                             let model = match self.resolve_ocr_model(None).await {
                                 Ok(m) => m,
                                 Err(guidance) => {
-                                    return Err(McpToolError::failed_precondition(guidance));
+                                    return Err(McpToolError::failed_precondition(guidance.to_string()));
                                 }
                             };
                             let expected = page_images.len();
@@ -149,11 +149,11 @@ impl DocProcServer {
                             return Ok(result);
                         }
                         Err(e) => {
-                            return Err(McpToolError::unavailable(e));
+                            return Err(McpToolError::unavailable(e.to_string()));
                         }
                     },
                     Err(guidance) => {
-                        return Err(McpToolError::failed_precondition(guidance));
+                        return Err(McpToolError::failed_precondition(guidance.to_string()));
                     }
                 }
             }
@@ -291,7 +291,7 @@ impl DocProcServer {
                                             "method": "text_extraction_ocr_failed",
                                             "text": partial_text,
                                             "word_count": word_count,
-                                            "ocr_error": e,
+                                            "ocr_error": e.to_string(),
                                         }))
                                     } else {
                                         Err(McpToolError::unavailable(format!(
@@ -311,7 +311,7 @@ impl DocProcServer {
                                     "text": partial_text,
                                     "word_count": word_count,
                                     "ocr_available": false,
-                                    "ocr_guidance": guidance,
+                                    "ocr_guidance": guidance.to_string(),
                                 }))
                             } else {
                                 Err(McpToolError::failed_precondition(format!(
@@ -346,7 +346,7 @@ impl DocProcServer {
             let model = match self.resolve_ocr_model(model.as_deref()).await {
                 Ok(m) => m,
                 Err(guidance) => {
-                    return Err(McpToolError::failed_precondition(guidance));
+                    return Err(McpToolError::failed_precondition(guidance.to_string()));
                 }
             };
 
@@ -371,7 +371,7 @@ impl DocProcServer {
                     self.record_experience("docproc_ocr", &path_clone, "success", result.clone());
                     Ok(result)
                 }
-                Err(e) => Err(McpToolError::unavailable(e)),
+                Err(e) => Err(McpToolError::unavailable(e.to_string())),
             }
         })
         .await

@@ -256,12 +256,11 @@ The base model CAN reason (3,400–5,400 char responses with thinking traces), b
 
 ### v2 Training Workflow (on RunPod)
 
-All v2 scripts (preprocessing, distillation, config, eval) live in the HuggingFace scripts repo (`Axolotl-Partners/rust-adapter-scripts`), not in hKask — hKask is a Rust project and Python is not an acceptable dependency.
+All v2 scripts (preprocessing, config, eval) live in the HuggingFace repo (`Axolotl-Partners/rust-adapter-scripts`), not in hKask — hKask is a Rust project and Python is not an acceptable dependency.
 
-1. **Optional: Distill reasoning traces** — Use the base Qwen3.6-27B to generate CoT traces for the analysis subset (bug_detection, code_review, refactoring, optimization). The base model reasons well; capturing its traces lets the adapter learn to produce them. ~4h on H100.
-2. **Preprocess v2 data** — Reformat analysis targets with CoT scaffolding (or distilled traces if step 1 was run). Two system prompts: concise for codegen, thorough for analysis.
-3. **Train with v2 config** — Same optimizations as v1 (PiSSA, patience=25, SDPA, Liger, CCE) but r=32, alpha=64. PiSSA still applies at r=32. Expect ~26h, ~$83.
-4. **Eval with vLLM** — vLLM continuous batching gives 10-50x speedup over sequential HF generate (225 examples in ~15 min vs ~18h). Falls back to HF batched generation (4-8x) if vLLM doesn't support Qwen3.6's hybrid attention.
+1. **Preprocess v2 data** — Reformat analysis targets with CoT scaffolding. Two system prompts: concise for codegen, thorough for analysis. The scaffolding adds a structured reasoning checklist before the conclusion, forcing the model to deliberate rather than jump to a terse answer.
+2. **Train with v2 config** — Same optimizations as v1 (PiSSA, patience=25, SDPA, Liger, CCE) but r=32, alpha=64. PiSSA still applies at r=32. Expect ~26h, ~$83.
+3. **Eval with vLLM** — vLLM continuous batching gives 10-50x speedup over sequential HF generate (225 examples in ~15 min vs ~18h). Falls back to HF batched generation (4-8x) if vLLM doesn't support Qwen3.6's hybrid attention.
 
 ### Immediate Alternative (No Retrain)
 

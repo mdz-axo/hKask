@@ -261,7 +261,7 @@ impl OcrExecutor for PipelineExecutor {
         backend: &OcrBackend,
         image: &image::DynamicImage,
         is_fallback: bool,
-    ) -> Result<OcrResult, String> {
+    ) -> Result<OcrResult, crate::ocr::pipeline::OcrError> {
         static TESSERACT: std::sync::LazyLock<TesseractExecutor> =
             std::sync::LazyLock::new(TesseractExecutor::new);
 
@@ -386,15 +386,18 @@ impl DocProcServer {
     }
 
     /// Resolve OCR model: explicit override > HKASK_OCR_MODEL env.
-    pub async fn resolve_ocr_model(&self, override_model: Option<&str>) -> Result<String, String> {
+    pub async fn resolve_ocr_model(
+        &self,
+        override_model: Option<&str>,
+    ) -> Result<String, crate::ocr::pipeline::OcrError> {
         let model = if let Some(m) = override_model
             && !m.is_empty()
         {
             m.to_string()
         } else {
-            self.ocr_model.clone().ok_or_else(|| {
-                "No OCR model configured. Set HKASK_OCR_MODEL env var to a vision-capable model, or pass the 'model' parameter. Use inference_models to discover available models.".to_string()
-            })?
+            self.ocr_model
+                .clone()
+                .ok_or(crate::ocr::pipeline::OcrError::NoModel)?
         };
 
         let vision_models = self.inference_router.list_vision_models().await;
@@ -408,10 +411,9 @@ impl DocProcServer {
                 .iter()
                 .any(|m| m.model == model || m.prefixed_name == model);
             if exists {
-                return Err(format!(
-                    "Model '{}' exists but may not support vision input. Use a vision-capable model (e.g., llava, minicpm-v, lighton). Run 'kask inference models' to list available models.",
-                    model
-                ));
+                return Err(crate::ocr::pipeline::OcrError::NotVisionModel {
+                    model: model.clone(),
+                });
             }
         }
 
@@ -424,9 +426,9 @@ impl DocProcServer {
         file_bytes: &[u8],
         model: &str,
         max_tokens: u32,
-    ) -> Result<String, String> {
+    ) -> Result<String, crate::ocr::pipeline::OcrError> {
         if file_bytes.is_empty() {
-            return Err("File is empty".to_string());
+            return Err(crate::ocr::pipeline::OcrError::EmptyFile);
         }
 
         let b64_data =
@@ -442,7 +444,7 @@ impl DocProcServer {
             .inference_router
             .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(model))
             .await
-            .map_err(|e| format!("OCR inference failed: {}", e))?;
+            .map_err(|e| crate::ocr::pipeline::OcrError::InferenceFailed(e.to_string()))?;
 
         Ok(result.text)
     }

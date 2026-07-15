@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::time::Instant;
 
-use crate::ocr::pipeline::OcrExecutor;
+use crate::ocr::pipeline::{OcrError, OcrExecutor};
 
 /// System prompt for OCR extraction — instructs the model to extract text faithfully.
 /// Applied to all page types including Kindle book pages.
@@ -150,11 +150,14 @@ impl OcrExecutor for LlmOcrExecutor {
         backend: &OcrBackend,
         image: &DynamicImage,
         is_fallback: bool,
-    ) -> Result<OcrResult, String> {
+    ) -> Result<OcrResult, OcrError> {
         let model = match backend {
             OcrBackend::LlmOcr(model) => model.clone(),
             other => {
-                return Err(format!("LlmOcrExecutor cannot handle backend {:?}", other));
+                return Err(OcrError::BackendFailed {
+                    backend: format!("{:?}", other),
+                    message: "LlmOcrExecutor cannot handle this backend".into(),
+                });
             }
         };
 
@@ -167,7 +170,10 @@ impl OcrExecutor for LlmOcrExecutor {
                 &mut std::io::Cursor::new(&mut img_bytes),
                 image::ImageFormat::Jpeg,
             )
-            .map_err(|e| format!("Failed to encode page image as JPEG: {}", e))?;
+            .map_err(|e| OcrError::BackendFailed {
+                backend: "llm_ocr".into(),
+                message: format!("Failed to encode page image as JPEG: {e}"),
+            })?;
 
         let b64_data = base64::engine::general_purpose::STANDARD.encode(&img_bytes);
 
@@ -195,12 +201,12 @@ impl OcrExecutor for LlmOcrExecutor {
                         "OCR inference rate-limited — circuit breaker tracking"
                     );
                 }
-                format!("OCR inference failed: {}", err_str)
+                OcrError::InferenceFailed(err_str)
             });
 
         match &result {
             Ok(_) => self.breaker.record_success(),
-            Err(err_str) => {
+            Err(OcrError::InferenceFailed(err_str)) => {
                 if err_str.contains("429")
                     || err_str.contains("rate limit")
                     || err_str.contains("Rate limit")
@@ -210,6 +216,7 @@ impl OcrExecutor for LlmOcrExecutor {
                     self.breaker.record_failure();
                 }
             }
+            Err(_) => {}
         }
 
         let result = result?;
