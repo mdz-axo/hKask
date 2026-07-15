@@ -527,10 +527,10 @@ pub struct EpValuationRequest {
     pub ic_growth_rate: Option<f64>,
     /// Competitive fade horizon override.
     /// If omitted, we attempt to derive from moat_result.
-    pub moat_override: Option<economic_profit::FadeHorizon>,
+    pub moat_override: Option<crate::economic_profit::FadeHorizon>,
     /// Moat classification from moat_check.
     /// Only used when moat_override is not provided.
-    pub moat_result: Option<economic_profit::FadeHorizon>,
+    pub moat_result: Option<crate::economic_profit::FadeHorizon>,
     /// Stage 1 years: hold current EP constant before fade (1–5, default 3).
     pub stage1_years: Option<u8>,
 }

@@ -57,7 +57,7 @@ pub struct EventTreeDetail {
     pub subject: String,
     pub time_horizon: String,
     pub event_count: usize,
-    pub joint_probability: f64,
+    pub all_events_probability: f64,
     pub root_nodes: Vec<EventNode>,
 }
 

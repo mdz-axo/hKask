@@ -200,7 +200,7 @@ pub fn build_event_tree(events: &[ScenarioEvent]) -> Result<EventTree, ScenarioE
         nodes,
         root_ids,
         topo_order: toposort,
-        joint_probability: joint_prob,
+        all_events_probability: joint_prob,
     })
 }
 
@@ -1024,6 +1024,7 @@ pub struct ForecastStore {
     pub data_path: Option<PathBuf>,
     journal_path: Option<PathBuf>,
     journal_count: usize,
+    persistence_healthy: bool,
 }
 
 impl ForecastStore {
@@ -1039,6 +1040,7 @@ impl ForecastStore {
             data_path,
             journal_path,
             journal_count: 0,
+            persistence_healthy: true,
         };
         store.load();
         store
@@ -1046,32 +1048,44 @@ impl ForecastStore {
 
     /// Load: snapshot first, then replay journal on top (last write wins).
     fn load(&mut self) {
-        if let Some(ref path) = self.data_path
-            && path.exists()
-            && let Ok(data) = fs::read_to_string(path)
-            && let Ok(records) =
-                serde_json::from_str::<HashMap<String, StoredForecastRecord>>(&data)
-        {
-            self.records = records;
-        }
-        if let Some(ref jp) = self.journal_path
-            && jp.exists()
-            && let Ok(data) = fs::read_to_string(jp)
-        {
-            for line in data.lines() {
-                let trimmed = line.trim();
-                if trimmed.is_empty() {
-                    continue;
+        if let Some(ref path) = self.data_path && path.exists() {
+            match fs::read_to_string(path) {
+                Ok(data) => {
+                    match serde_json::from_str::<HashMap<String, StoredForecastRecord>>(&data) {
+                        Ok(records) => { self.records = records; }
+                        Err(e) => {
+                            tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to parse forecast snapshot");
+                            self.persistence_healthy = false;
+                        }
+                    }
                 }
-                if let Ok(entry) = serde_json::from_str::<serde_json::Value>(trimmed)
-                    && let (Some(key), Some(record)) = (
-                        entry.get("key").and_then(|v| v.as_str()),
-                        entry.get("record"),
-                    )
-                    && let Ok(rec) = serde_json::from_value::<StoredForecastRecord>(record.clone())
-                {
-                    self.records.insert(key.to_string(), rec);
-                    self.journal_count += 1;
+                Err(e) => {
+                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to read forecast snapshot");
+                    self.persistence_healthy = false;
+                }
+            }
+        }
+        if let Some(ref jp) = self.journal_path && jp.exists() {
+            match fs::read_to_string(jp) {
+                Ok(data) => {
+                    for line in data.lines() {
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() { continue; }
+                        if let Ok(entry) = serde_json::from_str::<serde_json::Value>(trimmed)
+                            && let (Some(key), Some(record)) = (
+                                entry.get("key").and_then(|v| v.as_str()),
+                                entry.get("record"),
+                            )
+                            && let Ok(rec) = serde_json::from_value::<StoredForecastRecord>(record.clone())
+                        {
+                            self.records.insert(key.to_string(), rec);
+                            self.journal_count += 1;
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to read forecast journal");
+                    self.persistence_healthy = false;
                 }
             }
         }
@@ -1079,18 +1093,34 @@ impl ForecastStore {
 
     /// Append a single record entry to the journal (O(1) write per mutation).
     /// Only writes the changed record, not the full dataset.
-    fn save_entry(&self, key: &str, record: &StoredForecastRecord) {
+    fn save_entry(&mut self, key: &str, record: &StoredForecastRecord) {
         if let (Some(jp), Some(dp)) = (&self.journal_path, &self.data_path) {
             if let Some(parent) = dp.parent() {
-                let _ = fs::create_dir_all(parent);
+                if let Err(e) = fs::create_dir_all(parent) {
+                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to create forecast data directory");
+                    self.persistence_healthy = false;
+                    return;
+                }
             }
-            if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(jp)
-                && let Ok(line) = serde_json::to_string(&serde_json::json!({
-                    "key": key,
-                    "record": record
-                }))
-            {
-                let _ = writeln!(file, "{}", line);
+            match fs::OpenOptions::new().create(true).append(true).open(jp) {
+                Ok(mut file) => {
+                    match serde_json::to_string(&serde_json::json!({ "key": key, "record": record })) {
+                        Ok(line) => {
+                            if let Err(e) = writeln!(file, "{}", line) {
+                                tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to write forecast journal entry");
+                                self.persistence_healthy = false;
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to serialize forecast journal entry");
+                            self.persistence_healthy = false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to open forecast journal for append");
+                    self.persistence_healthy = false;
+                }
             }
         }
     }
@@ -1115,27 +1145,42 @@ impl ForecastStore {
     }
 
     /// Persist all changes (writes full snapshot, truncates journal).
-    pub fn persist(&self) {
+    pub fn persist(&mut self) {
         self.compact();
     }
 
     /// Compact: write full snapshot, truncate journal.
-    fn compact(&self) {
+    fn compact(&mut self) {
         if let Some(ref dp) = self.data_path {
             if let Some(parent) = dp.parent() {
-                let _ = fs::create_dir_all(parent);
+                if let Err(e) = fs::create_dir_all(parent) {
+                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to create forecast data directory during compaction");
+                    self.persistence_healthy = false;
+                    return;
+                }
             }
-            if let Ok(data) = serde_json::to_string_pretty(&self.records) {
-                let _ = fs::write(dp, data);
-                if let Some(ref jp) = self.journal_path {
-                    let _ = fs::write(jp, "");
+            match serde_json::to_string_pretty(&self.records) {
+                Ok(data) => {
+                    if let Err(e) = fs::write(dp, data) {
+                        tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to write forecast snapshot");
+                        self.persistence_healthy = false;
+                    } else if let Some(ref jp) = self.journal_path {
+                        if let Err(e) = fs::write(jp, "") {
+                            tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to truncate forecast journal after compaction");
+                            self.persistence_healthy = false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to serialize forecast snapshot");
+                    self.persistence_healthy = false;
                 }
             }
         }
     }
 
     /// Force compaction regardless of threshold.
-    pub fn force_compact(&self) {
+    pub fn force_compact(&mut self) {
         self.compact();
     }
 
@@ -1146,6 +1191,11 @@ impl ForecastStore {
     /// Returns `true` if the forecast store contains no records.
     pub fn is_empty(&self) -> bool {
         self.records.is_empty()
+    }
+
+    /// Returns true if all persistence operations succeeded since load.
+    pub fn persistence_healthy(&self) -> bool {
+        self.persistence_healthy
     }
 
     pub fn values(&self) -> impl Iterator<Item = &StoredForecastRecord> {
@@ -1399,7 +1449,7 @@ pub fn convert_companies_output(
             scenario_type: ScenarioType::CompanyAnalysis,
             subject: symbol.to_string(),
             probability: prob,
-            basis: Some("financial_model".into()),
+            basis: Some(crate::types::Basis::FinancialModel),
             depends_on: None,
             sub_questions,
             base_rate: None,
@@ -1561,7 +1611,7 @@ mod tests {
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 2);
         assert_eq!(tree.root_ids.len(), 2);
-        assert!((tree.joint_probability - 0.48).abs() < 0.01);
+        assert!((tree.all_events_probability - 0.48).abs() < 0.01);
     }
 
     #[test]
@@ -1569,13 +1619,13 @@ mod tests {
         let dep = EventDependency {
             parent_event_ids: vec!["A".into()],
             conditionals: vec![0.2, 0.9], // [P(E|not A), P(E|A)]
-        }];
+        };
         let events = vec![make_event("A", 0.5, None), make_event("B", 0.7, Some(dep))];
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 2);
         let b_node = tree.nodes.iter().find(|n| n.event.id == "B").unwrap();
         assert!((b_node.marginal_probability - 0.55).abs() < 0.01);
-        assert!((tree.joint_probability - 0.45).abs() < 0.01);
+        assert!((tree.all_events_probability - 0.45).abs() < 0.01);
     }
 
     #[test]
@@ -1583,11 +1633,11 @@ mod tests {
         let dep_a = EventDependency {
             parent_event_ids: vec!["B".into()],
             conditionals: vec![0.3, 0.8],
-        }];
+        };
         let dep_b = EventDependency {
             parent_event_ids: vec!["A".into()],
             conditionals: vec![0.3, 0.8],
-        }];
+        };
         let events = vec![make_event("A", 0.5, Some(dep_a)), make_event("B", 0.5, Some(dep_b))];
         let result = build_event_tree(&events);
         assert!(result.is_err());
@@ -1612,7 +1662,7 @@ mod tests {
             parent_event_ids: vec!["A".into(), "B".into()],
             // bitmap: 00=¬A¬B, 01=A¬B, 10=¬AB, 11=AB
             conditionals: vec![0.05, 0.30, 0.40, 0.90],
-        }];
+        };
         let events = vec![
             make_event("A", 0.5, None),
             make_event("B", 0.8, None),
@@ -1633,9 +1683,9 @@ mod tests {
 
         let expected_joint = 0.36;
         assert!(
-            (tree.joint_probability - expected_joint).abs() < 0.001,
+            (tree.all_events_probability - expected_joint).abs() < 0.001,
             "joint = {} expected {}",
-            tree.joint_probability,
+            tree.all_events_probability,
             expected_joint
         );
     }

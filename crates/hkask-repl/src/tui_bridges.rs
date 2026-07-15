@@ -1272,7 +1272,7 @@ impl ScenariosDataBridge for TuiReplBridge {
                         subject: tree.get("subject")?.as_str()?.to_string(),
                         time_horizon: tree.get("time_horizon")?.as_str()?.to_string(),
                         event_count: tree.get("event_count")?.as_u64()? as usize,
-                        joint_probability: tree.get("joint_probability")?.as_f64()?,
+                        all_events_probability: tree.get("all_events_probability")?.as_f64()?,
                         root_nodes,
                     })
                 }

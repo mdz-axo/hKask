@@ -409,7 +409,7 @@ impl McpTabbedWindow for ScenariosWindow {
                             ),
                             Span::raw(format!("  |  {}  |  Joint: ", tree.time_horizon)),
                             Span::styled(
-                                format!("{:.1}%", tree.joint_probability * 100.0),
+                                format!("{:.1}%", tree.all_events_probability * 100.0),
                                 Style::default().fg(Color::Green),
                             ),
                         ]));

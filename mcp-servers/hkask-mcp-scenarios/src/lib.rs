@@ -406,13 +406,16 @@ impl ScenariosServer {
 
             let tree = self.tree_cache.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
+            let persistence_healthy = store.persistence_healthy();
+
             let output = serde_json::json!({
                 "pipeline": {
                     "forecast_count": total,
                     "resolved_count": resolved_count,
                     "pending_count": pending_count,
                     "overall_brier": overall_brier,
-                    "recent_forecasts": recent
+                    "recent_forecasts": recent,
+                    "persistence_healthy": persistence_healthy
                 },
                 "calibration": calibration.map(|c| serde_json::json!({
                     "total_forecasts": c.total_forecasts,
@@ -422,10 +425,11 @@ impl ScenariosServer {
                     "interpretation": c.interpretation
                 })),
                 "event_tree": tree.map(|t| serde_json::json!({
+                    "cache_note": "Reflects last scenario_quantify output — may be stale if events were updated since",
                     "subject": t.subject,
                     "time_horizon": serde_json::to_value(t.time_horizon).unwrap_or_default(),
                     "event_count": t.nodes.len(),
-                    "joint_probability": t.joint_probability,
+                    "all_events_probability": t.all_events_probability,
                     "root_ids": t.root_ids,
                     "nodes": t.nodes.iter().map(|n| serde_json::json!({
                         "id": n.event.id,
@@ -494,7 +498,7 @@ impl ScenariosServer {
                 .and_then(|ps| if ps.len() >= 2 { superforecast::synthesize_perspectives(&events[0].id, &ps).ok() } else { None });
 
             // Step 6: Assess
-            let deps = events.iter().filter(|e| !e.depends_on.is_empty()).count();
+            let deps = events.iter().filter(|e| e.depends_on.is_some()).count();
             let learning: Vec<String> = req.learning_events.as_deref()
                 .map(|s| s.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
                 .unwrap_or_default();
@@ -516,7 +520,7 @@ impl ScenariosServer {
             let output = serde_json::json!({
                 "subject": req.subject, "pipeline": "full", "event_count": events.len(),
                 "triage": triage_results,
-                "quantify": {"joint_probability": tree.joint_probability},
+                "quantify": {"all_events_probability": tree.all_events_probability},
                 "sensitivity": sensitivity.iter().map(|(id, s)| serde_json::json!({"event_id": id, "score": s})).collect::<Vec<_>>(),
                 "calibration": calibration,
                 "synthesis": synth.map(|s| serde_json::json!({"aggregated": s.aggregated_probability, "disagreement": s.disagreement_score})),
@@ -915,7 +919,7 @@ impl ScenariosServer {
                      1. A specific yes/no question with a clear deadline\n\
                      2. Placed in a dependency tree (what must happen first?)\n\
                      3. Assigned a probability tier: proximate (>67%), probable (33-66%), or possible (<33%)\n\
-                     4. Anchored to either technical_feasibility or scaling_distribution as the basis\n\
+                     4. Anchored to either technical_feasibility, scaling_distribution, or financial_model as the basis\n\
                      \n\
                      Format as a JSON array of ScenarioEvent objects with:\n\
                      - id: unique short identifier (e.g. 'evt-1')\n\
@@ -929,8 +933,8 @@ impl ScenariosServer {
                      - subject: the subject under analysis
 \
                      - probability: 0.0-1.0 estimate
-                     - basis: 'technical_feasibility' or 'scaling_distribution'\n\
-                     - depends_on: [] or a single-entry array with parent_event_ids (list of parent event IDs) and conditionals (bitmap-ordered conditional probabilities, length = 2^num_parents)\n\
+                     - basis: 'technical_feasibility', 'scaling_distribution', or 'financial_model'\n\
+                     - depends_on: null or an object with parent_event_ids (list of parent event IDs) and conditionals (bitmap-ordered conditional probabilities, length = 2^num_parents)\n\
                      - sub_questions: 2-4 Fermi decomposition questions
 \
                      - base_rate, reference_class, and brier_score: null when unavailable
@@ -950,7 +954,7 @@ impl ScenariosServer {
                     "subject": req.subject,
                     "probability": 0.5,
                     "basis": "technical_feasibility or scaling_distribution",
-                    "depends_on": [],
+                    "depends_on": null,
                     "sub_questions": [
                         {"question": "What enabling factor must be in place?", "estimate": 0.5, "confidence": 0.5},
                         {"question": "What competitive response is likely?", "estimate": 0.5, "confidence": 0.5},
@@ -1058,10 +1062,10 @@ impl ScenariosServer {
                      3. Include dependency relationships (what must happen first?)\n\
                      4. Include an initial probability estimate\n\
                      5. Include 2-4 Fermi decomposition sub-questions\n\
-                     6. Tag the basis as 'technical_feasibility' or 'scaling_distribution'\n\n\
+                     6. Tag the basis as 'technical_feasibility', 'scaling_distribution', or 'financial_model'\n\n\
                      Detected themes in the research: {}\n\n\
                      Return ONLY a JSON array of ScenarioEvent objects with these fields:\n\
-                     id, name, question, deadline, time_horizon, scenario_type, subject, probability (0.0-1.0), basis, depends_on (array with parent_event_ids and conditionals fields), sub_questions (array of question/estimate/confidence objects), base_rate, reference_class, brier_score, update_count
+                     id, name, question, deadline, time_horizon, scenario_type, subject, probability (0.0-1.0), basis, depends_on (null, or an object with parent_event_ids and conditionals fields), sub_questions (array of question/estimate/confidence objects), base_rate, reference_class, brier_score, update_count
 
 \
                      Use null for unavailable base_rate, reference_class, and brier_score; use 0 for update_count.
@@ -1089,7 +1093,7 @@ impl ScenariosServer {
                     "subject": req.subject,
                     "probability": 0.5,
                     "basis": "technical_feasibility or scaling_distribution",
-                    "depends_on": [],
+                    "depends_on": null,
                     "sub_questions": [
                         {"question": "What enabling factor must be in place?", "estimate": 0.5, "confidence": 0.5},
                         {"question": "What is the base rate for events of this type?", "estimate": 0.5, "confidence": 0.5},
@@ -1125,10 +1129,10 @@ impl ScenariosServer {
         .await
     }
 
-    /// Quantify an event tree: compute marginal probabilities, joint probability,
+    /// Quantify an event tree: compute marginal probabilities, all-events probability,
     /// and build the full resolved tree with sensitivity rankings.
     #[tool(
-        description = "Quantify a scenario event tree. Takes a JSON array of ScenarioEvent objects with conditional dependencies and computes: (1) topological sort of dependency graph, (2) marginal probabilities for each event via conditional probability propagation, (3) joint probability of the full event chain, (4) variance contribution per event (sensitivity proxy), (5) sensitivity ranking. Detects cycles and missing parent references. Returns the full resolved EventTree."
+        description = "Quantify a scenario event tree. Takes a JSON array of ScenarioEvent objects with conditional dependencies and computes: (1) topological sort of dependency graph, (2) marginal probabilities for each event via conditional probability propagation, (3) all-events probability of the full event chain, (4) uncertainty score per event (sensitivity proxy), (5) sensitivity ranking. Detects cycles and missing parent references. Returns the full resolved EventTree."
     )]
     pub async fn scenario_quantify(&self, Parameters(req): Parameters<QuantifyRequest>) -> String {
         execute_tool_semantic(self, "scenario_quantify", Some(Self::ontology_anchor("scenario_quantify")), async {
@@ -1154,8 +1158,8 @@ impl ScenariosServer {
                 "event_count": tree.nodes.len(),
                 "root_events": tree.root_ids,
                 "topological_order": tree.topo_order,
-                "joint_probability": tree.joint_probability,
-                "joint_probability_pct": format!("{:.1}%", tree.joint_probability * 100.0),
+                "all_events_probability": tree.all_events_probability,
+                "all_events_probability_pct": format!("{:.1}%", tree.all_events_probability * 100.0),
                 "nodes": tree.nodes.iter().map(|n| serde_json::json!({
                     "id": n.event.id,
                     "name": n.event.name,
@@ -1175,14 +1179,14 @@ impl ScenariosServer {
                     serde_json::json!({"event_id": id, "uncertainty_score": score})
                 }).collect::<Vec<_>>(),
                 "interpretation": {
-                    "joint_probability": format!(
+                    "all_events_probability": format!(
                         "The probability that ALL events occur as forecast is {:.1}%",
-                        tree.joint_probability * 100.0
+                        tree.all_events_probability * 100.0
                     ),
                     "most_uncertain": most_uncertain,
                     "most_certain": most_certain,
                 },
-                "framework": "Conditional probability tree. Each node's marginal is computed via full joint-table marginalization under parent independence: P(E) = Sum_a P(E|a) * Product_i P(p_i)^{a_i} * (1-P(p_i))^{1-a_i}. Root nodes use their intrinsic probability. Joint = product of all-nodes-occur conditionals."
+                "framework": "Conditional probability tree. Each node's marginal is computed via full joint-table marginalization under parent independence: P(E) = Sum_a P(E|a) * Product_i P(p_i)^{a_i} * (1-P(p_i))^{1-a_i}. Root nodes use their intrinsic probability. All-events probability = product of all-nodes-occur conditionals."
             });
 
             self.record_experience(

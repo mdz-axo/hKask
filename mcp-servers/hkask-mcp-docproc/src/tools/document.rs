@@ -490,6 +490,9 @@ impl DocProcServer {
                 source_text
             };
             let processed = sanitize_links(&processed);
+            let processed = crate::convert::decode_html_entities(&processed);
+            let processed = crate::convert::strip_html_comments(&processed);
+            let processed = strip_boilerplate(&processed);
 
             let boundary = ".!? ";
 
@@ -759,6 +762,9 @@ impl DocProcServer {
                     source_text
                 };
                 let processed = sanitize_links(&processed);
+                let processed = crate::convert::decode_html_entities(&processed);
+                let processed = crate::convert::strip_html_comments(&processed);
+                let processed = strip_boilerplate(&processed);
 
                 let passages = SemanticMemory::chunk_text(
                     &processed,

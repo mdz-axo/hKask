@@ -217,7 +217,21 @@ impl CertaintyTier {
     }
 }
 
-// ── Scenario Event (MAIA event-tree node) ──────────────────────────────────
+// ── Basis for probability estimate ─────────────────────────────────────────
+
+/// The basis for a probability estimate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Basis {
+    /// Technical feasibility assessment
+    TechnicalFeasibility,
+    /// Scaling distribution analysis
+    ScalingDistribution,
+    /// Financial model (from companies server bridge)
+    FinancialModel,
+}
+
+// ── Scenario Event (MAIA event-tree node)
 
 /// A binomial scenario event — a yes/no question with a deadline.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -240,8 +254,8 @@ pub struct ScenarioEvent {
     // Probabilistic
     /// Current calibrated probability that the event occurs (0.0–1.0)
     pub probability: f64,
-    /// Basis for probability estimate: "technical_feasibility" or "scaling_distribution"
-    pub basis: Option<String>,
+    /// Basis for probability estimate
+    pub basis: Option<Basis>,
 
     // Dependencies (tree structure)
     /// Events this event's probability depends on
@@ -556,7 +570,7 @@ pub struct EventTree {
     pub topo_order: Vec<String>,
     /// Approximate probability that all events occur, using parent-true
     /// conditionals. Multi-parent nodes use the documented average proxy.
-    pub joint_probability: f64,
+    pub all_events_probability: f64,
 }
 
 // ── Forecast outcome and Brier scoring ─────────────────────────────────────

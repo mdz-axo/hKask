@@ -14,9 +14,12 @@
 
 pub mod omc;
 
+mod error;
 mod gallery;
 mod templates;
 mod video;
+
+pub use error::{MediaError, map_media_error};
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
@@ -187,19 +190,17 @@ mod levenshtein_tests {
 impl MediaServer {
     /// Lock the gallery and extract essential state. Drops the lock before
     /// returning, so the result is safe to hold across .await points.
-    fn access_gallery(&self) -> Result<GalleryAccess, String> {
+    fn access_gallery(&self) -> Result<GalleryAccess, MediaError> {
         let guard = self
             .gallery_state
             .lock()
-            .map_err(|e| format!("Gallery state lock error: {}", e))?;
-        let state = guard
-            .as_ref()
-            .ok_or_else(|| "No gallery organized. Use gallery_organize first.".to_string())?;
+            .map_err(|e| MediaError::Io(format!("Gallery state lock error: {}", e)))?;
+        let state = guard.as_ref().ok_or(MediaError::GalleryNotInitialized)?;
         let access = GalleryAccess {
             gallery_id: state
                 .gallery_id
                 .clone()
-                .ok_or_else(|| "Gallery not persisted — run gallery_organize first.".to_string())?,
+                .ok_or(MediaError::GalleryNotInitialized)?,
             image_count: state.image_count,
             root_path: state.path.clone(),
         };
@@ -227,7 +228,7 @@ impl MediaServer {
     }
 
     /// Render a Jinja2 prompt template with the given variables.
-    fn render_prompt(&self, name: &str, vars: &HashMap<&str, &str>) -> Result<String, String> {
+    fn render_prompt(&self, name: &str, vars: &HashMap<&str, &str>) -> Result<String, MediaError> {
         templates::render(&self.template_env, name, vars)
     }
 
