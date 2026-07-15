@@ -18,7 +18,7 @@ impl CompaniesServer {
             {
                 Ok(t) => t,
                 Err(e) => {
-                    return Err(McpToolError::invalid_argument(e));
+                    return Err(crate::map_portfolio_error(e));
                 }
             };
 
@@ -182,7 +182,7 @@ impl CompaniesServer {
             let symbols = match self.portfolio.get_symbols(&req.portfolio) {
                 Ok(s) => s,
                 Err(e) => {
-                    return Err(McpToolError::invalid_argument(e));
+                    return Err(crate::map_portfolio_error(e));
                 }
             };
 
@@ -202,7 +202,7 @@ impl CompaniesServer {
             ) {
                 Ok(t) => t,
                 Err(e) => {
-                    return Err(McpToolError::invalid_argument(e));
+                    return Err(crate::map_portfolio_error(e));
                 }
             };
             let mut positions: std::collections::HashMap<String, f64> =
@@ -365,7 +365,7 @@ impl CompaniesServer {
             if let Some(ref revision_of) = req.revision_of {
                 self.portfolio
                     .validate_forecast_revision(revision_of, &req.symbol)
-                    .map_err(McpToolError::invalid_argument)?;
+                    .map_err(crate::map_portfolio_error)?;
             }
 
             // Fetch all required financial statements

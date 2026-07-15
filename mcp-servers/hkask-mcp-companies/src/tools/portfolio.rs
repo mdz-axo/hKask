@@ -60,7 +60,7 @@ impl CompaniesServer {
                 let ids = match format.as_str() {
                     "csv" => manager.import_csv(&portfolio, &data),
                     "json" => manager.import_json(&portfolio, &data),
-                    other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
+                    other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'").into()),
                 }?;
                 let validation = manager.validate(&portfolio).unwrap_or_else(|error| {
                     portfolio::ValidationReport {
@@ -68,7 +68,7 @@ impl CompaniesServer {
                         transaction_count: ids.len(),
                         positions: vec![],
                         cash_balance: 0.0,
-                        issues: vec![error],
+                        issues: vec![error.to_string()],
                     }
                 });
                 Ok((ids, validation))
@@ -98,7 +98,7 @@ impl CompaniesServer {
             let data = run_portfolio(self.portfolio.clone(), move |manager| match format.as_str() {
                 "csv" => manager.export_csv(&portfolio),
                 "json" => manager.export_json(&portfolio),
-                other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'")),
+                other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'").into()),
             })
             .await?;
             Ok(serde_json::json!({"format": output_format, "data": data, "fibo": {"transaction_ledger": fibo::TRANSACTION_LEDGER}}))

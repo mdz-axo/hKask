@@ -512,7 +512,7 @@ impl CompaniesServer {
             if let Some(ref revision_of) = req.revision_of {
                 self.portfolio
                     .validate_forecast_revision(revision_of, &req.symbol)
-                    .map_err(McpToolError::invalid_argument)?;
+                    .map_err(crate::map_portfolio_error)?;
             }
             for (name, value) in [
                 ("growth_estimate", req.growth_estimate),

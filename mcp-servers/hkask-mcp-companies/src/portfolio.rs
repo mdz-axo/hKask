@@ -347,7 +347,7 @@ impl PortfolioManager {
     }
 
     fn open(&self) -> Result<Connection, PortfolioError> {
-        Connection::open(&self.db_path).map_err(|e| format!("db open: {e}"))
+        Connection::open(&self.db_path).map_err(|e| format!("db open: {e}").into())
     }
 
     /// Persist a forecast snapshot in this owner's database.
@@ -382,7 +382,7 @@ impl PortfolioManager {
             row_to_persisted_forecast,
         )
         .optional()
-        .map_err(|e| format!("get forecast: {e}"))
+        .map_err(|e| format!("get forecast: {e}").into())
     }
 
     /// List this owner's forecasts for a symbol, newest first.
@@ -397,7 +397,7 @@ impl PortfolioManager {
         let rows = stmt
             .query_map(params![symbol], row_to_persisted_forecast)
             .map_err(|e| format!("list forecasts: {e}"))?;
-        rows.map(|row| row.map_err(|e| format!("forecast row: {e}")))
+        rows.map(|row| row.map_err(|e| format!("forecast row: {e}").into()))
             .collect()
     }
 
@@ -991,7 +991,7 @@ impl PortfolioManager {
 
     pub fn export_json(&self, name: &str) -> Result<String, PortfolioError> {
         let txs = self.get_transactions(name, None, None, None, None)?;
-        serde_json::to_string_pretty(&txs).map_err(|e| format!("serialize: {e}"))
+        serde_json::to_string_pretty(&txs).map_err(|e| format!("serialize: {e}").into())
     }
 
     pub fn export_csv(&self, name: &str) -> Result<String, PortfolioError> {
@@ -1484,6 +1484,7 @@ mod tests {
             portfolio_a
                 .validate_forecast_revision("forecast-1", "MSFT")
                 .unwrap_err()
+                .to_string()
                 .contains("belongs to symbol")
         );
 
@@ -1492,6 +1493,7 @@ mod tests {
             portfolio_b
                 .validate_forecast_revision("forecast-1", "AAPL")
                 .unwrap_err()
+                .to_string()
                 .contains("not found for this owner")
         );
     }
@@ -1505,6 +1507,7 @@ mod tests {
         assert!(
             pm.import_json("test", &" ".repeat(MAX_IMPORT_REQUEST_BYTES + 1))
                 .unwrap_err()
+                .to_string()
                 .contains("import request exceeds")
         );
 
@@ -1513,6 +1516,7 @@ mod tests {
         assert!(
             pm.import_transactions("test", txs)
                 .unwrap_err()
+                .to_string()
                 .contains("maximum of")
         );
     }
@@ -1535,6 +1539,7 @@ mod tests {
                 ""
             )
             .unwrap_err()
+            .to_string()
             .contains("encoded attachment exceeds")
         );
 
@@ -1552,6 +1557,7 @@ mod tests {
                 ""
             )
             .unwrap_err()
+            .to_string()
             .contains("decoded attachment exceeds")
         );
     }
@@ -1877,7 +1883,7 @@ deposit,2024-01-01,,,,,10000.0
             )
             .unwrap_err();
 
-        assert!(error.contains("injected metadata failure"));
+        assert!(error.to_string().contains("injected metadata failure"));
         let files_dir = pm.base_dir().join("test").join("files");
         assert!(
             std::fs::read_dir(files_dir).unwrap().next().is_none(),
@@ -1913,7 +1919,7 @@ deposit,2024-01-01,,,,,10000.0
         std::fs::create_dir(&disk_path).unwrap();
 
         let error = pm.delete_file(&id).unwrap_err();
-        assert!(error.contains("metadata preserved"));
+        assert!(error.to_string().contains("metadata preserved"));
         assert_eq!(pm.list_files("test", "MSFT").unwrap().len(), 1);
     }
 

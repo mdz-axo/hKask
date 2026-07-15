@@ -27,7 +27,7 @@ while IFS=: read -r file line text; do
     [ -z "$file" ] && continue
     # Match: -> Result<*, String> (where * is any non-> content)
     # Match: -> Result<*, String> (handles nested generics like Result<Vec<u8>, String>)
-    if echo "$text" | grep -qE -- '->[[:space:]]*Result<.+,[[:space:]]*String[[:space:]]*>>'; then
+    if echo "$text" | grep -qE -- '->[[:space:]]*Result<.+,[[:space:]]*String[[:space:]]*>';; then
         echo "  ${file}:${line}:${text}"
         FAIL=1
     fi

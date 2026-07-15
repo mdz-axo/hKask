@@ -5,6 +5,7 @@
 //! claim classification (FinGPT §3.4 — structured extraction without
 //! full LLM inference).
 
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -137,7 +138,7 @@ async fn search_exa(
     client: &reqwest::Client,
     query: &str,
     api_key: &str,
-) -> Result<Vec<ResearchClaim>, String> {
+) -> Result<Vec<ResearchClaim>, anyhow::Error> {
     let url = "https://api.exa.ai/search";
     let body = serde_json::json!({
         "query": query,
@@ -153,24 +154,24 @@ async fn search_exa(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Exa request failed: {e}"))?;
+        .map_err(|e| anyhow!("Exa request failed: {e}"))?;
 
     let status = resp.status();
     let body_text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!("Exa returned {status}: {body_text}"));
+        return Err(anyhow!("Exa returned {status}: {body_text}"));
     }
 
     let parsed: Value =
-        serde_json::from_str(&body_text).map_err(|e| format!("Exa parse error: {e}"))?;
+        serde_json::from_str(&body_text).map_err(|e| anyhow!("Exa parse error: {e}"))?;
 
     parse_exa_results(&parsed)
 }
 
-fn parse_exa_results(parsed: &Value) -> Result<Vec<ResearchClaim>, String> {
+fn parse_exa_results(parsed: &Value) -> Result<Vec<ResearchClaim>, anyhow::Error> {
     let results = parsed["results"]
         .as_array()
-        .ok_or("Exa response missing 'results' array")?;
+        .ok_or_else(|| anyhow!("Exa response missing 'results' array"))?;
 
     let mut claims = Vec::new();
     for result in results {
@@ -209,7 +210,7 @@ async fn search_tavily(
     client: &reqwest::Client,
     query: &str,
     api_key: &str,
-) -> Result<Vec<ResearchClaim>, String> {
+) -> Result<Vec<ResearchClaim>, anyhow::Error> {
     let url = "https://api.tavily.com/search";
     let body = serde_json::json!({
         "api_key": api_key,
@@ -224,24 +225,24 @@ async fn search_tavily(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Tavily request failed: {e}"))?;
+        .map_err(|e| anyhow!("Tavily request failed: {e}"))?;
 
     let status = resp.status();
     let body_text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!("Tavily returned {status}: {body_text}"));
+        return Err(anyhow!("Tavily returned {status}: {body_text}"));
     }
 
     let parsed: Value =
-        serde_json::from_str(&body_text).map_err(|e| format!("Tavily parse error: {e}"))?;
+        serde_json::from_str(&body_text).map_err(|e| anyhow!("Tavily parse error: {e}"))?;
 
     parse_tavily_results(&parsed)
 }
 
-fn parse_tavily_results(parsed: &Value) -> Result<Vec<ResearchClaim>, String> {
+fn parse_tavily_results(parsed: &Value) -> Result<Vec<ResearchClaim>, anyhow::Error> {
     let results = parsed["results"]
         .as_array()
-        .ok_or("Tavily response missing 'results' array")?;
+        .ok_or_else(|| anyhow!("Tavily response missing 'results' array"))?;
 
     let mut claims = Vec::new();
     for result in results {
@@ -278,7 +279,7 @@ async fn search_brave(
     client: &reqwest::Client,
     query: &str,
     api_key: &str,
-) -> Result<Vec<ResearchClaim>, String> {
+) -> Result<Vec<ResearchClaim>, anyhow::Error> {
     let url = format!(
         "https://api.search.brave.com/res/v1/web/search?q={}&count=5",
         urlencoding(query)
@@ -291,16 +292,16 @@ async fn search_brave(
         .header("X-Subscription-Token", api_key)
         .send()
         .await
-        .map_err(|e| format!("Brave request failed: {e}"))?;
+        .map_err(|e| anyhow!("Brave request failed: {e}"))?;
 
     let status = resp.status();
     let body_text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!("Brave returned {status}: {body_text}"));
+        return Err(anyhow!("Brave returned {status}: {body_text}"));
     }
 
     let parsed: Value =
-        serde_json::from_str(&body_text).map_err(|e| format!("Brave parse error: {e}"))?;
+        serde_json::from_str(&body_text).map_err(|e| anyhow!("Brave parse error: {e}"))?;
 
     parse_brave_results(&parsed)
 }
@@ -330,10 +331,10 @@ fn hex_char(n: u8) -> char {
     }
 }
 
-fn parse_brave_results(parsed: &Value) -> Result<Vec<ResearchClaim>, String> {
+fn parse_brave_results(parsed: &Value) -> Result<Vec<ResearchClaim>, anyhow::Error> {
     let results = parsed["web"]["results"]
         .as_array()
-        .ok_or("Brave response missing 'web.results' array")?;
+        .ok_or_else(|| anyhow!("Brave response missing 'web.results' array"))?;
 
     let mut claims = Vec::new();
     for result in results {
