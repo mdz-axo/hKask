@@ -514,7 +514,7 @@ impl ScenariosServer {
             }).collect();
 
             // Step 2: Quantify
-            let tree = superforecast::build_event_tree(&events)
+            let tree = superforecast::build_event_tree(events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             // Step 3: Sensitivity
@@ -1173,7 +1173,7 @@ impl ScenariosServer {
         execute_tool_semantic(self, "scenario_quantify", Some(Self::ontology_anchor("scenario_quantify")), async {
             let events = &req.events;
 
-            let tree = superforecast::build_event_tree(&events)
+            let tree = superforecast::build_event_tree(events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             // Cache for TUI status queries
@@ -1402,7 +1402,7 @@ impl ScenariosServer {
             }
 
             // Stage 1: Fermi decomposition
-            let fermi_estimate = superforecast::calibrate_from_fermi(&sub_questions)
+            let fermi_estimate = superforecast::calibrate_from_fermi(sub_questions)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             // Stage 2+3: Outside/inside view blending (if base rate provided)
@@ -1498,7 +1498,7 @@ impl ScenariosServer {
         execute_tool_semantic(self, "scenario_sensitivity", Some(Self::ontology_anchor("scenario_sensitivity")), async {
             let events = &req.events;
 
-            let tree = superforecast::build_event_tree(&events)
+            let tree = superforecast::build_event_tree(events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             let ranking = superforecast::sensitivity_ranking(&tree);
@@ -1549,7 +1549,7 @@ impl ScenariosServer {
         execute_tool_semantic(self, "scenario_synthesize", Some(Self::ontology_anchor("scenario_synthesize")), async {
             let perspectives = &req.perspectives;
 
-            let synthesis = superforecast::synthesize_perspectives(&req.event_id, &perspectives)
+            let synthesis = superforecast::synthesize_perspectives(&req.event_id, perspectives)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             let output = serde_json::json!({

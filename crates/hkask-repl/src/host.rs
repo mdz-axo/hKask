@@ -29,6 +29,6 @@ pub trait ReplHost: Send + Sync {
     ) -> Result<OnboardingOutcome, OnboardingError>;
     fn list_templates_local(&self) -> Vec<hkask_ports::RegistryEntry>;
     #[cfg(feature = "tui")]
-    fn open_transcript_viewer(&self, path: &std::path::Path) -> Result<(), String>;
+    fn open_transcript_viewer(&self, path: &std::path::Path) -> anyhow::Result<()>;
     fn run_sovereignty_status(&self);
 }

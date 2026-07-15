@@ -6,6 +6,8 @@ use hkask_services_context::AgentService;
 use hkask_services_core::ServiceConfig;
 use hkask_services_onboarding::ResolvedSecrets;
 
+use crate::error::CliError;
+
 /// Unwrap a `Result` or print an error message and exit.
 pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T {
     match result {
@@ -32,7 +34,7 @@ pub fn build_agent_service() -> AgentService {
 /// For callers that need graceful error handling (e.g., async functions
 /// that return `Result<_, ServiceError>`). The panicking variant
 /// `build_agent_service()` is preferred for one-shot CLI entry points.
-pub fn build_agent_service_result() -> Result<AgentService, String> {
+pub fn build_agent_service_result() -> Result<AgentService, CliError> {
     build_agent_service_inner(None)
 }
 
@@ -41,14 +43,14 @@ pub fn build_agent_service_result() -> Result<AgentService, String> {
 /// Returns `Result` — callers handle errors gracefully rather than exiting.
 pub fn build_agent_service_from_secrets(
     from_secrets: Option<(&str, &ResolvedSecrets)>,
-) -> Result<AgentService, String> {
+) -> Result<AgentService, CliError> {
     build_agent_service_inner(from_secrets)
 }
 
 /// Shared implementation — safe to call from any context.
 fn build_agent_service_inner(
     from_secrets: Option<(&str, &ResolvedSecrets)>,
-) -> Result<AgentService, String> {
+) -> Result<AgentService, CliError> {
     let config = match from_secrets {
         Some((name, secrets)) => ServiceConfig::from_secrets(
             secrets.a2a_secret.clone(),
@@ -56,7 +58,7 @@ fn build_agent_service_inner(
             name.to_string(),
         ),
         None => ServiceConfig::from_env()
-            .map_err(|e| format!("Failed to resolve service config: {}", e))?,
+            .map_err(|e| CliError::Config(format!("Failed to resolve service config: {}", e)))?,
     };
     // `Runtime::block_on` panics if the current thread is driving a tokio
     // runtime (e.g., when called from within `rt.block_on(...)`). Use
@@ -64,15 +66,15 @@ fn build_agent_service_inner(
     match tokio::runtime::Handle::try_current() {
         Ok(_handle) => tokio::task::block_in_place(|| {
             let rt = tokio::runtime::Runtime::new()
-                .map_err(|e| format!("Failed to create runtime: {}", e))?;
+                .map_err(|e| CliError::Config(format!("Failed to create runtime: {}", e)))?;
             rt.block_on(AgentService::build(config))
-                .map_err(|e| e.to_string())
+                .map_err(|e| CliError::AgentService(e.to_string()))
         }),
         Err(_) => {
             let rt = tokio::runtime::Runtime::new()
-                .map_err(|e| format!("Failed to create runtime: {}", e))?;
+                .map_err(|e| CliError::Config(format!("Failed to create runtime: {}", e)))?;
             rt.block_on(AgentService::build(config))
-                .map_err(|e| e.to_string())
+                .map_err(|e| CliError::AgentService(e.to_string()))
         }
     }
 }
@@ -171,23 +173,25 @@ pub fn start_mcp_servers_with_env(
 }
 
 /// Resolve the deploy directory from environment or default.
-pub fn resolve_deploy_dir() -> Result<PathBuf, String> {
+pub fn resolve_deploy_dir() -> Result<PathBuf, CliError> {
     if let Ok(d) = std::env::var("HKASK_DEPLOY_DIR") {
         let p = PathBuf::from(&d);
         if p.is_dir() {
             return Ok(p);
         }
-        return Err(format!("HKASK_DEPLOY_DIR set but not a directory: {d}"));
+        return Err(CliError::Config(format!(
+            "HKASK_DEPLOY_DIR set but not a directory: {d}"
+        )));
     }
-    let cwd = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+    let cwd = std::env::current_dir().map_err(|e| CliError::Io(format!("current_dir: {e}")))?;
     let candidate = cwd.join("deploy").join("k8s");
     if candidate.is_dir() {
         return Ok(candidate);
     }
-    Err(format!(
+    Err(CliError::Config(format!(
         "deploy/k8s not found at {} and HKASK_DEPLOY_DIR not set",
         cwd.display()
-    ))
+    )))
 }
 
 /// Print a list of items with a header.

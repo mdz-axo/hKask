@@ -3,6 +3,7 @@
 //! Implements the CLI display logic for key management operations.
 
 use crate::cli::KeystoreAction;
+use crate::error::CliError;
 use hkask_types::keychain_keys;
 use rand::RngCore;
 use std::io::Write;
@@ -282,27 +283,29 @@ fn run_rotate(keychain: &hkask_keystore::Keychain, new_passphrase: Option<&str>)
 /// large files), syncs to disk, then removes the file. Not cryptographic-grade
 /// (no multi-pass), but sufficient to prevent casual recovery of API keys from
 /// a cloud server's disk.
-pub(crate) fn secure_delete_file(path: &std::path::Path) -> Result<(), String> {
-    let metadata =
-        std::fs::metadata(path).map_err(|e| format!("Cannot read file metadata: {}", e))?;
+pub(crate) fn secure_delete_file(path: &std::path::Path) -> Result<(), CliError> {
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| CliError::Io(format!("Cannot read file metadata: {}", e)))?;
     let len = metadata.len().min(65536); // Cap at 64 KiB
 
     // Overwrite with random bytes
     let mut random_bytes = vec![0u8; len as usize];
     rand::rng().fill_bytes(&mut random_bytes);
 
-    std::fs::write(path, &random_bytes).map_err(|e| format!("Failed to overwrite file: {}", e))?;
+    std::fs::write(path, &random_bytes)
+        .map_err(|e| CliError::Io(format!("Failed to overwrite file: {}", e)))?;
 
     // Sync to disk before unlinking
     let file = std::fs::OpenOptions::new()
         .write(true)
         .open(path)
-        .map_err(|e| format!("Failed to open for sync: {}", e))?;
+        .map_err(|e| CliError::Io(format!("Failed to open for sync: {}", e)))?;
     file.sync_all()
-        .map_err(|e| format!("Failed to sync to disk: {}", e))?;
+        .map_err(|e| CliError::Io(format!("Failed to sync to disk: {}", e)))?;
 
     // Remove
-    std::fs::remove_file(path).map_err(|e| format!("Failed to delete file: {}", e))?;
+    std::fs::remove_file(path)
+        .map_err(|e| CliError::Io(format!("Failed to delete file: {}", e)))?;
 
     Ok(())
 }

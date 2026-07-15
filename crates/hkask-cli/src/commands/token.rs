@@ -5,22 +5,27 @@
 //! `kask token revoke` — revoke a token by ID
 
 use crate::cli::TokenAction;
+use crate::error::CliError;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_types::{AgentKind, WebID};
 
 /// Parse a human-readable TTL string into seconds.
 /// Supports: "30s", "5m", "24h", "7d".
-fn parse_ttl(ttl: &str) -> Result<i64, String> {
+fn parse_ttl(ttl: &str) -> Result<i64, CliError> {
     let (value_str, unit) = ttl.split_at(ttl.len().saturating_sub(1));
     let value: i64 = value_str
         .parse()
-        .map_err(|_| format!("Invalid TTL value: {}", value_str))?;
+        .map_err(|_| CliError::InvalidInput(format!("Invalid TTL value: {}", value_str)))?;
     let multiplier = match unit {
         "s" => 1,
         "m" => 60,
         "h" => 3600,
         "d" => 86400,
-        _ => return Err(format!("Unknown TTL unit: {unit}. Use s, m, h, or d.")),
+        _ => {
+            return Err(CliError::InvalidInput(format!(
+                "Unknown TTL unit: {unit}. Use s, m, h, or d."
+            )));
+        }
     };
     Ok(value * multiplier)
 }
@@ -39,7 +44,7 @@ pub async fn token_issue(
         kind: ErrorKind::BadRequest,
         domain: DomainKind::Infrastructure,
         source: None,
-        message: e,
+        message: e.to_string(),
     })?;
     let expires_at = chrono::Utc::now().timestamp() + ttl_secs;
 

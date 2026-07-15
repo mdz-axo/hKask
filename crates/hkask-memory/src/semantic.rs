@@ -778,7 +778,7 @@ impl SemanticMemory {
     /// not a sentence end). Single-letter initials (`J.`) are not sentence ends.
     fn is_sentence_end(word: &str, boundary_chars: &[char], abbrevs: &[&str]) -> bool {
         let trimmed =
-            word.trim_end_matches(|c: char| matches!(c, '"' | '\'' | '\u{201d}' | '\u{201c}'));
+            word.trim_end_matches(['"', '\'', '\u{201d}', '\u{201c}']);
         let mut chars = trimmed.chars();
         let last = match chars.next_back() {
             Some(c) => c,
@@ -790,7 +790,7 @@ impl SemanticMemory {
         if last == '.' && chars.next_back().is_some_and(|p| p.is_ascii_digit()) {
             return false;
         }
-        let stem = trimmed.trim_end_matches(|c: char| matches!(c, '.' | '!' | '?'));
+        let stem = trimmed.trim_end_matches(['.', '!', '?']);
         let lower = stem.to_lowercase();
         if abbrevs.contains(&lower.as_str()) {
             return false;

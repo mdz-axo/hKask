@@ -2,6 +2,7 @@
 
 use hkask_services_corpus::{EmbedProgress, EmbedService};
 
+use crate::error::CliError;
 use crate::experience::CliExperienceRecorder;
 
 use std::io::Write;
@@ -10,16 +11,21 @@ use std::sync::Arc;
 
 /// Authenticate a replicant and resolve the agent-specific DB path.
 /// Returns (db_path, db_passphrase) after successful login.
-fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, String), String> {
+fn resolve_replicant_db(replicant: &str, passphrase: &str) -> Result<(String, String), CliError> {
     let ctx = crate::commands::helpers::build_agent_service();
     let store = ctx.storage().users.clone();
 
     // Authenticate
     let session = store
         .lock()
-        .map_err(|e| format!("Lock error: {e}"))?
+        .map_err(|e| CliError::AgentService(format!("Lock error: {e}")))?
         .login(replicant, passphrase)
-        .map_err(|_| format!("Authentication failed for replicant '{}'", replicant))?;
+        .map_err(|_| {
+            CliError::AgentService(format!(
+                "Authentication failed for replicant '{}'",
+                replicant
+            ))
+        })?;
 
     eprintln!(
         "Authenticated as {} (session: {})",

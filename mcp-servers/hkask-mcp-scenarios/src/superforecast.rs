@@ -1095,13 +1095,12 @@ impl ForecastStore {
     /// Only writes the changed record, not the full dataset.
     fn save_entry(&mut self, key: &str, record: &StoredForecastRecord) {
         if let (Some(jp), Some(dp)) = (&self.journal_path, &self.data_path) {
-            if let Some(parent) = dp.parent() {
-                if let Err(e) = fs::create_dir_all(parent) {
+            if let Some(parent) = dp.parent()
+                && let Err(e) = fs::create_dir_all(parent) {
                     tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to create forecast data directory");
                     self.persistence_healthy = false;
                     return;
                 }
-            }
             match fs::OpenOptions::new().create(true).append(true).open(jp) {
                 Ok(mut file) => {
                     match serde_json::to_string(&serde_json::json!({ "key": key, "record": record })) {
@@ -1152,24 +1151,22 @@ impl ForecastStore {
     /// Compact: write full snapshot, truncate journal.
     fn compact(&mut self) {
         if let Some(ref dp) = self.data_path {
-            if let Some(parent) = dp.parent() {
-                if let Err(e) = fs::create_dir_all(parent) {
+            if let Some(parent) = dp.parent()
+                && let Err(e) = fs::create_dir_all(parent) {
                     tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to create forecast data directory during compaction");
                     self.persistence_healthy = false;
                     return;
                 }
-            }
             match serde_json::to_string_pretty(&self.records) {
                 Ok(data) => {
                     if let Err(e) = fs::write(dp, data) {
                         tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to write forecast snapshot");
                         self.persistence_healthy = false;
-                    } else if let Some(ref jp) = self.journal_path {
-                        if let Err(e) = fs::write(jp, "") {
+                    } else if let Some(ref jp) = self.journal_path
+                        && let Err(e) = fs::write(jp, "") {
                             tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to truncate forecast journal after compaction");
                             self.persistence_healthy = false;
                         }
-                    }
                 }
                 Err(e) => {
                     tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to serialize forecast snapshot");

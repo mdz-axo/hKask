@@ -31,10 +31,8 @@ impl ReplHost for CliHost {
     }
 
     #[cfg(feature = "tui")]
-    fn open_transcript_viewer(&self, path: &std::path::Path) -> Result<(), String> {
-        crate::transcript_viewer::TranscriptViewer::from_file(path)
-            .and_then(|mut v| v.run())
-            .map_err(|e| e.to_string())
+    fn open_transcript_viewer(&self, path: &std::path::Path) -> anyhow::Result<()> {
+        crate::transcript_viewer::TranscriptViewer::from_file(path).and_then(|mut v| v.run())
     }
 
     fn run_sovereignty_status(&self) {

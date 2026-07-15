@@ -3,6 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::cli::ReplicantAction;
+use crate::error::CliError;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_services_core::{RegistrationRequest, ReplicantIdentity, UserSession};
 use hkask_storage::user_store::UserStore;
@@ -480,24 +481,28 @@ pub(crate) struct InviteTarget {
 }
 
 /// Parse `Name <email>` format. Returns Err if format is invalid.
-fn parse_invitee(input: &str) -> Result<InviteTarget, String> {
+fn parse_invitee(input: &str) -> Result<InviteTarget, CliError> {
     let input = input.trim();
     let (name, email) = if let Some(lt) = input.rfind('<') {
-        let rt = input.rfind('>').ok_or("missing closing '>' in invitee")?;
+        let rt = input
+            .rfind('>')
+            .ok_or_else(|| CliError::InvalidInput("missing closing '>' in invitee".into()))?;
         let name = input[..lt].trim().to_string();
         let email = input[lt + 1..rt].trim().to_string();
         if name.is_empty() {
-            return Err("name is empty".into());
+            return Err(CliError::InvalidInput("name is empty".into()));
         }
         if email.is_empty() || !email.contains('@') {
-            return Err(format!("invalid email: {email}"));
+            return Err(CliError::InvalidInput(format!("invalid email: {email}")));
         }
         (name, email)
     } else if input.contains('@') {
         // Just an email, no name
         ("there".to_string(), input.to_string())
     } else {
-        return Err("expected 'Name <email>' or just an email address".into());
+        return Err(CliError::InvalidInput(
+            "expected 'Name <email>' or just an email address".into(),
+        ));
     };
     Ok(InviteTarget { name, email })
 }

@@ -114,45 +114,94 @@ pub(crate) fn configured_qa_model(requested_model: Option<String>) -> Option<Str
 ///
 /// Migrated from the CLI binary's `predicate_to_dimension` function.
 /// Used by `docproc_extract_triples` to assign a Dimension to each stored h_mem.
+///
+/// Curated mapping for known RDF, schema.org, FIBO, and GOLEM predicates.
+/// Falls back to substring matching for unknown predicates, defaulting to `What`.
 pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension {
+    use hkask_types::Dimension::*;
     let p = predicate.to_lowercase();
-    if p.contains("type")
-        || p.contains("is_a")
-        || p.contains("subclass")
-        || p.contains("name")
-        || p.contains("label")
-        || p.contains("title")
-    {
-        hkask_types::Dimension::What
-    } else if p.contains("location") || p.contains("place") || p.contains("located_in") {
-        hkask_types::Dimension::Where
-    } else if p.contains("time")
-        || p.contains("date")
-        || p.contains("when")
-        || p.contains("created")
-    {
-        hkask_types::Dimension::When
-    } else if p.contains("person")
-        || p.contains("author")
-        || p.contains("creator")
-        || p.contains("actor")
-    {
-        hkask_types::Dimension::Who
-    } else if p.contains("cause")
-        || p.contains("reason")
-        || p.contains("why")
-        || p.contains("motivation")
-    {
-        hkask_types::Dimension::Why
-    } else if p.contains("method")
-        || p.contains("process")
-        || p.contains("how")
-        || p.contains("uses")
-        || p.contains("uses_method")
-    {
-        hkask_types::Dimension::How
-    } else {
-        hkask_types::Dimension::What
+
+    // Curated mapping — exact or prefix match on known predicates
+    match p.as_str() {
+        // Who — agents, authors, characters, creators
+        "schema:author" | "schema:creator" | "schema:contributor" | "schema:actor"
+        | "golem:hascharacter" | "golem:hasnarrator" | "rdf:creator" => Who,
+
+        // When — temporal
+        "schema:datecreated"
+        | "schema:datemodified"
+        | "schema:datepublished"
+        | "dcterms:created"
+        | "dcterms:issued" => When,
+
+        // Where — spatial
+        "schema:location" | "golem:hassetting" | "dcterms:spatial" => Where,
+
+        // Why — causation, motivation, theme
+        "schema:causes" | "schema:resultof" | "golem:hasconflict" | "golem:allegoryof"
+        | "fibo:hasmotivation" => Why,
+
+        // How — methods, processes, resolution
+        "schema:uses"
+        | "schema:method"
+        | "golem:hasresolution"
+        | "golem:metaphorfor"
+        | "golem:illustrates"
+        | "golem:evokes" => How,
+
+        // What — everything else with a known predicate
+        _ if p.starts_with("golem:")
+            || p.starts_with("schema:")
+            || p.starts_with("rdf:")
+            || p.starts_with("fibo:")
+            || p.starts_with("dcterms:") =>
+        {
+            What
+        }
+
+        // Fallback: substring matching for unrecognized predicates
+        _ => {
+            if p.contains("type")
+                || p.contains("is_a")
+                || p.contains("subclass")
+                || p.contains("name")
+                || p.contains("label")
+                || p.contains("title")
+            {
+                What
+            } else if p.contains("location") || p.contains("place") || p.contains("located_in") {
+                Where
+            } else if p.contains("time")
+                || p.contains("date")
+                || p.contains("when")
+                || p.contains("created")
+            {
+                When
+            } else if p.contains("person")
+                || p.contains("author")
+                || p.contains("creator")
+                || p.contains("actor")
+                || p.contains("character")
+            {
+                Who
+            } else if p.contains("cause")
+                || p.contains("reason")
+                || p.contains("why")
+                || p.contains("motivation")
+                || p.contains("conflict")
+            {
+                Why
+            } else if p.contains("method")
+                || p.contains("process")
+                || p.contains("how")
+                || p.contains("uses")
+                || p.contains("resolution")
+            {
+                How
+            } else {
+                What
+            }
+        }
     }
 }
 
@@ -745,10 +794,11 @@ impl DocProcServer {
                     }
                 };
 
-                // Store triples as h_mems
+                // Store triples as h_mems — preserve subject in value for knowledge graph
                 let mut stored = 0usize;
                 if let Some(arr) = h_mems.get("h_mems").and_then(|v| v.as_array()) {
                     for triple in arr {
+                        let subject = triple.get("subject").and_then(|v| v.as_str()).unwrap_or("");
                         let predicate = triple
                             .get("predicate")
                             .and_then(|v| v.as_str())
@@ -759,7 +809,13 @@ impl DocProcServer {
                             .and_then(|v| v.as_f64())
                             .unwrap_or(0.8);
                         let dimension = predicate_to_dimension(predicate);
-                        let h_mem = hkask_storage::HMem::new(&entity_ref, predicate, object, webid)
+                        // Store subject + object in value so build_prompts can format
+                        // triples as "subject --predicate--> object" with confidence.
+                        let value = json!({
+                            "subject": subject,
+                            "object": object,
+                        });
+                        let h_mem = hkask_storage::HMem::new(&entity_ref, predicate, value, webid)
                             .with_visibility(hkask_types::Visibility::Public)
                             .with_confidence(confidence)
                             .with_dimension(dimension);

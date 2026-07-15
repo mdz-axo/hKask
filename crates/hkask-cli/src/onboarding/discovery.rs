@@ -15,6 +15,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
+use crate::error::CliError;
+
 // ── OpenRouter API types ──────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, Clone)]
@@ -172,8 +174,12 @@ pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<Onboarding
 
 // ── OpenRouter pipeline ───────────────────────────────────────────────────
 
-async fn run_openrouter_pipeline(config: &InferenceConfig) -> Result<Vec<OnboardingModel>, String> {
-    let client = config.build_client().map_err(|e| e.to_string())?;
+async fn run_openrouter_pipeline(
+    config: &InferenceConfig,
+) -> Result<Vec<OnboardingModel>, CliError> {
+    let client = config
+        .build_client()
+        .map_err(|e| CliError::Onboarding(e.to_string()))?;
     let url = format!(
         "{}/v1/models?output_modalities=text&sort=intelligence-high-to-low&supported_parameters={}",
         config.openrouter_base_url.trim_end_matches('/'),
@@ -189,16 +195,19 @@ async fn run_openrouter_pipeline(config: &InferenceConfig) -> Result<Vec<Onboard
         .header("User-Agent", "hKask-onboarding/0.31")
         .send()
         .await
-        .map_err(|e| format!("OpenRouter API request failed: {e}"))?;
+        .map_err(|e| CliError::Onboarding(format!("OpenRouter API request failed: {e}")))?;
 
     if !resp.status().is_success() {
-        return Err(format!("OpenRouter API returned {}", resp.status()));
+        return Err(CliError::Onboarding(format!(
+            "OpenRouter API returned {}",
+            resp.status()
+        )));
     }
 
     let list: OpenRouterModelList = resp
         .json()
         .await
-        .map_err(|e| format!("OpenRouter parse error: {e}"))?;
+        .map_err(|e| CliError::Onboarding(format!("OpenRouter parse error: {e}")))?;
 
     let mut filtered: Vec<(OnboardingModel, f64)> = Vec::new();
     for model in list.data {
@@ -250,7 +259,9 @@ async fn run_openrouter_pipeline(config: &InferenceConfig) -> Result<Vec<Onboard
     }
 
     if filtered.is_empty() {
-        return Err("No qualifying models found via OpenRouter".into());
+        return Err(CliError::Onboarding(
+            "No qualifying models found via OpenRouter".into(),
+        ));
     }
 
     filtered.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));

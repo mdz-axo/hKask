@@ -4,6 +4,7 @@
 //! and health checks for the Matrix integration.
 
 use crate::cli::MatrixAction;
+use crate::error::CliError;
 use std::path::{Path, PathBuf};
 
 /// expect: "I can access all hKask functionality through the kask CLI"
@@ -506,7 +507,7 @@ fn call_conduit_admin_register(
     admin_token: &str,
     username: &str,
     password: &str,
-) -> Result<(), String> {
+) -> Result<(), CliError> {
     let localpart = derive_mxid(username, homeserver)
         .trim_start_matches('@')
         .split(':')
@@ -536,7 +537,7 @@ fn call_conduit_admin_register(
             .json(&body)
             .send()
             .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+            .map_err(|e| CliError::Matrix(format!("HTTP request failed: {}", e)))?;
 
         if response.status().is_success() {
             return Ok(());
@@ -559,7 +560,7 @@ fn call_conduit_admin_register(
             .json(&body)
             .send()
             .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+            .map_err(|e| CliError::Matrix(format!("HTTP request failed: {}", e)))?;
 
         if response.status().is_success() {
             return Ok(());
@@ -580,7 +581,7 @@ fn call_conduit_admin_register(
             .json(&body)
             .send()
             .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+            .map_err(|e| CliError::Matrix(format!("HTTP request failed: {}", e)))?;
 
         let status = response.status();
         let body_text = response
@@ -591,12 +592,12 @@ fn call_conduit_admin_register(
         if status.is_success() {
             Ok(())
         } else {
-            Err(format!(
+            Err(CliError::Matrix(format!(
                 "Server returned {} {}: {}",
                 status.as_u16(),
                 status.canonical_reason().unwrap_or("Unknown"),
                 body_text
-            ))
+            )))
         }
     })
 }

@@ -38,6 +38,7 @@ thiserror.workspace = true
 	dirs = "6"
 	base64.workspace = true
 rmcp.workspace = true
+anyhow.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

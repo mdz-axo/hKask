@@ -9,6 +9,7 @@
 //! monitoring dies when the CLI command exits.
 
 use crate::cli::DaemonAction;
+use crate::error::CliError;
 use hkask_mcp::daemon::{DaemonHandler, DaemonListener, daemon_socket_path};
 use std::sync::Arc;
 
@@ -43,7 +44,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: DaemonAction) {
     }
 }
 
-async fn run_daemon() -> Result<(), String> {
+async fn run_daemon() -> Result<(), CliError> {
     // Build config — prefer env, fall back to in-memory (no wallet needed)
     let config = hkask_services_core::ServiceConfig::from_env()
         .unwrap_or_else(|_| hkask_services_core::ServiceConfig::in_memory());
@@ -57,7 +58,11 @@ async fn run_daemon() -> Result<(), String> {
                 hkask_services_core::ServiceConfig::in_memory(),
             )
             .await
-            .map_err(|e| format!("Failed to build service context (in-memory fallback): {e}"))?
+            .map_err(|e| {
+                CliError::Daemon(format!(
+                    "Failed to build service context (in-memory fallback): {e}"
+                ))
+            })?
         }
     };
 
@@ -72,7 +77,7 @@ async fn run_daemon() -> Result<(), String> {
     listener
         .bind()
         .await
-        .map_err(|e| format!("Failed to bind daemon socket: {e}"))?;
+        .map_err(|e| CliError::Daemon(format!("Failed to bind daemon socket: {e}")))?;
 
     let handler_raw = Arc::clone(&ctx.infra().daemon);
     let handler: Arc<dyn DaemonHandler> = handler_raw;

@@ -527,7 +527,7 @@ mod tests {
         }
         fn run_sovereignty_status(&self) {}
         #[cfg(feature = "tui")]
-        fn open_transcript_viewer(&self, _path: &std::path::Path) -> Result<(), String> {
+        fn open_transcript_viewer(&self, _path: &std::path::Path) -> anyhow::Result<()> {
             Ok(())
         }
     }

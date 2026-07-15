@@ -28,6 +28,7 @@ pub mod archival;
 pub mod cli;
 pub mod cloud;
 pub mod commands;
+pub mod error;
 pub mod experience;
 pub mod onboarding;
 pub mod onboarding_session;

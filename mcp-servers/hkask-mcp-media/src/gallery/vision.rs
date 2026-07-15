@@ -161,7 +161,7 @@ pub async fn validate_face_reference(
             "Failed to parse validation result: {} — raw: {}",
             e,
             &result.text[..200.min(result.text.len())]
-        )
+        ))
     })?;
 
     tracing::info!(
@@ -232,7 +232,7 @@ pub async fn match_faces(
             "Failed to parse match result: {} — raw: {}",
             e,
             &result.text[..200.min(result.text.len())]
-        )
+        ))
     })?;
 
     tracing::info!(

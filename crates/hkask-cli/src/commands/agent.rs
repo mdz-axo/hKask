@@ -30,7 +30,7 @@ pub async fn bot_list(kind_filter: Option<&str>) -> Result<Vec<RegisteredAgent>,
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     let agents = ctx
@@ -62,7 +62,7 @@ pub async fn bot_status(name: &str) -> Result<RegisteredAgent, ServiceError> {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     ctx.storage()
@@ -90,7 +90,7 @@ pub async fn agent_register(
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     let webid = WebID::from_str(webid_str)?;
@@ -177,7 +177,7 @@ pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     ctx.storage()

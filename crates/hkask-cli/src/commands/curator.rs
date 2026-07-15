@@ -6,6 +6,7 @@ use hkask_storage::EscalationEntry;
 
 use crate::block_on;
 use crate::cli::CuratorAction;
+use crate::error::CliError;
 use std::sync::Arc;
 
 /// Initialize the hKask system on a Hetzner K3s cluster.
@@ -18,29 +19,32 @@ use std::sync::Arc;
 ///   5. Deploys the shared Conduit Matrix homeserver from deploy/k8s/conduit/
 ///   6. Deploys the hKask pod from deploy/k8s/
 ///   7. Prints the Matrix URL and Curator URL
-pub async fn curator_init(domain: &str) -> Result<(), String> {
+pub async fn curator_init(domain: &str) -> Result<(), CliError> {
     // 1. Validate environment
-    let hcloud_token = std::env::var("HCLOUD_TOKEN")
-        .map_err(|_| "HCLOUD_TOKEN not set. Set your Hetzner Cloud API token.".to_string())?;
+    let hcloud_token = std::env::var("HCLOUD_TOKEN").map_err(|_| {
+        CliError::Config("HCLOUD_TOKEN not set. Set your Hetzner Cloud API token.".into())
+    })?;
     if hcloud_token.is_empty() {
-        return Err("HCLOUD_TOKEN is empty.".to_string());
+        return Err(CliError::Config("HCLOUD_TOKEN is empty.".into()));
     }
 
-    let _container_registry = std::env::var("CONTAINER_REGISTRY")
-        .map_err(|_| "CONTAINER_REGISTRY not set (e.g., ghcr.io/your-org/hkask).".to_string())?;
+    let _container_registry = std::env::var("CONTAINER_REGISTRY").map_err(|_| {
+        CliError::Config("CONTAINER_REGISTRY not set (e.g., ghcr.io/your-org/hkask).".into())
+    })?;
     let _version = std::env::var("HKASK_VERSION").unwrap_or_else(|_| "0.30.0".to_string());
 
-    let litestream_bucket =
-        std::env::var("LITESTREAM_BUCKET").map_err(|_| "LITESTREAM_BUCKET not set.".to_string())?;
+    let litestream_bucket = std::env::var("LITESTREAM_BUCKET")
+        .map_err(|_| CliError::Config("LITESTREAM_BUCKET not set.".into()))?;
     let litestream_endpoint = std::env::var("LITESTREAM_ENDPOINT")
-        .map_err(|_| "LITESTREAM_ENDPOINT not set.".to_string())?;
+        .map_err(|_| CliError::Config("LITESTREAM_ENDPOINT not set.".into()))?;
     let litestream_access_key = std::env::var("LITESTREAM_ACCESS_KEY_ID")
-        .map_err(|_| "LITESTREAM_ACCESS_KEY_ID not set.".to_string())?;
+        .map_err(|_| CliError::Config("LITESTREAM_ACCESS_KEY_ID not set.".into()))?;
     let litestream_secret_key = std::env::var("LITESTREAM_SECRET_ACCESS_KEY")
-        .map_err(|_| "LITESTREAM_SECRET_ACCESS_KEY not set.".to_string())?;
+        .map_err(|_| CliError::Config("LITESTREAM_SECRET_ACCESS_KEY not set.".into()))?;
 
-    let _base_url = std::env::var("HKASK_BASE_URL")
-        .map_err(|_| "HKASK_BASE_URL not set (e.g., https://hkask.example.com).".to_string())?;
+    let _base_url = std::env::var("HKASK_BASE_URL").map_err(|_| {
+        CliError::Config("HKASK_BASE_URL not set (e.g., https://hkask.example.com).".into())
+    })?;
 
     let _keystore_passphrase = std::env::var("HKASK_KEYSTORE_PASSPHRASE").unwrap_or_default();
 
@@ -53,10 +57,10 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
         .unwrap_or(false);
 
     if !kubectl_ok {
-        return Err(
+        return Err(CliError::Config(
             "kubectl not found. Install it and ensure KUBECONFIG points to your K3s cluster."
-                .to_string(),
-        );
+                .into(),
+        ));
     }
 
     // 3. Validate cloud provider access
@@ -67,7 +71,9 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
     let hetzner = crate::cloud::hetzner::HetznerClient::new(hcloud_token.clone());
     println!("Validating Hetzner API token...");
     hetzner.validate_token().await.map_err(|e| {
-        format!("Hetzner API token validation failed: {e}\nCheck HCLOUD_TOKEN in your .env file.")
+        CliError::Config(format!(
+            "Hetzner API token validation failed: {e}\nCheck HCLOUD_TOKEN in your .env file."
+        ))
     })?;
     println!("  Hetzner API: OK");
 
@@ -80,7 +86,9 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
     )
     .await
     .map_err(|e| {
-        format!("Object storage validation failed: {e}\nCheck LITESTREAM_* vars in your .env file.")
+        CliError::Config(format!(
+            "Object storage validation failed: {e}\nCheck LITESTREAM_* vars in your .env file."
+        ))
     })?;
     println!("  Object storage: OK");
     println!();
@@ -109,11 +117,13 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
         .arg("-f")
         .arg(&conduit_dir)
         .output()
-        .map_err(|e| format!("Failed to run kubectl apply for Conduit: {e}"))?;
+        .map_err(|e| CliError::Io(format!("Failed to run kubectl apply for Conduit: {e}")))?;
 
     if !apply_output.status.success() {
         let stderr = String::from_utf8_lossy(&apply_output.stderr);
-        return Err(format!("kubectl apply for Conduit failed:\n{stderr}"));
+        return Err(CliError::Io(format!(
+            "kubectl apply for Conduit failed:\n{stderr}"
+        )));
     }
 
     let _ = std::fs::remove_dir_all(&conduit_dir);
@@ -132,18 +142,18 @@ pub async fn curator_init(domain: &str) -> Result<(), String> {
     let _ = std::fs::create_dir_all(&curator_dir);
 
     crate::commands::pod::export_k8s(&curator_dir)
-        .map_err(|e| format!("Failed to export K8s manifests: {e}"))?;
+        .map_err(|e| CliError::Io(format!("Failed to export K8s manifests: {e}")))?;
 
     let apply_output = std::process::Command::new("kubectl")
         .arg("apply")
         .arg("-f")
         .arg(&curator_dir)
         .output()
-        .map_err(|e| format!("Failed to run kubectl apply: {e}"))?;
+        .map_err(|e| CliError::Io(format!("Failed to run kubectl apply: {e}")))?;
 
     if !apply_output.status.success() {
         let stderr = String::from_utf8_lossy(&apply_output.stderr);
-        return Err(format!("kubectl apply failed:\n{stderr}"));
+        return Err(CliError::Io(format!("kubectl apply failed:\n{stderr}")));
     }
 
     let _ = std::fs::remove_dir_all(&curator_dir);
@@ -165,18 +175,22 @@ fn copy_conduit_manifests(
     domain: &str,
     signing_key: &str,
     output_dir: &std::path::Path,
-) -> Result<(), String> {
+) -> Result<(), CliError> {
     let source_dir = crate::commands::helpers::resolve_deploy_dir()?.join("conduit");
     if !source_dir.is_dir() {
-        return Err(format!("Cannot find deploy/k8s/conduit at {source_dir:?}"));
+        return Err(CliError::Io(format!(
+            "Cannot find deploy/k8s/conduit at {source_dir:?}"
+        )));
     }
 
-    for entry in
-        std::fs::read_dir(&source_dir).map_err(|e| format!("Cannot read {source_dir:?}: {e}"))?
+    for entry in std::fs::read_dir(&source_dir)
+        .map_err(|e| CliError::Io(format!("Cannot read {source_dir:?}: {e}")))?
     {
-        let entry = entry.map_err(|e| format!("read_dir entry: {e}"))?;
+        let entry = entry.map_err(|e| CliError::Io(format!("read_dir entry: {e}")))?;
         let path = entry.path();
-        let name = path.file_name().ok_or("missing filename")?;
+        let name = path
+            .file_name()
+            .ok_or_else(|| CliError::Io("missing filename".into()))?;
         if name == "secret.yaml" {
             let content = format!(
                 "apiVersion: v1\n\
@@ -193,10 +207,11 @@ fn copy_conduit_manifests(
                    CONDUIT_ALLOW_REGISTRATION: \"false\"\n"
             );
             std::fs::write(output_dir.join(name), &content)
-                .map_err(|e| format!("Failed to write conduit secret: {e}"))?;
+                .map_err(|e| CliError::Io(format!("Failed to write conduit secret: {e}")))?;
         } else if path.is_file() {
-            std::fs::copy(&path, output_dir.join(name))
-                .map_err(|e| format!("Failed to copy conduit manifest {name:?}: {e}"))?;
+            std::fs::copy(&path, output_dir.join(name)).map_err(|e| {
+                CliError::Io(format!("Failed to copy conduit manifest {name:?}: {e}"))
+            })?;
         }
     }
     Ok(())
@@ -209,7 +224,7 @@ pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError>
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     let queue = &ctx.governance().escalations;
@@ -230,7 +245,7 @@ pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     ctx.governance().resolve_escalation(id, "cli-user")
@@ -243,7 +258,7 @@ pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     ctx.governance().dismiss_escalation(id, "cli-user")
@@ -256,7 +271,7 @@ pub async fn curator_metacognition() -> Result<String, ServiceError> {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Infrastructure,
             source: None,
-            message: e,
+            message: e.to_string(),
         }
     })?;
     ChatService::run_curator_metacognition(&ctx).await

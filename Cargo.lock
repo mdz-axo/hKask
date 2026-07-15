@@ -4758,6 +4758,7 @@ dependencies = [
 name = "hkask-repl"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "base64",
  "chrono",

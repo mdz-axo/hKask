@@ -12,6 +12,8 @@ use hkask_wallet::{RJoule, WalletConfig};
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::error::CliError;
+
 /// Run a wallet subcommand. Builds a standalone WalletService for CLI use.
 /// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is a valid WalletAction variant
@@ -625,22 +627,21 @@ fn handle_report(svc: &WalletService, key_id_str: String, wallet: Option<String>
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-fn resolve_wallet(wallet_arg: Option<String>) -> Result<WalletId, String> {
+fn resolve_wallet(wallet_arg: Option<String>) -> Result<WalletId, CliError> {
     match wallet_arg {
-        Some(ref s) => {
-            WalletId::from_str(s).map_err(|e| format!("Invalid wallet ID '{}': {}", s, e))
-        }
+        Some(ref s) => WalletId::from_str(s)
+            .map_err(|e| CliError::InvalidInput(format!("Invalid wallet ID '{}': {}", s, e))),
         None => Ok(WalletId::default()),
     }
 }
 
-fn parse_chain(s: Option<&str>) -> Result<ChainId, String> {
+fn parse_chain(s: Option<&str>) -> Result<ChainId, CliError> {
     match s {
         Some("hedera") | None => Ok(ChainId::Hedera),
-        Some(other) => Err(format!(
+        Some(other) => Err(CliError::InvalidInput(format!(
             "Invalid chain '{}'. Expected one of: hedera",
             other
-        )),
+        ))),
     }
 }
 
