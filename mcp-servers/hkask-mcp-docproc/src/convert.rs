@@ -185,5 +185,105 @@ pub fn strip_html(html: &str) -> String {
     // Collapse whitespace
     let collapsed: String = result.split_whitespace().collect::<Vec<&str>>().join(" ");
 
-    collapsed
+    // Decode HTML entities after whitespace collapse
+    decode_html_entities(&collapsed)
+}
+
+/// Decode common HTML entities in extracted text.
+///
+/// Handles named entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`,
+/// `&nbsp;`, `&#39;`) and numeric entities (`&#NNN;`, `&#xNNN;`).
+/// `&amp;` is decoded last to prevent double-decode of nested entities.
+pub fn decode_html_entities(text: &str) -> String {
+    let text = text.replace("&nbsp;", " ");
+    let text = text.replace("&lt;", "<");
+    let text = text.replace("&gt;", ">");
+    let text = text.replace("&quot;", "\"");
+    let text = text.replace("&apos;", "'");
+    let text = text.replace("&#39;", "'");
+    let text = text.replace("&amp;", "&");
+
+    // Numeric decimal entities: &#NNN;
+    let re_dec = regex::Regex::new(r"&#(\d+);").expect("decimal entity regex");
+    let text = re_dec.replace_all(&text, |caps: &regex::Captures| {
+        caps[1]
+            .parse::<u32>()
+            .ok()
+            .and_then(char::from_u32)
+            .map(|c| c.to_string())
+            .unwrap_or_default()
+    });
+
+    // Numeric hex entities: &#xNNN;
+    let re_hex = regex::Regex::new(r"&#x([0-9a-fA-F]+);").expect("hex entity regex");
+    re_hex
+        .replace_all(&text, |caps: &regex::Captures| {
+            u32::from_str_radix(&caps[1], 16)
+                .ok()
+                .and_then(char::from_u32)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        })
+        .into_owned()
+}
+
+/// Strip HTML comments (`<!-- ... -->`) from text.
+///
+/// Handles multi-line comments. Used for markdown files that contain
+/// embedded HTML comments from OCR/Kindle conversion tools.
+pub fn strip_html_comments(text: &str) -> String {
+    let re = regex::Regex::new(r"(?s)<!--.*?-->").expect("html comment regex");
+    re.replace_all(text, "").into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decodes_named_entities() {
+        assert_eq!(
+            decode_html_entities("a &amp; b &lt; c &gt; d &quot;e&quot; f&apos;g"),
+            "a & b < c > d \"e\" f'g"
+        );
+    }
+
+    #[test]
+    fn decodes_nbsp_to_space() {
+        assert_eq!(decode_html_entities("word1&nbsp;word2"), "word1 word2");
+    }
+
+    #[test]
+    fn decodes_numeric_decimal_entities() {
+        assert_eq!(decode_html_entities("&#8217;quote&#8217;"), "’quote’");
+    }
+
+    #[test]
+    fn decodes_numeric_hex_entities() {
+        assert_eq!(decode_html_entities("&#x2014;dash&#x2014;"), "—dash—");
+    }
+
+    #[test]
+    fn amp_decoded_last_to_prevent_double_decode() {
+        assert_eq!(decode_html_entities("&amp;lt;"), "&lt;");
+    }
+
+    #[test]
+    fn strips_html_comments() {
+        assert_eq!(strip_html_comments("text<!-- comment -->more"), "textmore");
+    }
+
+    #[test]
+    fn strips_multiline_html_comments() {
+        assert_eq!(
+            strip_html_comments("before<!-- page 1 | Page 6 of 619 | 567ms -->after"),
+            "beforeafter"
+        );
+    }
+
+    #[test]
+    fn strip_html_decodes_entities() {
+        let html = "<p>A &amp; B</p>";
+        assert_eq!(strip_html(html), "A & B");
+    }
 }

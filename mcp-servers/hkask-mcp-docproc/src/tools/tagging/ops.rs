@@ -60,67 +60,41 @@ fn read_input_chunks(path: &str) -> Result<Vec<InputChunk>, McpToolError> {
     Ok(chunks)
 }
 
-/// Compute graph-centrality salience across the multi-ontology concept graph.
-/// salience = connectivity × (0.5 + 0.5 × diversity)
-/// where connectivity = neighbor_count / (n-1) and diversity = concept_count / 10.
-/// Dimensions (5W1H) contribute to connectivity but not diversity.
+// Compute graph-centrality salience via the memory service.
+//
+// Delegates to hkask_memory::salience::compute_salience_batch — the two-hop
+// connectedness × (1 − redundancy) graph-centrality core. Only ontology
+// concepts feed the graph; 5W1H dimensions are excluded (only six values with
+// "what" in most chunks → a near-complete clique whose redundancy the (1−r)
+// penalty suppresses, drowning the real shared-concept signal). Dimensions stay
+// on the TaggedChunk as metadata for downstream use.
+//
+// NOTE: this path exercises ONLY the graph-centrality core. The richer parts of
+// hkask_memory::salience (MethodSignals stylistic analysis, BudgetConfig h_mem
+// budget gating, declared-entity tag_entities) are NOT used here — docproc
+// tags are LLM-extracted ontology concepts, not declared named entities.
 fn compute_salience(tagged: &[TaggedChunk]) -> Vec<f32> {
-    let n = tagged.len();
-    if n == 0 {
-        return Vec::new();
-    }
-
-    // Build inverted index: concept → set of chunk indices
-    let mut concept_to_chunks: std::collections::HashMap<String, Vec<usize>> =
-        std::collections::HashMap::new();
-    for (i, chunk) in tagged.iter().enumerate() {
-        for concept in &chunk.concepts {
-            concept_to_chunks
-                .entry(concept.to_string())
-                .or_default()
-                .push(i);
-        }
-        // Also index by 5W1H dimensions
-        for dim in &chunk.dimensions {
-            let dim_key = format!("5w1h:{dim}");
-            concept_to_chunks
-                .entry(dim_key.clone())
-                .or_default()
-                .push(i);
-        }
-    }
-
-    // For each chunk, count neighbors (other chunks sharing at least one concept/dimension)
-    tagged
+    let all_tags: Vec<hkask_memory::salience::EntityTags> = tagged
         .iter()
-        .enumerate()
-        .map(|(i, chunk)| {
-            let mut neighbors: std::collections::HashSet<usize> = std::collections::HashSet::new();
-            for concept in &chunk.concepts {
-                if let Some(indices) = concept_to_chunks.get(concept.as_str()) {
-                    for &j in indices {
-                        if j != i {
-                            neighbors.insert(j);
-                        }
-                    }
-                }
-            }
-            for dim in &chunk.dimensions {
-                let dim_key = format!("5w1h:{}", dim);
-                if let Some(indices) = concept_to_chunks.get(&dim_key) {
-                    for &j in indices {
-                        if j != i {
-                            neighbors.insert(j);
-                        }
-                    }
-                }
-            }
-            // salience = neighbor_count / max_possible_neighbors, scaled by concept diversity
-            let connectivity = neighbors.len() as f32 / (n - 1).max(1) as f32;
-            let diversity = (chunk.concepts.len() + chunk.dimensions.len()) as f32 / 15.0; // concepts + dimensions
-            (connectivity * (0.5 + 0.5 * diversity.min(1.0))).clamp(0.0, 1.0)
+        .map(|c| hkask_memory::salience::EntityTags {
+            concepts: c.concepts.clone(),
+            ..Default::default()
         })
-        .collect()
+        .collect();
+    hkask_memory::salience::compute_salience_batch(&all_tags)
+}
+
+// Normalize a concept string for salience-graph consistency. The graph keys on
+// exact strings, so "ROIC", "Roic", "roic  " would be three disconnected nodes.
+// Lowercase + trim + collapse whitespace merges them. Corpus-specific
+// canonicalization (e.g. "DCF" → "discounted cash flow") is driven by the
+// tagging template, not hardcoded here — docproc is a general processor.
+fn normalize_concept(s: &str) -> String {
+    s.trim()
+        .to_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[tool_router(router = tagging_router, vis = "pub")]
@@ -311,13 +285,17 @@ impl DocProcServer {
                         expertise_level: "analyst".to_string(),
                     });
 
-                    // Union all ontology_tags values (HashSet for true dedup)
+                    // Union all ontology_tags values, normalized for graph consistency.
+                    // The salience graph keys on exact strings, so case/whitespace
+                    // variants of the same concept would be disconnected nodes.
+                    // Normalization (lowercase + trim + collapse) merges them.
                     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
                     let mut concepts: Vec<String> = Vec::new();
                     for concept_list in tags.ontology_tags.values() {
                         for c in concept_list {
-                            if seen.insert(c.clone()) {
-                                concepts.push(c.clone());
+                            let norm = normalize_concept(c);
+                            if !norm.is_empty() && seen.insert(norm.clone()) {
+                                concepts.push(norm);
                             }
                         }
                     }
@@ -416,4 +394,59 @@ pub struct TagChunksRequest {
 
 fn default_tag_concurrency() -> usize {
     128
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::corpus::TaggedChunk;
+
+    #[test]
+    fn normalize_lowercases_trims_and_collapses_whitespace() {
+        assert_eq!(normalize_concept("ROIC"), "roic");
+        assert_eq!(normalize_concept("  Return On Capital  "), "return on capital");
+        assert_eq!(normalize_concept("discounted   cash\tflow"), "discounted cash flow");
+        assert_eq!(normalize_concept("   "), "");
+    }
+
+    #[test]
+    fn normalize_merges_case_variants_into_one_node() {
+        let a = normalize_concept("ROIC");
+        let b = normalize_concept("roic");
+        let c = normalize_concept("Roic ");
+        assert_eq!(a, b);
+        assert_eq!(b, c);
+    }
+
+    #[test]
+    fn salience_routes_through_memory_service_concepts_only() {
+        // Two chunks share one concept -> connected (positive salience).
+        // A chunk with no concepts is an isolate (0.0) — 5W1H dimensions alone
+        // do NOT rescue it, confirming dimensions are excluded from the graph.
+        let tagged = vec![
+            TaggedChunk {
+                entity_ref: "a".into(), source: "s".into(), text: "".into(),
+                concepts: vec!["return on capital".into()],
+                dimensions: vec!["what".into()],
+                ..Default::default()
+            },
+            TaggedChunk {
+                entity_ref: "b".into(), source: "s".into(), text: "".into(),
+                concepts: vec!["return on capital".into()],
+                dimensions: vec!["what".into()],
+                ..Default::default()
+            },
+            TaggedChunk {
+                entity_ref: "c".into(), source: "s".into(), text: "".into(),
+                concepts: vec![],
+                dimensions: vec!["what".into()],
+                ..Default::default()
+            },
+        ];
+        let scores = compute_salience(&tagged);
+        assert_eq!(scores.len(), 3);
+        assert!(scores[0] > 0.0, "connected chunk must have positive salience");
+        assert!(scores[1] > 0.0, "connected chunk must have positive salience");
+        assert_eq!(scores[2], 0.0, "concept-less chunk must be an isolate (0.0)");
+    }
 }
