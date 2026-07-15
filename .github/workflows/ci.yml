@@ -1,29 +1,24 @@
-# hKask CI — pragmatically lazy: build once, test without recompiling.
+# hKask CI — pragmatically lazy parallel pipeline.
 #
 # Architecture:
-#   invariants  ──────────────────────────────────────┐  (no compilation, <10s)
-#   lint        ───────────────────────────────────────┤  (parallel, ~2 min)
-#   unused-deps ───────────────────────────────────────┤  (parallel, ~1 min)
-#   build ──→ test ──→ skill-audit ──→ doc             ┘  (build ~3min, test ~30s)
+#   invariants  ─── parallel, no compilation, <10s
+#   lint        ─── parallel, Swatinem cache, ~2 min
+#   test        ─── parallel, Swatinem cache, ~5 min
+#   unused-deps ─── parallel, nightly, ~1 min
 #
-# The build job compiles test binaries once (cargo test --no-run) and
-# saves target/ via Swatinem/rust-cache with a shared key.  The test job
-# (needs build) restores that cache and runs pre-built test binaries —
-# zero recompilation.
-#
-# Lint runs in parallel with build using its own clippy-driver cache
-# (different artifacts, can't share with test profile, but clippy is fast).
+# All four jobs run in parallel.  No job dependencies, no build-once
+# artifact sharing — that added complexity (15+ min first run on cache
+# miss) for marginal gain (~1 min faster on subsequent runs).
 #
 # Tests are deterministic: integration tests call CuratorSync::tick()
-# directly instead of polling a background task.  No timeouts, no
-# flakiness, no timing dependency.
+# directly instead of polling a background task.  CNS observer test
+# uses Notify instead of sleep.  No timeouts, no flakiness.
 #
-# Previous design: single sequential job, 12+ min per run, tests polled
-# for async results with 10-60s timeouts.  Non-deterministic failures
-# on CI runners.
+# Previous design: single sequential job, 12+ min, tests polled with
+# 10-60s timeouts.  Non-deterministic failures on CI runners.
 #
-# This design: ~4 min critical path (build + test), deterministic tests,
-# parallel fast-fail on invariants.
+# This design: ~5 min wall time (max of parallel jobs), deterministic
+# tests, fast-fail on invariants in <10s.
 
 name: CI
 
@@ -68,7 +63,7 @@ jobs:
       - name: Structured library errors
         run: bash scripts/check-string-errors.sh
 
-  # ── Lint — runs in PARALLEL with build, own clippy cache ───────────────
+  # ── Lint — fmt + clippy, runs in parallel ───────────────────────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -85,46 +80,26 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-  # ── Build — compile test binaries once, cache target/ ───────────────────
-  # Critical path.  Uses Swatinem/rust-cache with a shared key so the
-  # test job (needs build) can restore the pre-compiled target/ directory.
-  build:
-    name: Build
+  # ── Test — compile + run + skill audit + doc, runs in parallel ──────────
+  test:
+    name: Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - name: Stamp version
         run: bash scripts/ci/stamp-version.sh
       - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: test-profile
       - name: Install system dependencies
         run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
-      - name: Compile test binaries
-        run: cargo test --workspace --no-run
-
-  # ── Test — restores pre-built target/, runs tests, no recompilation ─────
-  test:
-    name: Test
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup-rust
-        with:
-          cache-key: test-profile
-      - name: Install system dependencies
-        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
-      - name: Run tests
+      - name: Test and doctest
         run: cargo test --workspace
       - name: Skill audit
         run: cargo run --bin kask --quiet -- skill audit --fail-below 0.8
       - name: Documentation
         run: cargo doc --workspace --no-deps
 
-  # ── Unused deps — independent nightly check, unchanged ──────────────────
+  # ── Unused deps — independent nightly check ──────────────────────────────
   unused-deps:
     name: Unused Dependencies
     runs-on: ubuntu-latest
