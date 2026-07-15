@@ -5,8 +5,9 @@
 //! and expertise level. Uses LLM-based extraction via a Jinja2 template.
 //! Every chunk gets at least one 5W1H dimension — no zero-tag chunks.
 
-use crate::tools::semantic::{GUARD, configured_qa_model};
+use crate::tools::semantic::GUARD;
 use crate::*;
+use hkask_inference::model_constants::classifier_model;
 use hkask_storage::HMem;
 use hkask_types::Visibility;
 use hkask_types::corpus::TaggedChunk;
@@ -150,7 +151,7 @@ impl DocProcServer {
 
             let sem = Arc::new(tokio::sync::Semaphore::new(req.concurrency.max(1)));
             let router = Arc::clone(&self.inference_router);
-            let model_override = configured_qa_model(None);
+            let model_override = classifier_model();
 
             // Results: index → OntologyTags
             let results: Arc<std::sync::Mutex<Vec<Option<OntologyTags>>>> =
@@ -212,7 +213,7 @@ impl DocProcServer {
                         let mut attempts = 0u32;
                         loop {
                             match router
-                                .generate_with_model(&prompt, &params, model_override.as_deref(), None)
+                                .generate_with_model(&prompt, &params, Some(&model_override), None)
                                 .await
                             {
                                 Ok(resp) => break Some(resp),
@@ -235,7 +236,7 @@ impl DocProcServer {
                         // Got a response — parse it
                         let output_scan = GUARD.scan_output(&response.text);
                         let content = output_scan.output.content(&response.text);
-                        let cleaned = strip_json_fences(content);
+                        let cleaned = extract_json_from_response(content);
                         serde_json::from_str::<OntologyTags>(&cleaned)
                             .map(|mut tags| {
                                 // Validate dimensions against 5W1H allowlist
@@ -356,7 +357,7 @@ impl DocProcServer {
             let dim = embedding_dim();
             let semantic = SemanticMemory::open(&req.db_path, &req.passphrase, dim)
                 .map_err(|e| McpToolError::failed_precondition(format!("Cannot open DB: {e}")))?;
-            let webid = hkask_types::WebID::from_persona("corpus".as_bytes());
+            let webid = hkask_types::WebID::from_persona(req.owner.as_bytes());
             let mut stored = 0usize;
             let mut store_failures = 0usize;
             for (i, chunk) in tagged.iter().enumerate() {

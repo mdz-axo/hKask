@@ -4127,7 +4127,6 @@ dependencies = [
  "hkask-services-corpus",
  "hkask-storage",
  "hkask-types",
- "minijinja",
  "serde",
  "serde_json",
  "tokio",

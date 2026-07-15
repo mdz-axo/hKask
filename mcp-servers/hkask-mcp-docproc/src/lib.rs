@@ -605,6 +605,24 @@ fn strip_json_fences(text: &str) -> String {
     }
 }
 
+/// Extract JSON from an LLM response that may contain thinking-mode reasoning.
+///
+/// Models like GLM-5.2 and Qwen3.6 produce reasoning text before the JSON payload.
+/// This function strips code fences, then extracts from the first `{` to the
+/// last `}` — discarding any reasoning preamble or trailing text.
+///
+/// Proven against GLM-5.2 (~640-830 reasoning tokens) and Qwen3.6-35B-A3B.
+pub(crate) fn extract_json_from_response(text: &str) -> String {
+    let de_fenced = strip_json_fences(text);
+    match de_fenced.find('{') {
+        Some(start) => match de_fenced.rfind('}') {
+            Some(end) if end > start => de_fenced[start..=end].to_string(),
+            _ => de_fenced,
+        },
+        None => de_fenced,
+    }
+}
+
 /// Load a docproc template from registry and render with minijinja.
 ///
 /// Templates live in `registry/templates/docproc/` as Jinja2 files.
@@ -616,35 +634,54 @@ fn strip_json_fences(text: &str) -> String {
 /// Template base path is resolved relative to the workspace root. If the
 /// server is started from a different directory, set `HKASK_REPLICANT_REGISTRY_PATH`
 /// to the absolute path of the `registry/replicants` directory.
+/// Cached template environment — compiled templates are stored and reused.
+///
+/// Template names and sources are leaked as `'static` (loaded once, never freed).
+/// This is acceptable because there are only a handful of templates and they
+/// live for the server's lifetime anyway.
+static TEMPLATE_CACHE: std::sync::OnceLock<std::sync::Mutex<minijinja::Environment<'static>>> =
+    std::sync::OnceLock::new();
+
 fn render_docproc_template(
     template_name: &str,
     vars: &std::collections::HashMap<&str, String>,
 ) -> String {
-    let template_root =
-        std::env::var("HKASK_TEMPLATE_ROOT").unwrap_or_else(|_| "registry".to_string());
-    let template_path = std::path::Path::new(&template_root)
-        .join("templates/docproc")
-        .join(format!("{template_name}.j2"));
+    let env = TEMPLATE_CACHE.get_or_init(|| {
+        let mut env = minijinja::Environment::new();
+        env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+        std::sync::Mutex::new(env)
+    });
 
-    let content = match std::fs::read_to_string(&template_path) {
-        Ok(c) => c,
-        Err(e) => {
-            tracing::warn!(target: "hkask.mcp.docproc.template", path = %template_path.display(), error = %e, "Template not found");
+    let template_key: &'static str = Box::leak(format!("docproc:{template_name}").into_boxed_str());
+
+    let mut env_guard = env.lock().unwrap();
+
+    // Load template from disk on first use, then cache in the environment
+    if env_guard.get_template(template_key).is_err() {
+        let template_root =
+            std::env::var("HKASK_TEMPLATE_ROOT").unwrap_or_else(|_| "registry".to_string());
+        let template_path = std::path::Path::new(&template_root)
+            .join("templates/docproc")
+            .join(format!("{template_name}.j2"));
+
+        let content = match std::fs::read_to_string(&template_path) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(target: "hkask.mcp.docproc.template", path = %template_path.display(), error = %e, "Template not found");
+                return String::new();
+            }
+        };
+
+        let source: &'static str = Box::leak(content.into_boxed_str());
+        if let Err(e) = env_guard.add_template(template_key, source) {
+            tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Invalid template syntax");
             return String::new();
         }
-    };
-
-    // Render with minijinja (same pattern as hkask-services-core::self_heal)
-    let mut env = minijinja::Environment::new();
-    env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
-    if let Err(e) = env.add_template("tpl", &content) {
-        tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Invalid template syntax");
-        return String::new();
     }
 
     let ctx = serde_json::to_value(vars).unwrap_or_default();
-    match env
-        .get_template("tpl")
+    match env_guard
+        .get_template(template_key)
         .and_then(|t| t.render(minijinja::Value::from_serialize(&ctx)))
     {
         Ok(rendered) => rendered.trim().to_string(),
@@ -780,6 +817,24 @@ pub struct ExtractTriplesRequest {
     /// Maximum h_mems to extract (default 50).
     #[serde(default)]
     pub max_triples: Option<usize>,
+    /// Chunk reference (entity_ref) — used as the h_mem entity when storing triples.
+    /// When provided with db_path, triples are stored as h_mems with entity=chunk_ref.
+    #[serde(default)]
+    pub chunk_ref: Option<String>,
+    /// Path to the SQLCipher memory DB for h_mem storage.
+    /// When provided with chunk_ref, extracted triples are stored as h_mems.
+    #[serde(default)]
+    pub db_path: Option<String>,
+    /// Passphrase for the memory DB.
+    #[serde(default)]
+    pub passphrase: Option<String>,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_extract_owner")]
+    pub owner: String,
+}
+
+fn default_extract_owner() -> String {
+    "john-brooks".to_string()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -789,6 +844,25 @@ pub struct EmbedRequest {
     /// Embedding model to use. If not set, uses the configured default.
     #[serde(default)]
     pub model: Option<String>,
+    /// Path to the SQLCipher memory DB for vector + h_mem storage.
+    /// When provided, embeddings and text/provenance h_mems are stored in the DB.
+    /// When omitted, vectors are returned as JSON (backward compatible).
+    #[serde(default)]
+    pub db_path: Option<String>,
+    /// Passphrase for the memory DB.
+    #[serde(default)]
+    pub passphrase: Option<String>,
+    /// Entity refs (chunk_ref) for each text — used as the h_mem entity and embedding key.
+    /// Must match `texts` length when provided. Required when `db_path` is set.
+    #[serde(default)]
+    pub entity_refs: Option<Vec<String>>,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_embed_owner")]
+    pub owner: String,
+}
+
+fn default_embed_owner() -> String {
+    "john-brooks".to_string()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -906,10 +980,106 @@ pub struct TagChunksRequest {
     /// If true, only report stats without LLM calls or writing output.
     #[serde(default)]
     pub dry_run: bool,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_tag_owner")]
+    pub owner: String,
 }
 
 fn default_tag_concurrency() -> usize {
     128
+}
+
+fn default_tag_owner() -> String {
+    "john-brooks".to_string()
+}
+
+// ── Build prompts request ─────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BuildPromptsRequest {
+    /// Path to tagged chunks JSONL (from consolidate phase).
+    pub tagged_jsonl: String,
+    /// Output path for prompts JSONL (one JSON per line, consumed by generate_qa_batch).
+    pub output: String,
+    /// Path to the SQLCipher memory DB for embedding retrieval + h_mem knowledge graph.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// Number of KNN context passages to retrieve per chunk (default 3).
+    #[serde(default = "default_context_k")]
+    pub context_k: usize,
+    /// Number of Bloom-level QA prompts per chunk (default 5 — one per level).
+    #[serde(default = "default_prompts_per_chunk")]
+    pub prompts_per_chunk: usize,
+    /// Bloom's taxonomy weight distribution (e.g. "1,1,1,1,1" = equal).
+    #[serde(default = "default_type_distribution")]
+    pub type_distribution: String,
+    /// Generate cross-reference synthesis prompts.
+    #[serde(default)]
+    pub cross_reference: bool,
+    /// Max prompts to output (0 = all qualifying chunks).
+    #[serde(default)]
+    pub max_prompts: usize,
+    /// Owner persona for h_mem queries (e.g. "john-brooks").
+    #[serde(default = "default_build_prompts_owner")]
+    pub owner: String,
+}
+
+fn default_context_k() -> usize {
+    3
+}
+
+fn default_prompts_per_chunk() -> usize {
+    5
+}
+
+fn default_type_distribution() -> String {
+    "1,1,1,1,1".to_string()
+}
+
+fn default_build_prompts_owner() -> String {
+    "john-brooks".to_string()
+}
+
+// ── Ingest QA request ────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct IngestQaRequest {
+    /// Path to generated QAs JSONL (from docproc_generate_qa_batch).
+    pub generated_jsonl: String,
+    /// Output path for training-ready JSONL (instruction/input/output per line).
+    pub output: String,
+    /// Path to the SQLCipher memory DB for h_mem + embedding storage.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    pub passphrase: String,
+    /// SemDeDup cosine similarity threshold (0.89 = moderate, 0.92 = strict).
+    #[serde(default = "default_dedup_threshold_ingest")]
+    pub dedup_threshold: f64,
+    /// If true, validate and dedup without storing.
+    #[serde(default)]
+    pub dry_run: bool,
+    /// Store QA embedding vectors in EmbeddingStore for KNN search.
+    #[serde(default)]
+    pub embed_qas: bool,
+    /// Dataset name for training_qa_pair h_mems.
+    #[serde(default = "default_dataset")]
+    pub dataset: String,
+    /// Owner persona for stored h_mems (e.g. "john-brooks").
+    #[serde(default = "default_ingest_owner")]
+    pub owner: String,
+}
+
+fn default_dedup_threshold_ingest() -> f64 {
+    0.89
+}
+
+fn default_dataset() -> String {
+    "capabilities-researcher".to_string()
+}
+
+fn default_ingest_owner() -> String {
+    "john-brooks".to_string()
 }
 
 // ── Extract outcome enum ───────────────────────────────────────────────────
@@ -1027,6 +1197,37 @@ mod tests {
     }
 
     #[test]
+    fn extract_json_from_response_handles_thinking_mode() {
+        // GLM-5.2 / Qwen3.6 produce reasoning text before JSON
+        let input = "Let me analyze this passage.\nThe key concept is ROIC.\n\n{\"qa_pairs\": [{\"question\": \"What is ROIC?\", \"answer\": \"Return on Invested Capital\", \"bloom_level\": \"factual\"}]}";
+        let result = extract_json_from_response(input);
+        assert!(result.starts_with('{'));
+        assert!(result.ends_with('}'));
+        assert!(result.contains("qa_pairs"));
+    }
+
+    #[test]
+    fn extract_json_from_response_plain_json() {
+        let input = "{\"h_mems\": []}";
+        assert_eq!(extract_json_from_response(input), "{\"h_mems\": []}");
+    }
+
+    #[test]
+    fn extract_json_from_response_fenced_json() {
+        let input = "```json\n{\"x\": 1}\n```";
+        assert_eq!(extract_json_from_response(input), "{\"x\": 1}");
+    }
+
+    #[test]
+    fn extract_json_from_response_no_json() {
+        let input = "Just plain text, no JSON here.";
+        assert_eq!(
+            extract_json_from_response(input),
+            "Just plain text, no JSON here."
+        );
+    }
+
+    #[test]
     fn strip_json_fences_removes_fences() {
         let input = "```json\n{\"key\": \"value\"}\n```";
         assert_eq!(strip_json_fences(input), "{\"key\": \"value\"}");
@@ -1128,6 +1329,10 @@ mod tests {
         let req = EmbedRequest {
             texts: vec![],
             model: None,
+            db_path: None,
+            passphrase: None,
+            entity_refs: None,
+            owner: "john-brooks".to_string(),
         };
         // Validation happens before router access, so this tests the guard
         assert!(req.texts.is_empty());
@@ -1139,6 +1344,10 @@ mod tests {
             text: String::new(),
             namespace: None,
             max_triples: None,
+            chunk_ref: None,
+            db_path: None,
+            passphrase: None,
+            owner: "john-brooks".to_string(),
         };
         assert!(req.text.is_empty());
     }

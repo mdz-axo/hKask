@@ -94,6 +94,50 @@ pub(crate) fn configured_qa_model(requested_model: Option<String>) -> Option<Str
         })
 }
 
+/// Map an RDF predicate to a 5W1H dimension.
+///
+/// Migrated from the CLI binary's `predicate_to_dimension` function.
+/// Used by `docproc_extract_triples` to assign a Dimension to each stored h_mem.
+pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension {
+    let p = predicate.to_lowercase();
+    if p.contains("type") || p.contains("is_a") || p.contains("subclass") {
+        hkask_types::Dimension::What
+    } else if p.contains("name") || p.contains("label") || p.contains("title") {
+        hkask_types::Dimension::What
+    } else if p.contains("location") || p.contains("place") || p.contains("located_in") {
+        hkask_types::Dimension::Where
+    } else if p.contains("time")
+        || p.contains("date")
+        || p.contains("when")
+        || p.contains("created")
+    {
+        hkask_types::Dimension::When
+    } else if p.contains("person")
+        || p.contains("author")
+        || p.contains("creator")
+        || p.contains("actor")
+    {
+        hkask_types::Dimension::Who
+    } else if p.contains("cause")
+        || p.contains("reason")
+        || p.contains("why")
+        || p.contains("motivation")
+    {
+        hkask_types::Dimension::Why
+    } else if p.contains("method")
+        || p.contains("process")
+        || p.contains("how")
+        || p.contains("uses")
+        || p.contains("uses_method")
+    {
+        hkask_types::Dimension::How
+    } else if p.contains("mentions") || p.contains("references") || p.contains("relates_to") {
+        hkask_types::Dimension::What
+    } else {
+        hkask_types::Dimension::What
+    }
+}
+
 #[tool_router(router = semantic_router, vis = "pub")]
 impl DocProcServer {
     #[tool(
@@ -189,7 +233,7 @@ impl DocProcServer {
                         );
                     }
                     let qa_response = parse_qa_response(
-                        &strip_json_fences(content),
+                        &extract_json_from_response(content),
                         &levels,
                         is_cross_ref.then(|| _texts.as_ref().map_or(0, Vec::len)),
                     )
@@ -283,7 +327,7 @@ impl DocProcServer {
                         Ok(response) => {
                             let output_scan = GUARD.scan_output(&response.text);
                             let content = output_scan.output.content(&response.text);
-                            match parse_qa_response(&strip_json_fences(content), &levels, None) {
+                            match parse_qa_response(&extract_json_from_response(content), &levels, None) {
                                 Ok(qa_response) => {
                                     let mut results = results.lock().unwrap();
                                     results.push(json!({
@@ -327,7 +371,7 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Extract RDF h_mems (subject, predicate, object) from text using the inference engine. Returns structured knowledge h_mems with confidence scores."
+        description = "Extract RDF h_mems (subject, predicate, object) from text using the inference engine. Uses the classifier model (Qwen3.6-35B-A3B) with 3-attempt retry. When db_path + chunk_ref are provided, stores triples as h_mems in the memory DB with entity=chunk_ref. Handles thinking-mode reasoning text in LLM responses."
     )]
     pub async fn docproc_extract_triples(
         &self,
@@ -335,6 +379,10 @@ impl DocProcServer {
             text,
             namespace,
             max_triples,
+            chunk_ref,
+            db_path,
+            passphrase,
+            owner,
         }): Parameters<ExtractTriplesRequest>,
     ) -> String {
         execute_tool(self, "docproc_extract_triples", async {
@@ -346,13 +394,14 @@ impl DocProcServer {
 
             let ns = namespace.unwrap_or_else(|| "doc".to_string());
             let limit = max_triples.unwrap_or(50);
+            let classifier = hkask_inference::model_constants::classifier_model();
 
-            // C10: Load prompt from registry template, fall back to inline if unavailable
+            // Load prompt from registry template (fixed: was "extract-h_mems", file is "extract-hmems.j2")
             let mut vars: std::collections::HashMap<&str, String> = std::collections::HashMap::new();
             vars.insert("limit", limit.to_string());
             vars.insert("namespace", ns.clone());
             vars.insert("text", text.clone());
-            let prompt = render_docproc_template("extract-h_mems", &vars);
+            let prompt = render_docproc_template("extract-hmems", &vars);
             let prompt = if prompt.is_empty() {
                 format!(
                     "Extract up to {limit} factual RDF h_mems from the following text.\n\n\
@@ -374,7 +423,7 @@ impl DocProcServer {
                 ..Default::default()
             };
 
-            // P3.1: mandatory input guard — scan prompt before model invocation
+            // P3.1: mandatory input guard
             let input_scan = GUARD.scan_input(&prompt);
             if !input_scan.passed {
                 let violations: Vec<String> = input_scan.violations.iter()
@@ -385,55 +434,131 @@ impl DocProcServer {
                 )));
             }
 
-            match self.inference_router.generate(&prompt, &params, None).await {
-                Ok(response) => {
-                    // P3.1: mandatory output guard — scan model output before processing
-                    let output_scan = GUARD.scan_output(&response.text);
-                    let content = output_scan.output.content(&response.text);
-                    if !output_scan.passed {
-                        tracing::warn!(
-                            target: "cns.guard",
-                            violations = ?output_scan.violations.iter().map(|v| &v.scanner).collect::<Vec<_>>(),
-                            "Output guard violations in h_mem extraction — content may be sanitized"
-                        );
-                    }
-                    let cleaned = strip_json_fences(content);
-                    let h_mems: serde_json::Value = match serde_json::from_str(&cleaned) {
-                        Ok(v) => v,
-                        Err(_) => {
-                            json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
+            // Retry with backoff (3 attempts) — same pattern as docproc_tag_chunks
+            let mut attempts = 0u32;
+            let response = loop {
+                match self.inference_router
+                    .generate_with_model(&prompt, &params, Some(&classifier), None)
+                    .await
+                {
+                    Ok(resp) => break resp,
+                    Err(e) => {
+                        attempts += 1;
+                        if attempts >= 3 {
+                            return Err(McpToolError::unavailable(format!(
+                                "HMem extraction failed after 3 retries: {}", e
+                            )));
                         }
-                    };
-
-                    let result = json!({
-                        "namespace": ns,
-                        "max_triples": limit,
-                        "h_mems": h_mems,
-                        "tokens_used": response.usage.total_tokens,
-                    });
-                    self.record_experience(
-                        "docproc_extract_triples",
-                        &ns,
-                        "success",
-                        result.clone(),
-                    );
-                    Ok(result)
+                        let backoff = std::time::Duration::from_secs(2u64.pow(attempts) * 5);
+                        tracing::warn!(
+                            target: "hkask.mcp.docproc.triples",
+                            attempt = attempts,
+                            backoff_secs = backoff.as_secs(),
+                            error = %e,
+                            "HMem extraction retry — backing off"
+                        );
+                        tokio::time::sleep(backoff).await;
+                    }
                 }
-                Err(e) => Err(McpToolError::unavailable(format!(
-                    "HMem extraction failed: {}",
-                    e
-                ))),
+            };
+
+            // P3.1: mandatory output guard
+            let output_scan = GUARD.scan_output(&response.text);
+            let content = output_scan.output.content(&response.text);
+            if !output_scan.passed {
+                tracing::warn!(
+                    target: "cns.guard",
+                    violations = ?output_scan.violations.iter().map(|v| &v.scanner).collect::<Vec<_>>(),
+                    "Output guard violations in h_mem extraction — content may be sanitized"
+                );
             }
+            // Thinking-mode JSON extraction (handles reasoning text before JSON)
+            let cleaned = extract_json_from_response(content);
+            let h_mems: serde_json::Value = match serde_json::from_str(&cleaned) {
+                Ok(v) => v,
+                Err(_) => {
+                    json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
+                }
+            };
+
+            // Store triples as h_mems when db_path + chunk_ref are provided
+            let stored_count = if let (Some(db), Some(chunk)) = (&db_path, &chunk_ref) {
+                let pass = passphrase.as_deref().unwrap_or("");
+                let dim = 1024; // Embedding dim — not used for h_mem storage but required by open()
+                let semantic = match hkask_memory::SemanticMemory::open(db, pass, dim) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.mcp.docproc.triples", error = %e, "Cannot open DB for h_mem storage");
+                        return Err(McpToolError::failed_precondition(format!("Cannot open memory DB: {e}")));
+                    }
+                };
+                let webid = hkask_types::WebID::from_persona(owner.as_bytes());
+                let mut stored = 0usize;
+                // Parse h_mems array and store each triple as an h_mem
+                if let Some(arr) = h_mems.get("h_mems").and_then(|v| v.as_array()) {
+                    for triple in arr {
+                        let predicate = triple.get("predicate")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown");
+                        let object = triple.get("object").cloned().unwrap_or(json!(null));
+                        let confidence = triple.get("confidence")
+                            .and_then(|v| v.as_f64())
+                            .unwrap_or(0.8);
+                        let dimension = predicate_to_dimension(predicate);
+                        let h_mem = hkask_storage::HMem::new(
+                            chunk,
+                            predicate,
+                            object,
+                            webid,
+                        )
+                        .with_visibility(hkask_types::Visibility::Public)
+                        .with_confidence(confidence)
+                        .with_dimension(dimension);
+                        match semantic.store(h_mem) {
+                            Ok(()) => stored += 1,
+                            Err(e) => {
+                                tracing::warn!(target: "hkask.mcp.docproc.triples", error = %e, "Failed to store triple h_mem");
+                            }
+                        }
+                    }
+                }
+                stored
+            } else {
+                0
+            };
+
+            let result = json!({
+                "namespace": ns,
+                "max_triples": limit,
+                "h_mems": h_mems,
+                "stored_h_mems": stored_count,
+                "model": classifier,
+                "tokens_used": response.usage.total_tokens,
+            });
+            self.record_experience(
+                "docproc_extract_triples",
+                &ns,
+                "success",
+                result.clone(),
+            );
+            Ok(result)
         })
         .await
     }
 
     #[tool(
-        description = "Generate embedding vectors for a list of texts (passages or h_mems). Uses the configured embedding model via the inference router. Returns raw vectors as JSON — caller must persist them via corpus-ingest or SemanticMemory::store_embedding()."
+        description = "Generate embedding vectors for a list of texts (passages or h_mems). Uses the configured embedding model via the inference router. When db_path is provided, stores vectors + text/provenance h_mems in the memory DB. When omitted, returns raw vectors as JSON (backward compatible)."
     )]
     pub async fn docproc_embed(
         &self,
-        Parameters(EmbedRequest { texts, model }): Parameters<EmbedRequest>,
+        Parameters(EmbedRequest {
+            texts,
+            model,
+            db_path,
+            passphrase,
+            entity_refs,
+            owner,
+        }): Parameters<EmbedRequest>,
     ) -> String {
         execute_tool(self, "docproc_embed", async {
             if texts.is_empty() {
@@ -455,11 +580,63 @@ impl DocProcServer {
 
             match emb_router.embed_sentences(&model_name, &text_refs).await {
                 Ok(vectors) => {
+                    // Store in DB when db_path is provided
+                    let stored = if let Some(db) = &db_path {
+                        let pass = passphrase.as_deref().unwrap_or("");
+                        let refs = entity_refs.as_ref().filter(|r| r.len() == texts.len());
+                        let dim = vectors.first().map(|v| v.len()).unwrap_or(1024);
+                        let semantic = hkask_memory::SemanticMemory::open(db, pass, dim)
+                            .map_err(|e| McpToolError::failed_precondition(
+                                format!("Cannot open memory DB: {e}"),
+                            ))?;
+                        let webid = hkask_types::WebID::from_persona(owner.as_bytes());
+                        let mut stored_count = 0usize;
+                        let mut store_failures = 0usize;
+                        for (i, (text, vector)) in texts.iter().zip(vectors.iter()).enumerate() {
+                            let entity = refs.map(|r| r[i].as_str()).unwrap_or_else(|| {
+                                // Fallback: use index-based entity ref
+                                Box::leak(format!("embed:{}", i).into_boxed_str())
+                            });
+                            // Store the embedding vector
+                            if let Err(e) = semantic.store_embedding(entity, vector, &model_name) {
+                                store_failures += 1;
+                                if store_failures <= 5 {
+                                    tracing::warn!(target: "hkask.mcp.docproc.embed", entity = entity, error = %e, "Failed to store embedding");
+                                }
+                                continue;
+                            }
+                            // Store text h_mem
+                            let text_h_mem = hkask_storage::HMem::new(
+                                entity, "text", serde_json::json!(text), webid,
+                            )
+                            .with_visibility(hkask_types::Visibility::Public)
+                            .with_confidence(1.0);
+                            let _ = semantic.store(text_h_mem);
+                            // Store provenance h_mem
+                            let provenance = serde_json::json!({
+                                "embedding_model": &model_name,
+                                "embedding_dimensions": vector.len(),
+                                "ingest_kind": "corpus_chunk",
+                            });
+                            let prov_h_mem = hkask_storage::HMem::new(
+                                entity, "corpus_provenance", provenance, webid,
+                            )
+                            .with_visibility(hkask_types::Visibility::Public)
+                            .with_confidence(1.0);
+                            let _ = semantic.store(prov_h_mem);
+                            stored_count += 1;
+                        }
+                        json!({"stored": stored_count, "store_failures": store_failures})
+                    } else {
+                        json!(null)
+                    };
+
                     let result = json!({
                         "count": texts.len(),
                         "dimensions": vectors.first().map(|v| v.len()).unwrap_or(0),
                         "vectors": vectors,
                         "model": model_name,
+                        "db_stored": stored,
                     });
                     self.record_experience(
                         "docproc_embed",
