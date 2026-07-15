@@ -148,8 +148,6 @@ pub struct WeightedScenario {
     pub name: &'static str,
     pub intrinsic_per_share: f64,
     pub probability: f64,
-    pub applied_growth: f64,
-    pub applied_margin: f64,
 }
 
 /// Distribute probabilities across a 2×2 growth×margin scenario matrix.
@@ -176,8 +174,6 @@ pub fn distribute_scenario_probabilities(
             name: r.scenario.name,
             intrinsic_per_share: r.intrinsic_per_share,
             probability: probs[i],
-            applied_growth: r.applied_growth,
-            applied_margin: r.applied_margin,
         })
         .collect()
 }
@@ -213,29 +209,21 @@ mod tests {
                 name: "Bull",
                 intrinsic_per_share: 200.0,
                 probability: 0.3,
-                applied_growth: 0.0,
-                applied_margin: 0.0,
             },
             WeightedScenario {
                 name: "Land",
                 intrinsic_per_share: 150.0,
                 probability: 0.2,
-                applied_growth: 0.0,
-                applied_margin: 0.0,
             },
             WeightedScenario {
                 name: "Cow",
                 intrinsic_per_share: 120.0,
                 probability: 0.3,
-                applied_growth: 0.0,
-                applied_margin: 0.0,
             },
             WeightedScenario {
                 name: "Bear",
                 intrinsic_per_share: 80.0,
                 probability: 0.2,
-                applied_growth: 0.0,
-                applied_margin: 0.0,
             },
         ];
         let sum: f64 = probs.iter().map(|w| w.probability).sum();
@@ -249,15 +237,11 @@ mod tests {
                 name: "Bull",
                 intrinsic_per_share: 200.0,
                 probability: 0.25,
-                applied_growth: 0.0,
-                applied_margin: 0.0,
             },
             WeightedScenario {
                 name: "Bear",
                 intrinsic_per_share: 100.0,
                 probability: 0.75,
-                applied_growth: 0.0,
-                applied_margin: 0.0,
             },
         ];
         let expected = expected_intrinsic(&probs);
