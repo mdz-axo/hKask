@@ -17,6 +17,8 @@ contract:
   output:
     evidence_items: array
     likelihood_ratios: array
+    evidence_likelihood: float
+    evidence_base_rate: float
     updated_probability: float
 energy_cap: 4096
 visibility: Public
@@ -87,4 +89,6 @@ Respond with a JSON object containing:
     likelihood_ratio: float
   }
 - likelihood_ratios: Array of floats (LR for each evidence item)
-- updated_probability: float (0.0-1.0, the posterior probability after all updates)
+- evidence_likelihood: float (0.0-1.0, P(E|H) — how likely is this evidence if the hypothesis is true? Aggregate across all evidence items.)
+- evidence_base_rate: float (0.0-1.0, P(E) — how likely is this evidence in general, regardless of the hypothesis? The marginal probability of the evidence.)
+- updated_probability: float (0.0-1.0, your LLM-estimated posterior for cross-validation against the deterministic bayesian_update computation)
