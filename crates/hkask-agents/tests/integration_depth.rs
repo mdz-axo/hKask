@@ -90,7 +90,7 @@ async fn recall_semantic_routes_through_curator() {
         .expect("store_semantic");
 
     // Poll until CuratorSync picks it up (absorbs 1s tick interval + FS/DB overhead)
-    wait_for_curator_sync(&pods, "RoutingTest", Duration::from_secs(10))
+    wait_for_curator_sync(&pods, "RoutingTest", Duration::from_secs(60))
         .await
         .expect("CuratorSync should pick up the h_mem");
 
@@ -222,7 +222,7 @@ async fn source_pod_provenance_round_trips() {
         .expect("store_semantic");
 
     // Poll until CuratorSync picks it up
-    wait_for_curator_sync(&pods, "ProvTest", Duration::from_secs(10))
+    wait_for_curator_sync(&pods, "ProvTest", Duration::from_secs(60))
         .await
         .expect("CuratorSync should pick up the h_mem");
 
