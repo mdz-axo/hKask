@@ -94,10 +94,21 @@ impl CuratorSync {
     ///
     /// `index` must be the same Arc that ActivePods.curator_index points to.
     pub fn new(index: Arc<std::sync::RwLock<SemanticIndex>>, registry: Arc<PodRegistry>) -> Self {
+        Self::with_interval(index, registry, Duration::from_secs(1))
+    }
+
+    /// Create a CuratorSync with a custom polling interval.
+    /// Tests use a short interval (e.g. 10 ms) so sync completes in <100 ms
+    /// instead of waiting up to 1 s per tick.
+    pub fn with_interval(
+        index: Arc<std::sync::RwLock<SemanticIndex>>,
+        registry: Arc<PodRegistry>,
+        interval: Duration,
+    ) -> Self {
         Self {
             index,
             registry,
-            interval: Duration::from_secs(1),
+            interval,
             consecutive_failures: AtomicU64::new(0),
             artifact_index: Arc::new(std::sync::RwLock::new(ArtifactIndex::default())),
         }

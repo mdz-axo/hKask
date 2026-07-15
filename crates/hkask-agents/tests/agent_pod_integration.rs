@@ -8,7 +8,7 @@ async fn wait_for_curator_h_mems(
     entity: &str,
     min_count: usize,
 ) -> Vec<hkask_storage::HMem> {
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
         let h_mems = if let Some(index) = pods.curator_index().await {
             index
@@ -32,7 +32,11 @@ async fn setup_with_curator(
     let pods = ActivePods::new_test_harness(tmp.path());
     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
     let result = pods
-        .ensure_curator(tmp.path().to_path_buf(), cancel_rx)
+        .ensure_curator_with_interval(
+            tmp.path().to_path_buf(),
+            cancel_rx,
+            std::time::Duration::from_millis(10),
+        )
         .await;
     assert!(result.is_ok(), "ensure_curator failed: {:?}", result.err());
     (pods, cancel_tx)

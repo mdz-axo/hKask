@@ -60,9 +60,13 @@ fn setup(tmp: &tempfile::TempDir) -> ActivePods {
 async fn setup_curator(tmp: &tempfile::TempDir) -> (ActivePods, tokio::sync::watch::Sender<bool>) {
     let pods = setup(tmp);
     let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-    pods.ensure_curator(tmp.path().to_path_buf(), cancel_rx)
-        .await
-        .expect("ensure_curator");
+    pods.ensure_curator_with_interval(
+        tmp.path().to_path_buf(),
+        cancel_rx,
+        Duration::from_millis(10),
+    )
+    .await
+    .expect("ensure_curator");
     (pods, cancel_tx)
 }
 
@@ -90,7 +94,7 @@ async fn recall_semantic_routes_through_curator() {
         .expect("store_semantic");
 
     // Poll until CuratorSync picks it up (absorbs 1s tick interval + FS/DB overhead)
-    wait_for_curator_sync(&pods, "RoutingTest", Duration::from_secs(60))
+    wait_for_curator_sync(&pods, "RoutingTest", Duration::from_secs(5))
         .await
         .expect("CuratorSync should pick up the h_mem");
 
@@ -222,7 +226,7 @@ async fn source_pod_provenance_round_trips() {
         .expect("store_semantic");
 
     // Poll until CuratorSync picks it up
-    wait_for_curator_sync(&pods, "ProvTest", Duration::from_secs(60))
+    wait_for_curator_sync(&pods, "ProvTest", Duration::from_secs(5))
         .await
         .expect("CuratorSync should pick up the h_mem");
 

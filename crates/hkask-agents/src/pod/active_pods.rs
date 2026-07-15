@@ -380,6 +380,18 @@ impl ActivePods {
         data_dir: std::path::PathBuf,
         cancel: tokio::sync::watch::Receiver<bool>,
     ) -> Result<Option<Arc<std::sync::RwLock<SemanticIndex>>>, AgentPodError> {
+        self.ensure_curator_with_interval(data_dir, cancel, std::time::Duration::from_secs(1))
+            .await
+    }
+
+    /// Like `ensure_curator` but with a custom CuratorSync poll interval.
+    /// Tests pass 10 ms so sync completes in <100 ms instead of <1 s.
+    pub async fn ensure_curator_with_interval(
+        &self,
+        data_dir: std::path::PathBuf,
+        cancel: tokio::sync::watch::Receiver<bool>,
+        interval: std::time::Duration,
+    ) -> Result<Option<Arc<std::sync::RwLock<SemanticIndex>>>, AgentPodError> {
         // Check if curator already exists
         {
             let ci = self.curator_index.read().await;
@@ -409,7 +421,8 @@ impl ActivePods {
 
         // Spawn CuratorSync background loop
         let registry = Arc::new(PodRegistry::new(&data_dir));
-        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), registry);
+        let sync =
+            crate::curator::CuratorSync::with_interval(Arc::clone(&index), registry, interval);
         tokio::spawn(async move {
             sync.run(cancel).await;
         });
