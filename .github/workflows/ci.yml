@@ -41,6 +41,8 @@ jobs:
           CARGO_PROFILE_TEST_OPT_LEVEL: 0
           CARGO_PROFILE_TEST_DEBUG: 0
         run: cargo test --workspace
+      - name: Skill audit
+        run: cargo run --bin kask --quiet -- skill audit --fail-below 0.8
       - name: Documentation
         run: cargo doc --workspace --no-deps
       - name: Stamp version
