@@ -1,233 +1,186 @@
-# Migration Plan — Corpus Pipeline MCP Migration + Architecture Improvement
+# Architecture Improvement Plan — Crate Elimination + MCP Server Deepening
 
 **Date:** 2026-07-14  
-**Creator:** Zed Agent (glm-5.2:cloud)  
-**Skills applied:** zoom-out, metacognition, essentialist, grill-me, task-breakdown, improve-codebase-architecture, idiomatic-rust
+**Skills applied:** metacognition, improve-codebase-architecture, kata-improvement, grill-me, pragmatic-laziness, essentialist, task-breakdown
 
 ---
 
-## Overview
+## Adversarial Review (6-skill synthesis)
 
-The MCP tools ARE the product. The corpus pipeline is the test case. An agent wrote custom embed/classify/decimate code into the CLI binary instead of using MCP tools — bypassing ContentGuard, using wrong models, storing h_mems with wrong entity association, and never wiring h_mems into build-prompts as a knowledge graph. This migration fixes all MCP tools, creates missing ones, deletes CLI pipeline code, runs the full pipeline through MCP tools with approved models, and trains with Axolotl + PiSSA.
+### Essentialist: Does `hkask-corpus-ingest` survive the deletion test?
 
-**Additionally**, an `improve-codebase-architecture` + `idiomatic-rust` pass on both MCP servers (docproc + replica) to address structural problems that cause friction and make the codebase harder to extend than it should be.
+**G1 — EXIST:**
+- `purge-qa`: If deleted, caller needs `SemanticMemory::open()` + `purge_by_prefix()` + `query_by_attribute()` + `delete_h_mem()` (~60 lines). Behavior IS lost on deletion → survives G1. But this is a DB operation, not a user-facing CLI — it belongs as an MCP tool on docproc, not as a standalone binary.
+- `ocr`: If deleted, caller uses `docproc_convert` with `force_ocr: true` (already exists). No behavior lost → **FAILS G1.** Pure pass-through to `hkask-services-corpus::ocr_pdf_bytes`.
+- The crate itself: If deleted, only `purge-qa` is lost. That can move to docproc. → **The crate should be DELETED.**
 
----
+**G2 — SURFACE:** After moving purge-qa to docproc, corpus-ingest has 0 public items. → **PASS (vacuously).**
 
-## Architecture Analysis (improve-codebase-architecture + idiomatic-rust)
+**G3 — CONTRACT:** The crate is a pass-through wrapper around `hkask-memory` and `hkask-services-corpus`. No genuine abstraction. → **FAILS G3.**
 
-### Friction Points Identified
+**Essentialist verdict: DELETE the crate. Move `purge-qa` to docproc as `docproc_purge_qa` MCP tool.**
 
-| # | Friction | Module | Severity | Type |
-|---|---------|--------|----------|------|
-| A1 | `lib.rs` is 1427 lines — God Object containing server struct, OCR pipeline, 14 request structs, template engine, JSON utils, helpers, entry point, tests | docproc/lib.rs | High | Shallow module |
-| A2 | Replica server `corpus_*` tools are subprocess wrappers — pure pass-through to `corpus-ingest` CLI binary, violating P5 no-pass-through-abstractions | replica/lib.rs | High | Pass-through |
-| A3 | `corpus_salience` on replica server calls non-existent CLI subcommand — dead code | replica/lib.rs | Medium | Dead code |
-| A4 | Duplicated helpers: `embedding_dim()`, `normalize_in_place()`, `read_tagged_chunks()`, `cosine_similarity()` across docproc and CLI binary | both | Medium | Duplication |
-| A5 | Template cache leaks memory via `Box::leak` on every call — key is leaked even when template already cached | docproc/lib.rs | Medium | Memory leak |
-| A6 | 14 request structs in lib.rs instead of co-located with their tool implementations | docproc/lib.rs | Medium | Misplaced responsibility |
-| A7 | `println!`/`eprintln!` in library code — interferes with MCP protocol, should use `tracing` | docproc tools | Medium | Non-idiomatic |
-| A8 | Multiple `default_*_owner()` functions all return `"john-brooks"` — should be one const | docproc/lib.rs | Low | Duplication |
-| A9 | `configured_qa_model` returns `Option<String>` but `classifier_model` returns `String` — type inconsistency | docproc/semantic.rs | Low | Type mismatch |
-| A10 | Pipeline YAML references `corpus_ingest_embed`, `corpus_ingest_build_prompts`, `corpus_ingest_generate_qa`, `corpus_ingest_ingest_qa` — non-existent tools | corpus/pipeline YAML | High | Broken config |
-| A11 | Pipeline YAML has wrong models (`Qwen3-30B-A3B` instead of `Qwen3.6-35B-A3B` and `GLM-5.2`) | corpus/pipeline YAML | High | Wrong config |
-| A12 | `docproc_extract_triples` template name mismatch (`"extract-h_mems"` vs file `extract-hmems.j2`) | docproc/semantic.rs | Medium | Silent degradation |
-| A13 | `docproc_tag_chunks` uses wrong model (`configured_qa_model` → `HKASK_QA_MODEL` instead of `classifier_model`) | docproc/tagging/ops.rs | High | Wrong model |
-| A14 | `docproc_tag_chunks` stores h_mems with `owner="corpus"` instead of replicant persona | docproc/tagging/ops.rs | High | Wrong owner |
-| A15 | `build-prompts.j2` not registered in `registry/templates/docproc/manifest.yaml` | registry | Low | Incomplete manifest |
+### Pragmatic-laziness: Path of least action
 
-### Template & FlowDef Opportunities
+**Syntax layer:** corpus-ingest is a 213-line binary crate with 2 deps, 2 subcommands, no lib target. No other crate depends on it.
 
-The codebase already has a Jinja2 template system (`render_docproc_template`) and a pipeline YAML manifest system. These should be used more systematically:
+**Semantics layer:** `purge-qa` opens SemanticMemory, purges embeddings + h_mems by prefix. `ocr` calls `ocr_pdf_bytes()` from services-corpus. Both are thin.
 
-**Current template usage:**
-| Tool | Template | Status |
-|------|----------|--------|
-| `docproc_convert` | None (text extraction, not LLM) | ✅ Correct |
-| `docproc_chunk` | None (token splitting, not LLM) | ✅ Correct |
-| `docproc_tag_chunks` | `tag-chunks.j2` | ✅ Works |
-| `docproc_extract_triples` | `extract-hmems.j2` | ⚠️ Name mismatch bug |
-| `docproc_dedup_chunks` | None (pure algorithm) | ✅ Correct |
-| `docproc_consolidate_chunks` | `consolidate-chunks.j2` | ✅ Works |
-| `docproc_generate_qa` | `generate-qa.j2` | ✅ Works |
-| `docproc_generate_qa_batch` | `generate-qa.j2` | ✅ Works |
-| `docproc_build_prompts` | `build-prompts.j2` (created) | ⚠️ Needs manifest registration |
-| `docproc_ingest_qa` | None (data processing, no LLM) | ✅ Correct |
-| `docproc_query` | `rag-answer.j2` | ✅ Works |
+**Pragmatics layer:** The crate exists because it used to be the pipeline binary. The pipeline moved to MCP tools. The crate is vestigial — it exists for historical reasons, not because it serves a current need.
 
-**Template improvements needed:**
-1. Fix extract-hmems template name in code → `"extract-hmems"` (already done in Phase 1)
-2. Register `build-prompts.j2` in `registry/templates/docproc/manifest.yaml`
-3. Remove `classify-chunks.j2` from manifest — it was the combined template that introduced bugs, replaced by separate tag-chunks + extract-hmems
-4. Improve `build-prompts.j2` template — current version is basic; should match the quality of `generate-qa.j2` with system/task/output_contract structure and examples
+**Effort hotspot:** Maintaining a separate crate + Cargo.toml + binary target for 2 utility commands that could be 1 MCP tool + 1 existing MCP tool (`docproc_convert` with `force_ocr`).
 
-**Pipeline YAML improvements needed:**
-1. Replace all `corpus_ingest_*` tool references with `docproc_*` MCP tools
-2. Replace wrong models with approved models
-3. Split `embed_classify_decimate` into separate `docproc_embed`, `docproc_tag_chunks`, `docproc_extract_triples` steps (separate tools, separate templates — the combined `classify-chunks.j2` approach is what caused the bugs)
-4. Add `owner: john-brooks` to all steps that store h_mems
+**Brachistochrone check:** Deleting the crate and moving purge-qa to docproc reduces total system action — no separate compile target, no separate binary, no subprocess calls from replica server.
 
-### Idiomatic Rust Issues
+**Stationary action verdict:** The crate must be deleted. Keeping it adds action (maintenance, build time, subprocess calls) without adding value.
 
-| # | Issue | Fix |
-|---|-------|-----|
-| R1 | `Box::leak` on every `render_docproc_template` call | Check cache before allocating key; only leak on first load |
-| R2 | `println!`/`eprintln!` in library code | Replace with `tracing::info!`/`tracing::warn!` |
-| R3 | Multiple `default_*_owner()` returning same string | Single `const DEFAULT_OWNER: &str = "john-brooks"` |
-| R4 | `configured_qa_model` returns `Option<String>`, `classifier_model` returns `String` | Both should return `String` (they always have a fallback) |
-| R5 | `WebID::from_persona(owner.as_bytes())` repeated 6+ times | Extract `fn owner_webid(owner: &str) -> WebID` helper |
-| R6 | `env.lock().unwrap()` in template cache | Use `unwrap_or_else(|e| e.into_inner())` for poison recovery |
-| R7 | Request structs in lib.rs not co-located with tools | Move each struct to its tool module |
+### Improve-codebase-architecture: Friction points
+
+| # | Friction | Signal | Severity |
+|---|---------|--------|----------|
+| F1 | `hkask-corpus-ingest` is a vestigial crate — 213 lines, 2 utilities, no dependents | Shallow module, pass-through | High |
+| F2 | Replica `replica_pipeline_run` step executor still calls `std::process::Command::new("corpus-ingest")` for `corpus_*` tools | Pass-through subprocess | High |
+| F3 | docproc `lib.rs` is 1457 lines — 14 request structs + template engine + JSON utils + server struct + OCR + helpers + entry + tests | God Object, shallow module | Medium |
+| F4 | Request structs in lib.rs not co-located with tool implementations | Missing locality | Medium |
+| F5 | Replica `lib.rs` is 1321 lines with inline `ReplicaStepExecutor` struct (90 lines) | Missing locality | Low |
+| F6 | `hkask-services-corpus` (3624 lines) merges discovery + embedding — different concerns | Shallow module boundary | Low |
+
+### Grill-me: Key interrogation findings
+
+**Q: Why does corpus-ingest still exist?**  
+A: Historical — it was the pipeline binary. Pipeline moved to MCP tools. Only purge-qa and ocr remain.
+
+**Q: Should purge-qa be CLI or MCP tool?**  
+A: MCP tool. It's a DB operation. docproc already has SemanticMemory access. No reason for a separate binary.
+
+**Q: What about the replica pipeline_run subprocess calls?**  
+A: Pipeline YAML v7.0 uses `docproc_*` tools. The `corpus_*` match arms in the step executor are dead code for new pipelines. They should return deprecation messages, matching the standalone tool behavior.
+
+**Q: What about request struct co-location — is it worth the churn?**  
+A: Yes — it shrinks lib.rs by ~400 lines and co-locates each struct with its tool. The risk is mechanical (import paths), not conceptual.
+
+### Metacognition: Assessment
+
+**Target condition:** No corpus-ingest crate. `docproc_purge_qa` MCP tool. Replica pipeline_run returns deprecation for corpus_* tools. lib.rs < 1000 lines. All builds + tests pass.
+
+**Actual condition:** corpus-ingest is 213 lines. Replica pipeline_run has 3 subprocess call paths. lib.rs is 1457 lines. All builds pass.
+
+**Progress:** 0.60 — Phases 0-4 done, crate elimination + struct co-location remain.
+
+**Obstacles:**
+1. (dependency_block, high) Must move purge-qa to docproc BEFORE deleting corpus-ingest
+2. (complexity, medium) Request struct co-location touches 4 tool files + lib.rs
+3. (tool_limitation, low) Replica pipeline_run step executor cleanup is straightforward
+
+### Kata-improvement: PDCA experiment
+
+**Next experiment:** Move `purge-qa` to docproc as `docproc_purge_qa` MCP tool. Delete corpus-ingest crate. Update replica pipeline_run. Verify build + tests.
+
+**Prediction:** Build will pass. Tests will pass. lib.rs will shrink by ~400 lines when structs are co-located.
+
+**Success criterion:** `cargo build` + `cargo test` pass for all affected crates. No `corpus-ingest` references remain.
 
 ---
 
 ## Tasks
 
-### Phase 0: Delete custom CLI code ✅ DONE
+### Phase A: Eliminate corpus-ingest crate (foundation — fail fast)
 
-| Task | Status |
-|------|--------|
-| 0.1 Delete custom embed/classify/decimate code from main.rs | ✅ |
-| 0.2 Remove minijinja dependency from Cargo.toml | ✅ |
+**Task A.1: Create `docproc_purge_qa` MCP tool**
+- **Slice:** `mcp-purge-qa`
+- **Files:** `mcp-servers/hkask-mcp-docproc/src/tools/storage.rs`, `mcp-servers/hkask-mcp-docproc/src/lib.rs` (request struct)
+- Migrate `run_purge_qa` logic from `crates/hkask-corpus-ingest/src/main.rs` (lines 75-213) to a new `docproc_purge_qa` tool in storage.rs
+- Add `PurgeQaRequest` struct to lib.rs: `prefix: String`, `db_path: String`, `passphrase: String`
+- Tool opens SemanticMemory, purges embeddings by prefix, purges h_mems by attribute/prefix
+- Acceptance:
+  - `cargo build -p hkask-mcp-docproc` succeeds
+  - `docproc_purge_qa` tool registered in combined_router
+  - Tool has docproc server's `record_experience` call
+- **Dependencies:** None
+- **Scope:** S
 
-### Phase 1: Fix existing MCP tools ✅ DONE
+**Task A.2: Delete `hkask-corpus-ingest` crate**
+- **Slice:** `delete-corpus-ingest`
+- **Files:** Delete `crates/hkask-corpus-ingest/` directory, remove from workspace `Cargo.toml`
+- Verify no other crate depends on `hkask-corpus-ingest` (confirmed: no dependents)
+- Acceptance:
+  - `cargo build` succeeds without `hkask-corpus-ingest`
+  - No references to `corpus-ingest` in workspace
+- **Dependencies:** Task A.1
+- **Scope:** XS
 
-| Task | Status |
-|------|--------|
-| 1.1 Add `extract_json_from_response` thinking-mode utility | ✅ 4 tests pass |
-| 1.2 Fix `docproc_tag_chunks` (model, thinking-mode, owner) | ✅ |
-| 1.3 Fix `docproc_embed` (DB storage, optional params) | ✅ |
-| 1.4 Fix `docproc_extract_triples` (DB, thinking-mode, retry, entity, template name) | ✅ |
-| 1.5 Fix `docproc_generate_qa` + batch (thinking-mode) | ✅ |
-| 1.6 Cache compiled templates | ✅ |
+**Checkpoint A:** No corpus-ingest crate. purge-qa is a docproc MCP tool. Build passes.
 
-### Phase 2: Create missing MCP tools (IN PROGRESS)
+### Phase B: Clean up replica server (core — remove remaining subprocess calls)
 
-**Task 2.1: Create `docproc_build_prompts` MCP tool** — ⚠️ Code written, needs fixes
-- Uses `render_docproc_template("build-prompts", &vars)` ✅
-- Has h_mem knowledge graph via `semantic.query_deduped(chunk_ref)` ✅
-- Needs: improve `build-prompts.j2` template quality to match `generate-qa.j2` standard
-- Needs: register in manifest.yaml
-- Needs: fix unused `webid` variable warning
-- Acceptance: Tool builds, template renders, h_mem KG section appears in prompts
+**Task B.1: Update replica pipeline_run step executor**
+- **Slice:** `replica-pipeline-cleanup`
+- **Files:** `mcp-servers/hkask-mcp-replica/src/lib.rs`
+- Replace `corpus_embed`, `corpus_build_prompts`, `corpus_ingest_qa` match arms in `ReplicaStepExecutor::execute` with deprecation messages (same pattern as the standalone tools)
+- Remove `std::process::Command::new("corpus-ingest")` — no subprocess calls remain
+- Acceptance:
+  - No `std::process::Command::new("corpus-ingest")` in replica server
+  - `cargo build -p hkask-mcp-replica` succeeds
+  - `cargo test -p hkask-mcp-replica` passes
+- **Dependencies:** Task A.2 (corpus-ingest must be deleted first)
+- **Scope:** S
 
-**Task 2.2: Create `docproc_ingest_qa` MCP tool** — ⚠️ Code written, needs verification
-- SemDeDup with kmeans clustering ✅
-- QA parsing (flat + envelope formats) ✅
-- h_mem storage with 5W1H dimension ✅
-- QA embedding storage ✅
-- Needs: build verification (was blocked by build_prompts build error)
-- Acceptance: Tool builds, SemDeDup works, h_mems stored
+**Checkpoint B:** No subprocess calls in replica server. All corpus_* tools return deprecation.
 
-**Task 2.3: Improve `build-prompts.j2` template**
-- Add `<system>`, `<task>`, `<output_contract>` structure matching `generate-qa.j2` and `tag-chunks.j2`
-- Add examples of good QA output
-- Add quality checklist
-- Register in `registry/templates/docproc/manifest.yaml`
-- Acceptance: Template renders with all variables, matches quality standard
+### Phase C: Co-locate request structs (deepening — locality improvement)
 
-**Task 2.4: Clean up template manifest**
-- Remove `classify-chunks.j2` from manifest (combined template that caused bugs)
-- Add `build-prompts.j2` to manifest
-- Acceptance: Manifest matches actual templates in use
+**Task C.1: Move document tool request structs**
+- **Slice:** `co-locate-document-structs`
+- **Files:** `mcp-servers/hkask-mcp-docproc/src/tools/document.rs`, `mcp-servers/hkask-mcp-docproc/src/lib.rs`
+- Move `ConvertRequest`, `OcrRequest`, `ChunkRequest` from lib.rs to document.rs
+- Move `default_true()` helper
+- Update imports in document.rs (already has `use crate::*`)
+- Acceptance: `cargo build -p hkask-mcp-docproc` succeeds
+- **Dependencies:** None
+- **Scope:** S
 
-**Checkpoint 2:** All pipeline steps have MCP tool equivalents. Build succeeds. Templates registered.
+**Task C.2: Move semantic tool request structs**
+- **Slice:** `co-locate-semantic-structs`
+- **Files:** `mcp-servers/hkask-mcp-docproc/src/tools/semantic.rs`, `mcp-servers/hkask-mcp-docproc/src/lib.rs`
+- Move `GenerateQaRequest`, `BatchQaPrompt`, `GenerateQaBatchRequest`, `ExtractTriplesRequest`, `EmbedRequest` from lib.rs to semantic.rs
+- Move `default_batch_concurrency()`, `default_owner()` (shared)
+- Acceptance: `cargo build -p hkask-mcp-docproc` succeeds
+- **Dependencies:** None
+- **Scope:** S
 
-### Phase 3: Architecture improvement (NEW — from improve-codebase-architecture + idiomatic-rust)
+**Task C.3: Move corpus + tagging tool request structs**
+- **Slice:** `co-locate-corpus-structs`
+- **Files:** `mcp-servers/hkask-mcp-docproc/src/tools/corpus.rs`, `mcp-servers/hkask-mcp-docproc/src/tools/tagging/ops.rs`, `mcp-servers/hkask-mcp-docproc/src/lib.rs`
+- Move `DedupChunksRequest`, `ConsolidateChunksRequest`, `TagChunksRequest`, `BuildPromptsRequest`, `IngestQaRequest`, `PurgeQaRequest` from lib.rs to their respective tool files
+- Move all `default_*()` helpers for these structs
+- Keep `DEFAULT_OWNER` const + `default_owner()` in lib.rs (shared across tools)
+- Acceptance: `cargo build -p hkask-mcp-docproc` succeeds, lib.rs shrinks by ~400 lines
+- **Dependencies:** Task C.1, C.2 (to avoid merge conflicts)
+- **Scope:** M
 
-**Task 3.1: Move request structs to co-located tool modules**
-- Move `ConvertRequest`, `OcrRequest`, `ChunkRequest` → `tools/document.rs`
-- Move `GenerateQaRequest`, `GenerateQaBatchRequest`, `BatchQaPrompt`, `ExtractTriplesRequest`, `EmbedRequest` → `tools/semantic.rs`
-- Move `DedupChunksRequest`, `ConsolidateChunksRequest`, `TagChunksRequest`, `BuildPromptsRequest`, `IngestQaRequest` → `tools/corpus.rs`
-- Move `CacheRequest`, `QueryRequest`, `ClearIndexRequest` → `tools/storage.rs`
-- Keep shared default functions and `ExtractOutcome` in lib.rs
-- Acceptance: `cargo build -p hkask-mcp-docproc` succeeds. lib.rs shrinks by ~400 lines.
+**Task C.4: Move storage tool request structs**
+- **Slice:** `co-locate-storage-structs`
+- **Files:** `mcp-servers/hkask-mcp-docproc/src/tools/storage.rs`, `mcp-servers/hkask-mcp-docproc/src/lib.rs`
+- Move `CacheRequest`, `QueryRequest`, `ClearIndexRequest` from lib.rs to storage.rs
+- Acceptance: `cargo build -p hkask-mcp-docproc` succeeds
+- **Dependencies:** None
+- **Scope:** XS
 
-**Task 3.2: Fix template cache memory leak**
-- Check `env_guard.get_template(template_key).is_err()` BEFORE allocating `Box::leak`
-- Only leak on first load of a new template name
-- Acceptance: No memory leak on repeated calls with same template name
+**Checkpoint C:** All request structs co-located with their tools. lib.rs < 1000 lines. Build passes.
 
-**Task 3.3: Replace `println!`/`eprintln!` with `tracing` in library code**
-- Files: `tools/corpus.rs`, `tools/tagging/ops.rs`, `tools/semantic.rs`
-- Replace `println!("...")` → `tracing::info!(target: "hkask.mcp.docproc", "...")`
-- Replace `eprintln!("WARN...")` → `tracing::warn!(target: "hkask.mcp.docproc", "...")`
-- Acceptance: No `println!` or `eprintln!` in library code (only in binary main.rs)
+### Phase D: Extract template engine module (polish — locality)
 
-**Task 3.4: Consolidate owner defaults**
-- Replace 5 `default_*_owner()` functions with single `const DEFAULT_OWNER: &str = "john-brooks"`
-- Use `#[serde(default = "default_owner")]` with `fn default_owner() -> String { DEFAULT_OWNER.to_string() }`
-- Acceptance: Single source of truth for owner default
+**Task D.1: Extract template rendering to its own module**
+- **Slice:** `extract-template-module`
+- **Files:** `mcp-servers/hkask-mcp-docproc/src/template.rs` (new), `mcp-servers/hkask-mcp-docproc/src/lib.rs`
+- Move `TEMPLATE_CACHE`, `render_docproc_template` to `template.rs`
+- Add `pub mod template;` to lib.rs
+- Update tool files to use `crate::template::render_docproc_template`
+- Acceptance: `cargo build -p hkask-mcp-docproc` succeeds, template logic isolated
+- **Dependencies:** Task C.3 (structs moved first to avoid conflicts)
+- **Scope:** S
 
-**Task 3.5: Extract shared helpers**
-- Move `embedding_dim()`, `normalize_in_place()`, `read_tagged_chunks()` to a shared location (lib.rs or new `tools/common.rs`)
-- Extract `owner_webid(owner: &str) -> WebID` helper
-- Acceptance: No duplicated helper functions across tool modules
-
-**Task 3.6: Remove dead `corpus_salience` from replica server**
-- Delete tool, request struct, pipeline_run references
-- Acceptance: No `corpus_salience` symbol remains
-
-**Task 3.7: Update replica server corpus tools to call docproc MCP tools**
-- `corpus_embed` → delegate to `docproc_embed` (in-process, not subprocess)
-- `corpus_build_prompts` → delegate to `docproc_build_prompts`
-- `corpus_ingest_qa` → delegate to `docproc_ingest_qa`
-- Remove all `std::process::Command::new("corpus-ingest")` calls
-- Acceptance: No subprocess calls in replica server
-
-**Task 3.8: Remove pipeline logic from CLI binary**
-- Delete `Command::BuildPrompts`, `Command::IngestQa`, `Command::GenerateQa` and handlers
-- Delete `mod generate_qa` 
-- Keep `purge-qa` and `ocr` utilities
-- Acceptance: CLI binary has only utilities
-
-**Checkpoint 3:** Clean architecture. No dead code. No subprocess wrappers. Request structs co-located.
-
-### Phase 4: Update pipeline YAML
-
-**Task 4.1: Rewrite pipeline YAML to use MCP tools with approved models**
-- Replace `corpus_ingest_embed` → separate `docproc_embed` + `docproc_tag_chunks` + `docproc_extract_triples`
-- Replace `corpus_ingest_build_prompts` → `docproc_build_prompts`
-- Replace `corpus_ingest_generate_qa` → `docproc_generate_qa_batch`
-- Replace `corpus_ingest_ingest_qa` → `docproc_ingest_qa`
-- Update models: `HKASK_CLASSIFIER_MODEL_A=DI/Qwen/Qwen3.6-35B-A3B`, `HKASK_QA_MODEL=DI/zai-org/GLM-5.2`
-- Add `owner: john-brooks` to all steps that store h_mems
-- Acceptance: All steps reference `docproc_*` tools with correct models
-
-**Task 4.2: Build and verify**
-- `cargo build --release -p hkask-corpus-ingest -p hkask-mcp-docproc -p hkask-mcp-replica`
-- `cargo test -p hkask-mcp-docproc`
-- Verify .env models match approved values
-- Delete ad-hoc scripts
-- Acceptance: All build clean, tests pass, models correct
-
-**Checkpoint 4:** Everything builds, tests pass, models correct, pipeline YAML valid.
-
-### Phase 5: Run pipeline through MCP tools
-
-| Task | Tool | Input → Output |
-|------|------|----------------|
-| 5.1 | Purge existing data | Keep chunks.jsonl only |
-| 5.2 | `docproc_embed` | chunks.jsonl → DB vectors + h_mems |
-| 5.3 | `docproc_tag_chunks` | chunks.jsonl → tagged_ontology.jsonl + tag h_mems |
-| 5.4 | `docproc_extract_triples` | chunks → triple h_mems in DB |
-| 5.5 | `docproc_dedup_chunks` | tagged → deduped.jsonl |
-| 5.6 | `docproc_consolidate_chunks` | deduped → consolidated.jsonl |
-| 5.7 | `docproc_build_prompts` | consolidated → prompts.jsonl (with h_mem KG) |
-| 5.8 | `docproc_generate_qa_batch` | prompts → generated.jsonl (GLM-5.2) |
-| 5.9 | `docproc_ingest_qa` | generated → train.jsonl + QA h_mems |
-
-**Checkpoint 5:** Full pipeline complete through MCP tools.
-
-### Phase 6: Train
-
-| Task | Description |
-|------|-------------|
-| 6.1 | Convert train.jsonl to ChatML format |
-| 6.2 | Verify Axolotl config |
-| 6.3 | Train on RunPod H100 with PiSSA |
-
-**Checkpoint 6:** LoRA adapter trained.
+**Checkpoint D:** Template engine is its own module. lib.rs < 900 lines.
 
 ---
 
@@ -235,32 +188,15 @@ The codebase already has a Jinja2 template system (`render_docproc_template`) an
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| New MCP tools have bugs | High | Test each tool individually with small data before pipeline run |
-| h_mem owner mismatch | High | All tools accept owner param, default "john-brooks" |
-| Template name mismatch | Medium | Fixed to "extract-hmems", test template loading |
-| Request struct move breaks imports | Medium | Use `use crate::*` glob imports in tool modules |
-| DeepInfra rate limits | Medium | Concurrency limits, retry with backoff |
-| DeepInfra credits | High | Monitor balance |
-| Thinking-mode tokens | Low | Verified ~640-830 reasoning tokens, max_tokens=4096 |
-
-## Key Design Decisions
-
-1. **Separate tag + extract tools, not combined** — The `classify-chunks.j2` combined template caused the original bugs. Use `tag-chunks.j2` + `extract-hmems.j2` separately with `docproc_tag_chunks` + `docproc_extract_triples`.
-
-2. **h_mem entity = chunk_ref, owner = john-brooks** — All knowledge about a chunk retrievable via `semantic.query_deduped(chunk_ref)`. Owner is the replicant persona.
-
-3. **All prompt-generating tools use Jinja2 templates** — `tag-chunks.j2`, `extract-hmems.j2`, `consolidate-chunks.j2`, `generate-qa.j2`, `build-prompts.j2`, `rag-answer.j2`. Tools that don't call LLMs (dedup, embed, ingest-qa) don't use templates.
-
-4. **Pipeline YAML is the single source of truth** — All steps, models, DB paths, and parameters in the YAML. Invoked via `kask mcp invoke`.
-
-5. **Replica server corpus tools delegate to docproc** — No subprocess calls. In-process delegation.
-
-6. **CLI binary is thin utilities only** — `purge-qa`, `ocr`. No pipeline logic.
+| Moving structs breaks imports | Medium | `use crate::*` glob imports already in tool files |
+| Deleting corpus-ingest breaks something unexpected | Low | No dependents confirmed |
+| Replica pipeline_run old manifests break | Low | Deprecation messages guide users to docproc tools |
+| Struct co-location merge conflicts | Low | Do sequentially: C.1 → C.2 → C.3 → C.4 |
 
 ## Open Questions
 
 | # | Question | Recommendation |
 |---|----------|----------------|
-| Q1 | Should `build-prompts.j2` include examples like `generate-qa.j2`? | Yes — examples improve LLM output quality significantly |
-| Q2 | Should the pipeline YAML use `kask mcp invoke` or the replica server's `replica_pipeline_run`? | `replica_pipeline_run` with checkpoint/resume is better for long runs |
-| Q3 | Dedup threshold for ingest_qa? | 0.89 (moderate — proven balance of dedup vs coverage) |
+| Q1 | Should `hkask-services-corpus` be split into `hkask-services-discovery` + `hkask-services-embed`? | Defer — 3624 lines is manageable, splitting adds crate overhead |
+| Q2 | Should replica server types all move to types.rs? | Defer — partial extraction already done, remaining types are small |
+| Q3 | Should `docproc_purge_qa` also purge by `owner` persona? | Yes — add optional `owner` param for targeted purging |

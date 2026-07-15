@@ -232,4 +232,68 @@ impl DocProcServer {
         })
         .await
     }
+
+    #[tool(
+        description = "Purge QA embeddings and h_mems by entity-ref prefix. Deletes embeddings matching the prefix, then deletes h_mems with matching entity or attribute. Useful for clearing old training data before re-ingesting."
+    )]
+    pub async fn docproc_purge_qa(&self, Parameters(req): Parameters<PurgeQaRequest>) -> String {
+        execute_tool(self, "docproc_purge_qa", async {
+            let dim = embedding_dim();
+            let semantic =
+                SemanticMemory::open(&req.db_path, &req.passphrase, dim).map_err(|e| {
+                    McpToolError::failed_precondition(format!("Cannot open memory DB: {e}"))
+                })?;
+
+            let embeddings_before = semantic.embedding_count().unwrap_or(0);
+
+            // Purge embeddings with matching entity_ref prefix
+            let purged_embeddings = semantic
+                .purge_by_prefix(&req.prefix)
+                .map_err(|e| McpToolError::internal(format!("Purge embeddings failed: {e}")))?;
+
+            // Purge h_mems — old schema (entity="corpus:qa") vs new schema (entity starts with prefix)
+            let mut purged_h_mems = 0usize;
+            let mut h_mem_errors = 0usize;
+
+            if req.prefix == "corpus:qa" {
+                // Old schema: entity is exactly "corpus:qa"
+                let h_mems = semantic
+                    .query_deduped(&req.prefix)
+                    .map_err(|e| McpToolError::internal(format!("Query h_mems failed: {e}")))?;
+                for h_mem in &h_mems {
+                    match semantic.delete_h_mem(&h_mem.id) {
+                        Ok(()) => purged_h_mems += 1,
+                        Err(_) => h_mem_errors += 1,
+                    }
+                }
+            } else {
+                // New schema: query by attribute "training_qa_pair" and filter by entity prefix
+                let h_mems = semantic
+                    .query_by_attribute("training_qa_pair")
+                    .map_err(|e| McpToolError::internal(format!("Query h_mems failed: {e}")))?;
+                for h_mem in &h_mems {
+                    if h_mem.entity.starts_with(&req.prefix) {
+                        match semantic.delete_h_mem(&h_mem.id) {
+                            Ok(()) => purged_h_mems += 1,
+                            Err(_) => h_mem_errors += 1,
+                        }
+                    }
+                }
+            }
+
+            let embeddings_after = semantic.embedding_count().unwrap_or(0);
+
+            let result = json!({
+                "prefix": req.prefix,
+                "embeddings_before": embeddings_before,
+                "embeddings_purged": purged_embeddings,
+                "embeddings_after": embeddings_after,
+                "h_mems_purged": purged_h_mems,
+                "h_mem_errors": h_mem_errors,
+            });
+            self.record_experience("docproc_purge_qa", &req.prefix, "success", result.clone());
+            Ok(result)
+        })
+        .await
+    }
 }

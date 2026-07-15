@@ -1,4 +1,4 @@
-# Capabilities Researcher — Full Pipeline Manifest v6.0
+# Capabilities Researcher — Full Pipeline Manifest v7.0
 # Traces from raw files through trained LoRA adapter.
 #
 # Type: PipelineManifest
@@ -6,41 +6,55 @@
 # Source: 106 files (PDF + HTML) from Clones/Library/Researcher
 # Target: Bloom-balanced QAs for LoRA training via Axolotl + PiSSA
 #
-# Architecture:
-#   Phase 2 produces TWO outputs in a single step:
-#     1. JSONL reference corpus — chunks + ontology tags (classify-chunks.j2 template)
-#     2. Replica memory DB — h_mems (decimated triples) + embeddings
-#   Single LLM call per chunk (combined ontology + h_mem extraction).
-#   No separate salience, tagging, or replica_build steps — all consolidated.
+# Architecture (v7.0):
+#   All pipeline steps run through MCP docproc tools:
+#     kask mcp invoke --server docproc --tool docproc_* --input '{...}'
 #
-# Models (all on DeepInfra):
-#   Classifier: DI/Qwen/Qwen3-30B-A3B (30B total, 3B active MoE — fast)
-#   Embedding:  DI/Qwen/Qwen3-Embedding-0.6B (1024-dim)
-#   QA gen:     DI/Qwen/Qwen3-30B-A3B (same model, per-Bloom sampling params)
+#   Phase 2 is split into three separate steps (v6.0 combined them into one
+#   LLM call which caused bugs — wrong model, bypassed ContentGuard):
+#     2a. docproc_embed     — Qwen3-Embedding-0.6B → DB vectors + text/provenance h_mems
+#     2b. docproc_tag_chunks — Qwen3.6-35B-A3B → ontology tags JSONL + tag h_mems
+#     2c. docproc_extract_triples — Qwen3.6-35B-A3B → RDF triple h_mems in DB
 #
-# Concurrency:
-#   196 concurrent API calls (DeepInfra ceiling is 200)
-#   HTTP pool_max_idle=256 (must be >= concurrency to avoid connection churn)
-#   DB pool_size=64 (env: HKASK_DB_POOL_SIZE)
+#   Each tool uses its own Jinja2 template from registry/templates/docproc/:
+#     tag-chunks.j2, extract-hmems.j2, consolidate-chunks.j2,
+#     generate-qa.j2, build-prompts.j2
 #
-# Lessons learned (v5.0 → v6.0):
-#   - Dual classifier (4 calls/chunk) was 4x slower with no build-quality benefit
-#   - replica_build re-does chunking/tagging/embedding — fully redundant with Phase 2
-#   - Qwen3 has thinking mode — JSON extraction must find { ... } in reasoning + JSON
-#   - pool_max_idle=5 caused connection churn → Gemma 429/connection errors
-#   - LLM may return output as dict {"answer": "..."} instead of string — deserializer
-#     must handle both formats
+#   h_mem design:
+#     entity = chunk_ref (what the memory is about)
+#     owner_webid = WebID::from_persona("john-brooks") (whose memory it is)
+#     All h_mems queryable via semantic.query_deduped(chunk_ref)
+#
+# Models (approved, in .env):
+#   Classifier/Tagging/Triples: DI/Qwen/Qwen3.6-35B-A3B (HKASK_CLASSIFIER_MODEL_A)
+#   QA generation:              DI/zai-org/GLM-5.2 (HKASK_QA_MODEL)
+#   Embedding:                  DI/Qwen/Qwen3-Embedding-0.6B (HKASK_EMBEDDING_MODEL)
+#
+# Lessons learned (v6.0 → v7.0):
+#   - Combined classify-chunks.j2 template caused bugs: wrong model, bypassed
+#     ContentGuard, stored h_mems with wrong entity (triple.subject vs chunk_ref).
+#     Split into separate tag_chunks + extract_triples tools with separate templates.
+#   - Qwen3.6 and GLM-5.2 have thinking mode — extract_json_from_response finds
+#     { ... } in reasoning + JSON response. All MCP tools now handle this.
+#   - Template name mismatch: code called "extract-h_mems" but file is "extract-hmems.j2"
+#     — fixed in v7.0.
+#   - h_mem owner was hardcoded "corpus" instead of "john-brooks" — fixed with
+#     owner parameter on all tools, defaulting to "john-brooks".
+#   - build-prompts never queried h_mems as knowledge graph — v7.0 adds
+#     semantic.query_deduped(chunk_ref) per chunk, injects as "## Knowledge Graph"
+#     section in system prompt via build-prompts.j2 template.
 
 id: capabilities-researcher-pipeline
-version: "6.0"
+version: "7.0"
 type: pipeline
 energy_budget:
   gas_cap: 500000
   rjoule_cap: 5
 description: >
   Full corpus pipeline for the Capabilities Researcher persona.
-  Single LLM call per chunk for combined ontology tagging + h_mem decimation.
-  Produces tagged JSONL reference corpus and replica memory DB with h_mems + embeddings.
+  All steps run through MCP docproc tools with Jinja2 templates.
+  Separate embed, tag, and extract_triples steps (no combined classify).
+  h_mem knowledge graph injected into build-prompts.
   SemDeDup deduplication. Axolotl + PiSSA LoRA training.
 
 env:
@@ -48,8 +62,9 @@ env:
   HKASK_DB_PASSPHRASE: "hkask-default-passphrase-2024"
   HKASK_DB_POOL_SIZE: "64"
   HKASK_HTTP_POOL_MAX_IDLE: "256"
-  HKASK_CLASSIFIER_MODEL_A: "DI/Qwen/Qwen3-30B-A3B"
-  HKASK_QA_MODEL: "DI/Qwen/Qwen3-30B-A3B"
+  HKASK_CLASSIFIER_MODEL_A: "DI/Qwen/Qwen3.6-35B-A3B"
+  HKASK_QA_MODEL: "DI/zai-org/GLM-5.2"
+  HKASK_EMBEDDING_MODEL: "DI/Qwen/Qwen3-Embedding-0.6B"
 
 steps:
   # ═══════════════════════════════════════════════════════════════════════
@@ -77,49 +92,86 @@ steps:
       max_tokens: 256
       overlap_tokens: 64
       entity_ref_prefix: "corpus:researcher"
-      # Do NOT set index:true — embedding is done in Phase 2
-      # index: true causes redundant embedding during chunking
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 2: Embed + Classify + Decimate (single LLM call per chunk)
+  # Phase 2a: Embed chunks → DB vectors + text/provenance h_mems
   #
-  # Produces TWO outputs:
-  #   1. corpus/chunks/tagged_ontology.jsonl — JSONL reference corpus
-  #   2. corpus/memory/john-brooks.db — replica memory DB (h_mems + embeddings)
-  #
-  # Uses classify-chunks.j2 combined template (ontology tags + RDF triples
-  # in a single JSON response). Single model, 196 concurrency.
+  # Qwen3-Embedding-0.6B (1024-dim). Stores vectors + text h_mem + provenance
+  # h_mem per chunk, with entity=chunk_ref, owner=john-brooks.
   # ═══════════════════════════════════════════════════════════════════════
-  - id: embed_classify_decimate
+  - id: embed_chunks
     description: >
-      Embed chunks (Qwen3-Embedding-0.6B), classify with combined ontology +
-      h_mem extraction (classify-chunks.j2, single LLM call per chunk).
-      196 concurrency. Two outputs: tagged JSONL + replica DB.
-    tool: corpus_ingest_embed
+      Embed all chunks with Qwen3-Embedding-0.6B. Store vectors + text/provenance
+      h_mems in john-brooks.db with entity=chunk_ref, owner=john-brooks.
+    tool: docproc_embed
     params:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
-      output_jsonl: "corpus/chunks/tagged_ontology.jsonl"
-      replica_db: "corpus/memory/john-brooks.db"
-      replica_name: "john-brooks"
+      db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
-      batch_size: 50
-      concurrency: 196
+      owner: "john-brooks"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 2b: Tag chunks → ontology tags JSONL + tag h_mems
+  #
+  # Qwen3.6-35B-A3B (HKASK_CLASSIFIER_MODEL_A). Uses tag-chunks.j2 template.
+  # Produces tagged_ontology.jsonl + stores ontology tag h_mems in DB.
+  # 128 concurrency (configurable). Thinking-mode JSON extraction.
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: tag_chunks
+    description: >
+      Tag chunks with 5W1H dimensions, Dublin Core, PKO, FIBO/GOLEM ontology
+      tags, and expertise level. Uses tag-chunks.j2 template with Qwen3.6-35B-A3B.
+      Stores tag h_mems in DB with entity=chunk_ref, owner=john-brooks.
+    tool: docproc_tag_chunks
+    params:
+      chunks_jsonl: "corpus/chunks/chunks.jsonl"
+      output: "corpus/chunks/tagged_ontology.jsonl"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
+      concurrency: 128
+      owner: "john-brooks"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 2c: Extract triples → RDF triple h_mems in DB
+  #
+  # Qwen3.6-35B-A3B (HKASK_CLASSIFIER_MODEL_A). Uses extract-hmems.j2 template.
+  # Extracts RDF triples (subject, predicate, object, confidence) per chunk.
+  # Stores as h_mems with entity=chunk_ref (NOT triple.subject), owner=john-brooks.
+  # 3-attempt retry with backoff. Thinking-mode JSON extraction.
+  # predicate_to_dimension maps each predicate to a 5W1H dimension.
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: extract_triples
+    description: >
+      Extract RDF triples from each chunk with Qwen3.6-35B-A3B. Uses extract-hmems.j2
+      template. Stores triples as h_mems with entity=chunk_ref, predicate as attribute,
+      object as value, confidence and 5W1H dimension. 3-attempt retry.
+    tool: docproc_extract_triples
+    params:
+      chunks_jsonl: "corpus/chunks/chunks.jsonl"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
+      owner: "john-brooks"
+      max_triples: 15
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 3: Dedup (near-identical chunk removal, cosine > 0.85)
   # ═══════════════════════════════════════════════════════════════════════
   - id: dedup_chunks
-    description: "Remove near-identical chunks using embeddings from replica DB"
+    description: "Remove near-identical chunks using embeddings from DB"
     tool: docproc_dedup_chunks
     params:
       tagged_jsonl: "corpus/chunks/tagged_ontology.jsonl"
       output: "corpus/chunks/deduped.jsonl"
       db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
+      prefix: "corpus:researcher:"
       threshold: 0.85
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 4: Consolidate (LLM synthesis of related chunks, cosine > 0.75)
+  #
+  # Uses consolidate-chunks.j2 template. Clusters within source, LLM-synthesizes
+  # multi-chunk clusters, re-embeds consolidated text.
   # ═══════════════════════════════════════════════════════════════════════
   - id: consolidate_chunks
     description: "Cluster related chunks, LLM-synthesize multi-chunk clusters"
@@ -129,61 +181,78 @@ steps:
       output: "corpus/chunks/consolidated.jsonl"
       db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
+      prefix: "corpus:researcher:"
       threshold: 0.75
-      concurrency: 196
+      concurrency: 12
       max_chunks_per_cluster: 5
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 5: Build Bloom QA Prompts (5 per chunk, KNN scaffold)
+  # Phase 5: Build Bloom QA Prompts (5 per chunk, KNN + h_mem knowledge graph)
+  #
+  # Uses build-prompts.j2 template. For each chunk:
+  #   1. KNN scaffold from DB embeddings (source-scoped)
+  #   2. Ontology context (5W1H, Dublin Core, PKO, tags)
+  #   3. Concept graph (concept → chunk_count centrality)
+  #   4. h_mem knowledge graph via semantic.query_deduped(chunk_ref)
+  # 5 prompts per chunk: factual, conceptual, analyze, evaluate, create.
   # ═══════════════════════════════════════════════════════════════════════
   - id: build_prompts
     description: >
-      Build Bloom taxonomy prompts: 5 QAs per chunk (factual/conceptual/
-      analyze/evaluate/create). KNN scaffold from replica DB embeddings.
-      Ontology context in prompt. No qualifying filter — all chunks generate QAs.
-    tool: corpus_ingest_build_prompts
+      Build Bloom taxonomy prompts: 5 QAs per chunk. KNN scaffold from DB
+      embeddings. Ontology context + concept graph + h_mem knowledge graph.
+      Uses build-prompts.j2 template.
+    tool: docproc_build_prompts
     params:
       tagged_jsonl: "corpus/chunks/consolidated.jsonl"
       output: "corpus/qa_pairs/prompts.jsonl"
       db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
+      context_k: 3
+      prompts_per_chunk: 5
+      type_distribution: "1,1,1,1,1"
+      owner: "john-brooks"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 6: Generate QAs (single model, per-Bloom sampling, 196 concurrency)
+  # Phase 6: Generate QAs (GLM-5.2, per-Bloom sampling, thinking-mode)
   #
-  # Qwen3-30B-A3B has thinking mode — JSON extraction finds { ... } in
-  # reasoning + JSON response. LLM may return output as string or
-  # dict {"answer": "..."} — deserializer handles both.
+  # GLM-5.2 (HKASK_QA_MODEL). Uses generate-qa.j2 template. Thinking-mode JSON
+  # extraction via extract_json_from_response. ContentGuard on input + output.
+  # Provenance attached (chunk_ref, source, concepts, evidence_quotes).
   # ═══════════════════════════════════════════════════════════════════════
   - id: generate_qas
     description: >
-      Generate QA pairs via Qwen3-30B-A3B on DeepInfra. Per-Bloom sampling
-      parameters. 196 concurrency. Incremental writes every 10 completions.
-      Thinking-mode JSON extraction. Flexible output deserialization.
-    tool: corpus_ingest_generate_qa
+      Generate QA pairs via GLM-5.2 on DeepInfra. Per-Bloom sampling parameters.
+      Thinking-mode JSON extraction. ContentGuard. Provenance-enriched output.
+    tool: docproc_generate_qa_batch
     params:
       prompts_jsonl: "corpus/qa_pairs/prompts.jsonl"
       output: "corpus/qa_pairs/generated.jsonl"
-      concurrency: 196
+      concurrency: 5
+      model: "DI/zai-org/GLM-5.2"
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 7: Ingest QAs (SemDeDup + h_mem storage + QA embeddings)
+  #
+  # SemDeDup (Abbas et al., 2023): K-means cluster, within-cluster cosine dedup.
+  # K = 2.5% of N. Threshold 0.89 (moderate). Stores QA h_mems with 5W1H
+  # dimension (What), Dublin Core + PKO metadata. Optionally embeds QAs for KNN.
   # ═══════════════════════════════════════════════════════════════════════
   - id: ingest_qas
     description: >
       SemDeDup (K-means clustering, K=2.5% of N, 10 iterations).
-      Deduplicate within clusters at 0.92 cosine threshold.
+      Deduplicate within clusters at 0.89 cosine threshold.
       Store QA h_mems with 5W1H + Dublin Core + PKO provenance.
       Embed QA vectors for KNN search.
-    tool: corpus_ingest_ingest_qa
+    tool: docproc_ingest_qa
     params:
       generated_jsonl: "corpus/qa_pairs/generated.jsonl"
       output: "corpus/qa_pairs/train.jsonl"
       db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
-      dedup_threshold: 0.92
+      dedup_threshold: 0.89
       embed_qas: true
-      dataset: "corpus-researcher"
+      dataset: "capabilities-researcher"
+      owner: "john-brooks"
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 8: Convert to ChatML format for Axolotl training

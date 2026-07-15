@@ -47,7 +47,6 @@ members = [
     "crates/hkask-federation",
     "crates/hkask-mcp-cloud-gateway",
     "crates/hkask-codegraph",
-    "crates/hkask-corpus-ingest",
     "crates/hkask-storage-guard",
     # MCP servers
     "mcp-servers/hkask-mcp-condenser",

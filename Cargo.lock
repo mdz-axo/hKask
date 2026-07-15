@@ -4116,20 +4116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-corpus-ingest"
-version = "0.31.0"
-dependencies = [
- "clap",
- "dotenvy",
- "hkask-memory",
- "hkask-services-corpus",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "hkask-database"
 version = "0.31.0"
 dependencies = [

@@ -934,6 +934,26 @@ pub struct ClearIndexRequest {
     pub index_id: Option<String>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PurgeQaRequest {
+    /// Entity-ref prefix to purge (e.g. "corpus:qa" for old schema, "training:qa:" for new).
+    #[serde(default = "default_purge_prefix")]
+    pub prefix: String,
+    /// Path to the SQLCipher memory DB.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    #[serde(default = "default_purge_passphrase")]
+    pub passphrase: String,
+}
+
+fn default_purge_prefix() -> String {
+    "corpus:qa".to_string()
+}
+
+fn default_purge_passphrase() -> String {
+    "hkask-default-passphrase-2024".to_string()
+}
+
 // ── Corpus pipeline request structs ───────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]

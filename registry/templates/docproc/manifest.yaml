@@ -6,14 +6,15 @@ crate:
   version: "0.31.0"
   description: >
     Document processing templates for hierarchical memory extraction,
-    RAG-based question answering, and QA pair generation from documents.
+    ontology tagging, QA generation, prompt building, consolidation,
+    and RAG-based question answering.
 
 templates:
   - id: docproc/extract-hmems
     path: extract-hmems.j2
     type: KnowAct
     lexicon_terms: [extract, classify, structure]
-    description: Extract hierarchical memory elements from documents.
+    description: Extract RDF triples (h_mems) from text with confidence scores.
 
   - id: docproc/rag-answer
     path: rag-answer.j2
@@ -25,7 +26,7 @@ templates:
     path: generate-qa.j2
     type: KnowAct
     lexicon_terms: [generate, question, answer]
-    description: Generate QA pairs from document content.
+    description: Generate Bloom's taxonomy QA pairs from document content.
 
   - id: docproc/consolidate-chunks
     path: consolidate-chunks.j2
@@ -38,3 +39,9 @@ templates:
     type: KnowAct
     lexicon_terms: [tag, classify, ontology]
     description: Extract multi-dimensional ontology tags (5W1H, Dublin Core, PKO, FIBO, GOLEM, expertise level) from text passages for corpus annotation.
+
+  - id: docproc/build-prompts
+    path: build-prompts.j2
+    type: KnowAct
+    lexicon_terms: [build, prompt, scaffold]
+    description: Build QA generation prompts with KNN context scaffold, ontology context, concept graph, and h_mem knowledge graph injection.
