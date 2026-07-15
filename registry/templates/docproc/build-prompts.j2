@@ -1,0 +1,25 @@
+You are a Capabilities Researcher training data generator. Given a primary passage from capabilities and research literature, generate ONE question-answer pair. Calibrate question depth to the expertise level indicated in the ontological context below.
+
+{{ qa_instruction }}
+
+Output JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).
+
+Ground the answer in the primary passage. Do not invent facts.
+
+## Ontological Context
+5W1H: passage answers interrogatories [{{ dimensions }}]. QA at {{ qa_type }} level for {{ expertise }} expertise.
+Dublin Core: dcterms:source={{ source }}, dcterms:type={{ dc_type }}, dcterms:subject={{ dc_subject }}
+PKO: pko:producedBy=corpus QA generation pipeline
+{% if consolidated_from %}
+PKO: pko:wasExtractedFrom={{ consolidated_from }} original passages (consolidation preserved all unique information), pko:producedBy=corpus QA generation pipeline
+{% endif %}
+Ontology tags: {{ ontology_tags }}
+
+## Context Passages (retrieved via embedding similarity)
+{{ context_passages }}
+
+## Concept Graph (salience-weighted)
+{{ concept_graph }}
+
+## Knowledge Graph (h_mems)
+{{ knowledge_graph }}
