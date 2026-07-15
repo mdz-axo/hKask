@@ -8,12 +8,12 @@ Train a PiSSA-initialized LoRA adapter on a large language model (e.g., Qwen3.6-
 
 - RunPod account with API key and SSH key configured
 - HuggingFace token with write access to the target model repo
-- RunPod CLI or the `runpod_unsloth.sh` launcher script
+- Training scripts from HuggingFace (`Axolotl-Partners/rust-adapter-scripts` — curl-piped to RunPod pods)
 - `.env` file with `RUNPOD_API_KEY=` and `HF_TOKEN=`
 
 ## Step 1: Launch the Pod
 
-Use `runpod_unsloth.sh --rust-all` or deploy manually. Target: H100 NVL (93GB VRAM, ~$3.19/hr). The pod's container disk is only 60GB — all caches MUST go to the 200GB+ workspace volume.
+Use the HF-hosted `runpod_unsloth.sh --rust-all` launcher or deploy manually. Target: H100 NVL (93GB VRAM, ~$3.19/hr). The pod's container disk is only 60GB — all caches MUST go to the 200GB+ workspace volume.
 
 **Critical environment variables** (set these in the pod's env config AND when running commands via SSH):
 

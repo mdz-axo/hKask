@@ -136,11 +136,11 @@ The `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` contains 14 inline Merm
 
 | Diagram ID | Type | Description | Now Inline In | Verified Against | Status |
 |------------|------|-------------|---------------|------------------|--------|
-| DIAG-TRAIN-001 | flowchart | Unsloth Qwen3.6-27B training pipeline | `how-to/training-and-adapters.md` | `scripts/train_unsloth.sh` | ✅ VERIFIED 2026-07-10 |
+| DIAG-TRAIN-001 | flowchart | Unsloth Qwen3.6-27B training pipeline | `how-to/training-and-adapters.md` | HF: `Axolotl-Partners/rust-adapter-scripts` | ✅ VERIFIED 2026-07-10 |
 | DIAG-TRAIN-002 | flowchart | Replica, corpus, and training readiness boundary | `how-to/training-and-adapters.md` | `hkask-mcp-replica`, `hkask-mcp-docproc`, `hkask-mcp-training` | ✅ VERIFIED 2026-07-10 |
 | DIAG-TRAIN-003 | flowchart | Replica pipeline dispatch and unsupported-step boundary | `how-to/training-and-adapters.md` | `hkask-mcp-replica`, `hkask-ports`, `hkask-mcp` | ✅ VERIFIED 2026-07-10 |
-| DIAG-TRAIN-004 | flowchart | Full training pipeline (reasoning + Rust adapters + eval) | `how-to/training-and-adapters.md` | `scripts/runpod_unsloth.sh`, `scripts/train_rust_adapter.sh` | ✅ VERIFIED 2026-07-11 |
-| DIAG-TRAIN-005 | state | Training job lifecycle: Queued → Running → Completed → Terminated | `how-to/training-and-adapters.md` | `hkask-mcp-training/src/providers/types.rs`, `scripts/runpod_unsloth.sh` | ✅ VERIFIED 2026-07-11 |
+| DIAG-TRAIN-004 | flowchart | Full training pipeline (reasoning + Rust adapters + eval) | `how-to/training-and-adapters.md` | HF: `Axolotl-Partners/rust-adapter-scripts` | ✅ VERIFIED 2026-07-11 |
+| DIAG-TRAIN-005 | state | Training job lifecycle: Queued → Running → Completed → Terminated | `how-to/training-and-adapters.md` | `hkask-mcp-training/src/providers/types.rs`, HF: `Axolotl-Partners/rust-adapter-scripts` | ✅ VERIFIED 2026-07-11 |
 | DIAG-TRAIN-006 | class | Training server type hierarchy: TrainingHost, HarnessAdapter, params | `how-to/training-and-adapters.md` | `hkask-mcp-training/src/providers/` | ✅ VERIFIED 2026-07-11 |
 
 ## 10. TUI (Terminal UI) Diagrams

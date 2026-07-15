@@ -16,19 +16,22 @@ Fine-tune LoRA adapters for Qwen3.6-27B on RunPod with Unsloth, evaluate them, a
 
 ## Training Overview
 
-hKask's training path uses standalone shell scripts that launch RunPod pods, execute Unsloth-based fine-tuning, and auto-upload LoRA adapters to HuggingFace. The MCP submission path (`hkask-mcp-training`) provides job submission, status tracking, and adapter lifecycle management, but the end-to-end contract for dataset transfer, training execution, artifact recovery, and adapter registration has not been verified through an automated integration test.
+hKask's training path uses shell scripts hosted on HuggingFace (`Axolotl-Partners/rust-adapter-scripts`) that launch RunPod pods, execute Unsloth/Axolotl-based fine-tuning, and auto-upload LoRA adapters to HuggingFace. The scripts are not in the hKask repo — hKask is a Rust project and Python is not an acceptable dependency. The MCP submission path (`hkask-mcp-training`) provides job submission, status tracking, and adapter lifecycle management, but the end-to-end contract for dataset transfer, training execution, artifact recovery, and adapter registration has not been verified through an automated integration test.
 
-### Working Training Scripts
+### Training Scripts (on HuggingFace)
 
-| Script | Purpose | Status |
-|--------|---------|--------|
-| `scripts/train_rust_adapter.sh` | Rust coding + analysis + reasoning adapters | Available |
-| `scripts/eval_rust_adapter.sh` | Rust adapter evaluation | Available |
-| `scripts/runpod_unsloth.sh` | Pod launcher (all modes) | Verified |
+All training scripts live in the HuggingFace repo `Axolotl-Partners/rust-adapter-scripts`, not in the hKask repo. hKask is a Rust project — Python is not an acceptable project dependency.
+
+| Script | Purpose | Location |
+|--------|---------|----------|
+| `train_rust_adapter.sh` | Rust coding + analysis + reasoning adapters | HF: `Axolotl-Partners/rust-adapter-scripts` |
+| `eval_rust_adapter.sh` | Rust adapter evaluation | HF: `Axolotl-Partners/rust-adapter-scripts` |
+| `runpod_unsloth.sh` | Pod launcher (all modes) | HF: `Axolotl-Partners/rust-adapter-scripts` |
+| `axolotl_rust_all.yml` | Axolotl config (PiSSA LoRA) | HF: `Axolotl-Partners/rust-adapter-scripts` |
 
 ### Current Limitations
 
-The generic CLI commands `kask docproc ingest`, `kask training create-dataset`, `kask training start`, and `kask training status` are **not implemented CLI commands**. Do not use them. Training is driven by the standalone scripts and the `kask adapter` lifecycle commands described below.
+The generic CLI commands `kask docproc ingest`, `kask training create-dataset`, `kask training start`, and `kask training status` are **not implemented CLI commands**. Do not use them. Training is driven by the HF-hosted scripts (curl-piped to RunPod pods) and the `kask adapter` lifecycle commands described below.
 
 ---
 
@@ -47,7 +50,7 @@ Train LoRA adapters for Qwen3.6-27B specialized for Rust programming:
 ### Step 1: Launch a Pod
 
 ```bash
-bash scripts/runpod_unsloth.sh --rust-coding
+curl -sL https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/main/runpod_unsloth.sh | bash -s -- --rust-coding
 ```
 
 This launches an H100 NVL pod (falls back to A100 80GB) and prints the SSH command + dashboard URL.
@@ -73,7 +76,7 @@ ssh root@<SSH_HOST> -p <SSH_PORT> 'tail -f /workspace/training.log'
 After training completes and the adapter is uploaded to HF, launch an eval pod:
 
 ```bash
-bash scripts/runpod_unsloth.sh --rust-eval
+curl -sL https://huggingface.co/datasets/Axolotl-Partners/rust-adapter-scripts/raw/main/runpod_unsloth.sh | bash -s -- --rust-eval
 ```
 
 Then paste the eval command:
@@ -309,7 +312,7 @@ This diagram traces the control flow of the hKask adapter training pipeline, fro
 
 ```mermaid
 flowchart TD
-    A([Start: bash runpod_unsloth.sh]) --> B{Mode?}
+    A([Start: curl runpod launcher from HF]) --> B{Mode?}
     B -->|train| C[Deploy H100 NVL pod]
     B -->|rust-coding| C
     B -->|rust-analysis| C
