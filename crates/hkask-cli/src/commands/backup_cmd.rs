@@ -2,12 +2,12 @@
 //!
 //! Each pod directory under `agents/` is a self-contained git repository.
 //! Snapshots, restores, and history all operate directly on these per-pod repos
-//! via `hkask_mcp::GixCasAdapter`.
+//! via `hkask_git_cas::GixCasAdapter`.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use hkask_mcp::GixCasAdapter;
+use hkask_git_cas::GixCasAdapter;
 use hkask_ports::git_cas::{CommitHash, GitCASPort};
 
 use crate::block_on;

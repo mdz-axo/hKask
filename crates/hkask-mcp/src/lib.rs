@@ -9,7 +9,6 @@
 
 pub mod daemon; // Unix socket transport for MCP binary ↔ hKask daemon
 pub mod dispatch; // Tool dispatch through GovernedTool membrane (includes RawMcpToolPort)
-pub mod git_cas;
 pub mod runtime;
 pub(crate) mod security;
 pub mod server;
@@ -43,7 +42,6 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 pub use dispatch::McpDispatcher;
 pub use dispatch::RawMcpToolPort;
-pub use git_cas::GixCasAdapter;
 pub use hkask_ports::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{

@@ -14,7 +14,7 @@ use tokio::sync::RwLock;
 pub(super) struct LoopWiring {
     pub loop_system: Arc<LoopSystem>,
     /// Concrete GixCasAdapter for pod-directory backup operations.
-    pub pod_backup_adapter: Arc<hkask_mcp::GixCasAdapter>,
+    pub pod_backup_adapter: Arc<hkask_git_cas::GixCasAdapter>,
     pub cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
     pub inference_port: Option<Arc<dyn InferencePort>>,
     pub episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -252,17 +252,19 @@ pub(super) async fn build_loops(
     }
 
     // Snapshot + Backup loops — keep concrete GixCasAdapter for pod-directory ops
-    let gix_adapter: Arc<hkask_mcp::GixCasAdapter> = match hkask_mcp::GixCasAdapter::from_env() {
-        Ok(adapter) => Arc::new(adapter),
-        Err(e) => {
-            tracing::warn!(target: "hkask.services", error = %e, "Git CAS port from env failed — using fallback");
-            Arc::new(
-                hkask_mcp::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates")).map_err(
-                    |e| ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string())),
-                )?,
-            )
-        }
-    };
+    let gix_adapter: Arc<hkask_git_cas::GixCasAdapter> =
+        match hkask_git_cas::GixCasAdapter::from_env() {
+            Ok(adapter) => Arc::new(adapter),
+            Err(e) => {
+                tracing::warn!(target: "hkask.services", error = %e, "Git CAS port from env failed — using fallback");
+                Arc::new(
+                    hkask_git_cas::GixCasAdapter::new(PathBuf::from("/tmp/hkask-templates"))
+                        .map_err(|e| {
+                            ServiceError::Infra(hkask_types::InfrastructureError::Io(e.to_string()))
+                        })?,
+                )
+            }
+        };
 
     Ok(LoopWiring {
         loop_system,
@@ -475,7 +477,7 @@ pub(super) async fn spawn_matrix_retry_loop(
 /// Thin pod backup daemon: wake every 24h, snapshot all pod directories via gix.
 /// One git repo per pod. The pod directory IS the unit.
 pub(super) async fn pod_backup_daemon(
-    adapter: Arc<hkask_mcp::GixCasAdapter>,
+    adapter: Arc<hkask_git_cas::GixCasAdapter>,
     pod_manager: Arc<hkask_agents::pod::ActivePods>,
 ) {
     const INTERVAL: std::time::Duration = std::time::Duration::from_secs(86400); // 24h

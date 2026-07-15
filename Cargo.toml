@@ -35,6 +35,7 @@ members = [
     "crates/hkask-ledger",
     "crates/hkask-wallet",
     "crates/hkask-mcp",
+    "crates/hkask-git-cas",
     "crates/hkask-repl",
     "crates/hkask-cli",
     "crates/hkask-tui",

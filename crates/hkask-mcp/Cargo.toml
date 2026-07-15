@@ -30,7 +30,6 @@ reqwest.workspace = true
 hex.workspace = true
 async-trait.workspace = true
 dirs = "6"
-gix = "0.81"
 jsonschema = "0.28"
 dotenvy.workspace = true
 

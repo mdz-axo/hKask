@@ -50,7 +50,7 @@ pub struct LogEntry {
 /// Content is addressed by BLAKE3 hash. Snapshots are git commits.
 ///
 /// Implementations:
-/// - `GixCasAdapter` (production, in `hkask-mcp`)
+/// - `GixCasAdapter` (production, in `hkask-git-cas`)
 /// - [`MockGitCas`] (testing, in this module)
 
 #[async_trait]

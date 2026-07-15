@@ -9,7 +9,7 @@ use std::str::FromStr;
 use crate::block_on;
 use crate::cli::BotAction;
 use hex;
-use hkask_mcp::GixCasAdapter;
+use hkask_git_cas::GixCasAdapter;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_types::agent_registry::{AgentDefinition, RegisteredAgent};
 use hkask_types::{AgentKind, WebID, agent_paths};

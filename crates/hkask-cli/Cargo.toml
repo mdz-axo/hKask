@@ -24,6 +24,7 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-database = { path = "../hkask-database" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-git-cas = { path = "../hkask-git-cas" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-api = { path = "../hkask-api", optional = true }
 hkask-inference = { path = "../hkask-inference" }

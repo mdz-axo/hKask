@@ -21,7 +21,7 @@ pub(crate) struct GitCasBundle {
     pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
     /// Concrete `GixCasAdapter` for admin operations (resolve_ref, diff)
     /// that are not part of the backup contract.
-    pub gix_cas: Arc<hkask_mcp::GixCasAdapter>,
+    pub gix_cas: Arc<hkask_git_cas::GixCasAdapter>,
 }
 
 /// Initialize the Git CAS adapter and the trait-object port.
@@ -40,8 +40,8 @@ pub(crate) fn init_git_cas() -> Result<GitCasBundle, ApiError> {
     ));
     let fallback_path = PathBuf::from("/tmp/hkask-templates");
     let gix_cas = Arc::new(
-        hkask_mcp::GixCasAdapter::from_env()
-            .or_else(|_| hkask_mcp::GixCasAdapter::new(fallback_path))
+        hkask_git_cas::GixCasAdapter::from_env()
+            .or_else(|_| hkask_git_cas::GixCasAdapter::new(fallback_path))
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to create GixCasAdapter: {e}"),
             })?,

@@ -459,7 +459,6 @@ pub struct BrainstormProtocol {
     pub pipeline: Vec<String>,
 }
 
-
 // ── Chermack Project Assessment (P5) ──────────────────────────────────────
 
 /// Input bundle for `assess_project`. Groups the 11 former positional

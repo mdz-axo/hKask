@@ -13,6 +13,7 @@ hkask-agents = { path = "../hkask-agents" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-storage-guard = { path = "../hkask-storage-guard" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-git-cas = { path = "../hkask-git-cas" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-database = { path = "../hkask-database" }
