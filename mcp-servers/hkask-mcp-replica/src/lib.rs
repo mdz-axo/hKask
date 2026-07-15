@@ -228,44 +228,12 @@ struct CacheWorkResult {
     bytes_written: u64,
 }
 
-// ── Corpus Pipeline request types ────────────────────────────────────────
-
-#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
-pub struct CorpusEmbedRequest {
-    pub chunks_jsonl: String,
-    pub db_path: String,
-    #[serde(default)]
-    pub batch_size: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
-pub struct CorpusBuildPromptsRequest {
-    pub tagged_jsonl: String,
-    pub output: String,
-    #[serde(default)]
-    pub min_salience: Option<f32>,
-    #[serde(default)]
-    pub min_concepts: Option<usize>,
-    #[serde(default)]
-    pub cross_reference: Option<bool>,
-}
+// ── Pipeline request types ───────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PipelineRunRequest {
     /// Path to the PipelineManifest YAML file
     pub manifest_path: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
-pub struct CorpusIngestQaRequest {
-    pub db_path: String,
-    pub output: String,
-    #[serde(default)]
-    pub generated_jsonl: Option<String>,
-    #[serde(default)]
-    pub dedup_threshold: Option<f64>,
-    #[serde(default)]
-    pub embed_qas: Option<bool>,
 }
 
 // ── Server implementation ───────────────────────────────────────────────────
@@ -1049,66 +1017,10 @@ impl ReplicaServer {
         .await
     }
 
-    // ── Corpus Pipeline Tools (deprecated — use docproc tools) ───────────
-
-    #[tool(
-        description = "DEPRECATED: Use docproc_embed via 'kask mcp invoke --server docproc --tool docproc_embed' instead."
-    )]
-    pub async fn corpus_embed(&self, Parameters(params): Parameters<CorpusEmbedRequest>) -> String {
-        execute_tool(self, "corpus_embed", async {
-            Ok(json!({
-                "deprecated": true,
-                "replacement": "docproc_embed",
-                "server": "docproc",
-                "message": "Use 'kask mcp invoke --server docproc --tool docproc_embed' with the same parameters",
-                "original_params": serde_json::to_value(&params).unwrap_or_default(),
-            }))
-        })
-        .await
-    }
-
-    #[tool(
-        description = "DEPRECATED: Use docproc_build_prompts via 'kask mcp invoke --server docproc --tool docproc_build_prompts' instead."
-    )]
-    pub async fn corpus_build_prompts(
-        &self,
-        Parameters(params): Parameters<CorpusBuildPromptsRequest>,
-    ) -> String {
-        execute_tool(self, "corpus_build_prompts", async {
-            Ok(json!({
-                "deprecated": true,
-                "replacement": "docproc_build_prompts",
-                "server": "docproc",
-                "message": "Use 'kask mcp invoke --server docproc --tool docproc_build_prompts' with the same parameters",
-                "original_params": serde_json::to_value(&params).unwrap_or_default(),
-            }))
-        })
-        .await
-    }
-
-    #[tool(
-        description = "DEPRECATED: Use docproc_ingest_qa via 'kask mcp invoke --server docproc --tool docproc_ingest_qa' instead."
-    )]
-    pub async fn corpus_ingest_qa(
-        &self,
-        Parameters(params): Parameters<CorpusIngestQaRequest>,
-    ) -> String {
-        execute_tool(self, "corpus_ingest_qa", async {
-            Ok(json!({
-                "deprecated": true,
-                "replacement": "docproc_ingest_qa",
-                "server": "docproc",
-                "message": "Use 'kask mcp invoke --server docproc --tool docproc_ingest_qa' with the same parameters",
-                "original_params": serde_json::to_value(&params).unwrap_or_default(),
-            }))
-        })
-        .await
-    }
-
     // ── Pipeline orchestration ─────────────────────────────────────────
 
     #[tool(
-        description = "Execute a corpus pipeline manifest with checkpoint/resume. Reads a PipelineManifest YAML, runs each step, checkpoints after each success. Deprecated corpus_* tools return deprecation guidance pointing to docproc_* tools. MCP steps (docproc_*, replica_*, training_*) are reported as needing external execution via 'kask mcp invoke'. Returns pipeline status with completed/skipped/failed counts."
+        description = "Execute a corpus pipeline manifest with checkpoint/resume. Reads a PipelineManifest YAML, runs each step, checkpoints after each success. MCP steps (docproc_*, replica_*, training_*) are reported as needing external execution via 'kask mcp invoke'. Returns pipeline status with completed/skipped/failed counts."
     )]
     pub async fn replica_pipeline_run(
         &self,
@@ -1127,47 +1039,23 @@ impl ReplicaServer {
                 .map_err(|e| McpToolError::internal(e.to_string()))?;
 
             // Step executor — routes pipeline steps to the correct handler.
-            // corpus_* tools are DEPRECATED — they return guidance to use docproc tools.
-            // docproc_* and replica_* tools require external MCP execution.
+            // All tools (docproc_*, replica_*) require external MCP execution.
             struct ReplicaStepExecutor;
             impl StepExecutor for ReplicaStepExecutor {
                 fn execute(&self, step: &hkask_ports::pipeline_manifest::PipelineStep) -> Result<serde_json::Value, hkask_ports::pipeline_runner::PipelineError> {
-                    let params = step.params.clone().ok_or_else(|| {
-                        hkask_ports::pipeline_runner::PipelineError::StepFailed {
+                    if step.params.is_none() {
+                        return Err(hkask_ports::pipeline_runner::PipelineError::StepFailed {
                             step_id: step.id.clone(),
                             message: format!("Step '{}' requires parameters for tool '{}'", step.id, step.tool),
-                        }
-                    })?;
-                    match step.tool.as_str() {
-                        "corpus_embed" | "corpus_build_prompts" | "corpus_ingest_qa" => {
-                            // DEPRECATED: these tools shelled out to corpus-ingest CLI which
-                            // has been deleted. Route users to docproc MCP tools instead.
-                            let replacement = match step.tool.as_str() {
-                                "corpus_embed" => "docproc_embed",
-                                "corpus_build_prompts" => "docproc_build_prompts",
-                                "corpus_ingest_qa" => "docproc_ingest_qa",
-                                _ => "unknown",
-                            };
-                            Ok(serde_json::json!({
-                                "deprecated": true,
-                                "original_tool": step.tool,
-                                "replacement": replacement,
-                                "server": "docproc",
-                                "message": format!("Use 'kask mcp invoke --server docproc --tool {}' instead", replacement),
-                                "step_id": step.id,
-                                "params": params,
-                            }))
-                        }
-                        _ => {
-                            Err(hkask_ports::pipeline_runner::PipelineError::StepFailed {
-                                step_id: step.id.clone(),
-                                message: format!(
-                                    "Step '{}' uses tool '{}' — external MCP execution required. Run via kask mcp invoke --server <tool-server> --tool {}.",
-                                    step.id, step.tool, step.tool
-                                ),
-                            })
-                        }
+                        });
                     }
+                    Err(hkask_ports::pipeline_runner::PipelineError::StepFailed {
+                        step_id: step.id.clone(),
+                        message: format!(
+                            "Step '{}' uses tool '{}' — external MCP execution required. Run via kask mcp invoke --server <tool-server> --tool {}.",
+                            step.id, step.tool, step.tool
+                        ),
+                    })
                 }
             }
 
@@ -1206,77 +1094,4 @@ pub async fn run(
         ],
     )
     .await
-}
-
-#[cfg(test)]
-mod server_tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn corpus_embed_returns_deprecation_response() {
-        let server = ReplicaServer::new(hkask_types::WebID::new(), "test".into(), None);
-        let response = server
-            .corpus_embed(Parameters(CorpusEmbedRequest {
-                chunks_jsonl: "chunks.jsonl".into(),
-                db_path: "memory.db".into(),
-                batch_size: Some(7),
-            }))
-            .await;
-
-        let envelope: Value =
-            serde_json::from_str(&response).expect("response should be valid JSON");
-        let content = envelope
-            .get("content")
-            .expect("response should have content field");
-        assert_eq!(content["deprecated"], true);
-        assert_eq!(content["replacement"], "docproc_embed");
-        assert_eq!(content["server"], "docproc");
-        assert_eq!(content["original_params"]["chunks_jsonl"], "chunks.jsonl");
-    }
-
-    #[tokio::test]
-    async fn corpus_build_prompts_returns_deprecation_response() {
-        let server = ReplicaServer::new(hkask_types::WebID::new(), "test".into(), None);
-        let response = server
-            .corpus_build_prompts(Parameters(CorpusBuildPromptsRequest {
-                tagged_jsonl: "tagged.jsonl".into(),
-                output: "prompts.jsonl".into(),
-                min_salience: None,
-                min_concepts: None,
-                cross_reference: None,
-            }))
-            .await;
-
-        let envelope: Value =
-            serde_json::from_str(&response).expect("response should be valid JSON");
-        let content = envelope
-            .get("content")
-            .expect("response should have content field");
-        assert_eq!(content["deprecated"], true);
-        assert_eq!(content["replacement"], "docproc_build_prompts");
-        assert_eq!(content["server"], "docproc");
-    }
-
-    #[tokio::test]
-    async fn corpus_ingest_qa_returns_deprecation_response() {
-        let server = ReplicaServer::new(hkask_types::WebID::new(), "test".into(), None);
-        let response = server
-            .corpus_ingest_qa(Parameters(CorpusIngestQaRequest {
-                db_path: "memory.db".into(),
-                output: "training.jsonl".into(),
-                generated_jsonl: Some("generated.jsonl".into()),
-                dedup_threshold: None,
-                embed_qas: None,
-            }))
-            .await;
-
-        let envelope: Value =
-            serde_json::from_str(&response).expect("response should be valid JSON");
-        let content = envelope
-            .get("content")
-            .expect("response should have content field");
-        assert_eq!(content["deprecated"], true);
-        assert_eq!(content["replacement"], "docproc_ingest_qa");
-        assert_eq!(content["server"], "docproc");
-    }
 }

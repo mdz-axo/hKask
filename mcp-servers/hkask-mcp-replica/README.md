@@ -2,7 +2,7 @@
 
 Style replica MCP server — embed author corpora, compose prose, and manage style registries.
 
-## Tools (13)
+## Tools (10)
 
 | Tool | Description |
 |------|-------------|
@@ -15,10 +15,7 @@ Style replica MCP server — embed author corpora, compose prose, and manage sty
 | `replica_mashup` | Generate prose blending two authors' styles |
 | `replica_registry` | Manage the registry of built author replicas |
 | `replica_cache_work` | Cache an extracted work's content to disk for reuse by replica_build. Writes content to {cache_dir}/{slug}.txt so the embedding pipeline can skip re-downloading. |
-| `corpus_embed` | **DEPRECATED** — use `docproc_embed` via `kask mcp invoke --server docproc --tool docproc_embed` instead. |
-| `corpus_build_prompts` | **DEPRECATED** — use `docproc_build_prompts` via `kask mcp invoke --server docproc --tool docproc_build_prompts` instead. |
-| `corpus_ingest_qa` | **DEPRECATED** — use `docproc_ingest_qa` via `kask mcp invoke --server docproc --tool docproc_ingest_qa` instead. |
-| `replica_pipeline_run` | Run checkpointed corpus pipeline steps; only the three `corpus_*` tools above are dispatched locally. |
+| `replica_pipeline_run` | Run checkpointed corpus pipeline steps; all tool steps require external MCP execution via `kask mcp invoke`. |
 
 ## Configuration
 

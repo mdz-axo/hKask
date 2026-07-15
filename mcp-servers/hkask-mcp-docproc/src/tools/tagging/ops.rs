@@ -8,8 +8,6 @@
 use crate::tools::semantic::GUARD;
 use crate::*;
 use hkask_inference::model_constants::classifier_model;
-use hkask_storage::HMem;
-use hkask_types::Visibility;
 use hkask_types::corpus::TaggedChunk;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -354,40 +352,6 @@ impl DocProcServer {
                 McpToolError::internal(format!("Cannot write output '{}': {}", req.output, e))
             })?;
 
-            // Store tags as h_mems in DB
-            let dim = embedding_dim();
-            let semantic = SemanticMemory::open(&req.db_path, &req.passphrase, dim)
-                .map_err(|e| McpToolError::failed_precondition(format!("Cannot open DB: {e}")))?;
-            let webid = owner_webid(&req.owner);
-            let mut stored = 0usize;
-            let mut store_failures = 0usize;
-            for (i, chunk) in tagged.iter().enumerate() {
-                let entity = &chunk.entity_ref;
-                let v = serde_json::json!({
-                    "dimensions": chunk.dimensions,
-                    "dc_type": chunk.dc_type,
-                    "dc_subject": chunk.dc_subject,
-                    "ontology_tags": chunk.ontology_tags,
-                    "concepts": chunk.concepts,
-                    "expertise_level": chunk.expertise_level,
-                    "salience": chunk.salience,
-                    "source": chunk.source,
-                });
-                let h_mem = HMem::new(entity, "ontology_tags", v, webid)
-                    .with_visibility(Visibility::Public)
-                    .with_confidence(0.9);
-                match semantic.store(h_mem) {
-                    Ok(()) => stored += 1,
-                    Err(e) => {
-                        store_failures += 1;
-                        if store_failures <= 5 {
-                            tracing::warn!("  WARN: store tag h_mem for {entity}: {e}");
-                        }
-                    }
-                }
-                let _ = i;
-            }
-
             // Stats
             let dim_counts: std::collections::HashMap<&str, usize> = {
                 let mut m = std::collections::HashMap::new();
@@ -410,8 +374,6 @@ impl DocProcServer {
                 "total_chunks": total,
                 "tagged": c,
                 "failed": f,
-                "stored_h_mems": stored,
-                "store_failures": store_failures,
                 "dimensions": dim_counts,
                 "expertise_levels": exp_counts,
                 "time_seconds": elapsed,
@@ -438,19 +400,12 @@ pub struct TagChunksRequest {
     pub chunks_jsonl: String,
     /// Output path for tagged chunks JSONL with ontology annotations.
     pub output: String,
-    /// Path to the SQLCipher memory DB for h_mem storage.
-    pub db_path: String,
-    /// Passphrase for the memory DB.
-    pub passphrase: String,
     /// Max concurrent LLM tagging calls.
     #[serde(default = "default_tag_concurrency")]
     pub concurrency: usize,
     /// If true, only report stats without LLM calls or writing output.
     #[serde(default)]
     pub dry_run: bool,
-    /// Owner persona for stored h_mems (e.g. "john-brooks").
-    #[serde(default = "default_owner")]
-    pub owner: String,
 }
 
 fn default_tag_concurrency() -> usize {

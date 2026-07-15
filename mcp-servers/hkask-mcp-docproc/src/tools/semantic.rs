@@ -791,7 +791,7 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Generate embedding vectors for corpus chunks. Uses the configured embedding model via the inference router. Reads chunks from chunks_jsonl (entity_ref, source, text, word_count per line), batch-embeds in groups of batch_size, and stores each vector + text/provenance h_mems in the memory DB at db_path. Returns a summary (total, embedded, failed, model) — no inline vectors."
+        description = "Generate embedding vectors for corpus chunks. Uses the configured embedding model via the inference router. Reads chunks from chunks_jsonl (entity_ref, source, text, word_count per line), batch-embeds in groups of batch_size, and stores each vector in the memory DB at db_path. Returns a summary (total, embedded, failed, model) — no inline vectors."
     )]
     pub async fn docproc_embed(
         &self,
@@ -800,20 +800,12 @@ impl DocProcServer {
             db_path,
             passphrase,
             model,
-            owner,
             batch_size,
         }): Parameters<EmbedRequest>,
     ) -> String {
         execute_tool(self, "docproc_embed", async {
-            self.embed_batch_from_jsonl(
-                &chunks_jsonl,
-                model,
-                &db_path,
-                &passphrase,
-                &owner,
-                batch_size,
-            )
-            .await
+            self.embed_batch_from_jsonl(&chunks_jsonl, model, &db_path, &passphrase, batch_size)
+                .await
         })
         .await
     }
@@ -829,7 +821,6 @@ impl DocProcServer {
         model: Option<String>,
         db_path: &str,
         passphrase: &str,
-        owner: &str,
         batch_size: usize,
     ) -> Result<serde_json::Value, McpToolError> {
         let Some(ref emb_router) = self.embedding_router else {
@@ -896,7 +887,6 @@ impl DocProcServer {
             hkask_memory::SemanticMemory::open(db_path, passphrase, dim).map_err(|e| {
                 McpToolError::failed_precondition(format!("Cannot open memory DB: {e}"))
             })?;
-        let webid = owner_webid(owner);
 
         let mut embedded = 0usize;
         let mut failed = 0usize;
@@ -940,7 +930,8 @@ impl DocProcServer {
                 continue;
             }
             for (c, vector) in chunk_batch.iter().zip(vectors.iter()) {
-                // Store embedding vector
+                // Store embedding vector only — text and provenance h_mems were
+                // removed as orphans (no downstream pipeline tool consumed them).
                 if let Err(e) = semantic.store_embedding(&c.0, vector, &model_name) {
                     failed += 1;
                     if failed <= 5 {
@@ -953,23 +944,6 @@ impl DocProcServer {
                     }
                     continue;
                 }
-                // Store text h_mem
-                let text_h_mem =
-                    hkask_storage::HMem::new(&c.0, "text", serde_json::json!(c.1), webid)
-                        .with_visibility(hkask_types::Visibility::Public)
-                        .with_confidence(1.0);
-                let _ = semantic.store(text_h_mem);
-                // Store provenance h_mem
-                let provenance = serde_json::json!({
-                    "embedding_model": &model_name,
-                    "embedding_dimensions": vector.len(),
-                    "ingest_kind": "corpus_chunk",
-                });
-                let prov_h_mem =
-                    hkask_storage::HMem::new(&c.0, "corpus_provenance", provenance, webid)
-                        .with_visibility(hkask_types::Visibility::Public)
-                        .with_confidence(1.0);
-                let _ = semantic.store(prov_h_mem);
                 embedded += 1;
             }
         }
@@ -1139,7 +1113,7 @@ fn default_triples_concurrency() -> usize {
 pub struct EmbedRequest {
     /// Path to chunks JSONL (entity_ref, source, text, word_count per line).
     pub chunks_jsonl: String,
-    /// Path to the SQLCipher memory DB for vector + h_mem storage.
+    /// Path to the SQLCipher memory DB for vector storage.
     pub db_path: String,
     /// Passphrase for the memory DB.
     #[serde(default = "default_docproc_passphrase")]
@@ -1147,9 +1121,6 @@ pub struct EmbedRequest {
     /// Embedding model to use. If not set, uses the configured default.
     #[serde(default)]
     pub model: Option<String>,
-    /// Owner persona for stored h_mems (e.g. "john-brooks").
-    #[serde(default = "default_owner")]
-    pub owner: String,
     /// Batch size for embedding API calls (default 50).
     #[serde(default = "default_embed_batch_size")]
     pub batch_size: usize,

@@ -94,43 +94,54 @@ steps:
       entity_ref_prefix: "corpus:researcher"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 2a: Embed chunks → DB vectors + text/provenance h_mems
+  # Phase 0a: Purge existing data (pipeline recovery — clean slate)
   #
-  # Qwen3-Embedding-0.6B (1024-dim). Stores vectors + text h_mem + provenance
-  # h_mem per chunk, with entity=chunk_ref, owner=john-brooks.
+  # Deletes old embeddings and QA h_mems from the DB. Keeps chunks.jsonl intact.
+  # This ensures a clean run even if a previous pipeline failed mid-way.
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: purge_existing
+    description: "Purge old embeddings and QA h_mems from DB for clean pipeline run"
+    tool: docproc_purge_qa
+    params:
+      prefix: "corpus:researcher:"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 2a: Embed chunks → DB vectors
+  #
+  # Qwen3-Embedding-0.6B (1024-dim). Stores vectors only.
+  # Text/provenance h_mems removed (orphans — no downstream consumer).
   # ═══════════════════════════════════════════════════════════════════════
   - id: embed_chunks
     description: >
-      Embed all chunks with Qwen3-Embedding-0.6B. Store vectors + text/provenance
-      h_mems in john-brooks.db with entity=chunk_ref, owner=john-brooks.
+      Embed all chunks with Qwen3-Embedding-0.6B. Store vectors in john-brooks.db.
+      3-attempt retry per batch. No h_mem storage (orphaned — removed).
     tool: docproc_embed
     params:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
       db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
-      owner: "john-brooks"
       batch_size: 50
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 2b: Tag chunks → ontology tags JSONL + tag h_mems
+  # Phase 2b: Tag chunks → ontology tags JSONL
   #
   # Qwen3.6-35B-A3B (HKASK_CLASSIFIER_MODEL_A). Uses tag-chunks.j2 template.
-  # Produces tagged_ontology.jsonl + stores ontology tag h_mems in DB.
-  # 128 concurrency (configurable). Thinking-mode JSON extraction.
+  # Produces tagged_ontology.jsonl. No DB h_mem storage (orphaned — removed).
+  # Tag data flows through JSONL files to downstream tools.
+  # 128 concurrency. Thinking-mode JSON extraction.
   # ═══════════════════════════════════════════════════════════════════════
   - id: tag_chunks
     description: >
       Tag chunks with 5W1H dimensions, Dublin Core, PKO, FIBO/GOLEM ontology
       tags, and expertise level. Uses tag-chunks.j2 template with Qwen3.6-35B-A3B.
-      Stores tag h_mems in DB with entity=chunk_ref, owner=john-brooks.
+      Output: tagged_ontology.jsonl (tag data flows through JSONL, not DB).
     tool: docproc_tag_chunks
     params:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
       output: "corpus/chunks/tagged_ontology.jsonl"
-      db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
       concurrency: 128
-      owner: "john-brooks"
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 2c: Extract triples → RDF triple h_mems in DB
