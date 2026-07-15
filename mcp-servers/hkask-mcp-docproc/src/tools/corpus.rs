@@ -759,11 +759,23 @@ impl DocProcServer {
                                 continue; // skip non-triple h_mems
                             }
                             let dim = h_mem.dimension.as_ref().map(|d| d.as_str()).unwrap_or("what");
-                            let val = match &h_mem.value {
-                                serde_json::Value::String(s) => s.clone(),
-                                v => v.to_string(),
+                            let conf = format!("{:.2}", h_mem.confidence.value());
+                            // v2: value is {"subject": "...", "object": "..."}
+                            let (subj, obj) = match &h_mem.value {
+                                serde_json::Value::Object(map) => {
+                                    let s = map.get("subject").and_then(|v| v.as_str()).unwrap_or("");
+                                    let o = map.get("object").map(|v| match v {
+                                        serde_json::Value::String(s) => s.clone(),
+                                        v => v.to_string(),
+                                    }).unwrap_or_default();
+                                    (s.to_string(), o)
+                                }
+                                // Legacy: value is the object directly
+                                serde_json::Value::String(s) => (String::new(), s.clone()),
+                                v => (String::new(), v.to_string()),
                             };
-                            lines.push(format!("  - [{}] {} --{}--> {}", dim, tc.entity_ref, h_mem.attribute, val));
+                            let entity_label = if subj.is_empty() { tc.entity_ref.as_str() } else { &subj };
+                            lines.push(format!("  - [{}] (conf={}) {} --{}--> {}", dim, conf, entity_label, h_mem.attribute, obj));
                         }
                         if lines.is_empty() {
                             "(none)".to_string()
