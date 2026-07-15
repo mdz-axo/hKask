@@ -148,17 +148,9 @@ impl CompaniesServer {
             let wacc = req.wacc.unwrap_or(0.10);
 
             // Moat classification for fade horizon
-            let fade_horizon = if let Some(ref moat_override) = req.moat_override {
-                // User explicitly overrides moat → fade horizon mapping
-                economic_profit::FadeHorizon::parse(moat_override)
-                    .unwrap_or(economic_profit::FadeHorizon::Default)
-            } else if let Some(ref moat_str) = req.moat_result {
-                // User provides moat_check result string
-                economic_profit::FadeHorizon::from_moat(moat_str)
-            } else {
-                // Default: conservative 10-year fade
-                economic_profit::FadeHorizon::Default
-            };
+            let fade_horizon = req.moat_override
+                .or(req.moat_result)
+                .unwrap_or(economic_profit::FadeHorizon::Default);
 
             let stage1_years = req.stage1_years.unwrap_or(3);
             let ic_growth_rate = req.ic_growth_rate.unwrap_or(0.0);

@@ -245,7 +245,7 @@ pub struct ScenarioEvent {
 
     // Dependencies (tree structure)
     /// Events this event's probability depends on
-    pub depends_on: Vec<EventDependency>,
+    pub depends_on: Option<EventDependency>,
 
     // Calibration metadata
     /// Fermi decomposition sub-questions
@@ -538,8 +538,9 @@ pub struct EventTreeNode {
     /// For single-parent events, this is a one-element Vec.
     /// For multi-parent events, each parent produces a separate path.
     pub paths: Vec<Vec<String>>,
-    /// Contribution to uncertainty (sensitivity proxy)
-    pub variance_contribution: f64,
+    /// Uncertainty score: distance from coin-flip (|P - 0.5| * 2), scaled to [0, 1].
+    /// Events at 50% contribute maximum uncertainty; events at 0% or 100% contribute none.
+    pub uncertainty_score: f64,
 }
 
 /// Full event tree with resolved probabilities.
@@ -641,7 +642,7 @@ impl ScenarioEvent {
                 self.probability,
             ));
         }
-        for dep in &self.depends_on {
+        if let Some(dep) = &self.depends_on {
             // Validate parent IDs are non-empty
             if dep.parent_event_ids.is_empty() {
                 return Err(ScenarioError::InvalidDependency(

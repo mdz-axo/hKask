@@ -4,7 +4,7 @@
 //! Deserialize + JsonSchema for MCP parameter deserialization.
 
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // ── Financial data request structs ──────────────────────────────────
 
@@ -46,17 +46,25 @@ pub struct TransactionNoteRequest {
     pub note: String,
 }
 
+/// Ledger import/export format.
+#[derive(Debug, Clone, Deserialize, JsonSchema, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ImportFormat {
+    Csv,
+    Json,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct LedgerImportRequest {
     pub portfolio: String,
-    pub format: String, // "csv" or "json"
+    pub format: ImportFormat,
     pub data: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct LedgerExportRequest {
     pub portfolio: String,
-    pub format: String, // "csv" or "json"
+    pub format: ImportFormat,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -276,13 +284,28 @@ pub struct ForecastListRequest {
     pub symbol: String,
 }
 
+/// Forecast horizon for outcome recording.
+#[derive(Debug, Clone, Deserialize, JsonSchema, Serialize)]
+pub enum Horizon {
+    #[serde(rename = "3mo")]
+    ThreeMo,
+    #[serde(rename = "6mo")]
+    SixMo,
+    #[serde(rename = "1yr")]
+    OneYr,
+    #[serde(rename = "2yr")]
+    TwoYr,
+    #[serde(rename = "3yr")]
+    ThreeYr,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ForecastRecordRequest {
     pub symbol: String,
     /// When the forecast was made (YYYY-MM-DD)
     pub forecast_date: String,
-    /// Forecast horizon: "3mo", "6mo", "1yr", "2yr", "3yr"
-    pub horizon: String,
+    /// Forecast horizon.
+    pub horizon: Horizon,
     /// Forecast valuation multiple (e.g., P/E or EV/FCF)
     pub forecast_multiple: f64,
     /// Forecast price change over the horizon (e.g., 0.10 = 10% return)
@@ -502,12 +525,12 @@ pub struct EpValuationRequest {
     /// Invested capital growth rate (0.0–0.30, default 0.0).
     /// Models the AFG growth driver: reinvestment that expands the capital base.
     pub ic_growth_rate: Option<f64>,
-    /// Competitive fade horizon override: "wide" (20yr), "narrow" (10yr), "none" (5yr), "default" (10yr).
+    /// Competitive fade horizon override.
     /// If omitted, we attempt to derive from moat_result.
-    pub moat_override: Option<String>,
-    /// Moat classification string from moat_check (e.g., "wide", "narrow", "none").
+    pub moat_override: Option<economic_profit::FadeHorizon>,
+    /// Moat classification from moat_check.
     /// Only used when moat_override is not provided.
-    pub moat_result: Option<String>,
+    pub moat_result: Option<economic_profit::FadeHorizon>,
     /// Stage 1 years: hold current EP constant before fade (1–5, default 3).
     pub stage1_years: Option<u8>,
 }

@@ -912,20 +912,24 @@ pub(crate) fn default_true() -> bool {
 fn sanitize_links(text: &str) -> String {
     use regex::Regex;
 
-    let re_anchor =
-        Regex::new(r"(?is)<a\s[^>]*>(.*?)</a>").expect("anchor regex");
-    let re_md =
-        Regex::new(r"\[([^\]]*)\]\((?:https?://|ftp://|file://|www\.|mailto:)[^)]*\)")
-            .expect("md-link regex");
-    let re_url =
-        Regex::new(r"(?:https?|ftp|file|ssh)://[^\s<>"'\)\]]+|www\.[^\s<>"'\)\]]+|mailto:[^\s<>"'\)\]]+")
-            .expect("url regex");
+    let re_anchor = Regex::new(r#"(?is)<a\s[^>]*>(.*?)</a>"#).expect("anchor regex");
+    let re_md = Regex::new(r"\[([^\]]*)\]\((?:https?://|ftp://|file://|www\.|mailto:)[^)]*\)")
+        .expect("md-link regex");
+    let re_url = Regex::new(
+        r#"(?:https?|ftp|file|ssh)://[^\s<>"'\)\]]+|www\.[^\s<>"'\)\]]+|mailto:[^\s<>"'\)\]]+"#,
+    )
+    .expect("url regex");
     let re_spaces = Regex::new(r"  +").expect("spaces regex");
 
     let text = re_anchor.replace_all(&text, "$1");
     let text = re_md.replace_all(&text, "$1");
     let text = re_url.replace_all(&text, "");
-    re_spaces.replace_all(&text, " ").into_owned()
+    let text = re_spaces.replace_all(&text, " ");
+    // Trim trailing spaces on each line (left by URL removal at line ends)
+    text.lines()
+        .map(|l| l.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[cfg(test)]
@@ -941,7 +945,7 @@ mod tests {
     #[test]
     fn strips_www_links() {
         let input = "See www.example.com and http://test.org.";
-        assert_eq!(sanitize_links(input), "See and.");
+        assert_eq!(sanitize_links(input), "See and");
     }
 
     #[test]
@@ -953,7 +957,10 @@ mod tests {
     #[test]
     fn keeps_non_url_markdown_refs() {
         let input = "See [Figure 1](#fig1) on [page 42](page 42).";
-        assert_eq!(sanitize_links(input), "See [Figure 1](#fig1) on [page 42](page 42).");
+        assert_eq!(
+            sanitize_links(input),
+            "See [Figure 1](#fig1) on [page 42](page 42)."
+        );
     }
 
     #[test]
@@ -965,7 +972,7 @@ mod tests {
     #[test]
     fn strips_file_and_protocol_uris() {
         let input = "Open file:///etc/passwd or ftp://files.example.com/data.";
-        assert_eq!(sanitize_links(input), "Open or.");
+        assert_eq!(sanitize_links(input), "Open or");
     }
 
     #[test]

@@ -266,7 +266,6 @@ struct StatusRequest {}
 hkask_mcp::mcp_server!(
     struct ScenariosServer {
         pub forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
-        pub client: reqwest::Client,
         pub tree_cache: std::sync::Mutex<Option<types::EventTree>>,
         pub called_tools: std::sync::Mutex<HashSet<String>>,
     }
@@ -341,8 +340,7 @@ impl ScenariosServer {
                 "timestamp": now_rfc3339(),
                 "provenance": {
                     "server": "hkask-mcp-scenarios",
-                    "version": "0.31.0",
-                    "framework": "Tetlock GJP Superforecasting + Schwartz Scenario Planning + Chermack Project Assessment"
+                    "version": SERVER_VERSION,
                 },
                 "ontology_anchor": Self::ontology_anchor(tool),
             });
@@ -367,14 +365,6 @@ impl ScenariosServer {
                 }
             });
         }
-    }
-}
-
-// ── Tool router ────────────────────────────────────────────────────────────
-
-impl ScenariosServer {
-    fn combined_router() -> rmcp::handler::server::router::tool::ToolRouter<Self> {
-        Self::scenario_router()
     }
 }
 
@@ -454,7 +444,7 @@ impl ScenariosServer {
                 })),
                 "provenance": {
                     "server": "hkask-mcp-scenarios",
-                    "version": "0.31.0"
+                    "version": SERVER_VERSION
                 },
                 "ontology_anchor": "dublin-core"
             });
@@ -1174,7 +1164,7 @@ impl ScenariosServer {
                     "marginal_probability": n.marginal_probability,
                     "probability_pct": format!("{:.1}%", n.marginal_probability * 100.0),
                     "certainty_tier": serde_json::to_value(n.event.certainty_tier()).unwrap_or_default(),
-                    "variance_contribution": n.variance_contribution,
+                    "uncertainty_score": n.uncertainty_score,
                     "depends_on": n.event.depends_on.iter().map(|d| serde_json::json!({
                         "parent_event_ids": d.parent_event_ids,
                         "conditionals": d.conditionals,
@@ -1631,7 +1621,7 @@ impl ScenariosServer {
                 "reference": "Brier (1950); Murphy (1973) — decomposition of Brier score into reliability, resolution, and uncertainty components"
             });
 
-            self.record_experience("scenario_calibration", "calibration_curve", "success", output.clone());
+            self.record_experience("scenario_calibration", &format!("subject={:?}, resolved={}", req.subject, curve.resolved_forecasts), "success", output.clone());
             Ok(output)
         })
         .await
@@ -1790,7 +1780,7 @@ impl ScenariosServer {
 }
 // ── Tool handler registration ──────────────────────────────────────────────
 
-#[rmcp::tool_handler(router = Self::combined_router())]
+#[rmcp::tool_handler(router = Self::scenario_router())]
 impl rmcp::ServerHandler for ScenariosServer {}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -1835,7 +1825,6 @@ pub async fn run(
                         .ok()
                         .map(std::path::PathBuf::from),
                 ))),
-                reqwest::Client::new(),
                 std::sync::Mutex::new(None),
                 std::sync::Mutex::new(HashSet::new()),
             ))

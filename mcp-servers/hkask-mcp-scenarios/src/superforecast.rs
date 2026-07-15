@@ -75,13 +75,13 @@ pub(crate) fn compute_marginal_probabilities(
             None => continue,
         };
 
-        if event.depends_on.is_empty() {
+        if event.depends_on.is_none() {
             // Root node: use own probability
             resolved.insert(id.clone(), event.probability);
         } else {
             // Full joint marginalization under parent independence.
             // P(E) = Sum_a P(E|a) * Product_i P(p_i)^{a_i} * (1-P(p_i))^{1-a_i}
-            let dep = &event.depends_on[0];
+            let dep = event.depends_on.as_ref().unwrap();
             let n_assignments = 1usize << dep.parent_event_ids.len();
 
             let parent_probs: Vec<f64> = dep
@@ -138,7 +138,7 @@ pub fn build_event_tree(events: &[ScenarioEvent]) -> Result<EventTree, ScenarioE
     // Identify root nodes (no dependencies)
     let root_ids: Vec<String> = events
         .iter()
-        .filter(|e| e.depends_on.is_empty())
+        .filter(|e| e.depends_on.is_none())
         .map(|e| e.id.clone())
         .collect();
 
@@ -157,28 +157,22 @@ pub fn build_event_tree(events: &[ScenarioEvent]) -> Result<EventTree, ScenarioE
             .get(id.as_str())
             .ok_or_else(|| ScenarioError::EventNotFound(id.clone()))?;
         let marginal = marginals.get(id).copied().unwrap_or(event.probability);
-        let joint_factor = if event.depends_on.is_empty() {
-            marginal
-        } else {
-            // All-parents-true conditional: conditionals[last] = P(E | all parents true)
-            event.depends_on[0]
-                .conditionals
-                .last()
-                .copied()
-                .unwrap_or(0.0)
+        let joint_factor = match &event.depends_on {
+            None => marginal,
+            Some(dep) => dep.conditionals.last().copied().unwrap_or(0.0),
         };
 
         // Build path from root to this node
         let paths = build_path(id, events);
 
-        // Variance contribution: |P - 0.5| — how far from coin-flip
-        let variance_contribution = (marginal - 0.5).abs() * 2.0; // scale to [0, 1]
+        // Uncertainty score: |P - 0.5| × 2 — distance from coin-flip, scaled to [0, 1]
+        let uncertainty_score = (marginal - 0.5).abs() * 2.0;
 
         nodes.push(EventTreeNode {
             event: (*event).clone(),
             marginal_probability: marginal,
             paths,
-            variance_contribution,
+            uncertainty_score,
         });
 
         // For dependent events, the all-events-occur joint factor is
@@ -223,7 +217,7 @@ fn topological_sort(events: &[ScenarioEvent]) -> Result<Vec<String>, ScenarioErr
         .collect();
 
     for event in events {
-        for dep in &event.depends_on {
+        if let Some(dep) = &event.depends_on {
             for parent_id in &dep.parent_event_ids {
                 if !id_set.contains(parent_id.as_str()) {
                     return Err(ScenarioError::UnknownParent(
@@ -289,12 +283,12 @@ fn build_path(target_id: &str, events: &[ScenarioEvent]) -> Vec<Vec<String>> {
             None => return vec![vec![current.to_string()]],
         };
 
-        if event.depends_on.is_empty() {
+        if event.depends_on.is_none() {
             return vec![vec![current.to_string()]];
         }
 
         let mut all_paths = Vec::new();
-        for dep in &event.depends_on {
+        if let Some(dep) = &event.depends_on {
             for parent_id in &dep.parent_event_ids {
                 let parent_paths = collect_paths(parent_id, event_map, visited);
                 for parent_path in parent_paths {
@@ -325,7 +319,7 @@ pub fn sensitivity_ranking(tree: &EventTree) -> Vec<(String, f64)> {
     let mut ranked: Vec<(String, f64)> = tree
         .nodes
         .iter()
-        .map(|n| (n.event.id.clone(), 1.0 - n.variance_contribution))
+        .map(|n| (n.event.id.clone(), 1.0 - n.uncertainty_score))
         .collect();
     ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     ranked
@@ -1406,7 +1400,7 @@ pub fn convert_companies_output(
             subject: symbol.to_string(),
             probability: prob,
             basis: Some("financial_model".into()),
-            depends_on: vec![],
+            depends_on: None,
             sub_questions,
             base_rate: None,
             reference_class: Some("Company DCF scenario analysis, 2×2 Schwartz matrix".into()),
@@ -1424,7 +1418,7 @@ mod tests {
     use crate::types::CertaintyTier;
     use crate::types::EventDependency;
 
-    fn make_event(id: &str, prob: f64, deps: Vec<EventDependency>) -> ScenarioEvent {
+    fn make_event(id: &str, prob: f64, deps: Option<EventDependency>) -> ScenarioEvent {
         ScenarioEvent {
             id: id.into(),
             name: format!("Event {}", id),
@@ -1563,7 +1557,7 @@ mod tests {
 
     #[test]
     fn test_event_tree_no_deps() {
-        let events = vec![make_event("A", 0.8, vec![]), make_event("B", 0.6, vec![])];
+        let events = vec![make_event("A", 0.8, None), make_event("B", 0.6, None)];
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 2);
         assert_eq!(tree.root_ids.len(), 2);
@@ -1572,11 +1566,11 @@ mod tests {
 
     #[test]
     fn test_event_tree_with_dependency() {
-        let dep = vec![EventDependency {
+        let dep = EventDependency {
             parent_event_ids: vec!["A".into()],
             conditionals: vec![0.2, 0.9], // [P(E|not A), P(E|A)]
         }];
-        let events = vec![make_event("A", 0.5, vec![]), make_event("B", 0.7, dep)];
+        let events = vec![make_event("A", 0.5, None), make_event("B", 0.7, Some(dep))];
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 2);
         let b_node = tree.nodes.iter().find(|n| n.event.id == "B").unwrap();
@@ -1586,15 +1580,15 @@ mod tests {
 
     #[test]
     fn test_event_tree_cycle_detection() {
-        let dep_a = vec![EventDependency {
+        let dep_a = EventDependency {
             parent_event_ids: vec!["B".into()],
             conditionals: vec![0.3, 0.8],
         }];
-        let dep_b = vec![EventDependency {
+        let dep_b = EventDependency {
             parent_event_ids: vec!["A".into()],
             conditionals: vec![0.3, 0.8],
         }];
-        let events = vec![make_event("A", 0.5, dep_a), make_event("B", 0.5, dep_b)];
+        let events = vec![make_event("A", 0.5, Some(dep_a)), make_event("B", 0.5, Some(dep_b))];
         let result = build_event_tree(&events);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ScenarioError::CycleDetected));
@@ -1614,15 +1608,15 @@ mod tests {
         //   P(¬A,¬B) = 0.10, P(A,¬B) = 0.10, P(¬A,B) = 0.40, P(A,B) = 0.40
         // P(C) = 0.05*0.10 + 0.30*0.10 + 0.40*0.40 + 0.90*0.40 = 0.555
         // Joint P(all) = P(A) * P(B) * P(C | A=true, B=true) = 0.5 * 0.8 * 0.90 = 0.36
-        let dep_c = vec![EventDependency {
+        let dep_c = EventDependency {
             parent_event_ids: vec!["A".into(), "B".into()],
             // bitmap: 00=¬A¬B, 01=A¬B, 10=¬AB, 11=AB
             conditionals: vec![0.05, 0.30, 0.40, 0.90],
         }];
         let events = vec![
-            make_event("A", 0.5, vec![]),
-            make_event("B", 0.8, vec![]),
-            make_event("C", 0.3, dep_c),
+            make_event("A", 0.5, None),
+            make_event("B", 0.8, None),
+            make_event("C", 0.3, Some(dep_c)),
         ];
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 3);
@@ -1649,8 +1643,8 @@ mod tests {
     #[test]
     fn test_sensitivity_ranking() {
         let events = vec![
-            make_event("A", 0.5, vec![]),  // max uncertainty (coin flip)
-            make_event("B", 0.99, vec![]), // near certainty
+            make_event("A", 0.5, None),  // max uncertainty (coin flip)
+            make_event("B", 0.99, None), // near certainty
         ];
         let tree = build_event_tree(&events).unwrap();
         let ranked = sensitivity_ranking(&tree);
@@ -1660,14 +1654,14 @@ mod tests {
 
     #[test]
     fn test_validate_nan_rejected() {
-        let event = make_event("A", f64::NAN, vec![]);
+        let event = make_event("A", f64::NAN, None);
         let result = event.validate();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_validate_inf_rejected() {
-        let event = make_event("A", f64::INFINITY, vec![]);
+        let event = make_event("A", f64::INFINITY, None);
         let result = event.validate();
         assert!(result.is_err());
     }
@@ -1679,7 +1673,7 @@ mod tests {
             parent_event_ids: vec!["A".into(), "B".into()],
             conditionals: vec![0.1, 0.3, 0.7], // should be length 4
         };
-        let event = make_event("C", 0.5, vec![dep]);
+        let event = make_event("C", 0.5, Some(dep));
         let result = event.validate();
         assert!(result.is_err());
     }
@@ -1725,7 +1719,7 @@ mod tests {
 
     #[test]
     fn test_auto_update_suggestions_correct_direction() {
-        let events = vec![make_event("A", 0.3, vec![])];
+        let events = vec![make_event("A", 0.3, None)];
         let outcomes = vec![("A".into(), true)]; // event occurred but forecast was 30%
         let suggestions = auto_update_suggestions(&events, &outcomes);
         assert_eq!(suggestions.len(), 1);

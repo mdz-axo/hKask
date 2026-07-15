@@ -42,12 +42,13 @@
 //! to assumptions about competitive advantage duration. When low, the company
 //! is mostly valued on its existing assets.
 
-use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 // ── Competitive fade ──────────────────────────────────────────────────────────
 
 /// Competitive advantage duration, controlling how fast economic profits fade.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum FadeHorizon {
     /// 20-year fade — durable competitive advantage.

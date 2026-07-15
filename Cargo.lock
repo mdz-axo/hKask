@@ -4641,7 +4641,6 @@ dependencies = [
  "hkask-forecast",
  "hkask-mcp",
  "hkask-types",
- "reqwest 0.12.28",
  "rmcp",
  "schemars",
  "serde",

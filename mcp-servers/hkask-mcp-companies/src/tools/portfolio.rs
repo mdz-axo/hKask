@@ -57,12 +57,9 @@ impl CompaniesServer {
                         .create(&portfolio)
                         .map_err(|error| format!("auto-create failed: {error}"))?;
                 }
-                let ids = match format.as_str() {
-                    "csv" => manager.import_csv(&portfolio, &data),
-                    "json" => manager.import_json(&portfolio, &data),
-                    other => {
-                        Err(format!("unsupported format '{other}'; use 'csv' or 'json'").into())
-                    }
+                let ids = match format {
+                    types::ImportFormat::Csv => manager.import_csv(&portfolio, &data),
+                    types::ImportFormat::Json => manager.import_json(&portfolio, &data),
                 }?;
                 let validation = manager.validate(&portfolio).unwrap_or_else(|error| {
                     portfolio::ValidationReport {
@@ -97,10 +94,9 @@ impl CompaniesServer {
     ) -> String {
         execute_tool(self, "ledger_export", async {
             let output_format = format.clone();
-            let data = run_portfolio(self.portfolio.clone(), move |manager| match format.as_str() {
-                "csv" => manager.export_csv(&portfolio),
-                "json" => manager.export_json(&portfolio),
-                other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'").into()),
+            let data = run_portfolio(self.portfolio.clone(), move |manager| match format {
+                types::ImportFormat::Csv => manager.export_csv(&portfolio),
+                types::ImportFormat::Json => manager.export_json(&portfolio),
             })
             .await?;
             Ok(serde_json::json!({"format": output_format, "data": data, "fibo": {"transaction_ledger": fibo::TRANSACTION_LEDGER}}))

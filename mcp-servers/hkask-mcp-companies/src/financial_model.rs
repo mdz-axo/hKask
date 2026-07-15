@@ -20,7 +20,6 @@
 
 use crate::types::ProjectionAssumptionOverrides;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 // ── Historical data snapshot ───────────────────────────────────────────────
 
@@ -405,16 +404,27 @@ impl Default for ProjectionAssumptions {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProjectionAssumptionError(String);
-
-impl fmt::Display for ProjectionAssumptionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum ProjectionAssumptionError {
+    #[error("{field} must be finite")]
+    NotFinite { field: &'static str },
+    #[error("{field} must be within {min}..={max}")]
+    OutOfRange {
+        field: &'static str,
+        min: f64,
+        max: f64,
+    },
+    #[error("{field} must be finite and within {min}..={max}")]
+    NotFiniteOrOutOfRange {
+        field: &'static str,
+        min: f64,
+        max: f64,
+    },
+    #[error("projection horizon exceeds u8 capacity")]
+    HorizonOverflow,
+    #[error("discount_rate must be greater than terminal_growth")]
+    DiscountNotGreaterThanTerminalGrowth,
 }
-
-impl std::error::Error for ProjectionAssumptionError {}
 
 impl ProjectionAssumptions {
     const REVENUE_GROWTH: (f64, f64) = (-0.50, 1.00);
@@ -459,19 +469,23 @@ impl ProjectionAssumptions {
             .stage2_years
             .unwrap_or(self.total_years - self.stage1_years);
         if !(Self::STAGE1_YEARS.0..=Self::STAGE1_YEARS.1).contains(&stage1_years) {
-            return Err(ProjectionAssumptionError(
-                "stage1_years must be within 1..=3".into(),
-            ));
+            return Err(ProjectionAssumptionError::OutOfRange {
+                field: "stage1_years",
+                min: Self::STAGE1_YEARS.0 as f64,
+                max: Self::STAGE1_YEARS.1 as f64,
+            });
         }
         if !(Self::STAGE2_YEARS.0..=Self::STAGE2_YEARS.1).contains(&stage2_years) {
-            return Err(ProjectionAssumptionError(
-                "stage2_years must be within 2..=7".into(),
-            ));
+            return Err(ProjectionAssumptionError::OutOfRange {
+                field: "stage2_years",
+                min: Self::STAGE2_YEARS.0 as f64,
+                max: Self::STAGE2_YEARS.1 as f64,
+            });
         }
         self.stage1_years = stage1_years;
-        self.total_years = stage1_years.checked_add(stage2_years).ok_or_else(|| {
-            ProjectionAssumptionError("projection horizon exceeds u8 capacity".into())
-        })?;
+        self.total_years = stage1_years
+            .checked_add(stage2_years)
+            .ok_or(ProjectionAssumptionError::HorizonOverflow)?;
 
         macro_rules! apply {
             ($field:ident) => {
@@ -495,18 +509,19 @@ impl ProjectionAssumptions {
 
     fn validate(&self, stage2_years: u8) -> Result<(), ProjectionAssumptionError> {
         fn validate_range(
-            field: &str,
+            field: &'static str,
             value: f64,
             range: (f64, f64),
         ) -> Result<(), ProjectionAssumptionError> {
             if !value.is_finite() {
-                return Err(ProjectionAssumptionError(format!("{field} must be finite")));
+                return Err(ProjectionAssumptionError::NotFinite { field });
             }
             if !(range.0..=range.1).contains(&value) {
-                return Err(ProjectionAssumptionError(format!(
-                    "{field} must be within {}..={}",
-                    range.0, range.1
-                )));
+                return Err(ProjectionAssumptionError::OutOfRange {
+                    field,
+                    min: range.0,
+                    max: range.1,
+                });
             }
             Ok(())
         }
@@ -529,19 +544,21 @@ impl ProjectionAssumptions {
         )?;
 
         if !(Self::STAGE1_YEARS.0..=Self::STAGE1_YEARS.1).contains(&self.stage1_years) {
-            return Err(ProjectionAssumptionError(
-                "stage1_years must be within 1..=3".into(),
-            ));
+            return Err(ProjectionAssumptionError::OutOfRange {
+                field: "stage1_years",
+                min: Self::STAGE1_YEARS.0 as f64,
+                max: Self::STAGE1_YEARS.1 as f64,
+            });
         }
         if !(Self::STAGE2_YEARS.0..=Self::STAGE2_YEARS.1).contains(&stage2_years) {
-            return Err(ProjectionAssumptionError(
-                "stage2_years must be within 2..=7".into(),
-            ));
+            return Err(ProjectionAssumptionError::OutOfRange {
+                field: "stage2_years",
+                min: Self::STAGE2_YEARS.0 as f64,
+                max: Self::STAGE2_YEARS.1 as f64,
+            });
         }
         if self.discount_rate <= self.terminal_growth {
-            return Err(ProjectionAssumptionError(
-                "discount_rate must be greater than terminal_growth".into(),
-            ));
+            return Err(ProjectionAssumptionError::DiscountNotGreaterThanTerminalGrowth);
         }
         Ok(())
     }
@@ -931,9 +948,11 @@ impl McRange {
             ("range_discount_rate", self.discount_rate),
         ] {
             if !value.is_finite() || !(0.0..=1.0).contains(&value) {
-                return Err(ProjectionAssumptionError(format!(
-                    "{field} must be finite and within 0..=1"
-                )));
+                return Err(ProjectionAssumptionError::NotFiniteOrOutOfRange {
+                    field,
+                    min: 0.0,
+                    max: 1.0,
+                });
             }
         }
         Ok(())
@@ -943,9 +962,11 @@ impl McRange {
 /// Validate the relative sensitivity range before varying assumptions.
 pub fn validate_sensitivity_range(range_pct: f64) -> Result<(), ProjectionAssumptionError> {
     if !range_pct.is_finite() || !(0.0..=1.0).contains(&range_pct) {
-        return Err(ProjectionAssumptionError(
-            "range_pct must be finite and within 0..=1".into(),
-        ));
+        return Err(ProjectionAssumptionError::NotFiniteOrOutOfRange {
+            field: "range_pct",
+            min: 0.0,
+            max: 1.0,
+        });
     }
     Ok(())
 }

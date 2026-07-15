@@ -749,13 +749,6 @@ impl CompaniesServer {
                 validate_finite(name, value)?;
             }
 
-            // Validate horizon
-            if !superforecast::FORECAST_HORIZONS.contains(&req.horizon.as_str()) {
-                return Err(McpToolError::invalid_argument(format!(
-                    "horizon must be one of: {}", superforecast::FORECAST_HORIZONS.join(", ")
-                )));
-            }
-
             // Brier scores on binary outcomes
             // Multiple: was actual multiple >= forecast? (binary direction)
             let multiple_higher = req.actual_multiple >= req.forecast_multiple;
