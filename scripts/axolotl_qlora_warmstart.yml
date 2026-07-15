@@ -1,0 +1,73 @@
+# Axolotl config — Qwen3.6-27B QLoRA with warm start from fp16 LoRA
+# Refining the existing adapter (eval_loss 0.187) with 4-bit quantization,
+# sample packing, and flash attention for ~20x throughput improvement.
+
+base_model: unsloth/Qwen3.6-27B
+adapter: qlora
+load_in_4bit: true
+load_in_8bit: false
+
+# Warm start — load our pre-trained adapter (PiSSA-initialized, eval_loss 0.187)
+# The adapter weights are fp16 regardless of base model quantization.
+# PiSSA init is NOT re-run — the existing weights are loaded as-is.
+lora_model_dir: /workspace/adapter
+
+sequence_len: 6144
+bf16: true
+pad_to_sequence_len: true
+
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+datasets:
+  - path: /workspace/data/strandset.jsonl
+    type: chat_template
+  - path: /workspace/data/introspector.jsonl
+    type: chat_template
+  - path: Axolotl-Partners/openthoughts-114k-linked
+    type: chat_template
+    data_files: train.jsonl
+
+# Training — shorter schedule so cosine LR actually decays
+num_epochs: 1
+learning_rate: 5e-5              # Lower than initial 1e-4 — we're refining, not starting fresh
+warmup_steps: 50
+micro_batch_size: 8              # 8x larger (4-bit frees 40GB VRAM)
+eval_batch_size: 1
+gradient_accumulation_steps: 2  # Effective batch = 16 (same as before)
+gradient_checkpointing: true
+lr_scheduler: cosine
+weight_decay: 0.01
+max_grad_norm: 0.3
+optim: paged_adamw_8bit          # Paged optimizer for QLoRA memory efficiency
+
+# Sample packing — requires flash-attn for cross-sample masking
+sample_packing: true
+flash_attention: true
+
+# Eval
+val_set_size: 0.0012
+eval_steps: 100                  # More frequent eval (steps are faster now)
+save_steps: 100
+save_total_limit: 5
+early_stopping_patience: 25
+
+# Optimizations
+liger_kernel: true
+cut_cross_entropy: true
+
+# Output
+output_dir: /workspace/outputs
+hub_model_id: Axolotl-Partners/qwen36-rust-reasoning-all-lora
+hub_strategy: end
+
+strict: false
