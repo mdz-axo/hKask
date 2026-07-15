@@ -154,29 +154,19 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
     }
 }
 
-/// Write a QA batch result to the inline results vector or the output JSONL file.
-///
-/// When `output_writer` is `Some`, writes the result as one JSONL line with
-/// incremental flush every 10 completions for crash safety. When `None`, pushes
-/// to the inline `results` vector for backward-compatible inline return.
+/// Write a QA batch result as one JSONL line to the output file with
+/// incremental flush every 10 completions for crash safety.
 fn write_qa_result(
     result: &serde_json::Value,
-    results: &Mutex<Vec<serde_json::Value>>,
-    output_writer: &Option<Arc<Mutex<std::io::BufWriter<std::fs::File>>>>,
+    output_writer: &Arc<Mutex<std::io::BufWriter<std::fs::File>>>,
     write_count: &std::sync::atomic::AtomicUsize,
 ) {
-    if output_writer.is_none() {
-        let mut results = results.lock().unwrap();
-        results.push(result.clone());
-    }
-    if let Some(writer) = output_writer {
-        let mut w = writer.lock().unwrap();
-        let _ = serde_json::to_writer(&mut *w, result);
-        let _ = writeln!(&mut *w);
-        let count = write_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-        if count.is_multiple_of(10) {
-            let _ = w.flush();
-        }
+    let mut w = output_writer.lock().unwrap();
+    let _ = serde_json::to_writer(&mut *w, result);
+    let _ = writeln!(&mut *w);
+    let count = write_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+    if count.is_multiple_of(10) {
+        let _ = w.flush();
     }
 }
 
@@ -303,12 +293,11 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Batch-generate QA pairs from multiple text chunks. Same pipeline as docproc_generate_qa (Bloom taxonomy, ContentGuard, templates). Uses configurable concurrency for parallel LLM calls. Accepts inline prompts array or prompts_jsonl file path. When output is provided, writes results to a JSONL file instead of returning inline."
+        description = "Batch-generate QA pairs from multiple text chunks. Same pipeline as docproc_generate_qa (Bloom taxonomy, ContentGuard, templates). Uses configurable concurrency for parallel LLM calls. Reads prompts from prompts_jsonl (one JSON per line: chunk_ref, qa_type, system, user) and writes generated QAs to the output JSONL file. Returns a summary (total + written counts)."
     )]
     pub async fn docproc_generate_qa_batch(
         &self,
         Parameters(GenerateQaBatchRequest {
-            prompts,
             prompts_jsonl,
             output,
             concurrency,
@@ -316,69 +305,62 @@ impl DocProcServer {
         }): Parameters<GenerateQaBatchRequest>,
     ) -> String {
         execute_tool(self, "docproc_generate_qa_batch", async {
-            // Resolve prompts source: inline array or JSONL file
-            let prompts_vec: Vec<BatchQaPrompt> = if let Some(path) = &prompts_jsonl {
-                let content = std::fs::read_to_string(path).map_err(|e| {
+            // Read prompts from JSONL file (file-only mode)
+            let content = std::fs::read_to_string(&prompts_jsonl).map_err(|e| {
+                McpToolError::invalid_argument(format!(
+                    "Cannot read prompts_jsonl '{}': {e}",
+                    prompts_jsonl
+                ))
+            })?;
+            let mut prompts_vec: Vec<BatchQaPrompt> = Vec::new();
+            for (i, line) in content.lines().enumerate() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                let v: serde_json::Value = serde_json::from_str(line).map_err(|e| {
                     McpToolError::invalid_argument(format!(
-                        "Cannot read prompts_jsonl '{}': {e}",
-                        path
+                        "prompts_jsonl line {} is not valid JSON: {e}",
+                        i + 1
                     ))
                 })?;
-                let mut out = Vec::new();
-                for (i, line) in content.lines().enumerate() {
-                    let line = line.trim();
-                    if line.is_empty() {
-                        continue;
-                    }
-                    let v: serde_json::Value = serde_json::from_str(line).map_err(|e| {
-                        McpToolError::invalid_argument(format!(
-                            "prompts_jsonl line {} is not valid JSON: {e}",
-                            i + 1
-                        ))
-                    })?;
-                    // Map build_prompts output fields to BatchQaPrompt:
-                    // chunk_ref -> chunk_id, system+user -> text, qa_type -> bloom_levels
-                    let chunk_id = v
-                        .get("chunk_ref")
-                        .and_then(|v| v.as_str())
-                        .or_else(|| v.get("chunk_id").and_then(|v| v.as_str()))
-                        .unwrap_or("")
-                        .to_string();
-                    let system = v.get("system").and_then(|v| v.as_str()).unwrap_or("");
-                    let user = v.get("user").and_then(|v| v.as_str()).unwrap_or("");
-                    let text = if system.is_empty() && user.is_empty() {
-                        v.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string()
-                    } else {
-                        format!("{system}\n\n{user}")
-                    };
-                    let bloom_levels = v
-                        .get("qa_type")
-                        .and_then(|v| v.as_str())
-                        .map(|qt| vec![qt.to_string()])
-                        .or_else(|| {
-                            v.get("bloom_levels").and_then(|v| v.as_array()).map(|arr| {
-                                arr.iter()
-                                    .filter_map(|x| x.as_str().map(String::from))
-                                    .collect()
-                            })
-                        });
-                    out.push(BatchQaPrompt {
-                        text,
-                        chunk_id,
-                        bloom_levels,
+                // Map build_prompts output fields to BatchQaPrompt:
+                // chunk_ref -> chunk_id, system+user -> text, qa_type -> bloom_levels
+                let chunk_id = v
+                    .get("chunk_ref")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| v.get("chunk_id").and_then(|v| v.as_str()))
+                    .unwrap_or("")
+                    .to_string();
+                let system = v.get("system").and_then(|v| v.as_str()).unwrap_or("");
+                let user = v.get("user").and_then(|v| v.as_str()).unwrap_or("");
+                let text = if system.is_empty() && user.is_empty() {
+                    v.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string()
+                } else {
+                    format!("{system}\n\n{user}")
+                };
+                let bloom_levels = v
+                    .get("qa_type")
+                    .and_then(|v| v.as_str())
+                    .map(|qt| vec![qt.to_string()])
+                    .or_else(|| {
+                        v.get("bloom_levels").and_then(|v| v.as_array()).map(|arr| {
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect()
+                        })
                     });
-                }
-                out
-            } else if let Some(p) = prompts {
-                p
-            } else {
-                return Err(McpToolError::invalid_argument(
-                    "either prompts or prompts_jsonl must be provided",
-                ));
-            };
+                prompts_vec.push(BatchQaPrompt {
+                    text,
+                    chunk_id,
+                    bloom_levels,
+                });
+            }
 
             if prompts_vec.is_empty() {
-                return Err(McpToolError::invalid_argument("prompts must not be empty"));
+                return Err(McpToolError::invalid_argument(
+                    "prompts_jsonl contains no valid prompts",
+                ));
             }
 
             let selected_model = configured_qa_model(model);
@@ -388,29 +370,22 @@ impl DocProcServer {
             let sem = Arc::new(tokio::sync::Semaphore::new(concurrency.max(1)));
             let router = Arc::clone(&self.inference_router);
 
-            // Output: file writer (with incremental flush) or inline collection
-            let output_writer = if let Some(out_path) = &output {
-                let file = std::fs::File::create(out_path).map_err(|e| {
-                    McpToolError::internal(format!(
-                        "Cannot create output file '{}': {e}",
-                        out_path
-                    ))
-                })?;
-                Some(Arc::new(Mutex::new(std::io::BufWriter::new(file))))
-            } else {
-                None
-            };
+            // Output file writer (with incremental flush every 10 completions)
+            let file = std::fs::File::create(&output).map_err(|e| {
+                McpToolError::internal(format!(
+                    "Cannot create output file '{}': {e}",
+                    output
+                ))
+            })?;
+            let output_writer = Arc::new(Mutex::new(std::io::BufWriter::new(file)));
             let write_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            let results: Arc<Mutex<Vec<serde_json::Value>>> =
-                Arc::new(Mutex::new(Vec::with_capacity(if output_writer.is_some() { 0 } else { total })));
 
             let mut handles = Vec::with_capacity(total);
             for prompt in prompts_vec {
                 let router = Arc::clone(&router);
                 let sem = Arc::clone(&sem);
-                let results = Arc::clone(&results);
                 let selected_model = selected_model.clone();
-                let output_writer = output_writer.clone();
+                let output_writer = Arc::clone(&output_writer);
                 let write_count = Arc::clone(&write_count);
 
                 let handle = tokio::spawn(async move {
@@ -438,7 +413,7 @@ impl DocProcServer {
                     let input_scan = GUARD.scan_input(&prompt_text);
                     if !input_scan.passed {
                         let result = json!({"chunk_id": prompt.chunk_id, "error": "Input guard rejected"});
-                        write_qa_result(&result, &results, &output_writer, &write_count);
+                        write_qa_result(&result, &output_writer, &write_count);
                         return;
                     }
                     let params = LLMParameters { temperature: 0.3, max_tokens: 4096, ..Default::default() };
@@ -463,20 +438,20 @@ impl DocProcServer {
                                         },
                                         "tokens_used": response.usage.total_tokens,
                                     });
-                                    write_qa_result(&result, &results, &output_writer, &write_count);
+                                    write_qa_result(&result, &output_writer, &write_count);
                                 }
                                 Err(e) => {
                                     let result = json!({
                                         "chunk_id": prompt.chunk_id,
                                         "error": format!("QA response rejected: {e}"),
                                     });
-                                    write_qa_result(&result, &results, &output_writer, &write_count);
+                                    write_qa_result(&result, &output_writer, &write_count);
                                 }
                             }
                         }
                         Err(e) => {
                             let result = json!({"chunk_id": prompt.chunk_id, "error": format!("{}", e)});
-                            write_qa_result(&result, &results, &output_writer, &write_count);
+                            write_qa_result(&result, &output_writer, &write_count);
                         }
                     }
                 });
@@ -487,178 +462,50 @@ impl DocProcServer {
                 let _ = handle.await;
             }
 
-            if let Some(writer) = &output_writer {
-                let mut w = writer.lock().unwrap();
+            {
+                let mut w = output_writer.lock().unwrap();
                 let _ = w.flush();
-                let written = write_count.load(std::sync::atomic::Ordering::Relaxed);
-                let result = json!({
-                    "total": total,
-                    "written": written,
-                    "output": output.as_deref().unwrap_or(""),
-                });
-                self.record_experience(
-                    "docproc_generate_qa_batch",
-                    &format!("batch: {} prompts", total),
-                    "success",
-                    result.clone(),
-                );
-                Ok(result)
-            } else {
-                let results = results.lock().unwrap().clone();
-                let result = json!({"total": total, "results": results});
-                self.record_experience(
-                    "docproc_generate_qa_batch",
-                    &format!("batch: {} prompts", total),
-                    "success",
-                    result.clone(),
-                );
-                Ok(result)
             }
+            let written = write_count.load(std::sync::atomic::Ordering::Relaxed);
+            let result = json!({
+                "total": total,
+                "written": written,
+                "output": output,
+            });
+            self.record_experience(
+                "docproc_generate_qa_batch",
+                &format!("batch: {} prompts", total),
+                "success",
+                result.clone(),
+            );
+            Ok(result)
         }).await
     }
 
     #[tool(
-        description = "Extract RDF h_mems (subject, predicate, object) from text using the inference engine. Uses the classifier model (Qwen3.6-35B-A3B) with 3-attempt retry. Accepts a single text or chunks_jsonl file for batch processing. In batch mode, stores triples as h_mems in the memory DB with entity=entity_ref from each chunk. Handles thinking-mode reasoning text in LLM responses."
+        description = "Extract RDF h_mems (subject, predicate, object) from text using the inference engine. Uses the classifier model (Qwen3.6-35B-A3B) with 3-attempt retry. Reads chunks from chunks_jsonl, processes them concurrently, and stores triples as h_mems in the memory DB with entity=entity_ref from each chunk. Returns a summary (total_chunks, succeeded, failed, h_mems_stored)."
     )]
     pub async fn docproc_extract_triples(
         &self,
         Parameters(ExtractTriplesRequest {
-            text,
             chunks_jsonl,
-            namespace,
-            max_triples,
             db_path,
             passphrase,
+            max_triples,
             owner,
             concurrency,
         }): Parameters<ExtractTriplesRequest>,
     ) -> String {
         execute_tool(self, "docproc_extract_triples", async {
-            // Batch mode: chunks_jsonl
-            if let Some(chunks_path) = &chunks_jsonl {
-                return self
-                    .extract_triples_batch(
-                        chunks_path,
-                        &namespace,
-                        max_triples,
-                        &db_path,
-                        &passphrase,
-                        &owner,
-                        concurrency,
-                    )
-                    .await;
-            }
-
-            // Single-text mode (backward compatible) — returns h_mems as JSON, does not store
-            let text = text.unwrap_or_default();
-            if text.is_empty() {
-                return Err(McpToolError::invalid_argument(
-                    "text must not be empty (or set chunks_jsonl for batch mode)",
-                ));
-            }
-
-            let ns = namespace.unwrap_or_else(|| "doc".to_string());
-            let classifier = hkask_inference::model_constants::classifier_model();
-
-            // Load prompt from registry template (fixed: was "extract-h_mems", file is "extract-hmems.j2")
-            let mut vars: std::collections::HashMap<&str, String> = std::collections::HashMap::new();
-            vars.insert("limit", max_triples.to_string());
-            vars.insert("namespace", ns.clone());
-            vars.insert("text", text.clone());
-            let prompt = render_docproc_template("extract-hmems", &vars);
-            let prompt = if prompt.is_empty() {
-                format!(
-                    "Extract up to {max_triples} factual RDF h_mems from the following text.\n\n\
-                     Each h_mem should be in the form (subject, predicate, object) where:\\
-                     - subject: an entity mentioned in the text (prefix with '{ns}:')\\
-                     - predicate: a relationship or property (use standard RDF predicates like rdf:type, schema:name, etc.)\n\n\
-                     - object: another entity, a literal value, or a type\n\n\
-                     For each h_mem, also provide a confidence score (0.0-1.0) based on how clearly the text supports it.\n\n\
-                     Text:\n{text}\n\n\
-                     Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"...\", \"object\": \"...\", \"confidence\": 0.95}}]}}"
-                )
-            } else {
-                prompt
-            };
-
-            let params = LLMParameters {
-                temperature: 0.1,
-                max_tokens: 4096,
-                ..Default::default()
-            };
-
-            // P3.1: mandatory input guard
-            let input_scan = GUARD.scan_input(&prompt);
-            if !input_scan.passed {
-                let violations: Vec<String> = input_scan.violations.iter()
-                    .map(|v| format!("{}: {}", v.scanner, v.description))
-                    .collect();
-                return Err(McpToolError::invalid_argument(format!(
-                    "Input guard rejected h_mem extraction prompt: {}", violations.join("; ")
-                )));
-            }
-
-            // Retry with backoff (3 attempts) — same pattern as docproc_tag_chunks
-            let mut attempts = 0u32;
-            let response = loop {
-                match self.inference_router
-                    .generate_with_model(&prompt, &params, Some(&classifier), None)
-                    .await
-                {
-                    Ok(resp) => break resp,
-                    Err(e) => {
-                        attempts += 1;
-                        if attempts >= 3 {
-                            return Err(McpToolError::unavailable(format!(
-                                "HMem extraction failed after 3 retries: {}", e
-                            )));
-                        }
-                        let backoff = std::time::Duration::from_secs(2u64.pow(attempts) * 5);
-                        tracing::warn!(
-                            target: "hkask.mcp.docproc.triples",
-                            attempt = attempts,
-                            backoff_secs = backoff.as_secs(),
-                            error = %e,
-                            "HMem extraction retry — backing off"
-                        );
-                        tokio::time::sleep(backoff).await;
-                    }
-                }
-            };
-
-            // P3.1: mandatory output guard
-            let output_scan = GUARD.scan_output(&response.text);
-            let content = output_scan.output.content(&response.text);
-            if !output_scan.passed {
-                tracing::warn!(
-                    target: "cns.guard",
-                    violations = ?output_scan.violations.iter().map(|v| &v.scanner).collect::<Vec<_>>(),
-                    "Output guard violations in h_mem extraction — content may be sanitized"
-                );
-            }
-            // Thinking-mode JSON extraction (handles reasoning text before JSON)
-            let cleaned = extract_json_from_response(content);
-            let h_mems: serde_json::Value = match serde_json::from_str(&cleaned) {
-                Ok(v) => v,
-                Err(_) => {
-                    json!({"raw_response": response.text, "parse_error": "LLM response was not valid JSON"})
-                }
-            };
-
-            let result = json!({
-                "namespace": ns,
-                "max_triples": max_triples,
-                "h_mems": h_mems,
-                "model": classifier,
-                "tokens_used": response.usage.total_tokens,
-            });
-            self.record_experience(
-                "docproc_extract_triples",
-                &ns,
-                "success",
-                result.clone(),
-            );
-            Ok(result)
+            self.extract_triples_batch(
+                &chunks_jsonl,
+                max_triples,
+                &db_path,
+                &passphrase,
+                &owner,
+                concurrency,
+            )
+            .await
         })
         .await
     }
@@ -672,10 +519,9 @@ impl DocProcServer {
     async fn extract_triples_batch(
         &self,
         chunks_path: &str,
-        namespace: &Option<String>,
         max_triples: usize,
-        db_path: &Option<String>,
-        passphrase: &Option<String>,
+        db_path: &str,
+        passphrase: &str,
         owner: &str,
         concurrency: usize,
     ) -> Result<serde_json::Value, McpToolError> {
@@ -728,17 +574,16 @@ impl DocProcServer {
         }
 
         // Open DB once, share across concurrent tasks
-        let db = db_path.as_ref().ok_or_else(|| {
-            McpToolError::invalid_argument("db_path is required for chunks_jsonl batch mode")
-        })?;
-        let pass = passphrase.as_deref().unwrap_or("");
         let dim = embedding_dim();
-        let semantic = Arc::new(hkask_memory::SemanticMemory::open(db, pass, dim).map_err(
-            |e| McpToolError::failed_precondition(format!("Cannot open memory DB: {e}")),
-        )?);
+        let semantic = Arc::new(
+            hkask_memory::SemanticMemory::open(db_path, passphrase, dim).map_err(|e| {
+                McpToolError::failed_precondition(format!("Cannot open memory DB: {e}"))
+            })?,
+        );
         let webid = owner_webid(owner);
         let classifier = hkask_inference::model_constants::classifier_model();
-        let ns = namespace.clone().unwrap_or_else(|| "doc".to_string());
+        // Namespace is fixed to "doc" for corpus chunk extraction (no longer a request field).
+        let ns = "doc".to_string();
 
         let sem = Arc::new(tokio::sync::Semaphore::new(concurrency.max(1)));
         let router = Arc::clone(&self.inference_router);
@@ -921,132 +766,29 @@ impl DocProcServer {
     }
 
     #[tool(
-        description = "Generate embedding vectors for a list of texts (passages or h_mems). Uses the configured embedding model via the inference router. Accepts inline texts or chunks_jsonl file for batch processing. When db_path is provided, stores vectors + text/provenance h_mems in the memory DB. In batch mode (chunks_jsonl), returns only a summary (no inline vectors). When omitted (inline mode), returns raw vectors as JSON (backward compatible)."
+        description = "Generate embedding vectors for corpus chunks. Uses the configured embedding model via the inference router. Reads chunks from chunks_jsonl (entity_ref, source, text, word_count per line), batch-embeds in groups of batch_size, and stores each vector + text/provenance h_mems in the memory DB at db_path. Returns a summary (total, embedded, failed, model) — no inline vectors."
     )]
     pub async fn docproc_embed(
         &self,
         Parameters(EmbedRequest {
-            texts,
             chunks_jsonl,
-            model,
             db_path,
             passphrase,
-            entity_refs,
+            model,
             owner,
             batch_size,
         }): Parameters<EmbedRequest>,
     ) -> String {
         execute_tool(self, "docproc_embed", async {
-            // Batch mode: chunks_jsonl — embed from file, store in DB, return summary only
-            if let Some(chunks_path) = &chunks_jsonl {
-                return self
-                    .embed_batch_from_jsonl(
-                        chunks_path,
-                        model,
-                        db_path,
-                        passphrase,
-                        &owner,
-                        batch_size,
-                    )
-                    .await;
-            }
-
-            // Inline mode (backward compatible)
-            let texts = match texts {
-                Some(t) if !t.is_empty() => t,
-                _ => {
-                    return Err(McpToolError::invalid_argument(
-                        "either texts or chunks_jsonl must be provided",
-                    ));
-                }
-            };
-
-            let Some(ref emb_router) = self.embedding_router else {
-                return Err(McpToolError::failed_precondition(
-                    "Embedding router not configured — inference config may be missing",
-                ));
-            };
-
-            let model_name = model.unwrap_or_else(|| {
-                std::env::var("HKASK_EMBEDDING_MODEL")
-                    .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string())
-            });
-
-            let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-
-            match emb_router.embed_sentences(&model_name, &text_refs).await {
-                Ok(vectors) => {
-                    // Store in DB when db_path is provided
-                    let stored = if let Some(db) = &db_path {
-                        let pass = passphrase.as_deref().unwrap_or("");
-                        let refs = entity_refs.as_ref().filter(|r| r.len() == texts.len());
-                        let dim = vectors.first().map(|v| v.len()).unwrap_or(1024);
-                        let semantic = hkask_memory::SemanticMemory::open(db, pass, dim)
-                            .map_err(|e| McpToolError::failed_precondition(
-                                format!("Cannot open memory DB: {e}"),
-                            ))?;
-                        let webid = owner_webid(&owner);
-                        let mut stored_count = 0usize;
-                        let mut store_failures = 0usize;
-                        for (i, (text, vector)) in texts.iter().zip(vectors.iter()).enumerate() {
-                            let entity = refs.map(|r| r[i].as_str()).unwrap_or_else(|| {
-                                // Fallback: use index-based entity ref
-                                Box::leak(format!("embed:{}", i).into_boxed_str())
-                            });
-                            // Store the embedding vector
-                            if let Err(e) = semantic.store_embedding(entity, vector, &model_name) {
-                                store_failures += 1;
-                                if store_failures <= 5 {
-                                    tracing::warn!(target: "hkask.mcp.docproc.embed", entity = entity, error = %e, "Failed to store embedding");
-                                }
-                                continue;
-                            }
-                            // Store text h_mem
-                            let text_h_mem = hkask_storage::HMem::new(
-                                entity, "text", serde_json::json!(text), webid,
-                            )
-                            .with_visibility(hkask_types::Visibility::Public)
-                            .with_confidence(1.0);
-                            let _ = semantic.store(text_h_mem);
-                            // Store provenance h_mem
-                            let provenance = serde_json::json!({
-                                "embedding_model": &model_name,
-                                "embedding_dimensions": vector.len(),
-                                "ingest_kind": "corpus_chunk",
-                            });
-                            let prov_h_mem = hkask_storage::HMem::new(
-                                entity, "corpus_provenance", provenance, webid,
-                            )
-                            .with_visibility(hkask_types::Visibility::Public)
-                            .with_confidence(1.0);
-                            let _ = semantic.store(prov_h_mem);
-                            stored_count += 1;
-                        }
-                        json!({"stored": stored_count, "store_failures": store_failures})
-                    } else {
-                        json!(null)
-                    };
-
-                    let result = json!({
-                        "count": texts.len(),
-                        "dimensions": vectors.first().map(|v| v.len()).unwrap_or(0),
-                        "vectors": vectors,
-                        "model": model_name,
-                        "db_stored": stored,
-                    });
-                    self.record_experience(
-                        "docproc_embed",
-                        &format!("{} texts", texts.len()),
-                        "success",
-                        result.clone(),
-                    );
-                    Ok(result)
-                }
-                Err(e) => Err(McpToolError::unavailable(format!(
-                    "Embedding failed: {}",
-                    e
-                ))),
-            }
+            self.embed_batch_from_jsonl(
+                &chunks_jsonl,
+                model,
+                &db_path,
+                &passphrase,
+                &owner,
+                batch_size,
+            )
+            .await
         })
         .await
     }
@@ -1060,20 +802,14 @@ impl DocProcServer {
         &self,
         chunks_path: &str,
         model: Option<String>,
-        db_path: Option<String>,
-        passphrase: Option<String>,
+        db_path: &str,
+        passphrase: &str,
         owner: &str,
         batch_size: usize,
     ) -> Result<serde_json::Value, McpToolError> {
         let Some(ref emb_router) = self.embedding_router else {
             return Err(McpToolError::failed_precondition(
                 "Embedding router not configured — inference config may be missing",
-            ));
-        };
-
-        let Some(db) = &db_path else {
-            return Err(McpToolError::invalid_argument(
-                "db_path is required for chunks_jsonl batch mode",
             ));
         };
 
@@ -1130,11 +866,11 @@ impl DocProcServer {
                 .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string())
         });
 
-        let pass = passphrase.as_deref().unwrap_or("");
         let dim = embedding_dim();
-        let semantic = hkask_memory::SemanticMemory::open(db, pass, dim).map_err(|e| {
-            McpToolError::failed_precondition(format!("Cannot open memory DB: {e}"))
-        })?;
+        let semantic =
+            hkask_memory::SemanticMemory::open(db_path, passphrase, dim).map_err(|e| {
+                McpToolError::failed_precondition(format!("Cannot open memory DB: {e}"))
+            })?;
         let webid = owner_webid(owner);
 
         let mut embedded = 0usize;
@@ -1290,27 +1026,22 @@ pub struct GenerateQaRequest {
     pub model: Option<String>,
 }
 
-/// A single prompt spec for batch QA generation.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct BatchQaPrompt {
-    pub text: String,
-    pub chunk_id: String,
+/// A single prompt spec parsed from prompts_jsonl for batch QA generation.
+/// Internal to the batch tool — not part of the public request schema.
+#[derive(Debug, Deserialize)]
+struct BatchQaPrompt {
+    text: String,
+    chunk_id: String,
     #[serde(default)]
-    pub bloom_levels: Option<Vec<String>>,
+    bloom_levels: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateQaBatchRequest {
-    /// Array of prompt specs to process. Mutually exclusive with prompts_jsonl.
-    #[serde(default)]
-    pub prompts: Option<Vec<BatchQaPrompt>>,
-    /// Path to prompts JSONL file (one JSON per line with chunk_id, text, bloom_levels).
-    #[serde(default)]
-    pub prompts_jsonl: Option<String>,
-    /// Output path for generated QAs JSONL. When provided, writes results to file
-    /// instead of returning inline (needed for large batches).
-    #[serde(default)]
-    pub output: Option<String>,
+    /// Path to prompts JSONL file (one JSON per line with chunk_ref, qa_type, system, user).
+    pub prompts_jsonl: String,
+    /// Output path for generated QAs JSONL.
+    pub output: String,
     /// Max concurrent LLM calls.
     #[serde(default = "default_batch_concurrency")]
     pub concurrency: usize,
@@ -1325,24 +1056,16 @@ fn default_batch_concurrency() -> usize {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ExtractTriplesRequest {
-    /// Text to extract RDF h_mems from. Mutually exclusive with chunks_jsonl.
-    #[serde(default)]
-    pub text: Option<String>,
     /// Path to chunks JSONL for batch processing. Reads (entity_ref, text) per line.
-    #[serde(default)]
-    pub chunks_jsonl: Option<String>,
-    /// Optional entity namespace prefix (e.g., "doc:myfile").
-    #[serde(default)]
-    pub namespace: Option<String>,
+    pub chunks_jsonl: String,
+    /// Path to the SQLCipher memory DB for h_mem storage.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    #[serde(default = "default_docproc_passphrase")]
+    pub passphrase: String,
     /// Maximum h_mems to extract per chunk (default 15).
     #[serde(default = "default_max_triples")]
     pub max_triples: usize,
-    /// Path to the SQLCipher memory DB for h_mem storage.
-    #[serde(default)]
-    pub db_path: Option<String>,
-    /// Passphrase for the memory DB.
-    #[serde(default)]
-    pub passphrase: Option<String>,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
     #[serde(default = "default_owner")]
     pub owner: String,
@@ -1361,36 +1084,32 @@ fn default_triples_concurrency() -> usize {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct EmbedRequest {
-    /// Texts to embed (passages or h_mem strings). Mutually exclusive with chunks_jsonl.
-    #[serde(default)]
-    pub texts: Option<Vec<String>>,
     /// Path to chunks JSONL (entity_ref, source, text, word_count per line).
-    /// When provided, reads chunks from file and batch-embeds them.
-    #[serde(default)]
-    pub chunks_jsonl: Option<String>,
+    pub chunks_jsonl: String,
+    /// Path to the SQLCipher memory DB for vector + h_mem storage.
+    pub db_path: String,
+    /// Passphrase for the memory DB.
+    #[serde(default = "default_docproc_passphrase")]
+    pub passphrase: String,
     /// Embedding model to use. If not set, uses the configured default.
     #[serde(default)]
     pub model: Option<String>,
-    /// Path to the SQLCipher memory DB for vector + h_mem storage.
-    /// When provided, embeddings and text/provenance h_mems are stored in the DB.
-    /// When omitted, vectors are returned as JSON (backward compatible).
-    #[serde(default)]
-    pub db_path: Option<String>,
-    /// Passphrase for the memory DB.
-    #[serde(default)]
-    pub passphrase: Option<String>,
-    /// Entity refs (chunk_ref) for each text — used as the h_mem entity and embedding key.
-    /// Must match `texts` length when provided. Required when `db_path` is set with inline texts.
-    #[serde(default)]
-    pub entity_refs: Option<Vec<String>>,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
     #[serde(default = "default_owner")]
     pub owner: String,
-    /// Batch size for embedding API calls (default 50). Used with chunks_jsonl.
+    /// Batch size for embedding API calls (default 50).
     #[serde(default = "default_embed_batch_size")]
     pub batch_size: usize,
 }
 
 fn default_embed_batch_size() -> usize {
     50
+}
+
+/// Default passphrase for the docproc memory DB.
+///
+/// `tools::storage::default_purge_passphrase` is private to that module, so this
+/// module-local default mirrors it for `ExtractTriplesRequest` and `EmbedRequest`.
+fn default_docproc_passphrase() -> String {
+    "hkask-default-passphrase-2024".to_string()
 }

@@ -913,37 +913,6 @@ mod tests {
     }
 
     #[test]
-    fn embed_rejects_empty_texts() {
-        let req = EmbedRequest {
-            texts: Some(vec![]),
-            chunks_jsonl: None,
-            model: None,
-            db_path: None,
-            passphrase: None,
-            entity_refs: None,
-            owner: "john-brooks".to_string(),
-            batch_size: 50,
-        };
-        // Validation happens before router access, so this tests the guard
-        assert!(req.texts.as_ref().is_some_and(|t| t.is_empty()));
-    }
-
-    #[test]
-    fn extract_triples_rejects_empty_text() {
-        let req = ExtractTriplesRequest {
-            text: Some(String::new()),
-            chunks_jsonl: None,
-            namespace: None,
-            max_triples: 15,
-            db_path: None,
-            passphrase: None,
-            owner: "john-brooks".to_string(),
-            concurrency: 64,
-        };
-        assert!(req.text.as_ref().is_some_and(|t| t.is_empty()));
-    }
-
-    #[test]
     fn generate_qa_rejects_empty_text() {
         let req = GenerateQaRequest {
             text: Some(String::new()),

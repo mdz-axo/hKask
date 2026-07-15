@@ -109,6 +109,7 @@ steps:
       db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
       owner: "john-brooks"
+      batch_size: 50
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 2b: Tag chunks → ontology tags JSONL + tag h_mems
@@ -152,6 +153,7 @@ steps:
       passphrase: "hkask-default-passphrase-2024"
       owner: "john-brooks"
       max_triples: 15
+      concurrency: 64
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 3: Dedup (near-identical chunk removal, cosine > 0.85)
