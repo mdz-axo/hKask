@@ -235,10 +235,18 @@ impl DocProcServer {
             let selected_model = configured_qa_model(model);
 
             let params = LLMParameters {
-                temperature: 0.3,
-                max_tokens: 4096,
-                ..Default::default()
-            };
+                :            let params = LLMParameters {
+                                temperature: 0.3,
+                                top_p: 0.95,
+                                max_tokens: 4096,
+                                frequency_penalty: 0.0,
+                                presence_penalty: 0.0,
+                                top_k: 0,
+                                min_p: 0.0,
+                                typical_p: 0.0,
+                                disable_thinking: true,
+                                ..Default::default()
+                            };
 
             // P3.1: mandatory input guard — scan prompt before model invocation
             let input_scan = GUARD.scan_input(&prompt);
@@ -434,7 +442,7 @@ impl DocProcServer {
                         write_qa_result(&result, &output_writer, &write_count);
                         return;
                     }
-                    let params = LLMParameters { temperature: 0.3, max_tokens: 4096, ..Default::default() };
+                    let params = LLMParameters { temperature: 0.3, top_p: 0.95, max_tokens: 4096, frequency_penalty: 0.0, presence_penalty: 0.0, top_k: 0, min_p: 0.0, typical_p: 0.0, disable_thinking: true, ..Default::default() };
                     match router
                         .generate_with_model(&prompt_text, &params, selected_model.as_deref(), None)
                         .await
@@ -667,10 +675,18 @@ impl DocProcServer {
                 }
 
                 let params = LLMParameters {
-                    temperature: 0.1,
-                    max_tokens: 4096,
-                    ..Default::default()
-                };
+                    :                let params = LLMParameters {
+                                        temperature: 0.1,
+                                        top_p: 0.95,
+                                        max_tokens: 4096,
+                                        frequency_penalty: 0.0,
+                                        presence_penalty: 0.0,
+                                        top_k: 0,
+                                        min_p: 0.0,
+                                        typical_p: 0.0,
+                                        disable_thinking: true,
+                                        ..Default::default()
+                                    };
 
                 // 3-attempt retry with backoff
                 let mut attempts = 0u32;

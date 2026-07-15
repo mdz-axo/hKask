@@ -2,7 +2,6 @@
 //!
 //! Thin wrapper around the scenarios server library.
 
-
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
     let boot =

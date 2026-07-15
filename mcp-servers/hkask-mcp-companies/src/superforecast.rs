@@ -202,14 +202,14 @@ pub fn fermi_decompose_margin() -> Vec<SubQuestion> {
 
 /// Compute a calibrated probability from Fermi sub-questions.
 /// Delegates to shared hkask-forecast engine.
-pub fn calibrate_from_fermi(sub_questions: &[SubQuestion]) -> f64 {
+pub fn calibrate_from_fermi(sub_questions: &[SubQuestion]) -> Result<f64, hkask_forecast::ForecastError> {
     let fqs: Vec<hkask_forecast::FermiQuestion> = sub_questions
         .iter()
         .map(|sq| {
             hkask_forecast::FermiQuestion::new(sq.question.clone(), sq.estimate, sq.confidence)
         })
         .collect();
-    hkask_forecast::calibrate_from_fermi(&fqs).unwrap_or(0.5)
+    hkask_forecast::calibrate_from_fermi(&fqs)
 }
 
 // ── Outside view (base rate) ───────────────────────────────────────────────
@@ -246,15 +246,12 @@ pub struct ForecastOutcome {
     pub actual_multiple: Option<f64>,
 }
 
-/// Brier score: (probability - outcome)^2. Delegates to shared engine.
-pub fn brier_score(probability: f64, outcome_occurred: bool) -> f64 {
-    hkask_forecast::brier_score(probability, outcome_occurred)
-}
+
 
 /// Average Brier score across multiple events. Delegates to shared engine.
 #[allow(dead_code)]
-pub fn brier_score_multi(probabilities: &[f64], outcomes: &[bool]) -> f64 {
-    hkask_forecast::brier_score_multi(probabilities, outcomes).unwrap_or(f64::NAN)
+pub fn brier_score_multi(probabilities: &[f64], outcomes: &[bool]) -> Result<f64, hkask_forecast::ForecastError> {
+    hkask_forecast::brier_score_multi(probabilities, outcomes)
 }
 
 /// Human-readable interpretation of a Brier score. Delegates to shared engine.
@@ -337,7 +334,7 @@ mod tests {
                 confidence: 1.0,
             },
         ];
-        let p = calibrate_from_fermi(&sub_qs);
+        let p = calibrate_from_fermi(&sub_qs).unwrap();
         assert!((p - 0.5).abs() < 0.01, "unweighted average = 0.5");
     }
 
@@ -355,7 +352,7 @@ mod tests {
                 confidence: 0.1,
             },
         ];
-        let p = calibrate_from_fermi(&sub_qs);
+        let p = calibrate_from_fermi(&sub_qs).unwrap();
         // Weighted: (0.9*0.9 + 0.1*0.1) / (0.9+0.1) = 0.82
         assert!((p - 0.82).abs() < 0.01, "confidence-weighted = 0.82");
     }

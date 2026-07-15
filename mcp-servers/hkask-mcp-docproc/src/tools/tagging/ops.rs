@@ -201,8 +201,14 @@ impl DocProcServer {
 
                     let params = LLMParameters {
                         temperature: 0.1,
-                        top_p: 0.85,
+                        top_p: 0.95,
                         max_tokens: 4096,
+                        frequency_penalty: 0.0,
+                        presence_penalty: 0.0,
+                        top_k: 0,
+                        min_p: 0.0,
+                        typical_p: 0.0,
+                        disable_thinking: true,
                         ..Default::default()
                     };
 

@@ -607,12 +607,16 @@ impl CompaniesServer {
                 superforecast::apply_fermi_overrides(&mut margin_fermi, &o);
             }
 
-            let growth_inside = req.growth_estimate.unwrap_or_else(|| {
-                superforecast::calibrate_from_fermi(&growth_fermi)
-            });
-            let margin_inside = req.margin_estimate.unwrap_or_else(|| {
-                superforecast::calibrate_from_fermi(&margin_fermi)
-            });
+            let growth_inside = match req.growth_estimate {
+                Some(e) => e,
+                None => superforecast::calibrate_from_fermi(&growth_fermi)
+                    .map_err(|e| McpToolError::invalid_argument(e.to_string()))?,
+            };
+            let margin_inside = match req.margin_estimate {
+                Some(e) => e,
+                None => superforecast::calibrate_from_fermi(&margin_fermi)
+                    .map_err(|e| McpToolError::invalid_argument(e.to_string()))?,
+            };
 
             let ref_class = req.reference_class.unwrap_or_else(|| "S&P 500 large-cap, 2015-2025".into());
             let ref_count = req.reference_count.unwrap_or(500);

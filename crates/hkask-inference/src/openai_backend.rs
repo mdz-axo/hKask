@@ -47,16 +47,16 @@ pub async fn openai_compatible_generate(
     provider_code: &str,
 ) -> Result<InferenceResult, InferenceError> {
     validate_prompt(prompt)?;
-    :    let tools = tools.map(|t| t.to_vec());
-        let request = build_chat_request(
-            model,
-            prompt,
-            params,
-            Some(false),
-            None,
-            tools,
-            None<Vec<FusionPlugin>>,
-        );
+    let tools = tools.map(|t| t.to_vec());
+    let request = build_chat_request(
+        model,
+        prompt,
+        params,
+        Some(false),
+        None,
+        tools,
+        None<Vec<FusionPlugin>>,
+    );
 
     let response = client
         .post(format!("{}{}", config.base_url, chat_path))

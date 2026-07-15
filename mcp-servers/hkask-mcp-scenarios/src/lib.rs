@@ -36,6 +36,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 pub mod superforecast;
+pub mod templates;
 pub mod types;
 
 use types::*;
@@ -360,7 +361,8 @@ impl ScenariosServer {
                         tracing::warn!(target: "cns.mcp.scenarios.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "cns.mcp.scenarios.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "cns.mcp.scenarios.memory", tool = %tool_name, error = %e, "Failed to store experience");
+                        tracing::warn!(target: "cns.mcp.scenarios.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
                     }
                 }
             });
@@ -488,7 +490,8 @@ impl ScenariosServer {
 
             // Step 4: Calibrate
             let calibration: Vec<_> = events.iter().map(|e| {
-                let fermi = superforecast::calibrate_from_fermi(&e.sub_questions).unwrap_or(0.5);
+                let fermi = superforecast::calibrate_from_fermi(&e.sub_questions)
+                    .unwrap_or(0.5);
                 let (cal, conf) = if let (Some(br), Some(_)) = (e.base_rate, e.reference_class.as_ref()) {
                     superforecast::outside_view_adjustment(br, fermi, 1)
                 } else { (fermi, 0.5) };
@@ -506,11 +509,19 @@ impl ScenariosServer {
                 .map(|s| s.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
                 .unwrap_or_default();
             let curve = { let s = self.forecast_store.lock().unwrap_or_else(|e| e.into_inner()); superforecast::compute_calibration_curve(&s).ok() };
-            let assessment = superforecast::assess_project(&req.subject, &req.subject, req.perspective_count.unwrap_or(1),
-                synth.as_ref().map(|s| s.disagreement_score).unwrap_or(0.0),
-                events.len(), deps, curve.as_ref(),
-                req.strategies_generated.unwrap_or(0), req.strategies_implemented.unwrap_or(0),
-                learning, req.has_early_warning_indicators.unwrap_or(false));
+            let assessment = superforecast::assess_project(&types::AssessInput {
+                project_id: &req.subject,
+                subject: &req.subject,
+                perspective_count: req.perspective_count.unwrap_or(1),
+                disagreement_score: synth.as_ref().map(|s| s.disagreement_score).unwrap_or(0.0),
+                event_count: events.len(),
+                events_with_deps: deps,
+                calibration_curve: curve.as_ref(),
+                strategies_generated: req.strategies_generated.unwrap_or(0),
+                strategies_implemented: req.strategies_implemented.unwrap_or(0),
+                learning_events: learning,
+                has_early_warning_indicators: req.has_early_warning_indicators.unwrap_or(false),
+            });
 
             let output = serde_json::json!({
                 "subject": req.subject, "pipeline": "full", "event_count": events.len(),
@@ -692,7 +703,7 @@ impl ScenariosServer {
     )]
     pub async fn scenario_frame(&self, Parameters(req): Parameters<FrameRequest>) -> String {
         execute_tool_semantic(self, "scenario_frame", Some(Self::ontology_anchor("scenario_frame")), async {
-            let protocol = superforecast::generate_framing_session(&req.subject);
+            let protocol = templates::generate_framing_session(&req.subject);
 
             // If prior answers were provided, merge them into the template
             let prior: Option<serde_json::Value> = req
@@ -805,7 +816,7 @@ impl ScenariosServer {
 
             let start_round = req.start_round.unwrap_or(1).clamp(1, 4);
 
-            let protocol = superforecast::generate_brainstorm_protocol(
+            let protocol = templates::generate_brainstorm_protocol(
                 &req.subject,
                 horizon.display(),
                 research,
@@ -1319,13 +1330,31 @@ impl ScenariosServer {
             // Store forecasts and resolve outcomes for calibration tracking (P2)
             {
                 let mut store = self.forecast_store.lock().unwrap_or_else(|e| e.into_inner());
+                let now = chrono::Utc::now().date_naive();
                 for event in &events {
+                    let key = format!("{}:{}", req.forecast_id, event.id);
                     let event_outcome = outcome_pairs.iter().find(|(eid, _)| eid == &event.id);
-                    store.insert(format!("{}:{}", req.forecast_id, event.id), types::StoredForecastRecord { schema_version: 1, forecast_id: req.forecast_id.clone(), event_id: event.id.clone(), event_name: event.name.clone(), subject: event.subject.clone(), probability: event.probability, created_at: chrono::Utc::now().date_naive(), outcome: None, resolved_at: None });
-                    if let Some((_, occurred)) = event_outcome {
-                        if let Some(record) = store.get_mut(&format!("{}:{}", req.forecast_id, event.id)) { record.outcome = Some(*occurred); record.resolved_at = Some(chrono::Utc::now().date_naive()); } store.persist();
+                    if store.get(&key).is_none() {
+                        store.insert(key.clone(), types::StoredForecastRecord {
+                            schema_version: 1,
+                            forecast_id: req.forecast_id.clone(),
+                            event_id: event.id.clone(),
+                            event_name: event.name.clone(),
+                            subject: event.subject.clone(),
+                            probability: event.probability,
+                            created_at: now,
+                            outcome: None,
+                            resolved_at: None,
+                        });
+                    }
+                    if let Some((_, occurred)) = event_outcome
+                        && let Some(record) = store.get_mut(&key)
+                    {
+                        record.outcome = Some(*occurred);
+                        record.resolved_at = Some(now);
                     }
                 }
+                store.persist();
             }
 
             self.record_experience(
@@ -1649,19 +1678,19 @@ impl ScenariosServer {
                 superforecast::compute_calibration_curve(&store).ok()
             };
 
-            let assessment = superforecast::assess_project(
-                &req.project_id,
-                &req.subject,
+            let assessment = superforecast::assess_project(&types::AssessInput {
+                project_id: &req.project_id,
+                subject: &req.subject,
                 perspective_count,
-                disagreement,
+                disagreement_score: disagreement,
                 event_count,
                 events_with_deps,
-                curve.as_ref(),
-                strategies_gen,
-                strategies_impl,
-                learning_events.clone(),
-                has_indicators,
-            );
+                calibration_curve: curve.as_ref(),
+                strategies_generated: strategies_gen,
+                strategies_implemented: strategies_impl,
+                learning_events: learning_events.clone(),
+                has_early_warning_indicators: has_indicators,
+            });
 
             let output = serde_json::json!({
                 "project_id": assessment.project_id,
