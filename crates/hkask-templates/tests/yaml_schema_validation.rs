@@ -131,3 +131,51 @@ fn invalid_yaml_is_rejected() {
     let result = serde_yaml_neo::from_str::<ManifestFile>(invalid);
     assert!(result.is_err(), "invalid YAML should be rejected");
 }
+
+/// Verify the superforecasting manifest loads via the full loader and that
+/// its `compute` step (the connected-layers bridge to hkask_forecast) parses
+/// correctly with `action: "compute"` and a valid `compute_ref`.
+#[test]
+fn superforecasting_manifest_loads_with_compute_step() {
+    let crate_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = crate_dir.join("../..");
+    let manifest_path = workspace_root.join("registry/manifests/superforecasting.yaml");
+    if !manifest_path.exists() {
+        eprintln!("superforecasting.yaml not found — skipping");
+        return;
+    }
+    let yaml = std::fs::read_to_string(&manifest_path).unwrap();
+    let manifest = hkask_templates::load_manifest_from_yaml(&yaml)
+        .unwrap_or_else(|e| panic!("Failed to load superforecasting manifest: {e}"));
+
+    // 12 select steps + 1 compute step + 1 loop step = 14 total.
+    assert_eq!(
+        manifest.steps.len(),
+        14,
+        "expected 14 steps after compute insertion"
+    );
+
+    // The compute step (ordinal 13) must have action "compute" and a compute_ref.
+    let compute_step = manifest
+        .steps
+        .iter()
+        .find(|s| s.action == "compute")
+        .expect("manifest must have a compute step");
+    assert_eq!(
+        compute_step.ordinal, 13,
+        "compute step should be ordinal 13"
+    );
+    assert_eq!(
+        compute_step.compute_ref.as_deref(),
+        Some("apply_calibration_adjustment"),
+        "compute_ref must name the canonical calibration primitive"
+    );
+
+    // The loop step (ordinal 14) must carry the calibration-adjusted prior.
+    let loop_step = manifest
+        .steps
+        .iter()
+        .find(|s| s.action == "loop")
+        .expect("manifest must have a loop step");
+    assert_eq!(loop_step.ordinal, 14, "loop step should be ordinal 14");
+}

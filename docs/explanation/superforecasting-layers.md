@@ -158,6 +158,39 @@ flows into a canonical primitive (`apply_calibration_adjustment`) that adjusts
 the next forecast. The loop closes without coupling the servers to each other —
 both share only the canonical primitive.
 
+## The `compute` action: connecting the skill pipeline to the math layer
+
+The FlowDef executor (`hkask-templates/src/executor.rs`) now supports a
+`compute` step action alongside `select` (LLM), `populate`, `execute` (MCP
+tool), `choice`, and `loop`. A `compute` step invokes a canonical
+`hkask_forecast::*` primitive deterministically — no LLM round-trip, no MCP
+call, no inference cost.
+
+The superforecasting manifest uses `compute` for the calibration-feedback step
+in its PDCA loop re-entry:
+
+```yaml
+- ordinal: 13
+  action: compute
+  compute_ref: apply_calibration_adjustment
+  input_mapping:
+    prior: "{{ step_9_result.final_probability | default(0.5) }}"
+    overconfidence_bias: "{{ overconfidence_bias | default(0.0) }}"
+```
+
+This is the **unified pipeline**: the skill's iterative loop runs an LLM for
+judgment stages (triage, decomposition, synthesis, calibration, record) and
+Rust for arithmetic stages (calibration feedback). The `overconfidence_bias`
+input defaults to 0.0 (no-op) until an external calibration curve supplies it —
+so the skill is self-contained but connects to the MCP server's learning loop
+when a bias is provided.
+
+The `compute` dispatch table supports all 7 conformance-checked primitives
+(`calibrate_from_fermi`, `outside_view_adjustment`, `bayesian_update`,
+`apply_calibration_adjustment`, `brier_score`, `brier_score_multi`,
+`brier_interpretation`), so any deterministic Tetlock stage can be retargeted
+from `select` to `compute` in the manifest without an engine change.
+
 ## Common drift and how this model prevents it
 
 | Drift | How the model catches it |
