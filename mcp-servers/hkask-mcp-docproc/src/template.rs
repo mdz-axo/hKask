@@ -31,6 +31,12 @@ pub(crate) fn render_docproc_template(
 
     let lookup_key = format!("docproc:{template_name}");
 
+    // Reject path traversal — template names are file basenames, not paths.
+    if template_name.contains('/') || template_name.contains('\\') || template_name.contains("..") {
+        tracing::warn!(target: "hkask.mcp.docproc.template", name = %template_name, "Template name contains path separators");
+        return String::new();
+    }
+
     let mut env_guard = env.lock().unwrap_or_else(|e| e.into_inner());
 
     // Load template from disk on first use. The key and source are leaked as
@@ -60,7 +66,11 @@ pub(crate) fn render_docproc_template(
             tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Invalid template syntax");
             // Cache a sentinel so subsequent calls skip the load path instead of
             // re-reading and re-leaking on every call.
-            let _ = env_guard.add_template(template_key, "{# invalid template #}");
+            if let Err(sentinel_err) =
+                env_guard.add_template(template_key, "{# invalid template #}")
+            {
+                tracing::warn!(target: "hkask.mcp.docproc.template", error = %sentinel_err, "Failed to cache sentinel for invalid template");
+            }
             return String::new();
         }
     }
@@ -70,7 +80,7 @@ pub(crate) fn render_docproc_template(
         Ok(v) => v,
         Err(e) => {
             tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Failed to serialize template vars");
-            serde_json::Value::Null
+            return String::new();
         }
     };
     match env_guard

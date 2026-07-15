@@ -288,7 +288,7 @@ steps:
   # the weight matrices, giving better performance than standard LoRA
   # initialization at the same rank.
   #
-  # Lessons applied from rust-reasoning config (scripts/axolotl_rust_all.yml):
+  # Lessons applied from rust-reasoning config (Axolotl-Partners/rust-adapter-scripts on HuggingFace):
   #   - peft_init_lora_weights: pissa_niter_4 (correct Axolotl syntax)
   #   - liger_kernel + cut_cross_entropy for fused kernel speedups
   #   - flash_attention: false → SDPA (PyTorch native on H100)
