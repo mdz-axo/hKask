@@ -148,20 +148,20 @@ fn superforecasting_manifest_loads_with_compute_step() {
     let manifest = hkask_templates::load_manifest_from_yaml(&yaml)
         .unwrap_or_else(|e| panic!("Failed to load superforecasting manifest: {e}"));
 
-    // 12 select steps + 3 compute steps + 1 loop step = 16 total.
+    // 12 select steps + 4 compute steps + 1 loop step = 17 total.
     assert_eq!(
         manifest.steps.len(),
-        16,
-        "expected 16 steps after Fermi + outside-view + calibration compute insertions"
+        17,
+        "expected 17 steps after Fermi + outside-view + Bayesian + calibration compute insertions"
     );
 
-    // Three compute steps: Fermi (3), outside-view (5), calibration feedback (15).
+    // Four compute steps: Fermi (3), outside-view (5), Bayesian (10), calibration (16).
     let compute_steps: Vec<_> = manifest
         .steps
         .iter()
         .filter(|s| s.action == "compute")
         .collect();
-    assert_eq!(compute_steps.len(), 3, "manifest must have 3 compute steps");
+    assert_eq!(compute_steps.len(), 4, "manifest must have 4 compute steps");
     assert_eq!(compute_steps[0].ordinal, 3, "Fermi compute at ordinal 3");
     assert_eq!(
         compute_steps[0].compute_ref.as_deref(),
@@ -176,19 +176,27 @@ fn superforecasting_manifest_loads_with_compute_step() {
         Some("outside_view_adjustment")
     );
     assert_eq!(
-        compute_steps[2].ordinal, 15,
-        "calibration feedback compute at ordinal 15"
+        compute_steps[2].ordinal, 10,
+        "Bayesian compute at ordinal 10"
     );
     assert_eq!(
         compute_steps[2].compute_ref.as_deref(),
+        Some("bayesian_update")
+    );
+    assert_eq!(
+        compute_steps[3].ordinal, 16,
+        "calibration feedback compute at ordinal 16"
+    );
+    assert_eq!(
+        compute_steps[3].compute_ref.as_deref(),
         Some("apply_calibration_adjustment")
     );
 
-    // The loop step (ordinal 16) must carry the calibration-adjusted prior.
+    // The loop step (ordinal 17) must carry the calibration-adjusted prior.
     let loop_step = manifest
         .steps
         .iter()
         .find(|s| s.action == "loop")
         .expect("manifest must have a loop step");
-    assert_eq!(loop_step.ordinal, 16, "loop step should be ordinal 16");
+    assert_eq!(loop_step.ordinal, 17, "loop step should be ordinal 17");
 }

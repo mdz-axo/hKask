@@ -173,7 +173,8 @@ within the 16-step pipeline, replacing the LLM's arithmetic with canonical math:
 |------|--------|------------|------|
 | 3 | compute | `calibrate_from_fermi` | Fermi weighted-average of LLM-produced sub-questions → inside estimate |
 | 5 | compute | `outside_view_adjustment` | Shrinkage blend of LLM-produced base rate with Fermi estimate → calibrated anchor |
-| 15 | compute | `apply_calibration_adjustment` | Calibration feedback in loop re-entry → adjusted prior |
+| 10 | compute | `bayesian_update` | Bayes' theorem: LLM produces P(E|H) + P(E), Rust computes the posterior |
+| 16 | compute | `apply_calibration_adjustment` | Calibration feedback in loop re-entry → adjusted prior |
 
 The LLM stages (select) produce the **inputs**: triage judgment, sub-question
 decomposition, reference-class identification, evidence assessment, hypothesis
@@ -189,12 +190,11 @@ bias is provided.
 The `compute` dispatch table supports all 7 conformance-checked primitives
 (`calibrate_from_fermi`, `outside_view_adjustment`, `bayesian_update`,
 `apply_calibration_adjustment`, `brier_score`, `brier_score_multi`,
-`brier_interpretation`), so any deterministic Tetlock stage can be retargeted
-from `select` to `compute` in the manifest without an engine change. The
-Bayesian update (`bayesian_update`) is the remaining stage that requires a
-template change (the evidence-update template must output likelihood ratios
-instead of a pre-computed posterior) before it can be retargeted — that is the
-one remaining `select` stage doing arithmetic.
+`brier_interpretation`). All 4 arithmetic stages of the Tetlock pipeline are now
+retargeted from `select` to `compute` — the LLM produces the inputs (sub-questions,
+base rates, evidence likelihoods, calibration bias) and Rust produces the
+arithmetic (weighted averages, shrinkage, Bayes' theorem, calibration
+adjustment). The pipeline is fully connected.
 
 ## Common drift and how this model prevents it
 
