@@ -230,7 +230,7 @@ struct CacheWorkResult {
 
 // ── Corpus Pipeline request types ────────────────────────────────────────
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct CorpusEmbedRequest {
     pub chunks_jsonl: String,
     pub db_path: String,
@@ -238,16 +238,7 @@ pub struct CorpusEmbedRequest {
     pub batch_size: Option<usize>,
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
-pub struct CorpusSalienceRequest {
-    pub db_path: String,
-    #[serde(default)]
-    pub chunks_jsonl: Option<String>,
-    #[serde(default)]
-    pub output: Option<String>,
-}
-
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct CorpusBuildPromptsRequest {
     pub tagged_jsonl: String,
     pub output: String,
@@ -265,7 +256,7 @@ pub struct PipelineRunRequest {
     pub manifest_path: String,
 }
 
-#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct CorpusIngestQaRequest {
     pub db_path: String,
     pub output: String,
@@ -1058,145 +1049,58 @@ impl ReplicaServer {
         .await
     }
 
-    // ── Corpus Pipeline Tools ───────────────────────────────────────────
-    // Wrappers around corpus-ingest CLI for pipeline execution.
+    // ── Corpus Pipeline Tools (deprecated — use docproc tools) ───────────
 
     #[tool(
-        description = "Run the corpus embedding step: embed all chunks and store in semantic memory."
+        description = "DEPRECATED: Use docproc_embed via 'kask mcp invoke --server docproc --tool docproc_embed' instead."
     )]
     pub async fn corpus_embed(&self, Parameters(params): Parameters<CorpusEmbedRequest>) -> String {
         execute_tool(self, "corpus_embed", async {
-            let passphrase = database_passphrase()?;
-            let output = std::process::Command::new("corpus-ingest")
-                .arg("embed")
-                .arg(&params.chunks_jsonl)
-                .arg("--db-path")
-                .arg(&params.db_path)
-                .arg("--passphrase")
-                .arg(passphrase)
-                .arg("--batch-size")
-                .arg(params.batch_size.unwrap_or(100).to_string())
-                .output()
-                .map_err(|e| McpToolError::unavailable(format!("corpus-ingest not found: {e}")))?;
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if !output.status.success() {
-                return Err(McpToolError::internal(format!(
-                    "corpus-ingest embed failed: {stderr}"
-                )));
-            }
-            Ok(json!({"stdout": stdout.trim(), "stderr": stderr.trim()}))
+            Ok(json!({
+                "deprecated": true,
+                "replacement": "docproc_embed",
+                "server": "docproc",
+                "message": "Use 'kask mcp invoke --server docproc --tool docproc_embed' with the same parameters",
+                "original_params": serde_json::to_value(&params).unwrap_or_default(),
+            }))
         })
         .await
     }
 
     #[tool(
-        description = "Run the salience computation step: tag chunks with concepts and compute graph centrality scores."
-    )]
-    pub async fn corpus_salience(
-        &self,
-        Parameters(params): Parameters<CorpusSalienceRequest>,
-    ) -> String {
-        execute_tool(self, "corpus_salience", async {
-            let passphrase = database_passphrase()?;
-            let mut cmd = std::process::Command::new("corpus-ingest");
-            cmd.arg("salience");
-            if let Some(chunks_jsonl) = &params.chunks_jsonl {
-                cmd.arg(chunks_jsonl);
-            }
-            cmd.arg("--db-path")
-                .arg(&params.db_path)
-                .arg("--passphrase")
-                .arg(passphrase);
-            if let Some(output) = &params.output {
-                cmd.arg("--output").arg(output);
-            }
-            let output = cmd
-                .output()
-                .map_err(|e| McpToolError::unavailable(format!("corpus-ingest not found: {e}")))?;
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if !output.status.success() {
-                return Err(McpToolError::internal(format!(
-                    "corpus-ingest salience failed: {stderr}"
-                )));
-            }
-            Ok(json!({"stdout": stdout.trim(), "stderr": stderr.trim()}))
-        })
-        .await
-    }
-
-    #[tool(
-        description = "Build QA generation prompts from tagged chunks, with optional cross-reference synthesis."
+        description = "DEPRECATED: Use docproc_build_prompts via 'kask mcp invoke --server docproc --tool docproc_build_prompts' instead."
     )]
     pub async fn corpus_build_prompts(
         &self,
         Parameters(params): Parameters<CorpusBuildPromptsRequest>,
     ) -> String {
         execute_tool(self, "corpus_build_prompts", async {
-            let mut cmd = std::process::Command::new("corpus-ingest");
-            cmd.arg("build-prompts")
-                .arg(&params.tagged_jsonl)
-                .arg("--output")
-                .arg(&params.output)
-                .arg("--min-salience")
-                .arg(params.min_salience.unwrap_or(0.05).to_string())
-                .arg("--min-concepts")
-                .arg(params.min_concepts.unwrap_or(2).to_string());
-            if params.cross_reference.unwrap_or(false) {
-                cmd.arg("--cross-reference");
-            }
-            let output = cmd
-                .output()
-                .map_err(|e| McpToolError::unavailable(format!("corpus-ingest not found: {e}")))?;
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if !output.status.success() {
-                return Err(McpToolError::internal(format!(
-                    "corpus-ingest build-prompts failed: {stderr}"
-                )));
-            }
-            Ok(json!({"stdout": stdout.trim(), "stderr": stderr.trim()}))
+            Ok(json!({
+                "deprecated": true,
+                "replacement": "docproc_build_prompts",
+                "server": "docproc",
+                "message": "Use 'kask mcp invoke --server docproc --tool docproc_build_prompts' with the same parameters",
+                "original_params": serde_json::to_value(&params).unwrap_or_default(),
+            }))
         })
         .await
     }
 
     #[tool(
-        description = "Ingest generated QAs: deduplicate, store as h_mems, and optionally embed for KNN retrieval."
+        description = "DEPRECATED: Use docproc_ingest_qa via 'kask mcp invoke --server docproc --tool docproc_ingest_qa' instead."
     )]
     pub async fn corpus_ingest_qa(
         &self,
         Parameters(params): Parameters<CorpusIngestQaRequest>,
     ) -> String {
         execute_tool(self, "corpus_ingest_qa", async {
-            let passphrase = database_passphrase()?;
-            let mut cmd = std::process::Command::new("corpus-ingest");
-            cmd.arg("ingest-qa")
-                .arg("--db-path")
-                .arg(&params.db_path)
-                .arg("--passphrase")
-                .arg(passphrase)
-                .arg("--output")
-                .arg(&params.output)
-                .arg("--dedup-threshold")
-                .arg(params.dedup_threshold.unwrap_or(0.92).to_string());
-            if let Some(ref gj) = params.generated_jsonl {
-                cmd.arg(gj);
-            }
-            if params.embed_qas.unwrap_or(false) {
-                cmd.arg("--embed-qas");
-            }
-            let output = cmd
-                .output()
-                .map_err(|e| McpToolError::unavailable(format!("corpus-ingest not found: {e}")))?;
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if !output.status.success() {
-                return Err(McpToolError::internal(format!(
-                    "corpus-ingest ingest-qa failed: {stderr}"
-                )));
-            }
-            Ok(json!({"stdout": stdout.trim(), "stderr": stderr.trim()}))
+            Ok(json!({
+                "deprecated": true,
+                "replacement": "docproc_ingest_qa",
+                "server": "docproc",
+                "message": "Use 'kask mcp invoke --server docproc --tool docproc_ingest_qa' with the same parameters",
+                "original_params": serde_json::to_value(&params).unwrap_or_default(),
+            }))
         })
         .await
     }
@@ -1204,7 +1108,7 @@ impl ReplicaServer {
     // ── Pipeline orchestration ─────────────────────────────────────────
 
     #[tool(
-        description = "Execute a corpus pipeline manifest with checkpoint/resume. Reads a PipelineManifest YAML, runs each step, checkpoints after each success. Corpus steps (corpus_embed, corpus_salience, etc.) execute as subprocesses. MCP steps (docproc_*, replica_*) are reported as needing external execution. Returns pipeline status with completed/skipped/failed counts."
+        description = "Execute a corpus pipeline manifest with checkpoint/resume. Reads a PipelineManifest YAML, runs each step, checkpoints after each success. Corpus steps (corpus_embed, corpus_build_prompts, corpus_ingest_qa) execute as subprocesses. MCP steps (docproc_*, replica_*) are reported as needing external execution. Returns pipeline status with completed/skipped/failed counts."
     )]
     pub async fn replica_pipeline_run(
         &self,
@@ -1246,23 +1150,6 @@ impl ReplicaServer {
                                 cmd.arg("--batch-size").arg(batch_size.to_string());
                             }
                             "embed"
-                        }
-                        "corpus_salience" => {
-                            let request: CorpusSalienceRequest = serde_json::from_value(params)
-                                .map_err(|e| format!("Invalid corpus_salience parameters: {e}"))?;
-                            let passphrase = database_passphrase().map_err(|e| e.to_string())?;
-                            cmd.arg("salience");
-                            if let Some(chunks_jsonl) = request.chunks_jsonl {
-                                cmd.arg(chunks_jsonl);
-                            }
-                            cmd.arg("--db-path")
-                                .arg(request.db_path)
-                                .arg("--passphrase")
-                                .arg(passphrase);
-                            if let Some(output) = request.output {
-                                cmd.arg("--output").arg(output);
-                            }
-                            "salience"
                         }
                         "corpus_build_prompts" => {
                             let request: CorpusBuildPromptsRequest = serde_json::from_value(params)
@@ -1363,39 +1250,9 @@ pub async fn run(
 #[cfg(test)]
 mod server_tests {
     use super::*;
-    use std::os::unix::fs::PermissionsExt;
-
-    static PROCESS_ENV: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
     #[tokio::test]
-    async fn corpus_embed_handler_uses_positional_chunks_path() {
-        let _guard = PROCESS_ENV.lock().await;
-        let temp = tempfile::tempdir().expect("create test directory");
-        let fake_binary = temp.path().join("corpus-ingest");
-        let args_path = temp.path().join("args.txt");
-        std::fs::write(
-            &fake_binary,
-            "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$HKASK_TEST_ARGS\"\n",
-        )
-        .expect("write fake corpus-ingest");
-        let mut permissions = std::fs::metadata(&fake_binary)
-            .expect("read fake binary metadata")
-            .permissions();
-        permissions.set_mode(0o755);
-        std::fs::set_permissions(&fake_binary, permissions).expect("make fake binary executable");
-
-        let old_path = std::env::var_os("PATH");
-        let old_passphrase = std::env::var_os("HKASK_DB_PASSPHRASE");
-        let test_path = match old_path.as_ref() {
-            Some(path) => format!("{}:{}", temp.path().display(), path.to_string_lossy()),
-            None => temp.path().display().to_string(),
-        };
-        unsafe {
-            std::env::set_var("PATH", &test_path);
-            std::env::set_var("HKASK_TEST_ARGS", &args_path);
-            std::env::set_var("HKASK_DB_PASSPHRASE", "test-passphrase");
-        }
-
+    async fn corpus_embed_returns_deprecation_response() {
         let server = ReplicaServer::new(hkask_types::WebID::new(), "test".into(), None);
         let response = server
             .corpus_embed(Parameters(CorpusEmbedRequest {
@@ -1405,39 +1262,60 @@ mod server_tests {
             }))
             .await;
 
-        unsafe {
-            match old_path {
-                Some(path) => std::env::set_var("PATH", path),
-                None => std::env::remove_var("PATH"),
-            }
-            std::env::remove_var("HKASK_TEST_ARGS");
-            match old_passphrase {
-                Some(value) => std::env::set_var("HKASK_DB_PASSPHRASE", value),
-                None => std::env::remove_var("HKASK_DB_PASSPHRASE"),
-            }
-        }
+        let envelope: Value =
+            serde_json::from_str(&response).expect("response should be valid JSON");
+        let content = envelope
+            .get("content")
+            .expect("response should have content field");
+        assert_eq!(content["deprecated"], true);
+        assert_eq!(content["replacement"], "docproc_embed");
+        assert_eq!(content["server"], "docproc");
+        assert_eq!(content["original_params"]["chunks_jsonl"], "chunks.jsonl");
+    }
 
-        let args = std::fs::read_to_string(&args_path).expect("fake binary should record argv");
-        assert!(
-            serde_json::from_str::<Value>(&response)
-                .ok()
-                .and_then(|value| value.get("content").cloned())
-                .is_some(),
-            "handler should return an MCP success envelope: {response}"
-        );
-        assert_eq!(
-            args.lines().collect::<Vec<_>>(),
-            vec![
-                "embed",
-                "chunks.jsonl",
-                "--db-path",
-                "memory.db",
-                "--passphrase",
-                "test-passphrase",
-                "--batch-size",
-                "7"
-            ],
-            "handler argv must match corpus-ingest's Clap contract"
-        );
+    #[tokio::test]
+    async fn corpus_build_prompts_returns_deprecation_response() {
+        let server = ReplicaServer::new(hkask_types::WebID::new(), "test".into(), None);
+        let response = server
+            .corpus_build_prompts(Parameters(CorpusBuildPromptsRequest {
+                tagged_jsonl: "tagged.jsonl".into(),
+                output: "prompts.jsonl".into(),
+                min_salience: None,
+                min_concepts: None,
+                cross_reference: None,
+            }))
+            .await;
+
+        let envelope: Value =
+            serde_json::from_str(&response).expect("response should be valid JSON");
+        let content = envelope
+            .get("content")
+            .expect("response should have content field");
+        assert_eq!(content["deprecated"], true);
+        assert_eq!(content["replacement"], "docproc_build_prompts");
+        assert_eq!(content["server"], "docproc");
+    }
+
+    #[tokio::test]
+    async fn corpus_ingest_qa_returns_deprecation_response() {
+        let server = ReplicaServer::new(hkask_types::WebID::new(), "test".into(), None);
+        let response = server
+            .corpus_ingest_qa(Parameters(CorpusIngestQaRequest {
+                db_path: "memory.db".into(),
+                output: "training.jsonl".into(),
+                generated_jsonl: Some("generated.jsonl".into()),
+                dedup_threshold: None,
+                embed_qas: None,
+            }))
+            .await;
+
+        let envelope: Value =
+            serde_json::from_str(&response).expect("response should be valid JSON");
+        let content = envelope
+            .get("content")
+            .expect("response should have content field");
+        assert_eq!(content["deprecated"], true);
+        assert_eq!(content["replacement"], "docproc_ingest_qa");
+        assert_eq!(content["server"], "docproc");
     }
 }

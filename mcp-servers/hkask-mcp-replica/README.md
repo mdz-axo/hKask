@@ -2,7 +2,7 @@
 
 Style replica MCP server — embed author corpora, compose prose, and manage style registries.
 
-## Tools (14)
+## Tools (13)
 
 | Tool | Description |
 |------|-------------|
@@ -15,11 +15,10 @@ Style replica MCP server — embed author corpora, compose prose, and manage sty
 | `replica_mashup` | Generate prose blending two authors' styles |
 | `replica_registry` | Manage the registry of built author replicas |
 | `replica_cache_work` | Cache an extracted work's content to disk for reuse by replica_build. Writes content to {cache_dir}/{slug}.txt so the embedding pipeline can skip re-downloading. |
-| `corpus_embed` | Run `corpus-ingest embed` for corpus chunks and store semantic-memory embeddings. |
-| `corpus_salience` | Run `corpus-ingest salience` to tag chunks and calculate salience. |
-| `corpus_build_prompts` | Run `corpus-ingest build-prompts`, optionally including cross-reference prompts. |
-| `corpus_ingest_qa` | Run `corpus-ingest ingest-qa` to deduplicate and persist generated QAs. |
-| `replica_pipeline_run` | Run checkpointed corpus pipeline steps; only the four `corpus_*` tools above are dispatched locally. |
+| `corpus_embed` | **DEPRECATED** — use `docproc_embed` via `kask mcp invoke --server docproc --tool docproc_embed` instead. |
+| `corpus_build_prompts` | **DEPRECATED** — use `docproc_build_prompts` via `kask mcp invoke --server docproc --tool docproc_build_prompts` instead. |
+| `corpus_ingest_qa` | **DEPRECATED** — use `docproc_ingest_qa` via `kask mcp invoke --server docproc --tool docproc_ingest_qa` instead. |
+| `replica_pipeline_run` | Run checkpointed corpus pipeline steps; only the three `corpus_*` tools above are dispatched locally. |
 
 ## Configuration
 
