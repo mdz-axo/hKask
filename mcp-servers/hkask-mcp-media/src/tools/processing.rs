@@ -506,10 +506,7 @@ impl MediaServer {
 
             let mut paths = Vec::new();
             for idx in &image_indices {
-                paths.push(
-                    self.resolve_image_path(*idx)
-                        .map_err(map_media_error)?,
-                );
+                paths.push(self.resolve_image_path(*idx).map_err(map_media_error)?);
             }
 
             let fps = fps.unwrap_or(24);

@@ -227,6 +227,12 @@ steps:
       context_k: 3
       prompts_per_chunk: 5
       type_distribution: "1,1,1,1,1"
+      # Per-ontology Bloom distribution overrides:
+      #   golem (narrative): more analyze/create — interpret character, identify themes
+      #   fibo (financial): more factual/conceptual — define ROIC, explain DCF
+      #   pko (process): more evaluate — assess procedure effectiveness
+      #   eso (epistemic): more analyze/evaluate — assess evidence, evaluate claims
+      ontology_bloom_overrides: "golem:0,1,2,1,1|fibo:2,2,1,0,0|pko:1,1,1,2,0|eso:1,1,2,1,0"
       owner: "john-brooks"
 
   # ═══════════════════════════════════════════════════════════════════════

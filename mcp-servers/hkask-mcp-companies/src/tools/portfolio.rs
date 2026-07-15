@@ -215,8 +215,12 @@ impl CompaniesServer {
                     let qty = tx.quantity.unwrap_or(0.0);
                     if tx.date <= from {
                         match tx.tx_type {
-                            TxType::Buy => *positions_start.entry(sym.clone()).or_insert(0.0) += qty,
-                            TxType::Sell => *positions_start.entry(sym.clone()).or_insert(0.0) -= qty,
+                            TxType::Buy => {
+                                *positions_start.entry(sym.clone()).or_insert(0.0) += qty
+                            }
+                            TxType::Sell => {
+                                *positions_start.entry(sym.clone()).or_insert(0.0) -= qty
+                            }
                             _ => {}
                         }
                     }

@@ -404,8 +404,14 @@ mod tests {
     #[test]
     fn normalize_lowercases_trims_and_collapses_whitespace() {
         assert_eq!(normalize_concept("ROIC"), "roic");
-        assert_eq!(normalize_concept("  Return On Capital  "), "return on capital");
-        assert_eq!(normalize_concept("discounted   cash\tflow"), "discounted cash flow");
+        assert_eq!(
+            normalize_concept("  Return On Capital  "),
+            "return on capital"
+        );
+        assert_eq!(
+            normalize_concept("discounted   cash\tflow"),
+            "discounted cash flow"
+        );
         assert_eq!(normalize_concept("   "), "");
     }
 
@@ -425,19 +431,25 @@ mod tests {
         // do NOT rescue it, confirming dimensions are excluded from the graph.
         let tagged = vec![
             TaggedChunk {
-                entity_ref: "a".into(), source: "s".into(), text: "".into(),
+                entity_ref: "a".into(),
+                source: "s".into(),
+                text: "".into(),
                 concepts: vec!["return on capital".into()],
                 dimensions: vec!["what".into()],
                 ..Default::default()
             },
             TaggedChunk {
-                entity_ref: "b".into(), source: "s".into(), text: "".into(),
+                entity_ref: "b".into(),
+                source: "s".into(),
+                text: "".into(),
                 concepts: vec!["return on capital".into()],
                 dimensions: vec!["what".into()],
                 ..Default::default()
             },
             TaggedChunk {
-                entity_ref: "c".into(), source: "s".into(), text: "".into(),
+                entity_ref: "c".into(),
+                source: "s".into(),
+                text: "".into(),
                 concepts: vec![],
                 dimensions: vec!["what".into()],
                 ..Default::default()
@@ -445,8 +457,17 @@ mod tests {
         ];
         let scores = compute_salience(&tagged);
         assert_eq!(scores.len(), 3);
-        assert!(scores[0] > 0.0, "connected chunk must have positive salience");
-        assert!(scores[1] > 0.0, "connected chunk must have positive salience");
-        assert_eq!(scores[2], 0.0, "concept-less chunk must be an isolate (0.0)");
+        assert!(
+            scores[0] > 0.0,
+            "connected chunk must have positive salience"
+        );
+        assert!(
+            scores[1] > 0.0,
+            "connected chunk must have positive salience"
+        );
+        assert_eq!(
+            scores[2], 0.0,
+            "concept-less chunk must be an isolate (0.0)"
+        );
     }
 }

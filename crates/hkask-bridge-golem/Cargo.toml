@@ -1,0 +1,10 @@
+[package]
+name = "hkask-bridge-golem"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "GOLEM narrative/literary ontology bridge — predicates for prose, story, and literary devices"
+
+[dependencies]
+
+[dev-dependencies]

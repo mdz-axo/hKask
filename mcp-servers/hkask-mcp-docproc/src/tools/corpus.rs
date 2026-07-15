@@ -571,8 +571,24 @@ impl DocProcServer {
             let total = chunks.len();
             tracing::info!("  Build prompts: {} chunks", total);
 
-            // QA type rotation
-            let type_rotation = parse_type_distribution(&req.type_distribution);
+            // QA type rotation — default distribution
+            let default_rotation = parse_type_distribution(&req.type_distribution);
+
+            // Parse per-ontology Bloom overrides (if provided)
+            // Format: "golem:0,1,2,1,1|fibo:2,2,1,0,0|pko:1,1,1,2,0|eso:1,1,2,1,0"
+            let bloom_overrides: std::collections::HashMap<String, Vec<QaType>> =
+                req.ontology_bloom_overrides
+                    .as_deref()
+                    .map(|s| {
+                        s.split('|')
+                            .filter_map(|entry| {
+                                let (ns, dist) = entry.split_once(':')?;
+                                let vals = parse_type_distribution(dist);
+                                if vals.is_empty() { None } else { Some((ns.to_string(), vals)) }
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
             let limit = if req.max_prompts > 0 {
                 req.max_prompts.min(total)
             } else {
@@ -759,6 +775,15 @@ impl DocProcServer {
                 };
 
                 // Generate prompts_per_chunk QAs per chunk at consecutive Bloom levels
+                // Select Bloom distribution: use override if chunk has matching ontology tag
+                let type_rotation: &[QaType] = if let Some((ns, _)) =
+                    tc.ontology_tags.iter().find(|(ns, _)| bloom_overrides.contains_key(*ns))
+                {
+                    &bloom_overrides[ns]
+                } else {
+                    &default_rotation
+                };
+
                 for offset in 0..req.prompts_per_chunk {
                     let qt = type_rotation[(ti + offset) % type_rotation.len()];
                     let qt_str = qa_type_str(qt);
@@ -1419,6 +1444,13 @@ pub struct BuildPromptsRequest {
     /// Owner persona for h_mem queries (e.g. "john-brooks").
     #[serde(default = "default_owner")]
     pub owner: String,
+    /// Per-ontology Bloom distribution overrides. Format:
+    /// "golem:0,1,2,1,1|fibo:2,2,1,0,0|pko:1,1,1,2,0|eso:1,1,2,1,0"
+    /// When a chunk's ontology_tags contain the key, use the override
+    /// instead of the default type_distribution. Chunks without matching
+    /// ontology tags use type_distribution.
+    #[serde(default)]
+    pub ontology_bloom_overrides: Option<String>,
 }
 
 fn default_context_k() -> usize {

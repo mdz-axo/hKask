@@ -1,0 +1,10 @@
+[package]
+name = "hkask-bridge-fibo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "FIBO Financial Industry Business Ontology bridge — concepts for investment, finance, and business analysis"
+
+[dependencies]
+
+[dev-dependencies]

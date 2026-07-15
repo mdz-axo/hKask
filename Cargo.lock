@@ -3961,6 +3961,18 @@ name = "hkask-bridge-dublincore"
 version = "0.31.0"
 
 [[package]]
+name = "hkask-bridge-eso"
+version = "0.31.0"
+
+[[package]]
+name = "hkask-bridge-fibo"
+version = "0.31.0"
+
+[[package]]
+name = "hkask-bridge-golem"
+version = "0.31.0"
+
+[[package]]
 name = "hkask-bridge-pko"
 version = "0.31.0"
 
@@ -4435,6 +4447,9 @@ dependencies = [
  "dirs 6.0.0",
  "dotenvy",
  "hkask-bridge-dublincore",
+ "hkask-bridge-eso",
+ "hkask-bridge-fibo",
+ "hkask-bridge-golem",
  "hkask-bridge-pko",
  "hkask-guard",
  "hkask-inference",

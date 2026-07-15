@@ -132,10 +132,7 @@ fn read_ontology_tags(
             Ok(v) => v,
             Err(_) => continue,
         };
-        let entity_ref = v
-            .get("entity_ref")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let entity_ref = v.get("entity_ref").and_then(|v| v.as_str()).unwrap_or("");
         if entity_ref.is_empty() {
             continue;
         }
@@ -176,6 +173,9 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
         "schema:author" | "schema:creator" | "schema:contributor" | "schema:actor"
         | "golem:hascharacter" | "golem:hasnarrator" | "rdf:creator" => Who,
 
+        // Who — ESO epistemic agents
+        "eso:hascounterargument" => Who,
+
         // When — temporal
         "schema:datecreated"
         | "schema:datemodified"
@@ -183,12 +183,19 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
         | "dcterms:created"
         | "dcterms:issued" => When,
 
+        // When — ESO temporal epistemic
+        "eso:hasconfidence" => When,
+
         // Where — spatial
         "schema:location" | "golem:hassetting" | "dcterms:spatial" => Where,
 
         // Why — causation, motivation, theme
         "schema:causes" | "schema:resultof" | "golem:hasconflict" | "golem:allegoryof"
         | "fibo:hasmotivation" => Why,
+
+        // Why — ESO epistemic causation
+        "eso:implies" | "eso:contradicts" | "eso:falsifiedby" | "eso:corroboratedby"
+        | "eso:generalizesto" => Why,
 
         // How — methods, processes, resolution
         "schema:uses"
@@ -198,12 +205,16 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
         | "golem:illustrates"
         | "golem:evokes" => How,
 
+        // How — ESO methods and evidence
+        "eso:usesmethod" | "eso:hasevidence" | "eso:haslimitation" => How,
+
         // What — everything else with a known predicate
         _ if p.starts_with("golem:")
             || p.starts_with("schema:")
             || p.starts_with("rdf:")
             || p.starts_with("fibo:")
-            || p.starts_with("dcterms:") =>
+            || p.starts_with("dcterms:")
+            || p.starts_with("eso:") =>
         {
             What
         }
@@ -220,20 +231,31 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
                 What
             } else if p.contains("location") || p.contains("place") || p.contains("located_in") {
                 Where
-            } else if p.contains("time") || p.contains("date") || p.contains("when")
+            } else if p.contains("time")
+                || p.contains("date")
+                || p.contains("when")
                 || p.contains("created")
             {
                 When
-            } else if p.contains("person") || p.contains("author") || p.contains("creator")
-                || p.contains("actor") || p.contains("character")
+            } else if p.contains("person")
+                || p.contains("author")
+                || p.contains("creator")
+                || p.contains("actor")
+                || p.contains("character")
             {
                 Who
-            } else if p.contains("cause") || p.contains("reason") || p.contains("why")
-                || p.contains("motivation") || p.contains("conflict")
+            } else if p.contains("cause")
+                || p.contains("reason")
+                || p.contains("why")
+                || p.contains("motivation")
+                || p.contains("conflict")
             {
                 Why
-            } else if p.contains("method") || p.contains("process") || p.contains("how")
-                || p.contains("uses") || p.contains("resolution")
+            } else if p.contains("method")
+                || p.contains("process")
+                || p.contains("how")
+                || p.contains("uses")
+                || p.contains("resolution")
             {
                 How
             } else {
@@ -745,10 +767,7 @@ impl DocProcServer {
                 let _permit = sem.acquire().await;
 
                 // Build prompt from registry template
-                let ontology_context = ontology_map
-                    .get(&entity_ref)
-                    .cloned()
-                    .unwrap_or_default();
+                let ontology_context = ontology_map.get(&entity_ref).cloned().unwrap_or_default();
                 let mut vars: std::collections::HashMap<&str, String> =
                     std::collections::HashMap::new();
                 vars.insert("limit", max_triples.to_string());
@@ -872,10 +891,7 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                 let mut stored = 0usize;
                 if let Some(arr) = h_mems.get("h_mems").and_then(|v| v.as_array()) {
                     for triple in arr {
-                        let subject = triple
-                            .get("subject")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("");
+                        let subject = triple.get("subject").and_then(|v| v.as_str()).unwrap_or("");
                         let predicate = triple
                             .get("predicate")
                             .and_then(|v| v.as_str())
@@ -886,6 +902,34 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                             .and_then(|v| v.as_f64())
                             .unwrap_or(0.8);
                         let dimension = predicate_to_dimension(predicate);
+
+                        // Gap 5: Hallucination verification — check if subject and
+                        // object strings appear in the chunk text. Flag unverified
+                        // triples by capping confidence at 0.3.
+                        let text_lower = chunk_text.to_lowercase();
+                        let subj_clean = subject
+                            .strip_prefix("doc:")
+                            .unwrap_or(subject)
+                            .to_lowercase();
+                        let subj_in_text =
+                            !subj_clean.is_empty() && text_lower.contains(&subj_clean);
+                        let obj_str = match &object {
+                            serde_json::Value::String(s) => s.to_lowercase(),
+                            _ => String::new(),
+                        };
+                        let obj_in_text = obj_str.is_empty() || text_lower.contains(&obj_str);
+                        let confidence = if (!subj_in_text || !obj_in_text) && confidence > 0.3 {
+                            tracing::warn!(
+                                target: "hkask.mcp.docproc.triples",
+                                entity = %entity_ref,
+                                subject = %subject,
+                                "Triple subject/object not found in chunk text — confidence capped at 0.3"
+                            );
+                            0.3
+                        } else {
+                            confidence
+                        };
+
                         // Store subject + object in value so build_prompts can format
                         // triples as "subject --predicate--> object" with confidence.
                         let value = json!({
