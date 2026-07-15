@@ -219,7 +219,7 @@ impl ActivePods {
     pub async fn retry_pod_matrix_registration(
         homeserver_url: &str,
         pod_name: &str,
-    ) -> Result<(), String> {
+    ) -> anyhow::Result<()> {
         register_pod_matrix(homeserver_url, pod_name).await
     }
 
@@ -694,7 +694,7 @@ impl Default for ActivePods {
 pub(crate) async fn register_pod_matrix(
     homeserver_url: &str,
     pod_name: &str,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let localpart = pod_name.to_lowercase().replace(' ', "-");
     let username = format!("{}-bot", localpart);
     let password = uuid::Uuid::new_v4().to_string();
@@ -717,10 +717,10 @@ pub(crate) async fn register_pod_matrix(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Matrix registration request failed: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Matrix registration request failed: {e}"))?;
 
     if !response.status().is_success() {
-        return Err(format!(
+        return Err(anyhow::anyhow!(
             "Matrix registration HTTP {}",
             response.status().as_u16()
         ));

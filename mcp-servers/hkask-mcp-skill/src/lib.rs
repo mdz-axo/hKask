@@ -87,7 +87,7 @@ fn registry_entry_to_tool_id(id: &str) -> String {
 fn render_skill_template(
     template: &str,
     context: &HashMap<String, serde_json::Value>,
-) -> Result<String, String> {
+) -> anyhow::Result<String> {
     let mut env = minijinja::Environment::new();
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
 
@@ -100,7 +100,7 @@ fn render_skill_template(
     }
 
     env.render_str(template, minijinja::value::Value::UNDEFINED)
-        .map_err(|e| format!("Template render error: {}", e))
+        .map_err(|e| anyhow::anyhow!("Template render error: {}", e))
 }
 
 // ── MCP Tools ─────────────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ impl SkillServer {
 
             // Render the Jinja2 template
             let rendered = render_skill_template(&def.template_content, &ctx)
-                .map_err(McpToolError::invalid_argument)?;
+                .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             // Prepend system prompt with tool-awareness context.
             // The calling agent has MCP tools available (auto-started servers).

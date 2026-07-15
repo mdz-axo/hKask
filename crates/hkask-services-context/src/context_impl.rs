@@ -214,13 +214,13 @@ impl AgentService {
     }
 
     /// Await CuratorPod activation. Consumes the oneshot — call once.
-    pub async fn curator_ready(&mut self) -> Result<(), String> {
+    pub async fn curator_ready(&mut self) -> anyhow::Result<()> {
         let rx = self
             .curator_ready
             .take()
-            .ok_or_else(|| "curator_ready already consumed".to_string())?;
+            .ok_or_else(|| anyhow::anyhow!("curator_ready already consumed"))?;
         rx.await
-            .map_err(|_| "CuratorPod failed to activate — check startup logs".to_string())
+            .map_err(|_| anyhow::anyhow!("CuratorPod failed to activate — check startup logs"))
     }
 
     /// Build per-agent memory infrastructure from an agent-scoped Database.
@@ -359,7 +359,7 @@ impl AgentService {
                 kind: ErrorKind::BadRequest,
                 domain: DomainKind::Memory,
                 source: None,
-                message: e,
+                message: e.to_string(),
             })
     }
 

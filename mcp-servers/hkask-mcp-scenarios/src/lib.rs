@@ -272,9 +272,10 @@ struct StatusRequest {}
 
 // ── Server struct ──────────────────────────────────────────────────────────
 // Manual struct definition (not using mcp_server! macro) so that
-// ToolContext::record_tool_outcome can be overridden to a no-op.
-// record_experience provides the detailed daemon write; the infrastructure
-// write from execute_tool_semantic is suppressed to avoid double-recording.
+// ToolContext::record_tool_outcome can be selectively overridden:
+// - Successes: suppressed (record_experience provides the detailed write)
+// - Errors: recorded (record_experience never runs on the error path)
+// - Sequence tracking: always runs (errors should count as "called")
 
 struct ScenariosServer {
     pub webid: hkask_types::WebID,
@@ -303,10 +304,17 @@ impl hkask_mcp::server::ToolContext for ScenariosServer {
     fn webid(&self) -> &hkask_types::WebID {
         &self.webid
     }
-    fn record_tool_outcome(&self, _tool: &str, _outcome: &str) {
-        // No-op: record_experience provides the detailed daemon write with
-        // full provenance. Suppressing the minimal infrastructure write
-        // avoids double-recording to the daemon store.
+    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
+        // Always track the call in the sequence checker — errors should
+        // still count as "called" so successors don't get false sequence
+        // violation warnings.
+        self.check_sequence(tool);
+        // Only record errors to the daemon — successes are handled by
+        // record_experience with full provenance. This avoids double-
+        // recording while ensuring error outcomes are still persisted.
+        if outcome == "error" {
+            hkask_mcp::server::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+        }
     }
 }
 

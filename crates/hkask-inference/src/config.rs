@@ -308,12 +308,12 @@ impl InferenceConfig {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — bounded HTTP client for regulated requests
     /// post: returns reqwest::Client with timeout and pool settings from config
     #[must_use = "result must be used"]
-    pub fn build_client(&self) -> Result<reqwest::Client, String> {
+    pub fn build_client(&self) -> anyhow::Result<reqwest::Client> {
         reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(self.timeout_secs))
             .pool_max_idle_per_host(self.pool_max_idle)
             .build()
-            .map_err(|e| format!("Failed to build HTTP client: {}", e))
+            .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))
     }
 
     /// Provider config for DeepInfra (Bearer auth, /v1/chat/completions).

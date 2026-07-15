@@ -76,13 +76,13 @@ impl FederationSync {
         }
     }
 
-    async fn tick(&self) -> Result<(), String> {
+    async fn tick(&self) -> anyhow::Result<()> {
         // 1. Pull local public h_mems since last cursor
         let cursor = self.sync_port.cursor_for(&self.local_replica);
         let local_triples = self
             .sync_port
             .query_public_since(cursor, 1000)
-            .map_err(|e| format!("query: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("query: {e}"))?;
 
         let local_added = local_triples.len() as u64;
         if local_added > 0 {

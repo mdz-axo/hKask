@@ -377,7 +377,7 @@ fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<NuEvent
     let span = Span::new(namespace, local_path);
     let phase = CyclePhase::from_str(&phase_str);
     let observation: serde_json::Value =
-        serde_json::from_str(&observation_str).map_err(|e| e.to_string())?;
+        serde_json::from_str(&observation_str).map_err(|e| anyhow::anyhow!("{e}"))?;
     let regulation = regulation_str
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
@@ -385,10 +385,10 @@ fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<NuEvent
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
     Ok(NuEvent {
-        id: EventID::from_uuid(uuid::Uuid::parse_str(&id).map_err(|e| e.to_string())?),
+        id: EventID::from_uuid(uuid::Uuid::parse_str(&id).map_err(|e| anyhow::anyhow!("{e}"))?),
         timestamp,
         observer_webid: WebID::from_uuid(
-            uuid::Uuid::parse_str(&observer_webid).map_err(|e| e.to_string())?,
+            uuid::Uuid::parse_str(&observer_webid).map_err(|e| anyhow::anyhow!("{e}"))?,
         ),
         span,
         phase,

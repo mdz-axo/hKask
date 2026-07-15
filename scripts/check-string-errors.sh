@@ -27,7 +27,9 @@ while IFS=: read -r file line text; do
     [ -z "$file" ] && continue
     # Match: -> Result<*, String> (where * is any non-> content)
     # Match: -> Result<*, String> (handles nested generics like Result<Vec<u8>, String>)
-    if echo "$text" | grep -qE -- '->[[:space:]]*Result<.+,[[:space:]]*String[[:space:]]*>'; then
+    # The negative lookahead (?!\s*,) prevents false positives where `String>` is a
+    # type parameter inside the Ok type (e.g. Result<HashMap<String, String>, ServiceError>).
+    if echo "$text" | grep -qP -- '->\s*Result<.+,\s*String\s*>(?!\s*,)'; then
         echo "  ${file}:${line}:${text}"
         FAIL=1
     fi

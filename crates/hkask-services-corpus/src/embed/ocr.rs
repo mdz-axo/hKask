@@ -87,11 +87,11 @@ pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceErr
 ///
 /// Returns concatenated text from all pages, or an error if pdftoppm
 /// is unavailable or OCR fails on any page.
-async fn ocr_via_decimation(bytes: &[u8], _model: &str) -> Result<String, String> {
+async fn ocr_via_decimation(bytes: &[u8], _model: &str) -> anyhow::Result<String> {
     // Write bytes to temp PDF file
-    let temp_dir = tempfile::tempdir().map_err(|e| format!("tempdir: {}", e))?;
+    let temp_dir = tempfile::tempdir().map_err(|e| anyhow::anyhow!("tempdir: {}", e))?;
     let pdf_path = temp_dir.path().join("input.pdf");
-    std::fs::write(&pdf_path, bytes).map_err(|e| format!("write temp PDF: {}", e))?;
+    std::fs::write(&pdf_path, bytes).map_err(|e| anyhow::anyhow!("write temp PDF: {}", e))?;
 
     // Decimate via pdftoppm — JPEG at 72 DPI to stay within 128K token context limit
     let prefix = temp_dir.path().join("page");
@@ -104,10 +104,10 @@ async fn ocr_via_decimation(bytes: &[u8], _model: &str) -> Result<String, String
         .arg(&pdf_path)
         .arg(&prefix)
         .output()
-        .map_err(|e| format!("pdftoppm not available: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("pdftoppm not available: {}", e))?;
 
     if !output.status.success() {
-        return Err(format!(
+        return Err(anyhow::anyhow!(
             "pdftoppm failed: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         ));
@@ -122,13 +122,14 @@ async fn ocr_via_decimation(bytes: &[u8], _model: &str) -> Result<String, String
         if !path.exists() {
             break;
         }
-        let png_bytes = std::fs::read(path).map_err(|e| format!("read page {}: {}", page, e))?;
+        let png_bytes =
+            std::fs::read(path).map_err(|e| anyhow::anyhow!("read page {}: {}", page, e))?;
         page_images.push((page, png_bytes));
         page += 1;
     }
 
     if page_images.is_empty() {
-        return Err("pdftoppm produced no output images".into());
+        return Err(anyhow::anyhow!("pdftoppm produced no output images"));
     }
 
     // OCR each page via kask-ocr runsync endpoint
@@ -150,17 +151,21 @@ async fn ocr_via_decimation(bytes: &[u8], _model: &str) -> Result<String, String
             .json(&body)
             .send()
             .await
-            .map_err(|e| format!("kask-ocr request failed for page {}: {}", page_num, e))?;
+            .map_err(|e| anyhow::anyhow!("kask-ocr request failed for page {}: {}", page_num, e))?;
 
         if !result.status().is_success() {
             let err = result.text().await.unwrap_or_default();
-            return Err(format!("kask-ocr error for page {}: {}", page_num, err));
+            return Err(anyhow::anyhow!(
+                "kask-ocr error for page {}: {}",
+                page_num,
+                err
+            ));
         }
 
         let json: serde_json::Value = result
             .json()
             .await
-            .map_err(|e| format!("kask-ocr JSON parse for page {}: {}", page_num, e))?;
+            .map_err(|e| anyhow::anyhow!("kask-ocr JSON parse for page {}: {}", page_num, e))?;
         let text = json
             .get("output")
             .or_else(|| json.get("text"))
