@@ -992,12 +992,13 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
     }
 
     #[tool(
-        description = "Generate embedding vectors for corpus chunks. Uses the configured embedding model via the inference router. Reads chunks from chunks_jsonl (entity_ref, source, text, word_count per line), batch-embeds in groups of batch_size, and stores each vector in the memory DB at db_path. Returns a summary (total, embedded, failed, model) — no inline vectors."
+        description = "Generate ontology-anchored embedding vectors for corpus chunks. Uses the configured embedding model via the inference router. Reads chunks from chunks_jsonl (entity_ref, source, text, word_count per line). When tagged_jsonl is provided, ontology tags are prepended to chunk text before embedding (per INSTRUCTOR, Su et al. 2023), producing vectors that encode both content and ontological classification. Batch-embeds in groups of batch_size and stores each vector in the memory DB. Returns a summary (total, embedded, failed, model) — no inline vectors."
     )]
     pub async fn docproc_embed(
         &self,
         Parameters(EmbedRequest {
             chunks_jsonl,
+            tagged_jsonl,
             db_path,
             passphrase,
             model,
@@ -1005,7 +1006,14 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
         }): Parameters<EmbedRequest>,
     ) -> String {
         execute_tool(self, "docproc_embed", async {
-            self.embed_batch_from_jsonl(&chunks_jsonl, model, &db_path, &passphrase, batch_size)
+            self.embed_batch_from_jsonl(
+                &chunks_jsonl,
+                tagged_jsonl.as_deref(),
+                model,
+                &db_path,
+                &passphrase,
+                batch_size,
+            )
                 .await
         })
         .await
@@ -1019,6 +1027,7 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
     async fn embed_batch_from_jsonl(
         &self,
         chunks_path: &str,
+        tagged_jsonl: Option<&str>,
         model: Option<String>,
         db_path: &str,
         passphrase: &str,
@@ -1076,6 +1085,77 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
             return Err(McpToolError::invalid_argument(
                 "chunks_jsonl contains no valid chunks",
             ));
+        }
+
+        // Read ontology tags from tagged_jsonl (if provided) and prepend as
+        // annotations to chunk text before embedding. This produces
+        // ontology-anchored embeddings per INSTRUCTOR (Su et al., 2023).
+        // Format: "[golem: metaphor, narrative | pko: analysis] <chunk text>"
+        let tag_map: std::collections::HashMap<String, String> = if let Some(tagged_path) =
+            tagged_jsonl
+        {
+            let tagged_content = std::fs::read_to_string(tagged_path).map_err(|e| {
+                McpToolError::invalid_argument(format!(
+                    "Cannot read tagged_jsonl '{tagged_path}': {e}"
+                ))
+            })?;
+            let mut map = std::collections::HashMap::new();
+            for line in tagged_content.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
+                }
+                let v: serde_json::Value = match serde_json::from_str(line) {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+                let entity_ref = v
+                    .get("entity_ref")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if entity_ref.is_empty() {
+                    continue;
+                }
+                if let Some(tags) = v.get("ontology_tags").and_then(|t| t.as_object()) {
+                    let parts: Vec<String> = tags
+                        .iter()
+                        .map(|(ns, concepts)| {
+                            let list: Vec<String> = concepts
+                                .as_array()
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|c| c.as_str().map(String::from))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+                            format!("{ns}: {}", list.join(", "))
+                        })
+                        .collect();
+                    if !parts.is_empty() {
+                        map.insert(
+                            entity_ref.to_string(),
+                            format!("[{}] ", parts.join(" | ")),
+                        );
+                    }
+                }
+            }
+            tracing::info!(
+                target: "hkask.mcp.docproc.embed",
+                tags_loaded = map.len(),
+                "Ontology tag annotations loaded for ontology-anchored embedding"
+            );
+            map
+        } else {
+            std::collections::HashMap::new()
+        };
+
+        // Prepend tag annotations to chunk text for ontology-anchored embedding
+        if !tag_map.is_empty() {
+            for (entity_ref, text) in chunks.iter_mut() {
+                if let Some(annotation) = tag_map.get(entity_ref) {
+                    text.insert_str(0, annotation);
+                }
+            }
         }
 
         let model_name = model.unwrap_or_else(|| {
@@ -1319,6 +1399,12 @@ fn default_triples_concurrency() -> usize {
 pub struct EmbedRequest {
     /// Path to chunks JSONL (entity_ref, source, text, word_count per line).
     pub chunks_jsonl: String,
+    /// Path to tagged chunks JSONL (from docproc_tag_chunks). When provided,
+    /// ontology tags are prepended to chunk text before embedding, producing
+    /// ontology-anchored embeddings (per INSTRUCTOR, Su et al. 2023).
+    /// Requires tag to run before embed.
+    #[serde(default)]
+    pub tagged_jsonl: Option<String>,
     /// Path to the SQLCipher memory DB for vector storage.
     pub db_path: String,
     /// Passphrase for the memory DB.

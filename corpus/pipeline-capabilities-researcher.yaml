@@ -112,40 +112,56 @@ steps:
       passphrase: "hkask-default-passphrase-2024"
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phase 2a: Embed chunks → DB vectors
+  # Phase 2a: Tag chunks → ontology tags JSONL (BEFORE embed)
   #
-  # Qwen3-Embedding-0.6B (1024-dim). Stores vectors only.
-  # Text/provenance h_mems removed (orphans — no downstream consumer).
-  # ═══════════════════════════════════════════════════════════════════════
-  - id: embed_chunks
-    description: >
-      Embed all chunks with Qwen3-Embedding-0.6B. Store vectors in john-brooks.db.
-      3-attempt retry per batch. No h_mem storage (orphaned — removed).
-    tool: docproc_embed
-    params:
-      chunks_jsonl: "corpus/chunks/chunks.jsonl"
-      db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
-      batch_size: 50
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Phase 2b: Tag chunks → ontology tags JSONL
+  # Tags first so embeddings can be ontology-anchored (per INSTRUCTOR,
+  # Su et al. 2023). The LLM classifies each chunk against GOLEM, FIBO,
+  # ESO, PKO, OMC, and Dublin Core ontologies. Tag data flows through
+  # JSONL files to downstream tools (embed, extract_triples, build_prompts).
   #
-  # Qwen3.6-35B-A3B (HKASK_CLASSIFIER_MODEL_A). Uses tag-chunks.j2 template.
-  # Produces tagged_ontology.jsonl. No DB h_mem storage (orphaned — removed).
-  # Tag data flows through JSONL files to downstream tools.
-  # 128 concurrency. Thinking-mode JSON extraction.
+  # Design decision: tag → embed (not embed → tag) because:
+  #   1. Ontology tags as embedding "instructions" produce better KNN
+  #      retrieval (instruction-tuned embeddings outperform raw, per MTEB)
+  #   2. Tagging is a classification task — the passage text alone is
+  #      sufficient for ontology classification (no KNN context needed)
+  #   3. One-time classification cost, multiple downstream benefits
+  #   4. Ontology-enhanced KG embeddings outperform baselines (Wang et al. 2023)
+  # See: docs/architecture/adr-ontology-anchored-embedding.md
   # ═══════════════════════════════════════════════════════════════════════
   - id: tag_chunks
     description: >
-      Tag chunks with 5W1H dimensions, Dublin Core, PKO, FIBO/GOLEM ontology
-      tags, and expertise level. Uses tag-chunks.j2 template with Qwen3.6-35B-A3B.
-      Output: tagged_ontology.jsonl (tag data flows through JSONL, not DB).
+      Tag chunks with 5W1H dimensions, Dublin Core, PKO, FIBO/GOLEM/ESO
+      ontology tags, and expertise level. Uses tag-chunks.j2 template with
+      Qwen3.6-35B-A3B. Must run BEFORE embed so embeddings can be
+      ontology-anchored. Output: tagged_ontology.jsonl.
     tool: docproc_tag_chunks
     params:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
       output: "corpus/chunks/tagged_ontology.jsonl"
       concurrency: 128
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phase 2b: Embed chunks → ontology-anchored DB vectors (AFTER tag)
+  #
+  # Qwen3-Embedding-0.6B (1024-dim). Reads tagged_ontology.jsonl and prepends
+  # ontology tag annotations to chunk text before embedding, producing
+  # ontology-anchored vectors. Format: "[golem: metaphor | pko: analysis] <text>"
+  # This is instruction-conditioned embedding per INSTRUCTOR (Su et al. 2023).
+  # Stores vectors only — no h_mem storage.
+  # ═══════════════════════════════════════════════════════════════════════
+  - id: embed_chunks
+    description: >
+      Embed all chunks with Qwen3-Embedding-0.6B, using ontology tag
+      annotations from tagged_ontology.jsonl as embedding instructions.
+      Produces ontology-anchored vectors for improved KNN retrieval in
+      dedup, consolidate, and build_prompts. 3-attempt retry per batch.
+    tool: docproc_embed
+    params:
+      chunks_jsonl: "corpus/chunks/chunks.jsonl"
+      tagged_jsonl: "corpus/chunks/tagged_ontology.jsonl"
+      db_path: "corpus/memory/john-brooks.db"
+      passphrase: "hkask-default-passphrase-2024"
+      batch_size: 50
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 2c: Extract triples → RDF triple h_mems in DB

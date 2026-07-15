@@ -23,8 +23,10 @@ bf16: true
 
 # PiSSA LoRA — SVD-based initialization from principal singular values
 # 30-50% faster convergence vs random init. Free lunch (~2 min init).
-lora_r: 16
-lora_alpha: 32
+# v2: r=32 (was 16) — r=16 is a capacity ceiling for analysis tasks
+#      (lesson from Axolotl-Partners/rust-adapter-scripts v2 training)
+lora_r: 32
+lora_alpha: 64
 lora_dropout: 0
 peft_init_lora_weights: pissa_niter_4
 lora_target_modules:
