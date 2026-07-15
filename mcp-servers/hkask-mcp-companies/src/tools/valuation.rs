@@ -784,7 +784,7 @@ impl CompaniesServer {
                 }
                 Some(
                     StoredForecast::from_snapshot(&persisted.snapshot)
-                        .map_err(McpToolError::internal)?,
+                        .map_err(|e| McpToolError::internal(e.to_string()))?,
                 )
             } else {
                 None

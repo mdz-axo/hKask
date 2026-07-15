@@ -19,7 +19,7 @@
 //!  11. Tax rate                   incomeTaxExpense / incomeBeforeTax
 
 use crate::types::ProjectionAssumptionOverrides;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 // ── Historical data snapshot ───────────────────────────────────────────────
@@ -333,7 +333,7 @@ impl HistoricalSnapshot {
 // ── Projected line item ────────────────────────────────────────────────────
 
 /// One period in the projected financial statements.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectedLineItems {
     pub period: usize,
     pub year: f64,
@@ -352,7 +352,7 @@ pub struct ProjectedLineItems {
 }
 
 /// The full projected model.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectedModel {
     pub periods: Vec<ProjectedLineItems>,
     pub terminal_value: f64,
@@ -364,7 +364,7 @@ pub struct ProjectedModel {
 }
 
 /// Projection assumptions — overrideable by the user or calibrated from history.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectionAssumptions {
     /// Revenue growth rate (annual).
     pub revenue_growth: f64,

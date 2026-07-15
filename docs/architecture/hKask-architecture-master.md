@@ -5664,6 +5664,95 @@ status: VERIFIED
 -->
 
 
+### Companies MCP Portfolio Schema — ERD
+
+This reference diagram shows the owner-scoped SQLite schema managed by
+`PortfolioManager`. Each authenticated MCP `WebID` gets a separate database file
+at `~/.config/hkask/portfolios/<sanitized-webid>/master.db`; owner isolation is
+at the file level, not the row level. The `forecasts` table is owner-scoped but
+not portfolio-scoped — it has no foreign key to `portfolios`. The `revision_of`
+column links same-symbol forecast revisions without enforcing referential
+integrity (it is a nullable self-reference, not a declared FK).
+
+See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server) for the storage safety boundary, and the [code review](../status/companies-mcp-code-review-2026-07-15.md#d2-missing-required-erd-for-the-portfolio-sqlite-schema) that identified this missing diagram.
+
+```mermaid
+erDiagram
+    portfolios {
+        TEXT name PK
+        TEXT created_at
+    }
+    transactions {
+        TEXT id PK
+        TEXT portfolio_name FK
+        TEXT date
+        TEXT type
+        REAL quantity
+        REAL price
+        REAL commission
+        REAL amount
+        TEXT currency
+        TEXT notes
+        TEXT created_at
+    }
+    price_cache {
+        TEXT portfolio_name PK
+        TEXT symbol PK
+        TEXT date PK
+        REAL close
+        TEXT source
+        TEXT fetched_at
+    }
+    security_links {
+        TEXT portfolio_name PK
+        TEXT ledger_symbol PK
+        TEXT data_symbol
+    }
+    notes {
+        TEXT id PK
+        TEXT portfolio_name FK
+        TEXT symbol
+        TEXT date
+        TEXT title
+        TEXT body
+        TEXT tags
+        TEXT created_at
+    }
+    files {
+        TEXT id PK
+        TEXT portfolio_name FK
+        TEXT symbol
+        TEXT date
+        TEXT filename
+        TEXT mime_type
+        INTEGER size
+        TEXT path
+        TEXT notes
+        TEXT created_at
+    }
+    forecasts {
+        TEXT id PK
+        TEXT symbol
+        TEXT revision_of
+        TEXT snapshot
+        TEXT outcomes
+        TEXT created_at
+    }
+
+    portfolios ||--o{ transactions : "owns"
+    portfolios ||--o{ price_cache : "caches"
+    portfolios ||--o{ security_links : "maps"
+    portfolios ||--o{ notes : "annotates"
+    portfolios ||--o{ files : "stores"
+```
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-IC-012
+verified_date: 2026-07-15
+verified_against: mcp-servers/hkask-mcp-companies/src/portfolio.rs:132-202
+status: VERIFIED
+-->
+
+
 ### Scenario Forecasting Pipeline
 
 *Inlined from `docs/diagrams/flowchart-scenario-forecasting-pipeline.md`*

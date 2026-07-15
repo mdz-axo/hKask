@@ -84,7 +84,7 @@ Company-finance MCP server for provider-routed market data, fundamental analysis
 | `file_list` | List a portfolio's attached files for a symbol. |
 | `file_delete` | Delete an attached file by ID. |
 
-See [the Companies MCP reference](../../docs/reference/mcp-servers/hkask-mcp-companies.md) for operational constraints and the code-anchored provider-routing diagram.
+See [the Companies MCP reference](../../docs/reference/mcp-servers/README.md#companies-mcp-server) for operational constraints and the code-anchored provider-routing diagram.
 
 ## Configuration
 

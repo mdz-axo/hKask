@@ -5,7 +5,7 @@
 //! ledger — create, read, validate, import, export, notes, and file attachments.
 
 use hkask_database::driver::DatabaseDriver;
-use hkask_ledger::{Ledger, LedgerTransaction, Posting};
+use hkask_ledger::{Ledger, LedgerError, LedgerTransaction, Posting};
 use hkask_types::{WebID, agent_paths::sanitize_name, time::now_rfc3339};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -16,6 +16,54 @@ const MAX_IMPORT_REQUEST_BYTES: usize = 5 * 1024 * 1024;
 const MAX_ENCODED_ATTACHMENT_BYTES: usize = 10 * 1024 * 1024;
 const MAX_DECODED_ATTACHMENT_BYTES: usize = 6 * 1024 * 1024;
 const MAX_IMPORT_TRANSACTION_COUNT: usize = 10_000;
+
+// ── Error type ───────────────────────────────────────────────────────
+
+/// Portfolio operation errors, classified for MCP tool dispatch.
+///
+/// `InvalidArgument` variants map to `McpToolError::invalid_argument` (user error).
+/// All other variants map to `McpToolError::internal` (system error).
+#[derive(Debug, thiserror::Error)]
+pub enum PortfolioError {
+    #[error("{0}")]
+    InvalidArgument(String),
+    #[error("database error: {0}")]
+    Database(String),
+    #[error("serialize error: {0}")]
+    Serialize(String),
+    #[error("ledger error: {0}")]
+    Ledger(String),
+}
+
+impl From<rusqlite::Error> for PortfolioError {
+    fn from(e: rusqlite::Error) -> Self {
+        Self::Database(e.to_string())
+    }
+}
+
+impl From<serde_json::Error> for PortfolioError {
+    fn from(e: serde_json::Error) -> Self {
+        Self::Serialize(e.to_string())
+    }
+}
+
+impl From<String> for PortfolioError {
+    fn from(s: String) -> Self {
+        Self::InvalidArgument(s)
+    }
+}
+
+impl From<&str> for PortfolioError {
+    fn from(s: &str) -> Self {
+        Self::InvalidArgument(s.to_string())
+    }
+}
+
+impl From<LedgerError> for PortfolioError {
+    fn from(e: LedgerError) -> Self {
+        Self::Ledger(e.to_string())
+    }
+}
 
 // ── Transaction ─────────────────────────────────────────────────────
 
@@ -41,7 +89,7 @@ fn default_currency() -> String {
     "USD".to_string()
 }
 
-fn check_request_size(size: usize, maximum: usize, subject: &str) -> Result<(), String> {
+fn check_request_size(size: usize, maximum: usize, subject: &str) -> Result<(), PortfolioError> {
     if size > maximum {
         return Err(format!("{subject} exceeds maximum of {maximum} bytes"));
     }
@@ -298,12 +346,12 @@ impl PortfolioManager {
         }
     }
 
-    fn open(&self) -> Result<Connection, String> {
+    fn open(&self) -> Result<Connection, PortfolioError> {
         Connection::open(&self.db_path).map_err(|e| format!("db open: {e}"))
     }
 
     /// Persist a forecast snapshot in this owner's database.
-    pub fn save_forecast(&self, forecast: &PersistedForecast) -> Result<(), String> {
+    pub fn save_forecast(&self, forecast: &PersistedForecast) -> Result<(), PortfolioError> {
         let conn = self.open()?;
         let snapshot = serde_json::to_string(&forecast.snapshot)
             .map_err(|e| format!("serialize forecast snapshot: {e}"))?;
@@ -326,7 +374,7 @@ impl PortfolioManager {
     }
 
     /// Retrieve a forecast belonging to this owner.
-    pub fn get_forecast(&self, id: &str) -> Result<Option<PersistedForecast>, String> {
+    pub fn get_forecast(&self, id: &str) -> Result<Option<PersistedForecast>, PortfolioError> {
         let conn = self.open()?;
         conn.query_row(
             "SELECT id, symbol, revision_of, snapshot, outcomes, created_at FROM forecasts WHERE id = ?1",
@@ -338,7 +386,7 @@ impl PortfolioManager {
     }
 
     /// List this owner's forecasts for a symbol, newest first.
-    pub fn list_forecasts(&self, symbol: &str) -> Result<Vec<PersistedForecast>, String> {
+    pub fn list_forecasts(&self, symbol: &str) -> Result<Vec<PersistedForecast>, PortfolioError> {
         let conn = self.open()?;
         let mut stmt = conn
             .prepare(
@@ -354,7 +402,7 @@ impl PortfolioManager {
     }
 
     /// Verify a revision parent is visible to this owner and uses the same symbol.
-    pub fn validate_forecast_revision(&self, id: &str, symbol: &str) -> Result<(), String> {
+    pub fn validate_forecast_revision(&self, id: &str, symbol: &str) -> Result<(), PortfolioError> {
         let Some(parent) = self.get_forecast(id)? else {
             return Err(format!("forecast '{id}' not found for this owner"));
         };
@@ -372,7 +420,7 @@ impl PortfolioManager {
         &self,
         id: &str,
         outcome: serde_json::Value,
-    ) -> Result<(), String> {
+    ) -> Result<(), PortfolioError> {
         let mut forecast = self
             .get_forecast(id)?
             .ok_or_else(|| format!("forecast '{id}' not found for this owner"))?;
@@ -397,7 +445,7 @@ impl PortfolioManager {
 
     // ── Portfolio CRUD ───────────────────────────────────────────
 
-    pub fn create(&self, name: &str) -> Result<(), String> {
+    pub fn create(&self, name: &str) -> Result<(), PortfolioError> {
         if name.is_empty() || name.contains('/') || name.contains('\\') {
             return Err("portfolio name must not be empty or contain path separators".into());
         }
@@ -416,7 +464,7 @@ impl PortfolioManager {
         Ok(())
     }
 
-    pub fn delete(&self, name: &str) -> Result<(), String> {
+    pub fn delete(&self, name: &str) -> Result<(), PortfolioError> {
         let conn = self.open()?;
         let rows = conn
             .execute("DELETE FROM portfolios WHERE name = ?1", params![name])
@@ -427,7 +475,7 @@ impl PortfolioManager {
         Ok(())
     }
 
-    pub fn list(&self) -> Result<Vec<String>, String> {
+    pub fn list(&self) -> Result<Vec<String>, PortfolioError> {
         let conn = self.open()?;
         let mut stmt = conn
             .prepare("SELECT name FROM portfolios ORDER BY name")
@@ -442,7 +490,7 @@ impl PortfolioManager {
         Ok(names)
     }
 
-    fn check_exists(&self, conn: &Connection, name: &str) -> Result<(), String> {
+    fn check_exists(&self, conn: &Connection, name: &str) -> Result<(), PortfolioError> {
         let exists: bool = conn
             .query_row(
                 "SELECT 1 FROM portfolios WHERE name = ?1",
@@ -457,7 +505,7 @@ impl PortfolioManager {
     }
 
     #[allow(dead_code)] // exercised by the test suite only
-    pub fn add_transaction(&self, name: &str, tx: &Transaction) -> Result<(), String> {
+    pub fn add_transaction(&self, name: &str, tx: &Transaction) -> Result<(), PortfolioError> {
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
         conn.execute(
@@ -494,7 +542,7 @@ impl PortfolioManager {
         driver: &Arc<dyn DatabaseDriver>,
         portfolio_name: &str,
         tx: &Transaction,
-    ) -> Result<(), String> {
+    ) -> Result<(), PortfolioError> {
         let ledger =
             Ledger::from_driver(driver.clone()).map_err(|e| format!("ledger from_driver: {e}"))?;
 
@@ -647,7 +695,7 @@ impl PortfolioManager {
         Ok(())
     }
 
-    pub fn append_note(&self, name: &str, tx_id: &str, note: &str) -> Result<(), String> {
+    pub fn append_note(&self, name: &str, tx_id: &str, note: &str) -> Result<(), PortfolioError> {
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
         let existing: String = conn
@@ -678,7 +726,7 @@ impl PortfolioManager {
         tx_type: Option<&str>,
         from_date: Option<&str>,
         to_date: Option<&str>,
-    ) -> Result<Vec<Transaction>, String> {
+    ) -> Result<Vec<Transaction>, PortfolioError> {
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
         let mut sql = "SELECT id, date, type, symbol, quantity, price, commission, amount, currency, notes, created_at FROM transactions WHERE portfolio_name = ?1".to_string();
@@ -733,7 +781,7 @@ impl PortfolioManager {
 
     // ── Validation ───────────────────────────────────────────────
 
-    pub fn validate(&self, name: &str) -> Result<ValidationReport, String> {
+    pub fn validate(&self, name: &str) -> Result<ValidationReport, PortfolioError> {
         let txs = self.get_transactions(name, None, None, None, None)?;
         let mut issues = Vec::new();
         let mut positions: std::collections::HashMap<String, (f64, f64)> =
@@ -829,14 +877,14 @@ impl PortfolioManager {
 
     // ── Import / Export ──────────────────────────────────────────
 
-    pub fn import_json(&self, name: &str, json: &str) -> Result<Vec<String>, String> {
+    pub fn import_json(&self, name: &str, json: &str) -> Result<Vec<String>, PortfolioError> {
         check_request_size(json.len(), MAX_IMPORT_REQUEST_BYTES, "import request")?;
         let txs: Vec<Transaction> =
             serde_json::from_str(json).map_err(|e| format!("invalid JSON: {e}"))?;
         self.import_transactions(name, txs)
     }
 
-    pub fn import_csv(&self, name: &str, csv: &str) -> Result<Vec<String>, String> {
+    pub fn import_csv(&self, name: &str, csv: &str) -> Result<Vec<String>, PortfolioError> {
         check_request_size(csv.len(), MAX_IMPORT_REQUEST_BYTES, "import request")?;
         let mut txs = Vec::new();
         let mut lines = csv.lines();
@@ -904,7 +952,7 @@ impl PortfolioManager {
         &self,
         name: &str,
         txs: Vec<Transaction>,
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<Vec<String>, PortfolioError> {
         if txs.len() > MAX_IMPORT_TRANSACTION_COUNT {
             return Err(format!(
                 "import exceeds maximum of {MAX_IMPORT_TRANSACTION_COUNT} transactions"
@@ -941,12 +989,12 @@ impl PortfolioManager {
         Ok(imported)
     }
 
-    pub fn export_json(&self, name: &str) -> Result<String, String> {
+    pub fn export_json(&self, name: &str) -> Result<String, PortfolioError> {
         let txs = self.get_transactions(name, None, None, None, None)?;
         serde_json::to_string_pretty(&txs).map_err(|e| format!("serialize: {e}"))
     }
 
-    pub fn export_csv(&self, name: &str) -> Result<String, String> {
+    pub fn export_csv(&self, name: &str) -> Result<String, PortfolioError> {
         let txs = self.get_transactions(name, None, None, None, None)?;
         let mut out = String::from(
             "id,date,type,symbol,quantity,price,commission,amount,currency,notes,created_at\n",
@@ -980,7 +1028,7 @@ impl PortfolioManager {
     // ── Data linkage ─────────────────────────────────────────────
 
     /// Get all unique symbols from a portfolio's ledger.
-    pub fn get_symbols(&self, name: &str) -> Result<Vec<String>, String> {
+    pub fn get_symbols(&self, name: &str) -> Result<Vec<String>, PortfolioError> {
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
         let mut stmt = conn
@@ -1003,7 +1051,7 @@ impl PortfolioManager {
         symbol: &str,
         from: &str,
         to: &str,
-    ) -> Result<Vec<(String, f64, String)>, String> {
+    ) -> Result<Vec<(String, f64, String)>, PortfolioError> {
         let conn = self.open()?;
         let mut stmt = conn
             .prepare("SELECT date, close, source FROM price_cache WHERE portfolio_name = ?1 AND symbol = ?2 AND date >= ?3 AND date <= ?4 ORDER BY date")
@@ -1027,7 +1075,7 @@ impl PortfolioManager {
     // ── Portfolio comparison ────────────────────────────────────
 
     /// Compare two portfolios — side-by-side positions, overlap, unique symbols.
-    pub fn compare(&self, name_a: &str, name_b: &str) -> Result<serde_json::Value, String> {
+    pub fn compare(&self, name_a: &str, name_b: &str) -> Result<serde_json::Value, PortfolioError> {
         let report_a = self.validate(name_a)?;
         let report_b = self.validate(name_b)?;
 
@@ -1109,7 +1157,7 @@ impl PortfolioManager {
         title: &str,
         body: &str,
         tags: &[String],
-    ) -> Result<String, String> {
+    ) -> Result<String, PortfolioError> {
         let conn = self.open()?;
         self.check_exists(&conn, portfolio)?;
         let id = uuid::Uuid::new_v4().to_string();
@@ -1131,7 +1179,7 @@ impl PortfolioManager {
         date_from: Option<&str>,
         date_to: Option<&str>,
         tags: Option<&[String]>,
-    ) -> Result<Vec<serde_json::Value>, String> {
+    ) -> Result<Vec<serde_json::Value>, PortfolioError> {
         let conn = self.open()?;
         self.check_exists(&conn, portfolio)?;
         let mut sql = "SELECT id, symbol, date, title, body, tags, created_at FROM notes WHERE portfolio_name = ?1 AND symbol = ?2".to_string();
@@ -1189,7 +1237,7 @@ impl PortfolioManager {
     }
 
     /// Delete a note by ID.
-    pub fn delete_note(&self, note_id: &str) -> Result<(), String> {
+    pub fn delete_note(&self, note_id: &str) -> Result<(), PortfolioError> {
         let conn = self.open()?;
         let rows = conn
             .execute("DELETE FROM notes WHERE id = ?1", params![note_id])
@@ -1214,7 +1262,7 @@ impl PortfolioManager {
         mime_type: &str,
         data_b64: &str,
         notes: &str,
-    ) -> Result<String, String> {
+    ) -> Result<String, PortfolioError> {
         check_request_size(
             data_b64.len(),
             MAX_ENCODED_ATTACHMENT_BYTES,
@@ -1263,7 +1311,7 @@ impl PortfolioManager {
         &self,
         portfolio: &str,
         symbol: &str,
-    ) -> Result<Vec<serde_json::Value>, String> {
+    ) -> Result<Vec<serde_json::Value>, PortfolioError> {
         let conn = self.open()?;
         self.check_exists(&conn, portfolio)?;
         let mut stmt = conn
@@ -1295,7 +1343,7 @@ impl PortfolioManager {
     }
 
     /// Delete an attached file by ID — removes DB record and physical file.
-    pub fn delete_file(&self, file_id: &str) -> Result<(), String> {
+    pub fn delete_file(&self, file_id: &str) -> Result<(), PortfolioError> {
         let conn = self.open()?;
         // Look up the file path first
         let path: String = conn

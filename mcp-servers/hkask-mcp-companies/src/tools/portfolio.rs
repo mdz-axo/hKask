@@ -3,7 +3,7 @@ use crate::*;
 
 async fn run_portfolio<T>(
     portfolio: PortfolioManager,
-    operation: impl FnOnce(PortfolioManager) -> Result<T, String> + Send + 'static,
+    operation: impl FnOnce(PortfolioManager) -> Result<T, PortfolioError> + Send + 'static,
 ) -> Result<T, McpToolError>
 where
     T: Send + 'static,
@@ -11,7 +11,7 @@ where
     tokio::task::spawn_blocking(move || operation(portfolio))
         .await
         .map_err(|error| McpToolError::internal(format!("portfolio task failed: {error}")))?
-        .map_err(McpToolError::invalid_argument)
+        .map_err(map_portfolio_error)
 }
 
 #[tool_router(router = portfolio_router, vis = "pub")]

@@ -72,6 +72,7 @@ use hkask_mcp::server::{McpToolError, execute_tool, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 mod analysis;
@@ -87,7 +88,7 @@ mod screener;
 mod superforecast;
 pub mod types;
 
-use portfolio::{PersistedForecast, PortfolioManager};
+use portfolio::{PersistedForecast, PortfolioError, PortfolioManager};
 
 use types::*;
 pub mod tools;
@@ -95,7 +96,7 @@ pub mod tools;
 // ── Forecast store ───────────────────────────────────────────────────
 
 /// A stored forecast model for later decomposition during `forecast_record`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct StoredForecast {
     model: financial_model::ProjectedModel,
     assumptions: financial_model::ProjectionAssumptions,
@@ -105,108 +106,11 @@ struct StoredForecast {
 
 impl StoredForecast {
     fn snapshot(&self) -> serde_json::Value {
-        serde_json::json!({
-            "model": {
-                "periods": self.model.periods.iter().map(|period| serde_json::json!({
-                    "period": period.period, "year": period.year, "revenue": period.revenue,
-                    "cogs": period.cogs, "gross_profit": period.gross_profit, "da": period.da,
-                    "ebit": period.ebit, "tax": period.tax, "nopat": period.nopat,
-                    "capex": period.capex, "change_in_nwc": period.change_in_nwc,
-                    "free_cash_flow": period.free_cash_flow, "discount_factor": period.discount_factor,
-                    "present_value": period.present_value,
-                })).collect::<Vec<_>>(),
-                "terminal_value": self.model.terminal_value,
-                "terminal_pv": self.model.terminal_pv,
-                "enterprise_value": self.model.enterprise_value,
-                "net_debt": self.model.net_debt,
-                "equity_value": self.model.equity_value,
-                "intrinsic_per_share": self.model.intrinsic_per_share,
-            },
-            "assumptions": {
-                "revenue_growth": self.assumptions.revenue_growth,
-                "gross_margin": self.assumptions.gross_margin,
-                "da_to_revenue": self.assumptions.da_to_revenue,
-                "capex_to_revenue": self.assumptions.capex_to_revenue,
-                "nwc_to_revenue": self.assumptions.nwc_to_revenue,
-                "tax_rate": self.assumptions.tax_rate,
-                "discount_rate": self.assumptions.discount_rate,
-                "terminal_growth": self.assumptions.terminal_growth,
-                "total_years": self.assumptions.total_years,
-                "stage1_years": self.assumptions.stage1_years,
-            },
-            "current_price": self.current_price,
-            "intrinsic_per_share": self.intrinsic_per_share,
-        })
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
     }
 
-    fn from_snapshot(snapshot: &serde_json::Value) -> Result<Self, String> {
-        let number = |value: &serde_json::Value, key: &str| {
-            value
-                .get(key)
-                .and_then(serde_json::Value::as_f64)
-                .ok_or_else(|| format!("forecast snapshot missing numeric '{key}'"))
-        };
-        let integer = |value: &serde_json::Value, key: &str| {
-            value
-                .get(key)
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| format!("forecast snapshot missing integer '{key}'"))
-        };
-        let model = snapshot
-            .get("model")
-            .ok_or_else(|| "forecast snapshot missing model".to_string())?;
-        let assumptions = snapshot
-            .get("assumptions")
-            .ok_or_else(|| "forecast snapshot missing assumptions".to_string())?;
-        let periods = model
-            .get("periods")
-            .and_then(serde_json::Value::as_array)
-            .ok_or_else(|| "forecast snapshot missing periods".to_string())?
-            .iter()
-            .map(|period| {
-                Ok(financial_model::ProjectedLineItems {
-                    period: integer(period, "period")? as usize,
-                    year: number(period, "year")?,
-                    revenue: number(period, "revenue")?,
-                    cogs: number(period, "cogs")?,
-                    gross_profit: number(period, "gross_profit")?,
-                    da: number(period, "da")?,
-                    ebit: number(period, "ebit")?,
-                    tax: number(period, "tax")?,
-                    nopat: number(period, "nopat")?,
-                    capex: number(period, "capex")?,
-                    change_in_nwc: number(period, "change_in_nwc")?,
-                    free_cash_flow: number(period, "free_cash_flow")?,
-                    discount_factor: number(period, "discount_factor")?,
-                    present_value: number(period, "present_value")?,
-                })
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-        Ok(Self {
-            model: financial_model::ProjectedModel {
-                periods,
-                terminal_value: number(model, "terminal_value")?,
-                terminal_pv: number(model, "terminal_pv")?,
-                enterprise_value: number(model, "enterprise_value")?,
-                net_debt: number(model, "net_debt")?,
-                equity_value: number(model, "equity_value")?,
-                intrinsic_per_share: number(model, "intrinsic_per_share")?,
-            },
-            assumptions: financial_model::ProjectionAssumptions {
-                revenue_growth: number(assumptions, "revenue_growth")?,
-                gross_margin: number(assumptions, "gross_margin")?,
-                da_to_revenue: number(assumptions, "da_to_revenue")?,
-                capex_to_revenue: number(assumptions, "capex_to_revenue")?,
-                nwc_to_revenue: number(assumptions, "nwc_to_revenue")?,
-                tax_rate: number(assumptions, "tax_rate")?,
-                discount_rate: number(assumptions, "discount_rate")?,
-                terminal_growth: number(assumptions, "terminal_growth")?,
-                total_years: integer(assumptions, "total_years")? as u8,
-                stage1_years: integer(assumptions, "stage1_years")? as u8,
-            },
-            current_price: number(snapshot, "current_price")?,
-            intrinsic_per_share: number(snapshot, "intrinsic_per_share")?,
-        })
+    fn from_snapshot(snapshot: &serde_json::Value) -> Result<Self, serde_json::Error> {
+        serde_json::from_value(snapshot.clone())
     }
 }
 
@@ -438,6 +342,14 @@ hkask_mcp::mcp_server!(
     }
 );
 
+/// Classify PortfolioError for MCP dispatch: user errors → invalid_argument, system errors → internal.
+fn map_portfolio_error(e: PortfolioError) -> McpToolError {
+    match &e {
+        PortfolioError::InvalidArgument(_) => McpToolError::invalid_argument(e.to_string()),
+        _ => McpToolError::internal(e.to_string()),
+    }
+}
+
 impl CompaniesServer {
     async fn fetch(
         &self,
@@ -466,7 +378,7 @@ impl CompaniesServer {
         tokio::task::spawn_blocking(move || portfolio.save_forecast(&forecast))
             .await
             .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
-            .map_err(McpToolError::internal)
+            .map_err(map_portfolio_error)
     }
 
     async fn get_persisted_forecast(
@@ -477,7 +389,7 @@ impl CompaniesServer {
         tokio::task::spawn_blocking(move || portfolio.get_forecast(&forecast_id))
             .await
             .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
-            .map_err(McpToolError::internal)
+            .map_err(map_portfolio_error)
     }
 
     async fn list_persisted_forecasts(
@@ -488,7 +400,7 @@ impl CompaniesServer {
         tokio::task::spawn_blocking(move || portfolio.list_forecasts(&symbol))
             .await
             .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
-            .map_err(McpToolError::internal)
+            .map_err(map_portfolio_error)
     }
 
     async fn record_persisted_forecast_outcome(
@@ -502,7 +414,7 @@ impl CompaniesServer {
         })
         .await
         .map_err(|error| McpToolError::internal(format!("forecast task failed: {error}")))?
-        .map_err(McpToolError::internal)
+        .map_err(map_portfolio_error)
     }
 
     /// Record a tool call as a narrative experience in the agent's memory.
