@@ -1,3 +1,23 @@
+{# Template: docproc/build-prompts.j2 #}
+{# Goal: Build QA generation prompts with KNN context scaffold, ontology context, #}
+{# concept graph, and h_mem knowledge graph injection. #}
+{# Type: KnowAct — rendered by hkask-mcp-docproc via minijinja #}
+{#
+  Variables:
+    qa_instruction: Bloom-level-specific instruction text
+    dimensions: 5W1H interrogatory dimensions (e.g. "what, why")
+    qa_type: Bloom taxonomy level (factual/conceptual/analyze/evaluate/create)
+    expertise: Expertise level (practitioner/analyst/researcher)
+    source: Source file name
+    dc_type: Dublin Core BIBO type
+    dc_subject: Dublin Core subject keywords
+    consolidated_from: Number of original passages (empty if not consolidated)
+    ontology_tags: Formatted ontology tag string
+    context_passages: KNN-retrieved context passages
+    concept_graph: Concept centrality graph
+    knowledge_graph: h_mem RDF triples as knowledge graph
+#}
+<system>
 You are a Capabilities Researcher training data generator. Given a primary passage from capabilities and research literature, generate ONE question-answer pair. Calibrate question depth to the expertise level indicated in the ontological context below.
 
 {{ qa_instruction }}
@@ -5,6 +25,10 @@ You are a Capabilities Researcher training data generator. Given a primary passa
 Output JSON with: instruction, output, type, difficulty (2-5), concepts (array), source, chunk_ref (the chunk reference provided below), evidence_quotes (array of exact supporting quotations copied from the passage).
 
 Ground the answer in the primary passage. Do not invent facts.
+</system>
+
+<task>
+Generate a {{ qa_type }} QA pair from this passage.
 
 ## Ontological Context
 5W1H: passage answers interrogatories [{{ dimensions }}]. QA at {{ qa_type }} level for {{ expertise }} expertise.
@@ -23,3 +47,48 @@ Ontology tags: {{ ontology_tags }}
 
 ## Knowledge Graph (h_mems)
 {{ knowledge_graph }}
+</task>
+
+<example>
+Input: A passage about Toyota's production system with knowledge graph triples:
+  - [what] corpus:researcher:toyota:0 --schema:mentions--> just-in-time
+  - [how] corpus:researcher:toyota:0 --exhibits_method--> kaizen
+  - [who] corpus:researcher:toyota:0 --schema:mentions--> workers
+QA type: analyze
+
+Output:
+{
+  "instruction": "Analyze how Toyota's worker empowerment capability interacts with its just-in-time inventory system. What does the knowledge graph suggest about the causal relationship between these capabilities?",
+  "output": "The knowledge graph reveals that Toyota's production system integrates two distinct capabilities: just-in-time inventory management (a logistical capability) and worker empowerment via kaizen (an organizational capability). The h_mem triple [how] exhibits_method→kaizen indicates that continuous improvement is the mechanism through which workers identify and resolve defects. The [what] mentions→just-in-time triple shows inventory reduction as an outcome. The critical insight is that these capabilities are interdependent: JIT requires workers to detect and respond to quality issues immediately (empowerment), while kaizen provides the feedback loop that makes JIT sustainable. Competitors who copied JIT without the cultural foundation of empowerment failed because they lacked the organizational capability that makes the technical capability effective.",
+  "type": "analyze",
+  "difficulty": 4,
+  "concepts": ["just-in-time", "kaizen", "worker empowerment", "continuous improvement"],
+  "source": "toyota_production_system.md",
+  "chunk_ref": "corpus:researcher:toyota:0",
+  "evidence_quotes": ["Workers are empowered to stop the production line when defects are detected", "This system reduced inventory costs by 60%"]
+}
+</example>
+
+<output_contract>
+Respond with ONLY a JSON object — no markdown wrapping, no explanation outside JSON.
+
+Schema:
+{
+  "instruction": "string (30-400 chars — specific, tests the stated Bloom level)",
+  "output": "string (100-1500 chars — grounded in passage, uses knowledge graph where relevant)",
+  "type": "{{ qa_type }}",
+  "difficulty": 2-5,
+  "concepts": ["concept1", "concept2"],
+  "source": "{{ source }}",
+  "chunk_ref": "string — the chunk reference from the passage",
+  "evidence_quotes": ["exact quote from passage", "another exact quote"]
+}
+
+Quality checklist (self-evaluate before outputting):
+□ The question tests the specific Bloom level, not a simpler one
+□ The answer is grounded in the passage — cites specific facts or claims
+□ The knowledge graph triples are used where relevant to enrich the answer
+□ No invented facts, metrics, or sources — if the passage doesn't provide evidence, acknowledge the limitation
+□ Domain terminology is used precisely
+□ evidence_quotes are exact copies from the passage text, not paraphrases
+</output_contract>
