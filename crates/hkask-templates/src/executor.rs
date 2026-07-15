@@ -8,6 +8,11 @@
 //! - **populate**: Render a template with the accumulated context map, producing
 //!   a filled prompt or data payload.
 //! - **execute**: Invoke an MCP tool with parameters bound from the context map.
+//! - **compute**: Invoke a canonical `hkask_forecast` primitive deterministically
+//!   (no LLM round-trip). The step's `compute_ref` names the function;
+//!   `input_mapping` binds its arguments from prior step results. This connects
+//!   the skill pipeline to the deterministic math layer (Fermi, outside view,
+//!   Bayesian, Brier, calibration adjustment).
 //! - **choice**: Evaluate a condition against context, branch by setting `_next_ordinal`.
 //! - **loop**: Re-enter the cascade from `loop_target` ordinal (defaults to 0),
 //!   incrementing the iteration counter. Respects matryoshka depth limit (7).
@@ -2032,4 +2037,76 @@ fn parse_choice_condition(condition: &str) -> Option<(&str, &str, &str)> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dispatch_calibrate_from_fermi() {
+        let input = serde_json::json!({
+            "questions": [
+                {"question": "a", "estimate": 0.8, "confidence": 0.9},
+                {"question": "b", "estimate": 0.2, "confidence": 0.1}
+            ]
+        });
+        let result = dispatch_compute("calibrate_from_fermi", &input).unwrap();
+        let calibrated = result.get("calibrated").and_then(|v| v.as_f64()).unwrap();
+        assert!((calibrated - 0.74).abs() < 0.01, "weighted average = 0.74");
+    }
+
+    #[test]
+    fn dispatch_outside_view_adjustment() {
+        let input = serde_json::json!({
+            "base_rate": 0.7, "inside_estimate": 0.3, "reference_count": 1000
+        });
+        let result = dispatch_compute("outside_view_adjustment", &input).unwrap();
+        let calibrated = result.get("calibrated").and_then(|v| v.as_f64()).unwrap();
+        assert!(calibrated > 0.6, "high reference count trusts base rate");
+    }
+
+    #[test]
+    fn dispatch_bayesian_update() {
+        let input = serde_json::json!({
+            "prior": 0.3, "evidence_likelihood": 0.9, "evidence_base_rate": 0.3
+        });
+        let result = dispatch_compute("bayesian_update", &input).unwrap();
+        let posterior = result.get("posterior").and_then(|v| v.as_f64()).unwrap();
+        assert!((posterior - 0.9).abs() < 0.01, "Bayesian update = 0.9");
+    }
+
+    #[test]
+    fn dispatch_apply_calibration_adjustment() {
+        let input = serde_json::json!({ "prior": 0.9, "overconfidence_bias": 0.3 });
+        let result = dispatch_compute("apply_calibration_adjustment", &input).unwrap();
+        let adjusted = result.get("adjusted").and_then(|v| v.as_f64()).unwrap();
+        assert!(
+            adjusted < 0.9 && adjusted > 0.5,
+            "overconfident regresses toward 0.5"
+        );
+    }
+
+    #[test]
+    fn dispatch_brier_score() {
+        let input = serde_json::json!({ "probability": 1.0, "outcome_occurred": true });
+        let result = dispatch_compute("brier_score", &input).unwrap();
+        let score = result.get("score").and_then(|v| v.as_f64()).unwrap();
+        assert!((score - 0.0).abs() < 1e-9, "perfect forecast = 0 Brier");
+    }
+
+    #[test]
+    fn dispatch_unknown_ref_errors() {
+        let input = serde_json::json!({});
+        assert!(dispatch_compute("nonexistent_fn", &input).is_err());
+    }
+
+    #[test]
+    fn dispatch_missing_input_errors() {
+        let input = serde_json::json!({});
+        assert!(
+            dispatch_compute("bayesian_update", &input).is_err(),
+            "missing prior errors"
+        );
+    }
 }

@@ -136,6 +136,7 @@ async fn select_input_mapping_resolves_cross_step_variable() {
                 renderer: Some("minijinja".to_string()),
                 template_ref: Some("step1.j2".to_string()),
                 mcp: None,
+                compute_ref: None,
                 gas_cap: 1000,
                 timeout_seconds: 10,
                 input_mapping: None,
@@ -152,6 +153,7 @@ async fn select_input_mapping_resolves_cross_step_variable() {
                 renderer: Some("minijinja".to_string()),
                 template_ref: Some("step2.j2".to_string()),
                 mcp: None,
+                compute_ref: None,
                 gas_cap: 1000,
                 timeout_seconds: 10,
                 // The mapping under test: a {{ }} string resolved from step_1_result.
@@ -171,6 +173,7 @@ async fn select_input_mapping_resolves_cross_step_variable() {
                 renderer: None,
                 template_ref: None,
                 mcp: None,
+                compute_ref: None,
                 gas_cap: 0,
                 timeout_seconds: 0,
                 input_mapping: None,

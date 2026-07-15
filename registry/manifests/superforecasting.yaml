@@ -62,6 +62,10 @@ inputs:
     type: number
     required: false
     description: Prior iteration's final probability for materiality delta check
+  - name: overconfidence_bias
+    type: number
+    required: false
+    description: Signed calibration bias from a Brier-scored calibration curve (positive = overconfident). Fed to the step-13 compute to close the learning loop. Defaults to 0.0 (no adjustment).
 
 fusion:
   judge: deepseek-v4-pro
@@ -246,18 +250,34 @@ steps:
     fusion: false
 
   - ordinal: 13
+    action: compute
+    description: >
+      Apply the learned calibration bias to the prior probability before
+      re-entering the loop. Uses hkask_forecast::apply_calibration_adjustment
+      — the canonical primitive that closes the Brier feedback loop. The
+      overconfidence_bias input defaults to 0.0 (no adjustment) until an
+      external calibration curve (e.g. from scenario_calibration) supplies it.
+    compute_ref: apply_calibration_adjustment
+    gas_cap: 100
+    timeout_seconds: 5
+    input_mapping:
+      prior: "{{ step_9_result.final_probability | default(0.5) }}"
+      overconfidence_bias: "{{ overconfidence_bias | default(0.0) }}"
+    fusion: false
+
+  - ordinal: 14
     action: loop
     description: >
       Re-enter forecasting refinement cycle if convergence is not met.
       NOTE: Triage (step 1) is skipped on re-entry because the question
       has already been classified as Goldilocks on the first pass. The
       loop restarts at Fermi decomposition (step 2). The prior iteration's
-      calibrated probability is carried forward as prior_probability so the
-      convergence check's materiality guard can detect vacuous iterations
-      (delta < 0.02 with no new evidence).
+      calibration-adjusted probability is carried forward as prior_probability
+      so the convergence check's materiality guard can detect vacuous
+      iterations (delta < 0.02 with no new evidence).
     input_mapping:
       loop_target: 2
-      prior_probability: "{{ step_9_result.final_probability | default(0.5) }}"
+      prior_probability: "{{ step_13_result.adjusted | default(step_9_result.final_probability | default(0.5)) }}"
 
 error_handling:
   on_gas_exceeded: abort
@@ -316,6 +336,10 @@ ocap:
       action: render
       template_id: superforecasting/superforecasting-convergence-check
       gas_budget: 2000
+    - resource: compute
+      action: execute
+      compute_ref: apply_calibration_adjustment
+      gas_budget: 100
     - resource: manifest
       action: execute
       template_id: superforecasting
