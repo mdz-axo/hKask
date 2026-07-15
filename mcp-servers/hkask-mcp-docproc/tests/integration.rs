@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp_docproc::ocr::decimation;
-use hkask_mcp_docproc::ocr::pipeline::{self, OcrExecutor};
+use hkask_mcp_docproc::ocr::pipeline::{self, OcrError, OcrExecutor};
 use hkask_mcp_docproc::ocr::{OcrBackend, OcrResult, ThresholdConfig};
 use image::DynamicImage;
 
@@ -64,18 +64,24 @@ impl OcrExecutor for RealExecutor {
         backend: &OcrBackend,
         image: &DynamicImage,
         is_fallback: bool,
-    ) -> Result<OcrResult, String> {
+    ) -> Result<OcrResult, OcrError> {
         let start = std::time::Instant::now();
 
         if matches!(backend, OcrBackend::Tesseract) && tesseract_available() {
             // Native Tesseract
-            let dir = tempfile::tempdir().map_err(|e| format!("tempdir: {}", e))?;
+            let dir = tempfile::tempdir().map_err(|e| OcrError::BackendFailed {
+                backend: "tesseract".into(),
+                message: format!("tempdir: {e}"),
+            })?;
             let input_path = dir.path().join(format!("page_{}.png", page_index));
             let output_prefix = dir.path().join(format!("page_{}", page_index));
 
             image
                 .save(&input_path)
-                .map_err(|e| format!("save: {}", e))?;
+                .map_err(|e| OcrError::BackendFailed {
+                    backend: "tesseract".into(),
+                    message: format!("save: {e}"),
+                })?;
 
             let output = std::process::Command::new("tesseract")
                 .arg(&input_path)
@@ -85,15 +91,24 @@ impl OcrExecutor for RealExecutor {
                 .arg("--psm")
                 .arg("3")
                 .output()
-                .map_err(|e| format!("tesseract: {}", e))?;
+                .map_err(|e| OcrError::BackendFailed {
+                    backend: "tesseract".into(),
+                    message: format!("tesseract: {e}"),
+                })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(format!("Tesseract: {}", stderr.trim()));
+                return Err(OcrError::BackendFailed {
+                    backend: "tesseract".into(),
+                    message: format!("Tesseract: {}", stderr.trim()),
+                });
             }
 
             let txt_path = output_prefix.with_extension("txt");
-            let text = std::fs::read_to_string(&txt_path).map_err(|e| format!("read: {}", e))?;
+            let text = std::fs::read_to_string(&txt_path).map_err(|e| OcrError::BackendFailed {
+                backend: "tesseract".into(),
+                message: format!("read: {e}"),
+            })?;
 
             let duration_ms = start.elapsed().as_millis() as u64;
             let wc = text.split_whitespace().count();
@@ -110,10 +125,7 @@ impl OcrExecutor for RealExecutor {
         // LLM OCR
         let model = match backend {
             OcrBackend::LlmOcr(m) => m.clone(),
-            _ => self
-                .ocr_model
-                .clone()
-                .ok_or_else(|| "No OCR model configured".to_string())?,
+            _ => self.ocr_model.clone().ok_or(OcrError::NoModel)?,
         };
 
         let mut png_bytes: Vec<u8> = Vec::new();
@@ -122,7 +134,10 @@ impl OcrExecutor for RealExecutor {
                 &mut std::io::Cursor::new(&mut png_bytes),
                 image::ImageFormat::Png,
             )
-            .map_err(|e| format!("PNG encode: {}", e))?;
+            .map_err(|e| OcrError::BackendFailed {
+                backend: "llm_ocr".into(),
+                message: format!("PNG encode: {e}"),
+            })?;
 
         let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png_bytes);
 
@@ -139,7 +154,7 @@ impl OcrExecutor for RealExecutor {
                 Some(&model),
             )
             .await
-            .map_err(|e| format!("inference: {}", e))?;
+            .map_err(|e| OcrError::InferenceFailed(format!("inference: {e}")))?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
         let wc = result.text.split_whitespace().count();
