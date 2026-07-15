@@ -11,9 +11,9 @@
 //! - `HKASK_OCR_MODEL` — OCR model for scanned PDF fallback
 //! - `HKASK_MODEL_DEFAULT` — fallback when provider-specific not set
 
-/// Fast classifier model for summarization, classification, and non-thinking tasks.
-/// Qwen3-30B-A3B: 30B total, 3B active MoE — fast at high concurrency.
-pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/Qwen/Qwen3-30B-A3B";
+/// Approved classifier model for corpus pipeline classification.
+/// Qwen3.6-35B-A3B: 35B total, 3B active MoE — approved model.
+pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/Qwen/Qwen3.6-35B-A3B";
 
 /// Recommended secondary classifier for dual-model epistemic integrity.
 /// Gemma 4 31B Turbo — different model family, fast variant.
