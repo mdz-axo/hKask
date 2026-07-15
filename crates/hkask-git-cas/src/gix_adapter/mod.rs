@@ -40,7 +40,7 @@ fn open_or_init_repo(path: &Path) -> Result<gix::Repository, GitCasError> {
     if path.join(".git").exists() {
         gix::open(path).map_err(|e| GitCasError::Git(format!("gix::open: {e}")))
     } else {
-        let repo = gix::init(path).map_err(|e| GitCasError::Git(format!("gix::init: {e}")))?;
+        gix::init(path).map_err(|e| GitCasError::Git(format!("gix::init: {e}")))?;
         // gix::commit requires author identity — set a default in the repo config
         // so commits work in environments without global git config (e.g. CI).
         let config_path = path.join(".git").join("config");
@@ -49,7 +49,8 @@ fn open_or_init_repo(path: &Path) -> Result<gix::Repository, GitCasError> {
             "[user]\n\tname = hkask\n\temail = hkask@localhost\n",
         )
         .map_err(|e| GitCasError::Io(format!("Failed to write git config: {e}")))?;
-        Ok(repo)
+        // Re-open to pick up the config (the init-returned Repository cached the empty config).
+        gix::open(path).map_err(|e| GitCasError::Git(format!("gix::open after init: {e}")))
     }
 }
 
