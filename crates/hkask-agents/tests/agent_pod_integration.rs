@@ -1,45 +1,38 @@
 //! Multi-Pod Integration Tests — Acceptance tests for the three-tier pod architecture.
+//!
+//! Tests call `CuratorSync::tick()` directly instead of polling a background
+//! task. This is deterministic — no timeout, no polling, no timing dependency.
 
+use hkask_agents::curator::CuratorSync;
 use hkask_agents::pod::{ActivePods, AgentPersona, PodKind};
 use hkask_types::AgentKind;
 
-async fn wait_for_curator_h_mems(
-    pods: &ActivePods,
-    entity: &str,
-    min_count: usize,
-) -> Vec<hkask_storage::HMem> {
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
-    loop {
-        let h_mems = if let Some(index) = pods.curator_index().await {
-            index
-                .read()
-                .unwrap_or_else(|e| e.into_inner())
-                .query_by_entity(entity)
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-        if h_mems.len() >= min_count || tokio::time::Instant::now() >= deadline {
-            return h_mems;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    }
+/// Set up pods with a CuratorPod and a CuratorSync handle (no background task).
+/// Tests call `sync.tick().await` directly after storing an h_mem.
+async fn setup_with_curator(tmp: &tempfile::TempDir) -> (ActivePods, CuratorSync) {
+    let pods = ActivePods::new_test_harness(tmp.path());
+    let (_index, sync) = pods
+        .ensure_curator_for_test(tmp.path().to_path_buf())
+        .await
+        .expect("ensure_curator_for_test");
+    (pods, sync)
 }
 
-async fn setup_with_curator(
-    tmp: &tempfile::TempDir,
-) -> (ActivePods, tokio::sync::watch::Sender<bool>) {
-    let pods = ActivePods::new_test_harness(tmp.path());
-    let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-    let result = pods
-        .ensure_curator_with_interval(
-            tmp.path().to_path_buf(),
-            cancel_rx,
-            std::time::Duration::from_millis(10),
-        )
-        .await;
-    assert!(result.is_ok(), "ensure_curator failed: {:?}", result.err());
-    (pods, cancel_tx)
+/// Sync from pods into the Curator index and return h_mems for the given entity.
+async fn sync_and_query(
+    sync: &CuratorSync,
+    pods: &ActivePods,
+    entity: &str,
+) -> Vec<hkask_storage::HMem> {
+    sync.tick().await.expect("curator sync tick");
+    pods.curator_index()
+        .await
+        .and_then(|ci| {
+            ci.read()
+                .ok()
+                .map(|idx| idx.query_by_entity(entity).unwrap_or_default())
+        })
+        .unwrap_or_default()
 }
 
 async fn create_replicant(pods: &ActivePods, name: &str) -> hkask_types::PodID {
@@ -57,7 +50,7 @@ async fn create_replicant(pods: &ActivePods, name: &str) -> hkask_types::PodID {
 #[tokio::test]
 async fn curator_starts_and_has_empty_index() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_with_curator(&tmp).await;
+    let (pods, _sync) = setup_with_curator(&tmp).await;
     let ci = pods.curator_index().await.expect("curator index");
     let idx = ci.read().unwrap();
     assert_eq!(
@@ -70,12 +63,12 @@ async fn curator_starts_and_has_empty_index() {
 #[tokio::test]
 async fn replicant_writes_semantic_and_curator_sees_it() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_with_curator(&tmp).await;
+    let (pods, sync) = setup_with_curator(&tmp).await;
     let pod_id = create_replicant(&pods, "alice").await;
     let ctx = pods.context(&pod_id).await.expect("get PodContext");
     ctx.store_semantic("Bitcoin", "price", serde_json::json!("$100k"), 0.9)
         .expect("store_semantic");
-    let all = wait_for_curator_h_mems(&pods, "Bitcoin", 1).await;
+    let all = sync_and_query(&sync, &pods, "Bitcoin").await;
     assert!(
         !all.is_empty(),
         "Curator index should have Bitcoin h_mem after sync; got {} h_mems",
@@ -86,7 +79,7 @@ async fn replicant_writes_semantic_and_curator_sees_it() {
 #[tokio::test]
 async fn contradictory_triples_both_returned() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_with_curator(&tmp).await;
+    let (pods, sync) = setup_with_curator(&tmp).await;
     let alice_id = create_replicant(&pods, "alice").await;
     let bob_id = create_replicant(&pods, "bob").await;
     let alice_ctx = pods.context(&alice_id).await.expect("get alice context");
@@ -97,7 +90,7 @@ async fn contradictory_triples_both_returned() {
     bob_ctx
         .store_semantic("Bitcoin", "price", serde_json::json!("$50k"), 0.7)
         .expect("bob store");
-    let all = wait_for_curator_h_mems(&pods, "Bitcoin", 2).await;
+    let all = sync_and_query(&sync, &pods, "Bitcoin").await;
     let price_triples: Vec<_> = all.iter().filter(|t| t.attribute == "price").collect();
     assert!(
         price_triples.len() >= 2,
@@ -109,7 +102,7 @@ async fn contradictory_triples_both_returned() {
 #[tokio::test]
 async fn team_pod_bots_share_episodic() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
-    let (pods, _cancel) = setup_with_curator(&tmp).await;
+    let (pods, sync) = setup_with_curator(&tmp).await;
     let team_persona = AgentPersona::system("7r7", AgentKind::Bot);
     let team_id = pods
         .create_pod("team", &team_persona, None, PodKind::Team)
@@ -132,7 +125,7 @@ async fn team_pod_bots_share_episodic() {
             0.6,
         )
         .expect("team store semantic");
-    let all = wait_for_curator_h_mems(&pods, "team:discovery", 1).await;
+    let all = sync_and_query(&sync, &pods, "team:discovery").await;
     assert!(!all.is_empty(), "Curator should see TeamPod semantic h_mem");
 }
 

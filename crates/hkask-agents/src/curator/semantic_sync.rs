@@ -40,7 +40,7 @@ use tracing;
 
 /// Errors that can occur during curator semantic sync operations.
 #[derive(Debug, Error)]
-enum SyncError {
+pub enum SyncError {
     #[error("database passphrase resolution failed")]
     KeyDerivation(#[from] hkask_keystore::keychain::KeychainError),
     #[error("database error: {0}")]
@@ -94,21 +94,10 @@ impl CuratorSync {
     ///
     /// `index` must be the same Arc that ActivePods.curator_index points to.
     pub fn new(index: Arc<std::sync::RwLock<SemanticIndex>>, registry: Arc<PodRegistry>) -> Self {
-        Self::with_interval(index, registry, Duration::from_secs(1))
-    }
-
-    /// Create a CuratorSync with a custom polling interval.
-    /// Tests use a short interval (e.g. 10 ms) so sync completes in <100 ms
-    /// instead of waiting up to 1 s per tick.
-    pub fn with_interval(
-        index: Arc<std::sync::RwLock<SemanticIndex>>,
-        registry: Arc<PodRegistry>,
-        interval: Duration,
-    ) -> Self {
         Self {
             index,
             registry,
-            interval,
+            interval: Duration::from_secs(1),
             consecutive_failures: AtomicU64::new(0),
             artifact_index: Arc::new(std::sync::RwLock::new(ArtifactIndex::default())),
         }
@@ -160,7 +149,13 @@ impl CuratorSync {
 
     /// Single sync tick — polls all source pods for new public h_mems
     /// from both pod.db (episodic/semantic store) and memory.db (MCP tool store).
-    async fn tick(&self) -> Result<(), SyncError> {
+    /// Single sync tick — polls all source pods for new public h_mems
+    /// from both pod.db (episodic/semantic store) and memory.db (MCP tool store).
+    ///
+    /// Public so integration tests can call it directly instead of polling
+    /// a background task. The test stores an h_mem, calls `tick()`, then asserts
+    /// — deterministic, no timeout, no polling.
+    pub async fn tick(&self) -> Result<(), SyncError> {
         let pods = self
             .registry
             .scan_by_kind()

@@ -380,23 +380,55 @@ impl ActivePods {
         data_dir: std::path::PathBuf,
         cancel: tokio::sync::watch::Receiver<bool>,
     ) -> Result<Option<Arc<std::sync::RwLock<SemanticIndex>>>, AgentPodError> {
-        self.ensure_curator_with_interval(data_dir, cancel, std::time::Duration::from_secs(1))
-            .await
-    }
-
-    /// Like `ensure_curator` but with a custom CuratorSync poll interval.
-    /// Tests pass 10 ms so sync completes in <100 ms instead of <1 s.
-    pub async fn ensure_curator_with_interval(
-        &self,
-        data_dir: std::path::PathBuf,
-        cancel: tokio::sync::watch::Receiver<bool>,
-        interval: std::time::Duration,
-    ) -> Result<Option<Arc<std::sync::RwLock<SemanticIndex>>>, AgentPodError> {
-        // Check if curator already exists
+        // Idempotent — if curator already exists, don't spawn a second sync
         {
             let ci = self.curator_index.read().await;
             if let Some(ref index) = *ci {
                 return Ok(Some(Arc::clone(index)));
+            }
+        }
+
+        let (index, registry) = self.create_curator_pod(&data_dir).await?;
+        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), registry);
+        tokio::spawn(async move {
+            sync.run(cancel).await;
+        });
+        tracing::info!("CuratorSync spawned — polling semantic h_mems from all pods");
+
+        Ok(Some(index))
+    }
+
+    /// Like `ensure_curator` but returns the `CuratorSync` without spawning
+    /// the background loop. Integration tests call `sync.tick()` directly
+    /// after storing an h_mem — deterministic, no polling, no timeout.
+    pub async fn ensure_curator_for_test(
+        &self,
+        data_dir: std::path::PathBuf,
+    ) -> Result<
+        (
+            Arc<std::sync::RwLock<SemanticIndex>>,
+            crate::curator::CuratorSync,
+        ),
+        AgentPodError,
+    > {
+        let (index, registry) = self.create_curator_pod(&data_dir).await?;
+        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), registry);
+        Ok((index, sync))
+    }
+
+    /// Create the CuratorPod, activate it, and build the PodRegistry.
+    /// Shared by `ensure_curator` (production) and `ensure_curator_for_test` (tests).
+    async fn create_curator_pod(
+        &self,
+        data_dir: &std::path::Path,
+    ) -> Result<(Arc<std::sync::RwLock<SemanticIndex>>, Arc<PodRegistry>), AgentPodError> {
+        // Check if curator already exists
+        {
+            let ci = self.curator_index.read().await;
+            if let Some(ref index) = *ci {
+                // Already exists — build registry from data_dir, return existing index
+                let registry = Arc::new(PodRegistry::new(data_dir));
+                return Ok((Arc::clone(index), registry));
             }
         }
 
@@ -419,17 +451,8 @@ impl ActivePods {
             })?
         };
 
-        // Spawn CuratorSync background loop
-        let registry = Arc::new(PodRegistry::new(&data_dir));
-        let sync =
-            crate::curator::CuratorSync::with_interval(Arc::clone(&index), registry, interval);
-        tokio::spawn(async move {
-            sync.run(cancel).await;
-        });
-        // Keep handle alive so the task isn't cancelled by drop
-        tracing::info!("CuratorSync spawned — polling semantic h_mems from all pods");
-
-        Ok(Some(index))
+        let registry = Arc::new(PodRegistry::new(data_dir));
+        Ok((index, registry))
     }
 
     /// Activate a pod — matches old PodManager::activate_pod(id).
