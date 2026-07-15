@@ -28,8 +28,8 @@ Classify which interrogatory pronouns this passage answers. A passage can answer
 - **dc_subject**: General subject keywords (2-5 terms describing the topic)
 
 ### 3. PKO (process axis — how did this come to be / what process does it describe?)
-Extract any procedural/process concepts:
-- **pko_concepts**: List of process-related concepts (e.g., "procedure", "method", "analysis", "evaluation", "decision process", "feedback loop")
+Extract any procedural/process concepts and include them under the "pko" key in ontology_tags:
+- **ontology_tags.pko**: List of process-related concepts (e.g., "procedure", "method", "analysis", "evaluation", "decision process", "feedback loop")
 
 ### 4. Domain-Specific Ontology Tags (flexible)
 Extract domain concepts from whichever ontologies are relevant to this passage.
@@ -78,8 +78,7 @@ Schema:
 
 Rules:
 - "dimensions" must contain at least one 5W1H interrogatory
-- "fibo_concepts", "golem_concepts", and "omc_concepts" can be empty arrays if not applicable
-- "other_concepts" captures analytical/research concepts that don't fit FIBO or GOLEM
+- "ontology_tags" only includes namespaces with relevant concepts (omit empty ones)
 - "expertise_level" is one of: "practitioner", "analyst", "researcher"
 - All concept lists contain specific terms found in or implied by the passage
 - Do not invent concepts not supported by the text

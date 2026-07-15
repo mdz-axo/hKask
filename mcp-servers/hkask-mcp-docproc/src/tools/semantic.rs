@@ -350,10 +350,26 @@ impl DocProcServer {
                                 .collect()
                         })
                     });
+                let source = v
+                    .get("source")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let concepts = v
+                    .get("concepts")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|x| x.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 prompts_vec.push(BatchQaPrompt {
                     text,
                     chunk_id,
                     bloom_levels,
+                    source,
+                    concepts,
                 });
             }
 
@@ -426,19 +442,28 @@ impl DocProcServer {
                             let content = output_scan.output.content(&response.text);
                             match parse_qa_response(&extract_json_from_response(content), &levels, None) {
                                 Ok(qa_response) => {
-                                    let result = json!({
-                                        "chunk_id": prompt.chunk_id,
-                                        "bloom_levels": levels,
-                                        "qa_pairs": qa_response.qa_pairs,
-                                        "provenance": {
-                                            "generator_model": selected_model.as_deref().unwrap_or("router_default"),
-                                            "generator_parameters": params,
-                                            "prompt_template": template_source,
-                                            "source_chunk_ref": prompt.chunk_id,
-                                        },
-                                        "tokens_used": response.usage.total_tokens,
-                                    });
-                                    write_qa_result(&result, &output_writer, &write_count);
+                                    // Write one JSONL line per QA pair in envelope format
+                                    // (matches what docproc_ingest_qa's parse_qa_record expects)
+                                    for pair in qa_response.qa_pairs {
+                                        let result = json!({
+                                            "chunk_ref": prompt.chunk_id,
+                                            "source": prompt.source,
+                                            "qa_type": pair.bloom_level,
+                                            "response": {
+                                                "instruction": pair.question,
+                                                "output": pair.answer,
+                                                "type": pair.bloom_level,
+                                                "concepts": prompt.concepts,
+                                            },
+                                            "provenance": {
+                                                "generator_model": selected_model.as_deref().unwrap_or("router_default"),
+                                                "prompt_template": template_source,
+                                                "source_chunk_ref": prompt.chunk_id,
+                                            },
+                                            "tokens_used": response.usage.total_tokens,
+                                        });
+                                        write_qa_result(&result, &output_writer, &write_count);
+                                    }
                                 }
                                 Err(e) => {
                                     let result = json!({
@@ -879,51 +904,73 @@ impl DocProcServer {
 
         for chunk_batch in chunks.chunks(batch) {
             let batch_texts: Vec<&str> = chunk_batch.iter().map(|c| c.1.as_str()).collect();
-            match emb_router.embed_sentences(&model_name, &batch_texts).await {
-                Ok(vectors) => {
-                    for (c, vector) in chunk_batch.iter().zip(vectors.iter()) {
-                        // Store embedding vector
-                        if let Err(e) = semantic.store_embedding(&c.0, vector, &model_name) {
-                            failed += 1;
-                            if failed <= 5 {
+            // Retry with backoff (3 attempts) — same pattern as tag_chunks and extract_triples
+            let vectors = {
+                let mut attempts = 0u32;
+                loop {
+                    match emb_router.embed_sentences(&model_name, &batch_texts).await {
+                        Ok(v) => break v,
+                        Err(e) => {
+                            attempts += 1;
+                            if attempts >= 3 {
+                                failed += chunk_batch.len();
                                 tracing::warn!(
                                     target: "hkask.mcp.docproc.embed",
-                                    entity = %c.0,
+                                    batch_size = chunk_batch.len(),
+                                    attempts = attempts,
                                     error = %e,
-                                    "Failed to store embedding"
+                                    "Batch embedding failed after 3 retries"
                                 );
+                                break Vec::new();
                             }
-                            continue;
+                            let backoff = std::time::Duration::from_secs(2u64.pow(attempts) * 5);
+                            tracing::warn!(
+                                target: "hkask.mcp.docproc.embed",
+                                attempt = attempts,
+                                backoff_secs = backoff.as_secs(),
+                                error = %e,
+                                "Embedding retry — backing off"
+                            );
+                            tokio::time::sleep(backoff).await;
                         }
-                        // Store text h_mem
-                        let text_h_mem =
-                            hkask_storage::HMem::new(&c.0, "text", serde_json::json!(c.1), webid)
-                                .with_visibility(hkask_types::Visibility::Public)
-                                .with_confidence(1.0);
-                        let _ = semantic.store(text_h_mem);
-                        // Store provenance h_mem
-                        let provenance = serde_json::json!({
-                            "embedding_model": &model_name,
-                            "embedding_dimensions": vector.len(),
-                            "ingest_kind": "corpus_chunk",
-                        });
-                        let prov_h_mem =
-                            hkask_storage::HMem::new(&c.0, "corpus_provenance", provenance, webid)
-                                .with_visibility(hkask_types::Visibility::Public)
-                                .with_confidence(1.0);
-                        let _ = semantic.store(prov_h_mem);
-                        embedded += 1;
                     }
                 }
-                Err(e) => {
-                    failed += chunk_batch.len();
-                    tracing::warn!(
-                        target: "hkask.mcp.docproc.embed",
-                        batch_size = chunk_batch.len(),
-                        error = %e,
-                        "Batch embedding failed"
-                    );
+            };
+            if vectors.is_empty() {
+                continue;
+            }
+            for (c, vector) in chunk_batch.iter().zip(vectors.iter()) {
+                // Store embedding vector
+                if let Err(e) = semantic.store_embedding(&c.0, vector, &model_name) {
+                    failed += 1;
+                    if failed <= 5 {
+                        tracing::warn!(
+                            target: "hkask.mcp.docproc.embed",
+                            entity = %c.0,
+                            error = %e,
+                            "Failed to store embedding"
+                        );
+                    }
+                    continue;
                 }
+                // Store text h_mem
+                let text_h_mem =
+                    hkask_storage::HMem::new(&c.0, "text", serde_json::json!(c.1), webid)
+                        .with_visibility(hkask_types::Visibility::Public)
+                        .with_confidence(1.0);
+                let _ = semantic.store(text_h_mem);
+                // Store provenance h_mem
+                let provenance = serde_json::json!({
+                    "embedding_model": &model_name,
+                    "embedding_dimensions": vector.len(),
+                    "ingest_kind": "corpus_chunk",
+                });
+                let prov_h_mem =
+                    hkask_storage::HMem::new(&c.0, "corpus_provenance", provenance, webid)
+                        .with_visibility(hkask_types::Visibility::Public)
+                        .with_confidence(1.0);
+                let _ = semantic.store(prov_h_mem);
+                embedded += 1;
             }
         }
 
@@ -1034,6 +1081,12 @@ struct BatchQaPrompt {
     chunk_id: String,
     #[serde(default)]
     bloom_levels: Option<Vec<String>>,
+    /// Source file name (from build_prompts output).
+    #[serde(default)]
+    source: String,
+    /// Concepts from the original chunk (from build_prompts output).
+    #[serde(default)]
+    concepts: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

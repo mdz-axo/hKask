@@ -229,7 +229,7 @@ steps:
     params:
       prompts_jsonl: "corpus/qa_pairs/prompts.jsonl"
       output: "corpus/qa_pairs/generated.jsonl"
-      concurrency: 5
+      concurrency: 196
       model: "DI/zai-org/GLM-5.2"
 
   # ═══════════════════════════════════════════════════════════════════════
