@@ -1370,7 +1370,7 @@ impl ScenariosServer {
 
     /// Calibrate a forecast using Fermi decomposition and outside/inside view.
     #[tool(
-        description = "Calibrate a forecast probability using Tetlock's methodology. Three-stage: (1) Fermi decomposition — confidence-weighted average of sub-question estimates, (2) Outside view — blend with base rate from reference class using shrinkage estimator, (3) Inside view — adjust with case-specific evidence. Returns calibrated probability with confidence bounds."
+        description = "Calibrate a forecast probability using Tetlock's methodology. Four-stage: (1) Fermi decomposition — confidence-weighted average of sub-question estimates, (2) Outside view — blend with base rate from reference class using shrinkage estimator, (3) Inside view — adjust with case-specific evidence, (4) Calibration feedback — when ≥5 resolved forecasts exist in the store, apply the learned overconfidence bias to adjust the estimate (closes the Brier learning loop). Returns calibrated probability, calibration-adjusted probability, confidence bounds, and certainty tier."
     )]
     pub async fn scenario_calibrate(
         &self,
@@ -1403,6 +1403,20 @@ impl ScenariosServer {
                 (fermi_estimate, 0.5)
             };
 
+            // Close the Brier feedback loop: if enough historical resolved
+            // forecasts exist, apply the learned calibration bias to adjust
+            // this estimate (overconfident forecasters regress toward 0.5).
+            let (calibration_adjusted, overconfidence_bias) = {
+                let store = self.forecast_store.lock().unwrap_or_else(|e| e.into_inner());
+                match superforecast::compute_calibration_curve(&store) {
+                    Ok(curve) if curve.resolved_forecasts >= 5 => {
+                        let bias = curve.overconfidence_score;
+                        (hkask_forecast::apply_calibration_adjustment(calibrated, bias), Some(bias))
+                    }
+                    _ => (calibrated, None),
+                }
+            };
+
             let output = serde_json::json!({
                 "question": req.question,
                 "fermi_estimate": fermi_estimate,
@@ -1415,6 +1429,14 @@ impl ScenariosServer {
                 "confidence": confidence,
                 "confidence_pct": format!("{:.1}%", confidence * 100.0),
                 "certainty_tier": serde_json::to_value(CertaintyTier::from_probability(calibrated)).unwrap_or_default(),
+                "calibration_adjusted_probability": calibration_adjusted,
+                "calibration_adjusted_pct": format!("{:.1}%", calibration_adjusted * 100.0),
+                "overconfidence_bias": overconfidence_bias,
+                "feedback_loop": if overconfidence_bias.is_some() {
+                    "Closed: historical Brier-scored outcomes adjusted this estimate. Positive bias (overconfident) regresses toward 0.5; negative (underconfident) pushes outward."
+                } else {
+                    "Open: fewer than 5 resolved forecasts — no calibration adjustment applied yet. Record outcomes via scenario_score to close the loop."
+                },
                 "sub_questions": sub_questions.iter().map(|sq| serde_json::json!({
                     "question": sq.question,
                     "estimate": sq.estimate,
@@ -1432,6 +1454,7 @@ impl ScenariosServer {
                     "stage_2": "Outside view: blend base rate with shrinkage estimator (regression toward 0.5 based on reference count)",
                     "stage_3": "Inside view: apply case-specific evidence through the forecasting workflow, then use scenario_update for explicit Bayesian revisions",
                     "stage_4": "Bayesian updating: use scenario_update tool to revise with new evidence",
+                    "stage_5": "Calibration feedback: when >=5 resolved forecasts exist, apply the learned overconfidence bias (hkask_forecast::apply_calibration_adjustment) to close the Brier learning loop",
                 },
                 "reference": "Tetlock & Gardner, Superforecasting (2015), Ch. 4-6"
             });

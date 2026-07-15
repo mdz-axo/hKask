@@ -135,6 +135,29 @@ stage "natural-language only". The contract is mechanically verified by
 This makes the skill ↔ Rust seam auditable at CI time rather than only at code
 review, so the two surfaces cannot silently drift.
 
+## The closed feedback loop (operational)
+
+The Brier learning loop — Tetlock's record → score → recalibrate cycle — is now
+operational across the layers, not just documented:
+
+1. **Record**: `scenario_score` writes `StoredForecastRecord` entries (forecast
+   probability + outcome) into the `ForecastStore` journal.
+2. **Score**: `hkask_forecast::brier_score` / `brier_score_multi` compute the
+   Brier score for resolved forecasts.
+3. **Calibration curve**: `compute_calibration_curve` (scenarios) bins resolved
+   forecasts into 10 probability bands and derives an `overconfidence_score`
+   (signed mean of expected − hit rate).
+4. **Recalibrate**: `hkask_forecast::apply_calibration_adjustment` consumes the
+   overconfidence bias and regresses the next forecast's prior toward 0.5
+   (overconfident) or outward (underconfident). `scenario_calibrate` applies this
+   automatically when ≥5 resolved forecasts exist.
+
+This is the first operational bridge between the canonical-math layer and the
+domain-MCP layer: a signal computed in the server (`overconfidence_score`)
+flows into a canonical primitive (`apply_calibration_adjustment`) that adjusts
+the next forecast. The loop closes without coupling the servers to each other —
+both share only the canonical primitive.
+
 ## Common drift and how this model prevents it
 
 | Drift | How the model catches it |

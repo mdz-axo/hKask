@@ -156,6 +156,29 @@ pub fn brier_interpretation(score: f64) -> &'static str {
     }
 }
 
+// ── Calibration feedback ─────────────────────────────────────────────────────
+
+/// Adjust a prior probability using a calibration bias signal from a
+/// historical Brier-scored calibration curve. Closes the Tetlock feedback
+/// loop: record → Brier score → calibration curve → adjust next prior.
+///
+/// `overconfidence_bias` is the signed mean (expected_rate − hit_rate) across
+/// calibration bins (positive = systematically overconfident, negative =
+/// underconfident), typically from
+/// `hkask-mcp-scenarios::compute_calibration_curve.overconfidence_score`.
+///
+/// The adjustment regresses the prior toward the uninformative 0.5 anchor
+/// proportionally to the bias: an overconfident forecaster's extreme
+/// predictions are pulled toward 0.5; an underconfident forecaster's are
+/// pushed slightly away. The bias influence is clamped to ±0.5 so a single
+/// unreliable curve cannot invert a forecast.
+#[must_use = "calibrated prior should be used for the next forecast"]
+pub fn apply_calibration_adjustment(prior: f64, overconfidence_bias: f64) -> f64 {
+    let influence = overconfidence_bias.clamp(-0.5, 0.5);
+    let adjusted = prior - influence * (prior - 0.5);
+    adjusted.clamp(0.01, 0.99)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,5 +234,45 @@ mod tests {
     #[test]
     fn brier_interpretation_excellent() {
         assert_eq!(brier_interpretation(0.03), "excellent");
+    }
+
+    #[test]
+    fn calibration_adjustment_regresses_overconfident() {
+        // Overconfident (bias 0.3): an 0.9 prior should regress toward 0.5.
+        let adjusted = apply_calibration_adjustment(0.9, 0.3);
+        assert!(
+            adjusted < 0.9 && adjusted > 0.5,
+            "overconfident extreme regresses toward 0.5"
+        );
+    }
+
+    #[test]
+    fn calibration_adjustment_neutral_bias_unchanged() {
+        let adjusted = apply_calibration_adjustment(0.7, 0.0);
+        assert!(
+            (adjusted - 0.7).abs() < 1e-9,
+            "zero bias leaves prior unchanged"
+        );
+    }
+
+    #[test]
+    fn calibration_adjustment_underconfident_pushes_outward() {
+        // Underconfident (bias -0.2): a 0.6 prior should push slightly above 0.6.
+        let adjusted = apply_calibration_adjustment(0.6, -0.2);
+        assert!(
+            adjusted > 0.6,
+            "underconfident bias pushes prediction outward"
+        );
+    }
+
+    #[test]
+    fn calibration_adjustment_clamps_influence() {
+        // An extreme bias (2.0) is clamped to 0.5; an 0.8 prior regresses to
+        // 0.8 - 0.5*(0.8-0.5) = 0.65, not inverted.
+        let adjusted = apply_calibration_adjustment(0.8, 2.0);
+        assert!(
+            (adjusted - 0.65).abs() < 1e-9,
+            "extreme bias clamped to 0.5 influence"
+        );
     }
 }
