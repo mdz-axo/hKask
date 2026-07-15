@@ -363,20 +363,16 @@ pub(crate) fn tokens_to_words(tokens: usize) -> usize {
     ((tokens as f64) / 1.33) as usize
 }
 
-/// Compute (max_words, min_words, overlap_words) from (max_tokens, overlap_tokens).
-/// `overlap_tokens` is a true sliding-window overlap: consecutive chunks share
-/// `overlap_words` trailing words so context spanning a boundary survives.
-/// `min_words` is the minimum chunk size (hard floor below which a buffer won't
-/// flush). Falls back to HkaskSettings::chunk_max_tokens() when max_tokens is None.
+/// Compute (max_words, min_words) from (max_tokens, overlap_tokens).
+/// Falls back to HkaskSettings::chunk_max_tokens() when max_tokens is None.
 pub(crate) fn chunk_word_bounds(
     max_tokens: Option<usize>,
     overlap_tokens: Option<usize>,
-) -> (usize, usize, usize) {
+) -> (usize, usize) {
     let default_max = HkaskSettings::load().chunk_max_tokens();
     let max_w = tokens_to_words(max_tokens.unwrap_or(default_max));
-    let overlap_w = tokens_to_words(overlap_tokens.unwrap_or(64)).min(max_w / 2);
-    let min_w = (max_w / 4).max(overlap_w);
-    (max_w, min_w, overlap_w)
+    let min_w = tokens_to_words(overlap_tokens.unwrap_or(64)).max(max_w / 4);
+    (max_w, min_w)
 }
 
 /// Serialize (entity_ref, text) pair slice into json.
@@ -623,8 +619,7 @@ mod tests {
     fn chunk_word_bounds_defaults() {
         // Default max_tokens comes from HkaskSettings (256).
         // 256 tokens / 1.33 ≈ 192 words max, min = max(64/1.33=48, 192/4=48) = 48
-        let (max_w, _min_w, overlap_w) = chunk_word_bounds(None, None);
-        assert!(overlap_w > 0, "default overlap should be non-zero, got {overlap_w}");
+        let (max_w, _min_w) = chunk_word_bounds(None, None);
         assert!(
             max_w > 180 && max_w < 200,
             "max_words should be ~192, got {max_w}"
@@ -634,10 +629,9 @@ mod tests {
     #[test]
     fn chunk_word_bounds_explicit() {
         // 256 tokens / 1.33 ≈ 192 words, min = max(32/1.33=24, 192/4=48) = 48
-        let (max_w, min_w, overlap_w) = chunk_word_bounds(Some(256), Some(32));
+        let (max_w, min_w) = chunk_word_bounds(Some(256), Some(32));
         assert!(max_w > 180 && max_w < 200, "got {max_w}");
         assert!(min_w > 40 && min_w < 60, "got {min_w}");
-        assert_eq!(overlap_w, 24, "32 tokens -> 24 overlap words, got {overlap_w}");
     }
 
     #[test]

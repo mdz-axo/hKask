@@ -75,13 +75,13 @@ pub(crate) fn compute_marginal_probabilities(
             None => continue,
         };
 
-        if event.depends_on.is_none() {
+        if event.depends_on.is_empty() {
             // Root node: use own probability
             resolved.insert(id.clone(), event.probability);
         } else {
             // Full joint marginalization under parent independence.
             // P(E) = Sum_a P(E|a) * Product_i P(p_i)^{a_i} * (1-P(p_i))^{1-a_i}
-            let dep = event.depends_on.as_ref().unwrap();
+            let dep = &event.depends_on[0];
             let n_assignments = 1usize << dep.parent_event_ids.len();
 
             let parent_probs: Vec<f64> = dep
@@ -138,7 +138,7 @@ pub fn build_event_tree(events: &[ScenarioEvent]) -> Result<EventTree, ScenarioE
     // Identify root nodes (no dependencies)
     let root_ids: Vec<String> = events
         .iter()
-        .filter(|e| e.depends_on.is_none())
+        .filter(|e| e.depends_on.is_empty())
         .map(|e| e.id.clone())
         .collect();
 
@@ -157,22 +157,28 @@ pub fn build_event_tree(events: &[ScenarioEvent]) -> Result<EventTree, ScenarioE
             .get(id.as_str())
             .ok_or_else(|| ScenarioError::EventNotFound(id.clone()))?;
         let marginal = marginals.get(id).copied().unwrap_or(event.probability);
-        let joint_factor = match &event.depends_on {
-            None => marginal,
-            Some(dep) => dep.conditionals.last().copied().unwrap_or(0.0),
+        let joint_factor = if event.depends_on.is_empty() {
+            marginal
+        } else {
+            // All-parents-true conditional: conditionals[last] = P(E | all parents true)
+            event.depends_on[0]
+                .conditionals
+                .last()
+                .copied()
+                .unwrap_or(0.0)
         };
 
         // Build path from root to this node
         let paths = build_path(id, events);
 
-        // Uncertainty score: |P - 0.5| × 2 — distance from coin-flip, scaled to [0, 1]
-        let uncertainty_score = (marginal - 0.5).abs() * 2.0;
+        // Variance contribution: |P - 0.5| — how far from coin-flip
+        let variance_contribution = (marginal - 0.5).abs() * 2.0; // scale to [0, 1]
 
         nodes.push(EventTreeNode {
             event: (*event).clone(),
             marginal_probability: marginal,
             paths,
-            uncertainty_score,
+            variance_contribution,
         });
 
         // For dependent events, the all-events-occur joint factor is
@@ -200,7 +206,7 @@ pub fn build_event_tree(events: &[ScenarioEvent]) -> Result<EventTree, ScenarioE
         nodes,
         root_ids,
         topo_order: toposort,
-        all_events_probability: joint_prob,
+        joint_probability: joint_prob,
     })
 }
 
@@ -217,7 +223,7 @@ fn topological_sort(events: &[ScenarioEvent]) -> Result<Vec<String>, ScenarioErr
         .collect();
 
     for event in events {
-        if let Some(dep) = &event.depends_on {
+        for dep in &event.depends_on {
             for parent_id in &dep.parent_event_ids {
                 if !id_set.contains(parent_id.as_str()) {
                     return Err(ScenarioError::UnknownParent(
@@ -283,12 +289,12 @@ fn build_path(target_id: &str, events: &[ScenarioEvent]) -> Vec<Vec<String>> {
             None => return vec![vec![current.to_string()]],
         };
 
-        if event.depends_on.is_none() {
+        if event.depends_on.is_empty() {
             return vec![vec![current.to_string()]];
         }
 
         let mut all_paths = Vec::new();
-        if let Some(dep) = &event.depends_on {
+        for dep in &event.depends_on {
             for parent_id in &dep.parent_event_ids {
                 let parent_paths = collect_paths(parent_id, event_map, visited);
                 for parent_path in parent_paths {
@@ -319,7 +325,7 @@ pub fn sensitivity_ranking(tree: &EventTree) -> Vec<(String, f64)> {
     let mut ranked: Vec<(String, f64)> = tree
         .nodes
         .iter()
-        .map(|n| (n.event.id.clone(), 1.0 - n.uncertainty_score))
+        .map(|n| (n.event.id.clone(), 1.0 - n.variance_contribution))
         .collect();
     ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     ranked
@@ -1024,7 +1030,6 @@ pub struct ForecastStore {
     pub data_path: Option<PathBuf>,
     journal_path: Option<PathBuf>,
     journal_count: usize,
-    persistence_healthy: bool,
 }
 
 impl ForecastStore {
@@ -1040,7 +1045,6 @@ impl ForecastStore {
             data_path,
             journal_path,
             journal_count: 0,
-            persistence_healthy: true,
         };
         store.load();
         store
@@ -1048,44 +1052,32 @@ impl ForecastStore {
 
     /// Load: snapshot first, then replay journal on top (last write wins).
     fn load(&mut self) {
-        if let Some(ref path) = self.data_path && path.exists() {
-            match fs::read_to_string(path) {
-                Ok(data) => {
-                    match serde_json::from_str::<HashMap<String, StoredForecastRecord>>(&data) {
-                        Ok(records) => { self.records = records; }
-                        Err(e) => {
-                            tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to parse forecast snapshot");
-                            self.persistence_healthy = false;
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to read forecast snapshot");
-                    self.persistence_healthy = false;
-                }
-            }
+        if let Some(ref path) = self.data_path
+            && path.exists()
+            && let Ok(data) = fs::read_to_string(path)
+            && let Ok(records) =
+                serde_json::from_str::<HashMap<String, StoredForecastRecord>>(&data)
+        {
+            self.records = records;
         }
-        if let Some(ref jp) = self.journal_path && jp.exists() {
-            match fs::read_to_string(jp) {
-                Ok(data) => {
-                    for line in data.lines() {
-                        let trimmed = line.trim();
-                        if trimmed.is_empty() { continue; }
-                        if let Ok(entry) = serde_json::from_str::<serde_json::Value>(trimmed)
-                            && let (Some(key), Some(record)) = (
-                                entry.get("key").and_then(|v| v.as_str()),
-                                entry.get("record"),
-                            )
-                            && let Ok(rec) = serde_json::from_value::<StoredForecastRecord>(record.clone())
-                        {
-                            self.records.insert(key.to_string(), rec);
-                            self.journal_count += 1;
-                        }
-                    }
+        if let Some(ref jp) = self.journal_path
+            && jp.exists()
+            && let Ok(data) = fs::read_to_string(jp)
+        {
+            for line in data.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
                 }
-                Err(e) => {
-                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to read forecast journal");
-                    self.persistence_healthy = false;
+                if let Ok(entry) = serde_json::from_str::<serde_json::Value>(trimmed)
+                    && let (Some(key), Some(record)) = (
+                        entry.get("key").and_then(|v| v.as_str()),
+                        entry.get("record"),
+                    )
+                    && let Ok(rec) = serde_json::from_value::<StoredForecastRecord>(record.clone())
+                {
+                    self.records.insert(key.to_string(), rec);
+                    self.journal_count += 1;
                 }
             }
         }
@@ -1093,33 +1085,18 @@ impl ForecastStore {
 
     /// Append a single record entry to the journal (O(1) write per mutation).
     /// Only writes the changed record, not the full dataset.
-    fn save_entry(&mut self, key: &str, record: &StoredForecastRecord) {
+    fn save_entry(&self, key: &str, record: &StoredForecastRecord) {
         if let (Some(jp), Some(dp)) = (&self.journal_path, &self.data_path) {
-            if let Some(parent) = dp.parent()
-                && let Err(e) = fs::create_dir_all(parent) {
-                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to create forecast data directory");
-                    self.persistence_healthy = false;
-                    return;
-                }
-            match fs::OpenOptions::new().create(true).append(true).open(jp) {
-                Ok(mut file) => {
-                    match serde_json::to_string(&serde_json::json!({ "key": key, "record": record })) {
-                        Ok(line) => {
-                            if let Err(e) = writeln!(file, "{}", line) {
-                                tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to write forecast journal entry");
-                                self.persistence_healthy = false;
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to serialize forecast journal entry");
-                            self.persistence_healthy = false;
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to open forecast journal for append");
-                    self.persistence_healthy = false;
-                }
+            if let Some(parent) = dp.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(jp)
+                && let Ok(line) = serde_json::to_string(&serde_json::json!({
+                    "key": key,
+                    "record": record
+                }))
+            {
+                let _ = writeln!(file, "{}", line);
             }
         }
     }
@@ -1144,40 +1121,27 @@ impl ForecastStore {
     }
 
     /// Persist all changes (writes full snapshot, truncates journal).
-    pub fn persist(&mut self) {
+    pub fn persist(&self) {
         self.compact();
     }
 
     /// Compact: write full snapshot, truncate journal.
-    fn compact(&mut self) {
+    fn compact(&self) {
         if let Some(ref dp) = self.data_path {
-            if let Some(parent) = dp.parent()
-                && let Err(e) = fs::create_dir_all(parent) {
-                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to create forecast data directory during compaction");
-                    self.persistence_healthy = false;
-                    return;
-                }
-            match serde_json::to_string_pretty(&self.records) {
-                Ok(data) => {
-                    if let Err(e) = fs::write(dp, data) {
-                        tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to write forecast snapshot");
-                        self.persistence_healthy = false;
-                    } else if let Some(ref jp) = self.journal_path
-                        && let Err(e) = fs::write(jp, "") {
-                            tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to truncate forecast journal after compaction");
-                            self.persistence_healthy = false;
-                        }
-                }
-                Err(e) => {
-                    tracing::error!(target: "cns.mcp.scenarios.persistence", error = %e, "Failed to serialize forecast snapshot");
-                    self.persistence_healthy = false;
+            if let Some(parent) = dp.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if let Ok(data) = serde_json::to_string_pretty(&self.records) {
+                let _ = fs::write(dp, data);
+                if let Some(ref jp) = self.journal_path {
+                    let _ = fs::write(jp, "");
                 }
             }
         }
     }
 
     /// Force compaction regardless of threshold.
-    pub fn force_compact(&mut self) {
+    pub fn force_compact(&self) {
         self.compact();
     }
 
@@ -1188,11 +1152,6 @@ impl ForecastStore {
     /// Returns `true` if the forecast store contains no records.
     pub fn is_empty(&self) -> bool {
         self.records.is_empty()
-    }
-
-    /// Returns true if all persistence operations succeeded since load.
-    pub fn persistence_healthy(&self) -> bool {
-        self.persistence_healthy
     }
 
     pub fn values(&self) -> impl Iterator<Item = &StoredForecastRecord> {
@@ -1217,7 +1176,6 @@ impl ForecastStore {
             data_path: None,
             journal_path: None,
             journal_count: 0,
-            persistence_healthy: true,
         }
     }
 }
@@ -1447,8 +1405,8 @@ pub fn convert_companies_output(
             scenario_type: ScenarioType::CompanyAnalysis,
             subject: symbol.to_string(),
             probability: prob,
-            basis: Some(crate::types::Basis::FinancialModel),
-            depends_on: None,
+            basis: Some("financial_model".into()),
+            depends_on: vec![],
             sub_questions,
             base_rate: None,
             reference_class: Some("Company DCF scenario analysis, 2×2 Schwartz matrix".into()),
@@ -1466,7 +1424,7 @@ mod tests {
     use crate::types::CertaintyTier;
     use crate::types::EventDependency;
 
-    fn make_event(id: &str, prob: f64, deps: Option<EventDependency>) -> ScenarioEvent {
+    fn make_event(id: &str, prob: f64, deps: Vec<EventDependency>) -> ScenarioEvent {
         ScenarioEvent {
             id: id.into(),
             name: format!("Event {}", id),
@@ -1605,38 +1563,38 @@ mod tests {
 
     #[test]
     fn test_event_tree_no_deps() {
-        let events = vec![make_event("A", 0.8, None), make_event("B", 0.6, None)];
+        let events = vec![make_event("A", 0.8, vec![]), make_event("B", 0.6, vec![])];
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 2);
         assert_eq!(tree.root_ids.len(), 2);
-        assert!((tree.all_events_probability - 0.48).abs() < 0.01);
+        assert!((tree.joint_probability - 0.48).abs() < 0.01);
     }
 
     #[test]
     fn test_event_tree_with_dependency() {
-        let dep = EventDependency {
+        let dep = vec![EventDependency {
             parent_event_ids: vec!["A".into()],
             conditionals: vec![0.2, 0.9], // [P(E|not A), P(E|A)]
-        };
-        let events = vec![make_event("A", 0.5, None), make_event("B", 0.7, Some(dep))];
+        }];
+        let events = vec![make_event("A", 0.5, vec![]), make_event("B", 0.7, dep)];
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 2);
         let b_node = tree.nodes.iter().find(|n| n.event.id == "B").unwrap();
         assert!((b_node.marginal_probability - 0.55).abs() < 0.01);
-        assert!((tree.all_events_probability - 0.45).abs() < 0.01);
+        assert!((tree.joint_probability - 0.45).abs() < 0.01);
     }
 
     #[test]
     fn test_event_tree_cycle_detection() {
-        let dep_a = EventDependency {
+        let dep_a = vec![EventDependency {
             parent_event_ids: vec!["B".into()],
             conditionals: vec![0.3, 0.8],
-        };
-        let dep_b = EventDependency {
+        }];
+        let dep_b = vec![EventDependency {
             parent_event_ids: vec!["A".into()],
             conditionals: vec![0.3, 0.8],
-        };
-        let events = vec![make_event("A", 0.5, Some(dep_a)), make_event("B", 0.5, Some(dep_b))];
+        }];
+        let events = vec![make_event("A", 0.5, dep_a), make_event("B", 0.5, dep_b)];
         let result = build_event_tree(&events);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ScenarioError::CycleDetected));
@@ -1656,15 +1614,15 @@ mod tests {
         //   P(¬A,¬B) = 0.10, P(A,¬B) = 0.10, P(¬A,B) = 0.40, P(A,B) = 0.40
         // P(C) = 0.05*0.10 + 0.30*0.10 + 0.40*0.40 + 0.90*0.40 = 0.555
         // Joint P(all) = P(A) * P(B) * P(C | A=true, B=true) = 0.5 * 0.8 * 0.90 = 0.36
-        let dep_c = EventDependency {
+        let dep_c = vec![EventDependency {
             parent_event_ids: vec!["A".into(), "B".into()],
             // bitmap: 00=¬A¬B, 01=A¬B, 10=¬AB, 11=AB
             conditionals: vec![0.05, 0.30, 0.40, 0.90],
-        };
+        }];
         let events = vec![
-            make_event("A", 0.5, None),
-            make_event("B", 0.8, None),
-            make_event("C", 0.3, Some(dep_c)),
+            make_event("A", 0.5, vec![]),
+            make_event("B", 0.8, vec![]),
+            make_event("C", 0.3, dep_c),
         ];
         let tree = build_event_tree(&events).unwrap();
         assert_eq!(tree.nodes.len(), 3);
@@ -1681,9 +1639,9 @@ mod tests {
 
         let expected_joint = 0.36;
         assert!(
-            (tree.all_events_probability - expected_joint).abs() < 0.001,
+            (tree.joint_probability - expected_joint).abs() < 0.001,
             "joint = {} expected {}",
-            tree.all_events_probability,
+            tree.joint_probability,
             expected_joint
         );
     }
@@ -1691,8 +1649,8 @@ mod tests {
     #[test]
     fn test_sensitivity_ranking() {
         let events = vec![
-            make_event("A", 0.5, None),  // max uncertainty (coin flip)
-            make_event("B", 0.99, None), // near certainty
+            make_event("A", 0.5, vec![]),  // max uncertainty (coin flip)
+            make_event("B", 0.99, vec![]), // near certainty
         ];
         let tree = build_event_tree(&events).unwrap();
         let ranked = sensitivity_ranking(&tree);
@@ -1702,14 +1660,14 @@ mod tests {
 
     #[test]
     fn test_validate_nan_rejected() {
-        let event = make_event("A", f64::NAN, None);
+        let event = make_event("A", f64::NAN, vec![]);
         let result = event.validate();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_validate_inf_rejected() {
-        let event = make_event("A", f64::INFINITY, None);
+        let event = make_event("A", f64::INFINITY, vec![]);
         let result = event.validate();
         assert!(result.is_err());
     }
@@ -1721,7 +1679,7 @@ mod tests {
             parent_event_ids: vec!["A".into(), "B".into()],
             conditionals: vec![0.1, 0.3, 0.7], // should be length 4
         };
-        let event = make_event("C", 0.5, Some(dep));
+        let event = make_event("C", 0.5, vec![dep]);
         let result = event.validate();
         assert!(result.is_err());
     }
@@ -1767,7 +1725,7 @@ mod tests {
 
     #[test]
     fn test_auto_update_suggestions_correct_direction() {
-        let events = vec![make_event("A", 0.3, None)];
+        let events = vec![make_event("A", 0.3, vec![])];
         let outcomes = vec![("A".into(), true)]; // event occurred but forecast was 30%
         let suggestions = auto_update_suggestions(&events, &outcomes);
         assert_eq!(suggestions.len(), 1);

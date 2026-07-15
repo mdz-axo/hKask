@@ -41,15 +41,6 @@ pub mod types;
 
 use types::*;
 
-/// Outcome entry for Brier scoring.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct OutcomeEntry {
-    /// Event ID that this outcome applies to
-    pub event_id: String,
-    /// Whether the event occurred (true) or not (false)
-    pub occurred: bool,
-}
-
 // ── Request types for MCP tools ────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -114,10 +105,10 @@ pub struct CompaniesBridgeRequest {
 pub struct FullPipelineRequest {
     /// Subject: company ticker, industry, country, or technology domain
     pub subject: String,
-    /// Events for the scenario pipeline
-    pub events: Vec<ScenarioEvent>,
-    /// Optional: perspectives for dragonfly-eye synthesis
-    pub perspectives: Option<Vec<Perspective>>,
+    /// Events as JSON array of ScenarioEvent objects (from scenario_brainstorm or manual construction)
+    pub events: String,
+    /// Optional: perspectives for dragonfly-eye synthesis, as JSON array of Perspective objects
+    pub perspectives: Option<String>,
     /// Optional: project-level metadata for assessment
     pub perspective_count: Option<usize>,
     /// Optional: how many strategies were generated from the scenarios
@@ -138,22 +129,22 @@ pub struct CrossValidateRequest {
     pub source_a: String,
     /// First probability estimate (0.0-1.0)
     pub estimate_a: f64,
-    /// Fermi sub-questions for estimate A
-    pub sub_questions_a: Vec<SubQuestion>,
+    /// Fermi sub-questions for estimate A as JSON array
+    pub sub_questions_a: String,
     /// Label for the second estimate source (e.g., 'scenario_calibrate')
     pub source_b: String,
     /// Second probability estimate (0.0-1.0)
     pub estimate_b: f64,
-    /// Fermi sub-questions for estimate B
-    pub sub_questions_b: Vec<SubQuestion>,
+    /// Fermi sub-questions for estimate B as JSON array
+    pub sub_questions_b: String,
     /// Review threshold (default 0.15). Divergence above this triggers review.
     pub review_threshold: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct QuantifyRequest {
-    /// Events to quantify
-    pub events: Vec<ScenarioEvent>,
+    /// Events as JSON array of ScenarioEvent objects
+    pub events: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -176,18 +167,18 @@ pub struct UpdateRequest {
 pub struct ScoreRequest {
     /// Forecast record ID
     pub forecast_id: String,
-    /// Events to score
-    pub events: Vec<ScenarioEvent>,
-    /// Outcomes for each event
-    pub outcomes: Vec<OutcomeEntry>,
+    /// Events as JSON array of ScenarioEvent objects
+    pub events: String,
+    /// Outcomes: array of {event_id, occurred} objects as JSON
+    pub outcomes: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CalibrateRequest {
     /// The forecast question
     pub question: String,
-    /// Fermi sub-questions for calibration
-    pub sub_questions: Vec<SubQuestion>,
+    /// Fermi sub-questions as JSON array of {question, estimate, confidence}
+    pub sub_questions: String,
     /// Reference class description
     pub reference_class: Option<String>,
     /// Base rate from outside view
@@ -198,16 +189,16 @@ pub struct CalibrateRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SensitivityRequest {
-    /// Events to rank by uncertainty
-    pub events: Vec<ScenarioEvent>,
+    /// Events as JSON array of ScenarioEvent objects
+    pub events: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SynthesizeRequest {
     /// Event ID to synthesize perspectives for
     pub event_id: String,
-    /// Perspectives to synthesize
-    pub perspectives: Vec<Perspective>,
+    /// Perspectives as JSON array of Perspective objects
+    pub perspectives: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -271,52 +262,15 @@ pub struct AssessRequest {
 struct StatusRequest {}
 
 // ── Server struct ──────────────────────────────────────────────────────────
-// Manual struct definition (not using mcp_server! macro) so that
-// ToolContext::record_tool_outcome can be selectively overridden:
-// - Successes: suppressed (record_experience provides the detailed write)
-// - Errors: recorded (record_experience never runs on the error path)
-// - Sequence tracking: always runs (errors should count as "called")
 
-struct ScenariosServer {
-    pub webid: hkask_types::WebID,
-    pub replicant: String,
-    pub daemon: Option<hkask_mcp::DaemonClient>,
-    pub forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
-    pub tree_cache: std::sync::Mutex<Option<types::EventTree>>,
-    pub called_tools: std::sync::Mutex<HashSet<String>>,
-}
-
-impl ScenariosServer {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        webid: hkask_types::WebID,
-        replicant: String,
-        daemon: Option<hkask_mcp::DaemonClient>,
-        forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
-        tree_cache: std::sync::Mutex<Option<types::EventTree>>,
-        called_tools: std::sync::Mutex<HashSet<String>>,
-    ) -> Self {
-        Self { webid, replicant, daemon, forecast_store, tree_cache, called_tools }
+hkask_mcp::mcp_server!(
+    struct ScenariosServer {
+        pub forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
+        pub client: reqwest::Client,
+        pub tree_cache: std::sync::Mutex<Option<types::EventTree>>,
+        pub called_tools: std::sync::Mutex<HashSet<String>>,
     }
-}
-
-impl hkask_mcp::server::ToolContext for ScenariosServer {
-    fn webid(&self) -> &hkask_types::WebID {
-        &self.webid
-    }
-    fn record_tool_outcome(&self, tool: &str, outcome: &str) {
-        // Always track the call in the sequence checker — errors should
-        // still count as "called" so successors don't get false sequence
-        // violation warnings.
-        self.check_sequence(tool);
-        // Only record errors to the daemon — successes are handled by
-        // record_experience with full provenance. This avoids double-
-        // recording while ensuring error outcomes are still persisted.
-        if outcome == "error" {
-            hkask_mcp::server::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
-        }
-    }
-}
+);
 
 impl ScenariosServer {
     /// Map a tool name to its ontology anchor tier.
@@ -387,7 +341,8 @@ impl ScenariosServer {
                 "timestamp": now_rfc3339(),
                 "provenance": {
                     "server": "hkask-mcp-scenarios",
-                    "version": SERVER_VERSION,
+                    "version": "0.31.0",
+                    "framework": "Tetlock GJP Superforecasting + Schwartz Scenario Planning + Chermack Project Assessment"
                 },
                 "ontology_anchor": Self::ontology_anchor(tool),
             });
@@ -412,6 +367,14 @@ impl ScenariosServer {
                 }
             });
         }
+    }
+}
+
+// ── Tool router ────────────────────────────────────────────────────────────
+
+impl ScenariosServer {
+    fn combined_router() -> rmcp::handler::server::router::tool::ToolRouter<Self> {
+        Self::scenario_router()
     }
 }
 
@@ -453,16 +416,13 @@ impl ScenariosServer {
 
             let tree = self.tree_cache.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
-            let persistence_healthy = store.persistence_healthy();
-
             let output = serde_json::json!({
                 "pipeline": {
                     "forecast_count": total,
                     "resolved_count": resolved_count,
                     "pending_count": pending_count,
                     "overall_brier": overall_brier,
-                    "recent_forecasts": recent,
-                    "persistence_healthy": persistence_healthy
+                    "recent_forecasts": recent
                 },
                 "calibration": calibration.map(|c| serde_json::json!({
                     "total_forecasts": c.total_forecasts,
@@ -472,11 +432,10 @@ impl ScenariosServer {
                     "interpretation": c.interpretation
                 })),
                 "event_tree": tree.map(|t| serde_json::json!({
-                    "cache_note": "Reflects last scenario_quantify output — may be stale if events were updated since",
                     "subject": t.subject,
                     "time_horizon": serde_json::to_value(t.time_horizon).unwrap_or_default(),
                     "event_count": t.nodes.len(),
-                    "all_events_probability": t.all_events_probability,
+                    "joint_probability": t.joint_probability,
                     "root_ids": t.root_ids,
                     "nodes": t.nodes.iter().map(|n| serde_json::json!({
                         "id": n.event.id,
@@ -495,7 +454,7 @@ impl ScenariosServer {
                 })),
                 "provenance": {
                     "server": "hkask-mcp-scenarios",
-                    "version": SERVER_VERSION
+                    "version": "0.31.0"
                 },
                 "ontology_anchor": "dublin-core"
             });
@@ -513,7 +472,8 @@ impl ScenariosServer {
     #[tool(description = "Run the complete scenario pipeline in a single call.")]
     pub async fn scenario_full(&self, Parameters(req): Parameters<FullPipelineRequest>) -> String {
         execute_tool_semantic(self, "scenario_full", Some(Self::ontology_anchor("scenario_full")), async {
-            let events = &req.events;
+            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
 
             // Step 1: Triage
             let triage_results: Vec<_> = events.iter().map(|e| {
@@ -522,7 +482,7 @@ impl ScenariosServer {
             }).collect();
 
             // Step 2: Quantify
-            let tree = superforecast::build_event_tree(events)
+            let tree = superforecast::build_event_tree(&events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             // Step 3: Sensitivity
@@ -539,11 +499,12 @@ impl ScenariosServer {
             }).collect();
 
             // Step 5: Synthesize (if perspectives provided)
-            let synth = req.perspectives.as_ref()
-                .and_then(|ps| if ps.len() >= 2 { superforecast::synthesize_perspectives(&events[0].id, ps).ok() } else { None });
+            let synth = req.perspectives.as_deref()
+                .and_then(|s| serde_json::from_str::<Vec<Perspective>>(s).ok())
+                .and_then(|ps| if ps.len() >= 2 { superforecast::synthesize_perspectives(&events[0].id, &ps).ok() } else { None });
 
             // Step 6: Assess
-            let deps = events.iter().filter(|e| e.depends_on.is_some()).count();
+            let deps = events.iter().filter(|e| !e.depends_on.is_empty()).count();
             let learning: Vec<String> = req.learning_events.as_deref()
                 .map(|s| s.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
                 .unwrap_or_default();
@@ -565,7 +526,7 @@ impl ScenariosServer {
             let output = serde_json::json!({
                 "subject": req.subject, "pipeline": "full", "event_count": events.len(),
                 "triage": triage_results,
-                "quantify": {"all_events_probability": tree.all_events_probability},
+                "quantify": {"joint_probability": tree.joint_probability},
                 "sensitivity": sensitivity.iter().map(|(id, s)| serde_json::json!({"event_id": id, "score": s})).collect::<Vec<_>>(),
                 "calibration": calibration,
                 "synthesis": synth.map(|s| serde_json::json!({"aggregated": s.aggregated_probability, "disagreement": s.disagreement_score})),
@@ -598,7 +559,7 @@ impl ScenariosServer {
         Parameters(req): Parameters<CompaniesBridgeRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_from_companies", Some(Self::ontology_anchor("scenario_from_companies")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
+            let horizon = parse_time_horizon(req.time_horizon.as_deref());
             let companies_json: serde_json::Value = serde_json::from_str(&req.companies_output)
                 .map_err(|e| McpToolError::invalid_argument(format!("invalid companies output JSON: {}", e)))?;
 
@@ -664,13 +625,15 @@ impl ScenariosServer {
         Parameters(req): Parameters<CrossValidateRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_cross_validate", Some(Self::ontology_anchor("scenario_cross_validate")), async {
-            let sq_a = &req.sub_questions_a;
-            let sq_b = &req.sub_questions_b;
+            let sq_a: Vec<SubQuestion> = serde_json::from_str(&req.sub_questions_a)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid sub_questions_a JSON: {}", e)))?;
+            let sq_b: Vec<SubQuestion> = serde_json::from_str(&req.sub_questions_b)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid sub_questions_b JSON: {}", e)))?;
 
             let validation = superforecast::cross_validate(
                 &req.event_id,
-                &req.source_a, req.estimate_a, sq_a,
-                &req.source_b, req.estimate_b, sq_b,
+                &req.source_a, req.estimate_a, &sq_a,
+                &req.source_b, req.estimate_b, &sq_b,
                 req.review_threshold,
             );
 
@@ -837,7 +800,7 @@ impl ScenariosServer {
         Parameters(req): Parameters<BrainstormRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_brainstorm", Some(Self::ontology_anchor("scenario_brainstorm")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
+            let horizon = parse_time_horizon(req.time_horizon.as_deref());
             let research = req.research_context.as_deref().unwrap_or("No research context provided. Use scenario_research to gather web search results first, or provide context manually.");
 
             let persona_names: Vec<String> = req
@@ -939,8 +902,8 @@ impl ScenariosServer {
     )]
     pub async fn scenario_build(&self, Parameters(req): Parameters<BuildEventsRequest>) -> String {
         execute_tool_semantic(self, "scenario_build", Some(Self::ontology_anchor("scenario_build")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
-            let scenario_type = parse_scenario_type(req.scenario_type.as_deref())?;
+            let horizon = parse_time_horizon(req.time_horizon.as_deref());
+            let scenario_type = parse_scenario_type(req.scenario_type.as_deref());
             let max_events = req.max_events.unwrap_or(6);
             let context_str = req.context.as_deref().unwrap_or("");
 
@@ -962,7 +925,7 @@ impl ScenariosServer {
                      1. A specific yes/no question with a clear deadline\n\
                      2. Placed in a dependency tree (what must happen first?)\n\
                      3. Assigned a probability tier: proximate (>67%), probable (33-66%), or possible (<33%)\n\
-                     4. Anchored to either technical_feasibility, scaling_distribution, or financial_model as the basis\n\
+                     4. Anchored to either technical_feasibility or scaling_distribution as the basis\n\
                      \n\
                      Format as a JSON array of ScenarioEvent objects with:\n\
                      - id: unique short identifier (e.g. 'evt-1')\n\
@@ -976,8 +939,8 @@ impl ScenariosServer {
                      - subject: the subject under analysis
 \
                      - probability: 0.0-1.0 estimate
-                     - basis: 'technical_feasibility', 'scaling_distribution', or 'financial_model'\n\
-                     - depends_on: null or an object with parent_event_ids (list of parent event IDs) and conditionals (bitmap-ordered conditional probabilities, length = 2^num_parents)\n\
+                     - basis: 'technical_feasibility' or 'scaling_distribution'\n\
+                     - depends_on: [] or a single-entry array with parent_event_ids (list of parent event IDs) and conditionals (bitmap-ordered conditional probabilities, length = 2^num_parents)\n\
                      - sub_questions: 2-4 Fermi decomposition questions
 \
                      - base_rate, reference_class, and brier_score: null when unavailable
@@ -997,7 +960,7 @@ impl ScenariosServer {
                     "subject": req.subject,
                     "probability": 0.5,
                     "basis": "technical_feasibility or scaling_distribution",
-                    "depends_on": null,
+                    "depends_on": [],
                     "sub_questions": [
                         {"question": "What enabling factor must be in place?", "estimate": 0.5, "confidence": 0.5},
                         {"question": "What competitive response is likely?", "estimate": 0.5, "confidence": 0.5},
@@ -1057,8 +1020,8 @@ impl ScenariosServer {
     )]
     pub async fn scenario_research(&self, Parameters(req): Parameters<ResearchRequest>) -> String {
         execute_tool_semantic(self, "scenario_research", Some(Self::ontology_anchor("scenario_research")), async {
-            let horizon = parse_time_horizon(req.time_horizon.as_deref())?;
-            let scenario_type = parse_scenario_type(req.scenario_type.as_deref())?;
+            let horizon = parse_time_horizon(req.time_horizon.as_deref());
+            let scenario_type = parse_scenario_type(req.scenario_type.as_deref());
             let max_events = req.max_events.unwrap_or(6);
 
             // Analyze research text for structural clues
@@ -1105,10 +1068,10 @@ impl ScenariosServer {
                      3. Include dependency relationships (what must happen first?)\n\
                      4. Include an initial probability estimate\n\
                      5. Include 2-4 Fermi decomposition sub-questions\n\
-                     6. Tag the basis as 'technical_feasibility', 'scaling_distribution', or 'financial_model'\n\n\
+                     6. Tag the basis as 'technical_feasibility' or 'scaling_distribution'\n\n\
                      Detected themes in the research: {}\n\n\
                      Return ONLY a JSON array of ScenarioEvent objects with these fields:\n\
-                     id, name, question, deadline, time_horizon, scenario_type, subject, probability (0.0-1.0), basis, depends_on (null, or an object with parent_event_ids and conditionals fields), sub_questions (array of question/estimate/confidence objects), base_rate, reference_class, brier_score, update_count
+                     id, name, question, deadline, time_horizon, scenario_type, subject, probability (0.0-1.0), basis, depends_on (array with parent_event_ids and conditionals fields), sub_questions (array of question/estimate/confidence objects), base_rate, reference_class, brier_score, update_count
 
 \
                      Use null for unavailable base_rate, reference_class, and brier_score; use 0 for update_count.
@@ -1136,7 +1099,7 @@ impl ScenariosServer {
                     "subject": req.subject,
                     "probability": 0.5,
                     "basis": "technical_feasibility or scaling_distribution",
-                    "depends_on": null,
+                    "depends_on": [],
                     "sub_questions": [
                         {"question": "What enabling factor must be in place?", "estimate": 0.5, "confidence": 0.5},
                         {"question": "What is the base rate for events of this type?", "estimate": 0.5, "confidence": 0.5},
@@ -1172,16 +1135,17 @@ impl ScenariosServer {
         .await
     }
 
-    /// Quantify an event tree: compute marginal probabilities, all-events probability,
+    /// Quantify an event tree: compute marginal probabilities, joint probability,
     /// and build the full resolved tree with sensitivity rankings.
     #[tool(
-        description = "Quantify a scenario event tree. Takes a JSON array of ScenarioEvent objects with conditional dependencies and computes: (1) topological sort of dependency graph, (2) marginal probabilities for each event via conditional probability propagation, (3) all-events probability of the full event chain, (4) uncertainty score per event (sensitivity proxy), (5) sensitivity ranking. Detects cycles and missing parent references. Returns the full resolved EventTree."
+        description = "Quantify a scenario event tree. Takes a JSON array of ScenarioEvent objects with conditional dependencies and computes: (1) topological sort of dependency graph, (2) marginal probabilities for each event via conditional probability propagation, (3) joint probability of the full event chain, (4) variance contribution per event (sensitivity proxy), (5) sensitivity ranking. Detects cycles and missing parent references. Returns the full resolved EventTree."
     )]
     pub async fn scenario_quantify(&self, Parameters(req): Parameters<QuantifyRequest>) -> String {
         execute_tool_semantic(self, "scenario_quantify", Some(Self::ontology_anchor("scenario_quantify")), async {
-            let events = &req.events;
+            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
 
-            let tree = superforecast::build_event_tree(events)
+            let tree = superforecast::build_event_tree(&events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             // Cache for TUI status queries
@@ -1200,8 +1164,8 @@ impl ScenariosServer {
                 "event_count": tree.nodes.len(),
                 "root_events": tree.root_ids,
                 "topological_order": tree.topo_order,
-                "all_events_probability": tree.all_events_probability,
-                "all_events_probability_pct": format!("{:.1}%", tree.all_events_probability * 100.0),
+                "joint_probability": tree.joint_probability,
+                "joint_probability_pct": format!("{:.1}%", tree.joint_probability * 100.0),
                 "nodes": tree.nodes.iter().map(|n| serde_json::json!({
                     "id": n.event.id,
                     "name": n.event.name,
@@ -1210,7 +1174,7 @@ impl ScenariosServer {
                     "marginal_probability": n.marginal_probability,
                     "probability_pct": format!("{:.1}%", n.marginal_probability * 100.0),
                     "certainty_tier": serde_json::to_value(n.event.certainty_tier()).unwrap_or_default(),
-                    "uncertainty_score": n.uncertainty_score,
+                    "variance_contribution": n.variance_contribution,
                     "depends_on": n.event.depends_on.iter().map(|d| serde_json::json!({
                         "parent_event_ids": d.parent_event_ids,
                         "conditionals": d.conditionals,
@@ -1221,14 +1185,14 @@ impl ScenariosServer {
                     serde_json::json!({"event_id": id, "uncertainty_score": score})
                 }).collect::<Vec<_>>(),
                 "interpretation": {
-                    "all_events_probability": format!(
+                    "joint_probability": format!(
                         "The probability that ALL events occur as forecast is {:.1}%",
-                        tree.all_events_probability * 100.0
+                        tree.joint_probability * 100.0
                     ),
                     "most_uncertain": most_uncertain,
                     "most_certain": most_certain,
                 },
-                "framework": "Conditional probability tree. Each node's marginal is computed via full joint-table marginalization under parent independence: P(E) = Sum_a P(E|a) * Product_i P(p_i)^{a_i} * (1-P(p_i))^{1-a_i}. Root nodes use their intrinsic probability. All-events probability = product of all-nodes-occur conditionals."
+                "framework": "Conditional probability tree. Each node's marginal is computed via full joint-table marginalization under parent independence: P(E) = Sum_a P(E|a) * Product_i P(p_i)^{a_i} * (1-P(p_i))^{1-a_i}. Root nodes use their intrinsic probability. Joint = product of all-nodes-occur conditionals."
             });
 
             self.record_experience(
@@ -1302,16 +1266,26 @@ impl ScenariosServer {
     )]
     pub async fn scenario_score(&self, Parameters(req): Parameters<ScoreRequest>) -> String {
         execute_tool_semantic(self, "scenario_score", Some(Self::ontology_anchor("scenario_score")), async {
-            let events = &req.events;
-            let outcome_pairs: Vec<(String, bool)> = req.outcomes
-                .iter()
-                .map(|o| (o.event_id.clone(), o.occurred))
+            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
+
+            #[derive(Deserialize)]
+            struct OutcomeEntry {
+                event_id: String,
+                occurred: bool,
+            }
+            let outcomes: Vec<OutcomeEntry> = serde_json::from_str(&req.outcomes)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid outcomes JSON: {}", e)))?;
+
+            let outcome_pairs: Vec<(String, bool)> = outcomes
+                .into_iter()
+                .map(|o| (o.event_id, o.occurred))
                 .collect();
 
             let forecast_date = chrono::Utc::now().date_naive();
             let result = superforecast::score_forecast(
                 &req.forecast_id,
-                events,
+                &events,
                 &outcome_pairs,
                 forecast_date,
             );
@@ -1348,7 +1322,7 @@ impl ScenariosServer {
                 } else {
                     "Poorly calibrated — your forecasts are not beating a coin flip. Revisit your outside-view base rates and inside-view adjustments."
                 },
-                "auto_update_suggestions": superforecast::auto_update_suggestions(events, &outcome_pairs),
+                "auto_update_suggestions": superforecast::auto_update_suggestions(&events, &outcome_pairs),
                 "update_guidance": "The auto_update_suggestions above show suggested probability adjustments based on forecast error direction. Apply them via scenario_update to close the feedback loop. Each adjustment is clamped to ±15% and respects [0.01, 0.99] bounds.",
                 "reference": "Brier (1950). Score = (p - o)² where p = forecast probability, o = outcome (1 if occurred, 0 if not). Lower is better."
             });
@@ -1357,7 +1331,7 @@ impl ScenariosServer {
             {
                 let mut store = self.forecast_store.lock().unwrap_or_else(|e| e.into_inner());
                 let now = chrono::Utc::now().date_naive();
-                for event in events {
+                for event in &events {
                     let key = format!("{}:{}", req.forecast_id, event.id);
                     let event_outcome = outcome_pairs.iter().find(|(eid, _)| eid == &event.id);
                     if store.get(&key).is_none() {
@@ -1403,14 +1377,15 @@ impl ScenariosServer {
         Parameters(req): Parameters<CalibrateRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_calibrate", Some(Self::ontology_anchor("scenario_calibrate")), async {
-            let sub_questions = &req.sub_questions;
+            let sub_questions: Vec<SubQuestion> = serde_json::from_str(&req.sub_questions)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid sub_questions JSON: {}", e)))?;
 
             if sub_questions.is_empty() {
                 return Err(McpToolError::invalid_argument("at least one sub_question is required"));
             }
 
             // Stage 1: Fermi decomposition
-            let fermi_estimate = superforecast::calibrate_from_fermi(sub_questions)
+            let fermi_estimate = superforecast::calibrate_from_fermi(&sub_questions)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             // Stage 2+3: Outside/inside view blending (if base rate provided)
@@ -1504,9 +1479,10 @@ impl ScenariosServer {
         Parameters(req): Parameters<SensitivityRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_sensitivity", Some(Self::ontology_anchor("scenario_sensitivity")), async {
-            let events = &req.events;
+            let events: Vec<ScenarioEvent> = serde_json::from_str(&req.events)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid events JSON: {}", e)))?;
 
-            let tree = superforecast::build_event_tree(events)
+            let tree = superforecast::build_event_tree(&events)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             let ranking = superforecast::sensitivity_ranking(&tree);
@@ -1555,9 +1531,10 @@ impl ScenariosServer {
         Parameters(req): Parameters<SynthesizeRequest>,
     ) -> String {
         execute_tool_semantic(self, "scenario_synthesize", Some(Self::ontology_anchor("scenario_synthesize")), async {
-            let perspectives = &req.perspectives;
+            let perspectives: Vec<Perspective> = serde_json::from_str(&req.perspectives)
+                .map_err(|e| McpToolError::invalid_argument(format!("invalid perspectives JSON: {}", e)))?;
 
-            let synthesis = superforecast::synthesize_perspectives(&req.event_id, perspectives)
+            let synthesis = superforecast::synthesize_perspectives(&req.event_id, &perspectives)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
             let output = serde_json::json!({
@@ -1654,7 +1631,7 @@ impl ScenariosServer {
                 "reference": "Brier (1950); Murphy (1973) — decomposition of Brier score into reliability, resolution, and uncertainty components"
             });
 
-            self.record_experience("scenario_calibration", &format!("subject={:?}, resolved={}", req.subject, curve.resolved_forecasts), "success", output.clone());
+            self.record_experience("scenario_calibration", "calibration_curve", "success", output.clone());
             Ok(output)
         })
         .await
@@ -1813,33 +1790,27 @@ impl ScenariosServer {
 }
 // ── Tool handler registration ──────────────────────────────────────────────
 
-#[rmcp::tool_handler(router = Self::scenario_router())]
+#[rmcp::tool_handler(router = Self::combined_router())]
 impl rmcp::ServerHandler for ScenariosServer {}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-fn parse_time_horizon(s: Option<&str>) -> Result<TimeHorizon, McpToolError> {
+fn parse_time_horizon(s: Option<&str>) -> TimeHorizon {
     match s {
-        None => Ok(TimeHorizon::Strategic),
-        Some("tactical") | Some("12-18mo") | Some("12mo") => Ok(TimeHorizon::Tactical),
-        Some("strategic") | Some("3-5yr") | Some("5yr") => Ok(TimeHorizon::Strategic),
-        Some("long_term") | Some("7-10yr") | Some("10yr") => Ok(TimeHorizon::LongTerm),
-        Some(other) => Err(McpToolError::invalid_argument(format!(
-            "unknown time_horizon: '{}', expected tactical/strategic/long_term", other
-        ))),
+        Some("tactical") | Some("12-18mo") | Some("12mo") => TimeHorizon::Tactical,
+        Some("strategic") | Some("3-5yr") | Some("5yr") => TimeHorizon::Strategic,
+        Some("long_term") | Some("7-10yr") | Some("10yr") => TimeHorizon::LongTerm,
+        _ => TimeHorizon::Strategic,
     }
 }
 
-fn parse_scenario_type(s: Option<&str>) -> Result<ScenarioType, McpToolError> {
+fn parse_scenario_type(s: Option<&str>) -> ScenarioType {
     match s {
-        None => Ok(ScenarioType::CompanyAnalysis),
-        Some("company_update") | Some("quarterly") => Ok(ScenarioType::CompanyUpdate),
-        Some("company_analysis") | Some("thesis") => Ok(ScenarioType::CompanyAnalysis),
-        Some("emerging_economic") | Some("disruption") => Ok(ScenarioType::EmergingEconomic),
-        Some("economic_potential") | Some("long_term") => Ok(ScenarioType::EconomicPotential),
-        Some(other) => Err(McpToolError::invalid_argument(format!(
-            "unknown scenario_type: '{}', expected company_update/company_analysis/emerging_economic/economic_potential", other
-        ))),
+        Some("company_update") | Some("quarterly") => ScenarioType::CompanyUpdate,
+        Some("company_analysis") | Some("thesis") => ScenarioType::CompanyAnalysis,
+        Some("emerging_economic") | Some("disruption") => ScenarioType::EmergingEconomic,
+        Some("economic_potential") | Some("long_term") => ScenarioType::EconomicPotential,
+        _ => ScenarioType::CompanyAnalysis,
     }
 }
 
@@ -1864,6 +1835,7 @@ pub async fn run(
                         .ok()
                         .map(std::path::PathBuf::from),
                 ))),
+                reqwest::Client::new(),
                 std::sync::Mutex::new(None),
                 std::sync::Mutex::new(HashSet::new()),
             ))

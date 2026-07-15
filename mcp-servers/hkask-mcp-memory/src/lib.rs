@@ -630,7 +630,7 @@ impl MemoryServer {
                 text.clone()
             };
             let passages =
-                SemanticMemory::chunk_text(&processed, &entity_ref_prefix, min_w, max_w, &boundary, 0);
+                SemanticMemory::chunk_text(&processed, &entity_ref_prefix, min_w, max_w, &boundary);
             let serialized: Vec<_> = passages
                 .into_iter()
                 .map(|(entity_ref, passage_text)| {
