@@ -4121,13 +4121,8 @@ version = "0.31.0"
 dependencies = [
  "clap",
  "dotenvy",
- "hkask-inference",
  "hkask-memory",
- "hkask-ports",
  "hkask-services-corpus",
- "hkask-storage",
- "hkask-types",
- "serde",
  "serde_json",
  "tokio",
  "tracing",
