@@ -1,4 +1,5 @@
 //! Document processing tools — convert, OCR, chunk.
+use crate::ocr::pipeline::{self, OcrExecutor};
 use crate::*;
 use schemars::JsonSchema;
 use serde::Deserialize;

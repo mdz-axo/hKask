@@ -20,14 +20,8 @@ pub(crate) use template::render_docproc_template;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
+use crate::ocr::ThresholdConfig;
 use crate::ocr::decimation;
-use crate::ocr::llm_ocr::LlmOcrExecutor;
-use crate::ocr::pipeline::{self, OcrExecutor};
-use crate::ocr::tesseract::TesseractExecutor;
-use crate::ocr::{OcrBackend, OcrResult, ThresholdConfig};
-use async_trait::async_trait;
-
-use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
@@ -118,8 +112,8 @@ hkask_mcp::mcp_server!(
         pub embedding_router: Option<EmbeddingRouter>,
         pub cv_accumulator: Mutex<Vec<crate::ocr::CrossValidation>>,
         pub(crate) index: Mutex<Vec<IndexedPassage>>,
-        pub(crate) llm_ocr: Arc<LlmOcrExecutor>,
-        pub(crate) pipeline_executor: Arc<PipelineExecutor>,
+        pub(crate) llm_ocr: Arc<crate::ocr::llm_ocr::LlmOcrExecutor>,
+        pub(crate) pipeline_executor: Arc<crate::ocr::PipelineExecutor>,
     }
 );
 
@@ -191,165 +185,6 @@ impl DocProcServer {
         passages.len()
     }
 
-    /// Run the OCR pipeline on page images and return joined text + outcome.
-    ///
-    /// Consolidates 3 duplicated invocation blocks in `docproc_convert`
-    /// (Candidate 1 — architectural deepening). Handles embedding router
-    /// construction, pipeline execution, persistence, and text joining.
-    pub async fn run_ocr_pipeline(
-        &self,
-        page_images: Vec<image::DynamicImage>,
-        model: &str,
-    ) -> (String, usize, crate::ocr::PipelineOutcome) {
-        let expected = page_images.len();
-        let emb_model = default_embedding_model();
-        let emb = self.embedding_router.as_ref().map(|r| (r, emb_model));
-
-        let outcome = pipeline::run_pipeline(
-            page_images,
-            expected,
-            Arc::clone(&self.pipeline_executor) as Arc<dyn OcrExecutor>,
-            &self.ocr_thresholds,
-            Some(model),
-            emb,
-            Some(ocr_concurrency()),
-        )
-        .await;
-
-        self.persist_pipeline_outcome(&outcome).await;
-
-        let text = outcome
-            .results
-            .iter()
-            .map(|r| r.text.as_str())
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        let word_count = text.split_whitespace().count();
-
-        (text, word_count, outcome)
-    }
-}
-
-// ── OcrExecutor implementation ─────────────────────────────────────────────
-
-/// Shareable OCR executor that bundles Tesseract + LLM backends.
-///
-/// Created once per server and passed as `Arc<dyn OcrExecutor>` to the pipeline.
-/// This avoids the lifetime issues of passing `&DocProcServer` to parallel tasks.
-pub(crate) struct PipelineExecutor {
-    llm_ocr: Arc<LlmOcrExecutor>,
-}
-
-impl PipelineExecutor {
-    pub(crate) fn new(llm_ocr: Arc<LlmOcrExecutor>) -> Self {
-        Self { llm_ocr }
-    }
-}
-
-#[async_trait]
-impl OcrExecutor for PipelineExecutor {
-    fn is_available(&self, backend: &OcrBackend) -> bool {
-        match backend {
-            OcrBackend::Tesseract => TesseractExecutor::new().is_available(backend),
-            OcrBackend::LlmOcr(_) => self.llm_ocr.is_available(backend),
-        }
-    }
-
-    async fn execute(
-        &self,
-        page_index: usize,
-        backend: &OcrBackend,
-        image: &image::DynamicImage,
-        is_fallback: bool,
-    ) -> Result<OcrResult, crate::ocr::pipeline::OcrError> {
-        static TESSERACT: std::sync::LazyLock<TesseractExecutor> =
-            std::sync::LazyLock::new(TesseractExecutor::new);
-
-        match backend {
-            OcrBackend::Tesseract => {
-                TESSERACT
-                    .execute(page_index, backend, image, is_fallback)
-                    .await
-            }
-            _ => {
-                self.llm_ocr
-                    .execute(page_index, backend, image, is_fallback)
-                    .await
-            }
-        }
-    }
-}
-
-// ── Pipeline helpers ───────────────────────────────────────────────────────
-
-impl DocProcServer {
-    /// Persist pipeline outcome to daemon for CNS observability.
-    pub async fn persist_pipeline_outcome(&self, outcome: &crate::ocr::PipelineOutcome) {
-        if let Some(ref daemon) = self.daemon {
-            let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
-            let data = serde_json::json!({
-                "total_pages": outcome.results.len(),
-                "error_count": outcome.errors.len(),
-                "verification_passed": outcome.report.passed,
-                "page_count_match": outcome.report.page_count_match,
-                "empty_pages": outcome.report.empty_pages,
-                "word_count_delta_pct": outcome.report.word_count_delta_pct,
-                "cross_validations": outcome.cross_validations.len(),
-                "backend_distribution": outcome.results.iter()
-                    .fold(std::collections::HashMap::new(), |mut acc, r| {
-                        *acc.entry(r.backend.label().to_string()).or_insert(0) += 1;
-                        acc
-                    }),
-            });
-            tokio::spawn(async move {
-                match daemon_clone
-                    .store_experience(
-                        &replicant,
-                        "ocr_pipeline",
-                        "verification",
-                        &data,
-                        Some(0.85),
-                    )
-                    .await
-                {
-                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.docproc.cns", "Pipeline outcome persisted to daemon");
-                    }
-                    Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.docproc.cns", response = ?other, "Unexpected daemon response");
-                    }
-                    Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.docproc.cns", error = %e, "Failed to persist pipeline outcome");
-                    }
-                }
-            });
-        }
-
-        self.accumulate_and_check_drift(outcome);
-    }
-
-    /// Accumulate cross-validations and check for threshold drift.
-    fn accumulate_and_check_drift(&self, outcome: &crate::ocr::PipelineOutcome) {
-        let mut acc = self
-            .cv_accumulator
-            .lock()
-            .expect("Failed to lock CV accumulator for drift check");
-        acc.extend(outcome.cross_validations.clone());
-
-        let synthetic_outcome = crate::ocr::PipelineOutcome {
-            results: vec![],
-            report: crate::ocr::VerificationReport::new(true, 0.0, vec![], 0, vec![]),
-            cross_validations: acc.clone(),
-            errors: vec![],
-        };
-
-        if let Some(alert) = analyze_threshold_drift(&[synthetic_outcome], &self.ocr_thresholds) {
-            emit_drift_alert(&alert);
-            acc.clear();
-        }
-    }
-
     /// Record a tool call as a narrative experience in the agent's memory.
     pub fn record_experience(
         &self,
@@ -383,70 +218,6 @@ impl DocProcServer {
                 }
             });
         }
-    }
-
-    /// Resolve OCR model: explicit override > HKASK_OCR_MODEL env.
-    pub async fn resolve_ocr_model(
-        &self,
-        override_model: Option<&str>,
-    ) -> Result<String, crate::ocr::pipeline::OcrError> {
-        let model = if let Some(m) = override_model
-            && !m.is_empty()
-        {
-            m.to_string()
-        } else {
-            self.ocr_model
-                .clone()
-                .ok_or(crate::ocr::pipeline::OcrError::NoModel)?
-        };
-
-        let vision_models = self.inference_router.list_vision_models().await;
-        let is_vision = vision_models
-            .iter()
-            .any(|m| m.model == model || m.prefixed_name == model);
-
-        if !is_vision {
-            let all_models = self.inference_router.list_models().await;
-            let exists = all_models
-                .iter()
-                .any(|m| m.model == model || m.prefixed_name == model);
-            if exists {
-                return Err(crate::ocr::pipeline::OcrError::NotVisionModel {
-                    model: model.clone(),
-                });
-            }
-        }
-
-        Ok(model)
-    }
-
-    /// Perform OCR by sending base64-encoded bytes to a vision model.
-    pub async fn do_ocr(
-        &self,
-        file_bytes: &[u8],
-        model: &str,
-        max_tokens: u32,
-    ) -> Result<String, crate::ocr::pipeline::OcrError> {
-        if file_bytes.is_empty() {
-            return Err(crate::ocr::pipeline::OcrError::EmptyFile);
-        }
-
-        let b64_data =
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, file_bytes);
-
-        let params = LLMParameters {
-            temperature: 0.1,
-            max_tokens,
-            ..Default::default()
-        };
-
-        let result = self
-            .inference_router
-            .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(model))
-            .await
-            .map_err(|e| crate::ocr::pipeline::OcrError::InferenceFailed(e.to_string()))?;
-
-        Ok(result.text)
     }
 }
 
@@ -734,8 +505,8 @@ pub async fn run(
             let embedding_router = EmbeddingRouter::new(inference_config.clone());
             let inference_router = Arc::new(InferenceRouter::new(inference_config));
 
-                        let llm_ocr = Arc::new(LlmOcrExecutor::new(Arc::clone(&inference_router)));
-                        let pipeline_executor = Arc::new(PipelineExecutor::new(Arc::clone(&llm_ocr)));
+                        let llm_ocr = Arc::new(crate::ocr::llm_ocr::LlmOcrExecutor::new(Arc::clone(&inference_router)));
+                                    let pipeline_executor = Arc::new(crate::ocr::PipelineExecutor::new(Arc::clone(&llm_ocr)));
 
                         Ok(DocProcServer::new(
                             ctx.webid,

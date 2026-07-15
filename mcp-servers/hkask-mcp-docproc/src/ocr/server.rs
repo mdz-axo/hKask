@@ -8,7 +8,7 @@ use crate::ocr::calibration::{analyze_threshold_drift, emit_drift_alert};
 use crate::ocr::llm_ocr::LlmOcrExecutor;
 use crate::ocr::pipeline::{self, OcrError, OcrExecutor};
 use crate::ocr::tesseract::TesseractExecutor;
-use crate::ocr::{OcrBackend, OcrResult, ThresholdConfig};
+use crate::ocr::{OcrBackend, OcrResult};
 use crate::*;
 use async_trait::async_trait;
 
