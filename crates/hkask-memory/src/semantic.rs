@@ -640,8 +640,10 @@ impl SemanticMemory {
         let mut buffer = String::new();
         let mut buffer_words = 0usize;
         let mut chunk_index = 0usize;
-        let boundary_chars: Vec<char> =
-            sentence_boundary.chars().filter(|c| !c.is_whitespace()).collect();
+        let boundary_chars: Vec<char> = sentence_boundary
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
 
         // Flush the buffer as a chunk, optionally carrying `overlap_words` trailing
         // words into the next buffer so consecutive chunks share context. `passages`
@@ -656,8 +658,11 @@ impl SemanticMemory {
                 passages.push((entity_ref, buffer.trim().to_string()));
                 *chunk_index += 1;
                 if overlap_words > 0 {
-                    let tail: Vec<&str> =
-                        buffer.split_whitespace().rev().take(overlap_words).collect();
+                    let tail: Vec<&str> = buffer
+                        .split_whitespace()
+                        .rev()
+                        .take(overlap_words)
+                        .collect();
                     let mut carried = String::new();
                     for w in tail.into_iter().rev() {
                         if !carried.is_empty() {
@@ -679,12 +684,22 @@ impl SemanticMemory {
             let word_count = paragraph.split_whitespace().count();
 
             if buffer_words + word_count > max_words && buffer_words >= min_words {
-                flush(&mut passages, &mut buffer, &mut buffer_words, &mut chunk_index);
+                flush(
+                    &mut passages,
+                    &mut buffer,
+                    &mut buffer_words,
+                    &mut chunk_index,
+                );
             }
 
             if word_count > max_words {
                 if !buffer.is_empty() && buffer_words >= min_words {
-                    flush(&mut passages, &mut buffer, &mut buffer_words, &mut chunk_index);
+                    flush(
+                        &mut passages,
+                        &mut buffer,
+                        &mut buffer_words,
+                        &mut chunk_index,
+                    );
                 }
                 // Split a too-long paragraph at the nearest sentence boundary at or
                 // after max_words (look-ahead up to 25% of max_words), falling back
@@ -751,7 +766,12 @@ impl SemanticMemory {
         }
 
         if !buffer.is_empty() && buffer_words >= min_words {
-            flush(&mut passages, &mut buffer, &mut buffer_words, &mut chunk_index);
+            flush(
+                &mut passages,
+                &mut buffer,
+                &mut buffer_words,
+                &mut chunk_index,
+            );
         } else if !buffer.is_empty() {
             let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
             passages.push((entity_ref, buffer.trim().to_string()));
@@ -765,11 +785,9 @@ impl SemanticMemory {
     /// Short ambiguous words that occur constantly in prose (no, vol, pp, ch, p)
     /// are deliberately excluded so they do NOT suppress real sentence ends.
     const ABBREVS: &[&str] = &[
-        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st",
-        "inc", "corp", "ltd", "co", "vs", "etc", "e.g", "i.e", "cf", "fig",
-        "u.s", "u.k",
-        "q1", "q2", "q3", "q4", "yoy", "ebitda", "cagr", "roi", "roe", "roic",
-        "dcf", "gdp", "cpi", "eps", "fed", "sec", "wacc", "capm",
+        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "inc", "corp", "ltd", "co", "vs", "etc",
+        "e.g", "i.e", "cf", "fig", "u.s", "u.k", "q1", "q2", "q3", "q4", "yoy", "ebitda", "cagr",
+        "roi", "roe", "roic", "dcf", "gdp", "cpi", "eps", "fed", "sec", "wacc", "capm",
     ];
 
     /// True when `word` ends a sentence: its final non-quote char is a boundary
@@ -777,8 +795,7 @@ impl SemanticMemory {
     /// (`asked."`) and numeric decimals (`3.14` — a digit before the period is
     /// not a sentence end). Single-letter initials (`J.`) are not sentence ends.
     fn is_sentence_end(word: &str, boundary_chars: &[char], abbrevs: &[&str]) -> bool {
-        let trimmed =
-            word.trim_end_matches(['"', '\'', '\u{201d}', '\u{201c}']);
+        let trimmed = word.trim_end_matches(['"', '\'', '\u{201d}', '\u{201c}']);
         let mut chars = trimmed.chars();
         let last = match chars.next_back() {
             Some(c) => c,
@@ -813,7 +830,10 @@ impl SemanticMemory {
         for line in text.lines() {
             let trimmed = line.trim();
             let is_heading = trimmed.starts_with('#')
-                && trimmed.chars().nth(1).is_none_or(|c| c == '#' || c.is_whitespace());
+                && trimmed
+                    .chars()
+                    .nth(1)
+                    .is_none_or(|c| c == '#' || c.is_whitespace());
             let is_rule = trimmed == "---" || trimmed == "***" || trimmed == "___";
             if (is_heading || is_rule) && !buf.is_empty() {
                 let p = buf.trim().to_string();
@@ -995,6 +1015,7 @@ impl SemanticMemory {
 
 #[cfg(test)]
 mod tests {
+    use crate::SemanticMemory;
     //
     // Before fix, `centroid[i] += v` was called without checking `i < dim`,
     // causing an index-out-of-bounds panic when an embedding vector was longer
@@ -1030,5 +1051,124 @@ mod tests {
         }
 
         assert_eq!(centroid, vec![1.0, 2.0, 0.0, 0.0]);
+    }
+
+    // ── chunk_text failure-mode tests ──────────────────────────────────────
+
+    #[test]
+    fn chunk_text_empty_input_returns_empty() {
+        let result = SemanticMemory::chunk_text("", "doc", 5, 20, ".!? ", 0);
+        assert!(result.is_empty(), "empty input should produce no chunks");
+    }
+
+    #[test]
+    fn chunk_text_whitespace_only_returns_empty() {
+        let result = SemanticMemory::chunk_text("   \n\n  \t  \n\n", "doc", 5, 20, ".!? ", 0);
+        assert!(
+            result.is_empty(),
+            "whitespace-only input should produce no chunks"
+        );
+    }
+
+    #[test]
+    fn chunk_text_overlap_carries_trailing_words_across_buffer_flush() {
+        // Overlap works through the flush closure: when the buffer exceeds max_words,
+        // flush pushes the buffer and carries overlap_words trailing words into the
+        // next buffer so consecutive chunks share context.
+        //
+        // para1 (6 words) + para2 (6 words) with max_words=10: buffer accumulates
+        // para1 (6 words), then para2 pushes it over 10 → flush. overlap_words=3
+        // means chunk[1] should start with the last 3 words of chunk[0].
+        let text = "alpha beta gamma delta epsilon zeta\n\neta theta iota kappa lambda mu";
+        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 10, ".!? ", 3);
+        assert!(
+            chunks.len() >= 2,
+            "should produce at least 2 chunks, got {}",
+            chunks.len()
+        );
+        let c0_words: Vec<&str> = chunks[0].1.split_whitespace().collect();
+        let c1_words: Vec<&str> = chunks[1].1.split_whitespace().collect();
+        assert!(
+            c0_words.len() >= 3,
+            "first chunk should have >= 3 words, got {}",
+            c0_words.len()
+        );
+        assert!(
+            c1_words.len() >= 3,
+            "second chunk should have >= 3 words, got {}",
+            c1_words.len()
+        );
+        let tail = &c0_words[c0_words.len() - 3..];
+        let head = &c1_words[..3];
+        assert_eq!(
+            tail, head,
+            "overlap words should match: tail={:?}, head={:?}",
+            tail, head
+        );
+    }
+
+    #[test]
+    fn chunk_text_ontology_concepts_preserved_across_boundaries() {
+        // Multi-word concepts from all four ontology namespaces should survive
+        // chunking intact. The sentence-boundary splitter breaks at periods
+        // after each sentence, not mid-concept. Overlap ensures context survives
+        // even when a concept straddles a boundary.
+        //
+        // FIBO: barrier to entry, cost of capital, economic profit, margin of safety
+        // GOLEM: narrative structure, character development
+        // PKO: feedback loop, decision process
+        // Dublin Core (dc_subject): these are the general keywords the tagging
+        //   template extracts — they overlap with the ontology concepts above.
+        let text = "competitive advantage creates economic profit through differentiation. \
+barrier to entry protects returns over time for incumbents. \
+narrative structure shapes how investors interpret market signals clearly. \
+character development in case studies reveals decision patterns over time. \
+feedback loop connects analysis to evaluation in the investment process. \
+decision process requires discipline and patience from practitioners. \
+cost of capital determines allocation across competing opportunities. \
+margin of safety reduces downside risk in uncertain environments.";
+        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 15, ".!? ", 3);
+        assert!(
+            !chunks.is_empty(),
+            "should produce chunks from ontology text"
+        );
+        // Each multi-word concept should appear intact in the joined chunk text.
+        let all_text: String = chunks
+            .iter()
+            .map(|(_, t)| t.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let fibo = [
+            "barrier to entry",
+            "cost of capital",
+            "economic profit",
+            "margin of safety",
+        ];
+        let golem = ["narrative structure", "character development"];
+        let pko = ["feedback loop", "decision process"];
+        for concept in fibo.iter().chain(golem.iter()).chain(pko.iter()) {
+            assert!(
+                all_text.contains(concept),
+                "ontology concept '{concept}' should appear intact in chunked text"
+            );
+        }
+    }
+
+    #[test]
+    fn chunk_text_structural_split_prevents_straddling() {
+        // A markdown heading creates a structural boundary. With small max_words,
+        // the heading forces a paragraph break so chunks don't straddle sections.
+        let text = "First section discusses investing principles at length here.\n\n# Chapter Two\n\nSecond section covers return on capital analysis in detail.";
+        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 12, ".!? ", 0);
+        // No single chunk should contain both "investing" and "return on capital"
+        // — they're in different structural sections.
+        for (_, chunk_text) in &chunks {
+            let has_first = chunk_text.contains("investing");
+            let has_second = chunk_text.contains("return on capital");
+            assert!(
+                !has_first || !has_second,
+                "chunk should not straddle structural boundary: '{chunk_text}'"
+            );
+        }
     }
 }

@@ -25,7 +25,7 @@ Classify which interrogatory pronouns this passage answers. A passage can answer
 
 ### 2. Dublin Core (state axis — what is this document?)
 - **dc_type**: BIBO document type (bibo:Book, bibo:Article, bibo:Report, bibo:Webpage, bibo:Document)
-- **dc_subject**: General subject keywords (2-5 terms describing the topic)
+- **dc_subject**: General subject keywords (5-10 terms describing the topic). All lowercase canonical forms. Spell out acronyms (e.g. "return on invested capital", not "ROIC"). Canonical lowercase forms are required for concept-graph linking — variants like "ROIC", "RoIC", "Return On Invested Capital" must not appear.
 
 ### 3. PKO (process axis — how did this come to be / what process does it describe?)
 Extract any procedural/process concepts and include them under the "pko" key in ontology_tags:
@@ -67,9 +67,9 @@ Schema:
 {
   "dimensions": ["what", "why"],
   "dc_type": "bibo:Book",
-  "dc_subject": ["competitive advantage", "return on capital"],
+  "dc_subject": ["competitive advantage", "return on capital", "barrier to entry", "economic profit", "cost of capital"],
   "ontology_tags": {
-    "fibo": ["competitive advantage", "ROIC"],
+    "fibo": ["competitive advantage", "return on invested capital", "barrier to entry"],
     "pko": ["analysis", "evaluation"],
     "other": ["systems thinking"]
   },
@@ -82,4 +82,7 @@ Rules:
 - "expertise_level" is one of: "practitioner", "analyst", "researcher"
 - All concept lists contain specific terms found in or implied by the passage
 - Do not invent concepts not supported by the text
+- All concept strings (dc_subject + every ontology_tags value) MUST be lowercase canonical forms — no title case, no ALL CAPS
+- Spell out acronyms: "return on invested capital" not "ROIC", "price to earnings" not "P/E", "exchange traded fund" not "ETF"
+- Use singular canonical forms: "competitive advantage" not "competitive advantages", "barrier to entry" not "barriers to entry"
 </output_contract>

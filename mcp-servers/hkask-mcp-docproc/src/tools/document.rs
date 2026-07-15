@@ -539,7 +539,8 @@ impl DocProcServer {
                 Ok(result)
             } else {
                 // Single-tier
-                let (max_words, min_words, overlap_words) = chunk_word_bounds(max_tokens, overlap_tokens);
+                let (max_words, min_words, overlap_words) =
+                    chunk_word_bounds(max_tokens, overlap_tokens);
 
                 let passages = SemanticMemory::chunk_text(
                     &processed,
@@ -738,7 +739,8 @@ impl DocProcServer {
             let mut total_chunks = 0usize;
             let mut indexed = 0usize;
 
-            let (max_words, min_words, overlap_words) = chunk_word_bounds(max_tokens, overlap_tokens);
+            let (max_words, min_words, overlap_words) =
+                chunk_word_bounds(max_tokens, overlap_tokens);
 
             for source in &sources {
                 let file_name = source
@@ -931,7 +933,7 @@ fn sanitize_links(text: &str) -> String {
     .expect("url regex");
     let re_spaces = Regex::new(r"  +").expect("spaces regex");
 
-    let text = re_anchor.replace_all(&text, "$1");
+    let text = re_anchor.replace_all(text, "$1");
     let text = re_md.replace_all(&text, "$1");
     let text = re_url.replace_all(&text, "");
     let text = re_spaces.replace_all(&text, " ");
