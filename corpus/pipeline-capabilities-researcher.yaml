@@ -232,7 +232,7 @@ steps:
       #   fibo (financial): more factual/conceptual — define ROIC, explain DCF
       #   pko (process): more evaluate — assess procedure effectiveness
       #   eso (epistemic): more analyze/evaluate — assess evidence, evaluate claims
-      ontology_bloom_overrides: "golem:0,1,2,1,1|fibo:2,2,1,0,0|pko:1,1,1,2,0|eso:1,1,2,1,0"
+      ontology_bloom_overrides: "golem:0,1,2,1,1|fibo:2,1,1,1,0|pko:1,1,1,1,1|eso:1,1,2,1,0|epistemic:1,1,2,1,0"
       owner: "john-brooks"
 
   # ═══════════════════════════════════════════════════════════════════════

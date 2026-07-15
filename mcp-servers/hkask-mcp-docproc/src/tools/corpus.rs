@@ -787,13 +787,22 @@ impl DocProcServer {
                 };
 
                 // Generate prompts_per_chunk QAs per chunk at consecutive Bloom levels
-                // Select Bloom distribution: use override if chunk has matching ontology tag
-                let type_rotation: &[QaType] = if let Some((ns, _)) =
-                    tc.ontology_tags.iter().find(|(ns, _)| bloom_overrides.contains_key(*ns))
-                {
-                    &bloom_overrides[ns]
-                } else {
-                    &default_rotation
+                // Select Bloom distribution: check ontologies in priority order
+                // (narrative > financial > epistemic > process > default).
+                // This ensures narrative chunks always get golem distribution
+                // even if they also have epistemic or pko tags.
+                let type_rotation: &[QaType] = {
+                    const PRIORITY: &[&str] = &["golem", "fibo", "eso", "epistemic", "pko"];
+                    let mut selected: Option<&[QaType]> = None;
+                    for ns in PRIORITY {
+                        if tc.ontology_tags.contains_key(*ns)
+                            && bloom_overrides.contains_key(*ns)
+                        {
+                            selected = Some(&bloom_overrides[*ns]);
+                            break;
+                        }
+                    }
+                    selected.unwrap_or(&default_rotation)
                 };
 
                 for offset in 0..req.prompts_per_chunk {

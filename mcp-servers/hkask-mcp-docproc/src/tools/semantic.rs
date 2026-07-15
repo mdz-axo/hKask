@@ -904,30 +904,38 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                         let dimension = predicate_to_dimension(predicate);
 
                         // Gap 5: Hallucination verification — check if subject and
-                        // object strings appear in the chunk text. Flag unverified
-                        // triples by capping confidence at 0.3.
-                        let text_lower = chunk_text.to_lowercase();
-                        let subj_clean = subject
-                            .strip_prefix("doc:")
-                            .unwrap_or(subject)
-                            .to_lowercase();
-                        let subj_in_text =
-                            !subj_clean.is_empty() && text_lower.contains(&subj_clean);
-                        let obj_str = match &object {
-                            serde_json::Value::String(s) => s.to_lowercase(),
-                            _ => String::new(),
-                        };
-                        let obj_in_text = obj_str.is_empty() || text_lower.contains(&obj_str);
-                        let confidence = if (!subj_in_text || !obj_in_text) && confidence > 0.3 {
-                            tracing::warn!(
-                                target: "hkask.mcp.docproc.triples",
-                                entity = %entity_ref,
-                                subject = %subject,
-                                "Triple subject/object not found in chunk text — confidence capped at 0.3"
-                            );
-                            0.3
-                        } else {
+                        // object strings appear in the chunk text. Skip for
+                        // golem:* and eso:* predicates where abstract/interpretive
+                        // concepts are expected. Cap at 0.5 (not 0.3 — too aggressive).
+                        let is_abstract = predicate.starts_with("golem:")
+                            || predicate.starts_with("eso:");
+                        let confidence = if is_abstract {
                             confidence
+                        } else {
+                            let text_lower = chunk_text.to_lowercase();
+                            let subj_clean = subject
+                                .strip_prefix("doc:")
+                                .unwrap_or(subject)
+                                .to_lowercase();
+                            let subj_in_text =
+                                !subj_clean.is_empty() && text_lower.contains(&subj_clean);
+                            let obj_str = match &object {
+                                serde_json::Value::String(s) => s.to_lowercase(),
+                                _ => String::new(),
+                            };
+                            let obj_in_text = obj_str.is_empty()
+                                || text_lower.contains(&obj_str);
+                            if (!subj_in_text || !obj_in_text) && confidence > 0.5 {
+                                tracing::warn!(
+                                    target: "hkask.mcp.docproc.triples",
+                                    entity = %entity_ref,
+                                    subject = %subject,
+                                    "Triple subject/object not found in chunk text — confidence capped at 0.5"
+                                );
+                                0.5
+                            } else {
+                                confidence
+                            }
                         };
 
                         // Store subject + object in value so build_prompts can format
