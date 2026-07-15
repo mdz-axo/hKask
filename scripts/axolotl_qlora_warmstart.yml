@@ -50,9 +50,10 @@ weight_decay: 0.01
 max_grad_norm: 0.3
 optim: paged_adamw_8bit          # Paged optimizer for QLoRA memory efficiency
 
-# Sample packing — requires flash-attn for cross-sample masking
-sample_packing: true
-flash_attention: true
+# Sample packing — disabled (flash-attn not available for PyTorch 2.13+cu130)
+# QLoRA alone still gives 8x batch size via 4-bit quantization
+sample_packing: false
+flash_attention: false  # Uses SDPA (PyTorch native flash attention on H100)
 
 # Eval
 val_set_size: 0.0012
