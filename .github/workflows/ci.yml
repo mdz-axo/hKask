@@ -1,8 +1,21 @@
-# hKask CI — parallel jobs: lint, test, invariants, unused-deps.
+# hKask CI — pragmatically lazy: build once, test without recompiling.
 #
-# Redesigned for efficiency: cheap invariant checks run in ~30 s without
-# Rust compilation; lint (clippy) and test run in parallel instead of
-# sequentially; skill-audit and doc reuse test compilation artifacts.
+# Architecture:
+#   invariants  ──────────────────────────────────────┐  (no compilation, <10s)
+#   lint ─────────────────────────────────────────────┤  (parallel, ~2 min)
+#   unused-deps ──────────────────────────────────────┤  (parallel, ~1 min)
+#   build ──→ test ──→ skill-audit ──→ doc             ┘  (build ~3min, test ~30s)
+#
+# The build job compiles test binaries once and caches target/ via
+# Swatinem/rust-cache with a shared key.  The test job (needs build)
+# restores that cache and runs pre-built test binaries — zero
+# recompilation.  Lint runs in parallel with build using its own
+# clippy-driver cache (different artifacts, can't share with test
+# profile, but that's fine — clippy is fast).
+#
+# Tests are deterministic: integration tests call CuratorSync::tick()
+# directly instead of polling a background task.  No timeouts, no
+# flakiness, no timing dependency.
 
 name: CI
 
@@ -21,47 +34,7 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup-rust
-        with:
-          components: rustfmt,clippy
-      - name: Install system dependencies
-        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
-      - name: Format
-        run: cargo fmt --check
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v5
-      - name: Configure Git identity
-        run: |
-          git config --global user.name "hKask CI"
-          git config --global user.email "ci@hkask.local"
-      - name: Stamp version
-        run: bash scripts/ci/stamp-version.sh
-      - uses: ./.github/actions/setup-rust
-      - name: Install system dependencies
-        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
-      - name: Test and doctest
-        env:
-          CARGO_PROFILE_TEST_OPT_LEVEL: 0
-          CARGO_PROFILE_TEST_DEBUG: 0
-        run: cargo test --workspace
-      - name: Skill audit
-        run: cargo run --bin kask --quiet -- skill audit --fail-below 0.8
-      - name: Documentation
-        run: cargo doc --workspace --no-deps
-
+  # ── Cheap checks — no Rust toolchain, fail in <10s ──────────────────────
   invariants:
     name: Invariants
     runs-on: ubuntu-latest
@@ -87,6 +60,80 @@ jobs:
       - name: Structured library errors
         run: bash scripts/check-string-errors.sh
 
+  # ── Lint — runs in PARALLEL with build, uses its own clippy cache ──────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt,clippy
+      - name: Install system dependencies
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # ── Build — compile test binaries once, cache target/ ───────────────────
+  # This is the critical path.  Test job downloads this cache and runs
+  # pre-built binaries without recompiling.
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "hKask CI"
+          git config --global user.email "ci@hkask.local"
+      - name: Stamp version
+        run: bash scripts/ci/stamp-version.sh
+      - uses: ./.github/actions/setup-rust
+      - name: Install system dependencies
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - name: Compile test binaries
+        run: cargo test --workspace --no-run
+      - name: Save build artifacts
+        uses: actions/cache/save@v4
+        with:
+          path: target
+          key: build-${{ github.sha }}
+
+  # ── Test — downloads pre-built target/, runs tests, no recompilation ────
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "hKask CI"
+          git config --global user.email "ci@hkask.local"
+      - name: Stamp version
+        run: bash scripts/ci/stamp-version.sh
+      - uses: ./.github/actions/setup-rust
+      - name: Install system dependencies
+        run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
+      - name: Restore build artifacts
+        uses: actions/cache/restore@v4
+        with:
+          path: target
+          key: build-${{ github.sha }}
+          fail-on-cache-miss: true
+      - name: Run tests
+        run: cargo test --workspace
+      - name: Skill audit
+        run: cargo run --bin kask --quiet -- skill audit --fail-below 0.8
+      - name: Documentation
+        run: cargo doc --workspace --no-deps
+
+  # ── Unused deps — independent nightly check, unchanged ─────────────────
   unused-deps:
     name: Unused Dependencies
     runs-on: ubuntu-latest
