@@ -492,7 +492,7 @@ impl DocProcServer {
                         return Err(McpToolError::failed_precondition(format!("Cannot open memory DB: {e}")));
                     }
                 };
-                let webid = hkask_types::WebID::from_persona(owner.as_bytes());
+                let webid = owner_webid(&owner);
                 let mut stored = 0usize;
                 // Parse h_mems array and store each triple as an h_mem
                 if let Some(arr) = h_mems.get("h_mems").and_then(|v| v.as_array()) {
@@ -589,7 +589,7 @@ impl DocProcServer {
                             .map_err(|e| McpToolError::failed_precondition(
                                 format!("Cannot open memory DB: {e}"),
                             ))?;
-                        let webid = hkask_types::WebID::from_persona(owner.as_bytes());
+                        let webid = owner_webid(&owner);
                         let mut stored_count = 0usize;
                         let mut store_failures = 0usize;
                         for (i, (text, vector)) in texts.iter().zip(vectors.iter()).enumerate() {

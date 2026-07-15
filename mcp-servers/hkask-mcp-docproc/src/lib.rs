@@ -41,9 +41,35 @@ use std::sync::{Arc, Mutex};
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
+/// Resolve the embedding dimension from env or default to 1024 (Qwen3-Embedding-0.6B).
+pub(crate) fn embedding_dim() -> usize {
+    std::env::var("HKASK_EMBEDDING_DIM")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1024)
+}
+
+/// Pre-normalize a vector in place so cosine similarity becomes a dot product.
+pub(crate) fn normalize_in_place(v: &mut [f32]) {
+    let mag = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
+    if mag > 0.0 {
+        for x in v.iter_mut() {
+            *x /= mag;
+        }
+    }
+}
+
+/// Construct a WebID for a persona owner string.
+pub(crate) fn owner_webid(owner: &str) -> hkask_types::WebID {
+    hkask_types::WebID::from_persona(owner.as_bytes())
+}
+
 /// Minimum word count from pdf-extract to consider text extraction successful
 /// before falling back to OCR for scanned PDFs.
 pub(crate) const OCR_FALLBACK_WORD_THRESHOLD: usize = 100;
+
+/// Default owner persona for h_mems stored by corpus pipeline tools.
+const DEFAULT_OWNER: &str = "john-brooks";
 
 /// System prompt for OCR vision requests.
 const OCR_SYSTEM_PROMPT: &str =
@@ -636,7 +662,8 @@ pub(crate) fn extract_json_from_response(text: &str) -> String {
 /// to the absolute path of the `registry/replicants` directory.
 /// Cached template environment — compiled templates are stored and reused.
 ///
-/// Template names and sources are leaked as `'static` (loaded once, never freed).
+/// Template names and sources are leaked as `'static` only on first load.
+/// Subsequent calls look up by non-static `&str` — no allocation, no leak.
 /// This is acceptable because there are only a handful of templates and they
 /// live for the server's lifetime anyway.
 static TEMPLATE_CACHE: std::sync::OnceLock<std::sync::Mutex<minijinja::Environment<'static>>> =
@@ -652,12 +679,18 @@ fn render_docproc_template(
         std::sync::Mutex::new(env)
     });
 
-    let template_key: &'static str = Box::leak(format!("docproc:{template_name}").into_boxed_str());
+    let lookup_key = format!("docproc:{template_name}");
 
-    let mut env_guard = env.lock().unwrap();
+    let mut env_guard = env.lock().unwrap_or_else(|e| e.into_inner());
 
-    // Load template from disk on first use, then cache in the environment
-    if env_guard.get_template(template_key).is_err() {
+    // First try: look up with non-static key — no allocation needed if cached
+    let needs_load = env_guard.get_template(&lookup_key).is_err();
+
+    if needs_load {
+        // Template not found — load from disk. Leaks key + source as 'static
+        // (only on first load of this template name — bounded by template count).
+        let template_key: &'static str = Box::leak(lookup_key.into_boxed_str());
+
         let template_root =
             std::env::var("HKASK_TEMPLATE_ROOT").unwrap_or_else(|_| "registry".to_string());
         let template_path = std::path::Path::new(&template_root)
@@ -677,11 +710,24 @@ fn render_docproc_template(
             tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Invalid template syntax");
             return String::new();
         }
+
+        let ctx = serde_json::to_value(vars).unwrap_or_default();
+        return match env_guard
+            .get_template(template_key)
+            .and_then(|t| t.render(minijinja::Value::from_serialize(&ctx)))
+        {
+            Ok(rendered) => rendered.trim().to_string(),
+            Err(e) => {
+                tracing::warn!(target: "hkask.mcp.docproc.template", error = %e, "Template render failed");
+                String::new()
+            }
+        };
     }
 
+    // Template already cached — render directly (no leak, no allocation)
     let ctx = serde_json::to_value(vars).unwrap_or_default();
     match env_guard
-        .get_template(template_key)
+        .get_template(&lookup_key)
         .and_then(|t| t.render(minijinja::Value::from_serialize(&ctx)))
     {
         Ok(rendered) => rendered.trim().to_string(),
@@ -829,12 +875,12 @@ pub struct ExtractTriplesRequest {
     #[serde(default)]
     pub passphrase: Option<String>,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
-    #[serde(default = "default_extract_owner")]
+    #[serde(default = "default_owner")]
     pub owner: String,
 }
 
-fn default_extract_owner() -> String {
-    "john-brooks".to_string()
+fn default_owner() -> String {
+    DEFAULT_OWNER.to_string()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -857,12 +903,8 @@ pub struct EmbedRequest {
     #[serde(default)]
     pub entity_refs: Option<Vec<String>>,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
-    #[serde(default = "default_embed_owner")]
+    #[serde(default = "default_owner")]
     pub owner: String,
-}
-
-fn default_embed_owner() -> String {
-    "john-brooks".to_string()
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -981,16 +1023,12 @@ pub struct TagChunksRequest {
     #[serde(default)]
     pub dry_run: bool,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
-    #[serde(default = "default_tag_owner")]
+    #[serde(default = "default_owner")]
     pub owner: String,
 }
 
 fn default_tag_concurrency() -> usize {
     128
-}
-
-fn default_tag_owner() -> String {
-    "john-brooks".to_string()
 }
 
 // ── Build prompts request ─────────────────────────────────────────────────────
@@ -1021,7 +1059,7 @@ pub struct BuildPromptsRequest {
     #[serde(default)]
     pub max_prompts: usize,
     /// Owner persona for h_mem queries (e.g. "john-brooks").
-    #[serde(default = "default_build_prompts_owner")]
+    #[serde(default = "default_owner")]
     pub owner: String,
 }
 
@@ -1035,10 +1073,6 @@ fn default_prompts_per_chunk() -> usize {
 
 fn default_type_distribution() -> String {
     "1,1,1,1,1".to_string()
-}
-
-fn default_build_prompts_owner() -> String {
-    "john-brooks".to_string()
 }
 
 // ── Ingest QA request ────────────────────────────────────────────────────────
@@ -1066,7 +1100,7 @@ pub struct IngestQaRequest {
     #[serde(default = "default_dataset")]
     pub dataset: String,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
-    #[serde(default = "default_ingest_owner")]
+    #[serde(default = "default_owner")]
     pub owner: String,
 }
 
@@ -1076,10 +1110,6 @@ fn default_dedup_threshold_ingest() -> f64 {
 
 fn default_dataset() -> String {
     "capabilities-researcher".to_string()
-}
-
-fn default_ingest_owner() -> String {
-    "john-brooks".to_string()
 }
 
 // ── Extract outcome enum ───────────────────────────────────────────────────

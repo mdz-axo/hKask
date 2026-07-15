@@ -56,7 +56,7 @@ fn read_input_chunks(path: &str) -> Result<Vec<InputChunk>, McpToolError> {
         .collect();
     let dropped = total_lines - chunks.len();
     if dropped > 0 {
-        eprintln!("  Warning: dropped {dropped} malformed lines from input");
+        tracing::warn!("  Warning: dropped {dropped} malformed lines from input");
     }
     Ok(chunks)
 }
@@ -139,7 +139,7 @@ impl DocProcServer {
                 return Err(McpToolError::invalid_argument("chunks_jsonl is empty"));
             }
             let total = chunks.len();
-            println!("  Tagging {} chunks with ontology dimensions...", total);
+            tracing::info!("  Tagging {} chunks with ontology dimensions...", total);
 
             if req.dry_run {
                 return Ok(json!({
@@ -290,7 +290,7 @@ impl DocProcServer {
             let c = completed.load(std::sync::atomic::Ordering::Relaxed);
             let f = failed.load(std::sync::atomic::Ordering::Relaxed);
             let elapsed = start_time.elapsed().as_secs_f64();
-            println!("  Tagged: {} ok, {} failed, {:.1}s", c, f, elapsed);
+            tracing::info!("  Tagged: {} ok, {} failed, {:.1}s", c, f, elapsed);
 
             // Build tagged chunk outputs with salience
             let tags_guard = results.lock().unwrap();
@@ -357,7 +357,7 @@ impl DocProcServer {
             let dim = embedding_dim();
             let semantic = SemanticMemory::open(&req.db_path, &req.passphrase, dim)
                 .map_err(|e| McpToolError::failed_precondition(format!("Cannot open DB: {e}")))?;
-            let webid = hkask_types::WebID::from_persona(req.owner.as_bytes());
+            let webid = owner_webid(&req.owner);
             let mut stored = 0usize;
             let mut store_failures = 0usize;
             for (i, chunk) in tagged.iter().enumerate() {
@@ -380,7 +380,7 @@ impl DocProcServer {
                     Err(e) => {
                         store_failures += 1;
                         if store_failures <= 5 {
-                            eprintln!("  WARN: store tag h_mem for {entity}: {e}");
+                            tracing::warn!("  WARN: store tag h_mem for {entity}: {e}");
                         }
                     }
                 }
@@ -427,11 +427,4 @@ impl DocProcServer {
         })
         .await
     }
-}
-
-fn embedding_dim() -> usize {
-    std::env::var("HKASK_EMBEDDING_DIM")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(1024)
 }

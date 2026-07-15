@@ -28,23 +28,6 @@ fn read_tagged_chunks(path: &str) -> Result<Vec<TaggedChunk>, McpToolError> {
     Ok(chunks)
 }
 
-fn embedding_dim() -> usize {
-    std::env::var("HKASK_EMBEDDING_DIM")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(1024)
-}
-
-/// Pre-normalize a vector in place so cosine similarity becomes a dot product.
-fn normalize_in_place(v: &mut [f32]) {
-    let mag = (v.iter().map(|x| x * x).sum::<f32>()).sqrt();
-    if mag > 0.0 {
-        for x in v.iter_mut() {
-            *x /= mag;
-        }
-    }
-}
-
 /// Greedy clustering within a source file.
 /// Returns clusters as Vecs of indices into `chunks` (sorted by salience desc).
 fn cluster_within_source(
@@ -577,7 +560,7 @@ impl DocProcServer {
                 return Err(McpToolError::invalid_argument("tagged_jsonl is empty"));
             }
             let total = chunks.len();
-            println!("  Build prompts: {} chunks", total);
+            tracing::info!("  Build prompts: {} chunks", total);
 
             // QA type rotation
             let type_rotation = parse_type_distribution(&req.type_distribution);
@@ -619,11 +602,11 @@ impl DocProcServer {
                                 (er, v)
                             })
                             .collect();
-                        println!("  Bulk-loaded {} normalized embeddings", map.len());
+                        tracing::info!("  Bulk-loaded {} normalized embeddings", map.len());
                         map
                     }
                     Err(e) => {
-                        println!("  Warning: embedding query failed — scaffold disabled: {e}");
+                        tracing::info!("  Warning: embedding query failed — scaffold disabled: {e}");
                         std::collections::HashMap::new()
                     }
                 };
@@ -886,7 +869,7 @@ impl DocProcServer {
                     None
                 }))
                 .collect();
-            println!("  Parsed: {} ({} malformed rejected)", qas.len(), malformed);
+            tracing::info!("  Parsed: {} ({} malformed rejected)", qas.len(), malformed);
 
             // Quality filter
             let filtered: Vec<&ParsedQa> = qas
@@ -898,7 +881,7 @@ impl DocProcServer {
                         && q.chunk_ref.is_some()
                 })
                 .collect();
-            println!(
+            tracing::info!(
                 "  Quality filter: {} (removed {})",
                 filtered.len(),
                 qas.len() - filtered.len()
@@ -919,7 +902,7 @@ impl DocProcServer {
                     match emb_router.embed_sentences(&emb_model, batch).await {
                         Ok(v) => { all_v.extend(v); }
                         Err(e) => {
-                            eprintln!("  WARN: embed batch: {e}");
+                            tracing::warn!("  WARN: embed batch: {e}");
                             for _ in 0..batch.len() { all_v.push(Vec::new()); }
                         }
                     }
@@ -941,7 +924,7 @@ impl DocProcServer {
                     .collect();
                 let n = embedded_indices.len();
                 let k = ((n as f64) * 0.025).round().max(2.0) as usize;
-                println!("  SemDeDup: {} embedded QAs, {} clusters", n, k);
+                tracing::info!("  SemDeDup: {} embedded QAs, {} clusters", n, k);
 
                 let assignments = kmeans_cluster(&normalized, &embedded_indices, k, 10);
 
@@ -979,7 +962,7 @@ impl DocProcServer {
             }
 
             let deduped_count = deduped.len();
-            println!("  Deduped: {} (removed {})", deduped_count, filtered.len() - deduped_count);
+            tracing::info!("  Deduped: {} (removed {})", deduped_count, filtered.len() - deduped_count);
 
             if req.dry_run {
                 return Ok(json!({
@@ -998,13 +981,13 @@ impl DocProcServer {
             std::fs::write(&req.output, train + "\n").map_err(|e| {
                 McpToolError::internal(format!("Cannot write output '{}': {e}", req.output))
             })?;
-            println!("  Wrote: {} QAs to {}", deduped_count, req.output);
+            tracing::info!("  Wrote: {} QAs to {}", deduped_count, req.output);
 
             // Store h_mems + embeddings
             let dim = embedding_dim();
             let semantic = SemanticMemory::open(&req.db_path, &req.passphrase, dim)
                 .map_err(|e| McpToolError::failed_precondition(format!("Cannot open memory DB: {e}")))?;
-            let webid = hkask_types::WebID::from_persona(req.owner.as_bytes());
+            let webid = owner_webid(&req.owner);
             let mut stored = 0usize;
             let mut embed_stored = 0usize;
 
@@ -1047,7 +1030,7 @@ impl DocProcServer {
                     }
                 }
             }
-            println!("  Stored: {} QA h_mems, {} embeddings", stored, embed_stored);
+            tracing::info!("  Stored: {} QA h_mems, {} embeddings", stored, embed_stored);
 
             let result = json!({
                 "parsed": qas.len(),
