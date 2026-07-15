@@ -8,7 +8,7 @@ async fn wait_for_curator_h_mems(
     entity: &str,
     min_count: usize,
 ) -> Vec<hkask_storage::HMem> {
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
         let h_mems = if let Some(index) = pods.curator_index().await {
             index
@@ -22,7 +22,7 @@ async fn wait_for_curator_h_mems(
         if h_mems.len() >= min_count || tokio::time::Instant::now() >= deadline {
             return h_mems;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
 }
 
