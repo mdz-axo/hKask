@@ -400,19 +400,19 @@ impl KanbanDataBridge for TuiReplBridge {
         }
     }
 
-    fn move_task(&self, task_id: &str, to_status: &str) -> Result<KanbanTaskSummary, String> {
+    fn move_task(&self, task_id: &str, to_status: &str) -> anyhow::Result<KanbanTaskSummary> {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let ks = state
             .kanban_service
             .as_ref()
-            .ok_or_else(|| "kanban service not initialized".to_string())?;
+            .ok_or_else(|| anyhow::anyhow!("kanban service not initialized"))?;
 
         let tid: hkask_types::TaskId = task_id
             .parse()
-            .map_err(|e| format!("invalid task id '{}': {}", task_id, e))?;
+            .map_err(|e| anyhow::anyhow!("invalid task id '{}': {}", task_id, e))?;
 
         let target = hkask_services_kata_kanban::TaskStatus::parse_str(to_status)
-            .ok_or_else(|| format!("unknown status: {}", to_status))?;
+            .ok_or_else(|| anyhow::anyhow!("unknown status: {}", to_status))?;
 
         let actor = state.agent_webid;
 
@@ -425,7 +425,7 @@ impl KanbanDataBridge for TuiReplBridge {
                 priority: task.priority.map(|p| format!("{:?}", p).to_lowercase()),
                 labels: task.labels,
             })
-            .map_err(|e| format!("{}", e))
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 }
 

@@ -30,7 +30,7 @@ impl ConsolidationService {
         &self,
         perspective: &WebID,
         request: ConsolidationRequest,
-    ) -> Result<ConsolidationOutcome, String> {
+    ) -> anyhow::Result<ConsolidationOutcome> {
         tracing::info!(
             target: "cns.consolidation",
             perspective = %perspective,

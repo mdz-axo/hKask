@@ -38,8 +38,8 @@ use std::time::Duration;
 use super::helpers::{parse_llm_response, resolve_env_value};
 use super::registry::HealRegistry;
 use super::types::{
-    ActionResult, DebugLogAction, EnvValueSource, HealAction, HealContext, HealInferenceFn,
-    HealInstruction, HealOutcome, MiniDebugLog,
+    ActionResult, DebugLogAction, EnvValueSource, HealAction, HealContext, HealError,
+    HealInferenceFn, HealInstruction, HealOutcome, MiniDebugLog,
 };
 
 const MAX_RETRIES: u32 = 3;
@@ -326,7 +326,7 @@ impl SelfHealer {
                         any = true;
                     }
                 }
-                Err(e) => last = e,
+                Err(e) => last = e.to_string(),
             }
         }
         ActionResult {
@@ -362,7 +362,7 @@ impl SelfHealer {
                     cns_spans: vec!["cns.heal.strategy".into()],
                     actions_taken: vec![DebugLogAction {
                         name: strategy.name.clone(),
-                        output: e.clone(),
+                        output: e.to_string(),
                         success: false,
                     }],
                     suggestion: strategy.description.clone(),
@@ -372,17 +372,21 @@ impl SelfHealer {
         }
     }
 
-    fn render_classify_template(&self, ctx: &HealContext) -> Result<String, String> {
+    fn render_classify_template(&self, ctx: &HealContext) -> Result<String, HealError> {
         let content = CLASSIFY_TEMPLATE_CACHE.get_or_init(|| {
             std::fs::read_to_string(CLASSIFY_TEMPLATE).unwrap_or_else(|_| String::new())
         });
         if content.is_empty() {
-            return Err("Template not found".into());
+            return Err(HealError::TemplateNotFound);
         }
         self.render_template_content(content, ctx)
     }
 
-    fn render_template_content(&self, content: &str, ctx: &HealContext) -> Result<String, String> {
+    fn render_template_content(
+        &self,
+        content: &str,
+        ctx: &HealContext,
+    ) -> Result<String, HealError> {
         let mut vars: HashMap<String, String> = HashMap::new();
         vars.insert("operation".into(), ctx.operation.clone());
         vars.insert("error".into(), ctx.error_message.clone());
@@ -407,19 +411,20 @@ impl SelfHealer {
         let mut env = minijinja::Environment::new();
         env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
         env.add_template("tpl", content)
-            .map_err(|e| format!("Invalid template: {e}"))?;
-        let cv = serde_json::to_value(&vars).map_err(|e| format!("Serialize: {e}"))?;
+            .map_err(|e| HealError::TemplateRender(format!("Invalid template: {e}")))?;
+        let cv = serde_json::to_value(&vars)
+            .map_err(|e| HealError::TemplateRender(format!("Serialize: {e}")))?;
         let jc = minijinja::Value::from_serialize(&cv);
         env.get_template("tpl")
             .and_then(|t| t.render(jc))
-            .map_err(|e| format!("Render: {e}"))
+            .map_err(|e| HealError::TemplateRender(format!("Render: {e}")))
     }
 
     pub(crate) fn execute_action(
         &self,
         action: &HealAction,
         context: &HealContext,
-    ) -> Result<ActionResult, String> {
+    ) -> Result<ActionResult, HealError> {
         match action {
             HealAction::RunCommand {
                 command,
@@ -429,7 +434,7 @@ impl SelfHealer {
                     .arg("-c")
                     .arg(command)
                     .output()
-                    .map_err(|e| format!("{}: {}", command, e))?;
+                    .map_err(|e| HealError::Command(format!("{}: {}", command, e)))?;
                 let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
                 let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
                 Ok(ActionResult {
@@ -489,10 +494,10 @@ impl SelfHealer {
                 }
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent)
-                        .map_err(|e| format!("mkdir {}: {}", parent.display(), e))?;
+                        .map_err(|e| HealError::Io(format!("mkdir {}: {}", parent.display(), e)))?;
                 }
                 std::fs::write(path, content)
-                    .map_err(|e| format!("write {}: {}", path.display(), e))?;
+                    .map_err(|e| HealError::Io(format!("write {}: {}", path.display(), e)))?;
                 tracing::info!(target: "cns.heal.file_created", path = %path.display());
                 Ok(ActionResult {
                     success: true,
@@ -533,7 +538,7 @@ impl SelfHealer {
                                 any = true;
                             }
                         }
-                        Err(e) => last = e,
+                        Err(e) => last = e.to_string(),
                     }
                 }
                 Ok(ActionResult {
@@ -543,15 +548,14 @@ impl SelfHealer {
                 })
             }
             HealAction::LlmAssisted { template_path } => {
-                let inference = self
-                    .inference
-                    .as_ref()
-                    .ok_or_else(|| "No inference wired".to_string())?;
-                let content = std::fs::read_to_string(template_path)
-                    .map_err(|e| format!("Read {}: {}", template_path.display(), e))?;
+                let inference = self.inference.as_ref().ok_or(HealError::NoInference)?;
+                let content = std::fs::read_to_string(template_path).map_err(|e| {
+                    HealError::Io(format!("Read {}: {}", template_path.display(), e))
+                })?;
                 let prompt = self.render_template_content(&content, context)?;
                 tracing::info!(target: "cns.heal.llm_assisted", template = %template_path.display(), operation = %context.operation);
-                let response = inference(&prompt).map_err(|e| format!("Inference: {}", e))?;
+                let response = inference(&prompt)
+                    .map_err(|e| HealError::Inference(format!("Inference: {}", e)))?;
                 let instructions: Vec<HealInstruction> = parse_llm_response(&response)?;
                 if instructions.is_empty() {
                     return Ok(ActionResult {

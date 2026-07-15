@@ -51,7 +51,7 @@ pub trait KanbanDataBridge: Send + Sync {
 
     /// Move a task to a new status column.
     /// Returns Err(message) if the transition is invalid or the task is not found.
-    fn move_task(&self, task_id: &str, to_status: &str) -> Result<KanbanTaskSummary, String>;
+    fn move_task(&self, task_id: &str, to_status: &str) -> anyhow::Result<KanbanTaskSummary>;
 }
 
 /// Mock implementation for TUI development and testing.
@@ -264,7 +264,7 @@ impl KanbanDataBridge for MockKanbanBridge {
         tasks
     }
 
-    fn move_task(&self, task_id: &str, to_status: &str) -> Result<KanbanTaskSummary, String> {
+    fn move_task(&self, task_id: &str, to_status: &str) -> anyhow::Result<KanbanTaskSummary> {
         // Find and remove from all columns
         let statuses = ["backlog", "ready", "in_progress", "review", "done"];
         for status in &statuses {
@@ -291,7 +291,7 @@ impl KanbanDataBridge for MockKanbanBridge {
                 if !valid {
                     // Put it back
                     tasks.push(task);
-                    return Err(format!("invalid transition: {from} → {to_status}"));
+                    return Err(anyhow::anyhow!("invalid transition: {from} → {to_status}"));
                 }
 
                 task.status = to_status.to_string();
@@ -307,6 +307,6 @@ impl KanbanDataBridge for MockKanbanBridge {
                 return Ok(summary);
             }
         }
-        Err(format!("task not found: {task_id}"))
+        Err(anyhow::anyhow!("task not found: {task_id}"))
     }
 }

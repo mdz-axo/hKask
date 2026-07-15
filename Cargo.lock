@@ -3877,6 +3877,7 @@ dependencies = [
 name = "hkask-agents"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "blake3",
  "chrono",
@@ -3913,6 +3914,7 @@ dependencies = [
 name = "hkask-api"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "async-stream",
  "async-trait",
  "axum 0.8.9",
@@ -4045,6 +4047,7 @@ dependencies = [
 name = "hkask-cns"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "chrono",
  "hkask-capability",
@@ -4140,6 +4143,7 @@ dependencies = [
 name = "hkask-federation"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "chrono",
  "hkask-memory",
@@ -4196,6 +4200,7 @@ dependencies = [
 name = "hkask-inference"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "base64",
  "chrono",
  "dotenvy",
@@ -4715,6 +4720,7 @@ dependencies = [
 name = "hkask-memory"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "blake3",
  "chrono",
@@ -4839,6 +4845,7 @@ dependencies = [
 name = "hkask-services-context"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "chrono",
  "hkask-agents",
@@ -4897,6 +4904,7 @@ dependencies = [
 name = "hkask-services-corpus"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "base64",
  "hkask-capability",
  "hkask-database",
@@ -4996,6 +5004,7 @@ dependencies = [
 name = "hkask-services-skill"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "blake3",
  "hex",
  "hkask-ports",
@@ -5037,6 +5046,7 @@ name = "hkask-storage"
 version = "0.31.0"
 dependencies = [
  "aes-gcm",
+ "anyhow",
  "argon2",
  "base64",
  "chrono",
@@ -5100,6 +5110,7 @@ dependencies = [
 name = "hkask-templates"
 version = "0.31.0"
 dependencies = [
+ "anyhow",
  "ed25519-dalek",
  "hkask-capability",
  "hkask-forecast",

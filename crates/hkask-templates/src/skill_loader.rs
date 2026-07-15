@@ -152,12 +152,12 @@ impl SkillLoader {
 
     /// Discover skill directories within a zone directory.
     /// A skill directory is any directory containing a `SKILL.md` file.
-    fn discover_skills(zone_dir: &Path) -> Result<Vec<PathBuf>, String> {
+    fn discover_skills(zone_dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
         let mut skill_dirs = Vec::new();
-        let entries = fs::read_dir(zone_dir).map_err(|e| e.to_string())?;
+        let entries = fs::read_dir(zone_dir).map_err(|e| anyhow::anyhow!("{e}"))?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| e.to_string())?;
+            let entry = entry.map_err(|e| anyhow::anyhow!("{e}"))?;
             let path = entry.path();
             if path.is_dir() && path.join("SKILL.md").exists() {
                 skill_dirs.push(path);
@@ -169,10 +169,10 @@ impl SkillLoader {
     }
 
     /// Load a single skill from its directory.
-    fn load_skill(&self, skill_dir: &Path, zone: SkillZone) -> Result<Skill, String> {
+    fn load_skill(&self, skill_dir: &Path, zone: SkillZone) -> anyhow::Result<Skill> {
         let skill_md_path = skill_dir.join("SKILL.md");
         let content = fs::read_to_string(&skill_md_path)
-            .map_err(|e| format!("read {}: {}", skill_md_path.display(), e))?;
+            .map_err(|e| anyhow::anyhow!("read {}: {}", skill_md_path.display(), e))?;
 
         let front_matter = Self::parse_front_matter(&content)?;
 
@@ -333,7 +333,7 @@ impl SkillLoader {
     /// pre:  content is a valid SKILL.md file content
     /// post: returns SkillFrontMatter parsed from YAML front matter
     /// post: returns default SkillFrontMatter if no front matter present
-    pub fn parse_front_matter(content: &str) -> Result<SkillFrontMatter, String> {
+    pub fn parse_front_matter(content: &str) -> anyhow::Result<SkillFrontMatter> {
         let content = content.trim_start();
 
         if !content.starts_with("---") {
@@ -346,13 +346,13 @@ impl SkillLoader {
         let rest = after_first.trim_start_matches(['-', '\n', '\r']);
 
         let end_marker = rest.find("\n---").ok_or_else(|| {
-            "SKILL.md front matter: opening `---` found but no closing `---`".to_string()
+            anyhow::anyhow!("SKILL.md front matter: opening `---` found but no closing `---`")
         })?;
 
         let yaml_str = &rest[..end_marker];
 
         let fm: HashMap<String, serde_yaml_neo::Value> = serde_yaml_neo::from_str(yaml_str)
-            .map_err(|e| format!("SKILL.md YAML parse error: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("SKILL.md YAML parse error: {}", e))?;
 
         let as_string = |key: &str| fm.get(key).and_then(|v| v.as_str()).map(|s| s.to_string());
 

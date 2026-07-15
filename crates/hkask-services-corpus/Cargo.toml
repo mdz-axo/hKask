@@ -23,6 +23,7 @@ tracing.workspace = true
 tokio.workspace = true
 reqwest.workspace = true
 thiserror.workspace = true
+anyhow.workspace = true
 minijinja.workspace = true
 uuid.workspace = true
 

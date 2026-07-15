@@ -32,5 +32,5 @@ pub mod types;
 pub use healer::SelfHealer;
 pub use registry::HealRegistry;
 pub use types::{
-    EnvValueSource, HealAction, HealContext, HealInferenceFn, HealOutcome, HealStrategy,
+    EnvValueSource, HealAction, HealContext, HealError, HealInferenceFn, HealOutcome, HealStrategy,
 };

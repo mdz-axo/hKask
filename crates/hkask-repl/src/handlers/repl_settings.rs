@@ -279,12 +279,12 @@ impl Default for ReplSettings {
 impl ReplSettings {
     /// Apply a key=value pair. Returns `Ok(())` on success or `Err(msg)` on validation failure.
     /// Centralizes all validation logic — both CLI and REPL surfaces use this method.
-    pub fn apply(&mut self, name: &str, value: &str) -> Result<(), String> {
+    pub fn apply(&mut self, name: &str, value: &str) -> anyhow::Result<()> {
         match name {
             "tool_loop_limit" | "loops" => match value.parse::<usize>() {
                 Ok(n) if n > 0 => self.tool_loop_limit = n,
-                Ok(_) => return Err("tool_loop_limit must be > 0".into()),
-                _ => return Err("expected positive integer".into()),
+                Ok(_) => return Err(anyhow::anyhow!("tool_loop_limit must be > 0")),
+                _ => return Err(anyhow::anyhow!("expected positive integer")),
             },
             "context_turns" | "context" => {
                 // Alias for condense_saliency_window — short-term memory recency.
@@ -292,83 +292,87 @@ impl ReplSettings {
                 match value.parse::<usize>() {
                     Ok(n) if n > 0 => self.condense_saliency_window = n,
                     Ok(_) => {
-                        return Err(
-                            "context_turns must be > 0 (now aliases saliency_window)".into()
-                        );
+                        return Err(anyhow::anyhow!(
+                            "context_turns must be > 0 (now aliases saliency_window)"
+                        ));
                     }
-                    _ => return Err("expected positive integer".into()),
+                    _ => return Err(anyhow::anyhow!("expected positive integer")),
                 }
             }
             "temperature" | "temp" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=2.0).contains(&v) => self.temperature = v,
-                Ok(_) => return Err("temperature must be 0.0–2.0".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("temperature must be 0.0–2.0")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
             "top_p" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=1.0).contains(&v) => self.top_p = v,
-                Ok(_) => return Err("top_p must be 0.0–1.0".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("top_p must be 0.0–1.0")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
             "top_k" => match value.parse::<u32>() {
                 Ok(v) if v >= 1 => self.top_k = v,
-                Ok(_) => return Err("top_k must be >= 1".into()),
-                _ => return Err("expected positive integer".into()),
+                Ok(_) => return Err(anyhow::anyhow!("top_k must be >= 1")),
+                _ => return Err(anyhow::anyhow!("expected positive integer")),
             },
             "min_p" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=1.0).contains(&v) => self.min_p = v,
-                Ok(_) => return Err("min_p must be 0.0–1.0".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("min_p must be 0.0–1.0")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
             "typical_p" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=1.0).contains(&v) => self.typical_p = v,
-                Ok(_) => return Err("typical_p must be 0.0–1.0".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("typical_p must be 0.0–1.0")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
             "max_tokens" => match value.parse::<u32>() {
                 Ok(v) if v > 0 => self.max_tokens = v,
-                Ok(_) => return Err("max_tokens must be > 0".into()),
-                _ => return Err("expected positive integer".into()),
+                Ok(_) => return Err(anyhow::anyhow!("max_tokens must be > 0")),
+                _ => return Err(anyhow::anyhow!("expected positive integer")),
             },
             "seed" => match value {
                 "off" | "random" => self.seed = None,
                 _ => match value.parse::<u32>() {
                     Ok(v) => self.seed = Some(v),
-                    _ => return Err("expected u32 or 'off'".into()),
+                    _ => return Err(anyhow::anyhow!("expected u32 or 'off'")),
                 },
             },
             "gas_heuristic" => match value.parse::<u64>() {
                 Ok(v) if v > 0 => self.gas_heuristic = v,
-                Ok(_) => return Err("gas_heuristic must be > 0".into()),
-                _ => return Err("expected positive integer".into()),
+                Ok(_) => return Err(anyhow::anyhow!("gas_heuristic must be > 0")),
+                _ => return Err(anyhow::anyhow!("expected positive integer")),
             },
             "gas_cap" => match value.parse::<u64>() {
                 Ok(v) if v > 0 => self.gas_cap = v,
-                Ok(_) => return Err("gas_cap must be > 0".into()),
-                _ => return Err("expected positive integer".into()),
+                Ok(_) => return Err(anyhow::anyhow!("gas_cap must be > 0")),
+                _ => return Err(anyhow::anyhow!("expected positive integer")),
             },
             "auto_condense" => match value {
                 "on" | "true" => self.auto_condense = true,
                 "off" | "false" => self.auto_condense = false,
-                _ => return Err("expected 'on' or 'off'".into()),
+                _ => return Err(anyhow::anyhow!("expected 'on' or 'off'")),
             },
             "condense_pressure_threshold" | "pressure" => match value.parse::<f32>() {
                 Ok(v) if (0.5..=0.99).contains(&v) => self.condense_pressure_threshold = v,
-                Ok(_) => return Err("pressure_threshold must be 0.5–0.99".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("pressure_threshold must be 0.5–0.99")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
             "condense_saliency_window" | "saliency" => match value.parse::<usize>() {
                 Ok(v) if (1..=50).contains(&v) => self.condense_saliency_window = v,
-                Ok(_) => return Err("saliency_window must be 1–50".into()),
-                _ => return Err("expected positive integer".into()),
+                Ok(_) => return Err(anyhow::anyhow!("saliency_window must be 1–50")),
+                _ => return Err(anyhow::anyhow!("expected positive integer")),
             },
             "short_term_memory_life" | "stm_life" => match value.parse::<u32>() {
                 Ok(v) => self.short_term_memory_life = v, // 0 = never archive
-                _ => return Err("expected non-negative integer".into()),
+                _ => return Err(anyhow::anyhow!("expected non-negative integer")),
             },
             "disable_thinking" | "thinking" => match value.to_lowercase().as_str() {
                 "on" | "true" | "enabled" | "1" => self.disable_thinking = false, // thinking ON = disable_thinking false
                 "off" | "false" | "disabled" | "0" => self.disable_thinking = true,
-                _ => return Err("disable_thinking must be: on, off, true, false".into()),
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "disable_thinking must be: on, off, true, false"
+                    ));
+                }
             },
             "embedding_model" | "emb_model" => self.embedding_model = value.to_string(),
             "classifier_model" | "cls_model" => self.classifier_model = value.to_string(),
@@ -376,20 +380,20 @@ impl ReplSettings {
             "ocr_model" => self.ocr_model = value.to_string(),
             "ocr_simple_max" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=1.0).contains(&v) => self.ocr_simple_max = v,
-                Ok(_) => return Err("ocr_simple_max must be 0.0–1.0".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("ocr_simple_max must be 0.0–1.0")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
             "ocr_moderate_max" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=1.0).contains(&v) => self.ocr_moderate_max = v,
-                Ok(_) => return Err("ocr_moderate_max must be 0.0–1.0".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("ocr_moderate_max must be 0.0–1.0")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
             "ocr_sample_rate" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=1.0).contains(&v) => self.ocr_sample_rate = v,
-                Ok(_) => return Err("ocr_sample_rate must be 0.0–1.0".into()),
-                _ => return Err("expected float".into()),
+                Ok(_) => return Err(anyhow::anyhow!("ocr_sample_rate must be 0.0–1.0")),
+                _ => return Err(anyhow::anyhow!("expected float")),
             },
-            _ => return Err(format!("unknown setting: {}", name)),
+            _ => return Err(anyhow::anyhow!("unknown setting: {}", name)),
         }
         Ok(())
     }

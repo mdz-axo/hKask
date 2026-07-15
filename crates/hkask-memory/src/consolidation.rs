@@ -47,14 +47,14 @@ impl ConsolidationBridge {
         &self,
         perspective: WebID,
         request: ConsolidationRequest,
-    ) -> Result<ConsolidationOutcome, String> {
+    ) -> anyhow::Result<ConsolidationOutcome> {
         let span = tracing::span!(target: "cns.consolidation", tracing::Level::INFO, "consolidate");
         let _enter = span.enter();
 
         let candidates = self
             .episodic
             .consolidation_candidates(perspective, request.limit)
-            .map_err(|e| format!("Episodic error: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("Episodic error: {e}"))?;
 
         tracing::info!(
             target: "cns.consolidation",

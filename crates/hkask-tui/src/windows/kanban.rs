@@ -104,7 +104,7 @@ impl KanbanWindow {
                 }
             }
             Err(e) => {
-                self.status_message = Some(e);
+                self.status_message = Some(e.to_string());
             }
         }
     }

@@ -241,7 +241,7 @@ pub async fn invoke_tool_call(
     agent_webid: &WebID,
     a2a_secret: &[u8],
     host: &dyn crate::host::ReplHost,
-) -> Result<serde_json::Value, String> {
+) -> anyhow::Result<serde_json::Value> {
     let token = DelegationToken::new(
         DelegationResource::Tool,
         call.tool.clone(),
@@ -254,11 +254,11 @@ pub async fn invoke_tool_call(
     governed_tool
         .invoke(&call.server, &call.tool, call.args.clone(), &token)
         .await
-        .map_err(|e| format!("{}: {}", call.tool, e))
+        .map_err(|e| anyhow::anyhow!("{}: {}", call.tool, e))
 }
 
 /// Build the tool results context to feed back to the model.
-pub fn format_tool_results(calls: &[(ToolCall, Result<serde_json::Value, String>)]) -> String {
+pub fn format_tool_results(calls: &[(ToolCall, anyhow::Result<serde_json::Value>)]) -> String {
     if calls.is_empty() {
         return String::new();
     }

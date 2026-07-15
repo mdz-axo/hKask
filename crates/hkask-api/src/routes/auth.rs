@@ -832,7 +832,7 @@ async fn ensure_chat_room(
 }
 
 /// Get or create the server-wide chat room using the curator's Matrix account.
-async fn get_or_create_server_room(homeserver_url: &str) -> Result<String, String> {
+async fn get_or_create_server_room(homeserver_url: &str) -> anyhow::Result<String> {
     // Check if room already exists in ServerConfig
     #[allow(clippy::collapsible_if)]
     if let Ok(config) = hkask_types::server_config::ServerConfig::load() {
@@ -864,20 +864,23 @@ async fn get_or_create_server_room(homeserver_url: &str) -> Result<String, Strin
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Create room HTTP error: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Create room HTTP error: {e}"))?;
 
     if !response.status().is_success() {
-        return Err(format!("Create room failed: HTTP {}", response.status()));
+        return Err(anyhow::anyhow!(
+            "Create room failed: HTTP {}",
+            response.status()
+        ));
     }
 
     let result: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("Create room parse error: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Create room parse error: {e}"))?;
 
     let room_id = result["room_id"]
         .as_str()
-        .ok_or("Create room response missing room_id")?
+        .ok_or_else(|| anyhow::anyhow!("Create room response missing room_id"))?
         .to_string();
 
     // Store in ServerConfig for future lookups.
@@ -917,13 +920,13 @@ async fn get_or_create_server_room(homeserver_url: &str) -> Result<String, Strin
 }
 
 /// Get the curator's Matrix access token by logging in.
-async fn get_curator_access_token(homeserver_url: &str) -> Result<String, String> {
+async fn get_curator_access_token(homeserver_url: &str) -> anyhow::Result<String> {
     let keychain = hkask_keystore::Keychain::default();
     let curator_password = keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_BOT_CURATOR)
         .or_else(|_| {
             std::env::var("HKASK_CURATOR_MATRIX_PASSWORD")
-                .map_err(|_| "Curator Matrix password not found in keychain or HKASK_CURATOR_MATRIX_PASSWORD env var. Run 'kask init' or set the env var.".to_string())
+                .map_err(|_| anyhow::anyhow!("Curator Matrix password not found in keychain or HKASK_CURATOR_MATRIX_PASSWORD env var. Run 'kask init' or set the env var."))
         })?;
 
     let url = format!(
@@ -946,21 +949,24 @@ async fn get_curator_access_token(homeserver_url: &str) -> Result<String, String
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Curator login HTTP error: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Curator login HTTP error: {e}"))?;
 
     if !response.status().is_success() {
-        return Err(format!("Curator login failed: HTTP {}", response.status()));
+        return Err(anyhow::anyhow!(
+            "Curator login failed: HTTP {}",
+            response.status()
+        ));
     }
 
     let result: serde_json::Value = response
         .json()
         .await
-        .map_err(|e| format!("Curator login parse error: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Curator login parse error: {e}"))?;
 
     result["access_token"]
         .as_str()
         .map(|s| s.to_string())
-        .ok_or_else(|| "Curator login response missing access_token".to_string())
+        .ok_or_else(|| anyhow::anyhow!("Curator login response missing access_token"))
 }
 
 /// Invite a user to a Matrix room using an admin access token.
@@ -968,7 +974,7 @@ async fn matrix_invite_to_room(
     homeserver_url: &str,
     room_id: &str,
     user_id: &str,
-) -> Result<(), String> {
+) -> anyhow::Result<()> {
     let curator_token = get_curator_access_token(homeserver_url).await?;
 
     let encoded_room = urlencoding(room_id);
@@ -987,7 +993,7 @@ async fn matrix_invite_to_room(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("Invite HTTP error: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Invite HTTP error: {e}"))?;
 
     if !response.status().is_success() {
         let error_body: serde_json::Value = response.json().await.unwrap_or_default();
@@ -995,7 +1001,7 @@ async fn matrix_invite_to_room(
             .get("error")
             .and_then(|e| e.as_str())
             .unwrap_or("unknown");
-        return Err(format!("Invite failed ({msg})"));
+        return Err(anyhow::anyhow!("Invite failed ({msg})"));
     }
 
     Ok(())

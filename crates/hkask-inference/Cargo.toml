@@ -12,6 +12,7 @@ hkask-keystore = { path = "../hkask-keystore" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+anyhow.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 reqwest.workspace = true

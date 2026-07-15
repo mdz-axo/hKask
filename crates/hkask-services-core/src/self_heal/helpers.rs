@@ -2,9 +2,9 @@
 
 use std::process::Command;
 
-use super::types::{EnvValueSource, HealInstruction};
+use super::types::{EnvValueSource, HealError, HealInstruction};
 
-pub(super) fn resolve_env_value(source: &EnvValueSource) -> Result<String, String> {
+pub(super) fn resolve_env_value(source: &EnvValueSource) -> Result<String, HealError> {
     match source {
         EnvValueSource::Literal(v) => Ok(v.clone()),
         EnvValueSource::FromFile(p) => {
@@ -13,14 +13,14 @@ pub(super) fn resolve_env_value(source: &EnvValueSource) -> Result<String, Strin
             }
             std::fs::read_to_string(p)
                 .map(|s| s.lines().next().unwrap_or("").trim().to_string())
-                .map_err(|e| format!("Read {}: {}", p.display(), e))
+                .map_err(|e| HealError::EnvResolve(format!("Read {}: {}", p.display(), e)))
         }
         EnvValueSource::FromCommand(cmd) => {
             let out = Command::new("sh")
                 .arg("-c")
                 .arg(cmd)
                 .output()
-                .map_err(|e| format!("{}: {}", cmd, e))?;
+                .map_err(|e| HealError::Command(format!("{}: {}", cmd, e)))?;
             Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
         }
         EnvValueSource::FirstOf(sources) => {
@@ -36,7 +36,7 @@ pub(super) fn resolve_env_value(source: &EnvValueSource) -> Result<String, Strin
     }
 }
 
-pub(super) fn parse_llm_response(raw: &str) -> Result<Vec<HealInstruction>, String> {
+pub(super) fn parse_llm_response(raw: &str) -> Result<Vec<HealInstruction>, HealError> {
     let t = raw.trim();
     if let Ok(v) = serde_json::from_str::<Vec<HealInstruction>>(t) {
         return Ok(v);
@@ -48,7 +48,7 @@ pub(super) fn parse_llm_response(raw: &str) -> Result<Vec<HealInstruction>, Stri
             .iter()
             .map(|v| serde_json::from_value(v.clone()))
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format!("{}", e));
+            .map_err(|e| HealError::ParseResponse(format!("{}", e)));
     }
     for fence in &["```json", "```"] {
         if let Some(start) = t.find(fence) {
@@ -60,5 +60,8 @@ pub(super) fn parse_llm_response(raw: &str) -> Result<Vec<HealInstruction>, Stri
             }
         }
     }
-    Err(format!("Not valid JSON. Got: {}", &t[..t.len().min(200)]))
+    Err(HealError::ParseResponse(format!(
+        "Not valid JSON. Got: {}",
+        &t[..t.len().min(200)]
+    )))
 }

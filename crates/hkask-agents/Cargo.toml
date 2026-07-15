@@ -23,6 +23,7 @@ serde_json.workspace = true
 serde_yaml_neo.workspace = true
 reqwest.workspace = true
 thiserror.workspace = true
+anyhow.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 hex.workspace = true

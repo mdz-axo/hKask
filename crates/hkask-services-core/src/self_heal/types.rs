@@ -78,7 +78,29 @@ pub enum EnvValueSource {
     FirstOf(Vec<EnvValueSource>),
 }
 
-pub type HealInferenceFn = Box<dyn Fn(&str) -> Result<String, String> + Send + Sync>;
+pub type HealInferenceFn =
+    Box<dyn Fn(&str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> + Send + Sync>;
+
+/// Errors produced by the self-healing engine.
+#[derive(Debug, thiserror::Error)]
+pub enum HealError {
+    #[error("{0}")]
+    TemplateRender(String),
+    #[error("{0}")]
+    ParseResponse(String),
+    #[error("{0}")]
+    Inference(String),
+    #[error("{0}")]
+    Command(String),
+    #[error("{0}")]
+    EnvResolve(String),
+    #[error("{0}")]
+    Io(String),
+    #[error("No inference wired")]
+    NoInference,
+    #[error("Template not found")]
+    TemplateNotFound,
+}
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct MiniDebugLog {

@@ -136,7 +136,7 @@ pub fn handle_improv(arg1: &str, arg2: &str, state: &mut ReplState) {
 }
 
 /// Parse a mode argument string into an `ImprovMode`.
-fn parse_improv_mode(input: &str) -> Result<ImprovMode, String> {
+fn parse_improv_mode(input: &str) -> anyhow::Result<ImprovMode> {
     let parts: Vec<&str> = input.split_whitespace().collect();
     let base = parts[0];
 
@@ -162,10 +162,9 @@ fn parse_improv_mode(input: &str) -> Result<ImprovMode, String> {
 
         "cascade" => {
             if parts.len() < 2 {
-                return Err(
+                return Err(anyhow::anyhow!(
                     "Cascade requires at least one mode. Example: /improv cascade plussing yes-and"
-                        .to_string(),
-                );
+                ));
             }
             // Parse each subsequent part as a mode.
             let mut modes = Vec::new();
@@ -173,16 +172,17 @@ fn parse_improv_mode(input: &str) -> Result<ImprovMode, String> {
                 let mode = parse_improv_mode(part)?;
                 modes.push(mode);
             }
-            let cascade = ImprovCascade::new(modes).map_err(|e| e.to_string())?;
+            let cascade =
+                ImprovCascade::new(modes).map_err(|e| anyhow::Error::msg(e.to_string()))?;
             Ok(ImprovMode::Cascade(cascade))
         }
 
-        _ => Err(format!("Unknown improv mode: '{}'", base)),
+        _ => Err(anyhow::anyhow!("Unknown improv mode: '{}'", base)),
     }
 }
 
 /// Parse a riff return policy string.
-fn parse_riff_policy(s: &str) -> Result<RiffReturn, String> {
+fn parse_riff_policy(s: &str) -> anyhow::Result<RiffReturn> {
     match s {
         "group" | "return" | "return-to-group" => Ok(RiffReturn::ReturnToGroup),
         "spawn" | "spawn-thread" | "new-thread" => Ok(RiffReturn::SpawnThread),
@@ -190,10 +190,10 @@ fn parse_riff_policy(s: &str) -> Result<RiffReturn, String> {
             if let Some(stripped) = other.strip_prefix("steps:") {
                 let max_steps: usize = stripped
                     .parse()
-                    .map_err(|_| format!("Invalid step count in '{}'", other))?;
+                    .map_err(|_| anyhow::anyhow!("Invalid step count in '{}'", other))?;
                 Ok(RiffReturn::ReturnAfterSteps { max_steps })
             } else {
-                Err(format!(
+                Err(anyhow::anyhow!(
                     "Unknown riff policy: '{}'. Use group, spawn, or steps:N",
                     s
                 ))

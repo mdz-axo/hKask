@@ -399,7 +399,7 @@ impl SetPoints {
 
     /// expect: "The system provides configurable regulation thresholds for the cybernetic control loop"
     /// Validate set-point invariants.
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         for (name, value) in [
             ("gas_min_remaining", self.gas_min_remaining),
             ("error_rate_max", self.error_rate_max),
@@ -407,53 +407,57 @@ impl SetPoints {
             ("guard_violation_rate_max", self.guard_violation_rate_max),
         ] {
             if !(0.0..=1.0).contains(&value) {
-                return Err(format!("{name} must be in [0.0, 1.0], got {value}"));
+                return Err(anyhow::anyhow!("{name} must be in [0.0, 1.0], got {value}"));
             }
         }
         if self.outcome_warning_threshold <= self.outcome_critical_threshold {
-            return Err(format!(
+            return Err(anyhow::anyhow!(
                 "outcome_warning_threshold ({}) must be > outcome_critical_threshold ({})",
-                self.outcome_warning_threshold, self.outcome_critical_threshold
+                self.outcome_warning_threshold,
+                self.outcome_critical_threshold
             ));
         }
         if self.fed_sync_latency_warning_ms >= self.fed_sync_latency_critical_ms {
-            return Err(format!(
+            return Err(anyhow::anyhow!(
                 "fed_sync_latency_warning_ms ({}) must be < fed_sync_latency_critical_ms ({})",
-                self.fed_sync_latency_warning_ms, self.fed_sync_latency_critical_ms
+                self.fed_sync_latency_warning_ms,
+                self.fed_sync_latency_critical_ms
             ));
         }
         if self.fed_link_downtime_warning_secs >= self.fed_link_downtime_critical_secs {
-            return Err(format!(
+            return Err(anyhow::anyhow!(
                 "fed_link_downtime_warning_secs ({}) must be < fed_link_downtime_critical_secs ({})",
-                self.fed_link_downtime_warning_secs, self.fed_link_downtime_critical_secs
+                self.fed_link_downtime_warning_secs,
+                self.fed_link_downtime_critical_secs
             ));
         }
         if self.variety_max_deficit <= 0.0 {
-            return Err(format!(
+            return Err(anyhow::anyhow!(
                 "variety_max_deficit must be > 0, got {}",
                 self.variety_max_deficit
             ));
         }
         if self.connector_latency_max_secs <= 0.0 {
-            return Err(format!(
+            return Err(anyhow::anyhow!(
                 "connector_latency_max_secs must be > 0, got {}",
                 self.connector_latency_max_secs
             ));
         }
         if self.max_iterations == 0 {
-            return Err("max_iterations must be > 0".to_string());
+            return Err(anyhow::anyhow!("max_iterations must be > 0"));
         }
         if self.stage_worsening_ratio >= self.block_worsening_ratio {
-            return Err(format!(
+            return Err(anyhow::anyhow!(
                 "stage_worsening_ratio ({}) must be < block_worsening_ratio ({})",
-                self.stage_worsening_ratio, self.block_worsening_ratio
+                self.stage_worsening_ratio,
+                self.block_worsening_ratio
             ));
         }
         if self.substitution_after == 0 {
-            return Err("substitution_after must be > 0".to_string());
+            return Err(anyhow::anyhow!("substitution_after must be > 0"));
         }
         if self.dampen_window_secs == 0 {
-            return Err("dampen_window_secs must be > 0".to_string());
+            return Err(anyhow::anyhow!("dampen_window_secs must be > 0"));
         }
         Ok(())
     }

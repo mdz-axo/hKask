@@ -299,7 +299,7 @@ impl NuEventStore {
         }
         params.push(DbValue::Integer(limit as i64));
         query_map(&*self.driver, &sql, &params, |row| {
-            row_to_nu_event(row).map_err(db_error)
+            row_to_nu_event(row).map_err(|e| db_error(e.to_string()))
         })
         .map_err(|e| InfrastructureError::database(e.to_string()))
     }
@@ -311,30 +311,54 @@ fn db_error(e: String) -> hkask_database::types::DbError {
 }
 
 /// Reconstruct a NuEvent from a database row.
-fn row_to_nu_event(row: &hkask_database::value::DbRow) -> Result<NuEvent, String> {
-    let id: String = row.get_str(0).map_err(|e| e.to_string())?.to_string();
-    let timestamp_str: String = row.get_str(1).map_err(|e| e.to_string())?.to_string();
-    let observer_webid: String = row.get_str(2).map_err(|e| e.to_string())?.to_string();
-    let span_category: String = row.get_str(3).map_err(|e| e.to_string())?.to_string();
-    let span_path: String = row.get_str(4).map_err(|e| e.to_string())?.to_string();
-    let phase_str: String = row.get_str(5).map_err(|e| e.to_string())?.to_string();
-    let observation_str: String = row.get_str(6).map_err(|e| e.to_string())?.to_string();
-    let regulation_str: Option<String> = match row.get(7).map_err(|e| e.to_string())? {
+fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<NuEvent> {
+    let id: String = row
+        .get_str(0)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
+    let timestamp_str: String = row
+        .get_str(1)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
+    let observer_webid: String = row
+        .get_str(2)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
+    let span_category: String = row
+        .get_str(3)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
+    let span_path: String = row
+        .get_str(4)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
+    let phase_str: String = row
+        .get_str(5)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
+    let observation_str: String = row
+        .get_str(6)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
+    let regulation_str: Option<String> = match row.get(7).map_err(|e| anyhow::anyhow!("{e}"))? {
         DbValue::Null => None,
-        v => Some(v.as_text().map_err(|e| e.to_string())?.to_string()),
+        v => Some(v.as_text().map_err(|e| anyhow::anyhow!("{e}"))?.to_string()),
     };
-    let outcome_str: Option<String> = match row.get(8).map_err(|e| e.to_string())? {
+    let outcome_str: Option<String> = match row.get(8).map_err(|e| anyhow::anyhow!("{e}"))? {
         DbValue::Null => None,
-        v => Some(v.as_text().map_err(|e| e.to_string())?.to_string()),
+        v => Some(v.as_text().map_err(|e| anyhow::anyhow!("{e}"))?.to_string()),
     };
-    let recursion_depth: i64 = row.get_int(9).map_err(|e| e.to_string())?;
-    let parent_event: Option<String> = match row.get(10).map_err(|e| e.to_string())? {
+    let recursion_depth: i64 = row.get_int(9).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let parent_event: Option<String> = match row.get(10).map_err(|e| anyhow::anyhow!("{e}"))? {
         DbValue::Null => None,
-        v => Some(v.as_text().map_err(|e| e.to_string())?.to_string()),
+        v => Some(v.as_text().map_err(|e| anyhow::anyhow!("{e}"))?.to_string()),
     };
-    let visibility_str: String = row.get_str(11).map_err(|e| e.to_string())?.to_string();
+    let visibility_str: String = row
+        .get_str(11)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .to_string();
     let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
-        .map_err(|e| e.to_string())?
+        .map_err(|e| anyhow::anyhow!("{e}"))?
         .to_utc();
     // Reconstruct Span from stored category + path
     let namespace_str = format!("cns.{}", span_category);
