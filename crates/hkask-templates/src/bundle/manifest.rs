@@ -37,6 +37,15 @@ pub struct BundleManifestStep {
     pub renderer: Option<String>,
     pub template_ref: Option<String>,
     pub mcp: Option<String>,
+    /// Canonical computation function to invoke for `action: compute` steps.
+    /// Names a `hkask_forecast::*` primitive (e.g. "calibrate_from_fermi",
+    /// "outside_view_adjustment", "bayesian_update", "apply_calibration_adjustment",
+    /// "brier_score", "brier_interpretation"). The step's `input_mapping` binds
+    /// the function's arguments from prior step results; the result is stored
+    /// as `step_{ordinal}_result`. This connects the skill pipeline to the
+    /// deterministic math layer without an LLM round-trip.
+    #[serde(default)]
+    pub compute_ref: Option<String>,
     /// Per-step gas budget estimate (informational — total gas.cap is the hard boundary).
     #[serde(default)]
     pub gas_cap: u32,

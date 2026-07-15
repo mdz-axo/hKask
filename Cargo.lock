@@ -5087,6 +5087,7 @@ version = "0.31.0"
 dependencies = [
  "ed25519-dalek",
  "hkask-capability",
+ "hkask-forecast",
  "hkask-ports",
  "hkask-test-harness",
  "hkask-types",

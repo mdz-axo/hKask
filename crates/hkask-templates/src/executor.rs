@@ -711,6 +711,9 @@ impl ManifestExecutor {
                     "populate" => {
                         context = self.execute_populate(step, context).await?;
                     }
+                    "compute" => {
+                        context = self.execute_compute(step, context).await?;
+                    }
                     "execute" | "feedback" | "validate" | "retrieve" => {
                         context = self.execute_tool_invoke(step, context).await?;
                     }
@@ -1262,6 +1265,174 @@ impl ManifestExecutor {
         context.insert(format!("step_{}_result", step.ordinal), result);
 
         Ok(context)
+    }
+
+    /// Execute a `compute` step — invoke a canonical `hkask_forecast` primitive
+    /// deterministically, without an LLM round-trip. The step's `compute_ref`
+    /// names the function; `input_mapping` binds its arguments from prior step
+    /// results. The return value is stored as `step_{ordinal}_result`.
+    ///
+    /// This is the connection between the skill pipeline and the deterministic
+    /// math layer: stages 1 (Fermi), 2 (outside view), 4 (Bayesian), and
+    /// calibration feedback become `compute` steps instead of LLM `select` steps.
+    async fn execute_compute(
+        &self,
+        step: &BundleManifestStep,
+        mut context: HashMap<String, Value>,
+    ) -> Result<HashMap<String, Value>> {
+        let compute_ref = step.compute_ref.as_deref().ok_or_else(|| {
+            TemplateError::Manifest(format!("Compute step {} has no compute_ref", step.ordinal))
+        })?;
+
+        let input: Value = step
+            .input_mapping
+            .as_ref()
+            .map(|mapping| bind_parameters(mapping, &context))
+            .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+
+        let result = dispatch_compute(compute_ref, &input)?;
+        info!(
+            target: "cns.skill.compute",
+            ordinal = step.ordinal,
+            compute_ref = compute_ref,
+            "CNS"
+        );
+        context.insert(format!("step_{}_result", step.ordinal), result);
+
+        Ok(context)
+    }
+}
+
+/// Dispatch a `compute_ref` string to the matching `hkask_forecast` primitive.
+///
+/// The `input` JSON object carries the function's arguments, bound from prior
+/// step results by `execute_compute`. Returns the function's result as a JSON
+/// value consumable by downstream steps.
+///
+/// Supported `compute_ref` values (must match the conformance contract in
+/// `registry/templates/superforecasting/README.md`):
+/// - `calibrate_from_fermi` — in: `{questions: [{question, estimate, confidence}, ...]}`
+/// - `outside_view_adjustment` — in: `{base_rate, inside_estimate, reference_count}`
+/// - `bayesian_update` — in: `{prior, evidence_likelihood, evidence_base_rate}`
+/// - `apply_calibration_adjustment` — in: `{prior, overconfidence_bias}`
+/// - `brier_score` — in: `{probability, outcome_occurred}`
+/// - `brier_score_multi` — in: `{probabilities: [f64], outcomes: [bool]}`
+/// - `brier_interpretation` — in: `{score}`
+fn dispatch_compute(compute_ref: &str, input: &Value) -> Result<Value> {
+    use hkask_forecast as forecast;
+    let get_f64 = |key: &str| -> Result<f64> {
+        input.get(key).and_then(|v| v.as_f64()).ok_or_else(|| {
+            TemplateError::Manifest(format!(
+                "compute '{}': missing or non-numeric input '{}'",
+                compute_ref, key
+            ))
+        })
+    };
+    let get_bool = |key: &str| -> Result<bool> {
+        input.get(key).and_then(|v| v.as_bool()).ok_or_else(|| {
+            TemplateError::Manifest(format!(
+                "compute '{}': missing or non-boolean input '{}'",
+                compute_ref, key
+            ))
+        })
+    };
+    let get_u64 = |key: &str| -> Result<u64> {
+        input.get(key).and_then(|v| v.as_u64()).ok_or_else(|| {
+            TemplateError::Manifest(format!(
+                "compute '{}': missing or non-integer input '{}'",
+                compute_ref, key
+            ))
+        })
+    };
+
+    match compute_ref {
+        "calibrate_from_fermi" => {
+            let questions = input
+                .get("questions")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| {
+                    TemplateError::Manifest(
+                        "compute 'calibrate_from_fermi': missing 'questions' array".into(),
+                    )
+                })?;
+            let fqs: Vec<forecast::FermiQuestion> = questions
+                .iter()
+                .map(|q| forecast::FermiQuestion {
+                    question: q
+                        .get("question")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    estimate: q.get("estimate").and_then(|v| v.as_f64()).unwrap_or(0.5),
+                    confidence: q.get("confidence").and_then(|v| v.as_f64()).unwrap_or(0.5),
+                })
+                .collect();
+            let calibrated = forecast::calibrate_from_fermi(&fqs)
+                .map_err(|e| TemplateError::Manifest(format!("calibrate_from_fermi: {e}")))?;
+            Ok(serde_json::json!({ "calibrated": calibrated }))
+        }
+        "outside_view_adjustment" => {
+            let base_rate = get_f64("base_rate")?;
+            let inside_estimate = get_f64("inside_estimate")?;
+            let reference_count = get_u64("reference_count")?;
+            let (calibrated, confidence) =
+                forecast::outside_view_adjustment(base_rate, inside_estimate, reference_count);
+            Ok(serde_json::json!({ "calibrated": calibrated, "confidence": confidence }))
+        }
+        "bayesian_update" => {
+            let prior = get_f64("prior")?;
+            let likelihood = get_f64("evidence_likelihood")?;
+            let base_rate = get_f64("evidence_base_rate")?;
+            let posterior = forecast::bayesian_update(prior, likelihood, base_rate);
+            Ok(serde_json::json!({ "posterior": posterior }))
+        }
+        "apply_calibration_adjustment" => {
+            let prior = get_f64("prior")?;
+            let bias = get_f64("overconfidence_bias")?;
+            let adjusted = forecast::apply_calibration_adjustment(prior, bias);
+            Ok(serde_json::json!({ "adjusted": adjusted }))
+        }
+        "brier_score" => {
+            let probability = get_f64("probability")?;
+            let occurred = get_bool("outcome_occurred")?;
+            let score = forecast::brier_score(probability, occurred);
+            Ok(serde_json::json!({ "score": score }))
+        }
+        "brier_score_multi" => {
+            let probabilities = input
+                .get("probabilities")
+                .and_then(|v| v.as_array())
+                .and_then(|arr| arr.iter().map(|v| v.as_f64()).collect::<Option<Vec<f64>>>())
+                .ok_or_else(|| {
+                    TemplateError::Manifest(
+                        "compute 'brier_score_multi': missing 'probabilities' f64 array".into(),
+                    )
+                })?;
+            let outcomes = input
+                .get("outcomes")
+                .and_then(|v| v.as_array())
+                .and_then(|arr| {
+                    arr.iter()
+                        .map(|v| v.as_bool())
+                        .collect::<Option<Vec<bool>>>()
+                })
+                .ok_or_else(|| {
+                    TemplateError::Manifest(
+                        "compute 'brier_score_multi': missing 'outcomes' bool array".into(),
+                    )
+                })?;
+            let score = forecast::brier_score_multi(&probabilities, &outcomes)
+                .map_err(|e| TemplateError::Manifest(format!("brier_score_multi: {e}")))?;
+            Ok(serde_json::json!({ "score": score }))
+        }
+        "brier_interpretation" => {
+            let score = get_f64("score")?;
+            Ok(serde_json::json!({ "interpretation": forecast::brier_interpretation(score) }))
+        }
+        other => Err(TemplateError::Manifest(format!(
+            "Unknown compute_ref: '{}'. Supported: calibrate_from_fermi, outside_view_adjustment, bayesian_update, apply_calibration_adjustment, brier_score, brier_score_multi, brier_interpretation",
+            other
+        ))),
     }
 }
 
