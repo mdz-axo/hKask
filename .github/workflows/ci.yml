@@ -2,20 +2,28 @@
 #
 # Architecture:
 #   invariants  ──────────────────────────────────────┐  (no compilation, <10s)
-#   lint ─────────────────────────────────────────────┤  (parallel, ~2 min)
-#   unused-deps ──────────────────────────────────────┤  (parallel, ~1 min)
+#   lint        ───────────────────────────────────────┤  (parallel, ~2 min)
+#   unused-deps ───────────────────────────────────────┤  (parallel, ~1 min)
 #   build ──→ test ──→ skill-audit ──→ doc             ┘  (build ~3min, test ~30s)
 #
-# The build job compiles test binaries once and caches target/ via
-# Swatinem/rust-cache with a shared key.  The test job (needs build)
-# restores that cache and runs pre-built test binaries — zero
-# recompilation.  Lint runs in parallel with build using its own
-# clippy-driver cache (different artifacts, can't share with test
-# profile, but that's fine — clippy is fast).
+# The build job compiles test binaries once (cargo test --no-run) and
+# saves target/ via Swatinem/rust-cache with a shared key.  The test job
+# (needs build) restores that cache and runs pre-built test binaries —
+# zero recompilation.
+#
+# Lint runs in parallel with build using its own clippy-driver cache
+# (different artifacts, can't share with test profile, but clippy is fast).
 #
 # Tests are deterministic: integration tests call CuratorSync::tick()
 # directly instead of polling a background task.  No timeouts, no
 # flakiness, no timing dependency.
+#
+# Previous design: single sequential job, 12+ min per run, tests polled
+# for async results with 10-60s timeouts.  Non-deterministic failures
+# on CI runners.
+#
+# This design: ~4 min critical path (build + test), deterministic tests,
+# parallel fast-fail on invariants.
 
 name: CI
 
@@ -60,7 +68,7 @@ jobs:
       - name: Structured library errors
         run: bash scripts/check-string-errors.sh
 
-  # ── Lint — runs in PARALLEL with build, uses its own clippy cache ──────
+  # ── Lint — runs in PARALLEL with build, own clippy cache ───────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -78,8 +86,8 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
   # ── Build — compile test binaries once, cache target/ ───────────────────
-  # This is the critical path.  Test job downloads this cache and runs
-  # pre-built binaries without recompiling.
+  # Critical path.  Uses Swatinem/rust-cache with a shared key so the
+  # test job (needs build) can restore the pre-compiled target/ directory.
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -93,17 +101,14 @@ jobs:
       - name: Stamp version
         run: bash scripts/ci/stamp-version.sh
       - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: test-profile
       - name: Install system dependencies
         run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
       - name: Compile test binaries
         run: cargo test --workspace --no-run
-      - name: Save build artifacts
-        uses: actions/cache/save@v4
-        with:
-          path: target
-          key: build-${{ github.sha }}
 
-  # ── Test — downloads pre-built target/, runs tests, no recompilation ────
+  # ── Test — restores pre-built target/, runs tests, no recompilation ─────
   test:
     name: Test
     needs: build
@@ -118,14 +123,10 @@ jobs:
       - name: Stamp version
         run: bash scripts/ci/stamp-version.sh
       - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: test-profile
       - name: Install system dependencies
         run: sudo apt-get install -y --no-install-recommends mold clang libdbus-1-dev libsqlite3-dev libssl-dev pkg-config
-      - name: Restore build artifacts
-        uses: actions/cache/restore@v4
-        with:
-          path: target
-          key: build-${{ github.sha }}
-          fail-on-cache-miss: true
       - name: Run tests
         run: cargo test --workspace
       - name: Skill audit
@@ -133,7 +134,7 @@ jobs:
       - name: Documentation
         run: cargo doc --workspace --no-deps
 
-  # ── Unused deps — independent nightly check, unchanged ─────────────────
+  # ── Unused deps — independent nightly check, unchanged ──────────────────
   unused-deps:
     name: Unused Dependencies
     runs-on: ubuntu-latest
