@@ -184,9 +184,9 @@ impl DocProcServer {
                     vars.insert("chunk_id", chunk_id.clone());
                     let prompt = render_docproc_template("tag-chunks", &vars);
                     let prompt = if prompt.is_empty() {
-                        // Fallback if template not found
+                        // Fallback: includes GOLEM, FIBO, OMC ontology options
                         format!(
-                            "Analyze this passage and extract ontology tags.\n\nPassage (chunk {chunk_id}, source: {source}):\n{text}\n\nRespond with JSON: {{\"dimensions\": [\"what\"], \"dc_type\": \"bibo:Document\", \"dc_subject\": [], \"pko_concepts\": [], \"fibo_concepts\": [], \"golem_concepts\": [], \"other_concepts\": [], \"expertise_level\": \"analyst\"}}"
+                            "Analyze this passage and extract ontology tags across multiple dimensions.\n\nDimensions (5W1H): which interrogatories does this passage answer? (who, what, when, where, why, how)\nDublin Core: dcterms type (bibo:Book, bibo:Article, bibo:Webpage, bibo:Document) and subject keywords.\nDomain ontologies (include only relevant ones):\n  fibo: Financial Industry Business Ontology — competitive advantage, ROIC, DCF, cost of capital, margin of safety\n  golem: Narrative/literary concepts — metaphor, analogy, character development, storytelling, rhetoric\n  omc: Media creation concepts — scene, sequence, creative work\n  pko: Procedural concepts — procedure, method, analysis, evaluation, feedback loop\n  other: General analytical concepts — systems thinking, cognitive bias, complexity, emergence\nExpertise level: practitioner, analyst, or researcher.\n\nPassage (chunk {chunk_id}, source: {source}):\n{text}\n\nRespond with ONLY a JSON object:\n{{\"dimensions\": [\"what\", \"why\"], \"dc_type\": \"bibo:Book\", \"dc_subject\": [\"competitive advantage\"], \"ontology_tags\": {{\"fibo\": [\"ROIC\"], \"golem\": [\"metaphor\"]}}, \"expertise_level\": \"analyst\"}}"
                         )
                     } else {
                         prompt

@@ -669,7 +669,13 @@ impl CompaniesServer {
             }).collect();
 
             let scenario_output: Vec<serde_json::Value> = weighted.iter().map(|w| {
-                serde_json::json!({"name": w.name, "intrinsic": w.intrinsic_per_share, "probability": w.probability})
+                serde_json::json!({
+                    "name": w.name,
+                    "intrinsic_per_share": w.intrinsic_per_share,
+                    "probability": w.probability,
+                    "applied_growth": w.applied_growth,
+                    "applied_margin": w.applied_margin,
+                })
             }).collect();
 
             let output = serde_json::json!({

@@ -84,12 +84,16 @@ steps:
   # Phase 1: Text → Chunks
   # ═══════════════════════════════════════════════════════════════════════
   - id: chunk_all
-    description: "Chunk extracted text into ~256-token passages"
+    description: "Chunk extracted text into ~512-token passages (tunable — validate QA coherence post-run; 256 over-fragmented, 512 is unvalidated)"
     tool: docproc_chunk
     params:
       input_dir: "corpus/extracted/researcher"
       output: "corpus/chunks/chunks.jsonl"
-      max_tokens: 256
+      # max_tokens is a tunable hypothesis. 256 over-fragmented passages (broke
+      # sentence/paragraph integrity). 512 is the new default — UNVALIDATED.
+      # After the re-run, inspect QA coherence and chunk boundary quality.
+      # If 512 still fragments, bump to 768; if QAs are too generic, drop to 384.
+      max_tokens: 512
       overlap_tokens: 64
       entity_ref_prefix: "corpus:researcher"
 
@@ -155,11 +159,14 @@ steps:
   - id: extract_triples
     description: >
       Extract RDF triples from each chunk with Qwen3.6-35B-A3B. Uses extract-hmems.j2
-      template. Stores triples as h_mems with entity=chunk_ref, predicate as attribute,
-      object as value, confidence and 5W1H dimension. 3-attempt retry.
+      template with GOLEM predicates for narrative passages. Ontology tags from
+      tag_chunks are injected to guide predicate selection. Stores triples as
+      h_mems with entity=chunk_ref, subject preserved in value, confidence and
+      5W1H dimension. 3-attempt retry.
     tool: docproc_extract_triples
     params:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
+      tagged_jsonl: "corpus/chunks/tagged_ontology.jsonl"
       db_path: "corpus/memory/john-brooks.db"
       passphrase: "hkask-default-passphrase-2024"
       owner: "john-brooks"

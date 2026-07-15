@@ -44,6 +44,7 @@ chrono.workspace = true
 dotenvy.workspace = true
 tempfile.workspace = true
 dirs = "6"
+regex.workspace = true
 minijinja.workspace = true
 
 # Service layer (shared settings, models, paths)

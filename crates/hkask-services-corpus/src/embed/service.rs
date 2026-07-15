@@ -260,7 +260,6 @@ impl EmbedService {
                 config.chunking.min_words,
                 config.chunking.max_words,
                 &config.chunking.sentence_boundary,
-                0,
             );
 
             // Tag each chunk
