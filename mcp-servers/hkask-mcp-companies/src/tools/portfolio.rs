@@ -172,23 +172,22 @@ impl CompaniesServer {
 
             for tx in &txs {
                 // Cash accounting
-                let cf_amount = match tx.tx_type.as_str() {
-                    "deposit" => tx.amount.unwrap_or(0.0),
-                    "withdrawal" => -tx.amount.unwrap_or(0.0),
-                    "buy" => {
+                let cf_amount = match tx.tx_type {
+                    TxType::Deposit => tx.amount.unwrap_or(0.0),
+                    TxType::Withdrawal => -tx.amount.unwrap_or(0.0),
+                    TxType::Buy => {
                         let qty = tx.quantity.unwrap_or(0.0);
                         let price = tx.price.unwrap_or(0.0);
                         let comm = tx.commission.unwrap_or(0.0);
                         -(qty * price + comm)
                     }
-                    "sell" => {
+                    TxType::Sell => {
                         let qty = tx.quantity.unwrap_or(0.0);
                         let price = tx.price.unwrap_or(0.0);
                         let comm = tx.commission.unwrap_or(0.0);
                         qty * price - comm
                     }
-                    "dividend" => tx.amount.unwrap_or(0.0),
-                    _ => 0.0,
+                    TxType::Dividend => tx.amount.unwrap_or(0.0),
                 };
 
                 if tx.date <= from {
@@ -201,11 +200,11 @@ impl CompaniesServer {
                 // Collect deposit/withdrawal events in (from, to] for TWR sub-periods
                 if tx.date > from
                     && tx.date <= to
-                    && (tx.tx_type == "deposit" || tx.tx_type == "withdrawal")
+                    && (tx.tx_type == TxType::Deposit || tx.tx_type == TxType::Withdrawal)
                 {
-                    let amt = match tx.tx_type.as_str() {
-                        "deposit" => tx.amount.unwrap_or(0.0),
-                        "withdrawal" => -tx.amount.unwrap_or(0.0),
+                    let amt = match tx.tx_type {
+                        TxType::Deposit => tx.amount.unwrap_or(0.0),
+                        TxType::Withdrawal => -tx.amount.unwrap_or(0.0),
                         _ => 0.0,
                     };
                     cash_flow_events.push((tx.date.clone(), amt));
@@ -215,16 +214,16 @@ impl CompaniesServer {
                 if let Some(ref sym) = tx.symbol {
                     let qty = tx.quantity.unwrap_or(0.0);
                     if tx.date <= from {
-                        match tx.tx_type.as_str() {
-                            "buy" => *positions_start.entry(sym.clone()).or_insert(0.0) += qty,
-                            "sell" => *positions_start.entry(sym.clone()).or_insert(0.0) -= qty,
+                        match tx.tx_type {
+                            TxType::Buy => *positions_start.entry(sym.clone()).or_insert(0.0) += qty,
+                            TxType::Sell => *positions_start.entry(sym.clone()).or_insert(0.0) -= qty,
                             _ => {}
                         }
                     }
                     if tx.date <= to {
-                        match tx.tx_type.as_str() {
-                            "buy" => *positions_end.entry(sym.clone()).or_insert(0.0) += qty,
-                            "sell" => *positions_end.entry(sym.clone()).or_insert(0.0) -= qty,
+                        match tx.tx_type {
+                            TxType::Buy => *positions_end.entry(sym.clone()).or_insert(0.0) += qty,
+                            TxType::Sell => *positions_end.entry(sym.clone()).or_insert(0.0) -= qty,
                             _ => {}
                         }
                     }

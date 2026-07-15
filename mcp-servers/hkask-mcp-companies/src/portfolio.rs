@@ -169,8 +169,8 @@ impl std::str::FromStr for TxType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            TxType::Buy => Ok(Self::Buy),
-            TxType::Sell => Ok(Self::Sell),
+            "buy" => Ok(Self::Buy),
+            "sell" => Ok(Self::Sell),
             "dividend" => Ok(Self::Dividend),
             "deposit" => Ok(Self::Deposit),
             "withdrawal" => Ok(Self::Withdrawal),
@@ -657,7 +657,7 @@ impl PortfolioManager {
                     .commit(&ledger_tx)
                     .map_err(|e| format!("ledger commit {type}: {e}", type = tx.tx_type))?;
             }
-            "withdrawal" => {
+            TxType::Withdrawal => {
                 // Cash → External
                 let tx_ref = format!("{reference}/withdrawal");
                 let ledger_tx = LedgerTransaction {
@@ -680,7 +680,6 @@ impl PortfolioManager {
                     .commit(&ledger_tx)
                     .map_err(|e| format!("ledger commit withdrawal: {e}"))?;
             }
-            _ => {} // ignore unknown types
         }
 
         Ok(())
@@ -816,11 +815,11 @@ impl PortfolioManager {
                     }
                     cash += qty * price - comm;
                 }
-                "dividend" => {
+                TxType::Dividend => {
                     let amt = tx.amount.unwrap_or(0.0);
                     cash += amt;
                 }
-                "deposit" => {
+                TxType::Deposit => {
                     let amt = tx.amount.unwrap_or(0.0);
                     if amt <= 0.0 {
                         issues.push(format!(
@@ -830,7 +829,7 @@ impl PortfolioManager {
                     }
                     cash += amt;
                 }
-                "withdrawal" => {
+                TxType::Withdrawal => {
                     let amt = tx.amount.unwrap_or(0.0);
                     if amt <= 0.0 {
                         issues.push(format!(
@@ -839,9 +838,6 @@ impl PortfolioManager {
                         ));
                     }
                     cash -= amt;
-                }
-                other => {
-                    issues.push(format!("{}: unknown transaction type '{}'", tx.id, other));
                 }
             }
         }
