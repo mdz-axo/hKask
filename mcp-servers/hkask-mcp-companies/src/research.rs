@@ -157,7 +157,7 @@ async fn search_exa(
         .map_err(|e| anyhow!("Exa request failed: {e}"))?;
 
     let status = resp.status();
-    let body_text = resp.text().await.unwrap_or_default();
+    let body_text = resp.text().await.unwrap_or_else(|_| String::new());
     if !status.is_success() {
         return Err(anyhow!("Exa returned {status}: {body_text}"));
     }
@@ -228,7 +228,7 @@ async fn search_tavily(
         .map_err(|e| anyhow!("Tavily request failed: {e}"))?;
 
     let status = resp.status();
-    let body_text = resp.text().await.unwrap_or_default();
+    let body_text = resp.text().await.unwrap_or_else(|_| String::new());
     if !status.is_success() {
         return Err(anyhow!("Tavily returned {status}: {body_text}"));
     }
@@ -295,7 +295,7 @@ async fn search_brave(
         .map_err(|e| anyhow!("Brave request failed: {e}"))?;
 
     let status = resp.status();
-    let body_text = resp.text().await.unwrap_or_default();
+    let body_text = resp.text().await.unwrap_or_else(|_| String::new());
     if !status.is_success() {
         return Err(anyhow!("Brave returned {status}: {body_text}"));
     }

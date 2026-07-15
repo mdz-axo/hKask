@@ -45,6 +45,131 @@ that no single fix is larger than it needs to be.
 
 ---
 
+## Fix status (2026-07-15)
+
+The following findings have been fixed in the codebase:
+
+| Finding | Status | Files changed |
+|---------|--------|---------------|
+| A1 — CI regex bug | **Fixed** | `scripts/check-string-errors.sh` — `>>` → `>` (one character) |
+| A2 — `Result<_, String>` in portfolio.rs | **Fixed** | `src/portfolio.rs` — `PortfolioError` thiserror enum with 4 variants + `From` impls for `rusqlite::Error`, `serde_json::Error`, `LedgerError`, `String`, `&str`; all 25+ function signatures converted; `map_portfolio_error` helper classifies `InvalidArgument` → `invalid_argument`, others → `internal` |
+| A2 — `Result<_, String>` in research.rs | **Fixed** | `src/research.rs` — 6 functions converted to `anyhow::Result`; error construction changed to `anyhow!()` macro |
+| A2 — `Result<_, String>` in lib.rs | **Fixed** | `src/lib.rs` — `StoredForecast::from_snapshot` now returns `Result<Self, serde_json::Error>` (via A3 derive) |
+| A2 — Tool-layer error mapping | **Fixed** | `src/tools/portfolio.rs` — `run_portfolio` uses `map_portfolio_error` instead of flat `invalid_argument`; `src/tools/analytics.rs` and `src/tools/valuation.rs` — 5 call sites updated to `crate::map_portfolio_error` |
+| A3 — Hand-rolled JSON in `StoredForecast` | **Fixed** | `src/financial_model.rs` — `Serialize, Deserialize` added to `ProjectedLineItems`, `ProjectedModel`, `ProjectionAssumptions`; `src/lib.rs` — `snapshot()` replaced with `serde_json::to_value`, `from_snapshot()` replaced with `serde_json::from_value`; ~100 lines of hand-rolled code deleted; `as u8` truncation hazard eliminated |
+| B1 — Stringly-typed provider routing | **Fixed** | `LearningState` now takes `Provider` enum (Copy, Hash, Display) instead of `&str`; `preferred_provider` returns `Option<Provider>`; `providers.rs` routing simplified — `format!("{:?}")` conversion and string comparisons deleted; tests updated to `Provider::Fmp` / `Provider::Eodhd` |
+| B2 — Duplicated tool handler pattern | **Fixed** | `record_fetch_outcome` helper extracted to `CompaniesServer`; 7 financial-data tools simplified from ~12-line match blocks to 1-line calls (~49 lines removed) |
+| B4 — endpoint_mapping silent fallthrough | **Fixed** | `endpoint_mapping` returns `Option<EndpointMapping>`; unknown tools error with `McpToolError::invalid_argument("unknown tool")` instead of silent 404 |
+| B5 — Silent error swallowing | **Fixed** | `portfolio.rs` — `new()` and `with_dir()` use `expect()` instead of `let _ = ...`; `providers.rs` — 4× `resp.text().await.unwrap_or_default()` replaced with `.map_err(...)`; `research.rs` — 3× same pattern fixed |
+| B6 — Schema DDL duplication | **Fixed** | `SCHEMA_DDL` const extracted; `with_dir()` now uses same DDL as `new()` (FK constraints restored in tests); ~70 lines of duplicated DDL removed |
+| C2 — Magic-number thresholds | **Fixed** | `FLAKY_PROBABILITY_THRESHOLD`, `FLAKY_MIN_OBSERVATIONS`, `CHRONIC_STALENESS_DAYS` named constants replace inline `0.70`, `5`, `90` |
+| C3 — Restating comment | **Fixed** | "P5 Essentialism — modular tool groups" comment replaced with clean "Combined tool router" |
+| D1 — Broken README cross-reference | **Fixed** | `mcp-servers/hkask-mcp-companies/README.md` — link corrected to `README.md#companies-mcp-server` |
+| D2 — Missing portfolio schema ERD | **Fixed** | `docs/architecture/hKask-architecture-master.md` — ERD (DIAG-IC-012) inlined with DIAGRAM_ALIGNMENT metadata |
+| D3 — Stale "Inlined from" notes | **Fixed** | Updated to "Previously in `docs/diagrams/`; inlined per DOCUMENTATION_STANDARDS §6" |
+
+**Remaining:** B3 (stringly-typed request fields → enums), C1 (ProjectionAssumptionError → thiserror enum). These are lower-priority guideline-level improvements documented for future work.
+
+---
+
+## Cross-crate review: pre-existing `Result<_, String>` violations
+
+The fixed CI script (A1) revealed **84 `Result<_, String>` violations across 15 crates**.
+These were silently passing the broken regex for the entire project history.
+
+### Violation distribution
+
+| Crate | Count | Layer | Priority |
+|-------|------:|-------|----------|
+| `hkask-cli` | 29 | User-facing CLI commands | Medium |
+| `hkask-mcp-media` | 27 | MCP server (37 tools) | **High** |
+| `hkask-repl` | 7 | REPL host + handlers | Medium |
+| `hkask-services-core` | 6 | Self-heal subsystem | Medium |
+| `hkask-templates` | 3 | Skill loader / Jinja2 | Low |
+| `hkask-api` | 3 | Auth routes | Medium |
+| `hkask-tui` | 2 | TUI kanban bridge | Low |
+| `hkask-memory` | 2 | Consolidation service | Medium |
+| `hkask-agents` | 2 | ActivePods management | Medium |
+| 6 other crates | 1 each | Various | Low |
+
+### Architectural analysis (hkask-mcp-media — 27 violations)
+
+The media crate exhibits the **same architectural pattern** as the companies crate
+before the fix: `Result<_, String>` throughout the helper layer, with the
+tool-layer adapter flattening all String errors to a single `McpToolError` variant.
+
+**Error flow:**
+```text
+GalleryStoreError / IoError / MutexError / serde_json::Error
+  → .map_err(|e| format!("...: {}", e))    [structured → String, information lost]
+  → match helper_result { Err(e) => McpToolError::internal(e) }  [String → single variant]
+```
+
+Notably, `GalleryStoreError` is already a structured error type imported from
+`hkask-storage` — but the media crate converts it to String and discards the
+structure. The fix is the same as the companies crate: define a `MediaError`
+thiserror enum, implement `From<GalleryStoreError>`, `From<std::io::Error>`,
+`From<serde_json::Error>`, and map variants to appropriate `McpToolError`
+constructors.
+
+**Highest-impact fix targets (by cybernetic variety deficit):**
+
+1. `lib.rs` helper methods (8 violations) — `access_gallery`, `resolve_image_*`,
+   `render_prompt`, `crop_face_region`, `load_meme_font`. These are the core
+   access layer called by all 37 media tools. Fixing these 8 functions alone
+   would improve error classification across the entire crate.
+
+2. `video/ffmpeg.rs` (7 violations) — ffmpeg availability is mixed with
+   processing errors in the same String type. `"ffmpeg not available"` should
+   be `McpToolError::unavailable` while processing failures should be
+   `McpToolError::internal`.
+
+3. `gallery/vision.rs` (7 violations) — vision API errors (HTTP, JSON parse,
+   missing fields) are all String. Cannot distinguish transient API failures
+   from permanent misconfiguration.
+
+### Architectural analysis (hkask-cli — 29 violations)
+
+The CLI crate's violations are less cybernetically critical than the MCP
+servers because CLI commands print errors directly to the user — there is no
+programmatic consumer that needs to match on error variants. However, the
+violations still prevent the `main` function from distinguishing recoverable
+errors (retry) from permanent errors (exit) from user errors (show help).
+
+The `pod.rs` module (10 violations) is the most affected — every pod
+management function returns `Result<_, String>`, preventing the caller from
+distinguishing "pod not found" from "daemon unreachable" from "permission
+denied".
+
+### Recommended fix priority
+
+| Priority | Crate | Rationale |
+|----------|-------|----------|
+| 1 | `hkask-mcp-media` | MCP server — same cybernetic variety deficit as the companies crate; 37 tools affected; structured `GalleryStoreError` already exists but is discarded |
+| 2 | `hkask-services-core` | Self-heal subsystem — `Result<_, String>` in a healing loop means the loop cannot distinguish failure modes to decide retry vs escalate |
+| 3 | `hkask-cli` (pod.rs) | User-facing — `pod_id` parsing and daemon communication errors conflated; 10 functions in one module |
+| 4 | `hkask-repl` | REPL host — trait definitions with `Result<_, String>` constrain all implementors |
+| 5 | `hkask-memory` | Consolidation — async service with conflated error types |
+
+### Fix approach (same as companies crate)
+
+For each crate:
+1. Define a crate-local `thiserror` error enum with variants matching the
+disturbance classes (e.g., `GalleryNotInitialized`, `ImageNotFound`, `Io`,
+`VisionApi`, `FfmpegUnavailable`, `FfmpegFailed`).
+2. Implement `From` for each source error type (`GalleryStoreError`,
+`std::io::Error`, `serde_json::Error`, `minijinja::Error`).
+3. Convert function signatures one at a time (each is independently compilable).
+4. Update tool-layer adapters to map error variants to appropriate
+`McpToolError` constructors (same `map_*_error` pattern as `map_portfolio_error`).
+5. Run `cargo test -p <crate>` after each function conversion.
+
+The fix is mechanical once the error enum is defined. The companies crate
+conversion (38 violations) took ~20 discrete steps; the media crate (27
+violations) would take ~15 steps by the same methodology.
+
+---
+
 ## A. Prohibition-level findings
 
 ### A1. CI string-error detector has a broken regex — 38 violations slip through

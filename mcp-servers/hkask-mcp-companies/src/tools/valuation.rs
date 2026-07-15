@@ -1040,13 +1040,13 @@ impl CompaniesServer {
                 && let Ok(mut state) = self.learning.lock()
             {
                 let prov = if comments.contains("provider=eodhd") {
-                    "EODHD"
+                    Provider::Eodhd
                 } else if comments.contains("provider=fmp") {
-                    "FMP"
+                    Provider::Fmp
                 } else if sym.contains('.') {
-                    "EODHD"
+                    Provider::Eodhd
                 } else {
-                    "FMP"
+                    Provider::Fmp
                 };
                 state.record(&sym, prov, score);
             }

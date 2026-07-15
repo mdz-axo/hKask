@@ -5549,7 +5549,7 @@ status: VERIFIED
 
 ### Companies MCP Provider Routing — Sequence
 
-*Inlined from `docs/diagrams/sequence-companies-provider-routing.md`*
+*Previously in `docs/diagrams/`; inlined per DOCUMENTATION_STANDARDS §6.*
 
 
 # Companies MCP Provider Routing
@@ -5612,7 +5612,7 @@ status: VERIFIED
 
 ### Companies MCP Forecast Feedback — Sequence
 
-*Inlined from `docs/diagrams/sequence-companies-forecast-feedback.md`*
+*Previously in `docs/diagrams/`; inlined per DOCUMENTATION_STANDARDS §6.*
 
 
 # Companies MCP Forecast Feedback

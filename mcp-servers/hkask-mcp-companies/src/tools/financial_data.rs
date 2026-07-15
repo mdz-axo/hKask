@@ -11,24 +11,7 @@ impl CompaniesServer {
         execute_tool(self, "company_profile", async {
             validate_symbol(&symbol)?;
             let result = self.fetch("company_profile", &symbol, &[]).await;
-            match &result {
-                Ok(v) => {
-                    self.record_experience(
-                        "company_profile",
-                        &format!("symbol={}", symbol),
-                        "success",
-                        v.clone(),
-                    );
-                }
-                Err(e) => {
-                    self.record_experience(
-                        "company_profile",
-                        &format!("symbol={}", symbol),
-                        "error",
-                        serde_json::json!({"error": e.to_json_string()}),
-                    );
-                }
-            }
+            self.record_fetch_outcome("company_profile", &symbol, &result);
             result
         })
         .await
@@ -42,24 +25,7 @@ impl CompaniesServer {
         execute_tool(self, "stock_quote", async {
             validate_symbol(&symbol)?;
             let result = self.fetch("stock_quote", &symbol, &[]).await;
-            match &result {
-                Ok(v) => {
-                    self.record_experience(
-                        "stock_quote",
-                        &format!("symbol={}", symbol),
-                        "success",
-                        v.clone(),
-                    );
-                }
-                Err(e) => {
-                    self.record_experience(
-                        "stock_quote",
-                        &format!("symbol={}", symbol),
-                        "error",
-                        serde_json::json!({"error": e.to_json_string()}),
-                    );
-                }
-            }
+            self.record_fetch_outcome("stock_quote", &symbol, &result);
             result
         })
         .await
@@ -76,24 +42,7 @@ impl CompaniesServer {
             let result = self
                 .fetch("income_statement", &symbol, &[("limit", &limit_str)])
                 .await;
-            match &result {
-                Ok(v) => {
-                    self.record_experience(
-                        "income_statement",
-                        &format!("symbol={}", symbol),
-                        "success",
-                        v.clone(),
-                    );
-                }
-                Err(e) => {
-                    self.record_experience(
-                        "income_statement",
-                        &format!("symbol={}", symbol),
-                        "error",
-                        serde_json::json!({"error": e.to_json_string()}),
-                    );
-                }
-            }
+            self.record_fetch_outcome("income_statement", &symbol, &result);
             result
         })
         .await
@@ -110,24 +59,7 @@ impl CompaniesServer {
             let result = self
                 .fetch("balance_sheet", &symbol, &[("limit", &limit_str)])
                 .await;
-            match &result {
-                Ok(v) => {
-                    self.record_experience(
-                        "balance_sheet",
-                        &format!("symbol={}", symbol),
-                        "success",
-                        v.clone(),
-                    );
-                }
-                Err(e) => {
-                    self.record_experience(
-                        "balance_sheet",
-                        &format!("symbol={}", symbol),
-                        "error",
-                        serde_json::json!({"error": e.to_json_string()}),
-                    );
-                }
-            }
+            self.record_fetch_outcome("balance_sheet", &symbol, &result);
             result
         })
         .await
@@ -144,24 +76,7 @@ impl CompaniesServer {
             let result = self
                 .fetch("cash_flow_statement", &symbol, &[("limit", &limit_str)])
                 .await;
-            match &result {
-                Ok(v) => {
-                    self.record_experience(
-                        "cash_flow_statement",
-                        &format!("symbol={}", symbol),
-                        "success",
-                        v.clone(),
-                    );
-                }
-                Err(e) => {
-                    self.record_experience(
-                        "cash_flow_statement",
-                        &format!("symbol={}", symbol),
-                        "error",
-                        serde_json::json!({"error": e.to_json_string()}),
-                    );
-                }
-            }
+            self.record_fetch_outcome("cash_flow_statement", &symbol, &result);
             result
         })
         .await
@@ -178,24 +93,7 @@ impl CompaniesServer {
             let result = self
                 .fetch("key_metrics", &symbol, &[("limit", &limit_str)])
                 .await;
-            match &result {
-                Ok(v) => {
-                    self.record_experience(
-                        "key_metrics",
-                        &format!("symbol={}", symbol),
-                        "success",
-                        v.clone(),
-                    );
-                }
-                Err(e) => {
-                    self.record_experience(
-                        "key_metrics",
-                        &format!("symbol={}", symbol),
-                        "error",
-                        serde_json::json!({"error": e.to_json_string()}),
-                    );
-                }
-            }
+            self.record_fetch_outcome("key_metrics", &symbol, &result);
             result
         })
         .await
@@ -211,24 +109,7 @@ impl CompaniesServer {
             let result = self
                 .fetch("historical_price", &symbol, &[("from", &from), ("to", &to)])
                 .await;
-            match &result {
-                Ok(v) => {
-                    self.record_experience(
-                        "historical_price",
-                        &format!("symbol={}", symbol),
-                        "success",
-                        v.clone(),
-                    );
-                }
-                Err(e) => {
-                    self.record_experience(
-                        "historical_price",
-                        &format!("symbol={}", symbol),
-                        "error",
-                        serde_json::json!({"error": e.to_json_string()}),
-                    );
-                }
-            }
+            self.record_fetch_outcome("historical_price", &symbol, &result);
             result
         })
         .await

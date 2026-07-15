@@ -9,10 +9,19 @@ use serde_json::Value;
 
 // ── Provider enum ──────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
     Fmp,
     Eodhd,
+}
+
+impl std::fmt::Display for Provider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Fmp => write!(f, "FMP"),
+            Self::Eodhd => write!(f, "EODHD"),
+        }
+    }
 }
 
 // ── Base URLs ──────────────────────────────────────────────────────
@@ -31,53 +40,49 @@ pub struct EndpointMapping {
 
 // ── Endpoint registry ──────────────────────────────────────────────
 
-fn endpoint_mapping(tool: &str) -> EndpointMapping {
+fn endpoint_mapping(tool: &str) -> Option<EndpointMapping> {
     match tool {
-        "company_profile" => EndpointMapping {
+        "company_profile" => Some(EndpointMapping {
             fmp_path: "/profile",
             eodhd_path: "/fundamentals",
             normalize_eodhd: true,
-        },
-        "stock_quote" => EndpointMapping {
+        }),
+        "stock_quote" => Some(EndpointMapping {
             fmp_path: "/quote",
             eodhd_path: "/real-time",
             normalize_eodhd: false,
-        },
-        "income_statement" => EndpointMapping {
+        }),
+        "income_statement" => Some(EndpointMapping {
             fmp_path: "/income-statement",
             eodhd_path: "/fundamentals",
             normalize_eodhd: true,
-        },
-        "balance_sheet" => EndpointMapping {
+        }),
+        "balance_sheet" => Some(EndpointMapping {
             fmp_path: "/balance-sheet-statement",
             eodhd_path: "/fundamentals",
             normalize_eodhd: true,
-        },
-        "cash_flow_statement" => EndpointMapping {
+        }),
+        "cash_flow_statement" => Some(EndpointMapping {
             fmp_path: "/cash-flow-statement",
             eodhd_path: "/fundamentals",
             normalize_eodhd: true,
-        },
-        "key_metrics" => EndpointMapping {
+        }),
+        "key_metrics" => Some(EndpointMapping {
             fmp_path: "/key-metrics",
             eodhd_path: "/fundamentals",
             normalize_eodhd: true,
-        },
-        "historical_price" => EndpointMapping {
+        }),
+        "historical_price" => Some(EndpointMapping {
             fmp_path: "/historical-price-full",
             eodhd_path: "/eod",
             normalize_eodhd: true,
-        },
-        "symbol_search" => EndpointMapping {
+        }),
+        "symbol_search" => Some(EndpointMapping {
             fmp_path: "/search-name",
             eodhd_path: "/search",
             normalize_eodhd: false,
-        },
-        _ => EndpointMapping {
-            fmp_path: "",
-            eodhd_path: "",
-            normalize_eodhd: false,
-        },
+        }),
+        _ => None,
     }
 }
 
@@ -112,17 +117,13 @@ pub async fn companies_get(
     extra_params: &[(&str, &str)],
     learning: Option<&super::LearningState>,
 ) -> Result<Value, McpToolError> {
-    let mapping = endpoint_mapping(tool);
+    let mapping = endpoint_mapping(tool)
+        .ok_or_else(|| McpToolError::invalid_argument(format!("unknown tool: {tool}")))?;
     // Learning-aware routing: feedback state can override default provider.
     let primary = if let Some(learn) = learning {
-        match learn.preferred_provider(
-            symbol,
-            &format!("{:?}", primary_provider(symbol)).to_lowercase(),
-        ) {
-            Some(ref p) if p == "FMP" => Provider::Fmp,
-            Some(ref p) if p == "EODHD" => Provider::Eodhd,
-            _ => primary_provider(symbol),
-        }
+        learn
+            .preferred_provider(symbol, primary_provider(symbol))
+            .unwrap_or_else(|| primary_provider(symbol))
     } else {
         primary_provider(symbol)
     };
@@ -238,7 +239,10 @@ async fn fmp_get(
         .map_err(|e| McpToolError::unavailable(format!("FMP request failed: {e}")))?;
 
     let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("response body read failed: {e}")))?;
     if !status.is_success() {
         return Err(classify_http_error("FMP", status, &body));
     }
@@ -268,7 +272,10 @@ async fn eodhd_get(
         .map_err(|e| McpToolError::unavailable(format!("EODHD request failed: {e}")))?;
 
     let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("response body read failed: {e}")))?;
     if !status.is_success() {
         return Err(classify_http_error("EODHD", status, &body));
     }
@@ -603,7 +610,10 @@ pub async fn fmp_search_get(
         .map_err(|e| McpToolError::unavailable(format!("FMP search failed: {e}")))?;
 
     let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("response body read failed: {e}")))?;
     if !status.is_success() {
         return Err(classify_http_error("FMP", status, &body));
     }
@@ -628,7 +638,10 @@ pub async fn eodhd_search_get(
         .map_err(|e| McpToolError::unavailable(format!("EODHD search failed: {e}")))?;
 
     let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("response body read failed: {e}")))?;
     if !status.is_success() {
         return Err(classify_http_error("EODHD", status, &body));
     }

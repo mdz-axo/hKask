@@ -60,7 +60,9 @@ impl CompaniesServer {
                 let ids = match format.as_str() {
                     "csv" => manager.import_csv(&portfolio, &data),
                     "json" => manager.import_json(&portfolio, &data),
-                    other => Err(format!("unsupported format '{other}'; use 'csv' or 'json'").into()),
+                    other => {
+                        Err(format!("unsupported format '{other}'; use 'csv' or 'json'").into())
+                    }
                 }?;
                 let validation = manager.validate(&portfolio).unwrap_or_else(|error| {
                     portfolio::ValidationReport {

@@ -17,6 +17,81 @@ const MAX_ENCODED_ATTACHMENT_BYTES: usize = 10 * 1024 * 1024;
 const MAX_DECODED_ATTACHMENT_BYTES: usize = 6 * 1024 * 1024;
 const MAX_IMPORT_TRANSACTION_COUNT: usize = 10_000;
 
+/// SQLite schema DDL for the portfolio database.
+/// Used by both production (`new`) and test (`with_dir`) paths to ensure
+/// identical schema — including FK cascade constraints.
+const SCHEMA_DDL: &str = "CREATE TABLE IF NOT EXISTS portfolios (
+                    name TEXT PRIMARY KEY,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    date TEXT NOT NULL,
+                    type TEXT NOT NULL CHECK(type IN ('buy','sell','dividend','deposit','withdrawal')),
+                    symbol TEXT,
+                    quantity REAL,
+                    price REAL,
+                    commission REAL DEFAULT 0,
+                    amount REAL,
+                    currency TEXT DEFAULT 'USD',
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_tx_portfolio ON transactions(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
+                CREATE INDEX IF NOT EXISTS idx_tx_symbol ON transactions(symbol);
+                CREATE TABLE IF NOT EXISTS price_cache (
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    close REAL NOT NULL,
+                    source TEXT NOT NULL,
+                    fetched_at TEXT NOT NULL,
+                    PRIMARY KEY (portfolio_name, symbol, date)
+                );
+                CREATE TABLE IF NOT EXISTS security_links (
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    ledger_symbol TEXT NOT NULL,
+                    data_symbol TEXT NOT NULL,
+                    PRIMARY KEY (portfolio_name, ledger_symbol)
+                );
+                CREATE TABLE IF NOT EXISTS notes (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    tags TEXT DEFAULT '[]',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_notes_portfolio ON notes(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_notes_symbol ON notes(symbol);
+                CREATE TABLE IF NOT EXISTS files (
+                    id TEXT PRIMARY KEY,
+                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
+                    symbol TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    mime_type TEXT NOT NULL,
+                    size INTEGER NOT NULL,
+                    path TEXT NOT NULL,
+                    notes TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_files_portfolio ON files(portfolio_name);
+                CREATE INDEX IF NOT EXISTS idx_files_symbol ON files(symbol);
+                CREATE TABLE IF NOT EXISTS forecasts (
+                    id TEXT PRIMARY KEY,
+                    symbol TEXT NOT NULL,
+                    revision_of TEXT,
+                    snapshot TEXT NOT NULL,
+                    outcomes TEXT NOT NULL DEFAULT '[]',
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_forecasts_symbol ON forecasts(symbol);";
+
 // ── Error type ───────────────────────────────────────────────────────
 
 /// Portfolio operation errors, classified for MCP tool dispatch.
@@ -172,84 +247,12 @@ impl PortfolioManager {
         path.push("hkask");
         path.push("portfolios");
         path.push(sanitize_name(&owner.to_string()));
-        let _ = std::fs::create_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("failed to create portfolio directory");
         path.push("master.db");
-        // Ensure schema exists on first use
-        if let Ok(conn) = Connection::open(&path) {
-            let _ = conn.execute_batch(
-                "CREATE TABLE IF NOT EXISTS portfolios (
-                    name TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id TEXT PRIMARY KEY,
-                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
-                    date TEXT NOT NULL,
-                    type TEXT NOT NULL CHECK(type IN ('buy','sell','dividend','deposit','withdrawal')),
-                    symbol TEXT,
-                    quantity REAL,
-                    price REAL,
-                    commission REAL DEFAULT 0,
-                    amount REAL,
-                    currency TEXT DEFAULT 'USD',
-                    notes TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_tx_portfolio ON transactions(portfolio_name);
-                CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
-                CREATE INDEX IF NOT EXISTS idx_tx_symbol ON transactions(symbol);
-                CREATE TABLE IF NOT EXISTS price_cache (
-                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
-                    symbol TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    close REAL NOT NULL,
-                    source TEXT NOT NULL,
-                    fetched_at TEXT NOT NULL,
-                    PRIMARY KEY (portfolio_name, symbol, date)
-                );
-                CREATE TABLE IF NOT EXISTS security_links (
-                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
-                    ledger_symbol TEXT NOT NULL,
-                    data_symbol TEXT NOT NULL,
-                    PRIMARY KEY (portfolio_name, ledger_symbol)
-                );
-                CREATE TABLE IF NOT EXISTS notes (
-                    id TEXT PRIMARY KEY,
-                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
-                    symbol TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    body TEXT NOT NULL,
-                    tags TEXT DEFAULT '[]',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_notes_portfolio ON notes(portfolio_name);
-                CREATE INDEX IF NOT EXISTS idx_notes_symbol ON notes(symbol);
-                CREATE TABLE IF NOT EXISTS files (
-                    id TEXT PRIMARY KEY,
-                    portfolio_name TEXT NOT NULL REFERENCES portfolios(name) ON DELETE CASCADE,
-                    symbol TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    filename TEXT NOT NULL,
-                    mime_type TEXT NOT NULL,
-                    size INTEGER NOT NULL,
-                    path TEXT NOT NULL,
-                    notes TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_files_portfolio ON files(portfolio_name);
-                CREATE INDEX IF NOT EXISTS idx_files_symbol ON files(symbol);
-                CREATE TABLE IF NOT EXISTS forecasts (
-                    id TEXT PRIMARY KEY,
-                    symbol TEXT NOT NULL,
-                    revision_of TEXT,
-                    snapshot TEXT NOT NULL,
-                    outcomes TEXT NOT NULL DEFAULT '[]',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_forecasts_symbol ON forecasts(symbol);",
-            );
-        }
+        // Ensure schema exists on first use — hard error, not silent skip.
+        let conn = Connection::open(&path).expect("failed to open portfolio database");
+        conn.execute_batch(SCHEMA_DDL)
+            .expect("failed to initialize portfolio schema");
         Self {
             db_path: path,
             ledger_driver: None,
@@ -263,83 +266,11 @@ impl PortfolioManager {
 
     #[cfg(test)]
     pub fn with_dir(base_dir: PathBuf) -> Self {
-        let _ = std::fs::create_dir_all(&base_dir);
+        std::fs::create_dir_all(&base_dir).expect("failed to create test portfolio directory");
         let db_path = base_dir.join("master.db");
-        if let Ok(conn) = Connection::open(&db_path) {
-            let _ = conn.execute_batch(
-                "CREATE TABLE IF NOT EXISTS portfolios (
-                    name TEXT PRIMARY KEY,
-                    created_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id TEXT PRIMARY KEY,
-                    portfolio_name TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    type TEXT NOT NULL CHECK(type IN ('buy','sell','dividend','deposit','withdrawal')),
-                    symbol TEXT,
-                    quantity REAL,
-                    price REAL,
-                    commission REAL DEFAULT 0,
-                    amount REAL,
-                    currency TEXT DEFAULT 'USD',
-                    notes TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_tx_portfolio ON transactions(portfolio_name);
-                CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
-                CREATE INDEX IF NOT EXISTS idx_tx_symbol ON transactions(symbol);
-                CREATE TABLE IF NOT EXISTS price_cache (
-                    portfolio_name TEXT NOT NULL,
-                    symbol TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    close REAL NOT NULL,
-                    source TEXT NOT NULL,
-                    fetched_at TEXT NOT NULL,
-                    PRIMARY KEY (portfolio_name, symbol, date)
-                );
-                CREATE TABLE IF NOT EXISTS security_links (
-                    portfolio_name TEXT NOT NULL,
-                    ledger_symbol TEXT NOT NULL,
-                    data_symbol TEXT NOT NULL,
-                    PRIMARY KEY (portfolio_name, ledger_symbol)
-                );
-                CREATE TABLE IF NOT EXISTS notes (
-                    id TEXT PRIMARY KEY,
-                    portfolio_name TEXT NOT NULL,
-                    symbol TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    body TEXT NOT NULL,
-                    tags TEXT DEFAULT '[]',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_notes_portfolio ON notes(portfolio_name);
-                CREATE INDEX IF NOT EXISTS idx_notes_symbol ON notes(symbol);
-                CREATE TABLE IF NOT EXISTS files (
-                    id TEXT PRIMARY KEY,
-                    portfolio_name TEXT NOT NULL,
-                    symbol TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    filename TEXT NOT NULL,
-                    mime_type TEXT NOT NULL,
-                    size INTEGER NOT NULL,
-                    path TEXT NOT NULL,
-                    notes TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_files_portfolio ON files(portfolio_name);
-                CREATE INDEX IF NOT EXISTS idx_files_symbol ON files(symbol);
-                CREATE TABLE IF NOT EXISTS forecasts (
-                    id TEXT PRIMARY KEY,
-                    symbol TEXT NOT NULL,
-                    revision_of TEXT,
-                    snapshot TEXT NOT NULL,
-                    outcomes TEXT NOT NULL DEFAULT '[]',
-                    created_at TEXT NOT NULL
-                );
-                CREATE INDEX IF NOT EXISTS idx_forecasts_symbol ON forecasts(symbol);",
-            );
-        }
+        let conn = Connection::open(&db_path).expect("failed to open test portfolio database");
+        conn.execute_batch(SCHEMA_DDL)
+            .expect("failed to initialize test portfolio schema");
         Self {
             db_path,
             ledger_driver: None,
@@ -410,7 +341,8 @@ impl PortfolioManager {
             return Err(format!(
                 "forecast '{id}' belongs to symbol '{}', not '{symbol}'",
                 parent.symbol
-            ).into());
+            )
+            .into());
         }
         Ok(())
     }
@@ -902,7 +834,8 @@ impl PortfolioManager {
             if txs.len() == MAX_IMPORT_TRANSACTION_COUNT {
                 return Err(format!(
                     "import exceeds maximum of {MAX_IMPORT_TRANSACTION_COUNT} transactions"
-                ).into());
+                )
+                .into());
             }
             let fields: Vec<&str> = line.split(',').map(|f| f.trim()).collect();
 
@@ -956,7 +889,8 @@ impl PortfolioManager {
         if txs.len() > MAX_IMPORT_TRANSACTION_COUNT {
             return Err(format!(
                 "import exceeds maximum of {MAX_IMPORT_TRANSACTION_COUNT} transactions"
-            ).into());
+            )
+            .into());
         }
         let conn = self.open()?;
         self.check_exists(&conn, name)?;
@@ -1275,7 +1209,8 @@ impl PortfolioManager {
         if bytes.len() > MAX_DECODED_ATTACHMENT_BYTES {
             return Err(format!(
                 "decoded attachment exceeds maximum of {MAX_DECODED_ATTACHMENT_BYTES} bytes"
-            ).into());
+            )
+            .into());
         }
 
         let id = uuid::Uuid::new_v4().to_string();
@@ -1368,7 +1303,8 @@ impl PortfolioManager {
         if rows == 0 {
             return Err(format!(
                 "delete_file: attachment file removed but metadata for '{file_id}' was not found"
-            ).into());
+            )
+            .into());
         }
 
         Ok(())
