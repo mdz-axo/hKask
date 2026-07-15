@@ -608,28 +608,24 @@ impl SemanticMemory {
     /// Splits on structural boundaries (markdown headings, horizontal rules,
     /// then paragraph breaks), applies min/max word count constraints, and
     /// splits long paragraphs at the nearest sentence boundary. Short
-    /// paragraphs are concatenated until min_words is reached. When
-    /// `overlap_words` > 0, consecutive chunks share that many trailing words
-    /// so context spanning a chunk boundary survives.
+    /// paragraphs are concatenated until min_words is reached.
     ///
     /// Returns (entity_ref, text) pairs with entity_ref formatted as
     /// `{entity_ref_prefix}:{chunk_index}`.
     ///
     /// expect: "I can store shared semantic h_mems for public knowledge"
     /// \[P3\] Motivating: Generative Space — chunks text into passage-sized units for embedding
-    /// \[P5\] Constraining: Essentialism — structural/sentence boundary splitting with min/max words + overlap
+    /// \[P5\] Constraining: Essentialism — structural/sentence boundary splitting with min/max words
     /// pre:  text is non-empty, entity_ref_prefix is non-empty
-    /// pre:  min_words > 0, max_words >= min_words, overlap_words <= max_words
+    /// pre:  min_words > 0, max_words >= min_words
     /// post: returns Vec of (entity_ref, text) chunks
     /// post: each chunk has word count between min_words and max_words (best-effort)
-    /// post: consecutive chunks share up to overlap_words trailing words when > 0
     pub fn chunk_text(
         text: &str,
         entity_ref_prefix: &str,
         min_words: usize,
         max_words: usize,
         sentence_boundary: &str,
-        overlap_words: usize,
     ) -> Vec<(String, String)> {
         // Structural splitting: headings/rules become their own paragraph units so
         // chunks don't straddle unrelated sections (improves concept coherence, which
@@ -645,61 +641,24 @@ impl SemanticMemory {
             .filter(|c| !c.is_whitespace())
             .collect();
 
-        // Flush the buffer as a chunk, optionally carrying `overlap_words` trailing
-        // words into the next buffer so consecutive chunks share context. `passages`
-        // is passed explicitly (not captured) so the long-paragraph branch can also
-        // push without a double-mutable-borrow conflict.
-        let flush = |passages: &mut Vec<(String, String)>,
-                     buffer: &mut String,
-                     buffer_words: &mut usize,
-                     chunk_index: &mut usize| {
-            if !buffer.is_empty() {
-                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
-                passages.push((entity_ref, buffer.trim().to_string()));
-                *chunk_index += 1;
-                if overlap_words > 0 {
-                    let tail: Vec<&str> = buffer
-                        .split_whitespace()
-                        .rev()
-                        .take(overlap_words)
-                        .collect();
-                    let mut carried = String::new();
-                    for w in tail.into_iter().rev() {
-                        if !carried.is_empty() {
-                            carried.push(' ');
-                        }
-                        carried.push_str(w);
-                    }
-                    buffer.clear();
-                    *buffer = carried;
-                    *buffer_words = buffer.split_whitespace().count();
-                } else {
-                    buffer.clear();
-                    *buffer_words = 0;
-                }
-            }
-        };
-
         for paragraph in &paragraphs {
             let word_count = paragraph.split_whitespace().count();
 
             if buffer_words + word_count > max_words && buffer_words >= min_words {
-                flush(
-                    &mut passages,
-                    &mut buffer,
-                    &mut buffer_words,
-                    &mut chunk_index,
-                );
+                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                passages.push((entity_ref, buffer.trim().to_string()));
+                chunk_index += 1;
+                buffer.clear();
+                buffer_words = 0;
             }
 
             if word_count > max_words {
                 if !buffer.is_empty() && buffer_words >= min_words {
-                    flush(
-                        &mut passages,
-                        &mut buffer,
-                        &mut buffer_words,
-                        &mut chunk_index,
-                    );
+                    let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                    passages.push((entity_ref, buffer.trim().to_string()));
+                    chunk_index += 1;
+                    buffer.clear();
+                    buffer_words = 0;
                 }
                 // Split a too-long paragraph at the nearest sentence boundary at or
                 // after max_words (look-ahead up to 25% of max_words), falling back
@@ -712,7 +671,7 @@ impl SemanticMemory {
                     let mut split_at = target;
                     let mut found = false;
                     for (i, w) in words.iter().enumerate().skip(target).take(look_ahead) {
-                        if Self::is_sentence_end(w, &boundary_chars, Self::ABBREVS) {
+                        if Self::is_sentence_end(w, &boundary_chars) {
                             split_at = i + 1;
                             found = true;
                             break;
@@ -721,7 +680,7 @@ impl SemanticMemory {
                     if !found {
                         let back_floor = start + min_words.min(words.len());
                         for i in (back_floor..target).rev() {
-                            if Self::is_sentence_end(words[i], &boundary_chars, Self::ABBREVS) {
+                            if Self::is_sentence_end(words[i], &boundary_chars) {
                                 split_at = i + 1;
                                 break;
                             }
@@ -734,19 +693,10 @@ impl SemanticMemory {
                         let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
                         passages.push((entity_ref, text));
                         chunk_index += 1;
-                        if overlap_words > 0 && split_at < words.len() {
-                            let back = split_at.saturating_sub(overlap_words);
-                            buffer.clear();
-                            buffer.push_str(&words[back..split_at].join(" "));
-                            buffer_words = overlap_words;
-                        } else {
-                            buffer.clear();
-                            buffer_words = 0;
-                        }
+                        buffer.clear();
+                        buffer_words = 0;
                     } else if !buffer.is_empty() {
-                        if !buffer.is_empty() {
-                            buffer.push(' ');
-                        }
+                        buffer.push(' ');
                         buffer.push_str(&text);
                         buffer_words += cw;
                     } else {
@@ -765,14 +715,7 @@ impl SemanticMemory {
             }
         }
 
-        if !buffer.is_empty() && buffer_words >= min_words {
-            flush(
-                &mut passages,
-                &mut buffer,
-                &mut buffer_words,
-                &mut chunk_index,
-            );
-        } else if !buffer.is_empty() {
+        if !buffer.is_empty() {
             let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
             passages.push((entity_ref, buffer.trim().to_string()));
         }
@@ -780,21 +723,11 @@ impl SemanticMemory {
         passages
     }
 
-    /// Abbreviations whose trailing period is NOT a sentence end. Curated for an
-    /// investment/research corpus: editorial forms plus common financial acronyms.
-    /// Short ambiguous words that occur constantly in prose (no, vol, pp, ch, p)
-    /// are deliberately excluded so they do NOT suppress real sentence ends.
-    const ABBREVS: &[&str] = &[
-        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "inc", "corp", "ltd", "co", "vs", "etc",
-        "e.g", "i.e", "cf", "fig", "u.s", "u.k", "q1", "q2", "q3", "q4", "yoy", "ebitda", "cagr",
-        "roi", "roe", "roic", "dcf", "gdp", "cpi", "eps", "fed", "sec", "wacc", "capm",
-    ];
-
     /// True when `word` ends a sentence: its final non-quote char is a boundary
-    /// punctuation AND it is not a known abbreviation. Handles trailing quotes
-    /// (`asked."`) and numeric decimals (`3.14` — a digit before the period is
-    /// not a sentence end). Single-letter initials (`J.`) are not sentence ends.
-    fn is_sentence_end(word: &str, boundary_chars: &[char], abbrevs: &[&str]) -> bool {
+    /// punctuation. Handles trailing quotes (`asked."`) and numeric decimals
+    /// (`3.14` — a digit before the period is not a sentence end).
+    /// Single-letter initials (`J.`) are not sentence ends.
+    fn is_sentence_end(word: &str, boundary_chars: &[char]) -> bool {
         let trimmed = word.trim_end_matches(['"', '\'', '\u{201d}', '\u{201c}']);
         let mut chars = trimmed.chars();
         let last = match chars.next_back() {
@@ -808,10 +741,6 @@ impl SemanticMemory {
             return false;
         }
         let stem = trimmed.trim_end_matches(['.', '!', '?']);
-        let lower = stem.to_lowercase();
-        if abbrevs.contains(&lower.as_str()) {
-            return false;
-        }
         if last == '.'
             && stem.chars().count() == 1
             && stem.chars().next().is_some_and(|c| c.is_uppercase())
@@ -1057,13 +986,13 @@ mod tests {
 
     #[test]
     fn chunk_text_empty_input_returns_empty() {
-        let result = SemanticMemory::chunk_text("", "doc", 5, 20, ".!? ", 0);
+        let result = SemanticMemory::chunk_text("", "doc", 5, 20, ".!? ");
         assert!(result.is_empty(), "empty input should produce no chunks");
     }
 
     #[test]
     fn chunk_text_whitespace_only_returns_empty() {
-        let result = SemanticMemory::chunk_text("   \n\n  \t  \n\n", "doc", 5, 20, ".!? ", 0);
+        let result = SemanticMemory::chunk_text("   \n\n  \t  \n\n", "doc", 5, 20, ".!? ");
         assert!(
             result.is_empty(),
             "whitespace-only input should produce no chunks"
@@ -1071,52 +1000,15 @@ mod tests {
     }
 
     #[test]
-    fn chunk_text_overlap_carries_trailing_words_across_buffer_flush() {
-        // Overlap works through the flush closure: when the buffer exceeds max_words,
-        // flush pushes the buffer and carries overlap_words trailing words into the
-        // next buffer so consecutive chunks share context.
-        //
-        // para1 (6 words) + para2 (6 words) with max_words=10: buffer accumulates
-        // para1 (6 words), then para2 pushes it over 10 → flush. overlap_words=3
-        // means chunk[1] should start with the last 3 words of chunk[0].
-        let text = "alpha beta gamma delta epsilon zeta\n\neta theta iota kappa lambda mu";
-        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 10, ".!? ", 3);
-        assert!(
-            chunks.len() >= 2,
-            "should produce at least 2 chunks, got {}",
-            chunks.len()
-        );
-        let c0_words: Vec<&str> = chunks[0].1.split_whitespace().collect();
-        let c1_words: Vec<&str> = chunks[1].1.split_whitespace().collect();
-        assert!(
-            c0_words.len() >= 3,
-            "first chunk should have >= 3 words, got {}",
-            c0_words.len()
-        );
-        assert!(
-            c1_words.len() >= 3,
-            "second chunk should have >= 3 words, got {}",
-            c1_words.len()
-        );
-        let tail = &c0_words[c0_words.len() - 3..];
-        let head = &c1_words[..3];
-        assert_eq!(
-            tail, head,
-            "overlap words should match: tail={:?}, head={:?}",
-            tail, head
-        );
-    }
-
-    #[test]
     fn chunk_text_ontology_concepts_preserved_across_boundaries() {
-        // Multi-word concepts from all four ontology namespaces should survive
+        // Multi-word concepts from all five ontology namespaces should survive
         // chunking intact. The sentence-boundary splitter breaks at periods
-        // after each sentence, not mid-concept. Overlap ensures context survives
-        // even when a concept straddles a boundary.
+        // after each sentence, not mid-concept.
         //
         // FIBO: barrier to entry, cost of capital, economic profit, margin of safety
         // GOLEM: narrative structure, character development
         // PKO: feedback loop, decision process
+        // epistemic: causal reasoning, confirmation bias
         // Dublin Core (dc_subject): these are the general keywords the tagging
         //   template extracts — they overlap with the ontology concepts above.
         let text = "competitive advantage creates economic profit through differentiation. \
@@ -1125,9 +1017,11 @@ narrative structure shapes how investors interpret market signals clearly. \
 character development in case studies reveals decision patterns over time. \
 feedback loop connects analysis to evaluation in the investment process. \
 decision process requires discipline and patience from practitioners. \
+causal reasoning distinguishes correlation from causation in market analysis. \
+confirmation bias distorts judgment when evidence supports prior beliefs. \
 cost of capital determines allocation across competing opportunities. \
 margin of safety reduces downside risk in uncertain environments.";
-        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 15, ".!? ", 3);
+        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 15, ".!? ");
         assert!(
             !chunks.is_empty(),
             "should produce chunks from ontology text"
@@ -1146,7 +1040,13 @@ margin of safety reduces downside risk in uncertain environments.";
         ];
         let golem = ["narrative structure", "character development"];
         let pko = ["feedback loop", "decision process"];
-        for concept in fibo.iter().chain(golem.iter()).chain(pko.iter()) {
+        let epistemic = ["causal reasoning", "confirmation bias"];
+        for concept in fibo
+            .iter()
+            .chain(golem.iter())
+            .chain(pko.iter())
+            .chain(epistemic.iter())
+        {
             assert!(
                 all_text.contains(concept),
                 "ontology concept '{concept}' should appear intact in chunked text"
@@ -1159,7 +1059,7 @@ margin of safety reduces downside risk in uncertain environments.";
         // A markdown heading creates a structural boundary. With small max_words,
         // the heading forces a paragraph break so chunks don't straddle sections.
         let text = "First section discusses investing principles at length here.\n\n# Chapter Two\n\nSecond section covers return on capital analysis in detail.";
-        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 12, ".!? ", 0);
+        let chunks = SemanticMemory::chunk_text(text, "doc", 5, 12, ".!? ");
         // No single chunk should contain both "investing" and "return on capital"
         // — they're in different structural sections.
         for (_, chunk_text) in &chunks {

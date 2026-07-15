@@ -492,7 +492,6 @@ impl DocProcServer {
             let processed = sanitize_links(&processed);
             let processed = crate::convert::decode_html_entities(&processed);
             let processed = crate::convert::strip_html_comments(&processed);
-            let processed = strip_boilerplate(&processed);
 
             let boundary = ".!? ";
 
@@ -506,7 +505,6 @@ impl DocProcServer {
                         w / 4,
                         w,
                         boundary,
-                        0,
                     )
                 };
 
@@ -539,8 +537,7 @@ impl DocProcServer {
                 Ok(result)
             } else {
                 // Single-tier
-                let (max_words, min_words, overlap_words) =
-                    chunk_word_bounds(max_tokens, overlap_tokens);
+                let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
 
                 let passages = SemanticMemory::chunk_text(
                     &processed,
@@ -548,7 +545,6 @@ impl DocProcServer {
                     min_words,
                     max_words,
                     boundary,
-                    overlap_words,
                 );
 
                 let total_passages = passages.len();
@@ -570,7 +566,6 @@ impl DocProcServer {
                     "overlap_tokens": overlap_tokens.unwrap_or(64),
                     "max_words": max_words,
                     "min_words": min_words,
-                    "overlap_words": overlap_words,
                     "sentence_boundary": boundary,
                     "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
                     "indexed": indexed,
@@ -739,8 +734,7 @@ impl DocProcServer {
             let mut total_chunks = 0usize;
             let mut indexed = 0usize;
 
-            let (max_words, min_words, overlap_words) =
-                chunk_word_bounds(max_tokens, overlap_tokens);
+            let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
 
             for source in &sources {
                 let file_name = source
@@ -769,7 +763,6 @@ impl DocProcServer {
                 let processed = sanitize_links(&processed);
                 let processed = crate::convert::decode_html_entities(&processed);
                 let processed = crate::convert::strip_html_comments(&processed);
-                let processed = strip_boilerplate(&processed);
 
                 let passages = SemanticMemory::chunk_text(
                     &processed,
@@ -777,7 +770,6 @@ impl DocProcServer {
                     min_words,
                     max_words,
                     ".!? ",
-                    overlap_words,
                 );
 
                 // Index if requested
@@ -945,22 +937,9 @@ fn sanitize_links(text: &str) -> String {
 }
 
 /// Strip newsletter/blog subscribe boilerplate from text.
-///
-/// Removes the common Substack-style call-to-action that appears at the
-/// start and end of blog posts: "Thanks for reading X! Subscribe for free
-/// to receive new posts and support my work."
-fn strip_boilerplate(text: &str) -> String {
-    use regex::Regex;
-    let re = Regex::new(
-        r"Thanks for reading [^!]+! Subscribe for free to receive new posts and support my work\.",
-    )
-    .expect("boilerplate regex");
-    re.replace_all(text, "").into_owned()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{sanitize_links, strip_boilerplate};
+    use super::sanitize_links;
 
     #[test]
     fn strips_bare_urls() {
@@ -1017,20 +996,5 @@ mod tests {
     fn collapses_double_spaces() {
         let input = "Visit  https://example.com  now.";
         assert_eq!(sanitize_links(input), "Visit now.");
-    }
-
-    #[test]
-    fn strips_newsletter_boilerplate() {
-        let input = "Some content here. Thanks for reading Merchant Adventures! Subscribe for free to receive new posts and support my work. More content.";
-        assert_eq!(
-            strip_boilerplate(input),
-            "Some content here.  More content."
-        );
-    }
-
-    #[test]
-    fn preserves_text_without_boilerplate() {
-        let input = "Normal text with no newsletter boilerplate.";
-        assert_eq!(strip_boilerplate(input), input);
     }
 }
