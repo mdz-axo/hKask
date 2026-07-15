@@ -942,17 +942,17 @@ impl DocProcServer {
                         });
                         if !is_dup {
                             kept.push(i);
-                            deduped.push((Some(normalized[i].clone()), &filtered[i]));
+                            deduped.push((Some(normalized[i].clone()), filtered[i]));
                         }
                     }
                 }
 
                 // QAs without embeddings: exact-match dedup
                 for i in 0..filtered.len() {
-                    if i >= normalized.len() || normalized[i].is_empty() {
-                        if seen.insert(filtered[i].instruction.to_lowercase()) {
-                            deduped.push((None, &filtered[i]));
-                        }
+                    if (i >= normalized.len() || normalized[i].is_empty())
+                        && seen.insert(filtered[i].instruction.to_lowercase())
+                    {
+                        deduped.push((None, filtered[i]));
                     }
                 }
             } else {
@@ -1024,12 +1024,11 @@ impl DocProcServer {
                 }
 
                 // Store QA embedding
-                if req.embed_qas {
-                    if let Some(vec) = _emb {
-                        if semantic.store_embedding(&entity, vec, &emb_model).is_ok() {
-                            embed_stored += 1;
-                        }
-                    }
+                if req.embed_qas
+                    && let Some(vec) = _emb
+                    && semantic.store_embedding(&entity, vec, &emb_model).is_ok()
+                {
+                    embed_stored += 1;
                 }
             }
             tracing::info!("  Stored: {} QA h_mems, {} embeddings", stored, embed_stored);

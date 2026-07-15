@@ -767,7 +767,7 @@ pub async fn run(
 mod tests {
     use super::*;
     use crate::tools::document::{ConvertRequest, default_true};
-    use crate::tools::semantic::{EmbedRequest, ExtractTriplesRequest, GenerateQaRequest};
+    use crate::tools::semantic::GenerateQaRequest;
     use crate::tools::storage::QueryRequest;
 
     #[test]

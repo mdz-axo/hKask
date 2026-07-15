@@ -116,9 +116,13 @@ pub(crate) fn configured_qa_model(requested_model: Option<String>) -> Option<Str
 /// Used by `docproc_extract_triples` to assign a Dimension to each stored h_mem.
 pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension {
     let p = predicate.to_lowercase();
-    if p.contains("type") || p.contains("is_a") || p.contains("subclass") {
-        hkask_types::Dimension::What
-    } else if p.contains("name") || p.contains("label") || p.contains("title") {
+    if p.contains("type")
+        || p.contains("is_a")
+        || p.contains("subclass")
+        || p.contains("name")
+        || p.contains("label")
+        || p.contains("title")
+    {
         hkask_types::Dimension::What
     } else if p.contains("location") || p.contains("place") || p.contains("located_in") {
         hkask_types::Dimension::Where
@@ -147,8 +151,6 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
         || p.contains("uses_method")
     {
         hkask_types::Dimension::How
-    } else if p.contains("mentions") || p.contains("references") || p.contains("relates_to") {
-        hkask_types::Dimension::What
     } else {
         hkask_types::Dimension::What
     }

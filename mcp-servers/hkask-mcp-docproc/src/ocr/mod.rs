@@ -17,6 +17,7 @@ pub mod document;
 pub mod llm_ocr;
 pub mod pipeline;
 pub mod routing;
+pub mod server;
 pub mod tesseract;
 pub mod verification;
 
