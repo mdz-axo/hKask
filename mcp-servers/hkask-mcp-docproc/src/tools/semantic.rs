@@ -765,9 +765,17 @@ pub struct BatchQaPrompt {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateQaBatchRequest {
-    /// Array of prompt specs to process.
-    pub prompts: Vec<BatchQaPrompt>,
-    /// Max concurrent LLM calls. Batch processing is currently sequential.
+    /// Array of prompt specs to process. Mutually exclusive with prompts_jsonl.
+    #[serde(default)]
+    pub prompts: Option<Vec<BatchQaPrompt>>,
+    /// Path to prompts JSONL file (one JSON per line with chunk_id, text, bloom_levels).
+    #[serde(default)]
+    pub prompts_jsonl: Option<String>,
+    /// Output path for generated QAs JSONL. When provided, writes results to file
+    /// instead of returning inline (needed for large batches).
+    #[serde(default)]
+    pub output: Option<String>,
+    /// Max concurrent LLM calls.
     #[serde(default = "default_batch_concurrency")]
     pub concurrency: usize,
     /// Optional provider-prefixed generation model for every prompt in this batch.
@@ -781,20 +789,19 @@ fn default_batch_concurrency() -> usize {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ExtractTriplesRequest {
-    /// Text to extract RDF h_mems from.
-    pub text: String,
+    /// Text to extract RDF h_mems from. Mutually exclusive with chunks_jsonl.
+    #[serde(default)]
+    pub text: Option<String>,
+    /// Path to chunks JSONL for batch processing. Reads (entity_ref, text) per line.
+    #[serde(default)]
+    pub chunks_jsonl: Option<String>,
     /// Optional entity namespace prefix (e.g., "doc:myfile").
     #[serde(default)]
     pub namespace: Option<String>,
-    /// Maximum h_mems to extract (default 50).
-    #[serde(default)]
-    pub max_triples: Option<usize>,
-    /// Chunk reference (entity_ref) — used as the h_mem entity when storing triples.
-    /// When provided with db_path, triples are stored as h_mems with entity=chunk_ref.
-    #[serde(default)]
-    pub chunk_ref: Option<String>,
+    /// Maximum h_mems to extract per chunk (default 15).
+    #[serde(default = "default_max_triples")]
+    pub max_triples: usize,
     /// Path to the SQLCipher memory DB for h_mem storage.
-    /// When provided with chunk_ref, extracted triples are stored as h_mems.
     #[serde(default)]
     pub db_path: Option<String>,
     /// Passphrase for the memory DB.
@@ -803,12 +810,28 @@ pub struct ExtractTriplesRequest {
     /// Owner persona for stored h_mems (e.g. "john-brooks").
     #[serde(default = "default_owner")]
     pub owner: String,
+    /// Max concurrent LLM calls for batch processing (default 64).
+    #[serde(default = "default_triples_concurrency")]
+    pub concurrency: usize,
+}
+
+fn default_max_triples() -> usize {
+    15
+}
+
+fn default_triples_concurrency() -> usize {
+    64
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct EmbedRequest {
-    /// Texts to embed (passages or h_mem strings).
-    pub texts: Vec<String>,
+    /// Texts to embed (passages or h_mem strings). Mutually exclusive with chunks_jsonl.
+    #[serde(default)]
+    pub texts: Option<Vec<String>>,
+    /// Path to chunks JSONL (entity_ref, source, text, word_count per line).
+    /// When provided, reads chunks from file and batch-embeds them.
+    #[serde(default)]
+    pub chunks_jsonl: Option<String>,
     /// Embedding model to use. If not set, uses the configured default.
     #[serde(default)]
     pub model: Option<String>,
@@ -821,10 +844,17 @@ pub struct EmbedRequest {
     #[serde(default)]
     pub passphrase: Option<String>,
     /// Entity refs (chunk_ref) for each text — used as the h_mem entity and embedding key.
-    /// Must match `texts` length when provided. Required when `db_path` is set.
+    /// Must match `texts` length when provided. Required when `db_path` is set with inline texts.
     #[serde(default)]
     pub entity_refs: Option<Vec<String>>,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
     #[serde(default = "default_owner")]
     pub owner: String,
+    /// Batch size for embedding API calls (default 50). Used with chunks_jsonl.
+    #[serde(default = "default_embed_batch_size")]
+    pub batch_size: usize,
+}
+
+fn default_embed_batch_size() -> usize {
+    50
 }

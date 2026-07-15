@@ -256,11 +256,12 @@ The base model CAN reason (3,400–5,400 char responses with thinking traces), b
 
 ### v2 Training Workflow (on RunPod)
 
-All v2 scripts (preprocessing, config, eval) live in the HuggingFace repo (`Axolotl-Partners/rust-adapter-scripts`), not in hKask — hKask is a Rust project and Python is not an acceptable dependency.
+All v2 scripts (distillation, preprocessing, config, eval) live in the HuggingFace repo (`Axolotl-Partners/rust-adapter-scripts`), not in hKask — hKask is a Rust project and Python is not an acceptable dependency.
 
-1. **Preprocess v2 data** — Reformat analysis targets with CoT scaffolding. Two system prompts: concise for codegen, thorough for analysis. The scaffolding adds a structured reasoning checklist before the conclusion, forcing the model to deliberate rather than jump to a terse answer.
-2. **Train with v2 config** — Same optimizations as v1 (PiSSA, patience=25, SDPA, Liger, CCE) but r=32, alpha=64. PiSSA still applies at r=32. Expect ~26h, ~$83.
-3. **Eval with vLLM** — vLLM continuous batching gives 10-50x speedup over sequential HF generate (225 examples in ~15 min vs ~18h). Falls back to HF batched generation (4-8x) if vLLM doesn't support Qwen3.6's hybrid attention.
+1. **Distill reasoning traces** — Use the base Qwen3.6-27B (4-bit, via Unsloth) to generate real chain-of-thought reasoning traces for the analysis subset (bug_detection, code_review, code_refactoring, code_optimization). The base model reasons well (3,400-5,400 char responses); this captures its actual analysis of each specific code example — not a generic checklist. ~4h on H100. Output: `/workspace/data/distilled/{category}/{idx}.txt`.
+2. **Preprocess v2 data** — Reformat analysis targets with the distilled CoT traces prepended to the conclusion. Use `--use-distilled /workspace/data/distilled/`. Two system prompts: concise for codegen, thorough for analysis. Without distilled traces, falls back to a structured scaffolding checklist (less effective — it's generic boilerplate, not real reasoning).
+3. **Train with v2 config** — Same optimizations as v1 (PiSSA `pissa_niter_4`, patience=25, SDPA, Liger, CCE) but r=32, alpha=64. PiSSA at r=32 is untested — if convergence is slow, increase SVD iterations to `pissa_niter_8`. Expect ~26h, ~$83.
+4. **Eval with vLLM** — vLLM continuous batching gives 10-50x speedup over sequential HF generate (225 examples in ~15 min vs ~18h). Falls back to HF batched generation (4-8x) if vLLM doesn't support Qwen3.6's hybrid attention.
 
 ### Immediate Alternative (No Retrain)
 
