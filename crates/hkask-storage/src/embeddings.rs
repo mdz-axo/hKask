@@ -259,6 +259,12 @@ impl EmbeddingStore {
                 // vec0 is keyed on its implicit integer rowid, which mirrors
                 // embeddings.rowid. Link the vector to the metadata row by
                 // reusing the rowid SQLite just assigned.
+                // SAFETY (connection affinity): last_insert_rowid() is per-
+                // connection state. This is safe because the INSERT above and
+                // this call happen on the same PooledConnection within the
+                // same transaction. Refactoring to self.exec() (which acquires
+                // a different pool connection) would break this — the rowid
+                // would be from the wrong connection.
                 let rowid: i64 = conn.last_insert_rowid();
                 let vec_result = conn.execute(
                     "INSERT INTO vec_embeddings (rowid, embedding) VALUES (?1, ?2)",
@@ -327,6 +333,13 @@ impl EmbeddingStore {
         }
     }
     /// KNN search using sqlite-vec MATCH operator.
+    ///
+    /// Returns the `limit` nearest embeddings by cosine distance. vec0 v0.1.x
+    /// does not support WHERE constraints on the distance column for
+    /// threshold-based filtering (sqlite-vec#165). If the caller needs a
+    /// distance threshold (e.g. "all neighbors within cosine 0.3"), over-fetch
+    /// a larger `limit` and post-filter the returned `SimilarityResult` list
+    /// by the `distance` field in Rust.
     /// Search for similar embeddings by vector distance.
     ///
     /// expect: "The system provides durable storage for embedding data"

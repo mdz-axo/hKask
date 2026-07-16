@@ -231,12 +231,15 @@ impl Database {
         Ok(pool)
     }
 
-    /// Run a passive WAL checkpoint and analyze indices.
+    /// Run a passive WAL checkpoint, reclaim free pages, and analyze indices.
     ///
     /// Call periodically (e.g. on a maintenance tick) to prevent WAL
-    /// checkpoint starvation under long-lived readers. PASSIVE mode
-    /// checkpoints as much as possible without blocking concurrent
-    /// readers/writers. `PRAGMA optimize` refreshes index statistics.
+    /// checkpoint starvation under long-lived readers and vec0 shadow-table
+    /// bloat from re-embedding churn. PASSIVE mode checkpoints as much as
+    /// possible without blocking concurrent readers/writers.
+    /// `incremental_vacuum` reclaims pages freed by vec0 DELETE operations
+    /// (shadow tables are not reclaimed by ordinary VACUUM).
+    /// `PRAGMA optimize` refreshes index statistics.
     pub fn checkpoint(&self) -> Result<(), DatabaseError> {
         if self.path == ":memory:" {
             return Ok(());
@@ -245,8 +248,12 @@ impl Database {
         let conn = pool
             .get()
             .map_err(|e| DatabaseError::SqlCipher(e.to_string()))?;
-        conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE); PRAGMA optimize;")
-            .map_err(|e| DatabaseError::SqlCipher(format!("checkpoint: {e}")))?;
+        conn.execute_batch(
+            "PRAGMA wal_checkpoint(PASSIVE);
+             PRAGMA incremental_vacuum;
+             PRAGMA optimize;",
+        )
+        .map_err(|e| DatabaseError::SqlCipher(format!("checkpoint: {e}")))?;
         Ok(())
     }
 
@@ -328,7 +335,8 @@ impl Database {
                      PRAGMA foreign_keys = ON;
                      PRAGMA mmap_size = 268435456;
                      PRAGMA cache_size = -65536;
-                     PRAGMA wal_autocheckpoint = 256;",
+                     PRAGMA wal_autocheckpoint = 256;
+                     PRAGMA auto_vacuum = INCREMENTAL;",
             )
         });
 

@@ -10,6 +10,12 @@ use crate::types::{Edge, EdgeKind, Symbol};
 
 /// Load the sqlite-vec extension into a single connection.
 ///
+/// This helper is intentionally duplicated in `hkask-storage-core` and here.
+/// Extracting it to `hkask-database` would force sqlite-vec as a mandatory
+/// dependency on every consumer of hkask-database, even those that never use
+/// vector search. The duplication (15 lines) is the lesser evil — it keeps
+/// hkask-database sqlite-vec-free and avoids unnecessary coupling.
+///
 /// Per-connection loading avoids `sqlite3_auto_extension`, whose
 /// process-global registration is deprecated on Apple platforms and is a
 /// known teardown-segfault source (the sqlite-vec author reports unreliable
