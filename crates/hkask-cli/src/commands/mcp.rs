@@ -72,10 +72,16 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             let ctx = build_agent_service(rt);
             let from = super::helpers::resolve_user_webid();
             let to = super::helpers::resolve_user_webid();
+            // Grant the exact tool the caller named (--tool), not the server id.
+            // issue_capability's resource_id must equal the tool name for
+            // verify_capability_exact (token.resource_id == tool_name), and must
+            // match the stripped domain for the fallback. Passing the server id
+            // (e.g. "hkask-mcp-docproc") matched neither, so governed tools were
+            // never authorizable via `kask mcp invoke`.
             let token = ctx
                 .governance()
                 .dispatcher
-                .issue_capability(server.clone(), from, to);
+                .issue_capability(tool.clone(), from, to);
             let result = match rt.block_on(ctx.governance().dispatcher.invoke(
                 &tool,
                 input_value,
