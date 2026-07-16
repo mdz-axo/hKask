@@ -102,6 +102,25 @@ chunk → tag → embed → extract_triples → dedup → consolidate → build_
 - Diminishing returns after first iteration
 - The first pass (tag → embed) already captures most of the benefit
 
+## Open Questions (from adversarial review)
+
+1. **Annotation format is a hypothesis, not a proven fact.** INSTRUCTOR
+   fine-tunes the embedding model with instruction-task pairs during training.
+   We use a frozen model and prepend strings at inference time. The bracket
+   notation `[golem: metaphor]` may be treated as noise, not as an
+   instruction. A micro-experiment (embed 10 chunks with/without prefix,
+   compare cosine similarities) is needed to validate.
+
+2. **Mixed prefixed/non-prefixed space.** Chunks without ontology tags get a
+   neutral `[unclassified]` prefix to maintain consistent token structure.
+   This mitigates but does not eliminate the risk of distorted KNN retrieval
+   between tagged and untagged chunks.
+
+3. **No feedback sensor.** The pipeline has no automatic quality metric for
+   embedding quality. A diagnostic log in `build_prompts` now records KNN
+   neighbor sources so we can manually verify same-domain retrieval after a
+   pipeline run.
+
 ## Consequences
 
 - **Pipeline order is strictly sequential** — tag must complete before embed

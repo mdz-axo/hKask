@@ -1,5 +1,8 @@
 //! Semantic extraction tools — QA generation, h_mem extraction, embedding.
 use crate::*;
+use hkask_bridge_eso as eso;
+use hkask_bridge_fibo as fibo;
+use hkask_bridge_golem as golem;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -159,6 +162,21 @@ fn read_ontology_tags(
     Ok(map)
 }
 
+/// Read ontology tags and format as bracketed annotation prefixes for embedding.
+///
+/// Wraps `read_ontology_tags` with `[]` brackets and trailing space.
+/// Used by `embed_batch_from_jsonl` to prepend ontology annotations
+/// to chunk text before embedding.
+fn read_ontology_tags_annotated(
+    path: &str,
+) -> Result<std::collections::HashMap<String, String>, McpToolError> {
+    let map = read_ontology_tags(path)?;
+    Ok(map
+        .into_iter()
+        .map(|(k, v)| (k, format!("[{}] ", v)))
+        .collect())
+}
+
 /// Map an RDF predicate to a 5W1H dimension.
 ///
 /// Migrated from the CLI binary's `predicate_to_dimension` function.
@@ -170,11 +188,16 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
     // Curated mapping — exact or prefix match on known predicates
     match p.as_str() {
         // Who — agents, authors, characters, creators
-        "schema:author" | "schema:creator" | "schema:contributor" | "schema:actor"
-        | "golem:hascharacter" | "golem:hasnarrator" | "rdf:creator" => Who,
+        "schema:author"
+        | "schema:creator"
+        | "schema:contributor"
+        | "schema:actor"
+        | golem::HAS_CHARACTER
+        | golem::HAS_NARRATOR
+        | "rdf:creator" => Who,
 
         // Who — ESO epistemic agents
-        "eso:hascounterargument" => Who,
+        eso::HAS_COUNTERARGUMENT => Who,
 
         // When — temporal
         "schema:datecreated"
@@ -184,29 +207,32 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
         | "dcterms:issued" => When,
 
         // When — ESO temporal epistemic
-        "eso:hasconfidence" => When,
+        eso::HAS_CONFIDENCE => When,
 
         // Where — spatial
-        "schema:location" | "golem:hassetting" | "dcterms:spatial" => Where,
+        "schema:location" | golem::HAS_SETTING | "dcterms:spatial" => Where,
 
         // Why — causation, motivation, theme
-        "schema:causes" | "schema:resultof" | "golem:hasconflict" | "golem:allegoryof"
-        | "fibo:hasmotivation" => Why,
+        "schema:causes"
+        | "schema:resultof"
+        | golem::HAS_CONFLICT
+        | golem::ALLEGORY_OF
+        | fibo::HAS_RISK => Why,
 
         // Why — ESO epistemic causation
-        "eso:implies" | "eso:contradicts" | "eso:falsifiedby" | "eso:corroboratedby"
-        | "eso:generalizesto" => Why,
+        eso::IMPLIES | eso::CONTRADICTS | eso::FALSIFIED_BY | eso::CORROBORATED_BY
+        | eso::GENERALIZES_TO => Why,
 
         // How — methods, processes, resolution
         "schema:uses"
         | "schema:method"
-        | "golem:hasresolution"
-        | "golem:metaphorfor"
-        | "golem:illustrates"
-        | "golem:evokes" => How,
+        | golem::HAS_RESOLUTION
+        | golem::METAPHOR_FOR
+        | golem::ILLUSTRATES
+        | golem::EVOKES => How,
 
         // How — ESO methods and evidence
-        "eso:usesmethod" | "eso:hasevidence" | "eso:haslimitation" => How,
+        eso::USES_METHOD | eso::HAS_EVIDENCE | eso::HAS_LIMITATION => How,
 
         // What — everything else with a known predicate
         _ if p.starts_with("golem:")
@@ -727,7 +753,7 @@ impl DocProcServer {
         // extraction prompts. Maps entity_ref → formatted ontology context.
         let ontology_map: std::collections::HashMap<String, String> =
             if let Some(tagged_path) = tagged_jsonl {
-                read_ontology_tags(tagged_path).unwrap_or_default()
+                read_ontology_tags(tagged_path)?
             } else {
                 std::collections::HashMap::new()
             };
@@ -897,7 +923,7 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown");
                         let object = triple.get("object").cloned().unwrap_or(json!(null));
-                        let confidence = triple
+                        let raw_confidence = triple
                             .get("confidence")
                             .and_then(|v| v.as_f64())
                             .unwrap_or(0.8);
@@ -905,12 +931,14 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
 
                         // Gap 5: Hallucination verification — check if subject and
                         // object strings appear in the chunk text. Skip for
-                        // golem:* and eso:* predicates where abstract/interpretive
+                        // golem:*, eso:*, fibo:*, pko:* predicates where abstract/interpretive
                         // concepts are expected. Cap at 0.5 (not 0.3 — too aggressive).
                         let is_abstract = predicate.starts_with("golem:")
-                            || predicate.starts_with("eso:");
+                            || predicate.starts_with("eso:")
+                            || predicate.starts_with("fibo:")
+                            || predicate.starts_with("pko:");
                         let confidence = if is_abstract {
-                            confidence
+                            raw_confidence
                         } else {
                             let text_lower = chunk_text.to_lowercase();
                             let subj_clean = subject
@@ -923,9 +951,8 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                                 serde_json::Value::String(s) => s.to_lowercase(),
                                 _ => String::new(),
                             };
-                            let obj_in_text = obj_str.is_empty()
-                                || text_lower.contains(&obj_str);
-                            if (!subj_in_text || !obj_in_text) && confidence > 0.5 {
+                            let obj_in_text = obj_str.is_empty() || text_lower.contains(&obj_str);
+                            if (!subj_in_text || !obj_in_text) && raw_confidence > 0.5 {
                                 tracing::warn!(
                                     target: "hkask.mcp.docproc.triples",
                                     entity = %entity_ref,
@@ -934,7 +961,7 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                                 );
                                 0.5
                             } else {
-                                confidence
+                                raw_confidence
                             }
                         };
 
@@ -1014,7 +1041,7 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                 &passphrase,
                 batch_size,
             )
-                .await
+            .await
         })
         .await
     }
@@ -1091,70 +1118,29 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
         // annotations to chunk text before embedding. This produces
         // ontology-anchored embeddings per INSTRUCTOR (Su et al., 2023).
         // Format: "[golem: metaphor, narrative | pko: analysis] <chunk text>"
-        let tag_map: std::collections::HashMap<String, String> = if let Some(tagged_path) =
-            tagged_jsonl
-        {
-            let tagged_content = std::fs::read_to_string(tagged_path).map_err(|e| {
-                McpToolError::invalid_argument(format!(
-                    "Cannot read tagged_jsonl '{tagged_path}': {e}"
-                ))
-            })?;
-            let mut map = std::collections::HashMap::new();
-            for line in tagged_content.lines() {
-                let line = line.trim();
-                if line.is_empty() {
-                    continue;
-                }
-                let v: serde_json::Value = match serde_json::from_str(line) {
-                    Ok(v) => v,
-                    Err(_) => continue,
-                };
-                let entity_ref = v
-                    .get("entity_ref")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                if entity_ref.is_empty() {
-                    continue;
-                }
-                if let Some(tags) = v.get("ontology_tags").and_then(|t| t.as_object()) {
-                    let parts: Vec<String> = tags
-                        .iter()
-                        .map(|(ns, concepts)| {
-                            let list: Vec<String> = concepts
-                                .as_array()
-                                .map(|arr| {
-                                    arr.iter()
-                                        .filter_map(|c| c.as_str().map(String::from))
-                                        .collect()
-                                })
-                                .unwrap_or_default();
-                            format!("{ns}: {}", list.join(", "))
-                        })
-                        .collect();
-                    if !parts.is_empty() {
-                        map.insert(
-                            entity_ref.to_string(),
-                            format!("[{}] ", parts.join(" | ")),
-                        );
-                    }
-                }
-            }
-            tracing::info!(
-                target: "hkask.mcp.docproc.embed",
-                tags_loaded = map.len(),
-                "Ontology tag annotations loaded for ontology-anchored embedding"
-            );
-            map
-        } else {
-            std::collections::HashMap::new()
-        };
+        let tag_map: std::collections::HashMap<String, String> =
+            if let Some(tagged_path) = tagged_jsonl {
+                let map = read_ontology_tags_annotated(tagged_path)?;
+                tracing::info!(
+                    target: "hkask.mcp.docproc.embed",
+                    tags_loaded = map.len(),
+                    "Ontology tag annotations loaded for ontology-anchored embedding"
+                );
+                map
+            } else {
+                std::collections::HashMap::new()
+            };
 
-        // Prepend tag annotations to chunk text for ontology-anchored embedding
+        // Prepend tag annotations to chunk text for ontology-anchored embedding.
+        // Chunks without tags get a neutral [unclassified] prefix to maintain
+        // consistent token structure across all embeddings.
         if !tag_map.is_empty() {
             for (entity_ref, text) in chunks.iter_mut() {
-                if let Some(annotation) = tag_map.get(entity_ref) {
-                    text.insert_str(0, annotation);
-                }
+                let annotation = tag_map
+                    .get(entity_ref)
+                    .map(|s| s.as_str())
+                    .unwrap_or("[unclassified] ");
+                text.insert_str(0, annotation);
             }
         }
 

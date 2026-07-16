@@ -739,6 +739,22 @@ impl DocProcServer {
                         .join("\n\n")
                 };
 
+                // Issue 7: Diagnostic — log KNN neighbor sources to verify
+                // ontology-anchored embeddings produce same-domain retrieval.
+                if !context_passages.is_empty() {
+                    let neighbor_sources: Vec<&str> = context_passages
+                        .iter()
+                        .filter_map(|p| p["source"].as_str())
+                        .collect();
+                    tracing::info!(
+                        target: "hkask.mcp.docproc.build_prompts",
+                        chunk_ref = %tc.entity_ref,
+                        chunk_source = %tc.source,
+                        neighbor_sources = ?neighbor_sources,
+                        "KNN context retrieved — verify neighbors share ontology with chunk"
+                    );
+                }
+
                 // Concept graph
                 let concept_graph_text = tc.concepts.iter().map(|concept| {
                     let connected = concept_connections.get(concept.as_str()).copied().unwrap_or(1);
