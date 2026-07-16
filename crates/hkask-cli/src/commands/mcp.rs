@@ -62,7 +62,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
             }
         }
         McpAction::Invoke {
-            server,
+            server: _,
             tool,
             input,
         } => {
