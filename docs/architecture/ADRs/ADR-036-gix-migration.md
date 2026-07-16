@@ -1,7 +1,7 @@
 ---
 title: "ADR-036: gix (Pure-Rust Gitoxide) as Git Backend for Content-Addressed Storage"
 audience: [architects, developers]
-last_updated: 2026-06-27
+last_updated: 2026-07-16
 version: "0.31.0"
 status: "Active"
 domain: "Technology"
@@ -29,7 +29,7 @@ Two Rust git libraries exist: `gix` (gitoxide, pure Rust) and `git2-rs` (libgit2
 
 **Use `gix` crate v0.81 (gitoxide) — pure Rust, no C dependencies, no CLI subprocess.**
 
-The backup system uses `gix` for all git operations within `GixCasAdapter` (`crates/hkask-mcp/src/git_cas/gix_adapter/`): initializing repositories, writing blob objects, building trees, creating commits, resolving refs, and computing diffs. Snapshot strategy reads files from a `cas/<blake3-hash>` directory, writes each as a git blob object, builds a tree from blob OIDs, and commits — no index file is needed.
+The backup system uses `gix` for all git operations within `GixCasAdapter` (`crates/hkask-git-cas/src/gix_adapter/`): initializing repositories, writing blob objects, building trees, creating commits, resolving refs, and computing diffs. Snapshot strategy reads files from a `cas/<blake3-hash>` directory, writes each as a git blob object, builds a tree from blob OIDs, and commits — no index file is needed.
 
 **Alternatives Considered:**
 
@@ -80,7 +80,7 @@ grep -r "git2\|libgit2" Cargo.toml Cargo.lock | wc -l
 grep -r 'Command::new("git")' crates/ --include="*.rs" | wc -l
 
 # Verify GixCasAdapter compiles and tests pass
-cargo test -p hkask-mcp -- git_cas
+cargo test -p hkask-git-cas
 ```
 
 **Expected Results:**
@@ -92,7 +92,7 @@ cargo test -p hkask-mcp -- git_cas
 
 - [ADR-037: BLAKE3 Content Addressing](ADR-037-blake3-content-addressing.md) — BLAKE3 used for content hashing within CAS
 - ADR-038: Eight-Repo CAS Design (archived — superseded by pod-directory backup model)
-- [`crates/hkask-mcp/src/git_cas/gix_adapter/`](../../../crates/hkask-mcp/src/git_cas/gix_adapter/) — Production implementation
+- [`crates/hkask-git-cas/src/gix_adapter/`](../../../crates/hkask-git-cas/src/gix_adapter/) — Production implementation
 
 ## References
 
