@@ -102,6 +102,18 @@ chunk → tag → embed → extract_triples → dedup → consolidate → build_
 - Diminishing returns after first iteration
 - The first pass (tag → embed) already captures most of the benefit
 
+## Loop Closure: Consolidation Re-Embedding
+
+**Bug found during adversarial review:** The consolidation step re-embedded
+consolidated text WITHOUT ontology tag annotations, creating an inconsistent
+embedding space (original chunks had `[golem: metaphor] <text>` vectors,
+consolidated chunks had raw `<text>` vectors).
+
+**Fix:** The consolidation step now builds an annotation prefix from the merged
+ontology_tags of cluster members and prepends it to the consolidated text
+before re-embedding. This maintains a consistent embedding space across
+both original and consolidated chunks.
+
 ## Open Questions (from adversarial review)
 
 1. **Annotation format is a hypothesis, not a proven fact.** INSTRUCTOR
