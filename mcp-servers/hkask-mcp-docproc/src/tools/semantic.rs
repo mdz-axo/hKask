@@ -220,7 +220,10 @@ pub(crate) fn predicate_to_dimension(predicate: &str) -> hkask_types::Dimension 
         | fibo::HAS_RISK => Why,
 
         // Why — ESO epistemic causation
-        eso::IMPLIES | eso::CONTRADICTS | eso::FALSIFIED_BY | eso::CORROBORATED_BY
+        eso::IMPLIES
+        | eso::CONTRADICTS
+        | eso::FALSIFIED_BY
+        | eso::CORROBORATED_BY
         | eso::GENERALIZES_TO => Why,
 
         // How — methods, processes, resolution
