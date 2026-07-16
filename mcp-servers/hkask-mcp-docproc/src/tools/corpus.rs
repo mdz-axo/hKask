@@ -820,7 +820,7 @@ impl DocProcServer {
                 // This ensures narrative chunks always get golem distribution
                 // even if they also have epistemic or pko tags.
                 let type_rotation: &[QaType] = {
-                    const PRIORITY: &[&str] = &["golem", "fibo", "eso", "epistemic", "pko"];
+                    const PRIORITY: &[&str] = &["pko", "golem", "fibo", "eso", "epistemic"];
                     let mut selected: Option<&[QaType]> = None;
                     for ns in PRIORITY {
                         if tc.ontology_tags.contains_key(*ns)
