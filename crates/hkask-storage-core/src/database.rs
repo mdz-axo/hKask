@@ -25,19 +25,41 @@ pub(crate) fn embedding_dim() -> usize {
         .unwrap_or(DEFAULT_EMBEDDING_DIM)
 }
 
-fn load_sqlite_vec() -> Result<(), DatabaseError> {
-    use std::sync::Once;
-    static INIT: Once = Once::new();
-    INIT.call_once(|| unsafe {
-        type Sqlite3ExtInitFn = unsafe extern "C" fn(
-            *mut rusqlite::ffi::sqlite3,
-            *mut *mut std::os::raw::c_char,
-            *const rusqlite::ffi::sqlite3_api_routines,
-        ) -> std::os::raw::c_int;
-        let init_fn: Sqlite3ExtInitFn =
-            std::mem::transmute::<_, Sqlite3ExtInitFn>(sqlite_vec::sqlite3_vec_init as *const ());
-        rusqlite::ffi::sqlite3_auto_extension(Some(init_fn));
-    });
+/// Load the sqlite-vec extension into a single connection.
+///
+/// Per-connection loading avoids `sqlite3_auto_extension`, whose
+/// process-global registration is deprecated on Apple platforms and is a
+/// known teardown-segfault source (the sqlite-vec author reports unreliable
+/// segfaults from the auto-extension path). Scoping the extension's lifetime
+/// to each connection means its state is torn down with the connection, not
+/// orphaned at process exit. Must run BEFORE schema init, which creates
+/// `vec0` virtual tables.
+///
+/// SAFETY: `sqlite3_vec_init` is the canonical C entry point
+/// `int sqlite3_vec_init(sqlite3*, char**, const sqlite3_api_routines*)`.
+/// The `sqlite_vec` crate declares it with no Rust args, so we transmute to
+/// the real 3-arg signature and pass a live `sqlite3*` handle from the
+/// connection. The two pointer args are NULL (no error message out-param,
+/// no custom API routines) — the documented static-link invocation.
+fn init_sqlite_vec_on(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
+    type Sqlite3ExtInitFn = unsafe extern "C" fn(
+        *mut rusqlite::ffi::sqlite3,
+        *mut *mut std::os::raw::c_char,
+        *const rusqlite::ffi::sqlite3_api_routines,
+    ) -> std::os::raw::c_int;
+    // SAFETY: transmuting the zero-arg Rust import to the real 3-arg C entry
+    // point is the documented sqlite-vec static-link pattern. The handle is
+    // live for the duration of the call; the two pointer args are NULL.
+    let init_fn: Sqlite3ExtInitFn = unsafe {
+        std::mem::transmute::<_, Sqlite3ExtInitFn>(sqlite_vec::sqlite3_vec_init as *const ())
+    };
+    let rc = unsafe { init_fn(conn.handle(), std::ptr::null_mut(), std::ptr::null()) };
+    if rc != rusqlite::ffi::SQLITE_OK {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rc),
+            Some(format!("sqlite3_vec_init failed (rc={rc})")),
+        ));
+    }
     Ok(())
 }
 
@@ -71,8 +93,6 @@ pub struct Database {
     path: String,
     passphrase: String,
     extensions: Option<String>,
-    /// True if `open()` created a new salt file (database didn't exist before).
-    is_new: bool,
     /// Cached r2d2 pool — created on first `sqlite_pool()` call.
     pool_cache: std::sync::Mutex<Option<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>>,
 }
@@ -87,7 +107,6 @@ impl Database {
         passphrase: &str,
         extensions: Option<&str>,
     ) -> Result<Self, DatabaseError> {
-        load_sqlite_vec()?;
         if passphrase.is_empty() {
             return Err(DatabaseError::KeyDerivation(
                 "Passphrase cannot be empty".to_string(),
@@ -139,7 +158,6 @@ impl Database {
             path: path.to_string(),
             passphrase: passphrase.to_string(),
             extensions: extensions.map(|s| s.to_string()),
-            is_new: !salt_existed,
             pool_cache: std::sync::Mutex::new(None),
         })
     }
@@ -157,12 +175,10 @@ impl Database {
     }
 
     fn in_memory_impl(extensions: Option<&str>) -> Result<Self, DatabaseError> {
-        load_sqlite_vec()?;
         Ok(Self {
             path: String::from(":memory:"),
             passphrase: String::new(),
             extensions: extensions.map(|s| s.to_string()),
-            is_new: true,
             pool_cache: std::sync::Mutex::new(None),
         })
     }
@@ -221,8 +237,11 @@ impl Database {
         // Use max_size(1) because SqliteConnectionManager::memory() creates
         // a separate in-memory database per connection. A pool size >1 would
         // scatter writes across independent databases.
-        let manager = r2d2_sqlite::SqliteConnectionManager::memory()
-            .with_init(|conn| conn.execute_batch("PRAGMA foreign_keys = ON;"));
+        let manager = r2d2_sqlite::SqliteConnectionManager::memory().with_init(|conn| {
+            // Load sqlite-vec per-connection before schema init (vec0 tables).
+            init_sqlite_vec_on(conn)?;
+            conn.execute_batch("PRAGMA foreign_keys = ON;")
+        });
         let pool = r2d2::Pool::builder()
             .max_size(1)
             .build(manager)
@@ -253,16 +272,20 @@ impl Database {
             .map_err(|e| DatabaseError::KeyDerivation(e.to_string()))?;
         let key_hex = hex::encode(*key);
 
-        let is_new = self.is_new;
         let path = self.path.clone();
 
         let manager = r2d2_sqlite::SqliteConnectionManager::file(&path).with_init(move |conn| {
-            if is_new {
-                // New database: set plaintext header size before encrypting.
-                // This MUST happen before PRAGMA key because that triggers
-                // encryption of page 1, which needs the reserved space.
-                conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
-            }
+            // Load sqlite-vec per-connection (before PRAGMA key). The extension
+            // only registers its virtual-table module here; it touches no DB
+            // pages, so loading before decryption is safe and matches the
+            // prior auto-extension timing. Must precede schema init (vec0).
+            init_sqlite_vec_on(conn)?;
+            // cipher_plaintext_header_size MUST be set on EVERY connection to a
+            // database created with it, not only on first creation. SQLCipher
+            // reads the salt location from this pragma; omitting it on reopen
+            // makes the codec misparse page 1. This MUST run before PRAGMA key
+            // because PRAGMA key triggers encryption of page 1.
+            conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
             conn.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
             conn.execute_batch(
                 "PRAGMA journal_mode = WAL;

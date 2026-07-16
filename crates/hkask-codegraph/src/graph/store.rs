@@ -4,28 +4,45 @@
 //! and call-target resolution. Uses prepared statement caching for performance.
 
 use rusqlite::{Connection, params};
-use std::sync::Once;
 
 use crate::error::Result;
 use crate::types::{Edge, EdgeKind, Symbol};
 
-/// Load the sqlite-vec extension via sqlite3_auto_extension.
-/// Must be called once before opening any connection.
-fn load_sqlite_vec() {
-    static INIT: Once = Once::new();
-    INIT.call_once(|| unsafe {
-        // SAFETY: sqlite3_vec_init is the canonical entry point for the sqlite-vec
-        // extension. This is the standard FFI registration pattern used by
-        // sqlite-vec with rusqlite (see also hkask-storage-core/database.rs).
-        type Sqlite3ExtInitFn = unsafe extern "C" fn(
-            *mut rusqlite::ffi::sqlite3,
-            *mut *mut std::os::raw::c_char,
-            *const rusqlite::ffi::sqlite3_api_routines,
-        ) -> std::os::raw::c_int;
-        let init_fn: Sqlite3ExtInitFn =
-            std::mem::transmute::<_, Sqlite3ExtInitFn>(sqlite_vec::sqlite3_vec_init as *const ());
-        rusqlite::ffi::sqlite3_auto_extension(Some(init_fn));
-    });
+/// Load the sqlite-vec extension into a single connection.
+///
+/// Per-connection loading avoids `sqlite3_auto_extension`, whose
+/// process-global registration is deprecated on Apple platforms and is a
+/// known teardown-segfault source (the sqlite-vec author reports unreliable
+/// segfaults from the auto-extension path). Scoping the extension's lifetime
+/// to the connection means its state is torn down with the connection, not
+/// orphaned at process exit. Must run before schema init, which creates
+/// `vec0` virtual tables.
+///
+/// SAFETY: `sqlite3_vec_init` is the canonical C entry point
+/// `int sqlite3_vec_init(sqlite3*, char**, const sqlite3_api_routines*)`.
+/// The `sqlite_vec` crate declares it with no Rust args, so we transmute to
+/// the real 3-arg signature and pass a live `sqlite3*` handle. The two
+/// pointer args are NULL — the documented static-link invocation.
+fn init_sqlite_vec_on(conn: &Connection) -> rusqlite::Result<()> {
+    type Sqlite3ExtInitFn = unsafe extern "C" fn(
+        *mut rusqlite::ffi::sqlite3,
+        *mut *mut std::os::raw::c_char,
+        *const rusqlite::ffi::sqlite3_api_routines,
+    ) -> std::os::raw::c_int;
+    // SAFETY: transmuting the zero-arg Rust import to the real 3-arg C entry
+    // point is the documented sqlite-vec static-link pattern. The handle is
+    // live for the duration of the call; the two pointer args are NULL.
+    let init_fn: Sqlite3ExtInitFn = unsafe {
+        std::mem::transmute::<_, Sqlite3ExtInitFn>(sqlite_vec::sqlite3_vec_init as *const ())
+    };
+    let rc = unsafe { init_fn(conn.handle(), std::ptr::null_mut(), std::ptr::null()) };
+    if rc != rusqlite::ffi::SQLITE_OK {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rc),
+            Some(format!("sqlite3_vec_init failed (rc={rc})")),
+        ));
+    }
+    Ok(())
 }
 
 /// Store for code graph data. Wraps a rusqlite connection.
@@ -36,16 +53,16 @@ pub struct GraphStore {
 impl GraphStore {
     /// Open a store on an in-memory database (for testing).
     pub fn open_in_memory() -> Result<Self> {
-        load_sqlite_vec();
         let conn = Connection::open_in_memory()?;
+        init_sqlite_vec_on(&conn)?;
         super::schema::initialize_schema(&conn)?;
         Ok(Self { conn })
     }
 
     /// Open a store on a file-backed database.
     pub fn open(path: &str) -> Result<Self> {
-        load_sqlite_vec();
         let conn = Connection::open(path)?;
+        init_sqlite_vec_on(&conn)?;
         super::schema::initialize_schema(&conn)?;
         Ok(Self { conn })
     }
