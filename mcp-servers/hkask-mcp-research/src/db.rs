@@ -12,6 +12,11 @@ use hkask_types::time::now_rfc3339;
 /// Creates 4 domain tables (feeds, subscriptions, entries, entry_states),
 /// 1 FTS5 virtual table (entries_fts), 4 indexes, and 2 triggers
 /// for FTS synchronization.
+///
+/// PRAGMA ordering invariant: `busy_timeout` MUST be set before
+/// `journal_mode = WAL`. See `hkask_database::init_wal_pragmas` for the
+/// shared helper (not used here because this is a const DDL string, not
+/// a function call, and the PRAGMAs are embedded in the DDL).
 pub const RSS_SCHEMA_DDL: &str = "
     PRAGMA busy_timeout=5000;
     PRAGMA journal_mode=WAL;

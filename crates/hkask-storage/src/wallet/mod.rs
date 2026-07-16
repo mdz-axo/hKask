@@ -116,11 +116,10 @@ impl WalletStore {
     /// \[P7\] Constraining: Evolutionary Architecture — WAL mode emerged from multi-agent load
     /// post: journal_mode set to WAL, synchronous set to NORMAL
     pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
-        self.driver.execute_batch(
-            "PRAGMA busy_timeout=5000; \
-             PRAGMA journal_mode=WAL; \
-             PRAGMA synchronous=NORMAL;",
-        )?;
+        // Standard WAL PRAGMAs — see hkask_database::init_wal_pragmas for rationale.
+        self.driver
+            .execute_batch(hkask_database::WAL_PRAGMA_BATCH)?;
+        self.driver.execute_batch("PRAGMA synchronous=NORMAL;")?;
         tracing::info!(target: "hkask.storage", "WalletStore WAL mode enabled");
         Ok(())
     }

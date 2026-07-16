@@ -19,6 +19,11 @@ use rusqlite::Connection;
 /// Initialize the code graph schema in a SQLite connection.
 ///
 /// Idempotent — safe to call on an existing database.
+///
+/// PRAGMA ordering invariant: `busy_timeout` MUST be set before
+/// `journal_mode = WAL`. See `hkask_database::init_wal_pragmas` for the
+/// shared helper and rationale (this crate doesn't depend on
+/// `hkask-database` to stay lightweight).
 pub fn initialize_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch("PRAGMA busy_timeout = 5000;")?;
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;

@@ -328,11 +328,12 @@ impl Database {
             // because PRAGMA key triggers encryption of page 1.
             conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
             conn.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
+            // Standard WAL PRAGMAs — busy_timeout MUST precede journal_mode = WAL
+            // (see hkask_database::init_wal_pragmas for rationale).
+            conn.execute_batch(hkask_database::WAL_PRAGMA_BATCH)?;
+            // Additional performance tuning for the main registry DB pool.
             conn.execute_batch(
-                "PRAGMA busy_timeout = 5000;
-                     PRAGMA journal_mode = WAL;
-                     PRAGMA synchronous = NORMAL;
-                     PRAGMA foreign_keys = ON;
+                "PRAGMA synchronous = NORMAL;
                      PRAGMA mmap_size = 268435456;
                      PRAGMA cache_size = -65536;
                      PRAGMA wal_autocheckpoint = 256;

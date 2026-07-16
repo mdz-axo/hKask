@@ -11,6 +11,29 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use std::sync::Arc;
 
+/// Standard SQLite PRAGMAs for WAL-mode connections.
+///
+/// **Ordering invariant**: `busy_timeout` MUST be set before
+/// `journal_mode = WAL` because the WAL mode change acquires a brief
+/// exclusive lock. With `busy_timeout = 0` (SQLite default), any lock
+/// contention fails immediately with `SQLITE_BUSY` instead of retrying.
+/// This caused `r2d2: database is locked` errors on per-agent databases.
+///
+/// Call this on every raw `rusqlite::Connection` or in every r2d2
+/// `with_init` closure before schema operations.
+pub const WAL_PRAGMA_BATCH: &str =
+    "PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;";
+
+/// Apply the standard WAL PRAGMAs to a raw `rusqlite::Connection`.
+///
+/// This is the single source of truth for PRAGMA ordering. Crates that
+/// depend on `hkask-database` should call this instead of inlining PRAGMA
+/// strings. Crates that don't depend on `hkask-database` should replicate
+/// the ordering: `busy_timeout` before `journal_mode = WAL`.
+pub fn init_wal_pragmas(conn: &mut rusqlite::Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(WAL_PRAGMA_BATCH)
+}
+
 /// SQLite implementation of DatabaseDriver.
 ///
 /// Wraps an `r2d2::Pool<SqliteConnectionManager>` with WAL mode enabled.

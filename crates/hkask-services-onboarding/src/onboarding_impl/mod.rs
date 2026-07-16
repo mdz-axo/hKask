@@ -275,8 +275,15 @@ impl OnboardingService {
 
         // Persist the agent YAML to the agent's directory on disk.
         let yaml_path = agent_paths::agent_definition_yaml(&display_name);
-        if let Some(parent) = yaml_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+        if let Some(parent) = yaml_path.parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            tracing::warn!(
+                target: "cns.onboarding",
+                path = %parent.display(),
+                error = %e,
+                "Failed to create agent directory — will attempt write anyway"
+            );
         }
         std::fs::write(&yaml_path, &source_yaml).map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
@@ -474,6 +481,12 @@ impl OnboardingService {
     /// If the DB exists but has no replicants (or can't be opened with the
     /// current passphrase), it's orphaned and should be removed before
     /// starting a fresh onboarding. Returns `true` if cleanup was performed.
+    ///
+    /// **Known limitation**: When the passphrase doesn't match the DB,
+    /// SQLCipher's C-level codec logs `hmac check failed for pgno=1` errors
+    /// to stderr. These are SQLCipher's internal diagnostics and cannot be
+    /// suppressed from Rust. They are cosmetic — the function correctly
+    /// returns `true` (orphaned) despite the noise.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// Check whether an orphaned database exists from a previous failed onboarding.

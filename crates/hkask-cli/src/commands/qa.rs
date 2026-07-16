@@ -126,6 +126,12 @@ fn setup_mcp_dispatch(
 
     let runtime = McpRuntime::new();
 
+    // Resolve replicant identity from the environment (set by
+    // propagate_replicant_env in the REPL, or manually for CLI use).
+    // Without HKASK_MCP_HOST, MCP servers fail with MissingHostIdentity.
+    let replicant_name = std::env::var("HKASK_MCP_HOST").unwrap_or_else(|_| "qa-agent".to_string());
+    let env = super::helpers::replicant_env_map(&replicant_name);
+
     // Start the MCP servers that QA dispatch smoke tests need.
     // These are the ones referenced in qa-mcp-dispatch-smoke.yaml.
     let servers: &[(&str, &str)] = &[
@@ -136,7 +142,7 @@ fn setup_mcp_dispatch(
     ];
 
     for (server_id, binary) in servers {
-        if let Err(e) = rt.block_on(runtime.start_server(server_id, binary)) {
+        if let Err(e) = rt.block_on(runtime.start_server_with_env(server_id, binary, env.clone())) {
             eprintln!(
                 "Note: MCP server '{}' unavailable ({}) — mcp_tool steps will use stub",
                 server_id, e
