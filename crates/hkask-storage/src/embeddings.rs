@@ -1,7 +1,17 @@
 //! Embedding store — sqlite-vec or pgvector backed KNN similarity search.
 //!
-//! Two tables: `embeddings` (metadata) + `vec_embeddings` (sqlite-vec virtual
-//! table for SQLite or pgvector column for PostgreSQL).
+//! Two tables: `embeddings` (metadata + vector BLOB) + `vec_embeddings`
+//! (sqlite-vec virtual table for KNN, keyed on implicit integer rowid).
+//!
+//! The vector BLOB is intentionally stored in both tables. vec0 requires
+//! the vector for KNN MATCH; `embeddings.vector` provides uniform retrieval
+//! via the backend-agnostic `DatabaseDriver` query path (get/get_all_by_prefix
+//! work without branching on SqliteVec vs PgVector). Deduplicating would
+//! require backend-conditional retrieval (join vec0 for SQLite, read column
+//! for PgVector) — more complexity for ~4 KB/embedding savings. The
+//! redundancy earns its keep by preserving the uniform retrieval abstraction.
+//! If per-pod storage becomes a concern at scale, the escape hatch is a vec0
+//! auxiliary column (`+vector BLOB`) to eliminate the `embeddings.vector` copy.
 use hkask_types::InfrastructureError;
 
 impl From<hkask_database::types::DbError> for EmbeddingError {

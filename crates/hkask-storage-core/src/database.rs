@@ -231,6 +231,25 @@ impl Database {
         Ok(pool)
     }
 
+    /// Run a passive WAL checkpoint and analyze indices.
+    ///
+    /// Call periodically (e.g. on a maintenance tick) to prevent WAL
+    /// checkpoint starvation under long-lived readers. PASSIVE mode
+    /// checkpoints as much as possible without blocking concurrent
+    /// readers/writers. `PRAGMA optimize` refreshes index statistics.
+    pub fn checkpoint(&self) -> Result<(), DatabaseError> {
+        if self.path == ":memory:" {
+            return Ok(());
+        }
+        let pool = self.sqlite_pool()?;
+        let conn = pool
+            .get()
+            .map_err(|e| DatabaseError::SqlCipher(e.to_string()))?;
+        conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE); PRAGMA optimize;")
+            .map_err(|e| DatabaseError::SqlCipher(format!("checkpoint: {e}")))?;
+        Ok(())
+    }
+
     fn in_memory_pool(
         &self,
     ) -> Result<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>, DatabaseError> {
@@ -272,6 +291,21 @@ impl Database {
             .map_err(|e| DatabaseError::KeyDerivation(e.to_string()))?;
         let key_hex = hex::encode(*key);
 
+        // Verify the passphrase with a standalone connection BEFORE creating
+        // the pool. A wrong key leaves SQLCipher's native codec in a corrupted
+        // state; when the pool later drops that connection during teardown,
+        // the codec cleanup can SIGSEGV. By verifying first, the pool only
+        // ever holds connections with a validated key.
+        {
+            let probe = rusqlite::Connection::open(&self.path)
+                .map_err(|e| DatabaseError::SqlCipher(format!("probe open: {e}")))?;
+            probe.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
+            probe.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
+            probe
+                .query_row("SELECT count(*) FROM sqlite_master", [], |_| Ok(()))
+                .map_err(|_| DatabaseError::PassphraseMismatch(self.path.clone()))?;
+        }
+
         let path = self.path.clone();
 
         let manager = r2d2_sqlite::SqliteConnectionManager::file(&path).with_init(move |conn| {
@@ -293,7 +327,8 @@ impl Database {
                      PRAGMA synchronous = NORMAL;
                      PRAGMA foreign_keys = ON;
                      PRAGMA mmap_size = 268435456;
-                     PRAGMA cache_size = -65536;",
+                     PRAGMA cache_size = -65536;
+                     PRAGMA wal_autocheckpoint = 256;",
             )
         });
 
