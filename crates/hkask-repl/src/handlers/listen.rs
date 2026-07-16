@@ -1,7 +1,7 @@
 //! `/listen start|stop|view` — voice recording and transcript playback.
 //!
 //! Pipeline:
-//!   /listen start [duration_secs]
+//!   /listen start \[duration_secs\]
 //!     → audio_capture (MCP media server)
 //!     → transcribe_bundle (word-level timestamps)
 //!     → save TranscriptBundle JSON to ~/.config/hkask/transcripts/

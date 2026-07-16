@@ -68,7 +68,7 @@ pub mod models {
     pub const VISION_DEFAULT: &str = "KC/qwen/qwen3-vl-235b-a22b-instruct";
     pub const VISION_ENV: &str = "HKASK_MEDIA_VISION_MODEL";
 
-    /// Default image generation model: FLUX.2 [dev] (open-source) via fal.ai
+    /// Default image generation model: FLUX.2 \[dev\] (open-source) via fal.ai
     pub const IMAGE_GEN_DEFAULT: &str = "FA/flux-2";
     pub const IMAGE_GEN_ENV: &str = "HKASK_MEDIA_IMAGE_GEN_MODEL";
 

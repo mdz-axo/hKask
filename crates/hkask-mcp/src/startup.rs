@@ -86,7 +86,7 @@ pub struct StartupGateResult {
 ///     result.denied_tools.len(),
 ///     result.denied_tools
 /// );
-/// ```rust,no_run
+/// ```
 ///
 /// Server with no capability-gated tools (Gate 3 is a no-op):
 /// ```rust,ignore

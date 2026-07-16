@@ -176,7 +176,7 @@ pub async fn bootstrap_mcp_server(
 /// if let Err(e) = validate_identifier("field", &value, 256) {
 ///     return span.error(e.kind, e.to_json_string());
 /// }
-/// ```rust,no_run
+/// ```
 ///
 /// Usage:
 /// ```ignore
@@ -227,7 +227,7 @@ macro_rules! impl_tool_context {
 ///     inference_port: Arc<dyn InferencePort>,
 ///     skills: HashMap<String, SkillDef>,
 /// });
-/// ```rust,no_run
+/// ```
 ///
 /// Expands to a struct with `webid, replicant, daemon, inference_port, skills`.
 #[macro_export]
