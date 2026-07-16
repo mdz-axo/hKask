@@ -412,8 +412,6 @@ impl DocProcServer {
                         .map(|&idx| chunks[idx].entity_ref.clone())
                         .collect();
 
-                    reembed_texts.push((entity_ref.clone(), text.clone()));
-
                     // Dublin Core + PKO metadata for the consolidated chunk
                     let ontology = ChunkOntology {
                         dc_type: hkask_bridge_dublincore::DOCUMENT.to_string(),
@@ -481,6 +479,20 @@ impl DocProcServer {
                         })
                         .unwrap_or("analyst")
                         .to_string();
+
+                    // Build ontology annotation prefix for consistent re-embedding.
+                    // Consolidated chunks must use the same [ns: concepts] prefix as
+                    // original chunks to maintain a consistent embedding space.
+                    let annotation: String = if ontology_tags.is_empty() {
+                        "[unclassified] ".to_string()
+                    } else {
+                        let parts: Vec<String> = ontology_tags
+                            .iter()
+                            .map(|(ns, concepts)| format!("{ns}: {}", concepts.join(", ")))
+                            .collect();
+                        format!("[{}] ", parts.join(" | "))
+                    };
+                    reembed_texts.push((entity_ref.clone(), format!("{}{}", annotation, text)));
 
                     let word_count = text.split_whitespace().count();
                     consolidated.push(TaggedChunk {
