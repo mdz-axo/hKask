@@ -767,7 +767,7 @@ pub async fn run(
 
 Two variants are available:
 - **`run_server()`** — standard stdio server with MCP negotiation
-- **`run_server_with_preloaded()`** — passes preloaded env vars (used by servers that need `HKASK_CURATOR_REPLICANT` or other secrets before MCP handshake)
+- **`run_server_with_preloaded()`** — passes preloaded env vars (used by servers that need custom credentials before MCP handshake)
 
 ### Step 5: Write the Binary Entry Point
 

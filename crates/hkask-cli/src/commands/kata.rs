@@ -562,8 +562,11 @@ fn try_open_history_store() -> Option<Arc<KataHistoryStore>> {
     if !std::path::Path::new(&db_path).exists() {
         return None;
     }
-    let manager = r2d2_sqlite::SqliteConnectionManager::file(&db_path)
-        .with_init(|c| c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;"));
+    let manager = r2d2_sqlite::SqliteConnectionManager::file(&db_path).with_init(|c| {
+        c.execute_batch(
+            "PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;",
+        )
+    });
     let pool = r2d2::Pool::builder().max_size(4).build(manager).ok()?;
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
         Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));

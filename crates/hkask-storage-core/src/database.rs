@@ -329,8 +329,8 @@ impl Database {
             conn.execute_batch("PRAGMA cipher_plaintext_header_size = 32;")?;
             conn.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
             conn.execute_batch(
-                "PRAGMA journal_mode = WAL;
-                     PRAGMA busy_timeout = 5000;
+                "PRAGMA busy_timeout = 5000;
+                     PRAGMA journal_mode = WAL;
                      PRAGMA synchronous = NORMAL;
                      PRAGMA foreign_keys = ON;
                      PRAGMA mmap_size = 268435456;

@@ -117,9 +117,9 @@ impl WalletStore {
     /// post: journal_mode set to WAL, synchronous set to NORMAL
     pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
         self.driver.execute_batch(
-            "PRAGMA journal_mode=WAL; \
-             PRAGMA synchronous=NORMAL; \
-             PRAGMA busy_timeout=5000;",
+            "PRAGMA busy_timeout=5000; \
+             PRAGMA journal_mode=WAL; \
+             PRAGMA synchronous=NORMAL;",
         )?;
         tracing::info!(target: "hkask.storage", "WalletStore WAL mode enabled");
         Ok(())

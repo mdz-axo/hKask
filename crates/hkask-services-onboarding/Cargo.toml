@@ -21,3 +21,6 @@ thiserror.workspace = true
 tokio.workspace = true
 reqwest.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

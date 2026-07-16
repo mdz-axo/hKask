@@ -521,13 +521,20 @@ impl OnboardingService {
         let has_replicants = if !config.db_passphrase.is_empty() {
             match Database::open(db_path, &config.db_passphrase) {
                 Ok(db) => {
-                    let pool = match db.sqlite_pool() {
-                        Ok(pool) => pool,
-                        Err(_) => return false,
-                    };
-                    let driver = Arc::new(SqliteDriver::new(pool));
-                    let store = AgentRegistryStore::from_driver(driver);
-                    matches!(store.list_by_kind(AgentKind::Replicant), Ok(r) if !r.is_empty())
+                    match db.sqlite_pool() {
+                        Ok(pool) => {
+                            let driver = Arc::new(SqliteDriver::new(pool));
+                            let store = AgentRegistryStore::from_driver(driver);
+                            matches!(store.list_by_kind(AgentKind::Replicant), Ok(r) if !r.is_empty())
+                        }
+                        // Can't open the DB (wrong passphrase / corrupted) —
+                        // treat as orphaned: no replicants to preserve, proceed
+                        // to cleanup.  This must NOT short-circuit return false,
+                        // because the caller relies on us to actually remove the
+                        // files.  Returning false here leaves stale DB + salt on
+                        // disk, causing hmac errors in the subsequent init_registry.
+                        Err(_) => false,
+                    }
                 }
                 Err(_) => false,
             }
@@ -552,24 +559,32 @@ impl OnboardingService {
     /// poisoning subsequent attempts.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  config must be valid; best-effort cleanup (errors are silently ignored)
+    /// pre:  config must be valid; best-effort cleanup (errors are logged via tracing)
     /// post: keychain entries (a2a-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
         // P9: CNS span
         tracing::info!(target: "cns.onboarding", operation = "cleanup_failed_onboarding", "CNS");
         let keychain = Keychain::default();
-        let _ = keychain.delete_by_key(hkask_types::keychain_keys::KEY_A2A_SECRET);
-        let _ = keychain.delete_by_key(hkask_types::keychain_keys::KEY_DB_PASSPHRASE);
+        if let Err(e) = keychain.delete_by_key(hkask_types::keychain_keys::KEY_A2A_SECRET) {
+            tracing::warn!(target: "cns.onboarding", error = %e, "Failed to delete A2A secret from keychain during cleanup");
+        }
+        if let Err(e) = keychain.delete_by_key(hkask_types::keychain_keys::KEY_DB_PASSPHRASE) {
+            tracing::warn!(target: "cns.onboarding", error = %e, "Failed to delete DB passphrase from keychain during cleanup");
+        }
 
         let db_path = &config.db_path;
         if db_path != ":memory:" {
             let db_file = std::path::Path::new(db_path);
-            if db_file.exists() {
-                let _ = std::fs::remove_file(db_file);
+            if db_file.exists()
+                && let Err(e) = std::fs::remove_file(db_file)
+            {
+                tracing::warn!(target: "cns.onboarding", path = %db_file.display(), error = %e, "Failed to remove orphaned DB file");
             }
             let salt_file = std::path::PathBuf::from(format!("{}.salt", db_path));
-            if salt_file.exists() {
-                let _ = std::fs::remove_file(salt_file);
+            if salt_file.exists()
+                && let Err(e) = std::fs::remove_file(&salt_file)
+            {
+                tracing::warn!(target: "cns.onboarding", path = %salt_file.display(), error = %e, "Failed to remove salt file");
             }
 
             // Also remove the agent's sub-directory under agents/{name}/
@@ -581,12 +596,18 @@ impl OnboardingService {
                 .join(hkask_types::agent_paths::AGENTS_DIR)
                 .join(hkask_types::agent_paths::sanitize_name(&config.agent_name));
             if agent_dir.exists() {
-                let _ = std::fs::remove_dir_all(&agent_dir);
-                tracing::info!(
-                    target: "cns.onboarding",
-                    path = %agent_dir.display(),
-                    "Removed agent database directory"
-                );
+                match std::fs::remove_dir_all(&agent_dir) {
+                    Err(e) => {
+                        tracing::warn!(target: "cns.onboarding", path = %agent_dir.display(), error = %e, "Failed to remove agent database directory");
+                    }
+                    Ok(()) => {
+                        tracing::info!(
+                            target: "cns.onboarding",
+                            path = %agent_dir.display(),
+                            "Removed agent database directory"
+                        );
+                    }
+                }
             }
         }
     }
@@ -602,5 +623,100 @@ mod secret_tests {
             .expect("derive onboarding secrets");
 
         assert_eq!(resolved.db_passphrase, "explicit-db-passphrase");
+    }
+}
+
+#[cfg(test)]
+mod orphaned_db_tests {
+    use super::*;
+
+    /// Regression: `has_orphaned_db` must return `true` when the DB exists
+    /// but the passphrase doesn't match. This is the precondition for the
+    /// `remove_orphaned_db` fix — when `sqlite_pool()` fails (wrong passphrase),
+    /// `remove_orphaned_db` must proceed to cleanup instead of returning `false`.
+    ///
+    /// Before the fix, `remove_orphaned_db` returned `false` when
+    /// `sqlite_pool()` failed (wrong passphrase), leaving stale DB + salt files
+    /// on disk. `has_orphaned_db` correctly returned `true` for the same
+    /// condition, but the caller ignored the return value.
+    #[test]
+    fn has_orphaned_db_returns_true_for_wrong_passphrase() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let db_path = temp_dir.path().join("test_registry.db");
+        let db_path_str = db_path.to_str().expect("valid path");
+
+        // Create an encrypted DB with passphrase "correct-passphrase"
+        let db = Database::open(db_path_str, "correct-passphrase")
+            .expect("open DB with correct passphrase");
+        let _pool = db
+            .sqlite_pool()
+            .expect("create pool with correct passphrase");
+
+        // DB and salt files should exist
+        assert!(db_path.exists(), "DB file should exist after pool creation");
+        assert!(
+            std::path::Path::new(&format!("{}.salt", db_path_str)).exists(),
+            "salt file should exist"
+        );
+
+        // Construct a config with the WRONG passphrase
+        let mut config = ServiceConfig::from_secrets(
+            "test-a2a-secret".to_string(),
+            "wrong-passphrase".to_string(),
+            "test-agent".to_string(),
+        );
+        config.db_path = db_path_str.to_string();
+
+        // has_orphaned_db should return true — the DB exists but can't be opened
+        // with this passphrase, so it's orphaned.
+        assert!(
+            OnboardingService::has_orphaned_db(&config),
+            "DB with wrong passphrase should be detected as orphaned"
+        );
+
+        // has_orphaned_db must NOT remove the files — it's a check, not a cleanup
+        assert!(
+            db_path.exists(),
+            "has_orphaned_db must not delete the DB file"
+        );
+    }
+
+    /// `remove_orphaned_db` returns `false` for a non-existent DB — the
+    /// function returns before reaching `cleanup_failed_onboarding`, so no
+    /// keychain side effects occur.
+    #[test]
+    fn remove_orphaned_db_returns_false_for_nonexistent() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let db_path = temp_dir.path().join("nonexistent.db");
+
+        let mut config = ServiceConfig::from_secrets(
+            "test-a2a-secret".to_string(),
+            "any-passphrase".to_string(),
+            "test-agent".to_string(),
+        );
+        config.db_path = db_path.to_str().unwrap().to_string();
+
+        assert!(
+            !OnboardingService::remove_orphaned_db(&config),
+            "remove_orphaned_db should return false for non-existent DB"
+        );
+    }
+
+    /// `remove_orphaned_db` returns `false` for `:memory:` databases —
+    /// these are never orphaned and the function returns before cleanup,
+    /// so no keychain side effects occur.
+    #[test]
+    fn remove_orphaned_db_returns_false_for_in_memory() {
+        let mut config = ServiceConfig::from_secrets(
+            "test-a2a-secret".to_string(),
+            "any-passphrase".to_string(),
+            "test-agent".to_string(),
+        );
+        config.db_path = ":memory:".to_string();
+
+        assert!(
+            !OnboardingService::remove_orphaned_db(&config),
+            "remove_orphaned_db should return false for :memory: DB"
+        );
     }
 }

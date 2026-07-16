@@ -112,7 +112,7 @@ pub struct MCPBootstrap {
 /// - `server_name` — short name used in `verify_startup_gates` (e.g. "communication")
 /// - `target` — tracing target for log messages (e.g. "hkask.mcp.communication")
 /// - `host_env_var` — environment variable for the replicant identity
-///   (defaults to `"HKASK_MCP_HOST"` for most servers; the curator uses `"HKASK_CURATOR_REPLICANT"`)
+///   (defaults to `"HKASK_MCP_HOST"` for most servers)
 ///
 /// expect: "Every MCP action has an authenticated host identity."
 /// \[P12\] Motivating: every action has an authenticated author.

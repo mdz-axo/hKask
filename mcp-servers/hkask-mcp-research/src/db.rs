@@ -13,6 +13,7 @@ use hkask_types::time::now_rfc3339;
 /// 1 FTS5 virtual table (entries_fts), 4 indexes, and 2 triggers
 /// for FTS synchronization.
 pub const RSS_SCHEMA_DDL: &str = "
+    PRAGMA busy_timeout=5000;
     PRAGMA journal_mode=WAL;
     PRAGMA foreign_keys=ON;
 

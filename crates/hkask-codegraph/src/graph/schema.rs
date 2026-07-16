@@ -20,6 +20,7 @@ use rusqlite::Connection;
 ///
 /// Idempotent — safe to call on an existing database.
 pub fn initialize_schema(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch("PRAGMA busy_timeout = 5000;")?;
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
 
