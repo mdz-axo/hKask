@@ -112,7 +112,7 @@ pub fn initialize_schema(conn: &Connection) -> rusqlite::Result<()> {
     // but FTS5 keyword search still works.
     if let Err(e) = conn.execute_batch(
         "CREATE VIRTUAL TABLE IF NOT EXISTS symbols_vec USING vec0(
-            embedding float[384]
+            embedding float[384] distance_metric=cosine
         );",
     ) {
         tracing::warn!(

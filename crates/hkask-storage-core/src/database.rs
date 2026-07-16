@@ -203,7 +203,7 @@ impl Database {
     /// The pool is cached — subsequent calls return the same pool.
     /// This handles:
     /// - SQLCipher encryption (PRAGMA key + header_size for new DBs)
-    /// - WAL mode, busy timeout, synchronous=NORMAL, foreign keys
+    /// - WAL mode, busy timeout, synchronous=NORMAL, foreign keys, mmap, cache
     /// - Schema initialization on the first connection
     ///
     /// For in-memory databases, creates an unencrypted pool.
@@ -291,14 +291,16 @@ impl Database {
                 "PRAGMA journal_mode = WAL;
                      PRAGMA busy_timeout = 5000;
                      PRAGMA synchronous = NORMAL;
-                     PRAGMA foreign_keys = ON;",
+                     PRAGMA foreign_keys = ON;
+                     PRAGMA mmap_size = 268435456;
+                     PRAGMA cache_size = -65536;",
             )
         });
 
         let pool_size = std::env::var("HKASK_DB_POOL_SIZE")
             .ok()
             .and_then(|v| v.parse().ok())
-            .unwrap_or(64);
+            .unwrap_or(8);
         let pool = r2d2::Pool::builder()
             .max_size(pool_size)
             .build(manager)
