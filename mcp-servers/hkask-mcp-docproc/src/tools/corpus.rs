@@ -11,7 +11,7 @@
 //!   multi-chunk cluster into a single comprehensive passage, re-embeds
 //!   the consolidated text, and stores the new embedding in the DB.
 
-use crate::tools::semantic::{GUARD, configured_qa_model};
+use crate::tools::semantic::{GUARD, INPUT_GUARD_ENABLED, configured_qa_model};
 use crate::*;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -332,12 +332,14 @@ impl DocProcServer {
                         combined
                     };
 
-                    // ContentGuard — mandatory at every LLM boundary
-                    let input_scan = GUARD.scan_input(&combined);
-                    if !input_scan.passed {
-                        let mut results = results.lock().unwrap();
-                        results[ci] = Some("__FALLBACK__".to_string());
-                        return;
+                    // ContentGuard input scan — operator may disable via HKASK_ENABLE_CONTENT_GUARD
+                    if *INPUT_GUARD_ENABLED {
+                        let input_scan = GUARD.scan_input(&combined);
+                        if !input_scan.passed {
+                            let mut results = results.lock().unwrap();
+                            results[ci] = Some("__FALLBACK__".to_string());
+                            return;
+                        }
                     }
 
                     let params = LLMParameters {

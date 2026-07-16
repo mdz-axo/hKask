@@ -5,7 +5,7 @@
 //! and expertise level. Uses LLM-based extraction via a Jinja2 template.
 //! Every chunk gets at least one 5W1H dimension — no zero-tag chunks.
 
-use crate::tools::semantic::GUARD;
+use crate::tools::semantic::{GUARD, INPUT_GUARD_ENABLED};
 use crate::*;
 use hkask_inference::model_constants::classifier_model;
 use hkask_types::corpus::TaggedChunk;
@@ -166,11 +166,13 @@ impl DocProcServer {
                         prompt
                     };
 
-                    // ContentGuard
-                    let input_scan = GUARD.scan_input(&prompt);
-                    if !input_scan.passed {
-                        failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        return;
+                    // ContentGuard input scan — operator may disable via HKASK_ENABLE_CONTENT_GUARD
+                    if *INPUT_GUARD_ENABLED {
+                        let input_scan = GUARD.scan_input(&prompt);
+                        if !input_scan.passed {
+                            failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            return;
+                        }
                     }
 
                     let params = LLMParameters {

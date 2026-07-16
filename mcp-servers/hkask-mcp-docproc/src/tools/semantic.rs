@@ -8,10 +8,32 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 
 // Content safety guard — mandatory at every LLM boundary (OWASP LLM01/02/04/06).
+// The output pipeline (secret stripping) is ALWAYS active — secrets must never
+// enter shared memory (P3.1 floor). The input pipeline (prompt injection / role
+// override) protects interactive agent boundaries from untrusted user input.
+// For the docproc corpus curation pipeline, which processes operator-curated
+// literature rather than untrusted user input, the operator may disable input
+// scanning via `HKASK_ENABLE_CONTENT_GUARD=false`. Defaults to enabled.
 pub(crate) static GUARD: std::sync::LazyLock<hkask_guard::ContentGuard> =
     std::sync::LazyLock::new(|| {
         hkask_guard::ContentGuard::mandatory(&hkask_guard::GuardConfig::default())
     });
+
+/// Whether input-guard scanning is active for the docproc corpus pipeline.
+///
+/// Read once per process from `HKASK_ENABLE_CONTENT_GUARD`. Unset or any value
+/// other than `false`/`0`/`off`/`no` leaves it enabled (safe default). The output
+/// guard (`scan_output`) is always invoked regardless of this flag — secrets
+/// must never enter shared memory.
+pub(crate) static INPUT_GUARD_ENABLED: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| {
+    !matches!(
+        std::env::var("HKASK_ENABLE_CONTENT_GUARD")
+            .ok()
+            .map(|v| v.to_ascii_lowercase())
+            .as_deref(),
+        Some("false" | "0" | "off" | "no")
+    )
+});
 
 #[derive(Debug, Deserialize, Serialize)]
 struct QaGenerationResponse {
@@ -385,15 +407,20 @@ impl DocProcServer {
                 ..Default::default()
             };
 
-            // P3.1: mandatory input guard — scan prompt before model invocation
-            let input_scan = GUARD.scan_input(&prompt);
-            if !input_scan.passed {
-                let violations: Vec<String> = input_scan.violations.iter()
-                    .map(|v| format!("{}: {}", v.scanner, v.description))
-                    .collect();
-                return Err(McpToolError::invalid_argument(format!(
-                    "Input guard rejected prompt: {}", violations.join("; ")
-                )));
+            // P3.1: input guard — scan prompt before model invocation. The output
+            // guard (secret stripping) is always active; input scanning guards
+            // interactive boundaries from untrusted input. The corpus pipeline
+            // may disable it via HKASK_ENABLE_CONTENT_GUARD (curated literature).
+            if *INPUT_GUARD_ENABLED {
+                let input_scan = GUARD.scan_input(&prompt);
+                if !input_scan.passed {
+                    let violations: Vec<String> = input_scan.violations.iter()
+                        .map(|v| format!("{}: {}", v.scanner, v.description))
+                        .collect();
+                    return Err(McpToolError::invalid_argument(format!(
+                        "Input guard rejected prompt: {}", violations.join("; ")
+                    )));
+                }
             }
 
             match self
@@ -573,11 +600,13 @@ impl DocProcServer {
                     } else {
                         (tpl, "registry/templates/docproc/generate-qa.j2")
                     };
-                    let input_scan = GUARD.scan_input(&prompt_text);
-                    if !input_scan.passed {
-                        let result = json!({"chunk_id": prompt.chunk_id, "error": "Input guard rejected"});
-                        write_qa_result(&result, &output_writer, &write_count);
-                        return;
+                    if *INPUT_GUARD_ENABLED {
+                        let input_scan = GUARD.scan_input(&prompt_text);
+                        if !input_scan.passed {
+                            let result = json!({"chunk_id": prompt.chunk_id, "error": "Input guard rejected"});
+                            write_qa_result(&result, &output_writer, &write_count);
+                            return;
+                        }
                     }
                     let params = LLMParameters { temperature: 0.3, top_p: 0.95, max_tokens: 4096, frequency_penalty: 0.0, presence_penalty: 0.0, top_k: 0, min_p: 0.0, typical_p: 0.0, disable_thinking: true, ..Default::default() };
                     match router
@@ -832,16 +861,18 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                     prompt
                 };
 
-                // Input guard
-                let input_scan = GUARD.scan_input(&prompt);
-                if !input_scan.passed {
-                    tracing::warn!(
-                        target: "hkask.mcp.docproc.triples",
-                        entity = %entity_ref,
-                        "Input guard rejected extraction prompt"
-                    );
-                    failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    return;
+                // Input guard — operator may disable via HKASK_ENABLE_CONTENT_GUARD
+                if *INPUT_GUARD_ENABLED {
+                    let input_scan = GUARD.scan_input(&prompt);
+                    if !input_scan.passed {
+                        tracing::warn!(
+                            target: "hkask.mcp.docproc.triples",
+                            entity = %entity_ref,
+                            "Input guard rejected extraction prompt"
+                        );
+                        failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        return;
+                    }
                 }
 
                 let params = LLMParameters {
