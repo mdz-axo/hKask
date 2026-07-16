@@ -11,9 +11,11 @@
 //! - `HKASK_OCR_MODEL` — OCR model for scanned PDF fallback
 //! - `HKASK_MODEL_DEFAULT` — fallback when provider-specific not set
 
-/// Approved classifier model for corpus pipeline classification.
-/// Qwen3.6-35B-A3B: 35B total, 3B active MoE — approved model.
-pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/Qwen/Qwen3.6-35B-A3B";
+/// Approved classifier model for corpus pipeline classification (dual-model peer A).
+/// Qwen3-235B-A22B: 235B total, 22B active MoE. Hosted on KiloCode (China)
+/// to satisfy the cross-jurisdiction requirement — model B defaults to
+/// DeepInfra (US), so the two peers operate from different jurisdictions.
+pub const DEFAULT_CLASSIFIER_MODEL: &str = "KC/qwen/qwen3-235b-a22b-2507";
 
 /// Recommended secondary classifier for dual-model epistemic integrity.
 /// Gemma 4 31B Turbo — different model family, fast variant.
