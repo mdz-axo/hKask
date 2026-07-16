@@ -79,8 +79,7 @@ const API_EXCLUDED: &[&str] = &["filesystem", "curator", "kanban", "skill"];
 
 async fn start_api_servers(runtime: &McpRuntime, replicant_name: &str) -> usize {
     let mut started = 0;
-    let mut extra_env = std::collections::HashMap::new();
-    extra_env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
+    let extra_env = super::helpers::replicant_env_map(replicant_name);
 
     for (server_id, command) in BUILTIN_SERVERS {
         if API_EXCLUDED.contains(server_id) {

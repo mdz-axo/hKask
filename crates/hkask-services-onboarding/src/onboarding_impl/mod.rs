@@ -548,7 +548,11 @@ impl OnboardingService {
 
         // Orphaned — remove DB, salt file, and stale keychain entries
         Self::cleanup_failed_onboarding(config);
-        true
+        // Verify the DB file was actually removed. cleanup_failed_onboarding
+        // is best-effort and file deletion can fail (permissions, stale locks).
+        // Returning true when the file still exists causes the caller to report
+        // success, then init_registry fails with hmac errors on the stale DB.
+        !std::path::Path::new(db_path).exists()
     }
 
     /// Roll back a failed onboarding by removing keychain entries, the

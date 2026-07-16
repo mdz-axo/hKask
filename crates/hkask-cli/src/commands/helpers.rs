@@ -117,7 +117,7 @@ pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
 /// Sets `HKASK_MCP_HOST` (replicant identity) and `HKASK_REPLICANT_PERSONA`
 /// (WebID resolution). If `HKASK_DB_PASSPHRASE` is set in the current process,
 /// it is forwarded so subprocess servers can decrypt their per-agent databases.
-fn replicant_env_map(replicant_name: &str) -> std::collections::HashMap<String, String> {
+pub(crate) fn replicant_env_map(replicant_name: &str) -> std::collections::HashMap<String, String> {
     let mut env = std::collections::HashMap::new();
     env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
     env.insert(

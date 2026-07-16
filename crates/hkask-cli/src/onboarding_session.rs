@@ -155,7 +155,7 @@ impl OnboardingSession {
                     eprintln!("  Removed orphaned database.");
                 } else {
                     eprintln!(
-                        "  \u{26a0} Database contains existing replicants and was not removed."
+                        "  \u{26a0} Database was not removed (contains replicants or cleanup failed)."
                     );
                 }
             } else {
