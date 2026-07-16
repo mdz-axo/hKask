@@ -367,6 +367,7 @@ export HKASK_GUARD_TOKEN_LIMIT=64000
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HKASK_GUARD_TOKEN_LIMIT` | `32000` | Maximum input token budget before model invocation (LLM04 prevention) |
+| `HKASK_ENABLE_CONTENT_GUARD` | `true` (unset) | Gates **input** scanning in the docproc corpus pipeline (`tag`, `embed`, `extract_triples`, `consolidate`, `generate_qa`, `generate_qa_batch`). Set to `false`/`0`/`off`/`no` for batch curation of operator-curated literature where role-override patterns occur naturally in source text. The **output** guard (secret stripping) and the **interactive classifier** path (`classify_one`, `extract_triples_one`) remain always-on regardless of this setting. |
 
 Lower values provide tighter LLM04 protection but may reject legitimate long contexts. Higher values (up to ~64K) accommodate longer inputs at the cost of weaker DOS protection.
 
@@ -384,6 +385,10 @@ let guard = ContentGuard::mandatory(&config);
 ```
 
 Core scanners cannot be disabled. The `GuardConfig` controls scanner parameters (limits, thresholds), not scanner presence. This is by design — P3.1 mandates these controls as a floor.
+
+### Corpus Pipeline Input Guard
+
+The `ContentGuard` object is always constructed via `mandatory()` and is never configurable off. The *output* guard (`scan_output`) is invoked unconditionally at every docproc LLM boundary — secrets must never enter shared memory. The *input* guard (`scan_input`) protects interactive agent boundaries from untrusted user input; for the docproc corpus curation pipeline, which processes operator-curated literature rather than untrusted user input, the operator may skip input scanning by setting `HKASK_ENABLE_CONTENT_GUARD=false`. This distinction — guard object always-on, corpus pipeline input invocation operator-controlled — is recorded in [ADR-053](../architecture/ADRs/ADR-053-corpus-input-guard-toggle.md). The interactive classifier path in `hkask-services-runtime` does **not** honor this flag and remains unconditionally guarded.
 
 ### Guard Violation Types
 
