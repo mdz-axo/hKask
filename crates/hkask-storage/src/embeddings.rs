@@ -69,9 +69,12 @@ impl VectorBackend {
     fn search_sql(&self) -> &'static str {
         match self {
             Self::SqliteVec { .. } => {
-                "SELECT v.id, v.distance, e.entity_ref, e.vector, e.model
+                // vec0 is keyed on its implicit integer rowid; the UUID lives
+                // only in the embeddings table. Join on rowid (integer B-tree
+                // lookup) instead of a TEXT metadata column.
+                "SELECT e.id, v.distance, e.entity_ref, e.vector, e.model
                  FROM vec_embeddings v
-                 JOIN embeddings e ON v.id = e.id
+                 JOIN embeddings e ON v.rowid = e.rowid
                  WHERE v.embedding MATCH ?1 AND v.k = ?2
                  ORDER BY v.distance"
             }
@@ -243,9 +246,13 @@ impl EmbeddingStore {
                     let _ = conn.execute_batch("ROLLBACK;");
                     return Err(EmbeddingError::Storage(e));
                 }
+                // vec0 is keyed on its implicit integer rowid, which mirrors
+                // embeddings.rowid. Link the vector to the metadata row by
+                // reusing the rowid SQLite just assigned.
+                let rowid: i64 = conn.last_insert_rowid();
                 let vec_result = conn.execute(
-                    "INSERT INTO vec_embeddings (id, embedding) VALUES (?1, ?2)",
-                    rusqlite::params![id, &blob],
+                    "INSERT INTO vec_embeddings (rowid, embedding) VALUES (?1, ?2)",
+                    rusqlite::params![rowid, &blob],
                 );
                 if let Err(e) = vec_result {
                     let _ = conn.execute_batch("ROLLBACK;");
@@ -411,8 +418,11 @@ impl EmbeddingStore {
                     .get()
                     .map_err(|e| InfrastructureError::database(e.to_string()))?;
                 conn.execute_batch("BEGIN TRANSACTION;")?;
+                // vec0 is rowid-keyed; resolve the UUID to the embeddings rowid
+                // and delete the vector by integer key (fast B-tree lookup,
+                // avoids the inefficient >12-char TEXT metadata scan).
                 if let Err(e) = conn.execute(
-                    "DELETE FROM vec_embeddings WHERE id = ?1",
+                    "DELETE FROM vec_embeddings WHERE rowid = (SELECT rowid FROM embeddings WHERE id = ?1)",
                     rusqlite::params![id],
                 ) {
                     let _ = conn.execute_batch("ROLLBACK;");
