@@ -20,8 +20,6 @@ serde_yaml_neo.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 dirs = "6"
-dotenvy.workspace = true
-minijinja.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }

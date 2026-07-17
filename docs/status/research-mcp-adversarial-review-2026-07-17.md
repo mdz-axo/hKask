@@ -67,6 +67,16 @@ All 15 findings have been fixed in the codebase.
 | G14 — Inconsistent indentation | **Fixed** | `src/lib.rs` — `rss_subscribe` async block re-indented to 12 spaces throughout |
 | G15 — Dead `SearchDepth::Basic` init | **Fixed** | Subsumed by G4 — `SearchDepth` enum deleted entirely |
 
+### Pre-existing issues resolved (2026-07-17)
+
+| Finding | Status | Files changed |
+|---------|--------|---------------|
+| B1 — `SearchStrategy::Deep` == `Web` | **Fixed** | `providers/mod.rs` — Deep now requests 2x results from each provider (broader RRF candidate pool, capped at 50) AND extracts content from top 3 results after fusion, populating `content_preview` (previously always `None` in compound search). Tool description updated. |
+| B2 — `ProviderFilter::Kinds` dead code | **Fixed** | `types/mod.rs` — `Kinds` variant deleted; `providers/mod.rs` — `Kinds` match arm in `search_compound` deleted |
+| B3 — Cache eviction not true LRU | **Fixed** | `cache.rs` — Added `last_accessed` field to `CacheEntry`; `get()` now uses write lock and updates `last_accessed`; `insert()` evicts by `last_accessed` instead of `inserted_at` |
+| B4 — `record_experience` fire-and-forget | **By design** | No change — fire-and-forget avoids blocking tool responses on daemon availability. Failures are logged but never block. |
+| B5 — RSS tool indentation | **Fixed** | `lib.rs` — `rss_unsubscribe`, `rss_fetch`, `rss_get_entries` async blocks re-indented to 12 spaces throughout (matching `rss_subscribe` G14 fix) |
+
 ### Service crate extraction (2026-07-17)
 
 **A1 — No service crate** — **Fixed**. Extracted `hkask-services-research` service crate

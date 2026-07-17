@@ -136,7 +136,7 @@ impl ProviderId {
     }
 }
 
-// Configuration for a single OpenRouter fusion group.
+// Configuration for provider-agnostic multi-model fusion.
 //
 // When set, all text generation calls route through the fusion group by default.
 // Individual calls can bypass with `LLMParameters.bypass_fusion = true`.
@@ -192,7 +192,7 @@ pub struct InferenceConfig {
     pub pool_max_idle: usize,
     pub default_model: String,
 
-    /// Structured OpenRouter fusion group configuration.
+    /// Structured fusion configuration (provider-agnostic).
     /// When set, all text generation calls route through fusion by default.
     /// Calls with `LLMParameters.bypass_fusion = true` bypass the override.
     /// Default: None (fusion disabled).

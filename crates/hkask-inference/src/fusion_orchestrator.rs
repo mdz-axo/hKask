@@ -2,8 +2,7 @@
 //!
 //! The judge is the strategy. When `fusion.judge == "algo"`, the orchestrator
 //! runs the panel in parallel and merges JSON responses algorithmically — no
-//! LLM call. This replaces the former `DualModelPort` / `step.dual_model`
-//! mechanism. The algo judge preserves both viewpoints (union, case-insensitive
+//! LLM call. The algo judge preserves both viewpoints (union, case-insensitive
 //! dedup, diverging strings annotated `[A:... B:...]`) without a methodology
 //! lens — use judge-based modes for methodology-anchored evaluation.
 //!

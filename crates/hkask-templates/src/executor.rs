@@ -987,8 +987,7 @@ impl ManifestExecutor {
             }
         }
 
-        // Single-model or fusion path — dual_model is replaced by the algo judge
-        // (fusion with judge: "algo"). The fusion routing above handles it.
+        // Single-model or fusion path — the fusion routing above handles it.
         let result_text = {
             let timeout_dur = std::time::Duration::from_secs(step.timeout_seconds as u64);
             let result: InferenceResult = match tokio::time::timeout(

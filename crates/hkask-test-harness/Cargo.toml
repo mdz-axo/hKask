@@ -12,6 +12,7 @@ hkask-capability = { path = "../hkask-capability" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-self-heal = { path = "../hkask-services-self-heal" }
 rusqlite.workspace = true
 tempfile.workspace = true
 chrono.workspace = true

@@ -4868,6 +4868,7 @@ dependencies = [
  "hkask-ports",
  "hkask-services-core",
  "hkask-services-runtime",
+ "hkask-services-self-heal",
  "hkask-services-wallet",
  "hkask-storage",
  "hkask-storage-guard",
@@ -4889,14 +4890,12 @@ version = "0.31.0"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
- "dotenvy",
  "hkask-database",
  "hkask-inference",
  "hkask-keystore",
  "hkask-ports",
  "hkask-types",
  "hkask-wallet-types",
- "minijinja",
  "serde",
  "serde_json",
  "serde_yaml_neo",
@@ -5035,6 +5034,8 @@ dependencies = [
 name = "hkask-services-self-heal"
 version = "0.31.0"
 dependencies = [
+ "dirs 6.0.0",
+ "dotenvy",
  "hkask-types",
  "minijinja",
  "serde",
@@ -5183,6 +5184,7 @@ dependencies = [
  "hkask-cns",
  "hkask-ports",
  "hkask-services-core",
+ "hkask-services-self-heal",
  "hkask-storage",
  "hkask-types",
  "proptest",

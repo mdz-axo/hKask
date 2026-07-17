@@ -18,7 +18,6 @@ pub mod goal;
 pub mod identity;
 pub mod inference_svc;
 pub mod model_cache;
-pub mod self_heal;
 pub mod settings;
 pub mod verification;
 

@@ -120,7 +120,7 @@ classDiagram
 ```
 
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-MCP-SKILL-001
+id: DIAG-IC-015
 verified_date: 2026-07-17
 verified_against: mcp-servers/hkask-mcp-skill/src/lib.rs:49
 reference_sources: crates/hkask-templates/src/registry.rs:400

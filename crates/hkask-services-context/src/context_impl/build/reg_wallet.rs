@@ -4,10 +4,8 @@ use super::super::*;
 use super::foundation::Foundation;
 use super::loops::LoopWiring;
 use super::mcp_pods::McpPods;
-use hkask_services_core::self_heal::{
-    HealAction, HealContext, HealRegistry, HealStrategy, SelfHealer,
-};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
+use hkask_services_self_heal::{HealAction, HealContext, HealRegistry, HealStrategy, SelfHealer};
 use hkask_wallet::manager::{WalletManager, WalletSelfHealer};
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -35,7 +35,7 @@ All servers follow these patterns:
 3. **Tool dispatch:** `execute_tool_semantic(self, tool_name, ontology, async { ... })` wraps each tool with CNS span + daemon outcome recording
 4. **Tool router:** `#[tool_handler(router = Self::...router())]` on the `ServerHandler` impl
 5. **Error type:** `McpToolError` for tool-level errors, domain `Error` enums (via `thiserror`) for computation errors
-6. **Governance:** OCAP is enforced at the dispatcher `GovernedTool` membrane (`DelegationToken` per call), not at the server. The server is the transport pipe; `shell_exec`-style tools are reachable only by agents holding the relevant capability token. See [dispatch.rs](../../crates/hkask-mcp/src/dispatch.rs).
+6. **Governance:** OCAP is enforced at the dispatcher `GovernedTool` membrane (`DelegationToken` per call), not at the server. The server is the transport pipe; `shell_exec`-style tools are reachable only by agents holding the relevant capability token. See [`dispatch.rs`](../../../crates/hkask-mcp/src/dispatch.rs).
 
 ## Testing standard
 

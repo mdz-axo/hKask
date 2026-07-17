@@ -594,17 +594,20 @@ impl WebSearchPort for ProviderPool {
                 .map(|r| r.url.clone())
                 .collect();
             let futures: Vec<_> = top_urls
-                .iter()
-                .map(|url| async {
-                    match self.extract_with_fallback(url, &opts).await {
-                        Ok(content) => Some((url.clone(), content.content)),
-                        Err(e) => {
-                            tracing::debug!(
-                                url = %url,
-                                error = %e,
-                                "Deep search content extraction failed"
-                            );
-                            None
+                .into_iter()
+                .map(|url| {
+                    let opts = opts.clone();
+                    async move {
+                        match self.extract_with_fallback(&url, &opts).await {
+                            Ok(content) => Some((url, content.content)),
+                            Err(e) => {
+                                tracing::debug!(
+                                    url = %url,
+                                    error = %e,
+                                    "Deep search content extraction failed"
+                                );
+                                None
+                            }
                         }
                     }
                 })
