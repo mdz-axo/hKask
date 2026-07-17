@@ -382,6 +382,7 @@ mod tests {
                 skills: Vec::new(),
                 max_rounds: 3,
             }),
+            system_prompt: None,
             ..Default::default()
         };
         assert_eq!(router.effective_model(None, &params), "manifest-judge");
@@ -402,6 +403,7 @@ mod tests {
                 skills: Vec::new(),
                 max_rounds: 5,
             }),
+            system_prompt: None,
             ..Default::default()
         };
         assert_eq!(router.effective_model(None, &params), "manifest-only-judge");
@@ -423,6 +425,7 @@ mod tests {
                 skills: Vec::new(),
                 max_rounds: 5,
             }),
+            system_prompt: None,
             ..Default::default()
         };
         assert_eq!(router.effective_model(None, &params), default);

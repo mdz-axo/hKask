@@ -228,6 +228,7 @@ pub(crate) async fn chat_stream(
         adapter: None,
         bypass_fusion: fusion_active,
         fusion_config: None,
+        system_prompt: None,
     };
 
     let inference = state.agent_service.infra().inference.clone();

@@ -67,6 +67,7 @@ fn default_params() -> LLMParameters {
         adapter: None,
         bypass_fusion: false,
         fusion_config: None,
+        system_prompt: None,
     }
 }
 
@@ -369,6 +370,7 @@ async fn disable_thinking_flows_to_wire_format() {
         adapter: None,
         bypass_fusion: false,
         fusion_config: None,
+        system_prompt: None,
     };
 
     let result = router

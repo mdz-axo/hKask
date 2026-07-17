@@ -681,6 +681,7 @@ mod tests {
             adapter: None,
             bypass_fusion: false,
             fusion_config: None,
+            system_prompt: None,
         };
         let req = build_chat_request(
             crate::model_constants::TEST_MODEL_SMALL,
@@ -723,6 +724,7 @@ mod tests {
             adapter: None,
             bypass_fusion: false,
             fusion_config: None,
+            system_prompt: None,
         };
         let req = build_chat_request(
             crate::model_constants::TEST_MODEL_SMALL,
@@ -755,6 +757,7 @@ mod tests {
             adapter: None,
             bypass_fusion: false,
             fusion_config: None,
+            system_prompt: None,
         };
         let req = build_chat_request(
             crate::model_constants::TEST_MODEL_SMALL,

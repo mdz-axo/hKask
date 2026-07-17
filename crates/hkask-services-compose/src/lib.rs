@@ -365,6 +365,7 @@ impl ComposeService {
             adapter: None,
             bypass_fusion: false,
             fusion_config: None,
+            system_prompt: None,
         };
         let result = inference.generate(&system_prompt, &params, None).await?;
         let generated_prose = result.text.trim().to_string();

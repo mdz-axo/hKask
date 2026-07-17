@@ -360,6 +360,7 @@ impl CondenserServer {
                 adapter: None,
                 bypass_fusion: true,
                 fusion_config: None,
+                system_prompt: None,
             };
 
             let result = match self

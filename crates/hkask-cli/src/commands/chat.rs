@@ -302,6 +302,7 @@ pub async fn chat_with_agent_streaming(
         adapter: None,
         bypass_fusion: fusion_active,
         fusion_config: None,
+        system_prompt: None,
     };
 
     finish_stream(&prepared, &params, input).await
