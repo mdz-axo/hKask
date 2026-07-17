@@ -1534,7 +1534,7 @@ status: VERIFIED
 **Constraining Principle:** P8 (Semantic Grounding) — extracted triples carry cross-jurisdiction provenance
 **Crate:** `hkask-services-runtime` | **Source:** `src/classify_impl.rs`
 
-The former dual classifier (`dual_classify.rs`) with Jaccard scoring, divergence detection, and drift detection has been removed. The corpus pipeline now uses `merge_extractions()` for algo-style dual-model merge — union of concepts/entities/relationships, case-insensitive dedup, diverging fields annotated `[A:... B:...]`. No Jaccard, no drift detection, no CNS fidelity spans.
+The former dual classifier (`dual_classify.rs`) with Jaccard scoring, divergence detection, and drift detection has been removed. The corpus pipeline now routes through the fusion orchestrator with `judge: algo` — panel models run in parallel, JSON responses are merged algorithmically (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). No separate merge function.
 
 ---
 

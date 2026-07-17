@@ -1091,7 +1091,7 @@ hKask runtime services — text classification, provider intelligence, daemon ha
 |--------|---------|
 | `guard` | `ContentGuard`, `GuardResult`, `GuardViolation` |
 
-**Re-exports at Crate Root:** `AdaptiveMonitor`, classify types, `ServiceDaemonHandler`, `merge_extractions`, `build_model_b_config`, `ContentGuard`, `GuardResult`, `GuardViolation`, provider intelligence types.
+**Re-exports at Crate Root:** `AdaptiveMonitor`, classify types, `ServiceDaemonHandler`, `parse_triple_extraction`, `ContentGuard`, `GuardResult`, `GuardViolation`, provider intelligence types.
 
 **Feature Flags:** None.
 

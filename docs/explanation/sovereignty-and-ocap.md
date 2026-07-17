@@ -139,7 +139,7 @@ The review evaluated four diagrams against Diataxis quality gates:
 
 | Gate | Dual Flowchart | Guard Flowchart | Sequence | State |
 |---|---|---|---|---|
-| Entity count matches source | 15 nodes, 12 edges — covers classify_one, extract_triples_one, merge_extractions | 9 nodes, 9 edges — covers all 4 active scanners (TokenLimit, RoleOverride, Deobfuscate, Secrets) | 7 participants, 6 alt/par blocks — covers full path | 4 states, 6 transitions — covers all violation types |
+| Entity count matches source | 15 nodes, 12 edges — covers classify_one, extract_triples_one, algo_merge | 9 nodes, 9 edges — covers all 4 active scanners (TokenLimit, RoleOverride, Deobfuscate, Secrets) | 7 participants, 6 alt/par blocks — covers full path | 4 states, 6 transitions — covers all violation types |
 | Mermaid syntax valid | flowchart TD, correct node shapes | flowchart TD, correct node shapes | sequenceDiagram, correct par/alt/loop | stateDiagram-v2, correct note placement |
 | Plain-English labels | No raw identifiers | OWASP risk numbers on notes | Participant aliases used | OWASP categories in notes |
 | Description paragraph | Above diagram | Above diagram | Above diagram | Above diagram |

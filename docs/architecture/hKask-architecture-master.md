@@ -863,7 +863,7 @@ When the `fusion:` block is present, all `select` steps in that manifest use thi
 
 **Types:** `FusionConfig`, `FusionMode`, `FusionSkill` live in `hkask-types::fusion` (shared across `hkask-templates`, `hkask-inference`). `LLMParameters.fusion_config: Option<FusionConfig>` carries the per-call override through the `InferencePort` trait.
 
-**Algorithmic judge** (`judge: "algo"`): When the fusion judge is set to `"algo"`, the orchestrator runs the panel in parallel and merges JSON responses algorithmically — no LLM call. This replaces the former `DualModelPort` / `step.dual_model` mechanism. The algo judge preserves both viewpoints (union, case-insensitive dedup, diverging strings annotated `[A:... B:...]`) without a methodology lens. The corpus pipeline's domain-specific triple merge (`merge_extractions()` in `hkask-services-runtime`) uses the same merge logic for typed `TripleExtraction` structs.
+**Algorithmic judge** (`judge: "algo"`): When the fusion judge is set to `"algo"`, the orchestrator runs the panel in parallel and merges JSON responses algorithmically — no LLM call. This replaces the former `DualModelPort` / `step.dual_model` mechanism. The algo judge preserves both viewpoints (union, case-insensitive dedup, diverging strings annotated `[A:... B:...]`) without a methodology lens. The corpus pipeline routes through the same fusion orchestrator — panel models specified in the corpus config's `fusion:` block, merged via `algo_merge()`.
 
 **Bypass:** Chat uses the user's chosen model directly (`bypass_fusion=true`). Skills and tool invocations route through fusion when active (`bypass_fusion=false`). The condenser, daemon narratives, and summarization always bypass fusion.
 
