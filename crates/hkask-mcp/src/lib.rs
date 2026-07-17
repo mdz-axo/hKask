@@ -52,9 +52,11 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
 /// file-mutating tools require `write`, `shell_exec` requires `execute`.
 ///
 /// Filesystem consent policy (user sovereignty, P2):
-///   - read    — `fs_read`, `fs_list`, `fs_search`        → `tool:filesystem:read`
-///   - write   — `fs_write`, `fs_edit`, `fs_delete`      → `tool:filesystem:write`
-///   - execute — `shell_exec`                          → `tool:filesystem:execute`
+///
+/// - read — `fs_read`, `fs_list`, `fs_search` → `tool:filesystem:read`
+/// - write — `fs_write`, `fs_edit`, `fs_delete` → `tool:filesystem:write`
+/// - execute — `shell_exec` → `tool:filesystem:execute`
+///
 /// A read token covers read tools only; a write token covers read+write; an
 /// execute token covers all (incl. `shell_exec`). Provisioning is expected to
 /// grant the least action needed by default and require explicit consent for

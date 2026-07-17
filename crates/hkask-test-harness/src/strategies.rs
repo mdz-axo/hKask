@@ -25,8 +25,9 @@ use proptest::strategy::{BoxedStrategy, Strategy};
 
 use chrono::Utc;
 use hkask_capability::{CapabilitySpec, DelegationAction, DelegationResource};
-use hkask_services_core::{Goal, GoalState};
+use hkask_goal::Goal;
 use hkask_storage::HMem;
+use hkask_types::GoalState;
 use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 use hkask_types::id::{GoalID, WebID};
 use hkask_types::transcript::TranscriptSegment;

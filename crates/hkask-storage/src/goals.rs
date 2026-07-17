@@ -3,9 +3,10 @@
 use crate::now_rfc3339;
 use chrono::Utc;
 use hkask_database::value::DbValue;
-use hkask_services_core::{Goal, GoalArtifact, GoalCriterion, GoalState};
+use hkask_goal::{Goal, GoalArtifact, GoalCriterion};
 use hkask_storage_core::impl_from_db_error;
 use hkask_types::GoalID;
+use hkask_types::GoalState;
 use hkask_types::InfrastructureError;
 use hkask_types::event::NuEventSink;
 use hkask_types::id::WebID;

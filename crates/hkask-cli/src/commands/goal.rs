@@ -1,7 +1,7 @@
 //! Goal coordination commands — direct calls to goal repository.
 //! Formerly delegated to GoalService (removed v0.31.0 per P5).
 
-use hkask_services_core::GoalState;
+use hkask_types::GoalState;
 use hkask_types::WebID;
 use hkask_types::visibility::Visibility;
 

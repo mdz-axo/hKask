@@ -14,7 +14,6 @@
 
 pub mod config;
 pub mod error;
-pub mod goal;
 pub mod identity;
 pub mod inference_svc;
 pub mod model_cache;
@@ -22,7 +21,6 @@ pub mod settings;
 
 pub use config::{DEFAULT_DB_PATH, ServiceConfig};
 pub use error::{DomainKind, ErrorKind, ServiceError};
-pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
 pub use identity::{
     HumanUser, Invite, InviteStatus, OAuthProvider, RegistrationError, RegistrationRequest,
     ReplicantIdentity, Role, UserSession,

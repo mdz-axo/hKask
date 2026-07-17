@@ -23,7 +23,7 @@ rusqlite = { workspace = true, optional = true }
 
 [dev-dependencies]
 hkask-capability = { path = "../hkask-capability" }
-hkask-services-core = { path = "../hkask-services-core" }
+hkask-goal = { path = "../hkask-goal" }
 tokio = { workspace = true, features = ["macros", "rt"] }
 proptest = "1"
 hkask-test-harness = { path = "../hkask-test-harness" }

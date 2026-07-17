@@ -4191,6 +4191,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-goal"
+version = "0.31.0"
+dependencies = [
+ "chrono",
+ "hkask-types",
+ "serde",
+ "uuid",
+]
+
+[[package]]
 name = "hkask-guard"
 version = "0.31.0"
 dependencies = [
@@ -5106,6 +5116,7 @@ dependencies = [
  "hex",
  "hkask-capability",
  "hkask-database",
+ "hkask-goal",
  "hkask-keystore",
  "hkask-ports",
  "hkask-services-core",
@@ -5191,8 +5202,8 @@ dependencies = [
  "chrono",
  "hkask-capability",
  "hkask-cns",
+ "hkask-goal",
  "hkask-ports",
- "hkask-services-core",
  "hkask-services-self-heal",
  "hkask-storage",
  "hkask-types",
@@ -5234,7 +5245,7 @@ dependencies = [
  "dirs 6.0.0",
  "hex",
  "hkask-capability",
- "hkask-services-core",
+ "hkask-goal",
  "hkask-test-harness",
  "proptest",
  "rusqlite",
