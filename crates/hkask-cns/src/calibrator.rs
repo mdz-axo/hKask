@@ -39,7 +39,7 @@ pub fn spawn_calibration_loop<C: Calibrator>(calibrator: Arc<C>, interval: Durat
         .store(true, Ordering::Release);
     tokio::spawn(async move {
         info!(
-            target: "cns.calibration",
+            target: "hkask.calibration",
             calibrator_target,
             interval_secs = interval.as_secs(),
             "Background calibration started",
@@ -48,7 +48,7 @@ pub fn spawn_calibration_loop<C: Calibrator>(calibrator: Arc<C>, interval: Durat
             tokio::time::sleep(interval).await;
             if let Err(e) = calibrator.run_calibration().await {
                 warn!(
-                    target: "cns.calibration",
+                    target: "hkask.calibration",
                     calibrator_target,
                     error = %e,
                     "Background calibration failed",
