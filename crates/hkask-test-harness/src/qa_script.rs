@@ -895,7 +895,11 @@ pub async fn run_script(
             break Ok(ScriptOutput {
                 manifest_id: manifest_id.clone(),
                 terminal_ordinal: step.ordinal(),
-                status: if output.contains("FAIL") { QaStatus::Fail } else { QaStatus::Pass },
+                status: if output.contains("FAIL") {
+                    QaStatus::Fail
+                } else {
+                    QaStatus::Pass
+                },
                 terminal_message: output,
                 steps_executed: state.steps_executed,
                 gas_used: state.gas_used,
@@ -908,7 +912,11 @@ pub async fn run_script(
                 break Ok(ScriptOutput {
                     manifest_id: manifest_id.clone(),
                     terminal_ordinal: step.ordinal(),
-                    status: if output.contains("FAIL") { QaStatus::Fail } else { QaStatus::Pass },
+                    status: if output.contains("FAIL") {
+                        QaStatus::Fail
+                    } else {
+                        QaStatus::Pass
+                    },
                     terminal_message: output,
                     steps_executed: state.steps_executed,
                     gas_used: state.gas_used,

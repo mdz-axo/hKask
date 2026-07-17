@@ -296,8 +296,11 @@ fn status_label(status: SkillStatus) -> &'static str {
 fn resolve_default_inference_port() -> std::sync::Arc<dyn InferencePort> {
     let inference_config = hkask_inference::InferenceConfig::from_env();
     let default_model = inference_config.default_model.clone();
-    let ctx =
-        hkask_services_inference::InferenceContext::from_parts(None, &default_model, inference_config);
+    let ctx = hkask_services_inference::InferenceContext::from_parts(
+        None,
+        &default_model,
+        inference_config,
+    );
     commands::helpers::or_exit(
         hkask_services_inference::InferenceService::resolve_port(&ctx, &default_model),
         "Failed to initialize inference port for SKILL.md derivation",

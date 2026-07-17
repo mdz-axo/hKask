@@ -11,7 +11,9 @@ pub fn run(rt: &tokio::runtime::Runtime) {
     let ctx = super::helpers::build_agent_service();
 
     let inf_ctx = hkask_services_inference::InferenceContext::from(&ctx);
-    match rt.block_on(hkask_services_inference::InferenceService::list_models(&inf_ctx)) {
+    match rt.block_on(hkask_services_inference::InferenceService::list_models(
+        &inf_ctx,
+    )) {
         Ok(models) => {
             if models.is_empty() {
                 println!("No models available.");

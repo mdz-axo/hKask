@@ -89,7 +89,10 @@ fn skill_server_stores_registry_entries_directly() {
         HashMap::new(),
         CapabilityTier::detect(&HashMap::new()),
     );
-    assert!(server.skills.is_empty(), "new server should have no entries");
+    assert!(
+        server.skills.is_empty(),
+        "new server should have no entries"
+    );
     // Insert a synthetic entry to confirm the field type is HashMap<String, RegistryEntry>.
     server.skills.insert(
         "test.step".to_string(),

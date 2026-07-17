@@ -5,9 +5,9 @@
 //! McpRuntime via the McpDispatchFn callback.
 
 use crate::cli::QaAction;
+use hkask_test_harness::qa_script::QaStatus;
 use std::path::Path;
 use std::sync::Arc;
-use hkask_test_harness::qa_script::QaStatus;
 
 /// pre:  action is a valid QaAction
 /// post: runs the specified QA operation, prints results to stdout
@@ -196,7 +196,9 @@ fn setup_mcp_dispatch(
                             .join("\n");
                         Ok(text)
                     }
-                    Err(e) => Err(QaDispatchError::DispatchError { message: e.to_string() }),
+                    Err(e) => Err(QaDispatchError::DispatchError {
+                        message: e.to_string(),
+                    }),
                 }
             })
         });
