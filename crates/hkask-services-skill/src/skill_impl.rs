@@ -319,7 +319,10 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
     for entry in entries {
         let entry = entry.map_err(|e| anyhow::anyhow!("{e}"))?;
         let src_path = entry.path();
-        let dst_path = dst.join(src_path.file_name().unwrap_or_default());
+        let file_name = src_path.file_name().ok_or_else(|| {
+            anyhow::anyhow!("source path has no file name: {}", src_path.display())
+        })?;
+        let dst_path = dst.join(file_name);
 
         if src_path.is_dir() {
             copy_dir_recursive(&src_path, &dst_path)?;

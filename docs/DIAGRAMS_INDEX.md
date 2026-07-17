@@ -96,7 +96,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |-----------|-------------|---------------|-----------------|--------|
 | DIAG-RF-001 | ERD Schema Documentation (superseded by DIAG-PL-010) | `architecture/hKask-architecture-master.md` | `crates/hkask-storage/src/` (retained as historical reference; canonical is DIAG-PL-010) | ✅ VERIFIED 2026-07-01 |
 | DIAG-RF-002 | Condenser Pipeline — tool dispatch, algorithm selection, ontology anchoring | `diagrams/flowchart-condenser-pipeline.md` | `mcp-servers/hkask-mcp-condenser/src/lib.rs`, `crates/hkask-condenser/src/engine.rs`, `crates/hkask-condenser/src/algorithms.rs` | ✅ VERIFIED 2026-07-17 |
-| DIAG-RF-003 | Filesystem sandbox path resolution + tool dispatch flow (execute_tool → sandbox_path → canonicalize → containment → emit_cns) | `reference/mcp-servers/filesystem.md` | `mcp-servers/hkask-mcp-filesystem/src/lib.rs:55-77`, `crates/hkask-mcp/src/server/tool_span.rs:246-259` | ✅ VERIFIED 2026-07-17 |
+| DIAG-RF-003 | Filesystem sandbox path resolution + tool dispatch flow (execute_tool → sandbox_path → canonicalize → containment → emit_cns) | `reference/mcp-servers/filesystem.md` | `mcp-servers/hkask-mcp-filesystem/src/lib.rs:55-109`, `crates/hkask-mcp/src/server/tool_span.rs:246-259` | ✅ VERIFIED 2026-07-17 |
 
 ## 7. Undocumented Interaction Patterns (V1.1+ Candidates)
 

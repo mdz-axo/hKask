@@ -256,7 +256,7 @@ fn skill_audit(fail_below: f64, json: bool) {
         println!();
         println!(
             "Skills active: {}/{}",
-            report.active_skill_count(),
+            report.active_count(),
             skill_entries.len(),
         );
         if !non_skill_entries.is_empty() {

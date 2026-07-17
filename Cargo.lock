@@ -4992,6 +4992,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-services-research"
+version = "0.31.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64",
+ "blake3",
+ "chrono",
+ "feed-rs",
+ "futures-util",
+ "hkask-memory",
+ "hkask-storage",
+ "hkask-types",
+ "r2d2",
+ "r2d2_sqlite",
+ "regex",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "hkask-services-runtime"
 version = "0.31.0"
 dependencies = [

@@ -99,11 +99,6 @@ impl SkillAuditReport {
             .count()
     }
 
-    /// Count of active agent skills (category `skill`, health_score >= 0.8).
-    pub fn active_skill_count(&self) -> usize {
-        self.active_count()
-    }
-
     /// Count of non-skill template crates audited (infrastructure sharing the
     /// FlowDef form: pipelines, daemon-processes, qa-scripts, runtime-config).
     pub fn non_skill_count(&self) -> usize {
@@ -159,7 +154,7 @@ impl SkillHealthScore {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// post: returns true iff health_score >= 0.8
     pub fn is_active(&self) -> bool {
-        self.health_score >= 0.8
+        self.health_score >= ACTIVE_THRESHOLD
     }
 }
 
@@ -172,8 +167,12 @@ pub enum SkillStatus {
     RecommendDeprecation,
 }
 
+/// Health-score threshold for an `Active` skill. Shared by [`SkillHealthScore::is_active`]
+/// and [`status_from_score`] (adversarial review F17 — was a magic number duplicated).
+const ACTIVE_THRESHOLD: f64 = 0.8;
+
 fn status_from_score(score: f64) -> SkillStatus {
-    if score >= 0.8 {
+    if score >= ACTIVE_THRESHOLD {
         SkillStatus::Active
     } else if score >= 0.5 {
         SkillStatus::StaleWarning
@@ -188,7 +187,12 @@ fn status_from_score(score: f64) -> SkillStatus {
 #[derive(Debug, thiserror::Error)]
 pub enum SkillAuditError {
     #[error("IO error: {0}")]
-    Io(String),
+    Io(#[from] std::io::Error),
+    /// String-wrapped because YAML errors arrive from two distinct sources:
+    /// `anyhow::Error` (via `SkillLoader::parse_front_matter`) and
+    /// `serde_yaml_neo::Error` (via direct `serde_yaml_neo::from_str`). A single
+    /// `#[from]` cannot cover both, so the message is preserved as a string
+    /// (adversarial review F16 — io provenance restored; yaml deferred).
     #[error("YAML error: {0}")]
     Yaml(String),
     #[error("JSON error: {0}")]
@@ -320,8 +324,8 @@ impl<'a> SkillAuditor<'a> {
 
         let zed_dir = self.project_root.join(".agents").join("skills");
         if zed_dir.exists() {
-            for entry in fs::read_dir(&zed_dir).map_err(|e| SkillAuditError::Io(e.to_string()))? {
-                let entry = entry.map_err(|e| SkillAuditError::Io(e.to_string()))?;
+            for entry in fs::read_dir(&zed_dir)? {
+                let entry = entry?;
                 if entry.path().is_dir() {
                     names.insert(entry.file_name().to_string_lossy().into_owned());
                 }
@@ -330,8 +334,8 @@ impl<'a> SkillAuditor<'a> {
 
         let reg_dir = self.project_root.join("registry").join("templates");
         if reg_dir.exists() {
-            for entry in fs::read_dir(&reg_dir).map_err(|e| SkillAuditError::Io(e.to_string()))? {
-                let entry = entry.map_err(|e| SkillAuditError::Io(e.to_string()))?;
+            for entry in fs::read_dir(&reg_dir)? {
+                let entry = entry?;
                 if entry.path().is_dir() {
                     names.insert(entry.file_name().to_string_lossy().into_owned());
                 }
@@ -813,7 +817,7 @@ impl<'a> SkillAuditor<'a> {
         if !path.exists() {
             return Ok(ZedLayerInfo::default());
         }
-        let content = fs::read_to_string(&path).map_err(|e| SkillAuditError::Io(e.to_string()))?;
+        let content = fs::read_to_string(&path)?;
         let front = SkillLoader::parse_front_matter(&content)
             .map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
         let dir_name = name.to_string();
@@ -846,8 +850,7 @@ impl<'a> SkillAuditor<'a> {
         let mut summary = TemplateSummary::default();
 
         if manifest_present {
-            let content = fs::read_to_string(&manifest_path)
-                .map_err(|e| SkillAuditError::Io(e.to_string()))?;
+            let content = fs::read_to_string(&manifest_path)?;
             let manifest: serde_yaml_neo::Value = serde_yaml_neo::from_str(&content)
                 .map_err(|e| SkillAuditError::Yaml(e.to_string()))?;
             if let Some(c) = manifest.get("crate").and_then(|v| v.get("name")) {
@@ -863,8 +866,8 @@ impl<'a> SkillAuditor<'a> {
             }
         }
 
-        for entry in fs::read_dir(&dir).map_err(|e| SkillAuditError::Io(e.to_string()))? {
-            let entry = entry.map_err(|e| SkillAuditError::Io(e.to_string()))?;
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("j2") {
                 let filename = path
@@ -900,7 +903,7 @@ impl<'a> SkillAuditor<'a> {
         filename: &str,
         manifest_templates: &std::collections::HashMap<String, serde_yaml_neo::Value>,
     ) -> Result<J2FileInfo, SkillAuditError> {
-        let content = fs::read_to_string(path).map_err(|e| SkillAuditError::Io(e.to_string()))?;
+        let content = fs::read_to_string(path)?;
         let front = parse_j2_frontmatter(&content);
 
         // If [inference] frontmatter is missing, try manifest.yaml fallback.

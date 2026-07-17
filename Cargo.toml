@@ -20,6 +20,7 @@ members = [
     "crates/hkask-services-context",
     "crates/hkask-services-chat",
     "crates/hkask-services-compose",
+    "crates/hkask-services-research",
     "crates/hkask-condenser",
     "crates/hkask-types",
     "crates/hkask-forecast",

@@ -1,11 +1,10 @@
-//! Core types for the hKask MCP Web crate.
+//! Core types for the hKask research service.
 
 mod freshness;
 mod ranking;
 mod rate_limiter;
 mod validation;
 
-use hkask_mcp::server::McpToolError;
 use hkask_types::McpErrorKind;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -119,7 +118,6 @@ pub struct SearchQuery {
     pub freshness: Option<Freshness>,
 }
 
-// ── Error type ──
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtractOptions {
     pub format: String,
@@ -154,12 +152,6 @@ impl WebError {
             Self::RateLimited(_) => McpErrorKind::RateLimited,
             Self::NoProvider => McpErrorKind::Unavailable,
         }
-    }
-}
-
-impl From<WebError> for McpToolError {
-    fn from(e: WebError) -> Self {
-        McpToolError::new(e.kind(), e.to_string())
     }
 }
 

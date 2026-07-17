@@ -320,15 +320,6 @@ impl BundleService {
         Ok(result)
     }
 
-    /// Deactivate the current bundle (no-op — bundles are session-scoped).
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  none (always succeeds)
-    /// post: always returns Ok(())
-    pub fn deactivate() -> Result<(), ServiceError> {
-        Ok(())
-    }
-
     /// List available skills from the registry.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.

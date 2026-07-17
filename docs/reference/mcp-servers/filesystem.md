@@ -45,23 +45,27 @@ graph TD
     C --> D{"relative?"}
     D -->|"yes"| E["root.join path"]
     D -->|"no"| F["use path as-is"]
-    E --> G["canonicalize"]
+    E --> G["canonicalize full path"]
     F --> G
-    G -->|"ENOENT"| H["Err: cannot resolve"]
-    G -->|"ok"| I{"starts_with<br/>canonical_root?"}
-    I -->|"no"| J["emit path.rejected<br/>Err: outside root"]
-    I -->|"yes"| K["Ok canonical path"]
-    K --> L["tool body<br/>read/write/list/..."]
-    L --> M["emit_cns operation"]
-    M --> N["return JSON<br/>span.finish"]
-    H --> N
-    J --> N
+    G -->|"exists"| H{"starts_with<br/>canonical_root?"}
+    G -->|"ENOENT"| I["resolve longest<br/>existing ancestor"]
+    I --> J["canonicalize ancestor"]
+    J --> K{"ancestor inside<br/>canonical_root?"}
+    H -->|"no"| L["emit path.rejected<br/>Err: outside root"]
+    H -->|"yes"| M["Ok canonical path"]
+    K -->|"no"| L
+    K -->|"yes"| N["Ok canonical_ancestor<br/>+ non-existent tail"]
+    M --> O["tool body<br/>read/write/list/..."]
+    N --> O
+    O --> P["emit_cns operation"]
+    P --> Q["return JSON<br/>span.finish"]
+    L --> Q
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-RF-003
 verified_date: 2026-07-17
-verified_against: mcp-servers/hkask-mcp-filesystem/src/lib.rs:55-77 (sandbox_path); mcp-servers/hkask-mcp-filesystem/src/lib.rs:82-127 (fs_read dispatch); crates/hkask-mcp/src/server/tool_span.rs:246-259 (execute_tool)
+verified_against: mcp-servers/hkask-mcp-filesystem/src/lib.rs:55-109 (sandbox_path two-phase resolution); crates/hkask-mcp/src/server/tool_span.rs:246-259 (execute_tool)
 status: VERIFIED
 -->
 

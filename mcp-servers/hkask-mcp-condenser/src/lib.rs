@@ -26,6 +26,7 @@
 
 use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::inference;
+use hkask_condenser::saliency;
 use hkask_condenser::types::*;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_inference::{InferenceConfig, InferenceRouter};
@@ -33,7 +34,7 @@ use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_memory::EpisodicMemory;
 use hkask_memory::SemanticMemory;
 use hkask_ports::InferencePort;
-use hkask_storage::{Database, HMem};
+use hkask_storage::{Database, EmbeddingStore, HMem};
 use hkask_types::Visibility;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
@@ -53,28 +54,37 @@ hkask_mcp::mcp_server!(
         pub semantic: Option<Arc<SemanticMemory>>,
         pub inference_port: Arc<dyn InferencePort>,
         pub default_model: String,
+        pub persona_keywords: Vec<String>,
         pub capability_tier: CapabilityTier,
     }
 );
 
 impl CondenserServer {
     /// Return persona keywords for word-frequency saliency scoring.
-    /// These are charter-like terms that define what the agent cares about.
-    fn persona_keywords(&self) -> Vec<String> {
+    /// Uses the server's configurable `persona_keywords` field, which can be
+    /// set via the `HKASK_CONDENSER_PERSONA_KEYWORDS` env var at startup.
+    fn persona_keywords(&self) -> &[String] {
+        &self.persona_keywords
+    }
+
+    /// Fallback persona keywords when no configuration is provided.
+    /// These are generic condensation-oriented terms — operators should
+    /// override via `HKASK_CONDENSER_PERSONA_KEYWORDS` for domain-specific agents.
+    fn default_persona_keywords() -> Vec<String> {
         vec![
-            "curator".into(),
-            "monitor".into(),
-            "alert".into(),
-            "escalation".into(),
-            "diagnose".into(),
-            "calibrate".into(),
-            "threshold".into(),
-            "variety".into(),
-            "deficit".into(),
-            "backpressure".into(),
-            "consolidation".into(),
-            "semantic".into(),
-            "episodic".into(),
+            "condense".into(),
+            "compress".into(),
+            "summarize".into(),
+            "context".into(),
+            "token".into(),
+            "budget".into(),
+            "saliency".into(),
+            "relevance".into(),
+            "retention".into(),
+            "profile".into(),
+            "ontology".into(),
+            "category".into(),
+            "persist".into(),
         ]
     }
 
@@ -358,6 +368,9 @@ impl CondenserServer {
                 seed: None,
                 disable_thinking: true,
                 adapter: None,
+                // Bypass fusion: thread summarization is a single-model call, not a
+                // multi-model deliberation. Fusion orchestration adds latency and
+                // cost without benefit for this straightforward extraction task.
                 bypass_fusion: true,
                 fusion_config: None,
                 system_prompt: None,
@@ -406,63 +419,56 @@ impl CondenserServer {
         Parameters(req): Parameters<SaliencyRequest>,
     ) -> String {
         execute_tool(self, "condenser_score_saliency", async {
-            let score = match req.against.as_deref() {
+            let (score, method) = match req.against.as_deref() {
                 Some("memory") => {
-                    // If semantic memory is available, query it word-by-word
-                    if let Some(ref semantic) = self.semantic {
-                        let query_words: Vec<&str> = req.text
-                            .split_whitespace()
-                            .filter(|w| w.len() > 3)
-                            .take(5)
-                            .collect();
-                        let mut total_results: usize = 0;
-                        for word in &query_words {
-                            if let Ok(h_mems) = semantic.query_deduped(word) {
-                                total_results += h_mems.len();
-                            }
-                        }
-                        if total_results > 0 {
-                            (0.5 + total_results as f64 * 0.15).min(1.0)
-                        } else {
-                            0.2
-                        }
+                    // Query memory stores word-by-word, then score via domain crate.
+                    let words = saliency::extract_query_words(&req.text);
+                    let total_results = if let Some(ref semantic) = self.semantic {
+                        words
+                            .iter()
+                            .filter_map(|w| semantic.query_deduped(w).ok())
+                            .map(|m| m.len())
+                            .sum::<usize>()
                     } else if let Some(ref episodic) = self.episodic {
-                        // Fall back to episodic memory
-                        let query_words: Vec<&str> = req.text
-                            .split_whitespace()
-                            .filter(|w| w.len() > 3)
-                            .take(5)
-                            .collect();
-                        let mut total_results: usize = 0;
-                        for word in &query_words {
-                            if let Ok(h_mems) = episodic.query_for_deduped(word, self.webid) {
-                                total_results += h_mems.len();
-                            }
-                        }
-                        if total_results > 0 {
-                            (0.5 + total_results as f64 * 0.15).min(1.0)
-                        } else {
-                            0.2
-                        }
+                        words
+                            .iter()
+                            .filter_map(|w| episodic.query_for_deduped(w, self.webid).ok())
+                            .map(|m| m.len())
+                            .sum::<usize>()
                     } else {
-                        0.5 // No memory store — neutral
-                    }
+                        // No memory store — neutral score, not an error.
+                        return Ok(serde_json::json!({
+                            "score": 0.5,
+                            "against": "memory",
+                            "method": "no_store",
+                        }));
+                    };
+                    (
+                        saliency::score_memory_results(total_results),
+                        "semantic_search",
+                    )
                 }
                 _ => {
-                    // Score against persona keywords
-                    let persona_keywords = self.persona_keywords();
-                    hkask_condenser::saliency::score_against_persona(
-                        &req.text,
-                        &persona_keywords.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                    // Score against persona keywords — per-request override if provided,
+                    // otherwise use the server's configured keyword set.
+                    let keywords: Vec<&str> = if let Some(ref custom) = req.persona_keywords {
+                        custom.iter().map(|s| s.as_str()).collect()
+                    } else {
+                        self.persona_keywords.iter().map(|s| s.as_str()).collect()
+                    };
+                    (
+                        saliency::score_against_persona(&req.text, &keywords),
+                        "word_frequency",
                     )
                 }
             };
             Ok(serde_json::json!({
                 "score": score,
                 "against": req.against.as_deref().unwrap_or("persona"),
-                "method": if req.against.as_deref() == Some("memory") { "semantic_search" } else { "word_frequency" },
+                "method": method,
             }))
-        }).await
+        })
+        .await
     }
 }
 
@@ -471,6 +477,10 @@ pub struct SaliencyRequest {
     pub text: String,
     #[serde(default)]
     pub against: Option<String>, // "persona" or "memory"
+    /// Optional per-request override for persona keywords. If omitted,
+    /// uses the server's configured keyword set.
+    #[serde(default)]
+    pub persona_keywords: Option<Vec<String>>,
 }
 
 /// Run the condenser MCP server (used by binary target).
@@ -488,7 +498,7 @@ pub async fn run(
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             (|| -> anyhow::Result<CondenserServer> {
-                let episodic = {
+                let (episodic, semantic) = {
                     let db_path = ctx
                         .credentials
                         .get("HKASK_DB_PATH")
@@ -511,11 +521,29 @@ pub async fn run(
                             })?;
                             let pool =
                                 db.sqlite_pool().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
-                            let hmem_driver = Arc::new(SqliteDriver::new(pool));
-                            let h_mem_store = hkask_storage::HMemStore::from_driver(hmem_driver);
-                            Some(hkask_memory::EpisodicMemory::new(h_mem_store))
+                            let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+                                Arc::new(SqliteDriver::new(pool));
+
+                            // Episodic memory: first-person experience store.
+                            let h_mem_store =
+                                hkask_storage::HMemStore::from_driver(Arc::clone(&driver));
+                            let episodic = hkask_memory::EpisodicMemory::new(h_mem_store);
+
+                            // Semantic memory: shared knowledge graph with embeddings.
+                            // Requires a second HMemStore (separate entity namespace) plus
+                            // an EmbeddingStore for KNN similarity search. Same driver,
+                            // same database — different store handles. Follows the
+                            // pattern established by the curator server.
+                            let h_mem_store2 =
+                                hkask_storage::HMemStore::from_driver(Arc::clone(&driver));
+                            let embedding_store =
+                                hkask_storage::EmbeddingStore::from_driver(driver, 1024);
+                            let semantic =
+                                hkask_memory::SemanticMemory::new(h_mem_store2, embedding_store);
+
+                            (Some(Arc::new(episodic)), Some(Arc::new(semantic)))
                         }
-                        None => None,
+                        None => (None, None),
                     }
                 };
 
@@ -526,15 +554,29 @@ pub async fn run(
                     .or_else(|| std::env::var("INFERENCE_MODEL").ok())
                     .unwrap_or_else(|| "google/gemma-4-26B-A4B-it".to_string());
 
+                // Persona keywords: configurable via env var (comma-separated).
+                // Falls back to generic condensation terms if not set.
+                let persona_keywords = std::env::var("HKASK_CONDENSER_PERSONA_KEYWORDS")
+                    .ok()
+                    .map(|raw| {
+                        raw.split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect()
+                    })
+                    .filter(|v: &Vec<String>| !v.is_empty())
+                    .unwrap_or_else(CondenserServer::default_persona_keywords);
+
                 Ok(CondenserServer::new(
                     ctx.webid,
                     replicant.clone(),
                     daemon_client.clone(),
                     Mutex::new(CondenserEngine::new()),
-                    episodic.map(Arc::new),
-                    None,
+                    episodic,
+                    semantic,
                     Arc::clone(&inference_port),
                     default_model,
+                    persona_keywords,
                     ctx.capability_tier,
                 ))
             })()

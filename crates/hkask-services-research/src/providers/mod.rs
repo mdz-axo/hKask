@@ -4,7 +4,6 @@ use std::time::Duration;
 use async_trait::async_trait;
 
 use crate::types::*;
-use hkask_mcp::server::validate_tool_url;
 
 mod arxiv;
 mod brave;
@@ -29,7 +28,7 @@ pub use tavily::TavilyProvider;
 /// Build the shared HTTP client used by all research providers.
 ///
 /// Applies a consistent user-agent and request timeout, eliminating the repeated
-/// `reqwest::Client::builder()...build().expect(...)` boilerplate across 7 providers.
+/// `reqwest::Client::builder()...build().expect(...)` boilerplate across providers.
 pub(super) fn provider_http_client() -> reqwest::Client {
     reqwest::Client::builder()
         .user_agent(format!("hkask-mcp-web/{SERVER_VERSION}"))
@@ -54,22 +53,6 @@ pub(crate) trait WebSearchProvider: Send + Sync {
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError>;
     async fn health(&self) -> Result<(), WebError>;
 }
-
-// Provider-level URL validation (Task 6: SSRF protection)
-//
-// Every provider's extract() and browse() calls this before making
-// outbound requests. This is a capability boundary: the MCP server
-// never sends a request to a URL it hasn't validated.
-
-pub fn validate_provider_url(url: &str) -> Result<(), WebError> {
-    validate_tool_url(url).map_err(|e| WebError::BadArgs(e.message))
-}
-
-// WebSearchPort — Application core port (hexagonal boundary)
-//
-// The application core depends on this trait, not on ProviderPool directly.
-// ProviderPool implements it as the adapter. This decouples tool handlers
-// from concrete provider infrastructure.
 
 /// Port trait for web search operations at the application core boundary.
 ///
@@ -156,10 +139,6 @@ impl ProviderPool {
     ///
     /// This is the authoritative constructor — all pool creation should go through
     /// here rather than setting fields directly, to maintain the hexagonal boundary.
-    // Called from the binary target (`src/main.rs`) which has a separate module tree
-    // (`mod providers;` rather than `use hkask_mcp_research::providers;`), so the
-    // library target sees this as dead code.
-    #[allow(dead_code)]
     pub(crate) fn new(
         search_providers: Vec<Box<dyn WebSearchProvider>>,
         extract_providers: Vec<Box<dyn WebExtractProvider>>,
@@ -523,7 +502,6 @@ impl WebSearchPort for ProviderPool {
     ) -> Result<CompoundSearchResult, WebError> {
         check_capability(ctx, "web_search")?;
 
-        // Task 8: Validation at port boundary (authoritative enforcement point)
         if query.query.is_empty() {
             return Err(WebError::BadArgs("query must not be empty".into()));
         }
