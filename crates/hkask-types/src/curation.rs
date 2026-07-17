@@ -235,6 +235,51 @@ impl DataSovereigntyBoundary {
             BoundaryClassification::Unknown
         }
     }
+
+    /// Load a sovereignty boundary from a JSON file path specified by the
+    /// `HKASK_SOVEREIGNTY_BOUNDARY` env var. Falls back to `hkask_default()`
+    /// if the var is unset, the file is missing, or deserialization fails.
+    ///
+    /// This closes the G3 spec gap: the boundary is now user-configurable
+    /// via a file rather than always hardcoded to the hKask default.
+    pub fn load_or_default() -> Self {
+        match std::env::var("HKASK_SOVEREIGNTY_BOUNDARY") {
+            Ok(path) => match std::fs::read_to_string(&path) {
+                Ok(contents) => match serde_json::from_str::<Self>(&contents) {
+                    Ok(boundary) => {
+                        tracing::info!(
+                            target: "hkask.sovereignty",
+                            path = %path,
+                            sovereign = boundary.sovereign_data.len(),
+                            shared = boundary.shared_data.len(),
+                            public = boundary.public_data.len(),
+                            "Loaded sovereignty boundary from file"
+                        );
+                        boundary
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "hkask.sovereignty",
+                            path = %path,
+                            error = %e,
+                            "Failed to parse sovereignty boundary — using hKask default"
+                        );
+                        Self::hkask_default()
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.sovereignty",
+                        path = %path,
+                        error = %e,
+                        "Sovereignty boundary file not found — using hKask default"
+                    );
+                    Self::hkask_default()
+                }
+            },
+            Err(_) => Self::hkask_default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

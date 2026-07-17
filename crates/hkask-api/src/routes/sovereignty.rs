@@ -108,7 +108,7 @@ pub(crate) async fn sovereignty_status(
     tracing::info!(target: "hkask.api", operation = "sovereignty_status", "CNS");
     let cm = &state.agent_service.governance().consent;
     let webid_str = auth.webid.to_string();
-    let boundary = DataSovereigntyBoundary::hkask_default();
+    let boundary = DataSovereigntyBoundary::load_or_default();
     let granted = cm
         .get_granted_categories(&webid_str)
         .map_err(|e| ServiceError::Domain {
@@ -247,7 +247,7 @@ pub(crate) async fn sovereignty_check_access(
     let cat = hkask_types::DataCategory::parse(cat_str);
     let cat_name = cat.as_str();
     let webid_str = auth.webid.to_string();
-    let boundary = DataSovereigntyBoundary::hkask_default();
+    let boundary = DataSovereigntyBoundary::load_or_default();
     let cm = &state.agent_service.governance().consent;
 
     let class = boundary.classify(&cat);

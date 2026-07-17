@@ -137,7 +137,10 @@ impl ApiState {
         // Build API key auth service if wallet store and wallet service are available
         let api_key_auth_service = match (ctx.storage().wallet.clone(), wallet_service.clone()) {
             (Some(store), Some(svc)) => {
-                let api_meter = Arc::new(std::sync::RwLock::new(hkask_cns::ApiMeter::new()));
+                                let rate_limit_config = hkask_cns::api_metering::RateLimitConfig::from_env();
+                                let api_meter = Arc::new(std::sync::RwLock::new(
+                                    hkask_cns::ApiMeter::with_config(rate_limit_config),
+                                ));
                 hkask_cns::ApiMeter::spawn_learning_loop(Arc::clone(&api_meter));
                 Some(Arc::new(
                     middleware::api_key_auth::ApiKeyAuthService::new(store, svc)

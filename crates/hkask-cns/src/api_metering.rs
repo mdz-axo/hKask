@@ -74,6 +74,35 @@ impl Default for RateLimitConfig {
     }
 }
 
+impl RateLimitConfig {
+    /// Load rate limit configuration from environment variables.
+    ///
+    /// Variables (all optional, with defaults):
+    /// - `HKASK_API_RATE_LIMIT_RPM` — default requests per minute (default: 60)
+    /// - `HKASK_API_RATE_LIMIT_TOKENS_PER_DAY` — daily token quota (default: 500000)
+    /// - `HKASK_API_RATE_LIMIT_LEARNING` — enable adaptive learning, "true"/"false" (default: true)
+    /// - `HKASK_API_RATE_LIMIT_INTERVAL_SECS` — learning loop interval (default: 300)
+    /// - `HKASK_API_RATE_LIMIT_MIN_RPM` — floor for adaptive RPM (default: 10)
+    /// - `HKASK_API_RATE_LIMIT_MAX_RPM` — ceiling for adaptive RPM (default: 600)
+    pub fn from_env() -> Self {
+        let mut config = Self::default();
+        if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_RPM")
+            && let Ok(n) = v.parse::<u32>() { config.default_max_rpm = n; }
+        if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_TOKENS_PER_DAY")
+            && let Ok(n) = v.parse::<u64>() { config.default_max_tokens_per_day = n; }
+        if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_LEARNING") {
+            config.learning_enabled = v == "true" || v == "1";
+        }
+        if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_INTERVAL_SECS")
+            && let Ok(n) = v.parse::<u64>() { config.adaptation_interval = Duration::from_secs(n); }
+        if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_MIN_RPM")
+            && let Ok(n) = v.parse::<u32>() { config.min_rpm = n; }
+        if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_MAX_RPM")
+            && let Ok(n) = v.parse::<u32>() { config.max_rpm = n; }
+        config
+    }
+}
+
 /// Weight multiplier per endpoint category. Heavier endpoints cost more gas.
 #[derive(Debug, Clone, Copy)]
 pub struct EndpointWeight(pub f64);

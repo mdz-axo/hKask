@@ -82,6 +82,14 @@ impl InfrastructureError {
             kind: DatabaseErrorKind::Other,
         }
     }
+
+    /// Create a `NotFound` error with the canonical `NotFound` struct, preserving
+    /// entity type and identifier. Prefer this over `NotFound(format!(...))` when
+    /// the entity type is known — it enables downstream consumers to pattern-match
+    /// on the structured data rather than parsing a string.
+    pub fn not_found(entity_type: &'static str, id: impl Into<String>) -> Self {
+        NotFound { entity_type, id: id.into() }.into()
+    }
 }
 
 // From impls for the canonical error sources.
@@ -103,6 +111,34 @@ impl From<std::io::Error> for InfrastructureError {
 impl<T> From<PoisonError<T>> for InfrastructureError {
     fn from(_: PoisonError<T>) -> Self {
         InfrastructureError::LockPoisoned
+    }
+}
+
+/// Convert the canonical `NotFound` struct into `InfrastructureError::NotFound`.
+///
+/// This bridges the rich `NotFound { entity_type, id }` representation with the
+/// transport-layer `InfrastructureError::NotFound(String)` variant, preserving
+/// the entity type and identifier in the message string.
+impl From<NotFound> for InfrastructureError {
+    fn from(nf: NotFound) -> Self {
+        InfrastructureError::NotFound(format!("{nf}"))
+    }
+}
+
+/// Convert the canonical `NotFound` struct into `McpErrorKind::NotFound`.
+///
+/// This bridges the rich `NotFound { entity_type, id }` representation with the
+/// MCP error taxonomy's `NotFound` variant.
+impl From<NotFound> for McpErrorKind {
+    fn from(_: NotFound) -> Self {
+        McpErrorKind::NotFound
+    }
+}
+
+/// Convert the canonical `CapabilityDenied` struct into `McpErrorKind::PermissionDenied`.
+impl From<CapabilityDenied> for McpErrorKind {
+    fn from(_: CapabilityDenied) -> Self {
+        McpErrorKind::PermissionDenied
     }
 }
 

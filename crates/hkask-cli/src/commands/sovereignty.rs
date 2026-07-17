@@ -121,7 +121,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
         SovereigntyAction::Status => {
             let webid = super::helpers::resolve_user_webid();
             let (svc_ctx, cm) = build_consent();
-            let boundary = DataSovereigntyBoundary::hkask_default();
+            let boundary = DataSovereigntyBoundary::load_or_default();
             let _granted: Vec<String> = cm
                 .get_granted_categories(&webid.to_string())
                 .unwrap_or_default();
@@ -235,7 +235,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
             let cat = hkask_types::DataCategory::parse(&category);
             let (_svc, cm) = build_consent();
-            let boundary = DataSovereigntyBoundary::hkask_default();
+            let boundary = DataSovereigntyBoundary::load_or_default();
 
             let class = boundary.classify(&cat);
             let class = boundary.classify(&cat);
