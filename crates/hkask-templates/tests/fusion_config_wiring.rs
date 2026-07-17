@@ -13,7 +13,7 @@ use hkask_templates::bundle::config::{
 use hkask_templates::bundle::manifest::{BundleManifest, BundleManifestStep};
 use hkask_templates::executor::ManifestExecutor;
 use hkask_templates::ports::NoopMcpPort;
-use hkask_types::fusion::{FusionConfig, FusionMode};
+use hkask_types::fusion::{FusionConfig, FusionMode, NonEmptyVec};
 use hkask_types::template::LLMParameters;
 use hkask_types::visibility::Visibility;
 use std::collections::HashMap;
@@ -188,7 +188,7 @@ async fn manifest_fusion_config_propagates_to_params() {
 
     let fusion = FusionConfig {
         judge: "test-judge".to_string(),
-        panel: vec!["model-a".to_string(), "model-b".to_string()],
+        panel: NonEmptyVec::from_vec(vec!["model-a".to_string(), "model-b".to_string()]).unwrap(),
         mode: FusionMode::Synthesis,
         skills: Vec::new(),
         max_rounds: 3,
@@ -228,7 +228,7 @@ async fn step_fusion_false_bypasses_manifest_fusion() {
 
     let fusion = FusionConfig {
         judge: "test-judge".to_string(),
-        panel: vec!["model-a".to_string()],
+        panel: NonEmptyVec::one("model-a".to_string()),
         mode: FusionMode::Synthesis,
         skills: Vec::new(),
         max_rounds: 3,

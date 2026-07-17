@@ -283,11 +283,20 @@ fn parse_json_lenient(text: &str) -> serde_json::Value {
 /// Merge two JSON values from dual-model rendering.
 ///
 /// Objects: merges keys recursively.
-/// Arrays: concatenates with case-insensitive string dedup.
-/// Strings/scalars: uses A when equal (case-insensitive), otherwise annotates `[A:... B:...]`.
+/// Arrays: concatenates with case-insensitive, trim-tolerant dedup for strings
+/// and value dedup for primitives (numbers, bools, null). Objects/arrays are
+/// kept verbatim — structural differences between panelists are meaningful.
+/// Strings/scalars: uses A when equal (case-insensitive, trimmed), otherwise
+/// annotates `[A:... B:...]`.
 fn merge_json_values(a: &serde_json::Value, b: &serde_json::Value) -> serde_json::Value {
     use serde_json::Value;
     use std::collections::HashSet;
+
+    // Single normalization for both string dedup (arrays) and string equality
+    // (scalars) — previously these used two different rules.
+    fn norm_key(s: &str) -> String {
+        s.to_lowercase().trim().to_string()
+    }
 
     match (a, b) {
         (Value::Object(map_a), Value::Object(map_b)) => {
@@ -301,21 +310,31 @@ fn merge_json_values(a: &serde_json::Value, b: &serde_json::Value) -> serde_json
             Value::Object(merged)
         }
         (Value::Array(arr_a), Value::Array(arr_b)) => {
-            let mut seen: HashSet<String> = HashSet::new();
+            let mut seen_strings: HashSet<String> = HashSet::new();
+            let mut seen_prims: Vec<Value> = Vec::new();
             let mut result = Vec::new();
             for v in arr_a.iter().chain(arr_b.iter()) {
-                if let Some(s) = v.as_str() {
-                    if seen.insert(s.to_lowercase()) {
-                        result.push(v.clone());
+                match v {
+                    Value::String(s) => {
+                        if seen_strings.insert(norm_key(s)) {
+                            result.push(v.clone());
+                        }
                     }
-                } else {
-                    result.push(v.clone());
+                    // Primitives: dedup by value so [1,1,1] collapses to [1].
+                    Value::Number(_) | Value::Bool(_) | Value::Null => {
+                        if !seen_prims.contains(v) {
+                            seen_prims.push(v.clone());
+                            result.push(v.clone());
+                        }
+                    }
+                    // Objects/arrays: keep all (structural differences matter).
+                    _ => result.push(v.clone()),
                 }
             }
             Value::Array(result)
         }
         (Value::String(sa), Value::String(sb)) => {
-            if sa.to_lowercase().trim() == sb.to_lowercase().trim() {
+            if norm_key(sa) == norm_key(sb) {
                 a.clone()
             } else {
                 Value::String(format!("[A:{} B:{}]", sa, sb))
@@ -546,17 +565,18 @@ async fn mode_deliberation(
 
         // F1 fix: case-insensitive + trim-tolerant matching for convergence signal.
         // The judge prompt says to prefix follow-ups with 'FOLLOW_UP:' but LLMs
-        // don't always follow formatting instructions exactly.
+        // don't always follow formatting instructions exactly. Match the prefix
+        // case-insensitively, then strip it by slicing from just after the first
+        // colon — colon position is case-invariant, so this works for any casing
+        // of 'FOLLOW_UP:' without a fragile multi-arm strip_prefix chain.
         let text_upper = judge_result.text.trim().to_uppercase();
         if text_upper.starts_with("FOLLOW_UP:") {
-            let follow_up = judge_result
-                .text
-                .trim()
-                .strip_prefix("FOLLOW_UP:")
-                .or_else(|| judge_result.text.trim().strip_prefix("follow_up:"))
-                .or_else(|| judge_result.text.trim().strip_prefix("Follow_Up:"))
-                .unwrap_or(&judge_result.text)
-                .trim();
+            let trimmed = judge_result.text.trim();
+            let follow_up = trimmed
+                .find(':')
+                .map(|i| trimmed[i + 1..].trim())
+                .unwrap_or(trimmed)
+                .to_string();
             info!(
                 target: "cns.inference",
                 fusion_mode = "deliberation",
@@ -564,7 +584,8 @@ async fn mode_deliberation(
                 "Judge requested follow-up"
             );
             intermediate.push(judge_result.usage.clone());
-            prior_responses = dispatch_panel(router, follow_up, params, tools, &fusion.panel).await;
+            prior_responses =
+                dispatch_panel(router, &follow_up, params, tools, &fusion.panel).await;
             intermediate.extend(prior_responses.iter().map(|r| r.usage.clone()));
             prior_text = format_panel_responses(&prior_responses);
         } else {
@@ -601,12 +622,15 @@ async fn mode_plan_implement(
     let skill_anchor = build_skill_anchor(&fusion.skills);
 
     // ── Phase 1: Strategy Plan ──────────────────────────────────────────────
+    // Skill-anchor the panel (same fix as mode_critique's F3) so panelists
+    // evaluate against the same methodology the judge uses, not methodology-blind.
     let phase1_plan_prompt = format!(
         "You are a strategy panelist. Given the task below, propose a high-level \
          strategy or approach. Focus on architecture, key decisions, tradeoffs, and \
-         the overall plan — NOT implementation details.\n\n\
+         the overall plan — NOT implementation details.{skills}\n\n\
          ## Task\n{prompt}\n\n\
-         ## Instructions\nPropose a strategy. Be specific about approach, not code."
+         ## Instructions\nPropose a strategy. Be specific about approach, not code.",
+        skills = skill_anchor,
     );
 
     let phase1_responses =
@@ -639,13 +663,15 @@ async fn mode_plan_implement(
     );
 
     // ── Phase 2: Implementation Plan ────────────────────────────────────────
+    // Skill-anchor the panel (same fix as mode_critique's F3).
     let phase2_impl_prompt = format!(
         "You are an implementation panelist. Below is a unified strategy plan. \
          Given this strategy, propose concrete implementation steps, file changes, \
-         code structure, tests, and sequencing.\n\n\
-         ## Original Task\n{prompt}\n\n## Strategy Plan\n{strategy_text}\n\n\
+         code structure, tests, and sequencing.{skills}\n\n\
+         ## Original Task\n{prompt}\n## Strategy Plan\n{strategy_text}\n\n\
          ## Instructions\nPropose implementation details. Be specific about files, \
          functions, tests, and the order of work.",
+        skills = skill_anchor,
     );
 
     let phase2_responses =
@@ -735,5 +761,56 @@ pub async fn orchestrate(
         FusionMode::PlanImplement => {
             mode_plan_implement(router, prompt, params, tools, fusion).await
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::merge_json_values;
+    use serde_json::json;
+
+    /// A2: primitive arrays dedup by value — [1,1,1] collapses to [1].
+    #[test]
+    fn merge_dedups_primitive_arrays() {
+        let a = json!([1, 2, 3]);
+        let b = json!([1, 3, 5]);
+        let merged = merge_json_values(&a, &b);
+        assert_eq!(merged, json!([1, 2, 3, 5]));
+    }
+
+    /// A2: string dedup is case-insensitive and trim-tolerant (one normalization).
+    #[test]
+    fn merge_dedups_strings_case_insensitive_and_trimmed() {
+        let a = json!(["foo", "bar"]);
+        let b = json!(["FOO", " bar "]);
+        let merged = merge_json_values(&a, &b);
+        assert_eq!(merged, json!(["foo", "bar"]));
+    }
+
+    /// A2: objects/arrays inside arrays are kept (structural differences matter).
+    #[test]
+    fn merge_keeps_distinct_objects_in_arrays() {
+        let a = json!([{"k": 1}]);
+        let b = json!([{"k": 1}, {"k": 2}]);
+        let merged = merge_json_values(&a, &b);
+        assert_eq!(merged, json!([{"k": 1}, {"k": 1}, {"k": 2}]));
+    }
+
+    /// String conflict annotation preserved for divergent values.
+    #[test]
+    fn merge_annotates_divergent_strings() {
+        let a = json!("left");
+        let b = json!("right");
+        let merged = merge_json_values(&a, &b);
+        assert_eq!(merged, json!("[A:left B:right]"));
+    }
+
+    /// Equal strings (case/trim-insensitive) collapse to A.
+    #[test]
+    fn merge_equal_strings_collapse() {
+        let a = json!("foo");
+        let b = json!("FOO");
+        let merged = merge_json_values(&a, &b);
+        assert_eq!(merged, json!("foo"));
     }
 }

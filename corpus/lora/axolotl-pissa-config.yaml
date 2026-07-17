@@ -39,9 +39,13 @@ lora_target_modules:
   - down_proj
 
 datasets:
+  # Only the train split goes into the training pool. Axolotl concatenates
+  # every entry in this list into the train set and carves validation out of
+  # it via `val_set_size` below — listing val_chat.jsonl here would leak the
+  # validation set into training. The pipeline's val/test splits (val_chat.jsonl,
+  # test_chat.jsonl) are reserved for offline evaluation/holdout, not consumed
+  # by Axolotl.
   - path: /workspace/data/train_chat.jsonl
-    type: chat_template
-  - path: /workspace/data/val_chat.jsonl
     type: chat_template
 
 # Training
@@ -58,7 +62,12 @@ max_grad_norm: 0.3
 optim: adamw_8bit
 
 # Eval
-val_set_size: 0.0012
+# val_set_size carves a validation split out of the train pool. 0.05 (5%)
+# gives a statistically meaningful eval signal regardless of corpus size;
+# the previous 0.0012 (0.12%) yielded only a handful of examples and made
+# early_stopping_patience act on noise. eval_batch_size stays 1 to avoid OOM
+# on long sequences.
+val_set_size: 0.05
 eval_steps: 200
 save_steps: 200
 save_total_limit: 5

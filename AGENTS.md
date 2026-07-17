@@ -137,7 +137,7 @@ Preferred auxiliary tooling: shell (`bash`) under `scripts/`, Rust binaries or `
 - `scripts/check-mcp-tool-tests.sh` — CI guard: MCP tool-behavior test coverage (ratcheted)
 - `crates/hkask-types/src/observable_span.rs` — `ObservableSpan` trait and domain span enums
 - `crates/hkask-types/src/lib.rs` — Foundation types
-- `crates/hkask-types/src/macros.rs` — Shared `enum_str_ops!` macro (canonical location)
+- `crates/hkask-types/src/macros.rs` — Shared `enum_str_ops!` and `enum_snake_str!` macros (canonical location)
 - `crates/hkask-types/src/error.rs` — `InfrastructureError`, `DatabaseErrorKind`, `McpErrorKind`
 - `crates/hkask-ports/src/lib.rs` — Hexagonal port traits
 - `crates/hkask-ports/src/federation.rs` — `FederationDispatch`, `FederationDispatchError`
@@ -153,7 +153,7 @@ Preferred auxiliary tooling: shell (`bash`) under `scripts/`, Rust binaries or `
 - `crates/hkask-agents/src/curator_agent/metacognition/mod.rs` — Curator metacognition
 - Dependency governance: CI unused-deps job (`nightly -D unused_crate_dependencies`)
 - Feature gating: `hkask-communication` matrix feature, `hkask-cli` communication/tui/api features
-- Coding conventions: `enum_str_ops!` for PascalCase/snake_case enum conversion; `thiserror` enums for library errors; `impl_tool_context!` for MCP server ToolContext impls
+- Coding conventions: `enum_str_ops!` for PascalCase/snake_case enum conversion (dual-form `parse_str`); `enum_snake_str!` for snake_case-primary enums (`as_str` + `FromStr`); `thiserror` enums for library errors; `impl_tool_context!` for MCP server ToolContext impls
 
 > Architecture docs canonical location: `docs/architecture/`. See `docs/reference/` for API reference, `docs/explanation/` for design decisions, `docs/how-to/` for procedures, and `docs/tutorial/` for getting started. Documentation health is mechanically verified by `docs/ci/verify-docs.sh`.
 

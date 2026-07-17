@@ -688,7 +688,7 @@ Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, Op
 
 | Module | Description |
 |--------|-------------|
-| `chat_protocol` | Chat protocol types. Re-exports: `FusionPlugin` |
+| `chat_protocol` | Chat protocol types (`ChatRequest`, `ChatMessage`, `build_chat_request`) |
 | `cline_backend` | Cline cloud inference backend (`CL/` prefix) — OpenAI-compatible gateway |
 | `config` | `InferenceConfig`, `ProviderConfig`, `ProviderId`, `FusionConfig`, `FusionMode`, `FusionSkill` |
 | `deepinfra_backend` | DeepInfra provider backend (`DI/` prefix) |
@@ -717,15 +717,15 @@ Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, Op
 
 `FusionMode` — Enum: `BestOfN`, `Synthesis`, `Critique`, `Deliberation`, `PlanImplement`.
 
-`FusionSkill` — Enum: `PragmaticSemantics`, `PragmaticCybernetics`, `PragmaticLaziness`, `CodingGuidelines`, `DeepModule`, `Essentialist`, `Superforecasting`, `MCDA`, `TestDrivenDevelopment`, `RustExpertise`.
+`FusionSkill` — Enum: `PragmaticSemantics`, `PragmaticCybernetics`, `PragmaticLaziness`, `CodingGuidelines`, `DeepModule`, `Essentialist`, `Superforecasting`, `MCDA`, `TestDrivenDevelopment`, `BugHunt`, `Diagnose`, `Falsifiability`, `GrillMe`, `IdiomaticRust`, `ImproveCodebaseArchitecture`, `Metacognition`, `RefactorServiceLayer`, `Review`, `SelfCritiqueRevision`. Uses `enum_snake_str!` macro for `as_str()`/`FromStr`.
 
 `RouterModelEntry` — Unified model entry with provider prefix, family, parameter size, quantization, vision support.
 
-**Public Functions:** `orchestrate(router, prompt, params, tools, fusion) -> Result<InferenceResult, InferenceError>`.
+**Public Functions:** `orchestrate(router: &dyn InferencePort, prompt, params, tools, fusion) -> Result<InferenceResult, InferenceError>`. Takes `&dyn InferencePort` (not `&InferenceRouter`) enabling mock testing and external reuse.
 
 **Model Naming Convention:** `DI/` (DeepInfra), `FA/` (fal.ai), `TG/` (Together AI), `OR/` (OpenRouter), `KC/` (KiloCode), `RP/` (RunPod serverless), `OM/` (Ollama local), `CL/` (Cline), no prefix = default provider.
 
-**Re-exports at Crate Root:** `FusionPlugin`, `FusionConfig`, `FusionMode`, `FusionSkill`, `InferenceConfig`, `ProviderConfig`, `ProviderId`, `EmbeddingRouter`, `InferenceRouter`.
+**Re-exports at Crate Root:** `FusionConfig`, `FusionMode`, `FusionSkill`, `NonEmptyVec`, `InferenceConfig`, `ProviderConfig`, `ProviderId`, `EmbeddingRouter`, `InferenceRouter`.
 
 **Feature Flags:** None.
 

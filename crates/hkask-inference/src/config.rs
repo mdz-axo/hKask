@@ -174,7 +174,7 @@ impl ProviderId {
 // - `HKASK_FUSION_DISABLED` — set to "1" to disable fusion
 
 /// Fusion types moved to hkask-types::fusion — re-exported for back-compat.
-pub use hkask_types::fusion::{FusionConfig, FusionMode, FusionSkill};
+pub use hkask_types::fusion::{FusionConfig, FusionMode, FusionSkill, NonEmptyVec};
 
 /// Configuration for the inference router.
 ///
@@ -494,7 +494,8 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        if !judge.is_empty() && !panel.is_empty() {
+        let panel = NonEmptyVec::from_vec(panel)?;
+        if !judge.is_empty() {
             return Some(FusionConfig {
                 judge,
                 panel,
@@ -667,5 +668,22 @@ mod tests {
             std::env::remove_var("HKASK_TEST_KEY_012");
         }
         assert_eq!(resolve_api_key("HKASK_TEST_KEY_012"), "");
+    }
+
+    // ── looks_like_prefix ──────────────────────────────────────────────────
+
+    /// expect: "Prefix-shape detection distinguishes unrecognized XX/ prefixes from unprefixed names" [P9]
+    #[test]
+    fn looks_like_prefix_detects_shape() {
+        // Two uppercase letters + slash + rest = prefix-shaped.
+        assert!(ProviderId::looks_like_prefix("BT/foo"));
+        assert!(ProviderId::looks_like_prefix("XX/model"));
+        assert!(ProviderId::looks_like_prefix("DI/foo"));
+        // No slash at index 2, too short, or lowercase = not prefix-shaped.
+        assert!(!ProviderId::looks_like_prefix("qwen3:8b"));
+        assert!(!ProviderId::looks_like_prefix("deepseek-v4-pro"));
+        assert!(!ProviderId::looks_like_prefix("DI"));
+        assert!(!ProviderId::looks_like_prefix("ab/c"));
+        assert!(!ProviderId::looks_like_prefix("DI/"));
     }
 }

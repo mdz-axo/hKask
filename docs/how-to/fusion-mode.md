@@ -24,7 +24,7 @@ Fusion is a **hKask-side orchestration engine**, not a provider feature. hKask i
 2. Collects all panel responses.
 3. Dispatches to a **judge** — either an LLM operating in one of five deliberation modes, or an algorithm that merges responses without an LLM call.
 
-This is distinct from the OpenRouter `FusionPlugin` (`crates/hkask-inference/src/chat_protocol.rs`), which injects a plugin into the OpenRouter request body. The hKask orchestrator is provider-agnostic and works across DeepInfra, fal.ai, Together, OpenRouter, KiloCode, and Cline.
+The hKask orchestrator is provider-agnostic and works across DeepInfra, fal.ai, Together, OpenRouter, KiloCode, Ollama, and Cline. (The former OpenRouter server-side `FusionPlugin` struct has been removed — hKask's client-side orchestrator supersedes it.)
 
 ### Two Judge Families
 
@@ -254,6 +254,16 @@ The LLM judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSI
 | `superforecasting` | Fermi decomposition, Bayesian updating, dragonfly-eye synthesis, calibrated probabilities |
 | `mcda` | Weighted scoring, compensation masking, sensitivity analysis |
 | `tdd` | Red-Green-Refactor, contract-first, vertical tracer-bullet |
+| `bug-hunt` | Weinberg quality, Beizer taxonomy, Bach/Bolton heuristics, exploratory charters |
+| `diagnose` | Cybernetic debugging: reproduce → hypothesize → instrument → fix → regression-test |
+| `falsifiability` | Popper/Platt/Chamberlin: rule out untestable, eliminate falsified, corroborate survivors |
+| `grill-me` | Socratic interrogation: Recall → Mechanism → Rationale → Edge Cases → Synthesis |
+| `idiomatic-rust` | Hoare: validating newtypes, ownership DAG, error domains, many small traits |
+| `improve-codebase-architecture` | Ousterhout: deletion test, deep modules, surface shallow modules |
+| `metacognition` | Goal decomposition, progress self-assessment, perspective rotation, GEPA improvement |
+| `refactor-service-layer` | Strangler fig migration, deep-module discipline, vertical tracer-bullet TDD |
+| `review` | Self-critique: contradictions, unsupported claims, logical gaps, calibration |
+| `self-critique-revision` | Draft → critique against criteria → revise. Iterative cycle, no first-draft acceptance |
 
 Example: a judge anchored on cybernetics and essentialism:
 
@@ -261,9 +271,12 @@ Example: a judge anchored on cybernetics and essentialism:
 HKASK_FUSION_SKILLS=pragmatic-cybernetics,essentialist
 ```
 
-The full methodology text for each skill is defined in `skill_prompt()` in `crates/hkask-inference/src/fusion_orchestrator.rs`. To add a new anchor, extend the `FusionSkill` enum in `crates/hkask-types/src/fusion.rs` and add a matching arm in `skill_prompt()`.
+The full methodology text for each skill is defined in `skill_prompt()` in `crates/hkask-inference/src/fusion_orchestrator.rs`. To add a new anchor:
+1. Add the variant to the `FusionSkill` enum in `crates/hkask-types/src/fusion.rs` (with `#[serde(rename = "...")]`).
+2. Add the variant to the `enum_snake_str!` macro invocation (generates `as_str()` and `FromStr`).
+3. Add a matching arm in `skill_prompt()` in `fusion_orchestrator.rs` with the compact methodology prompt.
 
-> **Note:** `hypothesis-framer` and `idiomatic-rust` appear in the skill catalog but are not yet `FusionSkill` variants. Adding them requires extending the enum and the `skill_prompt` match.
+> **Note:** `hypothesis-framer` appears in the skill catalog but is not yet a `FusionSkill` variant. Adding it requires extending the enum, the `enum_snake_str!` macro invocation, and the `skill_prompt` match.
 
 ---
 
@@ -416,14 +429,9 @@ Filter with `RUST_LOG=cns.inference=info` to watch fusion in action.
 
 ---
 
-## Disambiguation: Fusion vs. OpenRouter FusionPlugin
+## Disambiguation: hKask Fusion vs. OpenRouter Fusion Plugin
 
-hKask has two distinct multi-model mechanisms. They are **orthogonal** and never combine on the same call:
-
-| Mechanism | Crate | Purpose | Combines with fusion? |
-|-----------|-------|---------|----------------------|
-| **Fusion** (this guide) | `hkask-inference::fusion_orchestrator` | Panel → judge deliberation or algo / no-judge merge for quality | — |
-| **OpenRouter FusionPlugin** | `hkask-inference::chat_protocol` | OpenRouter-side plugin injected into the request body | Separate path; the hKask orchestrator does not use it |
+hKask's fusion orchestrator is a **client-side** multi-model deliberation engine — it dispatches panel calls to any `InferencePort` backend, collects responses, and runs the judge. This is distinct from OpenRouter's server-side Fusion plugin, which was previously represented by the `FusionPlugin` struct in `chat_protocol.rs`. **The `FusionPlugin` struct has been removed** — hKask's provider-agnostic client-side orchestrator fully supersedes it. The `plugins` field on `ChatRequest` and the `plugins` parameter on `build_chat_request()` have been removed.
 
 > The former dual classifier model — `dual_model: true` step flag, `DualModelPort` trait, and `dual_classify.rs` module (Jaccard scoring, divergence detection, drift detection) — has been **fully removed and superseded** by the algo / no-judge path (`judge: "algo"`). The corpus pipeline routes through the same fusion orchestrator — panel models in the corpus config's `fusion:` block, merged via `algo_merge()`. There is no separate dual-model mechanism; algo IS a fusion path.
 
@@ -440,7 +448,7 @@ hKask has two distinct multi-model mechanisms. They are **orthogonal** and never
 | Per-manifest `fusion:` block (`BundleManifest.fusion`, `BundleManifestStep.fusion`) | `crates/hkask-templates/src/bundle/manifest.rs` |
 | Per-step resolution logic | `crates/hkask-templates/src/executor.rs` (`execute_select`) |
 | `LLMParameters.fusion_config` carrier | `crates/hkask-types/src/template.rs` |
-| OpenRouter `FusionPlugin` (separate) | `crates/hkask-inference/src/chat_protocol.rs` |
+| `NonEmptyVec` (panel invariant) | `crates/hkask-types/src/fusion.rs` |
 
 Types live in `hkask-types` (not `hkask-inference`) so manifests and `LLMParameters` can carry fusion config without a dependency on the inference crate.
 

@@ -315,6 +315,11 @@ steps:
         organizations, markets, and systems are capable of and what they
         actually achieve. Your analysis draws on economic theory, systems
         thinking, computing principles, and institutional analysis.
+    # Sanity floor — catches a broken/empty QA pipeline before training is
+    # submitted. Tune upward after validating the first full run's yield.
+    verify:
+      field: train_examples
+      min: 10
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 9: LoRA Training (RunPod H100 via training_submit MCP tool)

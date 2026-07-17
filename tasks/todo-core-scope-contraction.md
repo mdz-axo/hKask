@@ -16,14 +16,15 @@
   - [x] added `README.md` (matches 11 sibling service crates)
   - [x] `rg 'pub mod self_heal' crates/hkask-services-core/src/` empty
 
-- [ ] **1.2** Extract `verification` → `hkask-services-verification`
-  - [ ] CREATE: move `verification/*` into new crate
-  - [ ] WIRE: update `hkask-cli/commands/sovereignty.rs` import
-  - [ ] DELETE: remove `pub mod verification` from core
-  - [ ] `cargo test -p hkask-services-verification` passes
-  - [ ] `cargo check -p hkask-cli` passes
+- [x] **1.2** Extract `verification` → `hkask-services-verification` ✅ (verified 2026-07-17)
+  - [x] CREATE: copy `verification.rs` (single file) into new crate as `lib.rs`
+  - [x] WIRE: update `hkask-cli/commands/sovereignty.rs` (2 refs: `verify` + `verify_json`) + add dep
+  - [x] DELETE: remove `pub mod verification` from core; drop `serde_yaml_neo` from core deps (only `verification.rs` used it; `serde`/`serde_json` kept)
+  - [x] `cargo test -p hkask-services-verification` passes (4 tests; manifest path resolution relocation-safe via `CARGO_MANIFEST_DIR/../../`)
+  - [x] `cargo check -p hkask-cli` passes
+  - [x] added `README.md` (matches sibling convention)
 
-**Checkpoint 1:** pattern proven, `cargo check --workspace && cargo test --workspace` green
+**Checkpoint 1:** ✅ pattern proven (2 PoC slices done). `cargo check --workspace && cargo test` green. core pub-items 90 → 76.
 
 ## Phase 2 — Dependent: storage-coupled modules
 

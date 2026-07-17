@@ -185,6 +185,24 @@ impl InferencePort for InferenceRouter {
                 + '_,
         >,
     > {
+        // Fusion (multi-model deliberation) is inherently non-streamable: the
+        // orchestrator dispatches a panel in parallel and a judge synthesizes a
+        // single InferenceResult. Streaming therefore cannot run the panel.
+        // When fusion is active (and not bypassed) and no explicit model_override
+        // is given, `effective_model` below resolves to the fusion *judge* model,
+        // so the stream emits the judge model's direct output rather than a
+        // panel-synthesized result. Warn so the silent behavioral asymmetry with
+        // `generate_with_model` (which runs full fusion) is observable.
+        if !parameters.bypass_fusion && model_override.is_none() {
+            let fusion_active = parameters.fusion_config.is_some() || self.config.fusion.is_some();
+            if fusion_active {
+                tracing::warn!(
+                    target: "cns.inference",
+                    "Streaming requested with fusion active; fusion panel deliberation is non-streamable, so streaming falls back to the judge model directly. Use generate() for full fusion or set bypass_fusion=true to silence this."
+                );
+            }
+        }
+
         // LoRA adapter overrides the model entirely (bypasses fusion).
         if let Some(ref adapter) = parameters.adapter {
             let adapter_str = adapter.to_string();

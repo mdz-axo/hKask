@@ -329,13 +329,20 @@ impl InferenceRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{FusionConfig, FusionMode, InferenceConfig};
+    use crate::config::{FusionConfig, FusionMode, InferenceConfig, NonEmptyVec};
 
     fn config_with_fusion(judge: Option<&str>, panel: Option<&[&str]>) -> InferenceConfig {
         InferenceConfig {
             fusion: judge.map(|j| FusionConfig {
                 judge: j.to_string(),
-                panel: panel.unwrap_or(&[]).iter().map(|s| s.to_string()).collect(),
+                panel: NonEmptyVec::from_vec(
+                    panel
+                        .unwrap_or(&["default-panel"])
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                )
+                .expect("config_with_fusion panel must not be empty"),
                 mode: FusionMode::Synthesis,
                 skills: Vec::new(),
                 max_rounds: 5,
@@ -409,7 +416,7 @@ mod tests {
             bypass_fusion: false,
             fusion_config: Some(FusionConfig {
                 judge: "manifest-judge".to_string(),
-                panel: vec!["Qwen3.7 Max".to_string()],
+                panel: NonEmptyVec::one("Qwen3.7 Max".to_string()),
                 mode: FusionMode::Critique,
                 skills: Vec::new(),
                 max_rounds: 3,
@@ -430,7 +437,7 @@ mod tests {
             bypass_fusion: false,
             fusion_config: Some(FusionConfig {
                 judge: "manifest-only-judge".to_string(),
-                panel: vec!["GLM5.2".to_string()],
+                panel: NonEmptyVec::one("GLM5.2".to_string()),
                 mode: FusionMode::Synthesis,
                 skills: Vec::new(),
                 max_rounds: 5,
@@ -452,7 +459,7 @@ mod tests {
             bypass_fusion: true,
             fusion_config: Some(FusionConfig {
                 judge: "manifest-judge".to_string(),
-                panel: vec!["Qwen3.7 Max".to_string()],
+                panel: NonEmptyVec::one("Qwen3.7 Max".to_string()),
                 mode: FusionMode::Synthesis,
                 skills: Vec::new(),
                 max_rounds: 5,
@@ -553,6 +560,34 @@ mod tests {
         assert!(
             err.is_err(),
             "CL/ model should not resolve without CLINE_API_KEY"
+        );
+    }
+
+    /// REQ: P9-inf-unknown-prefix-reject
+    /// expect: "An unrecognized XX/ prefix is rejected, not silently routed to the default provider" [P9]
+    #[test]
+    fn resolve_unknown_prefix_errors() {
+        let config = InferenceConfig {
+            default_provider: ProviderId::Ollama,
+            ..InferenceConfig::default()
+        };
+        if config.ollama_base_url.is_empty() {
+            return;
+        }
+        let router = InferenceRouter::new(config);
+        assert!(
+            router.resolve("qwen3:8b").is_ok(),
+            "unprefixed model with Ollama default should resolve"
+        );
+        let err = router.resolve("BT/foo").unwrap_err();
+        assert!(
+            err.to_string().contains("Unknown provider prefix"),
+            "BT/ should be rejected as unknown prefix"
+        );
+        let err = router.resolve("XX/model").unwrap_err();
+        assert!(
+            err.to_string().contains("Unknown provider prefix"),
+            "XX/ should be rejected as unknown prefix"
         );
     }
 }
