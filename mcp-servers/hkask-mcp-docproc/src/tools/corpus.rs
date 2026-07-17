@@ -936,7 +936,7 @@ impl DocProcServer {
     // ── Ingest QA ─────────────────────────────────────────────────────────
 
     #[tool(
-        description = "Ingest generated QA pairs: parse, quality-filter, SemDeDup (k-means cluster + within-cluster cosine dedup), write training JSONL, store QA h_mems with 5W1H dimension + Dublin Core / PKO metadata, and optionally store QA embeddings. Uses proven SemDeDup algorithm (Abbas et al., 2023)."
+        description = "Ingest generated QA pairs: parse, quality-filter, exact-match dedup (case-insensitive on instruction), write training JSONL, store QA h_mems with 5W1H dimension + Dublin Core / PKO metadata. Semantic dedup (SemDeDup K-means) was removed — see the inline rationale."
     )]
     pub async fn docproc_ingest_qa(&self, Parameters(req): Parameters<IngestQaRequest>) -> String {
         execute_tool(self, "docproc_ingest_qa", async {
@@ -972,77 +972,22 @@ impl DocProcServer {
                 qas.len() - filtered.len()
             );
 
-            let use_embed = req.dedup_threshold < 1.0 && self.embedding_router.is_some();
-            let emb_model = hkask_inference::model_constants::embedding_model();
-
-            // SemDeDup: embed → k-means → within-cluster dedup
-            let mut deduped: Vec<(Option<Vec<f32>>, &ParsedQa)> = Vec::new();
+            // Exact-match dedup (case-insensitive on instruction).
+            //
+            // Semantic dedup (SemDeDup: embed → k-means → within-cluster cosine
+            // dedup) was removed from this path. At corpus scale the naive
+            // single-threaded O(N·K) K-means with K=2.5%·N was pathologically
+            // slow (~hours for 230K QAs) and defeated SemDeDup's own
+            // cheaper-than-O(N²) premise; the survivor heuristic (keep shortest
+            // instruction) also degraded quality. Exact-dedup measured
+            // <0.01% duplicates on this corpus. If semantic near-dup removal is
+            // later shown to matter, use MinHash/LSH on instructions or an ANN
+            // index on stored QA embeddings — not the O(N·K) K-means.
+            let mut deduped: Vec<&ParsedQa> = Vec::new();
             let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-            if use_embed {
-                let emb_router = self.embedding_router.as_ref().unwrap();
-                let instructions: Vec<&str> = filtered.iter().map(|q| q.instruction.as_str()).collect();
-                let mut all_v: Vec<Vec<f32>> = Vec::new();
-                for batch in instructions.chunks(50) {
-                    match emb_router.embed_sentences(&emb_model, batch).await {
-                        Ok(v) => { all_v.extend(v); }
-                        Err(e) => {
-                            tracing::warn!("  WARN: embed batch: {e}");
-                            for _ in 0..batch.len() { all_v.push(Vec::new()); }
-                        }
-                    }
-                }
-
-                // Pre-normalize
-                let normalized: Vec<Vec<f32>> = all_v.iter().map(|v| {
-                    if v.is_empty() { return Vec::new(); }
-                    let mut nv = v.clone();
-                    normalize_in_place(&mut nv);
-                    nv
-                }).collect();
-
-                let threshold = req.dedup_threshold as f32;
-
-                // K-means clustering
-                let embedded_indices: Vec<usize> = (0..filtered.len())
-                    .filter(|&i| i < normalized.len() && !normalized[i].is_empty())
-                    .collect();
-                let n = embedded_indices.len();
-                let k = ((n as f64) * 0.025).round().max(2.0) as usize;
-                tracing::info!("  SemDeDup: {} embedded QAs, {} clusters", n, k);
-
-                let assignments = kmeans_cluster(&normalized, &embedded_indices, k, 10);
-
-                // Within-cluster greedy dedup
-                for cluster_indices in &assignments {
-                    let mut sorted = cluster_indices.clone();
-                    sorted.sort_by(|&a, &b| filtered[b].instruction.len().cmp(&filtered[a].instruction.len()));
-                    let mut kept: Vec<usize> = Vec::new();
-                    for &i in &sorted {
-                        let is_dup = kept.iter().any(|&k| {
-                            let dot: f32 = normalized[i].iter().zip(normalized[k].iter()).map(|(a, b)| a * b).sum();
-                            dot > threshold
-                        });
-                        if !is_dup {
-                            kept.push(i);
-                            deduped.push((Some(normalized[i].clone()), filtered[i]));
-                        }
-                    }
-                }
-
-                // QAs without embeddings: exact-match dedup
-                for i in 0..filtered.len() {
-                    if (i >= normalized.len() || normalized[i].is_empty())
-                        && seen.insert(filtered[i].instruction.to_lowercase())
-                    {
-                        deduped.push((None, filtered[i]));
-                    }
-                }
-            } else {
-                for qa in &filtered {
-                    if seen.insert(qa.instruction.to_lowercase()) {
-                        deduped.push((None, qa));
-                    }
+            for qa in &filtered {
+                if seen.insert(qa.instruction.to_lowercase()) {
+                    deduped.push(qa);
                 }
             }
 
@@ -1059,7 +1004,7 @@ impl DocProcServer {
             }
 
             // Write training JSONL
-            let train: String = deduped.iter().map(|(_, q)| {
+            let train: String = deduped.iter().map(|q| {
                 serde_json::to_string(&serde_json::json!({"instruction": q.instruction, "input": "", "output": q.output}))
                     .unwrap_or_default()
             }).collect::<Vec<_>>().join("\n");
@@ -1074,9 +1019,8 @@ impl DocProcServer {
                 .map_err(|e| McpToolError::failed_precondition(format!("Cannot open memory DB: {e}")))?;
             let webid = owner_webid(&req.owner);
             let mut stored = 0usize;
-            let mut embed_stored = 0usize;
 
-            for (i, (_emb, qa)) in deduped.iter().enumerate() {
+            for (i, qa) in deduped.iter().enumerate() {
                 let entity = format!("training:qa:{}:{}:{}", req.dataset, qa.source, i);
                 let v = serde_json::json!({
                     "question": qa.instruction,
@@ -1105,23 +1049,14 @@ impl DocProcServer {
                 if semantic.store(h_mem).is_ok() {
                     stored += 1;
                 }
-
-                // Store QA embedding
-                if req.embed_qas
-                    && let Some(vec) = _emb
-                    && semantic.store_embedding(&entity, vec, &emb_model).is_ok()
-                {
-                    embed_stored += 1;
-                }
             }
-            tracing::info!("  Stored: {} QA h_mems, {} embeddings", stored, embed_stored);
+            tracing::info!("  Stored: {} QA h_mems", stored);
 
             let result = json!({
                 "parsed": qas.len(),
                 "filtered": filtered.len(),
                 "deduped": deduped_count,
                 "stored_h_mems": stored,
-                "stored_embeddings": embed_stored,
                 "output": req.output,
             });
             self.record_experience(
@@ -1325,78 +1260,6 @@ fn parse_qa_record(line: &str) -> Option<ParsedQa> {
     })
 }
 
-/// Simple k-means clustering on normalized vectors (dot product = cosine sim).
-/// Returns cluster assignments as Vecs of indices into `filtered`.
-fn kmeans_cluster(
-    vectors: &[Vec<f32>],
-    indices: &[usize],
-    k: usize,
-    iterations: usize,
-) -> Vec<Vec<usize>> {
-    let n = indices.len();
-    if n == 0 || k == 0 {
-        return Vec::new();
-    }
-    let k = k.min(n);
-    let dim = vectors[indices[0]].len();
-
-    // Initialize centroids: pick k evenly spaced points
-    let mut centroids: Vec<Vec<f32>> = (0..k)
-        .map(|i| vectors[indices[i * n / k]].clone())
-        .collect();
-
-    let mut assignments: Vec<usize> = vec![0; n];
-
-    for _ in 0..iterations {
-        // Assign each point to nearest centroid
-        for (pi, &idx) in indices.iter().enumerate() {
-            let v = &vectors[idx];
-            let mut best = 0;
-            let mut best_dist = f32::MAX;
-            for (ci, c) in centroids.iter().enumerate() {
-                // Distance = 1 - cosine similarity (vectors are normalized)
-                let dot: f32 = v.iter().zip(c.iter()).map(|(a, b)| a * b).sum();
-                let dist = 1.0 - dot;
-                if dist < best_dist {
-                    best_dist = dist;
-                    best = ci;
-                }
-            }
-            assignments[pi] = best;
-        }
-
-        // Update centroids
-        let mut new_centroids: Vec<Vec<f32>> = vec![vec![0.0; dim]; k];
-        let mut counts: Vec<usize> = vec![0; k];
-        for (pi, &idx) in indices.iter().enumerate() {
-            let c = assignments[pi];
-            counts[c] += 1;
-            for (j, &val) in vectors[idx].iter().enumerate() {
-                new_centroids[c][j] += val;
-            }
-        }
-        for (ci, c) in new_centroids.iter_mut().enumerate() {
-            if counts[ci] > 0 {
-                for val in c.iter_mut() {
-                    *val /= counts[ci] as f32;
-                }
-                normalize_in_place(c);
-            } else {
-                // Reinitialize empty cluster to a random point
-                *c = vectors[indices[ci % n]].clone();
-            }
-        }
-        centroids = new_centroids;
-    }
-
-    // Build cluster groups
-    let mut clusters: Vec<Vec<usize>> = vec![Vec::new(); k];
-    for (pi, &idx) in indices.iter().enumerate() {
-        clusters[assignments[pi]].push(idx);
-    }
-    clusters.into_iter().filter(|c| !c.is_empty()).collect()
-}
-
 // ── Corpus pipeline request structs ───────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -1526,25 +1389,15 @@ pub struct IngestQaRequest {
     pub db_path: String,
     /// Passphrase for the memory DB.
     pub passphrase: String,
-    /// SemDeDup cosine similarity threshold (0.89 = moderate, 0.92 = strict).
-    #[serde(default = "default_dedup_threshold_ingest")]
-    pub dedup_threshold: f64,
     /// If true, validate and dedup without storing.
     #[serde(default)]
     pub dry_run: bool,
-    /// Store QA embedding vectors in EmbeddingStore for KNN search.
-    #[serde(default)]
-    pub embed_qas: bool,
     /// Dataset name for training_qa_pair h_mems.
     #[serde(default = "default_dataset")]
     pub dataset: String,
     /// Owner persona for stored h_mems (e.g. "john-brooks").
     #[serde(default = "default_owner")]
     pub owner: String,
-}
-
-fn default_dedup_threshold_ingest() -> f64 {
-    0.89
 }
 
 fn default_dataset() -> String {
