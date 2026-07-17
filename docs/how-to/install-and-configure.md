@@ -376,8 +376,11 @@ Configure programmatically:
 ```rust
 use hkask_guard::{ContentGuard, GuardConfig};
 
-// Use default (reads HKASK_GUARD_TOKEN_LIMIT from env)
+// Use default (pure 32,000 — no env reads)
 let guard = ContentGuard::mandatory(&GuardConfig::default());
+
+// Or pick up HKASK_GUARD_TOKEN_LIMIT from the environment
+let guard = ContentGuard::mandatory(&GuardConfig::from_env());
 
 // Or override explicitly
 let config = GuardConfig { token_limit: 16_000 };

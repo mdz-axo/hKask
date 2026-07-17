@@ -645,7 +645,10 @@ impl GalleryStore {
             &[DbValue::Text(face_id.to_string())],
             Self::face_from_row,
         )?
-        .ok_or_else(|| GalleryStoreError::NotFound(format!("face_id={}", face_id)))
+        .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
+            entity_type: "face",
+            id: format!("face_id={}", face_id),
+        }))
     }
     // ── Row mappers ──
     fn image_from_row(

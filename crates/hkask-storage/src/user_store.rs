@@ -7,7 +7,7 @@ use hkask_identity::{HumanUser, Invite, InviteStatus, ReplicantIdentity, UserSes
 use hkask_storage_core::{define_driver_store, impl_from_db_error};
 use hkask_types::id::{WalletId, WebID};
 use hkask_types::identity::Role;
-use hkask_types::{InfrastructureError, UserID};
+use hkask_types::{InfrastructureError, NotFound, UserID};
 use rand::RngCore;
 use rusqlite::OptionalExtension;
 use std::str::FromStr;
@@ -22,7 +22,7 @@ pub enum UserStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
     #[error("User not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
     #[error("Replicant name already registered: {0}")]
     ReplicantNameTaken(String),
     #[error("Invalid credentials")]

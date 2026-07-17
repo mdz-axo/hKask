@@ -8,6 +8,7 @@ use hkask_storage_core::impl_from_db_error;
 use hkask_types::GoalID;
 use hkask_types::GoalState;
 use hkask_types::InfrastructureError;
+use hkask_types::NotFound;
 use hkask_types::event::NuEventSink;
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
@@ -22,7 +23,7 @@ pub enum GoalRepositoryError {
     #[error("Visibility denied: {0}")]
     VisibilityDenied(String),
     #[error("Goal not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
     #[error("Invalid goal state transition: {0}")]
     InvalidTransition(String),
     #[error("Subgoal depth exceeded: {0}")]
@@ -100,9 +101,12 @@ impl SqliteGoalRepository {
                 &[DbValue::Text(goal_id.to_string())],
             )
             .map_err(|e| GoalRepositoryError::Infra(InfrastructureError::from(e)))?;
-        rows.first()
-            .map(Self::goal_from_row)
-            .ok_or_else(|| GoalRepositoryError::NotFound(goal_id.to_string()))?
+        rows.first().map(Self::goal_from_row).ok_or_else(|| {
+            GoalRepositoryError::NotFound(NotFound {
+                entity_type: "goal",
+                id: goal_id.to_string(),
+            })
+        })?
     }
 
     /// Construct a Goal from a DbRow.
@@ -433,7 +437,10 @@ impl SqliteGoalRepository {
         visibility: Visibility,
     ) -> Result<Goal> {
         let parent = self.get_goal(parent_id)?.ok_or_else(|| {
-            GoalRepositoryError::NotFound(format!("Parent goal {} not found", parent_id))
+            GoalRepositoryError::NotFound(NotFound {
+                entity_type: "goal",
+                id: format!("Parent goal {} not found", parent_id),
+            })
         })?;
         if !parent.can_have_subgoals() {
             return Err(GoalRepositoryError::MaxDepthExceeded(format!(
@@ -546,7 +553,12 @@ impl SqliteGoalRepository {
                 .map_err(|e| GoalRepositoryError::Infra(InfrastructureError::from(e)))?;
             match rows.first() {
                 Some(row) => Self::quarantined_from_row(row)?,
-                None => return Err(GoalRepositoryError::NotFound(goal_id.to_string())),
+                None => {
+                    return Err(GoalRepositoryError::NotFound(NotFound {
+                        entity_type: "goal",
+                        id: goal_id.to_string(),
+                    }));
+                }
             }
         };
         let goal: Goal = match serde_json::from_str(&quarantined.original_data) {
