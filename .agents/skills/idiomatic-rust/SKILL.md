@@ -65,8 +65,10 @@ Idiomatic Rust design through Graydon Hoare's lens. Convergent inquiry loop: anc
 ## Fusion Mode
 
 This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
-When enabled, all analysis steps route through a multi-model panel with judge
-synthesis. This skill uses **critique mode** — Draft → challenge → refine matches Rust design review.
+When enabled, all analysis steps route through a multi-model panel — either with
+LLM judge synthesis or the **algo / no-judge** path (`judge: algo`) for deterministic
+JSON merge without an LLM judge call. This skill uses **critique mode** — Draft →
+challenge → refine matches Rust design review.
 
 The convergence check step has `fusion: false` to ensure deterministic rubric
 evaluation uses single-model inference.

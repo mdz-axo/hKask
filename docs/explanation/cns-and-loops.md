@@ -1980,4 +1980,10 @@ Regulation effectiveness (accepted/blocked/staged ratio from `CnsRuntime`) feeds
 ## Classifier Drift Detection (removed)
 
 The former drift detection logic (`check_classifier_drift()` in `dual_classify.rs`)
-has been removed as part of the algo fusion judge cutover. The corpus pipeline now routes through the fusion orchestrator with `judge: algo` for algorithmic multi-model merge.
+has been removed as part of the algo / no-judge path cutover. The dual classifier
+model feature set (DualModelPort, step.dual_model, Jaccard scoring, divergence
+detection, drift detection) has been fully superseded by the algo / no-judge path
+(`judge: algo`) — a family of deterministic, algorithmic merge strategies that
+process panel responses without an LLM judge call. The corpus pipeline now routes
+through the fusion orchestrator with `judge: algo` for algorithmic multi-model
+merge.

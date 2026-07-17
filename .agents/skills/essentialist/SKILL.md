@@ -54,9 +54,10 @@ General-purpose recursive eliminative interrogation. Enforces "always take away,
 ,## Fusion Mode
 
 This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
-When enabled, all analysis steps route through a multi-model panel with judge
-synthesis. The essentialist uses **critique mode** (draft → panel critiques →
-revise) to match the 3-gate challenge loop.
+When enabled, all analysis steps route through a multi-model panel — either with
+LLM judge synthesis or the **algo / no-judge** path (`judge: algo`) for deterministic
+JSON merge without an LLM judge call. The essentialist uses **critique mode** (draft →
+panel critiques → revise) to match the 3-gate challenge loop.
 
 The convergence check step has `fusion: false` to ensure deterministic rubric
 evaluation uses single-model inference.

@@ -30,11 +30,16 @@ resets — t goes back to 0, R = 1.0.
 
 Two separate Jinja2 templates for hMem extraction from agent operations.
 
-### Algo-Style Dual-Model Merge
+### Algo / No-Judge Merge
 
 Classification uses two peer models from different jurisdictions — neither is
 primary. Both models receive the same few-shot prompt, and their extractions are
-merged algorithmically via the fusion orchestrator's `algo_merge()` (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). No separate merge function — the fusion system handles it.
+merged algorithmically via the fusion orchestrator's `algo_merge()` (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). This is the
+**algo / no-judge** path — a family of deterministic merge strategies with zero
+LLM judge calls. The current method is a recursive JSON merge; the architecture
+anticipates additional methods (e.g., set intersection, vote/tally) as future
+sub-selectors on the `algo` judge value. No separate merge function — the fusion
+system handles it.
 
 | Setting | Env Var | Default |
 |---|---|---|
@@ -52,8 +57,9 @@ Templates invoked via `memory_remember.yaml` FlowDef manifest with `fusion: true
 on each step and manifest-level `fusion: { judge: algo, panel: [...] }`. The
 fusion orchestrator dispatches both panel models in parallel and merges JSON
 outputs via `merge_json_values` (recursive union, case-insensitive dedup,
-diverging strings annotated `[A:... B:...]`). This is the algo judge — a
-deterministic, zero-cost merge with no LLM judge call.
+diverging strings annotated `[A:... B:...]`). This is the algo / no-judge path —
+a deterministic, zero-cost merge with no LLM judge call, and the current method
+in a family of extensible algorithmic merge strategies.
 
 | Template | Memory Type | Perspective | Extraction Focus |
 |----------|-------------|-------------|-----------------|

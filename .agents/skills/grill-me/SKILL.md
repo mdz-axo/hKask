@@ -58,9 +58,10 @@ Socratic interrogation skill. Tests deep understanding through escalating diffic
 ,## Fusion Mode
 
 This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
-When enabled, all interrogation steps route through a multi-model panel with
-judge synthesis. Grill-me uses **deliberation mode** (multi-round follow-ups)
-to match Socratic interrogation.
+When enabled, all interrogation steps route through a multi-model panel — either
+with LLM judge synthesis or the **algo / no-judge** path (`judge: algo`) for
+deterministic JSON merge without an LLM judge call. Grill-me uses **deliberation
+mode** (multi-round follow-ups) to match Socratic interrogation.
 
 The convergence check step has `fusion: false` to ensure deterministic rubric
 evaluation uses single-model inference.

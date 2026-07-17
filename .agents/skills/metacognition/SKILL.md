@@ -254,8 +254,10 @@ moral_wordplay_possible       → linguistic_precision
 ## Fusion Mode
 
 This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
-When enabled, all analysis steps route through a multi-model panel with judge
-synthesis. This skill uses **synthesis mode** — Compose perspectives matches metacognitive integration.
+When enabled, all analysis steps route through a multi-model panel — either with
+LLM judge synthesis or the **algo / no-judge** path (`judge: algo`) for deterministic
+JSON merge without an LLM judge call. This skill uses **synthesis mode** — Compose
+perspectives matches metacognitive integration.
 
 The convergence check step has `fusion: false` to ensure deterministic rubric
 evaluation uses single-model inference.

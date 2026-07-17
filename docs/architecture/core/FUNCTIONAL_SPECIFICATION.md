@@ -1534,7 +1534,7 @@ status: VERIFIED
 **Constraining Principle:** P8 (Semantic Grounding) — extracted triples carry cross-jurisdiction provenance
 **Crate:** `hkask-services-runtime` | **Source:** `src/classify_impl.rs`
 
-The former dual classifier (`dual_classify.rs`) with Jaccard scoring, divergence detection, and drift detection has been removed. The corpus pipeline now routes through the fusion orchestrator with `judge: algo` — panel models run in parallel, JSON responses are merged algorithmically (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). No separate merge function.
+The former dual classifier (`dual_classify.rs`) with Jaccard scoring, divergence detection, and drift detection has been **removed and superseded** by the algo / no-judge path (`judge: algo`) — a family of deterministic, algorithmic merge strategies that process panel responses without an LLM judge call. The corpus pipeline now routes through the fusion orchestrator with `judge: algo` — panel models run in parallel, JSON responses are merged algorithmically (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). No separate merge function. The architecture anticipates additional algo / no-judge methods beyond the current recursive JSON merge (e.g., set intersection, vote/tally, schema-validated merge), to be added as sub-selectors on the `algo` judge value when needed.
 
 ---
 

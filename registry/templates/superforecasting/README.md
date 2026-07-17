@@ -175,10 +175,14 @@ All pipeline executions are logged with:
 ,## Fusion Mode
 
 This skill supports **fusion mode** — multi-model deliberation where each
-inference call is sent to a panel of models in parallel, then a judge model
-synthesizes the responses. This is logically equivalent to ensemble mode:
+inference call is sent to a panel of models in parallel, then a **judge**
+processes the responses. The judge is either an LLM model operating in one
+of five deliberation modes (synthesis, best-of-n, critique, deliberation, pi),
+or the **algo / no-judge** path (`judge: algo`) — a deterministic JSON merge
+with zero LLM judge calls. This is logically equivalent to ensemble mode:
 instead of running the entire pipeline N times independently, each step
-benefits from N model perspectives with per-step synthesis.
+benefits from N model perspectives with per-step synthesis (LLM judge) or
+per-step merge (algo / no-judge).
 
 ,### Enabling Fusion Mode
 

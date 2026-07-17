@@ -73,8 +73,10 @@ Max 3 iterations. Escalates to Curator if not converged after max iterations.
 ## Fusion Mode
 
 This skill supports **fusion mode** via the `fusion:` block in its flow manifest.
-When enabled, all analysis steps route through a multi-model panel with judge
-synthesis. This skill uses **deliberation mode** — Multi-round refinement matches iterative critique.
+When enabled, all analysis steps route through a multi-model panel — either with
+LLM judge synthesis or the **algo / no-judge** path (`judge: algo`) for deterministic
+JSON merge without an LLM judge call. This skill uses **deliberation mode** —
+Multi-round refinement matches iterative critique.
 
 The convergence check step has `fusion: false` to ensure deterministic rubric
 evaluation uses single-model inference.
