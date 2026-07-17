@@ -45,6 +45,30 @@ that no single fix is larger than it needs to be.
 
 ---
 
+## Fix status (2026-07-17)
+
+All 15 findings have been fixed in the codebase.
+
+| Finding | Status | Files changed |
+|---------|--------|---------------|
+| G1 — Duplicate `#[async_trait]` | **Fixed** | 7 provider files — 1 line deleted per file (duplicate attribute removed) |
+| G2 — `ProviderFilter::matches()` dead code | **Fixed** | `src/types/mod.rs` — method deleted (~9 lines removed) |
+| G3 — `COMPOUND_PROVIDER_TIMEOUT_SECS` unused | **Fixed** | `src/providers/mod.rs` — each provider future wrapped in `tokio::time::timeout`; timed-out providers recorded as failed |
+| G4 — `SearchDepth` dead state | **Fixed** | `src/types/mod.rs` — `SearchDepth` enum + `SearchQuery.depth` field deleted; `src/providers/mod.rs` — depth-setting code removed; `src/lib.rs` — `depth: SearchDepth::Basic` removed |
+| G5 — Duplicate `ExaProvider` instances | **Fixed** | `src/providers/exa.rs` — `#[derive(Clone)]` added; `src/lib.rs` — single instance cloned for `search_providers` |
+| G6 — Triple `FirecrawlProvider` instances | **Fixed** | `src/providers/firecrawl.rs` — `#[derive(Clone)]` added; `src/lib.rs` — single instance cloned for all 3 provider vectors |
+| G7 — `total_before_dedup: 0` | **Fixed** | `src/providers/mod.rs` — captured `total = results.len()` before `into_iter` consumes the vector |
+| G8 — `ExaProvider::health()` stub | **Fixed** | `src/providers/exa.rs` — implemented minimal search-based health check (429 treated as healthy, 401/403 as unhealthy) |
+| G9 — Double `require_rss_db!` | **Fixed** | `src/lib.rs` — consolidated to single `require_rss_db!` call with `db.clone()` for the lookup closure |
+| G10 — Manual `spawn_blocking` | **Fixed** | `src/db.rs` — `resolve_feed_with_headers` function extracted; `src/lib.rs` — `rss_fetch` now uses `spawn_db` helper |
+| G11 — Parameter shadow | **Fixed** | `src/db.rs` — `feed_text(feed_text: ...)` renamed to `feed_text(text: ...)` |
+| G12 — N+1 query pattern | **Fixed** | `src/db.rs` — `SELECT COUNT(*)` + conditional `INSERT` replaced with `INSERT OR IGNORE` + `conn.changes() > 0` |
+| G13 — Discarded rate-limit error | **Fixed** | `src/lib.rs` — `web_ping` now returns the original `McpToolError` from `rate_limiter.check()` |
+| G14 — Inconsistent indentation | **Fixed** | `src/lib.rs` — `rss_subscribe` async block re-indented to 12 spaces throughout |
+| G15 — Dead `SearchDepth::Basic` init | **Fixed** | Subsumed by G4 — `SearchDepth` enum deleted entirely |
+
+---
+
 ## Architecture overview
 
 The research server is a hexagonal-architecture MCP server providing 17 tools

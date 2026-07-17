@@ -4679,7 +4679,6 @@ version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "dotenvy",
  "hkask-inference",
  "hkask-mcp",
  "hkask-ports",

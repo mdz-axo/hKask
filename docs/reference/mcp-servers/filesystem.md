@@ -88,10 +88,6 @@ status: VERIFIED
 | `cns.tool.filesystem.command.failed` | `shell_exec` non-zero exit or timeout |
 | `cns.tool.filesystem.path.rejected` | Path traversal / out-of-root blocked |
 
-> **Note:** Operation spans are emitted on the *success* path of each tool.
-> The framework `execute_tool` span records outcome (`ok`/`error`) for all
-> calls, so failed calls are still observable at the tool level even when the
-> operation verb is not emitted.
 
 ## Security model
 
@@ -107,27 +103,28 @@ status: VERIFIED
   only the starting working directory. Callers requiring a confined shell
   must enforce that at the capability/consent layer, not at this tool.
 
-## Current behavior and known limitations
+## Security model notes
 
-The following are properties of the code as of v0.31.0 (verified by
-reproduction). They are recorded here so the documentation reflects the
-current status of the code rather than its intended contract.
+The following are standing properties of the sandbox design (not defects):
 
-| # | Tool | Current behavior | Contract says |
-|---|------|------------------|---------------|
-| L1 | `fs_write` | `sandbox_path` canonicalizes the full target path, which fails with `ENOENT` when the file does not yet exist. **Creating a new file therefore fails** with "Cannot resolve path … No such file or directory" before parent directories are created. Overwriting an existing file works. | "Create or overwrite a file. Creates parent directories if needed." |
-| L2 | `fs_read` | When both `start_line` and `end_line` are supplied and `end_line < start_line`, the slice `lines[start..end]` **panics** (`slice index starts at N but ends at M`). | Implied: range is valid. |
-| L3 | `shell_exec` | Stdout truncation slices `&str[..max_bytes]` by byte index. If the cut lands inside a multibyte UTF-8 codepoint, this **panics** ("byte index N is not a char boundary"). | "Output truncated at max_output_bytes." |
-| L4 | `shell_exec` | Only stdout is truncated; stderr is returned unbounded. | "Output truncated at max_output_bytes" (ambiguous re: stderr). |
-| L5 | `fs_search` | Uses blocking `std::fs::read_to_string` and `walkdir` synchronously on the async runtime; unreadable files (binary, permission-denied) are silently skipped. | Implied: async-safe; visible failures. |
-| L6 | `fs_delete` | `remove_dir`/`remove_file` results are collapsed via `.is_ok()` into a generic "directory not empty or permission denied" message, discarding the real `io::Error`. | "Returns whether deletion succeeded." |
-| L7 | `sandbox_path` | Canonicalize-based check is a TOCTOU boundary: a path component could change between the check and the file operation. Acceptable for a single-user agent tool; documented here for reviewers. | Implied: atomic containment. |
+- **TOCTOU boundary.** `sandbox_path` canonicalizes at call time; a path
+  component could change between the check and the file operation. Acceptable
+  for a single-user agent tool; flagged here for security reviewers who need
+  atomic containment.
+- **Shell command string is not confined.** Only `cwd` is sandboxed; the
+  `command` argument may reference paths outside `project_root`. See
+  [Security model](#security-model) above.
+- **Operation spans are success-path only.** `emit_cns` fires the operation
+  verb (`file.read`, …) on the success path of each tool. The framework
+  `execute_tool` span records outcome (`ok`/`error`) for all calls, so failed
+  calls remain observable at the tool level even when the operation verb is
+  not emitted.
 
-The common root cause of L1–L3 is a **test-seam misalignment**: the contract
-test suite (`tests/filesystem_contract.rs`) exercises `sandbox_path` in
-isolation (7 tests) and asserts zero tool-behavior contracts. The disturbances
-"create new file", "range inversion", and "multibyte truncation" have no
-corresponding test variety (Ashby deficit).
+The tool contracts are verified by the contract test suite
+(`tests/filesystem_contract.rs`), which exercises both `sandbox_path`
+invariants and tool behavior (create-new-file, parent-dir creation, range
+inversion rejection, multibyte truncation safety, stderr truncation, skipped-file
+reporting, and delete error specificity) through the public tool methods.
 
 ## Quick start
 

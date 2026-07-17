@@ -59,22 +59,68 @@ impl FileSystemServer {
         } else {
             candidate.to_path_buf()
         };
-        let canonical = resolved.canonicalize().map_err(|e| {
-            McpToolError::invalid_argument(format!("Cannot resolve path '{raw_path}': {e}"))
-        })?;
         let canonical_root = self
             .project_root
             .canonicalize()
             .unwrap_or_else(|_| self.project_root.clone());
-        if !canonical.starts_with(&canonical_root) {
+
+        // Fast path: the target exists — canonicalize the full path so symlinks are
+        // resolved and containment is checked against the canonical root.
+        if let Ok(canonical) = resolved.canonicalize() {
+            if !canonical.starts_with(&canonical_root) {
+                self.emit_cns("path.rejected");
+                return Err(McpToolError::invalid_argument(format!(
+                    "Path '{raw_path}' is outside the project root '{}'",
+                    self.project_root.display()
+                )));
+            }
+            return Ok(canonical);
+        }
+
+        // Slow path: the target does not exist yet (e.g. fs_write creating a new
+        // file). Canonicalizing the full path would fail with ENOENT, so resolve
+        // the longest existing ancestor, verify it is within the sandbox, then
+        // re-append the non-existent tail. This lets callers create new files and
+        // directories inside the project root while still rejecting traversal.
+        let mut ancestor = resolved.clone();
+        while !ancestor.exists() {
+            match ancestor.parent() {
+                Some(parent) if parent != ancestor => ancestor = parent.to_path_buf(),
+                _ => break,
+            }
+        }
+        let canonical_ancestor = ancestor.canonicalize().map_err(|e| {
+            McpToolError::invalid_argument(format!("Cannot resolve path '{raw_path}': {e}"))
+        })?;
+        if !canonical_ancestor.starts_with(&canonical_root) {
             self.emit_cns("path.rejected");
             return Err(McpToolError::invalid_argument(format!(
                 "Path '{raw_path}' is outside the project root '{}'",
                 self.project_root.display()
             )));
         }
-        Ok(canonical)
+        // Lexical suffix relative to the existing ancestor (strip_prefix works on
+        // non-existent paths). Joined onto the canonical ancestor, the result is
+        // an absolute path inside the sandbox.
+        let suffix = resolved
+            .strip_prefix(&ancestor)
+            .map_err(|e| McpToolError::internal(format!("path strip failed: {e}")))?;
+        Ok(canonical_ancestor.join(suffix))
     }
+}
+
+/// Truncate `s` to at most `max_bytes` without splitting a UTF-8 codepoint.
+/// Walks back from `max_bytes` to the nearest char boundary so slicing never
+/// panics on a multibyte character.
+fn truncate_at_char_boundary(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    let mut idx = max_bytes;
+    while idx > 0 && !s.is_char_boundary(idx) {
+        idx -= 1;
+    }
+    &s[..idx]
 }
 
 // ── Tools ────────────────────────────────────────────────────────────────
@@ -84,7 +130,7 @@ impl FileSystemServer {
     #[tool(
         description = "Read a file's contents. Use start_line/end_line for targeted reads. Returns content, line count, file size, and modification time."
     )]
-    async fn fs_read(&self, Parameters(req): Parameters<FsReadRequest>) -> String {
+    pub async fn fs_read(&self, Parameters(req): Parameters<FsReadRequest>) -> String {
         execute_tool(self, "fs.read", async {
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
@@ -99,6 +145,14 @@ impl FileSystemServer {
 
             let lines: Vec<&str> = content.lines().collect();
             let total_lines = lines.len();
+
+            if let (Some(s), Some(e)) = (req.start_line, req.end_line)
+                && (s == 0 || e < s)
+            {
+                return Err(McpToolError::invalid_argument(format!(
+                    "Invalid line range {s}-{e}: start_line must be >= 1 and end_line >= start_line"
+                )));
+            }
 
             let (output, range) = match (req.start_line, req.end_line) {
                 (Some(s), Some(e)) => {
@@ -128,7 +182,7 @@ impl FileSystemServer {
     }
 
     #[tool(description = "Create or overwrite a file. Creates parent directories if needed.")]
-    async fn fs_write(&self, Parameters(req): Parameters<FsWriteRequest>) -> String {
+    pub async fn fs_write(&self, Parameters(req): Parameters<FsWriteRequest>) -> String {
         execute_tool(self, "fs.write", async {
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
@@ -156,7 +210,7 @@ impl FileSystemServer {
     #[tool(
         description = "Apply targeted text replacements to a file. Each edit replaces the first occurrence of old_text with new_text. Returns count of applied edits."
     )]
-    async fn fs_edit(&self, Parameters(req): Parameters<FsEditRequest>) -> String {
+    pub async fn fs_edit(&self, Parameters(req): Parameters<FsEditRequest>) -> String {
         execute_tool(self, "fs.edit", async {
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
@@ -191,7 +245,7 @@ impl FileSystemServer {
     }
 
     #[tool(description = "List directory contents. Returns entry names, paths, types, and sizes.")]
-    async fn fs_list(&self, Parameters(req): Parameters<FsListRequest>) -> String {
+    pub async fn fs_list(&self, Parameters(req): Parameters<FsListRequest>) -> String {
         execute_tool(self, "fs.list", async {
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
@@ -232,7 +286,7 @@ impl FileSystemServer {
     #[tool(
         description = "Search files for a regex pattern. Walks directories up to max_depth (default 3). Returns file path, line number, and matching line content."
     )]
-    async fn fs_search(&self, Parameters(req): Parameters<FsSearchRequest>) -> String {
+    pub async fn fs_search(&self, Parameters(req): Parameters<FsSearchRequest>) -> String {
         execute_tool(self, "fs.search", async {
             let sandboxed = self.sandbox_path(&req.path)?;
 
@@ -240,39 +294,68 @@ impl FileSystemServer {
                 .map_err(|e| McpToolError::invalid_argument(format!("Invalid regex: {e}")))?;
 
             let depth = req.max_depth.unwrap_or(3) as usize;
-            let mut matches = Vec::new();
-
-            for entry in walkdir::WalkDir::new(&sandboxed)
-                .max_depth(depth)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().is_file())
-            {
-                if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                    for (i, line) in content.lines().enumerate() {
-                        if re.is_match(line) {
-                            matches.push(serde_json::json!({
-                                "path": entry.path().to_string_lossy(),
-                                "line": i + 1,
-                                "content": line.trim(),
-                            }));
+            let root = sandboxed;
+            // Run the synchronous walkdir + file reads on a blocking thread so the
+            // async runtime worker is not stalled, and surface unreadable / oversized
+            // files instead of silently dropping them.
+            let (matches, files_skipped) = tokio::task::spawn_blocking(move || {
+                const MAX_FILE_BYTES: u64 = 1024 * 1024;
+                let mut matches = Vec::new();
+                let mut files_skipped = 0u64;
+                for entry in walkdir::WalkDir::new(&root)
+                    .max_depth(depth)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.file_type().is_file())
+                {
+                    if std::fs::metadata(entry.path())
+                        .map(|m| m.len() > MAX_FILE_BYTES)
+                        .unwrap_or(false)
+                    {
+                        files_skipped += 1;
+                        continue;
+                    }
+                    match std::fs::read_to_string(entry.path()) {
+                        Ok(content) => {
+                            for (i, line) in content.lines().enumerate() {
+                                if re.is_match(line) {
+                                    matches.push(serde_json::json!({
+                                        "path": entry.path().to_string_lossy(),
+                                        "line": i + 1,
+                                        "content": line.trim(),
+                                    }));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "hkask.mcp.filesystem",
+                                path = %entry.path().display(),
+                                error = %e,
+                                "fs_search: skipped unreadable file"
+                            );
+                            files_skipped += 1;
                         }
                     }
                 }
-            }
+                (matches, files_skipped)
+            })
+            .await
+            .map_err(|e| McpToolError::internal(format!("search task failed: {e}")))?;
 
             self.emit_cns("file.read");
             Ok(serde_json::json!({
                 "pattern": req.pattern,
                 "matches": matches,
                 "count": matches.len(),
+                "files_skipped": files_skipped,
             }))
         })
         .await
     }
 
     #[tool(description = "Delete a file or empty directory. Returns whether deletion succeeded.")]
-    async fn fs_delete(&self, Parameters(req): Parameters<FsDeleteRequest>) -> String {
+    pub async fn fs_delete(&self, Parameters(req): Parameters<FsDeleteRequest>) -> String {
         execute_tool(self, "fs.delete", async {
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
@@ -287,15 +370,15 @@ impl FileSystemServer {
                 )));
             }
 
-            let deleted = if sandboxed.is_dir() {
-                tokio::fs::remove_dir(&sandboxed).await.is_ok()
+            let delete_result = if sandboxed.is_dir() {
+                tokio::fs::remove_dir(&sandboxed).await
             } else {
-                tokio::fs::remove_file(&sandboxed).await.is_ok()
+                tokio::fs::remove_file(&sandboxed).await
             };
 
-            if !deleted {
+            if let Err(e) = delete_result {
                 return Err(McpToolError::invalid_argument(format!(
-                    "Cannot delete {}: directory not empty or permission denied",
+                    "Cannot delete {}: {e}",
                     req.path
                 )));
             }
@@ -307,9 +390,9 @@ impl FileSystemServer {
     }
 
     #[tool(
-        description = "Execute a shell command via `sh -c`. Use cwd to set working directory. timeout_ms defaults to 30000 (30s). Output truncated at max_output_bytes (default 102400 = 100KB). Returns stdout, stderr, exit code, duration, and truncated flag."
+        description = "Execute a shell command via `sh -c`. Use cwd to set working directory. timeout_ms defaults to 30000 (30s). stdout and stderr are each truncated at max_output_bytes (default 102400 = 100KB) on a UTF-8 char boundary. Returns stdout, stderr, exit code, duration, and truncated flag. Note: the command string is not confined to project_root; only cwd is sandboxed."
     )]
-    async fn shell_exec(&self, Parameters(req): Parameters<ShellExecRequest>) -> String {
+    pub async fn shell_exec(&self, Parameters(req): Parameters<ShellExecRequest>) -> String {
         execute_tool(self, "shell.exec", async {
             let timeout_ms = req.timeout_ms.unwrap_or(30_000);
             let max_bytes = req.max_output_bytes.unwrap_or(102_400) as usize;
@@ -347,11 +430,13 @@ impl FileSystemServer {
                     let stdout_lossy = String::from_utf8_lossy(&out.stdout);
                     let stderr_lossy = String::from_utf8_lossy(&out.stderr);
 
-                    let (stdout_str, truncated) = if stdout_lossy.len() > max_bytes {
-                        (stdout_lossy[..max_bytes].to_string(), true)
-                    } else {
-                        (stdout_lossy.to_string(), false)
-                    };
+                    let stdout_truncated = stdout_lossy.len() > max_bytes;
+                    let stderr_truncated = stderr_lossy.len() > max_bytes;
+                    let stdout_str =
+                        truncate_at_char_boundary(&stdout_lossy, max_bytes).to_string();
+                    let stderr_str =
+                        truncate_at_char_boundary(&stderr_lossy, max_bytes).to_string();
+                    let truncated = stdout_truncated || stderr_truncated;
 
                     let exit_code = out.status.code().unwrap_or(-1);
                     if exit_code != 0 {
@@ -362,7 +447,7 @@ impl FileSystemServer {
 
                     Ok(serde_json::json!({
                         "stdout": stdout_str,
-                        "stderr": stderr_lossy,
+                        "stderr": stderr_str,
                         "exit_code": exit_code,
                         "duration_ms": duration_ms,
                         "truncated": truncated,

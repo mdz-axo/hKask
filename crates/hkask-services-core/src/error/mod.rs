@@ -719,7 +719,7 @@ mod tests {
             tool: "sense".into(),
             message: "rate limit hit".into(),
         };
-        assert_eq!(e.domain(), DomainKind::Wallet);
+        assert_eq!(e.domain(), DomainKind::Mcp);
         assert!(e.to_string().contains("mcp-cns"));
         assert!(e.to_string().contains("sense"));
         assert!(e.to_string().contains("rate_limited"));

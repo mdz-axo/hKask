@@ -120,19 +120,8 @@ pub struct WordRankAlgorithm;
 
 impl WordRankAlgorithm {
     fn compute_word_frequencies(lines: &[&str]) -> std::collections::HashMap<String, f64> {
-        let mut freq: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-        let mut total = 0usize;
-        for line in lines {
-            for word in line.split_whitespace() {
-                let w = word.to_lowercase();
-                if w.len() > 2 {
-                    *freq.entry(w).or_insert(0) += 1;
-                    total += 1;
-                }
-            }
-        }
-        let t = total.max(1) as f64;
-        freq.into_iter().map(|(k, v)| (k, v as f64 / t)).collect()
+        let words: Vec<&str> = lines.iter().flat_map(|l| l.split_whitespace()).collect();
+        crate::saliency::word_frequencies(&words)
     }
 
     /// Score a single line: TF-IDF average + structural bonus + ontology anchoring.

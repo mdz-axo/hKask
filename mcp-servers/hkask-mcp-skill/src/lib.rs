@@ -19,7 +19,7 @@
 //! If `SkillService` gains execution methods in the future, this server should be migrated
 //! to use them.
 
-#![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
+#![allow(unused_crate_dependencies)] // tokio is used only by the bin (main.rs `#[tokio::main]`); the unused-crate-deps lint checks the lib target where tokio is unused. dotenvy was removed (no .rs references). Other deps are used in lib.rs.
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
@@ -32,18 +32,31 @@ use hkask_types::template::LLMParameters;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Name → description for available skills (loaded at startup).
+/// Inference parameters for skill execution. Low temperature for deterministic
+/// adherence to the skill template; capped tokens to bound cost. Intentionally
+/// fixed across all skills — per-skill params would require a manifest field
+/// (tracked as a deepening candidate; adversarial review F13).
+const SKILL_TEMPERATURE: f32 = 0.3;
+const SKILL_MAX_TOKENS: u32 = 2048;
+
+/// Name → metadata for available skills (loaded at startup).
 type SkillIndex = HashMap<String, SkillToolDef>;
 
 /// Metadata for a skill available as a tool.
+///
+/// Stores the template `source_path` rather than its content, so the template
+/// is read fresh on each `skill_execute` (avoids N in-memory copies and stays
+/// current if the file changes on disk). The skill *set* is still fixed at
+/// startup — see adversarial review F1 for the reload-loop follow-up.
 #[derive(Clone)]
 pub struct SkillToolDef {
     pub description: String,
-    pub template_content: String,
+    pub source_path: PathBuf,
 }
 
 hkask_mcp::mcp_server!(
@@ -56,14 +69,26 @@ hkask_mcp::mcp_server!(
 
 impl SkillServer {
     /// Load skills from the bootstrapped template registry.
+    ///
+    /// Stores each template's `source_path` (content is read lazily on execute).
+    /// Unreadable templates are skipped with a `tracing::warn!` so the failure is
+    /// observable — `skill_ping`'s `skills_loaded` reflects only successful
+    /// loads (adversarial review F7: previously failures were silently dropped).
     pub fn load_skills(&mut self) {
         let registry = Registry::bootstrap();
 
         for entry in registry.list(None) {
-            let template_content = match std::fs::read_to_string(&entry.source_path) {
-                Ok(content) => content,
-                Err(_) => continue,
-            };
+            // Validate readability at load time so skill_execute does not surface
+            // a load-time error at call time. Unreadable entries are skipped + logged.
+            if std::fs::read_to_string(&entry.source_path).is_err() {
+                tracing::warn!(
+                    target: "hkask.mcp.skill",
+                    id = %entry.id,
+                    source = %entry.source_path,
+                    "Skill template unreadable — skipping"
+                );
+                continue;
+            }
 
             let tool_id = registry_entry_to_tool_id(&entry.id);
 
@@ -71,16 +96,35 @@ impl SkillServer {
                 tool_id,
                 SkillToolDef {
                     description: format!("[{}] {}", entry.template_type, entry.description),
-                    template_content,
+                    source_path: entry.source_path.into(),
                 },
             );
         }
     }
 }
 
-/// Convert a registry entry ID to a safe MCP tool identifier.
+/// Convert a registry entry ID to a tool-facing skill ID.
+///
+/// Registry IDs use `/` as the namespace separator (e.g.
+/// `coding-guidelines/guidelines-assess`). We map `/` → `.` for ergonomic display
+/// in tool listings. This transform is **injective**: registry IDs never contain
+/// `.`, so it is collision-free and reversible. The previous implementation
+/// also mapped `_` → `-`, which was lossy (distinct IDs differing only by `_`
+/// vs `-` would collide); that step was removed in the adversarial review (F11).
 fn registry_entry_to_tool_id(id: &str) -> String {
-    id.replace('/', ".").replace('_', "-")
+    id.replace('/', ".")
+}
+
+/// Human-readable JSON type name for error messages (adversarial review F8).
+fn json_type_name(v: &serde_json::Value) -> &'static str {
+    match v {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "bool",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
 }
 
 /// Render a Jinja2 template with the given context map.
@@ -167,35 +211,49 @@ impl SkillServer {
                 )
             })?;
 
-            // Build context map for template rendering
-            let mut ctx = HashMap::new();
-            if let serde_json::Value::Object(map) = &context {
-                for (k, v) in map {
-                    ctx.insert(k.clone(), v.clone());
+            // Context must be a JSON object. Non-object values (array, string,
+            // number, …) are rejected rather than silently rendered with an empty
+            // context (adversarial review F8).
+            let map = match &context {
+                serde_json::Value::Object(map) => map,
+                other => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "context must be a JSON object, got {}",
+                        json_type_name(other)
+                    )));
                 }
+            };
+
+            let mut ctx = HashMap::new();
+            for (k, v) in map {
+                ctx.insert(k.clone(), v.clone());
             }
 
-            // Render the Jinja2 template
-            let rendered = render_skill_template(&def.template_content, &ctx)
+            // Read the template content fresh from disk (see SkillToolDef).
+            let template_content = std::fs::read_to_string(&def.source_path).map_err(|e| {
+                McpToolError::internal(format!(
+                    "Failed to read skill template {}: {e}",
+                    def.source_path.display()
+                ))
+            })?;
+
+            let rendered = render_skill_template(&template_content, &ctx)
                 .map_err(|e| McpToolError::invalid_argument(e.to_string()))?;
 
-            // Prepend system prompt with tool-awareness context.
-            // The calling agent has MCP tools available (auto-started servers).
-            // If the skill references tools that are unavailable, the agent
-            // should adapt or report the limitation rather than failing silently.
+            // Minimal, honest preamble. The previous version asserted a specific
+            // tool set (filesystem, memory, web search, …) that varies per
+            // deployment — a hidden parameter (Magna Carta P3). We now ask the
+            // agent to adapt to whatever capabilities it actually has (F12).
             let full_prompt = format!(
-                "You are executing a skill template. Follow its instructions precisely. \
-                 The calling agent has access to MCP tools including filesystem \
-                 (fs.read, fs.write, fs.edit, fs.search, shell.exec), memory \
-                 (episodic/semantic recall), web search, and context condensation. \
-                 If the skill references tools outside this set, adapt the approach \
-                 or report the missing capability.\n\n{}",
+                "Follow the skill template's instructions precisely. If it references \
+                 capabilities the calling agent lacks, adapt the approach or report \
+                 the limitation rather than failing silently.\n\n{}",
                 rendered
             );
 
             let params = LLMParameters {
-                temperature: 0.3,
-                max_tokens: 2048,
+                temperature: SKILL_TEMPERATURE,
+                max_tokens: SKILL_MAX_TOKENS,
                 ..Default::default()
             };
 
@@ -251,4 +309,47 @@ pub async fn run(
         vec![],
     )
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn registry_entry_to_tool_id_is_non_lossy() {
+        // `/` → `.` (ergonomic display); injective because registry IDs never contain `.`.
+        assert_eq!(
+            registry_entry_to_tool_id("coding-guidelines/guidelines-assess"),
+            "coding-guidelines.guidelines-assess"
+        );
+        // `_` is preserved (the previous `_` → `-` step was lossy — review F11).
+        assert_eq!(
+            registry_entry_to_tool_id("skill_maintenance/step"),
+            "skill_maintenance.step"
+        );
+        // Distinct IDs differing only by `_` vs `-` must not collide.
+        assert_ne!(
+            registry_entry_to_tool_id("skill_maintenance/step"),
+            registry_entry_to_tool_id("skill-maintenance/step"),
+            "distinct IDs must not collide after transform"
+        );
+    }
+
+    #[test]
+    fn json_type_name_covers_all_variants() {
+        assert_eq!(json_type_name(&serde_json::Value::Null), "null");
+        assert_eq!(json_type_name(&serde_json::Value::Bool(true)), "bool");
+        assert_eq!(json_type_name(&serde_json::json!(42)), "number");
+        assert_eq!(json_type_name(&serde_json::json!("x")), "string");
+        assert_eq!(json_type_name(&serde_json::json!([1])), "array");
+        assert_eq!(json_type_name(&serde_json::json!({})), "object");
+    }
+
+    #[test]
+    fn render_skill_template_passes_object_context() {
+        let mut ctx = HashMap::new();
+        ctx.insert("name".to_string(), serde_json::json!("world"));
+        let rendered = render_skill_template("Hello {{ name }}!", &ctx).expect("renders");
+        assert_eq!(rendered, "Hello world!");
+    }
 }

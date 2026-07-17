@@ -76,16 +76,20 @@ fn skill_server_loads_skills_from_registry() {
     // load_skills should succeed (even if empty) — no panic
 }
 
-// ── Skill index type tests ─────────────────────────────────────────────────
+// ── Skill index type tests ─────────────────────────────────────────────────────────
 
 #[test]
-fn skill_tool_def_holds_template_content() {
+fn skill_tool_def_holds_template_source_path() {
     let def = hkask_mcp_skill::SkillToolDef {
         description: "A test skill".into(),
-        template_content: "Hello {{ name }}!".into(),
+        source_path: "registry/templates/coding-guidelines/guidelines-assess.j2".into(),
     };
     assert_eq!(def.description, "A test skill");
-    assert!(def.template_content.contains("{{ name }}"));
+    assert!(
+        def.source_path
+            .to_string_lossy()
+            .contains("guidelines-assess")
+    );
 }
 
 // ── Schema generation test ─────────────────────────────────────────────────
