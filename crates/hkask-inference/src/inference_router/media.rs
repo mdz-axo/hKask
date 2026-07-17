@@ -27,10 +27,10 @@ impl InferenceRouter {
         let model_name = model_override
             .map(|s| s.to_string())
             .unwrap_or_else(|| self.config.default_model.clone());
-        // Vision dispatch uses parse_provider + the vision_backends map (not
-        // `resolve`, which gates on chat availability — RunPod is vision-only).
+        // Vision dispatch uses parse_provider + the vision_backend match-fn (not
+        // `resolve_chat`, which gates on chat availability — RunPod is vision-only).
         let (provider, model) = self.parse_provider(&model_name)?;
-        let backend = self.vision_backends.get(&provider).ok_or_else(|| {
+        let backend = self.vision_backend(provider).ok_or_else(|| {
             InferenceError::Connection(format!(
                 "Provider {} is not available for vision (check configuration)",
                 provider.as_str()

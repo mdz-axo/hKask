@@ -72,7 +72,7 @@ status: VERIFIED
 
 | Tool | Description | CNS operation span |
 |------|-------------|--------------------|
-| `fs_read` | Read file contents with 1-based line ranges + stats; start-only and end-only ranges honored; zero and inverted ranges rejected | `file.read` |
+| `fs_read` | Read file contents with 1-based line ranges + stats; start-only and end-only ranges honored; zero and inverted ranges rejected. Full reads preserve the file's bytes; partial reads normalize line endings to LF | `file.read` |
 | `fs_write` | Create or overwrite a file; creates parent dirs if needed (new files supported) — **destructive: consent-gated** | `file.written` |
 | `fs_edit` | Apply ordered first-match text replacements sequentially (later edits see earlier edits' output); `file.written` emitted only when an edit matched — **destructive: consent-gated** | `file.written` (on write) |
 | `fs_list` | List directory entries (name, path, type, size) | `file.read` |
@@ -99,11 +99,12 @@ status: VERIFIED
   default** and return `permission_denied` unless the server was launched with
   `HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT=1` (truthy: `1` or `true`). Read tools
   (`fs_read`, `fs_list`, `fs_search`) are **ungated** — reading your own
-  workspace is sovereign by default (P1). Consent is per server instance
-  (recorded at launch), revocable by relaunching without the flag, and denials
-  are auditable via CNS. This is the **filesystem-scoped (i)** enforcement;
-  spawned subagents are separate processes launched without the flag, so they
-  do **not** inherit destructive authority.
+  workspace is sovereign by default (P1). Consent is an opt-in flag at launch,
+  revocable by relaunching without the flag; denials are auditable via CNS.
+  This is the **filesystem-scoped (i)** enforcement. Spawned subagents are
+  separate processes; they do **not** inherit destructive authority **provided
+  the launcher does not propagate the flag to them — this is a launcher
+  convention, not enforced by this server**.
 - **File I/O sandbox.** All file tools resolve `raw_path` against
   `project_root`, canonicalize, and reject paths whose canonical form does not
   start with the canonical root. Path traversal (`../`) is rejected at the

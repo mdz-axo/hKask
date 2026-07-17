@@ -57,15 +57,15 @@ impl FileSystemServer {
     }
 
     /// Destructive operations (fs_write, fs_edit, fs_delete, shell_exec) require
-    /// explicit human consent, recorded at server launch via the
+    /// explicit human opt-in at server launch via the
     /// `HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT` environment variable. Read tools
     /// (fs_read, fs_list, fs_search) are ungated — reading your own workspace is
-    /// sovereign by default (P1 — User Sovereignty). Consent is revocable by
+    /// sovereign by default (P1 — User Sovereignty). The opt-in is revocable by
     /// relaunching without the flag; denials are auditable via CNS spans.
     fn require_destructive_consent(&self) -> Result<(), McpToolError> {
         if !self.destructive_consent {
             return Err(McpToolError::permission_denied(
-                "Destructive filesystem operation requires consent — launch the server with HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT=1 (or approve via kask). Read tools (fs_read/fs_list/fs_search) are available without consent.",
+                "Destructive filesystem operation requires consent — launch the server with HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT=1. Read tools (fs_read/fs_list/fs_search) are available without consent.",
             ));
         }
         Ok(())
@@ -151,7 +151,7 @@ fn truncate_at_char_boundary(s: &str, max_bytes: usize) -> &str {
 #[tool_router(server_handler)]
 impl FileSystemServer {
     #[tool(
-        description = "Read a file's contents. Use start_line/end_line for targeted reads. Returns content, line count, file size, and modification time."
+        description = "Read a file's contents. Use start_line/end_line for targeted reads. Returns content, line count, file size, and modification time. Full reads preserve the file's bytes; partial reads (start_line/end_line supplied) normalize line endings to LF."
     )]
     pub async fn fs_read(&self, Parameters(req): Parameters<FsReadRequest>) -> String {
         execute_tool(self, "fs.read", async {

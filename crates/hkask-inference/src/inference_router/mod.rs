@@ -16,7 +16,6 @@ use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::template::LLMParameters;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::warn;
 
@@ -31,26 +30,23 @@ type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
 
 /// Multi-provider inference router implementing `InferencePort`.
 ///
-/// Parses the `XX/` prefix from model names and dispatches to the
-/// appropriate backend via trait-object maps. Each backend owns its own HTTP
-/// client, auth, and model listing endpoint. Adding a provider = implement
-/// `ChatBackend`/`VisionBackend` + insert into the map(s) in `new` — no other
-/// dispatch site (`resolve`, `dispatch_generate`, `dispatch_generate_stream`,
-/// `media::generate_vision`, `models::list_models`) needs editing.
+/// Parses the `XX/` prefix from model names and dispatches to the appropriate
+/// backend via two small match-fns (`chat_backend`/`vision_backend`) that return
+/// `&dyn ChatBackend`/`&dyn VisionBackend` borrowed from the typed fields below.
+/// Adding a provider = implement the trait(s) + add a field + construct it in
+/// `new` + add a match arm in `chat_backend`/`vision_backend`. The typed fields are
+/// the single source of truth (no separate map, no `Arc`, no dual storage) —
+/// Fal/DeepInfra's specialist media methods read them directly too.
 pub struct InferenceRouter {
     config: InferenceConfig,
-    /// Chat-completion backends keyed by provider (7 chat-capable providers;
-    /// RunPod is excluded — it is vision/OCR-only).
-    chat_backends: HashMap<ProviderId, Arc<dyn ChatBackend>>,
-    /// Vision/multimodal backends keyed by provider (all 8, including RunPod).
-    vision_backends: HashMap<ProviderId, Arc<dyn VisionBackend>>,
-    /// Fal.ai and DeepInfra are also held as typed fields: their specialist media
-    /// methods (image generation, TTS, transcription, workflow, background
-    /// removal with fallback) are Fal/DeepInfra-specific capabilities not
-    /// covered by `ChatBackend`/`VisionBackend`. The same `Arc` is shared with
-    /// the maps above, so there is no double-construction.
-    fal: Option<Arc<FalBackend>>,
-    deepinfra: Option<Arc<DeepInfraBackend>>,
+    deepinfra: Option<DeepInfraBackend>,
+    fal: Option<FalBackend>,
+    together: Option<TogetherBackend>,
+    openrouter: Option<OpenRouterBackend>,
+    kilocode: Option<KiloCodeBackend>,
+    runpod: Option<RunpodBackend>,
+    ollama: Option<OllamaBackend>,
+    cline: Option<ClineBackend>,
     embedding: EmbeddingRouter,
     heal_error_cb: Option<HealCallback>,
 }
@@ -69,8 +65,8 @@ impl InferenceRouter {
     /// non-empty API key; Ollama requires a non-empty base URL (defaults to
     /// `localhost:11434`, so it is `Some` even when the daemon is down). A `None`
     /// backend is skipped by `list_models` (contributes no models) and rejected by
-    /// `resolve` (clear "provider not available" error) — so unconfigured providers
-    /// never appear in the model list and can't be used for inference.
+    /// `resolve_chat` (clear "provider not available" error) — so unconfigured
+    /// providers never appear in the model list and can't be used for inference.
     ///
     /// Reachability is detected **lazily at use**, not at construction: an Ollama
     /// daemon that is down yields an empty `list_models` and a connection error on
@@ -89,121 +85,54 @@ impl InferenceRouter {
             .map_err(|e| warn!(target: "cns.inference", "HTTP client build failed: {}", e))
             .ok();
 
-        let mut chat_backends: HashMap<ProviderId, Arc<dyn ChatBackend>> = HashMap::new();
-        let mut vision_backends: HashMap<ProviderId, Arc<dyn VisionBackend>> = HashMap::new();
-
-        // Register a chat+vision backend: coerce the concrete Arc to both trait
-        // objects via explicit typed `let` (unsizing does not flow backward through
-        // `Arc::clone`'s generic, so the coercion must be at a binding). `b` is
-        // borrowed (&Arc<Concrete>) so the caller's owned Option stays intact.
-        macro_rules! register_both {
-            ($chat:expr, $vision:expr, $provider:expr, $b:expr, $name:expr) => {
-                match $b {
-                    Some(b) => {
-                        // Two-step: Arc::clone infers the concrete type from `b`
-                        // (no target constraint), then the explicit typed binding
-                        // performs the unsizing coercion to the trait object.
-                        // (Arc::clone's generic blocks backward type inference,
-                        // so the coercion cannot happen in one step.)
-                        let chat_concrete = Arc::clone(b);
-                        let vision_concrete = Arc::clone(b);
-                        let chat: Arc<dyn ChatBackend> = chat_concrete;
-                        let vision: Arc<dyn VisionBackend> = vision_concrete;
-                        $chat.insert($provider, chat);
-                        $vision.insert($provider, vision);
-                    }
-                    None => warn!(target: "cns.inference", "{} backend unavailable (no API key)", $name),
-                }
-            };
-        }
-
-        // Fal and DeepInfra are also held as typed fields (see struct docs) for their
-        // specialist media methods. Declare them at function scope so the `Self`
-        // literal can move them in; the same Arc is shared with the maps below.
-        let deepinfra = shared_client.as_ref().and_then(|c| {
-            DeepInfraBackend::new(&config, Arc::clone(c))
-                .ok()
-                .map(Arc::new)
-        });
-        register_both!(
-            chat_backends,
-            vision_backends,
-            ProviderId::DeepInfra,
-            &deepinfra,
-            "DeepInfra"
-        );
+        let deepinfra = shared_client
+            .as_ref()
+            .and_then(|c| DeepInfraBackend::new(&config, Arc::clone(c)).ok());
         let fal = shared_client
             .as_ref()
-            .and_then(|c| FalBackend::new(&config, Arc::clone(c)).ok().map(Arc::new));
-        register_both!(
-            chat_backends,
-            vision_backends,
-            ProviderId::Fal,
-            &fal,
-            "fal.ai"
-        );
+            .and_then(|c| FalBackend::new(&config, Arc::clone(c)).ok());
+        let together = shared_client
+            .as_ref()
+            .and_then(|c| TogetherBackend::new(&config, Arc::clone(c)).ok());
+        let openrouter = shared_client
+            .as_ref()
+            .and_then(|c| OpenRouterBackend::new(&config, Arc::clone(c)).ok());
+        let kilocode = shared_client
+            .as_ref()
+            .and_then(|c| KiloCodeBackend::new(&config, Arc::clone(c)).ok());
+        let runpod = shared_client
+            .as_ref()
+            .and_then(|c| RunpodBackend::new(&config, Arc::clone(c)).ok());
+        let ollama = shared_client
+            .as_ref()
+            .and_then(|c| OllamaBackend::new(&config, Arc::clone(c)).ok());
+        let cline = shared_client
+            .as_ref()
+            .and_then(|c| ClineBackend::new(&config, Arc::clone(c)).ok());
 
-        // Map-only chat+vision providers (no specialist media methods needing typed access).
-        if let Some(ref c) = shared_client {
-            let together = TogetherBackend::new(&config, Arc::clone(c))
-                .ok()
-                .map(Arc::new);
-            register_both!(
-                chat_backends,
-                vision_backends,
-                ProviderId::Together,
-                &together,
-                "Together AI"
-            );
-            let openrouter = OpenRouterBackend::new(&config, Arc::clone(c))
-                .ok()
-                .map(Arc::new);
-            register_both!(
-                chat_backends,
-                vision_backends,
-                ProviderId::OpenRouter,
-                &openrouter,
-                "OpenRouter"
-            );
-            let kilocode = KiloCodeBackend::new(&config, Arc::clone(c))
-                .ok()
-                .map(Arc::new);
-            register_both!(
-                chat_backends,
-                vision_backends,
-                ProviderId::KiloCode,
-                &kilocode,
-                "KiloCode"
-            );
-            let ollama = OllamaBackend::new(&config, Arc::clone(c))
-                .ok()
-                .map(Arc::new);
-            register_both!(
-                chat_backends,
-                vision_backends,
-                ProviderId::Ollama,
-                &ollama,
-                "Ollama"
-            );
-            let cline = ClineBackend::new(&config, Arc::clone(c)).ok().map(Arc::new);
-            register_both!(
-                chat_backends,
-                vision_backends,
-                ProviderId::Cline,
-                &cline,
-                "Cline"
-            );
-
-            // RunPod is vision/OCR-only — it is NOT a ChatBackend.
-            match RunpodBackend::new(&config, Arc::clone(c)) {
-                Ok(b) => {
-                    let vision: Arc<dyn VisionBackend> = Arc::new(b);
-                    vision_backends.insert(ProviderId::Runpod, vision);
-                }
-                Err(_) => {
-                    warn!(target: "cns.inference", "RunPod backend unavailable (no API key or template)")
-                }
-            }
+        if deepinfra.is_none() {
+            warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)");
+        }
+        if fal.is_none() {
+            warn!(target: "cns.inference", "fal.ai backend unavailable (no API key)");
+        }
+        if together.is_none() {
+            warn!(target: "cns.inference", "Together AI backend unavailable (no API key)");
+        }
+        if openrouter.is_none() {
+            warn!(target: "cns.inference", "OpenRouter backend unavailable (no API key)");
+        }
+        if kilocode.is_none() {
+            warn!(target: "cns.inference", "KiloCode backend unavailable (no API key)");
+        }
+        if runpod.is_none() {
+            warn!(target: "cns.inference", "RunPod backend unavailable (no API key or template)");
+        }
+        if ollama.is_none() {
+            warn!(target: "cns.inference", "Ollama backend unavailable (no base URL)");
+        }
+        if cline.is_none() {
+            warn!(target: "cns.inference", "Cline backend unavailable (no API key)");
         }
 
         let embedding = shared_client
@@ -213,10 +142,14 @@ impl InferenceRouter {
 
         Self {
             config: config.clone(),
-            chat_backends,
-            vision_backends,
-            fal,
             deepinfra,
+            fal,
+            together,
+            openrouter,
+            kilocode,
+            runpod,
+            ollama,
+            cline,
             embedding,
             heal_error_cb: None,
         }
@@ -235,6 +168,42 @@ impl InferenceRouter {
             cb(&error.to_string(), operation);
         }
         error
+    }
+
+    /// Return the chat backend for a provider as a trait object, or `None` if
+    /// the provider is not configured (or is vision-only, e.g. RunPod).
+    ///
+    /// This is the single dispatch point for chat — `dispatch_generate`,
+    /// `dispatch_generate_stream`, `resolve_chat`, and `list_models` all go
+    /// through it, so adding a chat provider = add a field + arm here.
+    fn chat_backend(&self, provider: ProviderId) -> Option<&dyn ChatBackend> {
+        match provider {
+            ProviderId::DeepInfra => self.deepinfra.as_ref().map(|b| b as &dyn ChatBackend),
+            ProviderId::Fal => self.fal.as_ref().map(|b| b as &dyn ChatBackend),
+            ProviderId::Together => self.together.as_ref().map(|b| b as &dyn ChatBackend),
+            ProviderId::OpenRouter => self.openrouter.as_ref().map(|b| b as &dyn ChatBackend),
+            ProviderId::KiloCode => self.kilocode.as_ref().map(|b| b as &dyn ChatBackend),
+            ProviderId::Ollama => self.ollama.as_ref().map(|b| b as &dyn ChatBackend),
+            ProviderId::Cline => self.cline.as_ref().map(|b| b as &dyn ChatBackend),
+            // RunPod is vision/OCR-only — it is not a ChatBackend.
+            ProviderId::Runpod => None,
+        }
+    }
+
+    /// Return the vision backend for a provider as a trait object, or `None` if
+    /// the provider is not configured. All chat-capable providers plus RunPod
+    /// implement `VisionBackend`.
+    fn vision_backend(&self, provider: ProviderId) -> Option<&dyn VisionBackend> {
+        match provider {
+            ProviderId::DeepInfra => self.deepinfra.as_ref().map(|b| b as &dyn VisionBackend),
+            ProviderId::Fal => self.fal.as_ref().map(|b| b as &dyn VisionBackend),
+            ProviderId::Together => self.together.as_ref().map(|b| b as &dyn VisionBackend),
+            ProviderId::OpenRouter => self.openrouter.as_ref().map(|b| b as &dyn VisionBackend),
+            ProviderId::KiloCode => self.kilocode.as_ref().map(|b| b as &dyn VisionBackend),
+            ProviderId::Ollama => self.ollama.as_ref().map(|b| b as &dyn VisionBackend),
+            ProviderId::Cline => self.cline.as_ref().map(|b| b as &dyn VisionBackend),
+            ProviderId::Runpod => self.runpod.as_ref().map(|b| b as &dyn VisionBackend),
+        }
     }
 
     /// Compute the effective model name, applying the fusion override when active.
@@ -281,29 +250,27 @@ impl InferenceRouter {
         }
     }
 
-    /// Resolve which chat backend to use for a given model name.
+    /// Resolve which **chat** backend to use for a given model name.
     ///
     /// Returns `(provider, backend_model_name)` or an error if no chat backend
     /// is available for the requested provider, or if the model carries an
     /// unrecognized `XX/` prefix.
     ///
-    /// Unprefixed names (no `XX/` shape) route to the configured default
-    /// provider. A name with two uppercase letters followed by `/` that is
-    /// not a recognized provider code is rejected explicitly — previously
-    /// such names silently fell through to the default provider and were
-    /// sent upstream as a garbage model identifier.
+    /// This is chat-only: RunPod (vision/OCR-only) is not a chat backend and
+    /// will resolve to "not available" here — vision callers use the vision
+    /// dispatch path (`media::generate_vision` → `vision_backend`), not this.
     ///
     /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — fail fast on unknown prefix
     /// pre:  model is non-empty
     /// post: returns Ok((ProviderId, stripped_model)) for recognized or unprefixed models
-    /// post: returns Err(Connection) for unrecognized `XX/` prefix or unavailable backend
-    pub(crate) fn resolve<'a>(
+    /// post: returns Err(Connection) for unrecognized `XX/` prefix or unavailable chat backend
+    pub(crate) fn resolve_chat<'a>(
         &self,
         model: &'a str,
     ) -> Result<(ProviderId, &'a str), InferenceError> {
         let (provider, stripped_model) = self.parse_provider(model)?;
-        if !self.chat_backends.contains_key(&provider) {
+        if self.chat_backend(provider).is_none() {
             return Err(InferenceError::Connection(format!(
                 "Provider {} is not available (check configuration)",
                 provider.as_str()
@@ -374,7 +341,7 @@ impl InferenceRouter {
             None => return Ok(true),
         };
 
-        match self.resolve(&fusion.judge) {
+        match self.resolve_chat(&fusion.judge) {
             Ok((provider, _)) => {
                 tracing::info!(
                     target: "cns.inference",
@@ -542,7 +509,7 @@ mod tests {
         assert_eq!(router.effective_model(None, &params), default);
     }
 
-    // ── C2: Ollama provider routing ────────────────────────────────────
+    // ── Ollama provider routing ────────────────────────────────────────
 
     /// REQ: P9-inf-ollama-prefix-routing
     /// expect: "OM/ prefix routes to the Ollama provider with the tag stripped" [P9]
@@ -563,9 +530,9 @@ mod tests {
     }
 
     /// REQ: P9-inf-ollama-resolve
-    /// expect: "Router resolves an OM/-prefixed model to the Ollama backend" [P9]
+    /// expect: "Router resolves an OM/-prefixed model to the Ollama chat backend" [P9]
     #[test]
-    fn resolve_routes_ollama_model() {
+    fn resolve_chat_routes_ollama_model() {
         let config = InferenceConfig::default();
         // Default config sets ollama_base_url, so the backend constructs.
         if config.ollama_base_url.is_empty() {
@@ -574,7 +541,7 @@ mod tests {
         }
         let router = InferenceRouter::new(config);
         let (provider, model) = router
-            .resolve("OM/qwen3:8b")
+            .resolve_chat("OM/qwen3:8b")
             .expect("OM/-prefixed model should resolve");
         assert_eq!(provider, ProviderId::Ollama);
         assert_eq!(model, "qwen3:8b");
@@ -593,12 +560,12 @@ mod tests {
         }
         let router = InferenceRouter::new(config);
         let (provider, _model) = router
-            .resolve("qwen3:8b")
+            .resolve_chat("qwen3:8b")
             .expect("unprefixed model with Ollama default should resolve");
         assert_eq!(provider, ProviderId::Ollama);
     }
 
-    // ── C3: Cline provider routing ─────────────────────────────────────
+    // ── Cline provider routing ─────────────────────────────────────────
 
     /// REQ: P9-inf-cline-prefix-routing
     /// expect: "CL/ prefix routes to the Cline provider with the org/model stripped" [P9]
@@ -624,11 +591,11 @@ mod tests {
     /// REQ: P9-inf-cline-resolve
     /// expect: "Router resolves a CL/-prefixed model; unavailable without a key" [P9]
     #[test]
-    fn resolve_cline_model_unavailable_without_key() {
-        // Default config has no CLINE_API_KEY → cline backend is None → resolve errors.
+    fn resolve_chat_cline_unavailable_without_key() {
+        // Default config has no CLINE_API_KEY → cline backend is None → resolve_chat errors.
         let config = InferenceConfig::default();
         let router = InferenceRouter::new(config);
-        let err = router.resolve("CL/anthropic/claude-sonnet-4-6");
+        let err = router.resolve_chat("CL/anthropic/claude-sonnet-4-6");
         assert!(
             err.is_err(),
             "CL/ model should not resolve without CLINE_API_KEY"
@@ -638,7 +605,7 @@ mod tests {
     /// REQ: P9-inf-unknown-prefix-reject
     /// expect: "An unrecognized XX/ prefix is rejected, not silently routed to the default provider" [P9]
     #[test]
-    fn resolve_unknown_prefix_errors() {
+    fn resolve_chat_unknown_prefix_errors() {
         let config = InferenceConfig {
             default_provider: ProviderId::Ollama,
             ..InferenceConfig::default()
@@ -648,18 +615,46 @@ mod tests {
         }
         let router = InferenceRouter::new(config);
         assert!(
-            router.resolve("qwen3:8b").is_ok(),
+            router.resolve_chat("qwen3:8b").is_ok(),
             "unprefixed model with Ollama default should resolve"
         );
-        let err = router.resolve("BT/foo").unwrap_err();
+        let err = router.resolve_chat("BT/foo").unwrap_err();
         assert!(
             err.to_string().contains("Unknown provider prefix"),
             "BT/ should be rejected as unknown prefix"
         );
-        let err = router.resolve("XX/model").unwrap_err();
+        let err = router.resolve_chat("XX/model").unwrap_err();
         assert!(
             err.to_string().contains("Unknown provider prefix"),
             "XX/ should be rejected as unknown prefix"
         );
+    }
+
+    /// REQ: P9-inf-runpod-chat-not-available
+    /// expect: "RunPod is vision-only — chat resolution reports it not available" [P9]
+    #[test]
+    fn resolve_chat_runpod_not_a_chat_backend() {
+        // RunPod is vision/OCR-only: even when configured, resolve_chat must
+        // reject it (it is not in the chat_backend match). Configure RunPod via
+        // env so the backend constructs, then assert chat resolution fails but
+        // vision dispatch would succeed.
+        // SAFETY: single-threaded test; set/restore env.
+        unsafe {
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_TEMPLATE_ID", "test-template");
+        }
+        let config = InferenceConfig::default();
+        let router = InferenceRouter::new(config);
+        let err = router.resolve_chat("RP/kask-ocr").unwrap_err();
+        assert!(
+            err.to_string().contains("not available"),
+            "RP/ chat resolution should report RunPod not available, got: {err}"
+        );
+        // Vision dispatch path: vision_backend(Runpod) should be Some when configured.
+        // (RunpodBackend::new reads RUNPOD_API_KEY/RUNPOD_TEMPLATE_ID; if env present it constructs.)
+        unsafe {
+            std::env::remove_var("RUNPOD_API_KEY");
+            std::env::remove_var("RUNPOD_TEMPLATE_ID");
+        }
     }
 }

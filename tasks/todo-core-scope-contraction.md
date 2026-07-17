@@ -28,11 +28,15 @@
 
 ## Phase 2 — Dependent: storage-coupled modules
 
-- [ ] **2.1** Extract `goal` → `hkask-goal`
-  - [ ] CREATE: move `Goal`/`GoalCriterion`/`GoalArtifact`/`IllegalGoalTransition` (NOT `GoalState` — stays in `hkask-types`)
-  - [ ] WIRE: `hkask-storage/goals.rs`, `hkask-api/routes/goal.rs`, `hkask-cli/commands/goal.rs`
-  - [ ] DELETE: remove `pub mod goal` + re-export from core
-  - [ ] `cargo test -p hkask-goal -p hkask-storage --lib` passes
+- [x] **2.1** Extract `goal` → `hkask-goal` ✅ (verified 2026-07-17)
+  - [x] CREATE: move `Goal`/`GoalCriterion`/`GoalArtifact`/`IllegalGoalTransition` (NOT `GoalState` — stays in `hkask-types`)
+  - [x] WIRE 5 consumers (rigorous scan found 5, plan said 3): `hkask-storage/goals.rs`, `hkask-test-harness/strategies.rs`, `hkask-api/routes/goal.rs`, `hkask-cli/commands/goal.rs`, `hkask-types/tests/contract/types_contract.rs`
+  - [x] `GoalState`-only consumers (api, cli) now source from `hkask_types::GoalState` directly; `hkask-test-harness` `core` dep DROPPED (goal was its only core usage); `hkask-types` dev-dep swapped `services-core` → `hkask-goal`
+  - [x] DELETE: remove `pub mod goal` + `pub use goal::{...}` from core; `chrono`+`uuid` kept (used by `identity.rs`/`error/mod.rs`)
+  - [x] `cargo test -p hkask-goal -p hkask-storage -p hkask-test-harness -p hkask-api -p hkask-cli --lib` + `cargo test -p hkask-types --test types_contract` all pass (0 failures)
+  - [x] added `README.md` (the one net-new artifact — HEAD had the crate but not the README)
+
+**Checkpoint 2 (partial):** goal extracted, workspace green, core pub-items 76 → 61.
 
 - [ ] **2.2** Extract `identity` → `hkask-identity`
   - [ ] CREATE: move `HumanUser`/`ReplicantIdentity`/`UserSession`/`RegistrationRequest`/`Invite`/`Role`/etc.

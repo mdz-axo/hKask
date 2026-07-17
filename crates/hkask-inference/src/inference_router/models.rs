@@ -3,26 +3,41 @@
 use super::InferenceRouter;
 use crate::RouterModelEntry;
 
+/// Collect models from an optional backend, extending the entries vec.
+macro_rules! collect {
+    ($entries:expr, $self:expr, $field:ident) => {
+        if let Some(ref backend) = $self.$field {
+            $entries.extend(backend.list_models().await);
+        }
+    };
+}
+
 impl InferenceRouter {
     /// List all available models across all configured providers.
     ///
-    /// Queries each chat backend and merges results with provider prefixes
-    /// applied. Graceful degradation: if one provider fails, results from others
-    /// are still returned. RunPod is vision/OCR-only (not a `ChatBackend`) and
-    /// its `list_models` returns empty, so it is correctly omitted here with no
-    /// change to the aggregated output.
+    /// Queries each backend and merges results with provider prefixes applied.
+    /// Graceful degradation: if one provider fails, results from others are still
+    /// returned. RunPod's `list_models` returns empty (its models are discovered
+    /// via template configuration, not API listing) so including it is a no-op.
     ///
     /// expect: "I can discover available models across providers"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregated model variety across providers
-    /// pre:  backends are initialized (map may be empty)
+    /// pre:  backends are initialized (may be None)
     /// post: returns `Vec<RouterModelEntry>` with all available models across providers
     /// post: if a backend fails → its models are omitted (graceful degradation)
     #[must_use]
     pub async fn list_models(&self) -> Vec<RouterModelEntry> {
         let mut entries = Vec::new();
-        for backend in self.chat_backends.values() {
-            entries.extend(backend.list_models().await);
-        }
+
+        collect!(entries, self, deepinfra);
+        collect!(entries, self, fal);
+        collect!(entries, self, together);
+        collect!(entries, self, openrouter);
+        collect!(entries, self, kilocode);
+        collect!(entries, self, runpod);
+        collect!(entries, self, ollama);
+        collect!(entries, self, cline);
+
         entries
     }
 

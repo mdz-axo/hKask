@@ -12,7 +12,6 @@ hkask-ports = { path = "../hkask-ports" }
 hkask-database = { path = "../hkask-database" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
-chrono.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true

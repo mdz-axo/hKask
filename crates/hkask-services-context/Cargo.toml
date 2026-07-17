@@ -8,6 +8,7 @@ description = "hKask context service — AgentService, PerAgentMemory, loop cons
 [dependencies]
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-self-heal = { path = "../hkask-services-self-heal" }
+hkask-identity = { path = "../hkask-identity" }
 hkask-services-runtime = { path = "../hkask-services-runtime" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-agents = { path = "../hkask-agents" }

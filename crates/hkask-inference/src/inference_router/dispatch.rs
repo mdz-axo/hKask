@@ -1,4 +1,6 @@
-//! Provider dispatch — routes generate calls to resolved backends via trait-object maps.
+//! Provider dispatch — routes generate calls to resolved backends via the
+//! `chat_backend` match-fn, which returns `&dyn ChatBackend` borrowed from the
+//! typed fields.
 
 use super::InferenceRouter;
 use crate::config::ProviderId;
@@ -23,7 +25,7 @@ impl InferenceRouter {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
-        let backend = self.chat_backends.get(&provider).ok_or_else(|| {
+        let backend = self.chat_backend(provider).ok_or_else(|| {
             InferenceError::Connection(format!(
                 "Provider {} is not available (check configuration)",
                 provider.as_str()
@@ -53,12 +55,11 @@ impl InferenceRouter {
                 + '_,
         >,
     > {
-        let model = model.to_string();
-        let prompt = prompt.to_string();
-        let params = params.clone();
-        let tools = tools.map(|t| t.to_vec());
-        match self.chat_backends.get(&provider) {
-            Some(backend) => backend.generate_stream(&model, &prompt, &params, tools.as_deref()),
+        // No owned locals needed: `generate_stream`'s return borrows only
+        // `&self` (backends clone the args), so the borrowed args from the caller
+        // can be passed straight through.
+        match self.chat_backend(provider) {
+            Some(backend) => backend.generate_stream(model, prompt, params, tools),
             None => {
                 let provider_str = provider.as_str().to_string();
                 Box::pin(futures_util::stream::once(async move {

@@ -44,7 +44,7 @@ impl InferencePort for InferenceRouter {
         // LoRA adapter overrides the model entirely (includes base model).
         // Format: "Qwen3.5-9B#pragmatic-semantics-v1" — adapter IS the full model identifier.
         if let Some(ref adapter) = parameters.adapter {
-            let (provider, model) = match self.resolve(adapter) {
+            let (provider, model) = match self.resolve_chat(adapter) {
                 Ok(r) => r,
                 Err(e) => return Box::pin(async move { Err(self.heal_error(e, "generate")) }),
             };
@@ -61,7 +61,7 @@ impl InferencePort for InferenceRouter {
         }
 
         let model_name = self.effective_model(None, parameters);
-        let (provider, model) = match self.resolve(&model_name) {
+        let (provider, model) = match self.resolve_chat(&model_name) {
             Ok(r) => r,
             Err(e) => return Box::pin(async move { Err(self.heal_error(e, "generate")) }),
         };
@@ -113,7 +113,7 @@ impl InferencePort for InferenceRouter {
 
         // LoRA adapter overrides the model entirely (bypasses fusion).
         if let Some(ref adapter) = parameters.adapter {
-            let (provider, model) = match self.resolve(adapter) {
+            let (provider, model) = match self.resolve_chat(adapter) {
                 Ok(r) => r,
                 Err(e) => {
                     return Box::pin(async move { Err(self.heal_error(e, "generate_with_model")) });
@@ -132,7 +132,7 @@ impl InferencePort for InferenceRouter {
         }
 
         let model_name = self.effective_model(model_override, parameters);
-        let (provider, model) = match self.resolve(&model_name) {
+        let (provider, model) = match self.resolve_chat(&model_name) {
             Ok(r) => r,
             Err(e) => {
                 return Box::pin(async move { Err(self.heal_error(e, "generate_with_model")) });
@@ -187,26 +187,30 @@ impl InferencePort for InferenceRouter {
     > {
         // Fusion (multi-model deliberation) is inherently non-streamable: the
         // orchestrator dispatches a panel in parallel and a judge synthesizes a
-        // single InferenceResult. Streaming therefore cannot run the panel.
-        // When fusion is active (and not bypassed) and no explicit model_override
-        // is given, `effective_model` below resolves to the fusion *judge* model,
-        // so the stream emits the judge model's direct output rather than a
-        // panel-synthesized result. Warn so the silent behavioral asymmetry with
-        // `generate_with_model` (which runs full fusion) is observable.
-        if !parameters.bypass_fusion && model_override.is_none() {
-            let fusion_active = parameters.fusion_config.is_some() || self.config.fusion.is_some();
-            if fusion_active {
-                tracing::warn!(
-                    target: "cns.inference",
-                    "Streaming requested with fusion active; fusion panel deliberation is non-streamable, so streaming falls back to the judge model directly. Use generate() for full fusion or set bypass_fusion=true to silence this."
-                );
-            }
+        // single InferenceResult — there is no token stream to emit. When fusion
+        // is active (and not bypassed) and no LoRA adapter overrides the model,
+        // `effective_model` below would resolve to the fusion *judge* model and
+        // silently stream the judge alone — a behavioral asymmetry with
+        // `generate_with_model` (which runs full fusion). Refuse rather than
+        // silently downgrade: the caller must use generate() for full fusion or
+        // set bypass_fusion=true to stream a single (non-fused) model.
+        if !parameters.bypass_fusion
+            && parameters.adapter.is_none()
+            && (parameters.fusion_config.is_some() || self.config.fusion.is_some())
+        {
+            return Box::pin(futures_util::stream::once(async move {
+                Err(InferenceError::Generation(
+                    "Fusion panel deliberation is non-streamable; use generate() for \
+                     full fusion or set bypass_fusion=true to stream a single model."
+                        .into(),
+                ))
+            }));
         }
 
         // LoRA adapter overrides the model entirely (bypasses fusion).
         if let Some(ref adapter) = parameters.adapter {
             let adapter_str = adapter.to_string();
-            let (provider, model) = match self.resolve(&adapter_str) {
+            let (provider, model) = match self.resolve_chat(&adapter_str) {
                 Ok(r) => r,
                 Err(e) => {
                     return Box::pin(futures_util::stream::once(async move { Err(e) }));
@@ -226,7 +230,7 @@ impl InferencePort for InferenceRouter {
         }
 
         let model_name = self.effective_model(model_override, parameters);
-        let (provider, model) = match self.resolve(&model_name) {
+        let (provider, model) = match self.resolve_chat(&model_name) {
             Ok(r) => r,
             Err(e) => {
                 return Box::pin(futures_util::stream::once(async move { Err(e) }));

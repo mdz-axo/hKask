@@ -14,6 +14,12 @@
 # As each server gains a tool-behavior test, remove it from ALLOWLIST. When
 # ALLOWLIST is empty, the standard is fully enforced and cannot regress.
 #
+# Limitation: the gate keys on the literal `Parameters(` token, a heuristic —
+# a helper that happens to use `Parameters(` would satisfy the gate without a
+# real tool-behavior test (false positive). It is a ratchet, not a proof; rely
+# on review for genuine tool-behavior coverage. Tighten only if it false-passes
+# in practice.
+#
 # Exit codes:
 #   0 — all servers either have tool-behavior tests or are allowlisted
 #   1 — a server lacks tool-behavior tests AND is not allowlisted (regression)

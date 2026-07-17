@@ -3,7 +3,8 @@
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
-use hkask_services_core::{DomainKind, ErrorKind, ReplicantIdentity, ServiceError};
+use hkask_identity::ReplicantIdentity;
+use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::user_store::UserStore;
 use hkask_storage::{AgentRegistryStore, SovereigntyBoundaryStore, WalletStore};

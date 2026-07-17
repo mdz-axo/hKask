@@ -4013,6 +4013,7 @@ dependencies = [
  "hkask-database",
  "hkask-federation",
  "hkask-git-cas",
+ "hkask-identity",
  "hkask-inference",
  "hkask-keystore",
  "hkask-mcp",
@@ -4208,6 +4209,16 @@ dependencies = [
  "hkask-types",
  "llm-guard",
  "tracing",
+]
+
+[[package]]
+name = "hkask-identity"
+version = "0.31.0"
+dependencies = [
+ "chrono",
+ "hkask-types",
+ "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -4872,6 +4883,7 @@ dependencies = [
  "hkask-database",
  "hkask-federation",
  "hkask-git-cas",
+ "hkask-identity",
  "hkask-inference",
  "hkask-keystore",
  "hkask-mcp",
@@ -4899,7 +4911,6 @@ dependencies = [
 name = "hkask-services-core"
 version = "0.31.0"
 dependencies = [
- "chrono",
  "dirs 6.0.0",
  "hkask-database",
  "hkask-inference",
@@ -5117,9 +5128,9 @@ dependencies = [
  "hkask-capability",
  "hkask-database",
  "hkask-goal",
+ "hkask-identity",
  "hkask-keystore",
  "hkask-ports",
- "hkask-services-core",
  "hkask-storage-core",
  "hkask-test-harness",
  "hkask-types",

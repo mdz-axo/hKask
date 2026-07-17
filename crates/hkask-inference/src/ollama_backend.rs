@@ -41,6 +41,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
 
+/// Sentinel used as the `Authorization: Bearer` value when no Ollama API key is
+/// configured, so the header still parses cleanly. Ollama ignores the header.
+const OLLAMA_SENTINEL_KEY: &str = "ollama";
+
 /// Ollama backend for chat completions and model listing.
 pub struct OllamaBackend {
     base_url: String,
@@ -111,14 +115,14 @@ impl OllamaBackend {
         // Empty key is fine — Ollama ignores the header. Use a sentinel so
         // the `Bearer ` header still parses cleanly if a key is absent.
         let effective_key = if self.api_key.is_empty() {
-            "ollama".to_string()
+            OLLAMA_SENTINEL_KEY
         } else {
-            self.api_key.clone()
+            self.api_key.as_str()
         };
         openai_compatible_generate(
             &self.client,
             &self.base_url,
-            &effective_key,
+            effective_key,
             model,
             prompt,
             params,
