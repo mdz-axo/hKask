@@ -5,8 +5,7 @@
 //! This eliminates the need to recompile when models are superseded.
 //!
 //! Naming convention:
-//! - `HKASK_CLASSIFIER_MODEL_A` — first peer classifier (dual-model A)
-//! - `HKASK_CLASSIFIER_MODEL_B` — second peer classifier (dual-model B)
+//! - `HKASK_CLASSIFIER_MODEL_A` — primary classifier model
 //! - `HKASK_EMBEDDING_MODEL` — default embedding model
 //! - `HKASK_OCR_MODEL` — OCR model for scanned PDF fallback
 //! - `HKASK_MODEL_DEFAULT` — fallback when provider-specific not set
@@ -16,10 +15,6 @@
 /// to satisfy the cross-jurisdiction requirement — model B defaults to
 /// DeepInfra (US), so the two peers operate from different jurisdictions.
 pub const DEFAULT_CLASSIFIER_MODEL: &str = "KC/qwen/qwen3-235b-a22b-2507";
-
-/// Recommended secondary classifier for dual-model epistemic integrity.
-/// Gemma 4 31B Turbo — different model family, fast variant.
-pub const DEFAULT_CLASSIFIER_MODEL_SECONDARY: &str = "DI/google/gemma-4-31B-it-turbo";
 
 /// Default embedding model.
 pub const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";
@@ -38,16 +33,10 @@ pub const TEST_MODEL_MEDIUM: &str = "DI/meta-llama/Llama-4-Scout-17B-16E-Instruc
 
 // ── Resolved model accessors (env var → default) ──────────────────────────
 
-/// Resolve the first peer classifier: `HKASK_CLASSIFIER_MODEL_A` → default.
+/// Resolve the primary classifier: `HKASK_CLASSIFIER_MODEL_A` → default.
 pub fn classifier_model() -> String {
     std::env::var("HKASK_CLASSIFIER_MODEL_A")
         .unwrap_or_else(|_| DEFAULT_CLASSIFIER_MODEL.to_string())
-}
-
-/// Resolve the second peer classifier: `HKASK_CLASSIFIER_MODEL_B` → default.
-pub fn classifier_model_secondary() -> String {
-    std::env::var("HKASK_CLASSIFIER_MODEL_B")
-        .unwrap_or_else(|_| DEFAULT_CLASSIFIER_MODEL_SECONDARY.to_string())
 }
 
 /// Resolve the embedding model: `HKASK_EMBEDDING_MODEL` → default.

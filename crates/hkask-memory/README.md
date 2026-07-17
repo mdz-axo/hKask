@@ -30,22 +30,18 @@ resets — t goes back to 0, R = 1.0.
 
 Two separate Jinja2 templates for hMem extraction from agent operations.
 
-### Dual-Model Epistemic Integrity
+### Algo-Style Dual-Model Merge
 
 Classification uses two peer models from different jurisdictions — neither is
-primary. Both models receive the same few-shot prompt, and their extractions
-are integrated with divergence detection. Classification with a single model
-is not permitted — the system requires dual-model configuration and refuses
-to operate without model B.
+primary. Both models receive the same few-shot prompt, and their extractions are
+merged via `merge_extractions()` (union, case-insensitive dedup, diverging fields
+annotated `[A:... B:...]`). No Jaccard scoring or drift detection — the algo fusion
+judge uses the same merge logic for skill manifests.
 
 | Setting | Env Var | Default |
 |---|---|---|
 | Model A | `HKASK_CLASSIFIER_MODEL_A` | `KC/qwen/qwen3-235b-a22b-2507` (KiloCode, China) |
-| Model B | `HKASK_CLASSIFIER_MODEL_B` | `DI/google/gemma-4-E4B-it` (DeepInfra, US) |
-
-When models diverge (Jaccard < 0.6), the system emits a
-`cns.classify.dual_fidelity` CNS alert. Drift detection (`cns.classify.drift`)
-monitors extraction patterns over time for model behavior changes.
+| Model B | YAML `model_b` field | `DI/google/gemma-4-E4B-it` (DeepInfra, US) |
 
 ### Content Safety
 
@@ -53,21 +49,14 @@ All LLM boundaries are protected by `hkask-guard` — mandatory input/output
 scanning aligned with OWASP LLM Top 10. Prompt injection, role override, and
 secret leakage detection are always active at every classification call.
 
-### Known Gap: Remember Templates
-
-The `remember-episodic.j2` and `remember-semantic.j2` templates render through
-the inference router directly, not through the dual-model classifier pipeline.
-Agent memory formation currently uses single-model classification. This is a
-**documented gap** — dual-model must be applied to template-based memory
-extraction. The fix requires extending WordAct template model selection to
-support dual-model routing.
-
 ### Memory Templates
 
-Templates invoked via `memory_remember.yaml` FlowDef manifest with `dual_model: true`
-on each step. The `ManifestExecutor` routes dual-model steps through two peer
-inference ports, merges JSON outputs via case-insensitive set union, and stores
-the integrated result.
+Templates invoked via `memory_remember.yaml` FlowDef manifest with `fusion: true`
+on each step and manifest-level `fusion: { judge: algo, panel: [...] }`. The
+fusion orchestrator dispatches both panel models in parallel and merges JSON
+outputs via `merge_json_values` (recursive union, case-insensitive dedup,
+diverging strings annotated `[A:... B:...]`). This is the algo judge — a
+deterministic, zero-cost merge with no LLM judge call.
 
 | Template | Memory Type | Perspective | Extraction Focus |
 |----------|-------------|-------------|-----------------|

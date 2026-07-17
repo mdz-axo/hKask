@@ -40,14 +40,6 @@ pub struct HkaskSettings {
     #[serde(default = "default_classifier_model")]
     pub classifier_model: String,
 
-    /// Second peer classifier for dual-model epistemic integrity.
-    /// When set, classification always runs dual-model with integration.
-    /// When empty, degrades to single-model (biased) mode.
-    /// Override: HKASK_CLASSIFIER_MODEL_B env var.
-    /// Recommended: different jurisdiction than model A.
-    #[serde(default)]
-    pub classifier_model_b: String,
-
     /// Default OCR model for scanned PDF fallback.
     /// Override: `HKASK_OCR_MODEL` env var.
     #[serde(default = "default_ocr_model")]
@@ -83,7 +75,6 @@ impl Default for HkaskSettings {
         Self {
             embedding_model: default_embedding_model(),
             classifier_model: default_classifier_model(),
-            classifier_model_b: String::new(),
             ocr_model: default_ocr_model(),
             chunk_max_tokens: default_chunk_max_tokens(),
         }
@@ -155,20 +146,6 @@ impl HkaskSettings {
             &self.classifier_model,
             &default_classifier_model(),
         )
-    }
-
-    /// Resolve the second peer classifier model.
-    ///
-    /// Returns empty string when not configured — single-model (biased) mode.
-    /// \[P5\] Motivating: Essentialism
-    /// pre:  none (always succeeds)
-    /// post: returns model B string or empty if not configured
-    #[must_use]
-    pub fn classifier_model_b(&self) -> String {
-        std::env::var("HKASK_CLASSIFIER_MODEL_B")
-            .ok()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| self.classifier_model_b.clone())
     }
 
     /// Resolve the OCR model with env/settings/default priority.

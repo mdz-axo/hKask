@@ -73,10 +73,6 @@ pub fn handle_repl_show(state: &ReplState) {
         s.classifier_model
     );
     println!(
-        "  \x1b[36mclassifier_model_b\x1b[0m: {}",
-        s.classifier_model_b
-    );
-    println!(
         "  \x1b[36mocr_model\x1b[0m:                  {}",
         s.ocr_model
     );
@@ -182,13 +178,6 @@ pub struct ReplSettings {
     #[serde(default = "default_cls_model")]
     pub classifier_model: String,
 
-    /// Second peer classifier for dual-model epistemic integrity.
-    /// When set, classification always runs dual-model with integration.
-    /// Override: HKASK_CLASSIFIER_MODEL_B env var.
-    /// Recommended: different jurisdiction than model A.
-    #[serde(default)]
-    pub classifier_model_b: String,
-
     /// Default OCR model for scanned PDF fallback.
     /// Override: `HKASK_OCR_MODEL` env var.
     #[serde(default = "default_ocr")]
@@ -267,7 +256,6 @@ impl Default for ReplSettings {
             model_meta: None,
             embedding_model: default_emb_model(),
             classifier_model: default_cls_model(),
-            classifier_model_b: String::new(),
             ocr_model: default_ocr(),
             ocr_simple_max: default_ocr_simple_max(),
             ocr_moderate_max: default_ocr_moderate_max(),
@@ -376,7 +364,6 @@ impl ReplSettings {
             },
             "embedding_model" | "emb_model" => self.embedding_model = value.to_string(),
             "classifier_model" | "cls_model" => self.classifier_model = value.to_string(),
-            "classifier_model_b" | "cls_model_b" => self.classifier_model_b = value.to_string(),
             "ocr_model" => self.ocr_model = value.to_string(),
             "ocr_simple_max" => match value.parse::<f32>() {
                 Ok(v) if (0.0..=1.0).contains(&v) => self.ocr_simple_max = v,
@@ -427,8 +414,6 @@ impl ReplSettings {
                 | "emb_model"
                 | "classifier_model"
                 | "cls_model"
-                | "classifier_model_b"
-                | "cls_model_b"
         )
     }
 }
@@ -506,7 +491,6 @@ mod tests {
             model_meta: None,
             embedding_model: "test-emb".into(),
             classifier_model: "test-cls".into(),
-            classifier_model_b: String::new(),
             ocr_model: "test-ocr".into(),
             ocr_simple_max: 0.05,
             ocr_moderate_max: 0.15,
@@ -561,7 +545,6 @@ mod tests {
             }),
             embedding_model: "roundtrip-emb".into(),
             classifier_model: "roundtrip-cls".into(),
-            classifier_model_b: String::new(),
             ocr_model: "roundtrip-ocr".into(),
             ocr_simple_max: 0.03,
             ocr_moderate_max: 0.12,

@@ -19,20 +19,17 @@
 # These become metadata triples in the embedding store, enabling semantic
 # queries beyond string-matching.
 #
-# Dual-model epistemic integrity:
-# When a secondary model is configured, hMem extraction runs against both
-# models and integrates results with divergence detection. Models from
-# different jurisdictions complement each other's blind spots.
+# Algo-style dual-model merge (replaces former dual classifier):
+# When model_b is configured, the corpus pipeline runs both models in parallel
+# and merges extractions via merge_extractions() (union, case-insensitive dedup,
+# diverging fields annotated [A:... B:...]). No Jaccard scoring or drift detection.
 #
 # Recommended pairing (complementary jurisdictions + training lineages):
 #   Primary:  KC/qwen/qwen3-235b-a22b-2507  (Chinese MoE, 22B active)
-#   Secondary: DI/google/gemma-4-E4B-it       (US dense, 4.5B effective)
+#   Model B:  DI/google/gemma-4-E4B-it       (US dense, 4.5B effective)
 #
 # Gemma 4 E4B (April 2026) achieves 92.9% classification accuracy and
 # 100% JSON parse reliability at 4.5B params. Apache 2.0 license.
-# Censorship alignment differs from Qwen — Gemma critiques CCP framing
-# where Qwen defends it, producing genuine epistemic divergence signals.
-# Fallback: DI/google/gemma-4-26B-A4B-it (3.8B active, confirmed on DeepInfra)
 
 classifier:
   name: triple-extractor

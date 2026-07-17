@@ -886,3 +886,160 @@ fn parse_triple_extraction(content: &str) -> Result<TripleExtraction, ServiceErr
         },
     })
 }
+
+// ── Algo-style merge for corpus pipeline ─────────────────────────────────
+
+/// Merge two `TripleExtraction` results from different models.
+///
+/// Union of concepts/entities/relationships/quality_flags (case-insensitive
+/// dedup, first-occurrence casing preserved). Diverging topics and dimensions
+/// are annotated `[A:... B:...]`. Extra fields: colliding keys become arrays,
+/// non-colliding keys merge directly.
+///
+/// This replaces the former `integrate_dual_triples` (Jaccard scoring,
+/// divergence detection, drift detection) with a simpler algo-style merge.
+/// The algo fusion judge in `hkask-inference::fusion_orchestrator` uses the
+/// same merge logic for skill manifests; this is the corpus pipeline's
+/// typed equivalent.
+#[must_use]
+pub fn merge_extractions(a: &TripleExtraction, b: &TripleExtraction) -> TripleExtraction {
+    use std::collections::HashSet;
+
+    fn dedup_ci(a: &[String], b: &[String]) -> Vec<String> {
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut result = Vec::new();
+        for s in a.iter().chain(b.iter()) {
+            if seen.insert(s.to_lowercase()) {
+                result.push(s.clone());
+            }
+        }
+        result
+    }
+
+    fn dedup_strings_ci(a: &[String], b: &[String]) -> Vec<String> {
+        let mut seen: HashSet<String> = HashSet::new();
+        let mut result = Vec::new();
+        for s in a.iter().chain(b.iter()) {
+            if seen.insert(s.to_lowercase()) {
+                result.push(s.clone());
+            }
+        }
+        result
+    }
+
+    let topic = if a.topic.to_lowercase().trim() == b.topic.to_lowercase().trim() {
+        a.topic.clone()
+    } else if a.topic.is_empty() {
+        b.topic.clone()
+    } else if b.topic.is_empty() {
+        a.topic.clone()
+    } else {
+        format!("[A] {} | [B] {}", a.topic, b.topic)
+    };
+
+    let primary_dimension =
+        if a.primary_dimension.to_lowercase() == b.primary_dimension.to_lowercase() {
+            a.primary_dimension.clone()
+        } else if a.primary_dimension.is_empty() {
+            b.primary_dimension.clone()
+        } else if b.primary_dimension.is_empty() {
+            a.primary_dimension.clone()
+        } else {
+            format!("[A:{} B:{}]", a.primary_dimension, b.primary_dimension)
+        };
+
+    let mut extra = a.extra.clone();
+    for (key, value) in &b.extra {
+        extra
+            .entry(key.clone())
+            .and_modify(|existing| {
+                if let serde_json::Value::Array(arr) = existing {
+                    if !arr.iter().any(|v| v == value) {
+                        arr.push(value.clone());
+                    }
+                } else if existing != value {
+                    *existing = serde_json::Value::Array(vec![existing.clone(), value.clone()]);
+                }
+            })
+            .or_insert_with(|| value.clone());
+    }
+
+    TripleExtraction {
+        topic,
+        concepts: dedup_ci(&a.concepts, &b.concepts),
+        entities: dedup_ci(&a.entities, &b.entities),
+        relationships: dedup_strings_ci(&a.relationships, &b.relationships),
+        primary_dimension,
+        quality_flags: dedup_strings_ci(&a.quality_flags, &b.quality_flags),
+        extra,
+    }
+}
+
+/// Build a `ClassifierConfig` for model B from the YAML `model_b` string.
+///
+/// Parses the provider prefix (e.g., `DI/google/gemma-4-E4B-it` → DeepInfra).
+/// Copies system prompt, concurrency, timeout, temperature, max_tokens,
+/// fallback_category, and cost settings from model A's config. If `model_b_str`
+/// is empty, returns `None` (single-model mode).
+#[must_use]
+pub fn build_model_b_config(
+    model_a: &ClassifierConfig,
+    model_b_str: &str,
+) -> Option<ClassifierConfig> {
+    if model_b_str.is_empty() {
+        return None;
+    }
+
+    let (stripped_model, base_url, api_key) = if let Some(idx) = model_b_str.find('/') {
+        let code = &model_b_str[..idx];
+        let model = &model_b_str[idx + 1..];
+        let (url, key) = match code.to_lowercase().as_str() {
+            "di" | "deepinfra" => (
+                "https://api.deepinfra.com/v1/openai/chat/completions".to_string(),
+                std::env::var("DI_API_KEY").unwrap_or_default(),
+            ),
+            "kc" | "kilocode" => (
+                "https://api.kilo.ai/api/gateway/chat/completions".to_string(),
+                std::env::var("KC_API_KEY").unwrap_or_default(),
+            ),
+            "to" | "together" => (
+                "https://api.together.xyz/v1/chat/completions".to_string(),
+                std::env::var("TOGETHER_API_KEY").unwrap_or_default(),
+            ),
+            "or" | "openrouter" => (
+                "https://openrouter.ai/api/v1/chat/completions".to_string(),
+                std::env::var("OPENROUTER_API_KEY").unwrap_or_default(),
+            ),
+            _ => {
+                tracing::info!(
+                    target: "cns.classify",
+                    model_b = %model_b_str,
+                    "No provider prefix on model B — using model A provider settings"
+                );
+                (model_a.base_url.clone(), model_a.api_key.clone())
+            }
+        };
+        (model.to_string(), url, key)
+    } else {
+        (
+            model_b_str.to_string(),
+            model_a.base_url.clone(),
+            model_a.api_key.clone(),
+        )
+    };
+
+    Some(ClassifierConfig {
+        model: stripped_model,
+        api_key,
+        base_url,
+        system_prompt: model_a.system_prompt.clone(),
+        concurrency: model_a.concurrency,
+        timeout: model_a.timeout,
+        temperature: model_a.temperature,
+        max_tokens: model_a.max_tokens,
+        fallback_category: model_a.fallback_category.clone(),
+        cost_input_nj_per_token: model_a.cost_input_nj_per_token,
+        cost_output_nj_per_token: model_a.cost_output_nj_per_token,
+        cost_cache_read_nj_per_token: model_a.cost_cache_read_nj_per_token,
+    })
+}

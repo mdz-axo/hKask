@@ -692,7 +692,7 @@ Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, Op
 | `cline_backend` | Cline cloud inference backend (`CL/` prefix) — OpenAI-compatible gateway |
 | `config` | `InferenceConfig`, `ProviderConfig`, `ProviderId`, `FusionConfig`, `FusionMode`, `FusionSkill` |
 | `deepinfra_backend` | DeepInfra provider backend (`DI/` prefix) |
-| `dual_model_port` | Dual-model inference port — wraps an `InferencePort` with a fixed model override |
+
 | `embedding_router` | `EmbeddingRouter` |
 | `fal_backend` | fal.ai provider backend (`FA/` prefix) |
 | `fal_workflow` | Fal workflow execution engine — DAG parsing, topological sort, multi-node orchestration |
@@ -1091,7 +1091,7 @@ hKask runtime services — text classification, provider intelligence, daemon ha
 |--------|---------|
 | `guard` | `ContentGuard`, `GuardResult`, `GuardViolation` |
 
-**Re-exports at Crate Root:** `AdaptiveMonitor`, classify types, `ServiceDaemonHandler`, dual classify types, `ContentGuard`, `GuardResult`, `GuardViolation`, provider intelligence types.
+**Re-exports at Crate Root:** `AdaptiveMonitor`, classify types, `ServiceDaemonHandler`, `merge_extractions`, `build_model_b_config`, `ContentGuard`, `GuardResult`, `GuardViolation`, provider intelligence types.
 
 **Feature Flags:** None.
 

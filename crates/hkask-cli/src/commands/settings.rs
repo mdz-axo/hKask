@@ -83,7 +83,6 @@ fn show_all(settings: &ReplSettings) {
     );
     println!("embedding_model:  {}", s.embedding_model);
     println!("classifier_model:   {}", s.classifier_model);
-    println!("classifier_model_b: {}", s.classifier_model_b);
     println!("ocr_model:                  {}", s.ocr_model);
     println!("── ocr thresholds ──");
     println!("ocr_simple_max:   {}", s.ocr_simple_max);
@@ -118,9 +117,6 @@ fn show_one(settings: &ReplSettings, key: &str) {
         }
         "embedding_model" | "emb_model" => println!("{}", s.embedding_model),
         "classifier_model" | "cls_model" => println!("{}", s.classifier_model),
-        "classifier_model_b" | "cls_model_b" => {
-            println!("{}", s.classifier_model_b)
-        }
         "ocr_model" => println!("{}", s.ocr_model),
         "ocr_simple_max" => println!("{}", s.ocr_simple_max),
         "ocr_moderate_max" => println!("{}", s.ocr_moderate_max),

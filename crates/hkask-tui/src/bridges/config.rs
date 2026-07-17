@@ -19,7 +19,6 @@ pub struct ConfigSnapshot {
     pub auto_condense: bool,
     pub embedding_model: String,
     pub classifier_model: String,
-    pub classifier_model_b: String,
     pub mcp_loaded: usize,
     pub mcp_total: usize,
 }
@@ -53,7 +52,6 @@ impl MockConfigBridge {
                 context_turns: 3,
                 gas_heuristic: 500,
                 gas_cap: 10_000,
-                classifier_model_b: String::new(),
                 auto_condense: true,
                 embedding_model: "mock-embed".into(),
                 classifier_model: "mock-classify".into(),

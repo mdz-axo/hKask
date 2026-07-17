@@ -1528,54 +1528,13 @@ status: VERIFIED
 
 ---
 
-### 3.19 Dual-Model Classification (`hkask-services-runtime`)
+### 3.19 Algo-Style Classification (`hkask-services-runtime`)
 
 **Goal Principle:** P3 (Generative Space) — classification enriches semantic memory without single-model bias
-**Constraining Principle:** P8 (Semantic Grounding) — extracted triples carry cross-jurisdiction provenance; divergence is observable
-**Crate:** `hkask-services-runtime` | **Source:** `src/dual_classify.rs`
+**Constraining Principle:** P8 (Semantic Grounding) — extracted triples carry cross-jurisdiction provenance
+**Crate:** `hkask-services-runtime` | **Source:** `src/classify_impl.rs`
 
-#### Architecture
-
-Classification uses two peer models — neither is primary. Both receive the same
-few-shot prompt. Extractions are integrated via Jaccard similarity comparison.
-When entity agreement falls below 0.6, the system emits a
-`cns.classify.dual_fidelity` CNS alert.
-
-**Recommended pairing:**
-- Model A: `KC/qwen/qwen3-235b-a22b-2507` (KiloCode, China)
-- Model B: `DI/google/gemma-4-E4B-it` (DeepInfra, US, Apache 2.0)
-
-Both American and Chinese models have politically constrained viewpoints.
-Cap at one model from any single jurisdiction.
-
-#### Production Contracts (10)
-
-| FR# | Contract | Principles |
-|-----|----------|------------|
-| FR-DC1 | `integrate_dual_triples` — merges two TripleExtractions with Jaccard agreement scoring (entity + concept), produces IntegratedExtraction with divergence annotation | [P3] Goal: Generative Space — dual integration eliminates single-model bias; [P8] Constraining: Semantic Grounding — agreement scores are measurable, not assumed |
-| FR-DC2 | `extract_triples_dual_batch` — runs both peer models in parallel via `tokio::join!`, integrates per-item, emits CNS fidelity spans on divergence | [P3] Goal: Generative Space; [P8] Constraining: Semantic Grounding |
-| FR-DC3 | `classify_dual_batch` — dual-model section type classification with agreement tracking | [P3] Goal: Generative Space; [P8] Constraining: Semantic Grounding |
-| FR-DC4 | `build_dual_config` — resolves Model B from env (`HKASK_CLASSIFIER_MODEL_B`) > settings > YAML `model_b` field; provider-prefix routing (`DI/`, `KC/`, `TO/`, `OR/`) | [P5] Goal: Essentialism — single config resolution path; [P4] Constraining: Clear Boundaries — explicit provider prefix prevents ambiguity |
-| FR-DC5 | `CnsSpan::ClassifyDualFidelity` — `cns.classify.dual_fidelity` span emitted when entity agreement < 0.6; carries agreement scores, divergent entities, model/provder identifiers | [P9] Goal: Homeostatic Self-Regulation — makes model bias measurable; [P8] Constraining: Semantic Grounding — divergence is structured, not anecdotal |
-| FR-DC6 | Case-insensitive deduplication — entity and concept sets merged case-insensitively, preserving first-occurrence casing | [P8] Goal: Semantic Grounding — identity is case-independent |
-| FR-DC7 | Topic integration — agreed topics used directly; diverging topics concatenated with `[A:... B:...]` annotation | [P3] Goal: Generative Space — preserves both viewpoints |
-| FR-DC8 | Extra field merging — colliding keys stored as arrays; non-colliding keys merged directly | [P3] Goal: Generative Space — no information loss |
-| FR-DC9 | `build_dual_config` returns `Result` — classification REQUIRES two peer models; returns Err with configuration guidance when model B is missing | [P3] Goal: Generative Space — single-model bias is not a valid operating mode; [P8] Constraining: Semantic Grounding — explicit error guides correct configuration |
-| FR-DC10 | `check_classifier_drift` — monitors extraction patterns after each batch; emits `cns.classify.drift` when divergence rate >30% or per-item entity asymmetry >2.0 | [P9] Goal: Homeostatic Self-Regulation — provider behavior changes are observable; [P8] Constraining — drift is measured, not assumed |
-
-#### Test Contracts (9)
-
-| FR# | Test Name |
-|-----|-----------|
-| FR-DC-T1 | `identical_extractions_produce_full_agreement` |
-| FR-DC-T2 | `completely_divergent_extractions_produce_zero_agreement` |
-| FR-DC-T3 | `partial_overlap_produces_correct_jaccard` |
-| FR-DC-T4 | `empty_extractions_both_sides_yield_full_agreement` |
-| FR-DC-T5 | `one_empty_one_populated_shows_divergence` |
-| FR-DC-T6 | `case_insensitive_dedup_works` |
-| FR-DC-T7 | `diverging_topics_are_merged_with_labels` |
-| FR-DC-T8 | `diverging_dimensions_are_annotated` |
-| FR-DC-T9 | `extra_fields_are_merged_with_array_on_collision` |
+The former dual classifier (`dual_classify.rs`) with Jaccard scoring, divergence detection, and drift detection has been removed. The corpus pipeline now uses `merge_extractions()` for algo-style dual-model merge — union of concepts/entities/relationships, case-insensitive dedup, diverging fields annotated `[A:... B:...]`. No Jaccard, no drift detection, no CNS fidelity spans.
 
 ---
 
@@ -1624,7 +1583,7 @@ can disable them. The guard is wired into `classify_one()` and
 
 ---
 
-### 3.21 Memory Remember — Dual-Model Agent Memory (`hkask-templates`)
+### 3.21 Memory Remember — Algo Fusion Agent Memory (`hkask-templates`)
 
 **Goal Principle:** P3.1 (Social Generativity) — agent memory formation requires dual-model classification
 **Constraining Principle:** P8 (Semantic Grounding) — extracted triples carry cross-jurisdiction provenance
@@ -1632,7 +1591,7 @@ can disable them. The guard is wired into `classify_one()` and
 
 #### Architecture
 
-FlowDef manifest with `dual_model: true` on all three steps:
+FlowDef manifest with `fusion: true` and `judge: algo` on all three steps:
 
 1. **operation-selector.j2** — classifies the operation and routes to episodic or semantic extraction
 2. **remember-episodic.j2** — first-person episodic hMem extraction
@@ -1642,18 +1601,17 @@ Each step renders the same Jinja2 template with two peer models, merges JSON
 outputs via case-insensitive set union (entities, concepts, relationships),
 and stores the integrated result in shared memory.
 
-Dual-model routing is gated by `ManifestExecutor::with_dual_inference()`. When
-a second inference port is configured, `execute_select()` routes `dual_model: true`
-steps through `tokio::join!` parallel inference with `merge_json_values()`
-integration.
+Dual-model routing is handled by the fusion orchestrator with `judge: algo`. When
+a second inference port is configured, `orchestrate()` dispatches to algo_merge
+for parallel inference with `merge_json_values()` integration in the fusion orchestrator.
 
 #### Production Contracts (3)
 
 | FR# | Contract | Principles |
 |-----|----------|------------|
-| FR-MR1 | `ManifestExecutor::with_dual_inference()` — attaches second `InferencePort` for dual-model rendering; gated by `has_dual_inference()` | [P3.1] Goal: Social Generativity — dual-model must be explicitly configured; [P4] Constraining: Clear Boundaries |
-| FR-MR2 | `execute_select()` dual-model path — when `step.dual_model` is true, runs `tokio::join!` on both inference ports, parses both JSON outputs, merges via `merge_json_values()` | [P3.1] Goal; [P8] Constraining — integration preserves both viewpoints |
-| FR-MR3 | `merge_json_values()` — recursive JSON merge: objects merge keys, arrays concatenate with case-insensitive string dedup, diverging strings annotated with `[A:... B:...]` | [P8] Goal: Semantic Grounding — divergence is explicit, not silent |
+| FR-MR1 | Fusion orchestrator with `judge: algo` — attaches second `InferencePort` for algo fusion rendering; gated by fusion config | [P3.1] Goal: Social Generativity — fusion must be explicitly configured; [P4] Constraining: Clear Boundaries |
+| FR-MR2 | `orchestrate()` algo fusion path — when `judge` is `algo`, dispatches to algo_merge for parallel inference, parses both JSON outputs, merges via `merge_json_values()` in the fusion orchestrator | [P3.1] Goal; [P8] Constraining — integration preserves both viewpoints |
+| FR-MR3 | `merge_json_values()` (in fusion orchestrator) — recursive JSON merge: objects merge keys, arrays concatenate with case-insensitive string dedup, diverging strings annotated with `[A:... B:...]` | [P8] Goal: Semantic Grounding — divergence is explicit, not silent |
 
 ---
 
@@ -1857,7 +1815,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 | Created | 2026-06-16 |
 | Status | Active — anchor for contract vocabulary and the Testing Discipline |
 | Last Updated | 2026-07-05 |
-| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + deployment (17 production, 5 test) + codegraph (10 production, 3 test) + dual-classify (10 production, 9 test) + guard (6 production, 6 test) + memory-remember (3 production) |
+| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + deployment (17 production, 5 test) + codegraph (10 production, 3 test) + classify (algo merge, no separate test) + guard (6 production, 6 test) + memory-remember (3 production) |
 | Build Status | `cargo check` workspace — PASS |
 | Governance | PRINCIPLES.md §0–§1.4 |
 | Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `deploy/k8s/README.md`, `docs/diagrams/` |

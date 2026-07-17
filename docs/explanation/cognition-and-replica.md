@@ -30,7 +30,7 @@ Five design questions were evaluated:
 
 **Q2: Should "fusion mode" be a first-class manifest concept?** (Should there be a top-level `fusion_mode: synthesis | critique | deliberation | best-of-n | pi | disabled` shorthand?) — **DON'T.** The `fusion:` block already IS the concept. Adding a shorthand `fusion_mode: synthesis` would duplicate what `fusion: { mode: synthesis }` already does. Two ways to say the same thing is more total action, not less. The full `FusionConfig` block is already minimal (5 fields, YAML-clean).
 
-**Q3: Should fusion and dual-model be unified under a single "multi-model strategy" abstraction?** — **DON'T.** Fusion and dual-model solve different problems: fusion = deliberation quality (N perspectives → judge synthesis), dual-model = epistemic integrity (2 jurisdictions → merge). Unifying them creates a wider interface with more parameters, increasing total system action. The unified interface would need to accept all parameters from both systems (judge, panel, mode, skills, max_rounds, model_a, model_b, drift_threshold) — far exceeding the 7-function rule. The mutual exclusion (`dual_model` always bypasses fusion) is simpler as a structural rule (two separate fields) than as a strategy enum constraint.
+**Q3: Should fusion and dual-model be unified under a single "multi-model strategy" abstraction?** — **DONE (via algo judge).** The dual-model mechanism (DualModelPort, step.dual_model, integrate_dual_triples) has been replaced by the algo fusion judge (`judge: "algo"`). The judge IS the strategy: setting the judge to "algo" routes panel responses through a deterministic JSON merge instead of an LLM judge call. No new FusionMode variant, no new FusionConfig fields — the existing 5-field config with a special judge value. The former dual classifier's domain-specific integration (Jaccard scoring, drift detection) has been removed; the corpus pipeline now uses `merge_extractions()` with the same algo-style merge logic. The mutual exclusion (`dual_model` always bypasses fusion) is eliminated — algo IS a fusion path.
 
 **Q4: Should the scenario-builder quality gate skip implications when it fails?** — **ADD (implemented).** The `condition:` field already exists on `BundleManifestStep`. Adding `condition: "step_5_result.gate_pass"` to the implications step is zero new code — it uses an existing primitive. This is the path of least action: no new mechanism, just wiring an existing one. One-line change to one manifest, ~5000 gas saved per failed gate iteration.
 
@@ -79,7 +79,7 @@ status: VERIFIED
 
 ### Implications
 
-The fusion design recommendations are an exercise in essentialist discipline — most proposed additions fail the deletion test. The system already has the concepts it needs (the `fusion:` block, the `condition:` field, the `dual_model` flag); adding shorthands, unified abstractions, or conditional routing would increase complexity without adding capability. The one addition that passed (Q4: conditional skip of implications on gate failure) is a one-line configuration change using an existing primitive — zero new code. This is the loom-and-thread philosophy applied to feature design: the loom (existing Rust primitives) constrains what the thread (YAML configuration) can express, and the right answer is usually to use the existing primitive rather than add a new one.
+The fusion design recommendations are an exercise in essentialist discipline — most proposed additions fail the deletion test. The system already has the concepts it needs (the `fusion:` block, the `condition:` field); adding shorthands, unified abstractions, or conditional routing would increase complexity without adding capability. The one addition that passed (Q4: conditional skip of implications on gate failure) is a one-line configuration change using an existing primitive — zero new code. This is the loom-and-thread philosophy applied to feature design: the loom (existing Rust primitives) constrains what the thread (YAML configuration) can express, and the right answer is usually to use the existing primitive rather than add a new one.
 
 ---
 
@@ -806,14 +806,14 @@ flowchart TD
         OS
     end
 
-    subgraph "Step 2: Episodic (dual_model: true)"
+    subgraph "Step 2: Episodic (fusion: true)"
         EP
         MAE
         MBE
         ME
     end
 
-    subgraph "Step 3: Semantic (dual_model: true)"
+    subgraph "Step 3: Semantic (fusion: true)"
         SE
         MAS
         MBS
@@ -835,11 +835,11 @@ status: VERIFIED
 
 # Classification-to-Memory Sequence
 
-Full flow from source text through dual-model classification, guard scanning,
+Full flow from source text through algo-style classification, guard scanning,
 integration, and shared memory storage. All guard checks are mandatory;
-dual-model is mandatory when model B is configured.
+the algo judge is used when model B is configured.
 
-Related: `crates/hkask-services-runtime/src/classify_impl.rs`, `crates/hkask-services-runtime/src/dual_classify.rs`
+Related: `crates/hkask-services-runtime/src/classify_impl.rs` (merge_extractions)
 
 ```mermaid
 sequenceDiagram
@@ -847,7 +847,7 @@ sequenceDiagram
     participant G as ContentGuard
     participant MA as Model A (Qwen/KC)
     participant MB as Model B (Gemma/DI)
-    participant I as Dual Integrator
+    participant I as Merge Integrator
     participant CNS as CNS Spans
     participant M as Shared Memory
 
@@ -864,15 +864,8 @@ sequenceDiagram
             MB-->>I: TripleExtraction B
         end
 
-        I->>I: integrate_dual_triples(A, B)
-        I->>I: Jaccard similarity check
-
-        alt agreement >= 0.6
-            I->>I: Merge (union, dedup)
-        else divergence
-            I-->>CNS: cns.classify.dual_fidelity
-            I->>I: Merge + annotate [A/B]
-        end
+        I->>I: merge_extractions(A, B)
+        I->>I: algo-style merge (union, dedup, annotate)
 
         I->>G: scan_output(merged)
         alt secrets detected
@@ -883,11 +876,6 @@ sequenceDiagram
         end
 
         I->>M: store_passage_h_mems()
-        I-->>CNS: check_classifier_drift()
-
-        alt drift detected
-            CNS-->>CNS: cns.classify.drift
-        end
     end
 ```
 <!-- DIAGRAM_ALIGNMENT
@@ -898,18 +886,18 @@ status: VERIFIED
 -->
 
 
-### Dual-Model Classification Flow
+### Algo-Style Classification Flow
 
 *Inlined from `docs/diagrams/flowchart-dual-classification.md`*
 
 
-# Dual-Model Classification Flow
+# Algo-Style Classification Flow
 
 How classification operates with two peer models from different jurisdictions.
-Neither model is primary — both produce extractions that are integrated with
-divergence detection.
+Neither model is primary — both produce extractions that are merged via
+algo-style merge.
 
-Related: `crates/hkask-services-runtime/src/dual_classify.rs`, `crates/hkask-services-corpus/src/embed/service.rs`
+Related: `crates/hkask-services-runtime/src/classify_impl.rs` (merge_extractions), `crates/hkask-services-corpus/src/embed/service.rs`
 
 ```mermaid
 flowchart TD
@@ -920,9 +908,7 @@ flowchart TD
     MB[Model B\nDeepInfra/Gemma 4\nUS]
     EA[TripleExtraction A]
     EB[TripleExtraction B]
-    I[integrate_dual_triples]
-    JA{Jaccard Agreement\n&gt;= 0.6?}
-    D[CNS: dual_fidelity\nDivergence Alert]
+    I[merge_extractions]
     GO{Guard Output Scan}
     R2[Strip Secrets\n+ CNS Alert]
     ST[Store in Shared Memory]
@@ -936,10 +922,7 @@ flowchart TD
     MB --> EB
     EA --> I
     EB --> I
-    I --> JA
-    JA -->|yes| GO
-    JA -->|no| D
-    D --> GO
+    I --> GO
     GO -->|pass| ST
     GO -->|violation| R2
     R2 --> ST
@@ -952,8 +935,6 @@ flowchart TD
 
     subgraph "Epistemic Integration"
         I
-        JA
-        D
     end
 ```
 <!-- DIAGRAM_ALIGNMENT

@@ -392,9 +392,9 @@ impl EmbedService {
             });
         tracing::info!(?classified_counts, "Section type classification complete");
 
-        // ── Extract semantic h_mems (uses HKASK_CLASSIFIER_MODEL_A) ───
+        // ── Extract semantic h_mems (algo-style dual-model merge) ────
         if !config.triple_classifier.is_empty() {
-            let mut triple_config = {
+            let triple_config = {
                 let def = hkask_services_runtime::load_classifier_config(
                     &config.triple_classifier,
                     registry_dir,
@@ -404,66 +404,80 @@ impl EmbedService {
 
             let settings = HkaskSettings::load();
             let settings_model = settings.classifier_model();
+            let mut model_a_config = triple_config.clone();
             if !settings_model.is_empty() {
-                triple_config.model = strip_provider_prefix(&settings_model).to_string();
+                model_a_config.model = strip_provider_prefix(&settings_model).to_string();
             }
 
-            let yaml_model_b = if !config.triple_classifier.is_empty() {
-                hkask_services_runtime::load_classifier_config(
-                    &config.triple_classifier,
-                    registry_dir,
-                )
-                .ok()
-                .and_then(|def| {
-                    if def.model_b.is_empty() {
-                        None
-                    } else {
-                        Some(def.model_b)
-                    }
-                })
+            // Build model B config from YAML model_b field (algo-style merge).
+            // Replaces the former build_dual_config / extract_triples_dual_batch.
+            let yaml_model_b = hkask_services_runtime::load_classifier_config(
+                &config.triple_classifier,
+                registry_dir,
+            )
+            .ok()
+            .map(|def| def.model_b)
+            .filter(|s| !s.is_empty());
+
+            let model_b_config = yaml_model_b
+                .as_deref()
+                .and_then(|b| hkask_services_runtime::build_model_b_config(&model_a_config, b));
+
+            if let Some(ref b_config) = model_b_config {
+                tracing::info!(
+                    total_passages = passage_count,
+                    model_a = %model_a_config.model,
+                    model_b = %b_config.model,
+                    "Starting algo-style dual-model h_mem extraction"
+                );
+
+                let (a_results, b_results) = tokio::join!(
+                    hkask_services_runtime::extract_triples_batch(&texts, &model_a_config),
+                    hkask_services_runtime::extract_triples_batch(&texts, b_config),
+                );
+
+                let a_extractions = a_results.unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "Model A batch failed");
+                    vec![hkask_services_runtime::TripleExtraction::default(); texts.len()]
+                });
+                let b_extractions = b_results.unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "Model B batch failed");
+                    vec![hkask_services_runtime::TripleExtraction::default(); texts.len()]
+                });
+
+                let merged: Vec<_> = a_extractions
+                    .iter()
+                    .zip(b_extractions.iter())
+                    .map(|(a, b)| hkask_services_runtime::merge_extractions(a, b))
+                    .collect();
+
+                for (passage, ext) in all_passages.iter_mut().zip(merged.iter()) {
+                    passage.semantic_triples = ext.clone();
+                }
+
+                let topics_extracted = merged.iter().filter(|e| !e.topic.is_empty()).count();
+                let total_concepts: usize = merged.iter().map(|e| e.concepts.len()).sum();
+                tracing::info!(
+                    topics_extracted,
+                    total_concepts,
+                    total_passages = passage_count,
+                    "Algo-style dual-model h_mem extraction complete"
+                );
             } else {
-                None
-            };
+                // Single-model extraction (no model_b configured)
+                tracing::info!(
+                    total_passages = passage_count,
+                    model = %model_a_config.model,
+                    "Single-model h_mem extraction (no model_b configured)"
+                );
 
-            let dual_config = hkask_services_runtime::build_dual_config(
-                &triple_config,
-                &settings,
-                yaml_model_b.as_deref(),
-            )?;
+                let a_extractions =
+                    hkask_services_runtime::extract_triples_batch(&texts, &model_a_config).await?;
 
-            tracing::info!(
-                total_passages = passage_count,
-                model_a = %dual_config.model_a.model,
-                model_b = %dual_config.model_b.model,
-                "Starting dual-model semantic h_mem extraction"
-            );
-
-            let dual_extractions =
-                hkask_services_runtime::extract_triples_dual_batch(&texts, &dual_config).await?;
-
-            for (passage, dual_result) in all_passages.iter_mut().zip(dual_extractions.iter()) {
-                passage.semantic_triples = dual_result.merged.to_triple_extraction();
+                for (passage, ext) in all_passages.iter_mut().zip(a_extractions.iter()) {
+                    passage.semantic_triples = ext.clone();
+                }
             }
-
-            let topics_extracted = dual_extractions
-                .iter()
-                .filter(|e| !e.merged.topic.is_empty())
-                .count();
-            let total_concepts: usize = dual_extractions
-                .iter()
-                .map(|e| e.merged.concepts.len())
-                .sum();
-            let divergence_count = dual_extractions
-                .iter()
-                .filter(|e| e.divergence_alert)
-                .count();
-            tracing::info!(
-                topics_extracted,
-                total_concepts,
-                total_passages = passage_count,
-                divergence_alerts = divergence_count,
-                "Dual-model semantic h_mem extraction complete"
-            );
         } else {
             tracing::info!("HMem classifier disabled — skipping semantic extraction");
         }

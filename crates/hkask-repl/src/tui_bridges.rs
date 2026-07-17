@@ -52,7 +52,6 @@ impl ConfigDataBridge for TuiReplBridge {
             auto_condense: s.auto_condense,
             embedding_model: s.embedding_model.clone(),
             classifier_model: s.classifier_model.clone(),
-            classifier_model_b: s.classifier_model_b.clone(),
             mcp_loaded,
             mcp_total,
         }
