@@ -40,6 +40,17 @@ pub struct BundleComposeResult {
 }
 
 /// Service for skill bundle operations — compose, evolve, list, apply.
+///
+/// # Design (adversarial review F5/C6)
+///
+/// `BundleService` is a stateless unit struct used as a namespace grouping
+/// bundle operations as associated functions (each takes `ctx: &AgentService`
+/// as the shared context). This parallels the common Rust pattern of grouping
+/// related operations on a unit struct for discoverable call syntax
+/// (`BundleService::compose(...)`). Free functions in `mod bundle` were
+/// considered and rejected to avoid a wide rename of call sites in the CLI and
+/// API surfaces; the struct carries no invariants — it is not a type with
+/// state, and that is intentional.
 pub struct BundleService;
 
 impl BundleService {
@@ -325,10 +336,13 @@ impl BundleService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx.storage().registry must be initialized
     /// post: returns `Vec<Skill>` of all registered skills; empty Vec if none
-    pub async fn list_skills(ctx: &AgentService) -> Result<Vec<hkask_ports::Skill>, ServiceError> {
+    ///
+    /// Returns `Vec<Skill>` directly (not `Result`) because the underlying
+    /// `tokio::sync::Mutex` cannot poison — the previous `Result` wrapper had a
+    /// dead error path (adversarial review F20/C5).
+    pub async fn list_skills(ctx: &AgentService) -> Vec<hkask_ports::Skill> {
         let registry = ctx.storage().registry.clone();
         let guard = registry.lock().await;
-        // list_skills() returns Vec<Skill> — an owned type from SkillRegistryIndex
-        Ok(hkask_ports::SkillRegistryIndex::list_skills(&*guard))
+        hkask_ports::SkillRegistryIndex::list_skills(&*guard)
     }
 }

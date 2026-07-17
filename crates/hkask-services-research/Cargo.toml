@@ -8,7 +8,6 @@ description = "hKask research service — web search, extraction, browsing, RSS 
 [dependencies]
 hkask-memory = { path = "../hkask-memory" }
 hkask-types = { path = "../hkask-types" }
-hkask-storage = { path = "../hkask-storage" }
 hkask-mcp = { path = "../hkask-mcp" }
 reqwest.workspace = true
 tokio.workspace = true
@@ -17,18 +16,14 @@ serde_json.workspace = true
 schemars.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-chrono.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 blake3.workspace = true
 futures-util.workspace = true
 regex.workspace = true
 rusqlite.workspace = true
-r2d2.workspace = true
-r2d2_sqlite.workspace = true
 feed-rs = "2.4"
 url.workspace = true
-base64.workspace = true
 
 [lib]
 name = "hkask_services_research"

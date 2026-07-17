@@ -42,5 +42,6 @@ pub mod saliency;
 pub mod types;
 
 pub use inference::{
-    approx_token_count, build_summarization_prompt, build_summary_output, format_conversation_text,
+    SUMMARY_SYSTEM_PROMPT, approx_token_count, build_summarization_prompt, build_summary_output,
+    format_conversation_text,
 };

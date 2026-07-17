@@ -401,6 +401,52 @@ impl Default for CondenserStats {
     }
 }
 
+/// A single compression observation for learning.
+///
+/// Stored in `CondenserEngine::history` (bounded ring buffer). Used by
+/// `recommend_algorithm()` to select the best-performing algorithm per
+/// category based on observed compression ratios.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CompressionRecord {
+    /// Algorithm name (e.g., "word_rank", "rtk_style", "flashrank").
+    pub algorithm: String,
+    /// Context category label (e.g., "log_output", "shell_command").
+    pub category: String,
+    /// Profile name at time of compression (e.g., "heavy", "normal").
+    pub profile: String,
+    /// Compression ratio: original_bytes / compressed_bytes (higher = better).
+    pub compression_ratio: f64,
+    /// Original input size in bytes.
+    pub original_bytes: usize,
+    /// Compressed output size in bytes.
+    pub compressed_bytes: usize,
+}
+
+/// Per-algorithm compression statistics computed from history.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AlgorithmStats {
+    pub count: usize,
+    pub mean_ratio: f64,
+    pub min_ratio: f64,
+    pub max_ratio: f64,
+}
+
+/// Per-category compression statistics computed from history.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CategoryStats {
+    pub count: usize,
+    pub mean_ratio: f64,
+    pub best_algorithm: String,
+}
+
+/// Summary of compression history grouped by algorithm and category.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CompressionHistoryStats {
+    pub by_algorithm: std::collections::HashMap<String, AlgorithmStats>,
+    pub by_category: std::collections::HashMap<String, CategoryStats>,
+    pub total_records: usize,
+}
+
 /// Request for thread summarization via the centralized inference router.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ThreadSummaryRequest {

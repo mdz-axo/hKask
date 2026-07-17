@@ -302,6 +302,98 @@ async fn fs_search_reports_skipped_unreadable_files() {
     );
 }
 
+// REQ: sandbox_path rejects an empty path up front (P5, input validation).
+#[test]
+fn sandbox_rejects_empty_path() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let server = test_server(dir.path().to_path_buf());
+    let result = server.sandbox_path("");
+    assert!(result.is_err(), "empty path must be rejected");
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("empty"), "error should mention empty: {err}");
+}
+
+// REQ: fs.read with only start_line reads from start to end (P5).
+#[tokio::test]
+async fn fs_read_start_only_returns_from_start() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("lines.txt"), "l1\nl2\nl3\nl4\nl5").unwrap();
+    let server = test_server(dir.path().to_path_buf());
+    let out = server
+        .fs_read(Parameters(FsReadRequest {
+            path: "lines.txt".into(),
+            start_line: Some(3),
+            end_line: None,
+        }))
+        .await;
+    let content = parse_content(&out);
+    assert_eq!(content["content"], "l3\nl4\nl5");
+    assert_eq!(content["range"], "3-");
+}
+
+// REQ: fs.read with only end_line reads from beginning to end (P5).
+#[tokio::test]
+async fn fs_read_end_only_returns_to_end() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("lines.txt"), "l1\nl2\nl3\nl4\nl5").unwrap();
+    let server = test_server(dir.path().to_path_buf());
+    let out = server
+        .fs_read(Parameters(FsReadRequest {
+            path: "lines.txt".into(),
+            start_line: None,
+            end_line: Some(2),
+        }))
+        .await;
+    let content = parse_content(&out);
+    assert_eq!(content["content"], "l1\nl2");
+    assert_eq!(content["range"], "-2");
+}
+
+// REQ: fs.read rejects start_line == 0 and end_line == 0 (1-based) (P5).
+#[tokio::test]
+async fn fs_read_rejects_zero_bounds() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("lines.txt"), "l1\nl2\nl3").unwrap();
+    let server = test_server(dir.path().to_path_buf());
+
+    let out = server
+        .fs_read(Parameters(FsReadRequest {
+            path: "lines.txt".into(),
+            start_line: Some(0),
+            end_line: None,
+        }))
+        .await;
+    assert!(error_message(&out).is_some(), "start_line=0 must error");
+
+    let out = server
+        .fs_read(Parameters(FsReadRequest {
+            path: "lines.txt".into(),
+            start_line: None,
+            end_line: Some(0),
+        }))
+        .await;
+    assert!(error_message(&out).is_some(), "end_line=0 must error");
+}
+
+// REQ: shell.exec caps max_output_bytes at 10 MiB and still truncates within
+// the cap (P5, robustness). Verifies a small explicit cap truncates as before.
+#[tokio::test]
+async fn shell_exec_small_cap_still_truncates() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let server = test_server(dir.path().to_path_buf());
+    let out = server
+        .shell_exec(Parameters(ShellExecRequest {
+            command: "printf '%s' abcdefghij".into(),
+            cwd: None,
+            timeout_ms: Some(5000),
+            max_output_bytes: Some(4),
+        }))
+        .await;
+    let content = parse_content(&out);
+    assert_eq!(content["truncated"], true);
+    assert_eq!(content["stdout"], "abcd");
+}
+
 // REQ: fs.edit with zero matching edits does not modify the file and reports
 // edited=false (P5). Also guards the no-op path: no write, no file.written span.
 #[tokio::test]

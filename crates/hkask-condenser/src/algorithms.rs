@@ -613,6 +613,16 @@ impl AlgorithmRegistry {
             .as_ref()
     }
 
+    /// Select an algorithm by name. Used by the learning mechanism in
+    /// `CondenserEngine::compress()` when `recommend_algorithm()` returns
+    /// a historically better-performing algorithm than the static mapping.
+    pub fn select_by_name(&self, name: &str) -> Option<&dyn CondenserAlgorithm> {
+        self.algorithms
+            .iter()
+            .find(|a| a.name() == name)
+            .map(|a| a.as_ref())
+    }
+
     pub fn list_algorithms(&self) -> Vec<serde_json::Value> {
         self.algorithms
             .iter()

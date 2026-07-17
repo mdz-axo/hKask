@@ -152,6 +152,12 @@ pub struct ReplSettings {
     /// leave less room for condensation.
     #[serde(default = "default_saliency_window")]
     pub condense_saliency_window: usize,
+    /// Whether to CPU-pre-compress conversation history before LLM summarization
+    /// (two-phase condensation). When true, the old half is first compressed
+    /// with CondenserEngine (Profile::Heavy), then fed to the LLM summarizer.
+    /// Reduces token count and inference cost. Default: true.
+    #[serde(default = "default_pre_compress")]
+    pub pre_compress: bool,
     /// Short-term memory lifespan in days. Chat threads inactive for longer
     /// than this are auto-archived. Default 60 days. Set to 0 to disable
     /// auto-archival (threads never expire).
@@ -230,6 +236,9 @@ fn default_condense_threshold() -> f32 {
 fn default_saliency_window() -> usize {
     5
 }
+fn default_pre_compress() -> bool {
+    true
+}
 fn default_stm_life() -> u32 {
     60
 }
@@ -251,6 +260,7 @@ impl Default for ReplSettings {
             auto_condense: true,
             condense_pressure_threshold: default_condense_threshold(),
             condense_saliency_window: default_saliency_window(),
+            pre_compress: default_pre_compress(),
             short_term_memory_life: default_stm_life(),
             disable_thinking: false,
             model_meta: None,

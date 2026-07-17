@@ -72,13 +72,13 @@ status: VERIFIED
 
 | Tool | Description | CNS operation span |
 |------|-------------|--------------------|
-| `fs_read` | Read file contents with optional 1-based line ranges + stats; rejects inverted/zero ranges | `file.read` |
+| `fs_read` | Read file contents with 1-based line ranges + stats; start-only and end-only ranges honored; zero and inverted ranges rejected | `file.read` |
 | `fs_write` | Create or overwrite a file; creates parent dirs if needed (new files supported) | `file.written` |
-| `fs_edit` | Apply ordered first-match text replacements; `file.written` emitted only when an edit matched | `file.written` (on write) |
+| `fs_edit` | Apply ordered first-match text replacements sequentially (later edits see earlier edits' output); `file.written` emitted only when an edit matched | `file.written` (on write) |
 | `fs_list` | List directory entries (name, path, type, size) | `file.read` |
 | `fs_search` | Regex search across files up to `max_depth` (default 3); rejects non-directory roots; oversized/unreadable files reported in `files_skipped` | `file.read` |
 | `fs_delete` | Delete a file or empty directory; returns the real OS error on failure | `file.deleted` |
-| `shell_exec` | `sh -c` command with timeout + output guard; stdout/stderr truncated at a UTF-8 char boundary; timed-out commands are killed (`kill_on_drop`) | `command.completed` / `command.failed` |
+| `shell_exec` | `sh -c` command with timeout + output guard; stdout/stderr truncated at a UTF-8 char boundary (capped at 10 MiB); timed-out commands are killed (`kill_on_drop`) | `command.completed` / `command.failed` |
 
 ## CNS observability
 
@@ -97,7 +97,7 @@ status: VERIFIED
 - **File I/O sandbox.** All file tools resolve `raw_path` against
   `project_root`, canonicalize, and reject paths whose canonical form does not
   start with the canonical root. Path traversal (`../`) is rejected at the
-  sandbox boundary.
+  sandbox boundary. Empty paths are rejected at the boundary before resolution.
 - **Shell `cwd` sandbox.** `shell_exec` canonicalizes `cwd` through
   `sandbox_path` when provided, defaulting to `project_root`.
 - **Shell command string is NOT sandboxed.** The `command` argument is passed
@@ -130,9 +130,12 @@ The following are standing properties of the sandbox design (not defects):
 
 The tool contracts are verified by the contract test suite
 (`tests/filesystem_contract.rs`), which exercises both `sandbox_path`
-invariants and tool behavior (create-new-file, parent-dir creation, range
-inversion rejection, multibyte truncation safety, stderr truncation, skipped-file
-reporting, and delete error specificity) through the public tool methods.
+invariants (traversal rejection, empty-path rejection, non-existent-leaf
+resolution) and tool behavior (create-new-file, parent-dir creation, full and
+partial line ranges, zero/inverted-range rejection, multibyte + stderr
+truncation, output cap, timeout reaping, non-directory search-root rejection,
+skipped-file reporting, no-op edit, and delete error specificity) through the
+public tool methods.
 
 ## Quick start
 

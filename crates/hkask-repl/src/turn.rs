@@ -60,6 +60,7 @@ fn build_turn_request(
         ),
         condense_pressure_threshold: settings.condense_pressure_threshold,
         condense_saliency_window: settings.condense_saliency_window,
+        pre_compress: settings.pre_compress,
         // Thread history injection: only on cold starts (session restart or
         // thread switch). After the first turn, episodic recall provides
         // conversation context. This avoids redundant injection when the

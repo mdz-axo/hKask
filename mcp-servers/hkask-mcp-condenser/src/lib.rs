@@ -26,6 +26,7 @@
 
 use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::inference;
+use hkask_condenser::inference::SUMMARY_SYSTEM_PROMPT;
 use hkask_condenser::saliency;
 use hkask_condenser::types::*;
 use hkask_database::sqlite::SqliteDriver;
@@ -41,11 +42,6 @@ use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
-
-/// System prompt for the thread-summary inference request.
-const THREAD_SUMMARY_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \
-     preserve technical details (file paths, error messages, decisions) while \
-     eliminating verbosity. Use bullet points. Be concise.";
 
 hkask_mcp::mcp_server!(
     struct CondenserServer {
@@ -151,8 +147,11 @@ impl CondenserServer {
                     "cns": self.capability_tier.cns_available(),
                 },
                 "profile": engine.stats.current_profile,
+                "suggested_profile": engine.suggest_profile().to_string(),
                 "algorithms": engine.registry.list_algorithms(),
                 "health": health,
+                "history_records": engine.history_len(),
+                "history_stats": engine.compression_stats(),
                 "default_model": self.default_model,
             }))
         })
@@ -190,7 +189,16 @@ impl CondenserServer {
                 "condenser_compress",
                 &tool_name,
                 "success",
-                serde_json::json!({ "original_size": output.len(), "compressed_size": result.content.len() }),
+                serde_json::json!({
+                    "algorithm": result.algorithm,
+                    "category": result.category,
+                    "profile": result.profile,
+                    "compression_ratio": if result.compressed_bytes == 0 { 0.0 } else { result.original_bytes as f64 / result.compressed_bytes as f64 },
+                    "original_size": result.original_bytes,
+                    "compressed_size": result.compressed_bytes,
+                    "reduction_pct": result.reduction_pct,
+                    "health_signals": result.health_signals.len(),
+                }),
             );
 
             // CompressedOutput contains only strings, integers, and a clamped f64 — never NaN/Inf.
@@ -347,7 +355,7 @@ impl CondenserServer {
             // Compose the full prompt: system + user
             let full_prompt = format!(
                 "{}\n\nUser: {}",
-                THREAD_SUMMARY_SYSTEM_PROMPT, summarization_prompt
+                SUMMARY_SYSTEM_PROMPT, summarization_prompt
             );
 
             let params = LLMParameters {

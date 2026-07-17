@@ -215,7 +215,7 @@ pub fn run_bundle(rt: &tokio::runtime::Runtime, action: BundleAction) {
         }
 
         BundleAction::Skills => {
-            let skills = block_on!(rt, BundleService::list_skills(&ctx), "Skill list failed");
+            let skills = rt.block_on(BundleService::list_skills(&ctx));
             if skills.is_empty() {
                 println!(
                     "  No skills loaded. Skills are loaded from .agents/skills/ at REPL startup."

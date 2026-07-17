@@ -7,8 +7,6 @@
 //! The MCP server crate (`hkask-mcp-research`) is a thin tool surface that
 //! delegates to this service crate.
 
-#![allow(unused_crate_dependencies)] // Lib target — deps used in modules
-
 pub mod cache;
 pub mod db;
 pub mod feed;

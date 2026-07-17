@@ -154,6 +154,12 @@ pub struct TurnRequest {
     /// Number of most recent exchanges to preserve verbatim during condensation.
     /// Older messages are summarized; these N are kept as anchors. Default 5.
     pub condense_saliency_window: usize,
+    /// Whether to CPU-pre-compress the old half of conversation history before
+    /// LLM summarization (two-phase condensation). When true, the old half is
+    /// first compressed with CondenserEngine (Profile::Heavy), then the
+    /// compressed text is fed to the LLM summarizer. Reduces token count
+    /// and inference cost. Default: true.
+    pub pre_compress: bool,
     /// Pre-formatted conversation history from the active short-term thread.
     /// When set, prepended to context before episodic memory recall. This is
     /// the thread's own stream — switching threads changes this context.

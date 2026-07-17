@@ -44,9 +44,13 @@ pub struct TextEdit {
 pub struct FsEditRequest {
     /// Path to the file to edit.
     pub path: String,
-    /// Ordered list of edits to apply. Each edit replaces the first
-    /// occurrence of old_text with new_text. Edits that don't match
-    /// are skipped (no-op).
+    /// Ordered list of edits to apply sequentially to the file content. Each
+    /// edit replaces the first occurrence of old_text with new_text in the
+    /// current (possibly already-edited) content. Later edits therefore see
+    /// the result of earlier edits (chaining): an edit may match text inserted
+    /// by a previous edit. To replace multiple occurrences of the same text,
+    /// repeat the edit — each application advances to the next occurrence.
+    /// Edits that don't match are skipped (no-op).
     pub edits: Vec<TextEdit>,
 }
 

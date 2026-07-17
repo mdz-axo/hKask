@@ -1,8 +1,18 @@
 //! Auto-condensation of conversation history when approaching context limits.
 //!
+//! Two-phase condensation pipeline:
+//! 1. **Phase 1 (CPU):** Pre-compress the old half of conversation history
+//!    using `CondenserEngine` (Profile::Heavy, ConversationHistory category).
+//!    This reduces token count before the more expensive LLM summarization.
+//! 2. **Phase 2 (LLM):** Summarize the pre-compressed old half via the
+//!    centralized inference router, producing a structured summary.
+//!
+//! When `pre_compress` is false, Phase 1 is skipped — the raw old half is
+//! fed directly to the LLM summarizer (the original behavior).
+//!
 //! The condenser fetches raw episodes, splits at the saliency midpoint,
-//! summarizes the oldest half via an inference call, and returns a rebuilt
-//! input with condensed + recent conversation blocks.
+//! summarizes the oldest half, and returns a rebuilt input with condensed +
+//! recent conversation blocks.
 
 use hkask_capability::DelegationToken;
 use hkask_types::DataCategory;
@@ -13,26 +23,21 @@ use crate::memory::MemoryService;
 use hkask_services_context::AgentService;
 
 use super::service::ChatService;
-
-/// System prompt for the auto-condense summarization request.
-const CONDENSER_SYSTEM_PROMPT: &str = "You are a context condensation assistant. Produce structured summaries that \
-     preserve technical details (file paths, error messages, decisions) while \
-     eliminating verbosity. Use bullet points. Be concise.";
+use hkask_condenser::inference::SUMMARY_SYSTEM_PROMPT;
 
 impl ChatService {
     /// Condense the oldest half of conversation history when approaching context limits.
     ///
-    /// Fetches raw episodes, splits at midpoint, summarizes the oldest half via the
-    /// inference port, and returns a rebuilt input with `[Condensed history]` +
-    /// `[Recent conversation]` blocks. Returns `None` on any failure (graceful
-    /// degradation — caller falls back to uncondensed context).
+    /// Two-phase condensation: CPU pre-compress (optional) → LLM summarize.
+    /// Returns `None` on any failure (graceful degradation — caller falls back
+    /// to uncondensed context).
     pub(super) async fn condense_history(
         ctx: &AgentService,
         req: &TurnRequest,
         token: &DelegationToken,
         base_input: &str,
     ) -> Option<String> {
-        // \[NORMATIVE\] Sovereignty gate (H3/P2): condensing reads episodic
+        // [NORMATIVE] Sovereignty gate (H3/P2): condensing reads episodic
         // (sovereign) history — only proceed when the owner has granted consent.
         if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory)
         {
@@ -54,10 +59,42 @@ impl ChatService {
 
         let recent_text = hkask_condenser::inference::format_conversation_text(recent_half);
         let old_text = hkask_condenser::inference::format_conversation_text(old_half);
-        let summary_prompt =
-            hkask_condenser::inference::build_summarization_prompt(&old_text, &req.input);
 
-        let full_prompt = format!("{CONDENSER_SYSTEM_PROMPT}\n\nUser: {summary_prompt}");
+        // Phase 1: CPU pre-compression (optional). Compress the old half with
+        // CondenserEngine before feeding to the LLM summarizer. This reduces
+        // token count and inference cost. If compression produces empty output,
+        // fall back to the raw old_text (graceful degradation).
+        let old_text_for_llm = if req.pre_compress {
+            let mut engine = hkask_condenser::engine::CondenserEngine::new();
+            engine.set_profile(hkask_condenser::types::Profile::Heavy);
+            let compressed = engine.compress(
+                "condense_history",
+                &old_text,
+                Some(hkask_condenser::types::ContextCategory::ConversationHistory),
+            );
+            if compressed.content.is_empty() {
+                old_text
+            } else {
+                tracing::debug!(
+                    target: "cns.chat.condense",
+                    agent = %req.agent_name,
+                    phase = "cpu_pre_compress",
+                    original_bytes = compressed.original_bytes,
+                    compressed_bytes = compressed.compressed_bytes,
+                    algorithm = %compressed.algorithm,
+                    "CPU pre-compression applied"
+                );
+                compressed.content
+            }
+        } else {
+            old_text
+        };
+
+        // Phase 2: LLM summarization of the (pre-compressed) old half.
+        let summary_prompt =
+            hkask_condenser::inference::build_summarization_prompt(&old_text_for_llm, &req.input);
+
+        let full_prompt = format!("{SUMMARY_SYSTEM_PROMPT}\n\nUser: {summary_prompt}");
 
         let condenser_model = req.condenser_model.as_deref().unwrap_or(&req.model);
         let params = LLMParameters {
@@ -72,6 +109,9 @@ impl ChatService {
             seed: None,
             disable_thinking: true,
             adapter: None,
+            // Bypass fusion: thread summarization is a single-model call, not a
+            // multi-model deliberation. Fusion orchestration adds latency and
+            // cost without benefit for this straightforward extraction task.
             bypass_fusion: true,
             fusion_config: None,
             system_prompt: None,
@@ -94,6 +134,7 @@ impl ChatService {
             old_msgs = old_half.len(),
             recent_msgs = recent_half.len(),
             summary_len = summary.len(),
+            pre_compressed = req.pre_compress,
             "History condensed"
         );
 

@@ -53,6 +53,9 @@ impl FileSystemServer {
 
     /// Validate that `raw_path` is within `self.project_root` after canonicalization.
     pub fn sandbox_path(&self, raw_path: &str) -> Result<PathBuf, McpToolError> {
+        if raw_path.is_empty() {
+            return Err(McpToolError::invalid_argument("path must not be empty"));
+        }
         let candidate = Path::new(raw_path);
         let resolved = if candidate.is_relative() {
             self.project_root.join(candidate)
@@ -146,21 +149,45 @@ impl FileSystemServer {
             let lines: Vec<&str> = content.lines().collect();
             let total_lines = lines.len();
 
-            if let (Some(s), Some(e)) = (req.start_line, req.end_line)
-                && (s == 0 || e < s)
-            {
-                return Err(McpToolError::invalid_argument(format!(
-                    "Invalid line range {s}-{e}: start_line must be >= 1 and end_line >= start_line"
-                )));
-            }
-
-            let (output, range) = match (req.start_line, req.end_line) {
+            // Normalize the 1-based inclusive range. Each bound is meaningful on
+            // its own: start only → from start to end; end only → from beginning
+            // to end; both → start..end; neither → full content.
+            let (start_idx, end_idx, range) = match (req.start_line, req.end_line) {
                 (Some(s), Some(e)) => {
+                    if s == 0 || e < s {
+                        return Err(McpToolError::invalid_argument(format!(
+                            "Invalid line range {s}-{e}: start_line must be >= 1 and end_line >= start_line"
+                        )));
+                    }
                     let start = (s.saturating_sub(1) as usize).min(total_lines);
                     let end = (e as usize).min(total_lines);
-                    (lines[start..end].join("\n"), Some(format!("{s}-{e}")))
+                    (start, end, Some(format!("{s}-{e}")))
                 }
-                _ => (content, None),
+                (Some(s), None) => {
+                    if s == 0 {
+                        return Err(McpToolError::invalid_argument(
+                            "Invalid line range: start_line must be >= 1".to_string(),
+                        ));
+                    }
+                    let start = (s.saturating_sub(1) as usize).min(total_lines);
+                    (start, total_lines, Some(format!("{s}-")))
+                }
+                (None, Some(e)) => {
+                    if e == 0 {
+                        return Err(McpToolError::invalid_argument(
+                            "Invalid line range: end_line must be >= 1".to_string(),
+                        ));
+                    }
+                    let end = (e as usize).min(total_lines);
+                    (0, end, Some(format!("-{e}")))
+                }
+                (None, None) => (0, total_lines, None),
+            };
+
+            let output = if start_idx == 0 && end_idx == total_lines {
+                content
+            } else {
+                lines[start_idx..end_idx].join("\n")
             };
 
             let modified = meta.modified().ok().map(|t| {
@@ -208,7 +235,7 @@ impl FileSystemServer {
     }
 
     #[tool(
-        description = "Apply targeted text replacements to a file. Each edit replaces the first occurrence of old_text with new_text. Returns count of applied edits."
+        description = "Apply targeted text replacements to a file. Edits apply sequentially: each replaces the first occurrence of old_text in the current content, so later edits see earlier edits' output (chaining). Repeat an edit to replace successive occurrences of the same text. Returns count of applied edits."
     )]
     pub async fn fs_edit(&self, Parameters(req): Parameters<FsEditRequest>) -> String {
         execute_tool(self, "fs.edit", async {
@@ -406,7 +433,10 @@ impl FileSystemServer {
     pub async fn shell_exec(&self, Parameters(req): Parameters<ShellExecRequest>) -> String {
         execute_tool(self, "shell.exec", async {
             let timeout_ms = req.timeout_ms.unwrap_or(30_000);
-            let max_bytes = req.max_output_bytes.unwrap_or(102_400) as usize;
+            // Cap at 10 MiB to bound memory and avoid u64→usize truncation on
+            // 32-bit targets. The default is 100 KB.
+            const MAX_OUTPUT_CAP: u64 = 10 * 1024 * 1024;
+            let max_bytes = req.max_output_bytes.unwrap_or(102_400).min(MAX_OUTPUT_CAP) as usize;
             let start = Instant::now();
 
             let mut cmd = tokio::process::Command::new("sh");

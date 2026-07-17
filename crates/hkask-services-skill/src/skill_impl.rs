@@ -257,8 +257,8 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
 
     // Update the SKILL.md visibility and namespace in the exported copy
     let public_skill_md = public_dir.join("SKILL.md");
-    update_visibility_in_skill_md(&public_skill_md, "public");
-    update_namespace_in_skill_md(&public_skill_md, &replicant_name);
+    update_visibility_in_skill_md(&public_skill_md, "public")?;
+    update_namespace_in_skill_md(&public_skill_md, &replicant_name)?;
 
     // P9: CNS span
     tracing::info!(
@@ -335,90 +335,129 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
 }
 
 /// Update the `visibility` field in a SKILL.md YAML front matter.
+///
+/// # Invariant (adversarial review F9)
+///
+/// Assumes flat YAML front matter: no block scalars, no comments containing
+/// the key name, no multi-line values spanning the key line. A full YAML AST
+/// round-trip (`serde_yaml_neo` de/reserialize) would be robust but reformats
+/// the file; this line-oriented editor preserves formatting at the cost of the
+/// stated assumption.
+///
+/// pre:  path is a readable, writable SKILL.md with flat front matter
+/// post: the `visibility:` line is updated in place, or inserted after `name:`;
+///       returns Err on read/write failure (was silently dropped — review F9)
 fn update_visibility_in_skill_md(path: &Path, visibility: &str) -> Result<(), ServiceError> {
-    if let Ok(content) = fs::read_to_string(path) {
-        let updated = if content.contains("visibility:") {
-            content
-                .lines()
-                .map(|line| {
-                    if line.trim().starts_with("visibility:") {
-                        let indent = line.len() - line.trim_start().len();
-                        format!("{}visibility: {}", " ".repeat(indent), visibility)
-                    } else {
-                        line.to_string()
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        } else if content.contains("name:") {
-            content
-                .lines()
-                .flat_map(|line| {
-                    let mut result = vec![line.to_string()];
-                    if line.trim().starts_with("name:") {
-                        let indent = line.len() - line.trim_start().len();
-                        result.push(format!("{}visibility: {}", " ".repeat(indent), visibility));
-                    }
-                    result
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        } else {
-            content
-        };
+    let content = fs::read_to_string(path).map_err(|e| ServiceError::Domain {
+        domain: DomainKind::Skill,
+        kind: ErrorKind::ServiceUnavailable,
+        source: Some(Box::new(e)),
+        message: format!("Failed to read {} for visibility update", path.display()),
+    })?;
+    let updated = if content.contains("visibility:") {
+        content
+            .lines()
+            .map(|line| {
+                if line.trim().starts_with("visibility:") {
+                    let indent = line.len() - line.trim_start().len();
+                    format!("{}visibility: {}", " ".repeat(indent), visibility)
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else if content.contains("name:") {
+        content
+            .lines()
+            .flat_map(|line| {
+                let mut result = vec![line.to_string()];
+                if line.trim().starts_with("name:") {
+                    let indent = line.len() - line.trim_start().len();
+                    result.push(format!("{}visibility: {}", " ".repeat(indent), visibility));
+                }
+                result
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        content
+    };
 
-        let _ = fs::write(path, updated);
-    }
+    fs::write(path, updated).map_err(|e| ServiceError::Domain {
+        domain: DomainKind::Skill,
+        kind: ErrorKind::ServiceUnavailable,
+        source: Some(Box::new(e)),
+        message: format!("Failed to write visibility update to {}", path.display()),
+    })
 }
 
 /// Update or add the `namespace` field in a SKILL.md YAML front matter.
+///
+/// # Invariant (adversarial review F9)
+///
+/// Same flat-front-matter assumption as [`update_visibility_in_skill_md`].
+///
+/// pre:  path is a readable, writable SKILL.md with flat front matter
+/// post: the `namespace:` line is updated in place, or inserted after
+///       `visibility:`/`name:`; returns Err on read/write failure
+///       (was silently dropped — review F9)
 fn update_namespace_in_skill_md(path: &Path, namespace: &str) -> Result<(), ServiceError> {
-    if let Ok(content) = fs::read_to_string(path) {
-        let updated = if content.contains("namespace:") {
-            content
-                .lines()
-                .map(|line| {
-                    if line.trim().starts_with("namespace:") {
-                        let indent = line.len() - line.trim_start().len();
-                        format!("{}namespace: {}", " ".repeat(indent), namespace)
-                    } else {
-                        line.to_string()
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        } else if content.contains("visibility:") {
-            content
-                .lines()
-                .flat_map(|line| {
-                    let mut result = vec![line.to_string()];
-                    if line.trim().starts_with("visibility:") {
-                        let indent = line.len() - line.trim_start().len();
-                        result.push(format!("{}namespace: {}", " ".repeat(indent), namespace));
-                    }
-                    result
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        } else if content.contains("name:") {
-            content
-                .lines()
-                .flat_map(|line| {
-                    let mut result = vec![line.to_string()];
-                    if line.trim().starts_with("name:") {
-                        let indent = line.len() - line.trim_start().len();
-                        result.push(format!("{}namespace: {}", " ".repeat(indent), namespace));
-                    }
-                    result
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        } else {
-            content
-        };
+    let content = fs::read_to_string(path).map_err(|e| ServiceError::Domain {
+        domain: DomainKind::Skill,
+        kind: ErrorKind::ServiceUnavailable,
+        source: Some(Box::new(e)),
+        message: format!("Failed to read {} for namespace update", path.display()),
+    })?;
+    let updated = if content.contains("namespace:") {
+        content
+            .lines()
+            .map(|line| {
+                if line.trim().starts_with("namespace:") {
+                    let indent = line.len() - line.trim_start().len();
+                    format!("{}namespace: {}", " ".repeat(indent), namespace)
+                } else {
+                    line.to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else if content.contains("visibility:") {
+        content
+            .lines()
+            .flat_map(|line| {
+                let mut result = vec![line.to_string()];
+                if line.trim().starts_with("visibility:") {
+                    let indent = line.len() - line.trim_start().len();
+                    result.push(format!("{}namespace: {}", " ".repeat(indent), namespace));
+                }
+                result
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else if content.contains("name:") {
+        content
+            .lines()
+            .flat_map(|line| {
+                let mut result = vec![line.to_string()];
+                if line.trim().starts_with("name:") {
+                    let indent = line.len() - line.trim_start().len();
+                    result.push(format!("{}namespace: {}", " ".repeat(indent), namespace));
+                }
+                result
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        content
+    };
 
-        let _ = fs::write(path, updated);
-    }
+    fs::write(path, updated).map_err(|e| ServiceError::Domain {
+        domain: DomainKind::Skill,
+        kind: ErrorKind::ServiceUnavailable,
+        source: Some(Box::new(e)),
+        message: format!("Failed to write namespace update to {}", path.display()),
+    })
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────
