@@ -313,7 +313,7 @@ Filter with `RUST_LOG=cns.inference=info` to watch fusion in action.
 
 ---
 
-## Disambiguation: Fusion vs. Dual-Model vs. OpenRouter FusionPlugin
+## Disambiguation: Fusion vs. OpenRouter FusionPlugin
 
 hKask has two distinct multi-model mechanisms. They are **orthogonal** and never combine on the same call:
 
@@ -322,7 +322,7 @@ hKask has two distinct multi-model mechanisms. They are **orthogonal** and never
 | **Fusion** (this guide) | `hkask-inference::fusion_orchestrator` | Panel → judge deliberation for quality | — |
 | **OpenRouter FusionPlugin** | `hkask-inference::chat_protocol` | OpenRouter-side plugin injected into the request body | Separate path; the hKask orchestrator does not use it |
 
-> The former `dual_model: true` step flag and `DualModelPort` have been replaced by `judge: algo` in the fusion config. The classification service's domain-specific dual-model (Jaccard scoring, divergence detection, drift detection) remains separate in `hkask-services-runtime`.
+> The former `dual_model: true` step flag, `DualModelPort`, and the dual classifier module (`dual_classify.rs` with Jaccard scoring, divergence detection, drift detection) have all been removed. The algo fusion judge (`judge: "algo"`) replaces them. The corpus pipeline uses `merge_extractions()` in `hkask-services-runtime::classify_impl` for typed triple extraction merge using the same algo-style logic.
 
 ---
 

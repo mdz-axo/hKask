@@ -118,7 +118,7 @@ The 6-step sequence is structural, not configurable. This is the loom-and-thread
 
 ---
 
-## 2. Diataxis Quality Review — Dual Classification + Guard
+## 2. Diataxis Quality Review — Algo Classification + Guard
 
 ### Statement
 
@@ -130,7 +130,7 @@ The review evaluated four diagrams against Diataxis quality gates:
 
 | Diagram | Type | File | Quadrant |
 |---|---|---|---|
-| Dual-Model Classification Flow | flowchart | `flowchart-dual-classification.md` | Reference |
+| Algo-Style Classification Flow | flowchart | `flowchart-algo-classification.md` | Reference |
 | Guard Pipeline | flowchart | `flowchart-guard-pipeline.md` | Reference |
 | Classification-to-Memory Sequence | sequence | `sequence-classify-to-memory.md` | Explanation |
 | Guard Violation Lifecycle | state | `state-guard-violations.md` | Reference |
@@ -139,7 +139,7 @@ The review evaluated four diagrams against Diataxis quality gates:
 
 | Gate | Dual Flowchart | Guard Flowchart | Sequence | State |
 |---|---|---|---|---|
-| Entity count matches source | 15 nodes, 12 edges — covers classify_one, extract_triples_one, integrate_dual_triples | 9 nodes, 9 edges — covers all 4 active scanners (TokenLimit, RoleOverride, Deobfuscate, Secrets) | 7 participants, 6 alt/par blocks — covers full path | 4 states, 6 transitions — covers all violation types |
+| Entity count matches source | 15 nodes, 12 edges — covers classify_one, extract_triples_one, merge_extractions | 9 nodes, 9 edges — covers all 4 active scanners (TokenLimit, RoleOverride, Deobfuscate, Secrets) | 7 participants, 6 alt/par blocks — covers full path | 4 states, 6 transitions — covers all violation types |
 | Mermaid syntax valid | flowchart TD, correct node shapes | flowchart TD, correct node shapes | sequenceDiagram, correct par/alt/loop | stateDiagram-v2, correct note placement |
 | Plain-English labels | No raw identifiers | OWASP risk numbers on notes | Participant aliases used | OWASP categories in notes |
 | Description paragraph | Above diagram | Above diagram | Above diagram | Above diagram |
@@ -165,13 +165,11 @@ The review evaluated four diagrams against Diataxis quality gates:
 
 #### Gaps Found and Closed
 
-Three gaps were identified during review, all closed:
+Two gaps were identified during review, all closed:
 
-1. **No Remember Template Diagram** — Closed by adding `flowchart-memory-remember.md`, showing the 3-step FlowDef cascade (operation-selector → remember-episodic → remember-semantic) with parallel dual-model rendering and `merge_json_values` integration on each step.
+1. **No Remember Template Diagram** — Closed by adding `flowchart-memory-remember.md`, showing the 3-step FlowDef cascade (operation-selector → remember-episodic → remember-semantic) with algo fusion judge (`judge: algo`) with `merge_json_values` integration on each step.
 
-2. **No Drift Detection Diagram** — Closed by adding `flowchart-drift-detection.md`, showing the two-threshold decision tree (30% divergence rate, 2.0 entity asymmetry) with CNS span triggers and a threshold reference table.
-
-3. **No Architecture Overview** — Closed by adding `flowchart-architecture-overview.md`, showing how all four subsystems compose under P3.1 governance. Includes OWASP alignment table and subsystem-to-crate mapping.
+2. **No Architecture Overview** — Closed by adding `flowchart-architecture-overview.md`, showing how all four subsystems compose under P3.1 governance. Includes OWASP alignment table and subsystem-to-crate mapping.
 
 ### Diagram
 
