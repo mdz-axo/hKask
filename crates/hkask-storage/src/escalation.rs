@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use hkask_database::value::DbValue;
 use hkask_storage_core::impl_from_db_error;
 use hkask_types::time::now_rfc3339;
-use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
+use hkask_types::{BotID, EscalationID, InfrastructureError, NotFound, TemplateID};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
@@ -63,7 +63,7 @@ pub enum EscalationError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
     #[error("Escalation not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
 }
 impl_from_db_error!(EscalationError, Infra);
 impl EscalationQueue {
@@ -275,7 +275,10 @@ impl EscalationQueue {
             )
             .map_err(|e| EscalationError::Infra(InfrastructureError::from(e)))?;
         if affected == 0 {
-            return Err(EscalationError::NotFound(id.to_string()));
+            return Err(EscalationError::NotFound(NotFound {
+                entity_type: "escalation",
+                id: id.to_string(),
+            }));
         }
         Ok(())
     }
@@ -299,7 +302,10 @@ impl EscalationQueue {
             )
             .map_err(|e| EscalationError::Infra(InfrastructureError::from(e)))?;
         if affected == 0 {
-            return Err(EscalationError::NotFound(id.to_string()));
+            return Err(EscalationError::NotFound(NotFound {
+                entity_type: "escalation",
+                id: id.to_string(),
+            }));
         }
         Ok(())
     }

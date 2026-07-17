@@ -1,4 +1,5 @@
 use hkask_capability::DelegationToken;
+use hkask_types::NotFound;
 
 /// Governance membrane error types.
 #[derive(Debug, Clone, thiserror::Error)]
@@ -8,9 +9,15 @@ pub enum ToolPortError {
     #[error("Gas budget exceeded: {0}")]
     EnergyBudgetExceeded(String),
     #[error("Tool not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
     #[error("Tool invocation failed: {0}")]
     InvocationFailed(String),
+}
+
+impl From<NotFound> for ToolPortError {
+    fn from(nf: NotFound) -> Self {
+        ToolPortError::NotFound(nf)
+    }
 }
 
 /// Governance membrane for MCP tool invocation.

@@ -13,6 +13,7 @@ use crate::bundle::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
 use hkask_capability::SYSTEM_MAX_RECURSION;
 use hkask_ports::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
+use hkask_types::NotFound;
 use hkask_types::Visibility;
 use hkask_types::template_type::TemplateType;
 use serde::Deserialize;
@@ -477,7 +478,10 @@ impl RegistryIndex for Registry {
         }
         // Delegate to inherent `get` (avoids trait method name collision)
         Registry::get(self, id).cloned().ok_or_else(|| {
-            hkask_ports::RegistryError::NotFound(format!("Template '{}' not found", id))
+            hkask_ports::RegistryError::NotFound(NotFound {
+                entity_type: "template",
+                id: format!("Template '{}' not found", id),
+            })
         })
     }
 }

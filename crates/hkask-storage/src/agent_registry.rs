@@ -4,6 +4,7 @@ use hkask_database::value::DbValue;
 use hkask_storage_core::{define_driver_store, impl_from_db_error};
 use hkask_types::AgentKind;
 use hkask_types::InfrastructureError;
+use hkask_types::NotFound;
 use hkask_types::agent_registry::{
     AgentDefinition, Contact, RegisteredAgent, ScheduledTask, UserProfile,
 };
@@ -13,7 +14,7 @@ pub enum AgentRegistryError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
     #[error("Agent not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
     #[error("Agent already registered: {0}")]
     AlreadyRegistered(String),
 }
@@ -105,7 +106,12 @@ impl AgentRegistryStore {
                 ))
             },
         )?
-        .ok_or_else(|| AgentRegistryError::NotFound(name.to_string()))?;
+        .ok_or_else(|| {
+            AgentRegistryError::NotFound(NotFound {
+                entity_type: "agent",
+                id: name.to_string(),
+            })
+        })?;
         let definition: AgentDefinition = serde_json::from_str(&agent.0)
             .map_err(|e| AgentRegistryError::Infra(InfrastructureError::from(e)))?;
         Ok(RegisteredAgent {
@@ -187,7 +193,10 @@ impl AgentRegistryStore {
             &[DbValue::Text(name.to_string())],
         )?;
         if deleted == 0 {
-            return Err(AgentRegistryError::NotFound(name.to_string()));
+            return Err(AgentRegistryError::NotFound(NotFound {
+                entity_type: "agent",
+                id: name.to_string(),
+            }));
         }
         Ok(())
     }
@@ -416,9 +425,10 @@ impl AgentRegistryStore {
             ],
         )?;
         if updated == 0 {
-            return Err(AgentRegistryError::NotFound(format!(
-                "Task {agent_name}/{trigger}"
-            )));
+            return Err(AgentRegistryError::NotFound(NotFound {
+                entity_type: "agent",
+                id: format!("Task {agent_name}/{trigger}"),
+            }));
         }
         Ok(())
     }

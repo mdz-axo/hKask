@@ -13,6 +13,7 @@ use hkask_database::driver::{query_map, query_row};
 use hkask_database::value::DbValue;
 use hkask_storage_core::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
+use hkask_types::NotFound;
 use hkask_types::time::now_rfc3339;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -22,7 +23,7 @@ pub enum GalleryStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
     #[error("Gallery not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
     #[error("Image not found: {0}")]
     ImageNotFound(String),
     #[error("Invalid policy mode: {0}")]
@@ -448,7 +449,12 @@ impl GalleryStore {
                 })
             },
         )?
-        .ok_or_else(|| GalleryStoreError::NotFound(gallery_id.to_string()))
+        .ok_or_else(|| {
+            GalleryStoreError::NotFound(NotFound {
+                entity_type: "gallery",
+                id: gallery_id.to_string(),
+            })
+        })
     }
     /// Get all tags for all images in a gallery.
     ///
@@ -532,7 +538,10 @@ impl GalleryStore {
             ],
             Self::face_from_row,
         )?
-        .ok_or_else(|| GalleryStoreError::NotFound("face registration failed".into()))
+        .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
+            entity_type: "face",
+            id: "face registration failed".to_string(),
+        }))
     }
     /// List all faces in the registry, optionally filtered by status.
     ///
@@ -588,7 +597,10 @@ impl GalleryStore {
             &[DbValue::Text(face_id.to_string())],
             Self::face_from_row,
         )?
-        .ok_or_else(|| GalleryStoreError::NotFound(format!("face_id={}", face_id)))
+        .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
+            entity_type: "face",
+            id: format!("face_id={}", face_id),
+        }))
     }
     /// Remove a face from the registry by ID.
     ///
@@ -605,7 +617,10 @@ impl GalleryStore {
             &[DbValue::Text(face_id.to_string())],
         )?;
         if affected == 0 {
-            return Err(GalleryStoreError::NotFound(format!("face_id={}", face_id)));
+            return Err(GalleryStoreError::NotFound(NotFound {
+                entity_type: "face",
+                id: format!("face_id={}", face_id),
+            }));
         }
         Ok(())
     }
@@ -635,7 +650,10 @@ impl GalleryStore {
             ],
         )?;
         if affected == 0 {
-            return Err(GalleryStoreError::NotFound(format!("face_id={}", face_id)));
+            return Err(GalleryStoreError::NotFound(NotFound {
+                entity_type: "face",
+                id: format!("face_id={}", face_id),
+            }));
         }
         // Read back the updated row
         query_row(

@@ -329,7 +329,12 @@ impl UserStore {
                 let primary = replicants
                     .into_iter()
                     .find(|r| r.is_primary)
-                    .ok_or_else(|| UserStoreError::NotFound("primary replicant".into()))?;
+                    .ok_or_else(|| {
+                        UserStoreError::NotFound(NotFound {
+                            entity_type: "replicant",
+                            id: "primary replicant".to_string(),
+                        })
+                    })?;
                 Ok(Some((user, primary)))
             }
             None => Ok(None),
@@ -359,7 +364,10 @@ impl UserStore {
             ],
         )?;
         if rows == 0 {
-            return Err(UserStoreError::NotFound(from_name.into()));
+            return Err(UserStoreError::NotFound(NotFound {
+                entity_type: "replicant",
+                id: from_name.to_string(),
+            }));
         }
         Ok(())
     }
@@ -374,7 +382,10 @@ impl UserStore {
             &[DbValue::Text(replicant_name.to_string())],
         )?;
         if rows == 0 {
-            return Err(UserStoreError::NotFound(replicant_name.into()));
+            return Err(UserStoreError::NotFound(NotFound {
+                entity_type: "replicant",
+                id: replicant_name.to_string(),
+            }));
         }
         self.driver.execute(
             "DELETE FROM user_sessions WHERE replicant_name = ?1",
@@ -412,7 +423,10 @@ impl UserStore {
     pub fn login(&self, replicant_name: &str, passphrase: &str) -> UserResult<UserSession> {
         let identity = self
             .get_replicant(replicant_name)?
-            .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
+            .ok_or(UserStoreError::NotFound(NotFound {
+                entity_type: "replicant",
+                id: replicant_name.to_string(),
+            }))?;
         let human = self.get_user(&identity.user_id)?;
         let verified = Self::verify_passphrase(passphrase, &human.passphrase_hash)?;
         if !verified {
@@ -459,7 +473,10 @@ impl UserStore {
     ) -> UserResult<()> {
         let identity = self
             .get_replicant(replicant_name)?
-            .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
+            .ok_or(UserStoreError::NotFound(NotFound {
+                entity_type: "replicant",
+                id: replicant_name.to_string(),
+            }))?;
         let human = self.get_user(&identity.user_id)?;
         let verified = Self::verify_passphrase(old_passphrase, &human.passphrase_hash)?;
         if !verified {
@@ -498,7 +515,10 @@ impl UserStore {
     ) -> UserResult<Option<i64>> {
         let identity = self
             .get_replicant(replicant_name)?
-            .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
+            .ok_or(UserStoreError::NotFound(NotFound {
+                entity_type: "replicant",
+                id: replicant_name.to_string(),
+            }))?;
         let human = self.get_user(&identity.user_id)?;
         let set_at = match human.passphrase_set_at {
             Some(ts) => ts,
@@ -615,7 +635,10 @@ impl UserStore {
                 })
             },
         )?
-        .ok_or_else(|| UserStoreError::NotFound(user_id.as_uuid().to_string()))
+        .ok_or_else(|| UserStoreError::NotFound(NotFound {
+            entity_type: "user",
+            id: user_id.as_uuid().to_string(),
+        }))
     }
     /// Create an invite code for a new member.
     ///
@@ -697,12 +720,17 @@ impl UserStore {
             ],
         )?;
         if rows == 0 {
-            return Err(UserStoreError::NotFound(
-                "Invite not found or expired".into(),
-            ));
+            return Err(UserStoreError::NotFound(NotFound {
+                entity_type: "invite",
+                id: "Invite not found or expired".to_string(),
+            }));
         }
-        self.lookup_invite(code)?
-            .ok_or_else(|| UserStoreError::NotFound("Invite not found after accept".into()))
+        self.lookup_invite(code)?.ok_or_else(|| {
+            UserStoreError::NotFound(NotFound {
+                entity_type: "invite",
+                id: "Invite not found after accept".to_string(),
+            })
+        })
     }
     /// Revoke a pending invite.
     ///
@@ -719,12 +747,17 @@ impl UserStore {
             ],
         )?;
         if rows == 0 {
-            return Err(UserStoreError::NotFound(
-                "Invite not found, already accepted, or not owned by you".into(),
-            ));
+            return Err(UserStoreError::NotFound(NotFound {
+                entity_type: "invite",
+                id: "Invite not found, already accepted, or not owned by you".to_string(),
+            }));
         }
-        self.lookup_invite(code)?
-            .ok_or_else(|| UserStoreError::NotFound("Invite not found after revoke".into()))
+        self.lookup_invite(code)?.ok_or_else(|| {
+            UserStoreError::NotFound(NotFound {
+                entity_type: "invite",
+                id: "Invite not found after revoke".to_string(),
+            })
+        })
     }
     /// List all invites created by a user.
     ///
@@ -797,7 +830,10 @@ impl UserStore {
             ],
         )?;
         if rows == 0 {
-            return Err(UserStoreError::NotFound(user_id.as_uuid().to_string()));
+            return Err(UserStoreError::NotFound(NotFound {
+                entity_type: "user",
+                id: user_id.as_uuid().to_string(),
+            }));
         }
         Ok(())
     }
@@ -863,7 +899,10 @@ impl UserStore {
     pub fn get_wallet_id(&self, replicant_name: &str) -> UserResult<Option<WalletId>> {
         let identity = self
             .get_replicant(replicant_name)?
-            .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
+            .ok_or(UserStoreError::NotFound(NotFound {
+                entity_type: "replicant",
+                id: replicant_name.to_string(),
+            }))?;
         Ok(identity.wallet_id)
     }
     /// Set the wallet ID for a replicant (called during onboarding after wallet creation).
@@ -882,7 +921,10 @@ impl UserStore {
             ],
         )?;
         if rows == 0 {
-            return Err(UserStoreError::NotFound(replicant_name.into()));
+            return Err(UserStoreError::NotFound(NotFound {
+                entity_type: "replicant",
+                id: replicant_name.to_string(),
+            }));
         }
         Ok(())
     }

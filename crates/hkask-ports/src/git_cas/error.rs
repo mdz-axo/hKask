@@ -1,5 +1,6 @@
 //! Git CAS error type — distinct recovery paths for each variant.
 
+use hkask_types::NotFound;
 use serde::{Deserialize, Serialize};
 
 /// Errors from Git CAS port operations.
@@ -29,8 +30,14 @@ pub enum GitCasError {
     ContentHashMismatch { expected: String, actual: String },
 
     #[error("Not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
 
     #[error("Configuration error: {0}")]
     Configuration(String),
+}
+
+impl From<NotFound> for GitCasError {
+    fn from(nf: NotFound) -> Self {
+        GitCasError::NotFound(nf)
+    }
 }

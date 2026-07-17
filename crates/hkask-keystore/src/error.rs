@@ -1,3 +1,4 @@
+use hkask_types::NotFound;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -7,7 +8,7 @@ pub enum KeystoreError {
     Platform(String),
 
     #[error("Secret not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
 
     #[error("Encryption error: {0}")]
     Encryption(String),
@@ -16,11 +17,17 @@ pub enum KeystoreError {
     KeyDerivation(String),
 }
 
+impl From<NotFound> for KeystoreError {
+    fn from(nf: NotFound) -> Self {
+        KeystoreError::NotFound(nf)
+    }
+}
+
 impl From<crate::keychain::KeychainError> for KeystoreError {
     fn from(err: crate::keychain::KeychainError) -> Self {
         match err {
             crate::keychain::KeychainError::Platform(msg) => KeystoreError::Platform(msg),
-            crate::keychain::KeychainError::NotFound(msg) => KeystoreError::NotFound(msg),
+            crate::keychain::KeychainError::NotFound(nf) => KeystoreError::NotFound(nf),
         }
     }
 }

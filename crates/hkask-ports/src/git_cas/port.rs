@@ -3,6 +3,7 @@ use async_trait::async_trait;
 
 use super::error::GitCasError;
 use super::types::{CommitHash, ContentHash, RepoId, TreeEntry, TreeEntryKind};
+use hkask_types::NotFound;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -178,7 +179,12 @@ impl GitCASPort for MockGitCas {
             .expect("MockGitCas RwLock read")
             .get(hash)
             .cloned()
-            .ok_or_else(|| GitCasError::NotFound(hash.to_string()))
+            .ok_or_else(|| {
+                GitCasError::NotFound(NotFound {
+                    entity_type: "blob",
+                    id: hash.to_string(),
+                })
+            })
     }
 
     async fn delete_blob(&self, _repo: &RepoId, hash: &ContentHash) -> Result<(), GitCasError> {

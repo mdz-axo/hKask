@@ -4,6 +4,7 @@
 //! Per architecture v0.21.0: Rust is the loom, YAML/Jinja2 is the thread.
 
 use hkask_capability::DelegationToken;
+use hkask_types::NotFound;
 use serde_json::Value;
 use std::future::Future;
 use std::pin::Pin;
@@ -12,7 +13,7 @@ use std::pin::Pin;
 #[derive(Debug, thiserror::Error)]
 pub enum TemplateError {
     #[error("Template not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
 
     #[error("Render error: {0}")]
     Render(String),
@@ -33,6 +34,12 @@ pub enum TemplateError {
     SandboxViolation(String),
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
+}
+
+impl From<NotFound> for TemplateError {
+    fn from(nf: NotFound) -> Self {
+        TemplateError::NotFound(nf)
+    }
 }
 
 pub type Result<T> = std::result::Result<T, TemplateError>;

@@ -267,7 +267,7 @@ impl ContentGuard {
 /// pre:  text is the original output; matches are spans into text
 /// post: every `scanner == "secrets"` match is replaced by `[REDACTED]`;
 ///       all other text is preserved byte-for-byte
-fn redact_spans(text: &str, matches: &[llm_guard::ScanMatch]) -> String {
+fn redact_spans(text: &str, matches: &[llm_guard::Match<'_>]) -> String {
     let mut out = String::with_capacity(text.len());
     let mut cursor = 0usize;
     for m in matches {

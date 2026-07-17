@@ -1,3 +1,4 @@
+use hkask_types::NotFound;
 use hkask_types::SkillPolarity;
 use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
@@ -269,9 +270,15 @@ impl Skill {
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum RegistryError {
     #[error("Entry not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
     #[error("Registry error: {0}")]
     Other(String),
+}
+
+impl From<NotFound> for RegistryError {
+    fn from(nf: NotFound) -> Self {
+        RegistryError::NotFound(nf)
+    }
 }
 
 /// CRUD for skills. Read methods return owned `Skill` for HashMap/SQLite compat.

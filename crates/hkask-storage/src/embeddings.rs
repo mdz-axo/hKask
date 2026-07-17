@@ -13,6 +13,7 @@
 //! If per-pod storage becomes a concern at scale, the escape hatch is a vec0
 //! auxiliary column (`+vector BLOB`) to eliminate the `embeddings.vector` copy.
 use hkask_types::InfrastructureError;
+use hkask_types::NotFound;
 
 impl From<hkask_database::types::DbError> for EmbeddingError {
     fn from(e: hkask_database::types::DbError) -> Self {
@@ -36,7 +37,7 @@ pub struct SimilarityResult {
 #[derive(Debug, thiserror::Error)]
 pub enum EmbeddingError {
     #[error("Embedding not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
     #[error("Dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: usize, actual: usize },
     #[error("Storage error: {0}")]
@@ -329,7 +330,10 @@ impl EmbeddingStore {
                     model,
                 })
             }
-            None => Err(EmbeddingError::NotFound(entity_ref.to_string())),
+            None => Err(EmbeddingError::NotFound(NotFound {
+                entity_type: "embedding",
+                id: entity_ref.to_string(),
+            })),
         }
     }
     /// KNN search using sqlite-vec MATCH operator.
@@ -433,7 +437,12 @@ impl EmbeddingStore {
         )?;
         let id = match rows.first() {
             Some(row) => row.get(0)?.as_text()?.to_string(),
-            None => return Err(EmbeddingError::NotFound(entity_ref.to_string())),
+            None => {
+                return Err(EmbeddingError::NotFound(NotFound {
+                    entity_type: "embedding",
+                    id: entity_ref.to_string(),
+                }));
+            }
         };
         match &self.backend {
             VectorBackend::SqliteVec { pool, .. } => {

@@ -1,6 +1,7 @@
 //! OS keychain integration
 
 use ed25519_dalek::Signer;
+use hkask_types::NotFound;
 use hkask_types::WebID;
 use hkask_types::keychain_keys::{KEY_A2A_SECRET, KEY_DB_PASSPHRASE};
 use hkask_types::secret::SecretRef;
@@ -17,14 +18,23 @@ pub enum KeychainError {
     #[error("Platform keychain error: {0}")]
     Platform(String),
     #[error("Secret not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
+}
+
+impl From<NotFound> for KeychainError {
+    fn from(nf: NotFound) -> Self {
+        KeychainError::NotFound(nf)
+    }
 }
 
 impl From<KeyringError> for KeychainError {
     fn from(err: KeyringError) -> Self {
         use KeyringError::*;
         match err {
-            NoEntry => KeychainError::NotFound("secret not found in keychain".into()),
+            NoEntry => KeychainError::NotFound(NotFound {
+                entity_type: "secret",
+                id: "secret not found in keychain".to_string(),
+            }),
             other => KeychainError::Platform(other.to_string()),
         }
     }

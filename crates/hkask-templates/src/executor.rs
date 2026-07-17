@@ -45,9 +45,10 @@ use crate::bundle::BundleManifestStep;
 use crate::ports::{McpPort, Result, TemplateError};
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_ports::{InferencePort, InferenceResult};
+use hkask_types::NotFound;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
-use minijinja::UndefinedBehavior;
+use minijinja::{UndefinedBehavior, safe_join};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -182,13 +183,21 @@ impl ManifestExecutor {
         template_ref: &str,
         context: &HashMap<String, Value>,
     ) -> Result<String> {
-        let template_path = self.template_base_path.join(template_ref);
-        let template_content = std::fs::read_to_string(&template_path).map_err(|e| {
-            TemplateError::NotFound(format!(
-                "KnowAct template not found at {}: {}",
-                template_path.display(),
-                e
+        let template_path = safe_join(&self.template_base_path, template_ref).ok_or_else(|| {
+            TemplateError::PathTraversal(format!(
+                "template_ref '{template_ref}' escapes base path '{}'",
+                self.template_base_path.display()
             ))
+        })?;
+        let template_content = std::fs::read_to_string(&template_path).map_err(|e| {
+            TemplateError::NotFound(NotFound {
+                entity_type: "template",
+                id: format!(
+                    "KnowAct template not found at {}: {}",
+                    template_path.display(),
+                    e
+                ),
+            })
         })?;
         let prompt = render_minijinja(&template_content, context, &self.template_base_path)?;
         Ok(prompt)
@@ -1334,7 +1343,14 @@ impl ManifestExecutor {
                 })?;
                 let template_ref = render_inline_template(template_ref_raw, context);
 
-                let template_path = self.template_base_path.join(&template_ref);
+                let template_path =
+                    safe_join(&self.template_base_path, &template_ref).ok_or_else(|| {
+                        TemplateError::PathTraversal(format!(
+                            "step {}: template_ref '{template_ref}' escapes base path '{}'",
+                            step.ordinal,
+                            self.template_base_path.display()
+                        ))
+                    })?;
                 let template_content = match std::fs::read_to_string(&template_path) {
                     Ok(c) => c,
                     Err(e) => {
@@ -1342,8 +1358,15 @@ impl ManifestExecutor {
                         // Many manifests omit the extension; KataEngine resolves without it,
                         // and ManifestExecutor should too.
                         if !template_ref.ends_with(".j2") {
+                            let j2_ref = format!("{template_ref}.j2");
                             let j2_path =
-                                self.template_base_path.join(format!("{template_ref}.j2"));
+                                safe_join(&self.template_base_path, &j2_ref).ok_or_else(|| {
+                                    TemplateError::PathTraversal(format!(
+                                        "step {}: template_ref '{j2_ref}' escapes base path '{}'",
+                                        step.ordinal,
+                                        self.template_base_path.display()
+                                    ))
+                                })?;
                             if let Ok(c) = std::fs::read_to_string(&j2_path) {
                                 // Success with .j2 extension
                                 info!(
@@ -1364,7 +1387,10 @@ impl ManifestExecutor {
                                 if let Some(ref cb) = self.heal_error_cb {
                                     cb(&err_msg, &template_path.display().to_string());
                                 }
-                                return Err(TemplateError::NotFound(err_msg));
+                                return Err(TemplateError::NotFound(NotFound {
+                                    entity_type: "template",
+                                    id: err_msg,
+                                }));
                             }
                         } else {
                             let err_msg = format!(
@@ -1376,7 +1402,10 @@ impl ManifestExecutor {
                             if let Some(ref cb) = self.heal_error_cb {
                                 cb(&err_msg, &template_path.display().to_string());
                             }
-                            return Err(TemplateError::NotFound(err_msg));
+                            return Err(TemplateError::NotFound(NotFound {
+                                entity_type: "template",
+                                id: err_msg,
+                            }));
                         }
                     }
                 };
@@ -1449,14 +1478,21 @@ fn render_minijinja(
             if name == "step" {
                 return Ok(Some(main_template.clone()));
             }
-            let primary = base.join(name);
+            // safe_join rejects any segment starting with '.' or containing '\\',
+            // preventing `{% include "../../etc/passwd" %}` path traversal.
+            let primary = match safe_join(&base, name) {
+                Some(p) => p,
+                None => return Ok(None),
+            };
             if let Ok(content) = std::fs::read_to_string(&primary) {
                 return Ok(Some(content));
             }
             if !name.ends_with(".j2") {
-                let j2_path = base.join(format!("{name}.j2"));
-                if let Ok(content) = std::fs::read_to_string(&j2_path) {
-                    return Ok(Some(content));
+                let j2_name = format!("{name}.j2");
+                if let Some(j2_path) = safe_join(&base, &j2_name) {
+                    if let Ok(content) = std::fs::read_to_string(&j2_path) {
+                        return Ok(Some(content));
+                    }
                 }
             }
             Ok(None)
@@ -1916,5 +1952,65 @@ mod tests {
             dispatch_compute("bayesian_update", &input).is_err(),
             "missing prior errors"
         );
+    }
+
+    // ── Path traversal regression tests (CWE-22) ──────────────────────────
+
+    #[test]
+    fn render_minijinja_rejects_include_traversal() {
+        // A template that tries to {% include %} a path outside the base.
+        // safe_join rejects any segment starting with '.', so the include
+        // fails to resolve and the render errors out.
+        let tmp = std::env::temp_dir().join("hkask-include-traversal-test");
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("legit.j2"), "hello").unwrap();
+
+        let malicious_template = r#"{% include "../../../etc/passwd" %}"#;
+        let ctx = HashMap::new();
+        let result = render_minijinja(malicious_template, &ctx, &tmp);
+        // The include should fail to resolve (safe_join returns None),
+        // producing a render error — not a file read from outside the base.
+        assert!(
+            result.is_err(),
+            "expected render error for traversal include, got: {result:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn render_minijinja_rejects_backslash_include_traversal() {
+        let tmp = std::env::temp_dir().join("hkask-backslash-include-test");
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        // safe_join rejects segments containing backslashes.
+        let malicious_template = r#"{% include "..\\..\\etc\\passwd" %}"#;
+        let ctx = HashMap::new();
+        let result = render_minijinja(malicious_template, &ctx, &tmp);
+        assert!(
+            result.is_err(),
+            "expected render error for backslash traversal, got: {result:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn render_minijinja_allows_legit_include() {
+        // Sanity check: legitimate includes within the base path still work.
+        let tmp = std::env::temp_dir().join("hkask-legit-include-test");
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join("fragment.j2"), "world").unwrap();
+
+        let template = r#"hello {% include "fragment.j2" %}"#;
+        let ctx = HashMap::new();
+        let result = render_minijinja(template, &ctx, &tmp);
+        assert!(
+            result.is_ok(),
+            "legitimate include should succeed, got: {result:?}"
+        );
+        assert_eq!(result.unwrap(), "hello world");
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
