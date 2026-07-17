@@ -34,7 +34,8 @@ lora_target_modules:
   - down_proj
 
 datasets:
-  - path: /workspace/data/train_chat.jsonl
+  - path: mdz-axo/capabilities-researcher-qa
+    data_files: train_chat_full.jsonl
     type: chat_template
 
 # Training
