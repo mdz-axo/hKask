@@ -8,7 +8,7 @@
 
 use hkask_inference::InferenceConfig;
 use hkask_services_compose::{CognitionConfig, ComposeRequest, ComposeService};
-use hkask_services_core::InferenceContext;
+use hkask_services_inference::InferenceContext;
 
 use std::path::PathBuf;
 

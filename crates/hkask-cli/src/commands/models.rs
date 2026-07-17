@@ -10,8 +10,8 @@
 pub fn run(rt: &tokio::runtime::Runtime) {
     let ctx = super::helpers::build_agent_service();
 
-    let inf_ctx = hkask_services_core::InferenceContext::from(&ctx);
-    match rt.block_on(hkask_services_core::InferenceService::list_models(&inf_ctx)) {
+    let inf_ctx = hkask_services_inference::InferenceContext::from(&ctx);
+    match rt.block_on(hkask_services_inference::InferenceService::list_models(&inf_ctx)) {
         Ok(models) => {
             if models.is_empty() {
                 println!("No models available.");
@@ -19,7 +19,7 @@ pub fn run(rt: &tokio::runtime::Runtime) {
             }
             // Group by family for tiered display
             use std::collections::BTreeMap;
-            let mut by_family: BTreeMap<String, Vec<&hkask_services_core::ModelInfo>> =
+            let mut by_family: BTreeMap<String, Vec<&hkask_services_inference::ModelInfo>> =
                 BTreeMap::new();
             for m in &models {
                 let family = m.family.as_deref().unwrap_or("uncategorized");

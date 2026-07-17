@@ -36,7 +36,7 @@ use crate::memory::MemoryService;
 use hkask_agents::curator_agent::CuratorAgent;
 use hkask_services_context::AgentService;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_services_core::{InferenceContext, InferenceService};
+use hkask_services_inference::{InferenceContext, InferenceService};
 use hkask_types::curator::CuratorHandle;
 
 /// Chat service — encapsulates the full chat turn pipeline.

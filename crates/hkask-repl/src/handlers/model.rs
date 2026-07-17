@@ -1,7 +1,7 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
 use crate::handlers::repl_settings::ModelMeta;
-use hkask_services_core::{InferenceContext, InferenceService};
+use hkask_services_inference::{InferenceContext, InferenceService};
 
 pub fn populate_model_meta(state: &mut super::super::ReplState, _rt: &tokio::runtime::Handle) {
     state.repl_settings.model_meta = Some(ModelMeta {
@@ -14,7 +14,7 @@ pub fn populate_model_meta(state: &mut super::super::ReplState, _rt: &tokio::run
 pub fn handle_model(arg1: &str, rt: &tokio::runtime::Handle, state: &mut super::super::ReplState) {
     if arg1.eq_ignore_ascii_case("refresh") || arg1.eq_ignore_ascii_case("update") {
         // Force a live re-fetch: invalidate the TTL cache, then re-list.
-        hkask_services_core::ModelCache::invalidate();
+        hkask_services_inference::ModelCache::invalidate();
         let ctx = InferenceContext::from(state.service_context.as_ref());
         let models = rt.block_on(InferenceService::search_models(&ctx, ""));
         match models {

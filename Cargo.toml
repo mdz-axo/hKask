@@ -8,6 +8,7 @@ members = [
     "crates/hkask-services-verification",
     "crates/hkask-goal",
     "crates/hkask-identity",
+    "crates/hkask-services-inference",
 
     # Ontology bridge crates (v0.31.0)
     "crates/hkask-bridge-dublincore",

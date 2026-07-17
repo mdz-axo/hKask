@@ -146,7 +146,7 @@ pub struct PerAgentMemory {
     pub consolidation_service: hkask_memory::ConsolidationService,
 }
 
-impl From<&AgentService> for hkask_services_core::InferenceContext {
+impl From<&AgentService> for hkask_services_inference::InferenceContext {
     fn from(ctx: &AgentService) -> Self {
         Self {
             shared_port: ctx.infra().inference.clone(),

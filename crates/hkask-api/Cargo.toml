@@ -16,6 +16,7 @@ hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-inference = { path = "../hkask-services-inference" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-services-chat = { path = "../hkask-services-chat" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }

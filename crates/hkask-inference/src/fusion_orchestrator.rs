@@ -288,6 +288,16 @@ fn parse_json_lenient(text: &str) -> serde_json::Value {
 /// kept verbatim — structural differences between panelists are meaningful.
 /// Strings/scalars: uses A when equal (case-insensitive, trimmed), otherwise
 /// annotates `[A:... B:...]`.
+///
+/// # Pairwise contract (N=2)
+///
+/// The `[A:... B:...]` divergence annotation is a **pairwise** output contract
+/// (documented in `hkask-memory` and `FUNCTIONAL_SPECIFICATION.md`) for the
+/// algo/no-judge path's two-peer merge. `algo_merge` folds the panel with
+/// `reduce`, so for **N>2 panelists** divergent strings nest as
+/// `[A:[A:x B:y] B:z]` — still a valid JSON string, but no longer a flat
+/// pairwise annotation. The algo/no-judge path is specified for two peers; for
+/// N>2 panelists use a judge-based mode (`synthesis`, `critique`, …) instead.
 fn merge_json_values(a: &serde_json::Value, b: &serde_json::Value) -> serde_json::Value {
     use serde_json::Value;
     use std::collections::HashSet;

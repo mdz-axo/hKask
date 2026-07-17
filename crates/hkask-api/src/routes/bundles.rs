@@ -190,12 +190,12 @@ fn resolve_api_composition_port(
         return Ok(port);
     }
     // Fallback: create a fresh inference port
-    let ctx = hkask_services_core::InferenceContext::from_parts(
+    let ctx = hkask_services_inference::InferenceContext::from_parts(
         None,
         &state.agent_service.config().default_model,
         state.agent_service.config().inference_config.clone(),
     );
-    hkask_services_core::InferenceService::resolve_port(
+    hkask_services_inference::InferenceService::resolve_port(
         &ctx,
         &state.agent_service.config().default_model,
     )

@@ -3935,6 +3935,7 @@ dependencies = [
  "hkask-services-chat",
  "hkask-services-context",
  "hkask-services-core",
+ "hkask-services-inference",
  "hkask-services-onboarding",
  "hkask-services-skill",
  "hkask-services-wallet",
@@ -4025,6 +4026,7 @@ dependencies = [
  "hkask-services-context",
  "hkask-services-core",
  "hkask-services-corpus",
+ "hkask-services-inference",
  "hkask-services-kata-kanban",
  "hkask-services-onboarding",
  "hkask-services-skill",
@@ -4630,6 +4632,7 @@ dependencies = [
  "hkask-services-compose",
  "hkask-services-core",
  "hkask-services-corpus",
+ "hkask-services-inference",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4810,6 +4813,7 @@ dependencies = [
  "hkask-services-chat",
  "hkask-services-context",
  "hkask-services-core",
+ "hkask-services-inference",
  "hkask-services-kata-kanban",
  "hkask-services-onboarding",
  "hkask-storage",
@@ -4843,6 +4847,7 @@ dependencies = [
  "hkask-ports",
  "hkask-services-context",
  "hkask-services-core",
+ "hkask-services-inference",
  "hkask-templates",
  "hkask-types",
  "proptest",
@@ -4861,6 +4866,7 @@ dependencies = [
  "hkask-memory",
  "hkask-ports",
  "hkask-services-core",
+ "hkask-services-inference",
  "hkask-storage",
  "hkask-types",
  "minijinja",
@@ -4890,6 +4896,7 @@ dependencies = [
  "hkask-memory",
  "hkask-ports",
  "hkask-services-core",
+ "hkask-services-inference",
  "hkask-services-runtime",
  "hkask-services-self-heal",
  "hkask-services-wallet",
@@ -4953,6 +4960,17 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-services-inference"
+version = "0.31.0"
+dependencies = [
+ "hkask-inference",
+ "hkask-ports",
+ "hkask-services-core",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

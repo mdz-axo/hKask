@@ -1,0 +1,15 @@
+[package]
+name = "hkask-services-inference"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "hKask inference service layer — InferenceService facade + ModelCache TTL cache (extracted from hkask-services-core)"
+
+[dependencies]
+hkask-inference = { path = "../hkask-inference" }
+hkask-ports = { path = "../hkask-ports" }
+hkask-services-core = { path = "../hkask-services-core" }
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
