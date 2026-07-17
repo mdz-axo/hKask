@@ -34,7 +34,6 @@
 classifier:
   name: triple-extractor
   model: qwen/qwen3.5-35b-a3b
-  model_b: DI/google/gemma-4-E4B-it
   provider: kilocode
   concurrency: 150
   timeout_secs: 30

@@ -19,14 +19,15 @@
 # These become metadata triples in the embedding store, enabling semantic
 # queries beyond string-matching.
 #
-# Algo-style dual-model merge (replaces former dual classifier):
-# When model_b is configured, the corpus pipeline runs both models in parallel
-# and merges extractions via merge_extractions() (union, case-insensitive dedup,
-# diverging fields annotated [A:... B:...]). No Jaccard scoring or drift detection.
+# Multi-model via fusion config (in corpus config YAML):
+# When the corpus config has a `fusion:` block with `judge: algo`, the
+# corpus pipeline routes triple extraction through the fusion orchestrator.
+# Panel models run in parallel; JSON responses are merged algorithmically
+# (union, case-insensitive dedup, diverging fields annotated [A:... B:...]).
 #
-# Recommended pairing (complementary jurisdictions + training lineages):
-#   Primary:  KC/qwen/qwen3-235b-a22b-2507  (Chinese MoE, 22B active)
-#   Model B:  DI/google/gemma-4-E4B-it       (US dense, 4.5B effective)
+# Recommended panel (complementary jurisdictions + training lineages):
+#   KC/qwen/qwen3-235b-a22b-2507  (Chinese MoE, 22B active)
+#   DI/google/gemma-4-E4B-it       (US dense, 4.5B effective)
 #
 # Gemma 4 E4B (April 2026) achieves 92.9% classification accuracy and
 # 100% JSON parse reliability at 4.5B params. Apache 2.0 license.
@@ -34,7 +35,6 @@
 classifier:
   name: triple-extractor
   model: qwen/qwen3.5-35b-a3b
-  model_b: DI/google/gemma-4-E4B-it
   provider: kilocode
   concurrency: 150
   timeout_secs: 30

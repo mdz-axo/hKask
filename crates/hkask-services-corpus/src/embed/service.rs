@@ -12,6 +12,7 @@ use crate::embed::Entity;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, EntityTags};
+use hkask_ports::InferencePort;
 use hkask_services_core::{DomainKind, ErrorKind, HkaskSettings, ServiceError};
 use hkask_services_runtime::TripleExtraction;
 use hkask_types::id::WebID;
@@ -412,7 +413,7 @@ impl EmbedService {
                 );
 
                 let inference_config = InferenceConfig::from_env();
-                let router = InferenceRouter::new(inference_config);
+                let router = std::sync::Arc::new(InferenceRouter::new(inference_config));
                 let semaphore =
                     std::sync::Arc::new(tokio::sync::Semaphore::new(classifier_config.concurrency));
 
@@ -423,6 +424,8 @@ impl EmbedService {
                     let system_prompt = classifier_config.system_prompt.clone();
                     let permit = semaphore.clone();
                     let text = text.clone();
+                    let temp = classifier_config.temperature;
+                    let max_tok = classifier_config.max_tokens;
 
                     handles.push(tokio::spawn(async move {
                         let _permit = permit.acquire().await;
@@ -430,8 +433,8 @@ impl EmbedService {
                         // text — the fusion orchestrator sends it as user content.
                         let prompt = format!("{system_prompt}\n\n## Passage\n{text}");
                         let params = hkask_types::LLMParameters {
-                            temperature: classifier_config.temperature as f64,
-                            max_tokens: classifier_config.max_tokens,
+                            temperature: temp as f32,
+                            max_tokens: max_tok,
                             bypass_fusion: false,
                             fusion_config: Some(fusion),
                             ..Default::default()
