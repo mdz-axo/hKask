@@ -26,7 +26,9 @@ Fusion is a **hKask-side orchestration engine**, not a provider feature. hKask i
 
 This is distinct from the OpenRouter `FusionPlugin` (`crates/hkask-inference/src/chat_protocol.rs`), which injects a plugin into the OpenRouter request body. The hKask orchestrator is provider-agnostic and works across DeepInfra, fal.ai, Together, OpenRouter, KiloCode, and Cline.
 
-**Why fusion exists:** Multi-model deliberation improves answer quality on hard reasoning tasks by combining diverse model perspectives under a methodologically-anchored judge. It is a quality/cost tradeoff — fusion multiplies token cost by roughly (panel size + judge calls × rounds).
+The judge can be an **LLM** operating in one of five deliberation modes (synthesis, best-of-n, critique, deliberation, pi), or the **algorithm** `"algo"` — a deterministic JSON merge that makes no LLM call. The `algo` judge runs the panel in parallel and merges the JSON responses via a recursive union, preserving both viewpoints without applying a methodology lens. See [The Algo Judge — Algorithmic Merge](#the-algo-judge--algorithmic-merge) below.
+
+**Why fusion exists:** Multi-model deliberation improves answer quality on hard reasoning tasks by combining diverse model perspectives under a methodologically-anchored judge. It is a quality/cost tradeoff — fusion multiplies token cost by roughly (panel size + judge calls × rounds). The `algo` judge is the exception: zero token cost, zero latency, since it skips the LLM judge call entirely.
 
 ---
 
@@ -96,6 +98,8 @@ If a panel model fails to resolve or generate, the orchestrator logs a warning a
 
 The judge operates in one of five modes, set via `HKASK_FUSION_MODE` or the `mode:` field in a manifest's `fusion:` block.
 
+> **When `judge: "algo"`, the mode is ignored** — the algorithmic merge has its own logic. The `skills` and `max_rounds` fields are also ignored.
+
 ### `synthesis` (default) — 1 round
 
 The judge composes a unified response incorporating the strongest elements from each panelist and explicitly resolves contradictions. Use this as the general-purpose default when you want a merged answer rather than a picked one.
@@ -126,6 +130,36 @@ The orchestrator re-dispatches the follow-up to the panel and loops. If `max_rou
 2. **Phase 2 (Implement):** The strategy plan is sent back to the panel, which proposes concrete implementation steps (files, functions, tests, sequencing). Judge synthesizes a unified implementation plan.
 
 Use this for engineering tasks where strategy and execution should be separated — refactors, feature design, architectural work. Matches the `refactor-service-layer` and `improve-codebase-architecture` skills.
+
+---
+
+## The Algo Judge — Algorithmic Merge
+
+`judge: algo` is a special judge value that runs a **deterministic JSON merge** instead of an LLM call. Zero token cost, zero latency, and it preserves both viewpoints rather than picking one or synthesizing a third.
+
+**What it does.** The orchestrator dispatches the panel in parallel — exactly as in the LLM-judge modes — then merges the panelists' JSON responses via `merge_json_values` (a recursive union):
+
+- **Objects** merge by key (recursively).
+- **Arrays** concatenate with case-insensitive deduplication.
+- **Diverging strings** are annotated as `[A:... B:...]` so both values survive.
+
+**When to use.** Epistemic-integrity tasks where both models' outputs should be preserved rather than judged — e.g. classification steps where agreement and disagreement are both signal. The `algo` judge replaces the former `dual_model: true` step flag and the `DualModelPort` mechanism.
+
+Minimal config:
+
+```yaml
+fusion:
+  judge: algo
+  panel:
+    - KC/qwen/qwen3-235b-a22b-2507
+    - DI/google/gemma-4-31b-it-turbo
+```
+
+**Limitations.**
+
+- Designed for a **2-model** merge — annotation quality degrades with 3+ panelists.
+- Requires **JSON** panel responses; non-JSON output falls back to `null`.
+- **No skill anchoring** — use a judge-based mode (`synthesis`, `critique`, etc.) when you need methodology-anchored evaluation.
 
 ---
 
@@ -191,11 +225,10 @@ The full `FusionConfig` shape (5 fields, YAML-clean):
 When a step runs, fusion config is resolved in this order (highest priority first):
 
 1. `step.fusion: Some(false)` → **bypass fusion** (single-model inference). Used for deterministic rubric evaluation and convergence checks.
-2. `step.dual_model: true` → **bypass fusion** (dual-model has its own multi-model mechanism).
-3. `step.fusion: Some(true)` or `None` → inherit the manifest config.
-4. `manifest.fusion: Some(config)` → per-manifest config (carried via `LLMParameters.fusion_config`).
-5. `manifest.fusion: None` → global config (`HKASK_FUSION_*` env vars).
-6. `params.bypass_fusion: true` → **bypass everything** (chat path, condenser, daemon narratives, summarization).
+2. `step.fusion: Some(true)` or `None` → inherit the manifest config.
+3. `manifest.fusion: Some(config)` → per-manifest config (carried via `LLMParameters.fusion_config`).
+4. `manifest.fusion: None` → global config (`HKASK_FUSION_*` env vars).
+5. `params.bypass_fusion: true` → **bypass everything** (chat path, condenser, daemon narratives, summarization).
 
 ### Per-Step Bypass
 
@@ -225,7 +258,7 @@ Fusion routing is decided per inference call by `bypass_fusion` on `LLMParameter
 | `kask api` chat stream | ❌ no | `bypass_fusion = true` |
 | Condenser / summarization | ❌ no | Always bypass — cost/latency sensitive |
 | Daemon narratives | ❌ no | Always bypass |
-| Dual-model classification steps | ❌ no | Dual-model has its own parallel mechanism; the two systems solve different problems (deliberation quality vs. epistemic integrity) |
+| Algo-judge steps (`fusion: true`, `judge: algo`) | ✅ yes | The `algo` judge is a fusion path — it dispatches the panel in parallel and merges JSON via `merge_json_values`, replacing the former dual-model mechanism |
 
 Chat intentionally bypasses fusion so the user's explicitly-chosen model answers directly, while skills (which run autonomously) route through the fusion panel for higher quality.
 
@@ -282,15 +315,14 @@ Filter with `RUST_LOG=cns.inference=info` to watch fusion in action.
 
 ## Disambiguation: Fusion vs. Dual-Model vs. OpenRouter FusionPlugin
 
-hKask has three distinct multi-model mechanisms. They are **orthogonal** and never combine on the same call:
+hKask has two distinct multi-model mechanisms. They are **orthogonal** and never combine on the same call:
 
 | Mechanism | Crate | Purpose | Combines with fusion? |
 |-----------|-------|---------|----------------------|
 | **Fusion** (this guide) | `hkask-inference::fusion_orchestrator` | Panel → judge deliberation for quality | — |
-| **Dual-model classification** | `hkask-templates::executor` | Two peer models from different jurisdictions, JSON merged via set union, for epistemic integrity | No — `dual_model: true` always sets `bypass_fusion = true` |
 | **OpenRouter FusionPlugin** | `hkask-inference::chat_protocol` | OpenRouter-side plugin injected into the request body | Separate path; the hKask orchestrator does not use it |
 
-Dual-model and fusion solve different problems: fusion improves answer quality through deliberation; dual-model improves epistemic integrity through jurisdictional diversity. A step is either fusion, dual-model, or single-model — never more than one.
+> The former `dual_model: true` step flag and `DualModelPort` have been replaced by `judge: algo` in the fusion config. The classification service's domain-specific dual-model (Jaccard scoring, divergence detection, drift detection) remains separate in `hkask-services-runtime`.
 
 ---
 
@@ -300,7 +332,7 @@ Dual-model and fusion solve different problems: fusion improves answer quality t
 |----------|----------|
 | `FusionConfig`, `FusionMode`, `FusionSkill` types | `crates/hkask-types/src/fusion.rs` |
 | Env-var parser (`parse_fusion_config`) | `crates/hkask-inference/src/config.rs` |
-| Orchestrator entry (`orchestrate`) and 5 mode implementations | `crates/hkask-inference/src/fusion_orchestrator.rs` |
+| Orchestrator entry (`orchestrate`), 5 mode implementations, and `ALGO_JUDGE` constant | `crates/hkask-inference/src/fusion_orchestrator.rs` |
 | Router fusion override (`effective_model`, `orchestrate_fusion`) | `crates/hkask-inference/src/inference_router/` |
 | Per-manifest `fusion:` block (`BundleManifest.fusion`, `BundleManifestStep.fusion`) | `crates/hkask-templates/src/bundle/manifest.rs` |
 | Per-step resolution logic | `crates/hkask-templates/src/executor.rs` (`execute_select`) |

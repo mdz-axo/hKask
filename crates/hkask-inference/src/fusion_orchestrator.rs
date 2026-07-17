@@ -187,18 +187,19 @@ fn parse_json_response(text: &str) -> serde_json::Value {
     // Markdown code fence
     if let Some(json_start) = trimmed.find("```json") {
         let after_fence = &trimmed[json_start + 7..];
-        if let Some(json_end) = after_fence.find("```") {
-            if let Ok(v) = serde_json::from_str(after_fence[..json_end].trim()) {
-                return v;
-            }
+        if let Some(v) = after_fence
+            .find("```")
+            .and_then(|end| serde_json::from_str(after_fence[..end].trim()).ok())
+        {
+            return v;
         }
     }
 
     // Bare JSON object boundaries
-    if let (Some(start), Some(end)) = (trimmed.find('{'), trimmed.rfind('}')) {
-        if let Ok(v) = serde_json::from_str(&trimmed[start..=end]) {
-            return v;
-        }
+    if let (Some(start), Some(end)) = (trimmed.find('{'), trimmed.rfind('}'))
+        && let Ok(v) = serde_json::from_str(&trimmed[start..=end])
+    {
+        return v;
     }
 
     Value::Null
