@@ -5032,6 +5032,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-services-self-heal"
+version = "0.31.0"
+dependencies = [
+ "hkask-types",
+ "minijinja",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "hkask-services-skill"
 version = "0.31.0"
 dependencies = [

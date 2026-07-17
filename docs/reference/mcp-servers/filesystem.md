@@ -100,20 +100,34 @@ status: VERIFIED
   sandbox boundary. Empty paths are rejected at the boundary before resolution.
 - **Shell `cwd` sandbox.** `shell_exec` canonicalizes `cwd` through
   `sandbox_path` when provided, defaulting to `project_root`.
-- **Shell command string is NOT sandboxed.** The `command` argument is passed
+- **Shell command string is not confined.** The `command` argument is passed
   to `sh -c` without restriction; an agent may `cd` to or reference absolute
-  paths outside `project_root` from within the command. The sandbox governs
-  only the starting working directory. Callers requiring a confined shell
-  must enforce that at the capability/consent layer, not at this tool.
+  paths outside `project_root` from within the command. This is **consistent
+  with OCAP, not a violation**: a capability token grants the authority to run
+  a shell, and the holder of that capability is the trusted actor who
+  exercises it. The safeguard is consent-gated capability granting (Magna
+  Carta P2), not command-string filtering at this tool.
+- **Governance is at the dispatcher membrane, not the server.** OCAP is
+  enforced by the `GovernedTool` membrane in `crates/hkask-mcp/src/dispatch.rs`,
+  which verifies a `DelegationToken` per call before the request reaches this
+  server. The filesystem server is the transport pipe; it does not re-check
+  capabilities per call. This server is also **excluded from the headless HTTP
+  API** (`API_EXCLUDED` in `crates/hkask-cli/src/commands/serve.rs`), so it is
+  reachable only via the local stdio path by an agent that already holds a
+  filesystem capability token.
 
 ## Security model notes
 
 The following are standing properties of the sandbox design (not defects):
 
-- **TOCTOU boundary.** `sandbox_path` canonicalizes at call time; a path
-  component could change between the check and the file operation. Acceptable
-  for a single-user agent tool; flagged here for security reviewers who need
-  atomic containment.
+- **TOCTOU boundary (single trusting workspace).** `sandbox_path` canonicalizes
+  at call time; a path component could change between the check and the file
+  operation. This server runs one process per workspace (`project_root` from
+  `HKASK_PROJECT_ROOT` at startup) shared by the agents in that workspace. The
+  TOCTOU is low-risk under hKask's model — agents in a workspace share one
+  user's sovereignty and cooperate — but it is exploitable if agents within a
+  workspace are ever mutually adversarial (a symlink swap races the check).
+  Flagged here so a future multi-tenant workspace design is not misled.
 - **Operation spans are success-path only.** `emit_cns` fires the operation
   verb (`file.read`, …) on the success path of each tool. The framework
   `execute_tool` span records outcome (`ok`/`error`) for all calls, so failed

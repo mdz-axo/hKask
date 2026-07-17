@@ -248,7 +248,6 @@ impl SearchStrategy {
 pub enum ProviderFilter {
     All,
     Capabilities(Vec<SearchCapability>),
-    Kinds(Vec<&'static str>),
 }
 
 impl std::fmt::Display for SearchStrategy {

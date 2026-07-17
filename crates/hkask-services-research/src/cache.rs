@@ -14,6 +14,7 @@ use super::types::MAX_CACHE_VALUE_BYTES;
 struct CacheEntry {
     data: serde_json::Value,
     inserted_at: std::time::Instant,
+    last_accessed: std::time::Instant,
     ttl: Duration,
 }
 
@@ -41,15 +42,15 @@ impl ResponseCache {
         }
     }
 
+    /// Get a cached value, updating its last-accessed time for LRU eviction.
     pub async fn get(&self, key: &CacheKey) -> Option<serde_json::Value> {
-        let entries = self.entries.read().await;
-        entries.get(key).and_then(|e| {
-            if e.is_expired() {
-                None
-            } else {
-                Some(e.data.clone())
-            }
-        })
+        let mut entries = self.entries.write().await;
+        let entry = entries.get_mut(key)?;
+        if entry.is_expired() {
+            return None;
+        }
+        entry.last_accessed = std::time::Instant::now();
+        Some(entry.data.clone())
     }
 
     pub async fn insert(&self, key: CacheKey, data: serde_json::Value) {
@@ -67,19 +68,22 @@ impl ResponseCache {
         }
 
         let mut entries = self.entries.write().await;
+        // Evict least recently accessed entry when at capacity
         if entries.len() >= self.max_entries
             && let Some(oldest_key) = entries
                 .iter()
-                .min_by_key(|(_, v)| v.inserted_at)
+                .min_by_key(|(_, v)| v.last_accessed)
                 .map(|(k, _)| k.clone())
         {
             entries.remove(&oldest_key);
         }
+        let now = std::time::Instant::now();
         entries.insert(
             key,
             CacheEntry {
                 data,
-                inserted_at: std::time::Instant::now(),
+                inserted_at: now,
+                last_accessed: now,
                 ttl: self.default_ttl,
             },
         );

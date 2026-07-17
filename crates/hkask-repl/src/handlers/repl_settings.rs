@@ -359,6 +359,13 @@ impl ReplSettings {
                 Ok(_) => return Err(anyhow::anyhow!("saliency_window must be 1–50")),
                 _ => return Err(anyhow::anyhow!("expected positive integer")),
             },
+            "pre_compress" | "precompress" => match value.to_lowercase().as_str() {
+                "on" | "true" | "enabled" | "1" => self.pre_compress = true,
+                "off" | "false" | "disabled" | "0" => self.pre_compress = false,
+                _ => {
+                    return Err(anyhow::anyhow!("expected on/off, true/false, or 1/0"));
+                }
+            },
             "short_term_memory_life" | "stm_life" => match value.parse::<u32>() {
                 Ok(v) => self.short_term_memory_life = v, // 0 = never archive
                 _ => return Err(anyhow::anyhow!("expected non-negative integer")),
@@ -497,6 +504,7 @@ mod tests {
             auto_condense: false,
             condense_pressure_threshold: 0.875,
             condense_saliency_window: 5,
+            pre_compress: false,
             short_term_memory_life: 60,
             disable_thinking: true,
             model_meta: None,
@@ -547,6 +555,7 @@ mod tests {
             auto_condense: false,
             condense_pressure_threshold: 0.75,
             condense_saliency_window: 7,
+            pre_compress: true,
             short_term_memory_life: 30,
             disable_thinking: false,
             model_meta: Some(ModelMeta {

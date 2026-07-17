@@ -778,8 +778,8 @@ Context condensation domain logic — compression algorithms, classification, pr
 
 | Module | Purpose |
 |--------|---------|
-| `engine` | `CondenserEngine` — central compression orchestrator (8 MCP tools) |
-| `algorithms` | Compression algorithms: word-rank, RTK-style, FlashRank. `CondenserAlgorithm` trait |
+| `engine` | `CondenserEngine` — central compression orchestrator (8 MCP tools), compression history, algorithm learning, profile suggestion |
+| `algorithms` | Compression algorithms: word-rank, RTK-style, FlashRank. `CondenserAlgorithm` trait, `AlgorithmRegistry` with `select_by_name` for learned selection |
 | `types` | `CompressedOutput`, health signals, compression profiles |
 | `inference` | LLM-based summarization via centralized inference router |
 | `saliency` | Persona word-overlap scoring, memory query-word extraction, memory result scoring |

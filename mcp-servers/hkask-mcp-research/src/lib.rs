@@ -180,7 +180,7 @@ impl ResearchServer {
     }
 
     #[tool(
-        description = "Search the web with RRF fusion across providers. Strategy selects providers: quick (single keyword), web (all), news (news-capable), deep (all + rerank)"
+        description = "Search the web with RRF fusion across providers. Strategy selects providers: quick (single keyword), web (all), news (news-capable), deep (all + 2x results + content extraction on top results)"
     )]
     pub async fn web_search(&self, Parameters(req): Parameters<SearchRequest>) -> String {
         execute_tool(self, "web_search", async {
@@ -534,16 +534,16 @@ impl ResearchServer {
         execute_tool(self, "rss_unsubscribe", async {
             let db = require_rss_db!(self);
 
-        let sid = stream_id.clone();
-        let result = spawn_db(db, move |conn| {
-            conn.execute("DELETE FROM subscriptions WHERE stream_id = ?1", [&sid])
-                .map_err(|e| anyhow::anyhow!(e))
-        })
-        .await;
-        handle_db_result!(
-            result,
-            |removed| serde_json::json!({"stream_id": stream_id, "unsubscribed": removed > 0, "removed": removed})
-        )
+            let sid = stream_id.clone();
+            let result = spawn_db(db, move |conn| {
+                conn.execute("DELETE FROM subscriptions WHERE stream_id = ?1", [&sid])
+                    .map_err(|e| anyhow::anyhow!(e))
+            })
+            .await;
+            handle_db_result!(
+                result,
+                |removed| serde_json::json!({"stream_id": stream_id, "unsubscribed": removed > 0, "removed": removed})
+            )
         }).await
     }
 
@@ -572,51 +572,51 @@ impl ResearchServer {
             let sid = stream_id.clone();
             let lookup = spawn_db(db, move |conn| resolve_feed_with_headers(conn, &sid)).await;
 
-        let (feed_url, cached_etag, cached_lm) = match lookup {
-            Ok(Ok(v)) => v,
-            Ok(Err(e)) => {
-                return Err(McpToolError::not_found(e.to_string()));
+            let (feed_url, cached_etag, cached_lm) = match lookup {
+                Ok(Ok(v)) => v,
+                Ok(Err(e)) => {
+                    return Err(McpToolError::not_found(e.to_string()));
+                }
+                Err(e) => {
+                    return Err(McpToolError::internal(format!("Task error: {}", e)));
+                }
+            };
+
+            let db = require_rss_db!(self);
+            let fetch_result = fetch_feed(
+                &self.rss_client,
+                &feed_url,
+                cached_etag.as_deref(),
+                cached_lm.as_deref(),
+            )
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Fetch failed: {}", e)))?;
+
+            if fetch_result.status == 304 {
+                return Ok(serde_json::json!({
+                    "stream_id": stream_id,
+                    "new_entries": 0,
+                    "fetched": true,
+                    "not_modified": true,
+                }));
             }
-            Err(e) => {
-                return Err(McpToolError::internal(format!("Task error: {}", e)));
-            }
-        };
 
-        let db = require_rss_db!(self);
-        let fetch_result = fetch_feed(
-            &self.rss_client,
-            &feed_url,
-            cached_etag.as_deref(),
-            cached_lm.as_deref(),
-        )
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("Fetch failed: {}", e)))?;
+            let sid2 = stream_id.clone();
+            let etag = fetch_result.etag.clone();
+            let lm = fetch_result.last_modified.clone();
 
-        if fetch_result.status == 304 {
-            return Ok(serde_json::json!({
-                "stream_id": stream_id,
-                "new_entries": 0,
-                "fetched": true,
-                "not_modified": true,
-            }));
-        }
+            let result = spawn_db(db, move |conn| {
+                let feed_id = upsert_feed(conn, &feed_url, &fetch_result.feed)?;
+                let new_count = insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
+                update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
+                Ok::<usize, anyhow::Error>(new_count)
+            })
+            .await;
 
-        let sid2 = stream_id.clone();
-        let etag = fetch_result.etag.clone();
-        let lm = fetch_result.last_modified.clone();
-
-        let result = spawn_db(db, move |conn| {
-            let feed_id = upsert_feed(conn, &feed_url, &fetch_result.feed)?;
-            let new_count = insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
-            update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
-            Ok::<usize, anyhow::Error>(new_count)
-        })
-        .await;
-
-        handle_db_result!(
-            result,
-            |new_count| serde_json::json!({"stream_id": sid2, "new_entries": new_count, "fetched": true})
-        )
+            handle_db_result!(
+                result,
+                |new_count| serde_json::json!({"stream_id": sid2, "new_entries": new_count, "fetched": true})
+            )
         }).await
     }
 
@@ -635,44 +635,44 @@ impl ResearchServer {
     ) -> String {
         execute_tool(self, "rss_get_entries", async {
             let db = require_rss_db!(self);
-        let limit = (count.unwrap_or(DEFAULT_PAGE_SIZE as u32) as usize).min(MAX_PAGE_SIZE);
-        let offset = continuation_token
-            .as_ref()
-            .and_then(|t| {
-                let bytes = base64::engine::general_purpose::STANDARD.decode(t).ok()?;
-                serde_json::from_slice::<Continuation>(&bytes).ok()
+            let limit = (count.unwrap_or(DEFAULT_PAGE_SIZE as u32) as usize).min(MAX_PAGE_SIZE);
+            let offset = continuation_token
+                .as_ref()
+                .and_then(|t| {
+                    let bytes = base64::engine::general_purpose::STANDARD.decode(t).ok()?;
+                    serde_json::from_slice::<Continuation>(&bytes).ok()
+                })
+                .map(|c| c.offset)
+                .unwrap_or(0);
+
+            let sid = stream_id.clone();
+            let result = spawn_db(db, move |conn| {
+                query_entries(
+                    conn,
+                    &sid,
+                    unread_only.unwrap_or(false),
+                    starred_only.unwrap_or(false),
+                    offset,
+                    limit + 1,
+                )
             })
-            .map(|c| c.offset)
-            .unwrap_or(0);
+            .await;
 
-        let sid = stream_id.clone();
-        let result = spawn_db(db, move |conn| {
-            query_entries(
-                conn,
-                &sid,
-                unread_only.unwrap_or(false),
-                starred_only.unwrap_or(false),
-                offset,
-                limit + 1,
-            )
-        })
-        .await;
-
-        handle_db_result!(result, |mut entries: Vec<serde_json::Value>| {
-            let has_more = entries.len() > limit;
-            if has_more {
-                entries.truncate(limit);
-            }
-            let next_token = has_more.then(|| {
-                let cont = Continuation {
-                    offset: offset + limit,
-                    stream_id: stream_id.clone(),
-                };
-                base64::engine::general_purpose::STANDARD
-                    .encode(serde_json::to_vec(&cont).unwrap_or_default())
-            });
-            serde_json::json!({"stream_id": stream_id, "entries": entries, "count": entries.len(), "continuation_token": next_token})
-        })
+            handle_db_result!(result, |mut entries: Vec<serde_json::Value>| {
+                let has_more = entries.len() > limit;
+                if has_more {
+                    entries.truncate(limit);
+                }
+                let next_token = has_more.then(|| {
+                    let cont = Continuation {
+                        offset: offset + limit,
+                        stream_id: stream_id.clone(),
+                    };
+                    base64::engine::general_purpose::STANDARD
+                        .encode(serde_json::to_vec(&cont).unwrap_or_default())
+                });
+                serde_json::json!({"stream_id": stream_id, "entries": entries, "count": entries.len(), "continuation_token": next_token})
+            })
         }).await
     }
 

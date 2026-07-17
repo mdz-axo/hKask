@@ -15,13 +15,14 @@ mds_categories: [domain, composition]
 > in the Architecture section and in
 > [`mcp-servers/hkask-mcp-skill/src/lib.rs`](../../../mcp-servers/hkask-mcp-skill/src/lib.rs).
 
-Thin MCP surface that exposes the hKask skill registry as three callable tools.
-It is an *alternate consumer surface* alongside the CLI and Web servers, and —
-per the crate's architectural note — reads the template registry directly rather
-than routing through `hkask-services-skill`. Skill *management* (discovery,
-publishing, hashing, auditing, bundle composition) lives in
-[`hkask-services-skill`](../../../crates/hkask-services-skill); skill *execution*
-(template render + inference) is the concern this server owns.
+Thin MCP surface that exposes the hKask **template** registry as three callable
+tools — it renders Jinja2 templates and runs inference, not `Skill` (PDCA
+composition) execution (see [Templates vs skills](#templates-vs-skills) below).
+It is an *alternate consumer surface* alongside the CLI and Web servers and reads
+the template registry directly rather than routing through `hkask-services-skill`.
+Skill *management* (discovery, publishing, hashing, auditing, bundle composition)
+lives in [`hkask-services-skill`](../../../crates/hkask-services-skill); template
+render + inference is the concern this server owns.
 
 ## Tool Catalogue
 
@@ -43,11 +44,15 @@ is wrapped in `execute_tool(self, name, async { … })`, which handles span
 lifecycle, outcome recording, and error serialization.
 
 At startup, `run()` constructs an `InferenceRouter` (the production
-`InferencePort`), builds a `SkillServer` with an empty skill index, then calls
-`load_skills()` to populate the index from `Registry::bootstrap()`.
-`skill_execute` looks up the rendered template content by ID, renders it with
-`minijinja` (lenient undefined behaviour), prepends a static system prompt, and
-calls `inference_port.generate(...)`.
+`InferencePort`), builds a `SkillServer` with an empty template index, then calls
+`load_skills()` to populate it from `Registry::bootstrap()` — each
+`RegistryEntry` is stored keyed by a tool-facing ID (template content is read
+lazily from `entry.source_path` on each `skill_execute`, so no copies are held
+and disk edits are picked up). `skill_execute` validates that `context` is a
+JSON object, reads the template from disk, renders it with `minijinja` (lenient
+undefined behaviour), prepends a minimal honest preamble, and calls
+`inference_port.generate(...)`. All three tools return JSON objects;
+`skill_execute` wraps its result as `{"result": …}`.
 
 ```mermaid
 classDiagram
@@ -57,16 +62,18 @@ classDiagram
         +String replicant
         +Option~DaemonClient~ daemon
         +Arc~dyn InferencePort~ inference_port
-        +SkillIndex skills
+        +HashMap~String, RegistryEntry~ skills
         +CapabilityTier capability_tier
         +load_skills()
         +skill_ping() String
         +skill_list() String
         +skill_execute(req) String
     }
-    class SkillToolDef {
+    class RegistryEntry {
+        +String id
+        +TemplateType template_type
         +String description
-        +String template_content
+        +String source_path
     }
     class SkillExecuteRequest {
         +String skill_id
@@ -101,9 +108,10 @@ classDiagram
         +bool persistence_available
     }
 
-    SkillServer *-- SkillToolDef : skills HashMap stores copies
+    SkillServer *-- RegistryEntry : skills HashMap (lazy read)
     SkillServer ..> SkillExecuteRequest : skill_execute deserializes
     SkillServer ..> Registry : load_skills reads template list
+    Registry ..> RegistryEntry : list() returns Vec
     SkillServer ..> InferencePort : skill_execute invokes
     SkillServer ..> CapabilityTier : constructed with
     Registry ..|> RegistryIndex : implements
@@ -119,19 +127,24 @@ reference_sources: crates/hkask-templates/src/registry.rs:400
 status: VERIFIED
 -->
 
-### Known architectural friction (current status)
+### Templates vs skills
 
-The diagram above makes a structural fact visible: `Registry` implements **both**
-`RegistryIndex` (the template layer) and `SkillRegistryIndex` (the skill layer),
-but `SkillServer::load_skills()` reads only `RegistryIndex::list()` and
-re-derives its own `HashMap<String, SkillToolDef>` from template entries — it
-never consults `SkillRegistryIndex`. The crate's lib.rs comment documents this as
-intentional (no `SkillService::execute()` exists), but it means two parallel
-skill indexes exist at runtime: the registry's `skills` map and the server's
-`SkillIndex`. A registry hot-reload would leave the server stale, because
-`load_skills()` runs once at startup with no feedback loop. This is tracked as a
-deepening candidate (see [Adversarial Review](#) in the review notes), not a
-blocking defect.
+`Registry` implements **both** `RegistryIndex` (the template layer) and
+`SkillRegistryIndex` (the skill layer), but this server reads only
+`RegistryIndex::list()` — and that is correct, not a redundancy. The two layers
+serve different purposes:
+
+- **`RegistryIndex`** holds the executable Jinja2 *templates* this server renders.
+- **`SkillRegistryIndex`** holds `Skill` records — PDCA-loop *compositions* whose
+  `word_act`/`flow_def`/`know_act` fields *reference* templates by ID. Executing a
+  `Skill` means driving its FlowDef manifest, which is a separate concern
+  requiring a manifest executor, not template render + inference.
+
+The server therefore stores `RegistryEntry` values directly (no wrapper type) and
+reads template content lazily from `entry.source_path`. One real limitation
+remains: the template *set* is fixed at startup — `load_skills()` runs once with
+no reload feedback loop, so a registry hot-reload would leave the server stale.
+That reload loop is the genuine follow-up (not a dual-index redundancy).
 
 ## Dependencies
 

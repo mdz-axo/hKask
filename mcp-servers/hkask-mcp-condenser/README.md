@@ -8,8 +8,8 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 
 | Tool | Description | Requires Config |
 |------|-------------|-----------------|
-| `condenser_ping` | Liveness check, profile info, algorithm listing | — |
-| `condenser_compress` | Compress tool output using context-aware algorithms | — |
+| `condenser_ping` | Liveness check, profile info, algorithm listing, suggested profile, compression history stats | — |
+| `condenser_compress` | Compress tool output using context-aware algorithms. Auto-selects the best-performing algorithm per category when sufficient compression history exists (learning). | — |
 | `condenser_classify` | Classify tool name to context category | — |
 | `condenser_set_profile` | Set compression profile (heavy/normal/soft/light) | — |
 | `condenser_stats` | Cumulative compression statistics | — |
@@ -91,3 +91,35 @@ hkask-mcp-condenser
 # With persistence
 HKASK_DB_PATH=/path/to/db HKASK_DB_PASSPHRASE=secret hkask-mcp-condenser
 ```
+
+## Tool Surface Justification
+
+The condenser exposes 8 tools, exceeding the 7-function guideline. Each tool beyond 7 is justified:
+
+| Tool | Why It Cannot Be Merged |
+|------|------------------------|
+| `condenser_classify` | Preview operation — lets clients check classification without paying the compression cost. Merging into `compress` would force clients to compress just to see the category. |
+| `condenser_stats` | Cumulative state across all compressions (counts, byte totals, algorithm usage). `condenser_ping` returns instantaneous state (current profile, health). Different time horizons, different data shapes. |
+
+## Learning
+
+The condenser learns which compression algorithm performs best per category. After 10 compressions for a given category, `CondenserEngine::recommend_algorithm()` returns the algorithm with the highest historical compression ratio. When sufficient data exists, `compress()` auto-selects the recommended algorithm instead of the static `default_for()` mapping.
+
+The engine stores up to 200 `CompressionRecord` observations in a bounded ring buffer. The `condenser_ping` response includes:
+- `suggested_profile` — recommends a more aggressive profile when health checks flag degradation
+- `history_records` — number of stored compression observations
+- `history_stats` — per-algorithm and per-category compression ratio summaries
+
+## CNS Spans
+
+The `cns.condenser` tracing spans (compress, compression_ratio, health) are **diagnostic logging** for human inspection via log output — NOT cybernetic feedback signals. They are not consumed by any regulation policy or feedback loop.
+
+The actual feedback channel is the daemon's `store_experience` call, enriched with compression quality data (algorithm, category, profile, compression_ratio, health_signal_count). This data is available to the CNS runtime for observability and analysis.
+
+## Two-Phase Condensation
+
+The ChatService's auto-condense pipeline supports two-phase condensation:
+1. **Phase 1 (CPU):** Pre-compress the old half of conversation history with `CondenserEngine` (Profile::Heavy, ConversationHistory category). Reduces token count before the expensive LLM call.
+2. **Phase 2 (LLM):** Summarize the pre-compressed old half via the centralized inference router.
+
+Phase 1 is controlled by the `pre_compress` setting (default: true). When disabled, the raw old half is fed directly to the LLM summarizer.

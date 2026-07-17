@@ -225,12 +225,6 @@ impl ProviderPool {
                 })
                 .map(|p| p.as_ref())
                 .collect(),
-            ProviderFilter::Kinds(kinds) => self
-                .search_providers
-                .iter()
-                .filter(|p| kinds.contains(&p.kind()))
-                .map(|p| p.as_ref())
-                .collect(),
         };
 
         let providers_queried: Vec<ProviderInfo> = filtered
@@ -566,12 +560,63 @@ impl WebSearchPort for ProviderPool {
                 duplicates_removed: 0,
             }
         } else {
-            self.search_compound(query, strategy).await
+            // Deep strategy: request more results from each provider for a broader
+            // RRF candidate pool, giving fusion more signal to dedup and rank.
+            let search_query = if strategy == SearchStrategy::Deep {
+                SearchQuery {
+                    num_results: query.num_results.saturating_mul(2).min(50),
+                    ..query.clone()
+                }
+            } else {
+                query.clone()
+            };
+            self.search_compound(&search_query, strategy).await
         };
 
         apply_rerank(&mut compound.results, RerankSignal::Recency);
         apply_rerank(&mut compound.results, RerankSignal::Semantic);
         apply_rerank(&mut compound.results, RerankSignal::ContentQuality);
+
+        // Deep strategy: extract content from top results to enrich the response.
+        // This populates content_preview, giving users actual page content
+        // alongside the link and snippet — the key differentiation from Web.
+        if strategy == SearchStrategy::Deep && !compound.results.is_empty() {
+            let top_n = compound.results.len().min(3);
+            let opts = ExtractOptions {
+                format: "markdown".to_string(),
+                json_prompt: None,
+                json_schema: None,
+                main_content_only: true,
+                wait_for_ms: 0,
+            };
+            let top_urls: Vec<String> = compound.results[..top_n]
+                .iter()
+                .map(|r| r.url.clone())
+                .collect();
+            let futures: Vec<_> = top_urls
+                .iter()
+                .map(|url| async {
+                    match self.extract_with_fallback(url, &opts).await {
+                        Ok(content) => Some((url.clone(), content.content)),
+                        Err(e) => {
+                            tracing::debug!(
+                                url = %url,
+                                error = %e,
+                                "Deep search content extraction failed"
+                            );
+                            None
+                        }
+                    }
+                })
+                .collect();
+            let extracted = futures_util::future::join_all(futures).await;
+            for (url, content) in extracted.into_iter().flatten() {
+                if let Some(r) = compound.results.iter_mut().find(|r| r.url == url) {
+                    let preview: String = content.chars().take(500).collect();
+                    r.content_preview = Some(preview);
+                }
+            }
+        }
 
         Ok(compound)
     }

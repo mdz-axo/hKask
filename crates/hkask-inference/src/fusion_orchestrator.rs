@@ -17,8 +17,9 @@
 //! Skills anchor the judge's reasoning with hKask's pragmatic methodology.
 
 use crate::config::{FusionConfig, FusionMode, FusionSkill};
-use crate::inference_router::InferenceRouter;
-use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage};
+use hkask_ports::{
+    ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
+};
 use hkask_types::template::LLMParameters;
 use tracing::info;
 
@@ -107,7 +108,7 @@ struct PanelResponse {
 
 /// Dispatch to all panel models in parallel.
 async fn dispatch_panel(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,
@@ -115,23 +116,18 @@ async fn dispatch_panel(
 ) -> Vec<PanelResponse> {
     use futures_util::future::join_all;
 
+    // Panel models must bypass fusion to avoid routing back through the judge.
+    let panel_params = LLMParameters {
+        bypass_fusion: true,
+        ..params.clone()
+    };
+    let panel_params = &panel_params;
+
     let futures: Vec<_> = panel
         .iter()
         .map(|model_name| async move {
-            let (provider, model) = match router.resolve(model_name) {
-                Ok(r) => r,
-                Err(e) => {
-                    tracing::warn!(
-                        target: "cns.inference",
-                        panel_model = %model_name,
-                        error = %e,
-                        "Panel model resolution failed"
-                    );
-                    return None;
-                }
-            };
             match router
-                .dispatch_generate(provider, model, prompt, params, tools)
+                .generate_with_model(prompt, panel_params, Some(model_name.as_str()), tools)
                 .await
             {
                 Ok(result) => Some(PanelResponse {
@@ -284,19 +280,18 @@ fn algo_merge(responses: &[PanelResponse]) -> InferenceResult {
 
 /// Call the judge model with a given prompt.
 async fn call_judge(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     judge_model: &str,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,
 ) -> Result<InferenceResult, InferenceError> {
-    let (judge_provider, judge_stripped) = router.resolve(judge_model)?;
     let judge_params = LLMParameters {
         bypass_fusion: true,
         ..params.clone()
     };
     router
-        .dispatch_generate(judge_provider, judge_stripped, prompt, &judge_params, tools)
+        .generate_with_model(prompt, &judge_params, Some(judge_model), tools)
         .await
 }
 
@@ -304,7 +299,7 @@ async fn call_judge(
 
 /// Best-of-N: Judge evaluates all panel responses and picks the single best.
 async fn mode_best_of_n(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,
@@ -332,7 +327,7 @@ async fn mode_best_of_n(
 
 /// Synthesis: Judge composes a unified response from all panelists.
 async fn mode_synthesis(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,
@@ -362,7 +357,7 @@ async fn mode_synthesis(
 
 /// Critique: 2-round — draft synthesis, panel critiques draft, judge revises.
 async fn mode_critique(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,
@@ -428,7 +423,7 @@ async fn mode_critique(
 
 /// Deliberation: Multi-round with convergence.
 async fn mode_deliberation(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,
@@ -510,7 +505,7 @@ async fn mode_deliberation(
 
 /// Plan-Implement: 2-phase — Phase 1: strategy plan, Phase 2: implementation plan.
 async fn mode_plan_implement(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,
@@ -607,7 +602,7 @@ async fn mode_plan_implement(
 /// post: returns judge output per the configured mode
 #[must_use = "result must be used"]
 pub async fn orchestrate(
-    router: &InferenceRouter,
+    router: &dyn InferencePort,
     prompt: &str,
     params: &LLMParameters,
     tools: Option<&[ChatToolDefinition]>,

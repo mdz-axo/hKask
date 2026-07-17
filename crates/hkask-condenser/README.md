@@ -11,7 +11,7 @@ no HTTP, no async.
 | `algorithms` | Three compression algorithms (`rtk_style`, `word_rank`, `flashrank`) with domain-aware scoring |
 | `ontology_graph` | Cross-domain concept relationship index (FIBO, CogAT, GOLEM, ML-Schema, OMC, PKO, DC+BIBO) |
 | `types` | `OntologyAnchor`, `Profile`, `ContextCategory`, `CompressedOutput`, health signals |
-| `engine` | `CondenserEngine` — stateful compression dispatch, profile management, CNS observability |
+| `engine` | `CondenserEngine` — stateful compression dispatch, profile management, compression history, algorithm learning, profile suggestion |
 | `inference` | Prompt formatting and token estimation for LLM thread summarization |
 | `saliency` | Persona word-overlap scoring, memory query-word extraction, memory result scoring |
 
@@ -72,17 +72,27 @@ multiplier — lines containing graph-adjacent concepts get bonus scores.
 
 ## CNS Spans
 
+The `cns.condenser` tracing spans are **diagnostic logging** for human inspection — NOT cybernetic feedback signals. They are not consumed by any regulation policy or feedback loop. The actual feedback channel is the daemon's `store_experience` call in the MCP server layer.
+
 | Span | Fields | When |
 |------|--------|------|
 | `cns.condenser` compress | `algorithm`, `category`, `tool_name`, `ontology_tier` | Every compression |
 | `cns.condenser` compression_ratio | `reduction_pct`, `original_bytes`, `compressed_bytes`, `latency_ms` | Every compression |
 | `cns.condenser` health | `total_compressions`, `health_signal_count` | Health check |
-| `cns.condenser.degraded` | — | Systemic health violations (caller emits) |
+
+## Learning
+
+`CondenserEngine` learns which algorithm performs best per category:
+- Records each compression as a `CompressionRecord` in a bounded ring buffer (200 max)
+- After 10+ observations per category, `recommend_algorithm()` returns the best-performing algorithm
+- `compress()` auto-selects the recommended algorithm when sufficient data exists
+- `suggest_profile()` recommends a more aggressive profile when health checks flag degradation
+- `compression_stats()` returns per-algorithm and per-category compression ratio summaries
 
 ## Consumers
 
 - `hkask-mcp-condenser` — MCP server: thin wrapper exposing `/condenser/compress` etc.
-- `hkask-services` — `ChatService::condense_history`: auto-condenses conversation windows
+- `hkask-services-chat` — `ChatService::condense_history`: two-phase auto-condensation (CPU pre-compress + LLM summarize)
 
 ## Saliency Architecture
 
