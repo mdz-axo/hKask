@@ -10,6 +10,7 @@
 //! on the inference crate.
 
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 
 /// Judge deliberation mode for fusion orchestration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -32,33 +33,13 @@ pub enum FusionMode {
     PlanImplement,
 }
 
-impl FusionMode {
-    #[must_use]
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FusionMode::BestOfN => "best-of-n",
-            FusionMode::Synthesis => "synthesis",
-            FusionMode::Critique => "critique",
-            FusionMode::Deliberation => "deliberation",
-            FusionMode::PlanImplement => "pi",
-        }
-    }
-}
-
-impl std::str::FromStr for FusionMode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "best-of-n" => Ok(FusionMode::BestOfN),
-            "synthesis" => Ok(FusionMode::Synthesis),
-            "critique" => Ok(FusionMode::Critique),
-            "deliberation" => Ok(FusionMode::Deliberation),
-            "pi" => Ok(FusionMode::PlanImplement),
-            _ => Err(()),
-        }
-    }
-}
+crate::enum_snake_str!(FusionMode, {
+    BestOfN => "best-of-n",
+    Synthesis => "synthesis",
+    Critique => "critique",
+    Deliberation => "deliberation",
+    PlanImplement => "pi",
+});
 
 /// Skill bundle that anchors the judge's reasoning framework.
 /// Each skill injects a compact methodology prompt into the judge's system context.
@@ -104,34 +85,27 @@ pub enum FusionSkill {
     SelfCritiqueRevision,
 }
 
-impl std::str::FromStr for FusionSkill {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.trim() {
-            "pragmatic-semantics" => Ok(FusionSkill::PragmaticSemantics),
-            "pragmatic-cybernetics" => Ok(FusionSkill::PragmaticCybernetics),
-            "pragmatic-laziness" => Ok(FusionSkill::PragmaticLaziness),
-            "coding-guidelines" => Ok(FusionSkill::CodingGuidelines),
-            "deep-module" => Ok(FusionSkill::DeepModule),
-            "essentialist" => Ok(FusionSkill::Essentialist),
-            "superforecasting" => Ok(FusionSkill::Superforecasting),
-            "mcda" => Ok(FusionSkill::MCDA),
-            "tdd" => Ok(FusionSkill::TestDrivenDevelopment),
-            "bug-hunt" => Ok(FusionSkill::BugHunt),
-            "diagnose" => Ok(FusionSkill::Diagnose),
-            "falsifiability" => Ok(FusionSkill::Falsifiability),
-            "grill-me" => Ok(FusionSkill::GrillMe),
-            "idiomatic-rust" => Ok(FusionSkill::IdiomaticRust),
-            "improve-codebase-architecture" => Ok(FusionSkill::ImproveCodebaseArchitecture),
-            "metacognition" => Ok(FusionSkill::Metacognition),
-            "refactor-service-layer" => Ok(FusionSkill::RefactorServiceLayer),
-            "review" => Ok(FusionSkill::Review),
-            "self-critique-revision" => Ok(FusionSkill::SelfCritiqueRevision),
-            _ => Err(()),
-        }
-    }
-}
+crate::enum_snake_str!(FusionSkill, {
+    PragmaticSemantics => "pragmatic-semantics",
+    PragmaticCybernetics => "pragmatic-cybernetics",
+    PragmaticLaziness => "pragmatic-laziness",
+    CodingGuidelines => "coding-guidelines",
+    DeepModule => "deep-module",
+    Essentialist => "essentialist",
+    Superforecasting => "superforecasting",
+    MCDA => "mcda",
+    TestDrivenDevelopment => "tdd",
+    BugHunt => "bug-hunt",
+    Diagnose => "diagnose",
+    Falsifiability => "falsifiability",
+    GrillMe => "grill-me",
+    IdiomaticRust => "idiomatic-rust",
+    ImproveCodebaseArchitecture => "improve-codebase-architecture",
+    Metacognition => "metacognition",
+    RefactorServiceLayer => "refactor-service-layer",
+    Review => "review",
+    SelfCritiqueRevision => "self-critique-revision",
+});
 
 /// Configuration for fusion multi-model deliberation.
 ///
@@ -150,7 +124,7 @@ pub struct FusionConfig {
     pub judge: String,
     /// The panel of analysis models that answer in parallel.
     /// Each model supports provider prefix routing.
-    pub panel: Vec<String>,
+    pub panel: NonEmptyVec<String>,
     /// Judge deliberation mode. Default: Synthesis.
     #[serde(default)]
     pub mode: FusionMode,
@@ -176,7 +150,7 @@ impl FusionConfig {
     pub fn kask_default() -> Self {
         let judge = std::env::var("HKASK_FUSION_JUDGE_MODEL")
             .unwrap_or_else(|_| "deepseek-v4-pro".to_string());
-        let panel = std::env::var("HKASK_FUSION_PANEL_MODELS")
+        let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL_MODELS")
             .unwrap_or_else(|_| "Kimi2.7,Qwen3.7 Max,GLM5.2,Minimax3".to_string())
             .split(',')
             .map(|s| s.trim().to_string())
@@ -184,7 +158,7 @@ impl FusionConfig {
             .collect();
         Self {
             judge,
-            panel,
+            panel: NonEmptyVec::from_vec(panel).expect("default panel models must not be empty"),
             mode: FusionMode::Synthesis,
             skills: Vec::new(),
             max_rounds: 5,
@@ -216,30 +190,62 @@ impl FusionConfig {
     }
 }
 
-impl FusionSkill {
-    /// Human-readable string representation for display.
+// ── NonEmptyVec ──────────────────────────────────────────────────────────────
+
+/// A vector that is guaranteed to contain at least one element.
+///
+/// Makes the "non-empty" invariant unrepresentable by the type system,
+/// preventing construction of `FusionConfig` with an empty panel.
+///
+/// Serializes transparently as `Vec<T>`; deserializes by validating non-emptiness
+/// and returns a serde error if the collection is empty.
+#[derive(Debug, Clone)]
+pub struct NonEmptyVec<T>(Vec<T>);
+
+impl<T> NonEmptyVec<T> {
+    /// Construct from a first element and optional rest.
     #[must_use]
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FusionSkill::PragmaticSemantics => "pragmatic-semantics",
-            FusionSkill::PragmaticCybernetics => "pragmatic-cybernetics",
-            FusionSkill::PragmaticLaziness => "pragmatic-laziness",
-            FusionSkill::CodingGuidelines => "coding-guidelines",
-            FusionSkill::DeepModule => "deep-module",
-            FusionSkill::Essentialist => "essentialist",
-            FusionSkill::Superforecasting => "superforecasting",
-            FusionSkill::MCDA => "mcda",
-            FusionSkill::TestDrivenDevelopment => "tdd",
-            FusionSkill::BugHunt => "bug-hunt",
-            FusionSkill::Diagnose => "diagnose",
-            FusionSkill::Falsifiability => "falsifiability",
-            FusionSkill::GrillMe => "grill-me",
-            FusionSkill::IdiomaticRust => "idiomatic-rust",
-            FusionSkill::ImproveCodebaseArchitecture => "improve-codebase-architecture",
-            FusionSkill::Metacognition => "metacognition",
-            FusionSkill::RefactorServiceLayer => "refactor-service-layer",
-            FusionSkill::Review => "review",
-            FusionSkill::SelfCritiqueRevision => "self-critique-revision",
+    pub fn new(first: T, rest: Vec<T>) -> Self {
+        let mut v = Vec::with_capacity(rest.len() + 1);
+        v.push(first);
+        v.extend(rest);
+        NonEmptyVec(v)
+    }
+
+    /// Construct a single-element `NonEmptyVec`.
+    #[must_use]
+    pub fn one(t: T) -> Self {
+        NonEmptyVec(vec![t])
+    }
+
+    /// Convert from a `Vec`, returning `None` if empty.
+    #[must_use]
+    pub fn from_vec(v: Vec<T>) -> Option<Self> {
+        if v.is_empty() {
+            None
+        } else {
+            Some(NonEmptyVec(v))
         }
+    }
+}
+
+impl<T> Deref for NonEmptyVec<T> {
+    type Target = Vec<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: Serialize> Serialize for NonEmptyVec<T> {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(s)
+    }
+}
+
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for NonEmptyVec<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let v = Vec::<T>::deserialize(d)?;
+        NonEmptyVec::from_vec(v)
+            .ok_or_else(|| serde::de::Error::custom("collection must not be empty"))
     }
 }

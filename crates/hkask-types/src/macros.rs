@@ -34,3 +34,41 @@ macro_rules! enum_str_ops {
         }
     };
 }
+
+/// Generates `as_str()` and `FromStr` for an enum with custom string representations.
+///
+/// Unlike `enum_str_ops!`, this macro returns the specified string from `as_str()`
+/// (not necessarily PascalCase), implements `FromStr` (not `parse_str`), and trims
+/// input before matching for env-var robustness.
+///
+/// # Example
+///
+/// ```ignore
+/// enum_snake_str!(FusionMode, {
+///     BestOfN => "best-of-n",
+///     Synthesis => "synthesis",
+/// });
+/// ```
+#[macro_export]
+macro_rules! enum_snake_str {
+    ($ty:ident, { $($variant:ident => $s:literal),+ $(,)? }) => {
+        impl $ty {
+            #[must_use]
+            pub fn as_str(&self) -> &'static str {
+                match self {
+                    $($ty::$variant => $s),+
+                }
+            }
+        }
+
+        impl std::str::FromStr for $ty {
+            type Err = ();
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s.trim() {
+                    $($s => Ok($ty::$variant)),+,
+                    _ => Err(()),
+                }
+            }
+        }
+    };
+}
