@@ -10,10 +10,12 @@
 //! - `HKASK_OCR_MODEL` — OCR model for scanned PDF fallback
 //! - `HKASK_MODEL_DEFAULT` — fallback when provider-specific not set
 
-/// Approved classifier model for corpus pipeline classification (dual-model peer A).
+/// Approved classifier model for corpus pipeline classification.
 /// Qwen3-235B-A22B: 235B total, 22B active MoE. Hosted on KiloCode (China)
-/// to satisfy the cross-jurisdiction requirement — model B defaults to
-/// DeepInfra (US), so the two peers operate from different jurisdictions.
+/// to satisfy the cross-jurisdiction requirement — the default judge/panel
+/// peers default to US-hosted providers (e.g., DeepInfra), so the classifier
+/// operates from a different jurisdiction. Fusion orchestration (algo or
+/// LLM judge) merges panel outputs; see `fusion_orchestrator`.
 pub const DEFAULT_CLASSIFIER_MODEL: &str = "KC/qwen/qwen3-235b-a22b-2507";
 
 /// Default embedding model.
@@ -24,7 +26,10 @@ pub const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";
 pub const DEFAULT_OCR_MODEL: &str = "RP/kask-ocr";
 
 /// Fallback model when no other model is configured.
-pub const DEFAULT_FALLBACK_MODEL: &str = "deepseek-v4-pro";
+/// Prefixed with `KC/` so it routes to KiloCode (which hosts this exact id);
+/// an unprefixed value would fall through to the default provider, where the
+/// id differs (e.g. DeepInfra exposes it as `deepseek-ai/DeepSeek-V4-Pro`).
+pub const DEFAULT_FALLBACK_MODEL: &str = "KC/deepseek-v4-pro";
 
 // ── Test fixtures (arbitrary identifiers, no network calls) ──────────────
 

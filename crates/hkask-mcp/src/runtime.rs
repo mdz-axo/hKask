@@ -358,7 +358,7 @@ impl McpRuntime {
                 description: t.description.clone(),
                 input_schema: t.input_schema.clone(),
                 server_id: server_id.clone(),
-                required_capability: hkask_capability::capability_from_server_id(server_id),
+                required_capability: crate::capability_for_tool(server_id, &t.name),
             })
     }
 

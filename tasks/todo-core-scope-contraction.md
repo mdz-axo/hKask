@@ -5,13 +5,16 @@
 
 ## Phase 1 — PoC: prove the strangler-fig pattern
 
-- [ ] **1.1** Extract `self_heal` → `hkask-services-self-heal`
-  - [ ] CREATE: move `self_heal/{healer,types,strategies,tests}.rs` into new crate
-  - [ ] WIRE: update `hkask-services-context/build/reg_wallet.rs` import
-  - [ ] DELETE: remove `pub mod self_heal` from core; drop unused core deps
-  - [ ] `cargo test -p hkask-services-self-heal` passes
-  - [ ] `cargo check -p hkask-services-context` passes
-  - [ ] `rg 'pub mod self_heal' crates/hkask-services-core/src/` empty
+- [x] **1.1** Extract `self_heal` → `hkask-services-self-heal` ✅ (verified 2026-07-17)
+  - [x] CREATE: move `self_heal/{healer,types,strategies,tests}.rs` into new crate
+  - [x] WIRE: update `hkask-services-context/build/reg_wallet.rs` import
+  - [x] WIRE: update `hkask-test-harness/src/self_heal.rs` re-export (2nd consumer found during execution)
+  - [x] DELETE: remove `pub mod self_heal` from core; drop `minijinja` + `dotenvy` from core deps (`dirs` kept — used by `settings.rs`)
+  - [x] `cargo test -p hkask-services-self-heal` passes (13 tests)
+  - [x] `cargo check -p hkask-services-context` passes
+  - [x] `cargo clippy -p hkask-services-core -p hkask-services-self-heal -- -D warnings` clean
+  - [x] added `README.md` (matches 11 sibling service crates)
+  - [x] `rg 'pub mod self_heal' crates/hkask-services-core/src/` empty
 
 - [ ] **1.2** Extract `verification` → `hkask-services-verification`
   - [ ] CREATE: move `verification/*` into new crate

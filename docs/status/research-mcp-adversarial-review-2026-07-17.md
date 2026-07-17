@@ -133,7 +133,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-013
 verified_date: 2026-07-17
-verified_against: mcp-servers/hkask-mcp-research/src/lib.rs:48-56; mcp-servers/hkask-mcp-research/src/providers/mod.rs:130-135,494-618
+verified_against: mcp-servers/hkask-mcp-research/src/lib.rs:41-48; crates/hkask-services-research/src/providers/mod.rs:130-135,494-620
 status: VERIFIED
 -->
 
@@ -210,7 +210,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-014
 verified_date: 2026-07-17
-verified_against: mcp-servers/hkask-mcp-research/src/providers/mod.rs:50-135; mcp-servers/hkask-mcp-research/src/providers/brave.rs:20; mcp-servers/hkask-mcp-research/src/providers/firecrawl.rs:30,102,183
+verified_against: crates/hkask-services-research/src/providers/mod.rs:50-135; crates/hkask-services-research/src/providers/brave.rs:18; crates/hkask-services-research/src/providers/firecrawl.rs:28,100,181
 status: VERIFIED
 -->
 
@@ -254,7 +254,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-012
 verified_date: 2026-07-17
-verified_against: mcp-servers/hkask-mcp-research/src/lib.rs:307-414; mcp-servers/hkask-mcp-research/src/providers/mod.rs:224-387,495-575
+verified_against: crates/hkask-services-research/src/providers/mod.rs:213-410,516-620; mcp-servers/hkask-mcp-research/src/lib.rs:265-375
 status: VERIFIED
 -->
 

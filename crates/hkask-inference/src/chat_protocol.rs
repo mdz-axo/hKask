@@ -94,11 +94,6 @@ pub struct ChatRequest {
     /// - `Some("none")`: model must not call tools
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<String>,
-    /// OpenRouter Fusion plugin configuration.
-    /// When present, injects the fusion plugin into the request body
-    /// so the model can invoke multi-model deliberation.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub plugins: Option<Vec<FusionPlugin>>,
 }
 
 /// A single message in the chat conversation.
@@ -106,24 +101,6 @@ pub struct ChatRequest {
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
-}
-
-/// OpenRouter Fusion plugin configuration.
-///
-/// Injected into the `plugins` array of a chat completion request
-/// to enable multi-model deliberation via OpenRouter's Fusion pipeline.
-/// See: <https://openrouter.ai/docs/guides/features/plugins/fusion>
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FusionPlugin {
-    /// Must be "fusion" for the fusion plugin.
-    pub id: String,
-    /// Models that form the analysis panel (1-8 models).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub analysis_models: Vec<String>,
-    /// The judge model that synthesizes panel responses.
-    /// When absent, the first analysis model is used as the judge.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
 }
 
 /// Build an OpenAI-compatible chat completion request from hKask parameters.
@@ -136,7 +113,6 @@ pub struct FusionPlugin {
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns serde_json::Value with model, messages, and parameters
 #[must_use]
-#[allow(clippy::too_many_arguments)]
 pub fn build_chat_request(
     model: &str,
     prompt: &str,
@@ -144,7 +120,6 @@ pub fn build_chat_request(
     stream: Option<bool>,
     n_probs: Option<i32>,
     tools: Option<Vec<ChatToolDefinition>>,
-    plugins: Option<Vec<FusionPlugin>>,
 ) -> ChatRequest {
     let mut messages = Vec::with_capacity(2);
     if let Some(ref sys) = params.system_prompt {
@@ -180,7 +155,6 @@ pub fn build_chat_request(
         },
         tools,
         tool_choice: None,
-        plugins,
     }
 }
 
@@ -575,15 +549,7 @@ pub fn stream_chat_completion(
 > {
     Box::pin(
         futures_util::stream::once(async move {
-            let request = build_chat_request(
-                &model,
-                &prompt,
-                &params,
-                Some(true),
-                None,
-                tools,
-                None::<Vec<FusionPlugin>>,
-            );
+            let request = build_chat_request(&model, &prompt, &params, Some(true), None, tools);
 
             let response = match client
                 .post(format!("{}/v1/chat/completions", base_url))
@@ -690,7 +656,6 @@ mod tests {
             Some(false),
             None,
             None::<Vec<ChatToolDefinition>>,
-            None::<Vec<FusionPlugin>>,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(json["stream"], serde_json::json!(false));
@@ -733,7 +698,6 @@ mod tests {
             Some(false),
             None,
             None::<Vec<ChatToolDefinition>>,
-            None::<Vec<FusionPlugin>>,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         assert_eq!(json["enable_thinking"], serde_json::json!(false));
@@ -766,7 +730,6 @@ mod tests {
             Some(false),
             None,
             None::<Vec<ChatToolDefinition>>,
-            None::<Vec<FusionPlugin>>,
         );
         let json = serde_json::to_value(&req).expect("serialization must succeed");
         // enable_thinking should NOT appear in JSON when true (skip_serializing_if)

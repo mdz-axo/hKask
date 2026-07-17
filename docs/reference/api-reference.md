@@ -785,7 +785,7 @@ Context condensation domain logic — compression algorithms, classification, pr
 | `saliency` | Persona word-overlap scoring, memory query-word extraction, memory result scoring |
 | `ontology_graph` | Ontology-aware compression graph (FIBO, CogAT, GOLEM, ML-Schema, OMC, PKO, DC+BIBO) |
 
-**Key Public Types:** `CondenserEngine` (8 MCP tools), `CompressedOutput` (compressed text + health signals), `CondenserAlgorithm` (trait).
+**Key Public Types:** `CondenserEngine` (compression dispatch + learning + history), `CompressedOutput` (compressed text + health signals), `CondenserAlgorithm` (trait), `CompressionRecord` (per-compression observation for learning), `CompressionHistoryStats` (per-algorithm/category summaries), `AlgorithmRegistry` (static + learned selection).
 
 **8 Tools:** `condenser_ping`, `condenser_compress`, `condenser_set_profile`, `condenser_stats`, `condenser_classify`, `condenser_persist`, `condenser_thread_summary`, `condenser_score_saliency`.
 

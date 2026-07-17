@@ -115,6 +115,7 @@ Mechanical CI enforcement (inline steps in the `ci` job in `.github/workflows/ci
 | No hardcoded secrets | Environment variables or keystore only | inline in `ci.yml` |
 | No `Result<_, String>` | Use `thiserror` enums for library errors | `scripts/check-string-errors.sh` |
 | No unused crate dependencies | `nightly -D unused_crate_dependencies` | separate nightly job |
+| MCP servers must have tool-behavior contract tests | `Parameters(` seam present in `mcp-servers/*/tests/` | `scripts/check-mcp-tool-tests.sh` (ratcheted allowlist) |
 
 Prohibitions #1–#4 above are design discipline. Only #1 is partially CI-gated via `clippy -D warnings` (catches `todo!()`/`unimplemented!()`). Prohibitions #2–#4 are enforced by code review, not mechanical gates.
 
@@ -133,6 +134,7 @@ Preferred auxiliary tooling: shell (`bash`) under `scripts/`, Rust binaries or `
 - `.github/workflows/ci.yml` — CI pipeline (fmt, clippy, unused-deps, build, test, doc, invariants)
 - `.github/workflows/audit.yml` — Weekly dependency audit (cargo-deny + cargo-audit)
 - `scripts/check-string-errors.sh` — CI guard: `Result<_, String>` anti-pattern detector
+- `scripts/check-mcp-tool-tests.sh` — CI guard: MCP tool-behavior test coverage (ratcheted)
 - `crates/hkask-types/src/observable_span.rs` — `ObservableSpan` trait and domain span enums
 - `crates/hkask-types/src/lib.rs` — Foundation types
 - `crates/hkask-types/src/macros.rs` — Shared `enum_str_ops!` macro (canonical location)

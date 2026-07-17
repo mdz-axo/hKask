@@ -5,6 +5,7 @@ members = [
     "crates/hkask-database",
     "crates/hkask-services-core",
     "crates/hkask-services-self-heal",
+    "crates/hkask-services-verification",
 
     # Ontology bridge crates (v0.31.0)
     "crates/hkask-bridge-dublincore",

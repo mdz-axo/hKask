@@ -78,6 +78,58 @@ fn skill_prompt(skill: &FusionSkill) -> &'static str {
              property-based test verifying it (RED), implement minimally (GREEN), \
              refactor while contracts hold. Vertical tracer-bullet: one thin slice end-to-end."
         }
+        FusionSkill::BugHunt => {
+            "Bug Hunt: Define quality as value to someone who matters. Apply Beizer's bug \
+             taxonomy and Bach/Bolton's heuristic test strategy. Use exploratory charters. \
+             Reproduce before diagnosing. Isolate one variable at a time."
+        }
+        FusionSkill::Diagnose => {
+            "Diagnose: Cybernetic debugging — build feedback loop, reproduce, hypothesize, \
+             instrument, fix, regression-test. Align sense→orient→decide→act. Never change \
+             code without a reproducing test first."
+        }
+        FusionSkill::Falsifiability => {
+            "Falsifiability (Popper/Platt/Chamberlin): Rule out the untestable. Generate \
+             multiple falsifiable hypotheses. Construct minimal counterfactuals. Design \
+             discriminating tests. Eliminate the falsified — corroborate survivors, \
+             never confirm."
+        }
+        FusionSkill::GrillMe => {
+            "Grill Me: Socratic interrogation at escalating difficulty — Recall → Mechanism \
+             → Rationale → Edge Cases → Synthesis. Probe gaps, challenge assumptions, \
+             produce gap analysis. Do not accept hand-waving."
+        }
+        FusionSkill::IdiomaticRust => {
+            "Idiomatic Rust (Hoare): Make wrong usage impossible — validating newtypes, \
+             two-variant enums for bools, non-empty collections. Single owners, explicit \
+             error domains, thiserror for libraries. Many small traits over few large ones."
+        }
+        FusionSkill::ImproveCodebaseArchitecture => {
+            "Improve Codebase Architecture (Ousterhout): Surface shallow modules. Apply the \
+             deletion test — if complexity vanishes, the module was a pass-through. Propose \
+             deep modules with small interfaces and large implementations. Rank by leverage, \
+             locality, and testability."
+        }
+        FusionSkill::Metacognition => {
+            "Metacognition: Decompose goals, self-assess progress, detect ellipses via Bloom's \
+             method, rotate perspectives, calibrate strategy. Be honest — overestimating \
+             progress is worse than underestimating. Improve through GEPA optimization."
+        }
+        FusionSkill::RefactorServiceLayer => {
+            "Refactor Service Layer: Strangler fig pattern — migrate one domain at a time, \
+             both surfaces functional at every step. Deep-module discipline for extracted \
+             services. Vertical tracer-bullet TDD. Delete only after full verification."
+        }
+        FusionSkill::Review => {
+            "Review: Self-critique for contradictions, unsupported claims, logical gaps, and \
+             confidence calibration. Use before finalizing. Check that every claim traces to \
+             evidence. Flag unjustified certainty."
+        }
+        FusionSkill::SelfCritiqueRevision => {
+            "Self-Critique Revision: Generate draft, critique against quality criteria, revise \
+             based on critique. Iterative cycle — do not accept the first draft. Each revision \
+             must address specific critique findings."
+        }
     }
 }
 
@@ -116,8 +168,11 @@ async fn dispatch_panel(
     use futures_util::future::join_all;
 
     // Panel models must bypass fusion to avoid routing back through the judge.
+    // Adapter must be cleared so the panel model_override is respected, not the
+    // caller's LoRA adapter (which is for the non-fusion dispatch path).
     let panel_params = LLMParameters {
         bypass_fusion: true,
+        adapter: None,
         ..params.clone()
     };
     let panel_params = &panel_params;
@@ -164,10 +219,33 @@ fn format_panel_responses(responses: &[PanelResponse]) -> String {
     sections
 }
 
+/// Sum a collection of InferenceUsage values into a single aggregate.
+fn sum_usage(usages: impl IntoIterator<Item = InferenceUsage>) -> InferenceUsage {
+    usages
+        .into_iter()
+        .fold(InferenceUsage::default(), |acc, u| InferenceUsage {
+            prompt_tokens: acc.prompt_tokens + u.prompt_tokens,
+            completion_tokens: acc.completion_tokens + u.completion_tokens,
+            total_tokens: acc.total_tokens + u.total_tokens,
+        })
+}
+
+/// Add intermediate usage (panel models, prior judge rounds) to the final result.
+fn with_aggregated_usage(
+    mut result: InferenceResult,
+    intermediate_usages: &[InferenceUsage],
+) -> InferenceResult {
+    let total = sum_usage(intermediate_usages.iter().cloned());
+    result.usage.prompt_tokens += total.prompt_tokens;
+    result.usage.completion_tokens += total.completion_tokens;
+    result.usage.total_tokens += total.total_tokens;
+    result
+}
+
 // ── Algo Judge (algorithmic merge, no LLM) ────────────────────────────────────
 
 /// Sentinel judge model name for algorithmic merge (no LLM call).
-pub const ALGO_JUDGE: &str = "algo";
+pub(crate) const ALGO_JUDGE: &str = "algo";
 
 /// Parse a JSON value from a model response text, tolerating markdown fences
 /// and surrounding prose. Falls back to `Value::Null` on parse failure.
@@ -259,13 +337,7 @@ fn algo_merge(responses: &[PanelResponse]) -> InferenceResult {
         .reduce(|a, b| merge_json_values(&a, &b))
         .unwrap_or(serde_json::Value::Null);
 
-    let total_usage = responses
-        .iter()
-        .fold(InferenceUsage::default(), |acc, r| InferenceUsage {
-            prompt_tokens: acc.prompt_tokens + r.usage.prompt_tokens,
-            completion_tokens: acc.completion_tokens + r.usage.completion_tokens,
-            total_tokens: acc.total_tokens + r.usage.total_tokens,
-        });
+    let total_usage = sum_usage(responses.iter().map(|r| r.usage.clone()));
 
     InferenceResult {
         text: merged.to_string(),
@@ -287,6 +359,7 @@ async fn call_judge(
 ) -> Result<InferenceResult, InferenceError> {
     let judge_params = LLMParameters {
         bypass_fusion: true,
+        adapter: None,
         ..params.clone()
     };
     router
@@ -321,7 +394,9 @@ async fn mode_best_of_n(
         candidates = format_panel_responses(&responses),
     );
 
-    call_judge(router, &fusion.judge, &judge_prompt, params, tools).await
+    let result = call_judge(router, &fusion.judge, &judge_prompt, params, tools).await?;
+    let panel_usages: Vec<InferenceUsage> = responses.iter().map(|r| r.usage.clone()).collect();
+    Ok(with_aggregated_usage(result, &panel_usages))
 }
 
 /// Synthesis: Judge composes a unified response from all panelists.
@@ -351,7 +426,9 @@ async fn mode_synthesis(
         candidates = format_panel_responses(&responses),
     );
 
-    call_judge(router, &fusion.judge, &judge_prompt, params, tools).await
+    let result = call_judge(router, &fusion.judge, &judge_prompt, params, tools).await?;
+    let panel_usages: Vec<InferenceUsage> = responses.iter().map(|r| r.usage.clone()).collect();
+    Ok(with_aggregated_usage(result, &panel_usages))
 }
 
 /// Critique: 2-round — draft synthesis, panel critiques draft, judge revises.
@@ -417,7 +494,12 @@ async fn mode_critique(
          ## Instructions\nProduce your final revised synthesis.",
         skills = skill_anchor,
     );
-    call_judge(router, &fusion.judge, &r2_judge_prompt, params, tools).await
+    let result = call_judge(router, &fusion.judge, &r2_judge_prompt, params, tools).await?;
+    let mut intermediate: Vec<InferenceUsage> =
+        r1_responses.iter().map(|r| r.usage.clone()).collect();
+    intermediate.push(draft.usage.clone());
+    intermediate.extend(critiques.iter().map(|r| r.usage.clone()));
+    Ok(with_aggregated_usage(result, &intermediate))
 }
 
 /// Deliberation: Multi-round with convergence.
@@ -438,6 +520,9 @@ async fn mode_deliberation(
             "All panel models failed in round 1".into(),
         ));
     }
+
+    let mut intermediate: Vec<InferenceUsage> =
+        prior_responses.iter().map(|r| r.usage.clone()).collect();
 
     let mut prior_text = format_panel_responses(&prior_responses);
 
@@ -478,7 +563,9 @@ async fn mode_deliberation(
                 round = round,
                 "Judge requested follow-up"
             );
+            intermediate.push(judge_result.usage.clone());
             prior_responses = dispatch_panel(router, follow_up, params, tools, &fusion.panel).await;
+            intermediate.extend(prior_responses.iter().map(|r| r.usage.clone()));
             prior_text = format_panel_responses(&prior_responses);
         } else {
             info!(
@@ -487,7 +574,7 @@ async fn mode_deliberation(
                 round = round,
                 "Deliberation converged"
             );
-            return Ok(judge_result);
+            return Ok(with_aggregated_usage(judge_result, &intermediate));
         }
     }
 
@@ -499,7 +586,8 @@ async fn mode_deliberation(
          ## Instructions\nProduce the final synthesis now.",
         skills = skill_anchor,
     );
-    call_judge(router, &fusion.judge, &final_prompt, params, tools).await
+    let result = call_judge(router, &fusion.judge, &final_prompt, params, tools).await?;
+    Ok(with_aggregated_usage(result, &intermediate))
 }
 
 /// Plan-Implement: 2-phase — Phase 1: strategy plan, Phase 2: implementation plan.
@@ -585,7 +673,12 @@ async fn mode_plan_implement(
          and execution order.",
         skills = skill_anchor,
     );
-    call_judge(router, &fusion.judge, &p2_judge_prompt, params, tools).await
+    let result = call_judge(router, &fusion.judge, &p2_judge_prompt, params, tools).await?;
+    let mut intermediate: Vec<InferenceUsage> =
+        phase1_responses.iter().map(|r| r.usage.clone()).collect();
+    intermediate.push(strategy.usage.clone());
+    intermediate.extend(phase2_responses.iter().map(|r| r.usage.clone()));
+    Ok(with_aggregated_usage(result, &intermediate))
 }
 
 // ── Public Entry Point ───────────────────────────────────────────────────────

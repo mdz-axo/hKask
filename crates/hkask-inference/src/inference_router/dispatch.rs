@@ -70,7 +70,7 @@ impl InferenceRouter {
                     .await
             }
             ProviderId::Runpod => Err(InferenceError::Connection(
-                "Runpod is an adapter provider".to_string(),
+                "RunPod supports vision/OCR only, not chat completions".to_string(),
             )),
             ProviderId::Ollama => {
                 self.ollama
@@ -155,7 +155,7 @@ impl InferenceRouter {
             }
             ProviderId::Runpod => Box::pin(futures_util::stream::once(async move {
                 Err(InferenceError::Connection(
-                    "Runpod is an adapter provider".to_string(),
+                    "RunPod supports vision/OCR only, not chat completions".to_string(),
                 ))
             })),
             ProviderId::Ollama => {

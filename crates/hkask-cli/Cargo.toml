@@ -40,6 +40,7 @@ hkask-services-corpus = { path = "../hkask-services-corpus" }
 hkask-services-compose = { path = "../hkask-services-compose" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-services-core = { path = "../hkask-services-core" }
+hkask-services-verification = { path = "../hkask-services-verification" }
 hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-services-kata-kanban = { path = "../hkask-services-kata-kanban" }
 rmcp.workspace = true

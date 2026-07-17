@@ -14,7 +14,7 @@
 //! | Fal        | `/v1/chat/completions`  | `Key`           |
 
 use crate::chat_protocol::build_chat_request;
-use crate::chat_protocol::{ChatResponse, FusionPlugin, chat_response_to_result, validate_prompt};
+use crate::chat_protocol::{ChatResponse, chat_response_to_result, validate_prompt};
 use crate::config::ProviderConfig;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::template::LLMParameters;
@@ -48,15 +48,7 @@ pub async fn openai_compatible_generate(
 ) -> Result<InferenceResult, InferenceError> {
     validate_prompt(prompt)?;
     let tools = tools.map(|t| t.to_vec());
-    let request = build_chat_request(
-        model,
-        prompt,
-        params,
-        Some(false),
-        None,
-        tools,
-        None::<Vec<FusionPlugin>>,
-    );
+    let request = build_chat_request(model, prompt, params, Some(false), None, tools);
 
     let response = client
         .post(format!("{}{}", config.base_url, chat_path))

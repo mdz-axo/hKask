@@ -11,7 +11,7 @@
 //! ## Verified field tolerance
 //!
 //! Ollama's OpenAI layer silently ignores non-standard fields hKask sends
-//! (`top_k`, `min_p`, `typical_p`, `n_probs`, `enable_thinking`, `plugins`)
+//! (`top_k`, `min_p`, `typical_p`, `n_probs`, `enable_thinking`)
 //! rather than rejecting the request — confirmed empirically against a live
 //! daemon. No per-provider field suppression is needed.
 //!

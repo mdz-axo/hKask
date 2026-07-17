@@ -16,6 +16,10 @@ pub fn handle_repl_show(state: &ReplState) {
         "  \x1b[36mcontext_turns\x1b[0m:   {} (→ aliases saliency_window)",
         s.condense_saliency_window
     );
+        println!(
+            "  \x1b[36m  pre_compress\x1b[0m:       {}",
+            if s.pre_compress { "on" } else { "off" }
+        );
     println!("  \x1b[36mtemperature\x1b[0m:     {}", s.temperature);
     println!("  \x1b[36mtop_p\x1b[0m:           {}", s.top_p);
     println!("  \x1b[36mtop_k\x1b[0m:           {}", s.top_k);
@@ -40,6 +44,10 @@ pub fn handle_repl_show(state: &ReplState) {
         println!(
             "  \x1b[36m  saliency_window\x1b[0m:     {}",
             s.condense_saliency_window
+        );
+        println!(
+            "  \x1b[36m  pre_compress\x1b[0m:       {}",
+            if s.pre_compress { "on" } else { "off" }
         );
     }
     println!(

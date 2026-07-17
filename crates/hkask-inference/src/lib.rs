@@ -53,7 +53,6 @@ pub mod runpod_backend;
 pub mod together_backend;
 
 // Re-exports — public API
-pub use chat_protocol::FusionPlugin;
 pub use config::{
     FusionConfig, FusionMode, FusionSkill, InferenceConfig, ProviderConfig, ProviderId,
 };

@@ -185,13 +185,39 @@ impl InferenceRouter {
     /// Resolve which backend to use for a given model name.
     ///
     /// Returns `(provider, backend_model_name)` or an error if no backend
-    /// is available for the requested provider.
+    /// is available for the requested provider, or if the model carries an
+    /// unrecognized `XX/` prefix.
+    ///
+    /// Unprefixed names (no `XX/` shape) route to the configured default
+    /// provider. A name with two uppercase letters followed by `/` that is
+    /// not a recognized provider code is rejected explicitly — previously
+    /// such names silently fell through to the default provider and were
+    /// sent upstream as a garbage model identifier.
+    ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — fail fast on unknown prefix
+    /// pre:  model is non-empty
+    /// post: returns Ok((ProviderId, stripped_model)) for recognized or unprefixed models
+    /// post: returns Err(Connection) for unrecognized `XX/` prefix or unavailable backend
     pub(crate) fn resolve<'a>(
         &self,
         model: &'a str,
     ) -> Result<(ProviderId, &'a str), InferenceError> {
-        let (provider, stripped_model) =
-            ProviderId::parse_from_model(model).unwrap_or((self.config.default_provider, model));
+        let (provider, stripped_model) = match ProviderId::parse_from_model(model) {
+            Some(parsed) => parsed,
+            None => {
+                // Distinguish unprefixed (use default provider) from an
+                // unrecognized XX/ prefix (reject — don't silently send garbage).
+                if ProviderId::looks_like_prefix(model) {
+                    return Err(InferenceError::Connection(format!(
+                        "Unknown provider prefix '{}/' in model '{}'",
+                        &model[..2],
+                        model
+                    )));
+                }
+                (self.config.default_provider, model)
+            }
+        };
 
         let available = match provider {
             ProviderId::DeepInfra => self.deepinfra.is_some(),
@@ -252,11 +278,17 @@ impl InferenceRouter {
         crate::fusion_orchestrator::orchestrate(self, prompt, params, tools, fusion).await
     }
 
-    /// Verify that the configured fusion judge model is reachable.
+    /// Verify that the configured fusion judge model is *configured* (its
+    /// provider backend is available).
     ///
-    /// Resolves the judge model name to a provider and checks that
-    /// the backend is available. Returns Ok(true) if reachable,
-    /// Ok(false) if not, or Err on resolution failure.
+    /// Resolves the judge model name to a provider and checks backend
+    /// availability (config presence — not a network reachability probe).
+    /// Returns Ok(true) if the backend is available, Ok(false) if not, or
+    /// Err on resolution failure.
+    ///
+    /// Note: this is a configuration check, not a reachability check — it
+    /// confirms the judge model's provider is configured but does not ping it.
+    /// Reachability is detected lazily at use time.
     ///
     /// expect: "Fusion model is verified before use to prevent unexpected costs"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — proactive cost-safety check
@@ -277,7 +309,7 @@ impl InferenceRouter {
                     fusion_judge = %fusion.judge,
                     provider = %provider.as_str(),
                     panel_count = fusion.panel.len(),
-                    "Fusion judge model reachable"
+                    "Fusion judge model provider is configured"
                 );
                 Ok(true)
             }
@@ -286,7 +318,7 @@ impl InferenceRouter {
                     target: "cns.inference",
                     fusion_judge = %fusion.judge,
                     error = %e,
-                    "Fusion judge model NOT reachable"
+                    "Fusion judge model provider NOT configured"
                 );
                 Ok(false)
             }

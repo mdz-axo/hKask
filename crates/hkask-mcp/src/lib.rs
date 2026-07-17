@@ -39,6 +39,55 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("scenarios", "hkask-mcp-scenarios"),
 ];
 
+/// Per-tool required-capability overrides for built-in MCP servers.
+///
+/// Maps `(server_id, tool_name)` → required capability. The `GovernedTool`
+/// membrane consults this via [`capability_for_tool`] to enforce a per-tool
+/// blast radius *within* a server domain. Absent entries fall back to
+/// [`hkask_capability::capability_from_server_id`].
+///
+/// Blast radius is expressed via the **action hierarchy** (`Execute ≥ Write ≥
+/// Read`; see `hkask_capability::capabilities_match`), not separate domains:
+/// all filesystem tools share domain `filesystem`; read tools require `read`,
+/// file-mutating tools require `write`, `shell_exec` requires `execute`.
+///
+/// Filesystem consent policy (user sovereignty, P2):
+///   - read    — `fs_read`, `fs_list`, `fs_search`        → `tool:filesystem:read`
+///   - write   — `fs_write`, `fs_edit`, `fs_delete`      → `tool:filesystem:write`
+///   - execute — `shell_exec`                          → `tool:filesystem:execute`
+/// A read token covers read tools only; a write token covers read+write; an
+/// execute token covers all (incl. `shell_exec`). Provisioning is expected to
+/// grant the least action needed by default and require explicit consent for
+/// destructive (write/execute) authority.
+pub const BUILTIN_TOOL_CAPS: &[(&str, &str, &str)] = &[
+    ("filesystem", "fs_read", "tool:filesystem:read"),
+    ("filesystem", "fs_list", "tool:filesystem:read"),
+    ("filesystem", "fs_search", "tool:filesystem:read"),
+    ("filesystem", "fs_write", "tool:filesystem:write"),
+    ("filesystem", "fs_edit", "tool:filesystem:write"),
+    ("filesystem", "fs_delete", "tool:filesystem:write"),
+    ("filesystem", "shell_exec", "tool:filesystem:execute"),
+];
+
+/// Resolve the required capability for a tool.
+///
+/// Per-tool overrides in [`BUILTIN_TOOL_CAPS`] take precedence; otherwise the
+/// capability is derived from the server id via
+/// [`hkask_capability::capability_from_server_id`].
+///
+/// expect: "The system declares per-tool blast radius so the OCAP membrane can attenuate authority"
+/// pre:  server_id and tool_name are non-empty
+/// post: returns the required capability string, or None for unknown servers
+#[must_use]
+pub fn capability_for_tool(server_id: &str, tool_name: &str) -> Option<String> {
+    for (sid, tname, cap) in BUILTIN_TOOL_CAPS {
+        if *sid == server_id && *tname == tool_name {
+            return Some((*cap).to_string());
+        }
+    }
+    hkask_capability::capability_from_server_id(server_id)
+}
+
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 pub use dispatch::McpDispatcher;
 pub use dispatch::RawMcpToolPort;

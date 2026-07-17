@@ -76,7 +76,7 @@ impl ProviderId {
     /// expect: "The system normalizes provider responses for monitoring"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — model-name routing to provider boundary
     /// pre:  model is non-empty
-    /// post: returns Some((ProviderId, stripped_model)) for DI/, FA/, TG/, RP/, BT/, OR/, KC/ prefixes
+    /// post: returns Some((ProviderId, stripped_model)) for DI/, FA/, TG/, RP/, OR/, KC/, OM/, CL/ prefixes
     /// post: returns None for unrecognized or missing prefix
     #[must_use]
     pub fn parse_from_model(model: &str) -> Option<(Self, &str)> {
@@ -105,6 +105,29 @@ impl ProviderId {
         }
     }
 
+    /// Returns true if `model` has the `XX/...` prefix shape with two
+    /// uppercase ASCII letters before the slash — i.e. it *looks* like a
+    /// provider-prefixed name even when the prefix is not recognized.
+    ///
+    /// [`InferenceRouter::resolve`] uses this to reject unknown prefixes
+    /// with a clear error rather than silently routing them to the default
+    /// provider as a garbage model name.
+    ///
+    /// expect: "The system rejects unrecognized provider prefixes explicitly"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — fail fast on unknown prefix
+    /// pre:  model may be any string
+    /// post: returns true iff model is `XX/...` with two uppercase letters
+    /// post: recognized prefixes return false here (handled by `parse_from_model`)
+    #[must_use]
+    pub fn looks_like_prefix(model: &str) -> bool {
+        let bytes = model.as_bytes();
+        bytes.len() >= 4
+            && bytes[2] == b'/'
+            && !model[3..].is_empty()
+            && bytes[0].is_ascii_uppercase()
+            && bytes[1].is_ascii_uppercase()
+    }
+
     /// Format a model name with this provider's prefix.
     ///
     /// expect: "The system normalizes provider responses for monitoring"
@@ -120,7 +143,7 @@ impl ProviderId {
     ///
     /// expect: "The system normalizes provider responses for monitoring"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
-    /// post: returns "DI", "FA", "TG", "RP", "BT", "OR", or "KC"
+    /// post: returns "DI", "FA", "TG", "RP", "OR", "KC", "OM", or "CL"
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -371,11 +394,8 @@ impl InferenceConfig {
 
 // ── Private resolution helpers ──────────────────────────────────────────────
 
-/// Resolve a provider API key through the 2-tier chain: keychain → env var.
-///
-/// Tier 1: OS keychain (encrypted at rest, preferred for cloud deployments).
-/// Resolve an API key via OS keychain, then environment variable.
-/// Returns empty string if no key is found — the backend will be unavailable.
+/// Parse an `f64` from an environment variable, falling back to `default` on
+/// absence or parse failure. Used for tunable thresholds (price caps, etc.).
 fn env_f64(key: &str, default: f64) -> f64 {
     std::env::var(key)
         .ok()
@@ -383,6 +403,12 @@ fn env_f64(key: &str, default: f64) -> f64 {
         .unwrap_or(default)
 }
 
+/// Resolve a provider API key through the 2-tier chain: env var → OS keychain.
+///
+/// Tier 1: Environment variable (fast path — `.env` is loaded by dotenvy).
+/// Tier 2: OS keychain (encrypted at rest; guarded against the
+/// concurrent-access SIGABRT from libdbus via `catch_unwind`).
+/// Returns an empty string if no key is found — the backend will be unavailable.
 fn resolve_api_key(env_name: &str) -> String {
     // Tier 1: Environment variable (fast path — .env is loaded by dotenvy)
     if let Ok(val) = std::env::var(env_name)
@@ -408,8 +434,9 @@ fn resolve_api_key(env_name: &str) -> String {
 
 /// Resolve the default provider from env var or keychain.
 ///
-/// Reads `HKASK_DEFAULT_PROVIDER` from OS keychain first, then environment
-/// variable. Accepted values: DI, FA, TG. Defaults to DeepInfra.
+/// Reads `HKASK_DEFAULT_PROVIDER` via [`resolve_api_key`] (env var first, then
+/// OS keychain). Accepted values: DI, FA, TG, RP, OR, KC, OM, CL. Defaults to
+/// DeepInfra.
 fn resolve_default_provider() -> ProviderId {
     let raw = resolve_api_key("HKASK_DEFAULT_PROVIDER");
     parse_provider_code(&raw)
@@ -417,7 +444,7 @@ fn resolve_default_provider() -> ProviderId {
 
 /// Parse a provider code string to a ProviderId.
 ///
-/// Accepted values: DI, FA, TG, RP, BT, OR, KC. Anything else (including empty) → DeepInfra.
+/// Accepted values: DI, FA, TG, RP, OR, KC, OM, CL. Anything else (including empty) → DeepInfra.
 fn parse_provider_code(raw: &str) -> ProviderId {
     match raw {
         "DI" => ProviderId::DeepInfra,

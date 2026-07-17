@@ -4027,6 +4027,7 @@ dependencies = [
  "hkask-services-kata-kanban",
  "hkask-services-onboarding",
  "hkask-services-skill",
+ "hkask-services-verification",
  "hkask-services-wallet",
  "hkask-storage",
  "hkask-templates",
@@ -4898,7 +4899,6 @@ dependencies = [
  "hkask-wallet-types",
  "serde",
  "serde_json",
- "serde_yaml_neo",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -5062,6 +5062,15 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
+]
+
+[[package]]
+name = "hkask-services-verification"
+version = "0.31.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_yaml_neo",
 ]
 
 [[package]]

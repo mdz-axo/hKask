@@ -70,6 +70,8 @@ jobs:
         run: bash scripts/check-string-errors.sh
       - name: Superforecasting conformance contract
         run: bash scripts/check-forecast-conformance.sh
+      - name: MCP tool-behavior test coverage (ratcheted)
+        run: bash scripts/check-mcp-tool-tests.sh
 
   # ── Lint — fmt + clippy, own cache (clippy artifacts) ───────────────────
   lint:

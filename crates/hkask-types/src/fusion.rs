@@ -82,6 +82,26 @@ pub enum FusionSkill {
     MCDA,
     #[serde(rename = "tdd")]
     TestDrivenDevelopment,
+    #[serde(rename = "bug-hunt")]
+    BugHunt,
+    #[serde(rename = "diagnose")]
+    Diagnose,
+    #[serde(rename = "falsifiability")]
+    Falsifiability,
+    #[serde(rename = "grill-me")]
+    GrillMe,
+    #[serde(rename = "idiomatic-rust")]
+    IdiomaticRust,
+    #[serde(rename = "improve-codebase-architecture")]
+    ImproveCodebaseArchitecture,
+    #[serde(rename = "metacognition")]
+    Metacognition,
+    #[serde(rename = "refactor-service-layer")]
+    RefactorServiceLayer,
+    #[serde(rename = "review")]
+    Review,
+    #[serde(rename = "self-critique-revision")]
+    SelfCritiqueRevision,
 }
 
 impl std::str::FromStr for FusionSkill {
@@ -98,6 +118,16 @@ impl std::str::FromStr for FusionSkill {
             "superforecasting" => Ok(FusionSkill::Superforecasting),
             "mcda" => Ok(FusionSkill::MCDA),
             "tdd" => Ok(FusionSkill::TestDrivenDevelopment),
+            "bug-hunt" => Ok(FusionSkill::BugHunt),
+            "diagnose" => Ok(FusionSkill::Diagnose),
+            "falsifiability" => Ok(FusionSkill::Falsifiability),
+            "grill-me" => Ok(FusionSkill::GrillMe),
+            "idiomatic-rust" => Ok(FusionSkill::IdiomaticRust),
+            "improve-codebase-architecture" => Ok(FusionSkill::ImproveCodebaseArchitecture),
+            "metacognition" => Ok(FusionSkill::Metacognition),
+            "refactor-service-layer" => Ok(FusionSkill::RefactorServiceLayer),
+            "review" => Ok(FusionSkill::Review),
+            "self-critique-revision" => Ok(FusionSkill::SelfCritiqueRevision),
             _ => Err(()),
         }
     }
@@ -200,6 +230,16 @@ impl FusionSkill {
             FusionSkill::Superforecasting => "superforecasting",
             FusionSkill::MCDA => "mcda",
             FusionSkill::TestDrivenDevelopment => "tdd",
+            FusionSkill::BugHunt => "bug-hunt",
+            FusionSkill::Diagnose => "diagnose",
+            FusionSkill::Falsifiability => "falsifiability",
+            FusionSkill::GrillMe => "grill-me",
+            FusionSkill::IdiomaticRust => "idiomatic-rust",
+            FusionSkill::ImproveCodebaseArchitecture => "improve-codebase-architecture",
+            FusionSkill::Metacognition => "metacognition",
+            FusionSkill::RefactorServiceLayer => "refactor-service-layer",
+            FusionSkill::Review => "review",
+            FusionSkill::SelfCritiqueRevision => "self-critique-revision",
         }
     }
 }
