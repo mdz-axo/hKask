@@ -152,7 +152,7 @@ pub struct DataSovereigntyBoundary {
     /// What data is public (no sovereignty claim)
     pub public_data: HashSet<DataCategory>,
     /// Whether this boundary requires affirmative consent (default: true)
-    pub(crate) requires_affirmative_consent: bool,
+    pub requires_affirmative_consent: bool,
 }
 
 /// Classification of a data category within a sovereignty boundary.

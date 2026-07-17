@@ -251,15 +251,17 @@ pub(crate) async fn sovereignty_check_access(
     let cm = &state.agent_service.governance().consent;
 
     let class = boundary.classify(&cat);
-    let classification = class.label();
-    let access_required = class.access_required();
-    let has_consent = if class == BoundaryClassification::Public {
-        true
-    } else {
-        cm.has_consent(&webid_str, &cat).unwrap_or(false)
-    };
+        let classification = class.label();
+        let access_required = class.access_required();
+        let has_consent = match class {
+            BoundaryClassification::Public => true,
+            BoundaryClassification::Sovereign | BoundaryClassification::Shared => {
+                cm.has_consent(&webid_str, &cat).unwrap_or(false)
+            }
+            BoundaryClassification::Unknown => false, // Magna Carta P2: default deny
+        };
 
-    if !has_consent && class != BoundaryClassification::Public {
+        if !has_consent {
         return Err(ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Agent,

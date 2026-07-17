@@ -238,13 +238,16 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
             let boundary = DataSovereigntyBoundary::hkask_default();
 
             let class = boundary.classify(&cat);
-            let classification = class.label();
-            let access_required = class.access_required();
-            let has_consent = if class == BoundaryClassification::Public {
-                true
-            } else {
-                cm.has_consent(&webid.to_string(), &cat).unwrap_or(false)
-            };
+            let class = boundary.classify(&cat);
+                        let classification = class.label();
+                        let access_required = class.access_required();
+                        let has_consent = match class {
+                            BoundaryClassification::Public => true,
+                            BoundaryClassification::Sovereign | BoundaryClassification::Shared => {
+                                cm.has_consent(&webid.to_string(), &cat).unwrap_or(false)
+                            }
+                            BoundaryClassification::Unknown => false, // Magna Carta P2: default deny
+                        };
 
             println!("Data Access Check");
             println!("=================");

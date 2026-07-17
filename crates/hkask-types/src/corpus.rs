@@ -47,9 +47,12 @@ pub struct TaggedChunk {
     /// The chunk text content.
     pub text: String,
     /// Word count from the original chunking phase.
-    #[serde(default)]
-    #[allow(dead_code)]
-    pub word_count: usize,
+        ///
+        /// Populated by the docproc pipeline (`hkask-mcp-docproc`) during extraction
+        /// and persisted as part of the corpus schema. Available for quality
+        /// metrics and display; not consumed by the current retrieval path.
+        #[serde(default)]
+        pub word_count: usize,
 
     // ── Structural tags (always present) ─────────────────────────────────
     /// 5W1H interrogatory dimensions (Who/What/When/Where/Why/How). Multiple allowed.
