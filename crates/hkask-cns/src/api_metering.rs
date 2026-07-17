@@ -348,7 +348,7 @@ impl ApiMeter {
             loop {
                 tokio::time::sleep(interval).await;
                 if let Ok(mut m) = meter.write() {
-                    let adjustments = meter.learn();
+                    let adjustments = m.learn();
                     if !adjustments.is_empty() {
                         info!(
                             target: "hkask.api.metering.learn",

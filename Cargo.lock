@@ -3926,6 +3926,7 @@ dependencies = [
  "hex",
  "hkask-agents",
  "hkask-capability",
+ "hkask-cns",
  "hkask-database",
  "hkask-git-cas",
  "hkask-inference",

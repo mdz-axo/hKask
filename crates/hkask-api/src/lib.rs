@@ -136,9 +136,14 @@ impl ApiState {
         let wallet_service = ctx.infra().wallet.clone();
         // Build API key auth service if wallet store and wallet service are available
         let api_key_auth_service = match (ctx.storage().wallet.clone(), wallet_service.clone()) {
-            (Some(store), Some(svc)) => Some(Arc::new(
-                middleware::api_key_auth::ApiKeyAuthService::new(store, svc),
-            )),
+            (Some(store), Some(svc)) => {
+                let api_meter = Arc::new(std::sync::RwLock::new(hkask_cns::ApiMeter::new()));
+                hkask_cns::ApiMeter::spawn_learning_loop(Arc::clone(&api_meter));
+                Some(Arc::new(
+                    middleware::api_key_auth::ApiKeyAuthService::new(store, svc)
+                        .with_api_meter(api_meter),
+                ))
+            }
             _ => None,
         };
 

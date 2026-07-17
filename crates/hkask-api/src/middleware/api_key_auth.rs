@@ -46,6 +46,8 @@ pub struct WalletContext {
 pub struct ApiKeyAuthService {
     wallet_store: Arc<WalletStore>,
     wallet_service: Arc<WalletService>,
+    /// API rate limiter — when present, per-key rate limits are enforced.
+    api_meter: Option<Arc<std::sync::RwLock<hkask_cns::ApiMeter>>>,
 }
 
 impl ApiKeyAuthService {
@@ -58,7 +60,16 @@ impl ApiKeyAuthService {
         Self {
             wallet_store,
             wallet_service,
+            api_meter: None,
         }
+    }
+
+    /// Attach an API rate limiter. When set, per-key rate limits are enforced
+    /// in the middleware after authentication succeeds.
+    #[must_use]
+    pub fn with_api_meter(mut self, meter: Arc<std::sync::RwLock<hkask_cns::ApiMeter>>) -> Self {
+        self.api_meter = Some(meter);
+        self
     }
 
     /// Deterministically derive a per-key budget principal.
@@ -216,6 +227,8 @@ pub enum ApiKeyAuthError {
     },
     #[error("Wallet store error")]
     StoreError,
+    #[error("Rate limit exceeded: {0}")]
+    RateLimited(String),
 }
 
 impl IntoResponse for ApiKeyAuthError {
@@ -253,6 +266,7 @@ impl IntoResponse for ApiKeyAuthError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal authentication error".into(),
             ),
+            ApiKeyAuthError::RateLimited(msg) => (StatusCode::TOO_MANY_REQUESTS, msg),
         };
         (status, message).into_response()
     }
@@ -292,6 +306,23 @@ pub async fn api_key_auth_middleware(
     }
 
     let ctx = auth.authenticate(&request)?;
+
+    // ── Rate limit check (if API meter is configured) ──
+    if let Some(ref meter) = auth.api_meter {
+        let path = request.uri().path();
+        let weight = hkask_cns::api_metering::endpoint_weight(path).0 as u64;
+        let estimated_tokens = weight * 100;
+        let status = meter
+            .write()
+            .map(|mut m| m.check_and_record(ctx.key_id, estimated_tokens))
+            .unwrap_or(hkask_cns::api_metering::RateLimitStatus::Ok);
+        if status != hkask_cns::api_metering::RateLimitStatus::Ok {
+            return Err(ApiKeyAuthError::RateLimited(format!(
+                "{} — retry later",
+                status.as_str()
+            )));
+        }
+    }
 
     // Register wallet-backed budget so GovernedTool/GovernedInference
     // debit from this key's encumbrance during the request.
