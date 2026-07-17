@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-07-12
+last_updated: 2026-07-17
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Verifiable registry of all Mermaid diagrams in the hKask documentation corpus. Per the Mermaid-First Mandate from `DOCUMENTATION_STANDARDS.md` §4: every interaction pattern, data flow, and object model is diagrammed. Every diagram carries `DIAGRAM_ALIGNMENT` metadata.
 
-**Consolidation status (2026-07-12):** All 57 standalone diagram files from the former `docs/diagrams/` directory have been inlined into their parent documents per `DOCUMENTATION_STANDARDS.md` §1. The `docs/diagrams/` directory no longer exists. This registry now maps each diagram to the document where it currently resides.
+**Consolidation status (2026-07-12):** Most standalone diagram files from the former `docs/diagrams/` directory have been inlined into their parent documents per `DOCUMENTATION_STANDARDS.md` §1. A small number of standalone reference diagrams remain in `docs/diagrams/` for crate-specific architecture flows (e.g., scenario forecasting pipeline, condenser pipeline). This registry maps each diagram to the document where it currently resides.
 
 ---
 
@@ -31,6 +31,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-DC-009 | CodeGraph Type System — Symbol, Edge, GraphStore, IndexPipeline, 10-tool MCP server | `reference/api-reference.md` | `crates/hkask-codegraph/src/types.rs`, `crates/hkask-codegraph/src/graph/store.rs`, `crates/hkask-codegraph/src/indexer/pipeline.rs`, `mcp-servers/hkask-mcp-codegraph/src/lib.rs` | ✅ VERIFIED 2026-07-04 |
 | DIAG-DC-010 | CodeGraph Indexing Pipeline — SHA-256 hash → tree-sitter parse → extract → insert → rank | `reference/api-reference.md` | `crates/hkask-codegraph/src/indexer/pipeline.rs`, `crates/hkask-codegraph/src/indexer/extractor.rs`, `crates/hkask-codegraph/src/graph/store.rs` | ✅ VERIFIED 2026-07-04 |
 | DIAG-DC-011 | CodeGraph Database Schema — 3 tables, 2 virtual tables, FTS5 triggers, WAL mode | `reference/api-reference.md` | `crates/hkask-codegraph/src/graph/schema.rs:26-126` | ✅ VERIFIED 2026-07-04 |
+| DIAG-DC-012 | Research Compound Search Flow — validate → cache → strategy → join_all → RRF fusion → rerank → cache → record | `status/research-mcp-adversarial-review-2026-07-17.md` | `mcp-servers/hkask-mcp-research/src/lib.rs:307-414`, `mcp-servers/hkask-mcp-research/src/providers/mod.rs:224-387,495-575` | ✅ VERIFIED 2026-07-17 |
 
 ## 2. Interface & Composition Diagrams
 
@@ -48,6 +49,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-010 | Companies provider routing — symbol selection, learning override, fallback, EODHD normalization | `architecture/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/providers.rs:84-247`, `mcp-servers/hkask-mcp-companies/src/lib.rs:340-361` | ✅ VERIFIED 2026-07-10 |
 | DIAG-IC-011 | Companies forecast feedback — durable snapshot, revision, outcome, and daemon experience flow | `architecture/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/tools/analytics.rs:438-457`, `mcp-servers/hkask-mcp-companies/src/tools/valuation.rs:634-659,774-915`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:303-400` | ✅ VERIFIED 2026-07-10 |
 | DIAG-IC-012 | CNS Architecture — responsibility clusters, wallet port, extraction status | `explanation/cns-and-loops.md` | `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/runtime.rs`, `crates/hkask-cns/src/wallet_budget.rs`, `crates/hkask-cns/src/slo_manager.rs`, `crates/hkask-storage-guard/src/lib.rs`, `crates/hkask-cns/src/seam_watcher.rs`, `crates/hkask-ports/src/wallet_budget_port.rs` | ✅ VERIFIED 2026-07-11 |
+| DIAG-IC-013 | Research MCP Server Architecture — ResearchServer, ProviderPool, WebSearchPort, cache, rate limiter, RSS DB | `status/research-mcp-adversarial-review-2026-07-17.md` | `mcp-servers/hkask-mcp-research/src/lib.rs:48-56`, `mcp-servers/hkask-mcp-research/src/providers/mod.rs:130-135,494-618` | ✅ VERIFIED 2026-07-17 |
+| DIAG-IC-014 | Research Provider Trait Hierarchy — WebSearchPort, WebSearchProvider, WebExtractProvider, WebBrowseProvider, 9 concrete providers | `status/research-mcp-adversarial-review-2026-07-17.md` | `mcp-servers/hkask-mcp-research/src/providers/mod.rs:50-135`, `mcp-servers/hkask-mcp-research/src/providers/brave.rs:20`, `mcp-servers/hkask-mcp-research/src/providers/firecrawl.rs:30,102,183` | ✅ VERIFIED 2026-07-17 |
 
 ## 3. Trust & Observability Diagrams
 
@@ -92,6 +95,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | Diagram ID | Description | Now Inline In | Verified Against | Status |
 |-----------|-------------|---------------|-----------------|--------|
 | DIAG-RF-001 | ERD Schema Documentation (superseded by DIAG-PL-010) | `architecture/hKask-architecture-master.md` | `crates/hkask-storage/src/` (retained as historical reference; canonical is DIAG-PL-010) | ✅ VERIFIED 2026-07-01 |
+| DIAG-RF-002 | Condenser Pipeline — tool dispatch, algorithm selection, ontology anchoring | `diagrams/flowchart-condenser-pipeline.md` | `mcp-servers/hkask-mcp-condenser/src/lib.rs`, `crates/hkask-condenser/src/engine.rs`, `crates/hkask-condenser/src/algorithms.rs` | ✅ VERIFIED 2026-07-17 |
+| DIAG-RF-003 | Filesystem sandbox path resolution + tool dispatch flow (execute_tool → sandbox_path → canonicalize → containment → emit_cns) | `reference/mcp-servers/filesystem.md` | `mcp-servers/hkask-mcp-filesystem/src/lib.rs:55-77`, `crates/hkask-mcp/src/server/tool_span.rs:246-259` | ✅ VERIFIED 2026-07-17 |
 
 ## 7. Undocumented Interaction Patterns (V1.1+ Candidates)
 
@@ -185,7 +190,7 @@ The following diagrams were standalone files not individually tracked in the ori
 
 ## 12. Summary
 
-All Mermaid diagrams are now inline in their parent documents. The former `docs/diagrams/` directory has been eliminated. 71 diagram artifacts total: 57 formerly standalone diagrams inlined into 12 parent documents + 14 inline diagrams in `FUNCTIONAL_SPECIFICATION.md`.
+All Mermaid diagrams are now inline in their parent documents. The former `docs/diagrams/` directory has been eliminated. 72 diagram artifacts total: 57 formerly standalone diagrams inlined into 12 parent documents + 14 inline diagrams in `FUNCTIONAL_SPECIFICATION.md` + 1 newly authored inline diagram (DIAG-RF-003, filesystem sandbox model).
 
 **Parent document diagram distribution:**
 
@@ -203,8 +208,9 @@ All Mermaid diagrams are now inline in their parent documents. The former `docs/
 | `explanation/federation-and-transport.md` | 1 |
 | `how-to/install-and-configure.md` | 1 |
 | `how-to/agents-and-pods.md` | 1 |
+| `reference/mcp-servers/filesystem.md` | 1 |
 | `architecture/core/FUNCTIONAL_SPECIFICATION.md` | 14 (always inline) |
-| **Total** | **71** |
+| **Total** | **72** |
 
 **MDS completeness:** all five MDS categories have diagram coverage. Training diagrams are additionally anchored to the P2 consent boundary, P4 capability-boundary requirement, and P9 feedback-loop requirement in [`PRINCIPLES.md`](architecture/core/PRINCIPLES.md).
 

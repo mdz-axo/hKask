@@ -255,7 +255,30 @@ impl ProviderPool {
 
         let futures: Vec<_> = filtered
             .iter()
-            .map(|p| async { (p.kind().to_string(), p.search(query).await) })
+            .map(|p| async {
+                let kind = p.kind().to_string();
+                match tokio::time::timeout(
+                    Duration::from_secs(COMPOUND_PROVIDER_TIMEOUT_SECS),
+                    p.search(query),
+                )
+                .await
+                {
+                    Ok(result) => (kind, result),
+                    Err(_) => {
+                        tracing::warn!(
+                            provider = %kind,
+                            timeout_secs = COMPOUND_PROVIDER_TIMEOUT_SECS,
+                            "Compound search provider timed out"
+                        );
+                        (
+                            kind,
+                            Err(WebError::ProviderUnavailable(format!(
+                                "Provider timed out after {COMPOUND_PROVIDER_TIMEOUT_SECS}s"
+                            ))),
+                        )
+                    }
+                }
+            })
             .collect();
 
         let results = futures_util::future::join_all(futures).await;
@@ -511,19 +534,11 @@ impl WebSearchPort for ProviderPool {
             )));
         }
 
-        // Build a query with depth set based on strategy
-        let query_with_depth = SearchQuery {
-            depth: match strategy {
-                SearchStrategy::Deep => SearchDepth::Advanced,
-                _ => SearchDepth::Basic,
-            },
-            ..query.clone()
-        };
-
         let mut compound = if strategy == SearchStrategy::Quick {
             let results = self
-                .search_by_capability(&query_with_depth, &[SearchCapability::Keyword])
+                .search_by_capability(query, &[SearchCapability::Keyword])
                 .await?;
+            let total = results.len();
             let pname = self
                 .search_providers
                 .iter()
@@ -560,11 +575,11 @@ impl WebSearchPort for ProviderPool {
                 answer_box: None,
                 related_questions: Vec::new(),
                 providers_failed: Vec::new(),
-                total_before_dedup: 0,
+                total_before_dedup: total,
                 duplicates_removed: 0,
             }
         } else {
-            self.search_compound(&query_with_depth, strategy).await
+            self.search_compound(query, strategy).await
         };
 
         apply_rerank(&mut compound.results, RerankSignal::Recency);

@@ -140,6 +140,11 @@ pub enum DomainKind {
     Storage,
     User,
     Wallet,
+    /// MCP tool invocations (out-of-process tool servers). Distinct from `Skill`
+    /// (agent capability management) and `Wallet` (economic balance).
+    Mcp,
+    /// Skill registry operations: discovery, publishing, auditing, bundle composition.
+    Skill,
 }
 
 impl ServiceError {
@@ -148,7 +153,7 @@ impl ServiceError {
         match self {
             ServiceError::Domain { domain, .. } => *domain,
             ServiceError::ModelService { .. } => DomainKind::Inference,
-            ServiceError::McpTool { .. } => DomainKind::Wallet,
+            ServiceError::McpTool { .. } => DomainKind::Mcp,
             ServiceError::Infra(_) => DomainKind::Infrastructure,
             ServiceError::InvalidWebID { .. } => DomainKind::User,
         }
@@ -416,6 +421,8 @@ mod tests {
                         | DomainKind::Storage
                         | DomainKind::User
                         | DomainKind::Wallet
+                        | DomainKind::Mcp
+                        | DomainKind::Skill
                 ),
                 "variant {i}: unexpected domain {d:?}"
             );
@@ -579,6 +586,8 @@ mod tests {
             DomainKind::Storage,
             DomainKind::User,
             DomainKind::Wallet,
+            DomainKind::Mcp,
+            DomainKind::Skill,
         ];
         for &domain in &all_domains {
             let e = ServiceError::Domain {
@@ -593,6 +602,34 @@ mod tests {
                 "Domain variant must preserve its domain_kind"
             );
         }
+    }
+
+    /// `ServiceError::McpTool` must classify as `DomainKind::Mcp`, not `Wallet`
+    /// (regression for the systemic skill/mcp-vs-wallet mislabel — review F21).
+    #[test]
+    fn mcp_tool_classifies_as_mcp_domain_not_wallet() {
+        let e = ServiceError::McpTool {
+            kind: McpErrorKind::NotFound,
+            server: "skill".into(),
+            tool: "skill_execute".into(),
+            message: "not found".into(),
+        };
+        assert_eq!(e.domain(), DomainKind::Mcp);
+        assert_ne!(e.domain(), DomainKind::Wallet);
+    }
+
+    /// `ServiceError::Domain { domain: DomainKind::Skill, .. }` must preserve its
+    /// domain (regression for skill service ops mislabeled as Wallet — F6/F19).
+    #[test]
+    fn skill_domain_variant_preserves_skill_kind() {
+        let e = ServiceError::Domain {
+            kind: ErrorKind::ServiceUnavailable,
+            domain: DomainKind::Skill,
+            source: None,
+            message: "skill not found".into(),
+        };
+        assert_eq!(e.domain(), DomainKind::Skill);
+        assert_ne!(e.domain(), DomainKind::Wallet);
     }
 
     /// Every ErrorKind produces the expected retryability in a Domain variant.

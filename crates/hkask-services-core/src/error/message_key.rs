@@ -31,6 +31,8 @@ impl ServiceError {
                 DomainKind::Storage => "error.storage",
                 DomainKind::User => "error.user",
                 DomainKind::Wallet => "error.wallet",
+                DomainKind::Mcp => "error.mcp.tool",
+                DomainKind::Skill => "error.skill",
             },
             ServiceError::ModelService { retryable, .. } => {
                 if *retryable {

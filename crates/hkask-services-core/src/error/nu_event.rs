@@ -84,6 +84,16 @@ impl ServiceError {
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
+                DomainKind::Mcp => (
+                    "cns.tool",
+                    "error",
+                    serde_json::json!({ "message": message }),
+                ),
+                DomainKind::Skill => (
+                    "cns.skill",
+                    "error",
+                    serde_json::json!({ "message": message }),
+                ),
             },
             ServiceError::ModelService { message, .. } => (
                 "cns.inference",

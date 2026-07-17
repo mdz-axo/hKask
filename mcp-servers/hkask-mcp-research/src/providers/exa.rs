@@ -3,6 +3,7 @@ use crate::types::*;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct ExaProvider {
     client: reqwest::Client,
     api_key: String,
@@ -92,7 +93,6 @@ impl ExaProvider {
     }
 }
 #[async_trait]
-#[async_trait]
 impl WebSearchProvider for ExaProvider {
     fn kind(&self) -> &str {
         "exa"
@@ -177,6 +177,26 @@ impl WebSearchProvider for ExaProvider {
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        Ok(())
+        // Lightweight check: send a minimal search request and verify we get
+        // a non-5xx response. A 401/403 means the key is invalid (unhealthy);
+        // a 429 means the service is alive but rate-limited (healthy).
+        let payload = serde_json::json!({ "query": "test", "numResults": 1 });
+        let resp = self
+            .client
+            .post(format!("{EXA_API_BASE}/search"))
+            .header("x-api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| WebError::ProviderUnavailable(format!("Exa health check failed: {e}")))?;
+        let status = resp.status();
+        if status.is_success() || status.as_u16() == 429 {
+            Ok(())
+        } else {
+            Err(WebError::ProviderUnavailable(format!(
+                "Exa health check returned {status}"
+            )))
+        }
     }
 }

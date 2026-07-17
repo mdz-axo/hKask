@@ -67,7 +67,7 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
         input: &str,
         profile: Profile,
         _category: ContextCategory,
-        _ontology_anchor: Option<&OntologyAnchor>,
+        ontology_anchor: Option<&OntologyAnchor>,
     ) -> (String, Vec<CondenserHealthSignal>) {
         let lines: Vec<&str> = input.lines().collect();
         let (budget, passthrough) = compute_budget(lines.len(), profile);
@@ -77,7 +77,7 @@ impl CondenserAlgorithm for RtkStyleAlgorithm {
 
         // Ontology-aware head/tail split: FIBO financial data gets more tail
         // (summary/conclusion often carries key financial ratios)
-        let density_factor = _ontology_anchor.map(|a| a.density_factor()).unwrap_or(1.0);
+        let density_factor = ontology_anchor.map(|a| a.density_factor()).unwrap_or(1.0);
         let head_ratio = (0.3 / density_factor).clamp(0.15, 0.5);
         let head_count = (budget as f64 * head_ratio) as usize;
         let tail_count = budget.saturating_sub(head_count);
@@ -238,7 +238,6 @@ impl CondenserAlgorithm for WordRankAlgorithm {
 ///
 /// Extracted from the condenser's ontology bonus logic for reuse by the
 /// communication gate and other callers that need domain relevance without the
-/// full compression pipeline.
 /// full compression pipeline.
 pub fn domain_saliency(line: &str, anchor: Option<&OntologyAnchor>) -> f64 {
     let direct = match anchor {

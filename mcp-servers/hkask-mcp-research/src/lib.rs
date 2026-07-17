@@ -286,7 +286,7 @@ impl ResearchServer {
                     message = %e.message,
                     "web_ping rate limited"
                 );
-                return Err(McpToolError::rate_limited("web_ping rate limited"));
+                return Err(e);
             }
 
             let providers = self.pool.health_check().await;
@@ -355,7 +355,6 @@ impl ResearchServer {
                 include_domains: req.include_domains.unwrap_or_default(),
                 exclude_domains: req.exclude_domains.unwrap_or_default(),
                 freshness,
-                depth: SearchDepth::Basic,
             };
 
             let mut compound = self
@@ -625,27 +624,27 @@ impl ResearchServer {
             validate_tool_url(&url)?;
             let fetch_result = fetch_feed(&self.rss_client, &url, None, None).await
                 .map_err(|e| McpToolError::unavailable(format!("Fetch failed: {}", e)))?;
-        let stream_id = format!("feed/{url}");
-        let (url_c, label_c, folder_c) = (url, label, folder);
-        let etag = fetch_result.etag.clone();
-        let lm = fetch_result.last_modified.clone();
-        let feed_title = fetch_result
-            .feed
-            .title
-            .as_ref()
-            .map(|t| t.content.clone())
-            .unwrap_or_default();
-        let entry_count = fetch_result.feed.entries.len();
-        let result = spawn_db(db, move |conn| {
-            let feed_id = upsert_feed(conn, &url_c, &fetch_result.feed)?;
-            insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
-            update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
-            let exists: bool = conn.query_row("SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1", [&stream_id], |row| row.get::<_, i64>(0)).map(|c| c > 0)?;
-            if exists { return Ok(serde_json::json!({"stream_id": stream_id, "url": url_c, "subscribed": true, "note": "Already subscribed, feed refreshed"})); }
-            conn.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
-            Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count}))
-        }).await;
-        handle_db_result!(result, |v| v)
+            let stream_id = format!("feed/{url}");
+            let (url_c, label_c, folder_c) = (url, label, folder);
+            let etag = fetch_result.etag.clone();
+            let lm = fetch_result.last_modified.clone();
+            let feed_title = fetch_result
+                .feed
+                .title
+                .as_ref()
+                .map(|t| t.content.clone())
+                .unwrap_or_default();
+            let entry_count = fetch_result.feed.entries.len();
+            let result = spawn_db(db, move |conn| {
+                let feed_id = upsert_feed(conn, &url_c, &fetch_result.feed)?;
+                insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
+                update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
+                let exists: bool = conn.query_row("SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1", [&stream_id], |row| row.get::<_, i64>(0)).map(|c| c > 0)?;
+                if exists { return Ok(serde_json::json!({"stream_id": stream_id, "url": url_c, "subscribed": true, "note": "Already subscribed, feed refreshed"})); }
+                conn.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
+                Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count}))
+            }).await;
+            handle_db_result!(result, |v| v)
         }).await
     }
 
@@ -691,29 +690,9 @@ impl ResearchServer {
         Parameters(FetchRequest { stream_id }): Parameters<FetchRequest>,
     ) -> String {
         execute_tool(self, "rss_fetch", async {
-            let db1 = require_rss_db!(self);
-            let sid1 = stream_id.clone();
-        let lookup = tokio::task::spawn_blocking(move || {
-            let conn = db1
-                .get()
-                .map_err(|e| anyhow::anyhow!("pool get: {e}"))?;
-            let url = resolve_feed_url(&conn, &sid1)
-                .ok_or_else(|| anyhow::anyhow!("Feed URL not found for stream_id"))?;
-            let etag: Option<String> = conn
-                .query_row("SELECT etag FROM feeds WHERE url = ?1", [&url], |row| {
-                    row.get(0)
-                })
-                .ok();
-            let lm: Option<String> = conn
-                .query_row(
-                    "SELECT last_modified FROM feeds WHERE url = ?1",
-                    [&url],
-                    |row| row.get(0),
-                )
-                .ok();
-            Ok::<(String, Option<String>, Option<String>), anyhow::Error>((url, etag, lm))
-        })
-        .await;
+            let db = require_rss_db!(self);
+            let sid = stream_id.clone();
+            let lookup = spawn_db(db, move |conn| resolve_feed_with_headers(conn, &sid)).await;
 
         let (feed_url, cached_etag, cached_lm) = match lookup {
             Ok(Ok(v)) => v,
@@ -725,7 +704,7 @@ impl ResearchServer {
             }
         };
 
-        let db2 = require_rss_db!(self);
+        let db = require_rss_db!(self);
         let fetch_result = fetch_feed(
             &self.rss_client,
             &feed_url,
@@ -748,7 +727,7 @@ impl ResearchServer {
         let etag = fetch_result.etag.clone();
         let lm = fetch_result.last_modified.clone();
 
-        let result = spawn_db(db2, move |conn| {
+        let result = spawn_db(db, move |conn| {
             let feed_id = upsert_feed(conn, &feed_url, &fetch_result.feed)?;
             let new_count = insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
             update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
@@ -966,9 +945,10 @@ pub async fn run(
                             search_providers.push(Box::new(BraveProvider::new(key.clone())));
                         }
                         if let Some(ref key) = firecrawl_api_key {
-                            search_providers.push(Box::new(FirecrawlProvider::new(Some(key.clone()))));
-                            extract_providers.push(Box::new(FirecrawlProvider::new(Some(key.clone()))));
-                            browse_providers.push(Box::new(FirecrawlProvider::new(Some(key.clone()))));
+                            let fc = FirecrawlProvider::new(Some(key.clone()));
+                            search_providers.push(Box::new(fc.clone()));
+                            extract_providers.push(Box::new(fc.clone()));
+                            browse_providers.push(Box::new(fc));
                         }
                         if let Some(ref key) = tavily_api_key {
                             search_providers.push(Box::new(TavilyProvider::new(key.clone())));
@@ -976,8 +956,8 @@ pub async fn run(
                         if let Some(ref key) = serpapi_api_key {
                             search_providers.push(Box::new(SerapiProvider::new(key.clone())));
                         }
-                        if let Some(ref key) = exa_api_key {
-                            search_providers.push(Box::new(ExaProvider::new(key.clone())));
+                        if let Some(ref exa) = exa_provider {
+                            search_providers.push(Box::new(exa.clone()));
                         }
                         if let Some(ref key) = browserbase_api_key {
                             browse_providers.push(Box::new(BrowserbaseProvider::new(key.clone())));

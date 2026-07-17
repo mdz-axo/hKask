@@ -117,16 +117,9 @@ pub struct SearchQuery {
     pub include_domains: Vec<String>,
     pub exclude_domains: Vec<String>,
     pub freshness: Option<Freshness>,
-    pub depth: SearchDepth,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum SearchDepth {
-    Basic,
-    Advanced,
-}
-
+// ── Error type ──
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtractOptions {
     pub format: String,
@@ -257,16 +250,6 @@ pub enum ProviderFilter {
     All,
     Capabilities(Vec<SearchCapability>),
     Kinds(Vec<&'static str>),
-}
-
-impl ProviderFilter {
-    pub fn matches(&self, provider_kind: &str) -> bool {
-        match self {
-            Self::All => true,
-            Self::Capabilities(_) => true,
-            Self::Kinds(kinds) => kinds.contains(&provider_kind),
-        }
-    }
 }
 
 impl std::fmt::Display for SearchStrategy {

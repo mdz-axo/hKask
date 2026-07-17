@@ -16,7 +16,6 @@ impl BraveProvider {
     }
 }
 #[async_trait]
-#[async_trait]
 impl WebSearchProvider for BraveProvider {
     fn kind(&self) -> &str {
         "brave"

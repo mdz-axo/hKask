@@ -13,7 +13,7 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 | `condenser_classify` | Classify tool name to context category | — |
 | `condenser_set_profile` | Set compression profile (heavy/normal/soft/light) | — |
 | `condenser_stats` | Cumulative compression statistics | — |
-| `condenser_score_saliency` | Score text relevance against persona (charter-anchored), episodic memory (PKO-anchored), or semantic memory (DC+BIBO-anchored) via ontology graph proximity (P5.4). Returns 0.0–1.0. | Persona fields for "persona"; DB for "episodic"/"semantic" |
+| `condenser_score_saliency` | Score text relevance against persona keywords (word-overlap) or memory stores (semantic/episodic search). Returns 0.0–1.0. The `against` parameter accepts `"persona"` (default) or `"memory"`. When `against="memory"`, the tool checks for a semantic memory store first, then falls back to episodic memory. If neither is available, returns 0.5 (neutral). | Persona keywords are hardcoded (curator/monitor-oriented). Memory stores require `HKASK_DB_PATH` |
 | `condenser_persist` | Persist compressed output to episodic memory | `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` |
 | `condenser_thread_summary` | LLM-powered conversation summarization via centralized inference router. Disables model thinking/reasoning mode to ensure output tokens are used for the summary, not internal reasoning. Returns `original_tokens_approx` and `summary_tokens_approx` for context-window budgeting. | — |
 
@@ -42,9 +42,10 @@ Environment variables (all optional):
 |----------|-------------|---------|
 | `HKASK_DB_PATH` | SQLite database path for episodic persistence | In-memory (no persistence) |
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase | Required if `HKASK_DB_PATH` is set |
-| `HKASK_DEFAULT_MODEL` | Model for thread summarization (inherits system default) | `deepseek-v4-pro` (configure via HKASK_DEFAULT_MODEL env var) |
+| `HKASK_DEFAULT_MODEL` | Model for thread summarization (inherits system default) | `google/gemma-4-26B-A4B-it` (configure via `INFERENCE_MODEL` env var) |
+| `HKASK_CONDENSE_SALIENCY_WINDOW` | Saliency window multiplier for default `max_tokens` in thread summarization (saliency × 100, clamped to [150, 2000]) | `5` (→ 500 tokens) |
 
-Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `DI_API_KEY`, `FA_API_KEY`, `TG_API_KEY`, `OR_API_KEY`, `KC_API_KEY` environment variables).
+Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `DI_API_KEY`, `FA_API_KEY`, `TG_API_KEY`, `OR_API_KEY`, `KC_API_KEY` environment variables). The default model is configured via the `INFERENCE_MODEL` env var (defaults to `google/gemma-4-26B-A4B-it`).
 
 ## Context Categories
 
@@ -73,7 +74,7 @@ For models with reasoning/thinking mode (e.g., qwen3, gemma4, deepseek-r1), `con
 
 The `enable_thinking` field is only serialized when `false` — backends that don't support it are unaffected.
 
-**Known behavior:** Some backends may not honor `enable_thinking: false` for reasoning-mode models (qwen3.5, gemma4, deepseek-r1). The condenser gracefully degrades: when a thinking model returns an empty summary, the tool responds with `"Inference engine returned an empty summary"`. **Workaround:** use a non-thinking model for summarization. The default condenser model is `HKASK_DEFAULT_MODEL` (system default, deepseek-v4-pro recommended), which produces clean structured summaries without thinking interference.
+**Known behavior:** Some backends may not honor `enable_thinking: false` for reasoning-mode models (qwen3.5, gemma4, deepseek-r1). The condenser gracefully degrades: when a thinking model returns an empty summary, the tool responds with `"Inference engine returned an empty summary"`. **Workaround:** use a non-thinking model for summarization. The default condenser model is configured via the `INFERENCE_MODEL` env var (defaults to `google/gemma-4-26B-A4B-it`), which produces clean structured summaries without thinking interference.
 
 ## Running
 

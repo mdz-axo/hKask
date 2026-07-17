@@ -778,16 +778,16 @@ Context condensation domain logic — compression algorithms, classification, pr
 
 | Module | Purpose |
 |--------|---------|
-| `engine` | `CondenserEngine` — central compression orchestrator (7 tools) |
-| `algorithms` | Compression algorithms: word-rank, RTK-style, FlashRank, LLM summarization. `CondenserAlgorithm` trait |
+| `engine` | `CondenserEngine` — central compression orchestrator (8 MCP tools) |
+| `algorithms` | Compression algorithms: word-rank, RTK-style, FlashRank. `CondenserAlgorithm` trait |
 | `types` | `CompressedOutput`, health signals, compression profiles |
 | `inference` | LLM-based summarization via centralized inference router |
-| `saliency` | Passage salience scoring and ranking |
-| `ontology_graph` | Ontology-aware compression graph |
+| `saliency` | Passage salience scoring (persona word-overlap, memory semantic search) |
+| `ontology_graph` | Ontology-aware compression graph (FIBO, CogAT, GOLEM, ML-Schema, OMC, PKO, DC+BIBO) |
 
-**Key Public Types:** `CondenserEngine` (7 tools), `CompressedOutput` (compressed text + health signals), `CondenserAlgorithm` (trait).
+**Key Public Types:** `CondenserEngine` (8 MCP tools), `CompressedOutput` (compressed text + health signals), `CondenserAlgorithm` (trait).
 
-**7 Tools:** `condenser_ping`, `condenser_compress`, `condenser_set_profile`, `condenser_stats`, `condenser_classify`, `condenser_persist`, `condenser_thread_summary`.
+**8 Tools:** `condenser_ping`, `condenser_compress`, `condenser_set_profile`, `condenser_stats`, `condenser_classify`, `condenser_persist`, `condenser_thread_summary`, `condenser_score_saliency`.
 
 **Health Signals:** `negative_compression`, `low_signal`, `budget_shortfall`, `low_compression_ratio`.
 

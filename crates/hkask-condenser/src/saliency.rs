@@ -1,13 +1,17 @@
 //! Saliency scoring — how relevant is text to an agent's persona or memory?
 //!
 //! Extracted from `WordRankAlgorithm` so saliency is cleanly callable without
-//! running the full compression pipeline. Two functions:
+//! running the full compression pipeline. One public function:
 //!
 //! - `score_against_persona(text, persona_keywords)` → word-overlap score 0.0–1.0
-//! - `score_against_memory(text, memory_store)` → semantic recall score 0.0–1.0
 //!
 //! The persona scoring reuses `compute_word_frequencies` from WordRankAlgorithm.
-//! The memory scoring delegates to the episodic store's semantic search.
+//! Memory-based saliency is implemented inline by the MCP server (which has access
+//! to the episodic/semantic stores) — see `condenser_score_saliency` tool.
+//!
+//! NOTE: `score_against_memory` was removed — it was a stub that always returned
+//! 0.5 and was never wired by the MCP server. The MCP server implements memory
+//! saliency inline because it owns the store handles.
 
 use std::collections::HashMap;
 
@@ -50,21 +54,6 @@ pub fn score_against_persona(text: &str, persona_keywords: &[&str]) -> f64 {
 
     // Blend coverage and weight — both matter
     (coverage * 0.6 + avg_weight * 0.4).min(1.0)
-}
-
-/// Score how salient `text` is against the agent's episodic memory.
-///
-/// This is a pass-through stub. The condenser MCP server wires this
-/// to the episodic store's semantic search. Without a store, returns 0.5
-/// (neutral — doesn't push the gate either way).
-///
-/// Full implementation: query the episodic store for semantically similar
-/// h_mems. If recall returns results, the text is salient (0.7+). If no
-/// results, the text doesn't trigger memory (0.0–0.3 depending on other signals).
-pub fn score_against_memory(_text: &str) -> f64 {
-    // Stub: wired by the MCP server if episodic store is available.
-    // Returns neutral so callers get graceful degradation.
-    0.5
 }
 
 /// Word frequency map — shared with WordRankAlgorithm.
@@ -127,10 +116,5 @@ mod tests {
             score > 0.0 && score < 1.0,
             "expected partial score, got {score}"
         );
-    }
-
-    #[test]
-    fn memory_stub_returns_neutral() {
-        assert_eq!(score_against_memory("anything"), 0.5);
     }
 }

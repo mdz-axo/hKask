@@ -107,12 +107,31 @@ fn default_profile_is_normal() {
 // ── Health check contract tests ─────────────────────────────────────────────
 
 #[test]
-fn health_check_returns_signals() {
+fn health_check_returns_empty_for_fresh_engine() {
+    // A fresh engine with zero compressions should not trigger the low-ratio
+    // health signal — the check requires >= 10 compressions before flagging.
     let engine = CondenserEngine::new();
     let signals = engine.check_global_health();
-    // Engine should return health signals (may be empty for fresh engine)
     assert!(
-        signals.is_empty() || !signals.is_empty(),
-        "health check should return signals or empty vec"
+        signals.is_empty(),
+        "fresh engine should have no health signals, got {signals:?}"
+    );
+}
+
+#[test]
+fn health_check_flags_low_compression_ratio() {
+    // Simulate 10+ compressions where total original ≈ total compressed
+    // (ratio < 2:1) — should trigger the low_compression_ratio signal.
+    let mut engine = CondenserEngine::new();
+    // Heavy profile with tiny inputs that won't compress (passthrough).
+    for _ in 0..15 {
+        engine.compress("bash_execute", "ab", None);
+    }
+    let signals = engine.check_global_health();
+    assert!(
+        signals
+            .iter()
+            .any(|s| s.signal_type == "low_compression_ratio"),
+        "expected low_compression_ratio signal after 15 passthrough compressions, got {signals:?}"
     );
 }

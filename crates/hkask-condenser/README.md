@@ -82,3 +82,8 @@ multiplier — lines containing graph-adjacent concepts get bonus scores.
 
 - `hkask-mcp-condenser` — MCP server: thin wrapper exposing `/condenser/compress` etc.
 - `hkask-services` — `ChatService::condense_history`: auto-condenses conversation windows
+
+## Known Limitations
+
+- **Persona keywords are hardcoded:** `condenser_score_saliency` with `against="persona"` uses a fixed set of curator/monitor-oriented keywords baked into the MCP server. This is a known variety deficit (Ashby's Law) — the condenser cannot score saliency against arbitrary agent personas. Future enhancement: accept persona keywords as a tool parameter.
+- **Semantic memory not wired:** The `CondenserServer.semantic` field is always `None` in the current `run()` initialization. The `condenser_score_saliency` tool's semantic-memory branch is unreachable. Episodic memory (when `HKASK_DB_PATH` is set) is the only memory store used for saliency scoring.

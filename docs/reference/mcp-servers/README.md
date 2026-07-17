@@ -15,12 +15,12 @@ Built-in MCP servers shipped with hKask. Each server is a thin surface over doma
 | Curator | `mcp-servers/hkask-mcp-curator` | Curator agent metacognition | — | — |
 | Memory | `mcp-servers/hkask-mcp-memory` | Episodic and semantic memory | — | — |
 | DocProc | `mcp-servers/hkask-mcp-docproc` | Document processing and QA generation | — | — |
-| Filesystem | `mcp-servers/hkask-mcp-filesystem` | File access and operations | — | — |
+| Filesystem | `mcp-servers/hkask-mcp-filesystem` | File access and shell operations (OCAP-sandboxed) | 7 | — |
 | Kata Kanban | `mcp-servers/hkask-mcp-kata-kanban` | Toyota Kata task boards | 14 | `hkask-services-kata-kanban` |
 | Media | `mcp-servers/hkask-mcp-media` | Fal.ai media generation | — | — |
 | Replica | `mcp-servers/hkask-mcp-replica` | Replicant lifecycle | — | — |
-| Research | `mcp-servers/hkask-mcp-research` | Research paper search and reading | — | — |
-| Skill | `mcp-servers/hkask-mcp-skill` | Skill registry access | — | — |
+| Research | `mcp-servers/hkask-mcp-research` | Web search, extraction, browsing, RSS feeds | 17 | — |
+| [Skill](skill-server.md) | `mcp-servers/hkask-mcp-skill` | Skill registry access (list, execute) | 3 | — |
 | Training | `mcp-servers/hkask-mcp-training` | LoRA training pipeline | — | — |
 | Communication | `mcp-servers/hkask-mcp-communication` | Federation messaging | — | — |
 | Condenser | `mcp-servers/hkask-mcp-condenser` | Context condensation | — | — |
@@ -37,7 +37,11 @@ All servers follow these patterns:
 
 ## Cross-links
 
+- [Skill MCP Server](skill-server.md) — Skill server architecture reference (3 tools, diagram)
+- [Research MCP Adversarial Review](../../status/research-mcp-adversarial-review-2026-07-17.md) — code smell inventory for the research server
+- [Filesystem Server Reference](filesystem.md) — sandbox model, 7 tools, CNS spans, current behavior and known limitations (DIAG-RF-003)
 - [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code smell inventory for the scenarios server
+- [Companies MCP Code Review](../../status/companies-mcp-code-review-2026-07-15.md) — adversarial code review of the companies server
 - [Scenario Forecasting Pipeline Diagram](../../diagrams/flowchart-scenario-forecasting-pipeline.md) — scenarios tool flow
 - [Superforecasting: Layered Model](../../explanation/superforecasting-layers.md) — three-layer architecture
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence

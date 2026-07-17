@@ -5,6 +5,7 @@ use crate::types::*;
 use async_trait::async_trait;
 use std::time::Duration;
 
+#[derive(Clone)]
 pub struct FirecrawlProvider {
     client: reqwest::Client,
     api_key: Option<String>,
@@ -25,7 +26,6 @@ impl FirecrawlProvider {
             .ok_or(WebError::NoProvider)
     }
 }
-#[async_trait]
 #[async_trait]
 impl WebSearchProvider for FirecrawlProvider {
     fn kind(&self) -> &str {

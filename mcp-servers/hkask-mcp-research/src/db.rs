@@ -92,8 +92,8 @@ const ENTRY_COLS: &str = "e.id, e.entry_id, e.title, e.url, e.author, e.summary,
 const ENTRY_FROM_JOIN: &str = "FROM entries e LEFT JOIN entry_states s ON e.id = s.entry_id";
 const SUB_QUERY: &str = "SELECT s.stream_id, s.title, s.label, s.folder, s.added_at, f.url, f.title as feed_title FROM subscriptions s JOIN feeds f ON s.feed_id = f.id";
 
-fn feed_text(feed_text: &Option<feed_rs::model::Text>) -> &str {
-    feed_text.as_ref().map(|t| t.content.as_str()).unwrap_or("")
+fn feed_text(text: &Option<feed_rs::model::Text>) -> &str {
+    text.as_ref().map(|t| t.content.as_str()).unwrap_or("")
 }
 
 pub fn upsert_feed(
@@ -134,18 +134,6 @@ pub fn insert_entries(
     let mut new_count = 0;
     for entry in entries {
         let entry_id = entry.id.clone();
-        let exists: bool = conn
-            .query_row(
-                "SELECT COUNT(*) FROM entries WHERE feed_id = ?1 AND entry_id = ?2",
-                rusqlite::params![feed_id, entry_id],
-                |row| row.get::<_, i64>(0),
-            )
-            .map(|c| c > 0)?;
-
-        if exists {
-            continue;
-        }
-
         let title = entry
             .title
             .as_ref()
@@ -170,7 +158,7 @@ pub fn insert_entries(
         let updated_at = entry.updated.map(|dt| dt.to_rfc3339()).unwrap_or_default();
 
         conn.execute(
-            "INSERT INTO entries (feed_id, entry_id, title, url, author, content, summary, published_at, updated_at)
+            "INSERT OR IGNORE INTO entries (feed_id, entry_id, title, url, author, content, summary, published_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             rusqlite::params![
                 feed_id,
@@ -184,7 +172,9 @@ pub fn insert_entries(
                 updated_at
             ],
         )?;
-        new_count += 1;
+        if conn.changes() > 0 {
+            new_count += 1;
+        }
     }
     Ok(new_count)
 }
@@ -213,6 +203,31 @@ pub fn resolve_feed_url(conn: &Connection, stream_id: &str) -> Option<String> {
         )
         .ok()
     }
+}
+
+/// Resolve a feed URL from a stream ID and fetch its cached ETag/Last-Modified headers.
+///
+/// Used by `rss_fetch` to look up the feed URL and conditional-fetch headers in a single
+/// blocking call, replacing the manual `spawn_blocking` that duplicated `spawn_db` logic.
+pub fn resolve_feed_with_headers(
+    conn: &Connection,
+    stream_id: &str,
+) -> Result<(String, Option<String>, Option<String>), anyhow::Error> {
+    let url = resolve_feed_url(conn, stream_id)
+        .ok_or_else(|| anyhow::anyhow!("Feed URL not found for stream_id"))?;
+    let etag: Option<String> = conn
+        .query_row("SELECT etag FROM feeds WHERE url = ?1", [&url], |row| {
+            row.get(0)
+        })
+        .ok();
+    let lm: Option<String> = conn
+        .query_row(
+            "SELECT last_modified FROM feeds WHERE url = ?1",
+            [&url],
+            |row| row.get(0),
+        )
+        .ok();
+    Ok((url, etag, lm))
 }
 
 /// Build (base SQL fragment, params) for a stream. `aux_where` is appended (e.g., "s.is_read = 0").
