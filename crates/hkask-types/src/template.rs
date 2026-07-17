@@ -87,6 +87,12 @@ pub struct LLMParameters {
     /// Set by the manifest executor when a per-manifest fusion config is declared.
     #[serde(default)]
     pub fusion_config: Option<crate::fusion::FusionConfig>,
+    /// System prompt for the chat request. When present, sent as a
+    /// `{"role": "system"}` message before the user message. Used by
+    /// the fusion orchestrator's panel dispatch to send few-shot examples
+    /// as a proper system message rather than prepending to user content.
+    #[serde(default)]
+    pub system_prompt: Option<String>,
 }
 
 impl LLMParameters {
@@ -107,6 +113,7 @@ impl LLMParameters {
             adapter: None,
             bypass_fusion: false,
             fusion_config: None,
+            system_prompt: None,
         }
     }
 }

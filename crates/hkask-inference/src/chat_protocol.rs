@@ -146,12 +146,21 @@ pub fn build_chat_request(
     tools: Option<Vec<ChatToolDefinition>>,
     plugins: Option<Vec<FusionPlugin>>,
 ) -> ChatRequest {
+    let mut messages = Vec::with_capacity(2);
+    if let Some(ref sys) = params.system_prompt {
+        messages.push(ChatMessage {
+            role: "system".to_string(),
+            content: sys.clone(),
+        });
+    }
+    messages.push(ChatMessage {
+        role: "user".to_string(),
+        content: prompt.to_string(),
+    });
+
     ChatRequest {
         model: model.to_string(),
-        messages: vec![ChatMessage {
-            role: "user".to_string(),
-            content: prompt.to_string(),
-        }],
+        messages,
         temperature: params.temperature,
         top_p: params.top_p,
         top_k: params.top_k as i32,

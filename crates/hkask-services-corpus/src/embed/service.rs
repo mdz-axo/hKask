@@ -429,14 +429,19 @@ impl EmbedService {
 
                     handles.push(tokio::spawn(async move {
                         let _permit = permit.acquire().await;
-                        // Prepend system prompt (few-shot examples) to the passage
-                        // text — the fusion orchestrator sends it as user content.
-                        let prompt = format!("{system_prompt}\n\n## Passage\n{text}");
+                        // P3+P4: send system prompt as a proper system message
+                        // (not prepended to user content), and set explicit
+                        // sampling params matching the old extract_triples_one
+                        // behavior (no top-p or top-k filtering).
+                        let prompt = format!("## Passage\n{text}");
                         let params = hkask_types::LLMParameters {
                             temperature: temp as f32,
                             max_tokens: max_tok,
+                            top_p: 1.0,
+                            top_k: 0,
                             bypass_fusion: false,
                             fusion_config: Some(fusion),
+                            system_prompt: Some(system_prompt),
                             ..Default::default()
                         };
                         let result = router.generate(&prompt, &params, None).await;
@@ -446,6 +451,7 @@ impl EmbedService {
 
                 let mut extractions: Vec<TripleExtraction> =
                     vec![TripleExtraction::default(); texts.len()];
+                let mut failed_count = 0usize;
                 for handle in handles {
                     match handle.await {
                         Ok((i, Ok(result))) => {
@@ -455,11 +461,32 @@ impl EmbedService {
                         }
                         Ok((i, Err(e))) => {
                             tracing::warn!(index = i, error = %e, "Fusion extraction failed");
+                            failed_count += 1;
                         }
                         Err(e) => {
                             tracing::warn!(error = %e, "Fusion extraction task panicked");
+                            failed_count += 1;
                         }
                     }
+                }
+
+                // P6: if ALL fusion tasks failed, fall back to single-model
+                // extraction rather than storing empty extractions silently.
+                if failed_count == texts.len() && !texts.is_empty() {
+                    tracing::warn!(
+                        total = texts.len(),
+                        "All fusion tasks failed — falling back to single-model extraction"
+                    );
+                    let settings = HkaskSettings::load();
+                    let settings_model = settings.classifier_model();
+                    let mut model_config = classifier_config.clone();
+                    if !settings_model.is_empty() {
+                        model_config.model = strip_provider_prefix(&settings_model).to_string();
+                    }
+                    let fallback =
+                        hkask_services_runtime::extract_triples_batch(&texts, &model_config)
+                            .await?;
+                    extractions = fallback;
                 }
 
                 for (passage, ext) in all_passages.iter_mut().zip(extractions.iter()) {

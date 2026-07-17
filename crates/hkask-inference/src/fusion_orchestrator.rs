@@ -102,6 +102,7 @@ fn build_skill_anchor(skills: &[FusionSkill]) -> String {
 struct PanelResponse {
     model_name: String,
     text: String,
+    usage: InferenceUsage,
 }
 
 /// Dispatch to all panel models in parallel.
@@ -136,6 +137,7 @@ async fn dispatch_panel(
                 Ok(result) => Some(PanelResponse {
                     model_name: model_name.clone(),
                     text: result.text,
+                    usage: result.usage,
                 }),
                 Err(e) => {
                     tracing::warn!(
@@ -174,7 +176,7 @@ pub const ALGO_JUDGE: &str = "algo";
 
 /// Parse a JSON value from a model response text, tolerating markdown fences
 /// and surrounding prose. Falls back to `Value::Null` on parse failure.
-fn parse_json_response(text: &str) -> serde_json::Value {
+fn parse_json_lenient(text: &str) -> serde_json::Value {
     use serde_json::Value;
 
     // Direct parse
@@ -254,22 +256,26 @@ fn merge_json_values(a: &serde_json::Value, b: &serde_json::Value) -> serde_json
 }
 
 /// Algorithmic judge: parse panel responses as JSON, merge via recursive union.
-/// No LLM call — deterministic, zero-cost, preserves both viewpoints.
+/// No LLM call — deterministic, zero-cost judge. Panel model usage is aggregated.
 fn algo_merge(responses: &[PanelResponse]) -> InferenceResult {
     let merged = responses
         .iter()
-        .map(|r| parse_json_response(&r.text))
+        .map(|r| parse_json_lenient(&r.text))
         .reduce(|a, b| merge_json_values(&a, &b))
         .unwrap_or(serde_json::Value::Null);
+
+    let total_usage = responses
+        .iter()
+        .fold(InferenceUsage::default(), |acc, r| InferenceUsage {
+            prompt_tokens: acc.prompt_tokens + r.usage.prompt_tokens,
+            completion_tokens: acc.completion_tokens + r.usage.completion_tokens,
+            total_tokens: acc.total_tokens + r.usage.total_tokens,
+        });
 
     InferenceResult {
         text: merged.to_string(),
         model: ALGO_JUDGE.to_string(),
-        usage: InferenceUsage {
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            total_tokens: 0,
-        },
+        usage: total_usage,
         finish_reason: "stop".to_string(),
         token_probabilities: None,
         tool_calls: Vec::new(),
@@ -619,7 +625,8 @@ pub async fn orchestrate(
     // Algorithmic judge — deterministic JSON merge, no LLM call.
     // The judge IS the strategy: "algo" means merge panel responses
     // algorithmically rather than via an LLM judge call.
-    if fusion.judge == ALGO_JUDGE {
+    // Case-insensitive to tolerate YAML typos (e.g., "Algo", "ALGO").
+    if fusion.judge.to_lowercase() == ALGO_JUDGE {
         let responses = dispatch_panel(router, prompt, params, tools, &fusion.panel).await;
         if responses.is_empty() {
             return Err(InferenceError::Generation("All panel models failed".into()));

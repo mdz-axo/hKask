@@ -18,7 +18,7 @@ pub enum InferenceError {
 }
 
 /// Token usage statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InferenceUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
