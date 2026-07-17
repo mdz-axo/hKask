@@ -174,7 +174,7 @@ pub struct ReplSettings {
     pub embedding_model: String,
 
     /// Default classifier model for section type / h_mem extraction.
-    /// Override: `HKASK_CLASSIFIER_MODEL_A` env var.
+    /// Override: `HKASK_CLASSIFIER_MODEL` env var.
     #[serde(default = "default_cls_model")]
     pub classifier_model: String,
 

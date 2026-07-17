@@ -85,7 +85,7 @@ Remaining `model:` references in templates are output content (generated corpus 
 ### HIGH — Calibrate gpa-evolution with real LLM (model `KC/z-ai/glm5.2`)
 Run the gpa-evolution skill with a real inference backend against a small eval set. Verify the evolutionary loop actually improves the prompt. Calibrate gas/rjoule budgets based on real consumption.
 
-**How:** Use `kask kata start gpa-evolution` with context `artifact_type=prompt`, `target_artifact={content: "...", eval_set: [...]}`, `objectives=[{name: "accuracy", maximize: true}]`. The model `KC/z-ai/glm5.2` is the default model — set via `HKASK_CLASSIFIER_MODEL_A` env var or the `kask settings` command.
+**How:** Use `kask kata start gpa-evolution` with context `artifact_type=prompt`, `target_artifact={content: "...", eval_set: [...]}`, `objectives=[{name: "accuracy", maximize: true}]`. The model `KC/z-ai/glm5.2` is the default model — set via `HKASK_CLASSIFIER_MODEL` env var or the `kask settings` command.
 
 **Where:** Run from the hKask workspace root
 **Verify:** The skill should complete 2-3 iterations, produce a non-empty Pareto frontier, and converge or max out gracefully.

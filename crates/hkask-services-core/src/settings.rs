@@ -34,9 +34,8 @@ pub struct HkaskSettings {
     #[serde(default = "default_embedding_model")]
     pub embedding_model: String,
 
-    /// First peer classifier for dual-model epistemic integrity.
-    /// Classification uses two peer models; neither is primary.
-    /// Override: HKASK_CLASSIFIER_MODEL_A env var.
+    /// Primary classifier model for corpus pipeline classification.
+    /// Override: `HKASK_CLASSIFIER_MODEL` env var.
     #[serde(default = "default_classifier_model")]
     pub classifier_model: String,
 
@@ -142,7 +141,7 @@ impl HkaskSettings {
     #[must_use]
     pub fn classifier_model(&self) -> String {
         Self::resolve_model(
-            "HKASK_CLASSIFIER_MODEL_A",
+            "HKASK_CLASSIFIER_MODEL",
             &self.classifier_model,
             &default_classifier_model(),
         )

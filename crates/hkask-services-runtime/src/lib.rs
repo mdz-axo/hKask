@@ -10,8 +10,8 @@ mod provider_intel;
 
 pub use adaptive_monitor::AdaptiveMonitor;
 pub use classify_impl::{
-    ClassifierConfig, TripleExtraction, build_model_b_config, classify_batch,
-    extract_triples_batch, generate_raw, load_classifier_config, merge_extractions,
+    ClassifierConfig, TripleExtraction, classify_batch, extract_triples_batch, generate_raw,
+    load_classifier_config, parse_triple_extraction,
 };
 pub use daemon_impl::ServiceDaemonHandler;
 pub use guard::{ContentGuard, GuardResult, GuardViolation};

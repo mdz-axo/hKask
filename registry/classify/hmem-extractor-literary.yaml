@@ -4,7 +4,7 @@
 #   Martin et al. (arXiv:2603.29878): Few-Shot is the dominant strategy
 #   for structured extraction; Zero-Shot produces <30% F1.
 # Primary model: qwen/qwen3-235b-a22b-2507 (22B active, 235B total, MoE)
-#   — controlled by HKASK_CLASSIFIER_MODEL_A env var / settings.
+#   — controlled by HKASK_CLASSIFIER_MODEL env var / settings.
 # Fallback model (this file): qwen/qwen3.5-35b-a3b (3B active MoE)
 #   — used only if HkaskSettings.classifier_model() returns empty.
 # Provider: KiloCode (cloud API via Kilo Gateway, OpenAI-compatible)

@@ -40,7 +40,7 @@ judge uses the same merge logic for skill manifests.
 
 | Setting | Env Var | Default |
 |---|---|---|
-| Model A | `HKASK_CLASSIFIER_MODEL_A` | `KC/qwen/qwen3-235b-a22b-2507` (KiloCode, China) |
+| Model A | `HKASK_CLASSIFIER_MODEL` | `KC/qwen/qwen3-235b-a22b-2507` (KiloCode, China) |
 | Model B | YAML `model_b` field | `DI/google/gemma-4-E4B-it` (DeepInfra, US) |
 
 ### Content Safety

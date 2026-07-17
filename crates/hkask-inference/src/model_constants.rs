@@ -5,7 +5,7 @@
 //! This eliminates the need to recompile when models are superseded.
 //!
 //! Naming convention:
-//! - `HKASK_CLASSIFIER_MODEL_A` — primary classifier model
+//! - `HKASK_CLASSIFIER_MODEL` — primary classifier model
 //! - `HKASK_EMBEDDING_MODEL` — default embedding model
 //! - `HKASK_OCR_MODEL` — OCR model for scanned PDF fallback
 //! - `HKASK_MODEL_DEFAULT` — fallback when provider-specific not set
@@ -33,10 +33,9 @@ pub const TEST_MODEL_MEDIUM: &str = "DI/meta-llama/Llama-4-Scout-17B-16E-Instruc
 
 // ── Resolved model accessors (env var → default) ──────────────────────────
 
-/// Resolve the primary classifier: `HKASK_CLASSIFIER_MODEL_A` → default.
+/// Resolve the primary classifier: `HKASK_CLASSIFIER_MODEL` → default.
 pub fn classifier_model() -> String {
-    std::env::var("HKASK_CLASSIFIER_MODEL_A")
-        .unwrap_or_else(|_| DEFAULT_CLASSIFIER_MODEL.to_string())
+    std::env::var("HKASK_CLASSIFIER_MODEL").unwrap_or_else(|_| DEFAULT_CLASSIFIER_MODEL.to_string())
 }
 
 /// Resolve the embedding model: `HKASK_EMBEDDING_MODEL` → default.

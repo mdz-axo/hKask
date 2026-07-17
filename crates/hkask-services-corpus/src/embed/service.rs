@@ -9,7 +9,7 @@ use super::types::{
 };
 use super::utils::strip_provider_prefix;
 use crate::embed::Entity;
-use hkask_inference::{EmbeddingRouter, InferenceConfig};
+use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, EntityTags};
 use hkask_services_core::{DomainKind, ErrorKind, HkaskSettings, ServiceError};
@@ -392,87 +392,102 @@ impl EmbedService {
             });
         tracing::info!(?classified_counts, "Section type classification complete");
 
-        // ── Extract semantic h_mems (algo-style dual-model merge) ────
+        // ── Extract semantic h_mems ────────────────────────────────
         if !config.triple_classifier.is_empty() {
-            let triple_config = {
-                let def = hkask_services_runtime::load_classifier_config(
-                    &config.triple_classifier,
-                    registry_dir,
-                )?;
-                hkask_services_runtime::ClassifierConfig::from_def(&def)
-            };
-
-            let settings = HkaskSettings::load();
-            let settings_model = settings.classifier_model();
-            let mut model_a_config = triple_config.clone();
-            if !settings_model.is_empty() {
-                model_a_config.model = strip_provider_prefix(&settings_model).to_string();
-            }
-
-            // Build model B config from YAML model_b field (algo-style merge).
-            // Replaces the former build_dual_config / extract_triples_dual_batch.
-            let yaml_model_b = hkask_services_runtime::load_classifier_config(
+            let def = hkask_services_runtime::load_classifier_config(
                 &config.triple_classifier,
                 registry_dir,
-            )
-            .ok()
-            .map(|def| def.model_b)
-            .filter(|s| !s.is_empty());
+            )?;
+            let classifier_config = hkask_services_runtime::ClassifierConfig::from_def(&def);
 
-            let model_b_config = yaml_model_b
-                .as_deref()
-                .and_then(|b| hkask_services_runtime::build_model_b_config(&model_a_config, b));
-
-            if let Some(ref b_config) = model_b_config {
+            if let Some(ref fusion) = config.fusion {
+                // ── Fusion path: route through the fusion orchestrator ──
+                // The panel models are specified in the corpus config's fusion block.
+                // No "model B" — just the panel. The algo judge merges JSON responses.
                 tracing::info!(
                     total_passages = passage_count,
-                    model_a = %model_a_config.model,
-                    model_b = %b_config.model,
-                    "Starting algo-style dual-model h_mem extraction"
+                    judge = %fusion.judge,
+                    panel_count = fusion.panel.len(),
+                    "Starting fusion-routed h_mem extraction"
                 );
 
-                let (a_results, b_results) = tokio::join!(
-                    hkask_services_runtime::extract_triples_batch(&texts, &model_a_config),
-                    hkask_services_runtime::extract_triples_batch(&texts, b_config),
-                );
+                let inference_config = InferenceConfig::from_env();
+                let router = InferenceRouter::new(inference_config);
+                let semaphore =
+                    std::sync::Arc::new(tokio::sync::Semaphore::new(classifier_config.concurrency));
 
-                let a_extractions = a_results.unwrap_or_else(|e| {
-                    tracing::warn!(error = %e, "Model A batch failed");
-                    vec![hkask_services_runtime::TripleExtraction::default(); texts.len()]
-                });
-                let b_extractions = b_results.unwrap_or_else(|e| {
-                    tracing::warn!(error = %e, "Model B batch failed");
-                    vec![hkask_services_runtime::TripleExtraction::default(); texts.len()]
-                });
+                let mut handles = Vec::with_capacity(texts.len());
+                for (i, text) in texts.iter().enumerate() {
+                    let router = router.clone();
+                    let fusion = fusion.clone();
+                    let system_prompt = classifier_config.system_prompt.clone();
+                    let permit = semaphore.clone();
+                    let text = text.clone();
 
-                let merged: Vec<_> = a_extractions
-                    .iter()
-                    .zip(b_extractions.iter())
-                    .map(|(a, b)| hkask_services_runtime::merge_extractions(a, b))
-                    .collect();
+                    handles.push(tokio::spawn(async move {
+                        let _permit = permit.acquire().await;
+                        // Prepend system prompt (few-shot examples) to the passage
+                        // text — the fusion orchestrator sends it as user content.
+                        let prompt = format!("{system_prompt}\n\n## Passage\n{text}");
+                        let params = hkask_types::LLMParameters {
+                            temperature: classifier_config.temperature as f64,
+                            max_tokens: classifier_config.max_tokens,
+                            bypass_fusion: false,
+                            fusion_config: Some(fusion),
+                            ..Default::default()
+                        };
+                        let result = router.generate(&prompt, &params, None).await;
+                        (i, result)
+                    }));
+                }
 
-                for (passage, ext) in all_passages.iter_mut().zip(merged.iter()) {
+                let mut extractions: Vec<TripleExtraction> =
+                    vec![TripleExtraction::default(); texts.len()];
+                for handle in handles {
+                    match handle.await {
+                        Ok((i, Ok(result))) => {
+                            extractions[i] =
+                                hkask_services_runtime::parse_triple_extraction(&result.text)
+                                    .unwrap_or_default();
+                        }
+                        Ok((i, Err(e))) => {
+                            tracing::warn!(index = i, error = %e, "Fusion extraction failed");
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = %e, "Fusion extraction task panicked");
+                        }
+                    }
+                }
+
+                for (passage, ext) in all_passages.iter_mut().zip(extractions.iter()) {
                     passage.semantic_triples = ext.clone();
                 }
 
-                let topics_extracted = merged.iter().filter(|e| !e.topic.is_empty()).count();
-                let total_concepts: usize = merged.iter().map(|e| e.concepts.len()).sum();
+                let topics_extracted = extractions.iter().filter(|e| !e.topic.is_empty()).count();
+                let total_concepts: usize = extractions.iter().map(|e| e.concepts.len()).sum();
                 tracing::info!(
                     topics_extracted,
                     total_concepts,
                     total_passages = passage_count,
-                    "Algo-style dual-model h_mem extraction complete"
+                    "Fusion h_mem extraction complete"
                 );
             } else {
-                // Single-model extraction (no model_b configured)
+                // ── Single-model fallback (no fusion configured) ────
+                let settings = HkaskSettings::load();
+                let settings_model = settings.classifier_model();
+                let mut model_config = classifier_config.clone();
+                if !settings_model.is_empty() {
+                    model_config.model = strip_provider_prefix(&settings_model).to_string();
+                }
+
                 tracing::info!(
                     total_passages = passage_count,
-                    model = %model_a_config.model,
-                    "Single-model h_mem extraction (no model_b configured)"
+                    model = %model_config.model,
+                    "Single-model h_mem extraction (no fusion configured)"
                 );
 
                 let a_extractions =
-                    hkask_services_runtime::extract_triples_batch(&texts, &model_a_config).await?;
+                    hkask_services_runtime::extract_triples_batch(&texts, &model_config).await?;
 
                 for (passage, ext) in all_passages.iter_mut().zip(a_extractions.iter()) {
                     passage.semantic_triples = ext.clone();
