@@ -13,9 +13,66 @@
 use hkask_types::id::ApiKeyId;
 use hkask_wallet_types::Encumbrance;
 use std::collections::HashMap;
-use std::time::Instant;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+use std::time::{Duration, Instant};
+use tracing::{info, warn};
 
 // ── Endpoint weight table (hardcoded, per essentialist G2) ────────────────────
+
+/// Per-key rate limit configuration. If present, overrides global defaults.
+#[derive(Debug, Clone)]
+pub struct KeyRateLimits {
+    pub max_rpm: u32,
+    pub max_tokens_per_day: u64,
+}
+
+/// Configurable rate limit settings with learning parameters.
+///
+/// Rate limits start from `default_max_rpm` / `default_max_tokens_per_day` and
+/// adapt per-key based on observed usage patterns. The learning loop widens
+/// limits for keys that consistently hit rate walls and narrows them for keys
+/// with sustained low utilization, within bounded ranges.
+#[derive(Debug, Clone)]
+pub struct RateLimitConfig {
+    /// Default requests-per-minute for any key without a per-key override.
+    pub default_max_rpm: u32,
+    /// Default daily token quota for any key without a per-key override.
+    pub default_max_tokens_per_day: u64,
+    /// Per-key overrides (static, from config). Learning adjustments layer on top.
+    pub per_key_overrides: HashMap<ApiKeyId, KeyRateLimits>,
+    // ── Learning parameters ──
+    /// Whether the learning loop is active.
+    pub learning_enabled: bool,
+    /// How often the learning loop runs.
+    pub adaptation_interval: Duration,
+    /// Factor by which RPM widens when a key consistently hits RateExceeded (e.g., 1.2 = +20%).
+    pub rpm_widen_factor: f64,
+    /// Factor by which RPM narrows after sustained low utilization (e.g., 0.9 = -10%).
+    pub rpm_narrow_factor: f64,
+    /// Floor for adaptive RPM — limits never drop below this.
+    pub min_rpm: u32,
+    /// Ceiling for adaptive RPM — limits never rise above this.
+    pub max_rpm: u32,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            default_max_rpm: 60,
+            default_max_tokens_per_day: 500_000,
+            per_key_overrides: HashMap::new(),
+            learning_enabled: true,
+            adaptation_interval: Duration::from_secs(300),
+            rpm_widen_factor: 1.2,
+            rpm_narrow_factor: 0.9,
+            min_rpm: 10,
+            max_rpm: 600,
+        }
+    }
+}
 
 /// Weight multiplier per endpoint category. Heavier endpoints cost more gas.
 #[derive(Debug, Clone, Copy)]
@@ -134,50 +191,46 @@ impl RateLimitStatus {
 /// # Design (essentialist G2)
 /// - Single `HashMap<ApiKeyId, RateLimitBucket>` — no separate store abstraction.
 /// - `check_and_record` is the single entry point for rate limit enforcement.
+/// - Adaptive limits layer on top of config defaults via `key_limits`.
 pub struct ApiMeter {
     buckets: HashMap<ApiKeyId, RateLimitBucket>,
+    config: RateLimitConfig,
+    /// Per-key effective (adaptive) limits. Start from config defaults, evolve via `learn()`.
+    key_limits: HashMap<ApiKeyId, KeyRateLimits>,
+    /// Per-key rate-exceeded count since last learning tick.
+    rate_exceeded_count: HashMap<ApiKeyId, u32>,
+    /// Whether the learning loop is running.
+    learning_alive: AtomicBool,
 }
 
 impl ApiMeter {
-    /// Create a new empty meter.
-    /// Create a new API meter.
-    ///
-    /// expect: "The system creates an empty API meter for per-key rate tracking"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — empty meter ready for per-key tracking
-    /// \[P5\] Constraining: Essentialism — minimal constructor with empty buckets map
-    /// post: returns ApiMeter with empty buckets
+    /// Create a new empty meter with default config.
     pub fn new() -> Self {
+        Self::with_config(RateLimitConfig::default())
+    }
+
+    /// Create a new meter with the given rate limit configuration.
+    pub fn with_config(config: RateLimitConfig) -> Self {
         Self {
             buckets: HashMap::new(),
+            key_limits: config.per_key_overrides.clone(),
+            rate_exceeded_count: HashMap::new(),
+            config,
+            learning_alive: AtomicBool::new(false),
         }
     }
 
     /// Check rate limits and record the request if within limits.
     ///
-    /// Returns `RateLimitStatus::Ok` if the request can proceed.
-    /// Returns the appropriate exceeded status otherwise.
-    ///
-    /// # Arguments
-    /// * `key_id` — The API key making the request.
-    /// * `max_rpm` — Maximum requests per minute for this key.
-    /// * `max_tokens_per_day` — Maximum tokens per day for this key.
-    /// * `tokens_this_request` — Estimated tokens for this request.
-    ///
-    /// Check rate limit and record request.
-    ///
-    /// expect: "The system enforces per-key rate limits and records requests atomically"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — rate limit enforcement is the CNS check
-    /// \[P4\] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions
-    /// pre:  key_id is valid
-    /// post: returns Ok if within limit, Err if rate limited
+    /// Uses per-key effective limits (adaptive if learning is enabled, otherwise
+    /// config defaults). Returns `RateLimitStatus::Ok` if the request can proceed.
     #[must_use]
     pub fn check_and_record(
         &mut self,
         key_id: ApiKeyId,
-        max_rpm: u32,
-        max_tokens_per_day: u64,
         tokens_this_request: u64,
     ) -> RateLimitStatus {
+        let limits = self.effective_limits(&key_id);
         let now = Instant::now();
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
@@ -186,16 +239,129 @@ impl ApiMeter {
             .entry(key_id)
             .or_insert_with(RateLimitBucket::new);
 
-        if !bucket.check_rpm(now, max_rpm) {
+        if !bucket.check_rpm(now, limits.max_rpm) {
+            *self.rate_exceeded_count.entry(key_id).or_insert(0) += 1;
             return RateLimitStatus::RateExceeded;
         }
 
-        if !bucket.check_tokens(tokens_this_request, max_tokens_per_day, &today) {
+        if !bucket.check_tokens(tokens_this_request, limits.max_tokens_per_day, &today) {
             return RateLimitStatus::TokensExceeded;
         }
 
         bucket.record_request(now);
         RateLimitStatus::Ok
+    }
+
+    /// Get the effective limits for a key — adaptive if present, otherwise config defaults.
+    fn effective_limits(&self, key_id: &ApiKeyId) -> KeyRateLimits {
+        self.key_limits
+            .get(key_id)
+            .cloned()
+            .unwrap_or(KeyRateLimits {
+                max_rpm: self.config.default_max_rpm,
+                max_tokens_per_day: self.config.default_max_tokens_per_day,
+            })
+    }
+
+    /// Run one learning pass — adapts per-key RPM limits based on observed patterns.
+    ///
+    /// Rules:
+    /// - Keys that hit RateExceeded >= 3 times since last pass → widen RPM by `rpm_widen_factor`.
+    /// - Keys with 0 RateExceeded and < 20% RPM utilization → narrow RPM by `rpm_narrow_factor`.
+    /// - All adjustments clamped to `[min_rpm, max_rpm]`.
+    ///
+    /// Returns a description of adjustments made (for observability/logging).
+    pub fn learn(&mut self) -> Vec<String> {
+        let mut adjustments = Vec::new();
+        let exceeded_counts: Vec<(ApiKeyId, u32)> = self.rate_exceeded_count.drain().collect();
+
+        for (key_id, exceeded_count) in exceeded_counts {
+            let current = self.effective_limits(&key_id);
+            let current_rpm = self.current_rpm(key_id);
+
+            let new_rpm = if exceeded_count >= 3 {
+                // Consistently hitting rate wall — widen
+                let widened =
+                    (current.max_rpm as f64 * self.config.rpm_widen_factor).round() as u32;
+                widened.clamp(self.config.min_rpm, self.config.max_rpm)
+            } else if exceeded_count == 0 && current_rpm < (current.max_rpm as f64 * 0.2) as u32 {
+                // Sustained low utilization — narrow (but don't be punitive)
+                let narrowed =
+                    (current.max_rpm as f64 * self.config.rpm_narrow_factor).round() as u32;
+                narrowed.clamp(self.config.min_rpm, self.config.max_rpm)
+            } else {
+                current.max_rpm
+            };
+
+            if new_rpm != current.max_rpm {
+                let direction = if new_rpm > current.max_rpm {
+                    "widened"
+                } else {
+                    "narrowed"
+                };
+                info!(
+                    target: "hkask.api.metering.learn",
+                    key_id = %key_id,
+                    old_rpm = current.max_rpm,
+                    new_rpm,
+                    direction,
+                    exceeded_count,
+                    "Adaptive rate limit adjusted",
+                );
+                adjustments.push(format!(
+                    "key {} RPM {} {} to {}",
+                    key_id, direction, current.max_rpm, new_rpm
+                ));
+                self.key_limits.insert(
+                    key_id,
+                    KeyRateLimits {
+                        max_rpm: new_rpm,
+                        max_tokens_per_day: current.max_tokens_per_day,
+                    },
+                );
+            }
+        }
+
+        adjustments
+    }
+
+    /// Spawn a background learning loop that periodically adapts rate limits.
+    pub fn spawn_learning_loop(meter: Arc<std::sync::RwLock<Self>>) {
+        let (enabled, interval) = meter
+            .read()
+            .map(|m| (m.config.learning_enabled, m.config.adaptation_interval))
+            .unwrap_or((false, Duration::from_secs(300)));
+        if !enabled {
+            return;
+        }
+        meter
+            .write()
+            .map(|m| m.learning_alive.store(true, Ordering::Release))
+            .ok();
+
+        tokio::spawn(async move {
+            info!(
+                target: "hkask.api.metering.learn",
+                interval_secs = interval.as_secs(),
+                "API metering learning loop started",
+            );
+            loop {
+                tokio::time::sleep(interval).await;
+                if let Ok(mut m) = meter.write() {
+                    let adjustments = meter.learn();
+                    if !adjustments.is_empty() {
+                        info!(
+                            target: "hkask.api.metering.learn",
+                            adjustment_count = adjustments.len(),
+                            "Learning pass complete",
+                        );
+                    }
+                } else {
+                    warn!(target: "hkask.api.metering.learn", "RwLock poisoned — learning loop exiting");
+                    break;
+                }
+            }
+        });
     }
 
     /// Get the current request count in the last minute for a key.
@@ -390,12 +556,9 @@ mod tests {
         let mut meter = ApiMeter::new();
         let key = ApiKeyId::new();
 
-        // First 3 requests within limit
+        // First 3 requests within limit (default_max_rpm = 60)
         for _ in 0..3 {
-            assert_eq!(
-                meter.check_and_record(key, 5, 10000, 100),
-                RateLimitStatus::Ok
-            );
+            assert_eq!(meter.check_and_record(key, 100), RateLimitStatus::Ok);
         }
 
         // RPM should show 3

@@ -5,6 +5,7 @@ use hkask_database::sqlite::SqliteDriver;
 
 use super::foundation::Foundation;
 use crate::cns_store_slo_provider::CnsStoreSloProvider;
+use hkask_cns::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
 use hkask_ports::{CnsStoragePort, escalation::EscalationPort};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use std::path::PathBuf;
@@ -63,7 +64,12 @@ pub(super) async fn build_loops(
         .with_curator_directive_channel(curator_directive_rx)
         .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
             &f.nu_event_store,
-        ))));
+        ))))
+        .with_set_point_calibrator(
+            Arc::clone(&f.nu_event_store) as Arc<dyn CnsStoragePort>,
+            DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
+        )
+        .with_seam_watcher();
     let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
     loop_system
         .register_loop(Arc::clone(&cybernetics_loop) as Arc<dyn HkaskLoop>)

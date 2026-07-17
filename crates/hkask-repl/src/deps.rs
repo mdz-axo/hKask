@@ -16,7 +16,6 @@ use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;
 use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
-use hkask_types::template::LLMParameters;
 
 use super::energy::EnergyGuard;
 use super::threads::ThreadRegistry;

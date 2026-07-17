@@ -30,6 +30,8 @@
 use crate::dampener::{Dampener, StagnationDetector};
 use crate::energy::{AgentGasStatus, GasBudget, GasCost, GasError};
 use crate::energy_budget_management::GasBudgetManager;
+use crate::seam_watcher::SeamWatcher;
+use crate::set_point_calibrator::SetPointCalibrator;
 
 use crate::runtime::{CnsRuntime, RegulationCycleEntry};
 use crate::sensor_provider::{
@@ -64,10 +66,21 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::sync::{RwLock, mpsc};
 
+/// Runtime-calibratable regulation thresholds — mutable layer over `SetPoints` defaults.
+///
+/// The `SetPointCalibrator` updates these from observed regulation outcomes;
+/// the tick reads them for per-cycle regulation decisions. This closes the
+/// Conant-Ashby self-tuning loop: the regulator adapts its own thresholds.
+struct CalibratedThresholds {
+    stagnation_thresholds: HashMap<String, u32>,
+    block_worsening_ratio: f64,
+    substitution_after: u32,
+}
+
 /// The Cybernetics Loop — homeostatic self-regulation.
 ///
 /// Implements the `Loop` trait's sense→compare→compute→act cycle.
-/// The Cybernetics Loop regulates all three domain loops (Inference,
+/// The Cybernetic Loop regulates all three domain loops (Inference,
 /// Episodic, Semantic) and may signal the Curation Loop via algedonic
 /// alerts. It may NOT regulate the Curation Loop.
 pub struct CyberneticsLoop {
@@ -105,6 +118,13 @@ pub struct CyberneticsLoop {
     strategy_evaluator: Mutex<StrategyEvaluator>,
     /// Predictive simulator for anticipatory regulation (Fermi dynamics pattern).
     simulator: Box<dyn SystemSimulator>,
+    /// Runtime-calibratable thresholds — updated by `SetPointCalibrator` background task.
+    calibrated_thresholds: Arc<RwLock<CalibratedThresholds>>,
+    /// Architectural seam watcher — monitors boundary coverage drift.
+    seam_watcher: Option<Arc<tokio::sync::Mutex<SeamWatcher>>>,
+    /// Last seam drift check timestamp — throttles seam checks to avoid
+    /// running on every tick.
+    last_seam_check: tokio::sync::Mutex<std::time::Instant>,
 }
 
 impl CyberneticsLoop {
@@ -135,6 +155,11 @@ impl CyberneticsLoop {
                 .with_per_metric_thresholds(set_points.stagnation_thresholds.clone()),
         );
         let gas_budget_manager = Arc::new(RwLock::new(GasBudgetManager::new()));
+        let calibrated_thresholds = Arc::new(RwLock::new(CalibratedThresholds {
+            stagnation_thresholds: set_points.stagnation_thresholds.clone(),
+            block_worsening_ratio: set_points.block_worsening_ratio,
+            substitution_after: set_points.substitution_after,
+        }));
         let sensor_registry = {
             let registry = SensorRegistry::new();
             registry.register(Arc::new(EnergyBudgetSensor::new(
@@ -172,6 +197,9 @@ impl CyberneticsLoop {
             tool_stats: None,
             strategy_evaluator: Mutex::new(StrategyEvaluator::new()),
             simulator: Box::new(MovingAverageExtrapolator::new(10)),
+            calibrated_thresholds,
+            seam_watcher: None,
+            last_seam_check: tokio::sync::Mutex::new(std::time::Instant::now()),
         }
     }
 
@@ -302,7 +330,7 @@ impl CyberneticsLoop {
             .stagnation_detector
             .ineffective_count(metric_str, proposed_str);
 
-        if count < self.set_points.substitution_after {
+        if count < self.calibrated_thresholds.read().await.substitution_after {
             return proposed; // Not enough failures yet.
         }
 
@@ -426,6 +454,62 @@ impl CyberneticsLoop {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_wallet_manager(mut self, mgr: Arc<WalletManager>) -> Self {
         self.wallet_manager = Some(mgr);
+        self
+    }
+
+    /// Wire the `SetPointCalibrator` — spawns a background task that periodically
+    /// evaluates regulation outcomes from the NuEventStore and adjusts the three
+    /// calibratable thresholds (`stagnation_thresholds`, `block_worsening_ratio`,
+    /// `substitution_after`) within bounded ranges.
+    ///
+    /// This closes the Conant-Ashby self-tuning loop: the regulator adapts its
+    /// own set-points from observed regulation history. The calibrator requires
+    /// a `CnsStoragePort` to query algedonic/regulation events.
+    ///
+    /// expect: "The system provides configurable cybernetic self-regulation"
+    /// post: returns Self for chaining; background calibration task spawned
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_set_point_calibrator(
+        self,
+        store: Arc<dyn hkask_ports::CnsStoragePort>,
+        interval: std::time::Duration,
+    ) -> Self {
+        let calibrator = Arc::new(SetPointCalibrator::new(store, chrono::Duration::hours(1)));
+        let thresholds = Arc::clone(&self.calibrated_thresholds);
+
+        calibrator.spawn_calibration(interval, move |adjustments| {
+            let mut guard = thresholds.blocking_write();
+            let t = &mut *guard;
+            SetPointCalibrator::apply_adjustments(
+                &adjustments,
+                &mut t.stagnation_thresholds,
+                &mut t.block_worsening_ratio,
+                &mut t.substitution_after,
+            );
+        });
+        self
+    }
+
+    /// Wire the `SeamWatcher` — loads the architectural seam inventory and
+    /// schedules periodic drift checks. When seam coverage regresses, an
+    /// algedonic alert is emitted through the event sink.
+    ///
+    /// expect: "The system provides configurable cybernetic self-regulation"
+    /// post: returns Self for chaining; seam watcher loaded if inventory found
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_seam_watcher(mut self) -> Self {
+        match SeamWatcher::load() {
+            Some(watcher) => {
+                self.seam_watcher = Some(Arc::new(tokio::sync::Mutex::new(watcher)));
+            }
+            None => {
+                tracing::warn!(
+                    target: "hkask.seam",
+                    "SeamWatcher not loaded — no inventory found. \
+                     Set HKASK_SEAM_INVENTORY_PATH or embed at build time."
+                );
+            }
+        }
         self
     }
 
@@ -1201,10 +1285,15 @@ impl HkaskLoop for CyberneticsLoop {
 
             // Classify the decision using per-metric worsening thresholds.
             let worsening = if improved { 0.0 } else { delta.abs() };
+            let block_worsening_ratio = self
+                .calibrated_thresholds
+                .read()
+                .await
+                .block_worsening_ratio;
             let decision = classify_decision(
                 worsening,
                 self.set_points.stage_worsening_ratio,
-                self.set_points.block_worsening_ratio,
+                block_worsening_ratio,
             );
 
             // Report acceptance/rejection to stagnation detector.
@@ -1217,9 +1306,17 @@ impl HkaskLoop for CyberneticsLoop {
             );
 
             if plateau {
-                let threshold = self
-                    .stagnation_detector
-                    .threshold_for_metric(metric.as_str());
+                let threshold = {
+                    let calibrated = self.calibrated_thresholds.read().await;
+                    calibrated
+                        .stagnation_thresholds
+                        .get(metric.as_str())
+                        .copied()
+                        .unwrap_or_else(|| {
+                            self.stagnation_detector
+                                .threshold_for_metric(metric.as_str())
+                        })
+                };
                 self.emit_regulation_span(
                     SpanKind::RegulatoryPlateauDetected,
                     serde_json::json!({
@@ -1263,7 +1360,7 @@ impl HkaskLoop for CyberneticsLoop {
                         "metric": metric.as_str(),
                         "action_type": format!("{:?}", action.action_type),
                         "worsening": worsening,
-                        "block_threshold": self.set_points.block_worsening_ratio,
+                        "block_threshold": block_worsening_ratio,
                     }),
                 )
                 .await;
@@ -1280,7 +1377,7 @@ impl HkaskLoop for CyberneticsLoop {
                             action.action_type.as_str(),
                             metric.as_str(),
                             worsening * 100.0,
-                            self.set_points.block_worsening_ratio * 100.0,
+                            block_worsening_ratio * 100.0,
                         ),
                     };
                     if tx.send(CurationInput::Alert(alert)).is_err() {
@@ -1458,6 +1555,62 @@ impl HkaskLoop for CyberneticsLoop {
             }),
         )
         .await;
+
+        // ── Seam drift check (throttled to every 10 minutes) ──
+        // Closes the boundary-monitoring loop: detects architectural seam
+        // coverage regression and emits CNS spans + algedonic alerts.
+        if let Some(ref watcher) = self.seam_watcher {
+            let should_check = {
+                let mut last = self.last_seam_check.lock().await;
+                let elapsed = last.elapsed();
+                if elapsed >= std::time::Duration::from_secs(600) {
+                    *last = std::time::Instant::now();
+                    true
+                } else {
+                    false
+                }
+            };
+            if should_check {
+                let cns = self.cns.read().await;
+                let mut watcher = watcher.lock().await;
+                if let Some(ref sink) = self.event_sink {
+                    let drifts = watcher.check_drift(&cns, sink.as_ref()).await;
+                    if !drifts.is_empty()
+                        && let Some(ref tx) = self.alerts_tx
+                    {
+                        for drift in &drifts {
+                            if drift.delta_pct < 0.0 {
+                                let alert = crate::algedonic::RuntimeAlert {
+                                    domain: format!("seam_drift:{}", drift.crate_name),
+                                    deficit: 1,
+                                    threshold: 1,
+                                    severity: if drift.delta_pct < -5.0 {
+                                        AlertSeverity::Critical
+                                    } else {
+                                        AlertSeverity::Warning
+                                    },
+                                    escalated: true,
+                                    timestamp: chrono::Utc::now(),
+                                    message: format!(
+                                        "Seam coverage regression in {}: {:.1}% → {:.1}% ({:+.1}%)",
+                                        drift.crate_name,
+                                        drift.previous_coverage_pct,
+                                        drift.current_coverage_pct,
+                                        drift.delta_pct,
+                                    ),
+                                };
+                                if tx.send(CurationInput::Alert(alert)).is_err() {
+                                    tracing::warn!(
+                                        target: "hkask.seam",
+                                        "Seam drift alert send failed — channel closed"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -8,10 +8,11 @@
 //! `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
 //! **canonical** CNS spans — the essential, ν-event-eligible spans that are
 //! `SpanNamespace`-validated, `SpanCategory`-categorized, and loop-connected.
-//! Per PRINCIPLES §9.1, **performative** telemetry spans (e.g. `cns.cli`,
-//! `cns.api`, and various other `cns.*` log targets) use stringly-typed tracing
-//! targets WITHOUT being registered; they are observability logs, not loop
-//! variables, and `SpanNamespace::new` deliberately rejects them.
+//! The `cns.*` prefix is reserved for canonical spans: every `cns.*` tracing
+//! target MUST be registered in `CANONICAL_NAMESPACES`. **Performative**
+//! telemetry (per PRINCIPLES §9.1) uses `hkask.*` tracing targets (e.g.
+//! `hkask.cli`, `hkask.training.job.submit`), NOT `cns.*`; those are observability
+//! logs, not loop variables, and `SpanNamespace::new` rejects them.
 
 use serde::{Deserialize, Serialize};
 
@@ -113,9 +114,10 @@ impl RegulationHealth {
 ///
 /// `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
 /// **canonical** CNS spans — essential spans that are `SpanNamespace`-validated,
-/// `SpanCategory`-categorized, and connected to a cybernetic loop. Per
-/// PRINCIPLES §9.1, performative telemetry spans may use stringly-typed `cns.*`
-/// tracing targets without being registered; those are observability logs, not
+/// `SpanCategory`-categorized, and connected to a cybernetic loop. The `cns.*`
+/// prefix is reserved for these canonical spans: every `cns.*` tracing target
+/// MUST be registered. Per PRINCIPLES §9.1, performative telemetry uses
+/// `hkask.*` tracing targets (not `cns.*`); those are observability logs, not
 /// loop variables, and `SpanNamespace::new` rejects them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CnsSpan {
@@ -542,3 +544,5 @@ mod cns_span_tests {
         assert_eq!(ToolSubsystem::Other.as_str(), "other");
     }
 }
+
+
