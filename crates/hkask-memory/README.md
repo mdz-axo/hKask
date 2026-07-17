@@ -34,14 +34,11 @@ Two separate Jinja2 templates for hMem extraction from agent operations.
 
 Classification uses two peer models from different jurisdictions — neither is
 primary. Both models receive the same few-shot prompt, and their extractions are
-merged via `merge_extractions()` (union, case-insensitive dedup, diverging fields
-annotated `[A:... B:...]`). No Jaccard scoring or drift detection — the algo fusion
-judge uses the same merge logic for skill manifests.
+merged algorithmically via the fusion orchestrator's `algo_merge()` (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). No separate merge function — the fusion system handles it.
 
 | Setting | Env Var | Default |
 |---|---|---|
-| Model A | `HKASK_CLASSIFIER_MODEL` | `KC/qwen/qwen3-235b-a22b-2507` (KiloCode, China) |
-| Model B | YAML `model_b` field | `DI/google/gemma-4-E4B-it` (DeepInfra, US) |
+| Panel models | `HKASK_FUSION_PANEL_MODELS` env var or `fusion:` block in corpus.yaml | `KC/qwen/qwen3-235b-a22b-2507`, `DI/google/gemma-4-E4B-it` |
 
 ### Content Safety
 
