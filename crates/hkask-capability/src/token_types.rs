@@ -3,8 +3,7 @@
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use hex;
-use hkask_types::Ed25519PublicKey;
-use hkask_types::WebID;
+use hkask_types::{Ed25519PublicKey, NotFound, WebID};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -551,10 +550,16 @@ pub enum TokenRegistryError {
     Storage(String),
 
     #[error("Token not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
 
     #[error("Token already exists: {0}")]
     Duplicate(String),
+}
+
+impl From<NotFound> for TokenRegistryError {
+    fn from(nf: NotFound) -> Self {
+        TokenRegistryError::NotFound(nf)
+    }
 }
 
 /// Persistence trait for DelegationToken lifecycle.

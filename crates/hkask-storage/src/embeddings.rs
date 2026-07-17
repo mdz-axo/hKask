@@ -331,7 +331,7 @@ impl EmbeddingStore {
                 })
             }
             None => Err(EmbeddingError::NotFound(NotFound {
-                entity_type: "embedding",
+                entity_type: "embedding".to_string(),
                 id: entity_ref.to_string(),
             })),
         }
@@ -439,7 +439,7 @@ impl EmbeddingStore {
             Some(row) => row.get(0)?.as_text()?.to_string(),
             None => {
                 return Err(EmbeddingError::NotFound(NotFound {
-                    entity_type: "embedding",
+                    entity_type: "embedding".to_string(),
                     id: entity_ref.to_string(),
                 }));
             }

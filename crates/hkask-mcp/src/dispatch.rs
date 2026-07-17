@@ -15,6 +15,7 @@ use hkask_capability::{CapabilityChecker, DelegationToken};
 use hkask_cns::GovernedTool;
 use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_templates::{McpPort, Result, TemplateError};
+use hkask_types::NotFound;
 use hkask_types::WebID;
 use rmcp::model::RawContent;
 use serde_json::Value;
@@ -86,10 +87,10 @@ impl ToolPort for RawMcpToolPort {
 
         // No live connection — is the tool at least registered?
         if !self.runtime.tool_exists(tool).await {
-            return Err(ToolPortError::NotFound(format!(
-                "Tool '{}' not found in MCP runtime",
-                tool
-            )));
+            return Err(ToolPortError::NotFound(NotFound {
+                entity_type: "tool".to_string(),
+                id: format!("Tool '{}' not found in MCP runtime", tool),
+            }));
         }
 
         // Tool is registered but server has no live connection
@@ -275,8 +276,8 @@ impl McpPort for McpDispatcher {
                         ToolPortError::EnergyBudgetExceeded(msg) => {
                             TemplateError::Mcp(Box::new(ToolPortError::EnergyBudgetExceeded(msg)))
                         }
-                        ToolPortError::NotFound(msg) => {
-                            TemplateError::Mcp(Box::new(ToolPortError::NotFound(msg)))
+                        ToolPortError::NotFound(nf) => {
+                            TemplateError::Mcp(Box::new(ToolPortError::NotFound(nf)))
                         }
                         ToolPortError::InvocationFailed(msg) => {
                             TemplateError::Mcp(Box::new(ToolPortError::InvocationFailed(msg)))

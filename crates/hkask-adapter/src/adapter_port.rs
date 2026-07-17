@@ -10,6 +10,7 @@ use hkask_capability::DelegationToken;
 use hkask_inference::ProviderId;
 use hkask_ports::InferenceError;
 use hkask_ports::InferenceResult;
+use hkask_types::NotFound;
 use hkask_types::template::LLMParameters;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -220,7 +221,7 @@ pub struct SingleCandidate {
 #[derive(Debug, thiserror::Error)]
 pub enum AdapterError {
     #[error("Adapter not found: {0}")]
-    NotFound(Uuid),
+    NotFound(NotFound),
 
     #[error("Endpoint not found: {0}")]
     EndpointNotFound(Uuid),
@@ -248,6 +249,12 @@ pub enum AdapterError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+}
+
+impl From<NotFound> for AdapterError {
+    fn from(nf: NotFound) -> Self {
+        AdapterError::NotFound(nf)
+    }
 }
 
 #[cfg(test)]
@@ -298,7 +305,10 @@ mod tests {
 
     #[test]
     fn adapter_error_display() {
-        let err = AdapterError::NotFound(Uuid::nil());
+        let err = AdapterError::NotFound(NotFound {
+            entity_type: "adapter".to_string(),
+            id: Uuid::nil().to_string(),
+        });
         let s = err.to_string();
         assert!(s.contains("00000000"), "error should contain nil UUID");
     }

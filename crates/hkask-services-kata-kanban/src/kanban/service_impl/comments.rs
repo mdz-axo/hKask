@@ -9,7 +9,7 @@ impl KanbanService {
     ) -> Result<Comment, KanbanError> {
         let mut task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
         Self::require_task_actor(&task, author)?;
         let comment = Comment::new(task_id, author, body.to_string());
         task.comments.push(comment.clone());
@@ -21,7 +21,7 @@ impl KanbanService {
     pub fn task_comments(&self, task_id: TaskId) -> Result<Vec<Comment>, KanbanError> {
         let task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
         Ok(task.comments)
     }
 
@@ -33,7 +33,7 @@ impl KanbanService {
     ) -> Result<Vec<Comment>, KanbanError> {
         let task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
         Ok(task.comments.into_iter().skip(since_index).collect())
     }
 
@@ -45,7 +45,7 @@ impl KanbanService {
     ) -> Result<Task, KanbanError> {
         let mut task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
         Self::require_task_actor(&task, actor)?;
         task.deliverables.push(path.to_string());
         task.updated_at = chrono::Utc::now();

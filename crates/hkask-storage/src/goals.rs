@@ -103,7 +103,7 @@ impl SqliteGoalRepository {
             .map_err(|e| GoalRepositoryError::Infra(InfrastructureError::from(e)))?;
         rows.first().map(Self::goal_from_row).ok_or_else(|| {
             GoalRepositoryError::NotFound(NotFound {
-                entity_type: "goal",
+                entity_type: "goal".to_string(),
                 id: goal_id.to_string(),
             })
         })?
@@ -438,7 +438,7 @@ impl SqliteGoalRepository {
     ) -> Result<Goal> {
         let parent = self.get_goal(parent_id)?.ok_or_else(|| {
             GoalRepositoryError::NotFound(NotFound {
-                entity_type: "goal",
+                entity_type: "goal".to_string(),
                 id: format!("Parent goal {} not found", parent_id),
             })
         })?;
@@ -555,7 +555,7 @@ impl SqliteGoalRepository {
                 Some(row) => Self::quarantined_from_row(row)?,
                 None => {
                     return Err(GoalRepositoryError::NotFound(NotFound {
-                        entity_type: "goal",
+                        entity_type: "goal".to_string(),
                         id: goal_id.to_string(),
                     }));
                 }

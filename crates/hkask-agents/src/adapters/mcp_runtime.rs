@@ -219,7 +219,9 @@ impl MCPRuntimePort for FullMcpAdapter {
             &raw_port, &server_id, tool_name, input, token,
         )) {
             Ok(value) => Ok(value),
-            Err(hkask_ports::ToolPortError::NotFound(msg)) => Err(AgentMcpError::ToolNotFound(msg)),
+            Err(hkask_ports::ToolPortError::NotFound(nf)) => {
+                Err(AgentMcpError::ToolNotFound(nf.to_string()))
+            }
             Err(hkask_ports::ToolPortError::InvocationFailed(msg)) => {
                 Err(AgentMcpError::InvocationFailed(Box::new(
                     hkask_ports::ToolPortError::InvocationFailed(msg),

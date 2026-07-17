@@ -3,6 +3,7 @@
 use super::tree::commit_tree_oid;
 use super::{GixCasAdapter, oid_to_commit_hash, open_or_init_repo, spawn_blocking_io};
 use hkask_ports::git_cas::{CommitHash, GitCasError, LogEntry};
+use hkask_types::NotFound;
 use std::path::Path;
 
 // ── Directory tree helper ────────────────────────────────────────────────
@@ -81,10 +82,10 @@ impl GixCasAdapter {
         let msg = message.to_string();
         spawn_blocking_io(move || {
             if !dir.exists() {
-                return Err(GitCasError::NotFound(format!(
-                    "Pod directory does not exist: {}",
-                    dir.display()
-                )));
+                return Err(GitCasError::NotFound(NotFound {
+                    entity_type: "pod_dir".to_string(),
+                    id: format!("Pod directory does not exist: {}", dir.display()),
+                }));
             }
             let repo = open_or_init_repo(&dir)?;
             let tree_oid = write_dir_as_tree(&repo, &dir, &dir)?;
@@ -196,9 +197,10 @@ impl GixCasAdapter {
                 let entry = entry.map_err(|e| GitCasError::Git(format!("tree entry: {e}")))?;
                 if entry.filename().as_ref() as &[u8] == fp.as_bytes() {
                     if entry.mode().is_tree() {
-                        return Err(GitCasError::NotFound(format!(
-                            "'{fp}' is a directory, not a file"
-                        )));
+                        return Err(GitCasError::NotFound(NotFound {
+                            entity_type: "file".to_string(),
+                            id: format!("'{fp}' is a directory, not a file"),
+                        }));
                     }
                     let blob = repo
                         .find_object(entry.oid().to_owned())
@@ -209,7 +211,10 @@ impl GixCasAdapter {
             }
 
             let data = found.ok_or_else(|| {
-                GitCasError::NotFound(format!("File '{fp}' not found in commit {commit_str}"))
+                GitCasError::NotFound(NotFound {
+                    entity_type: "file".to_string(),
+                    id: format!("File '{fp}' not found in commit {commit_str}"),
+                })
             })?;
 
             std::fs::write(&d, &data)

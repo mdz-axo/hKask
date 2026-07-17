@@ -181,7 +181,7 @@ impl GitCASPort for MockGitCas {
             .cloned()
             .ok_or_else(|| {
                 GitCasError::NotFound(NotFound {
-                    entity_type: "blob",
+                    entity_type: "blob".to_string(),
                     id: hash.to_string(),
                 })
             })

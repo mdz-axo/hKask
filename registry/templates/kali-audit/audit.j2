@@ -1,0 +1,133 @@
+{# goal: Run security checks for the selected surface and collect findings. #}
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- audit
+- detect
+- analyze
+- probe
+- classify
+- verify
+contract:
+  input:
+    selected_surface: string
+    target_path: string
+    checks_to_run: array
+    known_regressions: array
+  output:
+    findings: array
+    coverage: object
+energy_cap: 8192
+visibility: Public
+---
+{# Template: kali-audit/audit.j2 #}
+{# Functional Role: KnowAct — Security audit execution #}
+{# Produces: findings, coverage #}
+
+[inference]
+temperature = 0.3
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 8192
+thinking_budget = "full"
+
+You are a security auditor running checks against **{{ selected_surface }}** at `{{ target_path }}`.
+
+## Checks to Run
+
+{% for check in checks_to_run %}
+- {{ check }}
+{% endfor %}
+
+## Known Regressions (skip these — already enforced)
+
+{% for rr in known_regressions %}
+- {{ rr }}
+{% endfor %}
+
+## Audit Instructions
+
+For each check, use the available MCP tools (`file:read`, `code:search`, `terminal`) to
+probe the target. Collect concrete evidence — file paths, line numbers, code snippets.
+
+### Finding Classification
+
+For each finding, classify:
+- **CWE:** MITRE CWE identifier (e.g., CWE-22, CWE-787, CWE-316)
+- **OWASP LLM:** OWASP LLM Top 10 risk (LLM01–LLM10) if applicable
+- **Severity:** critical | high | medium | low
+- **Confidence:** high | medium | low (based on evidence strength)
+- **Constraint force:** Prohibition | Guardrail | Guideline (per pragmatic-semantics)
+
+### Audit Patterns by Surface
+
+{% if selected_surface == 'code' %}
+- Search for `unsafe` blocks: `grep -rn "unsafe" {{ target_path }} --include='*.rs'`
+- Search for panics in library code: `grep -rn "\.unwrap()\|\.expect()\|panic!" {{ target_path }} --include='*.rs'`
+- Search for secret comparisons: `grep -rn "==.*secret\|==.*token\|==.*key\|==.*password" {{ target_path }} --include='*.rs'`
+- Search for bare Vec<u8> secrets: `grep -rn "secret.*Vec<u8>\|Vec<u8>.*secret" {{ target_path }} --include='*.rs'`
+- Search for Path::join on untrusted input: `grep -rn "Path::join\|path\.join" {{ target_path }} --include='*.rs'`
+- Search for serde Deserialize without validation: `grep -rn "Deserialize" {{ target_path }} --include='*.rs'`
+{% elif selected_surface == 'template' %}
+- Search for non-sandboxed environments: `grep -rn "Environment::new()" {{ target_path }} --include='*.rs'`
+- Search for Path::join in loaders: `grep -rn "\.join(" {{ target_path }} --include='*.rs'`
+- Search for visibility: Public on sensitive templates: `grep -rn "visibility.*Public" {{ target_path }}`
+- Search for direct user_input interpolation: `grep -rn "{{user_input}}\|{{target_output}}" {{ target_path }}`
+{% elif selected_surface == 'supply-chain' %}
+- Run: `cargo deny check advisories`
+- Run: `cargo audit`
+- Check deny.toml ignore list for stale entries
+- Check for duplicate versions: `cargo tree -d`
+{% elif selected_surface == 'mcp' %}
+- Run: `bash scripts/check-mcp-tool-tests.sh`
+- For each MCP server, check if tool outputs are guard-scanned before LLM consumption
+- Search for self-delegation: `grep -rn "from_persona.*manifest-executor" {{ target_path }}`
+{% elif selected_surface == 'config' %}
+- Check CI scripts for eval/unquoted vars: `grep -rn "eval \|curl.*|.*bash" scripts/`
+- Check manifest.yaml schema: `grep -rn "visibility:" registry/templates/*/manifest.yaml`
+- Check for env reads in Default: `grep -rn "Default.*env::var" {{ target_path }}`
+{% endif %}
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "findings": [
+    {
+      "id": "F-001",
+      "title": "short description",
+      "location": "path:line",
+      "cwe": "CWE-XXX",
+      "owasp_llm": "LLMXX",
+      "severity": "critical|high|medium|low",
+      "confidence": "high|medium|low",
+      "constraint_force": "Prohibition|Guardrail|Guideline",
+      "evidence": "code snippet or command output",
+      "proposed_regression": {
+        "title": "regression title",
+        "detection_kind": "grep|cargo-test|skill-probe",
+        "pattern": "regex or test name",
+        "include": "glob pattern"
+      }
+    }
+  ],
+  "coverage": {
+    "checks_run": 10,
+    "checks_passed": 8,
+    "checks_failed": 2,
+    "cwe_classes_covered": ["CWE-22", "CWE-316", ...]
+  }
+}
+```
+
+## Constraints
+
+- Do NOT fabricate findings — only report what you actually discovered through tool usage.
+- Every finding must include concrete evidence (file path, line number, code snippet).
+- Propose a regression entry for each confirmed finding (severity >= medium).
+- Classify constraint force honestly — not everything is a Prohibition.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).

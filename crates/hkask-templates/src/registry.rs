@@ -479,7 +479,7 @@ impl RegistryIndex for Registry {
         // Delegate to inherent `get` (avoids trait method name collision)
         Registry::get(self, id).cloned().ok_or_else(|| {
             hkask_ports::RegistryError::NotFound(NotFound {
-                entity_type: "template",
+                entity_type: "template".to_string(),
                 id: format!("Template '{}' not found", id),
             })
         })

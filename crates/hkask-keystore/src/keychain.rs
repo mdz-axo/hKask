@@ -32,7 +32,7 @@ impl From<KeyringError> for KeychainError {
         use KeyringError::*;
         match err {
             NoEntry => KeychainError::NotFound(NotFound {
-                entity_type: "secret",
+                entity_type: "secret".to_string(),
                 id: "secret not found in keychain".to_string(),
             }),
             other => KeychainError::Platform(other.to_string()),
@@ -302,8 +302,12 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 
     match secret_ref {
         SecretRef::Env(var_name) => {
-            let value = std::env::var(var_name)
-                .map_err(|_| KeychainError::NotFound(format!("env var {} not set", var_name)))?;
+            let value = std::env::var(var_name).map_err(|_| {
+                KeychainError::NotFound(NotFound {
+                    entity_type: "secret".to_string(),
+                    id: format!("env var {} not set", var_name),
+                })
+            })?;
             info!(target: "cns.keystore", operation = "resolve_env", var_name = %var_name, "CNS");
             Ok(Zeroizing::new(value.into_bytes()))
         }
@@ -338,11 +342,14 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             let master_key_bytes = resolve(&SecretRef::Env(master_key_env.clone()))
                 .or_else(|_| resolve(&SecretRef::Keychain(master_key_env.clone())))
                 .map_err(|_| {
-                    KeychainError::NotFound(format!(
-                        "Master key '{}' not found in environment or keychain; \
+                    KeychainError::NotFound(NotFound {
+                        entity_type: "secret".to_string(),
+                        id: format!(
+                            "Master key '{}' not found in environment or keychain; \
                      set {} or run `kask init` to derive secrets from a master passphrase",
-                        master_key_env, master_key_env
-                    ))
+                            master_key_env, master_key_env
+                        ),
+                    })
                 })?;
 
             let master_key_bytes = normalize_master_key_bytes(master_key_bytes)?;

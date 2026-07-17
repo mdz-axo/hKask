@@ -89,7 +89,7 @@ impl InfrastructureError {
     /// on the structured data rather than parsing a string.
     pub fn not_found(entity_type: &'static str, id: impl Into<String>) -> Self {
         NotFound {
-            entity_type,
+            entity_type: entity_type.to_string(),
             id: id.into(),
         }
         .into()
@@ -241,7 +241,7 @@ impl std::fmt::Display for McpErrorKind {
 /// A resource was not found. Canonical across 17+ crates.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotFound {
-    pub entity_type: &'static str,
+    pub entity_type: String,
     pub id: String,
 }
 

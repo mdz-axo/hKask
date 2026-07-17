@@ -23,6 +23,7 @@ use hkask_capability::DelegationToken;
 use hkask_database::value::DbValue;
 use hkask_inference::ProviderId;
 use hkask_ports::InferenceResult;
+use hkask_types::NotFound;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;
 use std::collections::HashMap;
@@ -205,7 +206,10 @@ impl AdapterRouter {
         let adapter = self
             .store
             .get_by_id(adapter_id)?
-            .ok_or(AdapterError::NotFound(adapter_id))?;
+            .ok_or(AdapterError::NotFound(NotFound {
+                entity_type: "adapter".to_string(),
+                id: adapter_id.to_string(),
+            }))?;
 
         let mut providers: Vec<ProviderInfo> = self.list_compatible_providers(&adapter);
 
@@ -407,7 +411,10 @@ impl AdapterPort for AdapterRouter {
         let adapter = self
             .store
             .get_by_id(adapter_id)?
-            .ok_or(AdapterError::NotFound(adapter_id))?;
+            .ok_or(AdapterError::NotFound(NotFound {
+                entity_type: "adapter".to_string(),
+                id: adapter_id.to_string(),
+            }))?;
 
         let backend = self.resolve_backend(provider)?;
         let capability = backend.capability();
@@ -444,7 +451,10 @@ impl AdapterPort for AdapterRouter {
         let adapter = self
             .store
             .get_by_id(adapter_id)?
-            .ok_or(AdapterError::NotFound(adapter_id))?;
+            .ok_or(AdapterError::NotFound(NotFound {
+                entity_type: "adapter".to_string(),
+                id: adapter_id.to_string(),
+            }))?;
 
         // 2. Resolve the provider backend
         let backend = self.resolve_backend(provider)?;

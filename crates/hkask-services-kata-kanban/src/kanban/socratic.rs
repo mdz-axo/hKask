@@ -66,7 +66,7 @@ pub fn create_inquiry(
 pub fn prompt(service: &KanbanService, task_id: TaskId) -> Result<(String, String), KanbanError> {
     let task = service.task_get(task_id)?.ok_or_else(|| {
         KanbanError::NotFound(NotFound {
-            entity_type: "task",
+            entity_type: "task".to_string(),
             id: task_id.to_string(),
         })
     })?;
@@ -116,7 +116,7 @@ pub fn advance(
 ) -> Result<String, KanbanError> {
     let task = service.task_get(task_id)?.ok_or_else(|| {
         KanbanError::NotFound(NotFound {
-            entity_type: "task",
+            entity_type: "task".to_string(),
             id: task_id.to_string(),
         })
     })?;
@@ -185,7 +185,7 @@ pub fn quality_check(
 ) -> Result<QualityGate, KanbanError> {
     let task = service.task_get(task_id)?.ok_or_else(|| {
         KanbanError::NotFound(NotFound {
-            entity_type: "task",
+            entity_type: "task".to_string(),
             id: task_id.to_string(),
         })
     })?;

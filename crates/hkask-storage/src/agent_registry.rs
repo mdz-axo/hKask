@@ -108,7 +108,7 @@ impl AgentRegistryStore {
         )?
         .ok_or_else(|| {
             AgentRegistryError::NotFound(NotFound {
-                entity_type: "agent",
+                entity_type: "agent".to_string(),
                 id: name.to_string(),
             })
         })?;
@@ -194,7 +194,7 @@ impl AgentRegistryStore {
         )?;
         if deleted == 0 {
             return Err(AgentRegistryError::NotFound(NotFound {
-                entity_type: "agent",
+                entity_type: "agent".to_string(),
                 id: name.to_string(),
             }));
         }
@@ -426,7 +426,7 @@ impl AgentRegistryStore {
         )?;
         if updated == 0 {
             return Err(AgentRegistryError::NotFound(NotFound {
-                entity_type: "agent",
+                entity_type: "agent".to_string(),
                 id: format!("Task {agent_name}/{trigger}"),
             }));
         }

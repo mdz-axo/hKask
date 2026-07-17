@@ -4,7 +4,7 @@ impl KanbanService {
     pub fn task_coaching_prompt(&self, task_id: TaskId) -> Result<String, KanbanError> {
         let task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
 
         let target = if task.criteria.is_empty() {
             format!("Complete task '{}'", task.title)
@@ -101,7 +101,7 @@ Comment thread (agent/replicant communication):",
     pub fn task_improvement_prompt(&self, task_id: TaskId) -> Result<String, KanbanError> {
         let task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
 
         let direction = task.description.as_deref().unwrap_or(&task.title);
         let mut current = format!(
@@ -177,7 +177,7 @@ Recent comments:",
     ) -> Result<String, KanbanError> {
         let task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
 
         // P9: CNS span — kata prompt generated for human display
         tracing::info!(

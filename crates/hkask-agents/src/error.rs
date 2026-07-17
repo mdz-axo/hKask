@@ -137,7 +137,7 @@ impl From<hkask_storage::EmbeddingError> for MemoryError {
                 MemoryError::Core(CoreError::Infra(inner))
             }
             hkask_storage::EmbeddingError::NotFound(msg) => MemoryError::Core(CoreError::Infra(
-                hkask_types::InfrastructureError::NotFound(msg),
+                hkask_types::InfrastructureError::NotFound(msg.to_string()),
             )),
             hkask_storage::EmbeddingError::DimensionMismatch { .. } => {
                 MemoryError::Core(CoreError::Infra(

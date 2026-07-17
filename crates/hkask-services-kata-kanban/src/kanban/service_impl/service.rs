@@ -265,7 +265,7 @@ impl KanbanService {
     ) -> Result<String, KanbanError> {
         let board = self.board_get(board_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "board",
+                entity_type: "board".to_string(),
                 id: board_id.to_string(),
             })
         })?;
@@ -365,7 +365,7 @@ impl KanbanService {
         // Verify board exists
         let board = self.board_get(board_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "board",
+                entity_type: "board".to_string(),
                 id: board_id.to_string(),
             })
         })?;
@@ -461,7 +461,7 @@ impl KanbanService {
         // Verify board exists
         self.board_get(board_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "board",
+                entity_type: "board".to_string(),
                 id: board_id.to_string(),
             })
         })?;
@@ -540,7 +540,7 @@ impl KanbanService {
     ) -> Result<Task, KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -617,7 +617,7 @@ impl KanbanService {
     pub fn task_claim(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -671,7 +671,7 @@ impl KanbanService {
     ) -> Result<(Task, Verification), KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -756,7 +756,7 @@ impl KanbanService {
     pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
         let task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -795,7 +795,7 @@ impl KanbanService {
     pub fn task_unassign(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -814,7 +814,7 @@ impl KanbanService {
     pub fn task_reopen(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -849,7 +849,7 @@ impl KanbanService {
     ) -> Result<Task, KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -880,7 +880,7 @@ impl KanbanService {
     ) -> Result<Task, KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -909,7 +909,7 @@ impl KanbanService {
     pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
         let board = self.board_get(board_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "board",
+                entity_type: "board".to_string(),
                 id: board_id.to_string(),
             })
         })?;
@@ -963,7 +963,7 @@ impl KanbanService {
     ) -> Result<KataResult, KanbanError> {
         let task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -983,7 +983,7 @@ impl KanbanService {
     ) -> Result<KataResult, KanbanError> {
         let task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;
@@ -1004,7 +1004,7 @@ impl KanbanService {
     ) -> Result<KataResult, KanbanError> {
         let task = self.task_get(task_id)?.ok_or_else(|| {
             KanbanError::NotFound(NotFound {
-                entity_type: "task",
+                entity_type: "task".to_string(),
                 id: task_id.to_string(),
             })
         })?;

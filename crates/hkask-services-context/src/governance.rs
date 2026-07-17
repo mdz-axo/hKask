@@ -218,11 +218,11 @@ pub fn resolve_direct(
     );
 
     queue.resolve(id, resolved_by).map_err(|e| match e {
-        hkask_storage::EscalationError::NotFound(id) => ServiceError::Domain {
+        hkask_storage::EscalationError::NotFound(nf) => ServiceError::Domain {
             kind: ErrorKind::NotFound,
             domain: DomainKind::Curator,
             source: None,
-            message: id,
+            message: nf.id,
         },
         other => ServiceError::Domain {
             kind: ErrorKind::BadRequest,
@@ -253,11 +253,11 @@ pub fn dismiss_direct(
     );
 
     queue.dismiss(id, dismissed_by).map_err(|e| match e {
-        hkask_storage::EscalationError::NotFound(id) => ServiceError::Domain {
+        hkask_storage::EscalationError::NotFound(nf) => ServiceError::Domain {
             kind: ErrorKind::NotFound,
             domain: DomainKind::Curator,
             source: None,
-            message: id,
+            message: nf.id,
         },
         other => ServiceError::Domain {
             kind: ErrorKind::BadRequest,

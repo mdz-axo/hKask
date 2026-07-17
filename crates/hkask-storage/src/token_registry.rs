@@ -240,7 +240,10 @@ impl TokenRegistry for TokenRegistryStore {
             )
             .map_err(|e| TokenRegistryError::Storage(e.to_string()))?;
         if affected == 0 {
-            return Err(TokenRegistryError::NotFound(token_id.to_string()));
+            return Err(TokenRegistryError::NotFound(hkask_types::NotFound {
+                entity_type: "token".to_string(),
+                id: token_id.to_string(),
+            }));
         }
         Ok(())
     }

@@ -451,7 +451,7 @@ impl GalleryStore {
         )?
         .ok_or_else(|| {
             GalleryStoreError::NotFound(NotFound {
-                entity_type: "gallery",
+                entity_type: "gallery".to_string(),
                 id: gallery_id.to_string(),
             })
         })
@@ -539,7 +539,7 @@ impl GalleryStore {
             Self::face_from_row,
         )?
         .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
-            entity_type: "face",
+            entity_type: "face".to_string(),
             id: "face registration failed".to_string(),
         }))
     }
@@ -598,7 +598,7 @@ impl GalleryStore {
             Self::face_from_row,
         )?
         .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
-            entity_type: "face",
+            entity_type: "face".to_string(),
             id: format!("face_id={}", face_id),
         }))
     }
@@ -618,7 +618,7 @@ impl GalleryStore {
         )?;
         if affected == 0 {
             return Err(GalleryStoreError::NotFound(NotFound {
-                entity_type: "face",
+                entity_type: "face".to_string(),
                 id: format!("face_id={}", face_id),
             }));
         }
@@ -651,7 +651,7 @@ impl GalleryStore {
         )?;
         if affected == 0 {
             return Err(GalleryStoreError::NotFound(NotFound {
-                entity_type: "face",
+                entity_type: "face".to_string(),
                 id: format!("face_id={}", face_id),
             }));
         }
@@ -664,7 +664,7 @@ impl GalleryStore {
             Self::face_from_row,
         )?
         .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
-            entity_type: "face",
+            entity_type: "face".to_string(),
             id: format!("face_id={}", face_id),
         }))
     }

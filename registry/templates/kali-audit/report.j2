@@ -1,0 +1,120 @@
+{# goal: Synthesize audit findings into a structured report and propose regression entries. #}
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- synthesize
+- report
+- classify
+- recommend
+- escalate
+contract:
+  input:
+    findings: array
+    coverage: object
+    selected_surface: string
+    target_path: string
+  output:
+    report: object
+    proposed_regressions: array
+energy_cap: 4096
+visibility: Public
+---
+{# Template: kali-audit/report.j2 #}
+{# Functional Role: KnowAct — Report synthesis #}
+{# Produces: report, proposed_regressions #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are a security auditor synthesizing findings from the **{{ selected_surface }}** audit of `{{ target_path }}`.
+
+## Findings
+
+{% for f in findings %}
+### {{ f.id }} — {{ f.title }}
+- **Location:** {{ f.location }}
+- **CWE:** {{ f.cwe }}
+- **OWASP LLM:** {{ f.owasp_llm | default('N/A') }}
+- **Severity:** {{ f.severity }}
+- **Confidence:** {{ f.confidence }}
+- **Constraint force:** {{ f.constraint_force }}
+- **Evidence:** {{ f.evidence }}
+{% endfor %}
+
+## Coverage
+
+- Checks run: {{ coverage.checks_run }}
+- Checks passed: {{ coverage.checks_passed }}
+- Checks failed: {{ coverage.checks_failed }}
+- CWE classes covered: {{ coverage.cwe_classes_covered | join(', ') }}
+
+## Report Synthesis Instructions
+
+1. Produce a summary verdict: **Pass** (no critical/high findings), **Conditional** (medium findings, fix recommended), or **Fail** (critical/high findings, fix required).
+2. Group findings by severity (critical → high → medium → low).
+3. For each finding, provide a concrete remediation recommendation.
+4. For each finding with severity >= medium, produce a proposed regression entry in YAML format.
+5. Identify the top 3 highest-priority fixes.
+6. Note any CWE classes that were NOT covered (coverage gaps for future audits).
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "report": {
+    "verdict": "Pass|Conditional|Fail",
+    "summary": "one-line summary",
+    "findings_by_severity": {
+      "critical": [...],
+      "high": [...],
+      "medium": [...],
+      "low": [...]
+    },
+    "top_3_fixes": [
+      {
+        "finding_id": "F-001",
+        "priority": 1,
+        "fix_description": "what to do",
+        "estimated_effort": "small|medium|large"
+      }
+    ],
+    "coverage_gaps": ["CWE-787 not checked — needs runtime fuzzing"]
+  },
+  "proposed_regressions": [
+    {
+      "id": "RR-NNNN",
+      "title": "regression title",
+      "surface": "code|template|supply-chain|mcp|config",
+      "cwe": "CWE-XXX",
+      "owasp_llm": "LLMXX",
+      "discovered_in": "path",
+      "discovered_by": "kali-audit",
+      "discovered_at": "YYYY-MM-DD",
+      "severity": "critical|high|medium|low",
+      "detection": {
+        "kind": "grep",
+        "pattern": "regex",
+        "include": "glob"
+      },
+      "mitigation": "fix description",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+## Constraints
+
+- The verdict must match the findings: critical/high → Fail, medium → Conditional, low/none → Pass.
+- Every proposed regression must have a concrete, testable detection pattern.
+- Do not propose regressions for findings below medium severity.
+- Be honest about coverage gaps — they are as important as findings.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).

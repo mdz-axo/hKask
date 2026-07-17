@@ -331,7 +331,7 @@ impl UserStore {
                     .find(|r| r.is_primary)
                     .ok_or_else(|| {
                         UserStoreError::NotFound(NotFound {
-                            entity_type: "replicant",
+                            entity_type: "replicant".to_string(),
                             id: "primary replicant".to_string(),
                         })
                     })?;
@@ -365,7 +365,7 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant",
+                entity_type: "replicant".to_string(),
                 id: from_name.to_string(),
             }));
         }
@@ -383,7 +383,7 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant",
+                entity_type: "replicant".to_string(),
                 id: replicant_name.to_string(),
             }));
         }
@@ -424,7 +424,7 @@ impl UserStore {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant",
+                entity_type: "replicant".to_string(),
                 id: replicant_name.to_string(),
             }))?;
         let human = self.get_user(&identity.user_id)?;
@@ -474,7 +474,7 @@ impl UserStore {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant",
+                entity_type: "replicant".to_string(),
                 id: replicant_name.to_string(),
             }))?;
         let human = self.get_user(&identity.user_id)?;
@@ -516,7 +516,7 @@ impl UserStore {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant",
+                entity_type: "replicant".to_string(),
                 id: replicant_name.to_string(),
             }))?;
         let human = self.get_user(&identity.user_id)?;
@@ -636,7 +636,7 @@ impl UserStore {
             },
         )?
         .ok_or_else(|| UserStoreError::NotFound(NotFound {
-            entity_type: "user",
+            entity_type: "user".to_string(),
             id: user_id.as_uuid().to_string(),
         }))
     }
@@ -721,13 +721,13 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "invite",
+                entity_type: "invite".to_string(),
                 id: "Invite not found or expired".to_string(),
             }));
         }
         self.lookup_invite(code)?.ok_or_else(|| {
             UserStoreError::NotFound(NotFound {
-                entity_type: "invite",
+                entity_type: "invite".to_string(),
                 id: "Invite not found after accept".to_string(),
             })
         })
@@ -748,13 +748,13 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "invite",
+                entity_type: "invite".to_string(),
                 id: "Invite not found, already accepted, or not owned by you".to_string(),
             }));
         }
         self.lookup_invite(code)?.ok_or_else(|| {
             UserStoreError::NotFound(NotFound {
-                entity_type: "invite",
+                entity_type: "invite".to_string(),
                 id: "Invite not found after revoke".to_string(),
             })
         })
@@ -831,7 +831,7 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "user",
+                entity_type: "user".to_string(),
                 id: user_id.as_uuid().to_string(),
             }));
         }
@@ -900,7 +900,7 @@ impl UserStore {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant",
+                entity_type: "replicant".to_string(),
                 id: replicant_name.to_string(),
             }))?;
         Ok(identity.wallet_id)
@@ -922,7 +922,7 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant",
+                entity_type: "replicant".to_string(),
                 id: replicant_name.to_string(),
             }));
         }

@@ -276,7 +276,7 @@ impl EscalationQueue {
             .map_err(|e| EscalationError::Infra(InfrastructureError::from(e)))?;
         if affected == 0 {
             return Err(EscalationError::NotFound(NotFound {
-                entity_type: "escalation",
+                entity_type: "escalation".to_string(),
                 id: id.to_string(),
             }));
         }
@@ -303,7 +303,7 @@ impl EscalationQueue {
             .map_err(|e| EscalationError::Infra(InfrastructureError::from(e)))?;
         if affected == 0 {
             return Err(EscalationError::NotFound(NotFound {
-                entity_type: "escalation",
+                entity_type: "escalation".to_string(),
                 id: id.to_string(),
             }));
         }

@@ -6,6 +6,7 @@ use hkask_ports::git_cas::{
     CommitHash, ContentHash, GitCASPort, GitCasError, GitCasVerificationReport, LogEntry, RepoId,
     TreeEntry,
 };
+use hkask_types::NotFound;
 
 #[async_trait::async_trait]
 impl GitCASPort for GixCasAdapter {
@@ -29,8 +30,12 @@ impl GitCASPort for GixCasAdapter {
         let repo_dir = self.ensure_repo_dir(repo).await?;
         let blob_path = repo_dir.join("cas").join(hash.to_string());
         spawn_blocking_io(move || {
-            std::fs::read(&blob_path)
-                .map_err(|e| GitCasError::NotFound(format!("Blob not found: {e}")))
+            std::fs::read(&blob_path).map_err(|e| {
+                GitCasError::NotFound(NotFound {
+                    entity_type: "blob".to_string(),
+                    id: format!("Blob not found: {e}"),
+                })
+            })
         })
         .await
     }

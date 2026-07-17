@@ -4190,6 +4190,7 @@ dependencies = [
  "async-trait",
  "gix",
  "hkask-ports",
+ "hkask-types",
  "tempfile",
  "tokio",
 ]
@@ -5224,6 +5225,7 @@ dependencies = [
  "tokio",
  "tracing",
  "walkdir",
+ "zeroize",
 ]
 
 [[package]]

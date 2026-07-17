@@ -68,10 +68,13 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
                 .retrieve_by_key(env_var)
                 .or_else(|_| std::env::var(env_var))
                 .map_err(|_| {
-                    hkask_keystore::KeystoreError::NotFound(format!(
-                        "Credential '{}' not found in keychain or environment",
-                        env_var
-                    ))
+                    hkask_keystore::KeystoreError::NotFound(hkask_types::NotFound {
+                        entity_type: "credential".to_string(),
+                        id: format!(
+                            "Credential '{}' not found in keychain or environment",
+                            env_var
+                        ),
+                    })
                 })?;
             tracing::debug!(
                 credential = env_var,

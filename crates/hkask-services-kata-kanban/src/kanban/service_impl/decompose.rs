@@ -9,7 +9,7 @@ impl KanbanService {
         target_hours: Option<f64>,
     ) -> Result<String, KanbanError> {
         self.board_get(board_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "board", id: board_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "board".to_string(), id: board_id.to_string() }))?;
         let sizing_guidance = match (target_task_points, target_hours) {
             (Some(p), Some(h)) => {
                 format!("Each task should be approximately {p} story points or {h} hours.")
@@ -38,7 +38,7 @@ impl KanbanService {
         json_output: &str,
     ) -> Result<(usize, Option<String>), KanbanError> {
         self.board_get(board_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "board", id: board_id.to_string() }))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "board".to_string(), id: board_id.to_string() }))?;
 
         let tasks_array = Self::validate_decompose_json(json_output)?;
         let phase_map = self.create_phases_from_recomposition(board_id, json_output)?;

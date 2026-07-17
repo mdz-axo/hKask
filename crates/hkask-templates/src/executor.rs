@@ -48,18 +48,37 @@ use hkask_ports::{InferencePort, InferenceResult};
 use hkask_types::NotFound;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
-use minijinja::{UndefinedBehavior, safe_join};
+use minijinja::UndefinedBehavior;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{info, warn};
+use zeroize::Zeroizing;
 
 /// Error healing callback: (error_string, operation_name).
 type HealCallback = Arc<dyn Fn(&str, &str) + Send + Sync>;
 
 /// Default base path for template files relative to the project root.
 const DEFAULT_TEMPLATE_BASE_PATH: &str = "registry/templates";
+
+/// Safely join a base path with a template reference, rejecting path traversal.
+///
+/// Mirrors minijinja's internal `safe_join`: any segment starting with `.`
+/// or containing a backslash is rejected. This prevents `{% include "../../etc/passwd" %}`
+/// and `template_ref: "../../../secrets"` from reading files outside the base.
+///
+/// Returns `None` if the template_ref would escape the base path.
+fn safe_template_join(base: &std::path::Path, template_ref: &str) -> Option<PathBuf> {
+    let mut rv = base.to_path_buf();
+    for segment in template_ref.split('/') {
+        if segment.starts_with('.') || segment.contains('\\') {
+            return None;
+        }
+        rv.push(segment);
+    }
+    Some(rv)
+}
 
 /// Manifest executor — drives the select → populate → execute cascade.
 ///
@@ -79,8 +98,8 @@ pub struct ManifestExecutor {
     mcp: Arc<dyn McpPort>,
     /// Default LLM parameters for inference calls
     default_params: LLMParameters,
-    /// Secret for minting delegation tokens
-    a2a_secret: Vec<u8>,
+    /// Secret for minting delegation tokens. Zeroized on drop.
+    a2a_secret: Zeroizing<Vec<u8>>,
     /// Base filesystem path for resolving template_ref values.
     /// When `step.renderer == "minijinja"`, `step.template_ref` is resolved
     /// relative to this path. Defaults to `registry/templates/`.
@@ -107,7 +126,7 @@ impl ManifestExecutor {
             inference,
             mcp,
             default_params,
-            a2a_secret,
+            a2a_secret: Zeroizing::new(a2a_secret),
             template_base_path: PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
             heal_error_cb: None,
         }
@@ -183,15 +202,16 @@ impl ManifestExecutor {
         template_ref: &str,
         context: &HashMap<String, Value>,
     ) -> Result<String> {
-        let template_path = safe_join(&self.template_base_path, template_ref).ok_or_else(|| {
-            TemplateError::PathTraversal(format!(
-                "template_ref '{template_ref}' escapes base path '{}'",
-                self.template_base_path.display()
-            ))
-        })?;
+        let template_path =
+            safe_template_join(&self.template_base_path, template_ref).ok_or_else(|| {
+                TemplateError::PathTraversal(format!(
+                    "template_ref '{template_ref}' escapes base path '{}'",
+                    self.template_base_path.display()
+                ))
+            })?;
         let template_content = std::fs::read_to_string(&template_path).map_err(|e| {
             TemplateError::NotFound(NotFound {
-                entity_type: "template",
+                entity_type: "template".to_string(),
                 id: format!(
                     "KnowAct template not found at {}: {}",
                     template_path.display(),
@@ -217,6 +237,9 @@ impl ManifestExecutor {
             crate::ports::TemplateError::Manifest("A2A secret must be at least 32 bytes".into())
         })?;
         let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
+        // signing_key is dropped here; secret_bytes is a stack copy that will
+        // be overwritten when the function returns. The Zeroizing<Vec<u8>>
+        // in self ensures the heap copy is zeroed on drop.
         let token = DelegationToken::new(
             DelegationResource::Tool,
             tool_ref.to_string(),
@@ -1343,8 +1366,8 @@ impl ManifestExecutor {
                 })?;
                 let template_ref = render_inline_template(template_ref_raw, context);
 
-                let template_path =
-                    safe_join(&self.template_base_path, &template_ref).ok_or_else(|| {
+                let template_path = safe_template_join(&self.template_base_path, &template_ref)
+                    .ok_or_else(|| {
                         TemplateError::PathTraversal(format!(
                             "step {}: template_ref '{template_ref}' escapes base path '{}'",
                             step.ordinal,
@@ -1359,8 +1382,8 @@ impl ManifestExecutor {
                         // and ManifestExecutor should too.
                         if !template_ref.ends_with(".j2") {
                             let j2_ref = format!("{template_ref}.j2");
-                            let j2_path =
-                                safe_join(&self.template_base_path, &j2_ref).ok_or_else(|| {
+                            let j2_path = safe_template_join(&self.template_base_path, &j2_ref)
+                                .ok_or_else(|| {
                                     TemplateError::PathTraversal(format!(
                                         "step {}: template_ref '{j2_ref}' escapes base path '{}'",
                                         step.ordinal,
@@ -1388,7 +1411,7 @@ impl ManifestExecutor {
                                     cb(&err_msg, &template_path.display().to_string());
                                 }
                                 return Err(TemplateError::NotFound(NotFound {
-                                    entity_type: "template",
+                                    entity_type: "template".to_string(),
                                     id: err_msg,
                                 }));
                             }
@@ -1403,7 +1426,7 @@ impl ManifestExecutor {
                                 cb(&err_msg, &template_path.display().to_string());
                             }
                             return Err(TemplateError::NotFound(NotFound {
-                                entity_type: "template",
+                                entity_type: "template".to_string(),
                                 id: err_msg,
                             }));
                         }
@@ -1480,7 +1503,7 @@ fn render_minijinja(
             }
             // safe_join rejects any segment starting with '.' or containing '\\',
             // preventing `{% include "../../etc/passwd" %}` path traversal.
-            let primary = match safe_join(&base, name) {
+            let primary = match safe_template_join(&base, name) {
                 Some(p) => p,
                 None => return Ok(None),
             };
@@ -1489,10 +1512,10 @@ fn render_minijinja(
             }
             if !name.ends_with(".j2") {
                 let j2_name = format!("{name}.j2");
-                if let Some(j2_path) = safe_join(&base, &j2_name) {
-                    if let Ok(content) = std::fs::read_to_string(&j2_path) {
-                        return Ok(Some(content));
-                    }
+                if let Some(j2_path) = safe_template_join(&base, &j2_name)
+                    && let Ok(content) = std::fs::read_to_string(&j2_path)
+                {
+                    return Ok(Some(content));
                 }
             }
             Ok(None)

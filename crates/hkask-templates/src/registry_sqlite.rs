@@ -241,10 +241,12 @@ impl SqliteRegistry {
                 TemplateError::Database(InfrastructureError::database(format!("Prepare: {}", e)))
             })?
             .query_row(params![id], parse_template_row)
-            .map_err(|e| TemplateError::NotFound(NotFound {
-                entity_type: "template",
-                id: format!("Template '{}': {}", id, e),
-            }))?
+            .map_err(|e| {
+                TemplateError::NotFound(NotFound {
+                    entity_type: "template".to_string(),
+                    id: format!("Template '{}': {}", id, e),
+                })
+            })?;
         Self::row_to_entry(&conn, &row.0, row.1, row.2, row.3, row.4, row.5, row.6)
     }
 
@@ -365,7 +367,7 @@ impl RegistryIndex for SqliteRegistry {
     fn get(&self, id: &str) -> std::result::Result<RegistryEntry, hkask_ports::RegistryError> {
         self.get_entry(id).map_err(|e| {
             hkask_ports::RegistryError::NotFound(NotFound {
-                entity_type: "template",
+                entity_type: "template".to_string(),
                 id: format!("Template '{}': {}", id, e),
             })
         })

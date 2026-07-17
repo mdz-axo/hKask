@@ -169,10 +169,7 @@ pub(crate) async fn get_bundle(
             Ok(Json(value))
         }
         Ok(None) => Err(
-            ServiceError::Infra(hkask_types::InfrastructureError::NotFound(format!(
-                "bundle: {id}"
-            )))
-            .into(),
+            ServiceError::Infra(hkask_types::InfrastructureError::not_found("bundle", id)).into(),
         ),
         Err(e) => Err(e.into()),
     }
@@ -281,10 +278,7 @@ pub(crate) async fn apply_bundle(
             skill_count: bundle.skills.len(),
         })),
         Err(_) => Err(
-            ServiceError::Infra(hkask_types::InfrastructureError::NotFound(format!(
-                "bundle: {id}"
-            )))
-            .into(),
+            ServiceError::Infra(hkask_types::InfrastructureError::not_found("bundle", id)).into(),
         ),
     }
 }
@@ -313,9 +307,7 @@ pub(crate) async fn evolve_bundle(
         .await
         .map_err(|e| {
             if e.to_string().contains("not found") {
-                ServiceError::Infra(hkask_types::InfrastructureError::NotFound(format!(
-                    "bundle: {id}"
-                )))
+                ServiceError::Infra(hkask_types::InfrastructureError::not_found("bundle", id))
             } else {
                 ServiceError::Infra(hkask_types::InfrastructureError::database(format!(
                     "Bundle evolution failed: {}",

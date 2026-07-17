@@ -1,0 +1,108 @@
+{# goal: Select the security audit target surface and map it to the applicable check catalog. #}
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- select
+- calibrate
+- target
+- surface
+- vulnerability
+- audit
+contract:
+  input:
+    target_surface: string
+    target_path: string
+    regression_library: array
+  output:
+    selected_surface: string
+    checks_to_run: array
+    known_regressions: array
+energy_cap: 2048
+visibility: Public
+---
+{# Template: kali-audit/select-surface.j2 #}
+{# Functional Role: KnowAct — Surface selection and check mapping #}
+{# Produces: selected_surface, checks_to_run, known_regressions #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "terse"
+max_tokens = 2048
+thinking_budget = "full"
+
+You are a security auditor selecting the audit surface for **{{ target_surface }}**.
+
+## Target
+
+- **Surface:** {{ target_surface }}
+- **Path:** {{ target_path }}
+
+## Known Regressions (already found and enforced)
+
+{% for rr in regression_library %}
+- **{{ rr.id }}** ({{ rr.status }}): {{ rr.title }} — CWE: {{ rr.cwe }}
+{% endfor %}
+
+## Surface Check Catalog
+
+Map the target surface to its applicable checks:
+
+### code
+- `unsafe` blocks without documented safety invariants
+- `.unwrap()` / `.expect()` / `panic!()` in library code
+- `==` comparisons on secrets, tokens, or MACs (timing attacks — should use `subtle::ConstantTimeEq`)
+- Secrets stored as bare `Vec<u8>` or `String` without `Zeroizing`
+- `Path::join` on untrusted input without containment check (CWE-22)
+- `serde::Deserialize` on untrusted input without validation
+- Integer arithmetic without overflow protection
+- `clone()` that hides ownership confusion in security-critical paths
+- Mutable state without synchronization in concurrent contexts
+- `todo!()` / `unimplemented!()` in non-startup code
+
+### template
+- `minijinja::Environment::new()` without sandbox (SSTI surface)
+- `Path::join` in template loaders without containment check
+- `visibility: Public` on templates that handle secrets or adversarial inputs
+- Direct interpolation of `{{ user_input }}` or `{{ target_output }}` into prompt positions
+- `autoescape = false` on templates rendering HTML
+
+### supply-chain
+- `cargo-deny` advisories (RustSec)
+- Unmaintained transitive dependencies (check `deny.toml` ignore list)
+- License violations
+- Duplicate versions of security-critical crates (ring, aes-gcm, ed25519-dalek)
+- Missing `cargo-auditable` for binary provenance
+
+### mcp
+- MCP tools without tool-behavior contract tests (check-mcp-tool-tests.sh)
+- `indirect_tool_output` injection paths (tool output consumed by LLM without guard scanning)
+- Capability tokens with self-delegation (delegator == delegatee)
+- Missing path validation in filesystem-touching MCP tools
+
+### config
+- `deny.toml` schema drift
+- `manifest.yaml` schema validation (visibility, energy_cap, lexicon_terms)
+- CI scripts with `eval`, unquoted variables, `curl | bash`
+- Environment variable reads in `Default::default()` (hidden parameters)
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "selected_surface": "code|template|supply-chain|mcp|config",
+  "checks_to_run": ["unsafe_blocks", "unwrap_in_lib", "secret_comparison", ...],
+  "known_regressions": ["RR-0001", "RR-0002", ...]
+}
+```
+
+## Constraints
+
+- Focus on the specific target path provided — do not generate generic checks.
+- Exclude checks already covered by enforced regressions in the library.
+- Be realistic about what can be checked statically vs. what needs runtime probing.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).

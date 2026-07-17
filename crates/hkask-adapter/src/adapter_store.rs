@@ -11,6 +11,7 @@ use hkask_database::driver::{query_map, query_row};
 use hkask_database::value::DbValue;
 use hkask_storage_core::define_driver_store;
 use hkask_types::InfrastructureError;
+use hkask_types::NotFound;
 use hkask_types::id::WebID;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -135,7 +136,7 @@ pub struct TrainedLoRAAdapter {
 #[derive(Debug, thiserror::Error)]
 pub enum AdapterStoreError {
     #[error("Adapter with id {0} not found")]
-    NotFound(Uuid),
+    NotFound(NotFound),
 
     #[error("Adapter with expertise '{0}' not found")]
     ExpertiseNotFound(String),
@@ -157,6 +158,12 @@ pub enum AdapterStoreError {
 
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
+}
+
+impl From<NotFound> for AdapterStoreError {
+    fn from(nf: NotFound) -> Self {
+        AdapterStoreError::NotFound(nf)
+    }
 }
 
 impl From<hkask_database::types::DbError> for AdapterStoreError {
@@ -394,7 +401,10 @@ impl AdapterStore {
             &[DbValue::Text(id.to_string())],
         )?;
         if affected == 0 {
-            return Err(AdapterStoreError::NotFound(id));
+            return Err(AdapterStoreError::NotFound(NotFound {
+                entity_type: "adapter".to_string(),
+                id: id.to_string(),
+            }));
         }
         // P9: CNS span
         tracing::info!(target: "cns.adapter", operation = "delete", adapter_id = %id, "CNS");

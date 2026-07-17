@@ -74,6 +74,8 @@ jobs:
         run: bash scripts/check-mcp-tool-tests.sh
       - name: CNS canonical namespace invariant
         run: bash scripts/check-cns-canonical.sh
+      - name: Security regression library
+        run: bash scripts/check-kali-regressions.sh
 
   # ── Lint — fmt + clippy, own cache (clippy artifacts) ───────────────────
   lint:
