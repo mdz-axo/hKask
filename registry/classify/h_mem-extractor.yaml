@@ -19,9 +19,6 @@
 # These become metadata triples in the embedding store, enabling semantic
 # queries beyond string-matching.
 #
-# Algo-style dual-model merge (replaces former dual classifier):
-# When model_b is configured, the corpus pipeline runs both models in parallel
-# and merges extractions via merge_extractions() (union, case-insensitive dedup,
 # diverging fields annotated [A:... B:...]). No Jaccard scoring or drift detection.
 #
 # Recommended pairing (complementary jurisdictions + training lineages):
