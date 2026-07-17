@@ -236,6 +236,12 @@ struct ClassifierConfigFile {
 
 #[derive(Debug, Deserialize, Clone)]
 struct ClassifierConfig {
+    /// Provider-native model id. When empty, `load_classifier_config` resolves
+    /// the canonical classifier model from `HKASK_CLASSIFIER_MODEL` →
+    /// `DEFAULT_CLASSIFIER_MODEL` and strips the router prefix, so
+    /// `registry/classify/*.yaml` can leave `model:` empty to defer to the
+    /// single canonical path.
+    #[serde(default)]
     model: String,
     #[serde(default)]
     system_prompt: String,
@@ -321,7 +327,18 @@ fn load_classifier_config(
             classifier: classifier_name.to_string(),
             reason: format!("invalid classifier config: {}", e),
         })?;
-    Ok(config_file.classifier)
+    let mut config = config_file.classifier;
+    // Canonical model resolution: an empty `model:` defers to the single
+    // canonical path (HKASK_CLASSIFIER_MODEL → DEFAULT_CLASSIFIER_MODEL).
+    // Strip the router prefix so the raw provider-native id is sent to the API.
+    if config.model.is_empty() {
+        let canonical = hkask_inference::model_constants::classifier_model();
+        config.model = match hkask_inference::ProviderId::parse_from_model(&canonical) {
+            Some((_, raw)) => raw.to_string(),
+            None => canonical,
+        };
+    }
+    Ok(config)
 }
 
 // ── Validation ──────────────────────────────────────────────────────────────

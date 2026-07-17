@@ -87,10 +87,13 @@ impl TurnSink for CaptureSink {
         let _ = writeln!(self.tool_output, "{}", line);
     }
     fn status(&mut self, line: &str) {
-        // Status lines (errors, warnings, max-iterations) go into response_text
-        // so the TUI user sees them. The old captured path wrote these into
-        // captured_text, which became response_text. Token usage is also
-        // captured here — the TUI shows it inline rather than in a status bar.
+        // Capture diagnostics (errors, warnings, gas alerts) into response_text
+        // so the TUI user sees them. Token usage is skipped — it's carried in
+        // TurnCapture's numeric fields (prompt_tokens, completion_tokens,
+        // total_tokens) and would be redundant in the chat bubble.
+        if line.contains("tokens (") {
+            return;
+        }
         use std::fmt::Write;
         let _ = writeln!(self.response_text, "{}", line);
     }

@@ -41,6 +41,67 @@ crate::enum_snake_str!(FusionMode, {
     PlanImplement => "pi",
 });
 
+/// Algorithmic verdict on whether a `deliberation`-mode round has converged.
+///
+/// Replaces the former `FOLLOW_UP:` string-prefix self-report: convergence
+/// is decided by an external observer that models the panel's round-to-round
+/// agreement distribution, not by the judge declaring convergence in its prose.
+///
+/// expect: "Deliberation converges when panel agreement stabilizes, not when the judge says so"
+/// [P9] Motivating: Homeostatic Self-Regulation — Conant–Ashby Good Regulator:
+/// the regulator of convergence must model the convergence process.
+/// pre:  produced only by an external convergence observer over panel responses
+/// post: `Converged` → judge synthesizes a final answer; `Continue` → judge emits a follow-up
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ConvergenceVerdict {
+    /// Panel responses have stabilized; the judge should synthesize a final answer.
+    #[default]
+    Converged,
+    /// Responses still diverge; the judge should produce a follow-up question.
+    Continue,
+}
+
+impl ConvergenceVerdict {
+    /// Canonical lowercase string for span fields and logging.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ConvergenceVerdict::Converged => "converged",
+            ConvergenceVerdict::Continue => "continue",
+        }
+    }
+}
+
+/// Algorithmic merge strategy for the `algo` / no-judge family.
+///
+/// Selects which deterministic merge runs when `fusion.judge == "algo"`.
+/// Adding a variant requires a matching arm in the orchestrator's algo dispatch
+/// and a merge implementation — variants without implementations are
+/// prohibited (P5: no stubs).
+///
+/// expect: "The algo judge family supports multiple deterministic merge strategies"
+/// [P5] Motivating: Essentialism & Minimalism — each method earns its variant
+/// pre:  only used when `fusion.judge == "algo"`
+/// post: selects the merge function applied to panel JSON responses
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum AlgoMethod {
+    /// Recursive JSON union: objects merge by key, arrays dedup, diverging
+    /// strings annotated `[A:... B:...]`. Designed for 2-model panels.
+    #[serde(rename = "merge")]
+    #[default]
+    Merge,
+    /// Majority vote: scalar fields take the value appearing in a majority of
+    /// panelists; array items kept only if a majority of panelists include them.
+    /// Scales beyond 2 panelists where `Merge`'s pairwise annotation degrades.
+    #[serde(rename = "vote")]
+    Vote,
+}
+
+crate::enum_snake_str!(AlgoMethod, {
+    Merge => "merge",
+    Vote => "vote",
+});
+
 /// Skill bundle that anchors the judge's reasoning framework.
 /// Each skill injects a compact methodology prompt into the judge's system context.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -135,6 +196,10 @@ pub struct FusionConfig {
     /// Max rounds for deliberation mode. Default: 5.
     #[serde(default = "default_max_rounds")]
     pub max_rounds: u32,
+    /// Algorithmic merge strategy when `judge == "algo"`. Default: `merge`.
+    /// Ignored when the judge is an LLM model name.
+    #[serde(default)]
+    pub algo_method: AlgoMethod,
 }
 
 fn default_max_rounds() -> u32 {
@@ -162,6 +227,7 @@ impl FusionConfig {
             mode: FusionMode::Synthesis,
             skills: Vec::new(),
             max_rounds: 5,
+            algo_method: AlgoMethod::default(),
         }
     }
 

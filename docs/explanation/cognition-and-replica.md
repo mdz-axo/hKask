@@ -30,7 +30,7 @@ Five design questions were evaluated:
 
 **Q2: Should "fusion mode" be a first-class manifest concept?** (Should there be a top-level `fusion_mode: synthesis | critique | deliberation | best-of-n | pi | disabled` shorthand?) — **DON'T.** The `fusion:` block already IS the concept. Adding a shorthand `fusion_mode: synthesis` would duplicate what `fusion: { mode: synthesis }` already does. Two ways to say the same thing is more total action, not less. The full `FusionConfig` block is already minimal (5 fields, YAML-clean).
 
-**Q3: Should fusion and dual-model be unified under a single "multi-model strategy" abstraction?** — **DONE (via algo / no-judge path).** The dual-model mechanism (DualModelPort, step.dual_model, integrate_dual_triples) has been replaced by the algo / no-judge path (`judge: "algo"`) — a family of deterministic, algorithmic merge strategies that process panel responses without an LLM judge call. The judge IS the strategy: setting the judge to `"algo"` routes panel responses through a recursive JSON merge instead of an LLM judge call. No new FusionMode variant, no new FusionConfig fields — the existing 5-field config with a special judge value. The former dual classifier's domain-specific integration (Jaccard scoring, drift detection) has been removed; the corpus pipeline routes through the same fusion orchestrator. The mutual exclusion (`dual_model` always bypassed fusion) is eliminated — algo IS a fusion path. The architecture anticipates additional algo / no-judge methods beyond the current merge algorithm (e.g., set intersection, vote/tally, schema-validated merge), to be added as sub-selectors on the `algo` judge value when needed.
+**Q3: How does the algo / no-judge path relate to fusion?** — The algo / no-judge path (`judge: "algo"`) **is** a fusion path. Setting the judge to `"algo"` routes panel responses through a deterministic, algorithmic merge instead of an LLM judge call. No separate `FusionMode` variant, no new `FusionConfig` fields — the existing 5-field config with a special judge value. The judge IS the strategy. The corpus pipeline routes through the same fusion orchestrator. The architecture anticipates additional algo / no-judge methods beyond the current recursive JSON merge (e.g., set intersection, vote/tally, schema-validated merge), to be added as sub-selectors on the `algo` judge value when needed.
 
 **Q4: Should the scenario-builder quality gate skip implications when it fails?** — **ADD (implemented).** The `condition:` field already exists on `BundleManifestStep`. Adding `condition: "step_5_result.gate_pass"` to the implications step is zero new code — it uses an existing primitive. This is the path of least action: no new mechanism, just wiring an existing one. One-line change to one manifest, ~5000 gas saved per failed gate iteration.
 
@@ -766,7 +766,7 @@ status: VERIFIED
 
 FlowDef manifest for agent memory formation. Three-step cascade with algo /
 no-judge rendering on every step. The `operation-selector.j2` classifies and
-routes to episodic or semantic extraction. Both peer models render the same
+routes to episodic or semantic extraction. The fusion panel renders the same
 template in parallel; outputs are merged via `merge_json_values()`.
 
 Related: `registry/manifests/memory_remember.yaml`, `crates/hkask-templates/src/executor.rs`
@@ -777,10 +777,10 @@ flowchart TD
     OS{operation-selector.j2\nClassify + Route}
     EP["remember-episodic.j2\nFirst-Person Extraction"]
     SE["remember-semantic.j2\nThird-Person Extraction"]
-    MAE["Model A\nQwen/KiloCode"]
-    MBE["Model B\nGemma/DeepInfra"]
-    MAS["Model A\nQwen/KiloCode"]
-    MBS["Model B\nGemma/DeepInfra"]
+    MAE["Panel Model 1\nQwen3-235B-A22B"]
+    MBE["Panel Model 2\nGemma 4"]
+    MAS["Panel Model 1\nQwen3-235B-A22B"]
+    MBS["Panel Model 2\nGemma 4"]
     ME["merge_json_values\nUnion + Dedup"]
     MS["merge_json_values\nUnion + Dedup"]
     EM[("Episodic Memory\nPrivate, Agent-Scoped")]
@@ -837,7 +837,8 @@ status: VERIFIED
 
 Full flow from source text through algo / no-judge classification, guard scanning,
 integration, and shared memory storage. All guard checks are mandatory;
-the algo / no-judge path (`judge: algo`) is used when a second panel model is configured.
+the algo / no-judge path (`judge: algo`) runs the fusion panel in parallel and
+merges responses algorithmically — no LLM judge call.
 
 Related: `crates/hkask-inference/src/fusion_orchestrator.rs` (algo_merge)
 
@@ -845,8 +846,8 @@ Related: `crates/hkask-inference/src/fusion_orchestrator.rs` (algo_merge)
 sequenceDiagram
     participant S as Source
     participant G as ContentGuard
-    participant MA as Model A (Qwen/KC)
-    participant MB as Model B (Gemma/DI)
+    participant MA as Panel Model 1 (Qwen3-235B)
+    participant MB as Panel Model 2 (Gemma 4)
     participant I as Merge Integrator
     participant CNS as CNS Spans
     participant M as Shared Memory
@@ -888,14 +889,15 @@ status: VERIFIED
 
 ### Algo / No-Judge Classification Flow
 
-*Inlined from `docs/diagrams/flowchart-dual-classification.md`*
+*Inlined from `docs/diagrams/flowchart-algo-classification.md`*
 
 
 # Algo / No-Judge Classification Flow
 
-How classification operates with two peer models from different jurisdictions.
-Neither model is primary — both produce extractions that are merged via the
-algo / no-judge path (`judge: algo`, `algo_merge()`).
+How classification operates via the algo / no-judge fusion path (`judge: algo`).
+The fusion panel runs in parallel; `algo_merge()` folds the panelists' JSON
+extractions into a single result (union, dedup, diverging fields annotated
+`[A:... B:...]`) — no LLM judge call.
 
 Related: `crates/hkask-inference/src/fusion_orchestrator.rs` (algo_merge), `crates/hkask-services-corpus/src/embed/service.rs`
 
@@ -928,7 +930,7 @@ flowchart TD
     RS --> ST
     ST --> M
 
-    subgraph "Peer Models (parallel)"
+    subgraph "Fusion Panel (parallel)"
         P1
         P2
     end

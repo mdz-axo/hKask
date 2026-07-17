@@ -1894,8 +1894,7 @@ When `recursion_depth > matryoshka_limit`, the cascade exits with `maxed_out` / 
 How algo / no-judge classification, content safety guard, and
 memory storage compose. P3.1 Social Generativity governs the entire pipeline —
 no single model gates shared memory, and no LLM boundary is unguarded.
-(Drift detection was part of the former dual classifier model, now removed and
-superseded by the algo / no-judge path.)
+How algo / no-judge classification, content safety guard, and memory storage compose. P3.1 Social Generativity governs the entire pipeline — no single model gates shared memory, and no LLM boundary is unguarded. The algo / no-judge path (`judge: "algo"`) runs the fusion panel in parallel and `algo_merge` folds the JSON responses into a single result.
 
 Related: `crates/hkask-guard/src/lib.rs`, `crates/hkask-services-runtime/src/classify_impl.rs`, `docs/architecture/core/PRINCIPLES.md` §P3.1
 
@@ -1904,40 +1903,30 @@ flowchart TD
     subgraph "P3.1 Social Generativity"
         direction TB
         G["ContentGuard\n(llm-guard, OWASP Top 10)"]
-        MA["Model A\nQwen/KiloCode\nChina"]
-        MB["Model B\nGemma 4/DeepInfra\nUS"]
-        I["Dual Integrator\nJaccard + Merge"]
-        CD["Drift Detection\ncns.classify.drift"]
-        FD["Fidelity Check\ncns.classify.dual_fidelity"]
+        P1["Panel Model 1\n(e.g. Qwen3-235B-A22B)"]
+        P2["Panel Model 2\n(e.g. Gemma 4)"]
+        AM["algo_merge\nrecursive JSON union + dedup"]
         SM[("Shared Memory\nhMems + provenance")]
     end
 
     IN([Source Text]) --> G
     G -->|"cns.guard.violation\n(refuse)"| RJ([Refused])
-    G -->|pass| MA
-    G -->|pass| MB
-    MA --> I
-    MB --> I
-    I --> FD
-    FD -->|"agreement < 0.6\ncns.classify.dual_fidelity"| CD
-    FD --> SM
-    I --> CD
-    CD -->|"divergence > 30%\nor asymmetry > 2.0\ncns.classify.drift"| CNS([CNS Alert])
+    G -->|pass| P1
+    G -->|pass| P2
+    P1 --> AM
+    P2 --> AM
+    AM --> GO{Guard Output Scan}
+    GO -->|"secrets stripped\ncns.guard.violation"| AM
+    GO -->|clean| SM
 
     subgraph "Never Disableable"
         G
     end
 
-    subgraph "Mandatory Peer Models"
-        MA
-        MB
-        I
-    end
-
-    subgraph "Observable"
-        FD
-        CD
-        CNS
+    subgraph "Fusion Panel (judge: algo)"
+        P1
+        P2
+        AM
     end
 ```
 <!-- DIAGRAM_ALIGNMENT

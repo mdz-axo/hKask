@@ -32,14 +32,15 @@ Two separate Jinja2 templates for hMem extraction from agent operations.
 
 ### Algo / No-Judge Merge
 
-Classification uses two peer models from different jurisdictions — neither is
-primary. Both models receive the same few-shot prompt, and their extractions are
-merged algorithmically via the fusion orchestrator's `algo_merge()` (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). This is the
-**algo / no-judge** path — a family of deterministic merge strategies with zero
-LLM judge calls. The current method is a recursive JSON merge; the architecture
-anticipates additional methods (e.g., set intersection, vote/tally) as future
-sub-selectors on the `algo` judge value. No separate merge function — the fusion
-system handles it.
+Classification runs the fusion panel in parallel — every panelist receives
+the same few-shot prompt, and their extractions are merged algorithmically via
+the fusion orchestrator's `algo_merge()` (union, case-insensitive dedup,
+diverging fields annotated `[A:... B:...]`). This is the **algo / no-judge**
+path — a family of deterministic merge strategies with zero LLM judge calls.
+The current method is a recursive JSON merge; the architecture anticipates
+additional methods (e.g., set intersection, vote/tally) as future sub-selectors
+on the `algo` judge value. No separate merge function — the fusion system
+handles it. See `docs/how-to/fusion-mode.md`.
 
 | Setting | Env Var | Default |
 |---|---|---|

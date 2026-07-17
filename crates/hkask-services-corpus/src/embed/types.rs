@@ -146,7 +146,7 @@ pub struct CorpusConfig {
     /// Fusion config for multi-model triple extraction. When present, the
     /// corpus pipeline routes triple extraction through the fusion
     /// orchestrator (typically `judge: algo` for algorithmic merge). Panel
-    /// models are specified here — no separate "model B" concept.
+    /// models are specified here; the algo judge merges their JSON responses.
     #[serde(default)]
     pub fusion: Option<hkask_types::fusion::FusionConfig>,
 }

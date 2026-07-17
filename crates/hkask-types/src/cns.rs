@@ -1,7 +1,7 @@
 //! Core CNS (Cybernetic Nervous System) types for hKask
 //!
-//! Core spans: cns.tool.*, cns.inference.*, cns.agent_pod.*, cns.gas.*,
-//! cns.curation.*, cns.heal.*, cns.memory.encode.*
+//! Core spans: cns.tool.*, cns.inference.*, cns.fusion.*, cns.agent_pod.*,
+//! cns.gas.*, cns.curation.*, cns.heal.*, cns.memory.encode.*
 //!
 //! Domain-specific spans have moved to their respective domain crates.
 //! All namespace strings are registered in CANONICAL_NAMESPACES (event.rs).
@@ -113,6 +113,10 @@ pub enum CnsSpan {
     Tool { subsystem: ToolSubsystem },
     /// LLM inference request/response.
     Inference,
+    /// Multi-model fusion deliberation (panel dispatch + judge orchestration).
+    /// Distinct from `Inference` so fusion rounds, convergence, and panel/judge
+    /// cost are independently observable (PRINCIPLES.md §9.1).
+    Fusion,
     /// Agent pod lifecycle events.
     AgentPod,
     /// Gas (energy) consumption tracking.
@@ -255,6 +259,7 @@ impl CnsSpan {
                 ToolSubsystem::Other => "cns.tool",
             },
             CnsSpan::Inference => "cns.inference",
+            CnsSpan::Fusion => "cns.fusion",
             CnsSpan::AgentPod => "cns.agent_pod",
             CnsSpan::Gas => "cns.gas",
             CnsSpan::Curation => "cns.curation",
@@ -340,6 +345,7 @@ impl std::str::FromStr for CnsSpan {
                 subsystem: ToolSubsystem::Curator,
             }),
             "cns.inference" => Ok(CnsSpan::Inference),
+            "cns.fusion" => Ok(CnsSpan::Fusion),
             "cns.agent_pod" => Ok(CnsSpan::AgentPod),
             "cns.gas" => Ok(CnsSpan::Gas),
             "cns.curation" => Ok(CnsSpan::Curation),
@@ -482,6 +488,7 @@ mod cns_span_tests {
                 subsystem: ToolSubsystem::Curator,
             },
             CnsSpan::Inference,
+            CnsSpan::Fusion,
             CnsSpan::AgentPod,
             CnsSpan::Gas,
             CnsSpan::Curation,
@@ -510,11 +517,11 @@ mod cns_span_tests {
                 variant, s, parsed
             );
         }
-        // Assert count matches enum variant count (7 core + 15 specific ToolSubsystem = 22).
+        // Assert count matches enum variant count (8 core + 15 specific ToolSubsystem = 23).
         // If this fails, a new CnsSpan variant was added without updating this test.
         assert!(
-            all_variants.len() == 22,
-            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected 22)",
+            all_variants.len() == 23,
+            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected 23)",
             all_variants.len()
         );
     }

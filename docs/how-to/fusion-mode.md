@@ -24,7 +24,7 @@ Fusion is a **hKask-side orchestration engine**, not a provider feature. hKask i
 2. Collects all panel responses.
 3. Dispatches to a **judge** — either an LLM operating in one of five deliberation modes, or an algorithm that merges responses without an LLM call.
 
-The hKask orchestrator is provider-agnostic and works across DeepInfra, fal.ai, Together, OpenRouter, KiloCode, Ollama, and Cline. (The former OpenRouter server-side `FusionPlugin` struct has been removed — hKask's client-side orchestrator supersedes it.)
+The hKask orchestrator is provider-agnostic and works across DeepInfra, fal.ai, Together, OpenRouter, KiloCode, Ollama, and Cline.
 
 ### Two Judge Families
 
@@ -153,7 +153,7 @@ Use this for engineering tasks where strategy and execution should be separated 
 
 ### Algo / No-Judge Methods
 
-When `judge: "algo"`, the orchestrator dispatches the panel in parallel — exactly as in the LLM-judge modes — then merges responses algorithmically instead of calling an LLM judge. Zero judge token cost, zero judge latency. See [Algo / No-Judge Methods](#algo--no-judge-methods) below for the full details, the supersession of the dual classifier model, and the extensibility story for future algorithmic methods.
+When `judge: "algo"`, the orchestrator dispatches the panel in parallel — exactly as in the LLM-judge modes — then merges responses algorithmically instead of calling an LLM judge. Zero judge token cost, zero judge latency. See [Algo / No-Judge Methods](#algo--no-judge-methods) below for the merge algorithm, when to use it, and the extensibility story for future algorithmic methods.
 
 ---
 
@@ -198,22 +198,6 @@ export HKASK_FUSION_PANEL_MODELS=KC/qwen/qwen3-235b-a22b-2507,DI/google/gemma-4-
 - Requires **JSON** panel responses; non-JSON output falls back to `null`.
 - **No skill anchoring** — the merge is methodology-agnostic. Use an LLM-judge mode (`synthesis`, `critique`, etc.) when you need methodology-anchored evaluation.
 - **No iterative refinement** — the merge is single-pass with no convergence check or follow-up rounds.
-
-### Supersession of the Dual Classifier Model
-
-The algo / no-judge path **supersedes and subsumes** the former dual classifier model feature set. The entire dual-model mechanism has been removed and replaced by `judge: algo`:
-
-| Former mechanism (removed) | Replacement |
-|----------------------------|-------------|
-| `dual_model: true` step flag | `fusion: true` + `judge: algo` in the manifest's `fusion:` block |
-| `DualModelPort` trait | The fusion orchestrator's `algo_merge()` function |
-| `dual_classify.rs` (Jaccard scoring, divergence detection, drift detection) | `merge_json_values()` (recursive union, case-insensitive dedup, diverging strings annotated `[A:... B:...]`) |
-| `integrate_dual_triples()` | `merge_json_values()` recursive object merge |
-| Mutual exclusion (`dual_model` always bypassed fusion) | Algo **is** a fusion path — no bypass needed |
-
-The former dual classifier's domain-specific integration logic (Jaccard similarity scoring, cross-model divergence detection, drift detection across classifications) has been removed. The corpus pipeline now routes through the same fusion orchestrator with `judge: algo` — panel models run in parallel, JSON responses are merged algorithmically. There is no separate merge function and no separate port trait.
-
-The key architectural difference: the dual classifier was a **separate mechanism** that bypassed fusion entirely. The algo judge **is** a fusion path — it uses the same panel dispatch, the same config, the same orchestrator entry point. Setting `judge: "algo"` routes panel responses through a deterministic merge instead of an LLM judge call. No new `FusionMode` variant, no new `FusionConfig` fields — the existing 5-field config with a special judge value.
 
 ### Extensibility — Future Algo Methods
 
@@ -431,9 +415,7 @@ Filter with `RUST_LOG=cns.inference=info` to watch fusion in action.
 
 ## Disambiguation: hKask Fusion vs. OpenRouter Fusion Plugin
 
-hKask's fusion orchestrator is a **client-side** multi-model deliberation engine — it dispatches panel calls to any `InferencePort` backend, collects responses, and runs the judge. This is distinct from OpenRouter's server-side Fusion plugin, which was previously represented by the `FusionPlugin` struct in `chat_protocol.rs`. **The `FusionPlugin` struct has been removed** — hKask's provider-agnostic client-side orchestrator fully supersedes it. The `plugins` field on `ChatRequest` and the `plugins` parameter on `build_chat_request()` have been removed.
-
-> The former dual classifier model — `dual_model: true` step flag, `DualModelPort` trait, and `dual_classify.rs` module (Jaccard scoring, divergence detection, drift detection) — has been **fully removed and superseded** by the algo / no-judge path (`judge: "algo"`). The corpus pipeline routes through the same fusion orchestrator — panel models in the corpus config's `fusion:` block, merged via `algo_merge()`. There is no separate dual-model mechanism; algo IS a fusion path.
+hKask's fusion orchestrator is a **client-side** multi-model deliberation engine — it dispatches panel calls to any `InferencePort` backend, collects responses, and runs the judge. This is distinct from OpenRouter's server-side Fusion plugin: hKask's orchestrator is provider-agnostic and runs entirely on the hKask side, so it works across all supported providers (DeepInfra, fal.ai, Together, OpenRouter, KiloCode, Ollama, Cline), not just OpenRouter.
 
 ---
 

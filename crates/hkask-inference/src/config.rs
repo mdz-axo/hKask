@@ -174,10 +174,13 @@ impl ProviderId {
 // - `HKASK_FUSION_MODE` — judge deliberation mode (default: synthesis)
 // - `HKASK_FUSION_SKILLS` — comma-separated skill anchors for the judge
 // - `HKASK_FUSION_MAX_ROUNDS` — max rounds for deliberation mode (default: 5)
+// - `HKASK_FUSION_ALGO_METHOD` — algo merge strategy when judge is `algo` (default: merge)
 // - `HKASK_FUSION_DISABLED` — set to "1" to disable fusion
 
 /// Fusion types moved to hkask-types::fusion — re-exported for back-compat.
-pub use hkask_types::fusion::{FusionConfig, FusionMode, FusionSkill, NonEmptyVec};
+pub use hkask_types::fusion::{
+    AlgoMethod, ConvergenceVerdict, FusionConfig, FusionMode, FusionSkill, NonEmptyVec,
+};
 
 /// Configuration for the inference router.
 ///
@@ -436,6 +439,10 @@ fn parse_fusion_config() -> Option<FusionConfig> {
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(5);
+    let algo_method = std::env::var("HKASK_FUSION_ALGO_METHOD")
+        .ok()
+        .and_then(|m| m.parse().ok())
+        .unwrap_or_default();
 
     // Structured config: HKASK_FUSION_JUDGE_MODEL + HKASK_FUSION_PANEL_MODELS
     if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE_MODEL") {
@@ -453,6 +460,7 @@ fn parse_fusion_config() -> Option<FusionConfig> {
                 mode,
                 skills,
                 max_rounds,
+                algo_method,
             });
         }
     }

@@ -404,7 +404,7 @@ impl EmbedService {
             if let Some(ref fusion) = config.fusion {
                 // ── Fusion path: route through the fusion orchestrator ──
                 // The panel models are specified in the corpus config's fusion block.
-                // No "model B" — just the panel. The algo judge merges JSON responses.
+                // The algo judge merges the panelists' JSON responses (no LLM judge call).
                 tracing::info!(
                     total_passages = passage_count,
                     judge = %fusion.judge,

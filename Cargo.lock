@@ -5233,6 +5233,7 @@ dependencies = [
  "hkask-capability",
  "hkask-cns",
  "hkask-goal",
+ "hkask-inference",
  "hkask-ports",
  "hkask-services-self-heal",
  "hkask-storage",

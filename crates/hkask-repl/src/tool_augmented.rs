@@ -315,3 +315,158 @@ pub fn extract_tool_calls(
     }
     parse_tool_calls(response_text)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_ports::StructuredToolCall;
+
+    // ── extract_tool_calls: priority logic ──────────────────────────
+
+    #[test]
+    fn extract_prefers_structured_calls_over_text_directives() {
+        let structured = vec![StructuredToolCall {
+            server: "srv".into(),
+            tool: "search".into(),
+            args: serde_json::json!({"q": "rust"}),
+            call_id: None,
+        }];
+        let response = "Let me search. <<tool:other/thing\n{}
+>>";
+        let parsed = extract_tool_calls(response, Some(&structured));
+        // Structured calls take priority — text directive is ignored
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert_eq!(parsed.tool_calls[0].tool, "search");
+        assert_eq!(parsed.tool_calls[0].server, "srv");
+        // Text is the raw response (including the ignored directive)
+        assert_eq!(parsed.text, response);
+    }
+
+    #[test]
+    fn extract_falls_back_to_text_parsing_when_structured_empty() {
+        let structured: Vec<StructuredToolCall> = vec![];
+        let response = "Running tool.
+<<tool:srv/search\n{\"q\": \"rust\"}
+>>";
+        let parsed = extract_tool_calls(response, Some(&structured));
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert_eq!(parsed.tool_calls[0].tool, "search");
+        assert_eq!(parsed.text.trim(), "Running tool.");
+    }
+
+    #[test]
+    fn extract_falls_back_to_text_parsing_when_structured_none() {
+        let response = "<<tool:srv/search\n{\"q\": \"rust\"}
+>>";
+        let parsed = extract_tool_calls(response, None);
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert_eq!(parsed.tool_calls[0].tool, "search");
+    }
+
+    #[test]
+    fn extract_no_tool_calls_returns_plain_text() {
+        let response = "The capital of France is Paris.";
+        let parsed = extract_tool_calls(response, None);
+        assert!(parsed.tool_calls.is_empty());
+        assert_eq!(parsed.text, response);
+    }
+
+    // ── parse_tool_calls: directive parsing edge cases ─────────────
+
+    #[test]
+    fn parse_single_directive_with_json_args() {
+        let response = "Let me check.
+<<tool:fs/read
+{\"path\": \"/tmp/foo\"}
+>>";
+        let parsed = parse_tool_calls(response);
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert_eq!(parsed.tool_calls[0].server, "fs");
+        assert_eq!(parsed.tool_calls[0].tool, "read");
+        assert_eq!(parsed.tool_calls[0].args["path"], "/tmp/foo");
+        assert_eq!(parsed.text.trim(), "Let me check.");
+    }
+
+    #[test]
+    fn parse_directive_without_server() {
+        let response = "<<tool:search
+{\"q\": \"test\"}
+>>";
+        let parsed = parse_tool_calls(response);
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert_eq!(parsed.tool_calls[0].server, "");
+        assert_eq!(parsed.tool_calls[0].tool, "search");
+    }
+
+    #[test]
+    fn parse_directive_without_json_body_defaults_to_empty_object() {
+        let response = "<<tool:srv/ping
+>>";
+        let parsed = parse_tool_calls(response);
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert!(parsed.tool_calls[0].args.is_object());
+    }
+
+    #[test]
+    fn parse_directive_without_newline_uses_empty_object() {
+        let response = "<<tool:srv/ping>>";
+        let parsed = parse_tool_calls(response);
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert_eq!(parsed.tool_calls[0].tool, "ping");
+    }
+
+    #[test]
+    fn parse_multiple_directives() {
+        let response = "Start.
+<<tool:srv/a
+{}
+>>
+Middle.
+<<tool:srv/b
+{}
+>>
+End.";
+        let parsed = parse_tool_calls(response);
+        assert_eq!(parsed.tool_calls.len(), 2);
+        assert_eq!(parsed.tool_calls[0].tool, "a");
+        assert_eq!(parsed.tool_calls[1].tool, "b");
+    }
+
+    #[test]
+    fn parse_unclosed_directive_treated_as_text() {
+        let response = "Some text <<tool:srv/broken
+{\"q\": \"val\"}";
+        let parsed = parse_tool_calls(response);
+        assert!(parsed.tool_calls.is_empty());
+        assert!(parsed.text.contains("<<tool:"));
+    }
+
+    #[test]
+    fn parse_empty_tool_name_treated_as_text() {
+        let response = "<<tool:srv/
+{}
+>>";
+        let parsed = parse_tool_calls(response);
+        assert!(parsed.tool_calls.is_empty());
+        // The malformed directive is pushed back as text
+        assert!(parsed.text.contains("<<tool:"));
+    }
+
+    #[test]
+    fn parse_invalid_json_treated_as_text() {
+        let response = "<<tool:srv/bad
+{not valid json}
+>>";
+        let parsed = parse_tool_calls(response);
+        assert!(parsed.tool_calls.is_empty());
+        assert!(parsed.text.contains("<<tool:"));
+    }
+
+    #[test]
+    fn parse_no_directives_returns_full_text() {
+        let response = "Just a normal response with no tool calls.";
+        let parsed = parse_tool_calls(response);
+        assert!(parsed.tool_calls.is_empty());
+        assert_eq!(parsed.text, response);
+    }
+}

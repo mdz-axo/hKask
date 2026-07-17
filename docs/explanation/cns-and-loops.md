@@ -594,7 +594,7 @@ If no branch condition matches, `default_next` is used. If neither is set, the s
 
 #### Classification Service
 
-The classification service (`hkask-services-runtime`) is the decision engine for all QA operations. Classifier configs are stored in `$HKASK_REPLICANT_REGISTRY_PATH/classify/` as YAML files. The standard `qa-triage.yaml` config uses `google/gemma-4-26B-A4B-it` via DeepInfra with temperature 0.1.
+The classification service (`hkask-services-runtime`) is the decision engine for all QA operations. Classifier configs are stored in `$HKASK_REPLICANT_REGISTRY_PATH/classify/` as YAML files. Each config's `model:` field is intentionally empty — all classifiers defer to the canonical model resolved from `HKASK_CLASSIFIER_MODEL` (default `DI/Qwen/Qwen3-235B-A22B-Instruct-2507`, DeepInfra) with temperature 0.0.
 
 The `ClassifyResponse` struct expected from the LLM:
 
@@ -1977,13 +1977,3 @@ Regulation effectiveness (accepted/blocked/staged ratio from `CnsRuntime`) feeds
 | `format_health_status` | `hkask-agents` | `src/curator_agent/metacognition/format.rs` |
 
 
-## Classifier Drift Detection (removed)
-
-The former drift detection logic (`check_classifier_drift()` in `dual_classify.rs`)
-has been removed as part of the algo / no-judge path cutover. The dual classifier
-model feature set (DualModelPort, step.dual_model, Jaccard scoring, divergence
-detection, drift detection) has been fully superseded by the algo / no-judge path
-(`judge: algo`) — a family of deterministic, algorithmic merge strategies that
-process panel responses without an LLM judge call. The corpus pipeline now routes
-through the fusion orchestrator with `judge: algo` for algorithmic multi-model
-merge.

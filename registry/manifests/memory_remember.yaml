@@ -1,17 +1,17 @@
 # File: registry/manifests/memory_remember.yaml
 # Memory encoding workflow — extracts hMems from agent operations using
-# dual-model epistemic integrity via the algo fusion judge.
+# the algo / no-judge fusion path for epistemic integrity.
 #
 # P3.1 Social Generativity: memory extraction uses the algo judge (judge: "algo")
-# which runs two peer models from different jurisdictions in parallel and merges
-# their JSON outputs algorithmically — no LLM judge call. Both viewpoints are
-# preserved: agreed items unified, divergent items annotated [A:... B:...].
+# which runs the fusion panel in parallel and merges the panelists' JSON outputs
+# algorithmically — no LLM judge call. Both viewpoints are preserved: agreed
+# items unified, divergent items annotated [A:... B:...].
 
 manifest:
   id: process/memory/remember
   category: pipeline
   name: Memory Remember
-  description: Extracts episodic and semantic hMems from agent operations with dual-model epistemic integrity
+  description: Extracts episodic and semantic hMems from agent operations using the algo / no-judge fusion path
   functional_role: flowdef
   version: 0.31.0
   editor: curator-or-human-admin

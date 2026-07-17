@@ -54,9 +54,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
 | 26 | Deployment | `deploy` | hkask-cli + hkask-agents | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
 | 27 | Code Understanding | `codegraph` | hkask-codegraph | 10 | Agents query, traverse, and analyze the codebase through a semantic code graph | P3 (Generative Space) + P9 (Homeostatic Self-Regulation) |
-| 28 | Algo / No-Judge Classification | `classify` | hkask-services-runtime | 9 | System classifies text using two peer models from different jurisdictions, merging extractions algorithmically via the algo / no-judge path — no single model is the sole gate to semantic memory | P3 (Generative Space) + P8 (Semantic Grounding) |
+| 28 | Algo / No-Judge Classification | `classify` | hkask-services-runtime | 9 | System classifies text via the algo / no-judge fusion path: the fusion panel runs in parallel and extractions are merged algorithmically — no single model is the sole gate to semantic memory | P3 (Generative Space) + P8 (Semantic Grounding) |
 | 29 | Content Safety Guard | `guard` | hkask-guard | 6 | System enforces mandatory content safety controls — prompt injection, role override, and secret leakage detection are always active and cannot be disabled | P3.1 (Social Generativity) |
-| 30 | Memory Remember (Algo / No-Judge) | `memory-remember` | hkask-templates | 3 | System extracts episodic and semantic hMems from agent operations using algo / no-judge classification — both peer models render the same template and outputs are merged algorithmically | P3.1 (Social Generativity) + P8 (Semantic Grounding) |
+| 30 | Memory Remember (Algo / No-Judge) | `memory-remember` | hkask-templates | 3 | System extracts episodic and semantic hMems from agent operations using algo / no-judge classification — the fusion panel renders the same template and outputs are merged algorithmically | P3.1 (Social Generativity) + P8 (Semantic Grounding) |
 
 ### Domain Anchoring Rules
 
@@ -1534,7 +1534,14 @@ status: VERIFIED
 **Constraining Principle:** P8 (Semantic Grounding) — extracted triples carry cross-jurisdiction provenance
 **Crate:** `hkask-services-runtime` | **Source:** `src/classify_impl.rs`
 
-The former dual classifier (`dual_classify.rs`) with Jaccard scoring, divergence detection, and drift detection has been **removed and superseded** by the algo / no-judge path (`judge: algo`) — a family of deterministic, algorithmic merge strategies that process panel responses without an LLM judge call. The corpus pipeline now routes through the fusion orchestrator with `judge: algo` — panel models run in parallel, JSON responses are merged algorithmically (union, case-insensitive dedup, diverging fields annotated `[A:... B:...]`). No separate merge function. The architecture anticipates additional algo / no-judge methods beyond the current recursive JSON merge (e.g., set intersection, vote/tally, schema-validated merge), to be added as sub-selectors on the `algo` judge value when needed.
+Classification routes through the fusion orchestrator with `judge: algo` — the
+algo / no-judge path: a family of deterministic, algorithmic merge strategies
+that process panel responses without an LLM judge call. Panel models run in
+parallel, JSON responses are merged algorithmically (union, case-insensitive
+dedup, diverging fields annotated `[A:... B:...]`). No separate merge function.
+The architecture anticipates additional algo / no-judge methods beyond the
+current recursive JSON merge (e.g., set intersection, vote/tally, schema-validated
+merge), to be added as sub-selectors on the `algo` judge value when needed.
 
 ---
 
@@ -1597,14 +1604,13 @@ FlowDef manifest with `fusion: true` and `judge: algo` on all three steps:
 2. **remember-episodic.j2** — first-person episodic hMem extraction
 3. **remember-semantic.j2** — third-person semantic hMem extraction
 
-Each step renders the same Jinja2 template with two peer models, merges JSON
+Each step renders the same Jinja2 template across the fusion panel, merges JSON
 outputs via case-insensitive set union (entities, concepts, relationships),
 and stores the integrated result in shared memory.
 
-Dual-model routing is handled by the fusion orchestrator with `judge: algo` (the
+Panel routing is handled by the fusion orchestrator with `judge: algo` (the
 algo / no-judge path). `orchestrate()` dispatches to algo_merge for parallel
-inference with `merge_json_values()` integration in the fusion orchestrator. This
-supersedes the former `DualModelPort` mechanism.
+inference with `merge_json_values()` integration in the fusion orchestrator.
 
 #### Production Contracts (3)
 

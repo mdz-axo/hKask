@@ -230,7 +230,7 @@ Additionally, all alerts follow the same path (human notification). There's no d
 | **Storage Guard** | `/health` disk_usage_pct | >80% warn, >95% critical | warn: log CNS span; critical: prune exports older than 7d | Re-check after 5min |
 | **Litestream Guard** | litestream sidecar liveness | Liveness probe failure × 3 | Restart pod (k8s does this; CNS records the event) | Confirm sidecar healthy after restart |
 | **MCP Server Guard** | Child process health check | Process dead or unresponsive > 30s | Restart MCP subprocess via McpRuntime | Verify process responds to health ping |
-| **Inference Throttle** | Gas consumption rate | Projected exhaustion < 15min at current rate | Reduce max_tokens, switch to classifier model (`KC/qwen/qwen3-235b-a22b-2507`), notify Curator | Re-check consumption rate after 5min |
+| **Inference Throttle** | Gas consumption rate | Projected exhaustion < 15min at current rate | Reduce max_tokens, switch to classifier model (`DI/Qwen/Qwen3-235B-A22B-Instruct-2507`), notify Curator | Re-check consumption rate after 5min |
 
 #### Curator-Mediated Loops
 

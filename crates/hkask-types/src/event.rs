@@ -193,6 +193,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.heal",
     // ── Inference ──
     "cns.inference",
+    // ── Fusion (multi-model deliberation) ──
+    "cns.fusion",
     // ── Kata / Skill / Keystore ──
     "cns.kata",
     "cns.keystore",

@@ -463,7 +463,7 @@ Without `DI_API_KEY`, classify steps gracefully degrade through `classifier_unav
 | QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, step execution, gas, CNS |
 | CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa run --script`, `kask qa list` |
 | CNS QA spans | `crates/hkask-types/src/cns.rs` | 4 `CnsSpan` variants |
-| Classifier config | `registry/classify/qa-triage.yaml` | Gemma 4 26B triage prompt |
+| Classifier config | `registry/classify/qa-triage.yaml` | Canonical classifier triage prompt (HKASK_CLASSIFIER_MODEL) |
 | QA manifests | `registry/manifests/qa-*.yaml` | 9 manifests (4 executable, 5 planned) |
 
 ### 10.6 Planned (not yet built)
