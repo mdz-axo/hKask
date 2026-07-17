@@ -1,12 +1,12 @@
 //! Shared OpenAI-compatible chat completion protocol types and helpers.
 //!
-//! All backends (DeepInfra, Together AI, fal.ai) speak the same
-//! `/v1/chat/completions` wire format. This module provides the shared
-//! request/response types and helper functions used by all backends.
+//! All seven chat backends (DeepInfra, Together AI, fal.ai, OpenRouter,
+//! KiloCode, Ollama, Cline) speak the same `/v1/chat/completions` wire format.
+//! This module provides the shared request/response types and helper functions
+//! used by all backends.
 //!
-//! These are free functions, not a trait — two backends don't justify
-//! an abstraction layer. Each backend owns its HTTP client, auth, and
-//! model listing endpoint independently.
+//! These are free functions, not a trait — the backends share the wire format
+//! but own their HTTP client, auth, and model listing endpoint independently.
 
 use futures_util::StreamExt;
 use hkask_ports::{

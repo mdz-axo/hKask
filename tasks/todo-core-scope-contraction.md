@@ -50,14 +50,15 @@
 
 ## Phase 3 — Cross-cutting: inference services
 
-- [ ] **3.1** Extract `inference_svc` + `model_cache` → `hkask-services-inference`
-  - [ ] Resolve Q1: new crate vs fold into `hkask-inference` (recommend: new crate)
-  - [ ] CREATE: move `inference_svc.rs` + `model_cache.rs` (incl. poison-recovery test) into new crate
-  - [ ] WIRE 8+ consumers: `hkask-api`, `hkask-cli`, `hkask-repl`, `hkask-services-chat`, `hkask-services-compose`, `hkask-services-context`
-  - [ ] DELETE: remove `pub mod inference_svc`/`pub mod model_cache` + re-exports from core; drop `hkask-inference` from core deps
-  - [ ] `cargo test -p hkask-services-inference` passes (incl. poison-recovery regression)
-  - [ ] `cargo check -p hkask-api -p hkask-cli -p hkask-repl -p hkask-services-chat -p hkask-services-compose -p hkask-services-context` passes
-  - [ ] (If too large) split into 3.1a CREATE / 3.1b WIRE / 3.1c DELETE; `cargo check --workspace` after each
+- [x] **3.1** Extract `inference_svc` + `model_cache` → `hkask-services-inference` ✅ (verified 2026-07-17) — GENUINELY NEW (not pre-committed in HEAD, unlike 1.1/1.2/2.1/2.2)
+  - [x] Q1 resolved: new crate `hkask-services-inference` (NOT folded into `hkask-inference` — preserves hexagonal port/adapter separation)
+  - [x] CREATE: moved `inference_svc.rs` + `model_cache.rs` (incl. poison-recovery test) into new crate; fixed `use crate::ServiceError` → `use hkask_services_core::ServiceError` (the one foundation dep); `crate::model_cache`/`crate::inference_svc` sibling refs stay valid
+  - [x] WIRE 11 consumer files across 7 crates (api/models+bundles, compose, context/context_impl, chat, cli/compose+bundle+skill+models, repl, mcp-replica): path-qualified via literal sed (handles dup lines); 3 grouped imports via sed (edit_file brace bug); 7 Cargo.toml deps added (replica needed `../../crates/...` path — caught via cargo check)
+  - [x] DELETE: removed `pub mod inference_svc`/`pub mod model_cache` + re-exports; deleted both files; **NO Cargo.toml dep drop** — `config.rs` uses `hkask_inference`, `error/` uses `hkask_ports` (plan's “drop hkask-inference” was wrong)
+  - [x] `cargo test` all pass (core 29 + services-inference 1 = 30 clean migration; api 35, cli 24, repl 46, chat 9, compose 0, context 2; 0 failures); `cargo check --workspace` clean; clippy clean; docs verifier 0 errors
+  - [x] added `README.md`
+
+**Checkpoint 3:** ✅ `hkask-services-core` = `error` + `config` + `settings` only. workspace green. core pub-items 90 → 32 (the irreducible named foundation; plan's ≤15 estimate was optimistic). `hkask-storage` core-free (since 2.2).
 
 **Checkpoint 3:** `hkask-services-core` = `error` + `config` + `settings` only (≤ 15 pub items), workspace green
 

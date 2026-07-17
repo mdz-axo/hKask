@@ -1,25 +1,25 @@
-//! Inference configuration — multi-provider routing for DeepInfra, fal.ai, Together AI, OpenRouter, and KiloCode.
+//! Inference configuration — multi-provider routing for 8 providers: DeepInfra, fal.ai, Together AI, OpenRouter, KiloCode, Ollama (local), Cline (cloud gateway), RunPod (vision/OCR only).
 //!
 //! # Environment Variables
 //!
-//! - `DI_BASE_URL` — DeepInfra base URL (default: <https://api.deepinfra.com>)
-//! - `DI_API_KEY` — DeepInfra API key (required for DI provider)
-//! - `FA_BASE_URL` — fal.ai base URL (default: <https://api.fal.ai>)
-//! - `FA_API_KEY` — fal.ai API key (required for FA provider)
-//! - `TG_BASE_URL` — Together AI base URL (default: <https://api.together.xyz>)
-//! - `TG_API_KEY` — Together AI API key (required for TG provider)
-//! - `OR_BASE_URL` — OpenRouter base URL (default: <https://openrouter.ai/api>)
-//! - `OR_API_KEY` — OpenRouter API key (required for OR provider)
-//! - `KC_BASE_URL` — KiloCode base URL (default: <https://api.kilo.ai/api/gateway>)
-//! - `KC_API_KEY` — KiloCode API key (required for KC provider)
-//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG, OR, KC; default: DI)
+//! - `DI_BASE_URL` / `DI_API_KEY` — DeepInfra (cloud, required)
+//! - `FA_BASE_URL` / `FA_API_KEY` — fal.ai (cloud, required)
+//! - `TG_BASE_URL` / `TG_API_KEY` — Together AI (cloud, required)
+//! - `OR_BASE_URL` / `OR_API_KEY` — OpenRouter (cloud, required)
+//! - `KC_BASE_URL` / `KC_API_KEY` — KiloCode (cloud, required)
+//! - `OM_BASE_URL` / `OM_API_KEY` — Ollama (local; key optional, header ignored)
+//! - `CLINE_BASE_URL` / `CLINE_API_KEY` — Cline cloud gateway (required)
+//! - `RUNPOD_API_KEY` / `RUNPOD_BASE_URL` or `RUNPOD_TEMPLATE_ID` — RunPod (vision/OCR only)
+//! - `HKASK_DEFAULT_PROVIDER` — default provider for unprefixed models (DI, FA, TG, OR, KC, OM, CL, RP; default: DI)
+//! - `HKASK_DEFAULT_MODEL` — default model (default: `KC/z-ai/glm-5.2`)
+//! - `HKASK_FUSION_JUDGE_MODEL` / `HKASK_FUSION_PANEL_MODELS` / `HKASK_FUSION_MODE` / `HKASK_FUSION_SKILLS` — fusion config
+//! - `HKASK_FUSION_DISABLED=1` — disable fusion
 //!
 //! # API Key Resolution
 //!
-//! Provider API keys resolve through a 2-tier chain:
-//! Keys are resolved:
-//! 1. OS keychain (encrypted at rest) — preferred for cloud deployments
-//! 2. Environment variables (auto-loaded from .env via dotenvy)
+//! Provider API keys resolve through a 2-tier chain (env-first):
+//! 1. Environment variable (fast path — `.env` is loaded by dotenvy)
+//! 2. OS keychain (encrypted at rest; guarded against concurrent-access SIGABRT from libdbus)
 //!
 //! # Model Naming Convention
 //!
@@ -29,6 +29,9 @@
 //! - `TG/Qwen/Qwen2.5-7B-Instruct-Turbo` → Together AI (cloud)
 //! - `OR/openai/gpt-4o` → OpenRouter (cloud)
 //! - `KC/anthropic/claude-sonnet-4.5` → KiloCode (cloud)
+//! - `OM/qwen3:8b` → Ollama (local)
+//! - `CL/anthropic/claude-sonnet-4-6` → Cline (cloud gateway)
+//! - `RP/kask-ocr` → RunPod (vision/OCR only — not available for chat)
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
 use serde::{Deserialize, Serialize};

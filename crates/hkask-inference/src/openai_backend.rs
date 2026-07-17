@@ -1,8 +1,8 @@
 //! Shared OpenAI-compatible chat completion logic.
 //!
-//! All five backends (DeepInfra, Together, OpenRouter, KiloCode, Fal)
-//! use [`openai_compatible_generate`] for their `generate()` method.
-//! The function parameterizes the chat endpoint path and auth header
+//! All seven chat backends (DeepInfra, Together, OpenRouter, KiloCode, Fal,
+//! Ollama, Cline) use [`openai_compatible_generate`] for their `generate()`
+//! method. The function parameterizes the chat endpoint path and auth header
 //! prefix to accommodate provider-specific differences:
 //!
 //! | Provider   | Chat path               | Auth header     |
@@ -12,6 +12,11 @@
 //! | OpenRouter | `/v1/chat/completions`  | `Bearer`        |
 //! | KiloCode   | `/chat/completions`     | `Bearer`        |
 //! | Fal        | `/v1/chat/completions`  | `Key`           |
+//! | Ollama     | `/v1/chat/completions`  | `Bearer` (ignored) |
+//! | Cline      | `/v1/chat/completions`  | `Bearer`        |
+//!
+//! RunPod does NOT use this function — it is vision/OCR-only (no chat).
+//! `base_url` and `api_key` are passed directly (no `ProviderConfig` envelope).
 
 use crate::chat_protocol::build_chat_request;
 use crate::chat_protocol::{ChatResponse, chat_response_to_result, validate_prompt};

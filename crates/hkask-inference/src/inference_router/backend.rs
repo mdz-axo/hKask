@@ -1,13 +1,15 @@
 //! Backend dispatch traits + impls — the seam between `InferenceRouter` and provider backends.
 //!
 //! Each provider backend implements `ChatBackend` and (if it supports
-//! multimodal input) `VisionBackend`. The router holds these as
-//! `HashMap<ProviderId, Arc<dyn ChatBackend>>` / `Arc<dyn VisionBackend>`, so
-//! dispatch is a single map lookup instead of a per-provider `match` arm that
-//! must be kept in sync across six call sites (resolve, dispatch_generate,
+//! multimodal input) `VisionBackend`. The router holds typed `Option<Backend>`
+//! fields (single source of truth — no separate map, no `Arc`, no dual storage)
+//! and exposes `chat_backend`/`vision_backend` match-fns that return
+//! `&dyn ChatBackend`/`&dyn VisionBackend` borrowed from those fields. Dispatch
+//! is a single match-fn call instead of a per-provider `match` arm that must be
+//! kept in sync across six call sites (resolve_chat, dispatch_generate,
 //! dispatch_generate_stream, media::generate_vision, models::list_models,
-//! new). Adding a provider = implement the trait(s) + insert into the map(s)
-//! in `InferenceRouter::new` — no other dispatch site needs editing.
+//! new). Adding a provider = implement the trait(s) + add a field + construct it
+//! in `new` + add a match arm in `chat_backend`/`vision_backend`.
 //!
 //! The methods are dyn-safe via explicit `Pin<Box<dyn Future/Stream + Send>>`
 //! return types (the same pattern `InferencePort` already uses), rather than

@@ -1,8 +1,12 @@
 //! hKask Inference — multi-provider inference router
 //!
-//! Routes LLM requests to DeepInfra (cloud), fal.ai (cloud),
-//! Together AI (cloud), or OpenRouter (cloud) based on a 2-letter provider prefix
-//! in the model name.
+//! Routes LLM requests to 8 providers (DeepInfra, fal.ai, Together AI,
+//! OpenRouter, KiloCode, Ollama, Cline, RunPod) based on a 2-letter provider
+//! prefix in the model name. Chat dispatch goes through `chat_backend` /
+//! `vision_backend` match-fns returning `&dyn ChatBackend` / `&dyn VisionBackend`
+//! borrowed from typed `Option<Backend>` fields (single source of truth — no
+//! separate map). Fusion orchestration (`fusion_orchestrator`) provides
+//! provider-agnostic multi-model deliberation when configured.
 
 // Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
 #![allow(unused_crate_dependencies)]
@@ -11,13 +15,17 @@
 //!
 //! ```text
 //! InferenceRouter (implements InferencePort)
-//!   ├── DeepInfraBackend    — DI/ prefix → api.deepinfra.com
-//!   ├── FalBackend          — FA/ prefix → api.fal.ai
-//!   ├── TogetherBackend     — TG/ prefix → api.together.xyz
-//!   ├── OpenRouterBackend   — OR/ prefix → openrouter.ai/api
-//!   ├── KiloCodeBackend     — KC/ prefix → api.kilo.ai/api/gateway
-//!   └── OllamaBackend       — OM/ prefix → localhost:11434 (local, no key)
-//!   └── ClineBackend        — CL/ prefix → api.cline.bot/api (cloud gateway)
+//!   ├── DeepInfraBackend    — DI/ prefix → api.deepinfra.com      (chat + vision)
+//!   ├── FalBackend          — FA/ prefix → api.fal.ai            (chat + vision + media)
+//!   ├── TogetherBackend     — TG/ prefix → api.together.xyz     (chat + vision)
+//!   ├── OpenRouterBackend   — OR/ prefix → openrouter.ai/api   (chat + vision)
+//!   ├── KiloCodeBackend     — KC/ prefix → api.kilo.ai/api/gateway (chat + vision)
+//!   ├── OllamaBackend       — OM/ prefix → localhost:11434 (local, no key) (chat + vision)
+//!   ├── ClineBackend        — CL/ prefix → api.cline.bot/api (cloud gateway) (chat + vision)
+//!   └── RunpodBackend       — RP/ prefix → RunPod serverless (vision/OCR only, NOT chat)
+//!
+//! Dispatch: chat_backend() / vision_backend() match-fns return &dyn trait objects
+//! borrowed from the typed Option<Backend> fields above.
 //!
 //! EmbeddingRouter
 //!   ├── DeepInfraEmbedding — DI/ prefix → /v1/embeddings
@@ -32,6 +40,7 @@
 //! - `OR/openai/gpt-4o` → OpenRouter
 //! - `OM/qwen3:8b` → Ollama (local)
 //! - `CL/anthropic/claude-sonnet-4-6` → Cline (cloud gateway)
+//! - `RP/kask-ocr` → RunPod (vision/OCR only — not available for chat)
 //! - No prefix → default provider (configurable, default: DeepInfra)
 
 pub mod chat_protocol;
