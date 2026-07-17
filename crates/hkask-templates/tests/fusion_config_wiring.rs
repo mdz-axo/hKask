@@ -104,7 +104,6 @@ fn build_manifest(fusion: Option<FusionConfig>, step_fusion: Option<bool>) -> Bu
                 output_schema: None,
                 phase: CascadePhase::Core,
                 condition: None,
-                dual_model: false,
                 fusion: step_fusion,
             },
             BundleManifestStep {
@@ -121,7 +120,6 @@ fn build_manifest(fusion: Option<FusionConfig>, step_fusion: Option<bool>) -> Bu
                 output_schema: None,
                 phase: CascadePhase::Core,
                 condition: None,
-                dual_model: false,
                 fusion: None,
             },
         ],

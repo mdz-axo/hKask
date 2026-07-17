@@ -309,6 +309,23 @@ pub async fn extract_triples_dual_batch(
         extract_triples_batch(texts, &config.model_b),
     );
 
+    // D3a fix: if both models failed, return an error — do not produce
+    // "perfect agreement" on empty extractions (Jaccard of two empty sets = 1.0).
+    let a_err = a_results.is_err();
+    let b_err = b_results.is_err();
+    if a_err && b_err {
+        return Err(ServiceError::Domain {
+            domain: DomainKind::Wallet,
+            kind: ErrorKind::ServiceUnavailable,
+            source: None,
+            message: format!(
+                "Both classifier models failed — model A: {}, model B: {}",
+                a_results.as_ref().unwrap_err(),
+                b_results.as_ref().unwrap_err()
+            ),
+        });
+    }
+
     let a_extractions = a_results.unwrap_or_else(|e| {
         tracing::warn!(error = %e, model = %config.model_a.model, "Model A classifier batch failed, using defaults");
         vec![TripleExtraction::default(); texts.len()]

@@ -14,8 +14,6 @@ use hkask_agents::InferenceLoop;
 use hkask_cns::{GasBudget, GasCost, GovernedTool};
 
 use super::{ManifestState, TalkConfig, ToolPrompt};
-use hkask_inference::dual_model_port::DualModelPort;
-use hkask_inference::model_constants;
 use hkask_mcp::RawMcpToolPort;
 use hkask_ports::{ToolInfo, ToolPort};
 use hkask_templates::{ManifestExecutor, McpPort};
@@ -428,19 +426,11 @@ pub(super) fn init_repl_state(
 
             let inference_port = ctx.inference_port().expect("inference port");
 
-            // Wire dual-model inference for steps with dual_model: true.
-            // Uses the secondary classifier model (HKASK_CLASSIFIER_MODEL_B or default).
-            // If the model is not configured, dual_model steps will error at runtime.
-            let model_b = model_constants::classifier_model_secondary();
             let executor = ManifestExecutor::new(
                 inference_port.clone(),
                 Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
                 LLMParameters::default(),
                 a2a_secret,
-            )
-            .with_dual_inference(
-                Arc::new(DualModelPort::new(inference_port, model_b.clone())),
-                model_b,
             );
 
             tracing::info!(

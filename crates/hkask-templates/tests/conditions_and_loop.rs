@@ -105,7 +105,6 @@ fn step(
         output_schema: None,
         phase: CascadePhase::Core,
         condition: condition.map(str::to_string),
-        dual_model: false,
         fusion: None,
     }
 }
@@ -125,7 +124,6 @@ fn abort_step(ordinal: u32) -> BundleManifestStep {
         output_schema: None,
         phase: CascadePhase::Core,
         condition: None,
-        dual_model: false,
         fusion: None,
     }
 }

@@ -38,7 +38,6 @@ pub mod chat_protocol;
 pub mod cline_backend;
 pub mod config;
 pub mod deepinfra_backend;
-pub mod dual_model_port;
 pub mod embedding_router;
 pub mod fal_backend;
 pub mod fal_workflow;

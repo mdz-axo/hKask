@@ -64,11 +64,6 @@ pub struct BundleManifestStep {
     /// "a AND b" (both truthy), "a OR b" (either truthy).
     #[serde(default)]
     pub condition: Option<String>,
-    /// When true, this step uses dual-model rendering (two peer models from
-    /// different jurisdictions) with output integration. Requires dual inference
-    /// to be configured on the ManifestExecutor. P3.1 Social Generativity.
-    #[serde(default)]
-    pub dual_model: bool,
     /// Per-step fusion override. When `Some(true)`, this step routes through
     /// the fusion multi-model panel even if the manifest-level fusion is false.
     /// When `Some(false)`, this step bypasses fusion even if the manifest-level

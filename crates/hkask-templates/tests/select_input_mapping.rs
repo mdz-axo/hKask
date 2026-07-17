@@ -143,7 +143,6 @@ async fn select_input_mapping_resolves_cross_step_variable() {
                 output_schema: None,
                 phase: CascadePhase::Core,
                 condition: None,
-                dual_model: false,
                 fusion: None,
             },
             BundleManifestStep {
@@ -163,7 +162,6 @@ async fn select_input_mapping_resolves_cross_step_variable() {
                 output_schema: None,
                 phase: CascadePhase::Core,
                 condition: None,
-                dual_model: false,
                 fusion: None,
             },
             BundleManifestStep {
@@ -180,7 +178,6 @@ async fn select_input_mapping_resolves_cross_step_variable() {
                 output_schema: None,
                 phase: CascadePhase::Core,
                 condition: None,
-                dual_model: false,
                 fusion: None,
             },
         ],

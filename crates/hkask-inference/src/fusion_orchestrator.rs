@@ -1,6 +1,13 @@
 //! Fusion orchestration engine — provider-agnostic multi-model deliberation modes.
 //!
-//! Each fusion mode defines how the judge interacts with the panel:
+//! The judge is the strategy. When `fusion.judge == "algo"`, the orchestrator
+//! runs the panel in parallel and merges JSON responses algorithmically — no
+//! LLM call. This replaces the former `DualModelPort` / `step.dual_model`
+//! mechanism. The algo judge preserves both viewpoints (union, case-insensitive
+//! dedup, diverging strings annotated `[A:... B:...]`) without a methodology
+//! lens — use judge-based modes for methodology-anchored evaluation.
+//!
+//! Each LLM fusion mode defines how the judge interacts with the panel:
 //! - BestOfN: Judge picks the single best response.
 //! - Synthesis: Judge composes a unified response from all panelists.
 //! - Critique: 2-round: draft → panel critique → revised final.
@@ -11,7 +18,7 @@
 
 use crate::config::{FusionConfig, FusionMode, FusionSkill};
 use crate::inference_router::InferenceRouter;
-use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
+use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage};
 use hkask_types::template::LLMParameters;
 use tracing::info;
 
@@ -160,6 +167,114 @@ fn format_panel_responses(responses: &[PanelResponse]) -> String {
     sections
 }
 
+// ── Algo Judge (algorithmic merge, no LLM) ────────────────────────────────────
+
+/// Sentinel judge model name for algorithmic merge (no LLM call).
+pub const ALGO_JUDGE: &str = "algo";
+
+/// Parse a JSON value from a model response text, tolerating markdown fences
+/// and surrounding prose. Falls back to `Value::Null` on parse failure.
+fn parse_json_response(text: &str) -> serde_json::Value {
+    use serde_json::Value;
+
+    // Direct parse
+    if let Ok(v) = serde_json::from_str(text) {
+        return v;
+    }
+
+    let trimmed = text.trim();
+
+    // Markdown code fence
+    if let Some(json_start) = trimmed.find("```json") {
+        let after_fence = &trimmed[json_start + 7..];
+        if let Some(json_end) = after_fence.find("```") {
+            if let Ok(v) = serde_json::from_str(after_fence[..json_end].trim()) {
+                return v;
+            }
+        }
+    }
+
+    // Bare JSON object boundaries
+    if let (Some(start), Some(end)) = (trimmed.find('{'), trimmed.rfind('}')) {
+        if let Ok(v) = serde_json::from_str(&trimmed[start..=end]) {
+            return v;
+        }
+    }
+
+    Value::Null
+}
+
+/// Merge two JSON values from dual-model rendering.
+///
+/// Objects: merges keys recursively.
+/// Arrays: concatenates with case-insensitive string dedup.
+/// Strings/scalars: uses A when equal (case-insensitive), otherwise annotates `[A:... B:...]`.
+fn merge_json_values(a: &serde_json::Value, b: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    use std::collections::HashSet;
+
+    match (a, b) {
+        (Value::Object(map_a), Value::Object(map_b)) => {
+            let mut merged = map_a.clone();
+            for (key, val_b) in map_b {
+                merged
+                    .entry(key.clone())
+                    .and_modify(|existing| *existing = merge_json_values(existing, val_b))
+                    .or_insert_with(|| val_b.clone());
+            }
+            Value::Object(merged)
+        }
+        (Value::Array(arr_a), Value::Array(arr_b)) => {
+            let mut seen: HashSet<String> = HashSet::new();
+            let mut result = Vec::new();
+            for v in arr_a.iter().chain(arr_b.iter()) {
+                if let Some(s) = v.as_str() {
+                    if seen.insert(s.to_lowercase()) {
+                        result.push(v.clone());
+                    }
+                } else {
+                    result.push(v.clone());
+                }
+            }
+            Value::Array(result)
+        }
+        (Value::String(sa), Value::String(sb)) => {
+            if sa.to_lowercase().trim() == sb.to_lowercase().trim() {
+                a.clone()
+            } else {
+                Value::String(format!("[A:{} B:{}]", sa, sb))
+            }
+        }
+        (Value::Null, _) => b.clone(),
+        (_, Value::Null) => a.clone(),
+        _ if a == b => a.clone(),
+        _ => Value::String(format!("[A:{} B:{}]", a, b)),
+    }
+}
+
+/// Algorithmic judge: parse panel responses as JSON, merge via recursive union.
+/// No LLM call — deterministic, zero-cost, preserves both viewpoints.
+fn algo_merge(responses: &[PanelResponse]) -> InferenceResult {
+    let merged = responses
+        .iter()
+        .map(|r| parse_json_response(&r.text))
+        .reduce(|a, b| merge_json_values(&a, &b))
+        .unwrap_or(serde_json::Value::Null);
+
+    InferenceResult {
+        text: merged.to_string(),
+        model: ALGO_JUDGE.to_string(),
+        usage: InferenceUsage {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0,
+        },
+        finish_reason: "stop".to_string(),
+        token_probabilities: None,
+        tool_calls: Vec::new(),
+    }
+}
+
 /// Call the judge model with a given prompt.
 async fn call_judge(
     router: &InferenceRouter,
@@ -277,12 +392,16 @@ async fn mode_critique(
     );
 
     // Round 2: Panel critiques the draft
+    // F3 fix: skill-anchor the panel critique so it evaluates against the
+    // same methodology the judge uses. Without this, panel critiques are
+    // methodology-blind while the judge drafts and revises with methodology.
     let critique_prompt = format!(
         "You are a panelist reviewing a draft synthesis. Identify weaknesses, gaps, \
-         contradictions, or improvements in the draft below. Be specific and constructive.\n\n\
+         contradictions, or improvements in the draft below. Be specific and constructive.{skills}\n\n\
          ## Original Prompt\n{prompt}\n\n## Draft Synthesis\n{draft_text}\n\n\
          ## Instructions\nProvide your critique. Focus on what the draft gets wrong, \
          misses, or could improve.",
+        skills = skill_anchor,
     );
     let critiques = dispatch_panel(router, &critique_prompt, params, tools, &fusion.panel).await;
 
@@ -339,10 +458,17 @@ async fn mode_deliberation(
 
         let judge_result = call_judge(router, &fusion.judge, &judge_prompt, params, tools).await?;
 
-        if judge_result.text.starts_with("FOLLOW_UP:") {
+        // F1 fix: case-insensitive + trim-tolerant matching for convergence signal.
+        // The judge prompt says to prefix follow-ups with 'FOLLOW_UP:' but LLMs
+        // don't always follow formatting instructions exactly.
+        let text_upper = judge_result.text.trim().to_uppercase();
+        if text_upper.starts_with("FOLLOW_UP:") {
             let follow_up = judge_result
                 .text
+                .trim()
                 .strip_prefix("FOLLOW_UP:")
+                .or_else(|| judge_result.text.trim().strip_prefix("follow_up:"))
+                .or_else(|| judge_result.text.trim().strip_prefix("Follow_Up:"))
                 .unwrap_or(&judge_result.text)
                 .trim();
             info!(
@@ -436,11 +562,15 @@ async fn mode_plan_implement(
     let phase2_responses =
         dispatch_panel(router, &phase2_impl_prompt, params, tools, &fusion.panel).await;
 
-    let p2_candidates = if phase2_responses.is_empty() {
-        "No panelists provided implementation details.".to_string()
-    } else {
-        format_panel_responses(&phase2_responses)
-    };
+    // D2 fix: if all panel models failed in phase 2, return an error rather
+    // than asking the judge to hallucinate implementation details from nothing.
+    if phase2_responses.is_empty() {
+        return Err(InferenceError::Generation(
+            "All panel models failed in implementation phase — cannot synthesize".into(),
+        ));
+    }
+
+    let p2_candidates = format_panel_responses(&phase2_responses);
 
     let p2_judge_prompt = format!(
         "You are an implementation synthesis judge (Phase 2: Implement). Below is \
@@ -484,6 +614,23 @@ pub async fn orchestrate(
         skills = fusion.skills.len(),
         "Fusion orchestration starting"
     );
+
+    // Algorithmic judge — deterministic JSON merge, no LLM call.
+    // The judge IS the strategy: "algo" means merge panel responses
+    // algorithmically rather than via an LLM judge call.
+    if fusion.judge == ALGO_JUDGE {
+        let responses = dispatch_panel(router, prompt, params, tools, &fusion.panel).await;
+        if responses.is_empty() {
+            return Err(InferenceError::Generation("All panel models failed".into()));
+        }
+        info!(
+            target: "cns.inference",
+            fusion_judge = "algo",
+            panel_count = responses.len(),
+            "Algo judge merge complete"
+        );
+        return Ok(algo_merge(&responses));
+    }
 
     match fusion.mode {
         FusionMode::BestOfN => mode_best_of_n(router, prompt, params, tools, fusion).await,

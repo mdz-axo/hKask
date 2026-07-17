@@ -72,13 +72,8 @@ const DEFAULT_TEMPLATE_BASE_PATH: &str = "registry/templates";
 ///   when `renderer == "minijinja"`
 #[derive(Clone)]
 pub struct ManifestExecutor {
-    /// Inference port for select/populate actions (model A in dual-mode)
+    /// Inference port for select/populate actions.
     inference: Arc<dyn InferencePort>,
-    /// Optional second inference port for dual-model epistemic integrity.
-    /// When set, templates can render with dual-model integration.
-    inference_b: Option<Arc<dyn InferencePort>>,
-    /// Model B identifier for dual-model rendering.
-    dual_model_b: Option<String>,
     /// MCP port for execute actions
     mcp: Arc<dyn McpPort>,
     /// Default LLM parameters for inference calls
@@ -109,8 +104,6 @@ impl ManifestExecutor {
     ) -> Self {
         Self {
             inference,
-            inference_b: None,
-            dual_model_b: None,
             mcp,
             default_params,
             a2a_secret,
@@ -119,32 +112,12 @@ impl ManifestExecutor {
         }
     }
 
-    /// Configure dual-model inference for epistemic integrity.
-    ///
-    /// When set, KnowAct templates can render with two peer models from
-    /// different jurisdictions, with output integration. Model B must be from a different jurisdiction.
-    /// P3: Generative Space — dual-model eliminates single-model bias.
-    pub fn with_dual_inference(
-        mut self,
-        inference_b: Arc<dyn InferencePort>,
-        model_b: String,
-    ) -> Self {
-        self.inference_b = Some(inference_b);
-        self.dual_model_b = Some(model_b);
-        self
-    }
-
     /// Set the template base path for resolving template_ref values.
     /// Useful for integration tests that need to point to a test fixture directory.
     #[must_use]
     pub fn with_template_base_path(mut self, path: PathBuf) -> Self {
         self.template_base_path = path;
         self
-    }
-
-    /// Check whether dual-model inference is configured.
-    pub fn has_dual_inference(&self) -> bool {
-        self.inference_b.is_some()
     }
 
     /// Attach a self-healing callback for automatic error recovery.
@@ -219,67 +192,6 @@ impl ManifestExecutor {
         })?;
         let prompt = render_minijinja(&template_content, context, &self.template_base_path)?;
         Ok(prompt)
-    }
-
-    /// Execute a KnowAct template with dual-model epistemic integrity.
-    ///
-    /// Renders the same template with two peer models from different
-    /// jurisdictions, integrates both JSON outputs via set union (entities,
-    /// concepts, relationships) and returns the merged result.
-    ///
-    /// P3.1 Social Generativity: classification requires two models.
-    /// Requires dual inference to be configured via `with_dual_inference()`.
-    pub async fn execute_knowact_dual(
-        &self,
-        template_ref: &str,
-        context: &HashMap<String, Value>,
-    ) -> Result<Value> {
-        let inference_b = self.inference_b.as_ref().ok_or_else(|| {
-            TemplateError::Manifest(
-                "Dual-model rendering requires with_dual_inference() configuration".into(),
-            )
-        })?;
-
-        let prompt = self.load_template(template_ref, context)?;
-        let mut params = self.default_params.clone();
-        // Dual-model rendering bypasses fusion — it has its own multi-model
-        // mechanism (two peer models). Routing through fusion would cause
-        // inconsistent behavior (model A via panel+judge, model B direct).
-        params.bypass_fusion = true;
-        params.fusion_config = None;
-        const DEFAULT_TIMEOUT_SECS: u64 = 120;
-        let timeout_dur = std::time::Duration::from_secs(DEFAULT_TIMEOUT_SECS);
-
-        // Run both models in parallel
-        let (result_a, result_b) = tokio::join!(
-            tokio::time::timeout(timeout_dur, self.inference.generate(&prompt, &params, None)),
-            tokio::time::timeout(timeout_dur, inference_b.generate(&prompt, &params, None)),
-        );
-
-        let text_a = match result_a {
-            Ok(Ok(r)) => r.text,
-            Ok(Err(e)) => return Err(TemplateError::Inference(e)),
-            Err(_) => {
-                return Err(TemplateError::Manifest(format!(
-                    "Model A timed out after {DEFAULT_TIMEOUT_SECS}s"
-                )));
-            }
-        };
-        let text_b = match result_b {
-            Ok(Ok(r)) => r.text,
-            Ok(Err(e)) => return Err(TemplateError::Inference(e)),
-            Err(_) => {
-                return Err(TemplateError::Manifest(format!(
-                    "Model B timed out after {DEFAULT_TIMEOUT_SECS}s"
-                )));
-            }
-        };
-
-        // Parse both as JSON, integrate via set union
-        let val_a = parse_json_response(&text_a, 0).unwrap_or(serde_json::Value::Null);
-        let val_b = parse_json_response(&text_b, 0).unwrap_or(serde_json::Value::Null);
-
-        Ok(merge_json_values(&val_a, &val_b))
     }
 
     /// Invoke an MCP tool directly by server/tool name.
@@ -1075,55 +987,9 @@ impl ManifestExecutor {
             }
         }
 
-        // Dual-model steps always bypass fusion (dual_model has its own
-        // multi-model mechanism via two peer inference ports).
-        if step.dual_model {
-            params.bypass_fusion = true;
-            params.fusion_config = None;
-        }
-
-        // Dual-model routing: when step.dual_model is set, use two peer models
-        let result_text = if step.dual_model {
-            let inference_b = self.inference_b.as_ref().ok_or_else(|| {
-                TemplateError::Manifest(format!(
-                    "Step {} requires dual_model but no second inference port configured",
-                    step.ordinal
-                ))
-            })?;
-
-            let timeout_dur = std::time::Duration::from_secs(step.timeout_seconds as u64);
-            let (ra, rb) = tokio::join!(
-                tokio::time::timeout(timeout_dur, self.inference.generate(&prompt, &params, None)),
-                tokio::time::timeout(timeout_dur, inference_b.generate(&prompt, &params, None)),
-            );
-
-            let text_a = match ra {
-                Ok(Ok(r)) => r.text,
-                Ok(Err(e)) => return Err(TemplateError::Inference(e)),
-                Err(_) => {
-                    return Err(TemplateError::Manifest(format!(
-                        "Step {} model A timed out after {}s",
-                        step.ordinal, step.timeout_seconds
-                    )));
-                }
-            };
-            let text_b = match rb {
-                Ok(Ok(r)) => r.text,
-                Ok(Err(e)) => return Err(TemplateError::Inference(e)),
-                Err(_) => {
-                    return Err(TemplateError::Manifest(format!(
-                        "Step {} model B timed out after {}s",
-                        step.ordinal, step.timeout_seconds
-                    )));
-                }
-            };
-
-            // Parse and merge
-            let val_a = parse_json_response(&text_a, step.ordinal).unwrap_or(Value::Null);
-            let val_b = parse_json_response(&text_b, step.ordinal).unwrap_or(Value::Null);
-            merge_json_values(&val_a, &val_b).to_string()
-        } else {
-            // Single-model path
+        // Single-model or fusion path — dual_model is replaced by the algo judge
+        // (fusion with judge: "algo"). The fusion routing above handles it.
+        let result_text = {
             let timeout_dur = std::time::Duration::from_secs(step.timeout_seconds as u64);
             let result: InferenceResult = match tokio::time::timeout(
                 timeout_dur,
@@ -1632,18 +1498,14 @@ fn render_inline_template(template: &str, context: &HashMap<String, Value>) -> S
 /// Attempts to extract JSON from the response text, handling cases where
 /// the model wraps the JSON in markdown code fences.
 fn parse_json_response(text: &str, step_ordinal: u32) -> Result<Value> {
-    // Try direct parse first
     if let Ok(v) = serde_json::from_str(text) {
         return Ok(v);
     }
-
-    // Try extracting JSON from markdown code fences
     let trimmed = text.trim();
     if let Some(json_start) = trimmed.find("```json") {
         let after_fence = &trimmed[json_start + 7..];
         if let Some(json_end) = after_fence.find("```") {
-            let json_str = after_fence[..json_end].trim();
-            return serde_json::from_str(json_str).map_err(|e| {
+            return serde_json::from_str(after_fence[..json_end].trim()).map_err(|e| {
                 TemplateError::Manifest(format!(
                     "Step {}: Failed to parse JSON response: {}",
                     step_ordinal, e
@@ -1651,71 +1513,18 @@ fn parse_json_response(text: &str, step_ordinal: u32) -> Result<Value> {
             });
         }
     }
-
-    // Try finding JSON object boundaries
     if let (Some(start), Some(end)) = (trimmed.find('{'), trimmed.rfind('}')) {
-        let json_str = &trimmed[start..=end];
-        return serde_json::from_str(json_str).map_err(|e| {
+        return serde_json::from_str(&trimmed[start..=end]).map_err(|e| {
             TemplateError::Manifest(format!(
                 "Step {}: Failed to parse JSON response: {}",
                 step_ordinal, e
             ))
         });
     }
-
     Err(TemplateError::Manifest(format!(
         "Step {}: No JSON found in inference response",
         step_ordinal
     )))
-}
-
-/// Merge two JSON values from dual-model rendering.
-///
-/// Objects: merges keys, combining arrays with case-insensitive dedup.
-/// Arrays: concatenates and deduplicates strings case-insensitively.
-/// Strings: uses A when identical, otherwise annotates with [A/B].
-/// Scalars: uses A when equal, otherwise annotates with [A/B].
-fn merge_json_values(a: &Value, b: &Value) -> Value {
-    use serde_json::Value;
-    use std::collections::HashSet;
-
-    match (a, b) {
-        (Value::Object(map_a), Value::Object(map_b)) => {
-            let mut merged = map_a.clone();
-            for (key, val_b) in map_b {
-                merged
-                    .entry(key.clone())
-                    .and_modify(|existing| *existing = merge_json_values(existing, val_b))
-                    .or_insert_with(|| val_b.clone());
-            }
-            Value::Object(merged)
-        }
-        (Value::Array(arr_a), Value::Array(arr_b)) => {
-            let mut seen: HashSet<String> = HashSet::new();
-            let mut result = Vec::new();
-            for v in arr_a.iter().chain(arr_b.iter()) {
-                if let Some(s) = v.as_str() {
-                    if seen.insert(s.to_lowercase()) {
-                        result.push(v.clone());
-                    }
-                } else {
-                    result.push(v.clone());
-                }
-            }
-            Value::Array(result)
-        }
-        (Value::String(sa), Value::String(sb)) => {
-            if sa.to_lowercase().trim() == sb.to_lowercase().trim() {
-                a.clone()
-            } else {
-                Value::String(format!("[A:{} B:{}]", sa, sb))
-            }
-        }
-        (Value::Null, _) => b.clone(),
-        (_, Value::Null) => a.clone(),
-        _ if a == b => a.clone(),
-        _ => Value::String(format!("[A:{} B:{}]", a, b)),
-    }
 }
 
 /// Bind parameters from an input mapping to values from the context.
