@@ -104,7 +104,7 @@ async fn list_pods(
     Extension(_auth): Extension<AuthContext>,
 ) -> Json<ListPodsResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "pods_list", "CNS");
+    tracing::info!(target: "hkask.api", operation = "pods_list", "CNS");
     let pod_statuses = state
         .agent_service
         .infra()
@@ -144,7 +144,7 @@ async fn create_pod(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, ServiceErrorResponse> {
-    tracing::info!(target: "cns.api", operation = "pods_create", "CNS");
+    tracing::info!(target: "hkask.api", operation = "pods_create", "CNS");
 
     let token = auth.token.as_ref().ok_or_else(|| ServiceError::Domain {
         kind: ErrorKind::BadRequest,
@@ -216,7 +216,7 @@ async fn activate_pod(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "pods_activate", pod_id = %id, "CNS");
+    tracing::info!(target: "hkask.api", operation = "pods_activate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
@@ -246,7 +246,7 @@ async fn deactivate_pod(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "pods_deactivate", pod_id = %id, "CNS");
+    tracing::info!(target: "hkask.api", operation = "pods_deactivate", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
@@ -276,7 +276,7 @@ async fn pod_status(
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "pods_status", pod_id = %id, "CNS");
+    tracing::info!(target: "hkask.api", operation = "pods_status", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
     let status = state
         .agent_service

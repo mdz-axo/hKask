@@ -291,7 +291,7 @@ pub fn run_curator(
     handle: &tokio::runtime::Handle,
     action: crate::cli::CuratorAction,
 ) {
-    tracing::info!(target: "cns.cli", operation = "curator", action = ?action, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "curator", action = ?action, "CNS");
     use crate::commands;
 
     match action {

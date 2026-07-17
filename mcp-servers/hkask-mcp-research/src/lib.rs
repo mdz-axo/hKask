@@ -161,7 +161,7 @@ impl ResearchServer {
         execute_tool(self, "web_ping", async {
             if let Err(e) = self.rate_limiter.check("web_ping") {
                 tracing::warn!(
-                    target: "cns.web",
+                    target: "hkask.web",
                     error = %e,
                     "web_ping rate limited"
                 );
@@ -258,7 +258,7 @@ impl ResearchServer {
 
             let metadata = SearchMetadata::from(&compound);
             tracing::info!(
-                target: "cns.web",
+                target: "hkask.web",
                 strategy = %metadata.strategy,
                 providers_queried = ?metadata.providers_queried,
                 providers_succeeded = ?metadata.providers_succeeded,

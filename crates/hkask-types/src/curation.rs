@@ -38,7 +38,6 @@ pub enum DataCategory {
 }
 
 impl DataCategory {
-    /// Get string representation of data category
     /// Get string representation of category.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
@@ -62,7 +61,6 @@ impl DataCategory {
     /// Known categories map directly; unknown strings become `DataCategory::Custom`.
     /// This is the single source of truth — replaces the 3 duplicated `parse_data_category`
     /// functions previously scattered across CLI helpers, CLI sovereignty, and API routes.
-    /// Parse a DataCategory from string.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// post: returns DataCategory (unknown strings become Custom)
@@ -101,7 +99,6 @@ impl DataCategory {
         ]
     }
 
-    /// Check if this category is typically sovereign
     /// Check if this category is typically sovereign.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
@@ -188,16 +185,6 @@ impl BoundaryClassification {
 }
 
 impl DataSovereigntyBoundary {
-    pub(crate) fn new() -> Self {
-        Self {
-            sovereign_data: HashSet::new(),
-            shared_data: HashSet::new(),
-            public_data: HashSet::new(),
-            // Magna Carta P2: affirmative consent is the default posture.
-            requires_affirmative_consent: true,
-        }
-    }
-
     pub fn hkask_default() -> Self {
         let mut sovereign_data = HashSet::new();
         sovereign_data.insert(DataCategory::EpisodicMemory);
@@ -216,6 +203,7 @@ impl DataSovereigntyBoundary {
             sovereign_data,
             shared_data,
             public_data,
+            // Magna Carta P2: affirmative consent is the default posture.
             requires_affirmative_consent: true,
         }
     }
@@ -246,12 +234,6 @@ impl DataSovereigntyBoundary {
         } else {
             BoundaryClassification::Unknown
         }
-    }
-}
-
-impl Default for DataSovereigntyBoundary {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

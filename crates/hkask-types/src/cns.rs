@@ -4,7 +4,14 @@
 //! cns.gas.*, cns.curation.*, cns.heal.*, cns.memory.encode.*
 //!
 //! Domain-specific spans have moved to their respective domain crates.
-//! All namespace strings are registered in CANONICAL_NAMESPACES (event.rs).
+//!
+//! `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
+//! **canonical** CNS spans — the essential, ν-event-eligible spans that are
+//! `SpanNamespace`-validated, `SpanCategory`-categorized, and loop-connected.
+//! Per PRINCIPLES §9.1, **performative** telemetry spans (e.g. `cns.cli`,
+//! `cns.api`, and various other `cns.*` log targets) use stringly-typed tracing
+//! targets WITHOUT being registered; they are observability logs, not loop
+//! variables, and `SpanNamespace::new` deliberately rejects them.
 
 use serde::{Deserialize, Serialize};
 
@@ -104,9 +111,12 @@ impl RegulationHealth {
 /// backup, ACP, curator, etc.) have moved to their respective domain crates
 /// as enums implementing [`ObservableSpan`](crate::ObservableSpan).
 ///
-/// All namespace strings — core and domain — are registered in
-/// `CANONICAL_NAMESPACES` (in `event.rs`), the single source of truth for
-/// what CNS spans exist.
+/// `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
+/// **canonical** CNS spans — essential spans that are `SpanNamespace`-validated,
+/// `SpanCategory`-categorized, and connected to a cybernetic loop. Per
+/// PRINCIPLES §9.1, performative telemetry spans may use stringly-typed `cns.*`
+/// tracing targets without being registered; those are observability logs, not
+/// loop variables, and `SpanNamespace::new` rejects them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CnsSpan {
     /// Tool invocation span. Subsystem tracks which MCP server emitted the span.

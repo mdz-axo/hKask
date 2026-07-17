@@ -428,7 +428,7 @@ impl AdapterStore for SqliteAdapterStore {
         )?;
 
         tracing::info!(
-            target: "cns.training.adapter.created",
+            target: "hkask.training.adapter.created",
             adapter_id = %adapter.id,
             base_model = %adapter.base_model,
             size_bytes = %adapter.size_bytes,
@@ -578,7 +578,7 @@ impl AdapterStore for SqliteAdapterStore {
         )?;
 
         tracing::info!(
-            target: "cns.training.adapter.deleted",
+            target: "hkask.training.adapter.deleted",
             adapter_id = %adapter_id,
             "LoRA adapter deleted from storage"
         );

@@ -313,7 +313,7 @@ pub fn record_via_daemon(
                 }
                 Err(e) => {
                     tracing::warn!(target: "cns.memory", tool = %tool_name, error = %e, "Failed to store experience");
-                    tracing::warn!(target: "cns.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
+                    tracing::warn!(target: "hkask.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
                 }
             }
         });

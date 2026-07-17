@@ -80,7 +80,7 @@ impl TrainingHost for TogetherHost {
             .to_string();
 
         tracing::info!(
-            target: "cns.training.file.upload",
+            target: "hkask.training.file.upload",
             file_id = %file_id,
             "Dataset uploaded to Together AI"
         );
@@ -125,7 +125,7 @@ impl TrainingHost for TogetherHost {
         let job_id = json["id"].as_str().unwrap_or("unknown").to_string();
 
         tracing::info!(
-            target: "cns.training.job.submit",
+            target: "hkask.training.job.submit",
             job_id = %job_id,
             host = "together",
             harness = ?job.harness,
@@ -190,7 +190,7 @@ impl TrainingHost for TogetherHost {
         }
 
         tracing::info!(
-            target: "cns.training.job.cancel",
+            target: "hkask.training.job.cancel",
             job_id = %job_id,
             host = "together",
             "Training job cancelled"
@@ -245,7 +245,7 @@ impl TrainingHost for TogetherHost {
         }
 
         tracing::info!(
-            target: "cns.training.adapter.deleted",
+            target: "hkask.training.adapter.deleted",
             adapter_id = %adapter_id,
             host = "together",
             "LoRA adapter deleted from Together AI"

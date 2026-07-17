@@ -164,7 +164,7 @@ The system must remain observable and self-correcting through cybernetic feedbac
 
 **§9.1 — CNS Span Coverage (v0.31.0)**
 
-CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `CnsSpan` enum variants (P8 — Semantic Grounding); performative spans (CLI, API middleware) use stringly-typed tracing targets.
+CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `CnsSpan` enum variants (P8 — Semantic Grounding), are registered in `CANONICAL_NAMESPACES`, mapped to a `SpanCategory`, and connected to a cybernetic loop via ν-events; performative spans (CLI, API middleware, and other telemetry) use stringly-typed `cns.*` tracing targets that are deliberately NOT registered, NOT categorized, and NOT loop-connected — they are observability logs, not regulated variables. The two are distinguished by registry presence: `SpanNamespace::new` accepts only canonical spans.
 
 | Domain | Target | Spans | Status | CnsSpan Variant |
 |--------|--------|-------|--------|-----------------|

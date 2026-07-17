@@ -140,7 +140,7 @@ impl DocProcServer {
     pub async fn index_passages(&self, passages: &[(String, String)], source_label: &str) -> usize {
         let Some(ref emb_router) = self.embedding_router else {
             tracing::warn!(
-                target: "cns.docproc.index",
+                target: "hkask.docproc.index",
                 source = %source_label,
                 passage_count = passages.len(),
                 "Cannot index passages — embedding router not configured. \

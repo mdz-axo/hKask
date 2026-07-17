@@ -13,7 +13,7 @@ use crate::cli::FederationAction;
 /// enabled and initialized. The link manager is extracted from the
 /// AgentService context.
 pub fn run_federation(rt: &tokio::runtime::Runtime, action: FederationAction) {
-    tracing::info!(target: "cns.cli", operation = "federation", action = ?action, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "federation", action = ?action, "CNS");
 
     let ctx = crate::commands::helpers::build_agent_service();
     let link_manager: Option<&Arc<dyn FederationDispatch>> = ctx.infra().federation.as_ref();

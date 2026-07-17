@@ -961,7 +961,7 @@ Agent: {}",
         let (cleaned, violations) = persona_filter::strip_forbidden_patterns(response, constraints);
         if !violations.is_empty() {
             tracing::warn!(
-                target: "cns.persona",
+                target: "hkask.persona",
                 violation_count = violations.len(),
                 violations = ?violations.iter().map(|(p, _)| p).collect::<Vec<_>>(),
                 "Persona constraint violations stripped from output"

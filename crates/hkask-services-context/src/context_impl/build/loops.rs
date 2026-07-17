@@ -365,7 +365,7 @@ fn cleanup_stranded_matrix_entries() {
         let failed_key = format!("{}-{}", failed_prefix, name);
         if keychain.retrieve_by_key(&failed_key).is_ok() {
             tracing::info!(
-                target: "cns.communication.matrix.cleanup",
+                target: "hkask.communication.matrix.cleanup",
                 pod = %name,
                 "Cleaning up stale matrix-pod-failed marker for active pod"
             );
@@ -375,7 +375,7 @@ fn cleanup_stranded_matrix_entries() {
         let pending_key = format!("{}-{}", pending_prefix, name);
         if keychain.retrieve_by_key(&pending_key).is_ok() {
             tracing::info!(
-                target: "cns.communication.matrix.cleanup",
+                target: "hkask.communication.matrix.cleanup",
                 pod = %name,
                 "Cleaning up stale matrix-pod-pending entry for active pod"
             );
@@ -386,7 +386,7 @@ fn cleanup_stranded_matrix_entries() {
 
     if cleaned > 0 {
         tracing::info!(
-            target: "cns.communication.matrix.cleanup",
+            target: "hkask.communication.matrix.cleanup",
             cleaned = cleaned,
             "Matrix keychain cleanup complete"
         );
@@ -432,7 +432,7 @@ pub(super) async fn spawn_matrix_retry_loop(
 
             if *count > MAX_RETRIES {
                 tracing::error!(
-                    target: "cns.communication.matrix.failed",
+                    target: "hkask.communication.matrix.failed",
                     pod = %name,
                     retries = *count,
                     "Matrix pod registration exhausted — marking as permanently failed"
@@ -452,7 +452,7 @@ pub(super) async fn spawn_matrix_retry_loop(
             match hkask_agents::ActivePods::retry_pod_matrix_registration(url, name).await {
                 Ok(()) => {
                     tracing::info!(
-                        target: "cns.communication.matrix.retry",
+                        target: "hkask.communication.matrix.retry",
                         pod = %name,
                         retry = *count,
                         "Retried Matrix pod registration — success"
@@ -462,7 +462,7 @@ pub(super) async fn spawn_matrix_retry_loop(
                 }
                 Err(e) => {
                     tracing::debug!(
-                        target: "cns.communication.matrix.retry",
+                        target: "hkask.communication.matrix.retry",
                         pod = %name,
                         retry = *count,
                         error = %e,

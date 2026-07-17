@@ -192,7 +192,7 @@ async fn update_settings(
 
     if let Err(e) = save_settings(&settings) {
         tracing::error!(
-            target: "cns.settings",
+            target: "hkask.settings",
             error = %e,
             "Failed to persist settings — changes will be lost on restart"
         );

@@ -228,7 +228,7 @@ impl AgentPersona {
         };
         let canonical = serde_json::to_string(&agent).unwrap_or_else(|e| {
             tracing::error!(
-                target: "cns.agent.identity",
+                target: "hkask.agent.identity",
                 error = %e,
                 name = %name,
                 "AgentIdentity serialization failed — WebID will be derived from name only"
@@ -264,7 +264,7 @@ impl AgentPersona {
         // Compute and cache WebID
         let canonical = serde_json::to_string(&persona.agent).unwrap_or_else(|e| {
             tracing::error!(
-                target: "cns.agent.identity",
+                target: "hkask.agent.identity",
                 error = %e,
                 name = %persona.agent.name,
                 "AgentIdentity serialization failed in from_yaml — WebID will be derived from name only"
@@ -284,7 +284,7 @@ impl AgentPersona {
         self.cached_webid.unwrap_or_else(|| {
             let canonical = serde_json::to_string(&self.agent).unwrap_or_else(|e| {
                 tracing::error!(
-                    target: "cns.agent.identity",
+                    target: "hkask.agent.identity",
                     error = %e,
                     name = %self.agent.name,
                     "AgentIdentity serialization failed in webid() — falling back to name"

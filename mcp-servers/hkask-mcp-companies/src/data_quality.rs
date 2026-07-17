@@ -453,7 +453,7 @@ impl TemporalSnapshot {
 /// cybernetic analysis: 6 disturbance modes, previously only 2 monitored).
 pub fn emit_data_quality_span(symbol: &str, tool: &str, quality: &ModelInputQuality) {
     tracing::debug!(
-        target: "cns.mcp.companies.data_quality",
+        target: "hkask.mcp.companies.data_quality",
         symbol = %symbol,
         tool = %tool,
         overall_confidence = %quality.overall_confidence,
@@ -470,7 +470,7 @@ pub fn emit_data_quality_span(symbol: &str, tool: &str, quality: &ModelInputQual
 /// Emit a CNS span for provider quality (normalization fidelity).
 pub fn emit_provider_quality_span(symbol: &str, tool: &str, pq: &ProviderQuality) {
     tracing::debug!(
-        target: "cns.mcp.companies.data_quality",
+        target: "hkask.mcp.companies.data_quality",
         symbol = %symbol,
         tool = %tool,
         provider = %pq.provider,

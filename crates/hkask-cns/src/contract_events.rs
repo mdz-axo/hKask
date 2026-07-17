@@ -27,7 +27,7 @@ pub fn emit_contract_proposed(
     });
     let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
-        tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_proposed event");
+        tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_proposed event");
     }
 }
 
@@ -49,7 +49,7 @@ pub fn emit_contract_accepted(
     });
     let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
-        tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_accepted event");
+        tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_accepted event");
     }
 }
 
@@ -73,7 +73,7 @@ pub fn emit_contract_rejected(
     });
     let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
-        tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_rejected event");
+        tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_rejected event");
     }
 }
 
@@ -94,6 +94,6 @@ pub fn emit_contract_violated(
     });
     let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
-        tracing::warn!(target: "cns.contract", error = %e, "Failed to persist contract_violated event");
+        tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_violated event");
     }
 }

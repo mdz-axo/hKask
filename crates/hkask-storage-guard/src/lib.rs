@@ -236,7 +236,7 @@ impl HkaskLoop for StorageGuardLoop {
             if action.action_type == ActionType::Prune {
                 if !self.prune_cooldown_elapsed() {
                     tracing::info!(
-                        target: "cns.storage_guard",
+                        target: "hkask.storage_guard",
                         "Prune action throttled by dampener"
                     );
                     continue;
@@ -249,7 +249,7 @@ impl HkaskLoop for StorageGuardLoop {
                 let exports_dir = Path::new(&self.config.data_dir).join("exports");
                 if !exports_dir.exists() {
                     tracing::info!(
-                        target: "cns.storage_guard",
+                        target: "hkask.storage_guard",
                         "No exports directory at {:?} — nothing to prune",
                         exports_dir
                     );
@@ -286,21 +286,21 @@ impl HkaskLoop for StorageGuardLoop {
 
                 if pruned_count > 0 {
                     tracing::info!(
-                        target: "cns.storage_guard",
+                        target: "hkask.storage_guard",
                         pruned_count = pruned_count,
                         pruned_bytes = pruned_bytes,
                         "Pruned old export archives"
                     );
                 } else {
                     tracing::warn!(
-                        target: "cns.storage_guard",
+                        target: "hkask.storage_guard",
                         "Disk at {:.1}% but no exports to prune — escalation needed",
                         self.measure_disk_usage()
                     );
                 }
             } else if action.action_type == ActionType::Notify {
                 tracing::info!(
-                    target: "cns.storage_guard",
+                    target: "hkask.storage_guard",
                     pct = self.measure_disk_usage(),
                     "Disk usage warning — notifying operator"
                 );

@@ -198,7 +198,7 @@ pub async fn agent_unregister(name: &str) -> Result<(), ServiceError> {
 /// post: for List — prints table of all agents (or "No agents registered"); for Status — prints detailed agent info
 pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
     // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "bot", action = ?action, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "bot", action = ?action, "CNS");
     use crate::commands;
     match action {
         BotAction::List { kind } => {
@@ -267,7 +267,7 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
 /// post: dispatches to the appropriate handler; prints results to stdout; exits on fatal errors
 pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) {
     // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "agent", action = ?action, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "agent", action = ?action, "CNS");
     use crate::commands;
     match action {
         crate::cli::AgentAction::Register {

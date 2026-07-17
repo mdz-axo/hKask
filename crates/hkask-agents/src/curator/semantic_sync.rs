@@ -131,7 +131,7 @@ impl CuratorSync {
                         // Escalate after 10 consecutive failures (~10s)
                         if failures >= 10 {
                             tracing::error!(
-                                target: "cns.curator.sync.degraded",
+                                target: "hkask.curator.sync.degraded",
                                 consecutive_failures = failures,
                                 "CURATOR_SYNC_DEGRADED: {} consecutive sync failures — check passphrase derivation and pod availability",
                                 failures
@@ -230,7 +230,7 @@ impl CuratorSync {
         self.consecutive_failures
             .store(0, std::sync::atomic::Ordering::Relaxed);
         // CNS: curator sync completed — variety signal per agent count
-        tracing::info!(target: "cns.curator.sync", pod_count = pods.len(), "CNS");
+        tracing::info!(target: "hkask.curator.sync", pod_count = pods.len(), "CNS");
 
         // Phase 2: Sync artifact manifests from agent directories.
         // Reads manifest.json files to build the cross-agent artifact index.

@@ -62,7 +62,7 @@ impl AuthService {
             }
             Err(e) => {
                 tracing::error!(
-                    target: "cns.api",
+                    target: "hkask.api",
                     error = %e,
                     "OCAP authority key unavailable — bearer DelegationToken auth fails closed (all rejected)"
                 );

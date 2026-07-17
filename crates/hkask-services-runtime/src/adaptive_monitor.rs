@@ -66,7 +66,7 @@ impl WatchedProvider {
             Ok(u) => u,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.provider",
+                    target: "hkask.provider",
                     provider = %provider_id,
                     error = %e,
                     "Failed to query provider usage"
@@ -80,7 +80,7 @@ impl WatchedProvider {
             Ok(c) => c,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.provider",
+                    target: "hkask.provider",
                     provider = %provider_id,
                     error = %e,
                     "Failed to query actual cost"
@@ -93,7 +93,7 @@ impl WatchedProvider {
         // Suppress on first check — always-marginal providers would false-positive.
         if cost.is_marginal && !self.was_marginal && !self.first_check {
             tracing::warn!(
-                target: "cns.provider.marginal_activated",
+                target: "hkask.provider.marginal_activated",
                 provider = %provider_id,
                 consumed = usage.consumed,
                 limit = usage.limit,
@@ -108,7 +108,7 @@ impl WatchedProvider {
         let new_interval = Self::interval_for_fraction(usage.fraction);
         if new_interval != self.interval {
             tracing::info!(
-                target: "cns.provider",
+                target: "hkask.provider",
                 provider = %provider_id,
                 old_interval_secs = self.interval.as_secs(),
                 new_interval_secs = new_interval.as_secs(),
@@ -121,7 +121,7 @@ impl WatchedProvider {
         self.next_check = Instant::now() + self.interval;
 
         tracing::debug!(
-            target: "cns.provider",
+            target: "hkask.provider",
             provider = %provider_id,
             consumed = usage.consumed,
             limit = usage.limit,
@@ -166,7 +166,7 @@ impl AdaptiveMonitor {
     /// \[P9\] Constraining: Observability — all registered providers are watched
     pub fn add_provider(&mut self, provider: Box<dyn ProviderIntelligence>, api_key: String) {
         tracing::info!(
-            target: "cns.provider",
+            target: "hkask.provider",
             provider = %provider.provider_id(),
             "Provider registered for adaptive monitoring"
         );
@@ -182,7 +182,7 @@ impl AdaptiveMonitor {
     pub async fn run(&mut self) {
         if self.providers.is_empty() {
             tracing::warn!(
-                target: "cns.provider",
+                target: "hkask.provider",
                 "Adaptive monitor started with no providers — idle"
             );
             // Park forever — caller can add providers externally
@@ -193,7 +193,7 @@ impl AdaptiveMonitor {
 
         loop {
             if self.shutdown.load(Ordering::SeqCst) {
-                tracing::info!(target: "cns.provider", "Adaptive monitor shutting down");
+                tracing::info!(target: "hkask.provider", "Adaptive monitor shutting down");
                 return;
             }
 

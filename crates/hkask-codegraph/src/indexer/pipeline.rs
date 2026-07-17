@@ -99,7 +99,7 @@ impl IndexPipeline {
 
         // Emit CNS event for indexed file (G7)
         tracing::info!(
-            target: "cns.codegraph.file_indexed",
+            target: "hkask.codegraph.file_indexed",
             file = %relative_path,
             symbols = symbols.len(),
             edges = inserted_edges,
@@ -246,13 +246,13 @@ impl IndexPipeline {
         self.last_full_index_at = std::time::Instant::now();
         // Compute PageRank (G8)
         if let Err(e) = crate::graph::ranking::compute_pagerank(self.store.conn()) {
-            tracing::warn!(target: "cns.codegraph.pagerank_failed", error = %e);
+            tracing::warn!(target: "hkask.codegraph.pagerank_failed", error = %e);
         }
 
         // Emit index health event (G7) + staleness (X6)
         let stats = self.stats()?;
         tracing::info!(
-            target: "cns.codegraph.index_health",
+            target: "hkask.codegraph.index_health",
             total_symbols = stats.symbols,
             total_edges = stats.edges,
             files = stats.files,

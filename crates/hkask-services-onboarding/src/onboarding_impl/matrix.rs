@@ -159,7 +159,7 @@ async fn register_on_conduit(
 async fn try_conduit_recovery() -> bool {
     use std::process::Command;
 
-    tracing::info!(target: "cns.communication.matrix.recovery", "Attempting Conduit container recovery");
+    tracing::info!(target: "hkask.communication.matrix.recovery", "Attempting Conduit container recovery");
 
     // Check whether a hkask-conduit container matches (docker or podman).
     // `show_all` includes stopped containers; without it we only see running ones.
@@ -194,7 +194,7 @@ async fn try_conduit_recovery() -> bool {
 
     // Container is already running — nothing to do.
     if container_matches(false) {
-        tracing::info!(target: "cns.communication.matrix.recovery", "Conduit container already running — awaiting health check");
+        tracing::info!(target: "hkask.communication.matrix.recovery", "Conduit container already running — awaiting health check");
         return true;
     }
 
@@ -206,11 +206,11 @@ async fn try_conduit_recovery() -> bool {
                 .output()
                 && out.status.success()
             {
-                tracing::info!(target: "cns.communication.matrix.recovery", runtime = runtime, "Started existing hkask-conduit container");
+                tracing::info!(target: "hkask.communication.matrix.recovery", runtime = runtime, "Started existing hkask-conduit container");
                 return true;
             }
         }
-        tracing::warn!(target: "cns.communication.matrix.recovery", "Container exists but could not be started");
+        tracing::warn!(target: "hkask.communication.matrix.recovery", "Container exists but could not be started");
         return false;
     }
 
@@ -225,7 +225,7 @@ async fn try_conduit_recovery() -> bool {
             && out.status.success()
         {
             tracing::info!(
-                target: "cns.communication.matrix.recovery",
+                target: "hkask.communication.matrix.recovery",
                 script = %candidate,
                 "Conduit started via conduit-docker.sh"
             );
@@ -233,7 +233,7 @@ async fn try_conduit_recovery() -> bool {
         }
     }
 
-    tracing::warn!(target: "cns.communication.matrix.recovery", "All Conduit recovery attempts failed — no container runtime or script available");
+    tracing::warn!(target: "hkask.communication.matrix.recovery", "All Conduit recovery attempts failed — no container runtime or script available");
     false
 }
 
@@ -253,7 +253,7 @@ pub async fn conduit_ensure_healthy(homeserver_url: &str) -> bool {
     }
 
     tracing::warn!(
-        target: "cns.communication.matrix.recovery",
+        target: "hkask.communication.matrix.recovery",
         url = %homeserver_url,
         "Conduit unhealthy — attempting recovery"
     );
@@ -265,7 +265,7 @@ pub async fn conduit_ensure_healthy(homeserver_url: &str) -> bool {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         if conduit_health_check(homeserver_url).await {
             tracing::info!(
-                target: "cns.communication.matrix.recovery",
+                target: "hkask.communication.matrix.recovery",
                 attempt = attempt,
                 "Conduit recovered and healthy"
             );
@@ -274,7 +274,7 @@ pub async fn conduit_ensure_healthy(homeserver_url: &str) -> bool {
     }
 
     tracing::error!(
-        target: "cns.communication.matrix.recovery",
+        target: "hkask.communication.matrix.recovery",
         url = %homeserver_url,
         "Conduit recovery failed after 30s — container may need manual intervention"
     );
@@ -291,7 +291,7 @@ pub async fn conduit_ensure_healthy(homeserver_url: &str) -> bool {
 /// post: returns true if server responds with 2xx; false on connection error or non-2xx status
 pub async fn conduit_health_check(homeserver_url: &str) -> bool {
     // P9: CNS span
-    tracing::info!(target: "cns.onboarding", operation = "conduit_health_check", url = %homeserver_url, "CNS");
+    tracing::info!(target: "hkask.onboarding", operation = "conduit_health_check", url = %homeserver_url, "CNS");
     let url = format!(
         "{}/_matrix/client/versions",
         homeserver_url.trim_end_matches('/')
@@ -302,13 +302,13 @@ pub async fn conduit_health_check(homeserver_url: &str) -> bool {
             let healthy = response.status().is_success();
             if healthy {
                 tracing::debug!(
-                    target: "cns.communication.matrix.health",
+                    target: "hkask.communication.matrix.health",
                     url = %homeserver_url,
                     "Conduit healthy"
                 );
             } else {
                 tracing::warn!(
-                    target: "cns.communication.matrix.health",
+                    target: "hkask.communication.matrix.health",
                     url = %homeserver_url,
                     status = %response.status().as_u16(),
                     "Conduit responded with error status"
@@ -318,7 +318,7 @@ pub async fn conduit_health_check(homeserver_url: &str) -> bool {
         }
         Err(e) => {
             tracing::warn!(
-                target: "cns.communication.matrix.health",
+                target: "hkask.communication.matrix.health",
                 url = %homeserver_url,
                 error = %e,
                 "Conduit unreachable"
@@ -389,7 +389,7 @@ impl OnboardingService {
         homeserver_url: &str,
     ) -> Result<MatrixRegistrationResult, ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "register_matrix_accounts", replicant = %replicant_display_name, "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "register_matrix_accounts", replicant = %replicant_display_name, "CNS");
 
         // ── Ensure Conduit is healthy before attempting registration ──
         ensure_conduit_or_store_pending(
@@ -474,7 +474,7 @@ impl OnboardingService {
             })?;
 
         tracing::info!(
-            target: "cns.communication.matrix.onboarding",
+            target: "hkask.communication.matrix.onboarding",
             human = %human_id,
             replicant = %replicant_id,
             "Matrix accounts registered during onboarding"
@@ -598,7 +598,7 @@ impl OnboardingService {
         );
 
         tracing::info!(
-            target: "cns.communication.matrix.onboarding",
+            target: "hkask.communication.matrix.onboarding",
             replicant = %full_username,
             "Replicant Matrix account registered"
         );
@@ -621,7 +621,7 @@ impl OnboardingService {
         homeserver_url: &str,
     ) -> Result<std::collections::HashMap<String, String>, ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "register_system_accounts", "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "register_system_accounts", "CNS");
         let system_bots = ["curator"];
 
         let mut registered = std::collections::HashMap::new();
@@ -649,7 +649,7 @@ impl OnboardingService {
                             message: format!("Failed to store matrix-bot-{}", bot_name),
                         })?;
                     tracing::info!(
-                        target: "cns.communication.matrix.bootstrap",
+                        target: "hkask.communication.matrix.bootstrap",
                         bot = %bot_name,
                         user_id = %user_id,
                         "System bot Matrix account registered"
@@ -658,7 +658,7 @@ impl OnboardingService {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.communication.matrix.bootstrap",
+                        target: "hkask.communication.matrix.bootstrap",
                         bot = %bot_name,
                         error = %e,
                         "Failed to register system bot Matrix account — Conduit may not be running"

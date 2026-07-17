@@ -211,7 +211,7 @@ fn emit_provider_cns(tool: &str, symbol: &str, provider: &str, was_normalised: b
         0
     };
     tracing::debug!(
-        target: "cns.mcp.companies.data_quality",
+        target: "hkask.mcp.companies.data_quality",
         symbol = %symbol,
         tool = %tool,
         provider = %provider,

@@ -20,7 +20,7 @@ use crate::error::CliError;
 /// post: dispatches to balance, deposit, history, key, fee, withdraw, encumber, release, or report operations
 pub fn run(rt: &tokio::runtime::Runtime, action: WalletAction) {
     // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "wallet", action = ?action, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "wallet", action = ?action, "CNS");
     let svc = build_wallet_service();
     match action {
         WalletAction::Balance { wallet } => handle_balance(&svc, wallet),

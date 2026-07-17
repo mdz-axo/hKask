@@ -193,7 +193,7 @@ impl KanbanService {
         self.update_task_triple(&task)?;
 
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "task_gas_exhausted",
             task_id = %task_id,
             board_id = %task.board_id,

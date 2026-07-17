@@ -142,7 +142,7 @@ pub(crate) async fn list_escalations(
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "curator_escalations", "CNS");
+    tracing::info!(target: "hkask.api", operation = "curator_escalations", "CNS");
     let entries = state
         .agent_service
         .governance()
@@ -187,7 +187,7 @@ pub(crate) async fn resolve_escalation(
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "curator_resolve", escalation_id = %id, "CNS");
+    tracing::info!(target: "hkask.api", operation = "curator_resolve", escalation_id = %id, "CNS");
     state
         .agent_service
         .governance()
@@ -219,7 +219,7 @@ pub(crate) async fn dismiss_escalation(
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "curator_dismiss", escalation_id = %id, "CNS");
+    tracing::info!(target: "hkask.api", operation = "curator_dismiss", escalation_id = %id, "CNS");
     state
         .agent_service
         .governance()

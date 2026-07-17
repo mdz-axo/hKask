@@ -146,7 +146,7 @@ impl StrategyEvaluator {
                         state.active = list[next_idx].name.clone();
                         state.below_threshold_count = 0;
                         tracing::info!(
-                            target: "cns.strategy",
+                            target: "hkask.strategy",
                             metric = metric.as_str(),
                             from = %old,
                             to = %state.active,

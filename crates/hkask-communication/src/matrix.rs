@@ -169,7 +169,7 @@ impl MatrixTransport {
         // Verify the client was built successfully (homeserver URL is accessible)
         let _homeserver = client.homeserver();
         tracing::info!(
-            target: "cns.communication.matrix.health",
+            target: "hkask.communication.matrix.health",
             url = %self.homeserver_url,
             "Matrix homeserver healthy"
         );
@@ -201,7 +201,7 @@ impl MatrixTransport {
             .map_err(|e| MatrixError::Auth(format!("Login failed: {}", e)))?;
 
         tracing::info!(
-            target: "cns.communication.matrix.login",
+            target: "hkask.communication.matrix.login",
             username = %username,
             homeserver = %self.homeserver_url,
             "Matrix login successful"
@@ -284,7 +284,7 @@ impl MatrixTransport {
             .collect();
 
         tracing::debug!(
-            target: "cns.communication.matrix.messages.polled",
+            target: "hkask.communication.matrix.messages.polled",
             room_id = %room_id,
             count = messages.len(),
             "Messages polled from room"
@@ -337,7 +337,7 @@ impl MatrixTransport {
             .map_err(|e| MatrixError::Network(format!("Send failed: {}", e)))?;
 
         tracing::info!(
-            target: "cns.communication.matrix.message.sent",
+            target: "hkask.communication.matrix.message.sent",
             room_id = %room_id,
             body_len = body.len(),
             "Matrix message sent"
@@ -489,7 +489,7 @@ impl MatrixTransport {
         self.login(&username, &password).await?;
 
         tracing::info!(
-            target: "cns.communication.matrix.reconnect",
+            target: "hkask.communication.matrix.reconnect",
             url = %self.homeserver_url,
             "Matrix transport reconnected"
         );
@@ -540,7 +540,7 @@ impl MatrixTransport {
             .await
             .map_err(|e| MatrixError::Network(format!("Upload failed: {}", e)))?;
         let uri = response.content_uri.to_string();
-        tracing::info!(target: "cns.communication.matrix.file.uploaded", filename = %filename, uri = %uri, "File uploaded");
+        tracing::info!(target: "hkask.communication.matrix.file.uploaded", filename = %filename, uri = %uri, "File uploaded");
         Ok(uri)
     }
 
@@ -602,7 +602,7 @@ impl MatrixTransport {
         room.send(content)
             .await
             .map_err(|e| MatrixError::Network(format!("File send failed: {}", e)))?;
-        tracing::info!(target: "cns.communication.matrix.file.sent", room_id = %rid, filename = %filename, "File sent");
+        tracing::info!(target: "hkask.communication.matrix.file.sent", room_id = %rid, filename = %filename, "File sent");
         Ok(())
     }
 }

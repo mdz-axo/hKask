@@ -19,7 +19,7 @@ use hkask_mcp::runtime::McpRuntime;
 /// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
 pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error::Error>> {
     // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "serve", host = %host, port = port, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "serve", host = %host, port = port, "CNS");
     // Resolve configuration from keystore and environment.
     // Refuse to start with in-memory fallback — a server without proper
     // keystore configuration has no security, no persistence, and no auth.

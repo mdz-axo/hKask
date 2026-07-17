@@ -515,7 +515,7 @@ impl ActivePods {
                         pod_name
                     )) {
                     tracing::info!(
-                        target: "cns.communication.matrix.pod_registration",
+                        target: "hkask.communication.matrix.pod_registration",
                         pod = %pod_name,
                         "Retrying deferred Matrix pod registration"
                     );
@@ -534,7 +534,7 @@ impl ActivePods {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns.communication.matrix.pod_registration",
+                            target: "hkask.communication.matrix.pod_registration",
                             pod = %pod_name,
                             error = %e,
                             "Failed to register pod on Matrix — storing for retry"
@@ -737,7 +737,7 @@ pub(crate) async fn register_pod_matrix(
     );
 
     tracing::info!(
-        target: "cns.communication.matrix.pod_registered",
+        target: "hkask.communication.matrix.pod_registered",
         pod = %pod_name,
         matrix_id = %full_id,
         "Pod registered on Matrix"

@@ -302,13 +302,13 @@ impl CompaniesServer {
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "cns.mcp.companies.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "hkask.mcp.companies.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "cns.mcp.companies.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "hkask.mcp.companies.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "cns.mcp.companies.memory", tool = %tool_name, error = %e, "Failed to store experience")
+                        tracing::warn!(target: "hkask.mcp.companies.memory", tool = %tool_name, error = %e, "Failed to store experience")
                     }
                 }
             });

@@ -431,7 +431,7 @@ impl CodeGraphServer {
                 req.symbols_used.len() as f64 / req.symbols_provided.len() as f64
             };
             tracing::info!(
-                target: "cns.codegraph.context_efficiency",
+                target: "hkask.codegraph.context_efficiency",
                 context_id = %req.context_id,
                 symbols_provided = req.symbols_provided.len(),
                 symbols_used = req.symbols_used.len(),
@@ -532,7 +532,7 @@ impl CodeGraphServer {
             };
 
             tracing::info!(
-                target: "cns.codegraph.embeddings",
+                target: "hkask.codegraph.embeddings",
                 model = %req.model,
                 indexed = indexed,
                 "Embedding batch indexed"

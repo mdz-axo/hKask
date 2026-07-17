@@ -257,7 +257,7 @@ impl ReplicaServer {
 
             let progress = Arc::new(|p: &EmbedProgress| {
                 tracing::info!(
-                    target: "cns.mcp.replica",
+                    target: "hkask.mcp.replica",
                     phase = ?p.phase,
                     author = %p.author,
                     work = %p.current_work,

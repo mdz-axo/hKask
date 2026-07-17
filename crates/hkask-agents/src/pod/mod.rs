@@ -230,7 +230,7 @@ impl AgentPod {
         let capability_str = persona.capabilities.first().unwrap_or(&default_capability);
         let spec = CapabilitySpec::parse(capability_str).unwrap_or_else(|_| {
             tracing::warn!(
-                target: "cns.capability",
+                target: "hkask.capability",
                 capability = %capability_str,
                 "Malformed capability — falling back to 'tool:execute'"
             );
@@ -304,7 +304,7 @@ impl AgentPod {
         self.state = PodLifecycleState::Registered;
 
         tracing::debug!(
-            target: "cns.pod",
+            target: "hkask.pod",
             span = "cns.agent_pod.registered",
             verb = "registered",
             pod_id = %self.id,
@@ -349,7 +349,7 @@ impl AgentPod {
         self.state = PodLifecycleState::Activated;
 
         tracing::debug!(
-            target: "cns.pod",
+            target: "hkask.pod",
             span = "cns.agent_pod.activated",
             verb = "activated",
             pod_id = %self.id,
@@ -386,7 +386,7 @@ impl AgentPod {
         self.state = PodLifecycleState::Deactivated;
 
         tracing::debug!(
-            target: "cns.pod",
+            target: "hkask.pod",
             span = "cns.agent_pod.deactivated",
             verb = "deactivated",
             pod_id = %self.id,
@@ -491,7 +491,7 @@ impl AgentPod {
         }
         self.mode = Some(AgentMode::Server);
         tracing::info!(
-            target: "cns.pod",
+            target: "hkask.pod",
             span = "cns.agent_pod.server_mode_enter",
             pod_id = %self.id,
             webid = %self.webid,
@@ -520,7 +520,7 @@ impl AgentPod {
         }
         self.mode = Some(AgentMode::Chat);
         tracing::info!(
-            target: "cns.pod",
+            target: "hkask.pod",
             span = "cns.agent_pod.chat_mode_enter",
             pod_id = %self.id,
             webid = %self.webid,
@@ -540,7 +540,7 @@ impl AgentPod {
         let previous = self.mode.take();
         if let Some(mode) = previous {
             tracing::info!(
-                target: "cns.pod",
+                target: "hkask.pod",
                 span = "cns.agent_pod.mode_exit",
                 pod_id = %self.id,
                 webid = %self.webid,
@@ -571,7 +571,7 @@ impl AgentPod {
     /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
     pub fn set_voice(&mut self, voice: VoiceDesign) {
         tracing::info!(
-            target: "cns.pod",
+            target: "hkask.pod",
             pod_id = %self.id,
             voice_name = %voice.name,
             "Agent voice design set"

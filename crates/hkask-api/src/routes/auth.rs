@@ -822,7 +822,7 @@ async fn ensure_chat_room(
         match matrix_invite_to_room(homeserver_url, &room_id, user_id).await {
             Ok(()) => {
                 tracing::info!(target: "hkask.api.matrix", user = %user_id, room = %room_id, "User invited to chat room");
-                tracing::info!(target: "cns.matrix.room.invite", operation = "user_invited", room = %room_id, user = %user_id, "CNS");
+                tracing::info!(target: "hkask.communication.matrix.room.invite", operation = "user_invited", room = %room_id, user = %user_id, "CNS");
             }
             Err(e) => {
                 tracing::warn!(target: "hkask.api.matrix", user = %user_id, error = %e, "Failed to invite user to chat room");
@@ -915,7 +915,7 @@ async fn get_or_create_server_room(homeserver_url: &str) -> anyhow::Result<Strin
     };
 
     tracing::info!(target: "hkask.api.matrix", room_id = %final_room_id, "Server chat room ensured");
-    tracing::info!(target: "cns.matrix.room.created", operation = "room_ensured", room_id = %final_room_id, "CNS");
+    tracing::info!(target: "hkask.communication.matrix.room.created", operation = "room_ensured", room_id = %final_room_id, "CNS");
     Ok(final_room_id)
 }
 

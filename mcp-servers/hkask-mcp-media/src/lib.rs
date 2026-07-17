@@ -355,10 +355,10 @@ impl MediaServer {
             .tag_image(image_id, tag_type, value, confidence, model)
         {
             Ok(_) => {
-                tracing::debug!(target: "cns.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, value = %value, "Tag persisted")
+                tracing::debug!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, value = %value, "Tag persisted")
             }
             Err(e) => {
-                tracing::warn!(target: "cns.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, error = %e, "Failed to persist tag")
+                tracing::warn!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, error = %e, "Failed to persist tag")
             }
         }
     }
@@ -910,7 +910,7 @@ pub async fn run(
     let daemon_ok = match try_daemon_flow(&replicant).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "cns.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "hkask.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -929,7 +929,7 @@ pub async fn run(
         let db = Database::in_memory().expect("in-memory DB");
         let pool = db.sqlite_pool().expect("sqlite pool");
         let driver = Arc::new(SqliteDriver::new(pool));
-        tracing::info!(target: "cns.mcp.media", "Gallery store initialized");
+        tracing::info!(target: "hkask.mcp.media", "Gallery store initialized");
         Arc::new(GalleryStore::from_driver(driver))
     };
 
@@ -939,11 +939,11 @@ pub async fn run(
     #[cfg(feature = "face-recognition")]
     let face_analyzer = match FaceAnalyzer::from_hf().build().await {
         Ok(a) => {
-            tracing::info!(target: "cns.mcp.media", "ONNX face analyzer ready");
+            tracing::info!(target: "hkask.mcp.media", "ONNX face analyzer ready");
             Some(Arc::new(a))
         }
         Err(e) => {
-            tracing::warn!(target: "cns.mcp.media", error = %e, "ONNX face analyzer unavailable — face detection will use vision LLM fallback");
+            tracing::warn!(target: "hkask.mcp.media", error = %e, "ONNX face analyzer unavailable — face detection will use vision LLM fallback");
             None
         }
     };
@@ -987,7 +987,7 @@ pub async fn run(
 async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
     let client = DaemonClient::new();
     let result = hkask_mcp::verify_startup_gates(&client, replicant, "media", &[]).await?;
-    tracing::info!(target: "cns.mcp.media", replicant = %replicant,
+    tracing::info!(target: "hkask.mcp.media", replicant = %replicant,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }

@@ -187,7 +187,7 @@ pub fn load_classifier_config(
     registry_dir: &Path,
 ) -> Result<ClassifierDef, ServiceError> {
     // P9: CNS span
-    tracing::info!(target: "cns.classify", operation = "load_config", classifier = %name, "CNS");
+    tracing::info!(target: "hkask.classify", operation = "load_config", classifier = %name, "CNS");
 
     let config_path = registry_dir.join("classify").join(format!("{name}.yaml"));
     let yaml_str = std::fs::read_to_string(&config_path).map_err(|e| {
@@ -295,7 +295,7 @@ fn provider_pricing(provider: &str) -> (u64, u64) {
         "fal" => (40, 40),        // approximate
         _ => {
             tracing::warn!(
-                target: "cns.classify",
+                target: "hkask.classify",
                 provider = %provider,
                 "Unknown provider — cost tracking disabled. Add cost_input_nj_per_token / cost_output_nj_per_token to classifier config."
             );
@@ -537,7 +537,7 @@ pub async fn classify_batch(
     provider: Option<&dyn crate::provider_intel::ProviderIntelligence>,
 ) -> Result<Vec<ClassifyResult>, ServiceError> {
     // P9: CNS span
-    tracing::info!(target: "cns.classify", operation = "classify_batch", item_count = texts.len(), "CNS");
+    tracing::info!(target: "hkask.classify", operation = "classify_batch", item_count = texts.len(), "CNS");
 
     if config.api_key.is_empty() {
         // No API key — return all fallback category (skip classification)
@@ -566,7 +566,7 @@ pub async fn classify_batch(
             ),
             Err(_) => {
                 tracing::warn!(
-                    target: "cns.classify",
+                    target: "hkask.classify",
                     provider = %pi.provider_id(),
                     "Failed to fetch actual cost, falling back to static pricing"
                 );
@@ -680,7 +680,7 @@ pub async fn extract_triples_batch(
     config: &ClassifierConfig,
 ) -> Result<Vec<TripleExtraction>, ServiceError> {
     // P9: CNS span
-    tracing::info!(target: "cns.classify", operation = "extract_triples_batch", item_count = texts.len(), "CNS");
+    tracing::info!(target: "hkask.classify", operation = "extract_triples_batch", item_count = texts.len(), "CNS");
 
     if config.api_key.is_empty() {
         tracing::info!("No API key for h_mem extraction — returning empty extractions");

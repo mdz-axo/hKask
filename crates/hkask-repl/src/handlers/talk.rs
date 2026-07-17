@@ -228,7 +228,7 @@ pub fn summarize_for_speech(
 /// Speak text aloud: summarize → generate speech → play via ffplay.
 ///
 /// Called after each agent response when talk mode is enabled.
-pub fn speak_response(response_text: &str, state: &mut ReplState, rt: &tokio::runtime::Handle) {
+pub fn speak_response(response_text: &str, state: &ReplState, rt: &tokio::runtime::Handle) {
     // Step 1: Summarize for speech
     let Some(summary) = summarize_for_speech(response_text, state, rt) else {
         return;

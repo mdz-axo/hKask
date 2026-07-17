@@ -38,7 +38,7 @@ impl EmbedService {
         progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "cns.embed", operation = "embed_corpus", config = %config_path.display(), "CNS");
+        tracing::info!(target: "hkask.embed", operation = "embed_corpus", config = %config_path.display(), "CNS");
 
         let started = Instant::now();
 
@@ -907,7 +907,7 @@ impl EmbedService {
     #[must_use = "result must be used"]
     pub fn parse_config(path: &Path) -> Result<CorpusConfig, ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "cns.embed", operation = "parse_config", config = %path.display(), "CNS");
+        tracing::info!(target: "hkask.embed", operation = "parse_config", config = %path.display(), "CNS");
 
         let config_str = std::fs::read_to_string(path).map_err(|e| {
             let msg = format!("Failed to read corpus config {}: {e}", path.display());

@@ -890,7 +890,7 @@ impl CnsRuntime {
             budget.replenish_by(amount);
             let remaining = budget.remaining();
             tracing::info!(
-                target: "cns.runtime",
+                target: "hkask.runtime",
                 agent = %agent,
                 amount = amount.0,
                 remaining = remaining.0,

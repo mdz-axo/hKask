@@ -1,78 +1,83 @@
 //! Dependency injection traits for the turn loop.
 //!
-//! Defines the 4 capability traits + 3 closures that `run_turn_loop` needs,
-//! plus production adapters that bridge these traits to the existing
-//! `ReplState` / `AgentService` / `EnergyGuard` infrastructure.
-//!
-//! The trait abstractions exist to make the turn loop testable. Each trait
-//! has two implementors: a production adapter (here) and a mock (in
-//! `turn.rs` test module). Bugs in the loop's behavioral logic — the
-//! `if iteration == 1` display bug, the gas leak on inference error, the
-//! `mark_seeded` regression — are all catchable by mock-based tests.
+//! Defines the capability traits that `run_turn_loop` needs, plus
+//! production adapters that bridge these traits to the existing
+//! infrastructure. The key design decision: `TurnExecutor` takes a
+//! `TurnInput` (primitives only) and builds the `TurnRequest` internally.
+//! This keeps port types (`Arc<dyn InferencePort>`, etc.) out of the
+//! test layer — tests construct `TurnInput` from strings and numbers.
 
 use std::sync::Arc;
 
 use hkask_cns::GovernedTool;
 use hkask_mcp::RawMcpToolPort;
-use hkask_ports::StructuredToolCall;
 use hkask_services_chat::{ChatService, TurnRequest, TurnResult};
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;
+use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
+use hkask_types::template::LLMParameters;
 
 use super::energy::EnergyGuard;
 use super::threads::ThreadRegistry;
 use super::tool_augmented::ToolCall;
 
-// ── Capability traits ────────────────────────────────────────────────
+// ── TurnInput: primitive inputs to a turn ────────────────────────────
 
-/// Execute inference turns with memory recall, persona filtering, and
-/// manifest cascade. Abstracts `ChatService::execute_turn`.
+/// Primitive inputs for one inference iteration.
 ///
-/// Production: wraps `ChatService::execute_turn(&service_context, ...)`.
-/// Mock: returns predetermined `TurnResult`s in sequence.
-#[async_trait::async_trait]
-pub trait TurnExecutor: Send + Sync {
-    async fn execute_turn(&self, req: &TurnRequest) -> Result<TurnResult, ServiceError>;
+/// Contains only strings, numbers, and Options — no port types.
+/// The executor builds a full `TurnRequest` from this plus its
+/// internal state. This keeps the test layer free of `Arc<dyn Port>`.
+pub struct TurnInput<'a> {
+    pub input: &'a str,
+    pub iteration: usize,
+    pub tool_results: Option<String>,
+    pub agent_override: Option<&'a str>,
+    pub thread_history: Option<String>,
 }
 
-/// Reserve and settle gas for inference. Abstracts `EnergyGuard` +
-/// `CyberneticsLoop` gas accounting.
+// ── TurnConfig: loop configuration ───────────────────────────────────
+
+/// Loop configuration values extracted from `ReplSettings`.
+pub struct TurnConfig {
+    pub max_loops: usize,
+    pub gas_heuristic: u64,
+    pub saliency_window: usize,
+    pub default_agent: String,
+}
+
+// ── Capability traits ────────────────────────────────────────────────
+
+/// Execute inference turns. Takes primitive `TurnInput` and builds
+/// the full `TurnRequest` internally — callers never see port types.
 ///
-/// Production: wraps `EnergyGuard::try_reserve` + `gas_remaining`/`gas_cap`.
-/// Mock: tracks reservations and settlements in memory.
+/// Production: wraps `ChatService::execute_turn`.
+/// Mock: returns predetermined `TurnResult`s, ignores `TurnInput`.
+#[async_trait::async_trait]
+pub trait TurnExecutor: Send + Sync {
+    async fn execute_turn(&self, input: &TurnInput<'_>) -> Result<TurnResult, ServiceError>;
+}
+
+/// Reserve and settle gas for inference.
 pub trait GasGovernor: Send + Sync {
-    /// Reserve gas. Returns `None` if budget exhausted.
     fn try_reserve(&self, heuristic: u64) -> Option<Box<dyn GasReservation>>;
-    /// Current gas status: (remaining, cap).
     fn gas_status(&self) -> (u64, u64);
 }
 
-/// A gas reservation that must be settled or released.
-/// Wraps `EnergyGuard`'s owned-consumption pattern behind `&mut self`
-/// for trait-object safety. The underlying `EnergyGuard::Drop` still
-/// logs if neither `settle` nor `release` is called.
 pub trait GasReservation: Send {
     fn heuristic(&self) -> u64;
     fn settle(&mut self, actual: u64);
     fn release(&mut self);
 }
 
-/// Invoke tool calls through governance (OCAP + energy + CNS).
-/// Abstracts `invoke_tool_call` with token minting.
-///
-/// Production: wraps `GovernedTool::invoke` with `DelegationToken`.
-/// Mock: returns predetermined `Value`s per tool name.
+/// Invoke tool calls through governance.
 #[async_trait::async_trait]
 pub trait ToolInvoker: Send + Sync {
     async fn invoke(&self, call: &ToolCall) -> anyhow::Result<serde_json::Value>;
 }
 
 /// Thread memory: short-term conversation stream.
-/// Abstracts `ThreadRegistry`.
-///
-/// Production: wraps `ThreadRegistry`.
-/// Mock: in-memory tracking with inspection fields.
 pub trait ThreadMemory: Send {
     fn is_seeded(&self) -> bool;
     fn thread_history(&self, window: usize) -> Option<String>;
@@ -80,55 +85,106 @@ pub trait ThreadMemory: Send {
     fn mark_seeded(&mut self);
 }
 
-// ── TurnDeps: bundled dependencies ───────────────────────────────────
+// ── TurnDeps: bundled dependencies (5 fields) ────────────────────────
 
-/// All dependencies `run_turn_loop` needs, bundled for ergonomic passing.
+/// All dependencies `run_turn_loop` needs.
 ///
-/// 4 traits (behavioral, multi-method) + 3 closures (one-call dependencies).
-/// Each is independently mockable. The struct has 7 fields — at the
-/// essentialist G2 interface limit.
+/// 4 traits (behavioral) + 1 closure (CNS tick). Each is independently
+/// mockable. Talk-mode speech is handled by wrappers post-loop.
 pub struct TurnDeps<'a> {
     pub executor: &'a dyn TurnExecutor,
     pub gas: &'a dyn GasGovernor,
     pub tools: &'a dyn ToolInvoker,
     pub threads: &'a mut dyn ThreadMemory,
-    /// Build a TurnRequest from iteration inputs.
-    pub build_request: &'a dyn Fn(&str, usize, Option<String>, Option<&str>) -> TurnRequest,
-    /// CNS regulation tick + alert check. Called once after the loop.
     pub on_cns_update: &'a dyn Fn(),
-    /// Speak a response via talk mode. Called for final responses.
-    pub on_speak: &'a dyn Fn(&str),
 }
 
 // ── Production adapters ──────────────────────────────────────────────
 
-/// Adapts `ChatService::execute_turn` to the `TurnExecutor` trait.
+/// Wraps `ChatService::execute_turn`. Holds all data needed to build
+/// a `TurnRequest` from a `TurnInput` — port types stay private.
 pub struct ReplTurnExecutor {
     ctx: Arc<AgentService>,
     manifest_executor: Option<hkask_templates::ManifestExecutor>,
     manifest: Option<hkask_templates::BundleManifest>,
+    settings: super::ReplSettings,
+    current_agent: String,
+    current_model: String,
+    agent_webid: WebID,
+    persona_constraints: Option<PersonaConstraints>,
+    tool_section: String,
+    tool_definitions: Vec<hkask_ports::ChatToolDefinition>,
+    improv_mode: Option<hkask_improv::ImprovMode>,
 }
 
 impl ReplTurnExecutor {
-    pub fn new(
-        ctx: Arc<AgentService>,
-        manifest_executor: Option<hkask_templates::ManifestExecutor>,
-        manifest: Option<hkask_templates::BundleManifest>,
-    ) -> Self {
+    pub fn from_state(state: &super::ReplState) -> Self {
         Self {
-            ctx,
-            manifest_executor,
-            manifest,
+            ctx: state.service_context.clone(),
+            manifest_executor: state.manifest_state.executor.clone(),
+            manifest: state.manifest_state.manifest.clone(),
+            settings: state.repl_settings.clone(),
+            current_agent: state.current_agent.clone(),
+            current_model: state.current_model.clone(),
+            agent_webid: state.agent_webid,
+            persona_constraints: state.persona_constraints.clone(),
+            tool_section: state.tool_prompt.section.clone(),
+            tool_definitions: state.tool_prompt.definitions.clone(),
+            improv_mode: state.improv_mode.clone(),
         }
     }
 }
 
 #[async_trait::async_trait]
 impl TurnExecutor for ReplTurnExecutor {
-    async fn execute_turn(&self, req: &TurnRequest) -> Result<TurnResult, ServiceError> {
+    async fn execute_turn(&self, input: &TurnInput<'_>) -> Result<TurnResult, ServiceError> {
+        let settings = &self.settings;
+        let mem = self
+            .ctx
+            .per_agent_memory(&self.current_agent)
+            .expect("per-agent memory");
+        let req = TurnRequest {
+            input: input.input.to_string(),
+            agent_name: input
+                .agent_override
+                .unwrap_or(&self.current_agent)
+                .to_string(),
+            model: self.current_model.clone(),
+            inference_port: self.ctx.inference_port().expect("inference port"),
+            episodic_storage: mem.episodic_storage,
+            semantic_storage: mem.semantic_storage,
+            agent_webid: self.agent_webid,
+            persona_constraints: self.persona_constraints.clone(),
+            tool_section: self.tool_section.clone(),
+            api_spec: None,
+            llm_params: super::handlers::to_llm_params(settings),
+            capability_checker: self.ctx.governance().checker.clone(),
+            system_webid: *self.ctx.webid(),
+            iteration: input.iteration,
+            tool_results: input.tool_results.clone(),
+            auto_condense: settings.auto_condense,
+            context_window: settings.model_meta.as_ref().map(|m| m.context_length),
+            condenser_model: Some(
+                self.current_model
+                    .strip_prefix("OM/")
+                    .unwrap_or(&self.current_model)
+                    .to_string(),
+            ),
+            condense_pressure_threshold: settings.condense_pressure_threshold,
+            condense_saliency_window: settings.condense_saliency_window,
+            pre_compress: settings.pre_compress,
+            thread_history: input.thread_history.clone(),
+            improv_mode: self.improv_mode.clone(),
+            source: None,
+            tools: if self.tool_definitions.is_empty() {
+                None
+            } else {
+                Some(self.tool_definitions.clone())
+            },
+        };
         ChatService::execute_turn(
             &self.ctx,
-            req,
+            &req,
             self.manifest_executor.as_ref(),
             self.manifest.as_ref(),
         )
@@ -136,27 +192,27 @@ impl TurnExecutor for ReplTurnExecutor {
     }
 }
 
-/// Adapts `EnergyGuard` + gas status to the `GasGovernor` trait.
+/// Wraps `EnergyGuard` + gas status.
 pub struct ReplGasGovernor {
     cybernetics_loop: Arc<tokio::sync::RwLock<hkask_cns::CyberneticsLoop>>,
     inference_loop: Arc<hkask_agents::InferenceLoop>,
     webid: WebID,
     rt: tokio::runtime::Handle,
-    gas_remaining: fn(&AgentService) -> Option<u64>,
-    gas_cap: fn(&AgentService) -> Option<u64>,
     ctx: Arc<AgentService>,
 }
 
 impl ReplGasGovernor {
-    pub fn new(ctx: Arc<AgentService>, webid: WebID, rt: tokio::runtime::Handle) -> Self {
+    pub fn from_state(state: &super::ReplState, rt: &tokio::runtime::Handle) -> Self {
         Self {
-            cybernetics_loop: ctx.cns().cybernetics.clone(),
-            inference_loop: ctx.inference_loop().expect("inference loop").clone(),
-            webid,
-            rt,
-            gas_remaining: |c| c.gas_remaining(),
-            gas_cap: |c| c.gas_cap(),
-            ctx,
+            cybernetics_loop: state.service_context.cns().cybernetics.clone(),
+            inference_loop: state
+                .service_context
+                .inference_loop()
+                .expect("inference loop")
+                .clone(),
+            webid: state.agent_webid,
+            rt: rt.clone(),
+            ctx: state.service_context.clone(),
         }
     }
 }
@@ -172,16 +228,14 @@ impl GasGovernor for ReplGasGovernor {
         )
         .map(|guard| Box::new(ReplGasReservation { guard: Some(guard) }) as Box<dyn GasReservation>)
     }
-
     fn gas_status(&self) -> (u64, u64) {
-        let remaining = (self.gas_remaining)(&self.ctx).unwrap_or(0);
-        let cap = (self.gas_cap)(&self.ctx).unwrap_or(0);
-        (remaining, cap)
+        (
+            self.ctx.gas_remaining().unwrap_or(0),
+            self.ctx.gas_cap().unwrap_or(0),
+        )
     }
 }
 
-/// Adapts `EnergyGuard` to the `GasReservation` trait.
-/// Uses `Option::take()` to consume the guard from behind `&mut self`.
 struct ReplGasReservation {
     guard: Option<EnergyGuard>,
 }
@@ -190,21 +244,19 @@ impl GasReservation for ReplGasReservation {
     fn heuristic(&self) -> u64 {
         self.guard.as_ref().map(|g| g.heuristic()).unwrap_or(0)
     }
-
     fn settle(&mut self, actual: u64) {
-        if let Some(guard) = self.guard.take() {
-            guard.settle(actual);
+        if let Some(g) = self.guard.take() {
+            g.settle(actual);
         }
     }
-
     fn release(&mut self) {
-        if let Some(guard) = self.guard.take() {
-            guard.release();
+        if let Some(g) = self.guard.take() {
+            g.release();
         }
     }
 }
 
-/// Adapts `GovernedTool` + token minting to the `ToolInvoker` trait.
+/// Wraps `GovernedTool` + token minting.
 pub struct ReplToolInvoker {
     governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
     agent_webid: WebID,
@@ -213,17 +265,12 @@ pub struct ReplToolInvoker {
 }
 
 impl ReplToolInvoker {
-    pub fn new(
-        governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
-        agent_webid: WebID,
-        a2a_secret: Vec<u8>,
-        host: Arc<dyn super::host::ReplHost>,
-    ) -> Self {
+    pub fn from_state(state: &super::ReplState, a2a_secret: &[u8]) -> Self {
         Self {
-            governed_tool,
-            agent_webid,
-            a2a_secret,
-            host,
+            governed_tool: state.service_context.governed_tool(state.agent_webid),
+            agent_webid: state.agent_webid,
+            a2a_secret: a2a_secret.to_vec(),
+            host: state.host.clone(),
         }
     }
 }
@@ -242,7 +289,7 @@ impl ToolInvoker for ReplToolInvoker {
     }
 }
 
-/// Adapts `ThreadRegistry` to the `ThreadMemory` trait.
+/// Wraps `ThreadRegistry`.
 pub struct ReplThreadMemory<'a> {
     registry: &'a mut ThreadRegistry,
 }
@@ -257,15 +304,12 @@ impl<'a> ThreadMemory for ReplThreadMemory<'a> {
     fn is_seeded(&self) -> bool {
         self.registry.seeded
     }
-
     fn thread_history(&self, window: usize) -> Option<String> {
         self.registry.thread_history(Some(window))
     }
-
     fn append_turn(&mut self, agent: &str, input: &str, response: &str) {
         self.registry.append_turn(agent, input, response);
     }
-
     fn mark_seeded(&mut self) {
         self.registry.mark_seeded();
     }

@@ -313,7 +313,7 @@ impl ScenariosServer {
             && !called.contains(expected)
         {
             tracing::warn!(
-                target: "cns.mcp.scenarios.sequence",
+                target: "hkask.mcp.scenarios.sequence",
                 tool = %tool,
                 expected_predecessor = %expected,
                 "Pipeline sequence violation: {} called without prior {}",
@@ -355,14 +355,14 @@ impl ScenariosServer {
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "cns.mcp.scenarios.memory", tool = %tool_name, "Experience stored via daemon");
+                        tracing::debug!(target: "hkask.mcp.scenarios.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "cns.mcp.scenarios.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                        tracing::warn!(target: "hkask.mcp.scenarios.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                     }
                     Err(e) => {
-                        tracing::warn!(target: "cns.mcp.scenarios.memory", tool = %tool_name, error = %e, "Failed to store experience");
-                        tracing::warn!(target: "cns.mcp.scenarios.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
+                        tracing::warn!(target: "hkask.mcp.scenarios.memory", tool = %tool_name, error = %e, "Failed to store experience");
+                        tracing::warn!(target: "hkask.mcp.scenarios.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
                     }
                 }
             });

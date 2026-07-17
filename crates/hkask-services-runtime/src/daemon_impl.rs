@@ -66,7 +66,7 @@ impl ServiceDaemonHandler {
         cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
-        tracing::info!(target: "cns.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "CNS");
 
         Self {
             pod_manager,
@@ -82,7 +82,7 @@ impl ServiceDaemonHandler {
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "cns.daemon", operation = "check_auth", replicant = %replicant, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_auth", replicant = %replicant, "CNS");
 
         let has_sessions = {
             let store = match self.user_store.lock() {
@@ -117,7 +117,7 @@ impl DaemonHandler for ServiceDaemonHandler {
 
     async fn check_assignment(&self, replicant: &str, role: &str) -> bool {
         // P9: CNS span
-        tracing::info!(target: "cns.daemon", operation = "check_assignment", replicant = %replicant, role = %role, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_assignment", replicant = %replicant, role = %role, "CNS");
 
         match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
@@ -134,7 +134,7 @@ impl DaemonHandler for ServiceDaemonHandler {
 
     async fn check_capability(&self, replicant: &str, tool: &str) -> bool {
         // P9: CNS span
-        tracing::info!(target: "cns.daemon", operation = "check_capability", replicant = %replicant, tool = %tool, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_capability", replicant = %replicant, tool = %tool, "CNS");
 
         match self.pod_manager.find_pod_by_name(replicant).await {
             Some(pod_id) => {
@@ -155,7 +155,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "cns.daemon", operation = "store_experience", replicant = %replicant, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "store_experience", replicant = %replicant, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
 
         let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
             Some(id) => id,
@@ -263,7 +263,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "cns.daemon", operation = "dispatch_tool", replicant = %replicant, tool = %tool, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "dispatch_tool", replicant = %replicant, tool = %tool, "CNS");
 
         let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
             Some(id) => id,
@@ -345,7 +345,7 @@ async fn generate_narrative(
     replicant: &str,
 ) {
     // P9: CNS span
-    tracing::info!(target: "cns.daemon", operation = "generate_narrative", replicant = %replicant, "CNS");
+    tracing::info!(target: "hkask.daemon", operation = "generate_narrative", replicant = %replicant, "CNS");
 
     let pod_id = match pod_manager.find_pod_by_name(replicant).await {
         Some(id) => id,
@@ -524,7 +524,7 @@ fn append_session_entry(replicant: &str, entity: &str, attribute: &str, value: &
                 tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, path = %session_file.display(), error = %e, "Failed to write session entry");
             } else {
                 // CNS: session recorded — variety signal for algedonic monitoring
-                tracing::info!(target: "cns.session.recorded", replicant = %replicant, entity = %entity, "CNS");
+                tracing::info!(target: "hkask.session.recorded", replicant = %replicant, entity = %entity, "CNS");
             }
         }
         Err(e) => {

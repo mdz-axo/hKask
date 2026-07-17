@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use hkask_agents::consent::ConsentManager;
 use hkask_types::DataCategory;
-use hkask_types::curation::DataSovereigntyBoundary;
+use hkask_types::curation::{BoundaryClassification, DataSovereigntyBoundary};
 
 use crate::cli::SovereigntyAction;
 
@@ -240,7 +240,7 @@ fn run_sovereignty_ops(action: SovereigntyAction) {
             let class = boundary.classify(&cat);
             let classification = class.label();
             let access_required = class.access_required();
-            let has_consent = if classification == "PUBLIC" {
+            let has_consent = if class == BoundaryClassification::Public {
                 true
             } else {
                 cm.has_consent(&webid.to_string(), &cat).unwrap_or(false)

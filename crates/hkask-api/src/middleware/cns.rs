@@ -18,13 +18,13 @@ pub async fn cns_middleware(req: Request<Body>, next: Next) -> Response {
     let start = Instant::now();
 
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "request", method = %method, path = %path, "CNS");
+    tracing::info!(target: "hkask.api", operation = "request", method = %method, path = %path, "CNS");
 
     let response = next.run(req).await;
 
     let status = response.status().as_u16();
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "response", status = status, latency_ms = start.elapsed().as_millis(), "CNS");
+    tracing::info!(target: "hkask.api", operation = "response", status = status, latency_ms = start.elapsed().as_millis(), "CNS");
 
     response
 }

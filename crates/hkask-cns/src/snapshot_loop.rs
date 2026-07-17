@@ -226,7 +226,7 @@ impl HkaskLoop for SnapshotLoop {
                 match self.port.snapshot(repo, "scheduled snapshot").await {
                     Ok(commit) => {
                         tracing::info!(
-                            target: "cns.snapshot_loop",
+                            target: "hkask.snapshot_loop",
                             repo = repo.dir_name(),
                             "Scheduled snapshot taken"
                         );
@@ -234,7 +234,7 @@ impl HkaskLoop for SnapshotLoop {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns.snapshot_loop",
+                            target: "hkask.snapshot_loop",
                             repo = repo.dir_name(),
                             error = %e,
                             "Scheduled snapshot failed"

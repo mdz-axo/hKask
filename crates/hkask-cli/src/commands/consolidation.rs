@@ -13,7 +13,7 @@ pub fn run(
     passphrase: Option<&str>,
 ) {
     // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "consolidation", agent = ?agent, limit = limit, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "consolidation", agent = ?agent, limit = limit, "CNS");
     // Resolve agent name — defaults to "curator" for the Curator agent
     let agent_name = agent.unwrap_or("curator");
 

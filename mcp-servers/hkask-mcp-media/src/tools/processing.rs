@@ -604,7 +604,7 @@ impl MediaServer {
                         image_urls.push(format!("data:image/jpeg;base64,{}", b64));
                     }
                     Err(e) => {
-                        tracing::warn!(target: "cns.mcp.media", frame = %frame.display(), error = %e, "Failed to read keyframe");
+                        tracing::warn!(target: "hkask.mcp.media", frame = %frame.display(), error = %e, "Failed to read keyframe");
                     }
                 }
             }

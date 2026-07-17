@@ -231,7 +231,7 @@ impl TrainingServer {
             let provenance = crate::huggingface::ModelResolver::resolve(&resolver, &base_model);
             if let Ok(ref p) = provenance {
                 tracing::info!(
-                    target: "cns.training.provenance.resolved",
+                    target: "hkask.training.provenance.resolved",
                     model_id = %p.model_id,
                     architecture = %p.architecture,
                     license = ?p.license,
@@ -295,7 +295,7 @@ impl TrainingServer {
                     &format!("{:?}", job.host).to_lowercase(),
                 ) {
                     tracing::warn!(
-                        target: "cns.training.job.persist",
+                        target: "hkask.training.job.persist",
                         job_id = %job.id,
                         error = %e,
                         "Failed to persist job"
@@ -325,7 +325,7 @@ impl TrainingServer {
                     });
                     result["estimated_cost_urj"] = json!(job.estimated_cost_urj);
                     tracing::info!(
-                        target: "cns.qa.cost.training_job",
+                        target: "hkask.qa.cost.training_job",
                         job_id = %job.id,
                         provider_job_id = %provider_job_id,
                         host = %format!("{:?}", self.host_id),
@@ -340,7 +340,7 @@ impl TrainingServer {
                 }
                 Err(e) => {
                     tracing::error!(
-                        target: "cns.training.job.fail",
+                        target: "hkask.training.job.fail",
                         error = %e,
                         "Training job submission failed"
                     );
@@ -371,7 +371,7 @@ impl TrainingServer {
                         let status_str = format!("{:?}", status).to_lowercase();
                         if let Err(e) = job_store.update_status(&job_id, &status_str) {
                             tracing::warn!(
-                                target: "cns.training.job.persist",
+                                target: "hkask.training.job.persist",
                                 job_id = %job_id,
                                 error = %e,
                                 "Failed to update job status"
@@ -430,7 +430,7 @@ impl TrainingServer {
                                                                     .await
                                                                 {
                                                                     tracing::warn!(
-                                                                        target: "cns.training.adapter.blob",
+                                                                        target: "hkask.training.adapter.blob",
                                                                         adapter_id = %job_id,
                                                                         error = %e,
                                                                         "Failed to store adapter blob"
@@ -443,7 +443,7 @@ impl TrainingServer {
                                                             }
                                                             Err(e) => {
                                                                 tracing::warn!(
-                                                                    target: "cns.training.adapter.blob",
+                                                                    target: "hkask.training.adapter.blob",
                                                                     adapter_id = %job_id,
                                                                     error = %e,
                                                                     "Failed to read adapter weights"
@@ -459,7 +459,7 @@ impl TrainingServer {
                                                 }
 
                                                 tracing::info!(
-                                                    target: "cns.training.adapter.created",
+                                                    target: "hkask.training.adapter.created",
                                                     adapter_id = %job_id,
                                                     "Adapter auto-registered on completion"
                                                 );
@@ -510,7 +510,7 @@ impl TrainingServer {
                                         "auto_promoted": improved,
                                     });
                                     tracing::info!(
-                                        target: "cns.training.retrain.ab",
+                                        target: "hkask.training.retrain.ab",
                                         skill = %adapter.skill_name,
                                         prev_version = prev.version,
                                         prev_loss = %prev_loss,
@@ -601,7 +601,7 @@ impl TrainingServer {
             if let Err(e) = self.host.delete_adapter(&adapter_id).await {
                 // Non-fatal — host storage may already be gone, still clean up metadata
                 tracing::warn!(
-                    target: "cns.training.adapter.deleted",
+                    target: "hkask.training.adapter.deleted",
                     adapter_id = %adapter_id,
                     error = %e,
                     "Host deletion failed, continuing with metadata cleanup"
@@ -824,7 +824,7 @@ impl TrainingServer {
             };
 
             tracing::info!(
-                target: "cns.training.trace.type",
+                target: "hkask.training.trace.type",
                 skill = %skill_name,
                 trace_type = ?detected_type,
                 "Trace type selected"
@@ -836,7 +836,7 @@ impl TrainingServer {
             const CHUNK_THRESHOLD: usize = 6000;
             let chunks: Vec<String> = if skill_text.len() > CHUNK_THRESHOLD {
                 tracing::info!(
-                    target: "cns.training.trace",
+                    target: "hkask.training.trace",
                     skill = %skill_name,
                     size = skill_text.len(),
                     "Skill document exceeds chunk threshold, splitting"
@@ -922,7 +922,7 @@ impl TrainingServer {
                                 Ok(_) => {
                                     total_parse_errors += 1;
                                     tracing::warn!(
-                                        target: "cns.training.trace",
+                                        target: "hkask.training.trace",
                                         chunk = chunk_idx + 1,
                                         line = i + 1,
                                         "Trace missing 'messages' field"
@@ -931,7 +931,7 @@ impl TrainingServer {
                                 Err(e) => {
                                     total_parse_errors += 1;
                                     tracing::warn!(
-                                        target: "cns.training.trace",
+                                        target: "hkask.training.trace",
                                         chunk = chunk_idx + 1,
                                         line = i + 1,
                                         error = %e,
@@ -943,7 +943,7 @@ impl TrainingServer {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns.training.trace",
+                            target: "hkask.training.trace",
                             chunk = chunk_idx + 1,
                             error = %e,
                             "Chunk generation failed, continuing with remaining chunks"
@@ -1019,7 +1019,7 @@ impl TrainingServer {
                     Ok(v) => v,
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns.training.evaluate",
+                            target: "hkask.training.evaluate",
                             line = i + 1,
                             error = %e,
                             "Skipping unparseable test line"
@@ -1126,7 +1126,7 @@ impl TrainingServer {
                     Err(e) => {
                         errors += 1;
                         tracing::warn!(
-                            target: "cns.training.evaluate",
+                            target: "hkask.training.evaluate",
                             example = i,
                             error = %e,
                             "Inference failed for test example"
@@ -1423,7 +1423,7 @@ impl TrainingServer {
             {
                 Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
                     tracing::debug!(
-                        target: "cns.training.invoke",
+                        target: "hkask.training.invoke",
                         adapter_id = %adapter_id,
                         skill = %skill_name,
                         "Adapter invocation recorded"
@@ -1437,7 +1437,7 @@ impl TrainingServer {
                 }
                 Ok(other) => {
                     tracing::warn!(
-                        target: "cns.training.invoke",
+                        target: "hkask.training.invoke",
                         adapter_id = %adapter_id,
                         response = ?other,
                         "Unexpected daemon response"
@@ -1590,7 +1590,7 @@ impl TrainingServer {
                         }));
 
                         tracing::info!(
-                            target: "cns.training.curate",
+                            target: "hkask.training.curate",
                             question = %question.chars().take(80).collect::<String>(),
                             "Correction generated"
                         );
@@ -1598,7 +1598,7 @@ impl TrainingServer {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.training.curate",
+                        target: "hkask.training.curate",
                         error = %e,
                         "Validation inference failed, keeping original"
                     );
@@ -1671,7 +1671,7 @@ impl TrainingServer {
             ));
         }
         tracing::info!(
-            target: "cns.training.retrain.started",
+            target: "hkask.training.retrain.started",
             skill = %skill_name,
             adapter = %adapter_name,
             "Retraining job initiated"
@@ -1846,7 +1846,7 @@ impl TrainingServer {
 
         if let Err(e) = self.adapter_store.store_metadata(&adapter).await {
             tracing::warn!(
-                target: "cns.training.retrain",
+                target: "hkask.training.retrain",
                 adapter_id = %job.id,
                 error = %e,
                 "Failed to pre-register adapter metadata"
@@ -1878,7 +1878,7 @@ impl TrainingServer {
             }
             Err(e) => {
                 tracing::error!(
-                    target: "cns.training.job.fail",
+                    target: "hkask.training.job.fail",
                     error = %e,
                     "Retraining job submission failed"
                 );
@@ -2004,7 +2004,7 @@ impl TrainingServer {
                             estimated_cost_urj: 0,
                             artifacts: None,
                         };
-                        tracing::info!(target: "cns.training.sweep.iteration", idx = idx, lr = lr, r = r, bs = bs, epochs = ne, "Sweep job submitted");
+                        tracing::info!(target: "hkask.training.sweep.iteration", idx = idx, lr = lr, r = r, bs = bs, epochs = ne, "Sweep job submitted");
                         match self.host.submit(&job).await {
                             Ok(jid) => {
                                 jobs_out.push(json!({"idx": idx, "job_id": jid, "lr": lr, "lora_r": r, "bs": bs, "epochs": ne}));
@@ -2012,7 +2012,7 @@ impl TrainingServer {
                             }
                             Err(e) => {
                                 failures += 1;
-                                tracing::warn!(target: "cns.training.sweep.iteration", idx = idx, error = %e, "Sweep submission failed");
+                                tracing::warn!(target: "hkask.training.sweep.iteration", idx = idx, error = %e, "Sweep submission failed");
                             }
                         }
                     }
@@ -2375,7 +2375,7 @@ impl TrainingServer {
                 map.insert(handle.endpoint_id.to_string(), deployment);
             }
 
-            tracing::info!(target: "cns.training.deploy", endpoint_id = %handle.endpoint_id, adapter = %req.adapter_name, provider = ?req.provider, "Adapter deployed via AdapterRouter");
+            tracing::info!(target: "hkask.training.deploy", endpoint_id = %handle.endpoint_id, adapter = %req.adapter_name, provider = ?req.provider, "Adapter deployed via AdapterRouter");
             return Ok(result);
         }
 
@@ -2445,7 +2445,7 @@ impl TrainingServer {
             "phase": format!("{:?}", current_phase).to_lowercase(),
             "note": provider_note,
         });
-        tracing::info!(target: "cns.training.deploy", deployment_id = %deploy_id, adapter = %req.adapter_name, provider = ?req.provider, cost_hr = cost_hr, "Adapter deployment initiated");
+        tracing::info!(target: "hkask.training.deploy", deployment_id = %deploy_id, adapter = %req.adapter_name, provider = ?req.provider, cost_hr = cost_hr, "Adapter deployment initiated");
         Ok(result)
         })
         .await
@@ -2548,7 +2548,7 @@ impl TrainingServer {
             false
         };
         let result = json!({"deployment_id": req.deployment_id, "status": "torn_down", "existed": existed, "note": if existed { "Endpoint torn down. GPU resources released." } else { "Deployment not found (may have already been torn down)." }});
-        tracing::info!(target: "cns.training.teardown", deployment_id = %req.deployment_id, existed = existed, "Adapter deployment torn down");
+        tracing::info!(target: "hkask.training.teardown", deployment_id = %req.deployment_id, existed = existed, "Adapter deployment torn down");
         Ok(result)
         })
         .await

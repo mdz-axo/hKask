@@ -555,7 +555,7 @@ impl SemanticMemory {
         };
 
         tracing::info!(
-            target: "cns.semantic",
+            target: "hkask.semantic",
             prefix = %prefix,
             passage_count = count,
             stored = stored,
@@ -594,7 +594,7 @@ impl SemanticMemory {
         }
 
         tracing::info!(
-            target: "cns.semantic",
+            target: "hkask.semantic",
             prefix = %prefix,
             purged = count,
             "Purged embeddings by prefix"
@@ -851,7 +851,7 @@ impl SemanticMemory {
     /// post: returns Err if h_mem not found
     pub fn delete_h_mem(&self, id: &hkask_storage::HMemId) -> Result<(), SemanticMemoryError> {
         tracing::info!(
-            target: "cns.semantic",
+            target: "hkask.semantic",
             triple_id = %id,
             "Semantic h_mem deleted (budget enforcement)"
         );

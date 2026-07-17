@@ -121,7 +121,7 @@ impl DocProcServer {
                             return Ok(result);
                         }
                         Err(e) => {
-                            tracing::warn!(target: "cns.docproc", error = %e, "Decimation failed — falling back to raw bytes OCR");
+                            tracing::warn!(target: "hkask.docproc", error = %e, "Decimation failed — falling back to raw bytes OCR");
                         }
                     }
                 }
@@ -214,7 +214,7 @@ impl DocProcServer {
                     return Ok(result);
                         }
                         Err(e) => {
-                            tracing::warn!(target: "cns.docproc", error = %e, "Decimation failed — falling back to generic OCR");
+                            tracing::warn!(target: "hkask.docproc", error = %e, "Decimation failed — falling back to generic OCR");
                         }
                     }
                 }

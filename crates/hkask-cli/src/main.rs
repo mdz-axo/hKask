@@ -110,7 +110,7 @@ fn main() {
     // P9: CNS span
     let cns_start = Instant::now();
     tracing::info!(
-        target: "cns.cli",
+        target: "hkask.cli",
         operation = "command_dispatched",
         command = %cli.command.label(),
         "CNS"
@@ -305,5 +305,5 @@ fn main() {
     }
 
     // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "command_completed", latency_ms = cns_start.elapsed().as_millis(), "CNS");
+    tracing::info!(target: "hkask.cli", operation = "command_completed", latency_ms = cns_start.elapsed().as_millis(), "CNS");
 }

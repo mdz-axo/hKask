@@ -180,7 +180,7 @@ impl LearningState {
                 .success_probability(symbol, Provider::Eodhd)
                 .unwrap_or(1.0);
             tracing::debug!(
-                target: "cns.mcp.companies.routing",
+                target: "hkask.mcp.companies.routing",
                 symbol = %symbol,
                 default = %default_provider,
                 chosen = %chosen,

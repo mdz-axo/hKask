@@ -54,7 +54,7 @@ pub fn mcp_router() -> OpenApiRouter<ApiState> {
 )]
 pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "mcp_servers", "CNS");
+    tracing::info!(target: "hkask.api", operation = "mcp_servers", "CNS");
     let servers = state.agent_service.infra().mcp.clone().list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
 }
@@ -74,7 +74,7 @@ pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<Stri
 )]
 pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "mcp_tools", "CNS");
+    tracing::info!(target: "hkask.api", operation = "mcp_tools", "CNS");
     let tools = state
         .agent_service
         .infra()
@@ -137,7 +137,7 @@ pub(crate) async fn mcp_invoke(
     Json(req): Json<McpInvokeRequest>,
 ) -> Result<Json<McpInvokeResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "mcp_invoke", tool = %req.tool, "CNS");
+    tracing::info!(target: "hkask.api", operation = "mcp_invoke", tool = %req.tool, "CNS");
 
     // Input length validation
     if req.tool.len() > 256 {

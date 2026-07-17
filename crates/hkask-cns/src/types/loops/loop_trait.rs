@@ -69,7 +69,7 @@ pub trait Loop: Send + Sync {
         // tick() to wire impact reports into their LoopQuality and CNS spans.
         if !_impact.is_empty() {
             tracing::debug!(
-                target: "cns.loop",
+                target: "hkask.loop",
                 impact_count = _impact.len(),
                 "Default tick(): verify_impact produced {} reports — override tick() to consume them",
                 _impact.len()

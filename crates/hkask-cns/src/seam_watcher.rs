@@ -128,7 +128,7 @@ impl SeamWatcher {
                 Ok(contents) => match serde_json::from_str::<SeamInventory>(&contents) {
                     Ok(inv) => {
                         tracing::info!(
-                            target: "cns.architecture.seam",
+                            target: "hkask.architecture.seam",
                             path = %path,
                             crates = %inv.crates.len(),
                             coverage_pct = %inv.totals.coverage_pct,
@@ -142,7 +142,7 @@ impl SeamWatcher {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns.architecture.seam",
+                            target: "hkask.architecture.seam",
                             path = %path,
                             error = %e,
                             "Seam inventory file parse failed, falling back to embedded"
@@ -151,7 +151,7 @@ impl SeamWatcher {
                 },
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.architecture.seam",
+                        target: "hkask.architecture.seam",
                         path = %path,
                         error = %e,
                         "Seam inventory file not readable, falling back to embedded"
@@ -163,7 +163,7 @@ impl SeamWatcher {
         // 2. Fall back to compile-time embedded JSON
         if EMBEDDED_INVENTORY.trim().is_empty() {
             tracing::info!(
-                target: "cns.architecture.seam",
+                target: "hkask.architecture.seam",
                 "No embedded seam inventory available — seam watching disabled (non-fatal)"
             );
             return None;
@@ -172,7 +172,7 @@ impl SeamWatcher {
         match serde_json::from_str::<SeamInventory>(EMBEDDED_INVENTORY) {
             Ok(inv) => {
                 tracing::info!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     crates = %inv.crates.len(),
                     total_items = %inv.totals.total_items,
                     coverage_pct = %inv.totals.coverage_pct,
@@ -186,7 +186,7 @@ impl SeamWatcher {
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     error = %e,
                     "Embedded seam inventory parse failed — seam watching disabled"
                 );
@@ -213,7 +213,7 @@ impl SeamWatcher {
                 .await;
 
             tracing::debug!(
-                target: "cns.architecture.seam",
+                target: "hkask.architecture.seam",
                 crate_name = %crate_name,
                 domain = %domain,
                 expected_variety = SEAM_EXPECTED_VARIETY,
@@ -224,7 +224,7 @@ impl SeamWatcher {
         }
 
         tracing::info!(
-            target: "cns.architecture.seam",
+            target: "hkask.architecture.seam",
             domains = %self.inventory.crates.len(),
             "All seam variety domains registered"
         );
@@ -295,7 +295,7 @@ impl SeamWatcher {
             );
             if let Err(e) = sink.persist(&event) {
                 tracing::debug!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     error = %e,
                     crate_name = %crate_name,
                     "Failed to persist seam coverage span"
@@ -391,7 +391,7 @@ impl SeamWatcher {
             );
             if let Err(e) = sink.persist(&event) {
                 tracing::debug!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     error = %e,
                     crate_name = %drift.crate_name,
                     "Failed to persist seam drift span"
@@ -426,7 +426,7 @@ impl SeamWatcher {
             Some(p) => p.clone(),
             None => {
                 tracing::debug!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     "Refresh skipped — no file path (using embedded inventory)"
                 );
                 return false;
@@ -437,7 +437,7 @@ impl SeamWatcher {
             Ok(c) => c,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     path = %path.display(),
                     error = %e,
                     "Seam inventory refresh failed — file not readable"
@@ -450,7 +450,7 @@ impl SeamWatcher {
             Ok(inv) => inv,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     path = %path.display(),
                     error = %e,
                     "Seam inventory refresh failed — JSON parse error"
@@ -468,14 +468,14 @@ impl SeamWatcher {
 
         if changed {
             tracing::info!(
-                target: "cns.architecture.seam",
+                target: "hkask.architecture.seam",
                 total_items = %self.inventory.totals.total_items,
                 coverage_pct = %self.inventory.totals.coverage_pct,
                 "Seam inventory refreshed — changes detected"
             );
         } else {
             tracing::debug!(
-                target: "cns.architecture.seam",
+                target: "hkask.architecture.seam",
                 "Seam inventory refreshed — no changes"
             );
         }

@@ -107,7 +107,7 @@ impl OnboardingService {
         }
         // P9: CNS span
         tracing::info!(
-            target: "cns.onboarding",
+            target: "hkask.onboarding",
             operation = "secrets_derived",
             stored = store,
             "CNS"
@@ -185,7 +185,7 @@ impl OnboardingService {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.onboarding",
+            target: "hkask.onboarding",
             operation = "registry_initialized",
             agent_count = registered_agents.len(),
             "CNS"
@@ -230,7 +230,7 @@ impl OnboardingService {
         // deterministic WebID would hit AgentAlreadyRegistered.
         if store.get(&display_name).is_ok() {
             tracing::info!(
-                target: "cns.onboarding",
+                target: "hkask.onboarding",
                 operation = "replicant_already_registered",
                 name = %display_name,
                 "Replicant already in store — skipping A2A registration (idempotent retry)",
@@ -279,7 +279,7 @@ impl OnboardingService {
             && let Err(e) = std::fs::create_dir_all(parent)
         {
             tracing::warn!(
-                target: "cns.onboarding",
+                target: "hkask.onboarding",
                 path = %parent.display(),
                 error = %e,
                 "Failed to create agent directory — will attempt write anyway"
@@ -326,7 +326,7 @@ impl OnboardingService {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.onboarding",
+            target: "hkask.onboarding",
             operation = "replicant_registered",
             name = %registered.definition.name,
             webid = %webid,
@@ -347,7 +347,7 @@ impl OnboardingService {
         profile: &UserProfile,
     ) -> Result<(), ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "store_user_profile", "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "store_user_profile", "CNS");
         store
             .store_user_profile(profile)
             .map_err(|e| ServiceError::Domain {
@@ -368,7 +368,7 @@ impl OnboardingService {
         store: &AgentRegistryStore,
     ) -> Result<Option<UserProfile>, ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "get_user_profile", "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "get_user_profile", "CNS");
         store.get_user_profile().map_err(|e| ServiceError::Domain {
             domain: DomainKind::Agent,
             kind: ErrorKind::ServiceUnavailable,
@@ -393,7 +393,7 @@ impl OnboardingService {
         resolved_secrets: &ResolvedSecrets,
     ) -> Result<SignInOutcome, ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "try_sign_in", agent = %agent_name, "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "try_sign_in", agent = %agent_name, "CNS");
         let handle = Self::init_registry(config).await?;
 
         // Verify the replicant exists
@@ -449,7 +449,7 @@ impl OnboardingService {
     #[must_use]
     pub fn try_list_existing_replicants(config: &ServiceConfig) -> Vec<RegisteredAgent> {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "try_list_existing_replicants", "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "try_list_existing_replicants", "CNS");
         let db_path = &config.db_path;
 
         if db_path == ":memory:" || !std::path::Path::new(db_path).exists() {
@@ -520,7 +520,7 @@ impl OnboardingService {
     #[must_use]
     pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "remove_orphaned_db", "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "remove_orphaned_db", "CNS");
         let db_path = &config.db_path;
         if db_path == ":memory:" {
             return false;
@@ -580,13 +580,13 @@ impl OnboardingService {
     /// post: keychain entries (a2a-secret, hkask-db-passphrase) are removed; DB and salt files deleted if not :memory:
     pub fn cleanup_failed_onboarding(config: &ServiceConfig) {
         // P9: CNS span
-        tracing::info!(target: "cns.onboarding", operation = "cleanup_failed_onboarding", "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "cleanup_failed_onboarding", "CNS");
         let keychain = Keychain::default();
         if let Err(e) = keychain.delete_by_key(hkask_types::keychain_keys::KEY_A2A_SECRET) {
-            tracing::warn!(target: "cns.onboarding", error = %e, "Failed to delete A2A secret from keychain during cleanup");
+            tracing::warn!(target: "hkask.onboarding", error = %e, "Failed to delete A2A secret from keychain during cleanup");
         }
         if let Err(e) = keychain.delete_by_key(hkask_types::keychain_keys::KEY_DB_PASSPHRASE) {
-            tracing::warn!(target: "cns.onboarding", error = %e, "Failed to delete DB passphrase from keychain during cleanup");
+            tracing::warn!(target: "hkask.onboarding", error = %e, "Failed to delete DB passphrase from keychain during cleanup");
         }
 
         let db_path = &config.db_path;
@@ -595,13 +595,13 @@ impl OnboardingService {
             if db_file.exists()
                 && let Err(e) = std::fs::remove_file(db_file)
             {
-                tracing::warn!(target: "cns.onboarding", path = %db_file.display(), error = %e, "Failed to remove orphaned DB file");
+                tracing::warn!(target: "hkask.onboarding", path = %db_file.display(), error = %e, "Failed to remove orphaned DB file");
             }
             let salt_file = std::path::PathBuf::from(format!("{}.salt", db_path));
             if salt_file.exists()
                 && let Err(e) = std::fs::remove_file(&salt_file)
             {
-                tracing::warn!(target: "cns.onboarding", path = %salt_file.display(), error = %e, "Failed to remove salt file");
+                tracing::warn!(target: "hkask.onboarding", path = %salt_file.display(), error = %e, "Failed to remove salt file");
             }
 
             // Also remove the agent's sub-directory under agents/{name}/
@@ -615,11 +615,11 @@ impl OnboardingService {
             if agent_dir.exists() {
                 match std::fs::remove_dir_all(&agent_dir) {
                     Err(e) => {
-                        tracing::warn!(target: "cns.onboarding", path = %agent_dir.display(), error = %e, "Failed to remove agent database directory");
+                        tracing::warn!(target: "hkask.onboarding", path = %agent_dir.display(), error = %e, "Failed to remove agent database directory");
                     }
                     Ok(()) => {
                         tracing::info!(
-                            target: "cns.onboarding",
+                            target: "hkask.onboarding",
                             path = %agent_dir.display(),
                             "Removed agent database directory"
                         );

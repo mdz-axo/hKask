@@ -112,7 +112,7 @@ fn unix_days_to_date(days: i64) -> String {
 /// post: backup operation executed
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
     // P9: CNS span
-    tracing::info!(target: "cns.cli", operation = "backup", action = ?action, "CNS");
+    tracing::info!(target: "hkask.cli", operation = "backup", action = ?action, "CNS");
 
     match action {
         BackupAction::Snapshot { scope: _ } => {

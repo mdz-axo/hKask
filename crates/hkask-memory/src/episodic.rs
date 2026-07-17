@@ -280,7 +280,7 @@ impl EpisodicMemory {
     ) -> Result<(), EpisodicMemoryError> {
         self.h_mem_store.close_by_id(id)?;
         tracing::debug!(
-            target: "cns.episodic",
+            target: "hkask.episodic",
             triple_id = %id.as_uuid(),
             "Episodic h_mem expired (consolidated to semantic memory)"
         );

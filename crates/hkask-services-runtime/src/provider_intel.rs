@@ -484,7 +484,7 @@ impl SelfTrackedProvider {
             Ok(ledger) => ledger.transaction_count(&account).unwrap_or(0),
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.provider",
+                    target: "hkask.provider",
                     provider = %self.config.id,
                     error = %e,
                     "Failed to open ledger for call count — returning 0"

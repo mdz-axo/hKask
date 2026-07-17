@@ -138,7 +138,7 @@ impl DatasetPipeline {
         let cached_path = self.cache_dir.join(format!("{}.jsonl", cache_key));
         if cached_path.exists() {
             tracing::info!(
-                target: "cns.training.dataset.cached",
+                target: "hkask.training.dataset.cached",
                 path = %file_path.display(),
                 cache_key = %cache_key,
                 "Returning cached normalized dataset"

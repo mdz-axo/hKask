@@ -319,7 +319,7 @@ impl HkaskLoop for SemanticLoop {
                             {
                                 Ok(candidates) if !candidates.is_empty() => {
                                     tracing::warn!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         candidates = candidates.len(),
                                         threshold = self.low_confidence_threshold,
                                         "Deleting low-confidence semantic h_mems (consolidation trigger)"
@@ -327,7 +327,7 @@ impl HkaskLoop for SemanticLoop {
                                     for h_mem in &candidates {
                                         if let Err(e) = self.memory.delete_h_mem(&h_mem.id) {
                                             tracing::debug!(
-                                                target: "cns.semantic",
+                                                target: "hkask.semantic",
                                                 triple_id = %h_mem.id,
                                                 entity = %h_mem.entity,
                                                 attribute = %h_mem.attribute,
@@ -340,13 +340,13 @@ impl HkaskLoop for SemanticLoop {
                                 }
                                 Ok(_) => {
                                     tracing::debug!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         "No low-confidence semantic h_mems found for deletion"
                                     );
                                 }
                                 Err(e) => {
                                     tracing::error!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         error = %e,
                                         "Failed to query low-confidence semantic h_mems"
                                     );
@@ -361,7 +361,7 @@ impl HkaskLoop for SemanticLoop {
                             match self.memory.lowest_confidence_h_mems(overage) {
                                 Ok(candidates) if !candidates.is_empty() => {
                                     tracing::warn!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         candidates = candidates.len(),
                                         overage = overage,
                                         "Deleting lowest-confidence semantic h_mems to enforce budget"
@@ -369,7 +369,7 @@ impl HkaskLoop for SemanticLoop {
                                     for h_mem in &candidates {
                                         if let Err(e) = self.memory.delete_h_mem(&h_mem.id) {
                                             tracing::debug!(
-                                                target: "cns.semantic",
+                                                target: "hkask.semantic",
                                                 triple_id = %h_mem.id,
                                                 entity = %h_mem.entity,
                                                 attribute = %h_mem.attribute,
@@ -381,13 +381,13 @@ impl HkaskLoop for SemanticLoop {
                                 }
                                 Ok(_) => {
                                     tracing::debug!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         "No low-confidence semantic h_mems found for deletion"
                                     );
                                 }
                                 Err(e) => {
                                     tracing::error!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         error = %e,
                                         "Failed to query low-confidence semantic h_mems"
                                     );
@@ -435,7 +435,7 @@ impl HkaskLoop for SemanticLoop {
                                                 Ok(id) => id,
                                                 Err(e) => {
                                                     tracing::debug!(
-                                                        target: "cns.semantic",
+                                                        target: "hkask.semantic",
                                                         triple_id = %id_str,
                                                         entity = %entity,
                                                         error = %e,
@@ -446,7 +446,7 @@ impl HkaskLoop for SemanticLoop {
                                             };
                                             if let Err(e) = self.memory.close_h_mem(&tid) {
                                                 tracing::debug!(
-                                                    target: "cns.semantic",
+                                                    target: "hkask.semantic",
                                                     triple_id = %id_str,
                                                     entity = %entity,
                                                     error = %e,
@@ -473,7 +473,7 @@ impl HkaskLoop for SemanticLoop {
 
                                         if let Err(e) = self.memory.store_consolidated(summary) {
                                             tracing::debug!(
-                                                target: "cns.semantic",
+                                                target: "hkask.semantic",
                                                 entity = %entity,
                                                 error = %e,
                                                 "Failed to store condensation summary"
@@ -484,7 +484,7 @@ impl HkaskLoop for SemanticLoop {
                                     }
 
                                     tracing::info!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         total_candidates = total,
                                         condensed = condensed_count,
                                         summaries = summary_count,
@@ -506,14 +506,14 @@ impl HkaskLoop for SemanticLoop {
                                 }
                                 Ok(_) => {
                                     tracing::debug!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         window_days = window_days,
                                         "No old semantic h_mems found for condensation"
                                     );
                                 }
                                 Err(e) => {
                                     tracing::error!(
-                                        target: "cns.semantic",
+                                        target: "hkask.semantic",
                                         error = %e,
                                         "Failed to query old semantic h_mems for condensation"
                                     );
@@ -522,7 +522,7 @@ impl HkaskLoop for SemanticLoop {
                         }
                         _ => {
                             tracing::info!(
-                                target: "cns.semantic",
+                                target: "hkask.semantic",
                                 action_type = ?action.action_type,
                                 target_loop = %action.target,
                                 "Semantic Loop calibration action"
@@ -532,7 +532,7 @@ impl HkaskLoop for SemanticLoop {
                 }
                 _ => {
                     tracing::info!(
-                        target: "cns.semantic",
+                        target: "hkask.semantic",
                         action_type = ?action.action_type,
                         target_loop = %action.target,
                         "Semantic Loop regulatory action"

@@ -1704,7 +1704,7 @@ impl CyberneticsLoop {
                     "warning"
                 };
                 tracing::warn!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     coverage_pct = dev.signal.value,
                     set_point = dev.signal.set_point,
                     drop_magnitude = drop_magnitude,
@@ -1729,7 +1729,7 @@ impl CyberneticsLoop {
             "seam_coverage_improved" => {
                 let improvement = dev.signal.value - dev.signal.set_point;
                 tracing::info!(
-                    target: "cns.architecture.seam",
+                    target: "hkask.architecture.seam",
                     coverage_pct = dev.signal.value,
                     set_point = dev.signal.set_point,
                     improvement = improvement,

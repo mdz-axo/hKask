@@ -129,7 +129,7 @@ impl KanbanService {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "board_created",
             board_id = %board.id,
             name = %name,
@@ -399,7 +399,7 @@ impl KanbanService {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "task_created",
             task_id = %task.id,
             board_id = %board_id,
@@ -580,7 +580,7 @@ impl KanbanService {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "task_moved",
             task_id = %task_id,
             from = %from_status,
@@ -630,7 +630,7 @@ impl KanbanService {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "task_assigned",
             task_id = %task_id,
             agent = %actor,
@@ -699,7 +699,7 @@ impl KanbanService {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "task_verified",
             task_id = %task_id,
             passed = passed,
@@ -828,7 +828,7 @@ impl KanbanService {
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "task_gas_added",
             task_id = %task_id,
             added = amount,
@@ -856,7 +856,7 @@ impl KanbanService {
         task.updated_at = chrono::Utc::now();
         self.update_task_triple(&task)?;
         tracing::info!(
-            target: "cns.kanban",
+            target: "hkask.kanban",
             operation = "task_rjoules_added",
             task_id = %task_id,
             added = amount,
@@ -884,7 +884,7 @@ impl KanbanService {
                 Ok(()) => deleted_count += 1,
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.kanban",
+                        target: "hkask.kanban",
                         operation = "board_delete",
                         board_id = %board_id,
                         task_id = %task.id,

@@ -91,7 +91,7 @@ pub(crate) async fn chat(
     Json(req): Json<ApiChatRequest>,
 ) -> Result<Json<ApiChatResponse>, crate::error::ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "chat", "CNS");
+    tracing::info!(target: "hkask.api", operation = "chat", "CNS");
 
     // Input length validation
     if req.input.len() > 100_000 {
@@ -182,7 +182,7 @@ pub(crate) async fn chat_stream(
     Json(req): Json<ApiChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     // P9: CNS span
-    tracing::info!(target: "cns.api", operation = "chat_stream", "CNS");
+    tracing::info!(target: "hkask.api", operation = "chat_stream", "CNS");
 
     // Input length validation
     if req.input.len() > 100_000 {

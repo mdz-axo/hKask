@@ -21,7 +21,7 @@ pub(crate) fn spawn_seam_drift_check(
 
     tokio::spawn(async move {
         tracing::info!(
-            target: "cns.architecture.seam",
+            target: "hkask.architecture.seam",
             interval_secs = %interval_secs,
             "Seam periodic drift check started — watching every {}s",
             interval_secs
@@ -33,7 +33,7 @@ pub(crate) fn spawn_seam_drift_check(
                 let drifts = watcher.check_drift(&cns_rt, &*sink).await;
                 if !drifts.is_empty() {
                     tracing::info!(
-                        target: "cns.architecture.seam",
+                        target: "hkask.architecture.seam",
                         drift_count = %drifts.len(),
                         "Initial seam drift check complete"
                     );
@@ -54,7 +54,7 @@ pub(crate) fn spawn_seam_drift_check(
                     let improvements: Vec<_> =
                         drifts.iter().filter(|d| d.delta_pct > 0.0).collect();
                     tracing::info!(
-                        target: "cns.architecture.seam",
+                        target: "hkask.architecture.seam",
                         total_drifts = %drifts.len(),
                         degradations = %degradations.len(),
                         improvements = %improvements.len(),

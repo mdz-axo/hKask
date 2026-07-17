@@ -42,7 +42,7 @@ pub(crate) async fn build_matrix(
                     }
                     listener.start().await;
                     tracing::info!(
-                        target: "cns.communication.matrix.daemon",
+                        target: "hkask.communication.matrix.daemon",
                         username = %username,
                         homeserver = %homeserver_url,
                         "Matrix transport connected and 7R7 listener started"
@@ -51,7 +51,7 @@ pub(crate) async fn build_matrix(
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.communication.matrix.daemon",
+                        target: "hkask.communication.matrix.daemon",
                         username = %username,
                         error = %e,
                         "Matrix login failed — Conduit may not be running. Continuing without Matrix."
@@ -62,7 +62,7 @@ pub(crate) async fn build_matrix(
         }
         None => {
             tracing::info!(
-                target: "cns.communication.matrix.daemon",
+                target: "hkask.communication.matrix.daemon",
                 "No Matrix credentials found in keychain or environment. Continuing without Matrix."
             );
             None

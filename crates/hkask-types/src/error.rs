@@ -196,7 +196,8 @@ impl std::fmt::Display for McpErrorKind {
     }
 }
 
-// McpErrorKind — Canonical MCP Error Taxonomy
+// Canonical domain error types — shared across all crates.
+
 /// A resource was not found. Canonical across 17+ crates.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotFound {
@@ -238,8 +239,6 @@ impl std::fmt::Display for DimensionMismatch {
         )
     }
 }
-
-// Canonical domain error types — shared across all crates.
 
 #[cfg(test)]
 mod tests {

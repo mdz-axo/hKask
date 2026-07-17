@@ -359,7 +359,7 @@ impl ChatWindow {
 
         if old_mode != new_mode && consumed {
             tracing::info!(
-                target: "cns.tui.mode_switch",
+                target: "hkask.tui.mode_switch",
                 from = ?old_mode,
                 to = ?new_mode,
                 "CNS"

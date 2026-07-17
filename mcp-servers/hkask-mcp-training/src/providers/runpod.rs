@@ -184,7 +184,7 @@ impl TrainingHost for RunpodHost {
         }
 
         tracing::info!(
-            target: "cns.training.job.submit",
+            target: "hkask.training.job.submit",
             job_id = %job.id,
             pod_id = %pod_id,
             host = "runpod",
@@ -247,7 +247,7 @@ impl TrainingHost for RunpodHost {
             Some(id) => id,
             None => {
                 tracing::warn!(
-                    target: "cns.training.job.cancel",
+                    target: "hkask.training.job.cancel",
                     job_id = %job_id,
                     "No pod found for job"
                 );
@@ -269,7 +269,7 @@ impl TrainingHost for RunpodHost {
         }
 
         tracing::info!(
-            target: "cns.training.job.cancel",
+            target: "hkask.training.job.cancel",
             job_id = %job_id,
             pod_id = %pod_id,
             host = "runpod",
