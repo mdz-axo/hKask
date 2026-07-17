@@ -67,7 +67,7 @@ fn cache() -> &'static Mutex<CacheState> {
 /// underlying data is still accessible; for a TTL cache the worst case is a
 /// stale read, which the next miss overwrites. Recovering the guard (rather
 /// than panicking) keeps the daemon alive across an unrelated thread panic.
-/// See ADR-054 / the eliminate-nested-runtime-panics discipline (ADR-043).
+/// See the eliminate-nested-runtime-panics discipline (ADR-043).
 fn lock_cache() -> std::sync::MutexGuard<'static, CacheState> {
     cache().lock().unwrap_or_else(|poison| poison.into_inner())
 }
@@ -189,7 +189,7 @@ mod tests {
 
         // 4. Poison-recovery regression (ADR-043 family): a prior thread panic
         //    poisons the process-global mutex. `list_models` must recover the
-        //    guard and return Ok, not panic. See ADR-054 / diagnose skill.
+        //    guard and return Ok, not panic. See ADR-043 / diagnose skill.
         ModelCache::invalidate();
         let poison_handle = std::thread::spawn(|| {
             let _guard = cache().lock().unwrap();

@@ -4,7 +4,6 @@
 //! Multiple loops interact with goals: Curation evaluates them, Cybernetics
 //! allocates energy, Communication coordinates agents around them.
 
-#![allow(private_interfaces)]
 //!
 //! Goals are scoped by `&WebID`.
 
@@ -13,14 +12,14 @@ use std::fmt;
 // SYSTEM_MAX_RECURSION (from hkask-capability) = 7
 const MAX_NESTING: u8 = 7;
 use chrono::{DateTime, Utc};
-pub use hkask_types::GoalID;
+use hkask_types::GoalID;
 use hkask_types::Visibility;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 
 /// Error returned when a goal state transition violates the state machine.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct IllegalGoalTransition {
+pub struct IllegalGoalTransition {
     pub from: GoalState,
     pub to: GoalState,
 }
@@ -39,8 +38,8 @@ impl fmt::Display for IllegalGoalTransition {
 impl std::error::Error for IllegalGoalTransition {}
 
 // GoalState is defined in hkask-types (for SQL impls — Rust orphan rule).
-// hkask-services-core re-exports it for convenience.
-pub use hkask_types::GoalState;
+// (GoalState lives in hkask-types for SQL impls — Rust orphan rule.)
+use hkask_types::GoalState;
 
 /// Goal criterion — completion condition (LLM-judged)
 #[derive(Debug, Clone, Serialize, Deserialize)]

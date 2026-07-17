@@ -4,11 +4,11 @@
 //!
 //! `InferenceService` is the service-layer façade over `hkask-inference`'s
 //! `InferenceRouter`; `ModelCache` is the process-scoped TTL cache for model lists
-//! (poison-recovering — see ADR-054 / ADR-043). `ServiceError` is still sourced
+//! (poison-recovering — see ADR-043). `ServiceError` is still sourced
 //! from `hkask-services-core` (the one remaining foundation dep).
 
-pub mod inference_svc;
-pub mod model_cache;
+mod inference_svc;
+mod model_cache;
 
 pub use inference_svc::{InferenceContext, InferenceService, ModelInfo};
 pub use model_cache::ModelCache;

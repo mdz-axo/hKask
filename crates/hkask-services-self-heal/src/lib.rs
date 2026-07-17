@@ -27,7 +27,7 @@ mod helpers;
 mod registry;
 #[cfg(test)]
 mod tests;
-pub mod types;
+mod types;
 
 pub use healer::SelfHealer;
 pub use registry::HealRegistry;

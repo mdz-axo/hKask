@@ -6,7 +6,7 @@
 use hkask_types::WebID;
 use hkask_types::id::UserID;
 use hkask_types::id::WalletId;
-pub use hkask_types::identity::{OAuthProvider, Role};
+use hkask_types::identity::{OAuthProvider, Role};
 use serde::{Deserialize, Serialize};
 
 /// Loop: Cybernetics
