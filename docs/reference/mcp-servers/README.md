@@ -10,7 +10,7 @@ Built-in MCP servers shipped with hKask. Each server is a thin surface over doma
 | Server | Crate | Domain | Tools | Math Engine |
 |--------|-------|--------|-------|-------------|
 | Scenarios | `mcp-servers/hkask-mcp-scenarios` | Event-tree forecasting (Tetlock/Schwartz/Chermack) | 18 | `hkask-forecast` |
-| Companies | `mcp-servers/hkask-mcp-companies` | FIBO-anchored financial forecasting | — | `hkask-forecast` |
+| [Companies](companies.md) | `mcp-servers/hkask-mcp-companies` | FIBO-anchored financial forecasting | 41 | `hkask-forecast` |
 | CodeGraph | `mcp-servers/hkask-mcp-codegraph` | Code understanding (query, traverse, impact) | 11 | `hkask-codegraph` |
 | Curator | `mcp-servers/hkask-mcp-curator` | Curator agent metacognition | — | — |
 | Memory | `mcp-servers/hkask-mcp-memory` | Episodic and semantic memory | — | — |
@@ -47,7 +47,10 @@ Every MCP server MUST include **tool-behavior contract tests** that invoke tools
 - [Research MCP Adversarial Review](../../status/research-mcp-adversarial-review-2026-07-17.md) — code smell inventory for the research server
 - [Filesystem Server Reference](filesystem.md) — sandbox model, 7 tools, CNS spans, current behavior and known limitations (DIAG-RF-003)
 - [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code smell inventory for the scenarios server
+- [Companies MCP Server Reference](companies.md) — 41 tools, dual-provider routing, forecast store, portfolio ledger (DIAG-RF-004)
 - [Companies MCP Code Review](../../status/companies-mcp-code-review-2026-07-15.md) — adversarial code review of the companies server
+- [Companies Semantic Graph Audit](../../status/companies-mcp-semantic-graph-audit-2026-07-17.md) — internal module dependency graph health
+- [Companies Tool Routing Diagram](../../diagrams/flowchart-companies-tool-routing.md) — DIAG-RF-004 dispatch flow
 - [Scenario Forecasting Pipeline Diagram](../../diagrams/flowchart-scenario-forecasting-pipeline.md) — scenarios tool flow
 - [Superforecasting: Layered Model](../../explanation/superforecasting-layers.md) — three-layer architecture
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence

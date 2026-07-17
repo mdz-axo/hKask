@@ -23,3 +23,4 @@ Task-oriented procedures for achieving specific goals with hKask. Each guide ans
 | [Deployment and Transport](deployment-and-transport.md) | Deploy on Kubernetes with Conduit sidecar, configure Matrix transport, and manage backup and restore |
 | [Sovereignty and Observability](sovereignty-and-observability.md) | Audit Magna Carta principles, manage delegation tokens and consent, and read CNS alerts and variety counters |
 | [Fusion Mode](fusion-mode.md) | Configure multi-model deliberation: panel, judge, five deliberation modes, skill anchoring, and per-skill manifest overrides |
+| [Companies MCP Server](companies-mcp.md) | Configure providers, fetch financials, run DCF and scenario valuations, calibrate and record forecasts, import and analyze a portfolio ledger, and search fundamental research |

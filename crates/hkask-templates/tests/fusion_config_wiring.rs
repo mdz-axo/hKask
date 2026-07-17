@@ -13,7 +13,7 @@ use hkask_templates::bundle::config::{
 use hkask_templates::bundle::manifest::{BundleManifest, BundleManifestStep};
 use hkask_templates::executor::ManifestExecutor;
 use hkask_templates::ports::NoopMcpPort;
-use hkask_types::fusion::{FusionConfig, FusionMode, NonEmptyVec};
+use hkask_types::fusion::{AlgoMethod, FusionConfig, FusionMode, NonEmptyVec};
 use hkask_types::template::LLMParameters;
 use hkask_types::visibility::Visibility;
 use std::collections::HashMap;
@@ -192,6 +192,7 @@ async fn manifest_fusion_config_propagates_to_params() {
         mode: FusionMode::Synthesis,
         skills: Vec::new(),
         max_rounds: 3,
+        algo_method: AlgoMethod::default(),
     };
 
     let manifest = build_manifest(Some(fusion.clone()), None);
@@ -232,6 +233,7 @@ async fn step_fusion_false_bypasses_manifest_fusion() {
         mode: FusionMode::Synthesis,
         skills: Vec::new(),
         max_rounds: 3,
+        algo_method: AlgoMethod::default(),
     };
 
     let manifest = build_manifest(Some(fusion), Some(false));

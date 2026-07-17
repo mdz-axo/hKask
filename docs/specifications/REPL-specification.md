@@ -57,16 +57,16 @@ Per PRINCIPLES.md P6, the REPL is strictly terminal-based. The browser terminal 
 ### 3.1 Crate Location
 
 ```
-crates/hkask-cli/src/repl/
-├── mod.rs              # ReplState struct, main loop
+crates/hkask-repl/src/
+├── lib.rs              # ReplState struct, main loop
 ├── commands.rs         # Slash command registry (SLASH_COMMANDS table)
 ├── display.rs          # Banner, help, command help
 ├── helper.rs           # KaskHelper (Completer, Highlighter, Hinter, Validator)
 ├── init.rs             # Dependency injection — wires CNS, loops, memory, tools
-├── turn.rs             # single_agent_turn() (→ ChatService::execute_turn)
-├── energy.rs           # EnergyGuard (owned-consumption hold-settle gas pattern)
+├── turn.rs             # run_turn_loop() + TurnSink trait (CLI/TUI unified), single_agent_turn() wrapper
+├── energy.rs           # EnergyGuard (hold-settle gas pattern, settle/release/Drop)
 ├── cns_display.rs      # CNS algedonic alert display, loop system tick (read-only)
-├── tool_augmented.rs   # Tool call parsing, invocation, response processing
+├── tool_augmented.rs   # Tool call parsing (extract_tool_calls), invocation, result formatting
 ├── builtin_servers.rs  # MCP server startup at REPL boot
 └── handlers/
     ├── mod.rs          # Re-exports
@@ -282,9 +282,10 @@ The turn pipeline is now split between the service layer and the CLI:
 
 - **`ChatService::execute_turn()`** (in `hkask-services-chat`) handles: manifest cascade,
   history suffix, inference via `ChatService::chat()`, and persona filter.
-- **CLI (`turn::single_agent_turn()`)** handles: gas guard reservation/settlement,
-  response display, tool execution through `GovernedTool`,
-  token usage display, gas budget warnings, and CNS updates.
+- **CLI (`turn::run_turn_loop()` via `TurnSink`)** handles: gas guard reservation/settlement,
+  response display (stdout for CLI, capture buffer for TUI), tool execution through `GovernedTool`,
+  token usage display, gas budget warnings, and CNS updates. `single_agent_turn()` and
+  `single_agent_turn_captured()` are thin wrappers that select the sink implementation.
 
 ### 6.1 Pipeline Overview
 
@@ -304,10 +305,11 @@ The turn pipeline is now split between the service layer and the CLI:
 │ 4. Persona Filter (strip forbidden patterns)                          │
 │    └─ apply_persona_filter()                                         │
 ├──────────────────────────────────────────────────────────────────────┤
-│ CLI Layer (turn::single_agent_turn)                                    │
+│ CLI Layer (turn::run_turn_loop via TurnSink)                           │
 │                                                                      │
 │ 5. Gas Guard (per-iteration)                                          │
 │    └─ EnergyGuard::try_reserve() → inference → settle(actual)         │
+│    └─ On inference error: release() returns reservation to budget     │
 │                                                                      │
 │ 6. Tool Execution (via GovernedTool + OCAP)                           │
 │    └─ Parse structured tool calls from TurnResult                     │
@@ -522,9 +524,10 @@ Every inference turn and tool invocation follows a two-phase gas accounting patt
 This is encapsulated in `EnergyGuard`, an RAII guard that:
 - Checks `can_proceed()` before reserving
 - Stores the heuristic amount
-- Settles actual cost after inference
-- Syncs `InferenceLoop` from the L6 CyberneticsLoop budget
-- Debug-asserts on drop if not settled (prevents leaked reservations)
+- Settles actual cost after successful inference (`settle(actual)`)
+- Releases the reservation on inference failure (`release()`) — no actual cost incurred
+- Syncs `InferenceLoop` from the L6 CyberneticsLoop budget (on settle only)
+- Logs a warning via `Drop` if neither `settle()` nor `release()` was called (e.g., panic)
 
 ### 10.2 Energy Budget Configuration
 

@@ -68,6 +68,7 @@ fn default_params() -> LLMParameters {
         bypass_fusion: false,
         fusion_config: None,
         system_prompt: None,
+        proposed_thought: None,
     }
 }
 
@@ -371,6 +372,7 @@ async fn disable_thinking_flows_to_wire_format() {
         bypass_fusion: false,
         fusion_config: None,
         system_prompt: None,
+        proposed_thought: None,
     };
 
     let result = router
@@ -526,7 +528,7 @@ async fn execute_workflow_unavailable_backend_returns_error() {
 #[tokio::test]
 async fn generate_stream_with_fusion_buffers_as_one_chunk() {
     use futures_util::StreamExt;
-    use hkask_inference::{FusionConfig, FusionMode};
+    use hkask_inference::{AlgoMethod, FusionConfig, FusionMode};
     use hkask_types::fusion::NonEmptyVec;
 
     let deepinfra_mock = MockServer::start().await;
@@ -555,6 +557,7 @@ async fn generate_stream_with_fusion_buffers_as_one_chunk() {
             mode: FusionMode::Synthesis,
             skills: Vec::new(),
             max_rounds: 5,
+            algo_method: AlgoMethod::default(),
         }),
         system_prompt: None,
         ..Default::default()

@@ -93,6 +93,13 @@ pub struct LLMParameters {
     /// as a proper system message rather than prepending to user content.
     #[serde(default)]
     pub system_prompt: Option<String>,
+    /// The calling agent's own draft position on the prompt, injected into the
+    /// `critique` and `pi` fusion modes as an additional peer perspective so the
+    /// panel/judge can refine rather than ignore the agent's prior (panel-mcp
+    /// `proposedThought` analog). Per-call; ignored by non-draft modes and by
+    /// the `algo` judge.
+    #[serde(default)]
+    pub proposed_thought: Option<String>,
 }
 
 impl LLMParameters {
@@ -114,6 +121,7 @@ impl LLMParameters {
             bypass_fusion: false,
             fusion_config: None,
             system_prompt: None,
+            proposed_thought: None,
         }
     }
 }

@@ -63,7 +63,7 @@ pub mod together_backend;
 
 // Re-exports — public API
 pub use config::{
-    FusionConfig, FusionMode, FusionSkill, InferenceConfig, ProviderConfig, ProviderId,
+    AlgoMethod, FusionConfig, FusionMode, FusionSkill, InferenceConfig, ProviderConfig, ProviderId,
 };
 pub use embedding_router::EmbeddingRouter;
 pub use inference_router::InferenceRouter;

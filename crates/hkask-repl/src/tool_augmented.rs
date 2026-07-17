@@ -400,11 +400,21 @@ mod tests {
 
     #[test]
     fn parse_directive_without_json_body_defaults_to_empty_object() {
-        let response = "<<tool:srv/ping
->>";
+        // No newline at all — the parser defaults json_body to "{}"
+        let response = "<<tool:srv/ping>>";
         let parsed = parse_tool_calls(response);
         assert_eq!(parsed.tool_calls.len(), 1);
         assert!(parsed.tool_calls[0].args.is_object());
+    }
+
+    #[test]
+    fn parse_directive_with_newline_but_empty_body_treated_as_text() {
+        // Newline present but body is empty (after trim) — serde_json::from_str("")
+        // fails, so the directive is pushed back as text.
+        let response = "<<tool:srv/ping\n>>";
+        let parsed = parse_tool_calls(response);
+        assert!(parsed.tool_calls.is_empty());
+        assert!(parsed.text.contains("<<tool:"));
     }
 
     #[test]

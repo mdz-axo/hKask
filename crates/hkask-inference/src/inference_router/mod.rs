@@ -368,7 +368,7 @@ impl InferenceRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{FusionConfig, FusionMode, InferenceConfig, NonEmptyVec};
+    use crate::config::{AlgoMethod, FusionConfig, FusionMode, InferenceConfig, NonEmptyVec};
 
     fn config_with_fusion(judge: Option<&str>, panel: Option<&[&str]>) -> InferenceConfig {
         InferenceConfig {
@@ -385,6 +385,7 @@ mod tests {
                 mode: FusionMode::Synthesis,
                 skills: Vec::new(),
                 max_rounds: 5,
+                algo_method: AlgoMethod::default(),
             }),
             ..Default::default()
         }
@@ -459,6 +460,7 @@ mod tests {
                 mode: FusionMode::Critique,
                 skills: Vec::new(),
                 max_rounds: 3,
+                algo_method: AlgoMethod::default(),
             }),
             system_prompt: None,
             ..Default::default()
@@ -480,6 +482,7 @@ mod tests {
                 mode: FusionMode::Synthesis,
                 skills: Vec::new(),
                 max_rounds: 5,
+                algo_method: AlgoMethod::default(),
             }),
             system_prompt: None,
             ..Default::default()
@@ -502,6 +505,7 @@ mod tests {
                 mode: FusionMode::Synthesis,
                 skills: Vec::new(),
                 max_rounds: 5,
+                algo_method: AlgoMethod::default(),
             }),
             system_prompt: None,
             ..Default::default()

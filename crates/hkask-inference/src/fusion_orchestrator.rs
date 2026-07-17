@@ -148,6 +148,19 @@ fn build_skill_anchor(skills: &[FusionSkill]) -> String {
     anchor
 }
 
+/// Build a "## Agent's Draft Position" section from an optional proposed
+/// thought (panel-mcp `proposedThought` analog). Returns an empty string when
+/// absent, so draft-ignoring modes are unaffected. Injected into `critique` and
+/// `pi` so the panel/judge can refine the agent's prior rather than ignore it.
+fn draft_section(proposed: Option<&str>) -> String {
+    match proposed {
+        Some(thought) if !thought.trim().is_empty() => {
+            format!("\n\n## Agent's Draft Position\n{thought}\n")
+        }
+        _ => String::new(),
+    }
+}
+
 // ── Panel Dispatch ───────────────────────────────────────────────────────────
 
 /// Result from a single panel model.
@@ -855,10 +868,12 @@ async fn mode_critique(
         ));
     }
 
+    let agent_draft = draft_section(params.proposed_thought.as_deref());
     let r1_judge_prompt = format!(
         "You are a synthesis judge (Round 1). Below are responses from a panel of models. \
-         Produce an initial draft synthesis incorporating the strongest elements.{skills}\n\n\
-         ## Original Prompt\n{prompt}\n\n## Panel Responses{candidates}\n\n\
+         Produce an initial draft synthesis incorporating the strongest elements. If an \
+         agent's draft position is provided, refine it rather than discard it.{skills}\n\n\
+         ## Original Prompt\n{prompt}\n\n## Panel Responses{candidates}{agent_draft}\n\n\
          ## Instructions\nProduce your draft synthesis now.",
         skills = skill_anchor,
         prompt = prompt,
@@ -1057,12 +1072,14 @@ async fn mode_plan_implement(
     // ── Phase 1: Strategy Plan ──────────────────────────────────────────────
     // Skill-anchor the panel (same fix as mode_critique's F3) so panelists
     // evaluate against the same methodology the judge uses, not methodology-blind.
+    let agent_draft = draft_section(params.proposed_thought.as_deref());
     let phase1_plan_prompt = format!(
         "You are a strategy panelist. Given the task below, propose a high-level \
-         strategy or approach. Focus on architecture, key decisions, tradeoffs, and \
-         the overall plan — NOT implementation details.{skills}\n\n\
-         ## Task\n{prompt}\n\n\
-         ## Instructions\nPropose a strategy. Be specific about approach, not code.",
+             strategy or approach. Focus on architecture, key decisions, tradeoffs, and \
+             the overall plan — NOT implementation details. If an agent's draft position \
+             is provided, treat it as a starting stance to improve upon.{skills}\n\n\
+             ## Task\n{prompt}{agent_draft}\n\n\
+             ## Instructions\nPropose a strategy. Be specific about approach, not code.",
         skills = skill_anchor,
     );
 
@@ -1076,11 +1093,12 @@ async fn mode_plan_implement(
 
     let p1_judge_prompt = format!(
         "You are a strategy synthesis judge (Phase 1: Plan). Below are strategy \
-         proposals from the panel. Synthesize a unified strategy plan incorporating \
-         the best approaches. Resolve contradictions. This is the STRATEGY only — \
-         no implementation details.{skills}\n\n\
-         ## Original Task\n{prompt}\n\n## Strategy Proposals{candidates}\n\n\
-         ## Instructions\nProduce the unified strategy plan.",
+             proposals from the panel. Synthesize a unified strategy plan incorporating \
+             the best approaches. Resolve contradictions. This is the STRATEGY only — \
+             no implementation details. If an agent's draft position is provided, \
+             refine it rather than discard it.{skills}\n\n\
+             ## Original Task\n{prompt}\n\n## Strategy Proposals{candidates}{agent_draft}\n\n\
+             ## Instructions\nProduce the unified strategy plan.",
         skills = skill_anchor,
         candidates = format_panel_responses(&phase1_responses),
     );
@@ -1459,5 +1477,23 @@ mod tests {
     #[test]
     fn vote_empty_is_null() {
         assert_eq!(vote_json_values(&[]), serde_json::Value::Null);
+    }
+
+    // ── Proposal A: Agent draft position injection ────────────────────────────────
+
+    /// `draft_section` is empty when no proposed thought is supplied.
+    #[test]
+    fn draft_section_absent_is_empty() {
+        assert_eq!(super::draft_section(None), "");
+        assert_eq!(super::draft_section(Some("   ")), "");
+        assert_eq!(super::draft_section(Some("")), "");
+    }
+
+    /// `draft_section` renders a labeled section when a draft is supplied.
+    #[test]
+    fn draft_section_present_renders_section() {
+        let s = super::draft_section(Some("try a sorted map"));
+        assert!(s.contains("## Agent's Draft Position"));
+        assert!(s.contains("try a sorted map"));
     }
 }

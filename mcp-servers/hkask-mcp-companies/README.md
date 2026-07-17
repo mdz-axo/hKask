@@ -84,7 +84,7 @@ Company-finance MCP server for provider-routed market data, fundamental analysis
 | `file_list` | List a portfolio's attached files for a symbol. |
 | `file_delete` | Delete an attached file by ID. |
 
-See [the Companies MCP reference](../../docs/reference/mcp-servers/README.md#companies-mcp-server) for operational constraints and the code-anchored provider-routing diagram.
+See the [Companies MCP Server Reference](../../docs/reference/mcp-servers/companies.md) for the full tool catalog, behavioral boundaries, and the code-anchored tool-routing diagram (DIAG-RF-004). The [Companies User Guide](../../docs/how-to/companies-mcp.md) covers task-oriented procedures for valuation, forecasting, and portfolio operations.
 
 ## Configuration
 
