@@ -47,7 +47,7 @@ pub use curation::{
     BoundaryClassification, DataCategory, DataSovereigntyBoundary, UserSovereigntyState,
 };
 pub use curator::{CurationThresholdConfig, CuratorDirective, CuratorHandle, EscalationSeverity};
-pub use error::{InfrastructureError, McpErrorKind};
+pub use error::{CapabilityDenied, InfrastructureError, McpErrorKind, NotFound};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::GoalState;
 pub use id::{

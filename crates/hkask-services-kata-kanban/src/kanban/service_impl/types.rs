@@ -1,6 +1,7 @@
 //! Kanban error types and de-jam data structures.
 
 use crate::kata::KataError;
+use hkask_types::NotFound;
 use hkask_types::id::TaskId;
 
 use crate::TaskStatus;
@@ -29,7 +30,7 @@ pub enum KanbanError {
     InvalidInput(String),
 
     #[error("not found: {0}")]
-    NotFound(String),
+    NotFound(NotFound),
 
     #[error("invalid state transition: task {task} cannot move from {from} to {to}")]
     InvalidTransition {
@@ -55,5 +56,11 @@ pub enum KanbanError {
 impl From<KataError> for KanbanError {
     fn from(e: KataError) -> Self {
         KanbanError::Internal(format!("kata engine: {e}"))
+    }
+}
+
+impl From<NotFound> for KanbanError {
+    fn from(nf: NotFound) -> Self {
+        KanbanError::NotFound(nf)
     }
 }

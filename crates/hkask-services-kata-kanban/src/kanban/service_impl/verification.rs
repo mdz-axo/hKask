@@ -8,7 +8,7 @@ impl KanbanService {
     ) -> Result<String, KanbanError> {
         let task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
 
         if task.criteria.is_empty() {
             return Err(KanbanError::InvalidInput(
@@ -48,7 +48,7 @@ impl KanbanService {
     ) -> Result<(Task, Verification), KanbanError> {
         let mut task = self
             .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task", id: task_id.to_string() }))?;
 
         if task.status != TaskStatus::Review {
             return Err(KanbanError::InvalidTransition {

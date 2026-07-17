@@ -12,6 +12,7 @@
 
 use super::types::{Task, TaskSpec, TaskStatus};
 use super::{KanbanError, KanbanService};
+use hkask_types::NotFound;
 use hkask_types::WebID;
 use hkask_types::id::{BoardId, TaskId};
 
@@ -63,9 +64,12 @@ pub fn create_inquiry(
 /// Returns (prompt_text, stage_name). The caller presents this to the user.
 #[must_use = "result must be used"]
 pub fn prompt(service: &KanbanService, task_id: TaskId) -> Result<(String, String), KanbanError> {
-    let task = service
-        .task_get(task_id)?
-        .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+    let task = service.task_get(task_id)?.ok_or_else(|| {
+        KanbanError::NotFound(NotFound {
+            entity_type: "task",
+            id: task_id.to_string(),
+        })
+    })?;
 
     let name = stage_name(task.status);
     let body = match task.status {
@@ -110,9 +114,12 @@ pub fn advance(
     task_id: TaskId,
     user: WebID,
 ) -> Result<String, KanbanError> {
-    let task = service
-        .task_get(task_id)?
-        .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+    let task = service.task_get(task_id)?.ok_or_else(|| {
+        KanbanError::NotFound(NotFound {
+            entity_type: "task",
+            id: task_id.to_string(),
+        })
+    })?;
 
     let from = stage_name(task.status);
     let (next, to) = match task.status {
@@ -176,9 +183,12 @@ pub fn quality_check(
     task_id: TaskId,
     response: &str,
 ) -> Result<QualityGate, KanbanError> {
-    let task = service
-        .task_get(task_id)?
-        .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+    let task = service.task_get(task_id)?.ok_or_else(|| {
+        KanbanError::NotFound(NotFound {
+            entity_type: "task",
+            id: task_id.to_string(),
+        })
+    })?;
 
     let stage = stage_name(task.status);
     let resp_lower = response.to_lowercase();

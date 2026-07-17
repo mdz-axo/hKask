@@ -24,6 +24,7 @@ use crate::kanban::{
     Comment, GasEntry, KanbanPhase, Priority, SpawnSpec, Task, TaskFilter, TaskSpec, TaskStatus,
     Verification, VerificationCriterion,
 };
+use hkask_types::NotFound;
 use hkask_types::WebID;
 use hkask_types::id::{BoardId, PhaseId, TaskId};
 

@@ -13,6 +13,7 @@
 use std::sync::Arc;
 
 use hkask_storage::{HMem, HMemStore};
+use hkask_types::NotFound;
 use hkask_types::WebID;
 use hkask_types::id::{BoardId, TaskId};
 use serde_json::Value;
@@ -262,9 +263,12 @@ impl KanbanService {
         board_id: BoardId,
         filter: Option<&str>,
     ) -> Result<String, KanbanError> {
-        let board = self
-            .board_get(board_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+        let board = self.board_get(board_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "board",
+                id: board_id.to_string(),
+            })
+        })?;
         let mut tasks = self.task_list(board_id, TaskFilter::all())?;
 
         // Apply filter if present
@@ -359,9 +363,12 @@ impl KanbanService {
         owner: WebID,
     ) -> Result<Task, KanbanError> {
         // Verify board exists
-        let board = self
-            .board_get(board_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+        let board = self.board_get(board_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "board",
+                id: board_id.to_string(),
+            })
+        })?;
         let _ = board;
 
         // Extract sizing fields before Task::new consumes the spec
@@ -452,8 +459,12 @@ impl KanbanService {
         filter: TaskFilter,
     ) -> Result<Vec<Task>, KanbanError> {
         // Verify board exists
-        self.board_get(board_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+        self.board_get(board_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "board",
+                id: board_id.to_string(),
+            })
+        })?;
 
         let index_entity = format!("{BOARD_TASKS_PREFIX}{board_id}");
 
@@ -527,9 +538,12 @@ impl KanbanService {
         target: TaskStatus,
         actor: WebID,
     ) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
 
         Self::require_task_actor(&task, actor)?;
 
@@ -601,9 +615,12 @@ impl KanbanService {
     /// \[P12\] Constraining: No anonymous agency — the accepted assignment has an actor WebID.
     #[must_use = "result must be used"]
     pub fn task_claim(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
 
         if task.assignee.is_some() {
             return Err(KanbanError::PermissionDenied(
@@ -652,9 +669,12 @@ impl KanbanService {
         evidence: &str,
         verifier: WebID,
     ) -> Result<(Task, Verification), KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
 
         Self::require_task_owner(&task, verifier)?;
 
@@ -734,9 +754,12 @@ impl KanbanService {
     /// post: task h_mem and index h_mem are soft-deleted
     #[must_use = "result must be used"]
     pub fn task_delete(&self, task_id: TaskId) -> Result<(), KanbanError> {
-        let task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
 
         // Close the task h_mem
         let h_mems = self
@@ -770,9 +793,12 @@ impl KanbanService {
     /// post: task.assignee is set to None
     #[must_use = "result must be used"]
     pub fn task_unassign(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
         Self::require_task_owner(&task, actor)?;
         task.assignee = None;
         task.updated_at = chrono::Utc::now();
@@ -786,9 +812,12 @@ impl KanbanService {
     /// post: task moves to InProgress, verification cleared
     #[must_use = "result must be used"]
     pub fn task_reopen(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
 
         Self::require_task_owner(&task, actor)?;
 
@@ -818,9 +847,12 @@ impl KanbanService {
         amount: u64,
         actor: WebID,
     ) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
         Self::require_task_owner(&task, actor)?;
         let current = task.gas_remaining.unwrap_or(0);
         task.gas_remaining = Some(current.saturating_add(amount));
@@ -846,9 +878,12 @@ impl KanbanService {
         amount: u64,
         actor: WebID,
     ) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
         Self::require_task_owner(&task, actor)?;
         let current = task.rjoule_remaining.unwrap_or(0);
         task.rjoule_remaining = Some(current.saturating_add(amount));
@@ -872,9 +907,12 @@ impl KanbanService {
     /// post: board h_mem and all associated task/index h_mems are soft-deleted
     #[must_use = "result must be used"]
     pub fn board_delete(&self, board_id: BoardId) -> Result<usize, KanbanError> {
-        let board = self
-            .board_get(board_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("board {board_id}")))?;
+        let board = self.board_get(board_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "board",
+                id: board_id.to_string(),
+            })
+        })?;
 
         // Delete all tasks on this board
         let tasks = self.task_list(board_id, TaskFilter::all())?;
@@ -923,9 +961,12 @@ impl KanbanService {
         task_id: TaskId,
         manifest: &KataManifest,
     ) -> Result<KataResult, KanbanError> {
-        let task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
         let bridge = self
             .kata_bridge
             .as_ref()
@@ -940,9 +981,12 @@ impl KanbanService {
         task_id: TaskId,
         manifest: &KataManifest,
     ) -> Result<KataResult, KanbanError> {
-        let task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
         let bridge = self
             .kata_bridge
             .as_ref()
@@ -958,9 +1002,12 @@ impl KanbanService {
         sub_problem: &str,
         manifest: &KataManifest,
     ) -> Result<KataResult, KanbanError> {
-        let task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(format!("task {task_id}")))?;
+        let task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task",
+                id: task_id.to_string(),
+            })
+        })?;
         let bridge = self
             .kata_bridge
             .as_ref()

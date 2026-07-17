@@ -867,7 +867,7 @@ impl KanbanServer {
 /// post: returns McpToolError with appropriate McpErrorKind
 fn map_kanban_error(e: KanbanError) -> McpToolError {
     match e {
-        KanbanError::NotFound(msg) => McpToolError::not_found(msg),
+        KanbanError::NotFound(nf) => McpToolError::not_found(nf.to_string()),
         KanbanError::InvalidInput(msg) => McpToolError::invalid_argument(msg),
         KanbanError::InvalidTransition { .. } => McpToolError::failed_precondition(e.to_string()),
         KanbanError::PermissionDenied(msg) => McpToolError::permission_denied(msg),
