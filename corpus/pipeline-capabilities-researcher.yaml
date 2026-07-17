@@ -109,7 +109,6 @@ steps:
     params:
       prefix: "corpus:researcher:"
       db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 2a: Tag chunks → ontology tags JSONL (BEFORE embed)
@@ -160,8 +159,10 @@ steps:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
       tagged_jsonl: "corpus/chunks/tagged_ontology.jsonl"
       db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
       batch_size: 50
+    verify:
+      field: embedded
+      min: 1
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 2c: Extract triples → RDF triple h_mems in DB
@@ -181,7 +182,6 @@ steps:
     params:
       chunks_jsonl: "corpus/chunks/chunks.jsonl"
       db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
       owner: "john-brooks"
       max_triples: 15
       concurrency: 64
@@ -196,7 +196,6 @@ steps:
       tagged_jsonl: "corpus/chunks/tagged_ontology.jsonl"
       output: "corpus/chunks/deduped.jsonl"
       db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
       prefix: "corpus:researcher:"
       threshold: 0.85
 
@@ -213,7 +212,6 @@ steps:
       tagged_jsonl: "corpus/chunks/deduped.jsonl"
       output: "corpus/chunks/consolidated.jsonl"
       db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
       prefix: "corpus:researcher:"
       threshold: 0.75
       concurrency: 12
@@ -239,7 +237,6 @@ steps:
       tagged_jsonl: "corpus/chunks/consolidated.jsonl"
       output: "corpus/qa_pairs/prompts.jsonl"
       db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
       context_k: 3
       prompts_per_chunk: 5
       type_distribution: "1,1,1,1,1"
@@ -268,6 +265,9 @@ steps:
       output: "corpus/qa_pairs/generated.jsonl"
       concurrency: 196
       model: "DI/zai-org/GLM-5.2"
+    verify:
+      field: written
+      min: 1
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 7: Ingest QAs (SemDeDup + h_mem storage + QA embeddings)
@@ -287,11 +287,13 @@ steps:
       generated_jsonl: "corpus/qa_pairs/generated.jsonl"
       output: "corpus/qa_pairs/train.jsonl"
       db_path: "corpus/memory/john-brooks.db"
-      passphrase: "hkask-default-passphrase-2024"
       dedup_threshold: 0.89
       embed_qas: true
       dataset: "capabilities-researcher"
       owner: "john-brooks"
+    verify:
+      field: stored_h_mems
+      min: 1
 
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 8: Assemble ChatML dataset (Rust MCP tool — no Python)

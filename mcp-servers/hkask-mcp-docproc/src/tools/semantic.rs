@@ -1447,5 +1447,10 @@ fn default_embed_batch_size() -> usize {
 /// `tools::storage::default_purge_passphrase` is private to that module, so this
 /// module-local default mirrors it for `ExtractTriplesRequest` and `EmbedRequest`.
 fn default_docproc_passphrase() -> String {
-    "hkask-default-passphrase-2024".to_string()
+    // Env-driven with a dev fallback: production sets HKASK_DB_PASSPHRASE;
+    // local dev (env unset) falls back to the shared dev passphrase so the
+    // corpus pipeline runs without extra config. The pipeline YAML no longer
+    // hardcodes the passphrase per-step (F12 — no hardcoded secrets).
+    std::env::var("HKASK_DB_PASSPHRASE")
+        .unwrap_or_else(|_| "hkask-default-passphrase-2024".to_string())
 }

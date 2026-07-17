@@ -1,4 +1,4 @@
-# QA Autonomous Cycle — v0.31.0
+# QA Triage Cycle — v0.31.0
 #
 # Classifier-driven autonomous QA pipeline using ONLY hKask infrastructure.
 # No external fuzzers, no bolero, no cargo-mutants.
@@ -19,12 +19,12 @@
 #   loop steps require runner with classify + loop support.
 
 manifest:
-  id: qa-autonomous
+  id: qa-triage-cycle
   category: qa-script
-  name: QA Autonomous Cycle
+  name: QA Triage Cycle
   version: 0.31.0
   description: >
-    Autonomous QA pipeline using only hKask infrastructure: runs contract and
+    QA triage cycle using only hKask infrastructure: runs contract and
     property tests, classifies failures via Gemma 4 26B, branches on confidence,
     and retries flaky tests. No external fuzzers required.
   editor: system

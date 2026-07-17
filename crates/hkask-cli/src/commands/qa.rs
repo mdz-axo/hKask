@@ -7,6 +7,7 @@
 use crate::cli::QaAction;
 use std::path::Path;
 use std::sync::Arc;
+use hkask_test_harness::qa_script::QaStatus;
 
 /// pre:  action is a valid QaAction
 /// post: runs the specified QA operation, prints results to stdout
@@ -36,9 +37,18 @@ pub fn run(action: QaAction) {
 
             println!("Running QA script: {}", manifest_path.display());
 
-            // Try to set up MCP dispatch for manifests that use mcp_tool steps.
-            // Gracefully degrades if binaries aren't built or config is missing.
-            let mcp_dispatch = setup_mcp_dispatch(&rt);
+            // Only start MCP servers if the manifest uses mcp_tool steps; avoids
+            // spawning servers for run_command/classify-only manifests. (F10 — the
+            // full tool_name->server_id mapping is circular: the registry requires
+            // servers running, so we gate on mcp_tool presence instead.)
+            let manifest_uses_mcp = std::fs::read_to_string(&manifest_path)
+                .map(|c| c.contains("mcp_tool"))
+                .unwrap_or(false);
+            let mcp_dispatch = if manifest_uses_mcp {
+                setup_mcp_dispatch(&rt)
+            } else {
+                None
+            };
 
             match rt.block_on(hkask_test_harness::qa_script::run_script(
                 workspace,
@@ -54,7 +64,7 @@ pub fn run(action: QaAction) {
                     println!("  Message:    {}", output.terminal_message.trim());
                     println!("  Steps run:  {}", output.steps_executed);
                     println!("  Gas used:   {}", output.gas_used);
-                    if output.terminal_message.contains("FAIL") {
+                    if output.status == QaStatus::Fail {
                         std::process::exit(1);
                     }
                 }
@@ -123,6 +133,7 @@ fn setup_mcp_dispatch(
     rt: &tokio::runtime::Runtime,
 ) -> Option<hkask_test_harness::qa_script::McpDispatchFn> {
     use hkask_mcp::McpRuntime;
+    use hkask_test_harness::qa_script::QaDispatchError;
 
     let runtime = McpRuntime::new();
 
@@ -168,10 +179,7 @@ fn setup_mcp_dispatch(
                 let server_id = match mcp.get_tool_info(&tool_name).await {
                     Some(info) => info.server_id,
                     None => {
-                        return Err(format!(
-                            "tool '{}' not found in any registered server",
-                            tool_name
-                        ));
+                        return Err(QaDispatchError::ToolNotFound { tool: tool_name });
                     }
                 };
 
@@ -188,7 +196,7 @@ fn setup_mcp_dispatch(
                             .join("\n");
                         Ok(text)
                     }
-                    Err(e) => Err(format!("MCP dispatch error: {}", e)),
+                    Err(e) => Err(QaDispatchError::DispatchError { message: e.to_string() }),
                 }
             })
         });

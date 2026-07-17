@@ -63,11 +63,29 @@ pub enum RunnerError {
 
 // ── Public output type ──────────────────────────────────────────────────────
 
+/// Terminal status of a QA script run. Centralizes the "FAIL"-in-message
+/// convention so call sites use a typed status instead of substring-matching.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QaStatus {
+    Pass,
+    Fail,
+}
+
+/// Error returned by an `McpDispatchFn` callback (replaces `Result<_, String>`).
+#[derive(Debug, thiserror::Error)]
+pub enum QaDispatchError {
+    #[error("tool '{tool}' not found in any registered MCP server")]
+    ToolNotFound { tool: String },
+    #[error("MCP dispatch error: {message}")]
+    DispatchError { message: String },
+}
+
 #[derive(Debug)]
 pub struct ScriptOutput {
     pub manifest_id: String,
     pub terminal_ordinal: u32,
     pub terminal_message: String,
+    pub status: QaStatus,
     pub steps_executed: u32,
     pub gas_used: u64,
 }
@@ -804,7 +822,7 @@ async fn execute_mcp_tool(
 /// Async callback for MCP tool dispatch.
 /// Passed by the CLI (which owns McpRuntime) to avoid circular dependencies.
 pub type McpDispatchFn = Arc<
-    dyn Fn(String, String) -> Pin<Box<dyn Future<Output = Result<String, String>> + Send>>
+    dyn Fn(String, String) -> Pin<Box<dyn Future<Output = Result<String, QaDispatchError>> + Send>>
         + Send
         + Sync,
 >;
@@ -877,6 +895,7 @@ pub async fn run_script(
             break Ok(ScriptOutput {
                 manifest_id: manifest_id.clone(),
                 terminal_ordinal: step.ordinal(),
+                status: if output.contains("FAIL") { QaStatus::Fail } else { QaStatus::Pass },
                 terminal_message: output,
                 steps_executed: state.steps_executed,
                 gas_used: state.gas_used,
@@ -889,6 +908,7 @@ pub async fn run_script(
                 break Ok(ScriptOutput {
                     manifest_id: manifest_id.clone(),
                     terminal_ordinal: step.ordinal(),
+                    status: if output.contains("FAIL") { QaStatus::Fail } else { QaStatus::Pass },
                     terminal_message: output,
                     steps_executed: state.steps_executed,
                     gas_used: state.gas_used,
@@ -899,7 +919,7 @@ pub async fn run_script(
 
     match &outcome {
         Ok(o) => {
-            let passed = !o.terminal_message.contains("FAIL");
+            let passed = o.status == QaStatus::Pass;
             let span = if passed {
                 hkask_cns::qa_span::QaSpan::QaRepairVerified
             } else {
