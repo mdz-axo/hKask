@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: qa-script-builder/qa-persona
+    name: "Generate diverse QA testing scenarios from a user persona and goal"
     path: qa-persona.j2
     type: KnowAct
     lexicon_terms: [persona, scenario, explore, generate, diversify]
@@ -24,6 +25,7 @@ templates:
       services.
 
   - id: qa-script-builder/qa-discover
+    name: "Discover the test surface from user intent or persona-generated…"
     path: qa-discover.j2
     type: KnowAct
     lexicon_terms: [discover, map, survey, inventory, analyze]
@@ -34,6 +36,7 @@ templates:
       the persona phase for narrowed, persona-aware discovery.
 
   - id: qa-script-builder/qa-design
+    name: "Design the branching state machine from the discovered test surface"
     path: qa-design.j2
     type: KnowAct
     lexicon_terms: [design, route, branch, structure, topology]
@@ -43,6 +46,7 @@ templates:
       states, loop configurations).
 
   - id: qa-script-builder/qa-generate
+    name: "Generate the complete YAML manifest from the designed step topology"
     path: qa-generate.j2
     type: KnowAct
     lexicon_terms: [generate, produce, emit, format, serialize]
@@ -53,6 +57,7 @@ templates:
       (strips descriptions, tight gas caps, minimal branching).
 
   - id: qa-script-builder/qa-validate
+    name: "Validate a generated manifest against the QaScriptManifest schema"
     path: qa-validate.j2
     type: KnowAct
     lexicon_terms: [validate, check, verify, audit, enforce]

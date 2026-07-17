@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: pragmatic-laziness/lazy-decompose
+    name: "Phase 1 of the 3-phase lazy loop"
     path: lazy-decompose.j2
     type: KnowAct
     lexicon_terms: [decompose, discriminate, evaluate, classify]
@@ -20,6 +21,7 @@ templates:
       syntax/semantics/pragmatics layers using Morris's Triad.
 
   - id: pragmatic-laziness/lazy-identify-loops
+    name: "Phase 2 of the 3-phase lazy loop"
     path: lazy-identify-loops.j2
     type: KnowAct
     lexicon_terms: [detect, observe, evaluate, map, classify]
@@ -29,6 +31,7 @@ templates:
       decomposed layers produced by Phase 1.
 
   - id: pragmatic-laziness/lazy-stationary-action
+    name: "Phase 3 of the 3-phase lazy loop"
     path: lazy-stationary-action.j2
     type: KnowAct
     lexicon_terms: [simplify, verify, reduce, compose, evaluate]
@@ -38,6 +41,7 @@ templates:
       Consumes outputs from Phase 1 (decomposition) and Phase 2 (loops).
 
   - id: pragmatic-laziness/pragmatic-laziness-converge
+    name: "δS = 0 convergence check"
     path: pragmatic-laziness-converge.j2
     type: KnowAct
     lexicon_terms: [converge, classify, evaluate, verify, discriminate]

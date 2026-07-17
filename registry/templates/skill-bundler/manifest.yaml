@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: skill-bundler/bundler-compose
+    name: "Analyze a set of skills for conflicts, complementarities, and optimal…"
     path: bundler-compose.j2
     type: KnowAct
     lexicon_terms: [classify, analyze, rank, resolve, synthesize]
@@ -22,6 +23,7 @@ templates:
       bundle manifest.
 
   - id: skill-bundler/bundler-validate
+    name: "Validate a composed bundle manifest: check for contradictory…"
     path: bundler-validate.j2
     type: KnowAct
     lexicon_terms: [validate, detect, classify, evaluate, enforce]
@@ -31,6 +33,7 @@ templates:
       conflict resolution completeness, and convergence criteria.
 
   - id: skill-bundler/bundler-evolve
+    name: "Re-assess a bundle when one or more skills have changed"
     path: bundler-evolve.j2
     type: KnowAct
     lexicon_terms: [detect, evaluate, resolve, synthesize, adapt]
@@ -40,6 +43,7 @@ templates:
       Detect drift from the original composition principles.
 
   - id: skill-bundler/bundler-convergence-check
+    name: "Compute a normalized convergence metric for bundle composition loops"
     path: bundler-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, validate, classify, calibrate]

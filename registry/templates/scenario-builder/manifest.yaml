@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: scenario-builder/axes-and-narratives
+    name: "Generate divergent scenario narratives by selecting two critical…"
     path: axes-and-narratives.j2
     type: KnowAct
     lexicon_terms: [synthesize, explore, structure]
@@ -21,6 +22,7 @@ templates:
       quadrant scenarios with internally consistent narratives.
 
   - id: scenario-builder/driving-forces
+    name: "Map macro-level driving forces (STEEP: society, technology, economy,…"
     path: driving-forces.j2
     type: KnowAct
     lexicon_terms: [analyze, classify, rank]
@@ -30,6 +32,7 @@ templates:
       identify critical uncertainties.
 
   - id: scenario-builder/focal-question
+    name: "Refine and bound the focal question with decision relevance, time…"
     path: focal-question.j2
     type: KnowAct
     lexicon_terms: [specify, plan, structure]
@@ -38,6 +41,7 @@ templates:
       horizon, and scope boundaries. Produces a current state summary.
 
   - id: scenario-builder/implications-indicators
+    name: "Derive per-scenario implications and identify early-warning indicators"
     path: implications-indicators.j2
     type: KnowAct
     lexicon_terms: [monitor, recommend, predict]
@@ -47,6 +51,7 @@ templates:
       strategies (for specific unfoldings).
 
   - id: scenario-builder/key-forces
+    name: "Identify micro-level forces: proximate factors, market dynamics,…"
     path: key-forces.j2
     type: KnowAct
     lexicon_terms: [analyze, elicit, classify]
@@ -56,6 +61,7 @@ templates:
       identified forces into thematic groups.
 
   - id: scenario-builder/scenario-convergence-check
+    name: "Compute normalized convergence metric for scenario-planning PDCA…"
     path: scenario-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]
@@ -65,6 +71,7 @@ templates:
       Returns convergence_metric plus rationale, blockers, and heuristic results.
 
   - id: scenario-builder/scenario-quality-gate
+    name: "Independent quality gate that evaluates scenario divergence,…"
     path: scenario-quality-gate.j2
     type: KnowAct
     lexicon_terms:

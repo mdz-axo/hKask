@@ -15,6 +15,7 @@ crate:
 
 templates:
   - id: hypothesis-framer/finer-evaluate
+    name: "Apply FINER criteria to a broad research topic"
     path: finer-evaluate.j2
     type: KnowAct
     lexicon_terms: [evaluate, classify, assess, critique, rank]
@@ -26,6 +27,7 @@ templates:
       refinement suggestions.
 
   - id: hypothesis-framer/pico-structure
+    name: "Apply PICO framework to structure the research question"
     path: pico-structure.j2
     type: KnowAct
     lexicon_terms: [structure, specify, select, elicit, extract]
@@ -36,6 +38,7 @@ templates:
       assessment.
 
   - id: hypothesis-framer/hypothesis-operationalize
+    name: "Single cognitive act: derive a testable hypothesis from the…"
     path: hypothesis-operationalize.j2
     type: KnowAct
     lexicon_terms:
@@ -60,6 +63,7 @@ templates:
       cannot assess testability without knowing the objectives.
 
   - id: hypothesis-framer/hypothesis-framer-convergence-check
+    name: "Compute normalized convergence metric for hypothesis-framer PDCA…"
     path: hypothesis-framer-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

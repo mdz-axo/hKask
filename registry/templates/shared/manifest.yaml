@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: shared/convergence-check
+    name: "Parameterized PDCA convergence evaluator"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

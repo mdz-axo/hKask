@@ -15,6 +15,7 @@ crate:
 
 templates:
   - id: wardley-mapper/inventory-components
+    name: "Inventory all components in a target system"
     path: inventory-components.j2
     type: KnowAct
     lexicon_terms: [inventory, enumerate, discover, component, dependency]
@@ -24,6 +25,7 @@ templates:
       components create map blind spots.
 
   - id: wardley-mapper/classify-evolution
+    name: "Classify each component on the Wardley evolution axis (Genesis,…"
     path: classify-evolution.j2
     type: KnowAct
     lexicon_terms: [classify, assess, evolution, maturity, standardize]
@@ -33,6 +35,7 @@ templates:
       differentiation criteria.
 
   - id: wardley-mapper/map-value-chain
+    name: "Place each classified component on the value chain map (Y:…"
     path: map-value-chain.j2
     type: KnowAct
     lexicon_terms: [map, position, value_chain, coordinate, link]
@@ -42,6 +45,7 @@ templates:
       quadrant chart.
 
   - id: wardley-mapper/identify-movement
+    name: "Identify strategic movement: what to commoditize, what to keep at…"
     path: identify-movement.j2
     type: KnowAct
     lexicon_terms: [movement, commoditize, invest, divest, drift]
@@ -51,6 +55,7 @@ templates:
       previous map.
 
   - id: wardley-mapper/synthesize-recommendations
+    name: "Synthesize actionable strategic recommendations (commoditize, invest,…"
     path: synthesize-recommendations.j2
     type: KnowAct
     lexicon_terms: [recommend, prioritize, strategize, align, act]
@@ -60,6 +65,7 @@ templates:
       Prioritized by impact, specific, traceable to components.
 
   - id: wardley-mapper/convergence-check
+    name: "Compute convergence metric for the Wardley mapping PDCA cycle"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, verify, calibrate, complete]

@@ -8,6 +8,7 @@ crate:
 
 templates:
   - id: review/self-critique
+    name: "Evaluate derived knowledge against a goal for missing information,…"
     path: self_critique.j2
     type: WordAct
     lexicon_terms:
@@ -17,6 +18,7 @@ templates:
       contradictions, unsupported claims, logical gaps, and calibration.
 
   - id: review/review-structured-eval
+    name: "Convert review context into structured critique outputs for FlowDef…"
     path: review-structured-eval.j2
     type: KnowAct
     lexicon_terms: [critique, evaluate, classify, verify, calibrate]
@@ -24,6 +26,7 @@ templates:
       Convert review context into structured critique outputs for FlowDef loops.
 
   - id: review/review-convergence-check
+    name: "Compute normalized convergence metric for review PDCA cycles"
     path: review-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

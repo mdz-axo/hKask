@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: adversarial-red-team/generate-adversarial
+    name: "Generate adversarial inputs targeting a specific output across…"
     path: generate-adversarial.j2
     type: KnowAct
     lexicon_terms:
@@ -25,6 +26,7 @@ templates:
       scripts with response-driven adaptation rules).
 
   - id: adversarial-red-team/select-target
+    name: "Select the best adversarial target and map its vulnerability surface"
     path: select-target.j2
     type: KnowAct
     lexicon_terms: [classify, discriminate, calibrate, assess, orient]
@@ -34,6 +36,7 @@ templates:
       intensity level.
 
   - id: adversarial-red-team/test-against-target
+    name: "Test a target output against generated adversarial inputs"
     path: test-against-target.j2
     type: KnowAct
     lexicon_terms: [evaluate, verify, audit, score, detect, classify]
@@ -42,6 +45,7 @@ templates:
       resistance rate and identify critical failures that bypass defenses.
 
   - id: adversarial-red-team/adversarial-convergence-check
+    name: "Compute normalized convergence metric for adversarial-red-team PDCA…"
     path: adversarial-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

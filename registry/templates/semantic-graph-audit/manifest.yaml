@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: semantic-graph-audit/semantic-graph-audit-classify
+    name: "Force-classify every graph edge by the pragmatic-semantics constraint…"
     path: semantic-graph-audit-classify.j2
     type: KnowAct
     lexicon_terms:
@@ -26,6 +27,7 @@ templates:
       - cns.prompt.semantic-graph-audit.classify
 
   - id: semantic-graph-audit/semantic-graph-audit-analyze
+    name: "Evaluate graph health through four lenses: pragmatic-cybernetics…"
     path: semantic-graph-audit-analyze.j2
     type: KnowAct
     lexicon_terms:
@@ -40,6 +42,7 @@ templates:
       - cns.prompt.semantic-graph-audit.analyze
 
   - id: semantic-graph-audit/semantic-graph-audit-detect
+    name: "Detect structural pathologies from graph topology: cycles,…"
     path: semantic-graph-audit-detect.j2
     type: KnowAct
     lexicon_terms:
@@ -53,6 +56,7 @@ templates:
       - cns.prompt.semantic-graph-audit.detect
 
   - id: semantic-graph-audit/semantic-graph-audit-report
+    name: "Synthesize the classification, four-lens analysis, and structural…"
     path: semantic-graph-audit-report.j2
     type: KnowAct
     lexicon_terms:

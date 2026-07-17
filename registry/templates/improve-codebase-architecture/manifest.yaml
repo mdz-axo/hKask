@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: improve-codebase-architecture/arch-explore
+    name: "Explore the codebase for architectural friction: shallow modules,…"
     path: arch-explore.j2
     type: KnowAct
     lexicon_terms: [detect, explore, classify, discriminate, orient]
@@ -20,6 +21,7 @@ templates:
       the deletion test to suspected shallowness.
 
   - id: improve-codebase-architecture/arch-candidates
+    name: "Present deepening candidates with files, problem, solution, benefits…"
     path: arch-candidates.j2
     type: KnowAct
     lexicon_terms: [assess, rank, propose, evaluate, specify]
@@ -29,6 +31,7 @@ templates:
       vocabulary. Ask user which to explore.
 
   - id: improve-codebase-architecture/arch-deepen
+    name: "Grill loop for a selected candidate: walk the design tree, define the…"
     path: arch-deepen.j2
     type: KnowAct
     lexicon_terms: [deepen, design, constrain, verify, crystallize]
@@ -38,6 +41,7 @@ templates:
       Update glossary and ADRs inline as decisions crystallize.
 
   - id: improve-codebase-architecture/arch-route
+    name: "Route a deepened architecture design to the appropriate follow-up…"
     path: arch-route.j2
     type: KnowAct
     lexicon_terms: [route, decide, recommend, delegate, classify]

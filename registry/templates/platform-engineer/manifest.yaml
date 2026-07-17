@@ -10,6 +10,7 @@ crate:
 
 templates:
   - id: platform-engineer/persona
+    name: "Platform Engineer replicant persona — identity, voice, and mission"
     path: persona.j2
     type: WordAct
     lexicon_terms: [persona, identity, voice, principles]

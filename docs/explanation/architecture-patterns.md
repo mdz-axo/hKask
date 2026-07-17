@@ -651,7 +651,7 @@ Q3: Is the template a routing, dispatching, or model-tier selection concern?
 
 Q4: Is the template a base type (WordAct, KnowAct, FlowDef dispatch)?
     └─ YES → INFRASTRUCTURE (base type)
-         ├─ Register in bootstrap-registry.yaml
+         ├─ Register in per-skill manifest.yaml (registry/templates/<name>/manifest.yaml)
          ├─ No standalone manifest needed
          └─ Document in registry/templates/<name>/README.md
     └─ NO  → Q5
@@ -660,7 +660,7 @@ Q5: Is the template a utility that is imported/included by other templates?
     └─ YES → INFRASTRUCTURE (utility)
          ├─ No manifest needed
          ├─ Document the include API in the template header
-         └─ Register in bootstrap-registry.yaml only if dispatched directly
+         └─ Register in per-skill manifest.yaml only if dispatched directly
     └─ NO  → SKILL-BOUND (default for new cognitive processes)
 ```
 

@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: skill-logic-audit/load-goal
+    name: "Parse the annotated `goal:` block from a .j2 or manifest.yaml file…"
     path: load-goal.j2
     type: WordAct
     lexicon_terms: [extract, parse, specify, verify]
@@ -22,6 +23,7 @@ templates:
       non-empty.
 
   - id: skill-logic-audit/critique-template
+    name: "Adversarial critique of a template or manifest body against its…"
     path: critique-template.j2
     type: KnowAct
     lexicon_terms: [critique, evaluate, discriminate, detect, classify]
@@ -31,6 +33,7 @@ templates:
       each anchored to the goal.
 
   - id: skill-logic-audit/critique-critique
+    name: "Soundness review of a critique list"
     path: critique-critique.j2
     type: KnowAct
     lexicon_terms: [evaluate, verify, discriminate, classify, rank]
@@ -40,6 +43,7 @@ templates:
       rationale.
 
   - id: skill-logic-audit/compose-proposal
+    name: "Compose a concrete revised artifact body and a unified diff against…"
     path: compose-proposal.j2
     type: KnowAct
     lexicon_terms: [synthesize, adapt, simplify, specify, verify]
@@ -49,6 +53,7 @@ templates:
       contract or add stubs.
 
   - id: skill-logic-audit/user-choice
+    name: "Present the composed proposal to the user and capture a discrete…"
     path: user-choice.j2
     type: WordAct
     lexicon_terms: [prompt, specify, discriminate, classify, verify]
@@ -58,6 +63,7 @@ templates:
       limit and emit the next action.
 
   - id: skill-logic-audit/user-review-loop
+    name: "Plan the bounded audit cascade routing (load-goal → critique-template…"
     path: user-review-loop.j2
     type: KnowAct
     lexicon_terms: [sequence, choice, iteration, escalate, route, compose]
@@ -67,6 +73,7 @@ templates:
       rules on accept/reject/counter-proposal. Does not execute the flow itself.
 
   - id: skill-logic-audit/convergence-check
+    name: "Compute a normalized convergence metric for audit iterations"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

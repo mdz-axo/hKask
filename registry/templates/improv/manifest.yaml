@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: improv/improv-select
+    name: "Pure mode selection"
     path: improv-select.j2
     type: KnowAct
     lexicon_terms: [select, classify, route, discriminate, recommend]
@@ -21,6 +22,7 @@ templates:
       routing to individual WordActs is handled by the manifest flow.
 
   - id: improv/improv-plussing
+    name: "Plussing (Catmull) — Extract agreeable components from a…"
     path: improv-plussing.j2
     type: WordAct
     lexicon_terms: [prompt, acknowledge, affirm, adapt, propose]
@@ -30,6 +32,7 @@ templates:
       Never explicitly negate.
 
   - id: improv/improv-yes-and
+    name: "Yes And — Accept the whole contribution and extend it with a novel,…"
     path: improv-yes-and.j2
     type: WordAct
     lexicon_terms: [prompt, affirm, amplify, claim, propose]
@@ -38,6 +41,7 @@ templates:
       additive layer. Extension must be additive, not substitutive.
 
   - id: improv/improv-yes-but
+    name: "Yes But — Accept the whole contribution and append a constraint or…"
     path: improv-yes-but.j2
     type: WordAct
     lexicon_terms: [prompt, affirm, constrain, discriminate, propose]
@@ -46,6 +50,7 @@ templates:
       redirect that narrows scope without contradicting.
 
   - id: improv/improv-freestyling
+    name: "Freestyling — Rapid collaborative short-response cycling among…"
     path: improv-freestyling.j2
     type: WordAct
     lexicon_terms: [prompt, query, challenge, transform, synthesize]
@@ -54,6 +59,7 @@ templates:
       participants. Time-bounded, no single owner, round-robin turns.
 
   - id: improv/improv-riffing
+    name: "Riffing — Solo divergent exploration from a seed contribution"
     path: improv-riffing.j2
     type: WordAct
     lexicon_terms: [prompt, query, explore, transform, synthesize]
@@ -62,6 +68,7 @@ templates:
       May return to group with synthesis or spawn a new thread.
 
   - id: improv/improv-convergence-check
+    name: "Compute normalized convergence for improv mode-selection/application…"
     path: improv-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, score, verify]

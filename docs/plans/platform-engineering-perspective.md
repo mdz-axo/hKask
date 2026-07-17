@@ -822,7 +822,7 @@ New CNS spans:
 | KnowAct `.j2` templates | 14 | `registry/templates/platform-*/*.j2` |
 | WordAct persona template | 1 | `registry/templates/platform-engineer/persona.j2` |
 | Agent definition | 1 | `registry/templates/platform-engineer/agent_persona.yaml` |
-| Bootstrap registry entries | +15 | `registry/templates/bootstrap-registry.yaml` |
+| Bootstrap registry entries | +15 | `registry/templates/*/manifest.yaml` (auto-discovered by `build.rs`) |
 | CI script | 1 | `scripts/ci-contract-check.sh` |
 
 **Dependency structure preserved:**

@@ -10,31 +10,37 @@ crate:
 
 templates:
   - id: platform-health-scorer/query-slos
+    name: "Query SLO evaluations from the CNS event store"
     path: query-slos.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
     description: Query SLO evaluations from the CNS event store. Computes average error budget remaining, burn rate, breach count.
   - id: platform-health-scorer/query-contracts
+    name: "Query contract violations from CI checks"
     path: query-contracts.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
     description: Query contract violations from CI checks. Computes violation density, most-violated contracts, trend.
   - id: platform-health-scorer/query-tests
+    name: "Query test pass rate from CNS spans"
     path: query-tests.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
     description: Query test pass rate from CNS spans. Computes pass ratio, failing crates, flaky test count.
   - id: platform-health-scorer/query-cns
+    name: "Query CNS variety metrics: overall deficit, critical/warning count,…"
     path: query-cns.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
     description: "Query CNS variety metrics: overall deficit, critical/warning count, variety EMA. Computes variety health score."
   - id: platform-health-scorer/compute-score
+    name: "Aggregate SLO, contract, test, and CNS variety metrics into a single…"
     path: compute-score.j2
     type: KnowAct
     lexicon_terms: [compute, aggregate, score]
     description: Aggregate SLO, contract, test, and CNS variety metrics into a single platform health score (0.0-1.0).
   - id: platform-health-scorer/convergence-check
+    name: "Compute normalized convergence metric for health score PDCA cycles"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

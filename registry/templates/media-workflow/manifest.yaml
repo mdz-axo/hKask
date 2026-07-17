@@ -15,6 +15,7 @@ crate:
 
 templates:
   - id: media-workflow/compose-and-execute
+    name: "Compose a Fal.ai workflow DAG from a natural-language media intent,…"
     path: compose-and-execute.j2
     type: KnowAct
     lexicon_terms:

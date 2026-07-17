@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: web/extract-synthesize
+    name: "Extract content from specific URLs and synthesize findings into a…"
     path: extract-synthesize.j2
     type: KnowAct
     lexicon_terms: [extract, synthesize, distill]
@@ -19,6 +20,7 @@ templates:
       unified document. Fills gaps with targeted web search when needed.
 
   - id: web/research-cascade
+    name: "Full research cascade: broad search, find similar results, extract…"
     path: research-cascade.j2
     type: KnowAct
     lexicon_terms: [search, explore, synthesize, distill]
@@ -28,6 +30,7 @@ templates:
       with domain filtering.
 
   - id: web/search-deep
+    name: "Deep multi-provider search with Reciprocal Rank Fusion (k=60),…"
     path: search-deep.j2
     type: KnowAct
     lexicon_terms: [search, analyze, synthesize]
@@ -37,6 +40,7 @@ templates:
       expands via find-similar.
 
   - id: web/search-news
+    name: "News-oriented search organized into timeline buckets (today, this…"
     path: search-news.j2
     type: KnowAct
     lexicon_terms: [search, query, classify]
@@ -45,6 +49,7 @@ templates:
       week, this month) with configurable freshness and source filtering.
 
   - id: web/search-quick
+    name: "Quick single-provider web search for fast results"
     path: search-quick.j2
     type: KnowAct
     lexicon_terms: [search, query, summarize]

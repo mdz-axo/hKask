@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: refactor-service-layer/rsl-audit
+    name: "Audit and classify all duplicated operations across CLI, API, and MCP…"
     path: rsl-audit.j2
     type: KnowAct
     lexicon_terms:
@@ -23,6 +24,7 @@ templates:
       table, and mermaid entity-relationship diagram of the duplication landscape.
 
   - id: refactor-service-layer/rsl-strangle
+    name: "Plan the strangler fig migration for a selected domain: define the…"
     path: rsl-strangle.j2
     type: KnowAct
     lexicon_terms:
@@ -34,6 +36,7 @@ templates:
       dependency direction checks, and surgical change scope.
 
   - id: refactor-service-layer/rsl-verify
+    name: "Verify surgical completeness after a domain migration or full…"
     path: rsl-verify.j2
     type: KnowAct
     lexicon_terms: [verify, assess, validate, discriminate, crystallize]

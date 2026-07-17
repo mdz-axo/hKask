@@ -1,11 +1,11 @@
 //! Tool-augmented chat — parse model responses for tool call directives
 //! and invoke them through GovernedTool or the Communication Loop.
 //
-//! Both single-agent REPL and dual-presence turns call the same `process_response`
-//! function. Any agent response that contains tool calls (either structured
-//! `InferenceResult.tool_calls` from native function calling or `<<tool:...>>`
-//! text directives) gets parsed, invoked, and optionally fed back to the model
-//! for a followup.
+//! The REPL turn loop (`turn.rs::run_turn_loop`) calls `extract_tool_calls`
+//! to parse model responses, then `invoke_tool_call` for each tool, and
+//! `format_tool_results` to build the feedback string for the next
+//! iteration. Display is handled by the turn loop via the `TurnSink` trait,
+//! not in this module.
 //
 //! Tool call sources (in priority order):
 //! 1. **Structured**: `InferenceResult.tool_calls` when `finish_reason == "tool_calls"`
@@ -285,140 +285,33 @@ pub fn format_tool_results(calls: &[(ToolCall, anyhow::Result<serde_json::Value>
     parts.join("\n")
 }
 
-/// Process tool calls in a response: parse, invoke, display results.
+// `process_response` was removed. Tool-call extraction is now pure
+// (`extract_tool_calls`), and invocation/display is handled by the
+// unified turn loop in `turn.rs` via the `TurnSink` trait. This fixes:
+// - println side effects leaking to stdout in TUI mode
+// - duplicate preamble printing
+// - double parse_tool_calls computation
+// - the missing final-response display when iteration > 1
+
+/// Extract tool calls from a model response, checking structured calls first.
 ///
-/// This is the single shared async function called by both single-agent REPL
-/// and dual-presence turns. It:
-/// 1. Checks `InferenceResult.tool_calls` for structured native function calls
-/// 2. Falls back to parsing `<<tool:...>>` text directives if no structured calls
-/// 3. Invokes each through GovernedTool
-/// 4. Prints results to the terminal
-/// 5. Returns the final response text (with tool calls stripped) and
-///    the formatted tool results (for followup inference if needed)
+/// Priority:
+/// 1. Structured tool calls from native function calling (`finish_reason == "tool_calls"`)
+/// 2. `<<tool:...>>` text directives as fallback
 ///
-/// The `agent_name` parameter is used for display prefix (e.g. "Curator").
-pub async fn process_response(
+/// Pure — no I/O side effects. The caller is responsible for invoking
+/// tools (via `invoke_tool_call`) and displaying results.
+pub fn extract_tool_calls(
     response_text: &str,
-    agent_name: &str,
-    governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
-    agent_webid: &WebID,
-    a2a_secret: &[u8],
-    host: &dyn crate::host::ReplHost,
     structured_tool_calls: Option<&[StructuredToolCall]>,
-) -> ProcessedResponse {
-    // Priority 1: Use structured tool calls from native function calling
-    // (when the model returned finish_reason == "tool_calls")
-    // Priority 2: Parse <<tool:...>> text directives as a fallback
-    let tool_calls: Vec<ToolCall> = if let Some(calls) = structured_tool_calls {
-        if !calls.is_empty() {
-            calls.iter().cloned().map(ToolCall::from).collect()
-        } else {
-            // No structured calls — try text parsing
-            let parsed = parse_tool_calls(response_text);
-            parsed.tool_calls
-        }
-    } else {
-        let parsed = parse_tool_calls(response_text);
-        parsed.tool_calls
-    };
-
-    // Determine the text content (strip text directives if we parsed any)
-    let text_content = if structured_tool_calls.is_some_and(|c| !c.is_empty()) {
-        // When we have structured calls, use the full response text (no directives to strip)
-        response_text.to_string()
-    } else {
-        let parsed = parse_tool_calls(response_text);
-        if parsed.tool_calls.is_empty() {
-            response_text.to_string()
-        } else {
-            parsed.text
-        }
-    };
-
-    if tool_calls.is_empty() {
-        // No tool calls — return response as-is
-        return ProcessedResponse {
+) -> ParsedResponse {
+    if let Some(calls) = structured_tool_calls
+        && !calls.is_empty()
+    {
+        return ParsedResponse {
             text: response_text.to_string(),
-            tool_results_formatted: String::new(),
-            had_tool_calls: false,
+            tool_calls: calls.iter().cloned().map(ToolCall::from).collect(),
         };
     }
-
-    // Display the text portion of the response (before tool calls)
-    if !text_content.trim().is_empty() {
-        println!("{}: {}", agent_name, text_content.trim());
-    }
-
-    println!(
-        "  \x1b[2m⟐ {} tool call(s) from {}\x1b[0m",
-        tool_calls.len(),
-        agent_name
-    );
-
-    // Invoke each tool call through GovernedTool
-    let mut tool_results = Vec::new();
-    for call in &tool_calls {
-        print!("  \x1b[2m  Invoking {}\x1b[0m", call.tool);
-        if !call.server.is_empty() {
-            print!(" on \x1b[36m{}\x1b[0m", call.server);
-        }
-        println!("...");
-
-        let result = invoke_tool_call(call, governed_tool, agent_webid, a2a_secret, host).await;
-
-        match &result {
-            Ok(value) => {
-                println!("  \x1b[32m  ✓\x1b[0m {}", call.tool);
-                if let Ok(formatted) = serde_json::to_string_pretty(value) {
-                    for line in formatted.lines().take(5) {
-                        println!("    {}", line);
-                    }
-                    if formatted.lines().count() > 5 {
-                        println!("    ...");
-                    }
-                }
-            }
-            Err(err) => {
-                println!("  \x1b[31m  ✗\x1b[0m {} — {}", call.tool, err);
-            }
-        }
-
-        tool_results.push((call.clone(), result));
-    }
-
-    let tool_results_formatted = format_tool_results(&tool_results);
-
-    // Final text = text content if non-empty,
-    // otherwise a summary of what was invoked
-    let final_text = if text_content.trim().is_empty() {
-        format!(
-            "[{} invoked: {}]",
-            agent_name,
-            tool_calls
-                .iter()
-                .map(|c| c.tool.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-    } else {
-        text_content.trim().to_string()
-    };
-
-    ProcessedResponse {
-        text: final_text,
-        tool_results_formatted,
-        had_tool_calls: true,
-    }
-}
-
-/// Result of processing a response for tool calls.
-pub struct ProcessedResponse {
-    /// The response text with tool call directives stripped out.
-    /// If the response was only tool calls (no text), this is a summary.
-    pub text: String,
-    /// Formatted tool results suitable for feeding back to the model
-    /// as context in a followup inference turn.
-    pub tool_results_formatted: String,
-    /// Whether any tool calls were found and invoked.
-    pub had_tool_calls: bool,
+    parse_tool_calls(response_text)
 }

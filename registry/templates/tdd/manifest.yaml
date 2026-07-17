@@ -25,6 +25,7 @@ crate:
 
 templates:
   - id: tdd/tdd-plan
+    name: "Plan a TDD cycle: extract functional requirements from specifications…"
     path: tdd-plan.j2
     type: KnowAct
     lexicon_terms:
@@ -36,6 +37,7 @@ templates:
       mapping, prioritize by risk (P0-P2+), and get user approval before writing any code.
 
   - id: tdd/tdd-tracer
+    name: "Execute a tracer bullet: write ONE failing test for ONE behavior…"
     path: tdd-tracer.j2
     type: KnowAct
     lexicon_terms:
@@ -48,6 +50,7 @@ templates:
       the contract.
 
   - id: tdd/tdd-refactor
+    name: "Refactor while GREEN: extract duplication, deepen modules, apply…"
     path: tdd-refactor.j2
     type: KnowAct
     lexicon_terms:
@@ -61,6 +64,7 @@ templates:
       requiring P2 consent. Verify tests still pass after each refactor step.
 
   - id: tdd/tdd-verify
+    name: "Verify TDD cycle completion: all tests pass, clippy clean, no…"
     path: tdd-verify.j2
     type: KnowAct
     lexicon_terms:
@@ -77,6 +81,7 @@ templates:
       - cns.contract.coverage
 
   - id: tdd/tdd-gap-check
+    name: "Functional gap analysis: compare specification requirements against…"
     path: tdd-gap-check.j2
     type: KnowAct
     lexicon_terms: [trace, map, gap, defer, classify, audit]
@@ -95,6 +100,7 @@ templates:
       - cns.contract.rejected
 
   - id: tdd/tdd-convergence-check
+    name: "Compute normalized convergence metric for TDD PDCA cycles"
     path: tdd-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

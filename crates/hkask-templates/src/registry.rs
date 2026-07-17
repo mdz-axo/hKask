@@ -15,7 +15,47 @@ use hkask_capability::SYSTEM_MAX_RECURSION;
 use hkask_ports::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
 use hkask_types::Visibility;
 use hkask_types::template_type::TemplateType;
+use serde::Deserialize;
 use std::collections::HashMap;
+
+// Auto-generated per-skill template manifests (from build.rs).
+include!(concat!(env!("OUT_DIR"), "/manifest_skills.rs"));
+
+/// Per-skill template manifest deserialization shape.
+///
+/// Per-skill manifests (`registry/templates/<skill>/manifest.yaml`) use:
+/// ```yaml
+/// crate:
+///   name: ...
+///   version: ...
+/// templates:
+///   - id: <skill>/<template>
+///     path: <file>.j2
+///     type: WordAct|KnowAct|FlowDef|RenderAct
+///     lexicon_terms: [...]
+///     description: ...
+/// ```
+/// The `crate` section is ignored — only `templates` are extracted into
+/// `RegistryEntry` objects.
+#[derive(Deserialize)]
+struct SkillTemplateManifest {
+    #[serde(default)]
+    templates: Vec<SkillTemplateEntry>,
+}
+
+#[derive(Deserialize)]
+struct SkillTemplateEntry {
+    id: String,
+    #[serde(default)]
+    name: String,
+    path: String,
+    #[serde(rename = "type")]
+    template_type: TemplateType,
+    #[serde(default)]
+    lexicon_terms: Vec<String>,
+    #[serde(default)]
+    description: String,
+}
 
 /// Unified template + skill registry
 ///
@@ -326,30 +366,55 @@ impl Registry {
         })
     }
 
-    /// Bootstrap registry from embedded YAML definitions.
-    /// Template definitions live in `registry/templates/bootstrap-registry.yaml`.
+    /// Bootstrap registry from per-skill template manifests.
+    ///
+    /// Template definitions are auto-discovered from `registry/templates/*/manifest.yaml`
+    /// at compile time via `build.rs`. Per-skill manifests are the canonical source
+    /// of truth (AGENTS.md: "Registry crate (manifest.yaml + *.j2) is the canonical source").
     ///
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — seeds registry from workspace templates
-    /// post: returns Registry populated from bootstrap-registry.yaml
+    /// post: returns Registry populated from per-skill manifests
     /// post: all entries have matroshka_limit set to SYSTEM_MAX_RECURSION
     pub fn bootstrap() -> Self {
         let mut registry = Self::new();
-        let yaml = include_str!("../../../registry/templates/bootstrap-registry.yaml");
         let max_recursion = SYSTEM_MAX_RECURSION as u32;
-        match serde_yaml_neo::from_str::<Vec<RegistryEntry>>(yaml) {
-            Ok(entries) => {
-                for mut entry in entries {
-                    entry.matroshka_limit = max_recursion;
-                    registry.register(entry);
+
+        for (skill_name, manifest_yaml) in MANIFEST_YAMLS {
+            match serde_yaml_neo::from_str::<SkillTemplateManifest>(manifest_yaml) {
+                Ok(manifest) => {
+                    for tmpl in manifest.templates {
+                        let name = if tmpl.name.is_empty() {
+                            tmpl.id
+                                .split('/')
+                                .next_back()
+                                .unwrap_or(&tmpl.id)
+                                .to_string()
+                        } else {
+                            tmpl.name
+                        };
+                        let entry = RegistryEntry {
+                            id: tmpl.id,
+                            template_type: tmpl.template_type,
+                            name,
+                            lexicon_terms: tmpl.lexicon_terms,
+                            description: tmpl.description,
+                            source_path: format!("registry/templates/{skill_name}/{}", tmpl.path),
+                            required_capabilities: Vec::new(),
+                            cascade_level: 0,
+                            matroshka_limit: max_recursion,
+                        };
+                        registry.register(entry);
+                    }
                 }
-            }
-            Err(e) => {
-                tracing::error!(
-                    target: "hkask.templates",
-                    error = %e,
-                    "Failed to parse bootstrap registry YAML"
-                );
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.templates",
+                        skill = %skill_name,
+                        error = %e,
+                        "Failed to parse skill manifest"
+                    );
+                }
             }
         }
 

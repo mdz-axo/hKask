@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: rag/reformulate-query
+    name: "Reformulate a query for improved retrieval by expanding terms,…"
     path: reformulate-query.j2
     type: KnowAct
     lexicon_terms: [decompose, analyze, suggest]
@@ -20,6 +21,7 @@ templates:
       and expansion terms.
 
   - id: rag/synthesize-grounded
+    name: "Synthesize a grounded answer from memory and web context with inline…"
     path: synthesize-grounded.j2
     type: KnowAct
     lexicon_terms: [synthesize, ground, distill, reference]
@@ -28,6 +30,7 @@ templates:
       citations. Identifies unsupported claims and assigns confidence.
 
   - id: rag/verify-citations
+    name: "Verify citations in a synthesized answer against source contexts"
     path: verify-citations.j2
     type: KnowAct
     lexicon_terms: [verify, analyze, detect]

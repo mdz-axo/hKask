@@ -11,30 +11,35 @@ crate:
 
 templates:
   - id: platform-dx-analyzer/compute-dora
+    name: "Compute DORA metrics from CNS skill lifecycle spans"
     path: compute-dora.j2
     type: KnowAct
     lexicon_terms: [compute, measure, classify, evaluate, assess]
     description: Compute DORA metrics from CNS skill lifecycle spans.
 
   - id: platform-dx-analyzer/compute-space
+    name: "Compute SPACE dimensions for skill authors"
     path: compute-space.j2
     type: KnowAct
     lexicon_terms: [compute, measure, assess, evaluate, score]
     description: Compute SPACE dimensions for skill authors.
 
   - id: platform-dx-analyzer/detect-regressions
+    name: "Detect DORA cluster downgrades and SPACE score regressions"
     path: detect-regressions.j2
     type: KnowAct
     lexicon_terms: [detect, compare, flag, alert, assess]
     description: Detect DORA cluster downgrades and SPACE score regressions.
 
   - id: platform-dx-analyzer/generate-recommendations
+    name: "Generate human-readable recommendations from DORA/SPACE findings"
     path: generate-recommendations.j2
     type: KnowAct
     lexicon_terms: [recommend, suggest, advise, propose, frame]
     description: Generate human-readable recommendations from DORA/SPACE findings.
 
   - id: platform-dx-analyzer/convergence-check
+    name: "Compute convergence for DX analysis PDCA cycles"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

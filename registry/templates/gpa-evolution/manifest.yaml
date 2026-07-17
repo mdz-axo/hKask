@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: gpa-evolution/gpa-sample-trajectories
+    name: "Step 1 — Execute the target artifact against its eval set and capture…"
     path: gpa-sample-trajectories.j2
     type: KnowAct
     lexicon_terms: [sample, observe, execute, capture, measure]
@@ -23,6 +24,7 @@ templates:
       from the current Pareto frontier.
 
   - id: gpa-evolution/gpa-reflect
+    name: "Step 2 — Reflect in natural language on trajectories"
     path: gpa-reflect.j2
     type: KnowAct
     lexicon_terms: [reflect, diagnose, evaluate, classify, surface]
@@ -32,6 +34,7 @@ templates:
       reflection IS the gradient signal — it replaces sparse scalar rewards.
 
   - id: gpa-evolution/gpa-propose-mutations
+    name: "Step 3 — Generate artifact variants from reflected lessons via…"
     path: gpa-propose-mutations.j2
     type: KnowAct
     lexicon_terms: [propose, mutate, recombine, generate, apply]
@@ -41,6 +44,7 @@ templates:
       non-dominated frontier members). Each variant tests one hypothesis.
 
   - id: gpa-evolution/gpa-test-variants
+    name: "Step 4 — Execute each mutated artifact against the eval set and…"
     path: gpa-test-variants.j2
     type: KnowAct
     lexicon_terms: [test, execute, score, evaluate, measure]
@@ -49,6 +53,7 @@ templates:
       per-objective scores (mean, min, max) plus cost (rollouts, gas, latency).
 
   - id: gpa-evolution/gpa-frontier-update
+    name: "Step 5 — Update Pareto frontier"
     path: gpa-frontier-update.j2
     type: KnowAct
     lexicon_terms: [evaluate, rank, select, converge, classify]
@@ -58,6 +63,7 @@ templates:
       frontier exceeds size limit.
 
   - id: gpa-evolution/gpa-convergence-check
+    name: "Step 6 — Compute Pareto-frontier stability convergence metric"
     path: gpa-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

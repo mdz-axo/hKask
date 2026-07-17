@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: caveman/caveman-compress
+    name: "Compress a draft response into caveman mode: drop articles, filler,…"
     path: caveman-compress.j2
     type: WordAct
     lexicon_terms: [compress, distill, simplify, specify, document]
@@ -20,6 +21,7 @@ templates:
       clarity exceptions for security and irreversible actions.
 
   - id: caveman/caveman-convergence-check
+    name: "Compute normalized convergence metric for caveman PDCA cycles"
     path: caveman-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

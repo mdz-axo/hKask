@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: skill-discovery/skill-discovery-detect-gap
+    name: "Detect capability gaps in the registry corpus"
     path: skill-discovery-detect-gap.j2
     type: KnowAct
     lexicon_terms: [detect, classify, assess, prioritize, recommend]
@@ -21,6 +22,7 @@ templates:
       (coverage, feature, automation, governance) and prioritize by impact.
 
   - id: skill-discovery/skill-discovery-evaluate
+    name: "Evaluate a candidate registry crate against format, quality, and…"
     path: skill-discovery-evaluate.j2
     type: KnowAct
     lexicon_terms: [evaluate, validate, verify, classify, discriminate]
@@ -30,6 +32,7 @@ templates:
       compliance, and CNS span validity. Produce scored recommendation.
 
   - id: skill-discovery/skill-discovery-convergence-check
+    name: "Compute a normalized convergence metric for discovery iterations"
     path: skill-discovery-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, prioritize, verify]

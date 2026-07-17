@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: prompt-templates/condense_session
+    name: "Condense long session transcripts into compact summaries"
     path: condense_session.j2
     type: WordAct
     lexicon_terms: [compact, compress, distill]
@@ -19,6 +20,7 @@ templates:
       Extract key decisions, action items, and compute compression ratio.
 
   - id: prompt-templates/doc_extract
+    name: "Extract structured content and metadata from documents against an…"
     path: doc_extract.j2
     type: WordAct
     lexicon_terms: [extract, parse, structure]
@@ -27,6 +29,7 @@ templates:
       optional extraction schema with confidence scoring.
 
   - id: prompt-templates/inference_call
+    name: "Execute a single LLM inference call with configurable temperature,…"
     path: inference_call.j2
     type: WordAct
     lexicon_terms: [prompt, request, query]
@@ -35,6 +38,7 @@ templates:
       max tokens, and stop sequences. Produces completion text.
 
   - id: prompt-templates/scholar_extract
+    name: "Search academic databases for research papers matching a query, with…"
     path: scholar_extract.j2
     type: WordAct
     lexicon_terms: [search, extract, query]
@@ -43,6 +47,7 @@ templates:
       with configurable year range, database selection, and abstract inclusion.
 
   - id: prompt-templates/web_extract
+    name: "Search the web and extract content from results with configurable…"
     path: web_extract.j2
     type: WordAct
     lexicon_terms: [search, extract, query]

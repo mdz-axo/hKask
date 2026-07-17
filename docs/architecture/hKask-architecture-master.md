@@ -1055,7 +1055,7 @@ See also: `docs/user-guides/kanban-user-guide.md`
 
 **Skills:** `.agents/skills/kata-starter/`, `.agents/skills/kata-improvement/`, `.agents/skills/kata-coaching/`, `.agents/skills/kata/` (bundle)
 
-**Templates:** 23 Jinja2 templates across 4 skill directories, 5 YAML manifests, registered in `registry/templates/bootstrap-registry.yaml`
+**Templates:** 23 Jinja2 templates across 4 skill directories, 5 YAML manifests, registered from per-skill manifests via `registry/templates/*/manifest.yaml` (auto-discovered at compile time by `build.rs`)
 
 **MCP surface:** Kanban MCP (`hkask-mcp-kata-kanban`) exposes task-scoped Kata prompts. Full Kata execution is available through an optional `KanbanKataBridge` service configuration, not through those MCP prompt tools; see the [execution-boundary diagram](../how-to/skills-and-composition.md#kata-kanban-execution-boundary).
 

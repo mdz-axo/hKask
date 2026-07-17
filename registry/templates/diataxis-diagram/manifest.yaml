@@ -15,6 +15,7 @@ crate:
 
 templates:
   - id: diataxis-diagram/diataxis-diagram-classify
+    name: "Classify the target for diagram generation"
     path: diataxis-diagram-classify.j2
     type: KnowAct
     lexicon_terms: [classify, evaluate, orient, map, select]
@@ -27,6 +28,7 @@ templates:
       - cns.diataxis-diagram.classify
 
   - id: diataxis-diagram/diataxis-diagram-extract
+    name: "EXTRACT phase — agent-coordinated source reading"
     path: diataxis-diagram-extract.j2
     type: KnowAct
     lexicon_terms: [extract, probe, read, map, structure]
@@ -40,6 +42,7 @@ templates:
       - cns.diataxis-diagram.extract
 
   - id: diataxis-diagram/diataxis-diagram-generate
+    name: "Render extracted entities into valid Mermaid syntax"
     path: diataxis-diagram-generate.j2
     type: KnowAct
     lexicon_terms: [generate, compose, render, structure, format]
@@ -53,6 +56,7 @@ templates:
       - cns.diataxis-diagram.generate
 
   - id: diataxis-diagram/diataxis-diagram-evaluate
+    name: "Score a generated diagram against Diataxis quality criteria"
     path: diataxis-diagram-evaluate.j2
     type: KnowAct
     lexicon_terms: [evaluate, score, critique, verify, calibrate]
@@ -66,6 +70,7 @@ templates:
       - cns.diataxis-diagram.evaluate
 
   - id: diataxis-diagram/diataxis-diagram-convergence
+    name: "Compute normalized convergence metric from the evaluation scores"
     path: diataxis-diagram-convergence.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, score, verify, calibrate]
@@ -78,6 +83,7 @@ templates:
       - cns.diataxis-diagram.convergence
 
   - id: diataxis-diagram/diataxis-diagram-write
+    name: "Finalize the diagram into a markdown file"
     path: diataxis-diagram-write.j2
     type: KnowAct
     lexicon_terms: [write, compose, structure, format, finalize]

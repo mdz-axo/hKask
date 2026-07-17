@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: idiomatic-rust/idiomatic-rust-inquiry
+    name: "Assess a Rust design problem against Graydon Hoare's principles"
     path: idiomatic-rust-inquiry.j2
     type: KnowAct
     lexicon_terms: [evaluate, classify, orient, anchor, specify]
@@ -21,6 +22,7 @@ templates:
       Produce a scored design assessment with specific improvement targets.
 
   - id: idiomatic-rust/idiomatic-rust-design
+    name: "Propose type-driven Rust solutions with code examples"
     path: idiomatic-rust-design.j2
     type: KnowAct
     lexicon_terms: [design, compose, specify, generate, verify]
@@ -30,6 +32,7 @@ templates:
       std library patterns, ecosystem best practices, and relevant RFCs.
 
   - id: idiomatic-rust/idiomatic-rust-challenge
+    name: "Adversarial review of a Rust design proposal"
     path: idiomatic-rust-challenge.j2
     type: KnowAct
     lexicon_terms: [challenge, critique, evaluate, discriminate, orient]
@@ -40,6 +43,7 @@ templates:
       score is below threshold, loop back to design with concrete targets.
 
   - id: idiomatic-rust/idiomatic-rust-convergence
+    name: "Compute a normalized convergence metric for an idiomatic-rust inquiry…"
     path: idiomatic-rust-convergence.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, score, verify]

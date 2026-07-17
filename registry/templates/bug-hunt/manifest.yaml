@@ -19,6 +19,7 @@ crate:
 
 templates:
   - id: bug-hunt/bug-hunt-charter
+    name: "Generate a focused bug-hunt charter using Hendrickson format and…"
     path: bug-hunt-charter.j2
     type: KnowAct
     lexicon_terms: [charter, plan, target, explore, assess]
@@ -30,6 +31,7 @@ templates:
       - cns.bughunt.charter
 
   - id: bug-hunt/bug-hunt-probe
+    name: "PROBE phase — agent-coordinated MCP tool execution"
     path: bug-hunt-probe.j2
     type: KnowAct
     lexicon_terms: [probe, explore, search, test, verify]
@@ -45,6 +47,7 @@ templates:
       - cns.bughunt.probe
 
   - id: bug-hunt/bug-hunt-oracle
+    name: "Apply Weinberg oracle (bug = threat to user-defined quality),…"
     path: bug-hunt-oracle.j2
     type: KnowAct
     lexicon_terms:
@@ -58,6 +61,7 @@ templates:
       - cns.bughunt.oracle
 
   - id: bug-hunt/bug-hunt-taxonomize
+    name: "Classify evaluated findings into Beizer taxonomy (requirements,…"
     path: bug-hunt-taxonomize.j2
     type: KnowAct
     lexicon_terms: [classify, taxonomize, categorize, rank, label]
@@ -70,6 +74,7 @@ templates:
       - cns.bughunt.taxonomize
 
   - id: bug-hunt/bug-hunt-report
+    name: "Compile charter, oracle, and taxonomy results into a structured JSON…"
     path: bug-hunt-report.j2
     type: KnowAct
     lexicon_terms: [report, summarize, compose, document]
@@ -81,6 +86,7 @@ templates:
       - cns.bughunt.report
 
   - id: bug-hunt/bug-hunt-expedition
+    name: "Legacy monolithic expedition template (v0.30.0)"
     path: bug-hunt-expedition.j2
     type: KnowAct
     lexicon_terms: [hunt, explore, probe, detect, classify, report, charter]
@@ -97,6 +103,7 @@ templates:
       - cns.bughunt.report
 
   - id: bug-hunt/bug-hunt-convergence-check
+    name: "Compute normalized convergence metric for bug-hunt PDCA cycles"
     path: bug-hunt-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

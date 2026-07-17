@@ -14,6 +14,7 @@ crate:
 
 templates:
   - id: pragmatic-semantics/semantics-classify-statement
+    name: "Classify a statement on three axes: ontological (IS/OUGHT), epistemic…"
     path: semantics-classify-statement.j2
     type: KnowAct
     lexicon_terms: [classify, discriminate, evaluate, orient, specify]
@@ -25,6 +26,7 @@ templates:
       modifiers.
 
   - id: pragmatic-semantics/semantics-provenance-trace
+    name: "Trace the provenance of a claim through hKask's data layers including…"
     path: semantics-provenance-trace.j2
     type: KnowAct
     lexicon_terms: [trace, detect, assess, verify, evaluate]
@@ -34,6 +36,7 @@ templates:
       sources, confidence level, and verification recommendations.
 
   - id: pragmatic-semantics/semantics-conflict-resolve
+    name: "Resolve a conflict between statements using 5-tier OT ranking"
     path: semantics-conflict-resolve.j2
     type: KnowAct
     lexicon_terms: [discriminate, rank, resolve, regulate, orient]

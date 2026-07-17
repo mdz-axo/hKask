@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: gml/assess-coherence
+    name: "Evaluate concept coherence and network homeostasis"
     path: assess-coherence.j2
     type: KnowAct
     lexicon_terms: [evaluate, reflect, calibrate, assess]
@@ -20,6 +21,7 @@ templates:
       equilibrium before and after effector binding, detect stability states.
 
   - id: gml/bind-effector
+    name: "Apply an effector to a concept's allosteric ports, compute the…"
     path: bind-effector.j2
     type: KnowAct
     lexicon_terms: [infer, analogy, abduct]
@@ -29,6 +31,7 @@ templates:
       analogy interpreting the directional effect.
 
   - id: gml/cns-instrument
+    name: "CNS instrumentation macros"
     path: cns-instrument.j2
     type: KnowAct
     lexicon_terms: [instrument, monitor, observe]
@@ -38,6 +41,7 @@ templates:
       audit logs for every GML operation.
 
   - id: gml/compute-equilibrium
+    name: "Compute the MWC equilibrium before and after effector binding…"
     path: compute-equilibrium.j2
     type: KnowAct
     lexicon_terms: [analyze, compare, evaluate]
@@ -47,6 +51,7 @@ templates:
       function comparison for accessible microstate count.
 
   - id: gml/error-generic
+    name: "Render-only fragment displayed when a GML operation returns a generic…"
     path: error-generic.j2
     type: RenderAct
     lexicon_terms: [detect, handoff, escalate]
@@ -55,6 +60,7 @@ templates:
       error. Not sent to inference — a static error page with suggested actions.
 
   - id: gml/error-validation
+    name: "Render-only fragment for field-level GML validation errors"
     path: error-validation.j2
     type: RenderAct
     lexicon_terms: [validate, detect, handoff]
@@ -63,6 +69,7 @@ templates:
       operation templates via {% include %} — not a standalone inference template.
 
   - id: gml/error-missing-input
+    name: "Render-only fragment displayed when a GML operation is missing…"
     path: error-missing-input.j2
     type: RenderAct
     lexicon_terms: [validate, detect, handoff]
@@ -72,6 +79,7 @@ templates:
       standalone inference template.
 
   - id: gml/macros
+    name: "Shared Jinja2 macro library (MWC state function, Hill coefficient,…"
     path: macros.j2
     type: RenderAct
     lexicon_terms: [compute, partition, transform]
@@ -81,6 +89,7 @@ templates:
       Never rendered standalone or sent to inference.
 
   - id: gml/recognize-ensemble
+    name: "Parse a concept into its R-state and T-state ensemble components"
     path: recognize-ensemble.j2
     type: KnowAct
     lexicon_terms: [recognize, discriminate, parse]
@@ -89,6 +98,7 @@ templates:
       Identify allosteric ports from possible effector shapes.
 
   - id: gml/reframe-concept
+    name: "Generate alternative interpretation frames for a concept based on its…"
     path: reframe-concept.j2
     type: KnowAct
     lexicon_terms: [synthesize, abduct, explore]
@@ -98,6 +108,7 @@ templates:
       resolve interpretive instability.
 
   - id: gml/validate-inputs
+    name: "Validate GML concept and effector inputs against type, shape, and…"
     path: validate-inputs.j2
     type: KnowAct
     lexicon_terms: [validate, detect, enforce]

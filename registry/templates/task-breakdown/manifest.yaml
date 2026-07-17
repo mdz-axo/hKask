@@ -15,6 +15,7 @@ crate:
 
 templates:
   - id: task-breakdown/task-breakdown-plan
+    name: "PLAN phase — read-only mode"
     path: task-breakdown-plan.j2
     type: KnowAct
     lexicon_terms:
@@ -28,6 +29,7 @@ templates:
       - cns.task-breakdown.plan
 
   - id: task-breakdown/task-breakdown-decompose
+    name: "DO phase — single producer: slice vertically AND write tasks in one…"
     path: task-breakdown-decompose.j2
     type: KnowAct
     lexicon_terms:
@@ -43,6 +45,7 @@ templates:
       - cns.task-breakdown.decompose
 
   - id: task-breakdown/task-breakdown-evaluate
+    name: "CHECK phase — score the plan against six weighted criteria: task…"
     path: task-breakdown-evaluate.j2
     type: KnowAct
     lexicon_terms:
@@ -57,6 +60,7 @@ templates:
       - cns.task-breakdown.evaluate
 
   - id: task-breakdown/task-breakdown-quality-gate
+    name: "Independent quality gate (fusion: false) — evaluates the plan WITHOUT…"
     path: task-breakdown-quality-gate.j2
     type: KnowAct
     lexicon_terms:
@@ -71,6 +75,7 @@ templates:
       - cns.task-breakdown.quality-gate
 
   - id: task-breakdown/task-breakdown-convergence
+    name: "Compute normalized convergence metric from the evaluation scores"
     path: task-breakdown-convergence.j2
     type: KnowAct
     lexicon_terms:
@@ -83,6 +88,7 @@ templates:
       - cns.task-breakdown.converge
 
   - id: task-breakdown/task-breakdown-write-plan
+    name: "ACT phase — finalize the plan into tasks/plan.md (overview,…"
     path: task-breakdown-write-plan.j2
     type: KnowAct
     lexicon_terms:

@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: essentialist/essentialist-flow
+    name: "Run the 3-gate eliminative interrogation loop in either autonomous…"
     path: essentialist-flow.j2
     type: KnowAct
     lexicon_terms:

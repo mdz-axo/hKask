@@ -13,6 +13,7 @@ crate:
 
 templates:
   - id: deep-module/deep-module-assess
+    name: "Assess module depth: enumerate public interface items, evaluate…"
     path: deep-module-assess.j2
     type: KnowAct
     lexicon_terms: [assess, classify, evaluate, detect, infer]
@@ -22,6 +23,7 @@ templates:
       Very Shallow. Identify interface cost drivers and behavior gaps.
 
   - id: deep-module/deep-module-delete
+    name: "Execute the deletion test in both directions: caller's perspective…"
     path: deep-module-delete.j2
     type: KnowAct
     lexicon_terms: [critique, evaluate, discriminate, audit, verify]
@@ -31,6 +33,7 @@ templates:
       Produce a definitive keep/extract/don't create recommendation.
 
   - id: deep-module/deep-module-design
+    name: "Design a deep module interface from deletion test results"
     path: deep-module-design.j2
     type: KnowAct
     lexicon_terms: [design, simplify, constrain, specify, structure]
@@ -40,6 +43,7 @@ templates:
       and errors. Produce a module specification with ≤7 public functions.
 
   - id: deep-module/deep-module-convergence-check
+    name: "Compute normalized convergence metric for module-depth cycles"
     path: deep-module-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

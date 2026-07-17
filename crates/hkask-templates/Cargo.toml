@@ -39,3 +39,7 @@ path = "tests/yaml_schema_validation.rs"
 [[test]]
 name = "template_rendering"
 path = "tests/template_rendering.rs"
+
+[[test]]
+name = "bootstrap_test"
+path = "tests/bootstrap_test.rs"

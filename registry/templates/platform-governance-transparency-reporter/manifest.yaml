@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: platform-governance-transparency-reporter/query-spans
+    name: "Query CNS spans for governance events within a time window"
     path: query-spans.j2
     type: KnowAct
     lexicon_terms: [query, classify, extract, observe, retrieve]
@@ -19,6 +20,7 @@ templates:
       Collects spans from curation, spec, contract, and energy namespaces.
 
   - id: platform-governance-transparency-reporter/classify-events
+    name: "Classify governance events by type and explain each in plain language…"
     path: classify-events.j2
     type: KnowAct
     lexicon_terms: [classify, explain, categorize, assess, interpret]
@@ -27,6 +29,7 @@ templates:
       accessible to non-technical users. Flags decisions requiring additional context.
 
   - id: platform-governance-transparency-reporter/synthesize-report
+    name: "Synthesize classified governance events into a structured…"
     path: synthesize-report.j2
     type: KnowAct
     lexicon_terms: [synthesize, summarize, structure, format, report]
@@ -35,6 +38,7 @@ templates:
       report with per-category summaries, patterns, and recommendations.
 
   - id: platform-governance-transparency-reporter/convergence-check
+    name: "Compute normalized convergence metric for governance transparency…"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

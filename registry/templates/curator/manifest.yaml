@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: curator/metacognition-calibrate
+    name: "Calibrate system thresholds and energy budgets"
     path: metacognition-calibrate.j2
     type: KnowAct
     status: dormant
@@ -21,6 +22,7 @@ templates:
       data is collected by CNS.
 
   - id: curator/metacognition-diagnose
+    name: "Diagnose system issues from bot reports and CNS alerts"
     path: metacognition-diagnose.j2
     type: KnowAct
     status: wired
@@ -31,6 +33,7 @@ templates:
       calibrated actions.
 
   - id: curator/metacognition-escalate
+    name: "Format human-facing escalation notifications"
     path: metacognition-escalate.j2
     type: KnowAct
     status: wired
@@ -40,6 +43,7 @@ templates:
       ManifestExecutor is available.
 
   - id: curator/system_state_gather
+    name: "Gather and synthesize current system state"
     path: system_state_gather.j2
     type: KnowAct
     status: dormant

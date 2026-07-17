@@ -10,6 +10,7 @@ crate:
 
 templates:
   - id: skill-translator/translate-skill
+    name: "Translate and normalize source skill definitions into target…"
     path: translate-skill.j2
     type: KnowAct
     lexicon_terms: [translate, map, normalize, transform, validate]
@@ -18,6 +19,7 @@ templates:
       hKask-compatible representation with explicit mapping rationale.
 
   - id: skill-translator/translation-convergence-check
+    name: "Compute normalized convergence metric for skill-translation PDCA…"
     path: translation-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: platform-wardley-mapper/convergence-check
+    name: "Compute convergence for Wardley mapping PDCA cycles"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

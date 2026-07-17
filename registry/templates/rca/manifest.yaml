@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: rca/define-problem
+    name: "Define and scope a problem with precise, measurable specification"
     path: define-problem.j2
     type: KnowAct
     lexicon_terms: [analyze, specify, isolate]
@@ -20,6 +21,7 @@ templates:
       First step in the RCA pipeline.
 
   - id: rca/ishikawa-6m
+    name: "Perform Ishikawa fishbone analysis across the 6M categories: Machine,…"
     path: ishikawa-6m.j2
     type: KnowAct
     lexicon_terms: [analyze, classify, decompose]
@@ -30,6 +32,7 @@ templates:
       problem definition and decomposes it into candidate causes.
 
   - id: rca/five-whys-chain
+    name: "Build 5-Whys causal chains from the prioritized causes produced by…"
     path: five-whys-chain.j2
     type: KnowAct
     lexicon_terms: [trace, analyze, verify]
@@ -39,6 +42,7 @@ templates:
       cause. Third step in the RCA pipeline.
 
   - id: rca/corrective-action
+    name: "Define corrective actions for validated root causes"
     path: corrective-action.j2
     type: KnowAct
     lexicon_terms: [fix, plan, recommend, verify]

@@ -19,6 +19,7 @@ crate:
 
 templates:
   - id: media/logo-discovery
+    name: "Discovery-phase pipeline: map qualitative brand identity inputs to…"
     path: ../media/logo-discovery.yaml
     type: FlowDef
     lexicon_terms: [classify, map, strategize, discover]
@@ -28,6 +29,7 @@ templates:
       strategy. Agent-coordinated; uses inference router for classification.
 
   - id: media/logo-discovery-map
+    name: "Map qualitative brand identity inputs (industry, audience, values) to…"
     path: ../media/logo-discovery-map.j2
     type: KnowAct
     lexicon_terms: [classify, map, recommend, strategize]
@@ -37,6 +39,7 @@ templates:
       using strategic brand reasoning. From Martin's Minimum Viable Brand.
 
   - id: media/logo-formal-prompt
+    name: "Core logo generation prompt encoding Bokhua's five design gates:…"
     path: ../media/logo-formal-prompt.j2
     type: KnowAct
     lexicon_terms: [generate, design, create, formalize]
@@ -46,6 +49,7 @@ templates:
       and scalability. Every logo generation flow delegates to this template.
 
   - id: media/logo-iterative-refine
+    name: "Peters-inspired iterative logo pipeline: generate N candidates, score…"
     path: ../media/logo-iterative-refine.yaml
     type: FlowDef
     lexicon_terms: [generate, critique, refine, iterate, score]
@@ -56,6 +60,7 @@ templates:
       Final output is background-removed for transparent PNG deliverables.
 
   - id: media/logo-presentation
+    name: "Generate a complete logo deliverables package from a refined logo:…"
     path: ../media/logo-presentation.yaml
     type: FlowDef
     lexicon_terms: [package, export, deliver, present]

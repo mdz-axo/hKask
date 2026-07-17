@@ -23,6 +23,7 @@ crate:
 
 templates:
   - id: superforecasting/stage_0_triage
+    name: "Triage a forecasting question to determine difficulty level and…"
     path: stage_0_triage.j2
     type: WordAct
     lexicon_terms: [classify, assess, query]
@@ -31,6 +32,7 @@ templates:
       it falls in the Goldilocks zone warranting full pipeline investment.
 
   - id: superforecasting/stage_1_fermi_decompose
+    name: "Fermi-decompose the forecasting question into independent, tractable…"
     path: stage_1_fermi_decompose.j2
     type: WordAct
     lexicon_terms: [decompose, analyze, query]
@@ -39,6 +41,7 @@ templates:
       sub-questions. Separate knowns from unknowns and document assumptions.
 
   - id: superforecasting/stage_2_outside_view
+    name: "Establish base rates by identifying reference classes and determining…"
     path: stage_2_outside_view.j2
     type: WordAct
     lexicon_terms: [analyze, compare, search]
@@ -48,6 +51,7 @@ templates:
       probability.
 
   - id: superforecasting/stage_3_probability_estimate
+    name: "Inside-view probability estimation"
     path: stage_3_probability_estimate.j2
     type: WordAct
     lexicon_terms: [assess, weigh, estimate, combine, update]
@@ -61,6 +65,7 @@ templates:
       half of the former stage_3_inside_view step.
 
   - id: superforecasting/stage_4_evidence_update
+    name: "Incorporate new evidence via Bayesian updating with likelihood ratios"
     path: stage_4_evidence_update.j2
     type: WordAct
     lexicon_terms: [probe, assert, validate]
@@ -69,6 +74,7 @@ templates:
       Revise the prior probability based on evidence strength.
 
   - id: superforecasting/stage_5_synthesis
+    name: "Synthesize a dragonfly-eye view by integrating multiple causal models…"
     path: stage_5_synthesis.j2
     type: WordAct
     lexicon_terms: [synthesize, aggregate, compose]
@@ -78,6 +84,7 @@ templates:
       probability.
 
   - id: superforecasting/stage_6_calibration
+    name: "Calibrate the final probability using the full 0-100% scale"
     path: stage_6_calibration.j2
     type: WordAct
     lexicon_terms: [calibrate, assert, specify]
@@ -87,6 +94,7 @@ templates:
       evidence trail.
 
   - id: superforecasting/stage_7_record
+    name: "Create a structured forecast record with resolution criteria and…"
     path: stage_7_record.j2
     type: WordAct
     lexicon_terms: [document, report, commit]
@@ -96,6 +104,7 @@ templates:
       analysis.
 
   - id: superforecasting/forecast-quality-gate
+    name: "Independent quality gate that evaluates forecast calibration realism,…"
     path: forecast-quality-gate.j2
     type: KnowAct
     lexicon_terms: [evaluate, verify, gate, calibrate]
@@ -107,6 +116,7 @@ templates:
       with actionable fix notes.
 
   - id: superforecasting/superforecasting-convergence-check
+    name: "Compute normalized convergence metric for superforecasting PDCA cycles"
     path: superforecasting-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

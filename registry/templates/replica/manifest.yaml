@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: replica/discovery-corpus
+    name: "Generate a corpus configuration YAML from discovered academic works…"
     path: discovery-corpus.j2
     type: KnowAct
     lexicon_terms: [catalog, document, synthesize]
@@ -20,6 +21,7 @@ templates:
       rules, entities, and inferred methods.
 
   - id: replica/extract-concepts
+    name: "Extract key concepts, places, and events from academic paper metadata…"
     path: extract-concepts.j2
     type: KnowAct
     lexicon_terms: [extract, classify, distill]
@@ -29,6 +31,7 @@ templates:
       an author's body of work.
 
   - id: replica/infer-methods
+    name: "Infer methodological and stylistic patterns from representative…"
     path: infer-methods.j2
     type: KnowAct
     lexicon_terms: [infer, recognize, analyze]

@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: platform-consent-auditor/query-tokens
+    name: "Query the DelegationToken registry for all tokens within the window"
     path: query-tokens.j2
     type: KnowAct
     lexicon_terms: [query, extract, list, retrieve, enumerate]
@@ -19,6 +20,7 @@ templates:
       Retrieves token metadata: issuer, recipient, resource, action, timestamps.
 
   - id: platform-consent-auditor/correlate-usage
+    name: "Correlate each DelegationToken with CNS span data showing actual usage"
     path: correlate-usage.j2
     type: KnowAct
     lexicon_terms: [correlate, match, trace, compare, map]
@@ -27,6 +29,7 @@ templates:
       Flags over-provisioned consent (tokens granting more access than used).
 
   - id: platform-consent-auditor/detect-anomalies
+    name: "Detect anomalous patterns: stale tokens, orphaned consent, consent…"
     path: detect-anomalies.j2
     type: KnowAct
     lexicon_terms: [detect, flag, identify, classify, assess]
@@ -35,6 +38,7 @@ templates:
       concentration, scope violations, out-of-hours critical token issuance.
 
   - id: platform-consent-auditor/synthesize-report
+    name: "Synthesize audit findings into a structured report with per-token…"
     path: synthesize-report.j2
     type: KnowAct
     lexicon_terms: [synthesize, summarize, structure, report, recommend]
@@ -43,6 +47,7 @@ templates:
       status, anomaly categories, and consent hygiene recommendations.
 
   - id: platform-consent-auditor/convergence-check
+    name: "Compute normalized convergence metric for consent audit PDCA cycles"
     path: convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

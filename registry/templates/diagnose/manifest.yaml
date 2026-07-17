@@ -11,6 +11,7 @@ crate:
 
 templates:
   - id: diagnose/diagnose-spec-anchor
+    name: "Anchor a bug diagnosis to functional requirements: classify by MDS…"
     path: diagnose-spec-anchor.j2
     type: KnowAct
     lexicon_terms: [anchor, classify, map, verify, specify]
@@ -20,6 +21,7 @@ templates:
       the diagnosis pipeline. Every diagnosis traces to a spec or notes the gap.
 
   - id: diagnose/diagnose-loop
+    name: "Build a feedback loop for the bug"
     path: diagnose-loop.j2
     type: KnowAct
     lexicon_terms: [detect, reproduce, observe, discriminate, orient]
@@ -28,6 +30,7 @@ templates:
       fastest deterministic signal, and confirm the bug reproduces before hypothesising.
 
   - id: diagnose/diagnose-instrument
+    name: "Instrument the code with targeted probes mapped to specific hypotheses"
     path: diagnose-instrument.j2
     type: KnowAct
     lexicon_terms: [probe, instrument, constrain, isolate, verify]
@@ -36,6 +39,7 @@ templates:
       Change one variable at a time. Use tagged diagnostic logs or breakpoints.
 
   - id: diagnose/diagnose-fix
+    name: "Apply fix with regression test (before the fix)"
     path: diagnose-fix.j2
     type: KnowAct
     lexicon_terms: [fix, verify, audit, document, calibrate]
@@ -44,6 +48,7 @@ templates:
       no longer reproduces. Clean up instrumentation. Write post-mortem.
 
   - id: diagnose/diagnose-convergence-check
+    name: "Compute normalized convergence metric for diagnosis cycles"
     path: diagnose-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

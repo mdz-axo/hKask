@@ -252,6 +252,7 @@ fn handle_stop() {
     println!();
 }
 
+#[cfg_attr(not(feature = "tui"), allow(unused_variables))]
 fn handle_view(file_arg: &str, state: &crate::ReplState, _rt: &tokio::runtime::Handle) {
     let path = if file_arg.is_empty() {
         // Default: most recent recording

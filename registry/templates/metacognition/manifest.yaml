@@ -15,6 +15,7 @@ crate:
 templates:
   # ── Skill flow templates (PDCA step-level prompts) ──
   - id: metacognition/meta_decompose
+    name: "Decompose a high-level goal into a tree of sub-goals with…"
     path: meta_decompose.j2
     type: KnowAct
     lexicon_terms: [decompose, plan, calibrate, assess]
@@ -24,6 +25,7 @@ templates:
       prior outcomes and available tools.
 
   - id: metacognition/meta-assess
+    name: "Self-assess current state vs"
     path: meta-assess.j2
     type: KnowAct
     lexicon_terms: [assess, evaluate, reflect, diagnose, observe]
@@ -33,6 +35,7 @@ templates:
       based on session history and prior outcomes.
 
   - id: metacognition/ellipsis-analysis
+    name: "Bloom-inspired cognition method for detecting meaning in gaps and…"
     path: ellipsis-analysis.j2
     type: KnowAct
     lexicon_terms: [read, detect, classify, calibrate, analyze]
@@ -44,6 +47,7 @@ templates:
       see past yourself, find what is not inferno.
 
   - id: metacognition/meta-calibrate
+    name: "Calibrate strategy, effort estimates, and tool selection based on the…"
     path: meta-calibrate.j2
     type: KnowAct
     lexicon_terms: [calibrate, adjust, adapt, regulate, tune]
@@ -55,6 +59,7 @@ templates:
       and success criteria.
 
   - id: metacognition/meta-convergence-check
+    name: "Compute normalized convergence metric for metacognition cycles"
     path: meta-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, assess]
@@ -64,6 +69,7 @@ templates:
       assessment, obstacles, calibration, and next experiment are stable.
 
   - id: metacognition/meta-gepa-improve
+    name: "GEPA self-improvement step"
     path: meta-gepa-improve.j2
     type: KnowAct
     lexicon_terms: [evolve, improve, sample, reflect, mutate]
@@ -80,6 +86,7 @@ templates:
   # rotation. They are registered as type: reference for discovery and
   # documentation purposes — they are not rendered by minijinja.
   - id: metacognition/falstaffian-perspective-engine
+    name: "Reference: three-fold structure (shapes, experience, spirit) with…"
     path: falstaffian-perspective-engine.yaml
     type: reference
     lexicon_terms: [rotate, perspective, transform, tension, affirm]
@@ -88,6 +95,7 @@ templates:
       metacognitive application steps and shape selection decision tree.
 
   - id: metacognition/falstaffian-shapes
+    name: "Reference: seven semantic graph transformation operators — the…"
     path: falstaffian-shapes.yaml
     type: reference
     lexicon_terms: [shape, transform, rotate, invert, reverse]
@@ -96,6 +104,7 @@ templates:
       Falstaffian shapes with input/output structures and tension components.
 
   - id: metacognition/falstaffian-variance-analysis
+    name: "Reference: three-pass variance calibration with agreement matrix and…"
     path: falstaffian-variance-analysis.yaml
     type: reference
     lexicon_terms: [variance, calibrate, verify, agree, confidence]

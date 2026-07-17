@@ -12,6 +12,7 @@ crate:
 
 templates:
   - id: zoom-out/zoom-out-context
+    name: "Generate a module map, caller graph, data flow summary, boundary…"
     path: zoom-out-context.j2
     type: KnowAct
     lexicon_terms: [orient, contextualise, map, classify, integrate]
@@ -20,6 +21,7 @@ templates:
       and key invariants for the current code region. Uses hKask domain vocabulary.
 
   - id: zoom-out/zoom-out-convergence-check
+    name: "Compute normalized convergence metric for zoom-out PDCA cycles"
     path: zoom-out-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, calibrate]

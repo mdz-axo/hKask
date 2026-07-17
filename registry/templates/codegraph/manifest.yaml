@@ -12,6 +12,7 @@ crate:
 templates:
   # ── Skill flow templates (PDCA step-level prompts) ──
   - id: codegraph/codegraph-discover
+    name: "Discover and map the target codebase area"
     path: codegraph-discover.j2
     type: KnowAct
     lexicon_terms: [discover, index, map, survey, structure]
@@ -21,6 +22,7 @@ templates:
       and entry symbols for further traversal.
 
   - id: codegraph/codegraph-query
+    name: "Query the code graph for symbols relevant to the replicant's goal"
     path: codegraph-query.j2
     type: KnowAct
     lexicon_terms: [query, search, find, locate, identify]
@@ -30,6 +32,7 @@ templates:
       gaps for further exploration.
 
   - id: codegraph/codegraph-analyze
+    name: "Traverse the dependency graph and run quality analysis"
     path: codegraph-analyze.j2
     type: KnowAct
     lexicon_terms: [traverse, analyze, impact, complexity, dead_code]
@@ -39,6 +42,7 @@ templates:
       quality findings with fix suggestions.
 
   - id: codegraph/codegraph-context
+    name: "Assemble token-budgeted context from gathered analysis results for…"
     path: codegraph-context.j2
     type: KnowAct
     lexicon_terms: [context, assemble, budget, format, package]
@@ -48,6 +52,7 @@ templates:
       key relationships within the specified token budget.
 
   - id: codegraph/codegraph-convergence-check
+    name: "Compute normalized convergence metric for codegraph cycles"
     path: codegraph-convergence-check.j2
     type: KnowAct
     lexicon_terms: [evaluate, converge, classify, verify, assess]
@@ -58,30 +63,35 @@ templates:
 
   # ── Utility templates (used by the MCP server internally) ──
   - id: codegraph/symbol-summarize
+    name: "Generate one-sentence summaries of code symbols"
     path: symbol-summarize.j2
     type: KnowAct
     lexicon_terms: [summarize, describe, classify]
     description: Generate one-sentence summaries of code symbols.
 
   - id: codegraph/analysis-complexity
+    name: "Analyze code complexity metrics for symbols and modules"
     path: analysis-complexity.j2
     type: KnowAct
     lexicon_terms: [analyze, measure, classify]
     description: Analyze code complexity metrics for symbols and modules.
 
   - id: codegraph/analysis-dead-code
+    name: "Detect dead code and unused symbols"
     path: analysis-dead-code.j2
     type: KnowAct
     lexicon_terms: [analyze, detect, classify]
     description: Detect dead code and unused symbols.
 
   - id: codegraph/fix-suggestion
+    name: "Generate fix suggestions for code issues"
     path: fix-suggestion.j2
     type: KnowAct
     lexicon_terms: [suggest, propose, fix]
     description: Generate fix suggestions for code issues.
 
   - id: codegraph/symbol-embedding
+    name: "Generate embeddings for code symbols"
     path: symbol-embedding.j2
     type: KnowAct
     lexicon_terms: [embed, encode, vectorize]
