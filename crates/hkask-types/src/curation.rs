@@ -143,13 +143,11 @@ impl DataCategory {
 
 // ── Sovereignty boundary types ───────────────────────────────────────────
 
-use crate::SovereigntyId;
 use std::collections::HashSet;
 
 /// Data sovereignty boundary — defines what data the user controls
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSovereigntyBoundary {
-    pub(crate) id: SovereigntyId,
     /// What data is under user sovereignty
     pub sovereign_data: HashSet<DataCategory>,
     /// What data may be shared (with explicit consent)
@@ -192,7 +190,6 @@ impl BoundaryClassification {
 impl DataSovereigntyBoundary {
     pub(crate) fn new() -> Self {
         Self {
-            id: SovereigntyId::default(),
             sovereign_data: HashSet::new(),
             shared_data: HashSet::new(),
             public_data: HashSet::new(),
@@ -216,7 +213,6 @@ impl DataSovereigntyBoundary {
         public_data.insert(DataCategory::TemplateRegistry);
 
         Self {
-            id: SovereigntyId::default(),
             sovereign_data,
             shared_data,
             public_data,
@@ -287,111 +283,5 @@ impl UserSovereigntyState {
 impl Default for UserSovereigntyState {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-// ── Original curation types restored ────────────────────────────────────
-
-/// CurationDecision — The Curator's evaluation of template outputs
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CurationDecision {
-    /// Merge output into codebase
-    Merge,
-    /// Discard output entirely
-    Discard,
-    /// Request revision from bot
-    Revise,
-    /// Insufficient information — revisit later
-    Defer,
-}
-
-impl std::fmt::Display for CurationDecision {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CurationDecision::Merge => write!(f, "merge"),
-            CurationDecision::Discard => write!(f, "discard"),
-            CurationDecision::Revise => write!(f, "revise"),
-            CurationDecision::Defer => write!(f, "defer"),
-        }
-    }
-}
-
-impl TryFrom<&str> for CurationDecision {
-    type Error = String;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s {
-            "merge" => Ok(CurationDecision::Merge),
-            "discard" => Ok(CurationDecision::Discard),
-            "revise" => Ok(CurationDecision::Revise),
-            "defer" => Ok(CurationDecision::Defer),
-            _ => Err(format!("invalid curation decision: {s}")),
-        }
-    }
-}
-
-/// Token-based capability kinds for OCAP boundaries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum OcapTokenKind {
-    /// Curation authority — ConsolidationToken
-    Curation,
-    /// Spec curation authority
-    SpecCurate,
-    /// Federation authority — manage federation links, invitations, sync
-    Federation,
-}
-
-impl std::fmt::Display for OcapTokenKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            OcapTokenKind::Curation => "curation",
-            OcapTokenKind::SpecCurate => "spec_curate",
-            OcapTokenKind::Federation => "federation",
-        };
-        f.write_str(s)
-    }
-}
-
-/// Parse an `OcapTokenKind` from its canonical snake_case name.
-pub fn parse_ocap_token_kind(s: &str) -> Option<OcapTokenKind> {
-    match s {
-        "curation" => Some(OcapTokenKind::Curation),
-        "spec_curate" => Some(OcapTokenKind::SpecCurate),
-        "federation" => Some(OcapTokenKind::Federation),
-        _ => None,
-    }
-}
-
-/// Capability identifier — typed brand.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct OcapCapability(pub OcapTokenKind);
-
-impl std::fmt::Display for OcapCapability {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.0, f)
-    }
-}
-
-/// OCAPBoundary — Capability boundary for curation decisions
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OCAPBoundary {
-    /// The capability being bounded (a typed brand).
-    pub capability: OcapCapability,
-}
-
-impl OCAPBoundary {
-    /// Create an enforced boundary with a typed token.
-    pub fn token(kind: OcapTokenKind) -> Self {
-        Self {
-            capability: OcapCapability(kind),
-        }
-    }
-
-    /// Parse a typed token from a string, returning `None` for unknown names.
-    pub fn parse_token(name: &str) -> Option<Self> {
-        parse_ocap_token_kind(name).map(Self::token)
     }
 }

@@ -108,7 +108,8 @@ export HKASK_FERMI_DEFAULTS='{"growth":[{"estimate":0.70,"confidence":0.8}],"mar
 
 ```text
 src/
-├── lib.rs              server composition, provider learning, forecast store
+├── lib.rs              server composition, forecast store, dispatch
+├── learning.rs         provider-learning regulator (Beta posterior, staleness)
 ├── tools/              MCP tool routers and handlers
 ├── types.rs            MCP request schemas
 ├── providers.rs        FMP/EODHD routing and normalization

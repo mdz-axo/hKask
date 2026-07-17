@@ -156,20 +156,3 @@ pub struct TemplateCrate {
     /// Template files (path -> content)
     pub templates: Vec<TemplateFile>,
 }
-
-/// Template invocation record — tracks template rendering events.
-///
-/// FocusingAssumption FA-D1: Minimal stub — full implementation deferred until
-/// template rendering tracking is needed. Currently TemplateFile/TemplateCrate
-/// cover file-level metadata; TemplateInvocation will record runtime invocations.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TemplateInvocation {
-    /// Unique invocation identifier
-    pub invocation_id: String,
-    /// Template that was invoked
-    pub template_id: String,
-    /// Agent that invoked the template
-    pub agent_id: String,
-    /// Timestamp of invocation
-    pub invoked_at: i64,
-}

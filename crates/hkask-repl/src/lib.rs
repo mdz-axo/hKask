@@ -13,6 +13,7 @@ mod builtin_servers;
 use hkask_tui::SystemBridge;
 mod cns_display;
 mod commands;
+pub mod deps;
 pub mod display;
 mod energy;
 pub mod handlers;

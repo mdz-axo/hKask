@@ -19,7 +19,6 @@ pub mod keychain_keys;
 pub mod loops;
 pub mod macros;
 pub mod observable_span;
-pub mod retry;
 pub mod secret;
 pub mod server_config;
 pub mod skill;
@@ -53,7 +52,7 @@ pub use event::{NuEvent, NuEventSink};
 pub use goal::GoalState;
 pub use id::{
     ApiKeyId, BoardId, BotID, ColumnId, CommentId, EmbeddingID, EscalationID, EventID, GoalID,
-    HMemId, Id, IdKind, PhaseId, PodID, SovereigntyId, TaskId, TemplateID, UserID, WalletId, WebID,
+    HMemId, Id, IdKind, PhaseId, PodID, TaskId, TemplateID, UserID, WalletId, WebID,
 };
 
 pub use loops::{

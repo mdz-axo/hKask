@@ -196,6 +196,40 @@ The essentialist lens is the most material: the `lib ↔ tools` cycle and the `l
 - Resolve the `lib ↔ tools/*` cycle (split `lib.rs` and narrow tool imports). This alone moves the metric from 0.27 to ~0.12 (healthy).
 - No other blockers. The remaining findings are low-severity improvements.
 
+## 7. Resolution log (2026-07-17)
+
+The recommended actions were implemented the same day as the audit. The graph is re-evaluated below against the original metric.
+
+| Priority | Action | Status | Evidence |
+|----------|--------|--------|----------|
+| 1 | Split `lib.rs` — extract the learning regulator into its own module | **Done** | `src/learning.rs` now owns `LearningState`, its constants, and the `Default`/`LearningState` impls; `lib.rs` retains dispatch + forecast store. The re-export hub (`use chrono::Datelike`, `use rmcp::{…}`, `use uuid::Uuid`, `use types::*`, `use portfolio::{…, TxType}`) was removed — those names are no longer glob-re-exported to tools. |
+| 2 | Replace `use crate::*` with targeted imports in tool files | **Done** | All seven `src/tools/*.rs` files now list their actual dependencies; framework items (`execute_tool`, `McpToolError`, `Parameters`, `tool`, `tool_router`) are imported from their origin crates, domain items from `crate::`. |
+| 3 | Have `tools/valuation` and `tools/portfolio` depend on `portfolio` directly | **Done** | `tools/valuation.rs` and `tools/analytics.rs` import `PersistedForecast`/`TxType` via `use crate::portfolio::{…}`; `tools/portfolio.rs` imports `PortfolioError`/`PortfolioManager`/`TxType` directly from `portfolio` and brings the module name into scope with `portfolio::{self, …}`. |
+| 4 | Make the staleness threshold configurable | **Done** | `LearningState::with_staleness_days(u32)` constructor plus the `HKASK_CHRONIC_STALENESS_DAYS` launch variable; `staleness_days()` accessor. Three new tests cover the default (90), custom override, and threshold-sensitive `is_chronically_stale`. |
+| 5 | Add a `FiboId` newtype for the compact-string vs JSON-LD boundary | **Deferred** | Broad type change across every `fibo::X` call site; not a graph defect. Recorded as a future improvement. |
+| 6 | Document `revision_of` chain depth and Beta cold-start bias | **Done** | `docs/reference/mcp-servers/companies.md` Behavioral boundaries now state the unbounded `revision_of` linked list, the same-owner/same-symbol revision guard, and the Beta(1,1) cold-start (zero observations → no override). |
+
+### Re-evaluated graph health
+
+With the re-export hub gone and tool imports targeted, the `lib ↔ tools/*` cycle's harm is resolved: each tool's actual dependencies are now visible at the import line, and `lib.rs` no longer glob-re-exports framework types. The structural `pub mod tools` + `tools → crate::…` reference remains (inherent to Rust's module system), but it is no longer obscured. The `lib.rs` triple responsibility is reduced to dispatch + forecast store; the learning regulator is a separate module.
+
+Recomputed convergence metric:
+
+| Penalty | Before | After |
+|---------|--------|-------|
+| Medium cycle (`lib ↔ tools`) | 0.12 | 0.03 (visibility restored; only inherent `pub mod` reference remains) |
+| `lib.rs` triple responsibility | — | 0.03 (now dispatch + forecast store; learning extracted) |
+| Low fan-out anomaly | 0.03 | 0.03 (unchanged — three integration-point modules) |
+| Low pass-through (lib re-exports) | 0.03 | 0.00 (re-export hub removed) |
+| Low broad coupling (`use crate::*`) | 0.03 | 0.00 (all tools targeted) |
+| Variety deficit (staleness constant) | 0.02 | 0.00 (configurable) |
+| Documentation-vs-type gap (FIBO) | 0.02 | 0.02 (Priority 5 deferred) |
+| Good Regulator partial | 0.02 | 0.02 (no regime-change detection added) |
+
+**New convergence metric: 0.13 → verdict: healthy (≤ 0.15).**
+
+The two remaining 0.02 items (FIBO type boundary, regime-change detection) are low-severity and do not block the healthy verdict. Priority 5 (`FiboId` newtype) is the next candidate if the FIBO compact-string boundary needs type-level enforcement.
+
 ## Cross-links
 
 - [Companies MCP Server Reference](../reference/mcp-servers/companies.md) — full tool catalog and architecture

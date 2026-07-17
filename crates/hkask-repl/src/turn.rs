@@ -250,15 +250,15 @@ fn emit_turn_status(
 /// spans are handled identically for both surfaces.
 fn run_turn_loop(
     input: &str,
-    state: &mut ReplState,
+    deps: crate::deps::TurnDeps,
     rt: &tokio::runtime::Handle,
-    a2a_secret: &[u8],
-    agent_override: Option<&str>,
     sink: &mut impl TurnSink,
+    agent_override: Option<&str>,
+    max_loops: usize,
+    gas_heuristic: u64,
+    default_agent: &str,
 ) -> TurnOutcome {
-    let settings = state.repl_settings.clone();
-    let max_loops = settings.tool_loop_limit;
-    let display_name = agent_override.unwrap_or(&state.current_agent).to_string();
+    let display_name = agent_override.unwrap_or(default_agent).to_string();
 
     let mut current_input: String = input.to_string();
     let mut tool_results: Option<String> = None;
@@ -287,17 +287,8 @@ fn run_turn_loop(
             break;
         }
 
-        // Hold-settle pattern via EnergyGuard.
-        let Some(gas_guard) = energy::EnergyGuard::try_reserve(
-            &state.service_context.cns().cybernetics,
-            state
-                .service_context
-                .inference_loop()
-                .expect("inference loop"),
-            &state.agent_webid,
-            rt,
-            settings.gas_heuristic,
-        ) else {
+        :        // Hold-settle pattern via GasGovernor.
+                let Some(mut gas_guard) = deps.gas.try_reserve(gas_heuristic) else {
             sink.status("  \x1b[31m\u{2717} Gas budget exhausted (hard limit) \u{2014} turn blocked by cybernetic regulator\x1b[0m");
             sink.status(
                 "  \x1b[2mUse /status to see budget details, or wait for replenishment.\x1b[0m",
@@ -311,20 +302,14 @@ fn run_turn_loop(
         };
 
         // Build TurnRequest for this iteration.
-        let turn_req = build_turn_request(
-            state,
+        let turn_req = (deps.build_request)(
             &current_input,
             iteration,
             tool_results.take(),
             agent_override,
         );
 
-        let chat_result = rt.block_on(ChatService::execute_turn(
-            &state.service_context,
-            &turn_req,
-            state.manifest_state.executor.as_ref(),
-            state.manifest_state.manifest.as_ref(),
-        ));
+        let chat_result = rt.block_on(deps.executor.execute_turn(&turn_req));
         let chat_response = match chat_result {
             Ok(r) => r,
             Err(e) => {
@@ -380,10 +365,8 @@ fn run_turn_loop(
             // see only the preamble and a token count.)
             sink.agent_text(&display_name, &parsed.text);
             final_response = Some(parsed.text.clone());
-            // Talk mode: summarize and speak the response aloud
-            if state.talk_config.enabled {
-                speak_response(&parsed.text, state, rt);
-            }
+            // Talk mode: the closure checks talk_config.enabled internally.
+            (deps.on_speak)(&parsed.text);
             break;
         }
 
@@ -398,8 +381,7 @@ fn run_turn_loop(
             display_name
         ));
 
-        // Invoke each tool call through GovernedTool.
-        let governed_tool = state.service_context.governed_tool(state.agent_webid);
+        // Invoke each tool call through the ToolInvoker trait.
         let mut tool_results_vec = Vec::new();
         for call in &parsed.tool_calls {
             let mut line = format!("  \x1b[2m  Invoking {}\x1b[0m", call.tool);
@@ -409,13 +391,7 @@ fn run_turn_loop(
             line.push_str("...");
             sink.tool_log(&line);
 
-            let result = rt.block_on(tool_augmented::invoke_tool_call(
-                call,
-                &governed_tool,
-                &state.agent_webid,
-                a2a_secret,
-                state.host.as_ref(),
-            ));
+            let result = rt.block_on(deps.tools.invoke(call));
 
             match &result {
                 Ok(value) => {
@@ -447,8 +423,7 @@ fn run_turn_loop(
     }
 
     // Post-loop status display (token usage + gas warnings).
-    let gas_remaining = state.service_context.gas_remaining().unwrap_or(0);
-    let gas_cap = state.service_context.gas_cap().unwrap_or(0);
+    let (gas_remaining, gas_cap) = deps.gas.gas_status();
     emit_turn_status(
         sink,
         total_usage.as_ref(),
@@ -467,9 +442,7 @@ fn run_turn_loop(
     // This is independent of long-term episodic memory - threads are the
     // agent's immediate context; episodic/semantic processing runs in parallel.
     if let Some(ref resp) = final_response {
-        state
-            .thread_registry
-            .append_turn(&state.current_agent, input, resp);
+        deps.threads.append_turn(default_agent, input, resp);
     }
 
     // Mark thread as seeded only when the turn did not error. On inference
@@ -477,7 +450,7 @@ fn run_turn_loop(
     // thread history. The old CLI code returned early on error, skipping
     // mark_seeded; we replicate that by gating on !inference_error.
     if !inference_error {
-        state.thread_registry.mark_seeded();
+        deps.threads.mark_seeded();
     }
 
     // CNS: turn lifecycle — emit completion span.
@@ -493,7 +466,7 @@ fn run_turn_loop(
         );
     }
 
-    cns_display::update_cns_and_display(state, rt);
+    (deps.on_cns_update)();
 
     TurnOutcome {
         success: !inference_error,
