@@ -185,26 +185,40 @@ impl InferencePort for InferenceRouter {
                 + '_,
         >,
     > {
-        // Fusion (multi-model deliberation) is inherently non-streamable: the
-        // orchestrator dispatches a panel in parallel and a judge synthesizes a
-        // single InferenceResult — there is no token stream to emit. When fusion
-        // is active (and not bypassed) and no LoRA adapter overrides the model,
-        // `effective_model` below would resolve to the fusion *judge* model and
-        // silently stream the judge alone — a behavioral asymmetry with
-        // `generate_with_model` (which runs full fusion). Refuse rather than
-        // silently downgrade: the caller must use generate() for full fusion or
-        // set bypass_fusion=true to stream a single (non-fused) model.
-        if !parameters.bypass_fusion
-            && parameters.adapter.is_none()
-            && (parameters.fusion_config.is_some() || self.config.fusion.is_some())
-        {
-            return Box::pin(futures_util::stream::once(async move {
-                Err(InferenceError::Generation(
-                    "Fusion panel deliberation is non-streamable; use generate() for \
-                     full fusion or set bypass_fusion=true to stream a single model."
-                        .into(),
-                ))
-            }));
+        // Fusion (multi-model deliberation) is non-streamable at the token
+        // level: the orchestrator dispatches a panel in parallel and a judge
+        // synthesizes a single InferenceResult — there is no token stream to
+        // emit. When fusion is active and not bypassed, run the full fusion and
+        // emit the result as a single stream chunk. This preserves the caller's
+        // stream interface (non-breaking: ACP/API/CLI streaming callers keep
+        // working) while delivering the fused answer the caller enabled fusion
+        // for. The latency is inherent to fusion (multi-round panel+judge), not
+        // to this path. Priority: per-call fusion_config > global config (same
+        // as `generate`).
+        if !parameters.bypass_fusion {
+            let fusion = parameters
+                .fusion_config
+                .clone()
+                .or_else(|| self.config.fusion.clone());
+            if let Some(fusion) = fusion {
+                let prompt = prompt.to_string();
+                let parameters = parameters.clone();
+                let tools = tools.map(|t| t.to_vec());
+                return Box::pin(futures_util::stream::once(async move {
+                    validate_prompt(&prompt)?;
+                    let result = self
+                        .orchestrate_fusion(&prompt, &parameters, tools.as_deref(), &fusion)
+                        .await
+                        .map_err(|e| self.heal_error(e, "generate_stream_with_model"))?;
+                    Ok(InferenceStreamChunk {
+                        text_delta: result.text,
+                        model: result.model,
+                        finish_reason: Some(result.finish_reason),
+                        usage: Some(result.usage),
+                        tool_calls: result.tool_calls,
+                    })
+                }));
+            }
         }
 
         // LoRA adapter overrides the model entirely (bypasses fusion).

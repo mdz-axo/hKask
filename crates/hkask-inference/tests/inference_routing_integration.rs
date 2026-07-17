@@ -517,3 +517,69 @@ async fn execute_workflow_unavailable_backend_returns_error() {
         err
     );
 }
+
+/// REQ: P9-inf-fusion-stream-buffer
+/// Streaming under active fusion runs the full fusion and emits the result as
+/// a single stream chunk — non-breaking: the caller's stream interface yields
+/// the fused answer, not an error. Uses the algo judge (no LLM judge call) with
+/// a single panel model; the merged result is the panel's JSON response.
+#[tokio::test]
+async fn generate_stream_with_fusion_buffers_as_one_chunk() {
+    use futures_util::StreamExt;
+    use hkask_inference::{FusionConfig, FusionMode};
+    use hkask_types::fusion::NonEmptyVec;
+
+    let deepinfra_mock = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(mock_chat_response("test-panel", "{\"key\":\"value\"}")),
+        )
+        .mount(&deepinfra_mock)
+        .await;
+
+    let config = InferenceConfig {
+        default_provider: ProviderId::DeepInfra,
+        deepinfra_base_url: deepinfra_mock.uri(),
+        deepinfra_api_key: "test-key".to_string(),
+        ..Default::default()
+    };
+    let router = InferenceRouter::new(config);
+
+    let params = LLMParameters {
+        bypass_fusion: false,
+        fusion_config: Some(FusionConfig {
+            judge: "algo".to_string(),
+            panel: NonEmptyVec::one("DI/test-panel".to_string()),
+            mode: FusionMode::Synthesis,
+            skills: Vec::new(),
+            max_rounds: 5,
+        }),
+        system_prompt: None,
+        ..Default::default()
+    };
+
+    let mut stream = router.generate_stream_with_model("prompt", &params, None, None);
+    let mut chunks = Vec::new();
+    while let Some(chunk_result) = stream.next().await {
+        chunks.push(chunk_result);
+    }
+
+    assert_eq!(
+        chunks.len(),
+        1,
+        "fusion stream should yield exactly one chunk (non-streamable deliberation), got {}",
+        chunks.len()
+    );
+    let chunk = chunks[0].as_ref().expect("chunk should be Ok");
+    assert!(
+        chunk.text_delta.contains("key"),
+        "chunk text_delta should contain the merged panel JSON, got: {}",
+        chunk.text_delta
+    );
+    assert!(
+        chunk.finish_reason.is_some(),
+        "chunk should have a finish_reason"
+    );
+}
