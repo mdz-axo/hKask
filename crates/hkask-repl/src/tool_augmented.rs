@@ -18,7 +18,7 @@ use hkask_mcp::RawMcpToolPort;
 ///
 /// Used by both `format_tool_prompt_section` (dynamic) and the hardcoded
 /// fallback in `chat_with_agent` (when no MCP runtime is available).
-pub const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
+pub(crate) const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
          You have access to MCP tools. When you need to invoke a tool, include a \
          tool call directive in your response using this format:\n\
          \n\
@@ -478,5 +478,69 @@ End.";
         let parsed = parse_tool_calls(response);
         assert!(parsed.tool_calls.is_empty());
         assert_eq!(parsed.text, response);
+    }
+
+    // ── format_tool_results ────────────────────────────────────────
+
+    #[test]
+    fn format_results_empty_calls_returns_empty_string() {
+        let calls: Vec<(ToolCall, anyhow::Result<serde_json::Value>)> = vec![];
+        assert_eq!(format_tool_results(&calls), "");
+    }
+
+    #[test]
+    fn format_results_single_success_includes_tool_name_and_json() {
+        let calls = vec![(
+            ToolCall {
+                server: "srv".into(),
+                tool: "search".into(),
+                args: serde_json::json!({}),
+            },
+            Ok(serde_json::json!({"hits": 3})),
+        )];
+        let formatted = format_tool_results(&calls);
+        assert!(formatted.contains("Tool results:"));
+        assert!(formatted.contains("\u{2713} search"));
+        assert!(formatted.contains("\"hits\": 3"));
+    }
+
+    #[test]
+    fn format_results_single_error_includes_error_message() {
+        let calls = vec![(
+            ToolCall {
+                server: "srv".into(),
+                tool: "broken".into(),
+                args: serde_json::json!({}),
+            },
+            Err(anyhow::anyhow!("connection refused")),
+        )];
+        let formatted = format_tool_results(&calls);
+        assert!(formatted.contains("\u{2717} broken"));
+        assert!(formatted.contains("ERROR: connection refused"));
+    }
+
+    #[test]
+    fn format_results_multiple_calls_joined_with_newlines() {
+        let calls = vec![
+            (
+                ToolCall {
+                    server: "srv".into(),
+                    tool: "a".into(),
+                    args: serde_json::json!({}),
+                },
+                Ok(serde_json::json!(1)),
+            ),
+            (
+                ToolCall {
+                    server: "srv".into(),
+                    tool: "b".into(),
+                    args: serde_json::json!({}),
+                },
+                Ok(serde_json::json!(2)),
+            ),
+        ];
+        let formatted = format_tool_results(&calls);
+        assert!(formatted.contains("\u{2713} a"));
+        assert!(formatted.contains("\u{2713} b"));
     }
 }

@@ -810,10 +810,10 @@ The judge operates in one of five modes, configurable via `HKASK_FUSION_MODE`:
 | Mode | Rounds | Behavior |
 |------|--------|----------|
 | `synthesis` _(default)_ | 1 | Judge composes a unified response incorporating best elements from all panelists |
-| `best-of-n` | 1 | Judge evaluates all responses and picks the single best one |
-| `critique` | 2 | Judge drafts synthesis → panel critiques draft → judge revises final |
-| `deliberation` | ≤N | Multi-round: judge asks follow-ups, panel responds, converges or maxes out (configurable via `HKASK_FUSION_MAX_ROUNDS`, default 5) |
-| `pi` (Plan-Implement) | 2-phase | Phase 1: panel proposes strategies → judge synthesizes plan. Phase 2: plan sent to panel for implementation details → judge synthesizes execution plan |
+| `best-of-n` | 1 (+ swap-revote) | Judge evaluates all responses and picks the single best; with ≥2 panelists votes twice (dispatch + reversed order) and compares picks to flag position bias |
+| `critique` | 2 | Judge drafts synthesis → panel critiques draft → judge revises final. An optional `proposed_thought` (agent's draft) is injected in round 1 |
+| `deliberation` | ≤N | Multi-round: an **algorithmic convergence detector** (Beta-Binomial + Kolmogorov–Smirnov over within-round panel agreement) decides convergence; the judge emits follow-up questions until convergence or `max_rounds` (default 5). Replaces the former `FOLLOW_UP:` string self-report |
+| `pi` (Plan-Implement) | 2-phase | Phase 1: panel proposes strategies → judge synthesizes plan. Phase 2: plan sent to panel for implementation details → judge synthesizes execution plan. An optional `proposed_thought` seeds phase 1 |
 
 #### Skill Anchoring
 
@@ -873,7 +873,7 @@ When the `fusion:` block is present, all `select` steps in that manifest use thi
 
 **Types:** `FusionConfig`, `FusionMode`, `FusionSkill` live in `hkask-types::fusion` (shared across `hkask-templates`, `hkask-inference`). `LLMParameters.fusion_config: Option<FusionConfig>` carries the per-call override through the `InferencePort` trait.
 
-**Algorithmic judge** (`judge: "algo"`): When the fusion judge is set to `"algo"`, the orchestrator runs the panel in parallel and merges JSON responses algorithmically — no LLM call. This is the **algo / no-judge** path, a family of deterministic merge strategies (currently one method: recursive JSON merge). The algo judge preserves both viewpoints (union, case-insensitive dedup, diverging strings annotated `[A:... B:...]`) without a methodology lens. The corpus pipeline routes through the same fusion orchestrator — panel models specified in the corpus config's `fusion:` block, merged via `algo_merge()`. The architecture anticipates additional algo / no-judge methods beyond the current merge algorithm (e.g., set intersection, vote/tally, schema-validated merge); these would be added as sub-selectors on the `algo` judge value.
+**Algorithmic judge** (`judge: "algo"`): When the fusion judge is set to `"algo"`, the orchestrator runs the panel in parallel and merges JSON responses algorithmically — no LLM call. This is the **algo / no-judge** path, a family of deterministic merge strategies selected by the `algo_method` field: `merge` (recursive JSON union, the default — case-insensitive dedup, diverging strings annotated `[A:... B:...]`) and `vote` (majority tally across panelists — scalars take the majority value, array items kept only if a majority of panelists include them). The corpus pipeline routes through the same fusion orchestrator — panel models specified in the corpus config's `fusion:` block, merged via `algo_merge()` / `algo_vote()`. The architecture anticipates additional algo / no-judge methods (set intersection, first-wins, schema-validated merge) as future `AlgoMethod` variants.
 
 **Bypass:** Chat uses the user's chosen model directly (`bypass_fusion=true`). Skills and tool invocations route through fusion when active (`bypass_fusion=false`). The condenser, daemon narratives, and summarization always bypass fusion.
 
@@ -885,6 +885,7 @@ When the `fusion:` block is present, all `select` steps in that manifest use thi
 | `HKASK_FUSION_MODE` | Deliberation mode (LLM judge only): `synthesis`, `best-of-n`, `critique`, `deliberation`, `pi`. Ignored when `judge: algo`. |
 | `HKASK_FUSION_SKILLS` | Comma-separated skill anchors for the judge (LLM judge only). Ignored when `judge: algo`. |
 | `HKASK_FUSION_MAX_ROUNDS` | Max deliberation rounds (default: 5). Ignored when `judge: algo`. |
+| `HKASK_FUSION_ALGO_METHOD` | Algo merge strategy when `judge: algo`: `merge` or `vote` (default: `merge`). Ignored when the judge is an LLM. |
 | `HKASK_FUSION_DISABLED=1` | Disable fusion |
 
 **REPL commands:** `/fusion` (status), `/fusion on`, `/fusion off`.

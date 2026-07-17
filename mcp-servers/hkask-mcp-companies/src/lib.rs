@@ -67,13 +67,10 @@
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use chrono::Datelike;
-use hkask_mcp::server::{McpToolError, execute_tool, validate_identifier};
+use hkask_mcp::server::{McpToolError, validate_identifier};
 use hkask_mcp::{DaemonClient, DaemonResponse};
 use hkask_types::time::now_rfc3339;
-use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 mod analysis;
 pub mod data_quality;
@@ -89,9 +86,8 @@ mod screener;
 mod superforecast;
 pub mod types;
 
-use portfolio::{PersistedForecast, PortfolioError, PortfolioManager, TxType};
+use portfolio::{PersistedForecast, PortfolioError, PortfolioManager};
 
-use types::*;
 pub mod tools;
 
 // ── Forecast store ───────────────────────────────────────────────────
@@ -171,6 +167,8 @@ const FLAKY_PROBABILITY_THRESHOLD: f64 = 0.70;
 /// Minimum observations before the flaky classification is trusted.
 const FLAKY_MIN_OBSERVATIONS: u64 = 5;
 /// Chronic staleness: data older than this many days → chronically stale.
+/// Default threshold; overridable per-instance via `LearningState::with_staleness_days`
+/// and at launch via the `HKASK_CHRONIC_STALENESS_DAYS` environment variable.
 const CHRONIC_STALENESS_DAYS: u32 = 90;
 
 /// Learning state — tracks user feedback per (tool, symbol, provider) to adapt
@@ -183,7 +181,7 @@ const CHRONIC_STALENESS_DAYS: u32 = 90;
 /// Statistical foundation: each (symbol, provider) maintains α = successes+1,
 /// β = failures+1. The posterior success probability is α/(α+β). A provider
 /// is flaky when P(success) < FLAKY_PROBABILITY_THRESHOLD with at least FLAKY_MIN_OBSERVATIONS observations.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct LearningState {
     /// (symbol, provider) → (α_successes, β_failures, n_total)
     /// Beta posterior: P(success) = α / (α+β)
@@ -191,6 +189,22 @@ pub struct LearningState {
     /// Temporal snapshots: (symbol, provider) → most recent snapshot.
     temporal_snapshots:
         std::collections::HashMap<(String, Provider), data_quality::TemporalSnapshot>,
+    /// Chronic-staleness threshold in days. A provider whose latest temporal
+    /// snapshot is older than this is treated as chronically stale and
+    /// bypassed by `preferred_provider`. Defaults to `CHRONIC_STALENESS_DAYS`
+    /// (90); configurable via `with_staleness_days` or the
+    /// `HKASK_CHRONIC_STALENESS_DAYS` launch variable.
+    staleness_days: u32,
+}
+
+impl Default for LearningState {
+    fn default() -> Self {
+        Self {
+            provider_scores: Default::default(),
+            temporal_snapshots: Default::default(),
+            staleness_days: CHRONIC_STALENESS_DAYS,
+        }
+    }
 }
 
 impl LearningState {
@@ -270,10 +284,25 @@ impl LearningState {
         }
     }
 
+    /// Construct a `LearningState` with a custom chronic-staleness threshold
+    /// (days). Use when the default 90-day window does not match the asset
+    /// class or data cadence.
+    pub fn with_staleness_days(staleness_days: u32) -> Self {
+        Self {
+            staleness_days,
+            ..Default::default()
+        }
+    }
+
+    /// Chronic-staleness threshold currently in effect (days).
+    pub fn staleness_days(&self) -> u32 {
+        self.staleness_days
+    }
+
     /// Check if a provider consistently returns stale data for a symbol.
     pub fn is_chronically_stale(&self, symbol: &str, provider: Provider) -> bool {
         self.check_staleness(symbol, provider)
-            .map(|days| days > CHRONIC_STALENESS_DAYS)
+            .map(|days| days > self.staleness_days)
             .unwrap_or(false)
     }
 
@@ -546,7 +575,15 @@ pub async fn run(
                 tavily_api_key,
                 brave_api_key,
                 PortfolioManager::new(ctx.webid),
-                std::sync::Arc::new(std::sync::Mutex::new(LearningState::default())),
+                std::sync::Arc::new(std::sync::Mutex::new(
+                    match std::env::var("HKASK_CHRONIC_STALENESS_DAYS")
+                        .ok()
+                        .and_then(|v| v.parse::<u32>().ok())
+                    {
+                        Some(days) => LearningState::with_staleness_days(days),
+                        None => LearningState::default(),
+                    },
+                )),
                 superforecast::FermiDefaults::from_env(),
             ))
         },
@@ -834,5 +871,53 @@ mod tests {
             "3 ratings < 5 threshold → not enough data"
         );
         assert!(state.preferred_provider("AAPL", Provider::Fmp).is_none());
+    }
+
+    // ── Configurable staleness threshold ─────────────────────────────
+
+    #[test]
+    fn staleness_threshold_default_is_90_days() {
+        let state = LearningState::default();
+        assert_eq!(state.staleness_days(), CHRONIC_STALENESS_DAYS);
+        assert_eq!(state.staleness_days(), 90);
+    }
+
+    #[test]
+    fn staleness_threshold_custom_overrides_default() {
+        let state = LearningState::with_staleness_days(30);
+        assert_eq!(state.staleness_days(), 30);
+    }
+
+    #[test]
+    fn is_chronically_stale_respects_custom_threshold() {
+        // File a snapshot whose latest filing is 40 days old.
+        let old_filing = (chrono::Utc::now() - chrono::Duration::days(40))
+            .format("%Y-%m-%d")
+            .to_string();
+        let snapshot = data_quality::TemporalSnapshot {
+            fetched_at: now_rfc3339(),
+            price_at_fetch: 100.0,
+            latest_filing_date: Some(old_filing),
+        };
+
+        // 40-day-old filing: stale under a 30-day threshold, fresh under the
+        // 90-day default.
+        let mut tight = LearningState::with_staleness_days(30);
+        tight
+            .temporal_snapshots
+            .insert(("AAPL".to_string(), Provider::Fmp), snapshot.clone());
+        assert!(
+            tight.is_chronically_stale("AAPL", Provider::Fmp),
+            "40 days > 30-day threshold → chronically stale"
+        );
+
+        let mut default = LearningState::default();
+        default
+            .temporal_snapshots
+            .insert(("AAPL".to_string(), Provider::Fmp), snapshot);
+        assert!(
+            !default.is_chronically_stale("AAPL", Provider::Fmp),
+            "40 days < 90-day default → not stale"
+        );
     }
 }

@@ -193,6 +193,46 @@ fn build_turn_request(
     }
 }
 
+// ── Post-loop status display ─────────────────────────────────────────
+
+/// Emit token usage and gas budget warnings to the sink.
+///
+/// Extracted from `run_turn_loop` for testability — the conditional
+/// formatting ("across N iterations" vs single, gas low vs exhausted
+/// vs healthy) can be verified without a full ReplState.
+fn emit_turn_status(
+    sink: &mut impl TurnSink,
+    usage: Option<&TokenUsage>,
+    iteration: usize,
+    gas_remaining: u64,
+    gas_cap: u64,
+) {
+    if let Some(usage) = usage {
+        if iteration > 1 {
+            sink.status(&format!(
+                "  \x1b[2m{} tokens ({} prompt + {} completion) across {} iterations\x1b[0m",
+                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens, iteration
+            ));
+        } else {
+            sink.status(&format!(
+                "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
+                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+            ));
+        }
+    }
+
+    if gas_cap > 0 && gas_remaining > 0 && (gas_remaining as f64 / gas_cap as f64) < 0.2 {
+        sink.status(&format!(
+            "  \x1b[33m\u{26a0} Gas budget low: {}/{} ({:.0}%)\x1b[0m",
+            gas_remaining,
+            gas_cap,
+            (gas_remaining as f64 / gas_cap as f64) * 100.0
+        ));
+    } else if gas_cap > 0 && gas_remaining == 0 {
+        sink.status("  \x1b[31m\u{2717} Gas budget exhausted \u{2014} some operations may be throttled\x1b[0m");
+    }
+}
+
 // ── Unified turn loop ────────────────────────────────────────────────
 
 /// Run the tool-augmented inference turn loop.
@@ -406,34 +446,16 @@ fn run_turn_loop(
         tool_results = Some(tool_results_formatted);
     }
 
-    // Show token usage.
-    if let Some(ref usage) = total_usage {
-        if iteration > 1 {
-            sink.status(&format!(
-                "  \x1b[2m{} tokens ({} prompt + {} completion) across {} iterations\x1b[0m",
-                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens, iteration
-            ));
-        } else {
-            sink.status(&format!(
-                "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
-                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
-            ));
-        }
-    }
-
-    // Check energy budget and warn if low.
+    // Post-loop status display (token usage + gas warnings).
     let gas_remaining = state.service_context.gas_remaining().unwrap_or(0);
     let gas_cap = state.service_context.gas_cap().unwrap_or(0);
-    if gas_cap > 0 && gas_remaining > 0 && (gas_remaining as f64 / gas_cap as f64) < 0.2 {
-        sink.status(&format!(
-            "  \x1b[33m\u{26a0} Gas budget low: {}/{} ({:.0}%)\x1b[0m",
-            gas_remaining,
-            gas_cap,
-            (gas_remaining as f64 / gas_cap as f64) * 100.0
-        ));
-    } else if gas_cap > 0 && gas_remaining == 0 {
-        sink.status("  \x1b[31m\u{2717} Gas budget exhausted \u{2014} some operations may be throttled\x1b[0m");
-    }
+    emit_turn_status(
+        sink,
+        total_usage.as_ref(),
+        iteration,
+        gas_remaining,
+        gas_cap,
+    );
 
     // Append this exchange to the active thread's short-term memory stream.
     // The old TUI path did NOT update the thread registry; the unified loop
@@ -537,6 +559,8 @@ pub fn single_agent_turn_captured(
 
 #[cfg(test)]
 mod tests {
+    use super::{TurnSink, emit_turn_status};
+    use hkask_services_chat::TokenUsage;
     // skips when estimated tokens are below that threshold.
     // The threshold calculation in ChatService::execute_turn() is:
     //   threshold = (context_window as f64 * 0.875) as u32
@@ -585,5 +609,159 @@ mod tests {
                 window, expected_threshold, computed
             );
         }
+    }
+
+    // ── emit_turn_status tests ──────────────────────────────────────
+
+    /// Mock sink that collects all status lines for assertion.
+    struct MockSink {
+        status_lines: Vec<String>,
+    }
+
+    impl MockSink {
+        fn new() -> Self {
+            Self {
+                status_lines: Vec::new(),
+            }
+        }
+    }
+
+    impl TurnSink for MockSink {
+        fn agent_text(&mut self, agent: &str, text: &str) {
+            self.status_lines.push(format!("{}: {}", agent, text));
+        }
+        fn tool_log(&mut self, line: &str) {
+            self.status_lines.push(line.to_string());
+        }
+        fn status(&mut self, line: &str) {
+            self.status_lines.push(line.to_string());
+        }
+    }
+
+    #[test]
+    fn emit_status_single_iteration_omits_across_phrase() {
+        let mut sink = MockSink::new();
+        let usage = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 20,
+            total_tokens: 120,
+        };
+        emit_turn_status(&mut sink, Some(&usage), 1, 5000, 10000);
+        assert!(
+            sink.status_lines
+                .iter()
+                .any(|l| l.contains("120 tokens") && !l.contains("across"))
+        );
+    }
+
+    #[test]
+    fn emit_status_multi_iteration_includes_across_phrase() {
+        let mut sink = MockSink::new();
+        let usage = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 20,
+            total_tokens: 120,
+        };
+        emit_turn_status(&mut sink, Some(&usage), 3, 5000, 10000);
+        assert!(
+            sink.status_lines
+                .iter()
+                .any(|l| l.contains("across 3 iterations"))
+        );
+    }
+
+    #[test]
+    fn emit_status_no_usage_emits_nothing() {
+        let mut sink = MockSink::new();
+        emit_turn_status(&mut sink, None, 1, 5000, 10000);
+        assert!(sink.status_lines.is_empty());
+    }
+
+    #[test]
+    fn emit_status_gas_low_warns() {
+        let mut sink = MockSink::new();
+        emit_turn_status(&mut sink, None, 1, 100, 10000);
+        assert!(
+            sink.status_lines
+                .iter()
+                .any(|l| l.contains("Gas budget low"))
+        );
+    }
+
+    #[test]
+    fn emit_status_gas_exhausted_warns() {
+        let mut sink = MockSink::new();
+        emit_turn_status(&mut sink, None, 1, 0, 10000);
+        assert!(
+            sink.status_lines
+                .iter()
+                .any(|l| l.contains("Gas budget exhausted"))
+        );
+    }
+
+    #[test]
+    fn emit_status_gas_healthy_no_warning() {
+        let mut sink = MockSink::new();
+        emit_turn_status(&mut sink, None, 1, 5000, 10000);
+        assert!(sink.status_lines.is_empty());
+    }
+
+    #[test]
+    fn emit_status_gas_cap_zero_no_warning() {
+        let mut sink = MockSink::new();
+        emit_turn_status(&mut sink, None, 1, 0, 0);
+        assert!(sink.status_lines.is_empty());
+    }
+}
+
+#[cfg(all(test, feature = "tui"))]
+mod capture_sink_tests {
+    use super::*;
+
+    #[test]
+    fn agent_text_goes_to_response_text() {
+        let mut sink = CaptureSink::new();
+        sink.agent_text("Agent", "Hello world");
+        assert!(sink.response_text.contains("Hello world"));
+        assert!(sink.tool_output.is_empty());
+    }
+
+    #[test]
+    fn tool_log_goes_to_tool_output() {
+        let mut sink = CaptureSink::new();
+        sink.tool_log("  Invoking search...");
+        assert!(sink.tool_output.contains("Invoking search"));
+        assert!(sink.response_text.is_empty());
+    }
+
+    #[test]
+    fn status_token_usage_filtered_out() {
+        let mut sink = CaptureSink::new();
+        sink.status("  120 tokens (100 prompt + 20 completion)");
+        assert!(
+            sink.response_text.is_empty(),
+            "token usage should not appear in response_text — it's in numeric fields"
+        );
+    }
+
+    #[test]
+    fn status_error_captured_in_response_text() {
+        let mut sink = CaptureSink::new();
+        sink.status("  Inference error: connection refused");
+        assert!(sink.response_text.contains("Inference error"));
+    }
+
+    #[test]
+    fn status_gas_warning_captured_in_response_text() {
+        let mut sink = CaptureSink::new();
+        sink.status("  Gas budget low: 100/10000 (1%)");
+        assert!(sink.response_text.contains("Gas budget low"));
+    }
+
+    #[test]
+    fn status_max_iterations_captured_in_response_text() {
+        let mut sink = CaptureSink::new();
+        sink.status("  Tool-use loop max iterations reached");
+        assert!(sink.response_text.contains("max iterations"));
     }
 }

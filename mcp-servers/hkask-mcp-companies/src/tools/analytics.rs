@@ -1,5 +1,15 @@
 //! Portfolio analytics and DCF valuation tools.
-use crate::*;
+use crate::{
+    CompaniesServer, StoredForecast, fibo, financial_model,
+    portfolio::{PersistedForecast, TxType},
+    scenarios,
+    types::{self, AttributionRequest, CharacteristicsRequest},
+    validate_symbol,
+};
+use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_types::time::now_rfc3339;
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use uuid::Uuid;
 
 #[tool_router(router = analytics_router, vis = "pub")]
 impl CompaniesServer {

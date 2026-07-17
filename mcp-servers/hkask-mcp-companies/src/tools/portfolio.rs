@@ -1,5 +1,17 @@
 //! Portfolio management tools.
-use crate::*;
+use crate::{
+    CompaniesServer, fibo, map_portfolio_error,
+    portfolio::{self, PortfolioError, PortfolioManager, TxType},
+    types::{
+        self, FileAttachRequest, FileDeleteRequest, FileListRequest, LedgerExportRequest,
+        LedgerImportRequest, NoteAddRequest, NoteDeleteRequest, NoteListRequest,
+        PortfolioCompareRequest, PortfolioNameRequest, PortfolioReturnsRequest,
+        TransactionNoteRequest,
+    },
+};
+use chrono::Datelike;
+use hkask_mcp::server::{McpToolError, execute_tool};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 async fn run_portfolio<T>(
     portfolio: PortfolioManager,

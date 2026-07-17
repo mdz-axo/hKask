@@ -96,6 +96,7 @@ See the [Companies MCP Server Reference](../../docs/reference/mcp-servers/compan
 | `HKASK_TAVILY_API_KEY` | No | Tavily research-search provider key |
 | `HKASK_BRAVE_API_KEY` | No | Brave research-search provider key |
 | `HKASK_FERMI_DEFAULTS` | No | JSON object with `growth` and `margin` Fermi-question arrays |
+| `HKASK_CHRONIC_STALENESS_DAYS` | No | Chronic-staleness threshold in days for the `LearningState` provider-learning loop (default `90`); a provider whose latest filing is older than this is bypassed by `preferred_provider` |
 
 Example Fermi defaults:
 

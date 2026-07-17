@@ -35,7 +35,7 @@ The `judge` field in `FusionConfig` accepts one of two families:
 | **LLM deliberation** | A model name (e.g., `deepseek-v4-pro`, `DI/qwen/qwen3`) | Panel answers in parallel → judge model synthesizes/picks/critiques/deliberates/plans per the configured mode | Yes | (panel size + judge calls × rounds) × token cost |
 | **Algo / no-judge** | `algo` | Panel answers in parallel → deterministic algorithm merges responses — no LLM judge call | No | Panel tokens only — zero judge overhead |
 
-The algo / no-judge family is extensible: the current implementation provides a **recursive JSON merge** (`merge_json_values`), but the architecture anticipates additional algorithmic methods (see [Algo / No-Judge Methods](#algo--no-judge-methods) below).
+The algo / no-judge family is extensible: the current implementation provides two methods — **recursive JSON merge** (`merge_json_values`) and **majority vote** (`vote_json_values`) — selected via the `algo_method` field. The architecture anticipates additional methods (see [Algo / No-Judge Methods](#algo--no-judge-methods) below).
 
 **Why fusion exists:** Multi-model deliberation improves answer quality on hard reasoning tasks by combining diverse model perspectives under a methodologically-anchored judge. It is a quality/cost tradeoff — LLM-judge fusion multiplies token cost by roughly (panel size + judge calls × rounds). The algo / no-judge path is the exception: zero judge token cost, zero judge latency, since it skips the LLM judge call entirely. Panel model cost is the only expense.
 
@@ -52,6 +52,7 @@ Fusion is off by default. Activate it by setting two required environment variab
 | `HKASK_FUSION_MODE` | no | Deliberation mode for LLM judges. One of `synthesis`, `best-of-n`, `critique`, `deliberation`, `pi`. Default: `synthesis`. Ignored when `judge: algo`. |
 | `HKASK_FUSION_SKILLS` | no | Comma-separated skill anchors for the judge. Default: none. Ignored when `judge: algo`. |
 | `HKASK_FUSION_MAX_ROUNDS` | no | Max rounds for `deliberation` mode. Default: `5`. Ignored when `judge: algo`. |
+| `HKASK_FUSION_ALGO_METHOD` | no | Algo merge strategy when `judge: algo`. One of `merge`, `vote`. Default: `merge`. Ignored when the judge is an LLM. |
 | `HKASK_FUSION_DISABLED=1` | no | Force-disable fusion (overrides all other vars). |
 
 Minimal activation with an LLM judge (uses kask defaults for judge/panel when unset, but explicit is recommended):
@@ -126,7 +127,7 @@ The judge composes a unified response incorporating the strongest elements from 
 
 #### `best-of-n` — 1 round
 
-The judge evaluates all panel responses and outputs **only the chosen response verbatim** — no commentary, no synthesis, no justification. Use this when you want one panelist's answer, not a merge. Lowest judge token cost.
+The judge evaluates all panel responses and outputs **only the chosen response verbatim** — no commentary, no synthesis, no justification. Use this when you want one panelist's answer, not a merge. With **two or more panelists**, the judge votes twice — once with candidates in dispatch order, once reversed — and the two picks are compared by matching the verbatim output back to its source response. Agreement yields high confidence; disagreement flags position bias and is logged at `cns.fusion` (Zheng et al. 2024, arXiv:2406.07791). A single panelist skips the swap (one judge call).
 
 #### `critique` — 2 rounds
 
@@ -137,12 +138,13 @@ Use this for tasks where a draft-then-refine loop improves quality — design re
 
 #### `deliberation` — ≤ N rounds (default 5)
 
-Multi-round with a convergence check. Each round, the judge either:
+Multi-round with an **algorithmic convergence detector**. Convergence is decided by an external observer (`ConvergenceDetector`) that models the panel's within-round pairwise agreement as a Beta posterior and applies a Kolmogorov–Smirnov stability test between consecutive rounds — not by the judge declaring convergence in prose. Each round:
 
-- Emits a final synthesis (if panel responses have converged), **or**
-- Emits a line prefixed `FOLLOW_UP:` containing a follow-up question for the panel.
+- The detector compares this round's agreement distribution against the previous round's.
+- If converged (high posterior-mean agreement **and** low round-to-round KS shift, for 2 consecutive rounds): the judge synthesizes a final answer.
+- Otherwise: the judge produces a follow-up question, the panel re-answers, and the loop continues.
 
-The orchestrator re-dispatches the follow-up to the panel and loops. If `max_rounds` is reached without convergence, the judge is forced to synthesize a final response from the last round. Configure the cap with `HKASK_FUSION_MAX_ROUNDS` (default `5`). Use this for hard problems where iterative refinement surfaces information a single pass misses.
+Round 1 always continues (no prior to compare); the earliest convergence is round 3. If `max_rounds` is reached without convergence, the judge is forced to synthesize from the last round. Configure the cap with `HKASK_FUSION_MAX_ROUNDS` (default `5`). This replaces the former `FOLLOW_UP:` string-prefix self-report, which was a self-referential (and, per the debate-martingale result, unreliable) convergence signal; the detector is a Conant–Ashby Good Regulator that models the convergence process. Use this for hard problems where iterative refinement surfaces information a single pass misses.
 
 #### `pi` (Plan-Implement) — 2 phases
 
@@ -159,7 +161,7 @@ When `judge: "algo"`, the orchestrator dispatches the panel in parallel — exac
 
 ## Algo / No-Judge Methods
 
-`judge: algo` selects the **algo / no-judge** family — a set of deterministic, algorithmic merge strategies that process panel responses without an LLM judge call. The current implementation provides one method (recursive JSON merge), but the architecture is designed for multiple methods (see [Extensibility](#extensibility--future-algo-methods) below).
+`judge: algo` selects the **algo / no-judge** family — a set of deterministic, algorithmic merge strategies that process panel responses without an LLM judge call. Two methods are implemented (recursive JSON `merge` and majority `vote`), selected via the `algo_method` field (see [Algo / No-Judge Methods](#algo--no-judge-methods) below).
 
 ### The Merge Algorithm (current)
 
@@ -201,23 +203,28 @@ export HKASK_FUSION_PANEL_MODELS=KC/qwen/qwen3-235b-a22b-2507,DI/google/gemma-4-
 
 ### Extensibility — Future Algo Methods
 
-The `algo` judge value is designed as a **family of algorithmic merge strategies**, not a single method. The current implementation provides the recursive JSON merge, but the architecture anticipates additional methods. Potential future algo / no-judge methods include:
+The `algo` judge value is a **family of algorithmic merge strategies**, selected by the `algo_method` field. Two methods are implemented:
+
+| Method | `algo_method` | Merge strategy | Use case |
+|--------|---------------|---------------|---------|
+| **Recursive JSON merge** (default) | `merge` | Union with case-insensitive dedup, diverging strings annotated `[A:... B:...]` | Epistemic-integrity classification, memory formation — preserve both viewpoints. Designed for 2-model panels |
+| **Majority vote** | `vote` | Object fields take the majority value across panelists (recursively); array items kept only if a majority of panelists include them; scalars take the majority | Classification with confidence scoring — agreement frequency as signal. Scales beyond 2 panelists where `merge`'s pairwise annotation degrades |
+
+Potential future algo / no-judge methods (not yet implemented):
 
 | Candidate method | Merge strategy | Use case |
 |-------------------|---------------|---------|
-| **Recursive JSON merge** (current) | Union with case-insensitive dedup, diverging strings annotated | Epistemic-integrity classification, memory formation — preserve both viewpoints |
 | **Set intersection** | Keep only fields where panelists agree (case-insensitive) | High-confidence extraction — discard diverging extractions |
 | **First-wins** | Take the first panelist's response, drop the rest | Deterministic priority ordering — one model is authoritative |
-| **Vote/tally** | For scalar fields, take the majority value; for arrays, keep items appearing in ≥ N panelists | Classification with confidence scoring — agreement frequency as signal |
 | **Schema-validated merge** | Merge per a declared JSON schema (type-checked, required-field enforced) | Structured extraction with validation — reject malformed panel responses |
 
-Adding a new algo method would require:
+Adding a new algo method requires:
 
 1. Implementing the merge function in `crates/hkask-inference/src/fusion_orchestrator.rs`.
-2. Adding a dispatch mechanism to select between algo methods (currently the `algo` judge routes unconditionally to `algo_merge`; future methods would need a sub-selector, e.g., a `algo_method:` field or a namespaced judge value like `algo:intersection`).
+2. Adding an `AlgoMethod` variant in `crates/hkask-types/src/fusion.rs` (with the `enum_snake_str!` arm) and a matching arm in `orchestrate`'s algo dispatch.
 3. Documenting the method's merge semantics, limitations, and recommended panel size.
 
-The current single-method design is deliberately minimal — the `algo` judge value routes to `algo_merge()` without a sub-selector. When a second method is added, the dispatch mechanism and its configuration surface will be introduced at that time. No configuration change is needed today to use the merge algorithm; `judge: algo` is sufficient.
+The `algo` judge value routes through the `algo_method` sub-selector (`merge` by default, `vote` for majority tally). Both methods are deterministic, zero-cost (no LLM judge call), and aggregate panel token usage. Set `algo_method: vote` in the `fusion:` block (or `HKASK_FUSION_ALGO_METHOD=vote`) to use majority vote.
 
 ---
 
@@ -303,6 +310,7 @@ The full `FusionConfig` shape (5 fields, YAML-clean):
 | `mode` | `synthesis` \| `best-of-n` \| `critique` \| `deliberation` \| `pi` | `synthesis` | LLM judge deliberation mode. Ignored when `judge: algo`. |
 | `skills` | string[] | `[]` | Skill anchors to inject into the LLM judge. Ignored when `judge: algo`. |
 | `max_rounds` | u32 | `5` | Cap for `deliberation` mode. Ignored when `judge: algo`. |
+| `algo_method` | `merge` \| `vote` | `merge` | Algo merge strategy when `judge: algo`. Ignored when the judge is an LLM. |
 
 ### Resolution Priority
 
