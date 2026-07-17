@@ -124,6 +124,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.backup.variety",
     // ── Authorization ──
     "cns.authorization",
+    // ── API metering ──
+    "cns.api.request",
     // ── Chat / Communication ──
     "cns.chat",
     // ── CI / QA ──

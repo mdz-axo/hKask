@@ -88,7 +88,11 @@ impl InfrastructureError {
     /// the entity type is known — it enables downstream consumers to pattern-match
     /// on the structured data rather than parsing a string.
     pub fn not_found(entity_type: &'static str, id: impl Into<String>) -> Self {
-        NotFound { entity_type, id: id.into() }.into()
+        NotFound {
+            entity_type,
+            id: id.into(),
+        }
+        .into()
     }
 }
 

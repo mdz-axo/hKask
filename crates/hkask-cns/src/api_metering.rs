@@ -10,6 +10,8 @@
 //! Every API call with `Authorization: Bearer hk_...` opens a span tracking:
 //! `key_id, endpoint, scope_matched, gas_consumed, allocation_remaining, rate_limit_status`
 
+use hkask_types::WebID;
+use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use hkask_types::id::ApiKeyId;
 use hkask_wallet_types::Encumbrance;
 use std::collections::HashMap;
@@ -87,18 +89,33 @@ impl RateLimitConfig {
     pub fn from_env() -> Self {
         let mut config = Self::default();
         if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_RPM")
-            && let Ok(n) = v.parse::<u32>() { config.default_max_rpm = n; }
+            && let Ok(n) = v.parse::<u32>()
+        {
+            config.default_max_rpm = n;
+        }
         if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_TOKENS_PER_DAY")
-            && let Ok(n) = v.parse::<u64>() { config.default_max_tokens_per_day = n; }
+            && let Ok(n) = v.parse::<u64>()
+        {
+            config.default_max_tokens_per_day = n;
+        }
         if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_LEARNING") {
             config.learning_enabled = v == "true" || v == "1";
         }
         if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_INTERVAL_SECS")
-            && let Ok(n) = v.parse::<u64>() { config.adaptation_interval = Duration::from_secs(n); }
+            && let Ok(n) = v.parse::<u64>()
+        {
+            config.adaptation_interval = Duration::from_secs(n);
+        }
         if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_MIN_RPM")
-            && let Ok(n) = v.parse::<u32>() { config.min_rpm = n; }
+            && let Ok(n) = v.parse::<u32>()
+        {
+            config.min_rpm = n;
+        }
         if let Ok(v) = std::env::var("HKASK_API_RATE_LIMIT_MAX_RPM")
-            && let Ok(n) = v.parse::<u32>() { config.max_rpm = n; }
+            && let Ok(n) = v.parse::<u32>()
+        {
+            config.max_rpm = n;
+        }
         config
     }
 }
@@ -460,6 +477,30 @@ impl ApiRequestSpan {
             gas_consumed,
             allocation_remaining: encumbrance.map(|e| e.remaining_rj()).unwrap_or(0),
             rate_limit_status: rate_limit_status.as_str().to_string(),
+        }
+    }
+
+    /// Emit this span as a `cns.api.request` ν-event through the sink.
+    ///
+    /// Degrades gracefully: on namespace miss or persistence failure, logs a
+    /// warning and continues (the request is not blocked by observability).
+    pub fn emit_to(&self, sink: &dyn NuEventSink, observer: &WebID) {
+        let Some(ns) = SpanNamespace::parse("cns.api.request") else {
+            tracing::warn!(
+                target: "hkask.api_metering",
+                "cns.api.request namespace not registered — span not persisted"
+            );
+            return;
+        };
+        let span = Span::new(ns, "request");
+        let observation = serde_json::to_value(self).unwrap_or_else(|_| serde_json::json!({}));
+        let event = NuEvent::new(*observer, span, CyclePhase::Sense, observation, 0);
+        if let Err(e) = sink.persist(&event) {
+            tracing::warn!(
+                target: "hkask.api_metering",
+                error = %e,
+                "Failed to persist cns.api.request event — continuing"
+            );
         }
     }
 }

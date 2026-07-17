@@ -1,7 +1,7 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-07-01
+last_updated: 2026-07-17
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -1142,6 +1142,52 @@ The `hkask-communication` crate was originally classified as RESOLVED (stubs rep
 **Key constraint:** Any saliency model must remain user-visible (P3 — Generative Space). Weights cannot be hidden parameters (P3 Prohibition #4).
 
 **Recommended decision:** Defer. Implement Option A (uniform) as the stable baseline. Gather telemetry on condensation quality under realistic Matrix message volume before committing to a weighting strategy. Revisit when continuous sync is implemented and message volume increases.
+
+
+## Fusion Mode — Deferred Items & Open Questions
+
+> **MDS Category:** Domain, Composition, Trust
+> **Last Updated:** 2026-07-17
+
+Items deferred from the fusion-mode design study, implementation (T1–T4 + Proposal A), and adversarial code review (F1–F10). Each is tagged with its origin and the condition for resolution.
+
+### FUS-001: Best-of-N Judge Position-Bias Measurement (F4)
+
+**Status:** ⚠️ DEFERRED — instrument built, live measurement pending
+
+**Context:** `mode_best_of_n` runs swap-revote (two judge calls in reversed display order, compared via `identify_pick`/Jaccard) to detect position bias (Zheng et al. 2024, arXiv:2406.07791). The adversarial review (F4) flagged the 2× token cost as potentially unjustified without evidence that the judge has position bias severe enough to warrant it. The two judge calls now run concurrently (`futures_util::join!`), halving latency, but token cost remains 2×.
+
+**Instrument:** The harness in `fusion_orchestrator::tests::best_of_n_bias_harness_*` proves the measurement mechanism with two mock judges — `FixedPick` (bias-free, swap-revote agrees) and `FirstDisplayed` (position-biased, swap-revote disagrees). The protocol is documented in `docs/how-to/fusion-mode.md` under `best-of-n` → "Measuring whether swap-revote is justified".
+
+**Decision (pending live measurement):** Run the harness with a real judge on a fixed panel-output fixture in 2 display orderings. If the pick changes → bias is present, keep swap-revote. If the pick is stable across orderings → simplify to order-randomization (1 judge call, permuted display order) to halve token cost. Re-measure when the judge model or panel composition changes. The ongoing `agree`/`disagree` verdicts logged at `cns.fusion` provide observational data: a sustained ~100% `agree` rate is evidence the second call is not earning its cost.
+
+### FUS-002: Fusion Study Falsification Hypotheses (H1–H5)
+
+**Status:** ⚠️ DEFERRED — none of the 5 hypotheses have been run
+
+**Context:** The fusion-mode design study proposed 5 falsification hypotheses. None have been A/B-tested on a fixed benchmark. Each should be validated before the corresponding feature is considered production-confirmed:
+
+| ID | Hypothesis | What it would falsify |
+|----|-----------|----------------------|
+| **H1** | Structured judge stabilization verdict > string-prefix self-report for convergence detection | The `deliberation` mode's structured-verdict parser (replaces former `FOLLOW_UP:` prefix) |
+| **H2** | Swap-revote position-bias mitigation changes the pick on a measurable fraction of inputs | The `best-of-n` swap-revote mechanism (see FUS-001) |
+| **H3** | Vote/tally (`algo:vote`) ≠ synthesis for heterogeneous panel outputs | The `algo:vote` method's existence vs. `algo:merge` alone |
+| **H4** | Heterogeneous panels (mixed providers) outperform homogeneous panels on diverse tasks | The panel-diversity default |
+| **H5** | Skill anchoring reduces judge bias / improves rubric adherence | The `skills` field on `FusionConfig` |
+
+**Decision:** Defer until a fixed fusion benchmark fixture exists. Each hypothesis is independently testable once the fixture is in place.
+
+### FUS-003: Fusion MCP Server (Q-A)
+
+**Status:** ❌ REJECTED (P7) — deferred until external-agent demand materializes
+
+**Context:** A fusion MCP server (exposing fusion modes as MCP tools to external agents) was considered during the design study. Per P7 (Generative Space — no speculative surfaces), this is deferred until there is concrete external-agent demand for fusion-as-a-service. The fusion orchestrator remains an internal inference-path component, not an MCP-exposed surface.
+
+### FUS-004: Fusion as Default Inference Path (Q-B)
+
+**Status:** ❌ REJECTED (P1/P5/P9)
+
+**Context:** Making fusion the default inference path was considered and rejected. Fusion is opt-in and disabled by default — it activates only when a judge and panel are explicitly configured (`HKASK_FUSION_JUDGE_MODEL` + `HKASK_FUSION_PANEL_MODELS`). Rationale: P1 (User Sovereignty — the user chooses their inference path), P5 (No speculative defaults — fusion multiplies token cost), P9 (Homeostatic Self-Regulation — single-model inference is the stable baseline). This decision is final unless the user explicitly requests a change.
 
 
 ## References

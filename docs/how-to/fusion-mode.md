@@ -127,7 +127,18 @@ The judge composes a unified response incorporating the strongest elements from 
 
 #### `best-of-n` — 1 round
 
-The judge evaluates all panel responses and outputs **only the chosen response verbatim** — no commentary, no synthesis, no justification. Use this when you want one panelist's answer, not a merge. With **two or more panelists**, the judge votes twice — once with candidates in dispatch order, once reversed — and the two picks are compared by matching the verbatim output back to its source response. Agreement yields high confidence; disagreement flags position bias and is logged at `cns.fusion` (Zheng et al. 2024, arXiv:2406.07791). A single panelist skips the swap (one judge call).
+The judge evaluates all panel responses and outputs **only the chosen response verbatim** — no commentary, no synthesis, no justification. Use this when you want one panelist's answer, not a merge. With **two or more panelists**, the judge votes twice — once with candidates in dispatch order, once reversed — and the two picks are compared by matching the verbatim output back to its source response. Agreement yields high confidence; disagreement flags position bias and is logged at `cns.fusion` (Zheng et al. 2024, arXiv:2406.07791). A single panelist skips the swap (one judge call). The two judge calls run concurrently (`futures_util::join!`), so swap-revote costs 2× tokens but only ~1× latency over a single call.
+
+##### Measuring whether swap-revote is justified
+
+Swap-revote doubles the judge token cost of `best-of-n`. Before relying on it, measure whether your judge actually has position bias severe enough to warrant the second call:
+
+1. Assemble a **fixed panel-output fixture** — a canned set of panel responses to a known prompt (so the only variable is display order, not panel output variance).
+2. Run `best-of-n` on that fixture in **2 display orderings** (dispatch order and reversed). The harness in `fusion_orchestrator::tests::best_of_n_bias_harness_*` demonstrates the mechanism with mock judges.
+3. **If the pick changes** between orderings → position bias is present, swap-revote is justified — keep it.
+4. **If the pick is stable** across orderings → the judge is order-invariant for this workload; simplify to **order-randomization** (1 judge call, permuted display order) to halve the cost.
+
+The decision is per-judge and per-workload — re-measure when you change the judge model or the panel composition. The swap-revote `agree`/`disagree` verdicts logged at `cns.fusion` provide ongoing observational data: a sustained `agree` rate near 100% is evidence the second call is not earning its cost.
 
 #### `critique` — 2 rounds
 
@@ -140,9 +151,9 @@ Use this for tasks where a draft-then-refine loop improves quality — design re
 
 Multi-round with a **structured judge stabilization verdict**. Each round, the judge emits `{"converged": true, "synthesis": "…"}` or `{"converged": false, "follow_up": "…"}` (parsed structurally via the JSON-tolerant parser), deciding convergence from the responses it reads — not from a prose prefix. Each round:
 
-- The detector compares this round's agreement distribution against the previous round's.
+- The judge reads the current panel responses and self-reports whether the discussion has stabilized.
 - If `converged: true`: the judge's `synthesis` field is the final answer.
-- If `converged: false`: the judge's `follow_up` question is sent to the panel, and the loop continues.
+- If `converged: false`: the judge's `follow_up` field is sent to the panel, and the loop continues.
 
 If `max_rounds` is reached without convergence, the judge is forced to synthesize from the last round. Configure the cap with `HKASK_FUSION_MAX_ROUNDS` (default `5`). This replaces the former `FOLLOW_UP:` string-prefix self-report: the structured verdict is parsed robustly rather than matched as a prose prefix. Use this for hard problems where iterative refinement surfaces information a single pass misses.
 

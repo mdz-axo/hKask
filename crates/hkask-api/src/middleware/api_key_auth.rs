@@ -27,8 +27,9 @@ use ed25519_dalek::SigningKey;
 use hkask_services_wallet::WalletService;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
+use hkask_types::event::NuEventSink;
 use hkask_types::id::{ApiKeyId, WalletId};
-use hkask_wallet::RJoule;
+use hkask_wallet::{Encumbrance, RJoule};
 use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
@@ -48,6 +49,9 @@ pub struct ApiKeyAuthService {
     wallet_service: Arc<WalletService>,
     /// API rate limiter — when present, per-key rate limits are enforced.
     api_meter: Option<Arc<std::sync::RwLock<hkask_cns::ApiMeter>>>,
+    /// CNS event sink — when present, a `cns.api.request` span is emitted
+    /// for every authenticated request after the rate limit check.
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl ApiKeyAuthService {
@@ -61,6 +65,7 @@ impl ApiKeyAuthService {
             wallet_store,
             wallet_service,
             api_meter: None,
+            event_sink: None,
         }
     }
 
@@ -69,6 +74,14 @@ impl ApiKeyAuthService {
     #[must_use]
     pub fn with_api_meter(mut self, meter: Arc<std::sync::RwLock<hkask_cns::ApiMeter>>) -> Self {
         self.api_meter = Some(meter);
+        self
+    }
+
+    /// Attach a CNS event sink. When set, a `cns.api.request` span is emitted
+    /// for every authenticated request after the rate limit check.
+    #[must_use]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
         self
     }
 
@@ -83,7 +96,13 @@ impl ApiKeyAuthService {
     }
 
     /// Authenticate a request using an Ed25519 API key Bearer token.
-    fn authenticate(&self, request: &Request<Body>) -> Result<WalletContext, ApiKeyAuthError> {
+    ///
+    /// Returns the wallet context and the active encumbrance (if any) so
+    /// callers can emit metering spans with allocation data.
+    fn authenticate(
+        &self,
+        request: &Request<Body>,
+    ) -> Result<(WalletContext, Option<Encumbrance>), ApiKeyAuthError> {
         let header = request
             .headers()
             .get("Authorization")
@@ -150,11 +169,11 @@ impl ApiKeyAuthService {
             .get_encumbrance(capability.key_id)
             .map_err(|_| ApiKeyAuthError::StoreError)?;
 
-        match encumbrance {
-            Some(ref enc) if enc.is_active() && enc.remaining_rj() > 0 => {
+        match &encumbrance {
+            Some(enc) if enc.is_active() && enc.remaining_rj() > 0 => {
                 // Key has allocated rJoules — proceed
             }
-            Some(ref enc) if enc.is_active() => {
+            Some(enc) if enc.is_active() => {
                 // Encumbrance exists but is exhausted
                 self.wallet_service
                     .manager()
@@ -194,12 +213,15 @@ impl ApiKeyAuthService {
             }
         }
 
-        Ok(WalletContext {
-            wallet_id: capability.wallet_id,
-            key_id: capability.key_id,
-            spending_limit_rj: capability.spending_limit_rj,
-            spent_rj: capability.spent_rj,
-        })
+        Ok((
+            WalletContext {
+                wallet_id: capability.wallet_id,
+                key_id: capability.key_id,
+                spending_limit_rj: capability.spending_limit_rj,
+                spent_rj: capability.spent_rj,
+            },
+            encumbrance,
+        ))
     }
 }
 
@@ -305,10 +327,10 @@ pub async fn api_key_auth_middleware(
         return Ok(next.run(request).await);
     }
 
-    let ctx = auth.authenticate(&request)?;
+    let (ctx, encumbrance) = auth.authenticate(&request)?;
 
     // ── Rate limit check (if API meter is configured) ──
-    if let Some(ref meter) = auth.api_meter {
+    let rate_limit_status = if let Some(ref meter) = auth.api_meter {
         let path = request.uri().path();
         let weight = hkask_cns::api_metering::endpoint_weight(path).0 as u64;
         let estimated_tokens = weight * 100;
@@ -322,6 +344,22 @@ pub async fn api_key_auth_middleware(
                 status.as_str()
             )));
         }
+        status
+    } else {
+        hkask_cns::api_metering::RateLimitStatus::Ok
+    };
+
+    // ── Emit cns.api.request span (if event sink is configured) ──
+    if let Some(ref sink) = auth.event_sink {
+        let span = hkask_cns::api_metering::ApiRequestSpan::new(
+            &ctx.key_id.to_string(),
+            request.uri().path(),
+            true, // scope was verified by authenticate() above
+            0,    // gas consumed is settled downstream by GovernedTool
+            encumbrance.as_ref(),
+            rate_limit_status,
+        );
+        span.emit_to(sink.as_ref(), &WebID::default());
     }
 
     // Register wallet-backed budget so GovernedTool/GovernedInference
@@ -741,11 +779,14 @@ mod tests {
             .body(Body::empty())
             .unwrap();
 
-        let ctx = auth.authenticate(&request).unwrap();
+        let (ctx, encumbrance) = auth.authenticate(&request).unwrap();
         assert_eq!(ctx.wallet_id, wallet_id);
         assert_eq!(ctx.key_id, key_id);
         assert_eq!(ctx.spending_limit_rj.as_u64(), 1_000);
         assert_eq!(ctx.spent_rj.as_u64(), 0);
+        // Encumbrance is returned for metering span emission
+        assert!(encumbrance.is_some());
+        assert_eq!(encumbrance.unwrap().remaining_rj(), 500);
     }
 
     #[test]

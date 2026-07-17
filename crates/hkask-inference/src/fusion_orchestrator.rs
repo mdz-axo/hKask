@@ -1089,6 +1089,12 @@ mod tests {
     use super::{
         ConvergenceVerdict, jaccard, merge_json_values, parse_convergence_verdict, vote_json_values,
     };
+    use crate::config::{AlgoMethod, FusionConfig, FusionMode};
+    use hkask_ports::{
+        ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
+    };
+    use hkask_types::fusion::NonEmptyVec;
+    use hkask_types::template::LLMParameters;
     use serde_json::json;
 
     /// A2: primitive arrays dedup by value — [1,1,1] collapses to [1].
@@ -1335,6 +1341,175 @@ mod tests {
             arr.len(),
             1,
             "key-order-equivalent objects must dedup to one item"
+        );
+    }
+
+    // ── F4: Position-bias measurement harness ────────────────────────────────────
+    //
+    // `mode_best_of_n` runs swap-revote (two judge calls in reversed display order)
+    // to detect position bias. The harness below proves the measurement mechanism:
+    // a mock judge that returns a FIXED pick regardless of input ordering will be
+    // flagged as bias-free (idx_a == idx_b), while a judge that picks the first
+    // displayed candidate will be flagged as biased (idx_a != idx_b). A live judge
+    // run through this harness reveals whether swap-revote is justified or whether
+    // the cheaper order-randomization (1 call) suffices.
+
+    use std::collections::HashMap;
+    use std::future::Future;
+    use std::pin::Pin;
+
+    /// A combined mock that plays both panelists and judge. Panel dispatch calls
+    /// `generate_with_model` with a panel model name — the mock returns that
+    /// panelist's canned text. Judge calls use the judge model name — the mock
+    /// applies the configured `JudgeBehavior` to the prompt.
+    struct BiasHarness {
+        panel_texts: HashMap<String, String>,
+        judge_model: String,
+        behavior: JudgeBehavior,
+    }
+
+    enum JudgeBehavior {
+        /// Bias-free: always return the same fixed text.
+        FixedPick(String),
+        /// Position-biased: echo the first displayed candidate's text body.
+        FirstDisplayed,
+    }
+
+    fn make_result(text: String, model: &str) -> InferenceResult {
+        InferenceResult {
+            text,
+            model: model.to_string(),
+            usage: InferenceUsage::default(),
+            finish_reason: "stop".to_string(),
+            token_probabilities: None,
+            tool_calls: Vec::new(),
+        }
+    }
+
+    impl InferencePort for BiasHarness {
+        fn generate(
+            &self,
+            _prompt: &str,
+            _parameters: &LLMParameters,
+            _tools: Option<&[ChatToolDefinition]>,
+        ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>>
+        {
+            // Unused by mode_best_of_n (it always goes through generate_with_model).
+            let model = self.judge_model.clone();
+            Box::pin(async move { Ok(make_result(String::new(), &model)) })
+        }
+
+        fn generate_with_model(
+            &self,
+            prompt: &str,
+            _parameters: &LLMParameters,
+            model_override: Option<&str>,
+            _tools: Option<&[ChatToolDefinition]>,
+        ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>>
+        {
+            let model = model_override.unwrap_or("");
+            // Panel dispatch: return the panelist's canned text.
+            if let Some(text) = self.panel_texts.get(model) {
+                let out = make_result(text.clone(), model);
+                return Box::pin(async move { Ok(out) });
+            }
+            // Judge call: apply the configured behavior.
+            let picked = match &self.behavior {
+                JudgeBehavior::FixedPick(text) => text.clone(),
+                JudgeBehavior::FirstDisplayed => prompt
+                    .split("### Panelist 1:")
+                    .nth(1)
+                    .and_then(|rest| rest.split("### Panelist 2:").next())
+                    .map(|s| {
+                        let after_name = s.split_once('\n').map(|(_, body)| body).unwrap_or(s);
+                        after_name.trim().to_string()
+                    })
+                    .unwrap_or_default(),
+            };
+            let out = make_result(picked, model);
+            Box::pin(async move { Ok(out) })
+        }
+    }
+
+    /// A bias-free judge (fixed pick) yields idx_a == idx_b — swap-revote agrees.
+    ///
+    /// This proves the measurement mechanism can detect the absence of bias:
+    /// if a live judge behaves like `FixedPick`, swap-revote is unjustified
+    /// and the cheaper order-randomization (1 call) suffices.
+    #[tokio::test]
+    async fn best_of_n_bias_harness_fixed_pick_agrees() {
+        let panel_texts: HashMap<String, String> = [
+            ("alpha".into(), "the quick brown fox".into()),
+            ("beta".into(), "a lazy dog sleeps".into()),
+            ("gamma".into(), "midnight in paris".into()),
+        ]
+        .into_iter()
+        .collect();
+        // Fixed pick: always returns panel[1] ("a lazy dog sleeps").
+        let judge = BiasHarness {
+            panel_texts,
+            judge_model: "fixed-pick-judge".into(),
+            behavior: JudgeBehavior::FixedPick("a lazy dog sleeps".into()),
+        };
+        let params = LLMParameters::default();
+        let fusion = FusionConfig {
+            judge: "fixed-pick-judge".into(),
+            panel: NonEmptyVec::new("alpha".into(), vec!["beta".into(), "gamma".into()]),
+            mode: FusionMode::BestOfN,
+            skills: vec![],
+            max_rounds: 1,
+            algo_method: AlgoMethod::Merge,
+        };
+        let result = super::mode_best_of_n(&judge, "prompt", &params, None, &fusion)
+            .await
+            .expect("best-of-n must succeed");
+        // Both swap-revote judge calls returned the same fixed text, so
+        // identify_pick resolved to the same index — agreement (no bias).
+        assert_eq!(
+            result.text, "a lazy dog sleeps",
+            "fixed-pick judge returns panel[1] verbatim"
+        );
+    }
+
+    /// A position-biased judge (always picks the first displayed candidate)
+    /// yields idx_a != idx_b — swap-revote disagrees, bias is detected.
+    ///
+    /// This proves the measurement mechanism can detect the presence of bias:
+    /// if a live judge behaves like `FirstDisplayed`, swap-revote is
+    /// justified and should be kept.
+    #[tokio::test]
+    async fn best_of_n_bias_harness_first_displayed_disagrees() {
+        let panel_texts: HashMap<String, String> = [
+            ("alpha".into(), "the quick brown fox".into()),
+            ("beta".into(), "a lazy dog sleeps".into()),
+            ("gamma".into(), "midnight in paris".into()),
+        ]
+        .into_iter()
+        .collect();
+        let judge = BiasHarness {
+            panel_texts,
+            judge_model: "first-displayed-judge".into(),
+            behavior: JudgeBehavior::FirstDisplayed,
+        };
+        let params = LLMParameters::default();
+        let fusion = FusionConfig {
+            judge: "first-displayed-judge".into(),
+            panel: NonEmptyVec::new("alpha".into(), vec!["beta".into(), "gamma".into()]),
+            mode: FusionMode::BestOfN,
+            skills: vec![],
+            max_rounds: 1,
+            algo_method: AlgoMethod::Merge,
+        };
+        // The biased judge picks panel[0] in order_a (dispatch order) and
+        // panel[2] in order_b (reversed). identify_pick resolves each to a
+        // different index — swap-revote disagrees. mode_best_of_n returns
+        // result_a (the dispatch-order pick), so the text is panel[0].text.
+        let result = super::mode_best_of_n(&judge, "prompt", &params, None, &fusion)
+            .await
+            .expect("best-of-n must succeed");
+        assert_eq!(
+            result.text, "the quick brown fox",
+            "biased judge returns the first-displayed pick (dispatch order = panel[0])"
         );
     }
 }
