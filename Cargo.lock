@@ -5054,6 +5054,7 @@ dependencies = [
  "hkask-cns",
  "hkask-database",
  "hkask-guard",
+ "hkask-inference",
  "hkask-ledger",
  "hkask-mcp",
  "hkask-ports",

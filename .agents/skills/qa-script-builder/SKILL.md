@@ -138,11 +138,11 @@ CNS spans are emitted automatically by the runner — no manifest configuration 
 ### Existing Classifier Configs
 
 | Classifier | Purpose | Model | API Key |
-|-----------|---------|-------|---------|
-| `qa-triage` | Diagnose Rust test failures (confidence, root_cause, proposed_fix, is_flake) | Gemma 4 26B A4B | `DI_API_KEY` |
-| `qa-feedback` | Suggest fuzz targets from surviving mutants | Gemma 4 26B A4B | `DI_API_KEY` |
+|-----------|---------|-------|--------|
+| `qa-triage` | Diagnose Rust test failures (confidence, root_cause, proposed_fix, is_flake) | canonical (HKASK_CLASSIFIER_MODEL) | `DI_API_KEY` |
+| `qa-feedback` | Suggest fuzz targets from surviving mutants | canonical (HKASK_CLASSIFIER_MODEL) | `DI_API_KEY` |
 
-Both live at `registry/classify/<name>.yaml`. The API key env var is `DI_API_KEY` (set in `.env`).
+Both live at `registry/classify/<name>.yaml`. Their `model:` field is empty — both defer to the canonical classifier model resolved from `HKASK_CLASSIFIER_MODEL` (default `DI/Qwen/Qwen3-235B-A22B-Instruct-2507`, DeepInfra). The API key env var is `DI_API_KEY` (set in `.env`).
 
 ### Self-Healer
 

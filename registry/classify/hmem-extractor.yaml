@@ -1,18 +1,18 @@
-# Triple Extractor — Qwen3 MoE classifier for semantic triple generation
+# Triple Extractor — defers to the canonical classifier model for semantic triple generation
 # Used by: kask embed-corpus (triple extraction pass, after section_type)
 # Prompting: Few-Shot (3-shot) with hKask-domain examples.
 #   Martin et al. (arXiv:2603.29878): Few-Shot is the dominant strategy,
 #   lifting F1 from <30% (Zero-Shot) to 99%+ across all tested models.
-# Primary model: qwen/qwen3-235b-a22b-2507 (22B active, 235B total, MoE)
-#   — controlled by HKASK_CLASSIFIER_MODEL env var / settings, NOT this YAML.
-# Fallback model (this file): qwen/qwen3.5-35b-a3b (3B active MoE)
-#   — used only if HkaskSettings.classifier_model() returns empty.
-# Provider: KiloCode (cloud API via Kilo Gateway, OpenAI-compatible)
+# Model: resolved from HKASK_CLASSIFIER_MODEL → DEFAULT_CLASSIFIER_MODEL
+#   (canonical: DI/Qwen/Qwen3-235B-A22B-Instruct-2507, 22B active MoE).
+#   The `model:` field below is intentionally empty; ClassifierConfig::from_def
+#   fills it from the canonical path and strips the DI/ router prefix.
+# Provider: DeepInfra (cloud API, OpenAI-compatible)
 #
 # Rationale: Martin et al. (arXiv:2603.29878) evaluated LLMs for RDF triple
 # extraction and found Few-Shot learning is the dominant strategy:
 #   Llama 99.35% | Qwen 99.22% | NuExtract 98.47% | Gemma 94.81%
-# Qwen3-235B-A22B: $0.07/$0.10 per 1M tokens, Qwen3.5-35B-A3B: $0.16/$1.00.
+# Qwen3-235B-A22B-Instruct pricing on DeepInfra: ~$0.07/$0.10 per 1M tokens.
 #
 # Extracts structured semantic data from each passage:
 #   topic, concepts, entities, relationships, primary_dimension, quality_flags
@@ -24,18 +24,10 @@
 # corpus pipeline routes triple extraction through the fusion orchestrator.
 # Panel models run in parallel; JSON responses are merged algorithmically
 # (union, case-insensitive dedup, diverging fields annotated [A:... B:...]).
-#
-# Recommended panel (complementary jurisdictions + training lineages):
-#   KC/qwen/qwen3-235b-a22b-2507  (Chinese MoE, 22B active)
-#   DI/google/gemma-4-E4B-it       (US dense, 4.5B effective)
-#
-# Gemma 4 E4B (April 2026) achieves 92.9% classification accuracy and
-# 100% JSON parse reliability at 4.5B params. Apache 2.0 license.
-
 classifier:
   name: triple-extractor
-  model: qwen/qwen3.5-35b-a3b
-  provider: kilocode
+  model: ""
+  provider: deepinfra
   concurrency: 150
   timeout_secs: 30
 
@@ -91,8 +83,8 @@ classifier:
     Quality flags: clear, actionable, verbose, vague, well_structured,
     needs_example, precise, accessible, authoritative, outdated.
 
-  base_url: https://api.kilo.ai/api/gateway/chat/completions
-  api_key_env: KC_API_KEY
+  base_url: https://api.deepinfra.com/v1/openai/chat/completions
+  api_key_env: DI_API_KEY
 
   temperature: 0.0
   max_tokens: 300

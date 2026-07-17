@@ -10,13 +10,18 @@
 //! - `HKASK_OCR_MODEL` — OCR model for scanned PDF fallback
 //! - `HKASK_MODEL_DEFAULT` — fallback when provider-specific not set
 
-/// Approved classifier model for corpus pipeline classification.
-/// Qwen3-235B-A22B: 235B total, 22B active MoE. Hosted on KiloCode (China)
-/// to satisfy the cross-jurisdiction requirement — the default judge/panel
-/// peers default to US-hosted providers (e.g., DeepInfra), so the classifier
-/// operates from a different jurisdiction. Fusion orchestration (algo or
-/// LLM judge) merges panel outputs; see `fusion_orchestrator`.
-pub const DEFAULT_CLASSIFIER_MODEL: &str = "KC/qwen/qwen3-235b-a22b-2507";
+/// Canonical classifier model for all classification surfaces (corpus
+/// pipeline, QA triage, convergence evaluation, h_mem extraction).
+/// Qwen3-235B-A22B-Instruct: 235B total, 22B active MoE, hosted on DeepInfra.
+///
+/// This is the single source of truth for the classifier model id. Every
+/// call site resolves it via [`classifier_model`] (env `HKASK_CLASSIFIER_MODEL`
+/// → this constant). Registry YAMLs in `registry/classify/` leave their
+/// `model:` field empty to defer to this path; `ClassifierConfig::from_def`
+/// strips the `DI/` router prefix before sending the raw id to the provider.
+/// Fusion orchestration (algo or LLM judge) merges panel outputs; see
+/// `fusion_orchestrator`.
+pub const DEFAULT_CLASSIFIER_MODEL: &str = "DI/Qwen/Qwen3-235B-A22B-Instruct-2507";
 
 /// Default embedding model.
 pub const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";

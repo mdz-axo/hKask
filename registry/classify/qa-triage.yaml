@@ -1,6 +1,9 @@
-# QA Triage Classifier — DeepInfra + Gemma 4 26B MoE
+# QA Triage Classifier — defers to the canonical classifier model.
 # Used by: kask qa triage (CLI subcommand → hkask-test-harness::triage)
-# Model: google/gemma-4-26B-A4B-it (3.8B active, 26B total, non-reasoning)
+# Model: resolved from HKASK_CLASSIFIER_MODEL → DEFAULT_CLASSIFIER_MODEL
+#   (canonical: DI/Qwen/Qwen3-235B-A22B-Instruct-2507, 22B active MoE).
+#   The `model:` field below is intentionally empty; ClassifierConfig::from_def
+#   fills it from the canonical path and strips the DI/ router prefix.
 # Provider: DeepInfra (cloud API, OpenAI-compatible)
 #
 # Confidence routing is enforced in Rust, not in the prompt.
@@ -11,7 +14,7 @@
 
 classifier:
   name: qa-triage
-  model: google/gemma-4-26B-A4B-it
+  model: ""
   provider: deepinfra
   concurrency: 10
   timeout_secs: 30

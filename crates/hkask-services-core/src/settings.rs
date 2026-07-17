@@ -56,9 +56,9 @@ fn default_embedding_model() -> String {
 }
 
 fn default_classifier_model() -> String {
-    // See registry/classify/hmem-extractor.yaml for model rationale and fallback.
-    // KC/ prefix ensures cross-jurisdiction pairing with model B (DI/ DeepInfra).
-    "KC/qwen/qwen3-235b-a22b-2507".to_string()
+    // Single source of truth: hkask_inference::model_constants::DEFAULT_CLASSIFIER_MODEL.
+    // Do not duplicate the model id here — resolve via the canonical constant.
+    hkask_inference::model_constants::DEFAULT_CLASSIFIER_MODEL.to_string()
 }
 
 fn default_ocr_model() -> String {

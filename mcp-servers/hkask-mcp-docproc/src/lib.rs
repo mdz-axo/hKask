@@ -413,7 +413,7 @@ fn strip_json_fences(text: &str) -> String {
 /// This function strips code fences, then extracts from the first `{` to the
 /// last `}` — discarding any reasoning preamble or trailing text.
 ///
-/// Proven against GLM-5.2 (~640-830 reasoning tokens) and Qwen3.6-35B-A3B.
+/// Proven against GLM-5.2 (~640-830 reasoning tokens) and Qwen3-235B-A22B-Instruct.
 pub(crate) fn extract_json_from_response(text: &str) -> String {
     let de_fenced = strip_json_fences(text);
     match de_fenced.find('{') {

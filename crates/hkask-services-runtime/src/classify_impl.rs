@@ -113,6 +113,12 @@ pub struct ClassifierYaml {
 #[derive(Debug, Deserialize)]
 pub struct ClassifierDef {
     pub name: String,
+    /// Provider-native model id sent to the classifier API. When empty,
+    /// `ClassifierConfig::from_def` resolves the canonical classifier model
+    /// via `HKASK_CLASSIFIER_MODEL` → `DEFAULT_CLASSIFIER_MODEL` and strips
+    /// the router prefix. Leave empty in `registry/classify/*.yaml` to defer
+    /// to the single canonical path.
+    #[serde(default)]
     pub model: String,
     #[serde(default)]
     pub provider: String,
@@ -244,8 +250,22 @@ impl ClassifierConfig {
             } else {
                 (def.cost_input_nj_per_token, def.cost_output_nj_per_token)
             };
+        // Canonical model resolution: an empty `model:` in the YAML defers to
+        // `HKASK_CLASSIFIER_MODEL` → `DEFAULT_CLASSIFIER_MODEL`. The router
+        // prefix (e.g. `DI/`) is stripped so the raw provider-native id is
+        // sent to `base_url`; the YAML's `provider`/`base_url`/`api_key_env`
+        // determine the destination and must align with the canonical model's provider.
+        let model = if def.model.is_empty() {
+            let canonical = hkask_inference::model_constants::classifier_model();
+            match hkask_inference::ProviderId::parse_from_model(&canonical) {
+                Some((_, raw)) => raw.to_string(),
+                None => canonical,
+            }
+        } else {
+            def.model.clone()
+        };
         Self {
-            model: def.model.clone(),
+            model,
             api_key,
             base_url: if def.base_url.is_empty() {
                 "https://api.deepinfra.com/v1/openai/chat/completions".to_string()
