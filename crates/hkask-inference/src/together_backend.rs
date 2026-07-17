@@ -47,15 +47,14 @@ impl TogetherBackend {
         config: &InferenceConfig,
         client: Arc<reqwest::Client>,
     ) -> Result<Self, InferenceError> {
-        let pc = config.together_config();
-        if !pc.is_configured() {
+        if config.together_api_key.is_empty() {
             return Err(InferenceError::Connection(
                 "Together AI API key not configured (set TG_API_KEY)".into(),
             ));
         }
         Ok(Self {
-            base_url: pc.base_url,
-            api_key: pc.api_key,
+            base_url: config.together_base_url.clone(),
+            api_key: config.together_api_key.clone(),
             client,
         })
     }
@@ -77,13 +76,10 @@ impl TogetherBackend {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
-        let config = crate::config::ProviderConfig {
-            base_url: self.base_url.clone(),
-            api_key: self.api_key.clone(),
-        };
         openai_compatible_generate(
             &self.client,
-            &config,
+            &self.base_url,
+            &self.api_key,
             model,
             prompt,
             params,

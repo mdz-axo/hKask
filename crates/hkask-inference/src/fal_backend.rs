@@ -73,13 +73,10 @@ impl FalBackend {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
-        let config = crate::config::ProviderConfig {
-            base_url: self.base_url.clone(),
-            api_key: self.api_key.clone(),
-        };
         openai_compatible_generate(
             &self.client,
-            &config,
+            &self.base_url,
+            &self.api_key,
             model,
             prompt,
             params,

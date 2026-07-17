@@ -79,15 +79,14 @@ impl OllamaBackend {
         config: &InferenceConfig,
         client: Arc<reqwest::Client>,
     ) -> Result<Self, InferenceError> {
-        let pc = config.ollama_config();
-        if pc.base_url.is_empty() {
+        if config.ollama_base_url.is_empty() {
             return Err(InferenceError::Connection(
                 "Ollama base URL not configured (set OM_BASE_URL)".into(),
             ));
         }
         Ok(Self {
-            base_url: pc.base_url,
-            api_key: pc.api_key,
+            base_url: config.ollama_base_url.clone(),
+            api_key: config.ollama_api_key.clone(),
             client,
         })
     }
@@ -109,19 +108,17 @@ impl OllamaBackend {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
-        let config = crate::config::ProviderConfig {
-            base_url: self.base_url.clone(),
-            // Empty key is fine — Ollama ignores the header. Use a sentinel so
-            // the `Bearer ` header still parses cleanly if a key is absent.
-            api_key: if self.api_key.is_empty() {
-                "ollama".to_string()
-            } else {
-                self.api_key.clone()
-            },
+        // Empty key is fine — Ollama ignores the header. Use a sentinel so
+        // the `Bearer ` header still parses cleanly if a key is absent.
+        let effective_key = if self.api_key.is_empty() {
+            "ollama".to_string()
+        } else {
+            self.api_key.clone()
         };
         openai_compatible_generate(
             &self.client,
-            &config,
+            &self.base_url,
+            &effective_key,
             model,
             prompt,
             params,

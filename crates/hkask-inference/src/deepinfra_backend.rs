@@ -35,15 +35,14 @@ impl DeepInfraBackend {
         config: &InferenceConfig,
         client: Arc<reqwest::Client>,
     ) -> Result<Self, InferenceError> {
-        let pc = config.deepinfra_config();
-        if !pc.is_configured() {
+        if config.deepinfra_api_key.is_empty() {
             return Err(InferenceError::Connection(
                 "DeepInfra API key not configured (set DI_API_KEY)".into(),
             ));
         }
         Ok(Self {
-            base_url: pc.base_url,
-            api_key: pc.api_key,
+            base_url: config.deepinfra_base_url.clone(),
+            api_key: config.deepinfra_api_key.clone(),
             client,
         })
     }
@@ -65,13 +64,10 @@ impl DeepInfraBackend {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
-        let config = crate::config::ProviderConfig {
-            base_url: self.base_url.clone(),
-            api_key: self.api_key.clone(),
-        };
         openai_compatible_generate(
             &self.client,
-            &config,
+            &self.base_url,
+            &self.api_key,
             model,
             prompt,
             params,

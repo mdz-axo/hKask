@@ -15,14 +15,15 @@
 
 use crate::chat_protocol::build_chat_request;
 use crate::chat_protocol::{ChatResponse, chat_response_to_result, validate_prompt};
-use crate::config::ProviderConfig;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::template::LLMParameters;
 use reqwest::Client;
 
 /// Parameterized OpenAI-compatible chat completion.
 ///
-/// `chat_path` is the URL path appended to `config.base_url` (e.g., `/v1/chat/completions`).
+/// `base_url` is the provider API root (the `chat_path` is appended to it).
+/// `api_key` is sent as `Authorization: {auth_prefix} {api_key}`.
+/// `chat_path` is the URL path appended to `base_url` (e.g., `/v1/chat/completions`).
 /// `auth_prefix` is the `Authorization` header prefix (e.g., `"Bearer"` or `"Key"`).
 /// `provider_code` is the short provider identifier used in logs and error messages.
 ///
@@ -37,7 +38,8 @@ use reqwest::Client;
 #[allow(clippy::too_many_arguments)]
 pub async fn openai_compatible_generate(
     client: &Client,
-    config: &ProviderConfig,
+    base_url: &str,
+    api_key: &str,
     model: &str,
     prompt: &str,
     params: &LLMParameters,
@@ -51,11 +53,8 @@ pub async fn openai_compatible_generate(
     let request = build_chat_request(model, prompt, params, Some(false), None, tools);
 
     let response = client
-        .post(format!("{}{}", config.base_url, chat_path))
-        .header(
-            "Authorization",
-            format!("{} {}", auth_prefix, config.api_key),
-        )
+        .post(format!("{}{}", base_url, chat_path))
+        .header("Authorization", format!("{} {}", auth_prefix, api_key))
         .json(&request)
         .send()
         .await

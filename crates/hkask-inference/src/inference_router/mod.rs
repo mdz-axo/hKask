@@ -92,92 +92,117 @@ impl InferenceRouter {
         let mut chat_backends: HashMap<ProviderId, Arc<dyn ChatBackend>> = HashMap::new();
         let mut vision_backends: HashMap<ProviderId, Arc<dyn VisionBackend>> = HashMap::new();
 
+        // Register a chat+vision backend: coerce the concrete Arc to both trait
+        // objects via explicit typed `let` (unsizing does not flow backward through
+        // `Arc::clone`'s generic, so the coercion must be at a binding). `b` is
+        // borrowed (&Arc<Concrete>) so the caller's owned Option stays intact.
+        macro_rules! register_both {
+            ($chat:expr, $vision:expr, $provider:expr, $b:expr, $name:expr) => {
+                match $b {
+                    Some(b) => {
+                        // Two-step: Arc::clone infers the concrete type from `b`
+                        // (no target constraint), then the explicit typed binding
+                        // performs the unsizing coercion to the trait object.
+                        // (Arc::clone's generic blocks backward type inference,
+                        // so the coercion cannot happen in one step.)
+                        let chat_concrete = Arc::clone(b);
+                        let vision_concrete = Arc::clone(b);
+                        let chat: Arc<dyn ChatBackend> = chat_concrete;
+                        let vision: Arc<dyn VisionBackend> = vision_concrete;
+                        $chat.insert($provider, chat);
+                        $vision.insert($provider, vision);
+                    }
+                    None => warn!(target: "cns.inference", "{} backend unavailable (no API key)", $name),
+                }
+            };
+        }
+
+        // Fal and DeepInfra are also held as typed fields (see struct docs) for their
+        // specialist media methods. Declare them at function scope so the `Self`
+        // literal can move them in; the same Arc is shared with the maps below.
+        let deepinfra = shared_client.as_ref().and_then(|c| {
+            DeepInfraBackend::new(&config, Arc::clone(c))
+                .ok()
+                .map(Arc::new)
+        });
+        register_both!(
+            chat_backends,
+            vision_backends,
+            ProviderId::DeepInfra,
+            &deepinfra,
+            "DeepInfra"
+        );
+        let fal = shared_client
+            .as_ref()
+            .and_then(|c| FalBackend::new(&config, Arc::clone(c)).ok().map(Arc::new));
+        register_both!(
+            chat_backends,
+            vision_backends,
+            ProviderId::Fal,
+            &fal,
+            "fal.ai"
+        );
+
+        // Map-only chat+vision providers (no specialist media methods needing typed access).
         if let Some(ref c) = shared_client {
-            // Chat-capable providers implement both ChatBackend and VisionBackend.
-            // Fal and DeepInfra are ALSO held as typed fields (see struct docs) for
-            // their specialist media methods — the same Arc is shared with the maps.
-            let deepinfra = DeepInfraBackend::new(&config, Arc::clone(c))
+            let together = TogetherBackend::new(&config, Arc::clone(c))
                 .ok()
                 .map(Arc::new);
-            match &deepinfra {
-                Some(b) => {
-                    chat_backends.insert(ProviderId::DeepInfra, Arc::clone(b));
-                    vision_backends.insert(
-                        ProviderId::DeepInfra,
-                        Arc::clone(b) as Arc<dyn VisionBackend>,
-                    );
-                }
-                None => {
-                    warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)")
-                }
-            }
-            let fal = FalBackend::new(&config, Arc::clone(c)).ok().map(Arc::new);
-            match &fal {
-                Some(b) => {
-                    chat_backends.insert(ProviderId::Fal, Arc::clone(b));
-                    vision_backends
-                        .insert(ProviderId::Fal, Arc::clone(b) as Arc<dyn VisionBackend>);
-                }
-                None => {
-                    warn!(target: "cns.inference", "fal.ai backend unavailable (no API key)")
-                }
-            }
-            match TogetherBackend::new(&config, Arc::clone(c)) {
-                Ok(b) => {
-                    let b = Arc::new(b);
-                    chat_backends.insert(ProviderId::Together, Arc::clone(&b));
-                    vision_backends.insert(ProviderId::Together, b);
-                }
-                Err(_) => {
-                    warn!(target: "cns.inference", "Together AI backend unavailable (no API key)")
-                }
-            }
-            match OpenRouterBackend::new(&config, Arc::clone(c)) {
-                Ok(b) => {
-                    let b = Arc::new(b);
-                    chat_backends.insert(ProviderId::OpenRouter, Arc::clone(&b));
-                    vision_backends.insert(ProviderId::OpenRouter, b);
-                }
-                Err(_) => {
-                    warn!(target: "cns.inference", "OpenRouter backend unavailable (no API key)")
-                }
-            }
-            match KiloCodeBackend::new(&config, Arc::clone(c)) {
-                Ok(b) => {
-                    let b = Arc::new(b);
-                    chat_backends.insert(ProviderId::KiloCode, Arc::clone(&b));
-                    vision_backends.insert(ProviderId::KiloCode, b);
-                }
-                Err(_) => {
-                    warn!(target: "cns.inference", "KiloCode backend unavailable (no API key)")
-                }
-            }
+            register_both!(
+                chat_backends,
+                vision_backends,
+                ProviderId::Together,
+                &together,
+                "Together AI"
+            );
+            let openrouter = OpenRouterBackend::new(&config, Arc::clone(c))
+                .ok()
+                .map(Arc::new);
+            register_both!(
+                chat_backends,
+                vision_backends,
+                ProviderId::OpenRouter,
+                &openrouter,
+                "OpenRouter"
+            );
+            let kilocode = KiloCodeBackend::new(&config, Arc::clone(c))
+                .ok()
+                .map(Arc::new);
+            register_both!(
+                chat_backends,
+                vision_backends,
+                ProviderId::KiloCode,
+                &kilocode,
+                "KiloCode"
+            );
+            let ollama = OllamaBackend::new(&config, Arc::clone(c))
+                .ok()
+                .map(Arc::new);
+            register_both!(
+                chat_backends,
+                vision_backends,
+                ProviderId::Ollama,
+                &ollama,
+                "Ollama"
+            );
+            let cline = ClineBackend::new(&config, Arc::clone(c)).ok().map(Arc::new);
+            register_both!(
+                chat_backends,
+                vision_backends,
+                ProviderId::Cline,
+                &cline,
+                "Cline"
+            );
+
             // RunPod is vision/OCR-only — it is NOT a ChatBackend.
             match RunpodBackend::new(&config, Arc::clone(c)) {
                 Ok(b) => {
-                    vision_backends.insert(ProviderId::Runpod, Arc::new(b));
+                    let vision: Arc<dyn VisionBackend> = Arc::new(b);
+                    vision_backends.insert(ProviderId::Runpod, vision);
                 }
                 Err(_) => {
                     warn!(target: "cns.inference", "RunPod backend unavailable (no API key or template)")
                 }
-            }
-            match OllamaBackend::new(&config, Arc::clone(c)) {
-                Ok(b) => {
-                    let b = Arc::new(b);
-                    chat_backends.insert(ProviderId::Ollama, Arc::clone(&b));
-                    vision_backends.insert(ProviderId::Ollama, b);
-                }
-                Err(_) => {
-                    warn!(target: "cns.inference", "Ollama backend unavailable (no base URL)")
-                }
-            }
-            match ClineBackend::new(&config, Arc::clone(c)) {
-                Ok(b) => {
-                    let b = Arc::new(b);
-                    chat_backends.insert(ProviderId::Cline, Arc::clone(&b));
-                    vision_backends.insert(ProviderId::Cline, b);
-                }
-                Err(_) => warn!(target: "cns.inference", "Cline backend unavailable (no API key)"),
             }
         }
 

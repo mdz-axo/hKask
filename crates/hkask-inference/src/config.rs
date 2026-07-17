@@ -338,58 +338,6 @@ impl InferenceConfig {
             .build()
             .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))
     }
-
-    /// Provider config for DeepInfra (Bearer auth, /v1/chat/completions).
-    pub fn deepinfra_config(&self) -> ProviderConfig {
-        ProviderConfig {
-            base_url: self.deepinfra_base_url.clone(),
-            api_key: self.deepinfra_api_key.clone(),
-        }
-    }
-
-    /// Provider config for Together AI (Bearer auth, /v1/chat/completions).
-    pub fn together_config(&self) -> ProviderConfig {
-        ProviderConfig {
-            base_url: self.together_base_url.clone(),
-            api_key: self.together_api_key.clone(),
-        }
-    }
-
-    /// Provider config for OpenRouter (Bearer auth, /v1/chat/completions).
-    pub fn openrouter_config(&self) -> ProviderConfig {
-        ProviderConfig {
-            base_url: self.openrouter_base_url.clone(),
-            api_key: self.openrouter_api_key.clone(),
-        }
-    }
-
-    /// Provider config for KiloCode (Bearer auth, /chat/completions — no /v1).
-    pub fn kilocode_config(&self) -> ProviderConfig {
-        ProviderConfig {
-            base_url: self.kilocode_base_url.clone(),
-            api_key: self.kilocode_api_key.clone(),
-        }
-    }
-
-    /// Provider config for Ollama (Bearer auth ignored, /v1/chat/completions).
-    ///
-    /// Unlike cloud providers, Ollama does not require an API key. The key is
-    /// passed through anyway (sent as `Authorization: Bearer <key>`, ignored by
-    /// the server) so remote authenticated Ollama instances keep working.
-    pub fn ollama_config(&self) -> ProviderConfig {
-        ProviderConfig {
-            base_url: self.ollama_base_url.clone(),
-            api_key: self.ollama_api_key.clone(),
-        }
-    }
-
-    /// Provider config for Cline (Bearer auth, /v1/chat/completions).
-    pub fn cline_config(&self) -> ProviderConfig {
-        ProviderConfig {
-            base_url: self.cline_base_url.clone(),
-            api_key: self.cline_api_key.clone(),
-        }
-    }
 }
 
 // ── Private resolution helpers ──────────────────────────────────────────────

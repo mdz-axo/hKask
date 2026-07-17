@@ -14,6 +14,14 @@
 //! native `async fn` in trait (which is not object-safe without `async-trait`).
 //! Each impl is a thin delegating wrapper around the backend's inherent
 //! `async fn` / streaming method — the real behavior stays in the backends.
+//!
+//! Lifetime note: `generate`, `generate_vision`, and `list_models` tie their
+//! return lifetime `'a` to `&self` AND the data args, because their futures
+//! borrow the args (the args are awaited across `.await` points). `generate_stream`
+//! ties its return ONLY to `&self` — the backends clone the args into the
+//! stream (`stream_chat_completion` takes owned values), so the returned stream
+//! does not borrow the args. Tying the args to the stream's lifetime would
+//! wrongly forbid returning a stream built from function-local data.
 
 use crate::RouterModelEntry;
 use crate::cline_backend::ClineBackend;
@@ -35,7 +43,8 @@ use std::pin::Pin;
 /// Implemented by every provider that serves `/chat/completions`. RunPod is
 /// excluded (it is vision/OCR-only) — it implements `VisionBackend` alone.
 pub trait ChatBackend: Send + Sync {
-    /// Generate a chat completion (non-streaming).
+    /// Generate a chat completion (non-streaming). The returned future borrows
+    /// the args (they are awaited across `.await`).
     fn generate<'a>(
         &'a self,
         model: &'a str,
@@ -44,13 +53,15 @@ pub trait ChatBackend: Send + Sync {
         tools: Option<&'a [ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>>;
 
-    /// Stream a chat completion as SSE chunks.
+    /// Stream a chat completion as SSE chunks. The returned stream borrows only
+    /// `&self` — backends clone the args into the stream — so the args may be
+    /// short-lived (e.g. function-local data).
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>>;
 
     /// List models offered by this backend (graceful: return empty on failure).
@@ -76,6 +87,11 @@ pub trait VisionBackend: Send + Sync {
 }
 
 // ── ChatBackend impls (7 chat-capable providers) ─────────────────────────────
+//
+// Each impl delegates to the backend's inherent pub method, boxing the future
+// (`generate`/`list_models`/`generate_vision`) or returning the inherent
+// stream directly (`generate_stream` — the inherent already returns a pinned
+// boxed stream tied to &self).
 
 impl ChatBackend for DeepInfraBackend {
     fn generate<'a>(
@@ -89,10 +105,10 @@ impl ChatBackend for DeepInfraBackend {
     }
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
@@ -115,10 +131,10 @@ impl ChatBackend for TogetherBackend {
     }
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
@@ -141,10 +157,10 @@ impl ChatBackend for OpenRouterBackend {
     }
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
@@ -167,10 +183,10 @@ impl ChatBackend for KiloCodeBackend {
     }
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
@@ -193,10 +209,10 @@ impl ChatBackend for OllamaBackend {
     }
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
@@ -219,10 +235,10 @@ impl ChatBackend for ClineBackend {
     }
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
@@ -233,7 +249,6 @@ impl ChatBackend for ClineBackend {
     }
 }
 
-// Fal serves chat completions too (via the OpenAI-compatible path).
 impl ChatBackend for FalBackend {
     fn generate<'a>(
         &'a self,
@@ -246,10 +261,10 @@ impl ChatBackend for FalBackend {
     }
     fn generate_stream<'a>(
         &'a self,
-        model: &'a str,
-        prompt: &'a str,
-        params: &'a LLMParameters,
-        tools: Option<&'a [ChatToolDefinition]>,
+        model: &str,
+        prompt: &str,
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
