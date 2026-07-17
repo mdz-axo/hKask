@@ -757,17 +757,17 @@ status: VERIFIED
 | CNS span emission sequence (inlined in `cns-and-loops.md`) | CNS span emission for memory encode spans (DIAG-TO-004) |
 
 
-### Memory Remember — Dual-Model Template Cascade
+### Memory Remember — Algo / No-Judge Template Cascade
 
 *Inlined from `docs/diagrams/flowchart-memory-remember.md`*
 
 
-# Memory Remember — Dual-Model Template Cascade
+# Memory Remember — Algo / No-Judge Template Cascade
 
-FlowDef manifest for agent memory formation. Three-step cascade with dual-model
-rendering on every step. The `operation-selector.j2` classifies and routes to
-episodic or semantic extraction. Both peer models render the same template in
-parallel; outputs are merged via `merge_json_values()`.
+FlowDef manifest for agent memory formation. Three-step cascade with algo /
+no-judge rendering on every step. The `operation-selector.j2` classifies and
+routes to episodic or semantic extraction. Both peer models render the same
+template in parallel; outputs are merged via `merge_json_values()`.
 
 Related: `registry/manifests/memory_remember.yaml`, `crates/hkask-templates/src/executor.rs`
 
@@ -835,9 +835,9 @@ status: VERIFIED
 
 # Classification-to-Memory Sequence
 
-Full flow from source text through algo-style classification, guard scanning,
+Full flow from source text through algo / no-judge classification, guard scanning,
 integration, and shared memory storage. All guard checks are mandatory;
-the algo judge is used when model B is configured.
+the algo / no-judge path (`judge: algo`) is used when a second panel model is configured.
 
 Related: `crates/hkask-inference/src/fusion_orchestrator.rs` (algo_merge)
 
@@ -886,16 +886,16 @@ status: VERIFIED
 -->
 
 
-### Algo-Style Classification Flow
+### Algo / No-Judge Classification Flow
 
 *Inlined from `docs/diagrams/flowchart-dual-classification.md`*
 
 
-# Algo-Style Classification Flow
+# Algo / No-Judge Classification Flow
 
 How classification operates with two peer models from different jurisdictions.
-Neither model is primary — both produce extractions that are merged via
-algo-style merge.
+Neither model is primary — both produce extractions that are merged via the
+algo / no-judge path (`judge: algo`, `algo_merge()`).
 
 Related: `crates/hkask-inference/src/fusion_orchestrator.rs` (algo_merge), `crates/hkask-services-corpus/src/embed/service.rs`
 

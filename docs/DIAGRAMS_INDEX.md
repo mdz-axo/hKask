@@ -170,10 +170,10 @@ The following diagrams were standalone files not individually tracked in the ori
 | `flowchart-cns-regulation.md` | flowchart | `explanation/cns-and-loops.md` | CNS Regulation Pipeline — 5-Phase Cybernetic Cycle |
 | `flowchart-curator-metacognition.md` | flowchart | `explanation/cns-and-loops.md` | Curator Metacognition Loop |
 | `flowchart-deployment-architecture.md` | flowchart | `how-to/deployment-and-transport.md` | K8s Deployment Architecture |
-| `flowchart-drift-detection.md` | flowchart | `explanation/cns-and-loops.md` | Classifier Drift Detection |
-| `flowchart-dual-classification.md` | flowchart | `explanation/cognition-and-replica.md` | Dual-Model Classification Flow |
+| `flowchart-drift-detection.md` | flowchart | `explanation/cns-and-loops.md` | Classifier Drift Detection (removed — superseded by algo / no-judge) |
+| `flowchart-dual-classification.md` | flowchart | `explanation/cognition-and-replica.md` | Algo / No-Judge Classification Flow |
 | `flowchart-guard-pipeline.md` | flowchart | `explanation/sovereignty-and-ocap.md` | Content Safety Guard Pipeline |
-| `flowchart-memory-remember.md` | flowchart | `explanation/cognition-and-replica.md` | Memory Remember — Dual-Model Template Cascade |
+| `flowchart-memory-remember.md` | flowchart | `explanation/cognition-and-replica.md` | Memory Remember — Algo / No-Judge Template Cascade |
 | `flowchart-oauth-registration.md` | flowchart | `how-to/deployment-and-transport.md` | OAuth Registration & Onboarding Flow |
 | `flowchart-pod-startup.md` | flowchart | `how-to/deployment-and-transport.md` | K8s Pod Startup Sequence |
 | `sequence-auth-flow.md` | sequence | `how-to/deployment-and-transport.md` | Authentication Flow — OAuth Sequence |

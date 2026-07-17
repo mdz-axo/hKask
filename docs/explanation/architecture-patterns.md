@@ -1891,9 +1891,11 @@ When `recursion_depth > matryoshka_limit`, the cascade exits with `maxed_out` / 
 
 # Classification + Guard Architecture Overview
 
-How dual-model classification, content safety guard, drift detection, and
+How algo / no-judge classification, content safety guard, and
 memory storage compose. P3.1 Social Generativity governs the entire pipeline —
 no single model gates shared memory, and no LLM boundary is unguarded.
+(Drift detection was part of the former dual classifier model, now removed and
+superseded by the algo / no-judge path.)
 
 Related: `crates/hkask-guard/src/lib.rs`, `crates/hkask-services-runtime/src/classify_impl.rs`, `docs/architecture/core/PRINCIPLES.md` §P3.1
 

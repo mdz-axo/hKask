@@ -159,7 +159,7 @@ When `judge: "algo"`, the orchestrator dispatches the panel in parallel — exac
 
 ## Algo / No-Judge Methods
 
-`judge: algo` selects the **algo / no-judge** family — a set of deterministic, algorithmic merge strategies that process panel responses without an LLM judge call. The current implementation provides one method (recursive JSON merge), but the architecture is designed for multiple methods (see [Extensibility](#extensibility-future-algo-methods) below).
+`judge: algo` selects the **algo / no-judge** family — a set of deterministic, algorithmic merge strategies that process panel responses without an LLM judge call. The current implementation provides one method (recursive JSON merge), but the architecture is designed for multiple methods (see [Extensibility](#extensibility--future-algo-methods) below).
 
 ### The Merge Algorithm (current)
 
@@ -215,7 +215,7 @@ The former dual classifier's domain-specific integration logic (Jaccard similari
 
 The key architectural difference: the dual classifier was a **separate mechanism** that bypassed fusion entirely. The algo judge **is** a fusion path — it uses the same panel dispatch, the same config, the same orchestrator entry point. Setting `judge: "algo"` routes panel responses through a deterministic merge instead of an LLM judge call. No new `FusionMode` variant, no new `FusionConfig` fields — the existing 5-field config with a special judge value.
 
-### Extensibility: Future Algo Methods
+### Extensibility — Future Algo Methods
 
 The `algo` judge value is designed as a **family of algorithmic merge strategies**, not a single method. The current implementation provides the recursive JSON merge, but the architecture anticipates additional methods. Potential future algo / no-judge methods include:
 

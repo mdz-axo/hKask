@@ -167,7 +167,7 @@ The review evaluated four diagrams against Diataxis quality gates:
 
 Two gaps were identified during review, all closed:
 
-1. **No Remember Template Diagram** — Closed by adding `flowchart-memory-remember.md`, showing the 3-step FlowDef cascade (operation-selector → remember-episodic → remember-semantic) with algo fusion judge (`judge: algo`) with `merge_json_values` integration on each step.
+1. **No Remember Template Diagram** — Closed by adding `flowchart-memory-remember.md`, showing the 3-step FlowDef cascade (operation-selector → remember-episodic → remember-semantic) with the algo / no-judge path (`judge: algo`) with `merge_json_values` integration on each step.
 
 2. **No Architecture Overview** — Closed by adding `flowchart-architecture-overview.md`, showing how all four subsystems compose under P3.1 governance. Includes OWASP alignment table and subsystem-to-crate mapping.
 

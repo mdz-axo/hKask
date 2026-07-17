@@ -870,11 +870,11 @@ When the `fusion:` block is present, all `select` steps in that manifest use thi
 **Configuration:**
 | Env Var | Purpose |
 |---------|---------|
-| `HKASK_FUSION_JUDGE_MODEL` | Judge model (supports provider prefix) |
+| `HKASK_FUSION_JUDGE_MODEL` | Judge model — LLM model name (supports provider prefix) or the literal `algo` for the no-judge path |
 | `HKASK_FUSION_PANEL_MODELS` | Comma-separated panel models, 1-8 (each supports provider prefix) |
-| `HKASK_FUSION_MODE` | Deliberation mode: `synthesis`, `best-of-n`, `critique`, `deliberation`, `pi` |
-| `HKASK_FUSION_SKILLS` | Comma-separated skill anchors for the judge |
-| `HKASK_FUSION_MAX_ROUNDS` | Max deliberation rounds (default: 5) |
+| `HKASK_FUSION_MODE` | Deliberation mode (LLM judge only): `synthesis`, `best-of-n`, `critique`, `deliberation`, `pi`. Ignored when `judge: algo`. |
+| `HKASK_FUSION_SKILLS` | Comma-separated skill anchors for the judge (LLM judge only). Ignored when `judge: algo`. |
+| `HKASK_FUSION_MAX_ROUNDS` | Max deliberation rounds (default: 5). Ignored when `judge: algo`. |
 | `HKASK_FUSION_DISABLED=1` | Disable fusion |
 
 **REPL commands:** `/fusion` (status), `/fusion on`, `/fusion off`.

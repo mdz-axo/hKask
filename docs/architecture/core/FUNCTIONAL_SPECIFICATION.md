@@ -54,9 +54,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
 | 26 | Deployment | `deploy` | hkask-cli + hkask-agents | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
 | 27 | Code Understanding | `codegraph` | hkask-codegraph | 10 | Agents query, traverse, and analyze the codebase through a semantic code graph | P3 (Generative Space) + P9 (Homeostatic Self-Regulation) |
-| 28 | Dual-Model Classification | `classify` | hkask-services-runtime | 9 | System classifies text using two peer models from different jurisdictions, integrating extractions with divergence detection — no single model is the sole gate to semantic memory | P3 (Generative Space) + P8 (Semantic Grounding) |
+| 28 | Algo / No-Judge Classification | `classify` | hkask-services-runtime | 9 | System classifies text using two peer models from different jurisdictions, merging extractions algorithmically via the algo / no-judge path — no single model is the sole gate to semantic memory | P3 (Generative Space) + P8 (Semantic Grounding) |
 | 29 | Content Safety Guard | `guard` | hkask-guard | 6 | System enforces mandatory content safety controls — prompt injection, role override, and secret leakage detection are always active and cannot be disabled | P3.1 (Social Generativity) |
-| 30 | Memory Remember (Dual-Model) | `memory-remember` | hkask-templates | 3 | System extracts episodic and semantic hMems from agent operations using dual-model classification — both peer models render the same template and outputs are integrated | P3.1 (Social Generativity) + P8 (Semantic Grounding) |
+| 30 | Memory Remember (Algo / No-Judge) | `memory-remember` | hkask-templates | 3 | System extracts episodic and semantic hMems from agent operations using algo / no-judge classification — both peer models render the same template and outputs are merged algorithmically | P3.1 (Social Generativity) + P8 (Semantic Grounding) |
 
 ### Domain Anchoring Rules
 
@@ -1583,9 +1583,9 @@ can disable them. The guard is wired into `classify_one()` and
 
 ---
 
-### 3.21 Memory Remember — Algo Fusion Agent Memory (`hkask-templates`)
+### 3.21 Memory Remember — Algo / No-Judge Agent Memory (`hkask-templates`)
 
-**Goal Principle:** P3.1 (Social Generativity) — agent memory formation requires dual-model classification
+**Goal Principle:** P3.1 (Social Generativity) — agent memory formation requires algo / no-judge classification
 **Constraining Principle:** P8 (Semantic Grounding) — extracted triples carry cross-jurisdiction provenance
 **Manifest:** `registry/manifests/memory_remember.yaml` | **Templates:** `registry/templates/memory/templates/`
 
@@ -1601,9 +1601,10 @@ Each step renders the same Jinja2 template with two peer models, merges JSON
 outputs via case-insensitive set union (entities, concepts, relationships),
 and stores the integrated result in shared memory.
 
-Dual-model routing is handled by the fusion orchestrator with `judge: algo`. When
-a second inference port is configured, `orchestrate()` dispatches to algo_merge
-for parallel inference with `merge_json_values()` integration in the fusion orchestrator.
+Dual-model routing is handled by the fusion orchestrator with `judge: algo` (the
+algo / no-judge path). `orchestrate()` dispatches to algo_merge for parallel
+inference with `merge_json_values()` integration in the fusion orchestrator. This
+supersedes the former `DualModelPort` mechanism.
 
 #### Production Contracts (3)
 
