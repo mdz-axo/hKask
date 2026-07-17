@@ -667,13 +667,18 @@ async fn mode_best_of_n(
     }
 
     // Swap-revote: two display orderings, compare identified picks.
+    // The two judge calls are independent — run them concurrently to halve latency.
     let order_a: Vec<usize> = (0..n).collect();
     let order_b: Vec<usize> = (0..n).rev().collect();
     let prompt_a = build_prompt(&format_panel_responses_in_order(&responses, &order_a));
     let prompt_b = build_prompt(&format_panel_responses_in_order(&responses, &order_b));
 
-    let result_a = call_judge(router, &fusion.judge, &prompt_a, params, tools).await?;
-    let result_b = call_judge(router, &fusion.judge, &prompt_b, params, tools).await?;
+    let (result_a, result_b) = futures_util::join!(
+        call_judge(router, &fusion.judge, &prompt_a, params, tools),
+        call_judge(router, &fusion.judge, &prompt_b, params, tools),
+    );
+    let result_a = result_a?;
+    let result_b = result_b?;
     let idx_a = identify_pick(&result_a.text, &responses);
     let idx_b = identify_pick(&result_b.text, &responses);
 
