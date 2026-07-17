@@ -1,15 +1,14 @@
 //! Token-bucket per-tool rate limiting.
 //!
 //! Enforces a configurable number of requests per time window per tool name.
-//! This is an external API boundary rate limiter — it protects the MCP server
+//! This is an external API boundary rate limiter — it protects the server
 //! from external client DoS, distinct from internal energy budget tracking.
-//! On rate limit, returns McpToolError with RateLimited kind.
+//! On rate limit, returns `WebError::RateLimited`.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use hkask_mcp::server::McpToolError;
-use hkask_types::McpErrorKind;
+use crate::types::WebError;
 
 pub struct RateLimiter {
     windows: Mutex<HashMap<String, RateWindow>>,
@@ -32,14 +31,12 @@ impl RateLimiter {
     }
 
     /// Check whether a request for the given tool is allowed.
-    /// Returns Ok(()) if allowed, or an McpToolError with RateLimited kind if exceeded.
-    pub fn check(&self, tool_name: &str) -> Result<(), McpToolError> {
-        let mut windows = self.windows.lock().map_err(|_| {
-            McpToolError::new(
-                McpErrorKind::Internal,
-                "rate limiter lock poisoned".to_string(),
-            )
-        })?;
+    /// Returns Ok(()) if allowed, or `WebError::RateLimited` if exceeded.
+    pub fn check(&self, tool_name: &str) -> Result<(), WebError> {
+        let mut windows = self
+            .windows
+            .lock()
+            .map_err(|_| WebError::ProviderError("rate limiter lock poisoned".to_string()))?;
         let now = std::time::Instant::now();
         let entry = windows.entry(tool_name.to_string()).or_insert(RateWindow {
             count: 0,
@@ -51,13 +48,10 @@ impl RateLimiter {
         }
         entry.count += 1;
         if entry.count > self.max_requests {
-            Err(McpToolError::new(
-                McpErrorKind::RateLimited,
-                format!(
-                    "Rate limit exceeded for {tool_name}: {} requests per {}s",
-                    self.max_requests, self.window_secs
-                ),
-            ))
+            Err(WebError::RateLimited(format!(
+                "Rate limit exceeded for {tool_name}: {} requests per {}s",
+                self.max_requests, self.window_secs
+            )))
         } else {
             Ok(())
         }

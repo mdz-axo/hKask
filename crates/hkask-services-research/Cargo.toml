@@ -9,6 +9,7 @@ description = "hKask research service — web search, extraction, browsing, RSS 
 hkask-memory = { path = "../hkask-memory" }
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
+hkask-mcp = { path = "../hkask-mcp" }
 reqwest.workspace = true
 tokio.workspace = true
 serde.workspace = true

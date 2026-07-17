@@ -11,7 +11,7 @@ fn main() {
         .and_then(|p| p.parent())
         .expect("examples run two levels below project root");
 
-    let registry: hkask_templates::Registry = hkask_templates::Registry::new();
+    let registry: hkask_templates::Registry = hkask_templates::Registry::bootstrap();
     let mut skill_index: hkask_templates::Registry = hkask_templates::Registry::new();
     let loader = hkask_templates::SkillLoader::new(project_root);
     loader.load_into(&mut skill_index);

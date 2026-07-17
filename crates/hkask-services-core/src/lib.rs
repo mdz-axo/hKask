@@ -1,8 +1,10 @@
 //! hKask Service-Layer Foundation — shared error types, configuration, and settings.
 //!
-//! This crate provides the universal foundation that all other service-layer
-//! modules depend on. Extracted from `hkask-services` to enable parallel
-//! compilation and clear architectural boundaries.
+//! This crate is the foundation for most service-layer modules: `ServiceError`,
+//! `ServiceConfig`, and `HkaskSettings` are consumed by every service crate
+//! except `hkask-services-research`, which intentionally keeps its own
+//! provider-shaped `WebError` (see ADR-054). Extracted from `hkask-services` to
+//! enable parallel compilation and clear architectural boundaries.
 //!
 //! # Modules
 //!

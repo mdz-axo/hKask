@@ -20,16 +20,16 @@ pub mod types;
 use std::collections::HashMap;
 
 use providers::{
-    ArxivProvider, BraveProvider, BrowserbaseProvider, ExaProvider, FirecrawlProvider,
-    ProviderPool, RawFetchProvider, SemanticScholarProvider, SerapiProvider, TavilyProvider,
-    WebBrowseProvider, WebExtractProvider, WebSearchProvider,
+    ArxivProvider, BraveProvider, BrowserbaseProvider, FirecrawlProvider, RawFetchProvider,
+    SemanticScholarProvider, SerapiProvider, TavilyProvider, WebBrowseProvider, WebExtractProvider,
+    WebSearchProvider,
 };
 
 // ── Re-exports ──
 
-pub use cache::{cache_key, CacheKey, ResponseCache};
+pub use cache::{CacheKey, ResponseCache, cache_key};
 pub use feed::{discover_feeds, fetch_feed};
-pub use providers::{ExaProvider as Exa, ProviderPool as Pool, WebSearchPort};
+pub use providers::{ExaProvider, ProviderPool, WebSearchPort};
 pub use rss_types::{
     Continuation, DiscoverRequest, EditTagRequest, FetchRequest, FetchResult, GetEntriesRequest,
     ImportOpmlRequest, ListSubscriptionsRequest, MarkReadRequest, SubscribeRequest,
@@ -37,12 +37,16 @@ pub use rss_types::{
 };
 pub use types::RateLimiter;
 pub use types::{
-    AnswerBox, BrowseOutput, BrowseRequest, BrowseResult, CapabilityContext, CompoundSearchResult,
-    ExtractOptions, ExtractOutput, ExtractRequest, ExtractedContent, FindSimilarOutput,
-    FindSimilarRequest, FindSimilarResultOutput, PingOutput, ProviderError, ProviderFilter,
-    ProviderHealthEntry, ProviderInfo, RankedResult, RerankSignal, SearchCapability,
-    SearchMetadata, SearchOutput, SearchQuery, SearchRequest, SearchResult, SearchResultOutput,
-    SearchStrategy, WebError,
+    AnswerBox, BrowseOutput, BrowseRequest, BrowseResult, COMPOUND_PROVIDER_TIMEOUT_SECS,
+    CapabilityContext, CompoundSearchResult, DEFAULT_CACHE_MAX_ENTRIES, DEFAULT_CACHE_TTL_SECS,
+    DEFAULT_REQUEST_TIMEOUT_SECS, ExtractOptions, ExtractOutput, ExtractRequest, ExtractedContent,
+    FindSimilarOutput, FindSimilarRequest, FindSimilarResultOutput, MAX_CACHE_MAX_ENTRIES,
+    MAX_CACHE_TTL_SECS, MAX_CACHE_VALUE_BYTES, MAX_INSTRUCTION_LENGTH, MAX_JSON_PROMPT_LENGTH,
+    MAX_JSON_SCHEMA_BYTES, MAX_QUERY_LENGTH, MAX_URL_LENGTH, PingOutput, ProviderError,
+    ProviderFilter, ProviderHealthEntry, ProviderInfo, RATE_LIMIT_MAX_REQUESTS,
+    RATE_LIMIT_WINDOW_SECS, RRF_K, RankedResult, RerankSignal, SearchCapability, SearchMetadata,
+    SearchOutput, SearchQuery, SearchRequest, SearchResult, SearchResultOutput, SearchStrategy,
+    WebError,
 };
 
 /// Build a `ProviderPool` from a credential map.

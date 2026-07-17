@@ -335,7 +335,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
 }
 
 /// Update the `visibility` field in a SKILL.md YAML front matter.
-fn update_visibility_in_skill_md(path: &Path, visibility: &str) {
+fn update_visibility_in_skill_md(path: &Path, visibility: &str) -> Result<(), ServiceError> {
     if let Ok(content) = fs::read_to_string(path) {
         let updated = if content.contains("visibility:") {
             content
@@ -372,7 +372,7 @@ fn update_visibility_in_skill_md(path: &Path, visibility: &str) {
 }
 
 /// Update or add the `namespace` field in a SKILL.md YAML front matter.
-fn update_namespace_in_skill_md(path: &Path, namespace: &str) {
+fn update_namespace_in_skill_md(path: &Path, namespace: &str) -> Result<(), ServiceError> {
     if let Ok(content) = fs::read_to_string(path) {
         let updated = if content.contains("namespace:") {
             content

@@ -4,6 +4,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 
 use crate::types::*;
+use hkask_mcp::server::validate_tool_url;
 
 mod arxiv;
 mod brave;
@@ -52,6 +53,14 @@ pub(crate) trait WebSearchProvider: Send + Sync {
     fn capabilities(&self) -> Vec<SearchCapability>;
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError>;
     async fn health(&self) -> Result<(), WebError>;
+}
+
+/// Validate a URL for SSRF safety before making outbound requests.
+///
+/// Wraps the shared `validate_tool_url` from `hkask-mcp` and converts the error
+/// to `WebError`. Used by `RawFetchProvider` for defense-in-depth URL validation.
+pub fn validate_provider_url(url: &str) -> Result<(), WebError> {
+    validate_tool_url(url).map_err(|e| WebError::BadArgs(e.message))
 }
 
 /// Port trait for web search operations at the application core boundary.

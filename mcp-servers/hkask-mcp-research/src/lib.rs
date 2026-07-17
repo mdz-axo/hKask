@@ -1,13 +1,7 @@
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
-pub mod cache;
-mod db;
-pub mod providers;
-pub mod rss_types;
-pub mod strip_html;
-pub mod types;
-
-// Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
+// Re-export service crate modules for test compatibility
+pub use hkask_services_research::{cache, db, providers, rss_types, strip_html, types};
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,19 +15,18 @@ use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;
 
-use cache::{ResponseCache, cache_key};
-use db::*;
-use providers::{
-    ArxivProvider, BraveProvider, BrowserbaseProvider, ExaProvider, FirecrawlProvider,
-    ProviderPool, RawFetchProvider, SemanticScholarProvider, SerapiProvider, TavilyProvider,
-    WebSearchPort,
+use hkask_services_research::db::*;
+use hkask_services_research::{
+    BrowseOutput, BrowseRequest, Continuation, DEFAULT_CACHE_MAX_ENTRIES, DEFAULT_CACHE_TTL_SECS,
+    DiscoverRequest, EditTagRequest, ExtractOptions, ExtractOutput, ExtractRequest, FetchRequest,
+    FindSimilarOutput, FindSimilarRequest, FindSimilarResultOutput, GetEntriesRequest,
+    ImportOpmlRequest, ListSubscriptionsRequest, MAX_CACHE_MAX_ENTRIES, MAX_CACHE_TTL_SECS,
+    MAX_INSTRUCTION_LENGTH, MAX_JSON_PROMPT_LENGTH, MAX_JSON_SCHEMA_BYTES, MAX_QUERY_LENGTH,
+    MAX_URL_LENGTH, MarkReadRequest, PingOutput, RateLimiter, ResponseCache, SearchMetadata,
+    SearchOutput, SearchQuery, SearchRequest, SearchResultOutput, SearchStrategy, SubscribeRequest,
+    UnreadCountRequest, UnsubscribeRequest, WebSearchPort, build_provider_pool, cache_key,
+    discover_feeds, fetch_feed,
 };
-use rss_types::{
-    Continuation, DiscoverRequest, EditTagRequest, FetchRequest, FetchResult, GetEntriesRequest,
-    ImportOpmlRequest, ListSubscriptionsRequest, MarkReadRequest, SubscribeRequest,
-    UnreadCountRequest, UnsubscribeRequest,
-};
-use types::*;
 
 // ── Constants ──
 
@@ -157,120 +150,6 @@ macro_rules! require_rss_db {
     };
 }
 
-// ── Feed fetching ──
-
-pub async fn fetch_feed(
-    client: &Client,
-    url: &str,
-    etag: Option<&str>,
-    last_modified: Option<&str>,
-) -> Result<FetchResult, anyhow::Error> {
-    let mut request = client.get(url);
-    if let Some(e) = etag {
-        request = request.header("If-None-Match", e);
-    }
-    if let Some(lm) = last_modified {
-        request = request.header("If-Modified-Since", lm);
-    }
-
-    let response = request.send().await?;
-    let status = response.status().as_u16();
-
-    if status == 304 {
-        let empty_feed = feed_rs::parser::parse(std::io::empty())?;
-        return Ok(FetchResult {
-            feed: empty_feed,
-            etag: None,
-            last_modified: None,
-            status,
-        });
-    }
-
-    if !response.status().is_success() {
-        anyhow::bail!("HTTP {} fetching {}", response.status(), url);
-    }
-
-    let etag = response
-        .headers()
-        .get("etag")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string());
-    let last_modified = response
-        .headers()
-        .get("last-modified")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.to_string());
-    let body = response.bytes().await?;
-    let feed = feed_rs::parser::parse(body.as_ref())?;
-
-    Ok(FetchResult {
-        feed,
-        etag,
-        last_modified,
-        status,
-    })
-}
-
-pub async fn discover_feeds(
-    client: &Client,
-    url: &str,
-) -> Result<Vec<serde_json::Value>, anyhow::Error> {
-    let response = client.get(url).send().await?;
-    let content_type = response
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("")
-        .to_lowercase();
-
-    if content_type.contains("rss")
-        || content_type.contains("atom")
-        || content_type.contains("feed")
-    {
-        return Ok(vec![serde_json::json!({
-            "url": url,
-            "type": "feed",
-            "content_type": content_type,
-        })]);
-    }
-
-    let body = response.text().await?;
-    let mut feeds = Vec::new();
-
-    let re1 = regex::Regex::new(
-        r#"<link[^>]+rel\s*=\s*["']alternate["'][^>]+type\s*=\s*["']application/(rss|atom)\+xml["'][^>]+href\s*=\s*["']([^"']+)["']"#,
-    )?;
-    let re2 = regex::Regex::new(
-        r#"<link[^>]+type\s*=\s*["']application/(rss|atom)\+xml["'][^>]+href\s*=\s*["']([^"']+)["']"#,
-    )?;
-
-    for re in [&re1, &re2] {
-        for cap in re.captures_iter(&body) {
-            let feed_type = cap.get(1).map(|m| m.as_str()).unwrap_or("rss");
-            let href = cap.get(2).map(|m| m.as_str()).unwrap_or("");
-            let feed_url = if href.starts_with("http") {
-                href.to_string()
-            } else {
-                let base = url::Url::parse(url)?;
-                base.join(href)
-                    .map(|u| u.to_string())
-                    .unwrap_or_else(|_| href.to_string())
-            };
-            if !feeds
-                .iter()
-                .any(|f: &serde_json::Value| f["url"].as_str() == Some(feed_url.as_str()))
-            {
-                feeds.push(serde_json::json!({
-                    "url": feed_url,
-                    "type": feed_type,
-                }));
-            }
-        }
-    }
-
-    Ok(feeds)
-}
-
 // ── Tool implementations ──
 
 #[tool_router(server_handler)]
@@ -283,10 +162,10 @@ impl ResearchServer {
             if let Err(e) = self.rate_limiter.check("web_ping") {
                 tracing::warn!(
                     target: "cns.web",
-                    message = %e.message,
+                    error = %e,
                     "web_ping rate limited"
                 );
-                return Err(e);
+                return Err(McpToolError::from(e));
             }
 
             let providers = self.pool.health_check().await;
@@ -295,7 +174,6 @@ impl ResearchServer {
                 version: SERVER_VERSION.to_string(),
                 providers,
             };
-            // PingOutput contains only strings and booleans — never NaN/Inf.
             Ok(serde_json::to_value(&output).expect("PingOutput serialization is infallible"))
         })
         .await
@@ -329,7 +207,7 @@ impl ResearchServer {
             let freshness = req
                 .freshness
                 .as_deref()
-                .and_then(|f| f.parse::<Freshness>().ok());
+                .and_then(|f| f.parse::<hkask_services_research::types::Freshness>().ok());
 
             let fingerprint = self.pool.provider_fingerprint();
             let ckey = cache_key(
@@ -835,7 +713,9 @@ impl ResearchServer {
     #[tool(description = "Full-text search across feed entries")]
     pub async fn rss_search(
         &self,
-        Parameters(rss_types::SearchRequest { query, limit }): Parameters<rss_types::SearchRequest>,
+        Parameters(hkask_services_research::rss_types::SearchRequest { query, limit }): Parameters<
+            hkask_services_research::rss_types::SearchRequest,
+        >,
     ) -> String {
         execute_tool(self, "rss_search", async {
             let db = require_rss_db!(self);
@@ -915,100 +795,49 @@ pub async fn run(
         "hkask-mcp-research",
         SERVER_VERSION,
         |ctx: ServerContext| {
-                    Ok({
-                        let parse_env = |k: &str| ctx.credentials.get(k).cloned();
-                        let parse_env_u64 =
-                            |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<u64>().ok());
-                        let parse_env_usize =
-                            |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<usize>().ok());
+            let parse_env_u64 =
+                |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<u64>().ok());
+            let parse_env_usize =
+                |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<usize>().ok());
 
-                        let brave_api_key = parse_env("HKASK_BRAVE_API_KEY");
-                        let firecrawl_api_key = parse_env("HKASK_FIRECRAWL_API_KEY");
-                        let tavily_api_key = parse_env("HKASK_TAVILY_API_KEY");
-                        let serpapi_api_key = parse_env("HKASK_SERPAPI_API_KEY");
-                        let exa_api_key = parse_env("HKASK_EXA_API_KEY");
-                        let browserbase_api_key = parse_env("HKASK_BROWSERBASE_API_KEY");
+            let pool = build_provider_pool(&ctx.credentials).map_err(|e| {
+                hkask_mcp::McpError::UnexpectedResponse {
+                    context: "research server init".into(),
+                    detail: e.to_string(),
+                }
+            })?;
 
-                        let mut search_providers: Vec<Box<dyn providers::WebSearchProvider>> = Vec::new();
-                        let mut extract_providers: Vec<Box<dyn providers::WebExtractProvider>> = Vec::new();
-                        let mut browse_providers: Vec<Box<dyn providers::WebBrowseProvider>> = Vec::new();
+            let cache_ttl = parse_env_u64("HKASK_WEB_CACHE_TTL_SECS")
+                .map(|s| s.min(MAX_CACHE_TTL_SECS))
+                .unwrap_or(DEFAULT_CACHE_TTL_SECS);
+            let cache_max = parse_env_usize("HKASK_WEB_CACHE_MAX_ENTRIES")
+                .map(|s| s.min(MAX_CACHE_MAX_ENTRIES))
+                .unwrap_or(DEFAULT_CACHE_MAX_ENTRIES);
 
-                        // Free providers — no API key required
-                        search_providers.push(Box::new(SemanticScholarProvider::new()));
-                        search_providers.push(Box::new(ArxivProvider::new()));
+            let rss_db = ctx
+                .open_database_with_extensions("HKASK_RSS_DB", db::RSS_SCHEMA_DDL)
+                .ok()
+                .and_then(|db| db.sqlite_pool().ok());
 
-                        let exa_provider = exa_api_key
-                            .as_ref()
-                            .map(|key| ExaProvider::new(key.clone()));
+            let rss_client = Client::builder()
+                .user_agent(format!("hkask-mcp-research/{}", SERVER_VERSION))
+                .build()
+                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
 
-                        if let Some(ref key) = brave_api_key {
-                            search_providers.push(Box::new(BraveProvider::new(key.clone())));
-                        }
-                        if let Some(ref key) = firecrawl_api_key {
-                            let fc = FirecrawlProvider::new(Some(key.clone()));
-                            search_providers.push(Box::new(fc.clone()));
-                            extract_providers.push(Box::new(fc.clone()));
-                            browse_providers.push(Box::new(fc));
-                        }
-                        if let Some(ref key) = tavily_api_key {
-                            search_providers.push(Box::new(TavilyProvider::new(key.clone())));
-                        }
-                        if let Some(ref key) = serpapi_api_key {
-                            search_providers.push(Box::new(SerapiProvider::new(key.clone())));
-                        }
-                        if let Some(ref exa) = exa_provider {
-                            search_providers.push(Box::new(exa.clone()));
-                        }
-                        if let Some(ref key) = browserbase_api_key {
-                            browse_providers.push(Box::new(BrowserbaseProvider::new(key.clone())));
-                        }
-
-                        extract_providers.push(Box::new(RawFetchProvider::new()));
-
-                        if search_providers.is_empty() {
-                                            return Err(hkask_mcp::McpError::UnexpectedResponse {
-                                                context: "research server init".into(),
-                                                detail: "No search providers configured. Set at least one of: HKASK_BRAVE_API_KEY, HKASK_FIRECRAWL_API_KEY, HKASK_TAVILY_API_KEY, HKASK_SERPAPI_API_KEY, HKASK_EXA_API_KEY".into(),
-                                            });
-                                        }
-
-                        let cache_ttl = parse_env_u64("HKASK_WEB_CACHE_TTL_SECS")
-                            .map(|s| s.min(MAX_CACHE_TTL_SECS))
-                            .unwrap_or(DEFAULT_CACHE_TTL_SECS);
-                        let cache_max = parse_env_usize("HKASK_WEB_CACHE_MAX_ENTRIES")
-                            .map(|s| s.min(MAX_CACHE_MAX_ENTRIES))
-                            .unwrap_or(DEFAULT_CACHE_MAX_ENTRIES);
-
-                        let rss_db = ctx
-                            .open_database_with_extensions("HKASK_RSS_DB", db::RSS_SCHEMA_DDL)
-                            .ok()
-                            .and_then(|db| db.sqlite_pool().ok());
-
-                        let rss_client = Client::builder()
-                            .user_agent(format!("hkask-mcp-research/{}", SERVER_VERSION))
-                            .build()
-                                                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
-
-                        ResearchServer::new(
-                            ctx.webid,
-                            replicant.clone(),
-                            daemon_client.clone(),
-                            Arc::new(ProviderPool::new(
-                                search_providers,
-                                extract_providers,
-                                browse_providers,
-                                exa_provider,
-                            )),
-                            Arc::new(ResponseCache::new(
-                                cache_max,
-                                Duration::from_secs(cache_ttl),
-                            )),
-                            RateLimiter::new(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECS),
-                            rss_db,
-                            rss_client,
-                        )
-                    })
-                },
+            Ok(ResearchServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                Arc::new(pool),
+                Arc::new(ResponseCache::new(
+                    cache_max,
+                    Duration::from_secs(cache_ttl),
+                )),
+                RateLimiter::new(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECS),
+                rss_db,
+                rss_client,
+            ))
+        },
         credential_requirements(),
         dotenv,
     )

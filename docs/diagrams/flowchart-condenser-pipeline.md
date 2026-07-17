@@ -32,6 +32,7 @@ flowchart TD
         ClassifyFn["classify_tool\ntool_name → category"]
         AnchorFn["derive_ontology_anchor\ntool_name → OntologyAnchor"]
         SaliencyFn["domain_saliency\nline + anchor → f64"]
+        SaliencyModule["saliency module\nscore_against_persona\nextract_query_words\nscore_memory_results\nword_frequencies (shared)"]
         OntologyGraph["OntologyGraph\nFIBO/CogAT/GOLEM/ML-Schema/OMC/PKO/DC+BIBO"]
     end
     
@@ -44,6 +45,8 @@ flowchart TD
     subgraph Infra["Infrastructure"]
         InferencePort["InferencePort\n(centralized router)"]
         Episodic["EpisodicMemory\n(optional, SQLite-backed)"]
+        Semantic["SemanticMemory\n(optional, SQLite + embeddings)"]
+        EmbeddingStore["EmbeddingStore\n1024-dim KNN search"]
     end
     
     Client -->|"tool call"| Server
@@ -77,6 +80,9 @@ flowchart TD
     
     Persist --> Episodic
     ThreadSummary --> InferencePort
-    ScoreSaliency -->|"against=memory"| Episodic
-    ScoreSaliency -->|"against=persona"| SaliencyFn
+    ScoreSaliency -->|"against=persona"| SaliencyModule
+    ScoreSaliency -->|"against=memory\nquery dispatch"| Semantic
+    ScoreSaliency -->|"against=memory\nfallback"| Episodic
+    ScoreSaliency -->|"score result count"| SaliencyModule
+    Semantic --> EmbeddingStore
 ```

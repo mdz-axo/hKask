@@ -14,9 +14,8 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 OCAP-governed filesystem and shell access for AI agents. All file I/O is
 sandboxed to a configured `project_root`; paths are canonicalized and verified
-against the root before any read or write. This page documents the *current*
-behavior of the shipping code, including known limitations that follow from
-the present implementation.
+against the root before any read or write. This page documents the current
+behavior of the shipping code and the standing properties of its sandbox design.
 
 ## Architecture
 
@@ -73,20 +72,20 @@ status: VERIFIED
 
 | Tool | Description | CNS operation span |
 |------|-------------|--------------------|
-| `fs_read` | Read file contents with optional 1-based line ranges + stats | `file.read` |
-| `fs_write` | Create or overwrite a file; creates parent dirs if needed | `file.written` |
-| `fs_edit` | Apply ordered first-match text replacements | `file.written` |
+| `fs_read` | Read file contents with optional 1-based line ranges + stats; rejects inverted/zero ranges | `file.read` |
+| `fs_write` | Create or overwrite a file; creates parent dirs if needed (new files supported) | `file.written` |
+| `fs_edit` | Apply ordered first-match text replacements; `file.written` emitted only when an edit matched | `file.written` (on write) |
 | `fs_list` | List directory entries (name, path, type, size) | `file.read` |
-| `fs_search` | Regex search across files up to `max_depth` (default 3) | `file.read` |
-| `fs_delete` | Delete a file or empty directory | `file.deleted` |
-| `shell_exec` | `sh -c` command with timeout + output guard | `command.completed` / `command.failed` |
+| `fs_search` | Regex search across files up to `max_depth` (default 3); rejects non-directory roots; oversized/unreadable files reported in `files_skipped` | `file.read` |
+| `fs_delete` | Delete a file or empty directory; returns the real OS error on failure | `file.deleted` |
+| `shell_exec` | `sh -c` command with timeout + output guard; stdout/stderr truncated at a UTF-8 char boundary; timed-out commands are killed (`kill_on_drop`) | `command.completed` / `command.failed` |
 
 ## CNS observability
 
 | Span | When emitted |
 |------|--------------|
 | `cns.tool.filesystem.file.read` | `fs_read`, `fs_list`, `fs_search` (success path) |
-| `cns.tool.filesystem.file.written` | `fs_write`, `fs_edit` (success path) |
+| `cns.tool.filesystem.file.written` | `fs_write` (success path); `fs_edit` only when at least one edit matched |
 | `cns.tool.filesystem.file.deleted` | `fs_delete` (success path) |
 | `cns.tool.filesystem.command.completed` | `shell_exec` exit code 0 |
 | `cns.tool.filesystem.command.failed` | `shell_exec` non-zero exit or timeout |
@@ -115,14 +114,19 @@ The following are standing properties of the sandbox design (not defects):
   component could change between the check and the file operation. Acceptable
   for a single-user agent tool; flagged here for security reviewers who need
   atomic containment.
-- **Shell command string is not confined.** Only `cwd` is sandboxed; the
-  `command` argument may reference paths outside `project_root`. See
-  [Security model](#security-model) above.
 - **Operation spans are success-path only.** `emit_cns` fires the operation
   verb (`file.read`, …) on the success path of each tool. The framework
   `execute_tool` span records outcome (`ok`/`error`) for all calls, so failed
   calls remain observable at the tool level even when the operation verb is
-  not emitted.
+  not emitted. `fs_edit` additionally suppresses `file.written` when zero edits
+  matched (no write occurred).
+- **Timed-out shell commands are killed.** `shell_exec` sets `kill_on_drop` so a
+  command that exceeds `timeout_ms` is reaped when the wait future is dropped,
+  rather than being orphaned to run in the background. The kill uses `SIGKILL`
+  (no graceful shutdown).
+- **Blocking I/O is offloaded.** `fs_search` runs its `walkdir` + file reads on
+  a `spawn_blocking` thread so the async runtime worker is not stalled; the
+  1 MiB per-file cap bounds memory on oversized files.
 
 The tool contracts are verified by the contract test suite
 (`tests/filesystem_contract.rs`), which exercises both `sandbox_path`

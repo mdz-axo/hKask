@@ -302,6 +302,97 @@ async fn fs_search_reports_skipped_unreadable_files() {
     );
 }
 
+// REQ: fs.edit with zero matching edits does not modify the file and reports
+// edited=false (P5). Also guards the no-op path: no write, no file.written span.
+#[tokio::test]
+async fn fs_edit_noop_when_no_match_leaves_file_unchanged() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("target.txt"), "original line\n").unwrap();
+    let server = test_server(dir.path().to_path_buf());
+    let out = server
+        .fs_edit(Parameters(FsEditRequest {
+            path: "target.txt".into(),
+            edits: vec![TextEdit {
+                old_text: "does not exist in file".into(),
+                new_text: "replacement".into(),
+            }],
+        }))
+        .await;
+    let content = parse_content(&out);
+    assert_eq!(content["edited"], false);
+    assert_eq!(content["edits_applied"], 0);
+    assert_eq!(content["total_edits"], 1);
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("target.txt")).unwrap(),
+        "original line\n",
+        "file must be unchanged when no edits matched"
+    );
+}
+
+// REQ: fs.search rejects a non-directory search root instead of silently
+// returning zero matches (P5, input validation).
+#[tokio::test]
+async fn fs_search_rejects_non_directory_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("afile.txt"), "foo\n").unwrap();
+    let server = test_server(dir.path().to_path_buf());
+    // A file is not a directory.
+    let out = server
+        .fs_search(Parameters(FsSearchRequest {
+            pattern: "foo".into(),
+            path: "afile.txt".into(),
+            max_depth: Some(2),
+        }))
+        .await;
+    let err = error_message(&out).expect("expected error for non-directory search root");
+    assert!(err.contains("not a directory"), "got: {err}");
+}
+
+// REQ: fs.search rejects a non-existent search root (P5).
+#[tokio::test]
+async fn fs_search_rejects_nonexistent_root() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let server = test_server(dir.path().to_path_buf());
+    let out = server
+        .fs_search(Parameters(FsSearchRequest {
+            pattern: "foo".into(),
+            path: "does_not_exist".into(),
+            max_depth: Some(2),
+        }))
+        .await;
+    let err = error_message(&out).expect("expected error for non-existent search root");
+    assert!(err.contains("not a directory"), "got: {err}");
+}
+
+// REQ: shell.exec reaps a timed-out command instead of orphaning it. The
+// observable contract from the caller side is that a timeout returns an error
+// promptly (the child must not keep running and hold resources). We verify the
+// prompt error return; kill_on_drop is enforced at the process level.
+#[tokio::test]
+async fn shell_exec_timeout_returns_error_promptly() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let server = test_server(dir.path().to_path_buf());
+    // sleep 5s but cap the timeout at 200ms.
+    let start = std::time::Instant::now();
+    let out = server
+        .shell_exec(Parameters(ShellExecRequest {
+            command: "sleep 5".into(),
+            cwd: None,
+            timeout_ms: Some(200),
+            max_output_bytes: None,
+        }))
+        .await;
+    let elapsed = start.elapsed();
+    let err = error_message(&out).expect("expected timeout error");
+    assert!(err.contains("timed out"), "got: {err}");
+    // Must return well before the 5s sleep would finish.
+    assert!(
+        elapsed < std::time::Duration::from_secs(3),
+        "timeout should return promptly, took {:?}",
+        elapsed
+    );
+}
+
 // REQ: fs.delete reports the real OS error for a non-empty directory rather
 // than collapsing to a generic message (P5, diagnosability).
 #[tokio::test]

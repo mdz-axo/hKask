@@ -67,6 +67,23 @@ All 15 findings have been fixed in the codebase.
 | G14 — Inconsistent indentation | **Fixed** | `src/lib.rs` — `rss_subscribe` async block re-indented to 12 spaces throughout |
 | G15 — Dead `SearchDepth::Basic` init | **Fixed** | Subsumed by G4 — `SearchDepth` enum deleted entirely |
 
+### Service crate extraction (2026-07-17)
+
+**A1 — No service crate** — **Fixed**. Extracted `hkask-services-research` service crate
+containing all business logic (provider pool, RRF fusion, RSS management, caching, rate
+limiting). The MCP server crate was reduced from ~2,100 lines to 880 lines (58% reduction)
+and is now a thin tool surface that delegates to the service crate.
+
+| Moved to service crate | Stays in MCP server |
+|-----------------------|---------------------|
+| `providers/` (pool, all 9 providers, `WebSearchPort`) | `ResearchServer` struct (tool dispatch) |
+| `types/` (request/response types, ranking, rate limiter, validation) | 17 `#[tool]` methods (thin wrappers) |
+| `cache.rs` (TTL + LRU cache) | `run()` (bootstrap + credential parsing) |
+| `db.rs` (RSS schema + operations) | `credential_requirements()` |
+| `feed.rs` (fetch_feed, discover_feeds) | `spawn_db`, `handle_db_result!`, `require_rss_db!` macros |
+| `rss_types.rs`, `strip_html.rs` | `record_experience()` (daemon client) |
+| `build_provider_pool()` factory | `From<WebError> for McpToolError` (removed — now in service crate) |
+
 ---
 
 ## Architecture overview

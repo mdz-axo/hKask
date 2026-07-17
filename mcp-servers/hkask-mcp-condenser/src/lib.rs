@@ -60,13 +60,6 @@ hkask_mcp::mcp_server!(
 );
 
 impl CondenserServer {
-    /// Return persona keywords for word-frequency saliency scoring.
-    /// Uses the server's configurable `persona_keywords` field, which can be
-    /// set via the `HKASK_CONDENSER_PERSONA_KEYWORDS` env var at startup.
-    fn persona_keywords(&self) -> &[String] {
-        &self.persona_keywords
-    }
-
     /// Fallback persona keywords when no configuration is provided.
     /// These are generic condensation-oriented terms — operators should
     /// override via `HKASK_CONDENSER_PERSONA_KEYWORDS` for domain-specific agents.
@@ -152,6 +145,7 @@ impl CondenserServer {
                 "mode": mode,
                 "capabilities": {
                     "persistence": self.has_persistence(),
+                    "semantic_memory": self.semantic.is_some(),
                     "inference": true,
                     "keystore": self.capability_tier.keystore_available,
                     "cns": self.capability_tier.cns_available(),
@@ -536,8 +530,7 @@ pub async fn run(
                             // pattern established by the curator server.
                             let h_mem_store2 =
                                 hkask_storage::HMemStore::from_driver(Arc::clone(&driver));
-                            let embedding_store =
-                                hkask_storage::EmbeddingStore::from_driver(driver, 1024);
+                            let embedding_store = EmbeddingStore::from_driver(driver, 1024);
                             let semantic =
                                 hkask_memory::SemanticMemory::new(h_mem_store2, embedding_store);
 

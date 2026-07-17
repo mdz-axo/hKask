@@ -231,9 +231,10 @@ impl FileSystemServer {
                 tokio::fs::write(&sandboxed, &content).await.map_err(|e| {
                     McpToolError::internal(format!("Cannot write {}: {e}", req.path))
                 })?;
+                // Only emit the written span when a write actually occurred — a
+                // no-op edit (zero matches) must not signal a file modification.
+                self.emit_cns("file.written");
             }
-
-            self.emit_cns("file.written");
             Ok(serde_json::json!({
                 "edited": applied > 0,
                 "path": path_str,
@@ -289,6 +290,16 @@ impl FileSystemServer {
     pub async fn fs_search(&self, Parameters(req): Parameters<FsSearchRequest>) -> String {
         execute_tool(self, "fs.search", async {
             let sandboxed = self.sandbox_path(&req.path)?;
+
+            // A non-existent or non-directory search root would otherwise walk
+            // an empty iterator and silently return zero matches, masking the
+            // bad input as "no hits". Surface it as an explicit error instead.
+            if !sandboxed.is_dir() {
+                return Err(McpToolError::invalid_argument(format!(
+                    "Search path is not a directory: {}",
+                    req.path
+                )));
+            }
 
             let re = regex::Regex::new(&req.pattern)
                 .map_err(|e| McpToolError::invalid_argument(format!("Invalid regex: {e}")))?;
@@ -399,7 +410,12 @@ impl FileSystemServer {
             let start = Instant::now();
 
             let mut cmd = tokio::process::Command::new("sh");
-            cmd.arg("-c")
+            // kill_on_drop ensures a timed-out command is reaped when the
+            // wait_with_output future is dropped on Elapsed. Without it the
+            // child would be orphaned and keep running after we return a
+            // timeout error to the caller.
+            cmd.kill_on_drop(true)
+                .arg("-c")
                 .arg(&req.command)
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())

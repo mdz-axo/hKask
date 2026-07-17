@@ -13,7 +13,7 @@ Part of hKask's Episodic loop (L2). The condenser operates on the active convers
 | `condenser_classify` | Classify tool name to context category | — |
 | `condenser_set_profile` | Set compression profile (heavy/normal/soft/light) | — |
 | `condenser_stats` | Cumulative compression statistics | — |
-| `condenser_score_saliency` | Score text relevance against persona keywords (word-overlap) or memory stores (semantic/episodic search). Returns 0.0–1.0. The `against` parameter accepts `"persona"` (default) or `"memory"`. When `against="memory"`, the tool checks for a semantic memory store first, then falls back to episodic memory. If neither is available, returns 0.5 (neutral). | Persona keywords are hardcoded (curator/monitor-oriented). Memory stores require `HKASK_DB_PATH` |
+| `condenser_score_saliency` | Score text relevance against persona keywords (word-overlap) or memory stores (semantic/episodic search). Returns 0.0–1.0. The `against` parameter accepts `"persona"` (default) or `"memory"`. When `against="persona"`, the optional `persona_keywords` parameter overrides the server's default keyword set. When `against="memory"`, the tool checks for a semantic memory store first, then falls back to episodic memory. If neither is available, returns 0.5 (neutral). | Persona keywords configurable via `HKASK_CONDENSER_PERSONA_KEYWORDS` or per-request override. Memory stores require `HKASK_DB_PATH` |
 | `condenser_persist` | Persist compressed output to episodic memory | `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` |
 | `condenser_thread_summary` | LLM-powered conversation summarization via centralized inference router. Disables model thinking/reasoning mode to ensure output tokens are used for the summary, not internal reasoning. Returns `original_tokens_approx` and `summary_tokens_approx` for context-window budgeting. | — |
 
@@ -44,8 +44,11 @@ Environment variables (all optional):
 | `HKASK_DB_PASSPHRASE` | Database encryption passphrase | Required if `HKASK_DB_PATH` is set |
 | `HKASK_DEFAULT_MODEL` | Model for thread summarization (inherits system default) | `google/gemma-4-26B-A4B-it` (configure via `INFERENCE_MODEL` env var) |
 | `HKASK_CONDENSE_SALIENCY_WINDOW` | Saliency window multiplier for default `max_tokens` in thread summarization (saliency × 100, clamped to [150, 2000]) | `5` (→ 500 tokens) |
+| `HKASK_CONDENSER_PERSONA_KEYWORDS` | Comma-separated persona keywords for saliency scoring. Overrides the default generic condensation terms. | Generic condensation terms (condense, compress, summarize, context, token, budget, saliency, relevance, retention, profile, ontology, category, persist) |
 
-Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error. All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `DI_API_KEY`, `FA_API_KEY`, `TG_API_KEY`, `OR_API_KEY`, `KC_API_KEY` environment variables). The default model is configured via the `INFERENCE_MODEL` env var (defaults to `google/gemma-4-26B-A4B-it`).
+Without `HKASK_DB_PATH`, `condenser_persist` returns a permission-denied error and `condenser_score_saliency` with `against="memory"` returns 0.5 (neutral). All other tools work without configuration (graceful degradation). Thread summarization uses the centralized hKask inference router (configured via standard `DI_API_KEY`, `FA_API_KEY`, `TG_API_KEY`, `OR_API_KEY`, `KC_API_KEY` environment variables). The default model is configured via the `INFERENCE_MODEL` env var (defaults to `google/gemma-4-26B-A4B-it`).
+
+When `HKASK_DB_PATH` is set, both episodic and semantic memory stores are initialized from the same SQLite database. Semantic memory includes an `EmbeddingStore` (1024-dimensional vectors) for KNN similarity search. The `condenser_score_saliency` tool queries semantic memory first (shared knowledge), falling back to episodic memory (first-person experience) if semantic is unavailable.
 
 ## Context Categories
 

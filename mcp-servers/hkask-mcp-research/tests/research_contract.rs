@@ -115,7 +115,7 @@ fn cache_key_equality() {
 #[test]
 fn search_request_type_exists() {
     let _type_name = std::any::type_name::<hkask_mcp_research::types::SearchRequest>();
-    assert!(_type_name.contains("hkask_mcp_research"));
+    assert!(_type_name.contains("hkask_services_research"));
 }
 
 // ── RSS types tests ────────────────────────────────────────────────────────

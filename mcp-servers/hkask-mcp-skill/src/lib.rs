@@ -7,17 +7,17 @@
 //! 3. Runs inference on the rendered prompt via the centralized inference router
 //! 4. Returns the inference result
 //!
-//! ## Architectural note: direct domain crate access
+//! ## Architectural note: templates vs skills
 //!
-//! This MCP server directly uses `hkask-templates`, `hkask-ports`, and `hkask-inference`
-//! rather than routing through `hkask-services-skill`. This is intentional: MCP servers
-//! are alternate consumer surfaces (alongside the CLI and Web servers) that may use
-//! domain crates directly per hKask's hexagonal architecture. `hkask-services-skill`
-//! provides skill management (discovery, publishing, hashing, auditing, bundle composition)
-//! but does not expose a `SkillService` with execution methods; skill execution — template
-//! rendering + inference — is an alternate concern that lives in the MCP surface layer.
-//! If `SkillService` gains execution methods in the future, this server should be migrated
-//! to use them.
+//! This server executes **templates** — Jinja2 prompt templates from the
+//! template registry (`RegistryIndex`), rendered and sent through the inference
+//! router. It is *not* a `Skill` (PDCA composition) executor: the `Skill` model
+//! (`SkillRegistryIndex`) composes templates into FlowDef loops that require a
+//! manifest executor, which is a separate concern. The two registry indexes are
+//! therefore distinct, not redundant — this server reads `RegistryIndex` because
+//! that is the layer it executes. `hkask-services-skill` provides skill
+//! *management* (discovery, publishing, auditing, bundle composition); template
+//! rendering + inference is an alternate surface concern that lives here.
 
 #![allow(unused_crate_dependencies)] // tokio is used only by the bin (main.rs `#[tokio::main]`); the unused-crate-deps lint checks the lib target where tokio is unused. dotenvy was removed (no .rs references). Other deps are used in lib.rs.
 
@@ -25,14 +25,12 @@
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
-use hkask_ports::InferencePort;
-use hkask_ports::RegistryIndex;
+use hkask_ports::{InferencePort, RegistryEntry, RegistryIndex};
 use hkask_templates::Registry;
 use hkask_types::template::LLMParameters;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -44,61 +42,42 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SKILL_TEMPERATURE: f32 = 0.3;
 const SKILL_MAX_TOKENS: u32 = 2048;
 
-/// Name → metadata for available skills (loaded at startup).
-type SkillIndex = HashMap<String, SkillToolDef>;
-
-/// Metadata for a skill available as a tool.
-///
-/// Stores the template `source_path` rather than its content, so the template
-/// is read fresh on each `skill_execute` (avoids N in-memory copies and stays
-/// current if the file changes on disk). The skill *set* is still fixed at
-/// startup — see adversarial review F1 for the reload-loop follow-up.
-#[derive(Clone)]
-pub struct SkillToolDef {
-    pub description: String,
-    pub source_path: PathBuf,
-}
-
 hkask_mcp::mcp_server!(
     pub struct SkillServer {
         pub inference_port: Arc<dyn InferencePort>,
-        pub skills: SkillIndex,
+        /// Template entries available as tools, keyed by tool-facing ID
+        /// (see `registry_entry_to_tool_id`). Template content is read lazily
+        /// from `entry.source_path` on each `skill_execute`.
+        pub skills: HashMap<String, RegistryEntry>,
         pub capability_tier: CapabilityTier,
     }
 );
 
 impl SkillServer {
-    /// Load skills from the bootstrapped template registry.
+    /// Load templates from the bootstrapped template registry as callable tools.
     ///
-    /// Stores each template's `source_path` (content is read lazily on execute).
-    /// Unreadable templates are skipped with a `tracing::warn!` so the failure is
-    /// observable — `skill_ping`'s `skills_loaded` reflects only successful
-    /// loads (adversarial review F7: previously failures were silently dropped).
+    /// Stores each `RegistryEntry` keyed by its tool-facing ID; template content
+    /// is read lazily from `entry.source_path` on `skill_execute` (avoids N
+    /// in-memory copies and stays current with disk). Unreadable templates are
+    /// skipped with a `tracing::warn!` so the failure is observable —
+    /// `skill_ping`'s `skills_loaded` reflects only successful loads
+    /// (adversarial review F7: previously failures were silently dropped).
     pub fn load_skills(&mut self) {
         let registry = Registry::bootstrap();
 
         for entry in registry.list(None) {
-            // Validate readability at load time so skill_execute does not surface
-            // a load-time error at call time. Unreadable entries are skipped + logged.
             if std::fs::read_to_string(&entry.source_path).is_err() {
                 tracing::warn!(
                     target: "hkask.mcp.skill",
                     id = %entry.id,
                     source = %entry.source_path,
-                    "Skill template unreadable — skipping"
+                    "Template unreadable — skipping"
                 );
                 continue;
             }
 
             let tool_id = registry_entry_to_tool_id(&entry.id);
-
-            self.skills.insert(
-                tool_id,
-                SkillToolDef {
-                    description: format!("[{}] {}", entry.template_type, entry.description),
-                    source_path: entry.source_path.into(),
-                },
-            );
+            self.skills.insert(tool_id, entry);
         }
     }
 }
@@ -181,10 +160,10 @@ impl SkillServer {
             let skills: Vec<serde_json::Value> = self
                 .skills
                 .iter()
-                .map(|(id, def)| {
+                .map(|(id, entry)| {
                     serde_json::json!({
                         "id": id,
-                        "description": def.description,
+                        "description": format!("[{}] {}", entry.template_type, entry.description),
                     })
                 })
                 .collect();
@@ -203,7 +182,7 @@ impl SkillServer {
         Parameters(SkillExecuteRequest { skill_id, context }): Parameters<SkillExecuteRequest>,
     ) -> String {
         execute_tool(self, "skill_execute", async {
-            let def = self.skills.get(&skill_id).ok_or_else(|| {
+            let entry = self.skills.get(&skill_id).ok_or_else(|| {
                 let available: Vec<&str> = self.skills.keys().map(|s| s.as_str()).collect();
                 McpToolError::new(
                     hkask_types::McpErrorKind::NotFound,
@@ -229,11 +208,11 @@ impl SkillServer {
                 ctx.insert(k.clone(), v.clone());
             }
 
-            // Read the template content fresh from disk (see SkillToolDef).
-            let template_content = std::fs::read_to_string(&def.source_path).map_err(|e| {
+            // Read the template content fresh from disk (RegistryEntry.source_path).
+            let template_content = std::fs::read_to_string(&entry.source_path).map_err(|e| {
                 McpToolError::internal(format!(
-                    "Failed to read skill template {}: {e}",
-                    def.source_path.display()
+                    "Failed to read template {}: {e}",
+                    entry.source_path
                 ))
             })?;
 
@@ -263,7 +242,7 @@ impl SkillServer {
                 .await
                 .map_err(|e| McpToolError::internal(format!("Inference failed: {}", e)))?;
 
-            Ok(serde_json::Value::String(result.text))
+            Ok(serde_json::json!({ "result": result.text }))
         })
         .await
     }

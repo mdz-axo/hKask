@@ -61,6 +61,17 @@ fn cache() -> &'static Mutex<CacheState> {
     CACHE.get_or_init(|| Mutex::new(CacheState::default()))
 }
 
+/// Lock the cache, recovering the guard if a prior holder panicked (poison).
+///
+/// A poisoned mutex means some thread panicked while holding the lock. The
+/// underlying data is still accessible; for a TTL cache the worst case is a
+/// stale read, which the next miss overwrites. Recovering the guard (rather
+/// than panicking) keeps the daemon alive across an unrelated thread panic.
+/// See ADR-054 / the eliminate-nested-runtime-panics discipline (ADR-043).
+fn lock_cache() -> std::sync::MutexGuard<'static, CacheState> {
+    cache().lock().unwrap_or_else(|poison| poison.into_inner())
+}
+
 /// Process-scoped model-list cache.
 pub struct ModelCache;
 
@@ -75,7 +86,7 @@ impl ModelCache {
         // Cache check — hold the lock only for the read.
         let now = Instant::now();
         let cached = {
-            let state = cache().lock().expect("model cache mutex poisoned");
+            let state = lock_cache();
             if let Some(ref entries) = state.entries
                 && let Some(at) = state.fetched_at
                 && now.duration_since(at) < state.ttl
@@ -100,7 +111,7 @@ impl ModelCache {
 
         // Store under the lock (last writer wins on a cold-start race).
         {
-            let mut state = cache().lock().expect("model cache mutex poisoned");
+            let mut state = lock_cache();
             state.entries = Some(models.clone());
             state.fetched_at = Some(now);
         }
@@ -112,7 +123,7 @@ impl ModelCache {
     /// expect: "I can refresh the model list on demand"
     /// post: cache entries cleared; next call fetches live
     pub fn invalidate() {
-        let mut state = cache().lock().expect("model cache mutex poisoned");
+        let mut state = lock_cache();
         state.entries = None;
         state.fetched_at = None;
     }
@@ -120,7 +131,7 @@ impl ModelCache {
     /// Whether the cache is empty or past its TTL (next call will fetch).
     #[must_use]
     pub fn is_stale() -> bool {
-        let state = cache().lock().expect("model cache mutex poisoned");
+        let state = lock_cache();
         match (state.entries.is_some(), state.fetched_at) {
             (false, _) => true,
             (true, None) => true,
@@ -175,6 +186,22 @@ mod tests {
         let _ = ModelCache::list_models(&ctx).await.unwrap();
         let cached = ModelCache::list_models(&ctx).await.unwrap();
         assert!(cached.is_empty());
+
+        // 4. Poison-recovery regression (ADR-043 family): a prior thread panic
+        //    poisons the process-global mutex. `list_models` must recover the
+        //    guard and return Ok, not panic. See ADR-054 / diagnose skill.
+        ModelCache::invalidate();
+        let poison_handle = std::thread::spawn(|| {
+            let _guard = cache().lock().unwrap();
+            panic!("intentional poison for regression test");
+        });
+        let _ = poison_handle.join();
+        let recovered = ModelCache::list_models(&ctx).await;
+        assert!(
+            recovered.is_ok(),
+            "list_models must recover from a poisoned mutex, got: {:?}",
+            recovered
+        );
 
         ModelCache::invalidate();
     }

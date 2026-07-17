@@ -79,17 +79,34 @@ fn skill_server_loads_skills_from_registry() {
 // ── Skill index type tests ─────────────────────────────────────────────────────────
 
 #[test]
-fn skill_tool_def_holds_template_source_path() {
-    let def = hkask_mcp_skill::SkillToolDef {
-        description: "A test skill".into(),
-        source_path: "registry/templates/coding-guidelines/guidelines-assess.j2".into(),
-    };
-    assert_eq!(def.description, "A test skill");
-    assert!(
-        def.source_path
-            .to_string_lossy()
-            .contains("guidelines-assess")
+fn skill_server_stores_registry_entries_directly() {
+    // After C1, the server stores RegistryEntry values (no SkillToolDef wrapper).
+    let mut server = SkillServer::new(
+        WebID::new(),
+        "test-replicant".into(),
+        None,
+        Arc::new(NoopInferencePort),
+        HashMap::new(),
+        CapabilityTier::detect(&HashMap::new()),
     );
+    assert!(server.skills.is_empty(), "new server should have no entries");
+    // Insert a synthetic entry to confirm the field type is HashMap<String, RegistryEntry>.
+    server.skills.insert(
+        "test.step".to_string(),
+        hkask_ports::RegistryEntry {
+            id: "test/step".into(),
+            template_type: hkask_types::template_type::TemplateType::WordAct,
+            name: "step".into(),
+            lexicon_terms: vec![],
+            description: "a test template".into(),
+            source_path: "registry/templates/test/step.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: 7,
+        },
+    );
+    assert_eq!(server.skills.len(), 1);
+    assert_eq!(server.skills["test.step"].description, "a test template");
 }
 
 // ── Schema generation test ─────────────────────────────────────────────────

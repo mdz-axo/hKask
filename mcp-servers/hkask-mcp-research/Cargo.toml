@@ -14,28 +14,20 @@ name = "hkask-mcp-research"
 path = "src/main.rs"
 
 [dependencies]
-hkask-memory = { path = "../../crates/hkask-memory" }
+
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-services-research = { path = "../../crates/hkask-services-research" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 reqwest.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-schemars.workspace = true
-thiserror.workspace = true
 tracing.workspace = true
-chrono.workspace = true
 anyhow.workspace = true
-async-trait.workspace = true
-blake3.workspace = true
-futures-util.workspace = true
-regex.workspace = true
+base64.workspace = true
+dotenvy.workspace = true
 rusqlite.workspace = true
 r2d2.workspace = true
 r2d2_sqlite.workspace = true
-feed-rs = "2.4"
-url.workspace = true
-base64.workspace = true
-dotenvy.workspace = true

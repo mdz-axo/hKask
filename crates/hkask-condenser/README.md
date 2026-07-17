@@ -13,6 +13,7 @@ no HTTP, no async.
 | `types` | `OntologyAnchor`, `Profile`, `ContextCategory`, `CompressedOutput`, health signals |
 | `engine` | `CondenserEngine` — stateful compression dispatch, profile management, CNS observability |
 | `inference` | Prompt formatting and token estimation for LLM thread summarization |
+| `saliency` | Persona word-overlap scoring, memory query-word extraction, memory result scoring |
 
 ## Compression Profiles
 
@@ -83,7 +84,13 @@ multiplier — lines containing graph-adjacent concepts get bonus scores.
 - `hkask-mcp-condenser` — MCP server: thin wrapper exposing `/condenser/compress` etc.
 - `hkask-services` — `ChatService::condense_history`: auto-condenses conversation windows
 
-## Known Limitations
+## Saliency Architecture
 
-- **Persona keywords are hardcoded:** `condenser_score_saliency` with `against="persona"` uses a fixed set of curator/monitor-oriented keywords baked into the MCP server. This is a known variety deficit (Ashby's Law) — the condenser cannot score saliency against arbitrary agent personas. Future enhancement: accept persona keywords as a tool parameter.
-- **Semantic memory not wired:** The `CondenserServer.semantic` field is always `None` in the current `run()` initialization. The `condenser_score_saliency` tool's semantic-memory branch is unreachable. Episodic memory (when `HKASK_DB_PATH` is set) is the only memory store used for saliency scoring.
+The saliency module is split between the domain crate (pure logic) and the MCP server (I/O dispatch):
+
+- **Domain crate** (`saliency.rs`): `score_against_persona`, `extract_query_words`, `score_memory_results` — pure functions, fully testable without memory stores.
+- **MCP server** (`condenser_score_saliency` tool): Dispatches to semantic or episodic memory stores, delegates scoring to the domain crate.
+
+The `word_frequencies` function is the canonical word-frequency computation shared with `WordRankAlgorithm` — the algorithm delegates to `saliency` instead of maintaining a copy.
+
+Persona keywords are configurable via the `HKASK_CONDENSER_PERSONA_KEYWORDS` env var at the MCP server level, and per-request via the `persona_keywords` parameter on the `SaliencyRequest` schema.

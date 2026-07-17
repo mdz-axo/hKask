@@ -5,6 +5,7 @@ mod ranking;
 mod rate_limiter;
 mod validation;
 
+use hkask_mcp::server::McpToolError;
 use hkask_types::McpErrorKind;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -152,6 +153,12 @@ impl WebError {
             Self::RateLimited(_) => McpErrorKind::RateLimited,
             Self::NoProvider => McpErrorKind::Unavailable,
         }
+    }
+}
+
+impl From<WebError> for McpToolError {
+    fn from(e: WebError) -> Self {
+        McpToolError::new(e.kind(), e.to_string())
     }
 }
 

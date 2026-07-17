@@ -782,7 +782,7 @@ Context condensation domain logic — compression algorithms, classification, pr
 | `algorithms` | Compression algorithms: word-rank, RTK-style, FlashRank. `CondenserAlgorithm` trait |
 | `types` | `CompressedOutput`, health signals, compression profiles |
 | `inference` | LLM-based summarization via centralized inference router |
-| `saliency` | Passage salience scoring (persona word-overlap, memory semantic search) |
+| `saliency` | Persona word-overlap scoring, memory query-word extraction, memory result scoring |
 | `ontology_graph` | Ontology-aware compression graph (FIBO, CogAT, GOLEM, ML-Schema, OMC, PKO, DC+BIBO) |
 
 **Key Public Types:** `CondenserEngine` (8 MCP tools), `CompressedOutput` (compressed text + health signals), `CondenserAlgorithm` (trait).
