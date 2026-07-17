@@ -16,32 +16,41 @@ use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::template::LLMParameters;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::warn;
 
+pub(crate) mod backend;
 mod dispatch;
 mod inference_port;
 mod media;
 mod models;
+pub(crate) use backend::{ChatBackend, VisionBackend};
 
-/// Error healing callback: (error_string, operation_name).
 type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
 
 /// Multi-provider inference router implementing `InferencePort`.
 ///
 /// Parses the `XX/` prefix from model names and dispatches to the
-/// appropriate backend. Each backend owns its own HTTP client, auth,
-/// and model listing endpoint.
+/// appropriate backend via trait-object maps. Each backend owns its own HTTP
+/// client, auth, and model listing endpoint. Adding a provider = implement
+/// `ChatBackend`/`VisionBackend` + insert into the map(s) in `new` — no other
+/// dispatch site (`resolve`, `dispatch_generate`, `dispatch_generate_stream`,
+/// `media::generate_vision`, `models::list_models`) needs editing.
 pub struct InferenceRouter {
     config: InferenceConfig,
-    deepinfra: Option<DeepInfraBackend>,
-    fal: Option<FalBackend>,
-    together: Option<TogetherBackend>,
-    openrouter: Option<OpenRouterBackend>,
-    kilocode: Option<KiloCodeBackend>,
-    runpod: Option<RunpodBackend>,
-    ollama: Option<OllamaBackend>,
-    cline: Option<ClineBackend>,
+    /// Chat-completion backends keyed by provider (7 chat-capable providers;
+    /// RunPod is excluded — it is vision/OCR-only).
+    chat_backends: HashMap<ProviderId, Arc<dyn ChatBackend>>,
+    /// Vision/multimodal backends keyed by provider (all 8, including RunPod).
+    vision_backends: HashMap<ProviderId, Arc<dyn VisionBackend>>,
+    /// Fal.ai and DeepInfra are also held as typed fields: their specialist media
+    /// methods (image generation, TTS, transcription, workflow, background
+    /// removal with fallback) are Fal/DeepInfra-specific capabilities not
+    /// covered by `ChatBackend`/`VisionBackend`. The same `Arc` is shared with
+    /// the maps above, so there is no double-construction.
+    fal: Option<Arc<FalBackend>>,
+    deepinfra: Option<Arc<DeepInfraBackend>>,
     embedding: EmbeddingRouter,
     heal_error_cb: Option<HealCallback>,
 }
@@ -80,54 +89,96 @@ impl InferenceRouter {
             .map_err(|e| warn!(target: "cns.inference", "HTTP client build failed: {}", e))
             .ok();
 
-        let deepinfra = shared_client
-            .as_ref()
-            .and_then(|c| DeepInfraBackend::new(&config, Arc::clone(c)).ok());
-        let fal = shared_client
-            .as_ref()
-            .and_then(|c| FalBackend::new(&config, Arc::clone(c)).ok());
-        let together = shared_client
-            .as_ref()
-            .and_then(|c| TogetherBackend::new(&config, Arc::clone(c)).ok());
-        let openrouter = shared_client
-            .as_ref()
-            .and_then(|c| OpenRouterBackend::new(&config, Arc::clone(c)).ok());
-        let kilocode = shared_client
-            .as_ref()
-            .and_then(|c| KiloCodeBackend::new(&config, Arc::clone(c)).ok());
-        let runpod = shared_client
-            .as_ref()
-            .and_then(|c| RunpodBackend::new(&config, Arc::clone(c)).ok());
-        let ollama = shared_client
-            .as_ref()
-            .and_then(|c| OllamaBackend::new(&config, Arc::clone(c)).ok());
-        let cline = shared_client
-            .as_ref()
-            .and_then(|c| ClineBackend::new(&config, Arc::clone(c)).ok());
+        let mut chat_backends: HashMap<ProviderId, Arc<dyn ChatBackend>> = HashMap::new();
+        let mut vision_backends: HashMap<ProviderId, Arc<dyn VisionBackend>> = HashMap::new();
 
-        if deepinfra.is_none() {
-            warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)");
-        }
-        if fal.is_none() {
-            warn!(target: "cns.inference", "fal.ai backend unavailable (no API key)");
-        }
-        if together.is_none() {
-            warn!(target: "cns.inference", "Together AI backend unavailable (no API key)");
-        }
-        if openrouter.is_none() {
-            warn!(target: "cns.inference", "OpenRouter backend unavailable (no API key)");
-        }
-        if kilocode.is_none() {
-            warn!(target: "cns.inference", "KiloCode backend unavailable (no API key)");
-        }
-        if runpod.is_none() {
-            warn!(target: "cns.inference", "RunPod backend unavailable (no API key or template)");
-        }
-        if ollama.is_none() {
-            warn!(target: "cns.inference", "Ollama backend unavailable (no base URL)");
-        }
-        if cline.is_none() {
-            warn!(target: "cns.inference", "Cline backend unavailable (no API key)");
+        if let Some(ref c) = shared_client {
+            // Chat-capable providers implement both ChatBackend and VisionBackend.
+            // Fal and DeepInfra are ALSO held as typed fields (see struct docs) for
+            // their specialist media methods — the same Arc is shared with the maps.
+            let deepinfra = DeepInfraBackend::new(&config, Arc::clone(c))
+                .ok()
+                .map(Arc::new);
+            match &deepinfra {
+                Some(b) => {
+                    chat_backends.insert(ProviderId::DeepInfra, Arc::clone(b));
+                    vision_backends.insert(
+                        ProviderId::DeepInfra,
+                        Arc::clone(b) as Arc<dyn VisionBackend>,
+                    );
+                }
+                None => {
+                    warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)")
+                }
+            }
+            let fal = FalBackend::new(&config, Arc::clone(c)).ok().map(Arc::new);
+            match &fal {
+                Some(b) => {
+                    chat_backends.insert(ProviderId::Fal, Arc::clone(b));
+                    vision_backends
+                        .insert(ProviderId::Fal, Arc::clone(b) as Arc<dyn VisionBackend>);
+                }
+                None => {
+                    warn!(target: "cns.inference", "fal.ai backend unavailable (no API key)")
+                }
+            }
+            match TogetherBackend::new(&config, Arc::clone(c)) {
+                Ok(b) => {
+                    let b = Arc::new(b);
+                    chat_backends.insert(ProviderId::Together, Arc::clone(&b));
+                    vision_backends.insert(ProviderId::Together, b);
+                }
+                Err(_) => {
+                    warn!(target: "cns.inference", "Together AI backend unavailable (no API key)")
+                }
+            }
+            match OpenRouterBackend::new(&config, Arc::clone(c)) {
+                Ok(b) => {
+                    let b = Arc::new(b);
+                    chat_backends.insert(ProviderId::OpenRouter, Arc::clone(&b));
+                    vision_backends.insert(ProviderId::OpenRouter, b);
+                }
+                Err(_) => {
+                    warn!(target: "cns.inference", "OpenRouter backend unavailable (no API key)")
+                }
+            }
+            match KiloCodeBackend::new(&config, Arc::clone(c)) {
+                Ok(b) => {
+                    let b = Arc::new(b);
+                    chat_backends.insert(ProviderId::KiloCode, Arc::clone(&b));
+                    vision_backends.insert(ProviderId::KiloCode, b);
+                }
+                Err(_) => {
+                    warn!(target: "cns.inference", "KiloCode backend unavailable (no API key)")
+                }
+            }
+            // RunPod is vision/OCR-only — it is NOT a ChatBackend.
+            match RunpodBackend::new(&config, Arc::clone(c)) {
+                Ok(b) => {
+                    vision_backends.insert(ProviderId::Runpod, Arc::new(b));
+                }
+                Err(_) => {
+                    warn!(target: "cns.inference", "RunPod backend unavailable (no API key or template)")
+                }
+            }
+            match OllamaBackend::new(&config, Arc::clone(c)) {
+                Ok(b) => {
+                    let b = Arc::new(b);
+                    chat_backends.insert(ProviderId::Ollama, Arc::clone(&b));
+                    vision_backends.insert(ProviderId::Ollama, b);
+                }
+                Err(_) => {
+                    warn!(target: "cns.inference", "Ollama backend unavailable (no base URL)")
+                }
+            }
+            match ClineBackend::new(&config, Arc::clone(c)) {
+                Ok(b) => {
+                    let b = Arc::new(b);
+                    chat_backends.insert(ProviderId::Cline, Arc::clone(&b));
+                    vision_backends.insert(ProviderId::Cline, b);
+                }
+                Err(_) => warn!(target: "cns.inference", "Cline backend unavailable (no API key)"),
+            }
         }
 
         let embedding = shared_client
@@ -137,14 +188,10 @@ impl InferenceRouter {
 
         Self {
             config: config.clone(),
-            deepinfra,
+            chat_backends,
+            vision_backends,
             fal,
-            together,
-            openrouter,
-            kilocode,
-            runpod,
-            ollama,
-            cline,
+            deepinfra,
             embedding,
             heal_error_cb: None,
         }
@@ -182,9 +229,36 @@ impl InferenceRouter {
         explicit.unwrap_or(&self.config.default_model).to_string()
     }
 
-    /// Resolve which backend to use for a given model name.
+    /// Parse a model name into `(provider, stripped_model)` with unknown-prefix rejection.
     ///
-    /// Returns `(provider, backend_model_name)` or an error if no backend
+    /// Unprefixed names (no `XX/` shape) route to the configured default provider.
+    /// A name with two uppercase letters followed by `/` that is not a recognized
+    /// provider code is rejected explicitly (fail fast on unknown prefix).
+    ///
+    /// expect: "The system parses provider routing from model names"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — fail fast on unknown prefix
+    /// pre:  model is non-empty
+    /// post: returns Ok((ProviderId, stripped_model)) for recognized or unprefixed models
+    /// post: returns Err(Connection) for unrecognized `XX/` prefix
+    fn parse_provider<'a>(&self, model: &'a str) -> Result<(ProviderId, &'a str), InferenceError> {
+        match ProviderId::parse_from_model(model) {
+            Some(parsed) => Ok(parsed),
+            None => {
+                if ProviderId::looks_like_prefix(model) {
+                    return Err(InferenceError::Connection(format!(
+                        "Unknown provider prefix '{}/' in model '{}'",
+                        &model[..2],
+                        model
+                    )));
+                }
+                Ok((self.config.default_provider, model))
+            }
+        }
+    }
+
+    /// Resolve which chat backend to use for a given model name.
+    ///
+    /// Returns `(provider, backend_model_name)` or an error if no chat backend
     /// is available for the requested provider, or if the model carries an
     /// unrecognized `XX/` prefix.
     ///
@@ -203,40 +277,13 @@ impl InferenceRouter {
         &self,
         model: &'a str,
     ) -> Result<(ProviderId, &'a str), InferenceError> {
-        let (provider, stripped_model) = match ProviderId::parse_from_model(model) {
-            Some(parsed) => parsed,
-            None => {
-                // Distinguish unprefixed (use default provider) from an
-                // unrecognized XX/ prefix (reject — don't silently send garbage).
-                if ProviderId::looks_like_prefix(model) {
-                    return Err(InferenceError::Connection(format!(
-                        "Unknown provider prefix '{}/' in model '{}'",
-                        &model[..2],
-                        model
-                    )));
-                }
-                (self.config.default_provider, model)
-            }
-        };
-
-        let available = match provider {
-            ProviderId::DeepInfra => self.deepinfra.is_some(),
-            ProviderId::Fal => self.fal.is_some(),
-            ProviderId::Together => self.together.is_some(),
-            ProviderId::OpenRouter => self.openrouter.is_some(),
-            ProviderId::KiloCode => self.kilocode.is_some(),
-            ProviderId::Runpod => self.runpod.is_some(),
-            ProviderId::Ollama => self.ollama.is_some(),
-            ProviderId::Cline => self.cline.is_some(),
-        };
-
-        if !available {
+        let (provider, stripped_model) = self.parse_provider(model)?;
+        if !self.chat_backends.contains_key(&provider) {
             return Err(InferenceError::Connection(format!(
                 "Provider {} is not available (check configuration)",
                 provider.as_str()
             )));
         }
-
         Ok((provider, stripped_model))
     }
 

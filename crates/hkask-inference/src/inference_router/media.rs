@@ -1,7 +1,6 @@
 //! Media generation dispatch — vision, image, video, speech, segmentation, transcription.
 
 use super::InferenceRouter;
-use crate::config::ProviderId;
 use hkask_ports::InferenceError;
 use hkask_types::template::LLMParameters;
 
@@ -28,86 +27,22 @@ impl InferenceRouter {
         let model_name = model_override
             .map(|s| s.to_string())
             .unwrap_or_else(|| self.config.default_model.clone());
-        let (provider, model) = self.resolve(&model_name)?;
+        // Vision dispatch uses parse_provider + the vision_backends map (not
+        // `resolve`, which gates on chat availability — RunPod is vision-only).
+        let (provider, model) = self.parse_provider(&model_name)?;
+        let backend = self.vision_backends.get(&provider).ok_or_else(|| {
+            InferenceError::Connection(format!(
+                "Provider {} is not available for vision (check configuration)",
+                provider.as_str()
+            ))
+        })?;
         let model = model.to_string();
         let prompt = prompt.to_string();
         let params = params.clone();
         let images = images.to_vec();
-
-        match provider {
-            ProviderId::DeepInfra => {
-                self.deepinfra
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("DeepInfra backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::Fal => {
-                self.fal
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("fal.ai backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::Together => {
-                self.together
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Together AI backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::OpenRouter => {
-                self.openrouter
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("OpenRouter backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::KiloCode => {
-                self.kilocode
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("KiloCode backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::Runpod => {
-                self.runpod
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("RunPod backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::Ollama => {
-                self.ollama
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Ollama backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-            ProviderId::Cline => {
-                self.cline
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Cline backend unavailable".to_string())
-                    })?
-                    .generate_vision(&model, &prompt, &images, &params)
-                    .await
-            }
-        }
+        backend
+            .generate_vision(&model, &prompt, &images, &params)
+            .await
     }
 
     // ── Media generation dispatch ──────────────────────────────────────────

@@ -19,6 +19,13 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
+    // Destructive consent (P2 — Affirmative Consent): fs_write/fs_edit/fs_delete/
+    // shell_exec are denied unless the human explicitly opts in at launch. Read
+    // tools (fs_read/fs_list/fs_search) are always available.
+    let destructive_consent = std::env::var("HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
     hkask_mcp::run_server(
         "hkask-mcp-filesystem",
         env!("CARGO_PKG_VERSION"),
@@ -29,6 +36,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
                 boot.daemon_client.clone(),
                 project_root.clone(),
                 ctx.capability_tier,
+                destructive_consent,
             ))
         },
         vec![], // No required credentials — filesystem access is inherent

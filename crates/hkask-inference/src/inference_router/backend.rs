@@ -1,0 +1,359 @@
+//! Backend dispatch traits + impls — the seam between `InferenceRouter` and provider backends.
+//!
+//! Each provider backend implements `ChatBackend` and (if it supports
+//! multimodal input) `VisionBackend`. The router holds these as
+//! `HashMap<ProviderId, Arc<dyn ChatBackend>>` / `Arc<dyn VisionBackend>`, so
+//! dispatch is a single map lookup instead of a per-provider `match` arm that
+//! must be kept in sync across six call sites (resolve, dispatch_generate,
+//! dispatch_generate_stream, media::generate_vision, models::list_models,
+//! new). Adding a provider = implement the trait(s) + insert into the map(s)
+//! in `InferenceRouter::new` — no other dispatch site needs editing.
+//!
+//! The methods are dyn-safe via explicit `Pin<Box<dyn Future/Stream + Send>>`
+//! return types (the same pattern `InferencePort` already uses), rather than
+//! native `async fn` in trait (which is not object-safe without `async-trait`).
+//! Each impl is a thin delegating wrapper around the backend's inherent
+//! `async fn` / streaming method — the real behavior stays in the backends.
+
+use crate::RouterModelEntry;
+use crate::cline_backend::ClineBackend;
+use crate::deepinfra_backend::DeepInfraBackend;
+use crate::fal_backend::FalBackend;
+use crate::kilocode_backend::KiloCodeBackend;
+use crate::ollama_backend::OllamaBackend;
+use crate::openrouter_backend::OpenRouterBackend;
+use crate::runpod_backend::RunpodBackend;
+use crate::together_backend::TogetherBackend;
+use futures_util::Stream;
+use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::template::LLMParameters;
+use std::future::Future;
+use std::pin::Pin;
+
+/// Chat-completion backend: text generation, streaming, and model listing.
+///
+/// Implemented by every provider that serves `/chat/completions`. RunPod is
+/// excluded (it is vision/OCR-only) — it implements `VisionBackend` alone.
+pub trait ChatBackend: Send + Sync {
+    /// Generate a chat completion (non-streaming).
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>>;
+
+    /// Stream a chat completion as SSE chunks.
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>>;
+
+    /// List models offered by this backend (graceful: return empty on failure).
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>>;
+}
+
+/// Vision/multimodal backend: image-grounded generation.
+///
+/// Implemented by every provider that accepts base64 images alongside a prompt.
+/// RunPod implements this (it serves vision/OCR) even though it is not a
+/// `ChatBackend`.
+pub trait VisionBackend: Send + Sync {
+    /// Generate a vision-grounded completion from base64 images.
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>>;
+}
+
+// ── ChatBackend impls (7 chat-capable providers) ─────────────────────────────
+
+impl ChatBackend for DeepInfraBackend {
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate(model, prompt, params, tools))
+    }
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
+        self.generate_stream(model, prompt, params, tools)
+    }
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
+        Box::pin(self.list_models())
+    }
+}
+
+impl ChatBackend for TogetherBackend {
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate(model, prompt, params, tools))
+    }
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
+        self.generate_stream(model, prompt, params, tools)
+    }
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
+        Box::pin(self.list_models())
+    }
+}
+
+impl ChatBackend for OpenRouterBackend {
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate(model, prompt, params, tools))
+    }
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
+        self.generate_stream(model, prompt, params, tools)
+    }
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
+        Box::pin(self.list_models())
+    }
+}
+
+impl ChatBackend for KiloCodeBackend {
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate(model, prompt, params, tools))
+    }
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
+        self.generate_stream(model, prompt, params, tools)
+    }
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
+        Box::pin(self.list_models())
+    }
+}
+
+impl ChatBackend for OllamaBackend {
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate(model, prompt, params, tools))
+    }
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
+        self.generate_stream(model, prompt, params, tools)
+    }
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
+        Box::pin(self.list_models())
+    }
+}
+
+impl ChatBackend for ClineBackend {
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate(model, prompt, params, tools))
+    }
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
+        self.generate_stream(model, prompt, params, tools)
+    }
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
+        Box::pin(self.list_models())
+    }
+}
+
+// Fal serves chat completions too (via the OpenAI-compatible path).
+impl ChatBackend for FalBackend {
+    fn generate<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate(model, prompt, params, tools))
+    }
+    fn generate_stream<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
+        self.generate_stream(model, prompt, params, tools)
+    }
+    fn list_models<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
+        Box::pin(self.list_models())
+    }
+}
+
+// ── VisionBackend impls (all 8 providers serve vision) ───────────────────────
+
+impl VisionBackend for DeepInfraBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}
+
+impl VisionBackend for TogetherBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}
+
+impl VisionBackend for OpenRouterBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}
+
+impl VisionBackend for KiloCodeBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}
+
+impl VisionBackend for OllamaBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}
+
+impl VisionBackend for ClineBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}
+
+impl VisionBackend for FalBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}
+
+impl VisionBackend for RunpodBackend {
+    fn generate_vision<'a>(
+        &'a self,
+        model: &'a str,
+        prompt: &'a str,
+        images: &'a [String],
+        params: &'a LLMParameters,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_vision(model, prompt, images, params))
+    }
+}

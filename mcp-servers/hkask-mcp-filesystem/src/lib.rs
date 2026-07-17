@@ -39,6 +39,11 @@ hkask_mcp::mcp_server!(
     pub struct FileSystemServer {
         pub project_root: PathBuf,
         pub capability_tier: CapabilityTier,
+        /// Whether destructive operations (fs_write/fs_edit/fs_delete/shell_exec)
+        /// are consented for this server instance. Set at launch from
+        /// `HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT`. Read tools are ungated —
+        /// reading your own workspace is sovereign by default (P1).
+        pub destructive_consent: bool,
     }
 );
 
@@ -49,6 +54,21 @@ impl FileSystemServer {
             subsystem: ToolSubsystem::Filesystem,
         }
         .emit(operation);
+    }
+
+    /// Destructive operations (fs_write, fs_edit, fs_delete, shell_exec) require
+    /// explicit human consent, recorded at server launch via the
+    /// `HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT` environment variable. Read tools
+    /// (fs_read, fs_list, fs_search) are ungated — reading your own workspace is
+    /// sovereign by default (P1 — User Sovereignty). Consent is revocable by
+    /// relaunching without the flag; denials are auditable via CNS spans.
+    fn require_destructive_consent(&self) -> Result<(), McpToolError> {
+        if !self.destructive_consent {
+            return Err(McpToolError::permission_denied(
+                "Destructive filesystem operation requires consent — launch the server with HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT=1 (or approve via kask). Read tools (fs_read/fs_list/fs_search) are available without consent.",
+            ));
+        }
+        Ok(())
     }
 
     /// Validate that `raw_path` is within `self.project_root` after canonicalization.
@@ -211,6 +231,7 @@ impl FileSystemServer {
     #[tool(description = "Create or overwrite a file. Creates parent directories if needed.")]
     pub async fn fs_write(&self, Parameters(req): Parameters<FsWriteRequest>) -> String {
         execute_tool(self, "fs.write", async {
+            self.require_destructive_consent()?;
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
 
@@ -239,6 +260,7 @@ impl FileSystemServer {
     )]
     pub async fn fs_edit(&self, Parameters(req): Parameters<FsEditRequest>) -> String {
         execute_tool(self, "fs.edit", async {
+            self.require_destructive_consent()?;
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
 
@@ -395,6 +417,7 @@ impl FileSystemServer {
     #[tool(description = "Delete a file or empty directory. Returns whether deletion succeeded.")]
     pub async fn fs_delete(&self, Parameters(req): Parameters<FsDeleteRequest>) -> String {
         execute_tool(self, "fs.delete", async {
+            self.require_destructive_consent()?;
             let sandboxed = self.sandbox_path(&req.path)?;
             let path_str = sandboxed.to_string_lossy().to_string();
 
@@ -432,6 +455,7 @@ impl FileSystemServer {
     )]
     pub async fn shell_exec(&self, Parameters(req): Parameters<ShellExecRequest>) -> String {
         execute_tool(self, "shell.exec", async {
+            self.require_destructive_consent()?;
             let timeout_ms = req.timeout_ms.unwrap_or(30_000);
             // Cap at 10 MiB to bound memory and avoid u64→usize truncation on
             // 32-bit targets. The default is 100 KB.

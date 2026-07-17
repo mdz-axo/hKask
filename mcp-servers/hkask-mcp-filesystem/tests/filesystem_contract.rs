@@ -17,12 +17,21 @@ use rmcp::handler::server::wrapper::Parameters;
 use std::path::PathBuf;
 
 fn test_server(root: PathBuf) -> FileSystemServer {
+    test_server_with_consent(root, true)
+}
+
+fn test_server_no_consent(root: PathBuf) -> FileSystemServer {
+    test_server_with_consent(root, false)
+}
+
+fn test_server_with_consent(root: PathBuf, destructive_consent: bool) -> FileSystemServer {
     FileSystemServer::new(
         WebID::new(),
         "test-replicant".into(),
         None,
         root,
         hkask_mcp::server::CapabilityTier::detect(&std::collections::HashMap::new()),
+        destructive_consent,
     )
 }
 
@@ -392,6 +401,82 @@ async fn shell_exec_small_cap_still_truncates() {
     let content = parse_content(&out);
     assert_eq!(content["truncated"], true);
     assert_eq!(content["stdout"], "abcd");
+}
+
+// ── Destructive consent gate (P2 — Affirmative Consent) ─────────────────────
+// Destructive tools (fs_write/fs_edit/fs_delete/shell_exec) require explicit
+// consent (HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT at launch). Read tools are
+// ungated — reading your own workspace is sovereign by default (P1).
+
+#[tokio::test]
+async fn fs_write_denied_without_consent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let server = test_server_no_consent(dir.path().to_path_buf());
+    let out = server
+        .fs_write(Parameters(FsWriteRequest {
+            path: "new.txt".into(),
+            content: "x".into(),
+        }))
+        .await;
+    let err = error_message(&out).expect("destructive op must be denied without consent");
+    assert!(err.contains("consent"), "got: {err}");
+    assert!(
+        !dir.path().join("new.txt").exists(),
+        "file must not be created when consent is denied"
+    );
+}
+
+#[tokio::test]
+async fn fs_delete_denied_without_consent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("victim.txt"), "data").unwrap();
+    let server = test_server_no_consent(dir.path().to_path_buf());
+    let out = server
+        .fs_delete(Parameters(FsDeleteRequest {
+            path: "victim.txt".into(),
+        }))
+        .await;
+    let err = error_message(&out).expect("delete must be denied without consent");
+    assert!(err.contains("consent"), "got: {err}");
+    assert!(
+        dir.path().join("victim.txt").exists(),
+        "file must survive a denied delete"
+    );
+}
+
+#[tokio::test]
+async fn shell_exec_denied_without_consent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let server = test_server_no_consent(dir.path().to_path_buf());
+    let out = server
+        .shell_exec(Parameters(ShellExecRequest {
+            command: "echo hi".into(),
+            cwd: None,
+            timeout_ms: Some(5000),
+            max_output_bytes: None,
+        }))
+        .await;
+    let err = error_message(&out).expect("shell_exec must be denied without consent");
+    assert!(err.contains("consent"), "got: {err}");
+}
+
+#[tokio::test]
+async fn fs_read_allowed_without_consent() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("readable.txt"), "hello").unwrap();
+    let server = test_server_no_consent(dir.path().to_path_buf());
+    let out = server
+        .fs_read(Parameters(FsReadRequest {
+            path: "readable.txt".into(),
+            start_line: None,
+            end_line: None,
+        }))
+        .await;
+    let content = parse_content(&out);
+    assert_eq!(
+        content["content"], "hello",
+        "read tools must work without consent"
+    );
 }
 
 // REQ: fs.edit with zero matching edits does not modify the file and reports

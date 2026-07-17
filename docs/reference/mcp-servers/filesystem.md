@@ -73,12 +73,12 @@ status: VERIFIED
 | Tool | Description | CNS operation span |
 |------|-------------|--------------------|
 | `fs_read` | Read file contents with 1-based line ranges + stats; start-only and end-only ranges honored; zero and inverted ranges rejected | `file.read` |
-| `fs_write` | Create or overwrite a file; creates parent dirs if needed (new files supported) | `file.written` |
-| `fs_edit` | Apply ordered first-match text replacements sequentially (later edits see earlier edits' output); `file.written` emitted only when an edit matched | `file.written` (on write) |
+| `fs_write` | Create or overwrite a file; creates parent dirs if needed (new files supported) — **destructive: consent-gated** | `file.written` |
+| `fs_edit` | Apply ordered first-match text replacements sequentially (later edits see earlier edits' output); `file.written` emitted only when an edit matched — **destructive: consent-gated** | `file.written` (on write) |
 | `fs_list` | List directory entries (name, path, type, size) | `file.read` |
 | `fs_search` | Regex search across files up to `max_depth` (default 3); rejects non-directory roots; oversized/unreadable files reported in `files_skipped` | `file.read` |
-| `fs_delete` | Delete a file or empty directory; returns the real OS error on failure | `file.deleted` |
-| `shell_exec` | `sh -c` command with timeout + output guard; stdout/stderr truncated at a UTF-8 char boundary (capped at 10 MiB); timed-out commands are killed (`kill_on_drop`) | `command.completed` / `command.failed` |
+| `fs_delete` | Delete a file or empty directory; returns the real OS error on failure — **destructive: consent-gated** | `file.deleted` |
+| `shell_exec` | `sh -c` command with timeout + output guard; stdout/stderr truncated at a UTF-8 char boundary (capped at 10 MiB); timed-out commands are killed (`kill_on_drop`) — **destructive: consent-gated** | `command.completed` / `command.failed` |
 
 ## CNS observability
 
@@ -94,6 +94,16 @@ status: VERIFIED
 
 ## Security model
 
+- **Destructive consent gate (P2 — Affirmative Consent).** The destructive
+  tools — `fs_write`, `fs_edit`, `fs_delete`, `shell_exec` — are **denied by
+  default** and return `permission_denied` unless the server was launched with
+  `HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT=1` (truthy: `1` or `true`). Read tools
+  (`fs_read`, `fs_list`, `fs_search`) are **ungated** — reading your own
+  workspace is sovereign by default (P1). Consent is per server instance
+  (recorded at launch), revocable by relaunching without the flag, and denials
+  are auditable via CNS. This is the **filesystem-scoped (i)** enforcement;
+  spawned subagents are separate processes launched without the flag, so they
+  do **not** inherit destructive authority.
 - **File I/O sandbox.** All file tools resolve `raw_path` against
   `project_root`, canonicalize, and reject paths whose canonical form does not
   start with the canonical root. Path traversal (`../`) is rejected at the
@@ -141,6 +151,17 @@ The following are standing properties of the sandbox design (not defects):
 - **Blocking I/O is offloaded.** `fs_search` runs its `walkdir` + file reads on
   a `spawn_blocking` thread so the async runtime worker is not stalled; the
   1 MiB per-file cap bounds memory on oversized files.
+- **Upgrade path (general per-domain provisioning).** The filesystem-scoped
+  consent gate above is the **bounded (i)** enforcement. The **general (ii)**
+  path — auto-granting a read-scoped capability token to the primary replicant
+  and gating write/execute behind consent at the `GovernedTool` membrane — is
+  enabled by the per-tool blast-radius declarations in
+  `hkask_mcp::BUILTIN_TOOL_CAPS` / `capability_for_tool` (read → `:read`, write →
+  `:write`, `shell_exec` → `:execute`, enforced via the action hierarchy
+  `Execute ≥ Write ≥ Read`). That wiring is in place and non-breaking; activating
+  it requires reconciling the pod's single `capability_token` model across
+  tool domains (a multi-crate provisioning change in `ChatService` / `PodFactory`)
+  and the in-chat consent UX — deferred.
 
 The tool contracts are verified by the contract test suite
 (`tests/filesystem_contract.rs`), which exercises both `sandbox_path`
@@ -148,8 +169,8 @@ invariants (traversal rejection, empty-path rejection, non-existent-leaf
 resolution) and tool behavior (create-new-file, parent-dir creation, full and
 partial line ranges, zero/inverted-range rejection, multibyte + stderr
 truncation, output cap, timeout reaping, non-directory search-root rejection,
-skipped-file reporting, no-op edit, and delete error specificity) through the
-public tool methods.
+skipped-file reporting, no-op edit, delete error specificity, and the
+destructive-consent gate) through the public tool methods.
 
 ## Quick start
 

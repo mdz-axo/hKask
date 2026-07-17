@@ -1,4 +1,4 @@
-//! Provider dispatch — routes generate calls to resolved backends.
+//! Provider dispatch — routes generate calls to resolved backends via trait-object maps.
 
 use super::InferenceRouter;
 use crate::config::ProviderId;
@@ -7,14 +7,14 @@ use hkask_types::template::LLMParameters;
 use std::pin::Pin;
 
 impl InferenceRouter {
-    /// Dispatch a generate call to the resolved backend.
+    /// Dispatch a generate call to the resolved chat backend.
     ///
     /// expect: "The system dispatches regulated inference to the correct provider"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — shared dispatch for text generation
-    /// pre:  provider is a resolved ProviderId with available backend
-    /// pre:  model, prompt, params are validated and cloned
+    /// pre:  provider is a resolved ProviderId with an available chat backend
+    /// pre:  model, prompt, params are validated
     /// post: returns Ok(InferenceResult) on success
-    /// post: returns Err(Connection) if backend is None or provider is unsupported
+    /// post: returns Err(Connection) if no chat backend is configured for provider
     pub(crate) async fn dispatch_generate(
         &self,
         provider: ProviderId,
@@ -23,77 +23,22 @@ impl InferenceRouter {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Result<InferenceResult, InferenceError> {
-        match provider {
-            ProviderId::DeepInfra => {
-                self.deepinfra
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("DeepInfra backend unavailable".to_string())
-                    })?
-                    .generate(model, prompt, params, tools)
-                    .await
-            }
-            ProviderId::Fal => {
-                self.fal
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("fal.ai backend unavailable".to_string())
-                    })?
-                    .generate(model, prompt, params, tools)
-                    .await
-            }
-            ProviderId::Together => {
-                self.together
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Together backend unavailable".to_string())
-                    })?
-                    .generate(model, prompt, params, tools)
-                    .await
-            }
-            ProviderId::OpenRouter => {
-                self.openrouter
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("OpenRouter backend unavailable".to_string())
-                    })?
-                    .generate(model, prompt, params, tools)
-                    .await
-            }
-            ProviderId::KiloCode => {
-                self.kilocode
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("KiloCode backend unavailable".to_string())
-                    })?
-                    .generate(model, prompt, params, tools)
-                    .await
-            }
-            ProviderId::Runpod => Err(InferenceError::Connection(
-                "RunPod supports vision/OCR only, not chat completions".to_string(),
-            )),
-            ProviderId::Ollama => {
-                self.ollama
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Ollama backend unavailable".to_string())
-                    })?
-                    .generate(model, prompt, params, tools)
-                    .await
-            }
-            ProviderId::Cline => {
-                self.cline
-                    .as_ref()
-                    .ok_or_else(|| {
-                        InferenceError::Connection("Cline backend unavailable".to_string())
-                    })?
-                    .generate(model, prompt, params, tools)
-                    .await
-            }
-        }
+        let backend = self.chat_backends.get(&provider).ok_or_else(|| {
+            InferenceError::Connection(format!(
+                "Provider {} is not available (check configuration)",
+                provider.as_str()
+            ))
+        })?;
+        backend.generate(model, prompt, params, tools).await
     }
 
-    /// Dispatch a streaming generate call to the resolved backend.
+    /// Dispatch a streaming generate call to the resolved chat backend.
+    ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — shared dispatch for streaming
+    /// pre:  provider is a resolved ProviderId with an available chat backend
+    /// post: returns a stream of Ok(InferenceStreamChunk) on success
+    /// post: returns a stream yielding Err(Connection) if no chat backend is configured
     pub(crate) fn dispatch_generate_stream(
         &self,
         provider: ProviderId,
@@ -112,67 +57,16 @@ impl InferenceRouter {
         let prompt = prompt.to_string();
         let params = params.clone();
         let tools = tools.map(|t| t.to_vec());
-        match provider {
-            ProviderId::DeepInfra => {
-                match self.deepinfra.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("DeepInfra backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::Fal => {
-                match self.fal.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("fal.ai backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::Together => {
-                match self.together.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("Together backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::OpenRouter => {
-                match self.openrouter.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("OpenRouter backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::KiloCode => {
-                match self.kilocode.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("KiloCode backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::Runpod => Box::pin(futures_util::stream::once(async move {
-                Err(InferenceError::Connection(
-                    "RunPod supports vision/OCR only, not chat completions".to_string(),
-                ))
-            })),
-            ProviderId::Ollama => {
-                match self.ollama.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("Ollama backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
-            }
-            ProviderId::Cline => {
-                match self.cline.as_ref().ok_or_else(|| {
-                    InferenceError::Connection("Cline backend unavailable".to_string())
-                }) {
-                    Ok(b) => b.generate_stream(&model, &prompt, &params, tools.as_deref()),
-                    Err(e) => Box::pin(futures_util::stream::once(async move { Err(e) })),
-                }
+        match self.chat_backends.get(&provider) {
+            Some(backend) => backend.generate_stream(&model, &prompt, &params, tools.as_deref()),
+            None => {
+                let provider_str = provider.as_str().to_string();
+                Box::pin(futures_util::stream::once(async move {
+                    Err(InferenceError::Connection(format!(
+                        "Provider {} is not available (check configuration)",
+                        provider_str
+                    )))
+                }))
             }
         }
     }
