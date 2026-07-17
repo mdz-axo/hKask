@@ -138,13 +138,13 @@ Use this for tasks where a draft-then-refine loop improves quality — design re
 
 #### `deliberation` — ≤ N rounds (default 5)
 
-Multi-round with an **algorithmic convergence detector**. Convergence is decided by an external observer (`ConvergenceDetector`) that models the panel's within-round pairwise agreement as a Beta posterior and applies a Kolmogorov–Smirnov stability test between consecutive rounds — not by the judge declaring convergence in prose. Each round:
+Multi-round with a **structured judge stabilization verdict**. Each round, the judge emits `{"converged": true, "synthesis": "…"}` or `{"converged": false, "follow_up": "…"}` (parsed structurally via the JSON-tolerant parser), deciding convergence from the responses it reads — not from a prose prefix. Each round:
 
 - The detector compares this round's agreement distribution against the previous round's.
-- If converged (high posterior-mean agreement **and** low round-to-round KS shift, for 2 consecutive rounds): the judge synthesizes a final answer.
-- Otherwise: the judge produces a follow-up question, the panel re-answers, and the loop continues.
+- If `converged: true`: the judge's `synthesis` field is the final answer.
+- If `converged: false`: the judge's `follow_up` question is sent to the panel, and the loop continues.
 
-Round 1 always continues (no prior to compare); the earliest convergence is round 3. If `max_rounds` is reached without convergence, the judge is forced to synthesize from the last round. Configure the cap with `HKASK_FUSION_MAX_ROUNDS` (default `5`). This replaces the former `FOLLOW_UP:` string-prefix self-report, which was a self-referential (and, per the debate-martingale result, unreliable) convergence signal; the detector is a Conant–Ashby Good Regulator that models the convergence process. Use this for hard problems where iterative refinement surfaces information a single pass misses.
+If `max_rounds` is reached without convergence, the judge is forced to synthesize from the last round. Configure the cap with `HKASK_FUSION_MAX_ROUNDS` (default `5`). This replaces the former `FOLLOW_UP:` string-prefix self-report: the structured verdict is parsed robustly rather than matched as a prose prefix. Use this for hard problems where iterative refinement surfaces information a single pass misses.
 
 #### `pi` (Plan-Implement) — 2 phases
 

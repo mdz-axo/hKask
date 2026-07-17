@@ -41,21 +41,20 @@ crate::enum_snake_str!(FusionMode, {
     PlanImplement => "pi",
 });
 
-/// Algorithmic verdict on whether a `deliberation`-mode round has converged.
+/// Stabilization verdict on whether a `deliberation`-mode round has converged.
 ///
-/// Replaces the former `FOLLOW_UP:` string-prefix self-report: convergence
-/// is decided by an external observer that models the panel's round-to-round
-/// agreement distribution, not by the judge declaring convergence in its prose.
+/// Replaces the former `FOLLOW_UP:` string-prefix self-report: the judge emits
+/// a structured verdict (`{"converged": bool, "synthesis"|"follow_up": …}`) parsed
+/// structurally, not a prose prefix. Convergence is a stabilization report (has
+/// the panel stopped diverging?), not a correctness claim.
 ///
-/// expect: "Deliberation converges when panel agreement stabilizes, not when the judge says so"
-/// [P9] Motivating: Homeostatic Self-Regulation — Conant–Ashby Good Regulator:
-/// the regulator of convergence must model the convergence process.
-/// pre:  produced only by an external convergence observer over panel responses
+/// expect: "Deliberation converges when the judge reports stabilization, parsed structurally"
+/// [P9] Motivating: Homeostatic Self-Regulation — closed-loop convergence detection
+/// pre:  produced by `parse_convergence_verdict` from the judge's structured-verdict response
 /// post: `Converged` → judge synthesizes a final answer; `Continue` → judge emits a follow-up
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConvergenceVerdict {
     /// Panel responses have stabilized; the judge should synthesize a final answer.
-    #[default]
     Converged,
     /// Responses still diverge; the judge should produce a follow-up question.
     Continue,

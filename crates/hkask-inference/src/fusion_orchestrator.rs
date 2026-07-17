@@ -148,19 +148,6 @@ fn build_skill_anchor(skills: &[FusionSkill]) -> String {
     anchor
 }
 
-/// Build a "## Agent's Draft Position" section from an optional proposed
-/// thought (panel-mcp `proposedThought` analog). Returns an empty string when
-/// absent, so draft-ignoring modes are unaffected. Injected into `critique` and
-/// `pi` so the panel/judge can refine the agent's prior rather than ignore it.
-fn draft_section(proposed: Option<&str>) -> String {
-    match proposed {
-        Some(thought) if !thought.trim().is_empty() => {
-            format!("\n\n## Agent's Draft Position\n{thought}\n")
-        }
-        _ => String::new(),
-    }
-}
-
 // ── Panel Dispatch ───────────────────────────────────────────────────────────
 
 /// Result from a single panel model.
@@ -436,6 +423,17 @@ fn values_equal(a: &serde_json::Value, b: &serde_json::Value) -> bool {
 fn norm_value_key(v: &serde_json::Value) -> String {
     match v {
         serde_json::Value::String(s) => s.to_lowercase().trim().to_string(),
+        serde_json::Value::Object(o) => {
+            // Canonical form: sorted keys, recursive — so two objects equal modulo
+            // key insertion order dedup/match as the same item.
+            let mut keys: Vec<&String> = o.keys().collect();
+            keys.sort();
+            let parts: Vec<String> = keys
+                .into_iter()
+                .map(|k| format!("{}:{}", k, norm_value_key(&o[k])))
+                .collect();
+            format!("{{{}}}", parts.join(","))
+        }
         other => other.to_string(),
     }
 }
@@ -502,6 +500,17 @@ fn vote_json_values(values: &[serde_json::Value]) -> serde_json::Value {
 /// Algorithmic judge (vote): parse panel responses as JSON, merge via majority
 /// vote. No LLM call — deterministic, zero-cost judge. Panel usage is aggregated.
 fn algo_vote(responses: &[PanelResponse]) -> InferenceResult {
+    // Vote needs ≥3 panelists to form a majority. With fewer, a strict-majority
+    // vote degenerates to first-wins (not a vote) — fall back to merge.
+    if responses.len() < 3 {
+        tracing::warn!(
+            target: "cns.fusion",
+            algo_method = "vote",
+            panel_count = responses.len(),
+            "algo:vote requires ≥3 panelists — falling back to merge"
+        );
+        return algo_merge(responses);
+    }
     let values: Vec<serde_json::Value> = responses
         .iter()
         .map(|r| parse_json_lenient(&r.text))
@@ -536,27 +545,55 @@ async fn call_judge(
         .await
 }
 
-// ── Convergence Detector (algorithmic, external observer) ───────────────────
+// ── Deliberation convergence (structured judge verdict) ──────────────────────
 //
-// Replaces the former `FOLLOW_UP:` string-prefix self-report in `deliberation`.
-// The judge no longer declares convergence in prose; an external observer models
-// the panel's within-round agreement distribution across rounds and decides
-// convergence from distributional stability (Kolmogorov–Smirnov) plus a
-// Beta-posterior mean agreement gate. Conant–Ashby Good Regulator: the
-// regulator of convergence models the convergence process.
-//
-// The Beta conjugate prior with Laplace smoothing mirrors the reliability
-// tracking in `hkask_cns::tool_stats::ToolStats` (α = successes + 1, β = failures + 1);
-// here each pairwise agreement score contributes softly: α += score, β += 1 - score.
+// `deliberation` convergence is decided by the judge emitting a STRUCTURED
+// verdict — `{"converged": bool, "synthesis"|"follow_up": "…"}` — parsed with
+// the existing `parse_json_lenient`. This is semantically sound (the judge reads
+// the panel responses and reports stabilization) and format-robust (structured
+// parse, not a `FOLLOW_UP:` prose prefix). The former Beta+KS+Jaccard external
+// detector was removed: its lexical-Jaccard agreement signal measured token
+// overlap, not semantic convergence, so it never fired for the diverse
+// (mixed-provider) panels that `deliberation` exists to serve.
 
-/// KS statistic threshold below which two consecutive rounds' agreement
-/// distributions are considered stable (paper arXiv:2510.12697 uses 0.05).
-const DEFAULT_KS_THRESHOLD: f64 = 0.05;
-/// Minimum posterior-mean pairwise agreement for convergence.
-const DEFAULT_AGREEMENT_THRESHOLD: f64 = 0.70;
-/// Consecutive stable rounds required before declaring convergence
-/// (paper arXiv:2510.12697 requires 2 consecutive rounds below the KS threshold).
-const DEFAULT_STABLE_ROUNDS: u32 = 2;
+/// Parse a judge's structured deliberation verdict.
+///
+/// Accepts `{"converged": true, "synthesis": "…"}` → `(Converged, Some(synthesis))`
+/// or `{"converged": false, "follow_up": "…"}` → `(Continue, Some(follow_up))`.
+/// If a declared payload field is absent the raw text is used. A non-JSON
+/// response is treated as a final synthesis (matching the former `FOLLOW_UP:`
+/// fallback: a response not declaring a follow-up is the final answer).
+///
+/// expect: "Deliberation converges when the judge reports stabilization, parsed structurally"
+/// [P9] Motivating: Homeostatic Self-Regulation — closed-loop convergence detection
+/// pre:  `text` is the judge model's response to a structured-verdict prompt
+/// post: `Converged` → payload is the final synthesis; `Continue` → payload is a follow-up question
+fn parse_convergence_verdict(text: &str) -> (ConvergenceVerdict, Option<String>) {
+    let v = parse_json_lenient(text);
+    if let Some(obj) = v.as_object() {
+        return match obj.get("converged").and_then(|x| x.as_bool()) {
+            Some(true) => {
+                let synth = obj
+                    .get("synthesis")
+                    .and_then(|s| s.as_str())
+                    .map(str::to_string)
+                    .unwrap_or_else(|| text.trim().to_string());
+                (ConvergenceVerdict::Converged, Some(synth))
+            }
+            Some(false) => {
+                let follow_up = obj
+                    .get("follow_up")
+                    .and_then(|s| s.as_str())
+                    .map(str::to_string)
+                    .unwrap_or_else(|| text.trim().to_string());
+                (ConvergenceVerdict::Continue, Some(follow_up))
+            }
+            None => (ConvergenceVerdict::Converged, Some(text.trim().to_string())),
+        };
+    }
+    // Non-JSON: treat the response as a final synthesis (former FOLLOW_UP: fallback).
+    (ConvergenceVerdict::Converged, Some(text.trim().to_string()))
+}
 
 /// Token-set Jaccard similarity in `[0, 1]`. Case-insensitive, whitespace-split.
 /// Two empty texts are vacuously identical (1.0); one empty → 0.0.
@@ -577,157 +614,6 @@ fn jaccard(a: &str, b: &str) -> f64 {
         return 1.0;
     }
     set_a.intersection(&set_b).count() as f64 / union as f64
-}
-
-/// Pairwise Jaccard agreement distribution over a round's panel responses.
-/// Returns one score per panelist pair: `n*(n-1)/2` values in `[0, 1]`.
-/// A single-panelist round returns `[1.0]` (self-agreement is total).
-fn pairwise_agreement(responses: &[PanelResponse]) -> Vec<f64> {
-    if responses.len() <= 1 {
-        return vec![1.0];
-    }
-    let mut scores = Vec::with_capacity(responses.len() * (responses.len() - 1) / 2);
-    for i in 0..responses.len() {
-        for j in (i + 1)..responses.len() {
-            scores.push(jaccard(&responses[i].text, &responses[j].text));
-        }
-    }
-    scores
-}
-
-/// Two-sample Kolmogorov–Smirnov statistic: `max |F_a(x) - F_b(x)|` over the
-/// combined sorted support. Empty samples: both empty → 0.0; one empty → 1.0.
-fn ks_statistic(a: &[f64], b: &[f64]) -> f64 {
-    if a.is_empty() && b.is_empty() {
-        return 0.0;
-    }
-    if a.is_empty() || b.is_empty() {
-        return 1.0;
-    }
-    let mut sa = a.to_vec();
-    let mut sb = b.to_vec();
-    sa.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
-    sb.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
-    // Merge sorted supports, computing empirical CDF difference at each join point.
-    let (mut i, mut j) = (0usize, 0usize);
-    let (na, nb) = (a.len() as f64, b.len() as f64);
-    let mut max_d = 0.0f64;
-    while i < sa.len() || j < sb.len() {
-        let va = sa.get(i).copied();
-        let vb = sb.get(j).copied();
-        let step = match (va, vb) {
-            (Some(x), Some(y)) => {
-                if x <= y {
-                    i += 1
-                } else {
-                    j += 1
-                }
-                x.min(y)
-            }
-            (Some(_), None) => {
-                i += 1;
-                va.unwrap()
-            }
-            (None, Some(_)) => {
-                j += 1;
-                vb.unwrap()
-            }
-            (None, None) => break,
-        };
-        let cdf_a = sa.iter().filter(|&v| *v <= step).count() as f64 / na;
-        let cdf_b = sb.iter().filter(|&v| *v <= step).count() as f64 / nb;
-        let d = (cdf_a - cdf_b).abs();
-        if d > max_d {
-            max_d = d;
-        }
-    }
-    max_d
-}
-
-/// External convergence observer for `deliberation` mode.
-///
-/// Each round, the caller feeds the round's pairwise agreement distribution
-/// (`pairwise_agreement`) into `observe`. The detector maintains a Beta
-/// posterior over agreement (Laplace-smoothed) and a KS stability streak.
-/// Convergence requires both:
-///   1. posterior mean agreement ≥ `agreement_threshold`, and
-///   2. KS shift vs. the previous round < `ks_threshold`, for `stable_rounds`
-///      consecutive rounds.
-///
-/// expect: "Deliberation converges when panel agreement stabilizes, not when the judge says so"
-/// [P9] Motivating: Homeostatic Self-Regulation — Good Regulator closes the open loop
-/// pre:  `scores` is non-empty (caller supplies pairwise agreement for the round)
-/// post: returns `Converged` only after the stability streak is satisfied
-struct ConvergenceDetector {
-    agreement_threshold: f64,
-    ks_threshold: f64,
-    stable_rounds: u32,
-    prev_scores: Option<Vec<f64>>,
-    stable_streak: u32,
-    /// Beta posterior: α = 1 + Σscore, β = 1 + Σ(1 - score) (Laplace-smoothed).
-    alpha: f64,
-    beta: f64,
-}
-
-impl ConvergenceDetector {
-    /// Construct with the defaults derived from arXiv:2510.12697 (KS 0.05, 2 stable rounds)
-    /// and a 0.70 mean-agreement gate.
-    fn new() -> Self {
-        Self {
-            agreement_threshold: DEFAULT_AGREEMENT_THRESHOLD,
-            ks_threshold: DEFAULT_KS_THRESHOLD,
-            stable_rounds: DEFAULT_STABLE_ROUNDS,
-            prev_scores: None,
-            stable_streak: 0,
-            alpha: 1.0,
-            beta: 1.0,
-        }
-    }
-
-    /// Posterior mean of the Beta agreement distribution.
-    fn posterior_mean(&self) -> f64 {
-        self.alpha / (self.alpha + self.beta)
-    }
-
-    /// Feed a round's pairwise agreement distribution; returns the verdict.
-    ///
-    /// Convergence gate uses the *current round's* mean agreement (per-round,
-    /// matching the time-varying Beta-Binomial of arXiv:2510.12697) plus a KS
-    /// stability test against the previous round. The cumulative Beta posterior
-    /// is kept only for the `posterior_mean()` observability field.
-    fn observe(&mut self, scores: &[f64]) -> ConvergenceVerdict {
-        // Update the cumulative Beta posterior (observability signal only).
-        for &s in scores {
-            let s = s.clamp(0.0, 1.0);
-            self.alpha += s;
-            self.beta += 1.0 - s;
-        }
-        let current_mean = if scores.is_empty() {
-            0.0
-        } else {
-            scores.iter().sum::<f64>() / scores.len() as f64
-        };
-
-        let verdict = match &self.prev_scores {
-            None => ConvergenceVerdict::Continue,
-            Some(prev) => {
-                let ks = ks_statistic(prev, scores);
-                if current_mean >= self.agreement_threshold && ks < self.ks_threshold {
-                    self.stable_streak += 1;
-                    if self.stable_streak >= self.stable_rounds {
-                        ConvergenceVerdict::Converged
-                    } else {
-                        ConvergenceVerdict::Continue
-                    }
-                } else {
-                    self.stable_streak = 0;
-                    ConvergenceVerdict::Continue
-                }
-            }
-        };
-        self.prev_scores = Some(scores.to_vec());
-        verdict
-    }
 }
 
 // ── Mode Implementations ─────────────────────────────────────────────────────
@@ -868,12 +754,10 @@ async fn mode_critique(
         ));
     }
 
-    let agent_draft = draft_section(params.proposed_thought.as_deref());
     let r1_judge_prompt = format!(
         "You are a synthesis judge (Round 1). Below are responses from a panel of models. \
-         Produce an initial draft synthesis incorporating the strongest elements. If an \
-         agent's draft position is provided, refine it rather than discard it.{skills}\n\n\
-         ## Original Prompt\n{prompt}\n\n## Panel Responses{candidates}{agent_draft}\n\n\
+         Produce an initial draft synthesis incorporating the strongest elements.{skills}\n\n\
+         ## Original Prompt\n{prompt}\n\n## Panel Responses{candidates}\n\n\
          ## Instructions\nProduce your draft synthesis now.",
         skills = skill_anchor,
         prompt = prompt,
@@ -923,14 +807,14 @@ async fn mode_critique(
     Ok(with_aggregated_usage(result, &intermediate))
 }
 
-/// Deliberation: Multi-round with algorithmic convergence detection.
+/// Deliberation: Multi-round with a structured judge stabilization verdict.
 ///
-/// Convergence is decided by `ConvergenceDetector` (an external observer over
-/// the panel's within-round agreement distribution), not by the judge declaring
-/// `FOLLOW_UP:` in prose. When the detector reports `Converged`, the judge
-/// synthesizes a final answer. Otherwise the judge produces a follow-up question
-/// and the panel re-answers. If `max_rounds` is reached without convergence,
-/// the judge is forced to synthesize from the last round.
+/// Each round, the judge emits a structured verdict —
+/// `{"converged": true, "synthesis": "…"}` or `{"converged": false, "follow_up": "…"}`
+/// — parsed by `parse_convergence_verdict`. Convergence is a *stabilization*
+/// report (has the panel stopped diverging?), not a correctness claim: the
+/// judge reads the responses and reports it. If `max_rounds` is reached without
+/// convergence, the judge is forced to synthesize from the last round.
 async fn mode_deliberation(
     router: &dyn InferencePort,
     prompt: &str,
@@ -940,92 +824,71 @@ async fn mode_deliberation(
 ) -> Result<InferenceResult, InferenceError> {
     let skill_anchor = build_skill_anchor(&fusion.skills);
     let max_rounds = fusion.max_rounds as usize;
-    let mut detector = ConvergenceDetector::new();
 
-    // Round 1: Initial panel responses
+    // Round 1: Initial panel responses.
     let mut prior_responses = dispatch_panel(router, prompt, params, tools, &fusion.panel).await;
     if prior_responses.is_empty() {
         return Err(InferenceError::Generation(
             "All panel models failed in round 1".into(),
         ));
     }
-
     let mut intermediate: Vec<InferenceUsage> =
         prior_responses.iter().map(|r| r.usage.clone()).collect();
-
     let mut prior_text = format_panel_responses(&prior_responses);
 
     for round in 1..=max_rounds {
-        // The detector is the convergence authority: it compares this round's
-        // within-round agreement distribution against the previous round's.
-        // Round 1 always continues (no prior to compare). Earliest convergence
-        // is round 3 (two consecutive stable rounds, per arXiv:2510.12697).
-        let verdict = detector.observe(&pairwise_agreement(&prior_responses));
-        if verdict == ConvergenceVerdict::Converged {
-            let final_prompt = format!(
-                "You are a deliberation judge (Round {round}/{max_rounds}). The panel's \
-                 responses have converged on a consistent answer. Synthesize the final \
-                 response incorporating the strongest elements and resolving any \
-                 remaining contradictions.{skills}
+        // One judge call per round decides convergence AND produces the output
+        // (synthesis if converged, follow-up if not) as a structured verdict.
+        let json_spec = "Emit STRICT JSON only — no prose outside the JSON:
+      \
+                 if converged: {\"converged\": true, \"synthesis\": \"<final answer>\"}
+      \
+                 if not converged: {\"converged\": false, \"follow_up\": \"<one follow-up question>\"}";
+        let judge_prompt = format!(
+            "You are a deliberation judge (Round {round}/{max_rounds}). Below are the \
+                 latest responses from the panel. Decide whether the panel has converged on \
+                 a consistent answer. {json_spec}{skills}
 
-\
+    \
                  ## Original Prompt
-{prompt}
+    {prompt}
 
-## Panel Responses{prior_text}
+    ## Current Round Responses{prior_text}",
+            round = round,
+            max_rounds = max_rounds,
+            json_spec = json_spec,
+            skills = skill_anchor,
+        );
+        let judge_result = call_judge(router, &fusion.judge, &judge_prompt, params, tools).await?;
+        intermediate.push(judge_result.usage.clone());
+        let (verdict, payload) = parse_convergence_verdict(&judge_result.text);
 
-\
-                 ## Instructions
-Produce the final synthesis now.",
-                round = round,
-                max_rounds = max_rounds,
-                skills = skill_anchor,
-            );
-            let result = call_judge(router, &fusion.judge, &final_prompt, params, tools).await?;
+        if verdict == ConvergenceVerdict::Converged {
             info!(
                 target: "cns.fusion",
                 fusion_mode = "deliberation",
                 round = round,
                 convergence_rounds = round,
                 verdict = ConvergenceVerdict::Converged.as_str(),
-                agreement = detector.posterior_mean(),
-                "Deliberation converged (algorithmic detector)"
+                "Deliberation converged (judge stabilization verdict)"
             );
+            let result = InferenceResult {
+                text: payload.unwrap_or_default(),
+                ..judge_result
+            };
             return Ok(with_aggregated_usage(result, &intermediate));
         }
 
-        // Not converged — ask the judge for a follow-up question that resolves the divergence.
-        let follow_up_prompt = format!(
-            "You are a deliberation judge (Round {round}/{max_rounds}). The panel's \
-             responses still diverge. Formulate ONE follow-up question that, if \
-             answered, would best resolve the disagreement.{skills}
-
-\
-             ## Original Prompt
-{prompt}
-
-## Current Round Responses{prior_text}
-
-\
-             ## Instructions
-Output ONLY the follow-up question for the panel — no preamble, no synthesis.",
-            round = round,
-            max_rounds = max_rounds,
-            skills = skill_anchor,
-        );
-        let judge_result =
-            call_judge(router, &fusion.judge, &follow_up_prompt, params, tools).await?;
-        let follow_up = judge_result.text.trim();
+        // Continue: payload is the follow-up question for the panel.
+        let follow_up = payload.unwrap_or_default();
         info!(
             target: "cns.fusion",
             fusion_mode = "deliberation",
             round = round,
             verdict = ConvergenceVerdict::Continue.as_str(),
-            agreement = detector.posterior_mean(),
-            "Deliberation continuing (algorithmic detector)"
+            "Deliberation continuing (judge stabilization verdict)"
         );
-        intermediate.push(judge_result.usage.clone());
-        prior_responses = dispatch_panel(router, follow_up, params, tools, &fusion.panel).await;
+        prior_responses = dispatch_panel(router, &follow_up, params, tools, &fusion.panel).await;
         intermediate.extend(prior_responses.iter().map(|r| r.usage.clone()));
         prior_text = format_panel_responses(&prior_responses);
     }
@@ -1053,7 +916,6 @@ Produce the final synthesis now.",
         round = max_rounds,
         convergence_rounds = max_rounds,
         verdict = "max_rounds",
-        agreement = detector.posterior_mean(),
         "Deliberation capped at max rounds"
     );
     Ok(with_aggregated_usage(result, &intermediate))
@@ -1072,13 +934,11 @@ async fn mode_plan_implement(
     // ── Phase 1: Strategy Plan ──────────────────────────────────────────────
     // Skill-anchor the panel (same fix as mode_critique's F3) so panelists
     // evaluate against the same methodology the judge uses, not methodology-blind.
-    let agent_draft = draft_section(params.proposed_thought.as_deref());
     let phase1_plan_prompt = format!(
         "You are a strategy panelist. Given the task below, propose a high-level \
              strategy or approach. Focus on architecture, key decisions, tradeoffs, and \
-             the overall plan — NOT implementation details. If an agent's draft position \
-             is provided, treat it as a starting stance to improve upon.{skills}\n\n\
-             ## Task\n{prompt}{agent_draft}\n\n\
+             the overall plan — NOT implementation details.{skills}\n\n\
+             ## Task\n{prompt}\n\n\
              ## Instructions\nPropose a strategy. Be specific about approach, not code.",
         skills = skill_anchor,
     );
@@ -1095,9 +955,8 @@ async fn mode_plan_implement(
         "You are a strategy synthesis judge (Phase 1: Plan). Below are strategy \
              proposals from the panel. Synthesize a unified strategy plan incorporating \
              the best approaches. Resolve contradictions. This is the STRATEGY only — \
-             no implementation details. If an agent's draft position is provided, \
-             refine it rather than discard it.{skills}\n\n\
-             ## Original Task\n{prompt}\n\n## Strategy Proposals{candidates}{agent_draft}\n\n\
+             no implementation details.{skills}\n\n\
+             ## Original Task\n{prompt}\n\n## Strategy Proposals{candidates}\n\n\
              ## Instructions\nProduce the unified strategy plan.",
         skills = skill_anchor,
         candidates = format_panel_responses(&phase1_responses),
@@ -1223,8 +1082,7 @@ pub async fn orchestrate(
 #[cfg(test)]
 mod tests {
     use super::{
-        ConvergenceDetector, ConvergenceVerdict, jaccard, ks_statistic, merge_json_values,
-        pairwise_agreement, vote_json_values,
+        ConvergenceVerdict, jaccard, merge_json_values, parse_convergence_verdict, vote_json_values,
     };
     use serde_json::json;
 
@@ -1273,7 +1131,9 @@ mod tests {
         assert_eq!(merged, json!("foo"));
     }
 
-    // ── T1: Convergence detector (algorithmic, external observer) ───────────────
+    // ── T1: Deliberation convergence (structured judge verdict) ─────────────────
+    // `jaccard` is retained: best-of-n `identify_pick` uses it to match a verbatim
+    // judge pick back to its source response.
 
     /// Identical texts → Jaccard 1.0.
     #[test]
@@ -1309,83 +1169,46 @@ mod tests {
         assert_eq!(jaccard("words here", ""), 0.0);
     }
 
-    /// Identical empirical distributions → KS 0.0.
+    /// `{"converged": true, "synthesis": "…"}` → Converged with that synthesis.
     #[test]
-    fn ks_identical_distributions_zero() {
-        assert_eq!(ks_statistic(&[0.1, 0.5, 0.9], &[0.1, 0.5, 0.9]), 0.0);
+    fn parse_convergence_verdict_converged_with_synthesis() {
+        let (v, p) = parse_convergence_verdict(r#"{"converged": true, "synthesis": "Paris"}"#);
+        assert_eq!(v, ConvergenceVerdict::Converged);
+        assert_eq!(p.as_deref(), Some("Paris"));
     }
 
-    /// Disjoint supports → KS 1.0.
+    /// `{"converged": false, "follow_up": "…"}` → Continue with that follow-up.
     #[test]
-    fn ks_disjoint_distributions_one() {
-        assert_eq!(ks_statistic(&[0.1, 0.2], &[0.8, 0.9]), 1.0);
+    fn parse_convergence_verdict_continue_with_follow_up() {
+        let (v, p) = parse_convergence_verdict(r#"{"converged": false, "follow_up": "Why?"}"#);
+        assert_eq!(v, ConvergenceVerdict::Continue);
+        assert_eq!(p.as_deref(), Some("Why?"));
     }
 
-    /// Empty-sample edge cases: both empty → 0.0; one empty → 1.0.
+    /// `converged: true` with no `synthesis` field → fall back to the raw text.
     #[test]
-    fn ks_empty_edge_cases() {
-        assert_eq!(ks_statistic(&[], &[]), 0.0);
-        assert_eq!(ks_statistic(&[0.5], &[]), 1.0);
-        assert_eq!(ks_statistic(&[], &[0.5]), 1.0);
+    fn parse_convergence_verdict_converged_no_synthesis_uses_raw() {
+        let (v, p) = parse_convergence_verdict(r#"{"converged": true}"#);
+        assert_eq!(v, ConvergenceVerdict::Converged);
+        assert_eq!(p.as_deref(), Some(r#"{"converged": true}"#));
     }
 
-    /// KS is bounded in [0, 1] and symmetric.
+    /// Markdown-fenced JSON is parsed (`parse_json_lenient` tolerates fences).
     #[test]
-    fn ks_symmetric_and_bounded() {
-        let a = [0.2, 0.4, 0.6];
-        let b = [0.3, 0.5, 0.9];
-        let d1 = ks_statistic(&a, &b);
-        let d2 = ks_statistic(&b, &a);
-        assert!((d1 - d2).abs() < 1e-9, "KS must be symmetric");
-        assert!(d1 >= 0.0 && d1 <= 1.0);
+    fn parse_convergence_verdict_tolerates_markdown_fence() {
+        let text = "```json\n{\"converged\": true, \"synthesis\": \"42\"}\n```";
+        let (v, p) = parse_convergence_verdict(text);
+        assert_eq!(v, ConvergenceVerdict::Converged);
+        assert_eq!(p.as_deref(), Some("42"));
     }
 
-    /// First round always continues — no prior distribution to compare against.
+    /// Non-JSON response → treated as a final synthesis (former FOLLOW_UP: fallback:
+    /// a response not declaring a follow-up is the final answer).
     #[test]
-    fn detector_first_round_always_continues() {
-        let mut d = ConvergenceDetector::new();
-        assert_eq!(d.observe(&[0.99, 0.99]), ConvergenceVerdict::Continue);
-    }
-
-    /// Convergence requires `stable_rounds` (2) consecutive stable rounds, so the
-    /// earliest verdict is `Converged` on round 3.
-    #[test]
-    fn detector_converges_after_two_stable_rounds() {
-        let mut d = ConvergenceDetector::new();
-        assert_eq!(d.observe(&[0.9, 0.9]), ConvergenceVerdict::Continue); // r1: no prior
-        assert_eq!(d.observe(&[0.9, 0.9]), ConvergenceVerdict::Continue); // r2: streak=1
-        assert_eq!(d.observe(&[0.9, 0.9]), ConvergenceVerdict::Converged); // r3: streak=2
-    }
-
-    /// A disruptive round resets the streak; convergence is not reached.
-    #[test]
-    fn detector_resets_streak_on_instability() {
-        let mut d = ConvergenceDetector::new();
-        assert_eq!(d.observe(&[0.9, 0.9]), ConvergenceVerdict::Continue); // r1
-        assert_eq!(d.observe(&[0.9, 0.9]), ConvergenceVerdict::Continue); // r2: streak=1
-        assert_eq!(d.observe(&[0.1, 0.1]), ConvergenceVerdict::Continue); // r3: low agreement → reset
-        assert_eq!(d.observe(&[0.9, 0.9]), ConvergenceVerdict::Continue); // r4: KS vs [0.1]=1 → reset
-        assert_eq!(d.observe(&[0.9, 0.9]), ConvergenceVerdict::Continue); // r5: streak=1, not yet
-    }
-
-    /// Low agreement never converges regardless of distributional stability.
-    #[test]
-    fn detector_low_agreement_never_converges() {
-        let mut d = ConvergenceDetector::new();
-        for _ in 0..10 {
-            assert_eq!(d.observe(&[0.5, 0.5]), ConvergenceVerdict::Continue);
-        }
-    }
-
-    /// `pairwise_agreement` with one panelist returns total self-agreement.
-    #[test]
-    fn pairwise_agreement_single_panelist_is_total() {
-        let usage = super::PanelResponse {
-            model_name: "m".into(),
-            text: "solo".into(),
-            usage: hkask_ports::InferenceUsage::default(),
-        };
-        assert_eq!(pairwise_agreement(&[usage]), vec![1.0]);
+    fn parse_convergence_verdict_non_json_is_final_synthesis() {
+        let (v, p) = parse_convergence_verdict("The answer is Paris.");
+        assert_eq!(v, ConvergenceVerdict::Converged);
+        assert_eq!(p.as_deref(), Some("The answer is Paris."));
     }
 
     // ── T3: Position-bias mitigation (best-of-n swap-revote) ─────────────────────
@@ -1479,21 +1302,34 @@ mod tests {
         assert_eq!(vote_json_values(&[]), serde_json::Value::Null);
     }
 
-    // ── Proposal A: Agent draft position injection ────────────────────────────────
-
-    /// `draft_section` is empty when no proposed thought is supplied.
+    /// `algo:vote` with 2 panelists falls back to merge (no majority possible).
     #[test]
-    fn draft_section_absent_is_empty() {
-        assert_eq!(super::draft_section(None), "");
-        assert_eq!(super::draft_section(Some("   ")), "");
-        assert_eq!(super::draft_section(Some("")), "");
+    fn algo_vote_with_two_panelists_falls_back_to_merge() {
+        let rs = [resp("a", r#"{"k":"red"}"#), resp("b", r#"{"k":"blue"}"#)];
+        let voted = super::algo_vote(&rs);
+        // merge annotates divergent scalars as [A:... B:...]; vote would just pick "red".
+        assert!(
+            voted.text.contains("[A:"),
+            "expected merge divergence annotation, got {}",
+            voted.text
+        );
     }
 
-    /// `draft_section` renders a labeled section when a draft is supplied.
+    /// Array majority canonicalizes object key order — two objects equal modulo
+    /// key insertion order count as the same item (dedup to one).
     #[test]
-    fn draft_section_present_renders_section() {
-        let s = super::draft_section(Some("try a sorted map"));
-        assert!(s.contains("## Agent's Draft Position"));
-        assert!(s.contains("try a sorted map"));
+    fn vote_array_majority_canonicalizes_object_key_order() {
+        let vs = vec![
+            json!([{"a": 1, "b": 2}]),
+            json!([{"b": 2, "a": 1}]),
+            json!([{"a": 1, "b": 2}]),
+        ];
+        let out = vote_json_values(&vs);
+        let arr = out.as_array().expect("expected an array");
+        assert_eq!(
+            arr.len(),
+            1,
+            "key-order-equivalent objects must dedup to one item"
+        );
     }
 }

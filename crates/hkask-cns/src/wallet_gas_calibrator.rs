@@ -196,33 +196,31 @@ impl WalletGasCalibrator {
 
     /// Spawn a background task that calls `calibrate()` at the given interval.
     ///
-    /// The task runs until the runtime shuts down. Calibration errors are logged
-    /// but do not crash the task.
-    ///
-    /// expect: "I can spawn a background task that continuously calibrates the wallet gas conversion rate from live event data"
-    /// pre:  interval > 0
-    /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
+    /// Delegates to the shared `spawn_calibration_loop` — see `calibrator` module.
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
-        self.calibration_alive
-            .store(true, std::sync::atomic::Ordering::Release);
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(interval).await;
-                if let Err(e) = self.calibrate().await {
-                    warn!(
-                        target: "cns.wallet.calibration",
-                        error = %e,
-                        "Background wallet gas calibration failed"
-                    );
-                }
-            }
-        });
+        crate::calibrator::spawn_calibration_loop(self, interval);
     }
 
     /// Check whether the background calibration task is still running.
     pub fn calibration_healthy(&self) -> bool {
         self.calibration_alive
             .load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+
+#[async_trait::async_trait]
+impl crate::calibrator::Calibrator for WalletGasCalibrator {
+    async fn run_calibration(&self) -> Result<usize, InfrastructureError> {
+        let adjusted = self.calibrate().await?;
+        Ok(adjusted as usize)
+    }
+
+    fn calibration_alive(&self) -> &std::sync::atomic::AtomicBool {
+        &self.calibration_alive
+    }
+
+    fn calibration_target(&self) -> &'static str {
+        "cns.wallet.calibration"
     }
 }
 

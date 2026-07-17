@@ -517,7 +517,6 @@ fn default_llm_params() -> LLMParameters {
         bypass_fusion: false,
         fusion_config: None,
         system_prompt: None,
-        proposed_thought: None,
     }
 }
 

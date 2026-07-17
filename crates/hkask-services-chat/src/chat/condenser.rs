@@ -115,7 +115,6 @@ impl ChatService {
             bypass_fusion: true,
             fusion_config: None,
             system_prompt: None,
-            proposed_thought: None,
         };
 
         let port = ctx.infra().inference.clone()?;

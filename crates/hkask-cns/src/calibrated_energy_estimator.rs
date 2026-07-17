@@ -196,28 +196,9 @@ impl CalibratedEnergyEstimator {
 
     /// Spawn a background task that calls `calibrate()` at the given interval.
     ///
-    /// The task runs until the runtime shuts down. Calibration errors are logged
-    /// but do not crash the task.
-    ///
-    /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data"
-    /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation"
-    /// pre:  interval > 0
-    /// post: a Tokio task is spawned; it calls `calibrate()` every `interval`
+    /// Delegates to the shared `spawn_calibration_loop` — see `calibrator` module.
     pub fn spawn_calibration(self: Arc<Self>, interval: Duration) {
-        self.calibration_alive
-            .store(true, std::sync::atomic::Ordering::Release);
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(interval).await;
-                if let Err(e) = self.calibrate().await {
-                    warn!(
-                        target: "cns.gas.calibration",
-                        error = %e,
-                        "Background gas calibration failed"
-                    );
-                }
-            }
-        });
+        crate::calibrator::spawn_calibration_loop(self, interval);
     }
 
     /// Check whether the background calibration task is still running.
@@ -250,6 +231,21 @@ impl EnergyEstimator for CalibratedEnergyEstimator {
             poisoned.into_inner()
         });
         estimator.estimate_cost(server, tool, args)
+    }
+}
+
+#[async_trait::async_trait]
+impl crate::calibrator::Calibrator for CalibratedEnergyEstimator {
+    async fn run_calibration(&self) -> Result<usize, InfrastructureError> {
+        self.calibrate().await
+    }
+
+    fn calibration_alive(&self) -> &std::sync::atomic::AtomicBool {
+        &self.calibration_alive
+    }
+
+    fn calibration_target(&self) -> &'static str {
+        "cns.gas.calibration"
     }
 }
 

@@ -27,6 +27,9 @@ if [ ! -f "$REGISTRY" ]; then
 fi
 
 # is_canonical <namespace>: returns 0 if the namespace (or any ancestor, by
+# dot-trimming) is registered in CANONICAL_NAMESPACES, else 1. MIRRORS the
+# `is_canonical` ancestor-matching rule in crates/hkask-types/src/event.rs —
+# update both together.
 # dot-trimming) is registered in CANONICAL_NAMESPACES, else 1. Mirrors the
 # `is_canonical` ancestor-matching rule in crates/hkask-types/src/event.rs.
 is_canonical() {

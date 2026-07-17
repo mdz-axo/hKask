@@ -544,5 +544,3 @@ mod cns_span_tests {
         assert_eq!(ToolSubsystem::Other.as_str(), "other");
     }
 }
-
-

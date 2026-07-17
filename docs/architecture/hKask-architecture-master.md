@@ -811,9 +811,9 @@ The judge operates in one of five modes, configurable via `HKASK_FUSION_MODE`:
 |------|--------|----------|
 | `synthesis` _(default)_ | 1 | Judge composes a unified response incorporating best elements from all panelists |
 | `best-of-n` | 1 (+ swap-revote) | Judge evaluates all responses and picks the single best; with ≥2 panelists votes twice (dispatch + reversed order) and compares picks to flag position bias |
-| `critique` | 2 | Judge drafts synthesis → panel critiques draft → judge revises final. An optional `proposed_thought` (agent's draft) is injected in round 1 |
-| `deliberation` | ≤N | Multi-round: an **algorithmic convergence detector** (Beta-Binomial + Kolmogorov–Smirnov over within-round panel agreement) decides convergence; the judge emits follow-up questions until convergence or `max_rounds` (default 5). Replaces the former `FOLLOW_UP:` string self-report |
-| `pi` (Plan-Implement) | 2-phase | Phase 1: panel proposes strategies → judge synthesizes plan. Phase 2: plan sent to panel for implementation details → judge synthesizes execution plan. An optional `proposed_thought` seeds phase 1 |
+| `critique` | 2 | Judge drafts synthesis → panel critiques draft → judge revises final |
+| `deliberation` | ≤N | Multi-round: the judge emits a **structured stabilization verdict** (`{"converged": bool, "synthesis"|"follow_up": …}`) each round; it synthesizes on `converged: true` or emits a follow-up question until convergence or `max_rounds` (default 5). Replaces the former `FOLLOW_UP:` string self-report |
+| `pi` (Plan-Implement) | 2-phase | Phase 1: panel proposes strategies → judge synthesizes plan. Phase 2: plan sent to panel for implementation details → judge synthesizes execution plan |
 
 #### Skill Anchoring
 

@@ -9,6 +9,7 @@ pub mod acp_span;
 pub(crate) mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod api_metering; // API key metering — rate limits, CNS spans, alerts
 pub mod calibrated_energy_estimator; // Loop 6 — self-regulating per-server gas estimator
+pub(crate) mod calibrator; // Shared calibration loop trait + spawn function
 pub mod circuit_breaker; // Loop 6 — regulation
 pub mod classify_span;
 pub mod composite_energy_estimator; // Composite routing: inference → token-based, others → table
