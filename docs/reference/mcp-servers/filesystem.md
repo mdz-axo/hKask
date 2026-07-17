@@ -152,17 +152,15 @@ The following are standing properties of the sandbox design (not defects):
 - **Blocking I/O is offloaded.** `fs_search` runs its `walkdir` + file reads on
   a `spawn_blocking` thread so the async runtime worker is not stalled; the
   1 MiB per-file cap bounds memory on oversized files.
-- **Upgrade path (general per-domain provisioning).** The filesystem-scoped
-  consent gate above is the **bounded (i)** enforcement. The **general (ii)**
-  path — auto-granting a read-scoped capability token to the primary replicant
-  and gating write/execute behind consent at the `GovernedTool` membrane — is
-  enabled by the per-tool blast-radius declarations in
-  `hkask_mcp::BUILTIN_TOOL_CAPS` / `capability_for_tool` (read → `:read`, write →
-  `:write`, `shell_exec` → `:execute`, enforced via the action hierarchy
-  `Execute ≥ Write ≥ Read`). That wiring is in place and non-breaking; activating
-  it requires reconciling the pod's single `capability_token` model across
-  tool domains (a multi-crate provisioning change in `ChatService` / `PodFactory`)
-  and the in-chat consent UX — deferred.
+- **Possible generalization (not implemented).** The filesystem-scoped consent
+  gate above is the **bounded (i)** enforcement. A more general path — gating
+  write/execute at the `GovernedTool` membrane via per-tool blast-radius
+  declarations (read → `:read`, write → `:write`, `shell_exec` → `:execute`, via
+  the action hierarchy `Execute ≥ Write ≥ Read`) — was considered and **not
+  built**; it would require reconciling the pod's single `capability_token` model
+  across tool domains (a multi-crate provisioning change in `ChatService` /
+  `PodFactory`) plus an in-chat consent UX. Recorded here so a future explorer
+  knows it was evaluated and deferred, not forgotten.
 
 The tool contracts are verified by the contract test suite
 (`tests/filesystem_contract.rs`), which exercises both `sandbox_path`

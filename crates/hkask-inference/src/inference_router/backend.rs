@@ -15,15 +15,14 @@
 //! Each impl is a thin delegating wrapper around the backend's inherent
 //! `async fn` / streaming method — the real behavior stays in the backends.
 //!
-//! Lifetime note: `generate`, `generate_vision`, and `list_models` tie their
-//! return lifetime `'a` to `&self` AND the data args, because their futures
-//! borrow the args (the args are awaited across `.await` points). `generate_stream`
-//! ties its return ONLY to `&self` — the backends clone the args into the
-//! stream (`stream_chat_completion` takes owned values), so the returned stream
-//! does not borrow the args. Tying the args to the stream's lifetime would
-//! wrongly forbid returning a stream built from function-local data.
+//! Lifetime note: `generate` and `generate_vision` tie their return lifetime `'a`
+//! to `&self` AND the data args, because their futures borrow the args (the args
+//! are awaited across `.await` points). `generate_stream` ties its return ONLY to
+//! `&self` — the backends clone the args into the stream
+//! (`stream_chat_completion` takes owned values), so the returned stream does
+//! not borrow the args. Tying the args to the stream's lifetime would wrongly
+//! forbid returning a stream built from function-local data.
 
-use crate::RouterModelEntry;
 use crate::cline_backend::ClineBackend;
 use crate::deepinfra_backend::DeepInfraBackend;
 use crate::fal_backend::FalBackend;
@@ -38,10 +37,13 @@ use hkask_types::template::LLMParameters;
 use std::future::Future;
 use std::pin::Pin;
 
-/// Chat-completion backend: text generation, streaming, and model listing.
+/// Chat-completion backend: text generation and streaming.
 ///
 /// Implemented by every provider that serves `/chat/completions`. RunPod is
 /// excluded (it is vision/OCR-only) — it implements `VisionBackend` alone.
+/// Model *listing* is intentionally NOT on this trait: `InferenceRouter::list_models`
+/// iterates the typed backend fields and calls each backend's inherent
+/// `list_models` directly, so listing stays decoupled from chat dispatch.
 pub trait ChatBackend: Send + Sync {
     /// Generate a chat completion (non-streaming). The returned future borrows
     /// the args (they are awaited across `.await`).
@@ -63,11 +65,6 @@ pub trait ChatBackend: Send + Sync {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>>;
-
-    /// List models offered by this backend (graceful: return empty on failure).
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>>;
 }
 
 /// Vision/multimodal backend: image-grounded generation.
@@ -89,9 +86,9 @@ pub trait VisionBackend: Send + Sync {
 // ── ChatBackend impls (7 chat-capable providers) ─────────────────────────────
 //
 // Each impl delegates to the backend's inherent pub method, boxing the future
-// (`generate`/`list_models`/`generate_vision`) or returning the inherent
-// stream directly (`generate_stream` — the inherent already returns a pinned
-// boxed stream tied to &self).
+// (`generate`/`generate_vision`) or returning the inherent stream directly
+// (`generate_stream` — the inherent already returns a pinned boxed stream tied
+// to &self).
 
 impl ChatBackend for DeepInfraBackend {
     fn generate<'a>(
@@ -111,11 +108,6 @@ impl ChatBackend for DeepInfraBackend {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
-    }
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
-        Box::pin(self.list_models())
     }
 }
 
@@ -138,11 +130,6 @@ impl ChatBackend for TogetherBackend {
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
-        Box::pin(self.list_models())
-    }
 }
 
 impl ChatBackend for OpenRouterBackend {
@@ -163,11 +150,6 @@ impl ChatBackend for OpenRouterBackend {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
-    }
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
-        Box::pin(self.list_models())
     }
 }
 
@@ -190,11 +172,6 @@ impl ChatBackend for KiloCodeBackend {
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
-        Box::pin(self.list_models())
-    }
 }
 
 impl ChatBackend for OllamaBackend {
@@ -215,11 +192,6 @@ impl ChatBackend for OllamaBackend {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
-    }
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
-        Box::pin(self.list_models())
     }
 }
 
@@ -242,11 +214,6 @@ impl ChatBackend for ClineBackend {
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
-        Box::pin(self.list_models())
-    }
 }
 
 impl ChatBackend for FalBackend {
@@ -267,11 +234,6 @@ impl ChatBackend for FalBackend {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
-    }
-    fn list_models<'a>(
-        &'a self,
-    ) -> Pin<Box<dyn Future<Output = Vec<RouterModelEntry>> + Send + 'a>> {
-        Box::pin(self.list_models())
     }
 }
 

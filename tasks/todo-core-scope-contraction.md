@@ -38,14 +38,15 @@
 
 **Checkpoint 2 (partial):** goal extracted, workspace green, core pub-items 76 → 61.
 
-- [ ] **2.2** Extract `identity` → `hkask-identity`
-  - [ ] CREATE: move `HumanUser`/`ReplicantIdentity`/`UserSession`/`RegistrationRequest`/`Invite`/`Role`/etc.
-  - [ ] WIRE: `hkask-cli/commands/user.rs`, `hkask-services-context/storage.rs`, `hkask-api/routes/auth.rs`, `hkask-storage/user_store.rs`
-  - [ ] DELETE: remove `pub mod identity` + re-export from core; drop `hkask-wallet-types` from core if unused
-  - [ ] `cargo test -p hkask-identity` passes
-  - [ ] `cargo check -p hkask-cli -p hkask-services-context -p hkask-api -p hkask-storage` passes
+- [x] **2.2** Extract `identity` → `hkask-identity` ✅ (verified 2026-07-17)
+  - [x] CREATE: move `HumanUser`/`ReplicantIdentity`/`UserSession`/`RegistrationRequest`/`Invite`/`InviteStatus`/`RegistrationError` (`Role`/`OAuthProvider` re-exported from `hkask_types::identity`)
+  - [x] WIRE 4 consumers (rigorous scan; `api/routes/auth.rs` was a false positive — uses `OAuthProvider` from `hkask_types::identity` directly): `api/middleware/admin.rs` (Role → `hkask_types::identity::Role`), `services-context/storage.rs` (split: ReplicantIdentity → `hkask-identity`, error types stay core), `cli/user.rs`, `storage/user_store.rs`
+  - [x] DELETE: remove `pub mod identity` + `pub use identity::{...}` from core; drop `chrono` from core deps (only `identity.rs` used it; `thiserror`+`hkask-wallet-types` kept — used by `error`/`config`)
+  - [x] `hkask-storage` `core` dep DROPPED entirely (identity was its last core usage)
+  - [x] `cargo test` all pass (core 30, identity 0, storage 71, context 2, cli 24, api 35, storage-contract 5; 0 failures); `cargo check --workspace` clean; clippy clean on non-inference-dep crates
+  - [x] added `README.md` (the one net-new artifact — HEAD had the crate but not the README)
 
-**Checkpoint 2:** storage-coupled modules extracted, workspace green
+**Checkpoint 2:** ✅ storage-coupled modules extracted (goal + identity). workspace green. core pub-items 90 → 47. `hkask-storage` is now core-free.
 
 ## Phase 3 — Cross-cutting: inference services
 
