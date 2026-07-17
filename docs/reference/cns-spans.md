@@ -47,7 +47,7 @@ Namespaces form a tree rooted at `cns`. The namespace prefix maps to a `SpanCate
 | **Inference** | `cns.inference*` | `cns.inference` |
 | **Episodic** | `cns.agent_pod*`, `cns.connector*` | `cns.agent_pod.registered` |
 | **Wallet** | `cns.wallet*` | `cns.wallet.balance`, `cns.wallet.key_issued` |
-| **Unknown** | Everything else | `cns.tool.web_search`, `cns.consent` |
+| **Unknown** | Everything else | `cns.tool.web_search`, `cns.consent`, `cns.api.request` |
 
 ---
 
@@ -172,6 +172,25 @@ All namespaced under `cns.federation.*`. Federation span strings must match `CAN
 14 variants covering wallet lifecycle: `Balance`, `Deposit`, `DepositShielded`, `Withdrawal`, `Conversion`, `KeyIssued`, `KeyRevoked`, `KeyExpired`, `KeyExhausted`, `ChainError`, `Created`, `Draw`, `Spend`, `Exhausted`.
 
 All namespaced under `cns.wallet.*`. Emitted through `crates/hkask-wallet/src/manager/cns.rs` which bridges wallet operations to the CNS event sink.
+
+### 3.11 ApiRequestSpan — API Metering
+
+**File:** `crates/hkask-cns/src/api_metering.rs`
+
+A single-variant span (`cns.api.request`) emitted for every authenticated API request after the rate limit check passes. Captures:
+
+| Field | Description |
+|-------|-------------|
+| `key_id` | The API key ID making the request |
+| `endpoint` | Request URI path |
+| `scope_matched` | Whether the key's scope matched the path (always `true` — scope violations return early) |
+| `gas_consumed` | rJoules consumed (0 at admission; gas is settled downstream by `GovernedTool`) |
+| `allocation_remaining` | Remaining rJoules in the key's encumbrance |
+| `rate_limit_status` | `ok`, `rate_exceeded`, or `tokens_exceeded` |
+
+Emitted through `ApiRequestSpan::emit_to()` in the API key auth middleware (`crates/hkask-api/src/middleware/api_key_auth.rs`). The span is an **admission observation** (CyclePhase::Sense) — it records that a request entered the system, not its completion. Gas consumption is settled later by `GovernedTool`/`GovernedInference` and tracked via `cns.gas.*` spans.
+
+**Configuration:** `RateLimitConfig::from_env()` reads `HKASK_API_RATE_LIMIT_*` environment variables. Per-key limits adapt over time via `ApiMeter::learn()` (LogNormal cost distribution learning).
 
 ---
 

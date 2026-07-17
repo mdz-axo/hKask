@@ -1347,12 +1347,14 @@ mod tests {
     // ── F4: Position-bias measurement harness ────────────────────────────────────
     //
     // `mode_best_of_n` runs swap-revote (two judge calls in reversed display order)
-    // to detect position bias. The harness below proves the measurement mechanism:
-    // a mock judge that returns a FIXED pick regardless of input ordering will be
-    // flagged as bias-free (idx_a == idx_b), while a judge that picks the first
-    // displayed candidate will be flagged as biased (idx_a != idx_b). A live judge
-    // run through this harness reveals whether swap-revote is justified or whether
-    // the cheaper order-randomization (1 call) suffices.
+    // to detect position bias. These are INTEGRATION tests of the full
+    // `mode_best_of_n` return path with mock judges — they prove the pipeline
+    // runs end-to-end and the `join!` parallelization doesn't break the return.
+    // They do NOT directly observe the agree/disagree verdict (that's a
+    // `tracing::info!` side-effect); the bias-detection logic itself
+    // (`identify_pick` + `==` comparison) is covered by the `identify_pick`
+    // unit test above plus the trivial `usize ==` comparison. A live judge run
+    // through this harness pattern reveals whether swap-revote is justified.
 
     use std::collections::HashMap;
     use std::future::Future;
@@ -1431,11 +1433,10 @@ mod tests {
         }
     }
 
-    /// A bias-free judge (fixed pick) yields idx_a == idx_b — swap-revote agrees.
-    ///
-    /// This proves the measurement mechanism can detect the absence of bias:
-    /// if a live judge behaves like `FixedPick`, swap-revote is unjustified
-    /// and the cheaper order-randomization (1 call) suffices.
+    /// Integration test: a fixed-pick judge produces a deterministic output
+    /// through the full `mode_best_of_n` pipeline (panel dispatch + `join!`
+    /// swap-revote + return path). The bias-detection logic itself is covered
+    /// by the `identify_pick` unit test; this test proves the wiring.
     #[tokio::test]
     async fn best_of_n_bias_harness_fixed_pick_agrees() {
         let panel_texts: HashMap<String, String> = [
@@ -1471,12 +1472,12 @@ mod tests {
         );
     }
 
-    /// A position-biased judge (always picks the first displayed candidate)
-    /// yields idx_a != idx_b — swap-revote disagrees, bias is detected.
-    ///
-    /// This proves the measurement mechanism can detect the presence of bias:
-    /// if a live judge behaves like `FirstDisplayed`, swap-revote is
-    /// justified and should be kept.
+    /// Integration test: a first-displayed judge (position-biased) produces the
+    /// dispatch-order pick through the full pipeline. This test exercises the
+    /// same return path as the fixed-pick test with a different judge behavior;
+    /// it does NOT directly assert on the agree/disagree verdict (which is a
+    /// `tracing::info!` side-effect, not a return value). The detection logic
+    /// (`identify_pick` + `==`) is covered by unit tests above.
     #[tokio::test]
     async fn best_of_n_bias_harness_first_displayed_disagrees() {
         let panel_texts: HashMap<String, String> = [

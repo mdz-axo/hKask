@@ -651,6 +651,49 @@ mod tests {
         assert!(json.contains("ok"));
     }
 
+    /// Capture sink for testing ν-event emission.
+    struct CaptureSink {
+        last_event: std::sync::Mutex<Option<NuEvent>>,
+    }
+
+    impl NuEventSink for CaptureSink {
+        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+            *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn api_request_span_emit_to_persists_event() {
+        let sink = CaptureSink {
+            last_event: std::sync::Mutex::new(None),
+        };
+        let span = ApiRequestSpan::new(
+            "k_test",
+            "/api/wallet/balance",
+            true,
+            0,
+            None,
+            RateLimitStatus::Ok,
+        );
+        span.emit_to(&sink, &WebID::default());
+
+        let event = sink
+            .last_event
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("event was persisted");
+        assert_eq!(event.span.namespace.as_str(), "cns.api.request");
+        assert_eq!(event.span.path, "cns.api.request.request");
+        assert_eq!(event.phase, CyclePhase::Sense);
+        // Observation contains the serialized span fields
+        let obs = &event.observation;
+        assert_eq!(obs["key_id"], "k_test");
+        assert_eq!(obs["endpoint"], "/api/wallet/balance");
+        assert_eq!(obs["rate_limit_status"], "ok");
+    }
+
     #[test]
     fn alert_severity_levels() {
         assert_eq!(
