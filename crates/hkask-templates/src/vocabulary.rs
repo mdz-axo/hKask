@@ -336,11 +336,16 @@ pub fn unrecognized(terms: &[String]) -> Vec<String> {
 }
 
 /// Validate an entry's `lexicon_terms` against the known vocabulary.
-/// Returns warnings for any unrecognized terms.
+/// Returns warnings for any unrecognized or ill-formed terms.
+///
+/// Naming convention: terms must match `^[a-z][a-z0-9_]*$` (lowercase letters,
+/// digits, underscores; must start with a letter). This catches casing
+/// drift (`Multi-Step`), separator drift (`multi-step` vs `multi_step`),
+/// and whitespace before they enter `KNOWN_TERMS`.
 ///
 /// expect: "The system validates template contracts against the lexicon"
 /// pre:  entry is a valid RegistryEntry
-/// post: returns Vec of warning strings for unrecognized terms
+/// post: returns Vec of warning strings for unrecognized or ill-formed terms
 pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
     let mut warnings = Vec::new();
     let unknown = unrecognized(&entry.lexicon_terms);
@@ -350,7 +355,33 @@ pub fn validate_entry(entry: &RegistryEntry) -> Vec<String> {
             entry.id, term
         ));
     }
+    for term in &entry.lexicon_terms {
+        if !is_well_formed(term) {
+            warnings.push(format!(
+                "entry '{}' declares ill-formed lexicon term '{}' (must match ^[a-z][a-z0-9_]*$)",
+                entry.id, term
+            ));
+        }
+    }
     warnings
+}
+
+/// Check that a term matches the lexicon naming convention.
+///
+/// Convention: lowercase letters, digits, and underscores; must start with
+/// a letter. Rejects mixed case, hyphens, spaces, and leading digits/underscores.
+///
+/// expect: "The system validates template contracts against the lexicon"
+/// pre:  term may be any string
+/// post: returns true if term matches ^[a-z][a-z0-9_]*$
+pub fn is_well_formed(term: &str) -> bool {
+    let mut chars = term.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_lowercase() => {
+            chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        }
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -416,5 +447,65 @@ mod tests {
     fn empty_terms_no_warnings() {
         let unknown = unrecognized(&[]);
         assert!(unknown.is_empty());
+    }
+
+    #[test]
+    fn is_well_formed_accepts_lowercase_and_underscores() {
+        assert!(is_well_formed("compose"));
+        assert!(is_well_formed("rule_out"));
+        assert!(is_well_formed("value_chain"));
+        assert!(is_well_formed("dead_code"));
+        assert!(is_well_formed("stage_3"));
+        assert!(is_well_formed("a"));
+    }
+
+    #[test]
+    fn is_well_formed_rejects_invalid_patterns() {
+        // Hyphens rejected (use underscores)
+        assert!(!is_well_formed("multi-step"));
+        // Mixed case rejected
+        assert!(!is_well_formed("MultiStep"));
+        assert!(!is_well_formed("composeX"));
+        // Leading underscore rejected
+        assert!(!is_well_formed("_private"));
+        // Leading digit rejected
+        assert!(!is_well_formed("3stage"));
+        // Empty rejected
+        assert!(!is_well_formed(""));
+        // Whitespace rejected
+        assert!(!is_well_formed("multi step"));
+        assert!(!is_well_formed("trailing "));
+    }
+
+    #[test]
+    fn validate_entry_flags_ill_formed_terms() {
+        use hkask_ports::registry::RegistryEntry;
+        use hkask_types::TemplateType;
+        let entry = RegistryEntry {
+            id: "test/ill-formed".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Test".into(),
+            lexicon_terms: vec!["compose".into(), "Multi-Step".into(), "multi-step".into()],
+            description: String::new(),
+            source_path: "test.j2".into(),
+            required_capabilities: Vec::new(),
+            cascade_level: 0,
+            matroshka_limit: 0,
+        };
+        let warnings = validate_entry(&entry);
+        // "compose" is known and well-formed — no warning.
+        // "Multi-Step" is unknown AND ill-formed — two warnings (unknown + ill-formed).
+        // "multi-step" is unknown AND ill-formed — two warnings (unknown + ill-formed).
+        assert_eq!(warnings.len(), 4, "expected 4 warnings, got: {warnings:?}");
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("ill-formed") && w.contains("Multi-Step"))
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("ill-formed") && w.contains("multi-step"))
+        );
     }
 }

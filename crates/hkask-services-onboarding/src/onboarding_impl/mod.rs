@@ -515,59 +515,6 @@ impl OnboardingService {
         }
     }
 
-    /// pre:  config.db_path must be set; :memory: paths are never orphaned
-    /// post: returns true if orphaned DB was cleaned up; false if DB has replicants or doesn't exist
-    #[must_use]
-    pub fn remove_orphaned_db(config: &ServiceConfig) -> bool {
-        // P9: CNS span
-        tracing::info!(target: "hkask.onboarding", operation = "remove_orphaned_db", "CNS");
-        let db_path = &config.db_path;
-        if db_path == ":memory:" {
-            return false;
-        }
-
-        if !std::path::Path::new(db_path).exists() {
-            return false;
-        }
-
-        // Try to open the DB and check for replicants
-        let has_replicants = if !config.db_passphrase.is_empty() {
-            match Database::open(db_path, &config.db_passphrase) {
-                Ok(db) => {
-                    match db.sqlite_pool() {
-                        Ok(pool) => {
-                            let driver = Arc::new(SqliteDriver::new(pool));
-                            let store = AgentRegistryStore::from_driver(driver);
-                            matches!(store.list_by_kind(AgentKind::Replicant), Ok(r) if !r.is_empty())
-                        }
-                        // Can't open the DB (wrong passphrase / corrupted) —
-                        // treat as orphaned: no replicants to preserve, proceed
-                        // to cleanup.  This must NOT short-circuit return false,
-                        // because the caller relies on us to actually remove the
-                        // files.  Returning false here leaves stale DB + salt on
-                        // disk, causing hmac errors in the subsequent init_registry.
-                        Err(_) => false,
-                    }
-                }
-                Err(_) => false,
-            }
-        } else {
-            false
-        };
-
-        if has_replicants {
-            return false;
-        }
-
-        // Orphaned — remove DB, salt file, and stale keychain entries
-        Self::cleanup_failed_onboarding(config);
-        // Verify the DB file was actually removed. cleanup_failed_onboarding
-        // is best-effort and file deletion can fail (permissions, stale locks).
-        // Returning true when the file still exists causes the caller to report
-        // success, then init_registry fails with hmac errors on the stale DB.
-        !std::path::Path::new(db_path).exists()
-    }
-
     /// Remove an orphaned DB without re-opening it.
     ///
     /// Use this when `has_orphaned_db` has already returned `true` — the caller
@@ -575,7 +522,7 @@ impl OnboardingService {
     /// unsuppressable `hmac check failed` diagnostics). Re-opening here would
     /// emit a second round of those diagnostics for no information gain.
     ///
-    /// Unlike `remove_orphaned_db`, this does NOT re-check for replicants: the
+    /// Unlike a re-checking variant, this does NOT re-check for replicants: the
     /// caller is responsible for having confirmed orphaned status first.
     ///
     /// pre:  `has_orphaned_db(config)` returned `true`; config.db_path is not `:memory:`
@@ -722,45 +669,6 @@ mod orphaned_db_tests {
         assert!(
             db_path.exists(),
             "has_orphaned_db must not delete the DB file"
-        );
-    }
-
-    /// `remove_orphaned_db` returns `false` for a non-existent DB — the
-    /// function returns before reaching `cleanup_failed_onboarding`, so no
-    /// keychain side effects occur.
-    #[test]
-    fn remove_orphaned_db_returns_false_for_nonexistent() {
-        let temp_dir = tempfile::tempdir().expect("create temp dir");
-        let db_path = temp_dir.path().join("nonexistent.db");
-
-        let mut config = ServiceConfig::from_secrets(
-            "test-a2a-secret".to_string(),
-            "any-passphrase".to_string(),
-            "test-agent".to_string(),
-        );
-        config.db_path = db_path.to_str().unwrap().to_string();
-
-        assert!(
-            !OnboardingService::remove_orphaned_db(&config),
-            "remove_orphaned_db should return false for non-existent DB"
-        );
-    }
-
-    /// `remove_orphaned_db` returns `false` for `:memory:` databases —
-    /// these are never orphaned and the function returns before cleanup,
-    /// so no keychain side effects occur.
-    #[test]
-    fn remove_orphaned_db_returns_false_for_in_memory() {
-        let mut config = ServiceConfig::from_secrets(
-            "test-a2a-secret".to_string(),
-            "any-passphrase".to_string(),
-            "test-agent".to_string(),
-        );
-        config.db_path = ":memory:".to_string();
-
-        assert!(
-            !OnboardingService::remove_orphaned_db(&config),
-            "remove_orphaned_db should return false for :memory: DB"
         );
     }
 

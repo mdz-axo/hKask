@@ -52,10 +52,20 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
 
     // 5. Store in keychain
     let keychain = hkask_keystore::keychain::Keychain::new("hkask");
+    // Store the master passphrase under both keychain keys that resolve it:
+    // - KEY_DB_PASSPHRASE: read by `resolve_db_passphrase()` for SQLCipher.
+    // - KEY_MASTER_PASSPHRASE: read by `retry_pending_matrix()` for re-auth.
+    // KEY_MASTER_KEY is reserved for the derived master key hex (HKDF output),
+    // not the raw passphrase — storing the passphrase there was a bug that
+    // left `resolve_db_passphrase()` unable to find it via keychain.
     keychain
-        .store_by_key(hkask_types::keychain_keys::KEY_MASTER_KEY, &passphrase)
-        .map_err(|e| format!("Failed to store master key: {e}"))?;
+        .store_by_key(hkask_types::keychain_keys::KEY_DB_PASSPHRASE, &passphrase)
+        .map_err(|e| format!("Failed to store DB passphrase: {e}"))?;
+    keychain
+        .store_by_key(hkask_types::keychain_keys::KEY_MASTER_PASSPHRASE, &passphrase)
+        .map_err(|e| format!("Failed to store master passphrase: {e}"))?;
     println!("  ✓ Stored master passphrase in OS keychain");
+    );
 
     keychain
         .store_by_key(

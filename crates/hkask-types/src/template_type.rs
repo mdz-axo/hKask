@@ -6,13 +6,16 @@ use serde::{Deserialize, Serialize};
 /// - **WordAct**: Jinja2 prompt templates — "what to say" — `.j2` (inference-invoked)
 /// - **KnowAct**: Jinja2 cognition templates — "how to think" — `.j2` (inference-invoked)
 /// - **FlowDef**: YAML pipeline manifests — "what to do" — `.yaml`
-/// - **RenderAct**: Jinja2 render templates — "what to render" — `.j2` (NOT inference-invoked)
+/// - **RenderAct**: Non-inference render/reference content — "what to render"
+///   (NOT inference-invoked). May be `.j2` (Jinja2 `{% macro %}` libraries,
+///   error views included via `{% include %}`/`{% from %}`) or `.yaml`
+///   (structured reference documents consumed by skills, not rendered by
+///   minijinja).
 ///
 /// WordAct, KnowAct, and FlowDef are the cognitive-act triad (Pattern A) — all
 /// are invoked in the cascade (WordAct/KnowAct sent to inference; FlowDef
-/// orchestrates). RenderAct is the non-inference layer: Jinja2 components that
-/// produce text via rendering (reference content, `{% macro %}` libraries, error
-/// views included via `{% include %}`/`{% from %}`) and are never sent to the LLM.
+/// orchestrates). RenderAct is the non-inference layer: content that is
+/// never sent to the LLM.
 ///
 /// FlowDef templates are declared in `manifest.yaml` with `type: FlowDef`
 /// but use `.yaml` files (not `.j2`). Only WordAct, KnowAct, and RenderAct
@@ -44,18 +47,6 @@ crate::enum_str_ops!(TemplateType, {
 });
 
 impl TemplateType {
-    /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self is a valid TemplateType variant
-    /// post: returns the file extension: "j2" for WordAct/KnowAct/RenderAct, "yaml" for FlowDef
-    pub fn file_extension(&self) -> &'static str {
-        match self {
-            TemplateType::WordAct => "j2",
-            TemplateType::KnowAct => "j2",
-            TemplateType::FlowDef => "yaml",
-            TemplateType::RenderAct => "j2",
-        }
-    }
-
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is a valid TemplateType variant
     /// post: returns the MDS specification name: WordAct→"Prompt", KnowAct→"Cognition", FlowDef→"Process", RenderAct→"Render"

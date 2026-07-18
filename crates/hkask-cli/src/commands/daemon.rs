@@ -26,10 +26,24 @@ pub fn run(rt: &tokio::runtime::Runtime, action: DaemonAction) {
         }
         DaemonAction::Status => {
             let path = daemon_socket_path();
-            if path.exists() {
-                println!("Daemon is running (socket: {})", path.display());
-            } else {
-                println!("Daemon is not running (no socket at {})", path.display());
+            match rt.block_on(ping_daemon(&path)) {
+                Ok(()) => {
+                    println!("Daemon is running (socket: {})", path.display());
+                }
+                Err(reason) => {
+                    if path.exists() {
+                        println!(
+                            "Daemon is not running (stale socket at {} — {})",
+                            path.display(),
+                            reason
+                        );
+                        println!(
+                            "  Run `kask daemon stop` to remove the stale socket, then `kask daemon start`."
+                        );
+                    } else {
+                        println!("Daemon is not running (no socket at {})", path.display());
+                    }
+                }
             }
         }
         DaemonAction::Stop => {
@@ -42,6 +56,56 @@ pub fn run(rt: &tokio::runtime::Runtime, action: DaemonAction) {
             }
         }
     }
+}
+
+/// Probe the daemon socket by sending an `auth_query` for a sentinel replicant.
+///
+/// Returns Ok(()) if the socket accepts a connection and responds with valid
+/// JSON; Err(reason) otherwise. This distinguishes a live daemon from a stale
+/// socket file left behind by a crashed process.
+///
+/// pre:  path is the daemon socket path
+/// post: returns Ok(()) when the daemon is live, Err with a reason when not
+async fn ping_daemon(path: &std::path::Path) -> Result<(), String> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use tokio::net::UnixStream;
+
+    let stream = UnixStream::connect(path)
+        .await
+        .map_err(|e| format!("connect failed: {e}"))?;
+    let (reader, mut writer) = stream.into_split();
+
+    // Send a minimal auth_query. The sentinel name "__ping__" is not a real
+    // replicant; the daemon will return authenticated:false, but any valid
+    // JSON response proves the socket is live.
+    let request = serde_json::json!({
+        "type": "auth_query",
+        "replicant": "__ping__"
+    });
+    let mut json = serde_json::to_string(&request).map_err(|e| format!("serialize: {e}"))?;
+    json.push('\n');
+    writer
+        .write_all(json.as_bytes())
+        .await
+        .map_err(|e| format!("write failed: {e}"))?;
+    writer
+        .shutdown()
+        .await
+        .map_err(|e| format!("shutdown failed: {e}"))?;
+
+    let mut buf_reader = BufReader::new(reader);
+    let mut line = String::new();
+    buf_reader
+        .read_line(&mut line)
+        .await
+        .map_err(|e| format!("read failed: {e}"))?;
+
+    if line.trim().is_empty() {
+        return Err("empty response".to_string());
+    }
+    serde_json::from_str::<serde_json::Value>(&line)
+        .map_err(|e| format!("invalid JSON response: {e}"))?;
+    Ok(())
 }
 
 async fn run_daemon() -> Result<(), CliError> {
