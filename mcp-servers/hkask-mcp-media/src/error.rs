@@ -58,7 +58,6 @@ impl From<serde_json::Error> for MediaError {
 impl From<GalleryStoreError> for MediaError {
     fn from(e: GalleryStoreError) -> Self {
         match e {
-            GalleryStoreError::ImageNotFound(msg) => MediaError::ImageNotFound(msg),
             GalleryStoreError::NotFound(nf) => MediaError::ImageNotFound(nf.to_string()),
             other => MediaError::Io(other.to_string()),
         }

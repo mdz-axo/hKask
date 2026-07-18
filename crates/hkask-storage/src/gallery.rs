@@ -22,10 +22,8 @@ use thiserror::Error;
 pub enum GalleryStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-    #[error("Gallery not found: {0}")]
+    #[error("{0}")]
     NotFound(NotFound),
-    #[error("Image not found: {0}")]
-    ImageNotFound(String),
     #[error("Invalid policy mode: {0}")]
     InvalidMode(String),
     #[error("Gallery already exists at path: {0}")]
@@ -322,7 +320,10 @@ impl GalleryStore {
                 ],
                 Self::image_from_row,
             )?
-            .ok_or_else(|| GalleryStoreError::ImageNotFound(format!("hash={}", h)))?
+            .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
+                entity_type: "image".to_string(),
+                id: format!("hash={}", h),
+            }))?
         } else if let Some(idx) = index {
             query_row(
                 &*self.driver,
@@ -335,11 +336,15 @@ impl GalleryStore {
                 ],
                 Self::image_from_row,
             )?
-            .ok_or_else(|| GalleryStoreError::ImageNotFound(format!("index={}", idx)))?
+            .ok_or_else(|| GalleryStoreError::NotFound(NotFound {
+                entity_type: "image".to_string(),
+                id: format!("index={}", idx),
+            }))?
         } else {
-            return Err(GalleryStoreError::ImageNotFound(
-                "Must provide either index or hash".to_string(),
-            ));
+            return Err(GalleryStoreError::NotFound(NotFound {
+                entity_type: "image".to_string(),
+                id: "Must provide either index or hash".to_string(),
+            }));
         };
         Ok(row)
     }
@@ -386,7 +391,12 @@ impl GalleryStore {
             ],
             |row| Ok(row.get_str(0)?.to_string()),
         )?
-        .ok_or_else(|| GalleryStoreError::ImageNotFound("tag vanished".into()))?;
+        .ok_or_else(|| {
+            GalleryStoreError::NotFound(NotFound {
+                entity_type: "image".to_string(),
+                id: "tag vanished".to_string(),
+            })
+        })?;
         Ok(TagRecord {
             id: existing_id,
             image_id: image_id.to_string(),
