@@ -179,4 +179,4 @@ dotenvy = "0.15"
 matrix-sdk = { version = "0.16", default-features = false, features = ["rustls-tls"] }
 
 [workspace.lints.rust]
-unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("hedera"))'] }
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("hedera"))', 'cfg(kani)'] }
