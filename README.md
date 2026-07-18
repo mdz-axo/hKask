@@ -100,11 +100,10 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-guard` | Content safety guard — mandatory LLM boundary scanning, OWASP LLM Top 10 aligned |
 | `hkask-repl` | Interactive REPL — slash-command dispatch, tab completion, fuzzy matching |
 | `hkask-forecast` | Superforecasting computation engine (Fermi decomposition, Bayesian updating, Brier scoring) |
-| `hkask-corpus-ingest` | Company Researcher corpus embedder |
 | `hkask-storage-guard` | Autonomous disk space management loop — monitors /data volume, prunes old exports |
 | `hkask-git-cas` | Git content-addressable storage (BLAKE3-hashed object store) |
 | `hkask-goal` | Goal specification and completion verification |
-| `hkask-identity` | Identity primitives — WebID, DID, profile management |
+| `hkask-identity` | Human identity & access-control user records (HumanUser, OAuth providers, roles) — Loop 6 Access Guard |
 
 ### Services (14 crates)
 | Crate | Purpose |
@@ -113,7 +112,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-services-context` | AgentService context, CNS runtime, cybernetic loops |
 | `hkask-services-runtime` | Runtime services — text classification, provider intelligence, daemon handler |
 | `hkask-services-chat` | Chat session management and history |
-| `hkask-services-compose` | Prompt composition with cognition config (exemplar retrieval, prose generation) |
+| `hkask-services-compose` | Style composition — exemplar retrieval, prose generation, centroid-distance validation against an author's voice |
 | `hkask-services-corpus` | Document corpus management and indexing |
 | `hkask-services-inference` | Inference provider intelligence and dispatch services |
 | `hkask-services-kata-kanban` | Toyota Kata coaching/improvement + Kanban board coordination |
@@ -121,7 +120,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-services-research` | Research pipeline services (web search, extraction, feed management) |
 | `hkask-services-self-heal` | Autonomous self-healing loop services |
 | `hkask-services-skill` | Skill discovery, publishing, hashing, auditing, and bundle composition |
-| `hkask-services-verification` | Sovereignty verification and consent enforcement services |
+| `hkask-services-verification` | Magna Carta verification — manifest-driven structural audits of codebase sovereignty/consent provisions |
 | `hkask-services-wallet` | Gas budgeting, price feeds, CNS integration |
 
 ### Wallet, Identity & Ledger (3 crates)
