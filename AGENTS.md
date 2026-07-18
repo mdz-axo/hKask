@@ -81,7 +81,7 @@
 | **mcda** | Multi-Criteria Decision Analysis. |
 | **scenario-builder** | Schwartz scenario planning. |
 | **hypothesis-framer** | Research question framing (FINER + PICO). |
-| **adversarial-red-team** | Adversarial robustness testing. |
+| **adversarial-red-team** | Adversarial robustness testing with defense-layer awareness. Probes hKask's 8-layer defense-in-depth stack and reports which layers were bypassed. |
 | **kali-audit** | Security review of Rust code, Jinja2 templates, YAML manifests, supply chain, MCP surfaces, and LLM I/O boundaries. Forward-adaptable: consumes regression library at runtime, checks 8-layer defense coverage, discovers surfaces dynamically. |
 | **goal-analysis** | Goal specification and completion verification. |
 | **magna-carta-verifier** | Verify Magna Carta principles enforcement. |

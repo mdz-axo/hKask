@@ -16,6 +16,8 @@ This crate exposes a single module with one constructor, two scan methods, and t
 | `GuardOutput` | Enum: `Clean` (unchanged) or `Sanitized(String)` (secrets stripped) |
 | `GuardViolation` | A single violation with `scanner` name and `description` |
 | `CanaryToken` | Per-session token for system prompt exfiltration detection (OWASP LLM07:2025) |
+| `Spotlighter` | Transforms untrusted tool output so the LLM can distinguish it from instructions (Microsoft Research arXiv:2403.14720) |
+| `SpotlightMode` | Spotlighting mode: `Delimit` (preserves structure), `Datamark` (NL-only), `Encode` (base64) |
 
 ### Key Methods
 
@@ -26,6 +28,14 @@ This crate exposes a single module with one constructor, two scan methods, and t
 | `scan_output(&self, text)` | Scan after model response. Detects and redacts secrets before storage |
 | `canary(&self)` | Get the per-session canary token for embedding in system prompts |
 | `check_canary(&self, text)` | Check if the canary token leaked into output (system prompt exfiltration) |
+
+### Spotlighter
+
+| Method | Description |
+|--------|-------------|
+| `Spotlighter::new(mode)` | Create a spotlighter with a per-session random marker |
+| `spotlight(&self, untrusted)` | Transform untrusted content according to the spotlighting mode |
+| `instruction_text(&self)` | Get system prompt text telling the LLM how to interpret marked content |
 
 ### GuardOutput
 
@@ -38,7 +48,7 @@ This crate exposes a single module with one constructor, two scan methods, and t
 
 | OWASP LLM Risk | Scanner | Stage |
 |---|---|---|
-| LLM01: Prompt Injection | `BanSubstrings` + `Deobfuscate` | Input |
+| LLM01: Prompt Injection | `BanSubstrings` + `Deobfuscate` + `Spotlighter` | Input + Tool Output |
 | LLM02: Sensitive Information Disclosure | `Secrets` (output redaction) | Output |
 | LLM04: Model Denial of Service | `TokenLimit` (32K default) | Input |
 | LLM07: System Prompt Leakage | `CanaryToken` (per-session, output check) | Output |
@@ -90,3 +100,7 @@ match output.output {
 - `hkask-types` — `InfrastructureError`
 - `llm-guard` — Core scanning primitives (BanSubstrings, Deobfuscate, Secrets, TokenLimit, RoleOverride)
 - `tracing` — CNS event logging
+- `rand` — Random marker generation for Spotlighter and CanaryToken
+- `hex` — Hex encoding for markers and canary tokens
+- `base64` — Base64 encoding for SpotlightMode::Encode
+- `zeroize` — Zeroizing secrets (CanaryToken) on drop

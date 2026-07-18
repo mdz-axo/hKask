@@ -34,15 +34,15 @@ fn mls_derivation_concept_exists() {
 // ── Adapter type tests ─────────────────────────────────────────────────────
 
 #[test]
-fn lora_adapter_type_exists() {
-    let _type_name = std::any::type_name::<hkask_mcp_training::adapters::LoRAAdapter>();
-    assert!(_type_name.contains("hkask_mcp_training"));
+fn trained_lora_adapter_type_exists() {
+    let _type_name = std::any::type_name::<hkask_adapter::TrainedLoRAAdapter>();
+    assert!(_type_name.contains("hkask_adapter"));
 }
 
 #[test]
-fn in_memory_adapter_store_is_constructable() {
-    let store = hkask_mcp_training::adapters::InMemoryAdapterStore::default();
-    let _ = store;
+fn adapter_metrics_type_exists() {
+    let _type_name = std::any::type_name::<hkask_mcp_training::adapters::AdapterMetrics>();
+    assert!(_type_name.contains("hkask_mcp_training"));
 }
 
 // ── Request type tests ─────────────────────────────────────────────────────

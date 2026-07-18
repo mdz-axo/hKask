@@ -16,7 +16,7 @@ manifest:
     the same cycle. To test emergent categories, restart the cycle with
     updated adversarial_categories input.
   functional_role: flowdef
-  version: 0.30.0
+  version: "0.31.0"
   editor: curator-or-human-admin
   visibility: Public
 
@@ -74,6 +74,13 @@ inputs:
       creative vectors), or extreme (5+ with recursive payloads, cross-category
       blending, evasion techniques).
       Default: basic
+  - name: defense_layers
+    type: array
+    required: false
+    description: >
+      hKask defense-in-depth layer catalog. When provided, attacks are designed
+      to bypass specific layers. When absent, the select-target template uses
+      the standard 8-layer stack.
 
 steps:
   - ordinal: 1
@@ -88,6 +95,7 @@ steps:
       target_domain: "{{ target_domain | default('general') }}"
       adversarial_categories: "{{ adversarial_categories | default(['prompt_injection', 'goal_hijacking', 'context_manipulation', 'authority_override', 'information_extraction', 'tool_misuse', 'data_exfiltration']) }}"
       intensity: "{{ intensity | default('moderate') }}"
+      defense_layers: "{{ defense_layers | default([]) }}"
 
   - ordinal: 2
     action: select
@@ -118,6 +126,7 @@ steps:
       domain: "{{ step_1_result.domain | default(target_domain | default('general')) }}"
       adversarial_inputs: "{{ step_2_result.adversarial_inputs | default([]) }}"
       intensity_level: "{{ step_1_result.intensity_level | default(intensity | default('moderate')) }}"
+      defense_bypass_targets: "{{ step_1_result.defense_bypass_targets | default([]) }}"
 
   - ordinal: 4
     action: select

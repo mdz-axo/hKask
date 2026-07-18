@@ -66,7 +66,7 @@ use hkask_adapter::AdapterPort;
 use hkask_adapter::AdapterRouter;
 use hkask_adapter::adapter_store::Checksum;
 use hkask_adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
-use hkask_adapter::{AdapterSource, AdapterStore, TrainedLoRAAdapter};
+use hkask_adapter::{AdapterSource, TrainedLoRAAdapter};
 use hkask_adapter::{EndpointLifecycle, EndpointPhase};
 use hkask_inference::{InferenceConfig, InferenceRouter};
 
@@ -493,7 +493,6 @@ impl TrainingServer {
                             .adapter_store
                             .get_by_id(uuid::Uuid::parse_str(&job_id).unwrap_or_default())
                             .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
-                            .unwrap_or(None)
                         {
                             Some(existing) => {
                                 result["adapter_registered"] = json!(true);
@@ -605,7 +604,7 @@ impl TrainingServer {
                         if !adapter_skill.is_empty() {
                             let current_loss =
                                 Self::metrics_from_trained(&adapter).and_then(|m| m.loss);
-                            if let Ok(Some(prev)) = self
+                            if let Some(prev) = self
                                 .adapter_store
                                 .get_by_skill_name(&adapter_skill)
                                 .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
@@ -678,25 +677,27 @@ impl TrainingServer {
                             .adapter_store
                             .get_by_id(uuid::Uuid::parse_str(id).unwrap_or_default())
                             .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
-                            .unwrap_or(None)
                         {
-                            Some(adapter) => json!({
-                                "id": adapter.id.to_string(),
-                                "name": adapter.expertise.name,
-                                "skill_name": adapter.skill_name.unwrap_or_default(),
-                                "version": adapter.version.unwrap_or_default(),
-                                "base_model": adapter.base_model_family,
-                                "dataset_hash": adapter.expertise.training_source.dataset_hash.unwrap_or_default(),
-                                "training_job_id": adapter.expertise.training_source.training_run_id,
-                                "created_at": adapter.created_at,
-                                "size_bytes": adapter.size_bytes.unwrap_or_default(),
-                                "metrics": Self::metrics_from_trained(&adapter).map(|m| json!({
+                            Some(adapter) => {
+                                let metrics = Self::metrics_from_trained(&adapter).map(|m| json!({
                                     "loss": m.loss,
                                     "perplexity": m.perplexity,
                                     "training_duration_secs": m.training_duration_secs,
                                     "tokens_processed": m.tokens_processed,
-                                })),
-                            }),
+                                }));
+                                json!({
+                                    "id": adapter.id.to_string(),
+                                    "name": adapter.expertise.name,
+                                    "skill_name": adapter.skill_name.unwrap_or_default(),
+                                    "version": adapter.version.unwrap_or_default(),
+                                    "base_model": adapter.base_model_family,
+                                    "dataset_hash": adapter.expertise.training_source.dataset_hash.unwrap_or_default(),
+                                    "training_job_id": adapter.expertise.training_source.training_run_id,
+                                    "created_at": adapter.created_at,
+                                    "size_bytes": adapter.size_bytes.unwrap_or_default(),
+                                    "metrics": metrics,
+                                })
+                            }
                             None => json!({"id": id, "warning": "metadata not found in store"}),
                         };
                         metadata_list.push(entry);
@@ -1909,6 +1910,7 @@ impl TrainingServer {
                 .get_by_skill_name(&skill_name)
                 .ok()
                 .flatten()
+                .as_ref()
                 .and_then(Self::metrics_from_trained)
                 .map(|m| AbBaseline {
                     previous_version: version - 1,
@@ -2318,17 +2320,21 @@ impl TrainingServer {
         let mut base_model: Option<String> = None;
 
         for adapter_id in &adapter_ids {
-            match self.adapter_store.get_metadata(adapter_id).await {
-                Ok(Some(meta)) => {
+            match self
+                .adapter_store
+                .get_by_id(uuid::Uuid::parse_str(adapter_id).unwrap_or_default())
+                .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
+            {
+                Some(meta) => {
                     if let Some(ref bm) = base_model {
-                        if meta.base_model != *bm {
+                        if meta.base_model_family != *bm {
                             return Err(McpToolError::invalid_argument(format!(
                                 "All adapters must share the same base model. Found '{}' and '{}'",
-                                bm, meta.base_model
+                                bm, meta.base_model_family
                             )));
                         }
                     } else {
-                        base_model = Some(meta.base_model.clone());
+                        base_model = Some(meta.base_model_family.clone());
                     }
 
                     // Try to find adapter weights locally
@@ -2342,16 +2348,10 @@ impl TrainingServer {
                         }
                     }
                 }
-                Ok(None) => {
+                None => {
                     return Err(McpToolError::invalid_argument(format!(
                         "Adapter '{}' not found in registry",
                         adapter_id
-                    )));
-                }
-                Err(e) => {
-                    return Err(McpToolError::internal(format!(
-                        "Adapter store error: {}",
-                        e
                     )));
                 }
             }
@@ -2368,20 +2368,24 @@ impl TrainingServer {
         // without performing actual weight merging (requires PEFT library at runtime).
         // The merge is represented as a composite adapter entry.
         let merged_id = uuid::Uuid::new_v4().to_string();
-        let merged_adapter = LoRAAdapter {
-            id: merged_id.clone(),
-            name: merged_name.clone(),
+        let merged_adapter = Self::build_trained_adapter(
+            merged_id.clone(),
+            merged_name.clone(),
             base_model,
-            dataset_hash: String::new(),
-            training_job_id: format!("merge:{}", adapter_ids.join(",")),
-            created_at: chrono::Utc::now().timestamp(),
-            size_bytes: 0,
-            skill_name: skill_name.clone(),
-            version: 1,
-            metrics: None,
-        };
+            String::new(),
+            format!("merge:{}", adapter_ids.join(",")),
+            chrono::Utc::now().timestamp(),
+            0,
+            skill_name.clone(),
+            1,
+            None,
+        );
 
-        match self.adapter_store.store_metadata(&merged_adapter).await {
+        match self
+            .adapter_store
+            .store(&merged_adapter)
+            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
+        {
             Ok(()) => {
                 let result = json!({
                     "merged_adapter_id": merged_id,
@@ -2395,10 +2399,7 @@ impl TrainingServer {
                 });
                 Ok(result)
             }
-            Err(e) => Err(McpToolError::internal(format!(
-                "Failed to store merged adapter: {}",
-                e
-            ))),
+            Err(e) => Err(e),
         }
         })
         .await
@@ -2411,34 +2412,30 @@ impl TrainingServer {
         execute_tool(self, "training_deploy", async {
         // Look up adapter from store — validate it exists.
         // Try by exact ID first, then by skill/expertise name.
-        let adapter_meta = match self.adapter_store.get_metadata(&req.adapter_name).await {
-            Ok(Some(meta)) => meta,
-            _ => {
-                match self
-                    .adapter_store
-                    .get_by_skill_name(&req.adapter_name)
-                    .await
-                {
-                    Ok(Some(meta)) => meta,
-                    Ok(None) => {
-                        return Err(McpToolError::invalid_argument(format!(
-                            "Adapter '{}' not found by ID or skill name. Use training_list_adapters to see available adapters.",
-                            req.adapter_name
-                        )));
-                    }
-                    Err(e) => {
-                        return Err(McpToolError::internal(format!(
-                            "Adapter store error: {}",
-                            e
-                        )));
-                    }
+        let adapter_meta = match self
+            .adapter_store
+            .get_by_id(uuid::Uuid::parse_str(&req.adapter_name).unwrap_or_default())
+            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
+        {
+            Some(meta) => meta,
+            None => match self
+                .adapter_store
+                .get_by_skill_name(&req.adapter_name)
+                .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
+            {
+                Some(meta) => meta,
+                None => {
+                    return Err(McpToolError::invalid_argument(format!(
+                        "Adapter '{}' not found by ID or skill name. Use training_list_adapters to see available adapters.",
+                        req.adapter_name
+                    )));
                 }
-            }
+            },
         };
 
         // If AdapterRouter is configured, use canonical deployment pipeline.
         if let Some(ref router) = self.adapter_router {
-            let canonical = adapter_meta.to_canonical();
+            let canonical = adapter_meta.clone();
             let provider = req.provider.as_provider_id();
             let token = hkask_capability::DelegationToken::new(
                 hkask_capability::DelegationResource::Tool,
@@ -2518,7 +2515,7 @@ impl TrainingServer {
         }
 
         // Fallback: local deployment pipeline
-        let base_model = req.base_model.unwrap_or(adapter_meta.base_model);
+        let base_model = req.base_model.unwrap_or(adapter_meta.base_model_family.clone());
         let setup_secs = req.provider.setup_seconds();
         let cost_hr = req.provider.cost_per_hour(req.gpu_type.as_deref());
         let deploy_id = uuid::Uuid::new_v4().to_string();
@@ -2775,36 +2772,37 @@ pub async fn run(
                             h_mem_store,
                             embedding_store,
                         ));
-                        // FIXME: SqliteAdapterStore was removed from hkask-adapter.
-                        // The adapter API was restructured — this code path needs
-                        // updating to use the new AdapterStore type directly.
-                        // See: hkask-adapter v0.31.0 adapter_store.rs
-                        let store = SqliteAdapterStore::new(db).map_err(|e| {
-                            anyhow::anyhow!("Failed to create adapter store: {}", e)
-                        })?;
-                        store.migrate().map_err(|e| {
-                            anyhow::anyhow!("Failed to migrate adapter store: {}", e)
-                        })?;
+                        // Canonical adapter store: hkask_adapter::AdapterStore stores
+                        // TrainedLoRAAdapter in trained_adapters + active_endpoints + lora_blobs.
+                        // Schema initialized by from_driver().
+                        let store = hkask_adapter::AdapterStore::from_driver(hmem_driver);
 
-                        // Build the canonical adapter store + router for deployment
-                        // AdapterStore schema initialized by from_driver().
-                        let canonical_store = hkask_adapter::AdapterStore::from_driver(hmem_driver);
-                        let router = AdapterRouter::new(std::sync::Arc::new(canonical_store));
+                        // Build the canonical adapter router for deployment
+                        let router = AdapterRouter::new(std::sync::Arc::new(store.clone()));
                         let adapter_router = Some(std::sync::Arc::new(router));
 
                         (
                             semantic,
-                            Arc::new(store) as Arc<dyn AdapterStore>,
+                            Arc::new(store),
                             job_store,
                             adapter_router,
                         )
                     }
-                    None => (
-                        None,
-                        Arc::new(InMemoryAdapterStore::new()) as Arc<dyn AdapterStore>,
-                        None,
-                        None,
-                    ),
+                    None => {
+                        // No passphrase configured — fall back to an in-memory driver
+                        // so the server still runs (no persistence across restarts).
+                        let pool = hkask_database::sqlite::SqliteDriver::in_memory_pool()
+                            .map_err(|e| anyhow::anyhow!("in-memory pool: {e}"))?;
+                        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+                            Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+                        let store = hkask_adapter::AdapterStore::from_driver(driver);
+                        (
+                            None,
+                            Arc::new(store),
+                            None,
+                            None,
+                        )
+                    }
                 };
 
                 let host = create_host(&host_config, harness)

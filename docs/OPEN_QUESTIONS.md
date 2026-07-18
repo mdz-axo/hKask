@@ -1028,29 +1028,17 @@ CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are 
 
 **Implementation:** `TrainedLoRAAdapter.owner`, `AdapterStore::list_owner()`, `AdapterPort` trait methods accept `&DelegationToken`
 
-### TRN-006: Duplicate adapter store and type hierarchy
+### TRN-006: Duplicate adapter store and type hierarchy ✅ RESOLVED
 
 **MDS Category:** Interface
-**Status:** Open
-**Opened:** 2026-07-17
+**Status:** **Resolved**
+**Resolution Date:** 2026-07-17
 
-The training MCP server (`hkask-mcp-training`) defines its own `AdapterStore` trait, `LoRAAdapter` struct, `InMemoryAdapterStore`, and `SqliteAdapterStore` — storing metadata in `lora_adapters` + `lora_blobs` tables. The canonical adapter crate (`hkask-adapter`) defines `AdapterStore` (concrete struct), `TrainedLoRAAdapter`, storing in `trained_adapters` + `active_endpoints` tables.
+**Original question:** The training MCP server had its own `AdapterStore` trait, `LoRAAdapter` struct, `InMemoryAdapterStore`, and `SqliteAdapterStore` — a parallel implementation to `hkask-adapter::AdapterStore` + `TrainedLoRAAdapter`. Connected by `to_canonical()` which filled in fake data (zero checksum, empty storage_path). Actively used by 8+ tool methods.
 
-The two are connected by `LoRAAdapter::to_canonical()`, which produces a `TrainedLoRAAdapter` with **fake data**: zero checksum (`Checksum::from_hex("0000000000000000")`), empty `storage_path`, empty `training_source`. This is a pass-through abstraction (Prohibition #4).
+**Decision:** Merge. The canonical `hkask_adapter::AdapterStore` now has all methods the training server needs (`store`, `get_by_id`, `list_all`, `delete`, `get_by_skill_name`, `store_blob`, `get_blob`). The training server's `adapter_store` field type changed from `Arc<dyn AdapterStore>` to `Arc<hkask_adapter::AdapterStore>`. All tool methods construct `TrainedLoRAAdapter` directly. `LoRAAdapter`, `InMemoryAdapterStore`, `SqliteAdapterStore`, the training `AdapterStore` trait, and `to_canonical()` are deleted.
 
-The training server's store is actively used by 8+ tool methods (`training_status`, `training_list_adapters`, `training_delete_adapter`, `training_register_adapter`, `training_retrain`, `training_merge_adapters`, `training_deploy`). It is not dead code.
-
-A FIXME at `lib.rs:2641` confirms this is known tech debt: *"SqliteAdapterStore was removed from hkask-adapter. The adapter API was restructured — this code path needs updating."*
-
-**Options:**
-
-1. **Merge** — Add `skill_name`, `version: u32`, `metrics`, blob storage, and `get_by_skill_name` to `hkask-adapter::AdapterStore`. Delete `LoRAAdapter`, `InMemoryAdapterStore`, `SqliteAdapterStore`, and the training `AdapterStore` trait. Migrate `lora_adapters` table to `trained_adapters`. Large refactoring (strangler-fig, one tool at a time).
-2. **Bridge** — Keep both stores but make `to_canonical()` lossless by storing the missing fields (checksum, storage_path) on `LoRAAdapter` and populating them during `training_register_adapter`.
-3. **Defer** — Record the debt and leave as-is until the training server is next touched for a feature change.
-
-**Impact of not resolving:** `to_canonical()` silently produces adapters with fake checksums and empty paths. If the `AdapterRouter` ever validates these fields, deployment will fail. The two stores can drift in schema (e.g., `lifecycle` and `expires_at` were just added to `TrainedLoRAAdapter` but not to `LoRAAdapter`).
-
-**Recommendation:** Option 1 (merge) via strangler-fig, starting with `get_by_skill_name` and `store_metadata` as the first methods to migrate. Requires an ADR.
+**Implementation:** `hkask_adapter::AdapterStore` gained `skill_name` field on `TrainedLoRAAdapter`, `get_by_skill_name`, `list_all`, `store_blob`, `get_blob` methods, and `lora_blobs` table. Training server `lib.rs` migrated to use canonical types. `adapters.rs` retains only `AdapterMetrics`, `JobStore`, and `AdapterStoreError` (for `JobStore`).
 
 ### TRN-007: QA ingestion entity collision risk
 

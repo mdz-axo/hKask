@@ -200,3 +200,94 @@ fn superforecasting_manifest_loads_with_compute_step() {
         .expect("manifest must have a loop step");
     assert_eq!(loop_step.ordinal, 17, "loop step should be ordinal 17");
 }
+
+/// Verify the kali-audit FlowDef manifest loads correctly with the expected
+/// PDCA structure: 4 select steps + 1 loop step, convergence field pointing
+/// at step 4, and template_refs matching the registry crate.
+#[test]
+fn kali_audit_manifest_loads_with_correct_structure() {
+    let crate_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = crate_dir.join("../..");
+    let manifest_path = workspace_root.join("registry/manifests/kali-audit.yaml");
+    if !manifest_path.exists() {
+        eprintln!("kali-audit.yaml not found — skipping");
+        return;
+    }
+    let yaml = std::fs::read_to_string(&manifest_path).unwrap();
+    let manifest = hkask_templates::load_manifest_from_yaml(&yaml)
+        .unwrap_or_else(|e| panic!("Failed to load kali-audit manifest: {e}"));
+
+    // 4 select steps + 1 loop step = 5 total.
+    assert_eq!(
+        manifest.steps.len(),
+        5,
+        "expected 5 steps: select-surface → audit → report → convergence-check → loop"
+    );
+
+    // Verify step ordinals are sequential starting at 1.
+    for (i, step) in manifest.steps.iter().enumerate() {
+        assert_eq!(
+            step.ordinal,
+            (i + 1) as u32,
+            "step ordinals must be sequential starting at 1"
+        );
+    }
+
+    // Verify step 1 is select-surface.
+    assert_eq!(manifest.steps[0].action, "select");
+    assert_eq!(
+        manifest.steps[0].template_ref.as_deref(),
+        Some("kali-audit/select-surface")
+    );
+
+    // Verify step 2 is audit.
+    assert_eq!(manifest.steps[1].action, "select");
+    assert_eq!(
+        manifest.steps[1].template_ref.as_deref(),
+        Some("kali-audit/audit")
+    );
+
+    // Verify step 3 is report.
+    assert_eq!(manifest.steps[2].action, "select");
+    assert_eq!(
+        manifest.steps[2].template_ref.as_deref(),
+        Some("kali-audit/report")
+    );
+
+    // Verify step 4 is convergence-check.
+    assert_eq!(manifest.steps[3].action, "select");
+    assert_eq!(
+        manifest.steps[3].template_ref.as_deref(),
+        Some("kali-audit/convergence-check")
+    );
+
+    // Verify step 5 is loop.
+    assert_eq!(manifest.steps[4].action, "loop");
+
+    // Verify convergence field points at step 4.
+    assert_eq!(
+        manifest.convergence.convergence_field,
+        "step_4_result.convergence_metric"
+    );
+
+    // Verify convergence threshold is 0.10 (stricter than bug-hunt's 0.25).
+    assert_eq!(
+        manifest.convergence.threshold, 0.10,
+        "kali-audit threshold should be 0.10 (security is higher-stakes than bug-hunting)"
+    );
+
+    // Verify max_iterations is 3.
+    assert_eq!(
+        manifest.convergence.max_iterations, 3,
+        "max_iterations should be 3"
+    );
+
+    // Verify gas cap is positive.
+    assert!(manifest.gas.cap > 0, "gas cap must be positive");
+
+    // Verify OCAP delegation chain is required.
+    assert!(
+        manifest.ocap.delegation_chain_required,
+        "delegation chain should be required"
+    );
+}
