@@ -25,7 +25,7 @@ cd hKask
 cargo build --release
 ```
 
-The workspace contains 45 crates and 15 MCP servers. The initial build will take several minutes.
+The workspace contains 54 crates and 15 MCP servers. The initial build will take several minutes.
 
 Verify the binary:
 
@@ -43,7 +43,7 @@ Expected: `kask 0.31.0`
 ./target/release/kask health
 ```
 
-This checks: database backend (SQLite/SQLCipher by default), keystore availability, CNS runtime health, and MCP server registrations (16 built-in servers).
+This checks: database backend (SQLite/SQLCipher by default), keystore availability, CNS runtime health, and MCP server registrations (15 built-in servers).
 
 ---
 

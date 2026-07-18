@@ -30,7 +30,7 @@ flowchart TD
     HowTo --> HowToGS["getting-started.md<br/>End-to-end tutorial"]
     HowTo --> HowToGuides["8 guides<br/>install, skills, pods, training..."]
 
-    Reference --> RefAPI["api-reference.md<br/>45 crates catalogued"]
+    Reference --> RefAPI["api-reference.md<br/>54 crates catalogued"]
     Reference --> RefCNS["cns-spans.md<br/>Span registry"]
     Reference --> RefMC["magna-carta.md<br/>P1-P4 principles"]
     Reference --> RefMCP["mcp-servers/<br/>15 MCP servers"]

@@ -10,7 +10,7 @@ mds_categories: [domain, lifecycle, trust]
 
 # Install and Configure hKask
 
-Compile hKask from source, initialize a profile, configure the database backend, manage feature gates, and set up the content guard. hKask is a Rust workspace of 45 crates and 15 MCP servers that compiles to a single `kask` binary.
+Compile hKask from source, initialize a profile, configure the database backend, manage feature gates, and set up the content guard. hKask is a Rust workspace of 54 crates and 15 MCP servers that compiles to a single `kask` binary.
 
 ---
 
@@ -539,7 +539,7 @@ RUSTFLAGS="-D unused_crate_dependencies" cargo +nightly check --workspace
 
 ### Disk space during build
 
-The full workspace builds ~193K LOC across 45 crates. Ensure at least 10 GB free disk space in `target/`. Clean up with:
+The full workspace builds ~232K LOC across 54 crates. Ensure at least 10 GB free disk space in `target/`. Clean up with:
 
 ```bash
 cargo clean
