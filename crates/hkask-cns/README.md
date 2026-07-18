@@ -19,6 +19,7 @@ Homeostatic self-regulation engine for the hKask agent platform. CNS enforces As
 | `slo_manager` | SLO evaluation, error budgets, breach escalation |
 | `storage_guard` | Autonomous disk space management (Loop 7) |
 | `wallet_manager` | Wallet-backed energy budgets |
+| `runtime_policy` | Layer 6 defense — pre-execution policy check (VeriGuard/AgentGuard) |
 
 ## Key Types
 
@@ -33,6 +34,8 @@ Homeostatic self-regulation engine for the hKask agent platform. CNS enforces As
 | `SetPoints` | Configurable regulatory thresholds |
 | `SloManager` | SLO evaluation with error budget tracking |
 | `StorageGuardLoop` | Autonomous disk space reclamation |
+| `RuntimePolicy` | Pre-execution policy check trait (Allow/Block/RequireHuman/Log) |
+| `DefaultPolicy` | FIDES taint flow + rate limiting + human-in-the-loop enforcement |
 
 ## Dependencies
 

@@ -118,6 +118,7 @@ Mechanical CI enforcement (inline steps in the `ci` job in `.github/workflows/ci
 | No unused crate dependencies | `nightly -D unused_crate_dependencies` | separate nightly job |
 | MCP servers must have tool-behavior contract tests | `Parameters(` seam present in `mcp-servers/*/tests/` | `scripts/check-mcp-tool-tests.sh` (ratcheted allowlist) |
 | CNS canonical namespace invariant | every `cns.*` tracing target registered in `CANONICAL_NAMESPACES` (performative telemetry uses `hkask.*`) | `scripts/check-cns-canonical.sh` |
+| Security regression library enforced | every `status: enforced` regression in `security/regressions/` is checked | `scripts/check-kali-regressions.sh` (ratcheted) |
 
 Prohibitions #1–#4 above are design discipline. Only #1 is partially CI-gated via `clippy -D warnings` (catches `todo!()`/`unimplemented!()`). Prohibitions #2–#4 are enforced by code review, not mechanical gates.
 
@@ -138,6 +139,7 @@ Preferred auxiliary tooling: shell (`bash`) under `scripts/`, Rust binaries or `
 - `scripts/check-string-errors.sh` — CI guard: `Result<_, String>` anti-pattern detector
 - `scripts/check-mcp-tool-tests.sh` — CI guard: MCP tool-behavior test coverage (ratcheted)
 - `scripts/check-cns-canonical.sh` — CI guard: `cns.*` prefix reserved for canonical CNS spans (performative telemetry uses `hkask.*`)
+- `scripts/check-kali-regressions.sh` — CI guard: security regression library enforcement (ratcheted)
 - `crates/hkask-types/src/observable_span.rs` — `ObservableSpan` trait and domain span enums
 - `crates/hkask-types/src/lib.rs` — Foundation types
 - `crates/hkask-types/src/macros.rs` — Shared `enum_str_ops!` and `enum_snake_str!` macros (canonical location)

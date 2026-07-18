@@ -29,7 +29,7 @@ Hexagonal architecture port traits for infrastructure abstractions. Enables doma
 | `CnsStoragePort` | CNS persistence (replay, algedonic query) |
 | `CircuitBreakerPort` | Circuit breaker state machine |
 | `FederationDispatch` | Inter-replica federation lifecycle |
-| `ToolPort` / `ToolInfo` | MCP tool invocation and metadata |
+| `ToolPort` / `ToolInfo` | MCP tool invocation and metadata (includes `ToolTaint` label for FIDES IFC) |
 | `BackpressureSignal` | CNS backpressure communication |
 | `RegistryPort` | Agent registration and lookup |
 
