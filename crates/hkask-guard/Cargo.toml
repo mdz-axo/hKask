@@ -12,3 +12,4 @@ llm-guard = "0.2"
 tracing.workspace = true
 rand.workspace = true
 hex.workspace = true
+base64.workspace = true

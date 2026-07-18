@@ -76,6 +76,8 @@ members = [
     "mcp-servers/hkask-mcp-scenarios",
 ]
 
+exclude = ["fuzz"]
+
 [workspace.package]
 version = "0.31.0"
 edition = "2024"

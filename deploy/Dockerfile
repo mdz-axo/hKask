@@ -10,7 +10,10 @@ COPY registry/ registry/
 COPY docs/status/public-seam-inventory.json docs/status/public-seam-inventory.json
 
 # Single cargo invocation builds CLI + all MCP servers, sharing compilation cache.
-RUN cargo build --release \
+# cargo-auditable embeds the dependency tree in the binary for supply-chain provenance
+# (https://github.com/rust-secure-code/cargo-auditable — NIST SSDF PS.2).
+RUN cargo install cargo-auditable && \
+    cargo auditable build --release \
     --package hkask-cli \
     --package hkask-mcp-memory \
     --package hkask-mcp-condenser \

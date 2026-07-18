@@ -27,6 +27,7 @@ pub mod template;
 pub mod template_type;
 
 pub mod time;
+pub mod tool_taint;
 pub mod transcript;
 pub mod visibility;
 // NOTE: Wallet types (RJoule, WalletConfig, ChainId, etc.) moved to hkask-wallet-types.
@@ -65,5 +66,6 @@ pub use observable_span::ObservableSpan;
 pub use skill::SkillPolarity;
 pub use template::LLMParameters;
 pub use template_type::TemplateType;
+pub use tool_taint::ToolTaint;
 pub use transcript::{TimedWord, TranscriptBundle, TranscriptSegment};
 pub use visibility::{Confidence, Dimension, Visibility};

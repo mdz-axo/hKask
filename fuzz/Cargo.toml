@@ -1,0 +1,28 @@
+[package]
+name = "hkask-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+libfuzzer-sys = "0.4"
+hkask-templates = { path = "../crates/hkask-templates" }
+hkask-types = { path = "../crates/hkask-types" }
+hkask-capability = { path = "../crates/hkask-capability" }
+serde_yaml = "0.9"
+minijinja = "2"
+
+[[bin]]
+name = "manifest_yaml"
+path = "fuzz_targets/manifest_yaml.rs"
+test = false
+
+[[bin]]
+name = "template_j2"
+path = "fuzz_targets/template_j2.rs"
+test = false
+
+[[bin]]
+name = "capability_token"
+path = "fuzz_targets/capability_token.rs"
+test = false

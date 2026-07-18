@@ -47,5 +47,7 @@
 //!   similar zero-copy, no-ML principles.
 
 mod pipeline;
+mod spotlight;
 
 pub use pipeline::{CanaryToken, ContentGuard, GuardConfig, GuardResult, GuardViolation};
+pub use spotlight::{SpotlightMode, Spotlighter};

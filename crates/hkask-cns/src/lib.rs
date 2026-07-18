@@ -37,6 +37,7 @@ pub mod types; // Loop 6 → Inference energy estimation
 pub mod dynamic_gas_table;
 pub mod gas_report;
 pub mod runtime; // Loop 6 — runtime
+pub mod runtime_policy; // Layer 6 — runtime action policy (VeriGuard + AgentGuard)
 pub mod seam_types;
 pub mod seam_watcher; // Public seam watcher — inventory, drift, CNS spans
 pub mod set_points; // Loop 6 — set-points config & loaders
@@ -84,6 +85,7 @@ pub use infra_span::InfraSpan;
 pub use qa_span::QaSpan;
 pub use runtime::CnsRuntime;
 pub use runtime::NoopEventSink;
+pub use runtime_policy::{DefaultPolicy, PolicyConfig, PolicyVerdict, RuntimePolicy};
 pub use seam_span::SeamSpan;
 pub use seam_types::{SeamCoverage, SeamInventory};
 pub use seam_watcher::{SeamDrift, SeamSummary, SeamWatcher};

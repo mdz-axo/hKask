@@ -65,10 +65,16 @@ struct ManifestFile {
     principles: Option<serde_json::Value>,
     #[serde(default)]
     fusion: Option<hkask_types::fusion::FusionConfig>,
+    /// Captures unrecognized top-level keys for forward compatibility.
+    /// Pre-release: these are documentation annotations not yet parsed by Rust.
+    /// When a key is promoted to a typed field, remove it from this map.
+    #[serde(default, flatten)]
+    extra: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// Inner header from the `manifest:` key in YAML files.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ManifestHeader {
     id: String,
     #[serde(default)]
