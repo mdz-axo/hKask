@@ -91,7 +91,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-inference` | Inference router (provider dispatch, model selection, Fal.ai workflow DAG execution) |
 | `hkask-communication` | Matrix transport, agent registry, 7R7 listener |
 | `hkask-improv` | Constructive interaction protocol (plussing, yes-and, yes-but, freestyling, riffing) |
-| `hkask-condenser` | Context condensation engine (7 tools, 51 tests) |
+| `hkask-condenser` | Context condensation engine (7 tools, 90 tests) |
 | `hkask-codegraph` | Native code understanding engine (tree-sitter, FTS5, recursive CTE traversal, context assembly) |
 | `hkask-acp` | Agent Client Protocol — IDE integration for coding agents |
 | `hkask-adapter` | Trained adapter lifecycle — store, expertise, endpoint lifecycle, provider cost model |
@@ -177,7 +177,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **Workspace Members** | 69 (54 crates + 15 MCP servers, excluding fuzz targets) |
 | **Tests** | ~2,166 (`#[test]` + `#[tokio::test]` annotations across workspace) |
 | **CLI Subcommands** | 37 |
-| **API Route Groups** | 21 |
+| **API Route Groups** | 23 |
 | **Build/Clippy/Fmt/Test/UnusedDeps** | All passing |
 | **Skills** | 48 (83 registry manifests, 367 Jinja2 templates) |
 | **Codegraph** | 11 MCP tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) |

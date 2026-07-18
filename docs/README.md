@@ -109,6 +109,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 |----------|-------------|
 | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects — open crossroads and future design decisions |
 | [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry — all diagrams now inline in parent documents |
+| [`diagrams/flowchart-documentation-structure.md`](diagrams/flowchart-documentation-structure.md) | Diataxis navigation map — quadrant structure of the `docs/` directory |
 
 ---
 
