@@ -56,9 +56,32 @@ This checks: database backend (SQLite/SQLCipher by default), keystore availabili
 You will be prompted for a master passphrase (encrypts your SQLCipher database — store securely, cannot be recovered) and a display name.
 
 This creates:
-- `~/.hkask/db.sqlcipher` — encrypted personal database
-- `~/.hkask/keystore/` — OS keychain entries for derived encryption keys
-- `~/.hkask/settings.yaml` — configuration
+- `~/.local/share/hkask/hkask.db` — encrypted personal database
+- OS keychain entries for the master passphrase and derived encryption keys
+- `~/.config/hkask/settings.json` — configuration
+
+### Loading API Keys
+
+Copy the key load template and add your API keys:
+
+```bash
+cp key_load_template.env .env
+# Edit .env and add your API keys (DI_API_KEY, KC_API_KEY, etc.)
+```
+
+Load the keys into the OS keychain (preferred for persistent use):
+
+```bash
+./target/release/kask keystore load --shred
+```
+
+The `--shred` flag securely deletes `.env` after loading. Once keys are in the
+keychain, `.env` is no longer needed — `kask` resolves keys from the keychain
+automatically. See [Key Management](#key-management) below.
+
+> **Note:** `.env` is still auto-loaded by `dotenvy` at startup for backwards
+> compatibility. If you prefer to use only the keychain, delete `.env` after
+> running `kask keystore load --shred`.
 
 ---
 

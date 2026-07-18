@@ -191,7 +191,13 @@ fn main() {
 
         Commands::Models => commands::models::run(&rt),
 
-        Commands::Doctor => commands::doctor::run_doctor_cmd(&rt),
+        Commands::Doctor { bootstrap } => {
+            if bootstrap {
+                commands::doctor::run_bootstrap_check(&rt);
+            } else {
+                commands::doctor::run_doctor_cmd(&rt);
+            }
+        }
 
         Commands::Onboard => match rt.block_on(hkask_cli::onboarding::run_add_replicant()) {
             Ok(()) => {}

@@ -554,7 +554,7 @@ pub enum ExportAction {
 #[derive(Debug, Subcommand)]
 pub enum KeystoreAction {
     Load {
-        #[arg(short, long, default_value = ".env")]
+        #[arg(short, long, default_value = "key_load_template.env")]
         path: PathBuf,
         #[arg(short = 'x', long, default_value = "HKASK_")]
         prefix: String,

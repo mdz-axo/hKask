@@ -1,0 +1,28 @@
+[Unit]
+Description=hKask Daemon — MCP server authentication and CNS monitoring
+Documentation=https://github.com/mdz-axo/hKask
+After=network.target dbus.service
+
+[Service]
+Type=simple
+# The daemon needs the DB passphrase. Set it here or in an EnvironmentFile.
+# Environment=HKASK_DB_PASSPHRASE=your-passphrase
+# EnvironmentFile=-/etc/hkask/env
+ExecStart=/usr/local/bin/kask daemon start
+Restart=on-failure
+RestartSec=5
+# Run as the user who owns the hKask data directory
+User=%i
+Group=%i
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/%i/.config/hkask /home/%i/.local/share/hkask
+RuntimeDirectory=hkask
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=default.target

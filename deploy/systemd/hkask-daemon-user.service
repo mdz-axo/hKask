@@ -1,0 +1,20 @@
+[Unit]
+Description=hKask Daemon — MCP server authentication and CNS monitoring
+Documentation=https://github.com/mdz-axo/hKask
+After=network.target dbus.service gnome-keyring.service
+
+[Service]
+Type=simple
+# The daemon needs the DB passphrase. Set it here or load from ~/.config/hkask/env.
+# Environment=HKASK_DB_PASSPHRASE=your-passphrase
+# EnvironmentFile=-%h/.config/hkask/env
+ExecStart=%h/.local/bin/kask daemon start
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

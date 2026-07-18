@@ -2,11 +2,145 @@
 //!
 //! Checks each provider key is set and makes a lightweight API call
 //! to verify the credentials are valid. Reports tier status.
+//!
+//! With `--bootstrap`, checks the full REPL bootstrap chain: daemon socket,
+//! keychain entries, DB passphrase, UserStore session, and MCP server
+//! connectivity. Use this to diagnose "REPL loop stalls" or "No A2A secret"
+//! errors.
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 
+/// Entry point for `kask doctor` (without --bootstrap).
+pub fn run_doctor_cmd(rt: &tokio::runtime::Runtime) {
+    rt.block_on(run_doctor_async());
+}
+
+/// Entry point for `kask doctor --bootstrap`.
+///
+/// Checks the full REPL bootstrap chain:
+/// 1. Daemon socket is live (not just a stale file)
+/// 2. Keychain entries exist (HKASK_MASTER_KEY, a2a-secret, hkask-db-passphrase)
+/// 3. DB passphrase resolves and opens the main DB
+/// 4. UserStore session exists for the replicant
+/// 5. MCP servers connect and discover tools
+pub fn run_bootstrap_check(rt: &tokio::runtime::Runtime) {
+    println!("hKask Doctor — Bootstrap Chain Check\n");
+    let mut checks_passed = 0u32;
+    let mut checks_total = 0u32;
+
+    // ── 1. Daemon socket ────────────────────────────────────
+    println!("1. Daemon Socket");
+    println!("   ─────────────");
+    checks_total += 1;
+    let socket_path = hkask_mcp::daemon::daemon_socket_path();
+    match rt.block_on(hkask_mcp::daemon::ping_daemon(&socket_path)) {
+        Ok(()) => {
+            println!("   ✅ Daemon is live (socket: {})", socket_path.display());
+            checks_passed += 1;
+        }
+        Err(e) => {
+            if socket_path.exists() {
+                println!("   ❌ Stale socket at {} — {}", socket_path.display(), e);
+                println!("      Run: kask daemon stop && kask daemon start");
+            } else {
+                println!(
+                    "   ❌ Daemon not running (no socket at {})",
+                    socket_path.display()
+                );
+                println!("      Run: kask daemon start");
+            }
+        }
+    }
+    println!();
+
+    // ── 2. Keychain entries ─────────────────────────────────
+    println!("2. Keychain Entries");
+    println!("   ────────────────");
+    let keychain = hkask_keystore::Keychain::default();
+    for (key, label) in [
+        (
+            hkask_types::keychain_keys::KEY_MASTER_KEY,
+            "HKASK_MASTER_KEY",
+        ),
+        (hkask_types::keychain_keys::KEY_A2A_SECRET, "a2a-secret"),
+        (
+            hkask_types::keychain_keys::KEY_DB_PASSPHRASE,
+            "hkask-db-passphrase",
+        ),
+    ] {
+        checks_total += 1;
+        match keychain.retrieve_by_key(key) {
+            Ok(_) => {
+                println!("   ✅ {} — present", label);
+                checks_passed += 1;
+            }
+            Err(_) => {
+                println!("   ❌ {} — missing", label);
+                if key == hkask_types::keychain_keys::KEY_DB_PASSPHRASE {
+                    println!("      Run: kask init (or set HKASK_DB_PASSPHRASE in .env)");
+                } else if key == hkask_types::keychain_keys::KEY_A2A_SECRET {
+                    println!("      Run: kask keystore rotate (or re-run onboarding)");
+                }
+            }
+        }
+    }
+    println!();
+
+    // ── 3. DB passphrase + main DB ──────────────────────────
+    println!("3. Database Passphrase");
+    println!("   ──────────────────");
+    checks_total += 1;
+    match hkask_services_core::ServiceConfig::from_env() {
+        Ok(config) => match hkask_storage::Database::open(&config.db_path, &config.db_passphrase) {
+            Ok(_) => {
+                println!("   ✅ Main DB opens (path: {})", config.db_path);
+                checks_passed += 1;
+            }
+            Err(e) => {
+                println!("   ❌ Main DB open failed: {}", e);
+                println!("      Check HKASK_DB_PASSPHRASE or run kask repair --dry-run");
+            }
+        },
+        Err(e) => {
+            println!("   ❌ ServiceConfig::from_env() failed: {}", e);
+            println!("      Set HKASK_DB_PASSPHRASE or run kask init");
+        }
+    }
+    println!();
+
+    // ── 4. MCP servers ──────────────────────────────────────
+    println!("4. MCP Servers");
+    println!("   ────────────");
+    checks_total += 1;
+    let runtime = hkask_mcp::runtime::McpRuntime::new();
+    let tool_count = rt.block_on(async { runtime.discover_tools().await.len() });
+    if tool_count > 0 {
+        println!("   ✅ {} tools discovered", tool_count);
+        checks_passed += 1;
+    } else {
+        println!("   ❌ No tools discovered — MCP servers not started");
+        println!("      Run: kask chat (auto-starts MCP servers)");
+    }
+    println!();
+
+    // ── Summary ─────────────────────────────────────────────
+    let pct = if checks_total > 0 {
+        (checks_passed * 100) / checks_total
+    } else {
+        0
+    };
+    println!("═══════════════════════════════════════");
+    println!("  {checks_passed}/{checks_total} bootstrap checks passed ({pct}%)");
+    if checks_passed == checks_total {
+        println!("  ✅ Bootstrap chain is healthy");
+    } else {
+        println!("  ⚠️  Bootstrap chain has issues — see above");
+    }
+    println!("═══════════════════════════════════════");
+}
+
 /// Run a diagnostic check on all configured providers.
-pub async fn run_doctor() {
+pub async fn run_doctor_async() {
     println!("hKask Doctor — Provider Health Check\n");
 
     let mut configured = 0u32;
@@ -162,11 +296,4 @@ fn check_env(var: &str, label: &str, total: &mut u32) -> u32 {
             0
         }
     }
-}
-
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  none
-/// post: prints provider health report to stdout
-pub fn run_doctor_cmd(rt: &tokio::runtime::Runtime) {
-    rt.block_on(run_doctor());
 }

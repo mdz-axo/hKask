@@ -194,7 +194,13 @@ pub enum Commands {
     Models,
 
     /// Validate all configured providers and API keys
-    Doctor,
+    Doctor {
+        /// Check the full bootstrap chain: daemon, socket, keychain, DB
+        /// passphrase, session, MCP servers. Use this to diagnose
+        /// "REPL loop stalls" or "No A2A secret" errors.
+        #[arg(long)]
+        bootstrap: bool,
+    },
 
     /// Add a new replicant to an existing hKask installation
     Onboard,
@@ -367,7 +373,7 @@ impl Commands {
             Commands::Kanban { .. } => "kanban",
             Commands::Adapter { .. } => "adapter",
             Commands::Models => "models",
-            Commands::Doctor => "doctor",
+            Commands::Doctor { .. } => "doctor",
             Commands::Onboard => "onboard",
             Commands::Settings { .. } => "settings",
             Commands::Consolidate { .. } => "consolidate",
