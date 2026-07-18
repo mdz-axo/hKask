@@ -18,7 +18,7 @@
 //! - `training_ingest_dataset` — Ingest a raw dataset into the normalized cache
 //!
 //! Architecture:
-//!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingHost → LoRAAdapter
+//!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingHost → TrainedLoRAAdapter
 //!
 //! Host selection via config (training.host in settings.json), routed through
 //! the shared `hkask-services` config init. Host pluggability is via the
@@ -106,21 +106,15 @@ hkask_mcp::mcp_server!(
 
 #[tool_router(server_handler)]
 impl TrainingServer {
-    /// Build a `TrainedLoRAAdapter` from the legacy `LoRAAdapter`-style field set.
+    /// Build a `TrainedLoRAAdapter` from training tool parameters.
     ///
-    /// Mirrors the field mapping that `LoRAAdapter::to_canonical()` performed:
-    /// - `id: String` → `id: Uuid` (parse, falling back to a fresh v4)
-    /// - `name` → `expertise.name`
-    /// - `base_model` → `base_model_family` + `expertise.training_source.base_model_family`
-    /// - `dataset_hash` → `expertise.training_source.dataset_hash` (Some if non-empty)
-    /// - `training_job_id` → `expertise.training_source.training_run_id`
-    /// - `created_at: i64` → `created_at: String` (RFC3339) + `completed_at`
-    /// - `size_bytes: u64` → `size_bytes: Option<u64>` (Some if > 0)
-    /// - `skill_name` → `skill_name: Option<String>` (Some if non-empty)
-    /// - `version: u32` → `version: Option<String>`
-    /// - `metrics: Option<AdapterMetrics>` → `expertise.training_source.training_metrics: serde_json::Value`
+    /// Constructs the canonical adapter type directly, with provenance metadata
+    /// linking back to the originating training job.
     ///
-    /// New canonical-only fields are populated with the same defaults `to_canonical()` used.
+    /// Fields not yet available from the training pipeline (checksum, storage_path)
+    /// are populated with placeholder values — the same defaults the deleted
+    /// `LoRAAdapter::to_canonical()` used. These should be populated with real
+    /// values once the training pipeline computes checksums and stores paths.
     #[allow(clippy::too_many_arguments)]
     fn build_trained_adapter(
         id: String,

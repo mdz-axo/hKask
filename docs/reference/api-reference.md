@@ -866,10 +866,10 @@ Trained adapter lifecycle — adapter store, expertise, endpoint lifecycle, prov
 | `adapter_router` | `AdapterRouter`, `EndpointGuard` |
 | `adapter_store` | `AdapterSource`, `AdapterStore`, `AdapterStoreError`, `TrainedLoRAAdapter` |
 | `endpoint_lifecycle` | `EndpointLifecycle`, `EndpointPhase`, `EndpointPhaseError` |
-| `expertise` | `Expertise`, `MdsDomain`, `TrainingProvenance` |
+| `expertise` | `Expertise`, `MdsDomain`, `AdapterLifecycle`, `TrainingProvenance` |
 | `provider_cost` | `CostModel`, `CostModelError`, `ProviderCapability`, `ProviderInfo` |
 
-**Re-exports at Crate Root:** `AdapterConfig`, `AdapterPort` (and associated types), `AdapterRouter`, `EndpointGuard`, `AdapterSource`, `AdapterStore`, `AdapterStoreError`, `TrainedLoRAAdapter`, `EndpointLifecycle`, `EndpointPhase`, `EndpointPhaseError`, `Expertise`, `MdsDomain`, `TrainingProvenance`, `CostModel`, `CostModelError`, `ProviderCapability`, `ProviderInfo`.
+**Re-exports at Crate Root:** `AdapterConfig`, `AdapterPort` (and associated types), `AdapterRouter`, `EndpointGuard`, `AdapterSource`, `AdapterStore`, `AdapterStoreError`, `TrainedLoRAAdapter`, `EndpointLifecycle`, `EndpointPhase`, `EndpointPhaseError`, `Expertise`, `MdsDomain`, `AdapterLifecycle`, `TrainingProvenance`, `CostModel`, `CostModelError`, `ProviderCapability`, `ProviderInfo`.
 
 **Feature Flags:** None.
 

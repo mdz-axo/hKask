@@ -66,9 +66,9 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 
 | Entity | Description | Key Attributes |
 |--------|-------------|---------------|
-| `TrainedLoRAAdapter` | A trained LoRA adapter with provenance metadata | `adapter_id: String`, `source: AdapterSource`, `checksum: Checksum`, `expertise: Expertise`, `owner: WebID` |
-| `AdapterSource` | Provenance of the adapter | `Local { path } \| Remote { url, sha256 } \| Registry { package_id }` |
-| `AdapterStore` | CRUD store for trained adapters with checksum verification | Store, get_by_id, delete, list by owner |
+| `TrainedLoRAAdapter` | A trained LoRA adapter with provenance metadata | `id: Uuid`, `source: AdapterSource`, `checksum: Checksum`, `expertise: Expertise`, `owner: WebID`, `skill_name: Option<String>`, `lifecycle: AdapterLifecycle` |
+| `AdapterSource` | Provenance of the adapter | `HuggingFace { repo }` |
+| `AdapterStore` | CRUD store for trained adapters with checksum verification | Store, get_by_id, get_by_expertise, get_by_skill_name, list_all, list_owner, delete, store_blob, get_blob |
 | `AdapterRouter` | Routes inference requests to the best-matching adapter | CompositionEstimate, provider selection, endpoint guard |
 | `EndpointLifecycle` | State machine for inference endpoint lifecycle | `EndpointPhase`: `Cold \| Warming \| Active \| Draining \| Removed` |
 | `EndpointPhase` | Lifecycle phase of a deployed inference endpoint | `Cold → Warming → Active → Draining → Removed` |

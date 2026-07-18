@@ -256,7 +256,7 @@ An adapter moves through five macro-stages:
 
 | Stage | What Happens | Key Type | CNS Span |
 |-------|-------------|----------|----------|
-| Train | LoRA fine-tuning via `hkask-mcp-training` | `LoRAAdapter` (training MCP) | — |
+| Train | LoRA fine-tuning via `hkask-mcp-training` | `TrainedLoRAAdapter` | — |
 | Store | Persist metadata + weights in `AdapterStore` | `TrainedLoRAAdapter` | `AdapterStored` |
 | Load | Retrieve by ID, expertise, or owner filter | `TrainedLoRAAdapter` | `AdapterRetrieved` |
 | Compose | Select provider, upload adapter, provision endpoint | `InferenceEndpointHandle` | `EndpointCreateStarted`, `EndpointCreateConfirmed` |
@@ -267,7 +267,7 @@ An adapter moves through five macro-stages:
 
 The `AdapterStore` (in `crates/hkask-adapter/src/adapter_store.rs`) is a SQLite-backed persistence layer for trained adapters. It follows the `hkask-storage` `define_store!` pattern — auto-migrated schema, content-addressed storage, owner-scoped access.
 
-The `TrainedLoRAAdapter` type carries: `id` (Uuid), `owner` (WebID), `expertise` (Expertise), `base_model_family` (String), `source` (AdapterSource), `checksum` (Checksum — SHA-256 of adapter weights), `storage_path` (String), `version` (Option<String>), `size_bytes` (Option<u64>), `created_at` (ISO 8601 timestamp).
+The `TrainedLoRAAdapter` type carries: `id` (Uuid), `owner` (WebID), `expertise` (Expertise), `base_model_family` (String), `source` (AdapterSource), `checksum` (Checksum — SHA-256 of adapter weights), `storage_path` (String), `version` (Option<String>), `size_bytes` (Option<u64>), `skill_name` (Option<String>), `lifecycle` (AdapterLifecycle: Durable | Ephemeral), `created_at` (ISO 8601 timestamp).
 
 The `AdapterSource` enum is designed for extension — currently `HuggingFace { repo: String }`, with the enum structured to accept additional distribution sources. The `repo` field holds the full HF repository path (e.g. `"mdz-axolotl/solidity-audit-v1"`). Providers pull adapter weights from this source during endpoint provisioning.
 

@@ -1,5 +1,5 @@
 # Adversarial Red-Team Process Manifest
-# ℏKask v0.30.0 — Adversarial testing as convergent PDCA
+# ℏKask v0.31.0 — Adversarial testing as convergent PDCA
 
 manifest:
   id: adversarial-red-team
@@ -113,6 +113,7 @@ steps:
       persistence_level: "{{ persistence_level | default('single') }}"
       injection_vector: "{{ injection_vector | default('direct') }}"
       adversarial_intensity: "{{ adversarial_intensity | default('basic') }}"
+      defense_bypass_targets: "{{ step_1_result.defense_bypass_targets | default([]) }}"
 
   - ordinal: 3
     action: select
