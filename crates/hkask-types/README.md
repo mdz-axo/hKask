@@ -17,6 +17,7 @@ Foundation type system for the hKask agent platform. Provides canonical ID types
 | `macros` | Shared `enum_str_ops!` macro (canonical location) |
 | `visibility` | `Visibility`, `Confidence`, `Dimension` |
 | `template` | `LLMParameters` |
+| `tool_taint` | `ToolTaint` — FIDES information flow control labels (Source/Sink/Pure/Endorser) |
 | `crypto` | `Ed25519PublicKey` |
 | `time` | `now_rfc3339` utility |
 
@@ -33,6 +34,7 @@ Foundation type system for the hKask agent platform. Provides canonical ID types
 | `CuratorDirective` | Curator-issued instruction (budget, escalation) |
 | `ObservableSpan` | Trait for domain spans that emit CNS events |
 | `LLMParameters` | Temperature, top_p, max_tokens configuration |
+| `ToolTaint` | FIDES IFC label for MCP tools (Source/Sink/Pure/Endorser) |
 
 ## Usage
 
