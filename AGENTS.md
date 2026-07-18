@@ -82,7 +82,7 @@
 | **scenario-builder** | Schwartz scenario planning. |
 | **hypothesis-framer** | Research question framing (FINER + PICO). |
 | **adversarial-red-team** | Adversarial robustness testing. |
-| **kali-audit** | Security review of Rust code, Jinja2 templates, YAML manifests, and supply chain. Consumes the regression library and proposes new entries. |
+| **kali-audit** | Security review of Rust code, Jinja2 templates, YAML manifests, supply chain, MCP surfaces, and LLM I/O boundaries. Forward-adaptable: consumes regression library at runtime, checks 8-layer defense coverage, discovers surfaces dynamically. |
 | **goal-analysis** | Goal specification and completion verification. |
 | **magna-carta-verifier** | Verify Magna Carta principles enforcement. |
 | **structured-extraction** | Extract structured data from unstructured text. |

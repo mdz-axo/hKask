@@ -15,6 +15,7 @@ This crate exposes a single module with one constructor, two scan methods, and t
 | `GuardResult` | Scan result with `passed` flag, violations list, and output state |
 | `GuardOutput` | Enum: `Clean` (unchanged) or `Sanitized(String)` (secrets stripped) |
 | `GuardViolation` | A single violation with `scanner` name and `description` |
+| `CanaryToken` | Per-session token for system prompt exfiltration detection (OWASP LLM07:2025) |
 
 ### Key Methods
 
@@ -23,6 +24,8 @@ This crate exposes a single module with one constructor, two scan methods, and t
 | `ContentGuard::mandatory(&GuardConfig)` | Build the guard — core scanners are **always** active |
 | `scan_input(&self, text)` | Scan before model invocation. Refuses on prompt injection, role override, deobfuscated injection, or token limit exceeded |
 | `scan_output(&self, text)` | Scan after model response. Detects and redacts secrets before storage |
+| `canary(&self)` | Get the per-session canary token for embedding in system prompts |
+| `check_canary(&self, text)` | Check if the canary token leaked into output (system prompt exfiltration) |
 
 ### GuardOutput
 
@@ -36,9 +39,9 @@ This crate exposes a single module with one constructor, two scan methods, and t
 | OWASP LLM Risk | Scanner | Stage |
 |---|---|---|
 | LLM01: Prompt Injection | `BanSubstrings` + `Deobfuscate` | Input |
-| LLM02: Insecure Output Handling | `Secrets` | Output |
+| LLM02: Sensitive Information Disclosure | `Secrets` (output redaction) | Output |
 | LLM04: Model Denial of Service | `TokenLimit` (32K default) | Input |
-| LLM06: Sensitive Information Disclosure | `Secrets` (output redaction) | Output |
+| LLM07: System Prompt Leakage | `CanaryToken` (per-session, output check) | Output |
 
 ## Usage
 
@@ -78,8 +81,8 @@ match output.output {
 
 - **Mandatory by design** — scanners cannot be disabled, only tuned via `GuardConfig`
 - **Input pipeline**: `TokenLimit` → `RoleOverride` → `BanSubstrings` → `Deobfuscate`
-- **Output pipeline**: `Secrets` (detect + redact)
-- **CNS integration**: Violations emit `InfraSpan::GuardViolation` with `cns.guard.input` / `cns.guard.output` tracing targets
+- **Output pipeline**: `Secrets` (detect + redact) + `CanaryToken` (exfiltration check)
+- **CNS integration**: Violations emit `InfraSpan::GuardViolation` with `cns.guard.input` / `cns.guard.output` / `cns.guard.canary` tracing targets
 
 ## Dependencies
 

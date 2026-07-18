@@ -2,18 +2,18 @@ id: RR-0002
 title: "Template loader uses bare Path::join without path containment check"
 surface: template
 cwe: CWE-22
-owasp_llm: LLM07
+owasp_llm_2025: LLM06
+atlas_tactic: AML.TA0005
+nist_ssdf: PW.6.1
 discovered_in: crates/hkask-templates/src/executor.rs
 discovered_by: kali-audit
 discovered_at: 2026-07-17
 severity: critical
 detection:
   kind: grep
-  # The bug pattern: using template_base_path.join(name) directly without
-  # safe_template_join containment check. The fix uses safe_template_join
-  # which rejects segments starting with '.' or containing backslashes.
   pattern: 'template_base_path\.join\('
   include: "crates/hkask-templates/src/**/*.rs"
-mitigation: "Use safe_template_join (or minijinja::safe_join) for all template path resolution. Reject any segment starting with '.' or containing '\\'."
+mitigation: "Use safe_template_join which rejects segments starting with '.' or containing backslashes."
+source: "https://github.com/rustfs/rustfs/security/advisories/GHSA-pq29-69jg-9mxc (RustFS CVE-2025-68705, CVSS 9.9)"
 ci_gate: scripts/check-kali-regressions.sh
 status: enforced

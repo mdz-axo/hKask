@@ -4209,9 +4209,11 @@ dependencies = [
 name = "hkask-guard"
 version = "0.31.0"
 dependencies = [
+ "hex",
  "hkask-cns",
  "hkask-types",
  "llm-guard",
+ "rand 0.9.4",
  "tracing",
 ]
 

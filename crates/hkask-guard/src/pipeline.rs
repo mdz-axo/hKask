@@ -9,6 +9,57 @@ use llm_guard::{
     BanSubstrings, Deobfuscate, Pipeline, PipelineMode, RoleOverride, Secrets, Severity,
     TokenLimit, patterns::COMMON_INJECTION_PATTERNS,
 };
+use rand::RngCore;
+
+/// A per-session canary token embedded in system prompts to detect exfiltration.
+///
+/// If this token appears in model output, the system prompt has been leaked —
+/// a known attack pattern (OWASP LLM07:2025 System Prompt Leakage).
+///
+/// Source: OWASP LLM Top 10 (2025), Thinkst canarytokens
+/// (https://www.toxsec.com/p/canary-tokens-for-prompt-injection)
+#[derive(Debug, Clone)]
+pub struct CanaryToken(String);
+
+impl CanaryToken {
+    /// Generate a random 32-byte canary token, hex-encoded.
+    ///
+    /// expect: "The system generates unpredictable canary tokens for exfiltration detection"
+    /// post: returns a 64-character hex string
+    pub fn generate() -> Self {
+        let mut bytes = [0u8; 32];
+        rand::rng().fill_bytes(&mut bytes);
+        Self(hex::encode(bytes))
+    }
+
+    /// Get the canary token string for embedding in a system prompt.
+    ///
+    /// expect: "The system provides the canary for prompt embedding"
+    /// post: returns the token string
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Check whether the canary token appears in the given text.
+    ///
+    /// expect: "The system detects canary token leakage in output"
+    /// post: returns true if the canary is present in the text
+    pub fn is_leaked_in(&self, text: &str) -> bool {
+        text.contains(self.0.as_str())
+    }
+}
+
+impl std::fmt::Display for CanaryToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "HKASK-CANARY-{}", self.0)
+    }
+}
+
+impl Default for CanaryToken {
+    fn default() -> Self {
+        Self::generate()
+    }
+}
 
 /// Configuration for the mandatory content safety guard.
 ///
@@ -61,6 +112,9 @@ const MAX_VIOLATION_SPAN_DISPLAY: usize = 40;
 pub struct ContentGuard {
     input_pipeline: Pipeline,
     output_pipeline: Pipeline,
+    /// Per-session canary token for system prompt exfiltration detection.
+    /// OWASP LLM07:2025 — if this appears in output, the system prompt leaked.
+    canary: CanaryToken,
 }
 
 /// Result of a content safety scan.
@@ -142,6 +196,39 @@ impl ContentGuard {
         Self {
             input_pipeline,
             output_pipeline,
+            canary: CanaryToken::generate(),
+        }
+    }
+
+    /// Get the per-session canary token for embedding in system prompts.
+    ///
+    /// Embed the canary in the system prompt at session start. The guard's
+    /// output scanner will check for its presence in model output.
+    ///
+    /// expect: "The system provides a canary for prompt embedding"
+    /// post: returns the canary token
+    pub fn canary(&self) -> &CanaryToken {
+        &self.canary
+    }
+
+    /// Check whether the canary token has been leaked into the given text.
+    ///
+    /// If the canary appears in model output, the system prompt has been
+    /// exfiltrated (OWASP LLM07:2025). Emits `cns.guard.canary` on detection.
+    ///
+    /// expect: "The system detects system prompt exfiltration via canary"
+    /// pre:  text is the model output to check
+    /// post: returns true if the canary is present (exfiltration detected)
+    pub fn check_canary(&self, text: &str) -> bool {
+        if self.canary.is_leaked_in(text) {
+            tracing::warn!(
+                target: "cns.guard.canary",
+                "CNS"
+            );
+            InfraSpan::GuardViolation.emit("canary_token_leaked");
+            true
+        } else {
+            false
         }
     }
 
@@ -386,5 +473,51 @@ mod tests {
         // We don't assert the secret is found (scanner behavior on this pattern
         // may vary) — the test's purpose is to not panic on multi-byte input.
         let _ = result.output.content(text);
+    }
+
+    // ── Canary token tests (OWASP LLM07:2025) ─────────────────────────────
+
+    #[test]
+    fn canary_token_is_generated() {
+        let guard = test_guard();
+        let canary = guard.canary();
+        assert!(!canary.as_str().is_empty());
+        assert!(
+            canary.as_str().len() >= 64,
+            "canary should be at least 64 hex chars"
+        );
+    }
+
+    #[test]
+    fn canary_token_detected_in_output() {
+        let guard = test_guard();
+        let canary = guard.canary();
+        // Simulate the canary leaking into model output.
+        let leaked_output = format!("The system prompt contains: {}", canary.as_str());
+        assert!(
+            guard.check_canary(&leaked_output),
+            "canary should be detected in output"
+        );
+    }
+
+    #[test]
+    fn canary_token_not_detected_in_clean_output() {
+        let guard = test_guard();
+        let clean_output = "This is a normal model response about architecture.";
+        assert!(
+            !guard.check_canary(clean_output),
+            "canary should not be detected in clean output"
+        );
+    }
+
+    #[test]
+    fn canary_tokens_are_unique_per_guard_instance() {
+        let guard1 = test_guard();
+        let guard2 = test_guard();
+        assert_ne!(
+            guard1.canary().as_str(),
+            guard2.canary().as_str(),
+            "each guard instance should have a unique canary"
+        );
     }
 }

@@ -96,7 +96,7 @@ For **code** surface, check for these evidence-backed patterns:
 
 For **template** surface:
 - `Environment::empty()` not `Environment::new()` for rendering (minijinja docs — no sandbox exists)
-- No `path_loader` unless templates use `{% include %}` (minijinja security model)
+- No `path_loader` unless templates use `{% raw %}{% include %}{% endraw %}` (minijinja security model)
 - Path containment in custom loaders (Trail of Bits pattern)
 - `visibility: Public` audit on templates handling secrets (hKask P3)
 

@@ -48,4 +48,4 @@
 
 mod pipeline;
 
-pub use pipeline::{ContentGuard, GuardConfig, GuardResult, GuardViolation};
+pub use pipeline::{CanaryToken, ContentGuard, GuardConfig, GuardResult, GuardViolation};
