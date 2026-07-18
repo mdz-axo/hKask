@@ -1402,7 +1402,7 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 
 The operational backup system tracks pod directories via `GixCasAdapter`. One git repo per pod — the pod directory IS the unit. `snapshot_pod_dir()` walks the directory tree recursively, creates git blobs and trees, and commits. `restore_file_from_commit()` checks out individual files (e.g. `pod.db`) from prior commits. Date-based restore via `resolve_date()` finds the nearest commit to a target date. A 24h daemon loop (`pod_backup_daemon`) in `hkask-services-context` snapshots all pods automatically.
 
-This is distinct from the sovereignty export (SQLCipher archive) described in §3.17: the sovereignty export handles user-mediated portability of the full hMem set, while the git backup provides continuous automated operational snapshots of pod directories with git-commit changelogs and CNS-monitored health. See [`docs/architecture/hKask-architecture-master.md`](hKask-architecture-master.md) §Backup Subsystem for full details.
+This is distinct from the sovereignty export (SQLCipher archive) described in §3.17: the sovereignty export handles user-mediated portability of the full hMem set, while the git backup provides continuous automated operational snapshots of pod directories with git-commit changelogs and CNS-monitored health. See [`docs/architecture/core/hKask-architecture-master.md`](hKask-architecture-master.md) §Backup Subsystem for full details.
 
 ---
 

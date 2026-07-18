@@ -107,7 +107,7 @@ grep -r "is_likely_llm\|is_likely_small\|FRONTIER_FAMILIES" crates/hkask-cli/src
 
 ## Related Documents
 
-- `docs/architecture/hKask-architecture-master.md` — Architecture master
+- `docs/architecture/core/hKask-architecture-master.md` — Architecture master
 - `docs/architecture/core/PRINCIPLES.md` — P9 (Homeostatic Self-Regulation) covers inference configuration
 - `crates/hkask-cli/src/onboarding/discovery.rs` — Implementation
 - `crates/hkask-inference/src/kilocode_backend.rs` — KiloCode 6-month freshness filter

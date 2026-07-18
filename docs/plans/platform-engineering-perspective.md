@@ -919,7 +919,7 @@ No production dependency from CNS → Storage.
 
 ### hKask Internal
 
-- hKask Architecture Master: `docs/architecture/hKask-architecture-master.md`
+- hKask Architecture Master: `docs/architecture/core/hKask-architecture-master.md`
 - hKask Principles (Magna Carta P1–P12): `docs/architecture/core/PRINCIPLES.md`
 - MDS Specification: `docs/architecture/core/MDS.md`
 - Testing Discipline: `docs/architecture/core/TESTING_DISCIPLINE.md`

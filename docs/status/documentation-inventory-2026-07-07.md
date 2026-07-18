@@ -104,7 +104,7 @@ Documents that provide background, context, and discuss design decisions.
 
 | Document | Claims Quadrant | Actual Quadrant | Code Compiles | Last Change | Status |
 |----------|----------------|-----------------|--------------|-------------|--------|
-| `docs/architecture/hKask-architecture-master.md` | Explanation | Explanation | DIRECT (verified; "under reconstruction") | 2026-07-03 | Active |
+| `docs/architecture/core/hKask-architecture-master.md` | Explanation | Explanation | DIRECT (verified; "under reconstruction") | 2026-07-03 | Active |
 | `docs/architecture/core/PRINCIPLES.md` | Explanation | Explanation | DIRECT (Magna Carta P1-P4 verified) | 2026-07-01 | Active |
 | `docs/architecture/core/MDS.md` | Explanation | Explanation | INFERRED (MDS system removed per git log) | 2026-07-04 | ⚠️ References removed system |
 | `docs/architecture/core/magna-carta.md` | Explanation | Explanation | DIRECT (body says v0.28.0, header v0.31.0) | 2026-07-04 | ⚠️ Version mismatch |

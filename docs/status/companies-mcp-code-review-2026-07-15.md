@@ -65,7 +65,7 @@ The following findings have been fixed in the codebase:
 | C2 — Magic-number thresholds | **Fixed** | `FLAKY_PROBABILITY_THRESHOLD`, `FLAKY_MIN_OBSERVATIONS`, `CHRONIC_STALENESS_DAYS` named constants replace inline `0.70`, `5`, `90` |
 | C3 — Restating comment | **Fixed** | "P5 Essentialism — modular tool groups" comment replaced with clean "Combined tool router" |
 | D1 — Broken README cross-reference | **Fixed** | `mcp-servers/hkask-mcp-companies/README.md` — link corrected to `README.md#companies-mcp-server` |
-| D2 — Missing portfolio schema ERD | **Fixed** | `docs/architecture/hKask-architecture-master.md` — ERD (DIAG-IC-012) inlined with DIAGRAM_ALIGNMENT metadata |
+| D2 — Missing portfolio schema ERD | **Fixed** | `docs/architecture/core/hKask-architecture-master.md` — ERD (DIAG-IC-012) inlined with DIAGRAM_ALIGNMENT metadata |
 | D3 — Stale "Inlined from" notes | **Fixed** | Updated to "Previously in `docs/diagrams/`; inlined per DOCUMENTATION_STANDARDS §6" |
 
 **Remaining:** B3 (stringly-typed request fields → enums), C1 (ProjectionAssumptionError → thiserror enum). These are lower-priority guideline-level improvements documented for future work.
@@ -523,7 +523,7 @@ The portfolio module manages a 7-table SQLite schema (`portfolios`,
 storage, not the companies portfolio schema.
 
 **Smallest fix:** Create an `erDiagram` Mermaid block and inline it into
-`docs/architecture/hKask-architecture-master.md` adjacent to the existing
+`docs/architecture/core/hKask-architecture-master.md` adjacent to the existing
 Companies MCP sequence diagrams, following the established convention
 (DIAGRAM_ALIGNMENT metadata, plain-English description, cross-link).
 

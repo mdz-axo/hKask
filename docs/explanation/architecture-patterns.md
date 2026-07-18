@@ -364,7 +364,7 @@ The Good Regulator theorem is not an aspirational goal in hKask — it is a stru
 
 ### Statement
 
-The Viable System Model (VSM), developed by Stafford Beer, is a cybernetic framework for understanding how any system — biological, organizational, or computational — maintains viability in a changing environment.[^beer] Beer's core insight: a viable system must have the internal variety to match the variety of its environment (Ashby's Law of Requisite Variety), and it organizes this variety through five recursive system levels (S1–S5). This design exists because hKask is not a passive monitoring system. It is a cybernetic regulator. Per the architecture master at `docs/architecture/hKask-architecture-master.md`, the CNS is described as "a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active regulation." Every structural decision in the CNS maps onto VSM levels.
+The Viable System Model (VSM), developed by Stafford Beer, is a cybernetic framework for understanding how any system — biological, organizational, or computational — maintains viability in a changing environment.[^beer] Beer's core insight: a viable system must have the internal variety to match the variety of its environment (Ashby's Law of Requisite Variety), and it organizes this variety through five recursive system levels (S1–S5). This design exists because hKask is not a passive monitoring system. It is a cybernetic regulator. Per the architecture master at `docs/architecture/core/hKask-architecture-master.md`, the CNS is described as "a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active regulation." Every structural decision in the CNS maps onto VSM levels.
 
 ### Evidence
 
@@ -604,7 +604,7 @@ The three-surface equivalence means that no architectural capability is hidden b
 
 ## References
 
-[^loom]: The loom-and-thread metaphor originates in hKask's project README and is elaborated in the architecture master document at `docs/architecture/hKask-architecture-master.md`. The separation draws on the same principle as browser sandboxing: the interpreter (loom) constrains the content (thread).
+[^loom]: The loom-and-thread metaphor originates in hKask's project README and is elaborated in the architecture master document at `docs/architecture/core/hKask-architecture-master.md`. The separation draws on the same principle as browser sandboxing: the interpreter (loom) constrains the content (thread).
 
 [^conant_ashby]: Conant, R. C., & Ashby, W. R. (1970). "Every good regulator of a system must be a model of that system." *International Journal of Systems Science*, 1(2), 89–97.
 

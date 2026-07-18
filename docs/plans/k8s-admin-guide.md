@@ -881,7 +881,7 @@ Once your hKask instance is running:
 2. **Set up CNS monitoring** — `kask cns health` to check system health
 3. **Configure automatic backups** — verify Litestream replication: `kubectl -n hkask logs deploy/hkask -c litestream`
 4. **Set up alerting** — CNS algedonic alerts will fire if variety deficit exceeds thresholds
-5. **Read the architecture docs** — `docs/architecture/hKask-architecture-master.md` to understand the four-loop architecture
+5. **Read the architecture docs** — `docs/architecture/core/hKask-architecture-master.md` to understand the four-loop architecture
 
 ## 12. Reference
 

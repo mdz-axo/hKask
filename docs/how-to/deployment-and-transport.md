@@ -641,7 +641,7 @@ status: VERIFIED
 - Source: `crates/hkask-api/src/routes/auth.rs`
 - Session middleware: `crates/hkask-api/src/middleware/session.rs`
 - Auth middleware (token validation): `crates/hkask-api/src/middleware/auth.rs`
-- Architecture: `docs/architecture/hKask-architecture-master.md` Pattern C, P4 OCAP
+- Architecture: `docs/architecture/core/hKask-architecture-master.md` Pattern C, P4 OCAP
 
 
 ### OAuth Registration & Onboarding Flow

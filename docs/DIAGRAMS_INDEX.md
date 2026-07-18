@@ -46,8 +46,8 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-007 | MCP Tool Dispatch Sequence with OCAP Enforcement | `explanation/architecture-patterns.md` | `crates/hkask-mcp/src/runtime.rs`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-IC-008 | Service Layer Decomposition — 10 subcrates, ports, CLI/API consumers | `explanation/architecture-patterns.md` | `crates/hkask-services-core through hkask-services-wallet/src/`, `crates/hkask-ports/src/` | ✅ VERIFIED 2026-07-12 |
 | DIAG-IC-009 | CodeGraph Agent Workflow — search, traverse, impact, context assembly, feedback loop | `reference/api-reference.md` | `mcp-servers/hkask-mcp-codegraph/src/lib.rs:243-632`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs` | ✅ VERIFIED 2026-07-04 |
-| DIAG-IC-010 | Companies provider routing — symbol selection, learning override, fallback, EODHD normalization | `architecture/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/providers.rs:84-247`, `mcp-servers/hkask-mcp-companies/src/lib.rs:340-361` | ✅ VERIFIED 2026-07-10 |
-| DIAG-IC-011 | Companies forecast feedback — durable snapshot, revision, outcome, and daemon experience flow | `architecture/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/tools/analytics.rs:438-457`, `mcp-servers/hkask-mcp-companies/src/tools/valuation.rs:634-659,774-915`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:303-400` | ✅ VERIFIED 2026-07-10 |
+| DIAG-IC-010 | Companies provider routing — symbol selection, learning override, fallback, EODHD normalization | `architecture/core/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/providers.rs:84-247`, `mcp-servers/hkask-mcp-companies/src/lib.rs:340-361` | ✅ VERIFIED 2026-07-10 |
+| DIAG-IC-011 | Companies forecast feedback — durable snapshot, revision, outcome, and daemon experience flow | `architecture/core/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/tools/analytics.rs:438-457`, `mcp-servers/hkask-mcp-companies/src/tools/valuation.rs:634-659,774-915`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:303-400` | ✅ VERIFIED 2026-07-10 |
 | DIAG-IC-012 | CNS Architecture — responsibility clusters, wallet port, extraction status | `explanation/cns-and-loops.md` | `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/runtime.rs`, `crates/hkask-cns/src/wallet_budget.rs`, `crates/hkask-cns/src/slo_manager.rs`, `crates/hkask-storage-guard/src/lib.rs`, `crates/hkask-cns/src/seam_watcher.rs`, `crates/hkask-ports/src/wallet_budget_port.rs` | ✅ VERIFIED 2026-07-11 |
 | DIAG-IC-013 | Research MCP Server Architecture — ResearchServer, ProviderPool, WebSearchPort, cache, rate limiter, RSS DB | `status/research-mcp-adversarial-review-2026-07-17.md` | `mcp-servers/hkask-mcp-research/src/lib.rs:41-48`, `crates/hkask-services-research/src/providers/mod.rs:130-135,494-620` | ✅ VERIFIED 2026-07-17 |
 | DIAG-IC-014 | Research Provider Trait Hierarchy — WebSearchPort, WebSearchProvider, WebExtractProvider, WebBrowseProvider, 9 concrete providers | `status/research-mcp-adversarial-review-2026-07-17.md` | `crates/hkask-services-research/src/providers/mod.rs:50-135`, `crates/hkask-services-research/src/providers/brave.rs:18`, `crates/hkask-services-research/src/providers/firecrawl.rs:28,100,181` | ✅ VERIFIED 2026-07-17 |
@@ -59,7 +59,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |-----------|-------------|---------------|-----------------|--------|
 | DIAG-TO-001 | STRIDE-lite Threat Model (4 adversaries) | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §2.4 | `crates/hkask-mcp/src/security.rs`, `crates/hkask-keystore/src/` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-002 | OCAP Boundary Enforcement Flow | `explanation/sovereignty-and-ocap.md` | `crates/hkask-mcp/src/security.rs` (SecurityGateway) | ✅ VERIFIED 2026-07-01 |
-| DIAG-TO-003 | Encryption Stack — Argon2id → AES-256-GCM → SQLCipher | `architecture/hKask-architecture-master.md` | `crates/hkask-keystore/src/`, `crates/hkask-storage/src/database.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-TO-003 | Encryption Stack — Argon2id → AES-256-GCM → SQLCipher | `architecture/core/hKask-architecture-master.md` | `crates/hkask-keystore/src/`, `crates/hkask-storage/src/database.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-004 | CNS Span Emission Flow (4 namespaces → Sink) | `explanation/cns-and-loops.md` | `crates/hkask-cns/src/runtime.rs`, `crates/hkask-types/src/event.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-005 | Algedonic Alert Escalation (variety deficit > threshold → Curator/Human) | `explanation/cns-and-loops.md` | `crates/hkask-cns/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-006 | CNS Span Emission and Algedonic Alert End-to-End Flow | `explanation/cns-and-loops.md` | `crates/hkask-agents/src/curator_agent/spec_curator.rs`, `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
@@ -69,13 +69,13 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | Diagram ID | Description | Now Inline In | Verified Against | Status |
 |-----------|-------------|---------------|-----------------|--------|
-| DIAG-PL-001 | Database Architecture — SQLCipher with 9 specialized stores | `architecture/hKask-architecture-master.md` | `crates/hkask-storage/src/database.rs:74` | ✅ VERIFIED 2026-07-01 |
-| DIAG-PL-002 | Bitemporal hMem Schema (valid-time × transaction-time) | `architecture/hKask-architecture-master.md` | `crates/hkask-storage/src/triples.rs:79` | ✅ VERIFIED 2026-07-01 |
+| DIAG-PL-001 | Database Architecture — SQLCipher with 9 specialized stores | `architecture/core/hKask-architecture-master.md` | `crates/hkask-storage/src/database.rs:74` | ✅ VERIFIED 2026-07-01 |
+| DIAG-PL-002 | Bitemporal hMem Schema (valid-time × transaction-time) | `architecture/core/hKask-architecture-master.md` | `crates/hkask-storage/src/triples.rs:79` | ✅ VERIFIED 2026-07-01 |
 | DIAG-PL-003 | Memory Architecture — Episodic/Semantic public/private gating | `explanation/cognition-and-replica.md` | `crates/hkask-memory/src/` | ✅ VERIFIED 2026-07-01 |
 | DIAG-PL-004 | Bootstrap Sequence (superseded by DIAG-PL-006) | `how-to/install-and-configure.md` | `crates/hkask-cli/src/main.rs` (superseded) | ⚠️ SUPERSEDED by DIAG-PL-006 |
-| DIAG-PL-005 | Embedding Vector Lifecycle (model → sqlite-vec → KNN search) | `architecture/hKask-architecture-master.md` | `crates/hkask-storage/src/embeddings.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-PL-005 | Embedding Vector Lifecycle (model → sqlite-vec → KNN search) | `architecture/core/hKask-architecture-master.md` | `crates/hkask-storage/src/embeddings.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-PL-006 | Bootstrap Flowchart — full CLI entry → AgentService assembly → surface mount | `how-to/install-and-configure.md` | `crates/hkask-cli/src/main.rs`, `crates/hkask-services-context/src/context_impl/build/`, `crates/hkask-services-core/src/config.rs`, `crates/hkask-api/src/lib.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-PL-010 | Database Schema ERD — 37 tables, 16 relationships, full Crow's Foot notation | `architecture/hKask-architecture-master.md` | `crates/hkask-storage/src/sql/schema.sql`, `crates/hkask-storage/src/sql/users.sql`, `crates/hkask-storage/src/*.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-PL-010 | Database Schema ERD — 37 tables, 16 relationships, full Crow's Foot notation | `architecture/core/hKask-architecture-master.md` | `crates/hkask-storage/src/sql/schema.sql`, `crates/hkask-storage/src/sql/users.sql`, `crates/hkask-storage/src/*.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-PL-011 | CodeGraph Indexing Pipeline — walk → hash → parse → extract → insert → rank → FTS5 | `reference/api-reference.md` | `crates/hkask-codegraph/src/indexer/pipeline.rs`, `crates/hkask-codegraph/src/indexer/extractor.rs`, `crates/hkask-codegraph/src/graph/store.rs` | ✅ VERIFIED 2026-07-04 |
 | DIAG-PL-012 | CodeGraph Pipeline Lifecycle — Uninitialized → Indexing → Ready → Stale | `reference/api-reference.md` | `crates/hkask-codegraph/src/indexer/pipeline.rs:38-273` | ✅ VERIFIED 2026-07-04 |
 
@@ -89,13 +89,13 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-FW-004 | Hexagonal Component Diagram (HKaskHexagon) | `explanation/architecture-patterns.md` | `crates/hkask-ports/src/` | ✅ VERIFIED 2026-07-01 |
 | DIAG-FW-005 | Kata PDCA State Machine — Plan → Do → Check → Act with Kanban integration | `how-to/skills-and-composition.md` | `crates/hkask-services-kata-kanban/src/kata/`, `crates/hkask-services-kata-kanban/src/kanban/` | ✅ VERIFIED 2026-07-01 |
 | DIAG-FW-006 | Kata-Kanban execution boundary — MCP prompt generation vs optional full Kata bridge | `how-to/skills-and-composition.md` | `mcp-servers/hkask-mcp-kata-kanban/src/lib.rs`, `crates/hkask-services-kata-kanban/src/bridge.rs`, `crates/hkask-services-kata-kanban/src/kanban/service_impl/kata.rs` | ✅ VERIFIED 2026-07-10 |
-| DIAG-FW-007 | Scenario forecasting pipeline — framing, reviewed events, computation, calibration, assessment | `architecture/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-scenarios/src/lib.rs:459-1708`, `mcp-servers/hkask-mcp-scenarios/src/superforecast.rs:165-400` | ✅ VERIFIED 2026-07-10 |
+| DIAG-FW-007 | Scenario forecasting pipeline — framing, reviewed events, computation, calibration, assessment | `architecture/core/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-scenarios/src/lib.rs:459-1708`, `mcp-servers/hkask-mcp-scenarios/src/superforecast.rs:165-400` | ✅ VERIFIED 2026-07-10 |
 
 ## 6. Reference Diagrams
 
 | Diagram ID | Description | Now Inline In | Verified Against | Status |
 |-----------|-------------|---------------|-----------------|--------|
-| DIAG-RF-001 | ERD Schema Documentation (superseded by DIAG-PL-010) | `architecture/hKask-architecture-master.md` | `crates/hkask-storage/src/` (retained as historical reference; canonical is DIAG-PL-010) | ✅ VERIFIED 2026-07-01 |
+| DIAG-RF-001 | ERD Schema Documentation (superseded by DIAG-PL-010) | `architecture/core/hKask-architecture-master.md` | `crates/hkask-storage/src/` (retained as historical reference; canonical is DIAG-PL-010) | ✅ VERIFIED 2026-07-01 |
 | DIAG-RF-002 | Condenser Pipeline — tool dispatch, algorithm learning (auto-selection), two-phase condensation (CPU + LLM), ontology anchoring, profile suggestion | `diagrams/flowchart-condenser-pipeline.md` | `mcp-servers/hkask-mcp-condenser/src/lib.rs`, `crates/hkask-condenser/src/engine.rs`, `crates/hkask-condenser/src/algorithms.rs`, `crates/hkask-services-chat/src/chat/condenser.rs` | ✅ VERIFIED 2026-07-17 |
 | DIAG-RF-003 | Filesystem sandbox path resolution + tool dispatch flow (execute_tool → sandbox_path → canonicalize → containment → emit_cns) | `reference/mcp-servers/filesystem.md` | `mcp-servers/hkask-mcp-filesystem/src/lib.rs:55-109`, `crates/hkask-mcp/src/server/tool_span.rs:246-259` | ✅ VERIFIED 2026-07-17 |
 | DIAG-RF-004 | Companies tool routing and dispatch flow — combined_router (7 sub-routers) → execute_tool seam → three sinks (provider fetch, valuation engines → StoredForecast, PortfolioManager spawn_blocking) | `reference/mcp-servers/companies.md`, `diagrams/flowchart-companies-tool-routing.md` | `mcp-servers/hkask-mcp-companies/src/lib.rs:499-509,368-495`, `mcp-servers/hkask-mcp-companies/src/tools/mod.rs:1-8`, `mcp-servers/hkask-mcp-companies/src/providers.rs:111-198`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:290-340` | ✅ VERIFIED 2026-07-17 |
@@ -165,14 +165,14 @@ The following diagrams were standalone files not individually tracked in the ori
 
 | Diagram File (former) | Type | Now Inline In | Description |
 |----------------------|------|---------------|-------------|
-| `class-database-driver.md` | class | `architecture/hKask-architecture-master.md` | Database Driver Class Diagram |
+| `class-database-driver.md` | class | `architecture/core/hKask-architecture-master.md` | Database Driver Class Diagram |
 | `class-ports-trait-hierarchy.md` | class | `explanation/architecture-patterns.md` | Hexagonal Ports Trait Hierarchy |
 | `class-service-error-hierarchy.md` | class | `explanation/architecture-patterns.md` | ServiceError Hierarchy |
 | `erd-k8s-resources.md` | ERD | `how-to/deployment-and-transport.md` | K8s Resource Relationships |
-| `erd-multi-user.md` | ERD | `architecture/hKask-architecture-master.md` | Multi-User Data Model |
-| `erd-sqlcipher-schema.md` | ERD | `architecture/hKask-architecture-master.md` | SQLCipher Schema |
+| `erd-multi-user.md` | ERD | `architecture/core/hKask-architecture-master.md` | Multi-User Data Model |
+| `erd-sqlcipher-schema.md` | ERD | `architecture/core/hKask-architecture-master.md` | SQLCipher Schema |
 | `flowchart-architecture-overview.md` | flowchart | `explanation/architecture-patterns.md` | Classification + Guard Architecture Overview |
-| `flowchart-connection-lifecycle.md` | flowchart | `architecture/hKask-architecture-master.md` | Database Connection Lifecycle |
+| `flowchart-connection-lifecycle.md` | flowchart | `architecture/core/hKask-architecture-master.md` | Database Connection Lifecycle |
 | `flowchart-cns-homeostatic-loop.md` | flowchart | `explanation/cns-and-loops.md` | CNS Homeostatic Loop |
 | `flowchart-cns-regulation.md` | flowchart | `explanation/cns-and-loops.md` | CNS Regulation Pipeline — 5-Phase Cybernetic Cycle |
 | `flowchart-curator-metacognition.md` | flowchart | `explanation/cns-and-loops.md` | Curator Metacognition Loop |
@@ -200,7 +200,7 @@ All Mermaid diagrams are now inline in their parent documents. The former `docs/
 | `explanation/cns-and-loops.md` | 8 |
 | `explanation/architecture-patterns.md` | 7 |
 | `reference/api-reference.md` | 9 |
-| `architecture/hKask-architecture-master.md` | 8 |
+| `architecture/core/hKask-architecture-master.md` | 8 |
 | `how-to/training-and-adapters.md` | 6 |
 | `how-to/deployment-and-transport.md` | 6 |
 | `explanation/cognition-and-replica.md` | 4 |

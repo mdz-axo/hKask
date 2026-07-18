@@ -1,8 +1,8 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-07-11
-last-verified-against: "de08605e"
+last_updated: 2026-07-17
+last-verified-against: "8d3cf671"
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -15,12 +15,14 @@ Single source of truth for build, test, and CI health. Updated per session.
 
 **Current session:** v0.31.0 — Gas system rename (Energy* → Gas*), budget persistence, escalation, Well/Wallet system with SQLite persistence, auto-draw, stale reservation detection, consumption velocity. 109 CNS tests pass.
 
-**This session (2026-07-11):**
-- Adversarial architecture review (improve-codebase-architecture + essentialist + grill-me + pragmatic-cybernetics).
-- Deleted 2 orphan crates not in workspace: `hkask-cli-shared`, `hkask-services-curator` (P5/P7 violation — zero consumers).
-- Fixed unused import warning: `ReplBridge` in `hkask-repl/src/tui_bridges.rs`.
-- Updated workspace member count: 34 → 59 (44 crates + 15 MCP servers).
-- Build: clean (0 warnings). Docs: clean (0 errors).
+**This session (2026-07-17):**
+- Documentation consolidation (diataxis-diagram + grill-me + kata-improvement skills).
+- Root `README.md` rewritten with actual codebase counts: 54 crates, 48 skills, 83 manifests, 367 templates, ~2,166 tests, 37 CLI subcommands.
+- Stale root `OPEN_QUESTIONS.md` removed (self-declared superseded by `docs/OPEN_QUESTIONS.md`; per DOCUMENTATION_STANDARDS.md §3 lifecycle policy).
+- Fixed 80 broken intra-doc hyperlinks caused by `hKask-architecture-master.md` move from `docs/architecture/` to `docs/architecture/core/`.
+- `docs/README.md` portal: fixed phantom `tutorial/getting-started.md` path → `how-to/getting-started.md`.
+- `docs/status/PROJECT_STATUS.md` metrics updated: 59→69 workspace members, 44→54 crates, 39→48 skills, 72→83 manifests, 294→367 templates, LOC counts refreshed.
+- Build: clean (0 warnings). Docs: clean (0 errors, 6 advisory warnings — all forward-looking PLANNED references in plans/status docs).
 
 **Previous session (2026-07-01):**
 - Gas rename: Energy* types → Gas* across 25 files. Curation concepts preserved.
@@ -42,13 +44,13 @@ Single source of truth for build, test, and CI health. Updated per session.
 
 ## Build
 
-All 59 workspace members (44 crates + 15 MCP servers, excluding fuzz targets).
+All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 
 | Target | Result | Date |
 |--------|--------|------|
-| Workspace (`cargo build --workspace`) | ✅ Pass (0 errors, 0 warnings) | 2026-07-11 |
-| Workspace (44 crates + 15 MCP servers) | ✅ Pass | 2026-07-11 |
-| Warnings | 0 | 2026-07-11 |
+| Workspace (`cargo build --workspace`) | ✅ Pass (0 errors, 0 warnings) | 2026-07-17 |
+| Workspace (54 crates + 15 MCP servers) | ✅ Pass | 2026-07-17 |
+| Warnings | 0 | 2026-07-17 |
 
 ---
 
@@ -122,12 +124,16 @@ All 59 workspace members (44 crates + 15 MCP servers, excluding fuzz targets).
 | Metric | Value |
 |--------|-------|
 | Source files (total) | ~780 |
-| **Core LOC (src/)** | ~161,500 |
-| **MCP Server LOC (src/)** | ~43,700 |
-| **Total LOC** | ~205,200 |
-| Workspace members | 59 (44 crates + 15 MCP servers) |
-| Skills | 39 (72 registry manifests, 294 Jinja2 templates) |
+| **Core LOC (crates/src/)** | ~182,500 |
+| **MCP Server LOC (src/)** | ~49,600 |
+| **Total LOC** | ~232,100 |
+| Workspace members | 69 (54 crates + 15 MCP servers, excluding fuzz targets) |
+| Core crates | 54 (14 foundation + 16 infra + 14 services + 3 wallet/identity/ledger + 2 ontology/interface + 5 bridges) |
+| Skills | 48 (83 registry manifests, 367 Jinja2 templates) |
 | MCP servers | 15 |
+| Tests | ~2,166 (`#[test]` + `#[tokio::test]` annotations) |
+| CLI subcommands | 37 |
+| API route groups | 21 |
 | ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
 | CNS spans | 100+ |
 

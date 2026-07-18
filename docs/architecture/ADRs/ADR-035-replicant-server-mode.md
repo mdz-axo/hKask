@@ -149,7 +149,7 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon/ --incl
 ## Related Documents
 
 - [`magna-carta.md`](../core/magna-carta.md) — P1-P4 principles enforced by this architecture
-- [`hKask Architecture Master`](../hKask-architecture-master.md#six-loop-architecture--semantic-root-cause-analysis) — Memory loops (episodic, semantic, consolidation)
+- [`hKask Architecture Master`](../core/hKask-architecture-master.md#six-loop-architecture--semantic-root-cause-analysis) — Memory loops (episodic, semantic, consolidation)
 
 ## References
 

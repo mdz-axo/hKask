@@ -89,4 +89,4 @@ The ledger's double-entry invariant (postings sum to zero, idempotency by refere
 ## Related Documents
 
 - [ADR-043: Database Driver Abstraction](ADR-043-database-driver.md) — The mandate this ADR enforces
-- Database Driver Class Diagram (inlined in `architecture/hKask-architecture-master.md`) — DatabaseDriver trait hierarchy
+- Database Driver Class Diagram (inlined in `architecture/core/hKask-architecture-master.md`) — DatabaseDriver trait hierarchy
