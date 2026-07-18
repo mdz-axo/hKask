@@ -47,6 +47,7 @@ use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_guard::{SpotlightMode, Spotlighter};
 use hkask_ports::{InferencePort, InferenceResult};
 use hkask_types::NotFound;
+use hkask_types::ToolTaint;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 use minijinja::UndefinedBehavior;
@@ -115,6 +116,10 @@ pub struct ManifestExecutor {
     /// When present, checked before every MCP tool invocation.
     /// Source: VeriGuard pattern + AgentGuard arXiv:2509.23864
     runtime_policy: Option<Arc<dyn hkask_cns::RuntimePolicy>>,
+    /// FIDES taint labels for context entries (Layer 5 defense).
+    /// Maps `step_N_result` keys to their ToolTaint label.
+    /// Source: Microsoft Research FIDES (arXiv:2505.23643)
+    taint_labels: Arc<std::sync::Mutex<HashMap<String, ToolTaint>>>,
 }
 
 impl ManifestExecutor {
@@ -140,6 +145,7 @@ impl ManifestExecutor {
             heal_error_cb: None,
             spotlighter: Spotlighter::new(SpotlightMode::Delimit),
             runtime_policy: None,
+            taint_labels: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
     }
 
@@ -166,6 +172,38 @@ impl ManifestExecutor {
     pub fn with_runtime_policy(mut self, policy: Arc<dyn hkask_cns::RuntimePolicy>) -> Self {
         self.runtime_policy = Some(policy);
         self
+    }
+
+    /// Check whether a JSON value references any tainted (Source) context entries.
+    ///
+    /// This is the FIDES taint propagation check: recursively scans the value
+    /// for `{"$ref": "step_N_result..."}` patterns and checks whether the
+    /// referenced context entry is labeled `Source` (untrusted).
+    ///
+    /// Source: Microsoft Research FIDES (arXiv:2505.23643)
+    ///
+    /// expect: "The system detects untrusted data flowing into tool inputs"
+    /// pre:  value is the bound input JSON for a tool invocation
+    /// post: returns true iff any $ref in the value resolves to a Source-labeled entry
+    fn check_untrusted_input(&self, value: &Value) -> bool {
+        match value {
+            Value::Object(map) => {
+                // Check for $ref pattern: {"$ref": "step_1_result.field"}
+                if let Some(Value::String(ref_path)) = map.get("$ref") {
+                    let context_key = ref_path.split('.').next().unwrap_or("");
+                    let labels = self
+                        .taint_labels
+                        .lock()
+                        .expect("taint_labels mutex poisoned");
+                    return labels.get(context_key).copied().unwrap_or(ToolTaint::Pure)
+                        == ToolTaint::Source;
+                }
+                // Recurse into object fields.
+                map.values().any(|v| self.check_untrusted_input(v))
+            }
+            Value::Array(arr) => arr.iter().any(|v| self.check_untrusted_input(v)),
+            _ => false,
+        }
     }
 
     /// Execute a single KnowAct template — render, infer, parse, return.
@@ -1182,25 +1220,22 @@ impl ManifestExecutor {
 
         // Runtime policy check (Layer 6 defense — VeriGuard/AgentGuard pattern).
         // If a policy is attached, look up the tool's taint label and check
-        // the proposed action before execution.
+        // the proposed action before execution. Uses exact FIDES taint
+        // propagation: if any input argument references a tainted (Source)
+        // context entry, has_untrusted_input is true.
         if let Some(ref policy) = self.runtime_policy {
             use hkask_cns::PolicyVerdict;
 
             // Look up the tool's taint label from its registration metadata.
             // Falls back to Pure if the tool isn't registered or lookup fails.
             let tool_info = self.mcp.get_tool_info(&mcp_ref).await;
-            let taint = tool_info
-                .map(|info| info.taint)
-                .unwrap_or(hkask_types::ToolTaint::Pure);
+            let taint = tool_info.map(|info| info.taint).unwrap_or(ToolTaint::Pure);
 
-            // Determine if any input arguments carry untrusted data.
-            // A Source tool's output is untrusted; if this tool's input
-            // references a prior Source tool's result, it has untrusted input.
-            // For now, we check if the input JSON contains any field whose
-            // value references a step result (heuristic — full taint tracking
-            // requires the FIDES label propagation through the CNS loop).
-            let input_str = input.to_string();
-            let has_untrusted = input_str.contains("step_") && input_str.contains("_result");
+            // Exact taint check: scan the input JSON for $ref references
+            // to context entries that are labeled Source (untrusted).
+            // This replaces the heuristic string-matching approach with
+            // precise FIDES label propagation.
+            let has_untrusted = self.check_untrusted_input(&input);
 
             let action_number = context.len() as u64;
             match policy.check(&mcp_ref, taint, has_untrusted, action_number) {
@@ -1234,7 +1269,26 @@ impl ManifestExecutor {
         // untrusted tool output so the LLM can distinguish it from instructions.
         let result = spotlight_tool_output(&self.spotlighter, &result);
 
-        context.insert(format!("step_{}_result", step.ordinal), result);
+        let result_key = format!("step_{}_result", step.ordinal);
+
+        // FIDES taint propagation: if this tool is a Source (returns untrusted
+        // data from external sources), mark the result as tainted so downstream
+        // Sink tools can detect it via check_untrusted_input.
+        // Layer 5 defense (Microsoft Research FIDES arXiv:2505.23643).
+        let tool_taint = self
+            .mcp
+            .get_tool_info(&mcp_ref)
+            .await
+            .map(|info| info.taint)
+            .unwrap_or(ToolTaint::Pure);
+        if tool_taint == ToolTaint::Source {
+            self.taint_labels
+                .lock()
+                .expect("taint_labels mutex poisoned")
+                .insert(result_key.clone(), ToolTaint::Source);
+        }
+
+        context.insert(result_key, result);
 
         Ok(context)
     }

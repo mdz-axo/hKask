@@ -18,6 +18,7 @@ pub mod prompt_strategy;
 pub mod registry;
 pub mod registry_sqlite;
 pub mod skill_loader;
+pub mod taint_context;
 pub mod vocabulary;
 
 pub use bundle::BundleManifest;
