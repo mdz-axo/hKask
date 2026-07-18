@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-07-12
+last_updated: 2026-07-17
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -26,7 +26,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 
 | Document | Description |
 |----------|-------------|
-| [`tutorial/getting-started.md`](tutorial/getting-started.md) | End-to-end walkthrough — install, configure, first chat |
+| [`how-to/getting-started.md`](how-to/getting-started.md) | End-to-end walkthrough — install, configure, first chat |
 
 ---
 
@@ -72,7 +72,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 
 | Document | Description |
 |----------|-------------|
-| [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, four-loop decomposition, economic layer, pod architecture, Curator persona. Includes merged sections: Database Providers, Matrix Integration, Well Wallet, Scenarios–Companies Bridge, Federation V2, and 8 inlined storage/database/scenarios diagrams. |
+| [`core/hKask-architecture-master.md`](architecture/core/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, four-loop decomposition, economic layer, pod architecture, Curator persona. Includes merged sections: Database Providers, Matrix Integration, Well Wallet, Scenarios–Companies bridge, Federation V2, and 8 inlined storage/database/scenarios diagrams. |
 | [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry — all diagrams now inline |
 
 ### Core (`architecture/core/`)

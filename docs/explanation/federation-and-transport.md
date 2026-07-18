@@ -406,7 +406,7 @@ status: VERIFIED
 
 ## Cross-Reference
 
-- [`hKask-architecture-master.md` § LoRA Adapter Lifecycle & Inference Composition](../architecture/hKask-architecture-master.md#lora-adapter-lifecycle--inference-composition)
+- [`hKask-architecture-master.md` § LoRA Adapter Lifecycle & Inference Composition](../architecture/core/hKask-architecture-master.md#lora-adapter-lifecycle--inference-composition)
 - [`endpoint_lifecycle.rs`](crates/hkask-adapter/src/endpoint_lifecycle.rs) — `EndpointPhase` enum, `valid_next()`, `EndpointLifecycle::transition()`
 - [`adapter_router/mod.rs`](crates/hkask-adapter/src/adapter_router/mod.rs) — `create_endpoint()`, `infer()`, `teardown_endpoint()`, `EndpointGuard`
 

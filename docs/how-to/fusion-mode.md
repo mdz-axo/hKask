@@ -459,7 +459,7 @@ The `ALGO_JUDGE` constant (`"algo"`) and the `algo_merge()` / `merge_json_values
 
 ## See Also
 
-- [Architecture: Fusion — Multi-Model Deliberation](../architecture/hKask-architecture-master.md#fusion--multi-model-deliberation) — canonical architecture reference
+- [Architecture: Fusion — Multi-Model Deliberation](../architecture/core/hKask-architecture-master.md#fusion--multi-model-deliberation) — canonical architecture reference
 - [Cognition and Replica: Fusion System Design Recommendations](../explanation/cognition-and-replica.md) — design rationale (why no partial inheritance, why no `fusion_mode` shorthand, why algo judge subsumes dual-model)
 - [Install and Configure](install-and-configure.md) — env-var setup including `HKASK_FUSION_DISABLED`
 - [Skills and Composition](skills-and-composition.md) — manifest authoring and the `fusion:` block in context

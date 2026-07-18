@@ -18,7 +18,7 @@ mds_categories: [domain, composition, trust, curation]
 - Carl Shapiro and Hal R. Varian, [*Information Rules: A Strategic Guide to the Network Economy*](https://www.hbs.edu/faculty/Pages/item.aspx?num=531) (Harvard Business School Press, 1999).
 - Frederick F. Reichheld, [*The Loyalty Effect: The Hidden Force Behind Growth, Profits, and Lasting Value*](https://www.hbs.edu/faculty/Pages/item.aspx?num=385) (Harvard Business School Press, 1996).
 
-**Related:** [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md), [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](../architecture/hKask-architecture-master.md)
+**Related:** [`PRINCIPLES.md`](../architecture/core/PRINCIPLES.md), [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md)
 
 ---
 

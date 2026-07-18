@@ -798,7 +798,7 @@ status: VERIFIED
 
 ## Cross-Reference
 
-- [`hKask-architecture-master.md` § Agent Pods](../architecture/hKask-architecture-master.md#agent-pods)
+- [`hKask-architecture-master.md` § Agent Pods](../architecture/core/hKask-architecture-master.md#agent-pods)
 - [`types.rs`](crates/hkask-agents/src/pod/types.rs) — `PodLifecycleState`, `AgentMode`, `AgentPersona`, `PodKind`
 - [`active_pods.rs`](crates/hkask-agents/src/pod/active_pods.rs) — `ActivePods` registry, activation wiring
 - [`deployment.rs`](crates/hkask-agents/src/pod/deployment.rs) — `PodFactory::deploy()`, `PerPodToolBinding`

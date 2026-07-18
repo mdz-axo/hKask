@@ -1877,7 +1877,7 @@ When `recursion_depth > matryoshka_limit`, the cascade exits with `maxed_out` / 
 
 ## Cross-Reference
 
-- [`hKask-architecture-master.md` § Template System & Cascade Execution](../architecture/hKask-architecture-master.md#template-system--cascade-execution)
+- [`hKask-architecture-master.md` § Template System & Cascade Execution](../architecture/core/hKask-architecture-master.md#template-system--cascade-execution)
 - [`executor.rs`](crates/hkask-templates/src/executor.rs) — `ManifestExecutor`, `execute_manifest()`, PDCA cascade loop
 - [`token_types.rs`](crates/hkask-capability/src/token_types.rs) — `SYSTEM_MAX_RECURSION` = 7
 - [`cascade.rs`](crates/hkask-improv/src/cascade.rs) — `MATRYOSHKA_LIMIT`, improv cascade

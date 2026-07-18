@@ -1576,7 +1576,7 @@ status: VERIFIED
 
 - [Service Layer Class Diagram](../explanation/architecture-patterns.md#service-layer-class-diagram) — Service layer class diagram (hexagonal ports)
 - [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence
-- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (four patterns, crate-to-loop mapping)
+- [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (four patterns, crate-to-loop mapping)
 - [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
 
 
@@ -1665,7 +1665,7 @@ The pipeline emits tracing events for cybernetic observability:
 
 - [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
 - [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence (applies to codegraph tools)
-- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (crate-to-loop mapping)
+- [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (crate-to-loop mapping)
 - [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
 
 
@@ -1766,7 +1766,7 @@ Three triggers keep `symbols_fts` synchronized with `symbols`:
 
 - [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
 - [CodeGraph Indexing Pipeline](#codegraph-indexing-pipeline) — Indexing pipeline flowchart
-- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master
+- [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master
 
 
 ### CodeGraph Agent Workflow — Sequence
@@ -1888,7 +1888,7 @@ status: VERIFIED
 - [CodeGraph Database Schema](#codegraph-database-schema) — Database schema ERD
 - [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
 - [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch with OCAP enforcement
-- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master
+- [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master
 
 
 ### CodeGraph IndexPipeline Lifecycle — State
@@ -1970,7 +1970,7 @@ Current behavior is limited to call-driven indexing. `finalize()` resets the sta
 - [CodeGraph Database Schema](#codegraph-database-schema) — Database schema ERD
 - [CodeGraph Indexing Pipeline](#codegraph-indexing-pipeline) — Indexing pipeline detail
 - [CodeGraph Agent Workflow](#codegraph-agent-workflow) — Agent interaction workflow
-- [`../architecture/hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Architecture master (CNS feedback loop)
+- [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (CNS feedback loop)
 
 
 ### TUI Window Trait Hierarchy

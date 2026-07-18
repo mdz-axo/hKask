@@ -699,5 +699,5 @@ small enough to review in isolation.
 - [DOCUMENTATION_STANDARDS §4 — Mermaid diagrams](../specifications/DOCUMENTATION_STANDARDS.md#4-mermaid-diagrams)
 - [CI invariants gate — `scripts/check-string-errors.sh`](../../scripts/check-string-errors.sh)
 - [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server)
-- [Companies provider-routing diagram](../architecture/hKask-architecture-master.md#companies-mcp-provider-routing)
-- [Companies forecast-feedback diagram](../architecture/hKask-architecture-master.md#companies-mcp-forecast-feedback)
+- [Companies provider-routing diagram](../architecture/core/hKask-architecture-master.md#companies-mcp-provider-routing)
+- [Companies forecast-feedback diagram](../architecture/core/hKask-architecture-master.md#companies-mcp-forecast-feedback)

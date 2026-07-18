@@ -1077,7 +1077,7 @@ status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop
 
 ## Cross-Reference
 
-- [`hKask-architecture-master.md` § Kata — Cybernetic Capability Development](../architecture/hKask-architecture-master.md#kata--cybernetic-capability-development)
+- [`hKask-architecture-master.md` § Kata — Cybernetic Capability Development](../architecture/core/hKask-architecture-master.md#kata--cybernetic-capability-development)
 - [`PRINCIPLES.md` § P6 — Space for Replicants & Bots](../architecture/core/PRINCIPLES.md#p6--space-for-replicants--bots)
 - [`kata/mod.rs`](crates/hkask-services-kata-kanban/src/kata/mod.rs) — `KataEngine::execute()` dispatch (L333-486)
 - [`kata/improvement.rs`](crates/hkask-services-kata-kanban/src/kata/improvement.rs) — `run_improvement_from()` single-pass step loop (L20-121)
@@ -1139,5 +1139,5 @@ status: VERIFIED
 
 
 - [Kata PDCA lifecycle state machine](#kata-pdca-lifecycle-state-machine)
-- [Architecture master: Kata](../architecture/hKask-architecture-master.md#kata--cybernetic-capability-development)
+- [Architecture master: Kata](../architecture/core/hKask-architecture-master.md#kata--cybernetic-capability-development)
 
