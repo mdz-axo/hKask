@@ -35,6 +35,7 @@ use tracing::info;
 /// This wrapper flattens the `manifest:` inner fields with the top-level
 /// config fields into a single `BundleManifest`.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ManifestFile {
     manifest: ManifestHeader,
     #[serde(default)]
@@ -65,12 +66,6 @@ struct ManifestFile {
     principles: Option<serde_json::Value>,
     #[serde(default)]
     fusion: Option<hkask_types::fusion::FusionConfig>,
-    /// Captures unrecognized top-level keys for forward compatibility.
-    /// Pre-release: these are documentation annotations not yet parsed by Rust.
-    /// When a key is promoted to a typed field, remove it from this map.
-    #[serde(default, flatten)]
-    #[allow(dead_code)]
-    extra: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// Inner header from the `manifest:` key in YAML files.

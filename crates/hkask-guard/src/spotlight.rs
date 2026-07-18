@@ -8,13 +8,23 @@ use base64::Engine;
 use rand::RngCore;
 
 /// Spotlighting mode for untrusted content.
+///
+/// **Mode selection:** `Delimit` is the recommended default — it preserves
+/// content structure (newlines, whitespace, code blocks) while marking the
+/// boundary. `Datamark` destroys structure by splitting on whitespace and
+/// should only be used for natural-language-only content. `Encode` renders
+/// content unreadable to the LLM without decoding, providing the strongest
+/// separation but requiring LLM cooperation to decode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpotlightMode {
-    /// Wrap untrusted content in random delimiters.
+    /// Wrap untrusted content in random delimiters. Preserves content structure.
+    /// Recommended default.
     Delimit,
-    /// Interleave a random marker token between every word (hardest to bypass).
+    /// Interleave a random marker token between every word. Destroys structure
+    /// (newlines, formatting, code blocks). Only for natural-language content.
     Datamark,
-    /// Base64 encode untrusted content.
+    /// Base64 encode untrusted content. Strongest separation but requires
+    /// LLM to decode before analysis.
     Encode,
 }
 

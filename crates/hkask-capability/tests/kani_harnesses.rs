@@ -131,6 +131,10 @@ fn tamper_public_key_byte_rejected() {
         !token.verify(),
         "tampered public key must fail verification",
     );
+    kani::assert(
+        !token.verify(),
+        "tampered public key must fail verification",
+    );
 }
 
 // ── Harness 5: Tamper detection — payload field (resource_id) ─────────────

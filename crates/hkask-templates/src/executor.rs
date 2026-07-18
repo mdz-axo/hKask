@@ -44,6 +44,7 @@ use crate::bundle::BundleManifest;
 use crate::bundle::BundleManifestStep;
 use crate::ports::{McpPort, Result, TemplateError};
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_guard::{SpotlightMode, Spotlighter};
 use hkask_ports::{InferencePort, InferenceResult};
 use hkask_types::NotFound;
 use hkask_types::WebID;
@@ -106,6 +107,10 @@ pub struct ManifestExecutor {
     template_base_path: PathBuf,
     /// Optional heal callback: (error_string, operation_name).
     heal_error_cb: Option<HealCallback>,
+    /// Spotlighter for transforming untrusted tool outputs (Layer 2 defense).
+    /// Applied to every MCP tool result before it enters the LLM context.
+    /// Source: Microsoft Research arXiv:2403.14720
+    spotlighter: Spotlighter,
 }
 
 impl ManifestExecutor {
@@ -129,6 +134,7 @@ impl ManifestExecutor {
             a2a_secret: Zeroizing::new(a2a_secret),
             template_base_path: PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
             heal_error_cb: None,
+            spotlighter: Spotlighter::new(SpotlightMode::Delimit),
         }
     }
 
@@ -1164,6 +1170,11 @@ impl ManifestExecutor {
             .await
             .map_err(|e| TemplateError::Mcp(Box::new(e)))?;
 
+        // Apply spotlighting to tool output before it enters the LLM context.
+        // Layer 2 defense (Microsoft Research arXiv:2403.14720) — transforms
+        // untrusted tool output so the LLM can distinguish it from instructions.
+        let result = spotlight_tool_output(&self.spotlighter, &result);
+
         context.insert(format!("step_{}_result", step.ordinal), result);
 
         Ok(context)
@@ -1904,6 +1915,21 @@ fn parse_choice_condition(condition: &str) -> Option<(&str, &str, &str)> {
         }
     }
     None
+}
+
+/// Apply spotlighting to a tool output value before it enters the LLM context.
+///
+/// Serializes the JSON value to a string, applies the spotlighting transform,
+/// and wraps the result back as a JSON string value. This ensures the LLM sees
+/// the untrusted content marked as data, not instructions.
+///
+/// Source: Microsoft Research arXiv:2403.14720
+fn spotlight_tool_output(spotlighter: &Spotlighter, result: &Value) -> Value {
+    let text = match result {
+        Value::String(s) => s.clone(),
+        other => other.to_string(),
+    };
+    Value::String(spotlighter.spotlight(&text))
 }
 
 #[cfg(test)]

@@ -198,21 +198,21 @@ cns:
   variety_monitoring: true
   algedonic_threshold: 5
 
-outcomes:
-  - name: tasks_created
-    condition: "tasks.length > 0"
-    action: "Board populated with decomposed tasks"
-  - name: recomposition_defined
-    condition: "recomposition.strategy is defined"
-    action: "Recomposition strategy embedded in plan"
+# outcomes: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
+#   - name: tasks_created
+#     condition: "tasks.length > 0"
+#     action: "Board populated with decomposed tasks"
+#   - name: recomposition_defined
+#     condition: "recomposition.strategy is defined"
+#     action: "Recomposition strategy embedded in plan"
 
-metrics:
-  - name: task_count
-    description: "Number of tasks produced by decomposition"
-    span: cns.kanban.decompose.tasks_created
-  - name: avg_story_points
-    description: "Average story points per task"
-    span: cns.kanban.decompose.avg_points
+# metrics: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
+#   - name: task_count
+#     description: "Number of tasks produced by decomposition"
+#     span: cns.kanban.decompose.tasks_created
+#   - name: avg_story_points
+#     description: "Average story points per task"
+#     span: cns.kanban.decompose.avg_points
 
 audit:
   enabled: true

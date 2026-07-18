@@ -115,7 +115,6 @@ async fn live_together_adapter_e2e() {
         size_bytes: None,
         owner,
         lifecycle: AdapterLifecycle::Durable,
-        expires_at: None,
         created_at: "2026-06-17T00:00:00Z".into(),
     };
     store.store(&adapter).expect("store adapter");

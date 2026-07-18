@@ -4216,6 +4216,7 @@ dependencies = [
  "llm-guard",
  "rand 0.9.4",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]
@@ -5213,6 +5214,7 @@ dependencies = [
  "ed25519-dalek",
  "hkask-capability",
  "hkask-forecast",
+ "hkask-guard",
  "hkask-ports",
  "hkask-test-harness",
  "hkask-types",

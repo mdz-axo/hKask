@@ -784,7 +784,6 @@ mod tests {
             size_bytes: None,
             owner: WebID::new(),
             lifecycle: AdapterLifecycle::Durable,
-            expires_at: None,
             created_at: "2026-01-01T00:00:00Z".into(),
         }
     }
@@ -960,7 +959,6 @@ mod tests {
             size_bytes: None,
             owner: WebID::new(),
             lifecycle: AdapterLifecycle::Durable,
-            expires_at: None,
             created_at: "2026-01-01T00:00:00Z".into(),
         };
         store.store(&adapter).expect("store");

@@ -1,0 +1,20 @@
+id: RR-0013
+title: "ToolTaint not used in MCP tool registration"
+surface: mcp
+cwe: CWE-284
+owasp_llm_2025: LLM06
+atlas_tactic: AML.TA0008
+nist_ssdf: PW.4.1
+discovered_in: crates/hkask-ports/src/registry.rs
+discovered_by: kali-audit
+discovered_at: 2026-07-17
+severity: medium
+detection:
+  kind: grep
+  # Checks that ToolTaint is actually used in tool registration, not just defined.
+  pattern: 'ToolTaint|tool_taint'
+  include: "crates/hkask-ports/src/registry.rs"
+mitigation: "Add a taint: ToolTaint field to the MCP tool registration type so every tool is labeled Source/Sink/Pure/Endorser."
+source: "https://arxiv.org/pdf/2505.23643 — Microsoft Research FIDES"
+ci_gate: scripts/check-kali-regressions.sh
+status: pending

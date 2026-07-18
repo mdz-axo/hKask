@@ -132,12 +132,9 @@ pub struct TrainedLoRAAdapter {
     pub owner: WebID,
     /// Lifecycle class — durable expertise vs ephemeral context internalization.
     /// Operator-chosen at training time. Defaults to `Durable` for backfilled rows.
+    /// The `Ephemeral` variant carries its own `expires_at` timestamp.
     #[serde(default)]
     pub lifecycle: AdapterLifecycle,
-    /// Optional TTL for ephemeral adapters (Unix epoch seconds).
-    /// `None` for `Durable` adapters. `Some(epoch)` for `Ephemeral` adapters.
-    #[serde(default)]
-    pub expires_at: Option<u64>,
     /// When the adapter was stored
     pub created_at: String,
 }
@@ -286,7 +283,8 @@ impl AdapterStore {
                 DbValue::Text(metrics_json),
                 DbValue::Text(adapter.lifecycle.as_str().to_string()),
                 adapter
-                    .expires_at
+                    .lifecycle
+                    .expires_at()
                     .map_or(DbValue::Null, |e| DbValue::Integer(e as i64)),
                 DbValue::Text(adapter.created_at.clone()),
             ],
@@ -496,8 +494,12 @@ impl AdapterStore {
             source,
             size_bytes: r.size_bytes.map(|b| b as u64),
             owner: WebID::from_uuid(owner_uuid),
-            lifecycle: AdapterLifecycle::parse(&r.lifecycle).unwrap_or(AdapterLifecycle::Durable),
-            expires_at: r.expires_at.map(|e| e as u64),
+            lifecycle: match r.lifecycle.as_str() {
+                "ephemeral" => AdapterLifecycle::Ephemeral {
+                    expires_at: r.expires_at.unwrap_or(0) as u64,
+                },
+                _ => AdapterLifecycle::Durable,
+            },
             created_at: r.created_at,
         })
     }
@@ -539,7 +541,6 @@ mod tests {
             size_bytes: Some(1024),
             owner,
             lifecycle: AdapterLifecycle::Durable,
-            expires_at: None,
             created_at: "2026-07-01".into(),
         }
     }
@@ -602,5 +603,45 @@ mod tests {
         let store = make_store();
         let result = store.delete(Uuid::new_v4());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn ephemeral_lifecycle_round_trips() {
+        let store = make_store();
+        let mut adapter = make_test_adapter();
+        adapter.id = Uuid::new_v4();
+        adapter.lifecycle = AdapterLifecycle::Ephemeral {
+            expires_at: 1735689600,
+        };
+        let id = adapter.id;
+
+        store.store(&adapter).unwrap();
+        let retrieved = store.get_by_id(id).unwrap().expect("adapter should exist");
+
+        match &retrieved.lifecycle {
+            AdapterLifecycle::Ephemeral { expires_at } => {
+                assert_eq!(
+                    *expires_at, 1735689600,
+                    "expires_at should survive round-trip"
+                );
+            }
+            AdapterLifecycle::Durable => {
+                panic!("lifecycle should be Ephemeral after round-trip, got Durable");
+            }
+        }
+    }
+
+    #[test]
+    fn durable_lifecycle_round_trips() {
+        let store = make_store();
+        let mut adapter = make_test_adapter();
+        adapter.id = Uuid::new_v4();
+        adapter.lifecycle = AdapterLifecycle::Durable;
+        let id = adapter.id;
+
+        store.store(&adapter).unwrap();
+        let retrieved = store.get_by_id(id).unwrap().expect("adapter should exist");
+        assert_eq!(retrieved.lifecycle, AdapterLifecycle::Durable);
+        assert!(retrieved.lifecycle.expires_at().is_none());
     }
 }

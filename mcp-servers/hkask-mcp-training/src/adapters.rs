@@ -144,7 +144,6 @@ impl LoRAAdapter {
             },
             owner: hkask_types::id::WebID::from_persona(b"training-pipeline"),
             lifecycle: AdapterLifecycle::Durable,
-            expires_at: None,
             created_at: chrono::Utc::now().to_rfc3339(),
         }
     }

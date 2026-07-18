@@ -61,9 +61,9 @@ steps:
         latency_ms:
           type: number
 
-matroshka:
-  max_depth: 5
-  enforce: true
+# matroshka: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
+#   max_depth: 5
+#   enforce: true
 
 cns:
   spans:

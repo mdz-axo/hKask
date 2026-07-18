@@ -10,6 +10,7 @@ use llm_guard::{
     TokenLimit, patterns::COMMON_INJECTION_PATTERNS,
 };
 use rand::RngCore;
+use zeroize::Zeroizing;
 
 /// A per-session canary token embedded in system prompts to detect exfiltration.
 ///
@@ -19,7 +20,7 @@ use rand::RngCore;
 /// Source: OWASP LLM Top 10 (2025), Thinkst canarytokens
 /// (https://www.toxsec.com/p/canary-tokens-for-prompt-injection)
 #[derive(Debug, Clone)]
-pub struct CanaryToken(String);
+pub struct CanaryToken(Zeroizing<String>);
 
 impl CanaryToken {
     /// Generate a random 32-byte canary token, hex-encoded.
@@ -29,7 +30,7 @@ impl CanaryToken {
     pub fn generate() -> Self {
         let mut bytes = [0u8; 32];
         rand::rng().fill_bytes(&mut bytes);
-        Self(hex::encode(bytes))
+        Self(Zeroizing::new(hex::encode(bytes)))
     }
 
     /// Get the canary token string for embedding in a system prompt.
@@ -51,7 +52,7 @@ impl CanaryToken {
 
 impl std::fmt::Display for CanaryToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "HKASK-CANARY-{}", self.0)
+        write!(f, "HKASK-CANARY-{}", &*self.0)
     }
 }
 
@@ -294,6 +295,21 @@ impl ContentGuard {
     /// Collects all secret leakage violations and strips detected secrets.
     /// Emits `cns.guard.output` on violation.
     pub fn scan_output(&self, text: &str) -> GuardResult {
+        // Check for canary token leakage (OWASP LLM07:2025).
+        // If the canary appears in model output, the system prompt was exfiltrated.
+        if self.check_canary(text) {
+            return GuardResult {
+                passed: false,
+                violations: vec![GuardViolation {
+                    scanner: "canary".to_string(),
+                    description:
+                        "System prompt canary token detected in output — exfiltration suspected"
+                            .to_string(),
+                }],
+                output: GuardOutput::Sanitized(text.to_string()),
+            };
+        }
+
         let result = self.output_pipeline.scan(text);
 
         let violations: Vec<GuardViolation> = result
@@ -365,6 +381,11 @@ fn redact_spans(text: &str, matches: &[llm_guard::Match<'_>]) -> String {
         let end = m.span.end.min(text.len());
         if start < cursor || end < start {
             // Overlapping or out-of-order span — skip to avoid corruption.
+            tracing::warn!(
+                target: "hkask.guard.redact",
+                start, end, cursor,
+                "skipping overlapping or out-of-order span during redaction"
+            );
             continue;
         }
         out.push_str(&text[cursor..start]);

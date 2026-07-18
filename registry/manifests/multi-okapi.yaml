@@ -10,14 +10,14 @@ manifest:
   editor: curator-or-human-admin
   visibility: Public
 
-providers:
-  - id: fireworks-cloud
-    prefix: FW
-    endpoint: https://api.fireworks.ai/inference
-    capabilities: [inference, embedding]
-    priority: 1
-  - id: deepinfra-cloud
-    prefix: DI
-    endpoint: https://api.deepinfra.com/v1/openai
-    capabilities: [inference, embedding]
-    priority: 2
+# providers: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
+#   - id: fireworks-cloud
+#     prefix: FW
+#     endpoint: https://api.fireworks.ai/inference
+#     capabilities: [inference, embedding]
+#     priority: 1
+#   - id: deepinfra-cloud
+#     prefix: DI
+#     endpoint: https://api.deepinfra.com/v1/openai
+#     capabilities: [inference, embedding]
+#     priority: 2

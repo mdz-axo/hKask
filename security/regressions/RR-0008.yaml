@@ -1,5 +1,5 @@
 id: RR-0008
-title: "Missing information flow control labels on MCP tools"
+title: "ToolTaint type defined but not integrated into MCP tool registration"
 surface: mcp
 cwe: CWE-284
 owasp_llm_2025: LLM06
@@ -16,4 +16,5 @@ detection:
 mitigation: "Label every MCP tool as Source/Sink/Pure/Endorser. Block Source→Sink data flow without Endorser (FIDES pattern)."
 source: "https://arxiv.org/pdf/2505.23643 — Microsoft Research FIDES"
 ci_gate: scripts/check-kali-regressions.sh
-status: enforced
+status: pending
+note: "Type defined and tested but no MCP tool registration includes a taint label. See RR-0013 for the integration regression."

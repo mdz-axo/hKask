@@ -1,5 +1,5 @@
 id: RR-0007
-title: "Missing spotlighting (datamarking) on untrusted tool outputs"
+title: "Spotlighting type defined but not integrated into tool output path"
 surface: mcp
 cwe: CWE-20
 owasp_llm_2025: LLM01
@@ -16,4 +16,5 @@ detection:
 mitigation: "Apply Spotlighter (datamarking mode) to all MCP tool outputs before they enter the LLM context. Reduces indirect prompt injection success from >50% to <2%."
 source: "https://arxiv.org/html/2403.14720v1 — Microsoft Research Spotlighting"
 ci_gate: scripts/check-kali-regressions.sh
-status: enforced
+status: pending
+note: "Type defined and tested but not yet called from executor.rs. See RR-0011 for the integration regression."

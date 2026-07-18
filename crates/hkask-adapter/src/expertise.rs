@@ -77,17 +77,25 @@ impl std::fmt::Display for MdsDomain {
 /// Sakana D2L paper: a context too large for efficient token-concat RAG but
 /// too transient for a full SFT cycle. The mechanism differs (short SFT vs
 /// hypernetwork forward pass); the lifecycle concept is the same.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+///
+/// The `expires_at` field is part of the `Ephemeral` variant, not a separate
+/// field, so an ephemeral adapter without an expiry is unrepresentable.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum AdapterLifecycle {
     /// Long-lived expertise adapter. No TTL. Survives across sessions.
     /// Example: rust-coding-lora trained on 191K examples.
     #[default]
     Durable,
-    /// Short-lived context-internalization adapter. Has a TTL (`expires_at`).
+    /// Short-lived context-internalization adapter with a TTL.
     /// Discarded when expired. Example: low-rank adapter trained on a
     /// 100K-token codebase for a two-week sprint.
-    Ephemeral,
+    Ephemeral {
+        /// When this adapter expires (Unix epoch seconds). After this
+        /// timestamp, the adapter is eligible for garbage collection and
+        /// should not be selected by the inference router.
+        expires_at: u64,
+    },
 }
 
 impl AdapterLifecycle {
@@ -95,16 +103,25 @@ impl AdapterLifecycle {
     pub fn as_str(&self) -> &'static str {
         match self {
             AdapterLifecycle::Durable => "durable",
-            AdapterLifecycle::Ephemeral => "ephemeral",
+            AdapterLifecycle::Ephemeral { .. } => "ephemeral",
         }
     }
 
-    /// Parses kebab-case or PascalCase strings.
+    /// Parses kebab-case or PascalCase strings. For `Ephemeral`, the
+    /// `expires_at` field is set to 0 — callers should set it explicitly.
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "durable" | "Durable" => Some(AdapterLifecycle::Durable),
-            "ephemeral" | "Ephemeral" => Some(AdapterLifecycle::Ephemeral),
+            "ephemeral" | "Ephemeral" => Some(AdapterLifecycle::Ephemeral { expires_at: 0 }),
             _ => None,
+        }
+    }
+
+    /// Returns the expiry timestamp if this is an `Ephemeral` adapter.
+    pub fn expires_at(&self) -> Option<u64> {
+        match self {
+            AdapterLifecycle::Durable => None,
+            AdapterLifecycle::Ephemeral { expires_at } => Some(*expires_at),
         }
     }
 }
