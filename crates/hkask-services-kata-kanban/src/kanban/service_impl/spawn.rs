@@ -7,9 +7,12 @@ impl KanbanService {
         spawn_spec: super::SpawnSpec,
         actor: WebID,
     ) -> Result<String, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task".to_string(),
+                id: task_id.to_string(),
+            })
+        })?;
         Self::require_task_owner(&task, actor)?;
 
         if let Some(ref pm) = self.pod_manager {

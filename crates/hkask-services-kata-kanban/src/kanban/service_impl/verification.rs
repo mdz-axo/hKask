@@ -6,9 +6,12 @@ impl KanbanService {
         task_id: TaskId,
         evidence: &str,
     ) -> Result<String, KanbanError> {
-        let task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
+        let task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task".to_string(),
+                id: task_id.to_string(),
+            })
+        })?;
 
         if task.criteria.is_empty() {
             return Err(KanbanError::InvalidInput(
@@ -46,9 +49,12 @@ impl KanbanService {
         verifier: WebID,
         llm_json: &str,
     ) -> Result<(Task, Verification), KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task".to_string(),
+                id: task_id.to_string(),
+            })
+        })?;
 
         if task.status != TaskStatus::Review {
             return Err(KanbanError::InvalidTransition {

@@ -178,9 +178,12 @@ impl KanbanService {
     /// budget explicitly set on the task. When gas hits zero mid-work, the
     /// task auto-completes. The delegator can reopen with more gas to continue.
     pub fn task_gas_exhaust(&self, task_id: TaskId) -> Result<Task, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task".to_string(),
+                id: task_id.to_string(),
+            })
+        })?;
 
         let v = Verification::new(
             false,
@@ -217,9 +220,12 @@ impl KanbanService {
         amount: u64,
         reason: &str,
     ) -> Result<u64, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task".to_string(),
+                id: task_id.to_string(),
+            })
+        })?;
 
         let remaining = task.gas_remaining.unwrap_or(0);
         let new_remaining = remaining.saturating_sub(amount);
@@ -243,9 +249,12 @@ impl KanbanService {
         amount: u64,
         reason: &str,
     ) -> Result<u64, KanbanError> {
-        let mut task = self
-            .task_get(task_id)?
-            .ok_or_else(|| KanbanError::NotFound(NotFound { entity_type: "task".to_string(), id: task_id.to_string() }))?;
+        let mut task = self.task_get(task_id)?.ok_or_else(|| {
+            KanbanError::NotFound(NotFound {
+                entity_type: "task".to_string(),
+                id: task_id.to_string(),
+            })
+        })?;
 
         let remaining = task.rjoule_remaining.unwrap_or(0);
         let new_remaining = remaining.saturating_sub(amount);
