@@ -18,7 +18,7 @@
 //! # API Key Resolution
 //!
 //! Provider API keys resolve through a 2-tier chain (env-first):
-//! 1. Environment variable (fast path — `.env` is loaded by dotenvy)
+//! 1. Environment variable (fast path — set via shell or keychain resolution)
 //! 2. OS keychain (encrypted at rest; guarded against concurrent-access SIGABRT from libdbus)
 //!
 //! # Model Naming Convention
@@ -252,7 +252,7 @@ impl Default for InferenceConfig {
             cline_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
-            default_model: "KC/z-ai/glm-5.2".to_string(),
+            default_model: "DI/deepseek/deepseek-v4-pro".to_string(),
             fusion: None,
         }
     }
@@ -268,8 +268,6 @@ impl InferenceConfig {
     /// post: returns InferenceConfig resolved from env vars and keychain
     /// post: defaults to DeepInfra cloud if env vars unset
     pub fn from_env() -> Self {
-        let _ = dotenvy::dotenv();
-
         let di = ProviderConfig::from_env("DI", "https://api.deepinfra.com");
         let tg = ProviderConfig::from_env("TG", "https://api.together.xyz");
         let or = ProviderConfig::from_env("OR", "https://openrouter.ai/api");
@@ -359,12 +357,12 @@ fn env_f64(key: &str, default: f64) -> f64 {
 
 /// Resolve a provider API key through the 2-tier chain: env var → OS keychain.
 ///
-/// Tier 1: Environment variable (fast path — `.env` is loaded by dotenvy).
+/// Tier 1: Environment variable (fast path — set via shell or keychain).
 /// Tier 2: OS keychain (encrypted at rest; guarded against the
 /// concurrent-access SIGABRT from libdbus via `catch_unwind`).
 /// Returns an empty string if no key is found — the backend will be unavailable.
 fn resolve_api_key(env_name: &str) -> String {
-    // Tier 1: Environment variable (fast path — .env is loaded by dotenvy)
+    // Tier 1: Environment variable (fast path — set via shell or keychain)
     if let Ok(val) = std::env::var(env_name)
         && !val.is_empty()
     {

@@ -292,6 +292,12 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.well.replenished",
     // ── Pipeline (docproc) ──
     "cns.pipeline",
+    // ── Supply chain (security audit — supply-chain-sentinel skill) ──
+    "cns.supply_chain",
+    "cns.supply_chain.select",
+    "cns.supply_chain.probe",
+    "cns.supply_chain.report",
+    "cns.supply_chain.convergence",
     // ── Template ──
     "cns.template",
 ];

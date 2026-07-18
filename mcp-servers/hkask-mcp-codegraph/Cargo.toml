@@ -31,3 +31,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "hkask-mcp-codegraph"
 path = "src/main.rs"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+tempfile.workspace = true

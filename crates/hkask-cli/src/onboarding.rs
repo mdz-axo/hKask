@@ -519,7 +519,7 @@ async fn select_model() -> Result<String, OnboardingError> {
 /// Interactive provider setup during first-run onboarding.
 ///
 /// Checks if a provider API key is already configured (env var or keychain —
-/// .env is auto-loaded by dotenvy at startup). If not, prompts to enter a key
+/// Secrets are resolved from the OS keychain at startup). If not, prompts to enter a key
 /// directly or skip.
 async fn setup_provider() -> Result<(), OnboardingError> {
     let config = InferenceConfig::from_env();
@@ -801,6 +801,65 @@ fn resolve_secrets_from_keychain(
         a2a_secret,
         db_passphrase: config.db_passphrase.clone(),
     })
+}
+
+/// Register a replicant in the UserStore (human_users + replicant_identities).
+///
+/// This is called after `OnboardingService::register_replicant` (which writes
+/// to AgentRegistryStore) to ensure the replicant also exists in the
+/// `replicant_identities` table. The daemon's `check_auth` queries this table
+/// via `UserStore::get_replicant` — without this registration, the daemon
+/// returns `authenticated: false` even though the replicant exists in the
+/// agent registry.
+///
+/// Idempotent: if the replicant already exists in UserStore (e.g., from a
+/// prior onboarding), the error is logged as a warning and the function
+/// returns Ok. This handles re-onboarding scenarios where the DB persists
+/// but the keychain was cleared.
+pub(crate) fn register_in_user_store(
+    config: &ServiceConfig,
+    display_name: &str,
+    user_profile: &hkask_types::agent_registry::UserProfile,
+    passphrase: &str,
+) -> Result<(), String> {
+    use hkask_database::SqliteDriver;
+    use hkask_storage::Database;
+    use hkask_storage::user_store::UserStore;
+    use std::sync::Arc;
+
+    let db = Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| format!("DB open: {e}"))?;
+    let pool = db.sqlite_pool().map_err(|e| format!("pool: {e}"))?;
+    let driver = Arc::new(SqliteDriver::new(pool));
+    let store = UserStore::from_driver(driver);
+
+    // Check if the replicant already exists (idempotent).
+    if store
+        .get_replicant(display_name)
+        .map_err(|e| format!("get_replicant: {e}"))?
+        .is_some()
+    {
+        tracing::info!(
+            target: "hkask.onboarding",
+            replicant = %display_name,
+            "Replicant already in UserStore — skipping registration"
+        );
+        return Ok(());
+    }
+
+    // Register the replicant in the UserStore. This creates both the
+    // human_users and replicant_identities records.
+    store
+        .register_replicant(
+            display_name.to_string(),
+            user_profile.email.clone(),
+            None, // phone
+            user_profile.first_name.clone(),
+            user_profile.last_name.clone(),
+            passphrase.to_string(),
+        )
+        .map_err(|e| format!("register_replicant: {e}"))?;
+    Ok(())
 }
 
 /// Error type for UserStore session creation during onboarding.

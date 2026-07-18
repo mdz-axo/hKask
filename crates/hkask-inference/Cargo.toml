@@ -16,7 +16,6 @@ anyhow.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 reqwest.workspace = true
-dotenvy.workspace = true
 futures-util.workspace = true
 chrono.workspace = true
 base64.workspace = true
@@ -25,7 +24,6 @@ base64.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
 wiremock = "0.6"
 hkask-test-harness = { path = "../hkask-test-harness" }
-dotenvy.workspace = true
 
 [[test]]
 name = "inference_routing_integration"

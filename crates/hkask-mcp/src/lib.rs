@@ -125,7 +125,6 @@ pub async fn bootstrap_mcp_server(
     target: &str,
     host_env_var: &str,
 ) -> Result<MCPBootstrap, McpError> {
-    dotenvy::dotenv().ok();
     let replicant = std::env::var(host_env_var)
         .ok()
         .filter(|value| !value.trim().is_empty())

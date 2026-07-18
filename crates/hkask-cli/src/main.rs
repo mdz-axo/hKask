@@ -34,9 +34,9 @@ fn check_fusion_startup() {
 
 /// ── Main ─────────────────────────────────────────────────────────────────
 fn main() {
-    // Load .env from current directory (silently skip if absent)
-    dotenvy::dotenv().ok();
-
+    // Secrets are resolved from the OS keychain (preferred) or environment
+    // variables. The .env file is deprecated — use `kask keystore load` to
+    // load keys into the keychain from a key_load_template.env file.
     let cli = hkask_cli::cli::Cli::parse();
     hkask_cli::cli::init_logging(cli.verbose, cli.json_logs);
 

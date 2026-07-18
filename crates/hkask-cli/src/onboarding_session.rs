@@ -227,6 +227,49 @@ impl OnboardingSession {
             eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
             OnboardingError::Service(e)
         })?;
+
+        // Also register in UserStore so the daemon's check_auth can
+        // authenticate the replicant. The AgentRegistryStore tracks the
+        // agent definition (A2A, YAML, capabilities); the UserStore tracks
+        // the human user, replicant identity, and sessions. Without this,
+        // the daemon returns authenticated:false because the replicant
+        // isn't in the replicant_identities table.
+        let passphrase = self.passphrase.as_deref().unwrap_or("");
+        if !passphrase.is_empty() {
+            let config = ServiceConfig::from_secrets(
+                self.resolved_secrets
+                    .as_ref()
+                    .map(|s| s.a2a_secret.clone())
+                    .unwrap_or_default(),
+                self.resolved_secrets
+                    .as_ref()
+                    .map(|s| s.db_passphrase.clone())
+                    .unwrap_or_default(),
+                self.display_name.clone(),
+            );
+            match crate::onboarding::register_in_user_store(
+                &config,
+                &self.display_name,
+                &self.user_profile,
+                passphrase,
+            ) {
+                Ok(()) => {
+                    tracing::info!(
+                        target: "hkask.onboarding",
+                        replicant = %self.display_name,
+                        "Replicant registered in UserStore"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.onboarding",
+                        replicant = %self.display_name,
+                        error = %e,
+                        "Failed to register in UserStore — daemon auth may not work"
+                    );
+                }
+            }
+        }
         Ok(())
     }
 

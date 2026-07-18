@@ -44,7 +44,6 @@ ALLOWLIST=(
   "hkask-mcp-replica"
   "hkask-mcp-research"
   "hkask-mcp-scenarios"
-  "hkask-mcp-skill"
   "hkask-mcp-training"
 )
 

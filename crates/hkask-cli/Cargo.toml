@@ -72,7 +72,6 @@ anyhow.workspace = true
 futures-util.workspace = true
 dirs = "6"
 rpassword = "7"
-dotenvy.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

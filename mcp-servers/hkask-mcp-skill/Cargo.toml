@@ -30,3 +30,6 @@ path = "src/main.rs"
 
 [dev-dependencies]
 async-trait.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+hkask-test-harness = { path = "../../crates/hkask-test-harness" }
+tempfile.workspace = true
