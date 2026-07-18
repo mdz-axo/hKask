@@ -62,7 +62,46 @@ This creates:
 
 ---
 
-## 4. Your First Chat Session
+## 4. Start the Daemon
+
+The hKask daemon is a persistent background process that serves P4 OCAP
+gate verification (auth, assignment, capability) to MCP server binaries over
+a Unix domain socket. Without it, MCP servers fall back to direct mode and
+bypass OCAP verification.
+
+```bash
+./target/release/kask daemon start &
+```
+
+Verify the daemon is running (this pings the socket, not just checks file
+existence):
+
+```bash
+./target/release/kask daemon status
+```
+
+Expected: `Daemon is running (socket: ...)`
+
+See [ADR-035](../architecture/ADRs/ADR-035-replicant-server-mode.md) for the
+full daemon architecture and startup flow.
+
+---
+
+## 5. Authenticate Your Replicant
+
+Create a UserStore session so the daemon recognizes your replicant:
+
+```bash
+./target/release/kask replicant login
+```
+
+You will be prompted for your replicant name and master passphrase. This
+creates a session that the daemon's `check_auth` queries to verify MCP
+server bootstrap requests.
+
+---
+
+## 6. Your First Chat Session
 
 ```bash
 ./target/release/kask chat
@@ -76,9 +115,16 @@ kask> What skills are available?
 
 The Curator lists installed skills. To exit: `/quit` or `Ctrl+D`.
 
+> **Note:** As of v0.31.0, `kask chat` auto-starts the daemon if it's not
+> already running, and `run_onboarding` creates a UserStore session in
+> operating mode. The explicit `kask daemon start` and `kask replicant login`
+> steps above are still recommended for first-run clarity and for
+> environments where you want the daemon running independently of the chat
+> session.
+
 ---
 
-## 5. Invoke a Skill
+## 7. Invoke a Skill
 
 Skills are PDCA loops that compose templates into autonomous cycles. Let us invoke `caveman`:
 
@@ -94,7 +140,7 @@ The skill plans compression, compresses, checks against its convergence threshol
 
 ---
 
-## 6. Read CNS Health
+## 8. Read CNS Health
 
 ```bash
 ./target/release/kask cns status
@@ -104,7 +150,7 @@ Displays: set points (target thresholds), current values, algedonic alerts (crit
 
 ---
 
-## 7. View CNS Spans
+## 9. View CNS Spans
 
 ```bash
 ./target/release/kask cns alerts
@@ -114,7 +160,7 @@ Each span has a namespace (`cns.tool.reserved`, `cns.inference.completed`, `cns.
 
 ---
 
-## 8. REPL Slash Commands
+## 10. REPL Slash Commands
 
 | Command | Action |
 |---------|--------|
@@ -130,7 +176,7 @@ Each span has a namespace (`cns.tool.reserved`, `cns.inference.completed`, `cns.
 
 ---
 
-## 9. Next Steps
+## 11. Next Steps
 
 - **How-To Guides:** [Create an agent pod](../how-to/agents-and-pods.md), [Design a skill](../how-to/skills-and-composition.md), [Bootstrap an MCP server](../how-to/skills-and-composition.md)
 - **Reference:** [Crate API reference](../reference/api-reference.md), [Skill registry](../reference/skills/README.md), [CNS span registry](../reference/cns-spans.md)
