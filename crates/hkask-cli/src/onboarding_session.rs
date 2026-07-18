@@ -151,12 +151,13 @@ impl OnboardingSession {
             let _ = std::io::stdout().flush();
             let confirm = crate::onboarding::read_line().unwrap_or_default();
             if confirm.trim().to_lowercase().starts_with('y') {
-                if OnboardingService::remove_orphaned_db(&pre_config) {
+                // has_orphaned_db already probed the DB above; use the unchecked
+                // removal to avoid a second SQLCipher open (which would emit
+                // another round of unsuppressable `hmac check failed` errors).
+                if OnboardingService::remove_orphaned_db_unchecked(&pre_config) {
                     eprintln!("  Removed orphaned database.");
                 } else {
-                    eprintln!(
-                        "  \u{26a0} Database was not removed (contains replicants or cleanup failed)."
-                    );
+                    eprintln!("  \u{26a0} Database was not removed (cleanup failed).");
                 }
             } else {
                 eprintln!("  Keeping existing database. Setup will use it if compatible.");

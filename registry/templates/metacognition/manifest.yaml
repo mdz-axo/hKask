@@ -83,12 +83,12 @@ templates:
   # These YAML files are reference analysis documents, not executable .j2
   # templates. They define the Falstaffian shapes, experience calibration,
   # and variance analysis that the metacognition skill uses for perspective
-  # rotation. They are registered as type: reference for discovery and
+  # rotation. They are registered as type: RenderAct for discovery and
   # documentation purposes — they are not rendered by minijinja.
   - id: metacognition/falstaffian-perspective-engine
     name: "Reference: three-fold structure (shapes, experience, spirit) with…"
     path: falstaffian-perspective-engine.yaml
-    type: reference
+    type: RenderAct
     lexicon_terms: [rotate, perspective, transform, tension, affirm]
     description: >
       Reference: three-fold structure (shapes, experience, spirit) with
@@ -97,7 +97,7 @@ templates:
   - id: metacognition/falstaffian-shapes
     name: "Reference: seven semantic graph transformation operators — the…"
     path: falstaffian-shapes.yaml
-    type: reference
+    type: RenderAct
     lexicon_terms: [shape, transform, rotate, invert, reverse]
     description: >
       Reference: seven semantic graph transformation operators — the
@@ -106,7 +106,7 @@ templates:
   - id: metacognition/falstaffian-variance-analysis
     name: "Reference: three-pass variance calibration with agreement matrix and…"
     path: falstaffian-variance-analysis.yaml
-    type: reference
+    type: RenderAct
     lexicon_terms: [variance, calibrate, verify, agree, confidence]
     description: >
       Reference: three-pass variance calibration with agreement matrix and

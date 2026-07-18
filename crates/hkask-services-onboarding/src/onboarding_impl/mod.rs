@@ -568,6 +568,33 @@ impl OnboardingService {
         !std::path::Path::new(db_path).exists()
     }
 
+    /// Remove an orphaned DB without re-opening it.
+    ///
+    /// Use this when `has_orphaned_db` has already returned `true` — the caller
+    /// has already paid the cost of probing the DB (and absorbing SQLCipher's
+    /// unsuppressable `hmac check failed` diagnostics). Re-opening here would
+    /// emit a second round of those diagnostics for no information gain.
+    ///
+    /// Unlike `remove_orphaned_db`, this does NOT re-check for replicants: the
+    /// caller is responsible for having confirmed orphaned status first.
+    ///
+    /// pre:  `has_orphaned_db(config)` returned `true`; config.db_path is not `:memory:`
+    /// post: returns true if the DB file was removed; false if cleanup failed to delete it
+    #[must_use]
+    pub fn remove_orphaned_db_unchecked(config: &ServiceConfig) -> bool {
+        tracing::info!(
+            target: "hkask.onboarding",
+            operation = "remove_orphaned_db_unchecked",
+            "CNS"
+        );
+        let db_path = &config.db_path;
+        if db_path == ":memory:" || !std::path::Path::new(db_path).exists() {
+            return false;
+        }
+        Self::cleanup_failed_onboarding(config);
+        !std::path::Path::new(db_path).exists()
+    }
+
     /// Roll back a failed onboarding by removing keychain entries, the
     /// database file, and the salt file.
     ///
@@ -734,6 +761,84 @@ mod orphaned_db_tests {
         assert!(
             !OnboardingService::remove_orphaned_db(&config),
             "remove_orphaned_db should return false for :memory: DB"
+        );
+    }
+
+    /// `remove_orphaned_db_unchecked` removes a DB whose orphaned status has
+    /// already been confirmed by `has_orphaned_db`. It must not re-open the
+    /// DB (which would emit a second round of unsuppressable SQLCipher hmac
+    /// diagnostics). Verifies the DB and salt files are removed.
+    #[test]
+    fn remove_orphaned_db_unchecked_removes_orphaned_db() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let db_path = temp_dir.path().join("test_registry.db");
+        let db_path_str = db_path.to_str().expect("valid path");
+
+        // Create an encrypted DB with a passphrase that won't match the config.
+        let db = Database::open(db_path_str, "correct-passphrase")
+            .expect("open DB with correct passphrase");
+        let _pool = db
+            .sqlite_pool()
+            .expect("create pool with correct passphrase");
+        drop(_pool);
+        drop(db);
+
+        assert!(db_path.exists(), "DB file should exist");
+        let salt_path = format!("{}.salt", db_path_str);
+        assert!(
+            std::path::Path::new(&salt_path).exists(),
+            "salt file should exist"
+        );
+
+        let mut config = ServiceConfig::from_secrets(
+            "test-a2a-secret".to_string(),
+            "wrong-passphrase".to_string(),
+            "test-agent".to_string(),
+        );
+        config.db_path = db_path_str.to_string();
+
+        // Precondition: has_orphaned_db confirms orphaned status.
+        assert!(
+            OnboardingService::has_orphaned_db(&config),
+            "precondition: DB should be detected as orphaned"
+        );
+
+        // Act: remove without re-opening.
+        assert!(
+            OnboardingService::remove_orphaned_db_unchecked(&config),
+            "unchecked removal should succeed and report true"
+        );
+
+        assert!(!db_path.exists(), "DB file should be removed");
+        assert!(
+            !std::path::Path::new(&salt_path).exists(),
+            "salt file should be removed"
+        );
+    }
+
+    /// `remove_orphaned_db_unchecked` returns `false` for `:memory:` and
+    /// non-existent paths without invoking cleanup (no keychain side effects).
+    #[test]
+    fn remove_orphaned_db_unchecked_returns_false_for_no_file() {
+        let temp_dir = tempfile::tempdir().expect("create temp dir");
+        let db_path = temp_dir.path().join("nonexistent.db");
+
+        let mut config = ServiceConfig::from_secrets(
+            "test-a2a-secret".to_string(),
+            "any-passphrase".to_string(),
+            "test-agent".to_string(),
+        );
+        config.db_path = db_path.to_str().unwrap().to_string();
+
+        assert!(
+            !OnboardingService::remove_orphaned_db_unchecked(&config),
+            "unchecked removal should return false for non-existent DB"
+        );
+
+        config.db_path = ":memory:".to_string();
+        assert!(
+            !OnboardingService::remove_orphaned_db_unchecked(&config),
+            "unchecked removal should return false for :memory: DB"
         );
     }
 }
