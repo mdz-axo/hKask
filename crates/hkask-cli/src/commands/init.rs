@@ -62,10 +62,12 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
         .store_by_key(hkask_types::keychain_keys::KEY_DB_PASSPHRASE, &passphrase)
         .map_err(|e| format!("Failed to store DB passphrase: {e}"))?;
     keychain
-        .store_by_key(hkask_types::keychain_keys::KEY_MASTER_PASSPHRASE, &passphrase)
+        .store_by_key(
+            hkask_types::keychain_keys::KEY_MASTER_PASSPHRASE,
+            &passphrase,
+        )
         .map_err(|e| format!("Failed to store master passphrase: {e}"))?;
     println!("  ✓ Stored master passphrase in OS keychain");
-    );
 
     keychain
         .store_by_key(

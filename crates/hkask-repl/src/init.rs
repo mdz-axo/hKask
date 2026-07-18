@@ -88,6 +88,138 @@ fn propagate_replicant_env(agent_name: &str) {
     }
 }
 
+/// Ensure the hKask daemon is running before MCP servers auto-start.
+///
+/// MCP servers call `bootstrap_mcp_server` → `verify_startup_gates`, which
+/// queries the daemon socket for P4 gate verification (auth, assignment,
+/// capability). Without the daemon, servers fall back to direct mode
+/// (`daemon_client: None`), bypassing OCAP verification and experience
+/// recording. This helper probes the socket and spawns `kask daemon start`
+/// as a detached child if no live listener is found.
+///
+/// Returns `true` if the daemon is live (either already running or newly
+/// started), `false` if it could not be started. A `false` result is
+/// non-fatal — the REPL continues with direct-mode MCP servers.
+///
+/// Used by: `init_repl_state` (Phase 7.5, before MCP auto-start)
+fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
+    use std::time::{Duration, Instant};
+
+    let socket_path = hkask_mcp::daemon::daemon_socket_path();
+
+    // Fast path: probe the socket. If it responds, the daemon is live.
+    if rt.block_on(ping_daemon_socket(&socket_path)).is_some() {
+        tracing::debug!(
+            target: "hkask.repl",
+            socket = %socket_path.display(),
+            "Daemon already running"
+        );
+        return true;
+    }
+
+    // Socket is dead or missing. Spawn `kask daemon start` as a detached child.
+    // The child inherits the current environment (including HKASK_DB_PASSPHRASE
+    // set by propagate_onboarding_secrets_to_env, so the daemon opens the same
+    // encrypted DBs the REPL opens).
+    tracing::info!(
+        target: "hkask.repl",
+        socket = %socket_path.display(),
+        "Daemon not running — auto-starting"
+    );
+
+    let current_exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(
+                target: "hkask.repl",
+                error = %e,
+                "Cannot resolve current_exe for daemon spawn"
+            );
+            return false;
+        }
+    };
+
+    let cmd = match std::process::Command::new(&current_exe)
+        .arg("daemon")
+        .arg("start")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(e) => {
+            tracing::warn!(
+                target: "hkask.repl",
+                error = %e,
+                binary = %current_exe.display(),
+                "Failed to spawn daemon process"
+            );
+            return false;
+        }
+    };
+
+    // Detach the child so it survives the REPL's exit.
+    // On Unix, dropping the Child handle without waiting detaches it.
+    let daemon_pid = cmd.id();
+    drop(cmd);
+
+    // Poll the socket for up to 5 seconds. The daemon needs time to build
+    // AgentService, start CNS loops, and bind the socket.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        if rt.block_on(ping_daemon_socket(&socket_path)).is_some() {
+            tracing::info!(
+                target: "hkask.repl",
+                pid = daemon_pid,
+                "Daemon auto-started successfully"
+            );
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+
+    tracing::warn!(
+        target: "hkask.repl",
+        pid = daemon_pid,
+        "Daemon did not bind socket within 5s — MCP servers will use direct mode"
+    );
+    false
+}
+
+/// Probe a daemon socket by sending a sentinel `auth_query`.
+///
+/// Returns `Some(())` if the socket accepts a connection and responds with
+/// valid JSON (proving a live daemon is listening). Returns `None` on any
+/// connection or parse failure (stale socket file, daemon not listening,
+/// or daemon crashed mid-response).
+async fn ping_daemon_socket(path: &std::path::Path) -> Option<()> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use tokio::net::UnixStream;
+
+    let stream = UnixStream::connect(path).await.ok()?;
+    let (reader, mut writer) = stream.into_split();
+
+    let request = serde_json::json!({
+        "type": "auth_query",
+        "replicant": "__ping__"
+    });
+    let mut json = serde_json::to_string(&request).ok()?;
+    json.push('\n');
+    writer.write_all(json.as_bytes()).await.ok()?;
+    writer.shutdown().await.ok()?;
+
+    let mut buf_reader = BufReader::new(reader);
+    let mut line = String::new();
+    buf_reader.read_line(&mut line).await.ok()?;
+
+    if line.trim().is_empty() {
+        return None;
+    }
+    serde_json::from_str::<serde_json::Value>(&line).ok()?;
+    Some(())
+}
+
 /// Propagate condensation settings to the environment.
 ///
 /// The condenser server is a child process that inherits the REPL's
@@ -249,6 +381,13 @@ pub(super) fn init_repl_state(
 
     // ── Phase 7: Replicant Env ─────────────────────────────────────────────
     propagate_replicant_env(&onboarding_outcome.signed_in_agent);
+
+    // ── Phase 7.5: Daemon Auto-Start ──────────────────────────────────────
+    // MCP servers query the daemon socket for P4 gate verification during
+    // bootstrap. Without the daemon, they fall back to direct mode
+    // (daemon_client: None), bypassing OCAP verification. Auto-start the
+    // daemon here so MCP servers can pass the gates. Non-fatal on failure.
+    ensure_daemon_running(rt);
 
     // ── Phase 8: Core MCP Server Auto-Start ────────────────────────────────
     const CORE_EXCLUDED: &[&str] = &[

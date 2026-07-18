@@ -57,8 +57,14 @@ pub struct OnboardingOutcome {
 
 /// Resolve the user's session.
 ///
-/// Operating mode: keys configured, replicants exist — returns immediately.
-/// Setup: no keys or no replicants — walks through first replicant creation.
+/// Operating mode: keys configured, replicants exist — sign in, no prompts.
+/// Setup: no keys or no replicants — create the user's first replicant.
+///
+/// In operating mode, this also creates a UserStore session for the chosen
+/// replicant so that the daemon's `check_auth` (which queries
+/// `list_sessions(replicant)`) returns `authenticated: true`. Without this,
+/// MCP servers bootstrapping via `verify_startup_gates` would fall back to
+/// direct mode (daemon_client: None), bypassing P4 OCAP verification.
 pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     // Operating mode: keys work and at least one replicant exists.
     if let Ok(config) = ServiceConfig::from_env()
@@ -80,6 +86,32 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
             // This covers migration from old layouts where agent folders
             // may not have been created yet.
             let _ = hkask_types::agent_paths::ensure_agent_dirs(&agent_name);
+
+            // ── Create a UserStore session so the daemon authenticates the
+            //     replicant. The DB passphrase resolved by ServiceConfig is
+            //     the same credential used for UserStore::login (both derive
+            //     from the master passphrase set during `kask init`). If the
+            //     login fails (e.g., passphrase mismatch from a rotated key),
+            //     we log a warning and continue — the REPL still works in
+            //     direct mode, just without P4 gate verification.
+            match create_user_session(&config, &agent_name) {
+                Ok(session_id) => {
+                    tracing::info!(
+                        target: "hkask.onboarding",
+                        agent = %agent_name,
+                        session_id = %session_id,
+                        "Created UserStore session for daemon authentication"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.onboarding",
+                        agent = %agent_name,
+                        error = %e,
+                        "UserStore login failed — MCP servers will fall back to direct mode"
+                    );
+                }
+            }
 
             return Ok(OnboardingOutcome {
                 signed_in_agent: agent_name,
@@ -719,6 +751,35 @@ fn list_replicants(
                 message: e.to_string(),
             })
         })
+}
+
+/// Create a UserStore session for the replicant so the daemon's `check_auth`
+/// returns `authenticated: true`.
+///
+/// Opens the same encrypted DB that `init_registry` opens, constructs a
+/// `UserStore` from the driver, and calls `login()`. The DB passphrase from
+/// `ServiceConfig` is the user's master passphrase (set during `kask init`),
+/// which is the same credential `UserStore::login` verifies against the
+/// Argon2 hash stored in the `users` table.
+///
+/// Returns `Ok(session_id)` on success, or `Err(message)` on any failure
+/// (DB open, user not found, passphrase mismatch). Errors are non-fatal —
+/// the caller logs a warning and continues in direct mode.
+fn create_user_session(config: &ServiceConfig, agent_name: &str) -> Result<String, String> {
+    use hkask_database::SqliteDriver;
+    use hkask_storage::Database;
+    use hkask_storage::user_store::UserStore;
+    use std::sync::Arc;
+
+    let db = Database::open(&config.db_path, &config.db_passphrase)
+        .map_err(|e| format!("DB open: {e}"))?;
+    let pool = db.sqlite_pool().map_err(|e| format!("pool: {e}"))?;
+    let driver = Arc::new(SqliteDriver::new(pool));
+    let store = UserStore::from_driver(driver);
+    let session = store
+        .login(agent_name, &config.db_passphrase)
+        .map_err(|e| format!("login: {e}"))?;
+    Ok(session.session_id)
 }
 
 #[cfg(test)]
