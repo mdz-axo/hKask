@@ -104,6 +104,15 @@ hkask_mcp::mcp_server!(
 
 // ── Tools ────────────────────────────────────────────────────────────────
 
+/// Compute SHA-256 checksum of the adapter weights file.
+/// Returns `None` if the file cannot be read.
+fn compute_adapter_checksum(path: &std::path::Path) -> Option<Checksum> {
+    use sha2::Digest;
+    let data = std::fs::read(path).ok()?;
+    let hash = sha2::Sha256::digest(&data);
+    Some(Checksum::from_hex(&format!("{:x}", hash)))
+}
+
 #[tool_router(server_handler)]
 impl TrainingServer {
     /// Build a `TrainedLoRAAdapter` from training tool parameters.
@@ -111,10 +120,10 @@ impl TrainingServer {
     /// Constructs the canonical adapter type directly, with provenance metadata
     /// linking back to the originating training job.
     ///
-    /// Fields not yet available from the training pipeline (checksum, storage_path)
-    /// are populated with placeholder values — the same defaults the deleted
-    /// `LoRAAdapter::to_canonical()` used. These should be populated with real
-    /// values once the training pipeline computes checksums and stores paths.
+    /// `checksum` and `storage_path` are computed from the adapter weights file
+    /// when `adapter_weight_path` is provided. When `None`, placeholder values
+    /// are used (zero checksum, empty path) — the adapter cannot be deployed
+    /// via `AdapterRouter` until real values are provided.
     #[allow(clippy::too_many_arguments)]
     fn build_trained_adapter(
         id: String,
@@ -127,6 +136,7 @@ impl TrainingServer {
         skill_name: String,
         version: u32,
         metrics: Option<AdapterMetrics>,
+        adapter_weight_path: Option<&std::path::Path>,
     ) -> TrainedLoRAAdapter {
         let metrics_json = metrics
             .as_ref()
@@ -171,11 +181,23 @@ impl TrainingServer {
             },
         });
         let uuid = uuid::Uuid::parse_str(&id).unwrap_or_else(|_| uuid::Uuid::new_v4());
+        // Compute checksum and storage_path from the adapter weights file.
+        // When no path is provided, use placeholder values — the adapter cannot
+        // be deployed via AdapterRouter until real values are set.
+        let (checksum, storage_path) = match adapter_weight_path {
+            Some(path) => {
+                let storage = path.to_string_lossy().to_string();
+                let hash = compute_adapter_checksum(path)
+                    .unwrap_or_else(|| Checksum::from_hex("0000000000000000"));
+                (hash, storage)
+            }
+            None => (Checksum::from_hex("0000000000000000"), String::new()),
+        };
         TrainedLoRAAdapter {
             id: uuid,
             expertise,
-            checksum: Checksum::from_hex("0000000000000000"),
-            storage_path: String::new(),
+            checksum,
+            storage_path,
             base_model_family: base_model,
             version: Some(version.to_string()),
             source: AdapterSource::HuggingFace {
@@ -201,6 +223,16 @@ impl TrainingServer {
     /// `AdapterMetrics`. Returns `None` if the value is null or cannot be deserialized.
     fn metrics_from_trained(adapter: &TrainedLoRAAdapter) -> Option<AdapterMetrics> {
         serde_json::from_value(adapter.expertise.training_source.training_metrics.clone()).ok()
+    }
+
+    /// Resolve the adapter weight path for a given adapter ID from the training host.
+    /// Returns `None` for cloud hosts where weights are server-side only.
+    async fn resolve_adapter_path(&self, adapter_id: &str) -> Option<std::path::PathBuf> {
+        self.host
+            .adapter_weight_path(adapter_id)
+            .await
+            .ok()
+            .flatten()
     }
 
     #[tool(
@@ -498,6 +530,8 @@ impl TrainingServer {
                                 // Fresh auto-registration from host completion metadata
                                 match self.host.completion_metadata(&job_id).await {
                                     Ok(Some(meta)) => {
+                                        // Resolve adapter weight path from the training host
+                                        let weight_path = self.resolve_adapter_path(&job_id).await;
                                         let adapter = Self::build_trained_adapter(
                                             job_id.clone(),
                                             meta.output_name
@@ -515,6 +549,7 @@ impl TrainingServer {
                                                 training_duration_secs: meta.training_duration_secs,
                                                 tokens_processed: meta.tokens_processed,
                                             }),
+                                            weight_path.as_deref(),
                                         );
                                         match self
                                             .adapter_store
@@ -1321,6 +1356,8 @@ impl TrainingServer {
                 None
             };
 
+            // Resolve adapter weight path from the training host
+            let weight_path = self.resolve_adapter_path(&adapter_id).await;
             let adapter = Self::build_trained_adapter(
                 adapter_id.clone(),
                 name.clone(),
@@ -1332,6 +1369,7 @@ impl TrainingServer {
                 skill_name.clone(),
                 version.unwrap_or(1),
                 metrics,
+                weight_path.as_deref(),
             );
 
             match self
@@ -1960,7 +1998,9 @@ impl TrainingServer {
             );
         }
 
-        // Pre-register the adapter metadata so it's ready when training completes
+        // Pre-register the adapter metadata so it's ready when training completes.
+        // No weight path yet — the adapter hasn't been trained. Will be resolved
+        // when training_status auto-registers on completion.
         let adapter = Self::build_trained_adapter(
             job.id.clone(),
             adapter_name.clone(),
@@ -1971,6 +2011,7 @@ impl TrainingServer {
             0,
             skill_name.clone(),
             version,
+            None,
             None,
         );
 
@@ -2372,6 +2413,7 @@ impl TrainingServer {
             0,
             skill_name.clone(),
             1,
+            None,
             None,
         );
 

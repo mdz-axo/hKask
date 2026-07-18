@@ -16,5 +16,5 @@ detection:
 mitigation: "Apply Spotlighter (datamarking mode) to all MCP tool outputs before they enter the LLM context. Reduces indirect prompt injection success from >50% to <2%."
 source: "https://arxiv.org/html/2403.14720v1 — Microsoft Research Spotlighting"
 ci_gate: scripts/check-kali-regressions.sh
-status: pending
-note: "Type defined and tested but not yet called from executor.rs. See RR-0011 for the integration regression."
+status: enforced
+note: "Type is now integrated — see RR-0011 for the runtime call check. Spotlighter::spotlight() is called on every MCP tool result in execute_tool_invoke."

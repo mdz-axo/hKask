@@ -1181,15 +1181,28 @@ impl ManifestExecutor {
         );
 
         // Runtime policy check (Layer 6 defense — VeriGuard/AgentGuard pattern).
-        // If a policy is attached, check the proposed action before execution.
+        // If a policy is attached, look up the tool's taint label and check
+        // the proposed action before execution.
         if let Some(ref policy) = self.runtime_policy {
             use hkask_cns::PolicyVerdict;
-            // Default taint is Pure (no external data, no side effects).
-            // When ToolTaint is wired into tool registration, this will be
-            // looked up from the tool's registration metadata.
-            let taint = hkask_types::ToolTaint::Pure;
-            let has_untrusted = false; // Will be computed from input taint tracking.
-            let action_number = context.len() as u64; // Approximate — will be tracked properly.
+
+            // Look up the tool's taint label from its registration metadata.
+            // Falls back to Pure if the tool isn't registered or lookup fails.
+            let tool_info = self.mcp.get_tool_info(&mcp_ref).await;
+            let taint = tool_info
+                .map(|info| info.taint)
+                .unwrap_or(hkask_types::ToolTaint::Pure);
+
+            // Determine if any input arguments carry untrusted data.
+            // A Source tool's output is untrusted; if this tool's input
+            // references a prior Source tool's result, it has untrusted input.
+            // For now, we check if the input JSON contains any field whose
+            // value references a step result (heuristic — full taint tracking
+            // requires the FIDES label propagation through the CNS loop).
+            let input_str = input.to_string();
+            let has_untrusted = input_str.contains("step_") && input_str.contains("_result");
+
+            let action_number = context.len() as u64;
             match policy.check(&mcp_ref, taint, has_untrusted, action_number) {
                 PolicyVerdict::Block(reason) => {
                     return Err(TemplateError::Manifest(format!(
