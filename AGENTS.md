@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**45 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **48 capabilities total.**
+**46 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **49 capabilities total.**
 
 | Type | Behavior |
 |------|----------|

@@ -17,11 +17,11 @@ Single source of truth for build, test, and CI health. Updated per session.
 
 **This session (2026-07-17):**
 - Documentation consolidation (diataxis-diagram + grill-me + kata-improvement skills).
-- Root `README.md` rewritten with actual codebase counts: 54 crates, 48 skills, 83 manifests, 367 templates, ~2,166 tests, 37 CLI subcommands.
+- Root `README.md` rewritten with actual codebase counts: 54 crates, 46 PDCA skills (49 capabilities total: 46 skills + 2 templates + 1 bundle), 83 manifests, 367 templates, ~2,166 tests, 37 CLI subcommands.
 - Stale root `OPEN_QUESTIONS.md` removed (self-declared superseded by `docs/OPEN_QUESTIONS.md`; per DOCUMENTATION_STANDARDS.md §3 lifecycle policy).
 - Fixed 80 broken intra-doc hyperlinks caused by `hKask-architecture-master.md` move from `docs/architecture/` to `docs/architecture/core/`.
 - `docs/README.md` portal: fixed phantom `tutorial/getting-started.md` path → `how-to/getting-started.md`.
-- `docs/status/PROJECT_STATUS.md` metrics updated: 59→69 workspace members, 44→54 crates, 39→48 skills, 72→83 manifests, 294→367 templates, LOC counts refreshed.
+- `docs/status/PROJECT_STATUS.md` metrics updated: 59→69 workspace members, 44→54 crates, 39→46 PDCA skills, 72→83 manifests, 294→367 templates, LOC counts refreshed.
 - Build: clean (0 warnings). Docs: clean (0 errors, 6 advisory warnings — all forward-looking PLANNED references in plans/status docs).
 
 **Previous session (2026-07-01):**
@@ -129,7 +129,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | **Total LOC** | ~232,100 |
 | Workspace members | 69 (54 crates + 15 MCP servers, excluding fuzz targets) |
 | Core crates | 54 (14 foundation + 16 infra + 14 services + 3 wallet/identity/ledger + 2 ontology/interface + 5 bridges) |
-| Skills | 48 (83 registry manifests, 367 Jinja2 templates) |
+| Skills | 46 PDCA (49 capabilities total: 46 skills + 2 templates + 1 bundle; 83 registry manifests, 367 Jinja2 templates) |
 | MCP servers | 15 |
 | Tests | ~2,166 (`#[test]` + `#[tokio::test]` annotations) |
 | CLI subcommands | 37 |

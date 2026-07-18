@@ -34,7 +34,7 @@ flowchart TD
     Reference --> RefCNS["cns-spans.md<br/>Span registry"]
     Reference --> RefMC["magna-carta.md<br/>P1-P4 principles"]
     Reference --> RefMCP["mcp-servers/<br/>15 MCP servers"]
-    Reference --> RefSkills["skills/<br/>48 skills registry"]
+    Reference --> RefSkills["skills/<br/>46 skills registry"]
 
     Explanation --> ExplArch["architecture-patterns.md<br/>Hexagonal ports, VSM"]
     Explanation --> ExplCNS["cns-and-loops.md<br/>Homeostatic regulation"]

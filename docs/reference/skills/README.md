@@ -25,10 +25,10 @@ last-verified-against: "91bfc585c"
 
 ---
 
-## Open issues in this registry (2026-07-11)
+## Open issues in this registry (2026-07-17)
 
 - **SKILL.md derivation is not wired.** No `skill-translator` code or CLI command exists; the `skill-maintenance-reverse.j2` template is the only derivation path and must be invoked as a skill by an agent. Existing SKILL.md files may be hand-maintained (a P5.1 drift risk).
-- **Count reconciliation:** the filesystem has 93 FlowDef manifests, categorized as 53 `skill`, 20 `pipeline`, 10 `qa-script`, 6 `runtime-config`, 4 `daemon-process`. 81 template crates; 40 SKILL.md directories (39 matching a manifest + `qa-script-builder`). The audit reports 75 active skills + 4 non-skill template crates (kanban-task-×3 `pipeline`, metacognition `daemon-process`) whose template crates are health-checked but not counted as skills. The catalogue below lists the agent-facing skills (~38).
+- **Count reconciliation:** the filesystem has 83 registry manifests (2 FlowDef, 81 template-crate manifests). 82 template crates under `registry/templates/`; 48 SKILL.md directories under `.agents/skills/` (46 PDCA skills + 2 templates). The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory. Total capabilities: 49 (46 skills + 2 templates + 1 bundle).
 
 ---
 
@@ -125,6 +125,6 @@ last-verified-against: "91bfc585c"
 | Kata & Coaching | 4 skills + 1 composition | Skills + Composition |
 | Meta & Maintenance | 4 | Skills |
 | Specialized | 12 skills + 1 template | Skills + Template |
-| **Catalogued here** | **43 skills + 2 templates + 1 bundle** | **46 capabilities** |
+| **Catalogued here** | **46 skills + 2 templates + 1 bundle** | **49 capabilities** |
 
-> **Filesystem reality:** `registry/templates/` contains 79 FlowDef manifests across 81 template directories; `.agents/skills/` contains 45 SKILL.md directories (43 skills + 2 templates). The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory.
+> **Filesystem reality:** `registry/templates/` contains 79 FlowDef manifests across 81 template directories; `.agents/skills/` contains 48 SKILL.md directories (46 skills + 2 templates). The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory.
