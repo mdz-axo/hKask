@@ -14,8 +14,6 @@ use thiserror::Error;
 pub enum ConsentStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-    #[error("Consent record not found for WebID: {0}")]
-    NotFound(String),
 }
 impl_from_db_error!(ConsentStoreError, Infra);
 /// Persistent consent record

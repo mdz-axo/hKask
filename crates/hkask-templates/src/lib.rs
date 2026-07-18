@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Templates — registry and template execution
 //!
 //! Unified registry with template_type discriminator per architecture v0.22.0.

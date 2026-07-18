@@ -7,7 +7,7 @@ use hkask_ports::git_cas::HMemEntry;
 use hkask_types::id::{HMemId, WebID};
 use hkask_types::time::now_rfc3339;
 use hkask_types::visibility::AccessControl;
-use hkask_types::{Confidence, Dimension, InfrastructureError, Visibility};
+use hkask_types::{Confidence, Dimension, InfrastructureError, NotFound, Visibility};
 use serde_json::Value;
 use std::sync::Arc;
 use thiserror::Error;
@@ -15,8 +15,14 @@ use thiserror::Error;
 pub enum HMemError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-    #[error("HMem not found")]
-    NotFound,
+    #[error("{0}")]
+    NotFound(NotFound),
+}
+
+impl From<NotFound> for HMemError {
+    fn from(nf: NotFound) -> Self {
+        HMemError::NotFound(nf)
+    }
 }
 
 impl From<hkask_database::types::DbError> for HMemError {
@@ -376,7 +382,12 @@ impl HMemStore {
                 "SELECT entity, attribute, perspective, visibility, owner_webid, dimension FROM hmems WHERE id = ?1",
                 &[DbValue::Text(id.to_string())],
             ).map_err(|e| HMemError::Infra(InfrastructureError::database(e.to_string())))?;
-            let row = rows.first().ok_or(HMemError::NotFound)?;
+            let row = rows.first().ok_or_else(|| {
+                HMemError::NotFound(NotFound {
+                    entity_type: "h_mem".to_string(),
+                    id: id.to_string(),
+                })
+            })?;
             let entity = row.get(0)?.as_text()?.to_string();
             let attribute = row.get(1)?.as_text()?.to_string();
             let perspective: Option<String> = row.get(2)?.as_text().ok().map(|s| s.to_string());

@@ -199,8 +199,6 @@ pub trait AdapterStore: Send + Sync {
 pub enum AdapterStoreError {
     #[error("Storage error: {0}")]
     Storage(String),
-    #[error("Adapter not found: {0}")]
-    NotFound(String),
     #[error("Serialization error: {0}")]
     Serialization(String),
 }

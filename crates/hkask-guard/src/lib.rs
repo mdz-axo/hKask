@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Content Safety Guard — mandatory LLM boundary protection.
 //!
 //! **P3.1 Social Generativity:** Core content safety controls are mandatory

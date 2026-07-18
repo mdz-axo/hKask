@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Types — Foundation types for the hKask agent platform
 //!
 

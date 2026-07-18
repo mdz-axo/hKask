@@ -123,9 +123,9 @@ impl From<hkask_storage::HMemError> for MemoryError {
     fn from(e: hkask_storage::HMemError) -> Self {
         match e {
             hkask_storage::HMemError::Infra(inner) => MemoryError::Core(CoreError::Infra(inner)),
-            hkask_storage::HMemError::NotFound => MemoryError::Core(CoreError::Infra(
-                hkask_types::InfrastructureError::NotFound("h_mem".into()),
-            )),
+            hkask_storage::HMemError::NotFound(nf) => {
+                MemoryError::Core(CoreError::Infra(hkask_types::InfrastructureError::from(nf)))
+            }
         }
     }
 }
@@ -136,8 +136,8 @@ impl From<hkask_storage::EmbeddingError> for MemoryError {
             hkask_storage::EmbeddingError::Infrastructure(inner) => {
                 MemoryError::Core(CoreError::Infra(inner))
             }
-            hkask_storage::EmbeddingError::NotFound(msg) => MemoryError::Core(CoreError::Infra(
-                hkask_types::InfrastructureError::NotFound(msg.to_string()),
+            hkask_storage::EmbeddingError::NotFound(nf) => MemoryError::Core(CoreError::Infra(
+                hkask_types::InfrastructureError::NotFound(nf.to_string()),
             )),
             hkask_storage::EmbeddingError::DimensionMismatch { .. } => {
                 MemoryError::Core(CoreError::Infra(

@@ -30,9 +30,6 @@ pub enum DbError {
     #[error("database: {0}")]
     Database(String),
 
-    #[error("not found: {0}")]
-    NotFound(String),
-
     #[error("constraint violation: {0}")]
     Constraint(String),
 

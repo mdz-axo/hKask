@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Ports — Hexagonal port traits for infrastructure abstractions
 //!
 //! Port traits that enable crates to depend on abstractions

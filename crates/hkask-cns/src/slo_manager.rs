@@ -52,9 +52,6 @@ pub enum SloManagerError {
     #[error("Data provider error: {0}")]
     DataProvider(String),
 
-    #[error("SLO not found: {0}")]
-    NotFound(String),
-
     #[error("Invalid SLO configuration: {0}")]
     InvalidConfig(String),
 }
