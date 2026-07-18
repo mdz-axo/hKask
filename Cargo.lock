@@ -5213,6 +5213,7 @@ dependencies = [
  "anyhow",
  "ed25519-dalek",
  "hkask-capability",
+ "hkask-cns",
  "hkask-forecast",
  "hkask-guard",
  "hkask-ports",

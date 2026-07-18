@@ -111,6 +111,10 @@ pub struct ManifestExecutor {
     /// Applied to every MCP tool result before it enters the LLM context.
     /// Source: Microsoft Research arXiv:2403.14720
     spotlighter: Spotlighter,
+    /// Optional runtime policy for pre-execution checks (Layer 6 defense).
+    /// When present, checked before every MCP tool invocation.
+    /// Source: VeriGuard pattern + AgentGuard arXiv:2509.23864
+    runtime_policy: Option<Arc<dyn hkask_cns::RuntimePolicy>>,
 }
 
 impl ManifestExecutor {
@@ -135,6 +139,7 @@ impl ManifestExecutor {
             template_base_path: PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
             heal_error_cb: None,
             spotlighter: Spotlighter::new(SpotlightMode::Delimit),
+            runtime_policy: None,
         }
     }
 
@@ -149,6 +154,17 @@ impl ManifestExecutor {
     /// Attach a self-healing callback for automatic error recovery.
     pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
+        self
+    }
+
+    /// Attach a runtime policy for pre-execution checks (Layer 6 defense).
+    /// When set, every MCP tool invocation is checked before execution.
+    ///
+    /// expect: "The system checks every proposed tool invocation before execution"
+    /// post: runtime_policy is set to Some(policy)
+    #[must_use]
+    pub fn with_runtime_policy(mut self, policy: Arc<dyn hkask_cns::RuntimePolicy>) -> Self {
+        self.runtime_policy = Some(policy);
         self
     }
 
@@ -1163,6 +1179,36 @@ impl ManifestExecutor {
             WebID::from_persona(b"manifest-executor"),
             &signing_key,
         );
+
+        // Runtime policy check (Layer 6 defense — VeriGuard/AgentGuard pattern).
+        // If a policy is attached, check the proposed action before execution.
+        if let Some(ref policy) = self.runtime_policy {
+            use hkask_cns::PolicyVerdict;
+            // Default taint is Pure (no external data, no side effects).
+            // When ToolTaint is wired into tool registration, this will be
+            // looked up from the tool's registration metadata.
+            let taint = hkask_types::ToolTaint::Pure;
+            let has_untrusted = false; // Will be computed from input taint tracking.
+            let action_number = context.len() as u64; // Approximate — will be tracked properly.
+            match policy.check(&mcp_ref, taint, has_untrusted, action_number) {
+                PolicyVerdict::Block(reason) => {
+                    return Err(TemplateError::Manifest(format!(
+                        "Runtime policy blocked tool '{}': {}",
+                        mcp_ref, reason
+                    )));
+                }
+                PolicyVerdict::RequireHuman(reason) => {
+                    return Err(TemplateError::Manifest(format!(
+                        "Runtime policy requires human confirmation for '{}': {}",
+                        mcp_ref, reason
+                    )));
+                }
+                PolicyVerdict::Log(msg) => {
+                    info!(target: "cns.guard.runtime_policy", tool = %mcp_ref, msg = %msg, "CNS");
+                }
+                PolicyVerdict::Allow => {}
+            }
+        }
 
         let result = self
             .mcp

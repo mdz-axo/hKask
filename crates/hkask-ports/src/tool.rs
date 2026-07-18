@@ -71,4 +71,10 @@ pub struct ToolInfo {
     /// Maps `hkask-mcp-<domain>` → `tool:<domain>:execute`.
     /// `None` for servers that don't follow the `hkask-mcp-` naming convention.
     pub required_capability: Option<String>,
+    /// FIDES taint label for information flow control (Layer 5 defense).
+    /// Source: Microsoft Research FIDES (arXiv:2505.23643)
+    /// Defaults to `Pure` (no side effects, no external data).
+    /// `Source`: returns untrusted data. `Sink`: state-changing.
+    /// `Endorser`: trusted extraction from untrusted input.
+    pub taint: hkask_types::ToolTaint,
 }

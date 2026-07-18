@@ -135,7 +135,11 @@ impl TrainingServer {
             let mut errors = Vec::new();
 
             for (i, qa) in qa_items.iter().enumerate() {
-                let entity = format!("training:qa:{ds}:{source}:{i}");
+                // Entity uses "manual" segment to avoid collision with docproc_ingest_qa's
+                // `training:qa:{ds}:{source}:{i}` entities. Both write `training_qa_pair`
+                // h_mems; the namespace separation prevents silent overwrites when both
+                // tools write to the same dataset+source. See TRN-007.
+                let entity = format!("training:qa:manual:{ds}:{source}:{i}");
                 let level = qa.bloom_level.as_deref().unwrap_or("factual");
                 let value = json!({
                     "question": qa.question,

@@ -1028,6 +1028,42 @@ CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are 
 
 **Implementation:** `TrainedLoRAAdapter.owner`, `AdapterStore::list_owner()`, `AdapterPort` trait methods accept `&DelegationToken`
 
+### TRN-006: Duplicate adapter store and type hierarchy
+
+**MDS Category:** Interface
+**Status:** Open
+**Opened:** 2026-07-17
+
+The training MCP server (`hkask-mcp-training`) defines its own `AdapterStore` trait, `LoRAAdapter` struct, `InMemoryAdapterStore`, and `SqliteAdapterStore` — storing metadata in `lora_adapters` + `lora_blobs` tables. The canonical adapter crate (`hkask-adapter`) defines `AdapterStore` (concrete struct), `TrainedLoRAAdapter`, storing in `trained_adapters` + `active_endpoints` tables.
+
+The two are connected by `LoRAAdapter::to_canonical()`, which produces a `TrainedLoRAAdapter` with **fake data**: zero checksum (`Checksum::from_hex("0000000000000000")`), empty `storage_path`, empty `training_source`. This is a pass-through abstraction (Prohibition #4).
+
+The training server's store is actively used by 8+ tool methods (`training_status`, `training_list_adapters`, `training_delete_adapter`, `training_register_adapter`, `training_retrain`, `training_merge_adapters`, `training_deploy`). It is not dead code.
+
+A FIXME at `lib.rs:2641` confirms this is known tech debt: *"SqliteAdapterStore was removed from hkask-adapter. The adapter API was restructured — this code path needs updating."*
+
+**Options:**
+
+1. **Merge** — Add `skill_name`, `version: u32`, `metrics`, blob storage, and `get_by_skill_name` to `hkask-adapter::AdapterStore`. Delete `LoRAAdapter`, `InMemoryAdapterStore`, `SqliteAdapterStore`, and the training `AdapterStore` trait. Migrate `lora_adapters` table to `trained_adapters`. Large refactoring (strangler-fig, one tool at a time).
+2. **Bridge** — Keep both stores but make `to_canonical()` lossless by storing the missing fields (checksum, storage_path) on `LoRAAdapter` and populating them during `training_register_adapter`.
+3. **Defer** — Record the debt and leave as-is until the training server is next touched for a feature change.
+
+**Impact of not resolving:** `to_canonical()` silently produces adapters with fake checksums and empty paths. If the `AdapterRouter` ever validates these fields, deployment will fail. The two stores can drift in schema (e.g., `lifecycle` and `expires_at` were just added to `TrainedLoRAAdapter` but not to `LoRAAdapter`).
+
+**Recommendation:** Option 1 (merge) via strangler-fig, starting with `get_by_skill_name` and `store_metadata` as the first methods to migrate. Requires an ADR.
+
+### TRN-007: QA ingestion entity collision risk
+
+**MDS Category:** Trust
+**Status:** Open
+**Opened:** 2026-07-17
+
+`docproc_ingest_qa` and `training_ingest_qa` both write `training_qa_pair` h_mems using the same entity format: `training:qa:{dataset}:{source}:{i}`. If both tools write to the same `dataset` + `source` with the same index `i`, the second write silently overwrites the first — a data loss bug.
+
+The confidence difference (0.8 for docproc, 1.0 for training_ingest_qa) is **correct**: docproc QAs are LLM-generated (lower trust), training_ingest_qa QAs are explicitly provided (higher trust). The metadata richness difference is also correct — you can't store `chunk_ref` or `concepts` that the caller didn't provide.
+
+**Fix applied:** `training_ingest_qa` entity format changed to `training:qa:manual:{dataset}:{source}:{i}` to avoid collision with docproc's `training:qa:{dataset}:{source}:{i}`. `training_assemble_dataset` queries by attribute (`training_qa_pair`), so both namespaces are still assembled into training datasets.
+
 
 ## Pod Architecture
 

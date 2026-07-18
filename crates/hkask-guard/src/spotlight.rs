@@ -41,7 +41,7 @@ impl Spotlighter {
     /// expect: "The system generates a per-session random marker for untrusted content delimitation"
     /// post: returns a Spotlighter with an 8-hex-char uppercase marker
     pub fn new(mode: SpotlightMode) -> Self {
-        let mut bytes = [0u8; 4];
+        let mut bytes = [0u8; 16];
         rand::rng().fill_bytes(&mut bytes);
         Self {
             mode,
