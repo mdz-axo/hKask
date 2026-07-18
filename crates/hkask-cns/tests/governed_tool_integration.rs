@@ -57,6 +57,7 @@ impl ToolPort for EchoToolPort {
             input_schema: serde_json::json!({}),
             server_id: "echo_server".to_string(),
             required_capability: Some("tool:cns:execute".to_string()),
+            taint: hkask_types::ToolTaint::Pure,
         })
     }
 }

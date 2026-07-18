@@ -114,6 +114,7 @@ async fn live_together_adapter_e2e() {
         },
         size_bytes: None,
         owner,
+        skill_name: None,
         lifecycle: AdapterLifecycle::Durable,
         created_at: "2026-06-17T00:00:00Z".into(),
     };

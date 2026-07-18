@@ -359,6 +359,7 @@ impl McpRuntime {
                 input_schema: t.input_schema.clone(),
                 server_id: server_id.clone(),
                 required_capability: hkask_capability::capability_from_server_id(server_id),
+                taint: hkask_types::ToolTaint::Pure,
             })
     }
 

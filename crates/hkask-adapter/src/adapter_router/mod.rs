@@ -783,6 +783,7 @@ mod tests {
             },
             size_bytes: None,
             owner: WebID::new(),
+            skill_name: None,
             lifecycle: AdapterLifecycle::Durable,
             created_at: "2026-01-01T00:00:00Z".into(),
         }
@@ -958,6 +959,7 @@ mod tests {
             },
             size_bytes: None,
             owner: WebID::new(),
+            skill_name: None,
             lifecycle: AdapterLifecycle::Durable,
             created_at: "2026-01-01T00:00:00Z".into(),
         };

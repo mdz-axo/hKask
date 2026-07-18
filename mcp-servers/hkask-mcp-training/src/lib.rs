@@ -52,9 +52,7 @@ pub mod utils;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use crate::adapters::{
-    AdapterMetrics, AdapterStore, InMemoryAdapterStore, JobStore, LoRAAdapter, SqliteAdapterStore,
-};
+use crate::adapters::{AdapterMetrics, JobStore};
 use crate::dataset::DatasetPipeline;
 use crate::huggingface::HuggingFaceTraining;
 use crate::providers::{
@@ -66,6 +64,9 @@ use crate::types::*;
 use crate::utils::*;
 use hkask_adapter::AdapterPort;
 use hkask_adapter::AdapterRouter;
+use hkask_adapter::adapter_store::Checksum;
+use hkask_adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
+use hkask_adapter::{AdapterSource, AdapterStore, TrainedLoRAAdapter};
 use hkask_adapter::{EndpointLifecycle, EndpointPhase};
 use hkask_inference::{InferenceConfig, InferenceRouter};
 
@@ -93,7 +94,7 @@ hkask_mcp::mcp_server!(
         pub host_id: TrainingHostId,
         pub harness_id: TrainingHarnessId,
         pub pipeline: Mutex<DatasetPipeline>,
-        pub adapter_store: Arc<dyn AdapterStore>,
+        pub adapter_store: Arc<hkask_adapter::AdapterStore>,
         pub job_store: Option<JobStore>,
         pub adapter_router: Option<Arc<AdapterRouter>>,
         pub inference_config: InferenceConfig,
@@ -105,6 +106,109 @@ hkask_mcp::mcp_server!(
 
 #[tool_router(server_handler)]
 impl TrainingServer {
+    /// Build a `TrainedLoRAAdapter` from the legacy `LoRAAdapter`-style field set.
+    ///
+    /// Mirrors the field mapping that `LoRAAdapter::to_canonical()` performed:
+    /// - `id: String` → `id: Uuid` (parse, falling back to a fresh v4)
+    /// - `name` → `expertise.name`
+    /// - `base_model` → `base_model_family` + `expertise.training_source.base_model_family`
+    /// - `dataset_hash` → `expertise.training_source.dataset_hash` (Some if non-empty)
+    /// - `training_job_id` → `expertise.training_source.training_run_id`
+    /// - `created_at: i64` → `created_at: String` (RFC3339) + `completed_at`
+    /// - `size_bytes: u64` → `size_bytes: Option<u64>` (Some if > 0)
+    /// - `skill_name` → `skill_name: Option<String>` (Some if non-empty)
+    /// - `version: u32` → `version: Option<String>`
+    /// - `metrics: Option<AdapterMetrics>` → `expertise.training_source.training_metrics: serde_json::Value`
+    ///
+    /// New canonical-only fields are populated with the same defaults `to_canonical()` used.
+    #[allow(clippy::too_many_arguments)]
+    fn build_trained_adapter(
+        id: String,
+        name: String,
+        base_model: String,
+        dataset_hash: String,
+        training_job_id: String,
+        created_at_ts: i64,
+        size_bytes: u64,
+        skill_name: String,
+        version: u32,
+        metrics: Option<AdapterMetrics>,
+    ) -> TrainedLoRAAdapter {
+        let metrics_json = metrics
+            .as_ref()
+            .and_then(|m| serde_json::to_value(m).ok())
+            .unwrap_or_default();
+        let created_at = chrono::DateTime::from_timestamp(created_at_ts, 0)
+            .map(|dt| dt.to_rfc3339())
+            .unwrap_or_default();
+        let provenance = TrainingProvenance {
+            training_run_id: training_job_id,
+            training_source: String::new(),
+            completed_at: created_at.clone(),
+            base_model_family: base_model.clone(),
+            dataset_hash: if dataset_hash.is_empty() {
+                None
+            } else {
+                Some(dataset_hash)
+            },
+            training_metrics: metrics_json,
+        };
+        let expertise = Expertise::new(
+            if name.trim().is_empty() {
+                format!("adapter-{}", &id[..8.min(id.len())])
+            } else {
+                name.clone()
+            },
+            MdsDomain::CodeGeneration,
+            serde_json::Value::Null,
+            provenance,
+        )
+        .unwrap_or_else(|_| Expertise {
+            name,
+            domain: MdsDomain::CodeGeneration,
+            capability_manifest: serde_json::Value::Null,
+            training_source: TrainingProvenance {
+                training_run_id: String::new(),
+                training_source: String::new(),
+                completed_at: String::new(),
+                base_model_family: String::new(),
+                dataset_hash: None,
+                training_metrics: serde_json::Value::Null,
+            },
+        });
+        let uuid = uuid::Uuid::parse_str(&id).unwrap_or_else(|_| uuid::Uuid::new_v4());
+        TrainedLoRAAdapter {
+            id: uuid,
+            expertise,
+            checksum: Checksum::from_hex("0000000000000000"),
+            storage_path: String::new(),
+            base_model_family: base_model,
+            version: Some(version.to_string()),
+            source: AdapterSource::HuggingFace {
+                repo: format!("hkask-training/{}", uuid),
+            },
+            size_bytes: if size_bytes > 0 {
+                Some(size_bytes)
+            } else {
+                None
+            },
+            owner: hkask_types::id::WebID::from_persona(b"training-pipeline"),
+            skill_name: if skill_name.is_empty() {
+                None
+            } else {
+                Some(skill_name)
+            },
+            lifecycle: AdapterLifecycle::Durable,
+            created_at,
+        }
+    }
+
+    /// Parse the `training_metrics` JSON value from a `TrainedLoRAAdapter` back into
+    /// `AdapterMetrics`. Returns `None` if the value is null or cannot be deserialized.
+    fn metrics_from_trained(adapter: &TrainedLoRAAdapter) -> Option<AdapterMetrics> {
+        serde_json::from_value(adapter.expertise.training_source.training_metrics.clone()).ok()
+    }
+
     #[tool(
         description = "Ingest QA pairs for model training. Stores question-answer pairs with provenance in semantic memory for future fine-tuning dataset assembly."
     )]
@@ -385,41 +489,48 @@ impl TrainingServer {
 
                     // Auto-register adapter on completion
                     if status == TrainingJobStatus::Completed {
-                        let adapter: LoRAAdapter = match self.adapter_store.get_metadata(&job_id).await
+                        let adapter: TrainedLoRAAdapter = match self
+                            .adapter_store
+                            .get_by_id(uuid::Uuid::parse_str(&job_id).unwrap_or_default())
+                            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
+                            .unwrap_or(None)
                         {
-                            Ok(Some(existing)) => {
+                            Some(existing) => {
                                 result["adapter_registered"] = json!(true);
                                 result["adapter_note"] =
                                     json!("Already registered (pre-registered by retrain)");
                                 existing
                             }
-                            _ => {
+                            None => {
                                 // Fresh auto-registration from host completion metadata
                                 match self.host.completion_metadata(&job_id).await {
                                     Ok(Some(meta)) => {
-                                        let adapter = LoRAAdapter {
-                                            id: job_id.clone(),
-                                            name: meta
-                                                .output_name
+                                        let adapter = Self::build_trained_adapter(
+                                            job_id.clone(),
+                                            meta.output_name
                                                 .unwrap_or_else(|| format!("adapter-{}", &job_id[..8])),
-                                            base_model: meta.base_model.clone(),
-                                            dataset_hash: String::new(),
-                                            training_job_id: job_id.clone(),
-                                            created_at: chrono::Utc::now().timestamp(),
-                                            size_bytes: 0,
-                                            skill_name: String::new(),
-                                            version: 1,
-                                            metrics: Some(AdapterMetrics {
+                                            meta.base_model.clone(),
+                                            String::new(),
+                                            job_id.clone(),
+                                            chrono::Utc::now().timestamp(),
+                                            0,
+                                            String::new(),
+                                            1,
+                                            Some(AdapterMetrics {
                                                 loss: meta.loss,
                                                 perplexity: None,
                                                 training_duration_secs: meta.training_duration_secs,
                                                 tokens_processed: meta.tokens_processed,
                                             }),
-                                        };
-                                        match self.adapter_store.store_metadata(&adapter).await {
+                                        );
+                                        match self
+                                            .adapter_store
+                                            .store(&adapter)
+                                            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
+                                        {
                                             Ok(()) => {
                                                 result["adapter_registered"] = json!(true);
-                                                result["adapter_name"] = json!(adapter.name);
+                                                result["adapter_name"] = json!(adapter.expertise.name);
                                                 result["base_model"] = json!(meta.base_model);
 
                                                 // Store adapter weight blob if available locally
@@ -430,8 +541,8 @@ impl TrainingServer {
                                                                 let size = blob.len() as u64;
                                                                 if let Err(e) = self
                                                                     .adapter_store
-                                                                    .store_blob(&job_id, blob)
-                                                                    .await
+                                                                    .store_blob(adapter.id, &blob)
+                                                                    .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
                                                                 {
                                                                     tracing::warn!(
                                                                         target: "hkask.training.adapter.blob",
@@ -490,23 +601,27 @@ impl TrainingServer {
                         // Runs for both pre-registered and auto-registered adapters.
                         // Only applicable when the adapter has a skill_name (retrains),
                         // not for generic/semantic fine-tuning (skill_name is empty).
-                        if !adapter.skill_name.is_empty() {
-                            let current_loss = adapter.metrics.as_ref().and_then(|m| m.loss);
+                        let adapter_skill = adapter.skill_name.clone().unwrap_or_default();
+                        if !adapter_skill.is_empty() {
+                            let current_loss =
+                                Self::metrics_from_trained(&adapter).and_then(|m| m.loss);
                             if let Ok(Some(prev)) = self
                                 .adapter_store
-                                .get_by_skill_name(&adapter.skill_name)
-                                .await
+                                .get_by_skill_name(&adapter_skill)
+                                .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
                             {
                                 // Don't compare against self
                                 if prev.id != adapter.id
-                                    && let (Some(new_loss), Some(prev_loss)) =
-                                        (current_loss, prev.metrics.as_ref().and_then(|m| m.loss))
+                                    && let (Some(new_loss), Some(prev_loss)) = (
+                                        current_loss,
+                                        Self::metrics_from_trained(&prev).and_then(|m| m.loss),
+                                    )
                                 {
                                     let improved = new_loss < prev_loss;
                                     result["ab_comparison"] = json!({
-                                        "skill_name": adapter.skill_name,
+                                        "skill_name": adapter_skill,
                                         "previous_version": prev.version,
-                                        "previous_adapter_name": prev.name,
+                                        "previous_adapter_name": prev.expertise.name,
                                         "previous_loss": prev_loss,
                                         "new_version": adapter.version,
                                         "new_loss": new_loss,
@@ -515,8 +630,8 @@ impl TrainingServer {
                                     });
                                     tracing::info!(
                                         target: "hkask.training.retrain.ab",
-                                        skill = %adapter.skill_name,
-                                        prev_version = prev.version,
+                                        skill = %adapter_skill,
+                                        prev_version = ?prev.version,
                                         prev_loss = %prev_loss,
                                         new_loss = %new_loss,
                                         improved = improved,
@@ -559,25 +674,30 @@ impl TrainingServer {
                 Ok(adapter_ids) => {
                     let mut metadata_list: Vec<serde_json::Value> = Vec::new();
                     for id in &adapter_ids {
-                        let entry = match self.adapter_store.get_metadata(id).await {
-                            Ok(Some(adapter)) => json!({
-                                "id": adapter.id,
-                                "name": adapter.name,
-                                "skill_name": adapter.skill_name,
-                                "version": adapter.version,
-                                "base_model": adapter.base_model,
-                                "dataset_hash": adapter.dataset_hash,
-                                "training_job_id": adapter.training_job_id,
+                        let entry = match self
+                            .adapter_store
+                            .get_by_id(uuid::Uuid::parse_str(id).unwrap_or_default())
+                            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
+                            .unwrap_or(None)
+                        {
+                            Some(adapter) => json!({
+                                "id": adapter.id.to_string(),
+                                "name": adapter.expertise.name,
+                                "skill_name": adapter.skill_name.unwrap_or_default(),
+                                "version": adapter.version.unwrap_or_default(),
+                                "base_model": adapter.base_model_family,
+                                "dataset_hash": adapter.expertise.training_source.dataset_hash.unwrap_or_default(),
+                                "training_job_id": adapter.expertise.training_source.training_run_id,
                                 "created_at": adapter.created_at,
-                                "size_bytes": adapter.size_bytes,
-                                "metrics": adapter.metrics.map(|m| json!({
+                                "size_bytes": adapter.size_bytes.unwrap_or_default(),
+                                "metrics": Self::metrics_from_trained(&adapter).map(|m| json!({
                                     "loss": m.loss,
                                     "perplexity": m.perplexity,
                                     "training_duration_secs": m.training_duration_secs,
                                     "tokens_processed": m.tokens_processed,
                                 })),
                             }),
-                            _ => json!({"id": id, "warning": "metadata not found in store"}),
+                            None => json!({"id": id, "warning": "metadata not found in store"}),
                         };
                         metadata_list.push(entry);
                     }
@@ -613,7 +733,10 @@ impl TrainingServer {
             }
 
             // Delete from adapter store (metadata + blob)
-            match self.adapter_store.delete(&adapter_id).await {
+            match self
+                .adapter_store
+                .delete(uuid::Uuid::parse_str(&adapter_id).unwrap_or_default())
+            {
                 Ok(()) => Ok(json!({ "adapter_id": adapter_id, "deleted": true })),
                 Err(e) => Err(McpToolError::internal(format!(
                     "Metadata deletion failed: {}",
@@ -1203,20 +1326,24 @@ impl TrainingServer {
                 None
             };
 
-            let adapter = LoRAAdapter {
-                id: adapter_id.clone(),
-                name: name.clone(),
-                base_model: base_model.clone(),
-                dataset_hash: dataset_hash.unwrap_or_default(),
-                training_job_id: training_job_id.unwrap_or_default(),
-                created_at: chrono::Utc::now().timestamp(),
-                size_bytes: size_bytes.unwrap_or(0),
-                skill_name: skill_name.clone(),
-                version: version.unwrap_or(1),
+            let adapter = Self::build_trained_adapter(
+                adapter_id.clone(),
+                name.clone(),
+                base_model.clone(),
+                dataset_hash.unwrap_or_default(),
+                training_job_id.unwrap_or_default(),
+                chrono::Utc::now().timestamp(),
+                size_bytes.unwrap_or(0),
+                skill_name.clone(),
+                version.unwrap_or(1),
                 metrics,
-            };
+            );
 
-            match self.adapter_store.store_metadata(&adapter).await {
+            match self
+                .adapter_store
+                .store(&adapter)
+                .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
+            {
                 Ok(()) => Ok(json!({
                     "adapter_id": adapter_id,
                     "name": name,
@@ -1224,10 +1351,7 @@ impl TrainingServer {
                     "base_model": base_model,
                     "registered": true,
                 })),
-                Err(e) => Err(McpToolError::internal(format!(
-                    "Failed to register adapter: {}",
-                    e
-                ))),
+                Err(e) => Err(e),
             }
         })
         .await
@@ -1766,8 +1890,15 @@ impl TrainingServer {
 
         // Determine version: look up previous adapter by skill name and increment
         let (version, previous_adapter_exists) =
-            match self.adapter_store.get_by_skill_name(&skill_name).await {
-                Ok(Some(prev)) => (prev.version + 1, true),
+            match self.adapter_store.get_by_skill_name(&skill_name) {
+                Ok(Some(prev)) => {
+                    let prev_version = prev
+                        .version
+                        .as_deref()
+                        .and_then(|v| v.parse::<u32>().ok())
+                        .unwrap_or(0);
+                    (prev_version + 1, true)
+                }
                 _ => (1, false),
             };
 
@@ -1776,10 +1907,9 @@ impl TrainingServer {
         let ab_baseline: Option<AbBaseline> = if previous_adapter_exists {
             self.adapter_store
                 .get_by_skill_name(&skill_name)
-                .await
                 .ok()
                 .flatten()
-                .and_then(|prev| prev.metrics)
+                .and_then(Self::metrics_from_trained)
                 .map(|m| AbBaseline {
                     previous_version: version - 1,
                     previous_loss: m.loss.unwrap_or(0.0),
@@ -1835,20 +1965,24 @@ impl TrainingServer {
         }
 
         // Pre-register the adapter metadata so it's ready when training completes
-        let adapter = LoRAAdapter {
-            id: job.id.clone(),
-            name: adapter_name.clone(),
-            base_model: base_model.clone(),
-            dataset_hash: String::new(),
-            training_job_id: job.id.clone(),
-            created_at: chrono::Utc::now().timestamp(),
-            size_bytes: 0,
-            skill_name: skill_name.clone(),
+        let adapter = Self::build_trained_adapter(
+            job.id.clone(),
+            adapter_name.clone(),
+            base_model.clone(),
+            String::new(),
+            job.id.clone(),
+            chrono::Utc::now().timestamp(),
+            0,
+            skill_name.clone(),
             version,
-            metrics: None,
-        };
+            None,
+        );
 
-        if let Err(e) = self.adapter_store.store_metadata(&adapter).await {
+        if let Err(e) = self
+            .adapter_store
+            .store(&adapter)
+            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
+        {
             tracing::warn!(
                 target: "hkask.training.retrain",
                 adapter_id = %job.id,

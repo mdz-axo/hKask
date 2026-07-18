@@ -35,6 +35,15 @@ pub struct Spotlighter {
     marker: String,
 }
 
+impl Clone for Spotlighter {
+    fn clone(&self) -> Self {
+        Self {
+            mode: self.mode,
+            marker: self.marker.clone(),
+        }
+    }
+}
+
 impl Spotlighter {
     /// Create a new spotlighter with a per-session random marker.
     ///
@@ -146,7 +155,8 @@ mod tests {
     #[test]
     fn marker_is_8_hex_uppercase() {
         let s = Spotlighter::new(SpotlightMode::Delimit);
-        assert_eq!(s.marker.len(), 8);
+        // 16 bytes hex-encoded = 32 chars, 128 bits of entropy.
+        assert_eq!(s.marker.len(), 32);
         assert!(
             s.marker
                 .chars()

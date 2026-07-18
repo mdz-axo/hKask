@@ -75,6 +75,7 @@ struct AdapterRow {
     training_metrics_json: Option<String>,
     lifecycle: String,
     expires_at: Option<i64>,
+    skill_name: Option<String>,
     created_at: String,
 }
 
@@ -130,6 +131,10 @@ pub struct TrainedLoRAAdapter {
     pub size_bytes: Option<u64>,
     /// Owner (sovereign-scoped — no anonymous artifacts, P12)
     pub owner: WebID,
+    /// Optional skill name for adapter-to-skill mapping (e.g. "pragmatic-semantics").
+    /// Enables `get_by_skill_name` queries for the training server's retrain loop.
+    #[serde(default)]
+    pub skill_name: Option<String>,
     /// Lifecycle class — durable expertise vs ephemeral context internalization.
     /// Operator-chosen at training time. Defaults to `Durable` for backfilled rows.
     /// The `Ephemeral` variant carries its own `expires_at` timestamp.
@@ -185,7 +190,7 @@ const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domai
     capability_manifest_json, checksum, storage_path, base_model_family, \
     version, source_json, size_bytes, owner_webid, training_run_id, training_source, \
     completed_at, dataset_hash, training_metrics_json, lifecycle, expires_at, \
-    created_at FROM trained_adapters";
+    skill_name, created_at FROM trained_adapters";
 
 // ── AdapterStore implementation ──────────────────────────────────────────────
 
@@ -213,12 +218,20 @@ impl AdapterStore {
                         training_metrics_json TEXT,
                         lifecycle           TEXT NOT NULL DEFAULT 'durable',
                         expires_at          INTEGER,
+                        skill_name           TEXT,
                         created_at          TEXT NOT NULL DEFAULT (datetime('now'))
                     );
                     CREATE INDEX IF NOT EXISTS idx_adapter_expertise
                         ON trained_adapters(expertise_name);
                     CREATE INDEX IF NOT EXISTS idx_adapter_owner
                         ON trained_adapters(owner_webid);
+                    CREATE INDEX IF NOT EXISTS idx_adapter_skill
+                        ON trained_adapters(skill_name);
+                    CREATE TABLE IF NOT EXISTS lora_blobs (
+                        adapter_id TEXT PRIMARY KEY NOT NULL,
+                        data       BLOB NOT NULL,
+                        FOREIGN KEY (adapter_id) REFERENCES trained_adapters(adapter_id) ON DELETE CASCADE
+                    );
                     CREATE TABLE IF NOT EXISTS active_endpoints (
                         endpoint_id     TEXT PRIMARY KEY NOT NULL,
                         adapter_id      TEXT NOT NULL,
@@ -252,8 +265,8 @@ impl AdapterStore {
                 (adapter_id, expertise_name, expertise_domain, capability_manifest_json,
                  checksum, storage_path, base_model_family, version, source_json, size_bytes,
                  owner_webid, training_run_id, training_source, completed_at, dataset_hash,
-                 training_metrics_json, lifecycle, expires_at, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+                 training_metrics_json, lifecycle, expires_at, skill_name, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
             &[
                 DbValue::Text(adapter.id.to_string()),
                 DbValue::Text(adapter.expertise.name.clone()),
@@ -286,6 +299,10 @@ impl AdapterStore {
                     .lifecycle
                     .expires_at()
                     .map_or(DbValue::Null, |e| DbValue::Integer(e as i64)),
+                adapter
+                    .skill_name
+                    .as_ref()
+                    .map_or(DbValue::Null, |s| DbValue::Text(s.clone())),
                 DbValue::Text(adapter.created_at.clone()),
             ],
         )?;
@@ -332,7 +349,11 @@ impl AdapterStore {
                 DbValue::Null => None,
                 v => Some(v.as_int()?),
             },
-            created_at: row.get_str(18)?.to_string(),
+            skill_name: match row.get(18)? {
+                DbValue::Null => None,
+                v => Some(v.as_text()?.to_string()),
+            },
+            created_at: row.get_str(19)?.to_string(),
         })
     }
 
@@ -443,6 +464,68 @@ impl AdapterStore {
         Ok(count as usize)
     }
 
+    /// List all stored adapters, ordered by creation time descending.
+    pub fn list_all(&self) -> Result<Vec<TrainedLoRAAdapter>, AdapterStoreError> {
+        let sql = format!("{} ORDER BY created_at DESC", ADAPTER_SELECT);
+        let rows: Vec<TrainedLoRAAdapter> = query_map(&*self.driver, &sql, &[], |row| {
+            let r = Self::row_to_adapter_row(row)?;
+            Self::row_to_adapter(r)
+                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+        })?;
+        Ok(rows)
+    }
+
+    /// Retrieve the latest adapter for a given skill name (highest version).
+    /// Returns `None` if no adapter exists for this skill.
+    pub fn get_by_skill_name(
+        &self,
+        skill_name: &str,
+    ) -> Result<Option<TrainedLoRAAdapter>, AdapterStoreError> {
+        let sql = format!(
+            "{} WHERE skill_name = ?1 ORDER BY created_at DESC LIMIT 1",
+            ADAPTER_SELECT
+        );
+        let rows: Vec<TrainedLoRAAdapter> = query_map(
+            &*self.driver,
+            &sql,
+            &[DbValue::Text(skill_name.to_string())],
+            |row| {
+                let r = Self::row_to_adapter_row(row)?;
+                Self::row_to_adapter(r)
+                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+            },
+        )?;
+        Ok(rows.into_iter().next())
+    }
+
+    /// Store adapter weight blob. The blob is stored in a separate `lora_blobs`
+    /// table, keyed by adapter ID. This is the raw weight file content.
+    pub fn store_blob(&self, adapter_id: Uuid, blob: &[u8]) -> Result<(), AdapterStoreError> {
+        self.driver.execute(
+            "INSERT OR REPLACE INTO lora_blobs (adapter_id, data) VALUES (?1, ?2)",
+            &[
+                DbValue::Text(adapter_id.to_string()),
+                DbValue::Blob(blob.to_vec()),
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Retrieve adapter weight blob by adapter ID.
+    pub fn get_blob(&self, adapter_id: Uuid) -> Result<Option<Vec<u8>>, AdapterStoreError> {
+        let rows: Vec<Vec<u8>> = query_map(
+            &*self.driver,
+            "SELECT data FROM lora_blobs WHERE adapter_id = ?1",
+            &[DbValue::Text(adapter_id.to_string())],
+            |row| {
+                row.get_blob(0)
+                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map(|b| b.to_vec())
+            },
+        )?;
+        Ok(rows.into_iter().next())
+    }
+
     // ── Row mapping helpers ────────────────────────────────────────────────
 
     fn row_to_adapter(r: AdapterRow) -> Result<TrainedLoRAAdapter, AdapterStoreError> {
@@ -500,6 +583,7 @@ impl AdapterStore {
                 },
                 _ => AdapterLifecycle::Durable,
             },
+            skill_name: r.skill_name,
             created_at: r.created_at,
         })
     }
@@ -540,6 +624,7 @@ mod tests {
             },
             size_bytes: Some(1024),
             owner,
+            skill_name: None,
             lifecycle: AdapterLifecycle::Durable,
             created_at: "2026-07-01".into(),
         }
