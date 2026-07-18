@@ -17,8 +17,8 @@
 
 use hkask_adapter::adapter_store::Checksum;
 use hkask_adapter::{
-    AdapterPort, AdapterRouter, AdapterSource, AdapterStore, Expertise, MdsDomain,
-    TrainedLoRAAdapter, TrainingProvenance,
+    AdapterLifecycle, AdapterPort, AdapterRouter, AdapterSource, AdapterStore, Expertise,
+    MdsDomain, TrainedLoRAAdapter, TrainingProvenance,
 };
 use hkask_capability::auth::derive_signing_key;
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
@@ -114,6 +114,8 @@ async fn live_together_adapter_e2e() {
         },
         size_bytes: None,
         owner,
+        lifecycle: AdapterLifecycle::Durable,
+        expires_at: None,
         created_at: "2026-06-17T00:00:00Z".into(),
     };
     store.store(&adapter).expect("store adapter");

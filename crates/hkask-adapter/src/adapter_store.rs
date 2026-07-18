@@ -6,7 +6,7 @@
 //! Follows the `hkask-storage` pattern: `Database` + migrations + CRUD.
 //! Adapter weights live on disk; only metadata is stored in SQLite.
 
-use crate::expertise::{Expertise, MdsDomain, TrainingProvenance};
+use crate::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
 use hkask_database::driver::{query_map, query_row};
 use hkask_database::value::DbValue;
 use hkask_storage_core::define_driver_store;
@@ -73,6 +73,8 @@ struct AdapterRow {
     completed_at: String,
     dataset_hash: Option<String>,
     training_metrics_json: Option<String>,
+    lifecycle: String,
+    expires_at: Option<i64>,
     created_at: String,
 }
 
@@ -128,6 +130,14 @@ pub struct TrainedLoRAAdapter {
     pub size_bytes: Option<u64>,
     /// Owner (sovereign-scoped — no anonymous artifacts, P12)
     pub owner: WebID,
+    /// Lifecycle class — durable expertise vs ephemeral context internalization.
+    /// Operator-chosen at training time. Defaults to `Durable` for backfilled rows.
+    #[serde(default)]
+    pub lifecycle: AdapterLifecycle,
+    /// Optional TTL for ephemeral adapters (Unix epoch seconds).
+    /// `None` for `Durable` adapters. `Some(epoch)` for `Ephemeral` adapters.
+    #[serde(default)]
+    pub expires_at: Option<u64>,
     /// When the adapter was stored
     pub created_at: String,
 }
@@ -177,7 +187,8 @@ impl From<hkask_database::types::DbError> for AdapterStoreError {
 const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domain, \
     capability_manifest_json, checksum, storage_path, base_model_family, \
     version, source_json, size_bytes, owner_webid, training_run_id, training_source, \
-    completed_at, dataset_hash, training_metrics_json, created_at FROM trained_adapters";
+    completed_at, dataset_hash, training_metrics_json, lifecycle, expires_at, \
+    created_at FROM trained_adapters";
 
 // ── AdapterStore implementation ──────────────────────────────────────────────
 
@@ -203,6 +214,8 @@ impl AdapterStore {
                         completed_at        TEXT NOT NULL,
                         dataset_hash        TEXT,
                         training_metrics_json TEXT,
+                        lifecycle           TEXT NOT NULL DEFAULT 'durable',
+                        expires_at          INTEGER,
                         created_at          TEXT NOT NULL DEFAULT (datetime('now'))
                     );
                     CREATE INDEX IF NOT EXISTS idx_adapter_expertise
@@ -242,8 +255,8 @@ impl AdapterStore {
                 (adapter_id, expertise_name, expertise_domain, capability_manifest_json,
                  checksum, storage_path, base_model_family, version, source_json, size_bytes,
                  owner_webid, training_run_id, training_source, completed_at, dataset_hash,
-                 training_metrics_json, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+                 training_metrics_json, lifecycle, expires_at, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
             &[
                 DbValue::Text(adapter.id.to_string()),
                 DbValue::Text(adapter.expertise.name.clone()),
@@ -271,6 +284,10 @@ impl AdapterStore {
                     .as_ref()
                     .map_or(DbValue::Null, |h| DbValue::Text(h.clone())),
                 DbValue::Text(metrics_json),
+                DbValue::Text(adapter.lifecycle.as_str().to_string()),
+                adapter
+                    .expires_at
+                    .map_or(DbValue::Null, |e| DbValue::Integer(e as i64)),
                 DbValue::Text(adapter.created_at.clone()),
             ],
         )?;
@@ -312,7 +329,12 @@ impl AdapterStore {
                 DbValue::Null => None,
                 v => Some(v.as_text()?.to_string()),
             },
-            created_at: row.get_str(16)?.to_string(),
+            lifecycle: row.get_str(16)?.to_string(),
+            expires_at: match row.get(17)? {
+                DbValue::Null => None,
+                v => Some(v.as_int()?),
+            },
+            created_at: row.get_str(18)?.to_string(),
         })
     }
 
@@ -474,6 +496,8 @@ impl AdapterStore {
             source,
             size_bytes: r.size_bytes.map(|b| b as u64),
             owner: WebID::from_uuid(owner_uuid),
+            lifecycle: AdapterLifecycle::parse(&r.lifecycle).unwrap_or(AdapterLifecycle::Durable),
+            expires_at: r.expires_at.map(|e| e as u64),
             created_at: r.created_at,
         })
     }
@@ -514,6 +538,8 @@ mod tests {
             },
             size_bytes: Some(1024),
             owner,
+            lifecycle: AdapterLifecycle::Durable,
+            expires_at: None,
             created_at: "2026-07-01".into(),
         }
     }

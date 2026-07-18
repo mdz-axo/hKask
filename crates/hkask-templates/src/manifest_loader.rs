@@ -69,6 +69,7 @@ struct ManifestFile {
     /// Pre-release: these are documentation annotations not yet parsed by Rust.
     /// When a key is promoted to a typed field, remove it from this map.
     #[serde(default, flatten)]
+    #[allow(dead_code)]
     extra: std::collections::HashMap<String, serde_json::Value>,
 }
 

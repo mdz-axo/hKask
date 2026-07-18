@@ -67,6 +67,54 @@ impl std::fmt::Display for MdsDomain {
     }
 }
 
+/// Adapter lifecycle class — operator-chosen at training time.
+///
+/// Captures the distinction between durable expertise adapters (long-lived,
+/// trained on large corpora) and ephemeral context-internalization adapters
+/// (short-lived, trained on a single document or small corpus, with a TTL).
+///
+/// The ephemeral class addresses the medium-durability gap exposed by the
+/// Sakana D2L paper: a context too large for efficient token-concat RAG but
+/// too transient for a full SFT cycle. The mechanism differs (short SFT vs
+/// hypernetwork forward pass); the lifecycle concept is the same.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum AdapterLifecycle {
+    /// Long-lived expertise adapter. No TTL. Survives across sessions.
+    /// Example: rust-coding-lora trained on 191K examples.
+    #[default]
+    Durable,
+    /// Short-lived context-internalization adapter. Has a TTL (`expires_at`).
+    /// Discarded when expired. Example: low-rank adapter trained on a
+    /// 100K-token codebase for a two-week sprint.
+    Ephemeral,
+}
+
+impl AdapterLifecycle {
+    /// Returns canonical kebab-case string.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AdapterLifecycle::Durable => "durable",
+            AdapterLifecycle::Ephemeral => "ephemeral",
+        }
+    }
+
+    /// Parses kebab-case or PascalCase strings.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "durable" | "Durable" => Some(AdapterLifecycle::Durable),
+            "ephemeral" | "Ephemeral" => Some(AdapterLifecycle::Ephemeral),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for AdapterLifecycle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Training provenance — links an expertise to its training run.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TrainingProvenance {

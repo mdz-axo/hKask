@@ -4,6 +4,7 @@
 //! Spotlighting transforms the untrusted content so the LLM can distinguish it
 //! from instructions. Reduces attack success rate from >50% to <2%.
 
+use base64::Engine;
 use rand::RngCore;
 
 /// Spotlighting mode for untrusted content.
@@ -181,9 +182,9 @@ mod tests {
         let s = Spotlighter::new(SpotlightMode::Datamark);
         let input = "line one\nline two";
         let out = s.spotlight(input);
-        // split_whitespace treats newlines as separators — 4 tokens total.
+        // split_whitespace treats newlines as separators — 4 words + 3 markers = 7 tokens.
         let tokens: Vec<&str> = out.split_whitespace().collect();
-        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens.len(), 7);
     }
 
     #[test]

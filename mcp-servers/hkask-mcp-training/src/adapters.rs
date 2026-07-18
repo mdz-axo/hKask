@@ -9,7 +9,7 @@
 
 use chrono::Utc;
 use hkask_adapter::adapter_store::Checksum;
-use hkask_adapter::expertise::{Expertise, MdsDomain, TrainingProvenance};
+use hkask_adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
 use hkask_adapter::{AdapterSource, TrainedLoRAAdapter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -143,6 +143,8 @@ impl LoRAAdapter {
                 None
             },
             owner: hkask_types::id::WebID::from_persona(b"training-pipeline"),
+            lifecycle: AdapterLifecycle::Durable,
+            expires_at: None,
             created_at: chrono::Utc::now().to_rfc3339(),
         }
     }

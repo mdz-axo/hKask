@@ -47,5 +47,5 @@ pub use adapter_port::{
 pub use adapter_router::{AdapterRouter, EndpointGuard};
 pub use adapter_store::{AdapterSource, AdapterStore, AdapterStoreError, TrainedLoRAAdapter};
 pub use endpoint_lifecycle::{EndpointLifecycle, EndpointPhase, EndpointPhaseError};
-pub use expertise::{Expertise, MdsDomain, TrainingProvenance};
+pub use expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
 pub use provider_cost::{CostModel, CostModelError, ProviderCapability, ProviderInfo};
