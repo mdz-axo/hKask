@@ -108,7 +108,10 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
     let socket_path = hkask_mcp::daemon::daemon_socket_path();
 
     // Fast path: probe the socket. If it responds, the daemon is live.
-    if rt.block_on(ping_daemon_socket(&socket_path)).is_some() {
+    if rt
+        .block_on(hkask_mcp::daemon::ping_daemon(&socket_path))
+        .is_ok()
+    {
         tracing::debug!(
             target: "hkask.repl",
             socket = %socket_path.display(),
@@ -139,14 +142,21 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
         }
     };
 
-    let cmd = match std::process::Command::new(&current_exe)
-        .arg("daemon")
+    let mut cmd = std::process::Command::new(&current_exe);
+    cmd.arg("daemon")
         .arg("start")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
+        .stderr(std::process::Stdio::piped());
+    // Detach the child into its own process group so it survives the REPL's
+    // exit. Without this, the child inherits the parent's process group and
+    // may receive SIGHUP when the terminal session ends.
+    #[cfg(unix)]
     {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+    let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(e) => {
             tracing::warn!(
@@ -158,17 +168,20 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
             return false;
         }
     };
-
-    // Detach the child so it survives the REPL's exit.
-    // On Unix, dropping the Child handle without waiting detaches it.
-    let daemon_pid = cmd.id();
-    drop(cmd);
+    let daemon_pid = child.id();
+    // Drop stdin/stdout handles (already null). Keep stderr for diagnostics if
+    // the daemon fails to bind within the timeout.
+    let stderr = child.stderr.take();
+    drop(child);
 
     // Poll the socket for up to 5 seconds. The daemon needs time to build
     // AgentService, start CNS loops, and bind the socket.
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
-        if rt.block_on(ping_daemon_socket(&socket_path)).is_some() {
+        if rt
+            .block_on(hkask_mcp::daemon::ping_daemon(&socket_path))
+            .is_ok()
+        {
             tracing::info!(
                 target: "hkask.repl",
                 pid = daemon_pid,
@@ -179,45 +192,33 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
         std::thread::sleep(Duration::from_millis(200));
     }
 
-    tracing::warn!(
-        target: "hkask.repl",
-        pid = daemon_pid,
-        "Daemon did not bind socket within 5s — MCP servers will use direct mode"
-    );
-    false
-}
-
-/// Probe a daemon socket by sending a sentinel `auth_query`.
-///
-/// Returns `Some(())` if the socket accepts a connection and responds with
-/// valid JSON (proving a live daemon is listening). Returns `None` on any
-/// connection or parse failure (stale socket file, daemon not listening,
-/// or daemon crashed mid-response).
-async fn ping_daemon_socket(path: &std::path::Path) -> Option<()> {
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-    use tokio::net::UnixStream;
-
-    let stream = UnixStream::connect(path).await.ok()?;
-    let (reader, mut writer) = stream.into_split();
-
-    let request = serde_json::json!({
-        "type": "auth_query",
-        "replicant": "__ping__"
-    });
-    let mut json = serde_json::to_string(&request).ok()?;
-    json.push('\n');
-    writer.write_all(json.as_bytes()).await.ok()?;
-    writer.shutdown().await.ok()?;
-
-    let mut buf_reader = BufReader::new(reader);
-    let mut line = String::new();
-    buf_reader.read_line(&mut line).await.ok()?;
-
-    if line.trim().is_empty() {
-        return None;
+    // Daemon didn't bind in time. If we captured stderr, log it for diagnostics.
+    if let Some(mut stderr) = stderr {
+        use std::io::Read;
+        let mut buf = String::new();
+        let _ = stderr.read_to_string(&mut buf);
+        if !buf.trim().is_empty() {
+            tracing::warn!(
+                target: "hkask.repl",
+                pid = daemon_pid,
+                stderr = %buf.trim(),
+                "Daemon process stderr (did not bind socket within 5s)"
+            );
+        } else {
+            tracing::warn!(
+                target: "hkask.repl",
+                pid = daemon_pid,
+                "Daemon did not bind socket within 5s — no stderr output"
+            );
+        }
+    } else {
+        tracing::warn!(
+            target: "hkask.repl",
+            pid = daemon_pid,
+            "Daemon did not bind socket within 5s — MCP servers will use direct mode"
+        );
     }
-    serde_json::from_str::<serde_json::Value>(&line).ok()?;
-    Some(())
+    false
 }
 
 /// Propagate condensation settings to the environment.

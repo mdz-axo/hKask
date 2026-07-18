@@ -779,12 +779,23 @@ fn resolve_secrets_from_keychain(
     let master_key_hex = keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_MASTER_KEY)
         .ok()?;
+    // Try the keychain first (fast path). If a2a-secret is missing (e.g.,
+    // keychain was partially cleared), fall back to the full resolution chain
+    // (env → keychain → HKDF-derived from master key). This handles the case
+    // where the a2a-secret keychain entry disappears but HKASK_MASTER_KEY is
+    // still present — resolve_a2a_secret will derive it on the fly.
     let a2a_secret = keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_A2A_SECRET)
-        .ok()?;
-    // The DB passphrase is already in config.db_passphrase (resolved by
-    // ServiceConfig::from_env). Use it directly rather than re-reading from
-    // the keychain — they're the same value.
+        .ok()
+        .or_else(|| {
+            tracing::warn!(
+                target: "hkask.onboarding",
+                "a2a-secret not in keychain — deriving from master key"
+            );
+            hkask_keystore::keychain::resolve_a2a_secret()
+                .ok()
+                .map(|s| String::from_utf8_lossy(&s).to_string())
+        })?;
     Some(ResolvedSecrets {
         master_key_hex,
         a2a_secret,

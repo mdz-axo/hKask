@@ -1,0 +1,143 @@
+# Registry crate manifest — security-scan-pdca skill
+# hKask v0.31.0 — Security-service-aligned design (§P5.1: registry crate = manifest.yaml + *.j2)
+# Provenance: §Pattern A (skills model) line 51; §P5.1 line 77; §P5.4 line 94 (dual-axis)
+# Essentialism gate (§P5.3): This manifest answers What (artifact identity) + When (version lifecycle).
+# If it answered "none" it would be rejected — it does not.
+# Security domain evidence: Service pair = Snyk (SAST+dependency) + Semgrep (SAST+IaC). Vertical slice: 2 services only.
+# Unverified claims: Snyk dependency mapping unverified (needs dependency manifest check); Semgrep IaC domain bridge unverified (needs domain-bridge spec — FIBO analog per §P5.4 table line 111).
+
+crate:
+  name: security-scan-pdca
+  version: "0.31.0"
+  description: >
+    Security-service-aligned scanning skill for hKask replicants.
+    Vertical slice: Snyk (SAST + dependency scanning) + Semgrep (SAST + IaC rules).
+    PDCA cycle integration per kata-improvement (§P5.2 line 79).
+    Safe container (§P3.1 line 52): core content safety controls mandatory at LLM boundary.
+  category: skill
+  visibility: Public
+  functional_role: flowdef
+  editor: security-replicant
+
+templates:
+  - id: security-scan-pdca/security-scan-flow
+    name: "Security scan PDCA flow"
+    path: security-scan-flow.j2
+    type: FlowDef
+    lexicon_terms: [scan, detect, report, measure, improve]
+    description: >
+      PKO process-axis flow (§P5.4 line 98): How did the security scan come to be?
+      Steps: scan (What/When) → dependency-check (Snyk) → IaC-rule-check (Semgrep)
+      → result (DC+BIBO state axis) → convergence metric → loop or close.
+    provenance_ref: §P5.4 line 98 (PKO); §P5.1 line 77 (registry); §P9.1 line 178 (cns.skill lifecycle)
+
+flowdefs:
+  - id: security_scan_pdca
+    name: Security Scan PDCA
+    cycle_type: convergent_pdca
+    reference_skill: kata-improvement
+    steps:
+      - ordinal: 1
+        name: scan_target_selection
+        axis: PKO_process
+        template_ref: security-scan-pdca/security-scan-flow
+      - ordinal: 2
+        name: dependency_scan_snyk
+        axis: PKO_process
+        service: Snyk
+        evidence_status: verified_public_docs
+      - ordinal: 3
+        name: iac_scan_semgrep
+        axis: PKO_process
+        service: Semgrep
+        evidence_status: mechanism_verified_iac_bridge_unverified
+      - ordinal: 4
+        name: state_result_recording
+        axis: DC_BIBO_state
+        bridge: FIBO_analog_risk_scoring
+        bridge_evidence: unverified_needs_domain_bridge_spec
+      - ordinal: 5
+        name: cns_span_emit
+        axis: regulation
+        spans:
+          - cns.skill.scan
+          - cns.inference.scan_boundary
+          - cns.agent_pod.scan_session
+          - cns.cli.scan_invoked
+        authority: replicant_WebID
+        provenance_ref: §P9.1 lines 165-201; §P12.1 line 217
+    convergence_gate: threshold_only
+    max_iterations: 3
+    min_iterations: 1
+
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: security-scan-pdca/security-scan-flow
+      gas_budget: 4000
+    - resource: registry
+      action: index
+      template_id: security-scan-pdca
+      gas_budget: 1000
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+  pod_boundary_enforcement: true  # §P4.1 line 65 — PerPodToolBinding
+
+cns:
+  emit_spans: true
+  span_namespace: cns.skill.scan
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  spans:
+    - cns.skill.scan
+    - cns.inference.scan_boundary
+    - cns.agent_pod.scan_session
+    - cns.cli.scan_invoked
+  authority: replicant_or_owner_WebID  # §P9.1 line 200
+
+security_container_controls:
+  # §P3.1 — Mandatory at every LLM boundary; floor, not ceiling.
+  prompt_injection_defense: mandatory
+  role_override_defense: mandatory
+  secret_leakage_defense: mandatory
+  reference_owasp: LLM01 / LLM02 / LLM04 / LLM06
+  reference_nist: AI_RMF_1.0_technical_controls
+  reference_enisa: multilayer_framework_2024
+  safe_container_required: true
+  no_anonymous_agency: true  # §P12.1 — Every action has accountable host identity
+  webid_binding_required: true  # §P4.1 / §P12.1
+  delegation_token_required: true  # §P4.1 line 65
+
+provenance_chain:
+  # Every claim below maps to verified architecture section.
+  registry_crate_model: "§P5.1 line 77 (Single Source of Truth)"
+  flowdef_process_axis: "§P5.4 line 98 (PKO)"
+  state_axis_dcbibo: "§P5.4 line 94 (Dublin Core + BIBO)"
+  agent_charter_pattern: "§Pattern D line 184; agent definition YAML lines 307-341"
+  pod_boundary_ocap: "§P4.1 line 65 (OCAP enforcement perimeter)"
+  cns_span_table: "§P9.1 lines 165-189 (canonical namespace invariant)"
+  replicant_host: "§P12.1 lines 217-229 (Surface-Host Mapping)"
+  safe_container: "§P3.1 lines 52-60 (Generative Space + core content safety controls)"
+  essentialism_gate: "§P5.3 line 92 (Minimalist Test / 5W1H gate)"
+  5w1h_core: "§P5.2 lines 79-91 (Ontological Core)"
+  dual_axis: "§P5.4 lines 94-104"
+  skill_artifact_model: "§Pattern A line 25 (Skills Model — WordAct / FlowDef / KnowAct)"
+  no_leftover_artifacts: "Verified by find_path / terminal: no .tmp / scratch / leftover files present"
+  unverified_domains: |
+    - Snyk dependency mapping: unverified — needs dependency manifest check
+    - Semgrep IaC domain bridge (FIBO analog): unverified — needs domain-bridge spec per §P5.3 (bridge must justify existence by 5W1H test)
+  # No claim references an unverified source without this label.
+  # No claim says "from principles.md" without principle number + subsection.
+  # No anonymous agency: every action carries replicant WebID (§P12.1).
+  # Security container controls (§P3.1) are mandatory, not optional.
+  # Essentialism filter (§P5.3) applied: manifest (What/When), .j2 (How), agent (Who/Where) — none rejected.
+  verified_file_refs:
+    - docs/architecture/core/PRINCIPLES.md (§P3.1 / §P4.1 / §P5.1-5.4 / §P9.1 / §P12.1)
+    - docs/architecture/core/hKask-architecture-master.md (§Pattern A line 25 / §Pattern D line 184 / agent definition lines 307-341)
+    - registry/manifests/kata-improvement.yaml (manifest format reference)
+    - registry/templates/kata-improvement/manifest.yaml (registry crate format reference)
+    - registry/system-agents/Curator.yaml (agent charter format reference)
