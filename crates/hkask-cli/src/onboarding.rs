@@ -113,9 +113,16 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
                 }
             }
 
+            // ── Resolve secrets from keychain for the REPL. In operating mode,
+            //     the secrets were stored during first-run onboarding. The REPL
+            //     needs the A2A secret to sign OCAP capability tokens for tool
+            //     invocation — without it, the tool-use loop cannot invoke any
+            //     MCP tool and terminates after one inference call.
+            let resolved_secrets = resolve_secrets_from_keychain(&config, &agent_name);
+
             return Ok(OnboardingOutcome {
                 signed_in_agent: agent_name,
-                resolved_secrets: None,
+                resolved_secrets,
                 selected_model: None,
                 is_first_run: false,
             });
@@ -753,6 +760,53 @@ fn list_replicants(
         })
 }
 
+/// Resolve secrets from the OS keychain for operating-mode sessions.
+///
+/// In operating mode, `run_onboarding` doesn't derive secrets (the
+/// passphrase isn't available). Instead, this helper reads the previously-
+/// stored secrets from the keychain: `HKASK_MASTER_KEY`, `a2a-secret`, and
+/// `hkask-db-passphrase`. These were stored during first-run onboarding via
+/// `OnboardingService::derive_secrets(passphrase, store=true)`.
+///
+/// Returns `Some(ResolvedSecrets)` if all three secrets are found, or
+/// `None` if any are missing (the REPL will print the "No A2A secret"
+/// error when the user tries to invoke a tool).
+fn resolve_secrets_from_keychain(
+    config: &ServiceConfig,
+    _agent_name: &str,
+) -> Option<ResolvedSecrets> {
+    let keychain = hkask_keystore::Keychain::default();
+    let master_key_hex = keychain
+        .retrieve_by_key(hkask_types::keychain_keys::KEY_MASTER_KEY)
+        .ok()?;
+    let a2a_secret = keychain
+        .retrieve_by_key(hkask_types::keychain_keys::KEY_A2A_SECRET)
+        .ok()?;
+    // The DB passphrase is already in config.db_passphrase (resolved by
+    // ServiceConfig::from_env). Use it directly rather than re-reading from
+    // the keychain — they're the same value.
+    Some(ResolvedSecrets {
+        master_key_hex,
+        a2a_secret,
+        db_passphrase: config.db_passphrase.clone(),
+    })
+}
+
+/// Error type for UserStore session creation during onboarding.
+///
+/// Used by `create_user_session` to classify failures in the
+/// DB open → pool → login chain. Non-fatal — the caller logs a warning
+/// and continues in direct mode.
+#[derive(Debug, thiserror::Error)]
+enum SessionCreationError {
+    #[error("DB open: {0}")]
+    DbOpen(String),
+    #[error("pool: {0}")]
+    Pool(String),
+    #[error("login: {0}")]
+    Login(String),
+}
+
 /// Create a UserStore session for the replicant so the daemon's `check_auth`
 /// returns `authenticated: true`.
 ///
@@ -762,23 +816,28 @@ fn list_replicants(
 /// which is the same credential `UserStore::login` verifies against the
 /// Argon2 hash stored in the `users` table.
 ///
-/// Returns `Ok(session_id)` on success, or `Err(message)` on any failure
-/// (DB open, user not found, passphrase mismatch). Errors are non-fatal —
-/// the caller logs a warning and continues in direct mode.
-fn create_user_session(config: &ServiceConfig, agent_name: &str) -> Result<String, String> {
+/// Returns `Ok(session_id)` on success, or `Err(SessionCreationError)` on any
+/// failure (DB open, user not found, passphrase mismatch). Errors are
+/// non-fatal — the caller logs a warning and continues in direct mode.
+fn create_user_session(
+    config: &ServiceConfig,
+    agent_name: &str,
+) -> Result<String, SessionCreationError> {
     use hkask_database::SqliteDriver;
     use hkask_storage::Database;
     use hkask_storage::user_store::UserStore;
     use std::sync::Arc;
 
     let db = Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| format!("DB open: {e}"))?;
-    let pool = db.sqlite_pool().map_err(|e| format!("pool: {e}"))?;
+        .map_err(|e| SessionCreationError::DbOpen(e.to_string()))?;
+    let pool = db
+        .sqlite_pool()
+        .map_err(|e| SessionCreationError::Pool(e.to_string()))?;
     let driver = Arc::new(SqliteDriver::new(pool));
     let store = UserStore::from_driver(driver);
     let session = store
         .login(agent_name, &config.db_passphrase)
-        .map_err(|e| format!("login: {e}"))?;
+        .map_err(|e| SessionCreationError::Login(e.to_string()))?;
     Ok(session.session_id)
 }
 

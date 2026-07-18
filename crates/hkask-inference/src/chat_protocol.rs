@@ -252,8 +252,6 @@ pub struct ChatChoice {
     pub finish_reason: String,
     #[serde(default, rename = "token_probs")]
     pub token_probs: Option<Vec<RawTokenProb>>,
-    #[serde(default)]
-    pub tool_calls: Option<Vec<RawToolCall>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -266,6 +264,12 @@ pub struct ChatResponseMessage {
     /// (e.g. thinking exhausted the token budget before emitting `content`).
     #[serde(default)]
     pub reasoning_content: Option<String>,
+    /// Tool calls requested by the model (OpenAI function calling).
+    /// Per the OpenAI Chat Completions API spec, `tool_calls` lives on the
+    /// `message` object, not on the `choice`. When `finish_reason == "tool_calls"`,
+    /// this field is populated with the requested tool calls.
+    #[serde(default)]
+    pub tool_calls: Option<Vec<RawToolCall>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -321,14 +325,17 @@ pub struct StreamChunk {
 pub struct StreamChoice {
     pub delta: StreamDelta,
     pub finish_reason: Option<String>,
-    #[serde(default)]
-    pub tool_calls: Option<Vec<RawToolCall>>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct StreamDelta {
     #[serde(default)]
     pub content: Option<String>,
+    /// Tool calls requested by the model (OpenAI function calling, streaming).
+    /// Per the OpenAI Chat Completions API spec, `tool_calls` lives on the
+    /// `delta` object in streaming responses.
+    #[serde(default)]
+    pub tool_calls: Option<Vec<RawToolCall>>,
 }
 
 // ── Conversion helpers ──────────────────────────────────────────────────────
@@ -409,6 +416,7 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
     let token_probabilities = choice.token_probs.as_ref().map(|p| map_token_probs(p));
 
     let tool_calls = choice
+        .message
         .tool_calls
         .as_ref()
         .map(|calls| map_tool_calls(calls))
@@ -469,6 +477,7 @@ pub fn parse_sse_stream(
         let text_delta = choice.delta.content.clone().unwrap_or_default();
         let finish_reason = choice.finish_reason.clone();
         let tool_calls = choice
+            .delta
             .tool_calls
             .as_ref()
             .map(|calls| map_tool_calls(calls))
