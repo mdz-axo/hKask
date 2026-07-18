@@ -479,21 +479,21 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
 
 | Document | Purpose |
 |----------|--------|
-| [`core/magna-carta.md`](core/magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
-| [`core/PRINCIPLES.md`](core/PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
-| [`core/MDS.md`](core/MDS.md) | Minimal Domain Specification — 5 categories, 12 tools, completeness predicate |
-| [`core/FUNCTIONAL_SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
-| [`core/TESTING_DISCIPLINE.md`](core/TESTING_DISCIPLINE.md) | Testing discipline — property-based testing, CNS verification, proptest framework |
-| [`SPECIFICATION.md`](core/FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
-| [`CNS Domain Specification`](core/FUNCTIONAL_SPECIFICATION.md#cns-domain-specification) | CNS Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
-| [`hkask-ledger.md`](../reference/api-reference.md) | Ledger specification — triple-entry accounting, three-domain schema |
+| [`core/magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, affirmative consent, OCAP verification |
+| [`core/PRINCIPLES.md`](PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
+| [`core/MDS.md`](MDS.md) | Minimal Domain Specification — 5 categories, 12 tools, completeness predicate |
+| [`core/FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
+| [`core/TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) | Testing discipline — property-based testing, CNS verification, proptest framework |
+| [`SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
+| [`CNS Domain Specification`](FUNCTIONAL_SPECIFICATION.md#cns-domain-specification) | CNS Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
+| [`hkask-ledger.md`](../../reference/api-reference.md) | Ledger specification — triple-entry accounting, three-domain schema |
 
-**TUI specification** — 22 windows with 15 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation. Diagrams: [class hierarchy](../reference/api-reference.md#tui-window-trait-hierarchy), [event dispatch](../reference/api-reference.md#tui-event-dispatch-pipeline), [workspace lifecycle](../reference/api-reference.md#tui-workspace-state-lifecycle), [bridge wiring](../reference/api-reference.md#tui-bridge-wiring-architecture).
+**TUI specification** — 22 windows with 15 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation. Diagrams: [class hierarchy](../../reference/api-reference.md#tui-window-trait-hierarchy), [event dispatch](../../reference/api-reference.md#tui-event-dispatch-pipeline), [workspace lifecycle](../../reference/api-reference.md#tui-workspace-state-lifecycle), [bridge wiring](../../reference/api-reference.md#tui-bridge-wiring-architecture).
 
 **Curator persona** — The Curator is the canonical system daemon. Defined in Pattern C above (§Curator Persona & Behavioral Specification).
 
-| [`../plans/k8s-admin-guide.md`](../plans/k8s-admin-guide.md) | Kubernetes deployment and backup guide |
-| [`hkask-codegraph`](../../crates/hkask-codegraph/) (plan absorbed into implementation) | CodeGraph crate — two-crate pattern, 10-tool MCP server, CNS integration |
+| [`../plans/k8s-admin-guide.md`](../../plans/k8s-admin-guide.md) | Kubernetes deployment and backup guide |
+| [`hkask-codegraph`](../../../crates/hkask-codegraph/) (plan absorbed into implementation) | CodeGraph crate — two-crate pattern, 10-tool MCP server, CNS integration |
 
 ### Supplementary Architecture Patterns
 
@@ -549,7 +549,7 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **Shared substrate (no loop ownership):** `hkask-storage` (storage backend — v0.31.0: modularized into 9 sub-crates: `-core`, `-gallery`, `-kata`, `-hmem`, `-archive`, `-token_registry`, `-consent_store`, `-sovereignty`, `-escalation` behind a facade; 8 modules remain in facade), `hkask-types` (shared types), `hkask-codegraph` (code understanding engine — tree-sitter parsing, FTS5 keyword search, recursive CTE traversal, token-budgeted context assembly for LLM prompts). Every loop imports them; neither loop owns them.
 
-**v0.31.0 additions:** `hkask-repl` (extracted from `hkask-cli/src/repl/`, uses `ReplHost` trait to bridge CLI cross-cuts), `hkask-codegraph` (code understanding engine — see below). See [ADR-046](ADRs/ADR-046-repl-extraction-path.md), [ADR-047](ADRs/ADR-047-storage-modularization.md).
+**v0.31.0 additions:** `hkask-repl` (extracted from `hkask-cli/src/repl/`, uses `ReplHost` trait to bridge CLI cross-cuts), `hkask-codegraph` (code understanding engine — see below). See [ADR-046](../ADRs/ADR-046-repl-extraction-path.md), [ADR-047](../ADRs/ADR-047-storage-modularization.md).
 
 ##### CodeGraph — Native Code Understanding Subsystem
 
@@ -589,9 +589,9 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **Crates:** `hkask-codegraph`, `hkask-mcp-codegraph`
 
-**Current implementation diagrams:** [CodeGraph Type System](../reference/api-reference.md#codegraph-type-system-class-diagram), [CodeGraph Schema ERD](../reference/api-reference.md#codegraph-database-schema-erd), [CodeGraph Pipeline](../reference/api-reference.md#codegraph-indexing-pipeline-flowchart), [CodeGraph Agent Workflow](../reference/api-reference.md#codegraph-agent-workflow-sequence). The [CodeGraph Pipeline Lifecycle](../reference/api-reference.md#codegraph-indexpipeline-lifecycle-state) document is a proposed lifecycle model, not current implementation behavior.
+**Current implementation diagrams:** [CodeGraph Type System](../../reference/api-reference.md#codegraph-type-system-class-diagram), [CodeGraph Schema ERD](../../reference/api-reference.md#codegraph-database-schema-erd), [CodeGraph Pipeline](../../reference/api-reference.md#codegraph-indexing-pipeline-flowchart), [CodeGraph Agent Workflow](../../reference/api-reference.md#codegraph-agent-workflow-sequence). The [CodeGraph Pipeline Lifecycle](../../reference/api-reference.md#codegraph-indexpipeline-lifecycle-state) document is a proposed lifecycle model, not current implementation behavior.
 
-**Plan:** Original plan absorbed into the [`hkask-codegraph`](../../crates/hkask-codegraph/) crate (Complete — 22 tests, 11 tools, CNS integration)
+**Plan:** Original plan absorbed into the [`hkask-codegraph`](../../../crates/hkask-codegraph/) crate (Complete — 22 tests, 11 tools, CNS integration)
 
 **If removed:** Agents lose the ability to understand the codebase they operate on — all codebase context must be provided manually in prompts. Reduces agent autonomy from code-aware to text-only. P3 (Generative Space) partially degraded.
 
@@ -898,7 +898,7 @@ When the `fusion:` block is present, all `select` steps in that manifest use thi
 
 **Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 specialized subcrates providing shared business logic for CLI and API surfaces. The service decomposition follows **Conway's Law** (Conway, 1968): each subcrate maps to a bounded context with its own CNS span domain, mirroring the separation of concerns between the Curator daemon, kata coaching loop, and domain services.[^conway]
 
-**Canonical specification:** [`MDS-agent-service.md`](core/FUNCTIONAL_SPECIFICATION.md#15-service-layer-architecture) — full domain spec, accessor methods, depth test results, and service boundary definitions.
+**Canonical specification:** [`MDS-agent-service.md`](FUNCTIONAL_SPECIFICATION.md#15-service-layer-architecture) — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
 ### Summary
 
@@ -1058,7 +1058,7 @@ See also: `docs/user-guides/kanban-user-guide.md`
 
 **Templates:** 23 Jinja2 templates across 4 skill directories, 5 YAML manifests, registered from per-skill manifests via `registry/templates/*/manifest.yaml` (auto-discovered at compile time by `build.rs`)
 
-**MCP surface:** Kanban MCP (`hkask-mcp-kata-kanban`) exposes task-scoped Kata prompts. Full Kata execution is available through an optional `KanbanKataBridge` service configuration, not through those MCP prompt tools; see the [execution-boundary diagram](../how-to/skills-and-composition.md#kata-kanban-execution-boundary).
+**MCP surface:** Kanban MCP (`hkask-mcp-kata-kanban`) exposes task-scoped Kata prompts. Full Kata execution is available through an optional `KanbanKataBridge` service configuration, not through those MCP prompt tools; see the [execution-boundary diagram](../../how-to/skills-and-composition.md#kata-kanban-execution-boundary).
 
 ### Summary
 
@@ -1539,20 +1539,20 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | ADR | Topic |
 |-----|-------|
-| [`ADRs/ADR-031-consolidation-authorization.md`](ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
-| [`ADRs/ADR-035-replicant-server-mode.md`](ADRs/ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
-| [`ADRs/ADR-036-gix-migration.md`](ADRs/ADR-036-gix-migration.md) | Migration to gix (pure-Rust git) for CAS-backed content-addressed agent storage |
-| [`ADRs/ADR-037-blake3-content-addressing.md`](ADRs/ADR-037-blake3-content-addressing.md) | blake3 content addressing for agent artifacts |
-| [`ADRs/ADR-041-dynamic-model-discovery.md`](ADRs/ADR-041-dynamic-model-discovery.md) | Dynamic model discovery via inference provider catalog |
-| [`ADRs/ADR-042-port-promotion-rule.md`](ADRs/ADR-042-port-promotion-rule.md) | Port trait location — promotion rule (1 consumer = local, 2+ = promote to domain or shared crate) |
-| [`ADRs/ADR-043-eliminate-nested-runtime-panics.md`](ADRs/ADR-043-eliminate-nested-runtime-panics.md) | Eliminate nested runtime panics in CNS loop executor |
-| [`ADRs/ADR-044-ledger-wallet-separation.md`](ADRs/ADR-044-ledger-wallet-separation.md) | Separation of ledger accounting from wallet operations |
-| [`ADRs/ADR-045-cli-bootstrap-strategy.md`](ADRs/ADR-045-cli-bootstrap-strategy.md) | CLI bootstrap strategy — database initialization and first-run experience |
-| [`ADRs/ADR-046-repl-extraction-path.md`](ADRs/ADR-046-repl-extraction-path.md) | REPL extraction into standalone crate with ReplHost trait |
-| [`ADRs/ADR-047-storage-modularization.md`](ADRs/ADR-047-storage-modularization.md) | Storage crate modularization — 9 sub-crates behind facade |
-| [`ADRs/ADR-048-cns-type-decomposition.md`](ADRs/ADR-048-cns-type-decomposition.md) | CNS type system decomposition — CnsSpan reduced to 7 variants, domain enums per crate |
+| [`ADRs/ADR-031-consolidation-authorization.md`](../ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
+| [`ADRs/ADR-035-replicant-server-mode.md`](../ADRs/ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
+| [`ADRs/ADR-036-gix-migration.md`](../ADRs/ADR-036-gix-migration.md) | Migration to gix (pure-Rust git) for CAS-backed content-addressed agent storage |
+| [`ADRs/ADR-037-blake3-content-addressing.md`](../ADRs/ADR-037-blake3-content-addressing.md) | blake3 content addressing for agent artifacts |
+| [`ADRs/ADR-041-dynamic-model-discovery.md`](../ADRs/ADR-041-dynamic-model-discovery.md) | Dynamic model discovery via inference provider catalog |
+| [`ADRs/ADR-042-port-promotion-rule.md`](../ADRs/ADR-042-port-promotion-rule.md) | Port trait location — promotion rule (1 consumer = local, 2+ = promote to domain or shared crate) |
+| [`ADRs/ADR-043-eliminate-nested-runtime-panics.md`](../ADRs/ADR-043-eliminate-nested-runtime-panics.md) | Eliminate nested runtime panics in CNS loop executor |
+| [`ADRs/ADR-044-ledger-wallet-separation.md`](../ADRs/ADR-044-ledger-wallet-separation.md) | Separation of ledger accounting from wallet operations |
+| [`ADRs/ADR-045-cli-bootstrap-strategy.md`](../ADRs/ADR-045-cli-bootstrap-strategy.md) | CLI bootstrap strategy — database initialization and first-run experience |
+| [`ADRs/ADR-046-repl-extraction-path.md`](../ADRs/ADR-046-repl-extraction-path.md) | REPL extraction into standalone crate with ReplHost trait |
+| [`ADRs/ADR-047-storage-modularization.md`](../ADRs/ADR-047-storage-modularization.md) | Storage crate modularization — 9 sub-crates behind facade |
+| [`ADRs/ADR-048-cns-type-decomposition.md`](../ADRs/ADR-048-cns-type-decomposition.md) | CNS type system decomposition — CnsSpan reduced to 7 variants, domain enums per crate |
 
-**Also present:** [`ADRs/ADR-043-database-driver.md`](ADRs/ADR-043-database-driver.md) — Database driver abstraction.
+**Also present:** [`ADRs/ADR-043-database-driver.md`](../ADRs/ADR-043-database-driver.md) — Database driver abstraction.
 
 **Archived (2026-06-17):** ADR-030, ADR-032–034, ADR-036–037 (6 Draft ADRs, never adopted). **Archived (retroactive, 2026-06-15):** ADR-024–027. Recoverable via git history.
 
@@ -1562,12 +1562,12 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | Document | Purpose |
 |----------|---------|
-| [`REQUIREMENTS.md`](../specifications/REQUIREMENTS.md) | 22 implemented + 5 deferred goal specs |
+| [`REQUIREMENTS.md`](../../specifications/REQUIREMENTS.md) | 22 implemented + 5 deferred goal specs |
 
 
 ---
 
-*Verification commands:* `cargo check --workspace`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`. See [`MDS.md`](core/MDS.md) §9.3 for the verification gate.
+*Verification commands:* `cargo check --workspace`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`, `cargo fmt --check`. See [`MDS.md`](MDS.md) §9.3 for the verification gate.
 
 ---
 
@@ -4929,7 +4929,7 @@ erDiagram
 
 ## Cross-Reference
 
-This diagram models the storage layer for all [MDS Core Entities](../architecture/core/MDS.md#11-core-entities):
+This diagram models the storage layer for all [MDS Core Entities](MDS.md#11-core-entities):
 - **`HumanUser`** → `human_users` table
 - **`Replicant`** → `replicant_identities` table
 - **`AgentDefinition` / `RegisteredAgent`** → `agent_registry` table
@@ -4939,7 +4939,7 @@ This diagram models the storage layer for all [MDS Core Entities](../architectur
 - **`CnsRuntime`** → `nu_events`, `cns_variety_checkpoint`, `cns_alerts` tables
 - **`GasBudget`** → `loop_cursors` table (cursor-based gas tracking)
 
-All FK relationships align with the ownership chains defined in [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) P1 (User Sovereignty) and P9 (Economic Layer). The `webid` columns in `triples`, `goals`, `consent_records`, `sovereignty_boundaries`, and `nu_events` implement the multi-tenant data isolation required by P1 and P4 (Clear Boundaries).
+All FK relationships align with the ownership chains defined in [PRINCIPLES.md](PRINCIPLES.md) P1 (User Sovereignty) and P9 (Economic Layer). The `webid` columns in `triples`, `goals`, `consent_records`, `sovereignty_boundaries`, and `nu_events` implement the multi-tenant data isolation required by P1 and P4 (Clear Boundaries).
 
 
 ### SQLCipher Schema — ERD
@@ -5401,7 +5401,7 @@ status: VERIFIED
 
 Reference diagram showing the `DatabaseDriver` trait hierarchy, store relationships, and connection management types introduced in v0.31.
 
-Related: [ADR-043](ADRs/ADR-043-database-driver.md), [Database Providers](#database-providers-merged-from-database-providersmd)
+Related: [ADR-043](../ADRs/ADR-043-database-driver.md), [Database Providers](#database-providers-merged-from-database-providersmd)
 
 ```mermaid
 classDiagram
@@ -5518,7 +5518,7 @@ status: VERIFIED
 
 Reference flowchart tracing the path from environment variable to constructed stores. Covers SQLite (stable) and PostgreSQL (planned v0.32) paths.
 
-Related: [ADR-043](ADRs/ADR-043-database-driver.md), [Class Diagram](#database-driver-class-diagram)
+Related: [ADR-043](../ADRs/ADR-043-database-driver.md), [Class Diagram](#database-driver-class-diagram)
 
 ```mermaid
 flowchart TD
@@ -5566,7 +5566,7 @@ status: VERIFIED
 
 This reference diagram shows the routing used by eligible financial-data tools. An exchange-qualified symbol prefers EODHD; a plain symbol prefers FMP. The in-memory learning state can select the alternate provider when the default is classified as flaky or stale. A failed primary request is retried through the alternate provider. `company_screener` and `research_search` are outside this path.
 
-See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server) for the tool-boundary details.
+See [Companies MCP Server Reference](../../reference/mcp-servers/README.md#companies-mcp-server) for the tool-boundary details.
 
 ```mermaid
 sequenceDiagram
@@ -5630,7 +5630,7 @@ status: VERIFIED
 
 This reference diagram shows the durable forecast loop. A DCF or calibrated forecast writes an owner-scoped structured JSON snapshot; an optional same-symbol revision references its parent. `forecast_record` reloads the snapshot, retrieves current financial data for decomposition, appends the outcome, and independently sends an experience to the daemon when configured.
 
-See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server) for request fields and ownership boundaries.
+See [Companies MCP Server Reference](../../reference/mcp-servers/README.md#companies-mcp-server) for request fields and ownership boundaries.
 
 ```mermaid
 sequenceDiagram
@@ -5685,7 +5685,7 @@ not portfolio-scoped — it has no foreign key to `portfolios`. The `revision_of
 column links same-symbol forecast revisions without enforcing referential
 integrity (it is a nullable self-reference, not a declared FK).
 
-See [Companies MCP Server Reference](../reference/mcp-servers/README.md#companies-mcp-server) for the storage safety boundary, and the [code review](../status/companies-mcp-code-review-2026-07-15.md#d2-missing-required-erd-for-the-portfolio-sqlite-schema) that identified this missing diagram.
+See [Companies MCP Server Reference](../../reference/mcp-servers/README.md#companies-mcp-server) for the storage safety boundary, and the [code review](../../status/companies-mcp-code-review-2026-07-15.md#d2-missing-required-erd-for-the-portfolio-sqlite-schema) that identified this missing diagram.
 
 ```mermaid
 erDiagram

@@ -50,6 +50,6 @@ calibrate_forecast                     scenario_from_companies
 
 ## Cross-links
 
-- [Scenario Forecasting Pipeline Diagram](../diagrams/flowchart-scenario-forecasting-pipeline.md) — tool flow including the companies bridge entry point
-- [Superforecasting: Layered Model](../explanation/superforecasting-layers.md) — shared math engine architecture
-- [Scenarios Adversarial Review](../status/scenarios-adversarial-review.md) — code review including `convert_companies_output` analysis
+- [Scenario Forecasting Pipeline Diagram](../../diagrams/flowchart-scenario-forecasting-pipeline.md) — tool flow including the companies bridge entry point
+- [Superforecasting: Layered Model](../../explanation/superforecasting-layers.md) — shared math engine architecture
+- [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code review including `convert_companies_output` analysis

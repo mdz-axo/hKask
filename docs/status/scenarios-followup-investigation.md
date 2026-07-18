@@ -192,4 +192,4 @@ On success, `check_sequence` is called twice (once from `record_experience` insi
 
 - [Scenarios Adversarial Review](scenarios-adversarial-review.md) — original review with 15 issues
 - [Scenario Forecasting Pipeline Diagram](../diagrams/flowchart-scenario-forecasting-pipeline.md) — tool flow
-- [Scenarios ↔ Companies Bridge](../architecture/scenarios-companies-bridge.md) — bridge architecture (note: schema mismatch documented here needs updating)
+- [Scenarios ↔ Companies Bridge](../architecture/core/scenarios-companies-bridge.md) — bridge architecture (note: schema mismatch documented here needs updating)
