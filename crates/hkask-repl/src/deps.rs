@@ -44,6 +44,10 @@ pub struct TurnConfig {
     pub gas_heuristic: u64,
     pub saliency_window: usize,
     pub default_agent: String,
+    /// Whether MCP tools are available to the agent. When true and the model
+    /// emits a response with no tool calls on iteration 1, the loop injects a
+    /// nudge reminding the model that tools are available.
+    pub has_tools: bool,
 }
 
 // ── Capability traits ────────────────────────────────────────────────

@@ -18,6 +18,7 @@
 use crate::config::{AlgoMethod, ConvergenceVerdict, FusionConfig, FusionMode, FusionSkill};
 use hkask_ports::{
     ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
+    StructuredToolCall,
 };
 use hkask_types::template::LLMParameters;
 use tracing::info;
@@ -155,6 +156,13 @@ struct PanelResponse {
     model_name: String,
     text: String,
     usage: InferenceUsage,
+    /// Tool calls requested by this panelist (OpenAI function calling).
+    /// Carried through so the algo judge can pass them to the caller when
+    /// any panelist requests tools. Without this, fusion silently drops
+    /// tool calls even when the panel unanimously requests them.
+    tool_calls: Vec<StructuredToolCall>,
+    /// Why this panelist stopped generating ("stop", "tool_calls", etc.).
+    finish_reason: String,
 }
 
 /// Dispatch to all panel models in parallel.
@@ -188,6 +196,8 @@ async fn dispatch_panel(
                     model_name: model_name.clone(),
                     text: result.text,
                     usage: result.usage,
+                    tool_calls: result.tool_calls,
+                    finish_reason: result.finish_reason,
                 }),
                 Err(e) => {
                     tracing::warn!(
@@ -255,6 +265,32 @@ fn sum_usage(usages: impl IntoIterator<Item = InferenceUsage>) -> InferenceUsage
             completion_tokens: acc.completion_tokens + u.completion_tokens,
             total_tokens: acc.total_tokens + u.total_tokens,
         })
+}
+
+/// Collect tool calls from panel responses.
+///
+/// Returns `(tool_calls, finish_reason)`. If any panelist returned
+/// `finish_reason=tool_calls` with a non-empty `tool_calls` vector, the tool
+/// calls from the first such panelist are passed through, and the finish_reason
+/// is set to `"tool_calls"`. Otherwise, returns an empty vector and `"stop"`.
+///
+/// This prevents fusion from silently dropping tool requests when the panel
+/// unanimously agrees a tool is needed. The first-panelist-wins strategy is
+/// deterministic and avoids the complexity of merging tool call arguments
+/// across panelists (which would require semantic equality checking).
+fn collect_tool_calls(responses: &[PanelResponse]) -> (Vec<StructuredToolCall>, String) {
+    for r in responses {
+        if r.finish_reason == "tool_calls" && !r.tool_calls.is_empty() {
+            tracing::info!(
+                target: "cns.fusion",
+                panel_model = %r.model_name,
+                tool_call_count = r.tool_calls.len(),
+                "Fusion: passing through tool calls from panelist"
+            );
+            return (r.tool_calls.clone(), "tool_calls".to_string());
+        }
+    }
+    (Vec::new(), "stop".to_string())
 }
 
 /// Add intermediate usage (panel models, prior judge rounds) to the final result.
@@ -386,6 +422,11 @@ fn merge_json_values(a: &serde_json::Value, b: &serde_json::Value) -> serde_json
 
 /// Algorithmic judge: parse panel responses as JSON, merge via recursive union.
 /// No LLM call — deterministic, zero-cost judge. Panel model usage is aggregated.
+///
+/// Tool-call pass-through: if any panelist returned `finish_reason=tool_calls`,
+/// the tool calls from the first such panelist are passed through unchanged.
+/// This prevents fusion from silently dropping tool requests when the panel
+/// unanimously agrees a tool is needed.
 fn algo_merge(responses: &[PanelResponse]) -> InferenceResult {
     let merged = responses
         .iter()
@@ -395,13 +436,16 @@ fn algo_merge(responses: &[PanelResponse]) -> InferenceResult {
 
     let total_usage = sum_usage(responses.iter().map(|r| r.usage.clone()));
 
+    // Tool-call pass-through: take the first panelist that requested tools.
+    let (tool_calls, finish_reason) = collect_tool_calls(responses);
+
     InferenceResult {
         text: merged.to_string(),
         model: ALGO_JUDGE.to_string(),
         usage: total_usage,
-        finish_reason: "stop".to_string(),
+        finish_reason,
         token_probabilities: None,
-        tool_calls: Vec::new(),
+        tool_calls,
     }
 }
 
@@ -517,13 +561,15 @@ fn algo_vote(responses: &[PanelResponse]) -> InferenceResult {
         .collect();
     let voted = vote_json_values(&values);
     let total_usage = sum_usage(responses.iter().map(|r| r.usage.clone()));
+    // Tool-call pass-through: take the first panelist that requested tools.
+    let (tool_calls, finish_reason) = collect_tool_calls(responses);
     InferenceResult {
         text: voted.to_string(),
         model: ALGO_JUDGE.to_string(),
         usage: total_usage,
-        finish_reason: "stop".to_string(),
+        finish_reason,
         token_probabilities: None,
-        tool_calls: Vec::new(),
+        tool_calls,
     }
 }
 
@@ -1229,6 +1275,8 @@ mod tests {
             model_name: name.into(),
             text: text.into(),
             usage: hkask_ports::InferenceUsage::default(),
+            tool_calls: Vec::new(),
+            finish_reason: "stop".to_string(),
         }
     }
 

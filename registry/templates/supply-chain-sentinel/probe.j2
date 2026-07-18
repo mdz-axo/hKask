@@ -16,7 +16,7 @@
 INPUT: manifest_paths = {{ manifest_paths }}
 INPUT: surface = {{ surface }}
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
-INPUT: replicant_host = {{ replicant_host | mandatory }} (P12 — no anonymous scanning)
+INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous scanning)
 
 PROBE ACTIONS (concrete — must use file:read, code:search, terminal, or registry inspection):
 1. Read each manifest file listed in `manifest_paths`.

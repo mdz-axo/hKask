@@ -217,6 +217,16 @@ fn run_turn_loop(
         );
 
         if parsed.tool_calls.is_empty() {
+            // Nudge: if tools are available but the model didn't emit a tool
+            // call on the first iteration, inject a reminder. This helps models
+            // that narrate intent ("Let me start by...") instead of emitting
+            // <<tool:...>> directives. The nudge is only injected once (iteration 1)
+            // to avoid infinite looping.
+            if iteration == 1 && config.has_tools {
+                sink.status(
+                    "  \x1b[2m\u{2139} Tools are available — if you need to use a tool, emit a <<tool:server/name\n{...}\n>> directive.\x1b[0m",
+                );
+            }
             sink.agent_text(&display_name, &parsed.text);
             final_response = Some(parsed.text.clone());
             break;
@@ -365,6 +375,7 @@ fn run_turn_with_state(
         gas_heuristic: state.repl_settings.gas_heuristic,
         saliency_window: state.repl_settings.condense_saliency_window,
         default_agent: state.current_agent.clone(),
+        has_tools: !state.tool_prompt.definitions.is_empty(),
     };
     let executor = super::deps::ReplTurnExecutor::from_state(state);
     let gas = super::deps::ReplGasGovernor::from_state(state, rt);
@@ -678,6 +689,7 @@ mod tests {
             gas_heuristic: 500,
             saliency_window: 5,
             default_agent: "TestAgent".into(),
+            has_tools: false,
         }
     }
     fn noop() {}

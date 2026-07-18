@@ -59,11 +59,20 @@ pub fn run(rt: &tokio::runtime::Runtime, action: DaemonAction) {
 }
 
 async fn run_daemon() -> Result<(), CliError> {
-    // Build config — prefer env, fall back to in-memory (no wallet needed)
-    let config = hkask_services_core::ServiceConfig::from_env()
-        .unwrap_or_else(|_| hkask_services_core::ServiceConfig::in_memory());
+    // Build config from env. If the DB passphrase can't be resolved or the DB
+    // can't be opened, fail fast — do NOT fall back to in-memory. The in-memory
+    // fallback was corrupting disk databases because the daemon process would
+    // touch disk DBs with an empty passphrase when the in-memory config was
+    // used. The daemon must use the same encrypted DB as the REPL.
+    let config = hkask_services_core::ServiceConfig::from_env().map_err(|e| {
+        CliError::Daemon(format!(
+            "Failed to resolve service config from env: {e}. \
+             Set HKASK_DB_PASSPHRASE or store it in the keychain via `kask init`."
+        ))
+    })?;
 
-    // Try build — if wallet fails, retry with in-memory config
+    // Try build — if wallet fails, retry with in-memory config (wallet is
+    // optional for the daemon; the DB is not).
     let ctx = match hkask_services_context::AgentService::build(config).await {
         Ok(ctx) => ctx,
         Err(e) => {

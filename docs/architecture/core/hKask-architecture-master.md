@@ -752,7 +752,7 @@ User-configurable inference parameters exposed via three surfaces:
 | `top_k` | u32 | ≥1 | 40 | Top-k filtering |
 | `min_p` | f32 | 0.0–1.0 | 0.0 | Min-p threshold (0.0 = disabled) |
 | `typical_p` | f32 | 0.0–1.0 | 0.0 | Locally typical sampling (0.0 = disabled) |
-| `max_tokens` | u32 | ≥1 | 512 | Max completion tokens per call |
+| `max_tokens` | u32 | ≥1 | 2048 | Max completion tokens per call |
 | `seed` | u32 or `off` | — | random | Deterministic seed |
 | `gas_heuristic` | u64 | ≥1 | 500 | Per-turn gas reservation |
 | `gas_cap` | u64 | ≥1 | 10,000 | Total session gas budget cap |

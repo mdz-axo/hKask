@@ -261,7 +261,7 @@ impl Default for ReplSettings {
             top_k: 40,
             min_p: 0.0,
             typical_p: 0.0,
-            max_tokens: 512,
+            max_tokens: 2048,
             seed: None,
             gas_heuristic: 500,
             gas_cap: 10_000,
@@ -485,7 +485,7 @@ mod tests {
             (s.typical_p - 0.0).abs() < f32::EPSILON,
             "typical_p default"
         );
-        assert_eq!(s.max_tokens, 512, "max_tokens default");
+        assert_eq!(s.max_tokens, 2048, "max_tokens default");
         assert_eq!(s.seed, None, "seed default (random)");
         assert_eq!(s.gas_heuristic, 500, "gas_heuristic default");
         assert_eq!(s.gas_cap, 10_000, "gas_cap default");
