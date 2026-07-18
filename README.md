@@ -140,11 +140,11 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 ### Ontology Bridges (5 crates)
 | Crate | Purpose |
 |-------|--------|
-| `hkask-bridge-dublincore` | Dublin Core ontology bridge (metadata interoperability) |
-| `hkask-bridge-eso` | Enterprise Service Ontology bridge (service semantics) |
-| `hkask-bridge-fibo` | Financial Industry Business Ontology bridge (financial semantics) |
-| `hkask-bridge-golem` | Golem ontology bridge (computational resource semantics) |
-| `hkask-bridge-pko` | Process Knowledge Ontology bridge (workflow semantics) |
+| `hkask-bridge-dublincore` | Dublin Core + BIBO + CiTO vocabulary bridge (bibliographic metadata, resource typing, citation relationships) |
+| `hkask-bridge-eso` | Epistemic Science Ontology bridge (hypotheses, evidence, theories, models, falsification, uncertainty) |
+| `hkask-bridge-fibo` | Financial Industry Business Ontology bridge (competitive advantage, valuation, capital allocation, risk, economic profit) |
+| `hkask-bridge-golem` | GOLEM narrative/literary ontology bridge (characters, events, themes, literary devices, interpretive relationships) |
+| `hkask-bridge-pko` | Procedural Knowledge Ontology bridge (procedures, steps, actions, executions, issues, feedback) |
 
 ### MCP Servers (15 crates)
 - `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
