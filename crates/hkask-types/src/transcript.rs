@@ -71,6 +71,11 @@ pub struct TranscriptBundle {
     /// STT model used for transcription.
     #[serde(default)]
     pub model: Option<String>,
+
+    /// REPL/chat loop event reference (S1→S5 algedonic channel).
+    /// Links transcript bundle back to agent decision layer.
+    #[serde(default)]
+    pub repl_chat_ref: Option<String>,
 }
 
 impl TranscriptBundle {
@@ -91,6 +96,7 @@ impl TranscriptBundle {
             segments: Vec::new(),
             language: None,
             model: None,
+            repl_chat_ref: None,
         }
     }
 

@@ -605,6 +605,23 @@ impl AgentPod {
             .unwrap_or_else(|| VoiceDesign::default().to_tts_description())
     }
 
+    /// Consume the REPL/chat loop event reference from transcript bundle (S5 closure).
+    /// Minimal surgical addition: no new framework, just event consumption.
+    /// References: stt-tts.yaml (repl_chat_hook: repl_chat_ref), transcript.rs (repl_chat_ref field).
+    pub fn consume_transcript_ref(&mut self, repl_chat_ref: Option<String>) -> String {
+        match repl_chat_ref {
+            Some(r) => {
+                tracing::info!(target: "agent.pod", pod_id = %self.id, ref = %r, "REPL/chat loop event consumed (S5 closure)");
+                format!(
+                    "loop_closed: {} (agent pod chat mode: {})",
+                    r,
+                    self.is_in_chat_mode()
+                )
+            }
+            None => "loop_open: no repl_chat_ref received".to_string(),
+        }
+    }
+
     /// Check if the agent is currently in chat mode.
     ///
     /// expect: "My agents operate within my sovereignty boundaries"

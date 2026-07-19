@@ -313,6 +313,7 @@ impl MediaServer {
                     let bundle = TranscriptBundle {
                         format: "hkask-transcript-v1".to_string(),
                         audio_path: audio_path_str.clone(),
+                        repl_chat_ref: Some("repl_chat_hook".to_string()),
                         audio_duration_secs: duration,
                         full_text,
                         words,
