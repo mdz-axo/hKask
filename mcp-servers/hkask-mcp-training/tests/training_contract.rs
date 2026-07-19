@@ -320,8 +320,7 @@ async fn training_submit_rejects_missing_dataset_via_parameters_seam() {
     // The tool should return either an error envelope or a content with error info.
     // Either way, it must not be a success with a job_id.
     assert!(
-        v.get("content").and_then(|c| c.get("job_id")).is_none()
-            || v.get("kind").is_some(),
+        v.get("content").and_then(|c| c.get("job_id")).is_none() || v.get("kind").is_some(),
         "submit should not return a job_id for a missing dataset: {out}"
     );
 }
@@ -388,7 +387,9 @@ async fn training_deploy_rejects_unknown_adapter_via_parameters_seam() {
     // Should return an error, not a panic — the adapter doesn't exist in the store.
     let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
     assert!(
-        v.get("content").and_then(|c| c.get("endpoint_url")).is_none()
+        v.get("content")
+            .and_then(|c| c.get("endpoint_url"))
+            .is_none()
             || v.get("kind").is_some(),
         "deploy should not return an endpoint for an unknown adapter: {out}"
     );
