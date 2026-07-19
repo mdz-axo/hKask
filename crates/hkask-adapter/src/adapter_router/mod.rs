@@ -120,11 +120,11 @@ impl AdapterRouter {
             ProviderId::Runpod,
             Arc::new(runpod::RunpodAdapterBackend::new()),
         );
-        // Tinker adapter backend — scaffolded but not yet registered.
-        // Requires ProviderId::Tinker variant in hkask-inference/src/config.rs.
-        // The backend is fully implemented in tinker.rs; only the enum
-        // variant is missing. When added:
-        //   backends.insert(ProviderId::Tinker, Arc::new(tinker::TinkerAdapterBackend::new()));
+        // Tinker (Thinking Machines) — OpenAI-compatible inference via Tinker's checkpoint store.
+        backends.insert(
+            ProviderId::Tinker,
+            Arc::new(tinker::TinkerAdapterBackend::new()),
+        );
 
         let router = Self {
             store,

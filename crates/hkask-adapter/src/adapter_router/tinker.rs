@@ -23,9 +23,6 @@ use crate::provider_cost::{CostModel, ProviderCapability};
 use hkask_ports::InferenceResult;
 use hkask_types::template::LLMParameters;
 
-// Scaffolded Tinker adapter backend — not yet registered in the router
-// (see adapter_router/mod.rs). `dead_code` allowed until the wiring lands.
-#[allow(dead_code)]
 pub(super) struct TinkerAdapterBackend {
     cost_model: CostModel,
     capability: ProviderCapability,
@@ -34,7 +31,6 @@ pub(super) struct TinkerAdapterBackend {
 }
 
 impl TinkerAdapterBackend {
-    #[allow(dead_code)]
     pub(super) fn new() -> Self {
         Self {
             cost_model: CostModel::tinker(),
