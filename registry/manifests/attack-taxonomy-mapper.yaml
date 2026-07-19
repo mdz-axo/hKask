@@ -39,11 +39,45 @@ inputs:
     type: array
     required: true
 
+steps:
+  - ordinal: 1
+    action: select
+    description: >
+      Select evidence sources and discover findings to map from supply-chain-sentinel
+      and kali-audit outputs. Reads regression library for existing taxonomy mappings.
+    renderer: minijinja
+    template_ref: attack-taxonomy-mapper/select-evidence
+    gas_cap: 2048
+    timeout_seconds: 60
+  - ordinal: 2
+    action: select
+    description: >
+      Map each finding to OSC&R tactic + technique (verified against OSCAR matrix).
+    renderer: minijinja
+    template_ref: attack-taxonomy-mapper/map-taxonomy
+    gas_cap: 2048
+    timeout_seconds: 60
+  - ordinal: 3
+    action: select
+    description: >
+      Taxonomize findings, emit cns.taxonomy.* spans, and produce the report.
+    renderer: minijinja
+    template_ref: attack-taxonomy-mapper/taxonomize
+    gas_cap: 2048
+    timeout_seconds: 60
+  - ordinal: 4
+    action: check
+    description: >
+      Convergence check — evaluate taxonomy mapping quality and completeness.
+    renderer: minijinja
+    template_ref: attack-taxonomy-mapper/convergence-check
+    gas_cap: 1024
+    timeout_seconds: 30
+
 # Registry invariant X5 (skill-maintenance): verified.
 # Manifest version: 0.31.0. Registry authoritative; SKILL.md is companion.
 # Created as audit fix A (missing manifest recovery) + C (invariant X5 enforcement).
 # Note: Full .j2 templates in registry/templates/ (authoritative per SKILL.md).
-# Note: SKILL.md lacks version field; future sync recommended (audit finding D).
 # Cross-artifact invariant: manifest id matches .agents/skills/ directory name.
 # Visibility: Public. Functional role: flowdef. Category: skill.
 # Energy/gas budgets: standard patterns. No invented vocabulary terms.
