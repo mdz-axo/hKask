@@ -77,14 +77,14 @@ pub mod data_quality;
 pub mod economic_profit;
 pub mod fibo;
 mod financial_model;
-mod portfolio;
+pub mod portfolio;
 mod providers;
 pub use providers::Provider;
 pub mod learning;
 pub mod research;
 mod scenarios;
 mod screener;
-mod superforecast;
+pub mod superforecast;
 pub mod types;
 
 use portfolio::{PersistedForecast, PortfolioError, PortfolioManager};
@@ -166,7 +166,7 @@ fn parse_symbol_from_query(query: &str) -> Option<String> {
 use learning::LearningState;
 
 hkask_mcp::mcp_server!(
-    struct CompaniesServer {
+    pub struct CompaniesServer {
         pub client: reqwest::Client,
         pub fmp_api_key: String,
         pub eodhd_api_key: String,

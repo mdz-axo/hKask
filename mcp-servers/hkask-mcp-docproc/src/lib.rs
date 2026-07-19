@@ -105,21 +105,21 @@ fn default_embedding_model() -> &'static str {
 // ── Server struct ──────────────────────────────────────────────────────────
 
 hkask_mcp::mcp_server!(
-    struct DocProcServer {
+    pub struct DocProcServer {
         pub ocr_model: Option<String>,
         pub inference_router: Arc<InferenceRouter>,
         pub ocr_thresholds: ThresholdConfig,
         pub embedding_router: Option<EmbeddingRouter>,
         pub cv_accumulator: Mutex<Vec<crate::ocr::CrossValidation>>,
-        pub(crate) index: Mutex<Vec<IndexedPassage>>,
-        pub(crate) llm_ocr: Arc<crate::ocr::llm_ocr::LlmOcrExecutor>,
-        pub(crate) pipeline_executor: Arc<crate::ocr::PipelineExecutor>,
+        pub index: Mutex<Vec<IndexedPassage>>,
+        pub llm_ocr: Arc<crate::ocr::llm_ocr::LlmOcrExecutor>,
+        pub pipeline_executor: Arc<crate::ocr::PipelineExecutor>,
     }
 );
 
 /// A passage stored in the in-memory vector index with its embedding.
 #[derive(Debug, Clone)]
-pub(crate) struct IndexedPassage {
+pub struct IndexedPassage {
     pub text: String,
     pub metadata: serde_json::Value,
     pub embedding: Vec<f32>,

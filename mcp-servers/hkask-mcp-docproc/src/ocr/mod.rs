@@ -23,4 +23,4 @@ pub mod verification;
 
 pub use config::*;
 pub use document::*;
-pub(crate) use server::PipelineExecutor;
+pub use server::PipelineExecutor;

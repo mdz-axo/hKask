@@ -53,6 +53,29 @@ Cleanup applied:
   `CANONICAL_NAMESPACES` — gap noted" claim (the namespaces were already
   registered at `event.rs` L295-299 when this plan was written).
 
+Pre-existing `Result<_, String>` CI gate failure resolved:
+- `crates/hkask-cli/src/onboarding.rs` — `register_in_user_store` converted
+  from `Result<(), String>` to `Result<(), UserStoreRegistrationError>` (new
+  `thiserror` enum with `DbOpen`, `Pool`, `GetReplicant`, `RegisterReplicant`
+  variants, mirroring the existing `SessionCreationError` pattern in the
+  same file). `scripts/check-string-errors.sh` now passes.
+
+Design specs completed for the two future skills (NOT registry-committed —
+per P5 Essentialism, these remain `draft`):
+- `docs/plans/runtime-posture-monitor-design.md` — full design spec for
+  `runtime-posture-monitor` skill: 5W1H gate, P5 deletion test, CNS namespace
+  proposal (`cns.runtime.*`), 4-template decomposition, defense-layer catalog,
+  convergence metric, open questions blocking registry commit.
+- `docs/plans/attack-taxonomy-mapper-design.md` — full design spec for
+  `attack-taxonomy-mapper` skill: 5W1H gate, P5 deletion test, CNS namespace
+  proposal (`cns.taxonomy.*`), 4-template decomposition, OSC&R taxonomy
+  reference, convergence metric, open questions blocking registry commit.
+
+Both design specs follow the same P5 discipline as this plan: documented for
+  evolutionary architecture (P7) but NOT implemented to avoid speculative
+  abstraction. Each spec includes a 12-step path-to-registry-commit checklist
+  that must be completed before the skill is committed.
+
 The two future skills below remain `draft — not committed` per P5
 Essentialism. The plan explicitly prohibits implementing them to avoid
 speculative abstraction; they are documented here for evolutionary
@@ -66,13 +89,13 @@ Design discipline (`P5` Essentialism): each proposed skill must pass the 5W1H ga
 - **5W1H gate check:** Who = running application / replicant host; What = API endpoint exposure / bot detection / LLM usage; Where = runtime environment / production workload; When = continuous (not audit cycle); Why = `P3.1` safe container requires runtime blocking (`Aikido` `Zen` firewall model: block attacks without code change); How = observe runtime signals (`cns.runtime.*` — proposed namespace, not registered) → classify threat patterns → emit regulation events (`cns.regulation`) → trigger defensive action (`cns.guard.violation`).
 - **P5 minimal test:** Does NOT download external packages; does NOT replace endpoint detection (`Huntress` — zero overlap); reads only runtime telemetry (`hkask.*` performative spans) and produces `cns.runtime.*` canonical spans (`P9`).
 - **Relationship to `supply-chain-sentinel`:** `supply-chain-sentinel` audits static dependency integrity (`P4` manifest boundary); `runtime-posture-monitor` would observe runtime dependency behavior (`P4` runtime boundary — distinct surface). They are complementary (like `kali-audit` + `adversarial-red-team`).
-**Status:** `draft` — requires `CANONICAL_NAMESPACES` proposal (`cns.runtime.*` — direct registration, not subgroup, per research: flat namespace array in `crates/hkask-types/src/event.rs`) and `P9` loop design before registry creation. Not committed. Per P5 Essentialism, this skill is documented for evolutionary architecture (P7) but NOT implemented to avoid speculative abstraction.
+**Status:** `draft` — design spec completed at `docs/plans/runtime-posture-monitor-design.md`. Requires `CANONICAL_NAMESPACES` proposal (`cns.runtime.*` — direct registration, not subgroup, per research: flat namespace array in `crates/hkask-types/src/event.rs`) and `P9` loop design before registry creation. Not committed. Per P5 Essentialism, this skill is documented for evolutionary architecture (P7) but NOT implemented to avoid speculative abstraction.
 
 ### Skill3: `attack-taxonomy-mapper` (OX Security OSC&R framework integration)
 - **5W1H gate check:** Who = supply chain attacker / threat actor taxonomy; What = software supply chain attack patterns (`OSC&R` taxonomy: dependency confusion, typosquatting, malicious commit injection, build pipeline compromise); Where = dependency registry / CI pipeline / repository; When = audit cycle or incident investigation; Why = `P3.1` requires structured taxonomy for supply chain threats (like `MITRE ATLAS` for LLM, `OWASP LLM Top 10` for LLM); How = map manifest patterns / CI logs to `OSC&R` taxonomy entries → produce taxonomy-aligned findings (`OWASP Supply Chain` + `OSC&R` dual taxonomy).
 - **P5 minimal test:** Uses existing `security/regressions/` format; adds `taxonomy_mapping` field to regression YAML (`osc:r` reference); does NOT invent new taxonomy categories (`OSC&R` is open-source framework — `oscar.io`).
 - **Relationship to existing skills:** Complements `supply-chain-sentinel` (this skill: manifest-level audit; `attack-taxonomy-mapper`: taxonomy mapping layer). Complements `adversarial-red-team` (`MITRE ATLAS` for LLM adversarial; this: `OSC&R` for supply chain adversarial — parallel taxonomy discipline).
-**Status:** `draft` — requires `manifest.yaml` design and registry templates (`taxonomize.j2` mapping `CWE-1104`/`CWE-829`/`CWE-1357` to `OSC&R` taxonomy entries; `map-taxonomy.j2` applying `pragmatic-cybernetics` to taxonomy mapping — like `bug-hunt` `taxonomize` phase). Not committed. Per P5 Essentialism, this skill is documented for evolutionary architecture (P7) but NOT implemented to avoid speculative abstraction.
+**Status:** `draft` — design spec completed at `docs/plans/attack-taxonomy-mapper-design.md`. Requires `manifest.yaml` design and registry templates (`taxonomize.j2` mapping `CWE-1104`/`CWE-829`/`CWE-1357` to `OSC&R` taxonomy entries; `map-taxonomy.j2` applying `pragmatic-cybernetics` to taxonomy mapping — like `bug-hunt` `taxonomize` phase). Not committed. Per P5 Essentialism, this skill is documented for evolutionary architecture (P7) but NOT implemented to avoid speculative abstraction.
 
 ## CNS Namespace Architecture (Point3 Research — `skill-logic-audit` + codebase)
 

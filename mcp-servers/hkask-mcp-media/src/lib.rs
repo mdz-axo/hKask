@@ -17,7 +17,7 @@ pub mod omc;
 mod error;
 mod gallery;
 mod templates;
-mod video;
+pub mod video;
 
 pub use error::{MediaError, map_media_error};
 

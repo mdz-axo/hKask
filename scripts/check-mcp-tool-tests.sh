@@ -34,8 +34,6 @@ set -euo pipefail
 # Remove a name the moment its tests/ contains a `Parameters(` call.
 ALLOWLIST=(
   "hkask-mcp-companies"
-  "hkask-mcp-docproc"
-  "hkask-mcp-media"
 )
 
 # Servers that are EXEMPT by design (not agent-facing tool surfaces requiring

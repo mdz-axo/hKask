@@ -16,12 +16,12 @@ use async_trait::async_trait;
 ///
 /// Created once per server and passed as `Arc<dyn OcrExecutor>` to the pipeline.
 /// This avoids the lifetime issues of passing `&DocProcServer` to parallel tasks.
-pub(crate) struct PipelineExecutor {
+pub struct PipelineExecutor {
     llm_ocr: Arc<LlmOcrExecutor>,
 }
 
 impl PipelineExecutor {
-    pub(crate) fn new(llm_ocr: Arc<LlmOcrExecutor>) -> Self {
+    pub fn new(llm_ocr: Arc<LlmOcrExecutor>) -> Self {
         Self { llm_ocr }
     }
 }
