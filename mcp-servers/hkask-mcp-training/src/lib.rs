@@ -57,7 +57,6 @@ pub mod huggingface;
 pub mod mlschema;
 pub mod providers;
 pub mod types;
-pub mod utils;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 

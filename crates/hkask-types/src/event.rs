@@ -312,6 +312,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.taxonomy.convergence",
     // ── Template ──
     "cns.template",
+    // ── Training providers (provider HTTP call observability — post-mortem 2026-07-19) ──
+    "cns.training.provider",
 ];
 
 /// Hierarchical namespace validation — a sub-namespace like

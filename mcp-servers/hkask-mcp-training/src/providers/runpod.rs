@@ -126,6 +126,11 @@ impl RunpodHost {
             map.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
         };
         let count = pod_ids.len();
+        tracing::info!(
+            target: "cns.training.provider.runpod.drain",
+            count = count,
+            "Draining all RunPod pods"
+        );
         for (job_id, pod_id) in &pod_ids {
             let mutation = r#"
                 mutation TerminatePod($id: String!) {
@@ -160,10 +165,27 @@ impl RunpodHost {
         query: &str,
         variables: serde_json::Value,
     ) -> Result<serde_json::Value, ProviderError> {
+        // Classify the GraphQL operation for observability — read-only inspection
+        // of the query string, no behavior change.
+        let query_type = if query.contains("podFindAndDeployOnDemand") {
+            "create"
+        } else if query.contains("podTerminate") {
+            "terminate"
+        } else if query.contains("pod(input") {
+            "status"
+        } else {
+            "unknown"
+        };
         let body = json!({
             "query": query,
             "variables": variables,
         });
+
+        tracing::debug!(
+            target: "cns.training.provider.runpod.graphql",
+            query_type = query_type,
+            "RunPod GraphQL request"
+        );
 
         let response = self
             .client
@@ -181,12 +203,22 @@ impl RunpodHost {
             .map_err(|e| ProviderError::Backend(format!("Runpod API parse error: {}", e)))?;
 
         if let Some(errors) = json.get("errors") {
+            tracing::warn!(
+                target: "cns.training.provider.runpod.graphql",
+                query_type = query_type,
+                "RunPod GraphQL returned errors"
+            );
             return Err(ProviderError::Backend(format!(
                 "Runpod GraphQL errors: {}",
                 serde_json::to_string_pretty(errors).unwrap_or_default()
             )));
         }
 
+        tracing::info!(
+            target: "cns.training.provider.runpod.graphql",
+            query_type = query_type,
+            "RunPod GraphQL request succeeded"
+        );
         Ok(json)
     }
 
