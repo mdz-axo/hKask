@@ -77,6 +77,13 @@ impl TogetherAdapterBackend {
                     // Together AI REST API returns the fine-tuned model name in
                     // the `model_output_name` field (per OpenAPI schema).
                     // Fall back to `model_name` / `output_name` for older API versions.
+                    tracing::info!(
+                        target: "cns.training.provider.together.poll",
+                        job_id = %job_id,
+                        attempt = attempt,
+                        status = %status,
+                        "Together AI fine-tune job completed"
+                    );
                     return Ok(json["model_output_name"]
                         .as_str()
                         .or_else(|| json["model_name"].as_str())
@@ -85,6 +92,13 @@ impl TogetherAdapterBackend {
                         .to_string());
                 }
                 "failed" | "error" | "cancelled" => {
+                    tracing::warn!(
+                        target: "cns.training.provider.together.poll",
+                        job_id = %job_id,
+                        attempt = attempt,
+                        status = %status,
+                        "Together AI fine-tune job failed"
+                    );
                     return Err(AdapterError::Internal(format!(
                         "Together AI fine-tune job {job_id} {status}"
                     )));
@@ -95,6 +109,13 @@ impl TogetherAdapterBackend {
                         job_id = %job_id,
                         status = %status,
                         attempt = attempt,
+                        "Together AI fine-tune job still pending"
+                    );
+                    tracing::debug!(
+                        target: "cns.training.provider.together.poll",
+                        job_id = %job_id,
+                        attempt = attempt,
+                        status = %status,
                         "Together AI fine-tune job still pending"
                     );
                     tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
@@ -115,7 +136,12 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
         &self,
         _adapter: &TrainedLoRAAdapter,
     ) -> Result<String, AdapterError> {
-        Ok("https://api.together.ai/v1".to_string())
+        let endpoint_url = "https://api.together.ai/v1".to_string();
+        tracing::info!(
+            target: "cns.training.provider.together.provision",
+            "Together AI endpoint provisioned"
+        );
+        Ok(endpoint_url)
     }
 
     async fn infer(
@@ -142,6 +168,10 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
             target: "cns.adapter",
             endpoint_url = %endpoint_url,
             "Together AI teardown — adapter auto-expires, no explicit deletion needed"
+        );
+        tracing::info!(
+            target: "cns.training.provider.together.teardown",
+            "Together AI endpoint teardown"
         );
         Ok(())
     }
@@ -242,6 +272,11 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
             adapter_id = %adapter.id,
             model_name = %model_name,
             "Adapter uploaded to Together AI"
+        );
+        tracing::info!(
+            target: "cns.training.provider.together.upload",
+            job_id = ?job_id,
+            "Together AI adapter upload completed"
         );
 
         Ok(model_name)

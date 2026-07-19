@@ -268,6 +268,13 @@ impl TrainingHost for TinkerHost {
             "Tinker training subprocess launched"
         );
 
+        tracing::info!(
+            target: "cns.training.provider.tinker.submit",
+            pid = pid,
+            script_path = %script_path.display(),
+            "Tinker subprocess launched"
+        );
+
         Ok(provider_job_id)
     }
 
@@ -291,6 +298,13 @@ impl TrainingHost for TinkerHost {
 
         let marker = self.completion_marker_path(job_id);
         let running = Self::pid_running(pid);
+
+        tracing::debug!(
+            target: "cns.training.provider.tinker.status",
+            pid = pid,
+            running = running,
+            "Tinker subprocess status"
+        );
 
         if !running {
             // Process has exited. If the completion marker exists, the job
@@ -368,6 +382,11 @@ impl TrainingHost for TinkerHost {
             host = "tinker",
             "Tinker training subprocess terminated"
         );
+        tracing::info!(
+            target: "cns.training.provider.tinker.cancel",
+            pid = pid,
+            "Tinker subprocess cancelled"
+        );
         Ok(())
     }
 
@@ -376,6 +395,11 @@ impl TrainingHost for TinkerHost {
             .jobs
             .lock()
             .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+        tracing::info!(
+            target: "cns.training.provider.tinker.list",
+            count = map.len(),
+            "Tinker adapter list"
+        );
         Ok(map.keys().cloned().collect())
     }
 

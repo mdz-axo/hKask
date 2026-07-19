@@ -61,6 +61,11 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             endpoint_url = %endpoint_url,
             "Provisioned Runpod serverless endpoint"
         );
+        tracing::info!(
+            target: "cns.training.provider.runpod.provision",
+            template_id = %template_id,
+            "RunPod endpoint provisioned"
+        );
         Ok(endpoint_url)
     }
 
@@ -95,6 +100,10 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             target: "cns.adapter",
             "Runpod serverless endpoint scales to zero automatically — no teardown needed"
         );
+        tracing::info!(
+            target: "cns.training.provider.runpod.teardown",
+            "RunPod endpoint teardown"
+        );
         Ok(())
     }
 
@@ -119,6 +128,11 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             adapter_id = %adapter.id,
             model_name = %model_name,
             "Runpod adapter resolved to HuggingFace repo (pulled by serverless template at cold start)"
+        );
+        tracing::info!(
+            target: "cns.training.provider.runpod.upload",
+            adapter_id = %adapter.id,
+            "RunPod adapter uploaded"
         );
         Ok(model_name)
     }

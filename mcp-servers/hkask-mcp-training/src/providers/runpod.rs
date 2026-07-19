@@ -467,6 +467,13 @@ impl TrainingHost for RunpodHost {
             "Training pod created on Runpod"
         );
 
+        tracing::info!(
+            target: "cns.training.provider.runpod.submit",
+            pod_id = %pod_id,
+            gpu_type = %gpu_type_id,
+            "RunPod pod submitted"
+        );
+
         Ok(pod_id)
     }
 
@@ -506,6 +513,13 @@ impl TrainingHost for RunpodHost {
             .as_str()
             .unwrap_or("UNKNOWN");
 
+        tracing::debug!(
+            target: "cns.training.provider.runpod.status",
+            pod_id = %pod_id,
+            desired_status = %status_str,
+            "RunPod pod status"
+        );
+
         Ok(map_pod_status(status_str))
     }
 
@@ -524,6 +538,10 @@ impl TrainingHost for RunpodHost {
                 tracing::warn!(
                     target: "hkask.training.job.cancel",
                     job_id = %job_id,
+                    "No pod found for job"
+                );
+                tracing::warn!(
+                    target: "cns.training.provider.runpod.cancel",
                     "No pod found for job"
                 );
                 return Ok(());
@@ -550,6 +568,11 @@ impl TrainingHost for RunpodHost {
             pod_id = %pod_id,
             host = "runpod",
             "Training pod terminated"
+        );
+        tracing::info!(
+            target: "cns.training.provider.runpod.cancel",
+            pod_id = %pod_id,
+            "RunPod pod cancelled"
         );
         Ok(())
     }

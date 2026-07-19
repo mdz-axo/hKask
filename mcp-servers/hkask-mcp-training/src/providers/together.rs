@@ -136,6 +136,14 @@ impl TrainingHost for TogetherHost {
             "Training job submitted to Together AI"
         );
 
+        tracing::info!(
+            target: "cns.training.provider.together.submit",
+            file_id = %file_id,
+            job_id = %job_id,
+            model = %job.base_model,
+            "Together AI fine-tune submitted"
+        );
+
         Ok(job_id)
     }
 
@@ -164,6 +172,12 @@ impl TrainingHost for TogetherHost {
         }
 
         let status_str = json["status"].as_str().unwrap_or("unknown");
+        tracing::debug!(
+            target: "cns.training.provider.together.status",
+            job_id = %job_id,
+            status_str = %status_str,
+            "Together AI fine-tune status"
+        );
         match status_str {
             "pending" | "queued" => Ok(TrainingJobStatus::Queued),
             "running" => Ok(TrainingJobStatus::Running),
@@ -199,6 +213,11 @@ impl TrainingHost for TogetherHost {
             host = "together",
             "Training job cancelled"
         );
+        tracing::info!(
+            target: "cns.training.provider.together.cancel",
+            job_id = %job_id,
+            "Together AI fine-tune cancelled"
+        );
         Ok(())
     }
 
@@ -225,6 +244,12 @@ impl TrainingHost for TogetherHost {
             .filter(|j| j["status"] == "completed" || j["status"] == "succeeded")
             .filter_map(|j| j["id"].as_str().map(|s| s.to_string()))
             .collect();
+
+        tracing::info!(
+            target: "cns.training.provider.together.list",
+            count = adapters.len(),
+            "Together AI adapter list"
+        );
 
         Ok(adapters)
     }
@@ -253,6 +278,11 @@ impl TrainingHost for TogetherHost {
             adapter_id = %adapter_id,
             host = "together",
             "LoRA adapter deleted from Together AI"
+        );
+        tracing::info!(
+            target: "cns.training.provider.together.delete",
+            adapter_id = %adapter_id,
+            "Together AI adapter deleted"
         );
         Ok(())
     }
@@ -310,6 +340,12 @@ impl TrainingHost for TogetherHost {
             let finished = events.last()?.get("created_at")?.as_i64()?;
             Some((finished - created) as u64)
         });
+
+        tracing::info!(
+            target: "cns.training.provider.together.metadata",
+            job_id = %job_id,
+            "Together AI completion metadata fetched"
+        );
 
         Ok(Some(CompletionMetadata {
             base_model,
