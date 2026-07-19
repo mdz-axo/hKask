@@ -323,7 +323,7 @@ pub(super) fn init_repl_state(
         .selected_model
         .as_deref()
         .or(initial_model)
-        .unwrap_or("deepseek-v4-pro");
+        .unwrap_or("deepseek-ai/DeepSeek-V4-Pro");
 
     // ── Phase 2: Settings + Condensation Env ───────────────────────────────
     let repl_settings: crate::handlers::ReplSettings = hkask_services_core::load_settings();

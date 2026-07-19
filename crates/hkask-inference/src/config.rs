@@ -252,7 +252,7 @@ impl Default for InferenceConfig {
             cline_api_key: String::new(),
             timeout_secs: 120,
             pool_max_idle: 5,
-            default_model: "DI/deepseek/deepseek-v4-pro".to_string(),
+            default_model: "DI/deepseek-ai/DeepSeek-V4-Pro".to_string(),
             fusion: None,
         }
     }
