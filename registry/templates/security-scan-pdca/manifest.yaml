@@ -23,7 +23,7 @@ templates:
   - id: security-scan-pdca/security-scan-flow
     name: "Security scan PDCA flow"
     path: security-scan-flow.j2
-    type: FlowDef
+    type: KnowAct
     lexicon_terms: [scan, detect, report, measure, improve]
     description: >
       PKO process-axis flow (§P5.4 line 98): How did the security scan come to be?
