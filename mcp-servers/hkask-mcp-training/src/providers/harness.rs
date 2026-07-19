@@ -449,7 +449,10 @@ impl HarnessAdapter for TinkerHarness {
         script.push_str(&format!("CHECKPOINT_EVERY = {}\n", checkpoint_every));
         script.push_str(&format!(
             "OUTPUT_DIR = os.environ.get(\"HKASK_TINKER_OUTPUT_DIR\", \"{}\")\n",
-            self.output_dir(&job.id).display().to_string().replace('"', "\\\"")
+            self.output_dir(&job.id)
+                .display()
+                .to_string()
+                .replace('"', "\\\"")
         ));
         script.push_str(&format!(
             "LOG_PATH = os.environ.get(\"HKASK_TINKER_LOG_PATH\", \"{}\")\n",
@@ -498,7 +501,9 @@ impl HarnessAdapter for TinkerHarness {
         script.push_str("            target_tokens = tokens[1:]\n");
         script.push_str("            weights = [1.0] * len(target_tokens)\n");
         script.push_str("            datum = types.Datum(\n");
-        script.push_str("                model_input=types.ModelInput.from_ints(tokens=input_tokens),\n");
+        script.push_str(
+            "                model_input=types.ModelInput.from_ints(tokens=input_tokens),\n",
+        );
         script.push_str("                loss_fn_inputs=dict(\n");
         script.push_str("                    weights=weights,\n");
         script.push_str("                    target_tokens=target_tokens,\n");
@@ -538,13 +543,19 @@ impl HarnessAdapter for TinkerHarness {
         script.push_str("            batch = examples[i : i + BATCH_SIZE]\n");
         script.push_str("            if not batch:\n");
         script.push_str("                continue\n");
-        script.push_str("            fwdbwd_future = await training_client.forward_backward_async(\n");
+        script.push_str(
+            "            fwdbwd_future = await training_client.forward_backward_async(\n",
+        );
         script.push_str("                data=batch, loss_fn=\"cross_entropy\"\n");
         script.push_str("            )\n");
         script.push_str("            fwdbwd_result = await fwdbwd_future.result_async()\n");
-        script.push_str("            loss = float(getattr(fwdbwd_result, \"loss\", float(\"nan\")))\n");
+        script.push_str(
+            "            loss = float(getattr(fwdbwd_result, \"loss\", float(\"nan\")))\n",
+        );
         script.push_str("            if ((step + 1) % GRAD_ACCUM) == 0:\n");
-        script.push_str("                optim_future = await training_client.optim_step_async(adam_params)\n");
+        script.push_str(
+            "                optim_future = await training_client.optim_step_async(adam_params)\n",
+        );
         script.push_str("                await optim_future.result_async()\n");
         script.push_str("            step += 1\n");
         script.push_str("            if step % 10 == 0:\n");
@@ -553,19 +564,29 @@ impl HarnessAdapter for TinkerHarness {
         script.push_str("                ckpt_name = f\"{JOB_ID}-step-{step}\"\n");
         script.push_str("                training_client.save_state(name=ckpt_name)\n");
         script.push_str("                log(f\"checkpoint saved name={ckpt_name}\")\n");
-        script.push_str("            if EVAL_STEPS is not None and eval_examples and step % EVAL_STEPS == 0:\n");
-        script.push_str("                eval_future = await training_client.forward_backward_async(\n");
+        script.push_str(
+            "            if EVAL_STEPS is not None and eval_examples and step % EVAL_STEPS == 0:\n",
+        );
+        script.push_str(
+            "                eval_future = await training_client.forward_backward_async(\n",
+        );
         script.push_str("                    data=eval_examples, loss_fn=\"cross_entropy\"\n");
         script.push_str("                )\n");
         script.push_str("                eval_result = await eval_future.result_async()\n");
-        script.push_str("                eval_loss = float(getattr(eval_result, \"loss\", float(\"nan\")))\n");
+        script.push_str(
+            "                eval_loss = float(getattr(eval_result, \"loss\", float(\"nan\")))\n",
+        );
         script.push_str("                log(f\"step={step} eval_loss={eval_loss:.6}\")\n");
         script.push_str("    if step % GRAD_ACCUM != 0:\n");
-        script.push_str("        optim_future = await training_client.optim_step_async(adam_params)\n");
+        script.push_str(
+            "        optim_future = await training_client.optim_step_async(adam_params)\n",
+        );
         script.push_str("        await optim_future.result_async()\n");
         script.push('\n');
         script.push_str("    final_name = f\"{JOB_ID}-final\"\n");
-        script.push_str("    sampling_client = training_client.save_weights_and_get_sampling_client(\n");
+        script.push_str(
+            "    sampling_client = training_client.save_weights_and_get_sampling_client(\n",
+        );
         script.push_str("        name=final_name\n");
         script.push_str("    )\n");
         script.push_str("    log(f\"final weights saved name={final_name}\")\n");
