@@ -35,32 +35,14 @@ fn validate_passphrase(passphrase: &str) -> Result<(), ServiceError> {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::User,
             source: None,
-            message: "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case"
-                .into(),
-        });
-    }
-    let has_upper = passphrase.chars().any(|c| c.is_ascii_uppercase());
-    let has_lower = passphrase.chars().any(|c| c.is_ascii_lowercase());
-    if !has_upper || !has_lower {
-        return Err(ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::User,
-            source: None,
-            message: "Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case"
-                .into(),
+            message: "Passphrase does not meet requirements: 8+ alphanumeric chars".into(),
         });
     }
     Ok(())
 }
 
 fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceError> {
-    if request.replicant_name.is_empty()
-        || request.replicant_name.len() > 64
-        || !request
-            .replicant_name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-    {
+    if request.replicant_name.is_empty() || request.replicant_name.len() > 64 {
         return Err(ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::User,
