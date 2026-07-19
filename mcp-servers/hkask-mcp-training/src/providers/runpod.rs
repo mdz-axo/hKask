@@ -3,7 +3,28 @@
 //! Dispatches training jobs to GPU pods via the Runpod GraphQL API.
 //! Uses a pre-built template with axolotl installed; training is dispatched
 //! via environment variables injected into the pod.
-
+//!
+//! ## API surface
+//!
+//! Pod creation uses the `podFindAndDeployOnDemand` GraphQL mutation — the
+//! current RunPod API no longer exposes `podCreateAndDeploy` (it was removed
+//! when RunPod migrated to the Pools/Reservations model). The mutation shape
+//! here mirrors the RunPod Python SDK's `runpod.create_pod` (see
+//! `runpod/api/mutations/pods.py`), which builds an inline `input` object.
+//! Status queries use `pod(input: { podId })` and cancellation uses
+//! `podTerminate(input: { podId })` — both still present in the current API.
+//!
+//! Environment variables:
+//! - `RUNPOD_API_KEY` — Runpod API key
+//! - `RUNPOD_TEMPLATE_ID` — GPU pod template ID with axolotl pre-installed
+//! - `RUNPOD_GPU_TYPE_ID` — GPU type ID, e.g. "NVIDIA RTX 4090" or
+//!   "NVIDIA A100-SXM4-80GB" (default: "NVIDIA RTX 4090"). Note: the variable
+//!   is `RUNPOD_GPU_TYPE_ID`, not `RUNPOD_GPU_TYPE` — the latter is ignored.
+//! - `RUNPOD_CONTAINER_DISK_GB` — Container disk in GB (default: 50)
+//! - `RUNPOD_MIN_MEMORY_GB` — Minimum memory in GB (default: 24)
+//! - `RUNPOD_MIN_VCPU_COUNT` — Minimum vCPU count (default: 8)
+//! - `HKASK_DATASET_URL` — Remote-readable URL where the pod can download the dataset.
+//!   Submission fails before creating a pod when this value is empty.
 use crate::providers::harness::HarnessAdapter;
 use crate::providers::types::*;
 use serde_json::json;
@@ -22,16 +43,6 @@ use std::sync::{Arc, Mutex};
 /// that reads `HKASK_*` environment variables, downloads the dataset from
 /// `HKASK_DATASET_URL`, runs axolotl training, and uploads the resulting
 /// adapter weights to a storage location.
-///
-/// Environment variables:
-/// - `RUNPOD_API_KEY` — Runpod API key
-/// - `RUNPOD_TEMPLATE_ID` — GPU pod template ID with axolotl pre-installed
-/// - `RUNPOD_GPU_TYPE_ID` — GPU type ID (default: "NVIDIA RTX 4090")
-/// - `RUNPOD_CONTAINER_DISK_GB` — Container disk in GB (default: 50)
-/// - `RUNPOD_MIN_MEMORY_GB` — Minimum memory in GB (default: 24)
-/// - `RUNPOD_MIN_VCPU_COUNT` — Minimum vCPU count (default: 8)
-/// - `HKASK_DATASET_URL` — Remote-readable URL where the pod can download the dataset.
-///   Submission fails before creating a pod when this value is empty.
 pub struct RunpodHost {
     api_key: String,
     template_id: String,
@@ -98,23 +109,107 @@ impl RunpodHost {
 
         Ok(json)
     }
+
+    /// Escape a string for safe interpolation into a GraphQL literal.
+    /// Backslashes first, then double quotes — standard GraphQL string escaping.
+    fn escape_graphql_string(s: &str) -> String {
+        s.replace('\u{005c}', "\\\\").replace('"', "\\\"")
+    }
+
+    /// Build the inline `podFindAndDeployOnDemand` GraphQL mutation.
+    ///
+    /// This mirrors the RunPod Python SDK's `generate_pod_deployment_mutation`
+    /// (`runpod/api/mutations/pods.py`) — the current API no longer exposes
+    /// `podCreateAndDeploy`, so we deploy on-demand pods via
+    /// `podFindAndDeployOnDemand` with an inline `input` object. Inline
+    /// construction (rather than GraphQL variables) matches the SDK exactly
+    /// and avoids depending on the schema's input-type name.
+    ///
+    /// The image source is resolved by the caller and passed via
+    /// `PodDeploySpec.docker_image`: when non-empty it becomes `imageName`; when
+    /// empty, `self.template_id` (if set) becomes `templateId` and carries the
+    /// image + startup script. At least one of the two must be available,
+    /// mirroring the SDK's validation (enforced by `submit`).
+    fn build_pod_deploy_mutation(
+        &self,
+        job_id: &str,
+        spec: &PodDeploySpec<'_>,
+        env_entries: &[(&str, String)],
+    ) -> String {
+        let pod_name = format!("hkask-training-{}", &job_id[..8.min(job_id.len())]);
+        let mut fields: Vec<String> = Vec::with_capacity(16);
+
+        // Required fields (match SDK ordering).
+        fields.push(format!(
+            "name: \"{}\"",
+            Self::escape_graphql_string(&pod_name)
+        ));
+        // The SDK always emits imageName; when a template is used instead of a
+        // bare image, imageName is the empty string and templateId carries the
+        // image + startup script.
+        fields.push(format!(
+            "imageName: \"{}\"",
+            Self::escape_graphql_string(spec.docker_image)
+        ));
+        fields.push("cloudType: ALL".to_string());
+        fields.push("startSsh: true".to_string());
+
+        // GPU pod fields.
+        fields.push(format!(
+            "gpuTypeId: \"{}\"",
+            Self::escape_graphql_string(spec.gpu_type_id)
+        ));
+        fields.push("supportPublicIp: true".to_string());
+        fields.push("gpuCount: 1".to_string());
+        fields.push(format!("containerDiskInGb: {}", spec.container_disk_gb));
+        fields.push(format!("minVcpuCount: {}", spec.min_vcpu));
+        fields.push(format!("minMemoryInGb: {}", spec.min_memory_gb));
+        fields.push("dataCenterId: null".to_string());
+
+        // Template ID (if set) — provides the image + startup script.
+        if !self.template_id.is_empty() {
+            fields.push(format!(
+                "templateId: \"{}\"",
+                Self::escape_graphql_string(&self.template_id)
+            ));
+        }
+
+        // Environment variables injected into the pod.
+        let env_items: Vec<String> = env_entries
+            .iter()
+            .map(|(k, v)| {
+                format!(
+                    "{{ key: \"{}\", value: \"{}\" }}",
+                    Self::escape_graphql_string(k),
+                    Self::escape_graphql_string(v)
+                )
+            })
+            .collect();
+        fields.push(format!("env: [{}]", env_items.join(", ")));
+
+        let input_string = fields.join(", ");
+        format!(
+            "mutation {{\n  podFindAndDeployOnDemand(\n    input: {{ {} }}\n  ) {{\n    id\n    imageName\n    env\n    machineId\n    machine {{ podHostId }}\n  }}\n}}",
+            input_string
+        )
+    }
+}
+
+/// Resolved pod deployment parameters passed to `build_pod_deploy_mutation`.
+///
+/// Bundling these keeps the helper under clippy's argument-count limit while
+/// mirroring the RunPod SDK's `create_pod` parameter surface.
+struct PodDeploySpec<'a> {
+    gpu_type_id: &'a str,
+    container_disk_gb: u32,
+    min_memory_gb: u32,
+    min_vcpu: u32,
+    docker_image: &'a str,
 }
 
 #[async_trait::async_trait]
 impl TrainingHost for RunpodHost {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
-        // Create a GPU pod from the template
-        let mutation = r#"
-            mutation CreatePod($input: PodCreateAndDeployInput!) {
-                podCreateAndDeploy(input: $input) {
-                    id
-                    name
-                    desiredStatus
-                    runtime { uptimeInSeconds }
-                }
-            }
-        "#;
-
         let gpu_type_id =
             std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| "NVIDIA RTX 4090".to_string());
         let container_disk_gb: u32 = std::env::var("RUNPOD_CONTAINER_DISK_GB")
@@ -136,44 +231,111 @@ impl TrainingHost for RunpodHost {
             )
         })?;
 
-        let variables = json!({
-            "input": {
-                "name": format!("hkask-training-{}", &job.id[..8]),
-                "templateId": self.template_id,
-                "gpuTypeId": gpu_type_id,
-                "containerDiskInGb": container_disk_gb,
-                "minMemoryInGb": min_memory_gb,
-                "minVcpuCount": min_vcpu,
-                "env": [
-                    { "key": "HKASK_JOB_ID", "value": job.id },
-                    { "key": "HKASK_BASE_MODEL", "value": job.base_model },
-                    { "key": "HKASK_HF_DATASET_REPOSITORY", "value": artifacts.dataset.repository },
-                    { "key": "HKASK_HF_DATASET_REVISION", "value": artifacts.dataset.revision },
-                    { "key": "HKASK_HF_DATASET_PATH", "value": artifacts.dataset.path },
-                    { "key": "HKASK_EXPECTED_DATASET_SHA256", "value": artifacts.dataset.sha256 },
-                    { "key": "HKASK_HF_MODEL_REPOSITORY", "value": artifacts.model_repository },
-                    { "key": "HKASK_COMPLETION_MANIFEST_PATH", "value": artifacts.completion_manifest_path },
-                    { "key": "HKASK_HARNESS", "value": format!("{:?}", job.harness).to_lowercase() },
-                    { "key": "HKASK_NUM_EPOCHS", "value": job.params.num_epochs.to_string() },
-                    { "key": "HKASK_LORA_R", "value": job.params.lora.r.to_string() },
-                    { "key": "HKASK_LORA_ALPHA", "value": job.params.lora.alpha.to_string() },
-                    { "key": "HKASK_LORA_DROPOUT", "value": job.params.lora.dropout.to_string() },
-                    { "key": "HKASK_LORA_TARGET_MODULES", "value": job.params.lora.target_modules.join(",") },
-                    { "key": "HKASK_LEARNING_RATE", "value": job.params.learning_rate.to_string() },
-                    { "key": "HKASK_BATCH_SIZE", "value": job.params.batch_size.to_string() },
-                    { "key": "HKASK_GRAD_ACCUM", "value": job.params.optimization.gradient_accumulation_steps.to_string() },
-                    { "key": "HKASK_WEIGHT_DECAY", "value": job.params.optimization.weight_decay.to_string() },
-                    { "key": "HKASK_MAX_GRAD_NORM", "value": job.params.optimization.max_grad_norm.map(|v| v.to_string()).unwrap_or_default() },
-                    { "key": "HKASK_WARMUP_STEPS", "value": job.params.optimization.warmup_steps.map(|v| v.to_string()).unwrap_or_default() },
-                    { "key": "HKASK_LR_SCHEDULER", "value": job.params.optimization.lr_scheduler.clone().unwrap_or_default() },
-                    { "key": "HKASK_SEQ_LEN", "value": job.params.sequence.sequence_len.map(|v| v.to_string()).unwrap_or_default() },
-                ],
-            }
-        });
+        // The pod must resolve an image: either an explicit docker image or a
+        // template id. Mirrors the SDK's `create_pod` validation.
+        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE").unwrap_or_default();
+        if docker_image.is_empty() && self.template_id.is_empty() {
+            return Err(ProviderError::InvalidConfig(
+                "Either RUNPOD_DOCKER_IMAGE or RUNPOD_TEMPLATE_ID must be set to create a RunPod pod"
+                    .to_string(),
+            ));
+        }
 
-        let result = self.graphql_query(mutation, variables).await?;
+        let env_entries: Vec<(&str, String)> = vec![
+            ("HKASK_JOB_ID", job.id.clone()),
+            ("HKASK_BASE_MODEL", job.base_model.clone()),
+            (
+                "HKASK_HF_DATASET_REPOSITORY",
+                artifacts.dataset.repository.clone(),
+            ),
+            (
+                "HKASK_HF_DATASET_REVISION",
+                artifacts.dataset.revision.clone(),
+            ),
+            ("HKASK_HF_DATASET_PATH", artifacts.dataset.path.clone()),
+            (
+                "HKASK_EXPECTED_DATASET_SHA256",
+                artifacts.dataset.sha256.clone(),
+            ),
+            (
+                "HKASK_HF_MODEL_REPOSITORY",
+                artifacts.model_repository.clone(),
+            ),
+            (
+                "HKASK_COMPLETION_MANIFEST_PATH",
+                artifacts.completion_manifest_path.clone(),
+            ),
+            ("HKASK_HARNESS", format!("{:?}", job.harness).to_lowercase()),
+            ("HKASK_NUM_EPOCHS", job.params.num_epochs.to_string()),
+            ("HKASK_LORA_R", job.params.lora.r.to_string()),
+            ("HKASK_LORA_ALPHA", job.params.lora.alpha.to_string()),
+            ("HKASK_LORA_DROPOUT", job.params.lora.dropout.to_string()),
+            (
+                "HKASK_LORA_TARGET_MODULES",
+                job.params.lora.target_modules.join(","),
+            ),
+            ("HKASK_LEARNING_RATE", job.params.learning_rate.to_string()),
+            ("HKASK_BATCH_SIZE", job.params.batch_size.to_string()),
+            (
+                "HKASK_GRAD_ACCUM",
+                job.params
+                    .optimization
+                    .gradient_accumulation_steps
+                    .to_string(),
+            ),
+            (
+                "HKASK_WEIGHT_DECAY",
+                job.params.optimization.weight_decay.to_string(),
+            ),
+            (
+                "HKASK_MAX_GRAD_NORM",
+                job.params
+                    .optimization
+                    .max_grad_norm
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+            ),
+            (
+                "HKASK_WARMUP_STEPS",
+                job.params
+                    .optimization
+                    .warmup_steps
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+            ),
+            (
+                "HKASK_LR_SCHEDULER",
+                job.params
+                    .optimization
+                    .lr_scheduler
+                    .clone()
+                    .unwrap_or_default(),
+            ),
+            (
+                "HKASK_SEQ_LEN",
+                job.params
+                    .sequence
+                    .sequence_len
+                    .map(|v| v.to_string())
+                    .unwrap_or_default(),
+            ),
+        ];
 
-        let pod_id = result["data"]["podCreateAndDeploy"]["id"]
+        let mutation = self.build_pod_deploy_mutation(
+            &job.id,
+            &PodDeploySpec {
+                gpu_type_id: &gpu_type_id,
+                container_disk_gb,
+                min_memory_gb,
+                min_vcpu,
+                docker_image: &docker_image,
+            },
+            &env_entries,
+        );
+
+        let result = self.graphql_query(&mutation, json!({})).await?;
+
+        let pod_id = result["data"]["podFindAndDeployOnDemand"]["id"]
             .as_str()
             .ok_or_else(|| ProviderError::Backend("No pod ID in Runpod response".to_string()))?
             .to_string();
@@ -220,7 +382,7 @@ impl TrainingHost for RunpodHost {
                     id
                     desiredStatus
                     runtime { uptimeInSeconds }
-                    machine { gpuType }
+                    machine { gpuTypeId }
                 }
             }
         "#;
@@ -313,6 +475,7 @@ impl TrainingHost for RunpodHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::harness::AxolotlHarness;
 
     #[test]
     fn terminal_pods_are_not_reported_as_successful_without_artifacts() {
@@ -323,5 +486,91 @@ mod tests {
     #[test]
     fn running_pod_remains_running() {
         assert_eq!(map_pod_status("RUNNING"), TrainingJobStatus::Running);
+    }
+
+    #[test]
+    fn escape_graphql_string_handles_quotes_and_backslashes() {
+        assert_eq!(RunpodHost::escape_graphql_string("simple"), "simple");
+        assert_eq!(
+            RunpodHost::escape_graphql_string(r#"has "quote""#),
+            r#"has \"quote\""#
+        );
+        assert_eq!(
+            RunpodHost::escape_graphql_string("path\\to\\file"),
+            "path\\\\to\\\\file"
+        );
+    }
+
+    fn make_host(template_id: &str) -> RunpodHost {
+        RunpodHost::new(
+            "test-key".to_string(),
+            template_id.to_string(),
+            Box::new(AxolotlHarness),
+        )
+    }
+
+    #[test]
+    fn build_mutation_uses_pod_find_and_deploy_on_demand() {
+        let host = make_host("tpl-123");
+        let mutation = host.build_pod_deploy_mutation(
+            "abcdefgh-1234-5678-90ab-1234567890ab",
+            &PodDeploySpec {
+                gpu_type_id: "NVIDIA A100-SXM4-80GB",
+                container_disk_gb: 60,
+                min_memory_gb: 80,
+                min_vcpu: 8,
+                docker_image: "",
+            },
+            &[("HKASK_JOB_ID", "job-1".to_string())],
+        );
+        assert!(
+            mutation.contains("podFindAndDeployOnDemand"),
+            "mutation must use podFindAndDeployOnDemand, got: {mutation}"
+        );
+        assert!(!mutation.contains("podCreateAndDeploy"));
+        assert!(mutation.contains("templateId: \"tpl-123\""));
+        assert!(mutation.contains("gpuTypeId: \"NVIDIA A100-SXM4-80GB\""));
+        assert!(mutation.contains("containerDiskInGb: 60"));
+        assert!(mutation.contains("minMemoryInGb: 80"));
+        assert!(mutation.contains("minVcpuCount: 8"));
+        assert!(mutation.contains("name: \"hkask-training-abcdefgh\""));
+        assert!(mutation.contains("HKASK_JOB_ID"));
+        assert!(mutation.contains("job-1"));
+    }
+
+    #[test]
+    fn build_mutation_uses_docker_image_when_set() {
+        let host = make_host("");
+        let mutation = host.build_pod_deploy_mutation(
+            "abcdefgh-1234-5678-90ab-1234567890ab",
+            &PodDeploySpec {
+                gpu_type_id: "NVIDIA RTX 4090",
+                container_disk_gb: 50,
+                min_memory_gb: 24,
+                min_vcpu: 8,
+                docker_image: "runpod/pytorch:2.6.0",
+            },
+            &[],
+        );
+        assert!(mutation.contains("imageName: \"runpod/pytorch:2.6.0\""));
+        assert!(!mutation.contains("templateId"));
+    }
+
+    #[test]
+    fn build_mutation_omits_template_id_when_empty() {
+        let host = make_host("");
+        let mutation = host.build_pod_deploy_mutation(
+            "abcdefgh-1234-5678-90ab-1234567890ab",
+            &PodDeploySpec {
+                gpu_type_id: "NVIDIA RTX 4090",
+                container_disk_gb: 50,
+                min_memory_gb: 24,
+                min_vcpu: 8,
+                docker_image: "",
+            },
+            &[],
+        );
+        assert!(mutation.contains("imageName: \"\""));
+        assert!(!mutation.contains("templateId"));
     }
 }

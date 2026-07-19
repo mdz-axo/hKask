@@ -13,13 +13,17 @@
 
 pub mod harness;
 pub mod runpod;
+pub mod tinker;
 pub mod together;
 pub mod types;
 
 // ── Re-exports for lib.rs compatibility ──────────────────────────────────
 
-pub use harness::{AxolotlHarness, HarnessAdapter, HarnessCapability, UnslothHarness};
+pub use harness::{
+    AxolotlHarness, HarnessAdapter, HarnessCapability, TinkerHarness, UnslothHarness,
+};
 pub use runpod::RunpodHost;
+pub use tinker::TinkerHost;
 pub use together::TogetherHost;
 pub use types::{
     AdvancedParams, CompletionMetadata, CostEstimate, LoraParams, OptimizationParams,
@@ -73,6 +77,17 @@ pub fn create_host(
                 harness,
             )))
         }
+        TrainingHostId::Tinker => {
+            if config.tinker_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Tinker API key not configured (set TINKER_API_KEY)".to_string(),
+                ));
+            }
+            Ok(Box::new(TinkerHost::new(
+                config.tinker_python_path.clone(),
+                harness,
+            )))
+        }
     }
 }
 
@@ -80,15 +95,12 @@ pub fn create_host(
 
 /// Training host configuration resolved from hKask settings.
 ///
-/// Selects a cloud host (Together/Runpod) with API credentials.
-/// The harness is selected separately and injected into the host at
-/// construction time — this config only describes *where* compute runs.
-///
-/// Cloud-only deployment: no `axolotl_path` or `python_path` fields.
-/// Local training is not supported.
+/// Selects a cloud host (Together/Runpod) or a Tinker subprocess host with
+/// API credentials. The harness is selected separately and injected into the
+/// host at construction time — this config only describes *where* compute runs.
 #[derive(Debug, Clone)]
 pub struct TrainingHostConfig {
-    /// Selected training host (Together, Runpod).
+    /// Selected training host (Together, Runpod, Tinker).
     pub host: TrainingHostId,
     /// Together AI API key (for Together host).
     pub together_api_key: String,
@@ -96,6 +108,12 @@ pub struct TrainingHostConfig {
     pub runpod_api_key: String,
     /// Runpod GPU pod template ID with axolotl pre-installed (for Runpod host).
     pub runpod_template_id: String,
+    /// Thinking Machines Tinker API key (for Tinker host). Read by the Python
+    /// SDK inside the subprocess; stored here only for fail-fast validation.
+    pub tinker_api_key: String,
+    /// Path to the python3 interpreter with the tinker package installed
+    /// (for Tinker host). Empty string falls back to python3 from PATH.
+    pub tinker_python_path: String,
 }
 
 impl Default for TrainingHostConfig {
@@ -105,6 +123,8 @@ impl Default for TrainingHostConfig {
             together_api_key: String::new(),
             runpod_api_key: String::new(),
             runpod_template_id: String::new(),
+            tinker_api_key: String::new(),
+            tinker_python_path: String::new(),
         }
     }
 }

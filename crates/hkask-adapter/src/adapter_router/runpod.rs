@@ -48,18 +48,18 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
             ));
         }
 
+        // The serverless endpoint URL is keyed by the template id (which is also
+        // the endpoint id in Runpod's v2 REST surface). The template's startup
+        // script is responsible for pulling the adapter from the HuggingFace
+        // repo referenced by `adapter.source.repository_id()` at cold start —
+        // see `upload_adapter` for the resolution contract.
+        let endpoint_url = format!("https://api.runpod.ai/v2/{}/openai/v1", template_id);
         tracing::info!(
             target: "cns.adapter",
             adapter_id = %adapter.id,
             template_id = %template_id,
-            "Provisioning Runpod serverless endpoint"
-        );
-
-        let endpoint_url = format!("https://api.runpod.ai/v2/{}/openai/v1", template_id);
-        tracing::info!(
-            target: "cns.adapter",
-            template_id = %template_id,
-            "Runpod serverless endpoint ready"
+            endpoint_url = %endpoint_url,
+            "Provisioned Runpod serverless endpoint"
         );
         Ok(endpoint_url)
     }
@@ -107,13 +107,27 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
 
     async fn upload_adapter(
         &self,
-        _adapter: &TrainedLoRAAdapter,
+        adapter: &TrainedLoRAAdapter,
         _config: &AdapterConfig,
     ) -> Result<String, AdapterError> {
-        Err(AdapterError::ProviderUnavailable(
-            "Runpod does not support LoRA adapter uploads. Adapters must be baked into the container image."
-                .into(),
-        ))
+        // Runpod serverless endpoints load LoRA adapters at container start via
+        // the template's startup script (e.g. vLLM `--lora-modules name=adapter
+        // repo=<hf_repo>`). The adapter weights must already be published to
+        // Hugging Face Hub — we return the HF repo id as the `model_name` that
+        // callers pass to the OpenAI-compatible inference endpoint, which vLLM
+        // resolves to the LoRA module configured in the template.
+        //
+        // There is no upload step: the serverless template pulls the adapter
+        // from HF at cold start. To deploy a new adapter, update the template's
+        // startup script (or env) to reference the new HF repo and redeploy.
+        let model_name = adapter.source.repository_id().to_string();
+        tracing::info!(
+            target: "cns.adapter",
+            adapter_id = %adapter.id,
+            model_name = %model_name,
+            "Runpod adapter resolved to HuggingFace repo (pulled by serverless template at cold start)"
+        );
+        Ok(model_name)
     }
 
     fn capability(&self) -> ProviderCapability {
