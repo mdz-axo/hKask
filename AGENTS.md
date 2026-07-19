@@ -6,7 +6,7 @@
 
 ## Capability Groups (Principle-Aligned)
 
-47 capabilities total. Below: 6 groups linked to Magna Carta principles (P1–P4) and defense-in-depth layers (P5–P12). For full registry: `.agents/skills/`.
+50 skills in `.agents/skills/` (47 PDCA skills + 2 templates + 1 bundle). Below: 6 principle-aligned groups covering the active registry. Full list: `.agents/skills/`.
 
 | Group | Activation | Principle / Defense Link | Key Skills |
 |---|---|---|---|
