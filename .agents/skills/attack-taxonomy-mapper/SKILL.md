@@ -12,8 +12,8 @@ description: >
   field to existing `surface: supply-chain` regression YAML entries. Emits
   cns.taxonomy.* spans (P9 — all registered in CANONICAL_NAMESPACES).
   P8 evidence-backed: every mapping includes concrete evidence (finding
-  reference, CWE category, OSC&R category, OWASP SC category). P12
-  replicant_host mandatory. Decomposed into 4 phases matching bug-hunt and
+  reference, CWE category, OSC&R tactic + technique, OWASP SC reference).
+  P12 replicant_host mandatory. Decomposed into 4 phases matching bug-hunt and
   supply-chain-sentinel pipeline. Minimal (P5): answers all 5W1H; single
   skill, no bundle; complements supply-chain-sentinel (adds taxonomy layer)
   and adversarial-red-team (parallel taxonomy discipline: ATLAS for LLM,
@@ -27,9 +27,11 @@ description: >
 Attack taxonomy mapping. Consumes findings from `supply-chain-sentinel`
 (CWE-mapped manifest evidence) and `kali-audit` (OWASP/ATLAS-mapped
 findings) as concrete evidence. Maps each finding to the OSC&R attack
-taxonomy plus the OWASP Supply Chain dual taxonomy. Proposes backward-
+taxonomy (verified against `github.com/pbom-dev/OSCAR` `matrix.json` —
+organized by tactics + techniques, NOT numeric IDs) plus the OWASP
+Supply Chain dual taxonomy (secondary, PROPOSED). Proposes backward-
 compatible `taxonomy_mapping` field additions to existing
-`surface: supply-chain` regression entries. Tracks OSC&R category coverage
+`surface: supply-chain` regression entries. Tracks OSC&R tactic coverage
 and computes a taxonomy mapping convergence metric.
 
 **Important:** This skill does NOT generate new findings. It consumes
@@ -123,9 +125,10 @@ live OWASP documentation before use.
    - CWE-1357 + CI workflow untrusted action → build pipeline compromise.
    - CWE-829 + git dependency unverified commit SHA → malicious commit
      injection.
-3. For each OSC&R category, determine the OWASP Supply Chain category
-   (dual taxonomy mapping). Note: OWASP SC codes (SC04–SC09) are PROPOSED
-   mappings — verify against live OWASP documentation.
+3. For each OSC&R tactic + technique, optionally determine the OWASP
+   Supply Chain reference (dual taxonomy mapping). Note: OWASP SC codes
+   (SC04–SC09) are PROPOSED — verify against live OWASP documentation.
+   The OSC&R tactic + technique name is the primary mapping.
 4. Apply pragmatic-cybernetics (embedded in instructions — like `bug-hunt`
    `oracle` phase):
    - IS vs OUGHT: describe what the finding IS (CWE + evidence) vs what it
@@ -136,23 +139,24 @@ live OWASP documentation before use.
    - Provenance: `Direct measurement` (read finding), `Inference` (CWE →
      OSC&R disambiguation), `Assessment` (dual taxonomy mapping).
 5. Apply grill-me self-challenge: Could this finding map to a different
-   OSC&R category? Is the CWE → OSC&R mapping ambiguous? Would a reviewer
+   OSC&R technique? Is the CWE → OSC&R mapping ambiguous? Would a reviewer
    dispute? If yes, note alternative mappings and downgrade confidence.
 6. Apply pragmatic-cybernetics analysis (feedback loops):
    - Feedback loop: does the OSC&R attack pattern have a corresponding
      defense layer in `supply-chain-sentinel`?
-   - Variety: alternative attack vectors in the same OSC&R category?
+   - Variety: alternative attack vectors in the same OSC&R tactic?
    - Good Regulator: is the defense layer mapped to the correct OSC&R
-     category?
+     technique?
 7. For each mapping, produce structured result:
    `finding_reference`, `cwe_category`, `evidence_snippet`,
-   `osc_r_category` (name + proposed ID), `owasp_sc_category` (name +
-   proposed code), `mapping_confidence` (confirmed/probable/possible),
+   `osc_r_tactic` (verified name), `osc_r_technique` (verified name),
+   `osc_r_categories` (verified tags), `owasp_sc_reference` (secondary,
+   PROPOSED), `mapping_confidence` (confirmed/probable/possible),
    `alternative_mappings`, `defense_layer_mapped`, `provenance`,
    `epistemic_mode`, `replicant_host`.
 8. Emit `cns.taxonomy.map` CNS span per mapping (`target:
    "cns.taxonomy.map"`, message: `"CNS"`, operation: `"map_taxonomy"`,
-   finding_reference, osc_r_category, owasp_sc_category,
+   finding_reference, osc_r_tactic, osc_r_technique,
    mapping_confidence, replicant_host, latency_ms).
 
 CONSTRAINT — Evidence integrity (P8):
@@ -191,9 +195,9 @@ CONSTRAINT — Evidence integrity (P8):
      osc_r_categories: ["ArtifactSecurity", "ContainerSecurity", "OpenSourceSecurity"]  # verified tags
      owasp_sc_reference: ""              # secondary, PROPOSED — verify against OWASP
    ```
-3. Produce pattern signatures for each OSC&R category — concrete grep
+3. Produce pattern signatures for each OSC&R technique — concrete grep
    patterns for detecting similar attack patterns in future manifests.
-4. Identify top 3 taxonomy coverage gaps (OSC&R categories with no mapped
+4. Identify top 3 taxonomy coverage gaps (OSC&R tactics with no mapped
    findings).
 5. Produce verdict:
    - Pass: all findings mapped, >= 4 OSC&R categories covered.
@@ -208,8 +212,8 @@ CONSTRAINT — Evidence integrity (P8):
 1. Compute normalized convergence metric [0, 1] where 0 = fully converged.
 2. Score dimensions (weighted):
    - Unmapped findings (critical/high) (0.40): 0 = +0.00; 1+ = +0.40.
-   - OSC&R category coverage (0.25): all 6 = +0.00; partial = +0.04 per
-     missing; 0 = +0.25.
+   - OSC&R tactic coverage (0.25): all 12 tactics = +0.00; partial = +0.04
+     per missing tactic; 0 = +0.25.
    - OWASP Supply Chain coverage (0.15): all = +0.00; partial = +0.08;
      none = +0.15.
    - Regression `taxonomy_mapping` field growth (0.10): new field proposed
@@ -230,8 +234,8 @@ CONSTRAINT — Evidence integrity (P8):
 |----------|------|---------|
 | `select-evidence.j2` | KnowAct | Discover evidence sources; read regression library for existing taxonomy_mappings; emit `cns.taxonomy.select` span. |
 | `map-taxonomy.j2` | KnowAct | Map findings to OSC&R + OWASP SC dual taxonomy via CWE disambiguation; apply pragmatic-cybernetics; emit `cns.taxonomy.map` spans. |
-| `taxonomize.j2` | KnowAct | Classify mappings by OSC&R category; produce pattern signatures; propose backward-compatible `taxonomy_mapping` field; emit `cns.taxonomy.report` span. |
-| `convergence-check.j2` | KnowAct | Compute taxonomy coverage convergence metric (OSC&R coverage + OWASP SC coverage + mapping growth). Emit `cns.taxonomy.convergence` span. |
+| `taxonomize.j2` | KnowAct | Classify mappings by OSC&R tactic; produce pattern signatures; propose backward-compatible `taxonomy_mapping` field; emit `cns.taxonomy.report` span. |
+| `convergence-check.j2` | KnowAct | Compute taxonomy coverage convergence metric (OSC&R tactic coverage + OWASP SC coverage + mapping growth). Emit `cns.taxonomy.convergence` span. |
 
 ## OSC&R Taxonomy Reference (VERIFIED against github.com/pbom-dev/OSCAR)
 
