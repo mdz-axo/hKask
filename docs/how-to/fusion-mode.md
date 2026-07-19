@@ -264,8 +264,7 @@ The LLM judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSI
 | `improve-codebase-architecture` | Ousterhout: deletion test, deep modules, surface shallow modules |
 | `metacognition` | Goal decomposition, progress self-assessment, perspective rotation, GEPA improvement |
 | `refactor-service-layer` | Strangler fig migration, deep-module discipline, vertical tracer-bullet TDD |
-| `review` | Self-critique: contradictions, unsupported claims, logical gaps, calibration |
-| `self-critique-revision` | Draft → critique against criteria → revise. Iterative cycle, no first-draft acceptance |
+| `self-critique-revision` | Draft → critique against criteria → revise. Iterative cycle, no first-draft acceptance. Subsumes the former `review` skill (use `quality_criteria: [contradictions, unsupported_claims, logical_gaps, calibration]` for the review-only path). |
 
 Example: a judge anchored on cybernetics and essentialism:
 

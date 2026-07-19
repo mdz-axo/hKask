@@ -838,8 +838,7 @@ The judge can be anchored on hKask's pragmatic methodologies via `HKASK_FUSION_S
 | `improve-codebase-architecture` | Ousterhout: deletion test, deep modules |
 | `metacognition` | Goal decomposition, progress self-assessment, GEPA improvement |
 | `refactor-service-layer` | Strangler fig migration, deep-module discipline |
-| `review` | Self-critique: contradictions, unsupported claims, calibration |
-| `self-critique-revision` | Draft → critique → revise, iterative cycle |
+| `self-critique-revision` | Draft → critique → revise, iterative cycle. Subsumes the former `review` skill (use `quality_criteria: [contradictions, unsupported_claims, logical_gaps, calibration]` for the review-only path). |
 
 **Note:** `hypothesis-framer` is listed in the skill catalog but not yet implemented as a `FusionSkill` variant. To add it, extend the `FusionSkill` enum in `hkask-types/src/fusion.rs` (including the `enum_snake_str!` macro invocation for `as_str`/`FromStr`) and add a methodology prompt in `fusion_orchestrator.rs::skill_prompt()`.
 
