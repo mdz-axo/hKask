@@ -78,10 +78,11 @@ jobs:
         run: bash scripts/check-kali-regressions.sh
       - name: Convergence metric weights
         run: bash scripts/check-convergence-weights.sh
-      # Jinja2 template syntax validation and pipeline contract check are
-      # covered by `cargo test --workspace` in the test job (they require the
-      # mold linker and full system dependencies, which the invariants job
-      # does not install — it runs shell-script gates only).
+      # Jinja2 template syntax validation, pipeline contract check, and
+      # execution contract test are covered by `cargo test --workspace` in
+      # the test job (they require the mold linker and full system
+      # dependencies, which the invariants job does not install — it runs
+      # shell-script gates only).
 
   # ── Lint — fmt + clippy, own cache (clippy artifacts) ───────────────────
   lint:

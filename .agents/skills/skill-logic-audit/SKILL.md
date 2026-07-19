@@ -64,7 +64,6 @@ Runtime templates for skill-logic-audit: load a goal annotation, critique the ar
 | `critique-critique.j2` | KnowAct | Soundness review of a critique list. Separate valid, goal-anchored concerns from spurious or stylistic ones. Produce a filtered list with rationale.  |
 | `compose-proposal.j2` | KnowAct | Compose a concrete revised artifact body and a unified diff against the original, given the goal and the valid concerns. Do not weaken the contract or add stubs.  |
 | `user-choice.j2` | WordAct | Present the composed proposal to the user and capture a discrete choice: accept, reject, or counter-proposal. Enforce the configured loop depth limit and emit the next action.  |
-| `user-review-loop.j2` | KnowAct | Plan the bounded audit cascade routing (load-goal → critique-template → critique-critique → compose-proposal → user-choice) and the branching rules on accept/reject/counter-proposal. Does not execute the flow itself.  |
 | `convergence-check.j2` | KnowAct | Compute a normalized convergence metric for audit iterations. Uses calibrated verdict, valid concern count, and loop depth to output `convergence_metric` in [0,1], where 0 means no material flaws remain.  |
 
 ## Constraints
@@ -74,6 +73,5 @@ Runtime templates for skill-logic-audit: load a goal annotation, critique the ar
 - `critique-critique.j2`: Public.
 - `compose-proposal.j2`: Public.
 - `user-choice.j2`: Public.
-- `user-review-loop.j2`: Public.
 - `convergence-check.j2`: Public.
 - Registry is authoritative — when this SKILL.md disagrees with registry templates, the registry wins.

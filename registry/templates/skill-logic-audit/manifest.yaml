@@ -62,16 +62,6 @@ templates:
       accept, reject, or counter-proposal. Enforce the configured loop depth
       limit and emit the next action.
 
-  - id: skill-logic-audit/user-review-loop
-    name: "Plan the bounded audit cascade routing (load-goal → critique-template…"
-    path: user-review-loop.j2
-    type: KnowAct
-    lexicon_terms: [sequence, choice, iteration, escalate, route, compose]
-    description: >
-      Plan the bounded audit cascade routing (load-goal → critique-template →
-      critique-critique → compose-proposal → user-choice) and the branching
-      rules on accept/reject/counter-proposal. Does not execute the flow itself.
-
   - id: skill-logic-audit/convergence-check
     name: "Compute a normalized convergence metric for audit iterations"
     path: convergence-check.j2

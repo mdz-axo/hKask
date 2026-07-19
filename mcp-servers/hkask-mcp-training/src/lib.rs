@@ -1322,7 +1322,7 @@ impl TrainingServer {
     }
 
     #[tool(
-        description = "Run pre-flight checks on a trained LoRA adapter before evaluation or deployment. Verifies (1) adapter_config.json parses and init_lora_weights is valid, (2) adapter_model.safetensors exists and is non-empty, (3) optional sanity check — a test prompt produces output > min_response_chars. Emits cns.tool.training.preflight spans. Fail-fast: returns on first failure."
+        description = "Run pre-flight checks on a trained LoRA adapter before evaluation or deployment. Verifies (1) adapter_config.json parses and init_lora_weights is valid, (2) adapter_model.safetensors exists and is non-empty, (3) optional sanity check — a test prompt produces output > min_response_chars. Emits hkask.training.preflight telemetry spans. Fail-fast: returns on first failure."
     )]
     pub async fn training_preflight_check(
         &self,

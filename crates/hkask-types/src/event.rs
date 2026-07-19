@@ -265,7 +265,6 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.tool.replica",
     "cns.tool.research",
     "cns.tool.training",
-    "cns.tool.training.preflight",
     "cns.tool.wallet",
     "cns.tool.web_search",
     // ── Variety ──
