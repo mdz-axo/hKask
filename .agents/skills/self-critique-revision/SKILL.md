@@ -16,6 +16,7 @@ Iterative self-critique and revision cycle: generate an initial draft, critique 
 - When a draft requires structured self-critique to identify issues, score them, and classify them by constraint-force severity.
 - When a draft must be revised to address specific critique points while detecting and flagging regressions.
 - When an iterative self-critique and revision cycle needs to measure whether quality improvement has plateaued or converged.
+- When you need to self-critique a reasoning output for contradictions, unsupported claims, logical gaps, and confidence calibration (formerly the `review` skill — use `quality_criteria: [contradictions, unsupported_claims, logical_gaps, calibration]`).
 
 ## Instructions
 

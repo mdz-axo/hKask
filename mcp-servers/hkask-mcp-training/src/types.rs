@@ -665,3 +665,33 @@ impl AdapterDeployment {
         self.lifecycle.cost_accrued
     }
 }
+
+// ── Pre-flight check ───────────────────────────────────────────────────────
+
+/// Request for `training_preflight_check` — verifies an adapter is safe to
+/// deploy before running a full eval or registering it as ready.
+///
+/// Three checks run sequentially, fail-fast:
+/// 1. **load** — adapter_config.json parses and init_lora_weights is valid
+/// 2. **weights** — adapter_model.safetensors exists and is non-empty
+/// 3. **sanity** — a test prompt produces output > 50 chars (optional, requires inference)
+///
+/// This tool prevents the class of failures where a PiSSA-trained adapter is
+/// loaded with `init_lora_weights: true` without conversion, causing the
+/// principal components to be double-counted and the model to regress.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct TrainPreflightCheckRequest {
+    /// Path to the adapter directory containing adapter_config.json and
+    /// adapter_model.safetensors.
+    pub adapter_path: String,
+    /// Model identifier for the sanity-check inference call (provider-prefixed).
+    /// If omitted, only the load and weights checks run (no inference).
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Test prompt for the sanity check. If omitted, a default Rust prompt is used.
+    #[serde(default)]
+    pub test_prompt: Option<String>,
+    /// Minimum acceptable response length for the sanity check (default: 50).
+    #[serde(default)]
+    pub min_response_chars: Option<usize>,
+}

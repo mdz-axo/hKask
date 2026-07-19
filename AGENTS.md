@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**48 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **51 capabilities total.**
+**47 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **50 capabilities total.**
 
 | Type | Behavior |
 |------|----------|
@@ -45,7 +45,6 @@
 | **pragmatic-cybernetics** | Feedback loops, variety engineering, system homeostasis. |
 | **pragmatic-laziness** | Find the path of least action through meaning-space. |
 | **essentialist** | Recursive eliminative interrogation (Exist → Surface → Contract). |
-| **review** | Self-critique for contradictions, unsupported claims, logical gaps. |
 | **grill-me** | Socratic questioning to stress-test understanding. |
 | **zoom-out** | Broader context on unfamiliar code. |
 | **sequential-inquiry** | Dynamic chain-of-thought with automatic deep-dive delegation. |
@@ -90,7 +89,7 @@
 | **magna-carta-verifier** | Verify Magna Carta principles enforcement. |
 | **structured-extraction** | Extract structured data from unstructured text. |
 | **caveman** | Multi-mode text compression.
-| **self-critique-revision** | Iterative self-critique and revision cycle.
+| **self-critique-revision** | Iterative self-critique and revision cycle. Subsumes the former `review` skill (use `quality_criteria: [contradictions, unsupported_claims, logical_gaps, calibration]` for the review-only path). |
 | **gpa-evolution** | Genetic-Pareto evolutionary optimization over text artifacts (prompts). NL reflection as gradient. |
 | **media-workflow** | Multi-step media pipeline skill. Compose Fal.ai workflow DAGs from natural-language intent. |
 | **logo-builder** (Template) | Pragmatic logo design. |

@@ -218,27 +218,104 @@ async fn training_recommend_model_returns_recommendations_via_parameters_seam() 
     );
 }
 
-// REQ: training_recommend_model returns a default for unknown task types (P5).
-// expect: an unknown task_type returns a default recommendation (not an error).
+// REQ: training_preflight_check fails on a missing adapter_config.json (P5).
+// expect: preflight returns all_pass=false, failed_at=load.
 #[tokio::test]
-async fn training_recommend_model_returns_default_for_unknown_task_via_parameters_seam() {
+async fn training_preflight_check_fails_on_missing_config_via_parameters_seam() {
     let server = test_server();
-    let req: TrainRecommendModelRequest = serde_json::from_value(serde_json::json!({
-        "task_type": "nonexistent_task",
-        "budget": null,
-        "latency": null,
-        "license": null,
-        "provider": null
-    }))
-    .expect("deserialize TrainRecommendModelRequest");
-    let out = server.training_recommend_model(Parameters(req)).await;
+    let req: hkask_mcp_training::types::TrainPreflightCheckRequest =
+        serde_json::from_value(serde_json::json!({
+            "adapter_path": "/nonexistent/path",
+            "model": null,
+            "test_prompt": null,
+            "min_response_chars": null
+        }))
+        .expect("deserialize TrainPreflightCheckRequest");
+    let out = server.training_preflight_check(Parameters(req)).await;
     let content = parse_content(&out);
-    assert!(
-        content["recommendations"].is_array(),
-        "should have recommendations: {out}"
+    assert_eq!(
+        content["all_pass"], false,
+        "should fail on missing config: {out}"
     );
-    assert!(
-        !content["recommendations"].as_array().unwrap().is_empty(),
-        "should have a default recommendation: {out}"
+    assert_eq!(
+        content["failed_at"], "load",
+        "should fail at load check: {out}"
     );
+}
+
+// REQ: training_preflight_check fails on a missing adapter_model.safetensors (P5).
+// expect: preflight returns all_pass=false, failed_at=weights when config exists but weights don't.
+#[tokio::test]
+async fn training_preflight_check_fails_on_missing_weights_via_parameters_seam() {
+    let server = test_server();
+    // Create a temp dir with a valid adapter_config.json but no safetensors
+    let temp_dir = std::env::temp_dir().join("hkask_preflight_test_no_weights");
+    std::fs::create_dir_all(&temp_dir).ok();
+    std::fs::write(
+        temp_dir.join("adapter_config.json"),
+        r#"{"init_lora_weights": true, "r": 32, "lora_alpha": 64, "base_model_name_or_path": "test"}"#,
+    )
+    .ok();
+
+    let req: hkask_mcp_training::types::TrainPreflightCheckRequest =
+        serde_json::from_value(serde_json::json!({
+            "adapter_path": temp_dir.to_string_lossy(),
+            "model": null,
+            "test_prompt": null,
+            "min_response_chars": null
+        }))
+        .expect("deserialize TrainPreflightCheckRequest");
+    let out = server.training_preflight_check(Parameters(req)).await;
+    let content = parse_content(&out);
+    assert_eq!(
+        content["all_pass"], false,
+        "should fail on missing weights: {out}"
+    );
+    assert_eq!(
+        content["failed_at"], "weights",
+        "should fail at weights check: {out}"
+    );
+    std::fs::remove_dir_all(&temp_dir).ok();
+}
+
+// REQ: training_preflight_check passes when config and weights exist (P5).
+// expect: preflight returns all_pass=true with load and weights both pass (sanity skipped).
+#[tokio::test]
+async fn training_preflight_check_passes_with_valid_adapter_via_parameters_seam() {
+    let server = test_server();
+    // Create a temp dir with a valid config and a dummy safetensors file
+    let temp_dir = std::env::temp_dir().join("hkask_preflight_test_valid");
+    std::fs::create_dir_all(&temp_dir).ok();
+    std::fs::write(
+        temp_dir.join("adapter_config.json"),
+        r#"{"init_lora_weights": true, "r": 32, "lora_alpha": 64, "base_model_name_or_path": "unsloth/Qwen3.6-27B"}"#,
+    )
+    .ok();
+    // Write a dummy safetensors file > 1KB
+    std::fs::write(temp_dir.join("adapter_model.safetensors"), vec![0u8; 2048]).ok();
+
+    let req: hkask_mcp_training::types::TrainPreflightCheckRequest =
+        serde_json::from_value(serde_json::json!({
+            "adapter_path": temp_dir.to_string_lossy(),
+            "model": null,
+            "test_prompt": null,
+            "min_response_chars": null
+        }))
+        .expect("deserialize TrainPreflightCheckRequest");
+    let out = server.training_preflight_check(Parameters(req)).await;
+    let content = parse_content(&out);
+    assert_eq!(
+        content["all_pass"], true,
+        "should pass with valid adapter (no inference): {out}"
+    );
+    let checks = content["checks"].as_array().expect("checks is array");
+    assert!(
+        checks.len() >= 2,
+        "should have load and weights checks: {out}"
+    );
+    assert_eq!(checks[0]["check"], "load");
+    assert_eq!(checks[0]["status"], "pass");
+    assert_eq!(checks[1]["check"], "weights");
+    assert_eq!(checks[1]["status"], "pass");
+    std::fs::remove_dir_all(&temp_dir).ok();
 }

@@ -16,6 +16,7 @@
 //! - `training_curate_feedback` — Curate feedback from stored QA pairs for continuous skills training
 //! - `training_retrain` — Retrain an adapter with curated feedback (closes the continuous loop)
 //! - `training_ingest_dataset` — Ingest a raw dataset into the normalized cache
+//! - `training_preflight_check` — Pre-flight checks on a trained adapter before eval/deployment
 //!
 //! Architecture:
 //!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingHost → TrainedLoRAAdapter
@@ -1316,8 +1317,207 @@ impl TrainingServer {
                 "total_tokens_used": total_tokens,
                 "per_example": per_example_results,
             }))
-        })
-        .await
+                    })
+                    .await
+    }
+
+    #[tool(
+        description = "Run pre-flight checks on a trained LoRA adapter before evaluation or deployment. Verifies (1) adapter_config.json parses and init_lora_weights is valid, (2) adapter_model.safetensors exists and is non-empty, (3) optional sanity check — a test prompt produces output > min_response_chars. Emits cns.tool.training.preflight spans. Fail-fast: returns on first failure."
+    )]
+    pub async fn training_preflight_check(
+        &self,
+        Parameters(TrainPreflightCheckRequest {
+            adapter_path,
+            model,
+            test_prompt,
+            min_response_chars,
+        }): Parameters<TrainPreflightCheckRequest>,
+    ) -> String {
+        execute_tool(self, "training_preflight_check", async {
+                        let adapter_dir = PathBuf::from(&adapter_path);
+                        let mut checks: Vec<serde_json::Value> = Vec::new();
+                        let mut all_pass = true;
+
+                        // ── Check 1: adapter_config.json loads and init_lora_weights is valid ──
+                        let config_path = adapter_dir.join("adapter_config.json");
+                        let check1 = if !config_path.exists() {
+                            all_pass = false;
+                            json!({
+                                "check": "load",
+                                "status": "fail",
+                                "reason": format!("adapter_config.json not found at {}", config_path.display())
+                            })
+                        } else {
+                            match std::fs::read_to_string(&config_path) {
+                                Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+                                    Ok(cfg) => {
+                                        let init = cfg.get("init_lora_weights");
+                                        let init_valid = match init {
+                                            Some(serde_json::Value::Bool(true)) => true,
+                                            Some(serde_json::Value::String(s)) => s == "pissa_niter_4" || s == "pissa_niter_8",
+                                            _ => false,
+                                        };
+                                        if init_valid {
+                                            json!({
+                                                "check": "load",
+                                                "status": "pass",
+                                                "init_lora_weights": init,
+                                                "r": cfg.get("r"),
+                                                "lora_alpha": cfg.get("lora_alpha"),
+                                                "base_model": cfg.get("base_model_name_or_path")
+                                            })
+                                        } else {
+                                            all_pass = false;
+                                            json!({
+                                                "check": "load",
+                                                "status": "fail",
+                                                "reason": "init_lora_weights must be true (standard LoRA) or pissa_niter_N (PiSSA). Got: ".to_string() + &init.map(|v| v.to_string()).unwrap_or_else(|| "null".to_string())
+                                            })
+                                        }
+                                    }
+                                    Err(e) => {
+                                        all_pass = false;
+                                        json!({
+                                            "check": "load",
+                                            "status": "fail",
+                                            "reason": format!("adapter_config.json is not valid JSON: {e}")
+                                        })
+                                    }
+                                },
+                                Err(e) => {
+                                    all_pass = false;
+                                    json!({
+                                        "check": "load",
+                                        "status": "fail",
+                                        "reason": format!("Cannot read adapter_config.json: {e}")
+                                    })
+                                }
+                            }
+                        };
+                        tracing::info!(
+                            target: "hkask.training.preflight",
+                            check = "load",
+                            status = check1.get("status").and_then(|s| s.as_str()).unwrap_or("unknown"),
+                            "Pre-flight check: load"
+                        );
+                        checks.push(check1);
+
+                        if !all_pass {
+                            return Ok(json!({
+                                "adapter_path": adapter_path,
+                                "all_pass": false,
+                                "checks": checks,
+                                "failed_at": "load"
+                            }));
+                        }
+
+                        // ── Check 2: adapter_model.safetensors exists and is non-empty ──
+                        let weights_path = adapter_dir.join("adapter_model.safetensors");
+                        let check2 = if !weights_path.exists() {
+                            all_pass = false;
+                            json!({
+                                "check": "weights", "status": "fail",
+                                "reason": format!("adapter_model.safetensors not found at {}", weights_path.display())
+                            })
+                        } else {
+                            let size = std::fs::metadata(&weights_path).map(|m| m.len()).unwrap_or(0);
+                            if size < 1024 {
+                                all_pass = false;
+                                json!({
+                                    "check": "weights", "status": "fail",
+                                    "reason": format!("adapter_model.safetensors is too small: {size} bytes"),
+                                    "size_bytes": size
+                                })
+                            } else {
+                                json!({
+                                    "check": "weights", "status": "pass", "size_bytes": size})
+                            }
+                        };
+                        tracing::info!(
+                            target: "hkask.training.preflight",
+                            check = "weights",
+                            status = check2.get("status").and_then(|s| s.as_str()).unwrap_or("unknown"),
+                            "Pre-flight check: weights"
+                        );
+                        checks.push(check2);
+
+                        if !all_pass {
+                            return Ok(json!({
+                                "adapter_path": adapter_path,
+                                "all_pass": false,
+                                "checks": checks,
+                                "failed_at": "weights"
+                            }));
+                        }
+
+                        // ── Check 3 (optional): sanity — generate 1 example and check output length ──
+                        if let Some(_model_id) = model {
+                            let prompt = test_prompt.unwrap_or_else(|| {
+                                "Generate a simple Rust function that adds two numbers.\n\nProvide just the code."
+                                    .to_string()
+                            });
+                            let min_chars = min_response_chars.unwrap_or(50);
+
+                            let router = InferenceRouter::new(self.inference_config.clone());
+                            let params = LLMParameters {
+                                temperature: 1.0,
+                                max_tokens: 512,
+                                ..Default::default()
+                            };
+
+                            let check3 = match router.generate(&prompt, &params, None).await {
+                                Ok(response) => {
+                                    let text = response.text.trim();
+                                                                        let len = text.chars().count();
+                                                                        if len >= min_chars {
+                                        json!({
+                                            "check": "sanity",
+                                            "status": "pass",
+                                            "response_chars": len,
+                                            "response_preview": text.chars().take(200).collect::<String>()
+                                        })
+                                    } else {
+                                        all_pass = false;
+                                        json!({
+                                            "check": "sanity",
+                                            "status": "fail",
+                                            "reason": format!("Response too short: {len} chars (minimum {min_chars})"),
+                                            "response_chars": len,
+                                            "response_preview": text
+                                        })
+                                    }
+                                }
+                                Err(e) => {
+                                    all_pass = false;
+                                    json!({
+                                        "check": "sanity",
+                                        "status": "fail",
+                                        "reason": format!("Inference failed: {e}")
+                                    })
+                                }
+                            };
+                            tracing::info!(
+                                target: "hkask.training.preflight",
+                                check = "sanity",
+                                status = check3.get("status").and_then(|s| s.as_str()).unwrap_or("unknown"),
+                                "Pre-flight check: sanity"
+                            );
+                            checks.push(check3);
+                        } else {
+                            checks.push(json!({
+                                "check": "sanity",
+                                "status": "skipped",
+                                "reason": "model not provided"
+                            }));
+                        }
+
+                        Ok(json!({
+                            "adapter_path": adapter_path,
+                            "all_pass": all_pass,
+                            "checks": checks
+                        }))
+                    })
+                    .await
     }
 
     #[tool(

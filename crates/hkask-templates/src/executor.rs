@@ -578,6 +578,19 @@ impl ManifestExecutor {
                                 baseline_quality,
                                 manifest.convergence.improvement_ratio,
                             );
+                            // Honor on_not_reached: if "escalate", emit span and
+                            // return error instead of silently exiting.
+                            if manifest.convergence.on_not_reached == "escalate" {
+                                info!(
+                                    target: "cns.skill.escalated",
+                                    iteration = iteration,
+                                    reason = "convergence not reached (max_iterations exhausted)",
+                                    "CNS"
+                                );
+                                return Err(TemplateError::Manifest(format!(
+                                    "Cascade escalated: convergence not reached after {iteration} iterations (threshold {threshold}, field {field})"
+                                )));
+                            }
                             break 'cascade;
                         }
 
@@ -795,6 +808,21 @@ impl ManifestExecutor {
                     baseline_quality,
                     manifest.convergence.improvement_ratio,
                 );
+                // Honor on_not_reached: if "escalate", emit span and return error
+                // instead of silently exiting. This makes the convergence contract
+                // real — skills that declare on_not_reached: escalate will actually
+                // escalate when they fail to converge.
+                if manifest.convergence.on_not_reached == "escalate" {
+                    info!(
+                        target: "cns.skill.escalated",
+                        iteration = iteration,
+                        reason = "convergence not reached (max_iterations exhausted)",
+                        "CNS"
+                    );
+                    return Err(TemplateError::Manifest(format!(
+                        "Cascade escalated: convergence not reached after {iteration} iterations (threshold {threshold}, field {field})"
+                    )));
+                }
                 break 'cascade;
             }
 
