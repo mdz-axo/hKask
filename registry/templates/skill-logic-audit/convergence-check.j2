@@ -21,6 +21,7 @@ visibility: Public
 ---
 {# Template: skill-logic-audit/convergence-check.j2 #}
 {# goal: Compute a normalized convergence metric in [0,1] for audit PDCA cycles, where 0 means no material flaws remain. #}
+{# Uses formula, not weighted dimensions — check-convergence-weights.sh skips this. #}
 
 [inference]
 temperature = 0.1

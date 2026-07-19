@@ -24,6 +24,7 @@ visibility: Public
 {# Implementation: Jinja2 prompt #}
 {# Produces: convergence_metric, rationale, blocking_violations, goal_delta #}
 {# Skill Bundler — Convergence Check #}
+{# Uses formula (max(Score_s, Score_g)), not weighted dimensions — check-convergence-weights.sh skips this. #}
 
 [inference]
 temperature = 0.1

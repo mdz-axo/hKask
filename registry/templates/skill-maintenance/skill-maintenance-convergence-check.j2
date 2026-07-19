@@ -19,6 +19,7 @@ visibility: Public
 ---
 {# Template: skill-maintenance/skill-maintenance-convergence-check.j2 #}
 {# goal: Compute a normalized convergence metric in [0,1] for maintenance PDCA cycles, where 0 means critical staleness signals are resolved. #}
+{# Uses formula, not weighted dimensions — check-convergence-weights.sh skips this. #}
 
 [inference]
 temperature = 0.1

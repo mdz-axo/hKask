@@ -24,6 +24,7 @@ visibility: Public
 {# hKask v0.31.0 — GEPA Evolution #}
 {# Step 6: Convergence Check #}
 {# goal: Compute Pareto-frontier stability convergence metric. #}
+{# Uses formula (delta + 0.05 * new_members), not weighted dimensions — check-convergence-weights.sh skips this. #}
 {#
   Group: G (Optimization — evolutionary)
   Convergence method: Pareto-frontier stability (hypervolume delta + new-member penalty)

@@ -19,6 +19,7 @@ visibility: Public
 ---
 {# Template: skill-discovery/skill-discovery-convergence-check.j2 #}
 {# goal: Compute a normalized convergence metric in [0,1] for discovery PDCA cycles, where 0 means the identified capability gap is sufficiently resolved. #}
+{# Uses formula, not weighted dimensions — check-convergence-weights.sh skips this. #}
 
 [inference]
 temperature = 0.1

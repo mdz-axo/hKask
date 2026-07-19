@@ -21,6 +21,7 @@ visibility: Public
 ---
 {# Template: self-critique-revision/self-critique-convergence-check.j2 #}
 {# goal: Compute normalized convergence metric for self-critique revision cycles. #}
+{# Uses formula ((5 - normalized_quality_score) / 4), not weighted dimensions — check-convergence-weights.sh skips this. #}
 {#
   Group: A (Output Quality)
   Convergence method: LLM-assessed saturation detection

@@ -41,6 +41,14 @@ You are a convergence evaluator for metacognition. Measure whether the replicant
 - 1.00 = no meaningful self-assessment performed
 
 ## Scoring Guidance
+{# Dimension weights (sum to 1.0): machine-parseable for check-convergence-weights.sh. #}
+- Decomposition (acyclic sub-goals with effort estimates) weight: 0.20
+- Assessment (actual condition grounded in evidence) weight: 0.20
+- Obstacles (specific, typed, severity-rated) weight: 0.20
+- Calibration (addresses identified obstacles) weight: 0.20
+- Next experiment (small, testable, measurable) weight: 0.10
+- Confidence (calibrated, not overconfident) weight: 0.10
+
 1. Decomposition: is the goal broken into acyclic sub-goals with effort estimates? → +0.20 if missing
 2. Assessment: is the actual condition grounded in evidence? → +0.20 if vague
 3. Obstacles: are obstacles specific, typed, and severity-rated? → +0.20 if vague
