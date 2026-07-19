@@ -30,7 +30,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 fn load_env() {
-    let _ = dotenvy::dotenv();
+    
 }
 
 fn test_token(webid: WebID) -> DelegationToken {

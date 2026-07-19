@@ -10,7 +10,7 @@ use hkask_ports::InferencePort;
 use hkask_types::template::LLMParameters;
 
 fn load_env() {
-    let _ = dotenvy::dotenv();
+    
 }
 
 fn condenser_params() -> LLMParameters {

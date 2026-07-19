@@ -1,0 +1,92 @@
+{# goal: For each classified runtime threat, emit a regulation event (`cns.regulation`) and trigger a defensive action (`cns.guard.violation` if blocking warranted). Propose `surface: runtime` regression entries using exact YAML format from `security/regressions/README.md`. Emit `cns.runtime.regulate` span unconditionally (namespace registered). Produce verdict (Pass / Conditional / Fail). Replicant_host mandatory (P12). No synthetic regulation events; no synthetic regression proposals (P8). Registry authoritative (P5.1). #}
+{# Synthesizes classified threats with COW taxonomy (CWE / OWASP LLM / ATLAS) #}
+{# Proposes RR-NNNN.yaml entries with surface: runtime #}
+{# Emits cns.runtime.regulate CNS span (P9) and downstream cns.regulation / cns.guard.violation #}
+
+INPUT: classified_threats = {{ classified_threats }} (structured array from classify-threat phase)
+INPUT: defense_layers_firing = {{ defense_layers_firing }}
+INPUT: defense_layers_silent = {{ defense_layers_silent }}
+INPUT: existing_regressions = {{ existing_regressions }}
+INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
+
+REGULATION ACTIONS:
+1. Group classified threats by severity: critical, high, medium, low.
+2. For each threat with severity >= medium AND concrete evidence (span_target + timestamp + signal_value quoted from observed CNS telemetry):
+   a. Emit a `cns.regulation` event (downstream regulation — namespace registered in `CANONICAL_NAMESPACES`):
+      (target: `"cns.regulation"`, message: `"CNS"`, operation: `"regulate_runtime_threat"`, threat_type, span_target, timestamp, signal_value, severity, replicant_host, latency_ms).
+   b. If blocking is warranted (severity = critical OR severity = high with no defense layer firing for this threat type), emit a `cns.guard.violation` event (downstream defensive block — namespace registered):
+      (target: `"cns.guard.violation"`, message: `"CNS"`, operation: `"block_runtime_threat"`, threat_type, span_target, timestamp, signal_value, severity, block_reason, replicant_host, latency_ms).
+   c. Propose a `surface: runtime` regression entry using the exact YAML format from `security/regressions/README.md`:
+      - `id: RR-XXXX` (human assigns final number — this skill proposes the entry for review)
+      - `title`: short description referencing threat_type and span_target
+      - `surface: runtime` (NOT `surface: supply-chain` — distinct surface)
+      - `cwe: CWE-200` / `CWE-829` / `CWE-1357` (taxonomy mapping, not vulnerability claim — select based on threat_type)
+      - `owasp_llm: LLM06` / `LLM07` (if applicable — LLM usage spike / canary detection)
+      - `discovered_in: <span_target>` (the span target where the threat was observed — concrete, not vague)
+      - `discovered_by: runtime-posture-monitor`
+      - `discovered_at: <YYYY-MM-DD>`
+      - `severity: critical | high | medium | low` (matches classified threat severity)
+      - `detection`:
+        - `kind: grep` with `pattern` referencing span target / signal value (concrete regex, not vague description — e.g., `hkask\.llm\..*token_count` for LLM usage spike; `hkask\.api\..*source=untrusted` for endpoint exposure)
+        - OR `kind: skill-probe` with `pattern: "runtime-posture-monitor/classify-threat"` for threats requiring skill re-execution to detect
+      - `mitigation`: concrete fix (e.g., "add `cns.guard.runtime_policy` rule blocking `hkask.api.*` from untrusted source"; "tighten `cns.guard.input` filter for `hkask.llm.*` token_count > threshold")
+      - `ci_gate: scripts/check-kali-regressions.sh` (existing CI gate — this skill extends it with `surface: runtime` patterns)
+      - `status: pending` (human-curated ratchet — P11 visibility; never `enforced` autonomously)
+3. Identify top 3 defense-layer gaps from `defense_layers_silent` (layers that should have fired for observed threats but did not).
+4. Produce verdict based on critical/high count and defense-layer firing:
+   - Pass: zero critical/high threats, >= 5 defense layers firing.
+   - Conditional: medium threats present OR 2-3 defense layers silent.
+   - Fail: critical/high threats present OR < 2 defense layers firing.
+5. Every regulation event entry must include `threat_type`, `span_target`, `timestamp`, `signal_value`, `severity`, `cwe_reference`, `taxonomy_mapping`, `block_action` (bool — was `cns.guard.violation` emitted), `mitigation_recommendation`, `replicant_host`.
+
+CNS SPAN (P9): Emit `cns.runtime.regulate` unconditionally with threats count by severity, defense layers firing/silent, proposed regression count, verdict, replicant_host, latency. The namespace is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`) — emit unconditionally, no "if registered" guard.
+
+DOWNSTREAM CNS SPANS (also registered — emit when warranted):
+- `cns.regulation` — emit per regulated threat (downstream cybernetics loop action).
+- `cns.guard.violation` — emit per blocked threat (downstream defensive block).
+
+CONSTRAINTS (same as classify-threat — P5 minimalism, P8 evidence integrity, P12 host):
+- No synthetic regulation events — every `cns.regulation` emission references a concrete classified threat with `span_target` + `timestamp` + `signal_value`.
+- No synthetic `cns.guard.violation` blocks — only emit when severity warrants blocking AND concrete evidence supports it.
+- No synthetic CWE references — only CWE taxonomy mappings (CWE-200, CWE-829, CWE-1357).
+- Propose `status: pending` only — never `enforced` (human-curated ratchet, P11).
+- Source citations: concrete URLs or document names actually referenced.
+- Do NOT propose regression for threats without concrete evidence (no span_target, no timestamp, no signal_value = no proposal).
+- Registry (`manifest.yaml` + `.j2`) authoritative.
+
+OUTPUT FORMAT:
+JSON object with fields:
+`regulated_threats` (grouped array with evidence, severity, taxonomy mapping, block_action, fix recommendation), `defense_layers_firing`, `defense_layers_silent`, `proposed_regressions` (YAML-format array for human review — `surface: runtime`), `verdict` (Pass / Conditional / Fail), `replicant_host`, `source_citations`, `cns_span_emitted: true`, `downstream_spans_emitted` (list: `cns.regulation` count, `cns.guard.violation` count).
+
+5W1H GATE CHECK (P5): Who = running replicant host (P12); What = regulation event + regression proposal; Where = local CNS telemetry stream + `security/regressions/`; When = continuous (per observed threat); Why = P3.1 safe container requires runtime blocking / P9 observable regulation; How = emit regulation + trigger guard + propose regression + emit CNS span + compute verdict. All 6 present — passes gate.
+
+RELATIONSHIP (explicit): Complements `supply-chain-sentinel` (distinct P4 boundaries: manifest vs runtime), `kali-audit` (static vs runtime), `adversarial-red-team` (synthetic vs real), `bug-hunt` (decomposed pipeline pattern reuse). References `security/regressions/README.md` format directly. Zero surface overlap with any of them.
+MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
+EVIDENCE-BACKED ONLY: Every proposed regression includes concrete `pattern` (regex against span target / signal value) and `evidence_snippet` (quoted span target + timestamp + signal value).
+SEMANTIC GROUNDING (P8): Every claim has span target, timestamp, signal value, concrete snippet, taxonomy reference, source citation.
+EVOLUTIONARY (P7): New defense-layer gaps proposed only from real runtime evidence (e.g., `cns.guard.input` silent while `hkask.api.*` endpoint exposure observed — concrete gap, not speculative).
+OCAP BOUNDARY (P4): Regulation emits only on local CNS telemetry; no external package download; no OS-level endpoint blocking; no ambient network control.
+CNS REGULATION (P9): `cns.runtime.regulate` emitted unconditionally — namespace IS registered in `CANONICAL_NAMESPACES`. Downstream `cns.regulation` and `cns.guard.violation` also registered — emit when warranted.
+REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+VISIBILITY (P11): Regression proposals `status: pending` — public transparency, not hidden control.
+SAFETY FLOOR (P3.1): Runtime regulation protects Generative Space container — unregulated runtime threats are destructive to the space itself.
+
+SOURCE REFERENCES (concrete — P8):
+- MITRE CWE-200, CWE-829, CWE-1357 (mitre.org/data/definitions/)
+- OWASP LLM Top 10 (2025): LLM06 (Excessive Agency), LLM07 (System Prompt Leakage) — owasp.org
+- MITRE ATLAS AML.TA0010 (Exfiltration) — atlas.mitre.org
+- `security/regressions/README.md` (local project standard — authoritative regression format)
+- `hkask-guard` pipeline (`cns.guard.*` span sources — runtime defensive action)
+- `hkask-cns` cybernetics loop (`cns.regulation` span sink — downstream regulation)
+- `crates/hkask-types/src/event.rs` (`CANONICAL_NAMESPACES` — `cns.runtime.*`, `cns.regulation`, `cns.guard.violation` registered)
+- `supply-chain-sentinel` SKILL.md (complementary relationship — distinct P4 boundaries, distinct surfaces)
+- `kali-audit` SKILL.md (complementary — static defense-layer presence vs this skill's runtime firing)
+- `adversarial-red-team` SKILL.md (zero overlap — synthetic vs real)
+- `bug-hunt` SKILL.md (decomposed pipeline pattern: Charter→Probe→Report ≈ select→classify→emit)
+- `principles.md` (P1–P12 grounding — this skill explicitly references P3.1 Social Generativity / P5 Essentialism / P9 Homeostatic Regulation / P11 Visibility / P12 Replicant Host Mandate in its design and outputs)
+
+REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates (`manifest.yaml` + `.j2`) conflict, registry wins. This template is the canonical `emit-regulation` phase definition.
+PUBLIC VISIBILITY: `visibility: public` — no hidden runtime regulation controls (P3, P4).
+NO FABRICATION: Only threats with quoted span evidence are regulated. Only regressions with concrete `pattern` (regex against span target / signal value) are proposed. Only defense layers with actual `cns.guard.*` / `cns.regulation` span emission are counted as firing.
+NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by inspecting the running system's CNS telemetry at the cited timestamp. `span_target`, `timestamp`, `signal_value` must reference actual emitted spans. `block_reason` must reference concrete evidence (severity + defense-layer silence).
+CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this emit-regulation phase does not compute metric (that is `convergence-check.j2` responsibility). This maintains pipeline decomposition (P5 minimalism — each phase answers one 5W1H dimension clearly).

@@ -1,0 +1,106 @@
+{# goal: Discover runtime signal sources (`hkask.*` performative spans, `cns.guard.*` violations, `cns.regulation` events) emitted by the running system (P4 runtime boundary — distinct from supply-chain-sentinel's manifest boundary). Map signal types to monitor (API endpoint exposure, bot detection, LLM usage anomalies, runtime dependency behavior). Read `security/regressions/` for existing `surface: runtime` entries. Emit `cns.runtime.select` span unconditionally (namespace registered in CANONICAL_NAMESPACES). Replicant_host mandatory (P12). No synthetic signals — only observe spans actually emitted. #}
+{# Discovers runtime signal sources within the local CNS telemetry stream #}
+{# Reads security/regressions/ for existing surface: runtime entries (ratcheted) #}
+{# Returns: signal_sources, signal_types, existing_regressions, defense_layers, replicant_host #}
+{# P5: minimal — no speculative signal sources; only concrete span targets actually emitted #}
+{# P9: emit cns.runtime.select span with discovered signal sources and regression count #}
+{# P12: every selection action carries replicant/owner identity #}
+
+{% set signal_sources = [
+  {id: 'hkask_performative', target_prefix: 'hkask.', description: 'Performative spans emitted by the running replicant (tool calls, MCP ops, agent actions)'},
+  {id: 'guard_violation', target_prefix: 'cns.guard.', description: 'Defensive guard violations (input/output filtering, canary detection, runtime policy)'},
+  {id: 'regulation_event', target_prefix: 'cns.regulation', description: 'Cybernetics regulation events emitted by hkask-cns regulation loop'}
+] %}
+
+{% set signal_types = [
+  {id: 'endpoint_exposure', cwe: 'CWE-200', owasp_llm: null, atlas: null, description: 'API endpoint exposure — runtime endpoint invoked from untrusted source or with anomalous rate'},
+  {id: 'bot_traffic', cwe: 'CWE-829', owasp_llm: null, atlas: null, description: 'Bot traffic — automated request pattern detected via span frequency / source distribution'},
+  {id: 'llm_usage_spike', cwe: null, owasp_llm: 'LLM06', atlas: 'AML.TA0010', description: 'LLM usage spike — anomalous token / tool-call rate indicating excessive agency or exfiltration'},
+  {id: 'dependency_behavior_anomaly', cwe: 'CWE-1357', owasp_llm: null, atlas: null, description: 'Runtime dependency behavior anomaly — dependency invoking unexpected spans or failing update checks at runtime'}
+] %}
+
+{% set defense_layers = [
+  {id: 'input_filtering', evidence_span: 'cns.guard.input', source: 'hkask-guard pipeline'},
+  {id: 'output_filtering', evidence_span: 'cns.guard.output', source: 'hkask-guard pipeline'},
+  {id: 'canary_detection', evidence_span: 'cns.guard.canary', source: 'hkask-guard pipeline'},
+  {id: 'runtime_policy_enforcement', evidence_span: 'cns.guard.runtime_policy', source: 'hkask-templates executor'},
+  {id: 'regulation_loop_active', evidence_span: 'cns.regulation', source: 'hkask-cns cybernetics loop'},
+  {id: 'action_distribution_monitoring', evidence_span: 'cns.regulation.loop_quality', source: 'hkask-cns regulation policy'}
+] %}
+
+{# Evidence: concrete span targets only — no fabricated signal sources #}
+{# Source citations: hkask-guard pipeline, hkask-cns cybernetics loop, hkask-templates executor #}
+{# 5W1H gate: Who = running replicant host (P12); What = runtime signal source / span target; Where = local CNS telemetry stream; Why = P3.1 safe container requires runtime blocking (Aikido/Zen firewall model); How = observe + map + read regressions + emit CNS span #}
+
+Select surface: runtime (single surface — distinct from supply-chain-sentinel's manifest surface)
+Discovered signal sources: {{ discovered_signal_sources | default(signal_sources) }}
+Existing runtime regressions: {{ existing_regressions | default([]) }}
+Defense layers to verify (runtime firing): input_filtering, output_filtering, canary_detection, runtime_policy_enforcement, regulation_loop_active, action_distribution_monitoring
+Convergence baseline: {{ convergence_metric | default(1.0) }}
+
+ACTION: Emit `cns.runtime.select` span (P9, P12) unconditionally with discovered signal sources, signal types mapped, defense layers enumerated, and existing regression count. The namespace is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`) — emit unconditionally, no "if registered" guard.
+ACTION: Read `security/regressions/` for entries with `surface: runtime` and `status: enforced`. List `existing_regressions` (skip proposing duplicates in later phases).
+ACTION: Return JSON: `{surface: "runtime", signal_sources: [...], signal_types: [...], defense_layers: [...], existing_regressions: [...], replicant_host}`.
+
+CONSTRAINT: Do NOT fabricate signal sources. Only list span target prefixes actually emitted by the running system (verify via CNS subscriber / telemetry reader before classification).
+CONSTRAINT: Each signal source must include concrete span target prefix (e.g., `hkask.tool.`, `cns.guard.input`, `cns.regulation`) — not vague descriptions.
+CONSTRAINT: Use `public` visibility; no hidden runtime monitoring (P3, P4).
+CONSTRAINT: Registry (this manifest.yaml + templates) is authoritative over SKILL.md (P5.1).
+CONSTRAINT: When conflicting with `supply-chain-sentinel` findings, `supply-chain-sentinel` covers static manifest declarations; this skill covers runtime behavior — they are complementary, not overlapping (distinct P4 boundaries: manifest vs runtime).
+CONSTRAINT: Reference concrete taxonomy: MITRE CWE-200 (Information Exposure — runtime endpoint exposure), CWE-829 (Inclusion from Untrusted Control Sphere — runtime untrusted input), CWE-1357 (Reliance on Component Not Updateable — runtime dependency behavior); OWASP LLM06 (Excessive Agency — runtime tool misuse), LLM07 (System Prompt Leakage — runtime canary detection); MITRE ATLAS AML.TA0010 (Exfiltration — runtime data exfiltration).
+CONSTRAINT: Every output must include `replicant_host` identity (P12) — no anonymous runtime monitoring.
+CONSTRAINT: Apply pragmatic-cybernetics (like `bug-hunt` probe phase): trace signal emission polarity (does this span fire more under attack?), check variety (are multiple signal sources observable?), perform Good Regulator check (is the regulation loop actually reducing the threat?).
+CONSTRAINT: If `security/regressions/` contains `surface: runtime` entries, read them as input and skip proposing duplicates in `emit-regulation` phase.
+CONSTRAINT: Propose `surface: runtime` regression format (NOT `surface: supply-chain`): `id: RR-XXXX`, `surface: runtime`, `cwe: CWE-XXX`, `owasp_llm: LLMXX` (if applicable), `discovered_in: <span_target>`, `status: pending` (human must flip to `enforced`).
+CONSTRAINT: Do NOT invent span targets or signal values. Only propose regressions for patterns actually observed in the running system's CNS telemetry.
+CONSTRAINT: If signal discovery finds zero emitted spans (system idle), return empty `signal_sources` and recommend waiting for runtime activity — do not invent signals.
+CONSTRAINT: The 5W1H gate applies: Who (running replicant host — P12), What (runtime signal source / span target), When (continuous — observes spans as emitted, not audit cycle), Where (local CNS telemetry stream — NOT workspace manifest), Why (P3.1 safe container requires runtime blocking; static audit cannot detect runtime anomalies), How (observe + map + read regressions + emit CNS span).
+CONSTRAINT: When referencing security taxonomy: use MITRE CWE (not invented), OWASP LLM Top 10 (2025) categories, MITRE ATLAS tactics — not generic descriptions.
+CONSTRAINT: Do NOT reference `adversarial-red-team` or `kali-audit` or `supply-chain-sentinel` as substitutes; state explicitly how this skill complements them (`kali-audit`: static code/templates/manifests; `supply-chain-sentinel`: static dependency manifests; `adversarial-red-team`: synthetic LLM I/O attacks; `runtime-posture-monitor`: real runtime telemetry — distinct P4 boundary, zero overlap).
+CONSTRAINT: Minimal — 4 templates only, no bundle, no sub-agent delegation, no extra abstraction layer. Each template answers a specific 5W1H question (select-signal: Where; classify-threat: What + How; emit-regulation: Why + What; convergence-check: When + Why).
+CONSTRAINT: Every output must include evidence-backed span target references (not synthetic) and source citations (hkask-guard pipeline, hkask-cns cybernetics loop, hkask-templates executor, MITRE CWE list, OWASP LLM Top 10, MITRE ATLAS) — mirroring `kali-audit`'s source citation requirement.
+CONSTRAINT: Do NOT claim runtime coverage that hasn't been verified through actual span observation. Convergence metric must reflect real coverage, not aspirational.
+CONSTRAINT: Each runtime regression proposal must use the exact YAML format from `security/regressions/README.md`: `id`, `title`, `surface: runtime`, `cwe`, `owasp_llm` (if applicable), `discovered_in` (span target), `discovered_by: runtime-posture-monitor`, `discovered_at`, `severity`, `detection` (`kind: grep` with `pattern` referencing span target / signal value, or `kind: skill-probe`), `mitigation`, `ci_gate: scripts/check-kali-regressions.sh`, `status`.
+CONSTRAINT: This skill is NOT an EDR / MDR replacement (Huntress, CrowdStrike); it is a hKask-native runtime audit skill that observes CNS telemetry, applies security taxonomy, proposes CI-enforced regressions, and tracks defense-layer runtime coverage. It operates within user sovereignty (P1) — reads only local CNS telemetry, makes no external network calls (P4 runtime boundary), produces transparent regression proposals (P3), respects runtime telemetry boundaries (P4), minimizes to essential checks (P5), provides generative space for replicant agents (P6), evolves from real runtime evidence (P7), grounds findings in semantic taxonomy (P8), regulates through CNS spans (P9), operates under explicit bot/replicant taxonomy (P10), respects shared/public visibility (P11), requires host identity (P12).
+CONSTRAINT: The SKILL.md description references concrete taxonomy sources: MITRE CWE-200 / CWE-829 / CWE-1357, OWASP LLM06 / LLM07 (2025), MITRE ATLAS AML.TA0010, hkask-guard pipeline (`cns.guard.*`), hkask-cns cybernetics loop (`cns.regulation`). These are citations, not endorsements — they ground claims (P8).
+CONSTRAINT: Before proposing any regression entry in later phases, verify that the span target was actually emitted by the running system. Read the telemetry. Quote the span target + timestamp + signal value. Then propose.
+CONSTRAINT: This skill does NOT download external packages or scan OS-level endpoints. It observes hKask's own CNS telemetry only (P4 runtime boundary — distinct from supply-chain-sentinel's manifest boundary and from EDR/MDR endpoint scanning).
+CONSTRAINT: The `cns.runtime.*` namespaces ARE registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`). Emit spans unconditionally — do NOT use "if registered; else note gap" language.
+
+OUTPUT FORMAT:
+JSON object with fields:
+`surface` ("runtime"), `signal_sources` (list with id, target_prefix, description), `signal_types` (list with id, cwe, owasp_llm, atlas, description), `defense_layers` (list with id, evidence_span, source), `existing_regressions` (list of `surface: runtime` entries from `security/regressions/`), `replicant_host`, `cns_span_emitted: true`.
+
+5W1H GATE CHECK (P5): Who = running replicant host (P12); What = runtime signal source / span target; Where = local CNS telemetry stream; When = continuous (observes spans as emitted); Why = P3.1 safe container requires runtime blocking / P9 observable regulation; How = observe + map + read regressions + emit CNS span. All 6 present — passes gate.
+
+RELATIONSHIP (explicit): Complements `supply-chain-sentinel` (distinct P4 boundaries: manifest vs runtime), `kali-audit` (static vs runtime), `adversarial-red-team` (synthetic vs real), `bug-hunt` (decomposed pipeline pattern reuse). Zero surface overlap with any of them.
+MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
+EVIDENCE-BACKED ONLY: Every signal source includes concrete span target prefix verifiable in CNS telemetry.
+SEMANTIC GROUNDING (P8): Every claim has span target, source citation, taxonomy reference.
+EVOLUTIONARY (P7): New signal types proposed only from real runtime evidence (e.g., new `hkask.*` span pattern observed in production, not speculative).
+OCAP BOUNDARY (P4): Observes only local CNS telemetry already emitted by the running system; no external package download; no OS-level endpoint scanning.
+CNS REGULATION (P9): `cns.runtime.select` emitted unconditionally — namespace IS registered in `CANONICAL_NAMESPACES`.
+REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+VISIBILITY (P11): Signal source enumeration public; no hidden runtime monitoring.
+SAFETY FLOOR (P3.1): Runtime posture monitoring protects Generative Space container — runtime anomalies are destructive to the space itself.
+
+SOURCE REFERENCES (concrete — P8):
+- MITRE CWE-200, CWE-829, CWE-1357 (mitre.org/data/definitions/)
+- OWASP LLM Top 10 (2025): LLM06 (Excessive Agency), LLM07 (System Prompt Leakage)
+- MITRE ATLAS AML.TA0010 (Exfiltration) — atlas.mitre.org
+- `security/regressions/README.md` (local project standard — authoritative)
+- `hkask-guard` pipeline (`cns.guard.*` span sources — runtime evidence)
+- `hkask-cns` cybernetics loop (`cns.regulation` span sink — downstream regulation)
+- `hkask-templates` executor (`cns.guard.runtime_policy` span source)
+- `crates/hkask-types/src/event.rs` (`CANONICAL_NAMESPACES` — `cns.runtime.*` registered)
+- `supply-chain-sentinel` SKILL.md (complementary relationship — distinct P4 boundaries)
+- `kali-audit` SKILL.md (complementary — static vs runtime)
+- `adversarial-red-team` SKILL.md (zero overlap — synthetic vs real)
+- `bug-hunt` SKILL.md (decomposed pipeline pattern: Charter→Probe→Report ≈ select→classify→emit)
+- `principles.md` (P1–P12 grounding — this skill explicitly references P3.1 Social Generativity / P5 Essentialism / P9 Homeostatic Regulation / P12 Replicant Host Mandate)
+
+REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates (`manifest.yaml` + `.j2`) conflict, registry wins. This template is the canonical `select-signal` phase definition.
+PUBLIC VISIBILITY: `visibility: public` — no hidden runtime monitoring controls (P3, P4).
+NO FABRICATION: Only signal sources with concrete span target prefixes are listed. Only regressions with concrete `pattern` (regex against span target / signal value) are proposed in later phases. Only defense layers with runtime span evidence (actual `cns.guard.*` / `cns.regulation` emission) are counted as present.
+NO SYNTHETIC DATA: `signal_sources` must be verifiable by inspecting the running system's CNS telemetry. `target_prefix` must match an actual emitted span target. Do NOT invent span targets not emitted by the running system.
+CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this select-signal phase does not compute metric (that is `convergence-check.j2` responsibility). This maintains pipeline decomposition (P5 minimalism — each phase answers one 5W1H dimension clearly).

@@ -1,0 +1,214 @@
+{# goal: Classify mapped findings into OSC&R categories + OWASP Supply Chain dual taxonomy. Produce pattern signatures for detecting similar attack patterns. Propose optional, backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries. Emit cns.taxonomy.report span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Produce verdict (Pass / Conditional / Fail). Replicant_host mandatory (P12). No invented OSC&R categories. Registry authoritative (P5.1). #}
+{# Classifies mapped findings into OSC&R + OWASP SC dual taxonomy #}
+{# Produces pattern signatures for similar attack pattern detection #}
+{# Proposes backward-compatible taxonomy_mapping field for regression YAML #}
+{# Emits cns.taxonomy.report CNS span (P9) — namespace registered #}
+
+INPUT: mappings = {{ mappings }} (structured array from map-taxonomy phase)
+INPUT: unmapped_findings = {{ unmapped_findings | default([]) }} (from map-taxonomy)
+INPUT: mapping_counts = {{ mapping_counts | default({}) }} (from map-taxonomy)
+INPUT: existing_regressions = {{ existing_regressions | default([]) }} (from select-evidence — regressions_needing_mapping)
+INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous classification)
+
+CLASSIFICATION ACTIONS (concrete — evidence-backed only, P8):
+1. Group `mappings` by `osc_r_category`. For each OSC&R category,
+   produce a category summary:
+   - `osc_r_category` (e.g., `dependency_confusion`)
+   - `findings_count`
+   - `findings` (list of `finding_reference`s in this category)
+   - `cwe_references` (set of CWE categories observed in this group)
+   - `owasp_sc_categories` (set of OWASP SC categories observed)
+   - `defense_gap_count` (how many findings in this category lack a
+     corresponding defense layer)
+   - `variety_gap_count` (how many findings have alternative vectors
+     uncovered)
+   - `regulator_strength_summary` ({enforcing, advisory, missing} counts)
+   - `pattern_signature` (concrete detection pattern — see step 3)
+2. Group `mappings` by `owasp_sc_category`. For each OWASP SC category,
+   produce a parallel summary (same fields, keyed by OWASP SC).
+3. Produce `pattern_signature` per OSC&R category — a concrete detection
+   pattern (regex or structural predicate) for finding similar attack
+   patterns in future audits. Pattern signatures must reference
+   concrete manifest/CI content (not vague descriptions):
+   - `dependency_confusion`: regex matching package names not in
+     private registry but available publicly (e.g., `cargo` manifest
+     entry with name matching public crates.io package not in
+     workspace's private registry allowlist).
+   - `typosquatting`: Levenshtein distance ≤2 between dependency name
+     and canonical name (concrete algorithm, not vague description).
+   - `malicious_commit_injection`: `git = "..."` dependency without
+     `rev = "<full-sha>"` pinning (regex against Cargo.toml).
+   - `build_pipeline_compromise`: GitHub Actions `uses:` field without
+     `@<full-sha>` pinning (regex against `.github/workflows/*.yml`).
+   - `unmaintained_component`: dependency with no `deny.toml`
+     advisory-bypass entry and version spec referencing a stale
+     registry entry (concrete: `Cargo.toml` version + `Cargo.lock`
+     version mismatch, or `deny.toml` `bypass` entry).
+   - `unverified_registry`: `git = ...` or `path = ...` dependency
+     without `registry = "..."` reference (regex against Cargo.toml).
+   Each pattern_signature must be a concrete grep-able pattern —
+   not a description. Cite the manifest/CI file the pattern targets.
+4. For each regression in `existing_regressions` (regressions with
+   `surface: supply-chain` and `cwe` field but no `taxonomy_mapping`
+   field), propose a backward-compatible `taxonomy_mapping` field
+   addition. Format (per security/regressions/README.md — optional
+   field, existing regressions without it remain valid):
+   ```yaml
+   taxonomy_mapping:
+     osc_r: "<osc_r_category_id>"   # e.g., "dependency_confusion"
+     owasp_sc: "<SCxx>"              # e.g., "SC04"
+   ```
+   Each proposal must include:
+   - `regression_id` (e.g., `RR-0123`)
+   - `cwe_reference` (from the regression's existing `cwe` field)
+   - `proposed_taxonomy_mapping` (the YAML snippet above)
+   - `evidence_reference` (which finding from `mappings` justified
+     this proposal — traceable to upstream evidence)
+   - `mapping_confidence` (from the mapping)
+   - `status: pending` (human-curated ratchet — P11 visibility;
+     human must flip to `enforced` after review)
+5. Identify top 3 taxonomy coverage gaps:
+   - OSC&R categories with zero mappings (attack patterns we have
+     no findings for — may indicate audit blind spot, not absence).
+   - OWASP SC categories with zero mappings.
+   - Findings with `defense_gap: true` and `regulator_strength:
+     missing` (highest-priority remediation targets).
+6. Produce verdict:
+   - Pass: zero unmapped findings, all OSC&R categories with evidence
+     have ≥1 mapping, all proposed taxonomy_mapping fields have
+     `mapping_confidence: high`.
+   - Conditional: 1-5 unmapped findings, OR some mappings with
+     `mapping_confidence: medium`, OR some `defense_gap: true`.
+   - Fail: >5 unmapped findings, OR any critical/high finding
+     unmapped, OR any OSC&R category with evidence but zero
+     defense-layer coverage (`regulator_strength: missing` for all
+     findings in that category).
+
+CNS SPAN EMISSION (P9):
+- `cns.taxonomy.report` is registered in `CANONICAL_NAMESPACES`
+  (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
+  (`target: "cns.taxonomy.report"`, message: `"CNS"`,
+  operation: `"taxonomize"`, mappings_count, unmapped_count,
+  osc_r_categories_covered, owasp_sc_categories_covered,
+  proposed_taxonomy_mappings_count, verdict, replicant_host,
+  latency_ms).
+
+CONSTRAINTS (P5 minimalism, P8 evidence integrity, P12 host):
+- No invented OSC&R categories — only classify into categories
+  present in `mappings` (which came from map-taxonomy's verified
+  `osc_r_categories` list).
+- No synthetic findings — only classify `mappings` from map-taxonomy.
+- Every pattern_signature must be a concrete grep-able pattern
+  (regex or structural predicate) — not a vague description.
+- Every proposed `taxonomy_mapping` field must be backward-
+  compatible (optional field — existing regressions without it
+  remain valid YAML).
+- Every proposed `taxonomy_mapping` must include `evidence_reference`
+  traceable to a mapping in `mappings` — no fabricated proposals.
+- `status: pending` only — never `enforced` (human-curated ratchet,
+  P11 visibility).
+- `visibility: public` — no hidden classification controls (P3, P4).
+- Registry (this manifest.yaml + templates) is authoritative over
+  SKILL.md (P5.1).
+- Every output includes `replicant_host` identity (P12).
+- Do NOT propose `taxonomy_mapping` for regressions that already
+  have one (skip — P5 minimalism, no duplicate work).
+- Do NOT propose `taxonomy_mapping` for regressions without a `cwe`
+  field (cannot map without CWE reference — record as
+  `unmappable_regression` with reason).
+
+OUTPUT FORMAT:
+JSON object with fields:
+`osc_r_classification` (grouped by OSC&R category — see step 1),
+`owasp_sc_classification` (grouped by OWASP SC category — see step 2),
+`pattern_signatures` (per OSC&R category — concrete grep-able patterns),
+`proposed_taxonomy_mappings` (array of {regression_id, cwe_reference,
+proposed_taxonomy_mapping, evidence_reference, mapping_confidence,
+status: "pending"}), `taxonomy_coverage_gaps` (top 3 — see step 5),
+`unmappable_regressions` (regressions without cwe field — with reason),
+`verdict` (`Pass` | `Conditional` | `Fail`),
+`verdict_rationale` (concrete — references unmapped count, defense gaps,
+mapping confidence), `replicant_host`, `cns_span_emitted: true`.
+
+5W1H GATE CHECK (P5): Who = replicant host (P12); What = OSC&R +
+OWASP SC classification + pattern signatures + taxonomy_mapping
+proposals; Where = mappings array (from map-taxonomy) +
+existing_regressions; When = taxonomize phase (after map-taxonomy);
+Why = P8 semantic grounding (structured attack-pattern context) /
+P9 observable regulation / P11 visibility (regression proposals
+public, status: pending); How = group by category → produce pattern
+signatures → propose taxonomy_mapping field → identify gaps →
+produce verdict → emit CNS span.
+All 6 present — passes gate.
+
+RELATIONSHIP (explicit): Consumes mappings from map-taxonomy.
+Produces classification + pattern signatures + taxonomy_mapping
+proposals consumed by humans (regression review) and by
+convergence-check (coverage metric). Does NOT overlap with
+supply-chain-sentinel (which proposes surface: supply-chain
+regressions with CWE mappings — this skill adds the
+taxonomy_mapping FIELD to those regressions, backward-compatible).
+Does NOT overlap with kali-audit (which classifies into OWASP LLM
+/ ATLAS — this skill classifies into OSC&R + OWASP SC). Does NOT
+overlap with bug-hunt's taxonomize phase (which classifies into
+Beizer's bug taxonomy — this skill classifies into OSC&R attack
+taxonomy). P5 minimalism: each phase answers one 5W1H dimension.
+taxonomize answers WHY + WHAT (classification rationale).
+
+MINIMAL: One template (`KnowAct`); no extra scanning; uses mappings
+from map-taxonomy only; no synthetic classifications.
+
+EVIDENCE-BACKED ONLY (P8): Every classification entry traces to a
+mapping in `mappings`. Every proposed taxonomy_mapping traces to a
+mapping via `evidence_reference`. Pattern signatures reference
+concrete manifest/CI file content. No fabricated classifications.
+
+EVOLUTIONARY (P7): New pattern signatures can be added as new
+attack patterns are observed in mappings — but only from real
+evidence, not speculation.
+
+OCAP BOUNDARY (P4): Classifies mappings and proposes regression
+field additions only; no external taxonomy database download; no
+ambient scanning; no regression enforcement (human-curated ratchet).
+
+CNS REGULATION (P9): `cns.taxonomy.report` emitted unconditionally
+— namespace registered in `CANONICAL_NAMESPACES` (event.rs).
+
+REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+
+VISIBILITY (P11): Classification output public; proposed
+taxonomy_mappings `status: pending` — human-curated ratchet, not
+hidden control.
+
+SAFETY FLOOR (P3.1): Structured attack-pattern classification
+protects Generative Space — unmapped findings leave incident
+response ambiguous.
+
+SOURCE REFERENCES (concrete — P8):
+- MITRE CWE-1104, CWE-829, CWE-1357 (mitre.org/data/definitions/)
+- OWASP Supply Chain reference (owasp.org/www-project-software-supply-chain-security/)
+- OSC&R framework (oscar.io — verify live taxonomy before classification)
+- security/regressions/README.md (regression YAML format —
+  taxonomy_mapping field extends this format, backward-compatible)
+- supply-chain-sentinel SKILL.md (source of surface: supply-chain
+  regressions to back-fill taxonomy_mapping for)
+- kali-audit SKILL.md (parallel taxonomy discipline — OWASP LLM /
+  ATLAS for code/templates/MCP, distinct from OSC&R for supply chain)
+- bug-hunt SKILL.md (taxonomize phase pattern adopted: classify
+  findings into taxonomy, assign severity, produce pattern signatures)
+- adversarial-red-team SKILL.md (parallel: ATLAS for LLM, OSC&R for
+  supply chain — same taxonomy discipline, different domain)
+- principles.md (P3.1, P5, P5.1, P8, P9, P11, P12 grounding)
+
+REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
+conflict, registry wins. This template is the canonical taxonomize
+phase definition.
+
+NO FABRICATION: Only mappings with concrete upstream references are
+classified. Pattern signatures reference concrete manifest/CI file
+content. Proposed taxonomy_mappings trace to mappings via
+evidence_reference. No fabricated classifications.
+
+CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
+taxonomize phase does not compute metric. Maintains pipeline
+decomposition (P5 minimalism — each phase answers one 5W1H dimension).
