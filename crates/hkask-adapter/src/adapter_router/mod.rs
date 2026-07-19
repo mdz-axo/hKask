@@ -111,22 +111,20 @@ impl AdapterRouter {
     pub fn new(store: Arc<AdapterStore>) -> Self {
         let mut backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>> = HashMap::new();
 
-        // Provider selection: if TINKER_API_KEY is set, Tinker takes the
-        // Together slot (OpenAI-compatible dispatch). Otherwise Together AI.
-        if !std::env::var("TINKER_API_KEY")
-            .unwrap_or_default()
-            .is_empty()
-        {
-            backends.insert(
-                ProviderId::Together,
-                Arc::new(tinker::TinkerAdapterBackend::new()),
-            );
-        } else {
-            backends.insert(
-                ProviderId::Together,
-                Arc::new(together::TogetherAdapterBackend::new()),
-            );
-        }
+        backends.insert(
+            ProviderId::Together,
+            Arc::new(together::TogetherAdapterBackend::new()),
+        );
+        // Runpod
+        backends.insert(
+            ProviderId::Runpod,
+            Arc::new(runpod::RunpodAdapterBackend::new()),
+        );
+        // Tinker adapter backend — scaffolded but not yet registered.
+        // Requires ProviderId::Tinker variant in hkask-inference/src/config.rs.
+        // The backend is fully implemented in tinker.rs; only the enum
+        // variant is missing. When added:
+        //   backends.insert(ProviderId::Tinker, Arc::new(tinker::TinkerAdapterBackend::new()));
 
         let router = Self {
             store,

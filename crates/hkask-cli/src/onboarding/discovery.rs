@@ -125,7 +125,10 @@ fn classify_kind(model_id: &str, name: Option<&str>) -> ModelKind {
 /// and source_label describes where they came from.
 pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<OnboardingModel>, String) {
     // ── OpenRouter pipeline (spec) ────────────────────────────────────
-    eprintln!("  Discovering models via OpenRouter...");
+    let or_has_key = !config.openrouter_api_key.is_empty();
+    if or_has_key {
+        eprintln!("  Discovering models via OpenRouter...");
+    }
     let or_results: Vec<OnboardingModel> = if config.openrouter_api_key.is_empty() {
         Vec::new()
     } else {

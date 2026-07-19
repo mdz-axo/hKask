@@ -315,16 +315,14 @@ impl InferenceConfig {
             ollama_api_key: om.api_key,
             cline_base_url,
             cline_api_key,
-            timeout_secs: std::env::var("HKASK_HTTP_TIMEOUT_SECS")
-                .ok()
+            timeout_secs: resolve_config_str("HKASK_HTTP_TIMEOUT_SECS")
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(120),
-            pool_max_idle: std::env::var("HKASK_HTTP_POOL_MAX_IDLE")
-                .ok()
+            pool_max_idle: resolve_config_str("HKASK_HTTP_POOL_MAX_IDLE")
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(256),
-            default_model: std::env::var("HKASK_DEFAULT_MODEL")
-                .unwrap_or_else(|_| "KC/z-ai/glm-5.2".to_string()),
+            default_model: resolve_config_str("HKASK_DEFAULT_MODEL")
+                .unwrap_or_else(|| "KC/z-ai/glm-5.2".to_string()),
             fusion,
         }
     }
@@ -483,16 +481,14 @@ fn parse_fusion_config() -> Option<FusionConfig> {
             .filter(|s| !s.is_empty())
             .collect();
         let panel = NonEmptyVec::from_vec(panel)?;
-        if !judge.is_empty() {
-            return Some(FusionConfig {
-                judge,
-                panel,
-                mode,
-                skills,
-                max_rounds,
-                algo_method,
-            });
-        }
+        return Some(FusionConfig {
+            judge,
+            panel,
+            mode,
+            skills,
+            max_rounds,
+            algo_method,
+        });
     }
 
     None
