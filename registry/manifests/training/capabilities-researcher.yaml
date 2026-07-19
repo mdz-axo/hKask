@@ -4,13 +4,19 @@
 # selects the host + harness, renders the appropriate template, and submits.
 # The skills framework (gpa-evolution, skill-maintenance) can audit and
 # evolve this manifest without recompiling Rust.
+#
+# Lesson propagation (2026-07-19): PiSSA (pissa_niter_4) is non-portable across
+# transformers/torch library versions — the residual base mismatch produces
+# garbage output (see docs/how-to/axolotl-pissa-runpod-guide.md L267-283).
+# Switched to EVA (activation-vector SVD) which produces standard portable
+# LoRA adapters. Previous results block was corrupt and has been deleted.
 
 name: capabilities-researcher
-version: 1
+version: 2
 description: >
-  PiSSA-initialized LoRA adapter for the Capabilities Researcher persona
-  (John Brooks). Trained on 229,520 ChatML QA pairs generated from
-  curated research literature on organizational capabilities.
+  EVA-initialized LoRA adapter for the Capabilities Researcher persona
+  (John Brooks). Trained on ChatML QA pairs generated from curated
+  research literature on organizational capabilities.
 
 # ── Dataset ──────────────────────────────────────────────────────────────
 dataset:
@@ -27,9 +33,9 @@ base_model: unsloth/Qwen3.6-27B
 lora:
   r: 32
   alpha: 64
-  dropout: 0  # must be 0 for PiSSA
+  dropout: 0  # recommended 0 for EVA (activation components must not be dropped)
   target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
-  init: pissa_niter_4  # PiSSA SVD initialization
+  init: eva  # EVA activation-vector SVD — standard portable LoRA (B=0)
 
 # ── Training hyperparameters ─────────────────────────────────────────────
 training:
@@ -46,11 +52,11 @@ training:
 
 # ── Eval + early stopping ────────────────────────────────────────────────
 eval:
-  val_set_size: 0.0012  # ~275 examples auto-split from train
+  val_set_size: 0.05  # 5% gives statistically meaningful eval signal; 0.0012 was too noisy
   eval_steps: 200
   save_steps: 200
   save_total_limit: 5
-  early_stopping_patience: 25
+  early_stopping_patience: 25  # not 7 — cosine LR needs runway
 
 # ── Optimizations ────────────────────────────────────────────────────────
 optimizations:
@@ -82,14 +88,4 @@ hosts:
   tinker:
     model: Qwen/Qwen3.6-27B  # Tinker official namespace
     # Tinker handles GPU distribution — runs as local Python subprocess
-    # Note: PiSSA not supported; uses standard LoRA init
-
-# ── Results (filled in after training) ───────────────────────────────────
-results:
-  adapter_repo: mdz-axo/capabilities-researcher-lora
-  best_eval_loss: 1.334
-  best_step: 29000
-  total_steps: 33600
-  training_time_hours: 55.5
-  cost_usd: 177
-  early_stopped: true
+    # Note: EVA not supported by Tinker SDK; uses standard LoRA init

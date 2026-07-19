@@ -50,8 +50,10 @@ pub struct RunpodHost {
     #[allow(dead_code)]
     harness: Box<dyn HarnessAdapter>,
     client: reqwest::Client,
-    /// job_id → pod_id mapping for status/cancel
+    /// job_id -> pod_id mapping for status/cancel
     jobs: Arc<Mutex<HashMap<String, String>>>,
+    /// Path to the pod ID persistence file (JSON: {job_id: pod_id}).
+    pods_file: PathBuf,
 }
 
 fn map_pod_status(status: &str) -> TrainingJobStatus {
@@ -65,14 +67,92 @@ fn map_pod_status(status: &str) -> TrainingJobStatus {
 
 impl RunpodHost {
     pub fn new(api_key: String, template_id: String, harness: Box<dyn HarnessAdapter>) -> Self {
+        let pods_file = PathBuf::from(
+            std::env::var("HKASK_PODS_FILE")
+                .unwrap_or_else(|_| "data/training-pods.json".to_string()),
+        );
+        // Load persisted pod IDs so we can cancel orphaned pods after a restart.
+        let persisted = Self::load_pods(&pods_file);
+        if !persisted.is_empty() {
+            tracing::warn!(
+                target: "hkask.training.runpod",
+                count = persisted.len(),
+                file = %pods_file.display(),
+                "Loaded persisted pod IDs from previous session — call drain_all_pods() on shutdown to terminate them"
+            );
+        }
         Self {
             api_key,
             template_id,
             graphql_url: "https://api.runpod.io/graphql".to_string(),
             harness,
             client: reqwest::Client::new(),
-            jobs: Arc::new(Mutex::new(HashMap::new())),
+            jobs: Arc::new(Mutex::new(persisted)),
+            pods_file,
         }
+    }
+
+    /// Load persisted pod IDs from the JSON file.
+    fn load_pods(path: &std::path::Path) -> HashMap<String, String> {
+        match std::fs::read_to_string(path) {
+            Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+            Err(_) => HashMap::new(),
+        }
+    }
+
+    /// Persist the current pod ID map to the JSON file atomically.
+    /// Writes to a temp file then renames — crash-safe.
+    fn persist_pods(&self) {
+        let map = match self.jobs.lock() {
+            Ok(m) => m.clone(),
+            Err(_) => return,
+        };
+        if let Ok(json) = serde_json::to_string_pretty(&map) {
+            let tmp = self.pods_file.with_extension("json.tmp");
+            if std::fs::write(&tmp, &json).is_ok() {
+                let _ = std::fs::rename(&tmp, &self.pods_file);
+            }
+        }
+    }
+
+    /// Terminate all known pods via GraphQL `podTerminate`.
+    /// Call on shutdown to prevent orphaned pods from billing.
+    pub async fn drain_all_pods(&self) -> Result<usize, ProviderError> {
+        let pod_ids: Vec<(String, String)> = {
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            map.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+        };
+        let count = pod_ids.len();
+        for (job_id, pod_id) in &pod_ids {
+            let mutation = r#"
+                mutation TerminatePod($id: String!) {
+                    podTerminate(input: { podId: $id })
+                }
+            "#;
+            match self.graphql_query(mutation, json!({ "id": pod_id })).await {
+                Ok(_) => tracing::info!(
+                    target: "hkask.training.runpod",
+                    job_id = %job_id,
+                    pod_id = %pod_id,
+                    "Pod terminated during drain"
+                ),
+                Err(e) => tracing::warn!(
+                    target: "hkask.training.runpod",
+                    job_id = %job_id,
+                    pod_id = %pod_id,
+                    error = %e,
+                    "Failed to terminate pod during drain — may need manual deletion via RunPod console"
+                ),
+            }
+        }
+        if let Ok(mut map) = self.jobs.lock() {
+            map.clear();
+        }
+        self.persist_pods();
+        Ok(count)
     }
 
     async fn graphql_query(
@@ -344,6 +424,7 @@ impl TrainingHost for RunpodHost {
         if let Ok(mut map) = self.jobs.lock() {
             map.insert(job.id.clone(), pod_id.clone());
         }
+        self.persist_pods();
 
         tracing::info!(
             target: "hkask.training.job.submit",
@@ -429,6 +510,7 @@ impl TrainingHost for RunpodHost {
         if let Ok(mut map) = self.jobs.lock() {
             map.remove(job_id);
         }
+        self.persist_pods();
 
         tracing::info!(
             target: "hkask.training.job.cancel",

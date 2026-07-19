@@ -1,14 +1,18 @@
 //! AdapterRouter — composes adapter + base model + provider → endpoint (P4 Clear Boundaries).
 //!
-//! The `AdapterRouter` implements `AdapterPort`. It holds an `AdapterStore` for adapter CRUD
+//! The AdapterRouter implements `AdapterPort`. It holds an `AdapterStore` for adapter CRUD
 //! and a registry of provider backends for endpoint provisioning and inference.
 //!
-//! Both provider backends (Together, Runpod) have real HTTP integration
+//! Two provider backends (Together, Runpod) have real HTTP integration
 //! for adapter upload, endpoint provisioning, and inference.
+//! Tinker was removed as an inference backend — it used a fabricated API URL
+//! (api.tinker.ai/v1/openai/ — does not exist) and had no AdapterSource::Tinker
+//! variant to carry the tinker:// checkpoint path. Tinker remains a training
+//! host; inference of Tinker-trained adapters goes through download → HuggingFace
+//! upload → Together/Runpod inference.
 
 mod openai;
 mod runpod;
-mod tinker;
 mod together;
 
 use crate::AdapterStore;
@@ -119,11 +123,6 @@ impl AdapterRouter {
         backends.insert(
             ProviderId::Runpod,
             Arc::new(runpod::RunpodAdapterBackend::new()),
-        );
-        // Tinker (Thinking Machines) — OpenAI-compatible inference via Tinker's checkpoint store.
-        backends.insert(
-            ProviderId::Tinker,
-            Arc::new(tinker::TinkerAdapterBackend::new()),
         );
 
         let router = Self {
@@ -807,6 +806,24 @@ mod tests {
         let providers = router.list_compatible_providers(&adapter);
         // Two adapter-capable backends support llama-3.3-70b (Together + Runpod)
         assert_eq!(providers.len(), 2);
+    }
+
+    // Regression: TinkerAdapterBackend was deleted because it used a fabricated
+    // API URL (https://api.tinker.ai/v1/openai/ -- does not exist) and had no
+    // AdapterSource::Tinker variant to carry the tinker:// checkpoint path.
+    // Tinker remains a training host; inference of Tinker-trained adapters
+    // goes through download -> HuggingFace upload -> Together/Runpod inference.
+    // This test ensures Tinker is NOT re-registered as an inference backend.
+    #[test]
+    fn tinker_inference_backend_is_not_registered() {
+        let driver = SqliteDriver::in_memory_driver();
+        let store = Arc::new(AdapterStore::from_driver(driver));
+        let router = AdapterRouter::new(store);
+        let result = router.resolve_backend(ProviderId::Tinker);
+        assert!(
+            matches!(result, Err(AdapterError::ProviderUnavailable(_))),
+            "Tinker must not be registered as an inference backend"
+        );
     }
 
     #[test]

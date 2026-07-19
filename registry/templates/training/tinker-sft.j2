@@ -101,27 +101,28 @@ async def main():
 
     eval_set = data[-64:]
     train_set = data[:-64]
-    total_steps = (len(train_set) * EPOCHS) // (MICRO_BATCH * GRAD_ACCUM)
+    effective_batch = MICRO_BATCH * GRAD_ACCUM
+    total_steps = (len(train_set) * EPOCHS) // effective_batch
 
     best_eval_loss = float("inf")
     patience_counter = 0
     step = 0
 
     for epoch in range(EPOCHS):
-        for i in range(0, len(train_set), MICRO_BATCH * GRAD_ACCUM):
-            batch = train_set[i:i + MICRO_BATCH * GRAD_ACCUM]
-            for j in range(0, len(batch), MICRO_BATCH):
-                micro = batch[j:j + MICRO_BATCH]
-                lr = cosine_lr(step, total_steps, LEARNING_RATE, WARMUP_STEPS)
-                try:
-                    fwdbwd = await training.forward_backward_async(
-                        data=micro, loss_fn="cross_entropy",
-                    )
-                    result = await fwdbwd.result_async()
-                    log("step", step=step, loss=result.loss, lr=lr, epoch=epoch)
-                except Exception as e:
-                    log("error", step=step, error=str(e), file=__file__)
-                    continue
+        for i in range(0, len(train_set), effective_batch):
+            batch = train_set[i:i + effective_batch]
+            if not batch:
+                continue
+            lr = cosine_lr(step, total_steps, LEARNING_RATE, WARMUP_STEPS)
+            try:
+                fwdbwd = await training.forward_backward_async(
+                    data=batch, loss_fn="cross_entropy",
+                )
+                result = await fwdbwd.result_async()
+                log("step", step=step, loss=result.loss, lr=lr, epoch=epoch)
+            except Exception as e:
+                log("error", step=step, error=str(e), file=__file__)
+                continue
 
             try:
                 optim = await training.optim_step_async(

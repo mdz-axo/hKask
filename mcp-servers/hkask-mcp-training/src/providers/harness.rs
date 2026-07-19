@@ -538,9 +538,10 @@ impl HarnessAdapter for TinkerHarness {
         script.push('\n');
         script.push_str("    adam_params = types.AdamParams(learning_rate=LEARNING_RATE)\n");
         script.push_str("    step = 0\n");
+        script.push_str("    effective_batch = BATCH_SIZE * GRAD_ACCUM\n");
         script.push_str("    for epoch in range(NUM_EPOCHS):\n");
-        script.push_str("        for i in range(0, len(examples), BATCH_SIZE * GRAD_ACCUM):\n");
-        script.push_str("            batch = examples[i : i + BATCH_SIZE]\n");
+        script.push_str("        for i in range(0, len(examples), effective_batch):\n");
+        script.push_str("            batch = examples[i : i + effective_batch]\n");
         script.push_str("            if not batch:\n");
         script.push_str("                continue\n");
         script.push_str(
@@ -552,11 +553,10 @@ impl HarnessAdapter for TinkerHarness {
         script.push_str(
             "            loss = float(getattr(fwdbwd_result, \"loss\", float(\"nan\")))\n",
         );
-        script.push_str("            if ((step + 1) % GRAD_ACCUM) == 0:\n");
         script.push_str(
-            "                optim_future = await training_client.optim_step_async(adam_params)\n",
+            "            optim_future = await training_client.optim_step_async(adam_params)\n",
         );
-        script.push_str("                await optim_future.result_async()\n");
+        script.push_str("            await optim_future.result_async()\n");
         script.push_str("            step += 1\n");
         script.push_str("            if step % 10 == 0:\n");
         script.push_str("                log(f\"step={step} epoch={epoch} loss={loss:.6}\")\n");

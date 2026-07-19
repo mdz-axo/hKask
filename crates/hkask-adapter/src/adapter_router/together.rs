@@ -31,8 +31,23 @@ impl TogetherAdapterBackend {
     }
 
     /// Poll Together AI fine-tune job until completed, then return model_name.
+    ///
+    /// Timeout and interval are configurable via env vars:
+    ///   TOGETHER_POLL_MAX_ATTEMPTS (default 720 = 2h at 30s intervals)
+    ///   TOGETHER_POLL_INTERVAL_SECS (default 30)
+    ///
+    /// The previous 5-minute ceiling (30 attempts × 10s) was too short for real
+    /// fine-tune jobs that take 26-55h. The caller should set the env vars based
+    /// on expected job duration.
     async fn poll_until_complete(&self, job_id: &str) -> Result<String, AdapterError> {
-        let max_attempts = 30;
+        let max_attempts: u32 = std::env::var("TOGETHER_POLL_MAX_ATTEMPTS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(720);
+        let interval_secs: u64 = std::env::var("TOGETHER_POLL_INTERVAL_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(30);
         for attempt in 1..=max_attempts {
             let response = self
                 .client
@@ -59,8 +74,12 @@ impl TogetherAdapterBackend {
             let status = json["status"].as_str().unwrap_or("unknown");
             match status {
                 "completed" | "succeeded" => {
-                    return Ok(json["model_name"]
+                    // Together AI REST API returns the fine-tuned model name in
+                    // the `model_output_name` field (per OpenAPI schema).
+                    // Fall back to `model_name` / `output_name` for older API versions.
+                    return Ok(json["model_output_name"]
                         .as_str()
+                        .or_else(|| json["model_name"].as_str())
                         .or_else(|| json["output_name"].as_str())
                         .unwrap_or("unknown")
                         .to_string());
@@ -78,12 +97,14 @@ impl TogetherAdapterBackend {
                         attempt = attempt,
                         "Together AI fine-tune job still pending"
                     );
-                    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
                 }
             }
         }
         Err(AdapterError::Internal(format!(
-            "Together AI fine-tune job {job_id} did not complete within {max_attempts} attempts"
+            "Together AI fine-tune job {job_id} did not complete within {max_attempts} attempts \
+             ({interval_secs}s interval = ~{}h total). Set TOGETHER_POLL_MAX_ATTEMPTS to increase.",
+            (max_attempts as u64 * interval_secs) / 3600
         )))
     }
 }
@@ -206,9 +227,13 @@ impl AdapterProviderBackend for TogetherAdapterBackend {
             );
             model
         } else {
-            response_json["model_name"]
+            // Synchronous response — read model_output_name (canonical),
+            // fall back to model_name / output_name for older API versions.
+            response_json["model_output_name"]
                 .as_str()
-                .unwrap_or(response_json["output_name"].as_str().unwrap_or("unknown"))
+                .or_else(|| response_json["model_name"].as_str())
+                .or_else(|| response_json["output_name"].as_str())
+                .unwrap_or("unknown")
                 .to_string()
         };
 
