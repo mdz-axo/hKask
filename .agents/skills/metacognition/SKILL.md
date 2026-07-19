@@ -224,7 +224,7 @@ moral_wordplay_possible       → linguistic_precision
 
 ### 6. GEPA Self-Improvement (Optional, Post-Convergence)
 
-1. After convergence, optionally invoke the `gpa-evolution` skill to evolve the metacognition process. The `meta-gepa-improve.j2` template wraps this delegation.
+1. After convergence, optionally invoke the `gpa-evolution` skill to evolve the metacognition process. The `meta-gepa-improve.j2` template wraps this delegation — it adapts metacognition cycle trajectories to GEPA's expected inputs, interprets the Pareto frontier results back into metacognition recommendations, and handles the case where GEPA is not available (returns `improvement_invoked: false`). This is a genuine transformation, not a pass-through wrapper.
 2. Sample trajectories from the current cycle (input → decomposition → assessment → ellipsis → calibration → outcome).
 3. Reflect in natural language: Was the decomposition accurate? Was the assessment grounded? Did the calibration address the right obstacles? What would make the next cycle better?
 4. Propose mutations to the metacognition templates — each tests one hypothesis about what would improve the process.

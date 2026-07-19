@@ -121,15 +121,12 @@ fn skill_prompt(skill: &FusionSkill) -> &'static str {
              both surfaces functional at every step. Deep-module discipline for extracted \
              services. Vertical tracer-bullet TDD. Delete only after full verification."
         }
-        FusionSkill::Review => {
-            "Review: Self-critique for contradictions, unsupported claims, logical gaps, and \
-             confidence calibration. Use before finalizing. Check that every claim traces to \
-             evidence. Flag unjustified certainty."
-        }
-        FusionSkill::SelfCritiqueRevision => {
-            "Self-Critique Revision: Generate draft, critique against quality criteria, revise \
-             based on critique. Iterative cycle — do not accept the first draft. Each revision \
-             must address specific critique findings."
+        FusionSkill::Review | FusionSkill::SelfCritiqueRevision => {
+            "Self-Critique Revision: Generate draft, critique against quality criteria, revise
+             based on critique. Iterative cycle — do not accept the first draft. Each revision
+             must address specific critique findings. For reasoning audits, use quality_criteria:
+             [contradictions, unsupported_claims, logical_gaps, calibration]. (The former `review`
+             skill has been merged into self-critique-revision.)"
         }
     }
 }

@@ -89,7 +89,12 @@ steps:
       current_output: "{{ step_1_result.output | default('') }}"
       critique: "{{ step_2_result.critique | default([]) }}"
       quality_criteria: "{{ quality_criteria | default(['accuracy', 'clarity', 'completeness', 'calibration']) }}"
-      previous_quality_score: "{{ _previous_quality_score | default(step_2_result.overall_quality_score | default(step_1_result.initial_quality_score | default(0.0))) }}"
+      # Read previous_quality_score from the convergence step's result of the
+      # PREVIOUS iteration. On the first iteration, step_4_result doesn't exist
+      # yet, so we fall back to step_2_result (current critique) → step_1_result
+      # (initial draft score). On subsequent iterations, step_4_result persists
+      # in context from the prior loop pass, giving us the true previous score.
+      previous_quality_score: "{{ step_4_result.metric_decomposition.normalized_quality_score | default(step_2_result.overall_quality_score | default(step_1_result.initial_quality_score | default(0.0))) }}"
       draft_number: "{{ step_1_result.draft_number | default(1) + 1 }}"
 
   - ordinal: 4
@@ -102,13 +107,6 @@ steps:
     input_mapping:
       critique_result: "{{ step_2_result }}"
       revision_result: "{{ step_3_result }}"
-    # Persist the current quality score for the next iteration's
-    # previous_quality_score. Without this, the loop reads the current
-    # iteration's score instead of the previous one.
-    post_mapping:
-      _previous_quality_score: "{{ step_2_result.overall_quality_score | default(0.0) }}"
-      _previous_convergence_metric: "{{ step_4_result.convergence_metric | default(1.0) }}"
-      _previous_blockers: "{{ step_4_result.blockers | default([]) }}"
     fusion: false
 
   - ordinal: 5
@@ -116,11 +114,11 @@ steps:
     description: Re-enter critique/revision cycle if convergence is not met.
     input_mapping:
       loop_target: 2
-      # Carry convergence context into the next iteration so the critique
-      # phase knows what blockers remain and what the previous metric was.
-      # Without this, the loop is a dead-end — it restarts from scratch.
-      previous_blockers: "{{ _previous_blockers | default([]) }}"
-      previous_metric: "{{ _previous_convergence_metric | default(1.0) }}"
+      # Carry convergence context into the next iteration. step_4_result
+      # persists in the executor's context HashMap across iterations, so
+      # step 3 can read the previous iteration's quality score from it.
+      previous_blockers: "{{ step_4_result.blockers | default([]) }}"
+      previous_metric: "{{ step_4_result.convergence_metric | default(1.0) }}"
 
 error_handling:
   on_gas_exceeded: abort
