@@ -36,8 +36,6 @@ ALLOWLIST=(
   "hkask-mcp-companies"
   "hkask-mcp-docproc"
   "hkask-mcp-media"
-  "hkask-mcp-scenarios"
-  "hkask-mcp-training"
 )
 
 # Servers that are EXEMPT by design (not agent-facing tool surfaces requiring

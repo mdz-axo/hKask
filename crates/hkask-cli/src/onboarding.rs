@@ -821,22 +821,22 @@ pub(crate) fn register_in_user_store(
     display_name: &str,
     user_profile: &hkask_types::agent_registry::UserProfile,
     passphrase: &str,
-) -> Result<(), String> {
+) -> Result<(), UserStoreRegistrationError> {
     use hkask_database::SqliteDriver;
     use hkask_storage::Database;
     use hkask_storage::user_store::UserStore;
     use std::sync::Arc;
 
     let db = Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(|e| format!("DB open: {e}"))?;
-    let pool = db.sqlite_pool().map_err(|e| format!("pool: {e}"))?;
+        .map_err(UserStoreRegistrationError::DbOpen)?;
+    let pool = db.sqlite_pool().map_err(UserStoreRegistrationError::Pool)?;
     let driver = Arc::new(SqliteDriver::new(pool));
     let store = UserStore::from_driver(driver);
 
     // Check if the replicant already exists (idempotent).
     if store
         .get_replicant(display_name)
-        .map_err(|e| format!("get_replicant: {e}"))?
+        .map_err(UserStoreRegistrationError::GetReplicant)?
         .is_some()
     {
         tracing::info!(
@@ -858,8 +858,25 @@ pub(crate) fn register_in_user_store(
             user_profile.last_name.clone(),
             passphrase.to_string(),
         )
-        .map_err(|e| format!("register_replicant: {e}"))?;
+        .map_err(UserStoreRegistrationError::RegisterReplicant)?;
     Ok(())
+}
+
+/// Error type for UserStore registration during onboarding.
+///
+/// Used by `register_in_user_store` to classify failures in the
+/// DB open → pool → get_replicant → register_replicant chain. Non-fatal —
+/// the caller logs a warning and continues (daemon auth may not work).
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum UserStoreRegistrationError {
+    #[error("DB open: {0}")]
+    DbOpen(#[source] hkask_storage::DatabaseError),
+    #[error("pool: {0}")]
+    Pool(#[source] hkask_storage::DatabaseError),
+    #[error("get_replicant: {0}")]
+    GetReplicant(#[source] hkask_storage::UserStoreError),
+    #[error("register_replicant: {0}")]
+    RegisterReplicant(#[source] hkask_storage::UserStoreError),
 }
 
 /// Error type for UserStore session creation during onboarding.

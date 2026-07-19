@@ -8,7 +8,7 @@ impl MediaServer {
     #[tool(
         description = "Remove background from a gallery image. Delegates to DeepInfra Bria RMBG 2.0."
     )]
-    async fn image_remove_background(
+    pub async fn image_remove_background(
         &self,
         Parameters(RemoveBackgroundRequest {
             image_index,
@@ -31,7 +31,7 @@ impl MediaServer {
     #[tool(
         description = "Apply style transfer to a gallery image. Delegates to fal.ai Flux dev img2img."
     )]
-    async fn image_apply_style(
+    pub async fn image_apply_style(
         &self,
         Parameters(ApplyStyleRequest {
             image_index,
@@ -60,7 +60,7 @@ impl MediaServer {
     #[tool(
         description = "Create a collage from multiple gallery images. Local composition using image crate. Three modes: search_terms (semantic tag search), similar_to_index (visually similar images), or image_indices (explicit list)."
     )]
-    async fn image_create_collage(
+    pub async fn image_create_collage(
         &self,
         Parameters(CreateCollageRequest {
             search_terms,
@@ -250,7 +250,7 @@ impl MediaServer {
     // ── Video tools ──────────────────────────────────────────────────────────
 
     #[tool(description = "Trim a video to specified start/end times using local ffmpeg.")]
-    async fn video_clip(
+    pub async fn video_clip(
         &self,
         Parameters(VideoClipRequest {
             video_url,
@@ -294,7 +294,7 @@ impl MediaServer {
     }
 
     #[tool(description = "Convert a video segment to GIF format using local ffmpeg.")]
-    async fn video_to_gif(
+    pub async fn video_to_gif(
         &self,
         Parameters(VideoToGifRequest {
             video_url,
@@ -350,7 +350,7 @@ impl MediaServer {
     #[tool(
         description = "Animate a gallery image into a short video clip. Delegates to fal.ai Seedance 2.0."
     )]
-    async fn image_to_video(
+    pub async fn image_to_video(
         &self,
         Parameters(ImageToVideoRequest {
             image_index,
@@ -378,7 +378,7 @@ impl MediaServer {
     }
 
     #[tool(description = "Add text caption overlay to a video using local ffmpeg.")]
-    async fn video_add_caption(
+    pub async fn video_add_caption(
         &self,
         Parameters(VideoAddCaptionRequest {
             video_url,
@@ -419,7 +419,7 @@ impl MediaServer {
     }
 
     #[tool(description = "Generate a video remix: clip, add caption, convert to GIF.")]
-    async fn video_remix(
+    pub async fn video_remix(
         &self,
         Parameters(VideoRemixRequest {
             video_url,
@@ -487,7 +487,7 @@ impl MediaServer {
     }
 
     #[tool(description = "Create a video or GIF from a sequence of gallery images using ffmpeg.")]
-    async fn video_from_images(
+    pub async fn video_from_images(
         &self,
         Parameters(VideoFromImagesRequest {
             image_indices,
@@ -534,7 +534,7 @@ impl MediaServer {
     }
 
     #[tool(description = "Concatenate multiple video clips into one using ffmpeg.")]
-    async fn video_concat(
+    pub async fn video_concat(
         &self,
         Parameters(VideoConcatRequest { video_urls }): Parameters<VideoConcatRequest>,
     ) -> String {
@@ -569,7 +569,7 @@ impl MediaServer {
     #[tool(
         description = "Generate a description of video content by extracting keyframes and analyzing them with a vision LLM."
     )]
-    async fn video_caption(
+    pub async fn video_caption(
         &self,
         Parameters(VideoCaptionRequest { video_url, style }): Parameters<VideoCaptionRequest>,
     ) -> String {
@@ -644,7 +644,7 @@ impl MediaServer {
     #[tool(
         description = "Create a meme video from a gallery image with text overlay and camera motion. Composes text rendering + AI motion generation. Perfect for 'WHEN YOU SEE IT' style memes."
     )]
-    async fn video_meme(
+    pub async fn video_meme(
         &self,
         Parameters(VideoMemeRequest {
             image_index,

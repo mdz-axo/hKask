@@ -8,7 +8,7 @@ impl MediaServer {
     #[tool(
         description = "Organize a photo gallery. Point at a folder — the system creates the index, scans for images, and returns status. Use gallery_search to find photos by content."
     )]
-    async fn gallery_organize(
+    pub async fn gallery_organize(
         &self,
         Parameters(GalleryOrganizeRequest {
             path,
@@ -154,7 +154,7 @@ impl MediaServer {
     }
 
     #[tool(description = "Get gallery status: path, mode, image count, and total size.")]
-    async fn gallery_status(&self) -> String {
+    pub async fn gallery_status(&self) -> String {
         execute_tool(self, "gallery_status", async {
             match self.access_gallery() {
                 Ok(ga) => Ok(serde_json::json!({
@@ -174,7 +174,7 @@ impl MediaServer {
     #[tool(
         description = "Search your gallery by describing what you're looking for. Fuzzy-matches against AI-generated tags (objects, faces, colors, composition)."
     )]
-    async fn gallery_search(
+    pub async fn gallery_search(
         &self,
         Parameters(GallerySearchRequest {
             query,
@@ -257,7 +257,7 @@ impl MediaServer {
     #[tool(
         description = "Find gallery images similar to a text description or to another image. Uses AI caption embeddings for semantic similarity (requires gallery_analyze to have been run first). Different from gallery_search which matches tags — this matches visual descriptions."
     )]
-    async fn gallery_find_similar(
+    pub async fn gallery_find_similar(
         &self,
         Parameters(GalleryFindSimilarRequest {
             text,
@@ -393,7 +393,7 @@ impl MediaServer {
     #[tool(
         description = "Refresh the gallery: scan for new/removed images, then update all AI metadata (objects, colors, composition, scene descriptions). Face detection is OFF by default. When include_faces=true, also auto-matches detected faces against the face_registry — named faces get person names instead of face_group numbers."
     )]
-    async fn gallery_refresh(
+    pub async fn gallery_refresh(
         &self,
         Parameters(GalleryRefreshRequest {
             recursive,
@@ -597,7 +597,7 @@ impl MediaServer {
     #[tool(
         description = "Describe an image in detail. Choose a style: descriptive (full scene), artistic (poetic), technical (photographic analysis), or alt_text (accessibility)."
     )]
-    async fn describe_image(
+    pub async fn describe_image(
         &self,
         Parameters(DescribeImageRequest { image_url, style }): Parameters<DescribeImageRequest>,
     ) -> String {
@@ -631,7 +631,7 @@ impl MediaServer {
     #[tool(
         description = "Analyze gallery images with AI: detect faces, objects, colors, composition, and generate scene descriptions. Tags are persisted and become searchable."
     )]
-    async fn gallery_analyze(
+    pub async fn gallery_analyze(
         &self,
         Parameters(GalleryAnalyzeRequest {
             mode,
@@ -705,7 +705,7 @@ impl MediaServer {
     #[tool(
         description = "Name a face group from gallery_analyze. Provide either a free-text 'name' or a 'face_id' from the face registry (which auto-resolves to 'First Last'). After naming, gallery_search can find photos of that person by name."
     )]
-    async fn gallery_name_face(
+    pub async fn gallery_name_face(
         &self,
         Parameters(GalleryNameFaceRequest {
             face_group,
@@ -777,7 +777,7 @@ impl MediaServer {
     #[tool(
         description = "Validate a gallery image as a face reference for facial recognition. Checks: exactly 1 face, face coverage ≥15%, frontal pose, good lighting, no occlusion, sharp focus. Returns structured pass/fail with specific reasons."
     )]
-    async fn face_validate(
+    pub async fn face_validate(
         &self,
         Parameters(FaceValidateRequest { image_index }): Parameters<FaceValidateRequest>,
     ) -> String {
@@ -805,7 +805,7 @@ impl MediaServer {
     #[tool(
         description = "Register a face reference with a person's name. Auto-validates the image against 6 criteria (face count, coverage, pose, lighting, occlusion, clarity). Pass --force to skip validation and register directly as valid. Stores in the face_registry table for automatic matching during gallery_refresh."
     )]
-    async fn face_register(
+    pub async fn face_register(
         &self,
         Parameters(FaceRegisterRequest {
             image_index,
@@ -907,7 +907,7 @@ impl MediaServer {
     #[tool(
         description = "List all registered faces in the face registry. Optionally filter by status: 'valid', 'rejected', or 'pending'."
     )]
-    async fn face_list(
+    pub async fn face_list(
         &self,
         Parameters(FaceListRequest { status }): Parameters<FaceListRequest>,
     ) -> String {
@@ -928,7 +928,7 @@ impl MediaServer {
     #[tool(
         description = "Remove a face from the registry by its ID (returned by face_register or face_list)."
     )]
-    async fn face_remove(
+    pub async fn face_remove(
         &self,
         Parameters(FaceRemoveRequest { face_id }): Parameters<FaceRemoveRequest>,
     ) -> String {
@@ -947,7 +947,7 @@ impl MediaServer {
     #[tool(
         description = "Extract a specific object from an image using AI segmentation. Returns the isolated object as a new image."
     )]
-    async fn extract_object(
+    pub async fn extract_object(
         &self,
         Parameters(ExtractObjectRequest {
             image_index,
@@ -975,7 +975,7 @@ impl MediaServer {
     #[tool(
         description = "Organize gallery images by time period using EXIF dates. Returns images grouped by year, month, or decade."
     )]
-    async fn gallery_timeline(
+    pub async fn gallery_timeline(
         &self,
         Parameters(GalleryTimelineRequest {
             period,

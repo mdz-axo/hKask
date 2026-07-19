@@ -6,7 +6,7 @@ impl MediaServer {
     // ── Generation tools ────────────────────────────────────────────────────
 
     #[tool(description = "Generate an image from a text prompt. Describe what you want to see.")]
-    async fn generate_image(
+    pub async fn generate_image(
         &self,
         Parameters(GenerateImageRequest {
             prompt,
@@ -30,7 +30,7 @@ impl MediaServer {
     #[tool(
         description = "Transform an existing image with a text prompt. Describe the change you want."
     )]
-    async fn transform_image(
+    pub async fn transform_image(
         &self,
         Parameters(TransformImageRequest {
             prompt,
@@ -56,7 +56,7 @@ impl MediaServer {
     }
 
     #[tool(description = "Upscale an image to higher resolution.")]
-    async fn upscale_image(
+    pub async fn upscale_image(
         &self,
         Parameters(UpscaleImageRequest { image_url, scale }): Parameters<UpscaleImageRequest>,
     ) -> String {
@@ -73,7 +73,7 @@ impl MediaServer {
     #[tool(
         description = "Generate a short video from a text prompt. Describe the scene you want to see in motion."
     )]
-    async fn generate_video(
+    pub async fn generate_video(
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
@@ -94,7 +94,7 @@ impl MediaServer {
     #[tool(
         description = "Execute a multi-step Fal media workflow. Provide a JSON string with a DAG of nodes (input, run, display types). Run nodes accept 'mode': 'sync' (default, via fal.run) or 'queue' (via queue.fal.run with polling) for long-running models like video generation and upscaling. Nodes execute in dependency order with $reference resolution between them. Returns output URLs and metadata."
     )]
-    async fn execute_workflow(
+    pub async fn execute_workflow(
         &self,
         Parameters(ExecuteWorkflowRequest { workflow }): Parameters<ExecuteWorkflowRequest>,
     ) -> String {

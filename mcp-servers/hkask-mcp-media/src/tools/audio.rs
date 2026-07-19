@@ -8,7 +8,7 @@ impl MediaServer {
     #[tool(
         description = "Design a synthetic voice profile from a character description. Returns a VoiceDesign JSON for use with generate_speech."
     )]
-    async fn voice_design(
+    pub async fn voice_design(
         &self,
         Parameters(VoiceDesignRequest {
             character_description,
@@ -58,7 +58,7 @@ impl MediaServer {
     #[tool(
         description = "Generate speech audio from text using a voice design. Returns audio as base64 data URI."
     )]
-    async fn generate_speech(
+    pub async fn generate_speech(
         &self,
         Parameters(GenerateSpeechRequest { text, voice_design }): Parameters<GenerateSpeechRequest>,
     ) -> String {
@@ -88,7 +88,7 @@ impl MediaServer {
     #[tool(
         description = "Transcribe speech audio to text. Returns transcribed text for REPL injection."
     )]
-    async fn transcribe(
+    pub async fn transcribe(
         &self,
         Parameters(TranscribeRequest {
             audio_url,
@@ -109,7 +109,7 @@ impl MediaServer {
     #[tool(
         description = "Transcribe audio and return a synchronized TranscriptBundle with word-level timings. Enables interactive highlighting and click-to-seek in frontends."
     )]
-    async fn transcribe_bundle(
+    pub async fn transcribe_bundle(
         &self,
         Parameters(TranscribeRequest {
             audio_url,
@@ -190,7 +190,7 @@ impl MediaServer {
     #[tool(
         description = "Capture audio from the default system microphone. Records to a WAV file optimized for Whisper transcription (16kHz mono)."
     )]
-    async fn audio_capture(
+    pub async fn audio_capture(
         &self,
         Parameters(AudioCaptureRequest {
             duration_secs,
@@ -227,7 +227,7 @@ impl MediaServer {
     #[tool(
         description = "Record audio from microphone and transcribe it in one call. Returns linked audio file path and transcript. Use for meetings, notes, or any recording you want to keep."
     )]
-    async fn record_and_transcribe(
+    pub async fn record_and_transcribe(
         &self,
         Parameters(RecordAndTranscribeRequest {
             duration_secs,

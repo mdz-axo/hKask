@@ -99,7 +99,7 @@ struct GalleryAccess {
 }
 
 hkask_mcp::mcp_server!(
-    struct MediaServer {
+    pub struct MediaServer {
         pub inference: Arc<InferenceRouter>,
         pub gallery_state: Arc<Mutex<Option<GalleryState>>>,
         pub gallery_store: Arc<GalleryStore>,

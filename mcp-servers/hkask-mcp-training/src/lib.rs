@@ -88,7 +88,7 @@ use std::sync::Mutex;
 // ── Server ───────────────────────────────────────────────────────────────
 
 hkask_mcp::mcp_server!(
-    struct TrainingServer {
+    pub struct TrainingServer {
         pub semantic: Option<SemanticMemory>,
         pub host: Box<dyn TrainingHost>,
         pub host_id: TrainingHostId,
@@ -238,7 +238,7 @@ impl TrainingServer {
     #[tool(
         description = "Ingest QA pairs for model training. Stores question-answer pairs with provenance in semantic memory for future fine-tuning dataset assembly."
     )]
-    async fn training_ingest_qa(
+    pub async fn training_ingest_qa(
         &self,
         Parameters(IngestQaRequest {
             qa_items,
@@ -304,7 +304,7 @@ impl TrainingServer {
     #[tool(
         description = "Submit a training job for execution. Ingests, normalizes, and submits a dataset for LoRA fine-tuning via the configured host (axolotl or unsloth)."
     )]
-    async fn training_submit(
+    pub async fn training_submit(
         &self,
         Parameters(TrainSubmitRequest {
             dataset_path,
@@ -488,7 +488,7 @@ impl TrainingServer {
     #[tool(
         description = "Query the status of a training job by its ID. When a job completes, automatically registers the adapter in the persistent store if not already registered."
     )]
-    async fn training_status(
+    pub async fn training_status(
         &self,
         Parameters(TrainStatusRequest { job_id }): Parameters<TrainStatusRequest>,
     ) -> String {
@@ -679,7 +679,7 @@ impl TrainingServer {
     }
 
     #[tool(description = "Cancel a running or queued training job.")]
-    async fn training_cancel(
+    pub async fn training_cancel(
         &self,
         Parameters(TrainCancelRequest { job_id }): Parameters<TrainCancelRequest>,
     ) -> String {
@@ -696,7 +696,7 @@ impl TrainingServer {
     }
 
     #[tool(description = "List all completed LoRA adapters available for model composition.")]
-    async fn training_list_adapters(&self) -> String {
+    pub async fn training_list_adapters(&self) -> String {
         execute_tool(self, "training_list_adapters", async {
             match self.host.list_adapters().await {
                 Ok(adapter_ids) => {
@@ -746,7 +746,7 @@ impl TrainingServer {
     }
 
     #[tool(description = "Delete a LoRA adapter and all associated artifacts.")]
-    async fn training_delete_adapter(
+    pub async fn training_delete_adapter(
         &self,
         Parameters(TrainDeleteAdapterRequest { adapter_id }): Parameters<TrainDeleteAdapterRequest>,
     ) -> String {
@@ -780,7 +780,7 @@ impl TrainingServer {
     #[tool(
         description = "Assemble stored QA pairs into a ChatML JSONL training dataset file. Queries semantic memory for training_qa_pair h_mems, filters by dataset/source/bloom level, and writes a file ready for training_submit. Optionally splits into train/test."
     )]
-    async fn training_assemble_dataset(
+    pub async fn training_assemble_dataset(
         &self,
         Parameters(AssembleDatasetRequest {
             dataset,
@@ -921,7 +921,7 @@ impl TrainingServer {
     #[tool(
         description = "Generate decomposition traces from a skill document for LoRA fine-tuning. Uses the inference engine to produce varied scenario→decomposition→synthesis training examples in ChatML format. Each trace shows the process of transforming an ill-formed situation into answerable sub-questions."
     )]
-    async fn training_generate_traces(
+    pub async fn training_generate_traces(
         &self,
         Parameters(GenerateTracesRequest {
             skill_document,
@@ -1139,7 +1139,7 @@ impl TrainingServer {
     #[tool(
         description = "Evaluate a trained adapter against a test dataset. Runs inference for each test example and scores accuracy using exact match, substring containment, or semantic comparison. The model must be deployed and available for inference (Together AI fine-tuned models are auto-deployed; local adapters require the inference engine to have the adapter loaded)."
     )]
-    async fn training_evaluate(
+    pub async fn training_evaluate(
         &self,
         Parameters(TrainEvaluateRequest {
             adapter_id,
@@ -1323,7 +1323,7 @@ impl TrainingServer {
     #[tool(
         description = "Register a completed LoRA adapter in the persistent store. Call after training completes to record adapter metadata for future listing, evaluation, and composition. Stores both metadata and links the adapter to its originating training job."
     )]
-    async fn training_register_adapter(
+    pub async fn training_register_adapter(
         &self,
         Parameters(TrainRegisterAdapterRequest {
             adapter_id,
@@ -1393,7 +1393,7 @@ impl TrainingServer {
     #[tool(
         description = "Recommend a base model for fine-tuning based on task type, budget, latency, and license requirements. Returns ranked recommendations with rationale to guide model selection before calling training_submit."
     )]
-    async fn training_recommend_model(
+    pub async fn training_recommend_model(
         &self,
         Parameters(TrainRecommendModelRequest {
             task_type,
@@ -1541,7 +1541,7 @@ impl TrainingServer {
     #[tool(
         description = "Record an adapter invocation as an episodic experience for future training data curation. Stores input/output summaries with CNS span correlation and confidence. This is the first step in the continuous training loop — recorded invocations feed into training_curate_feedback and training_retrain."
     )]
-    async fn training_record_invocation(
+    pub async fn training_record_invocation(
         &self,
         Parameters(TrainRecordInvocationRequest {
             adapter_id,
@@ -1621,7 +1621,7 @@ impl TrainingServer {
     #[tool(
         description = "Curate feedback from stored QA pairs for continuous skills training. Queries semantic memory for training_qa_pair h_mems, validates each answer with inference, and generates corrected ChatML traces where the original answer is wrong or incomplete. Outputs a feedback JSONL file ready for training_retrain."
     )]
-    async fn training_curate_feedback(
+    pub async fn training_curate_feedback(
         &self,
         Parameters(TrainCurateFeedbackRequest {
             dataset,
@@ -1813,7 +1813,7 @@ impl TrainingServer {
     #[tool(
         description = "Retrain an adapter with curated feedback for continuous skills training. Merges the original training dataset with a feedback JSONL file (from training_curate_feedback), submits a new training job with an incremented version number, and registers the new adapter on completion. This closes the continuous training loop: train → evaluate → curate → retrain."
     )]
-    async fn training_retrain(
+    pub async fn training_retrain(
         &self,
         Parameters(TrainRetrainRequest {
             original_dataset_path,
@@ -2070,7 +2070,7 @@ impl TrainingServer {
     #[tool(
         description = "Ingest a raw dataset file into the normalized cache without submitting a training job. Detects format (ChatML, ShareGPT, Alpaca, raw text), normalizes to canonical ChatML, validates, and caches. Returns the cached path for use with training_submit or training_assemble_dataset."
     )]
-    async fn training_ingest_dataset(
+    pub async fn training_ingest_dataset(
         &self,
         Parameters(TrainIngestDatasetRequest {
             dataset_path,
@@ -2120,7 +2120,7 @@ impl TrainingServer {
     #[tool(
         description = "Submit a parameter sweep across learning rates, LoRA ranks, batch sizes, and epochs. All combinations submitted as separate jobs. Use training_status to track results."
     )]
-    async fn training_sweep(&self, Parameters(req): Parameters<TrainSweepRequest>) -> String {
+    pub async fn training_sweep(&self, Parameters(req): Parameters<TrainSweepRequest>) -> String {
         execute_tool(self, "training_sweep", async {
         if self.host_id == TrainingHostId::Runpod {
             return Err(McpToolError::failed_precondition(
@@ -2204,7 +2204,7 @@ impl TrainingServer {
     #[tool(
         description = "Generate chain-of-thought training traces with multi-step reasoning. Produces ChatML traces where each assistant turn represents one reasoning step (r1→r2→r3→conclusion). Use for procedural skills that benefit from intermediate reasoning visibility."
     )]
-    async fn training_generate_chain_of_thought(
+    pub async fn training_generate_chain_of_thought(
         &self,
         Parameters(GenerateChainOfThoughtRequest {
             skill_document,
@@ -2323,7 +2323,7 @@ impl TrainingServer {
     #[tool(
         description = "Merge multiple LoRA adapters into a single composite adapter for multi-skill inference. Uses weighted averaging with optional TIES density filtering. The merged adapter is stored in the adapter registry under the given skill_name."
     )]
-    async fn training_merge_adapters(
+    pub async fn training_merge_adapters(
         &self,
         Parameters(MergeAdaptersRequest {
             adapter_ids,
@@ -2444,7 +2444,7 @@ impl TrainingServer {
     #[tool(
         description = "Deploy a trained adapter to a cloud inference endpoint. Looks up the adapter by name from AdapterStore, resolves the base model, estimates cost and setup time per provider, and provisions or locates an endpoint. For Together AI, the fine-tuned model is auto-deployed — returns the model name directly. For Runpod, returns a deployment ID for status polling. CNS span: cns.training.deploy."
     )]
-    async fn training_deploy(&self, Parameters(req): Parameters<TrainDeployRequest>) -> String {
+    pub async fn training_deploy(&self, Parameters(req): Parameters<TrainDeployRequest>) -> String {
         execute_tool(self, "training_deploy", async {
         // Look up adapter from store — validate it exists.
         // Try by exact ID first, then by skill/expertise name.
@@ -2625,7 +2625,7 @@ impl TrainingServer {
     #[tool(
         description = "Check the status of a deployed adapter endpoint. Returns current provisioning state, endpoint URL when ready, and accumulated cost. CNS span: cns.training.deployment_status."
     )]
-    async fn training_deployment_status(
+    pub async fn training_deployment_status(
         &self,
         Parameters(req): Parameters<TrainTeardownRequest>,
     ) -> String {
@@ -2695,7 +2695,7 @@ impl TrainingServer {
     #[tool(
         description = "Tear down a deployed adapter endpoint. Stops the cloud inference endpoint and releases GPU resources. CNS span: cns.training.teardown."
     )]
-    async fn training_teardown(&self, Parameters(req): Parameters<TrainTeardownRequest>) -> String {
+    pub async fn training_teardown(&self, Parameters(req): Parameters<TrainTeardownRequest>) -> String {
         execute_tool(self, "training_teardown", async {
         // Try router first
         if let Some(ref router) = self.adapter_router

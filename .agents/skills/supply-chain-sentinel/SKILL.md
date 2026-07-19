@@ -60,8 +60,9 @@ unpinned versions, missing lockfile tracking).
   URL, deny.toml spec, crates.io advisory format, OWASP Supply Chain,
   OSC&R framework URL). No fabricated CVEs or synthetic quotes.
 - **P9 CNS regulation:** Emits `cns.supply_chain.select`, `cns.supply_chain.probe`,
-  `cns.supply_chain.report` spans. Must be registered in
-  `CANONICAL_NAMESPACES` for loop connection; notes gap if unregistered.
+  `cns.supply_chain.report`, `cns.supply_chain.convergence` spans. All four
+  are registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
+  and emitted unconditionally.
 - **P10 Bot/replicant taxonomy:** `visibility: public` — transparent audit.
 - **P11 Visibility:** Regression proposals default `status: pending`
   (human-curated ratchet, per `security/regressions/README.md`).
@@ -233,8 +234,8 @@ CONSTRAINT — Evidence integrity (P8):
 5. Return JSON: `{convergence_metric, dimensions, rationale, blockers,
    defense_layers_present, defense_layers_missing, existing_regressions,
    proposed_regressions}`.
-6. Emit `cns.supply_chain.convergence` CNS span (if registered; else note
-   gap in `CANONICAL_NAMESPACES`).
+6. Emit `cns.supply_chain.convergence` CNS span (registered in
+   `CANONICAL_NAMESPACES` — `crates/hkask-types/src/event.rs`).
 
 ## Registry Templates
 
@@ -321,7 +322,8 @@ not speculatively.
   manifest analysis only (P4 boundary enforcement).
 - Every scan action includes `replicant_host` identity (P12).
 - Every security-sensitive dependency operation emits `cns.supply_chain.*`
-  span; note `CANONICAL_NAMESPACES` gap if unregistered (P9).
+  span. All four namespaces (`select`, `probe`, `report`, `convergence`)
+  are registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
 - Apply pragmatic-cybernetics feedback loop analysis: dependency update
   polarity, variety of alternatives, Good Regulator (pinning/enforcement),
   delay (version age — only when manifest provides reference).

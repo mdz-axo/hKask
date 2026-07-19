@@ -259,7 +259,7 @@ pub struct AssessRequest {
 
 /// Empty request for scenario_status (no parameters needed).
 #[derive(Debug, Deserialize, JsonSchema)]
-struct StatusRequest {}
+pub struct StatusRequest {}
 
 // ── Server struct ──────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: critical/high findings (0.40), defense-layer coverage verified by manifest (0.25), CWE/taxonomy coverage (0.15), regression library growth (0.10), residual dependency risk (0.10). Emit cns.supply_chain.convergence span if registered; else note CANONICAL_NAMESPACES gap honestly (P9). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: critical/high findings (0.40), defense-layer coverage verified by manifest (0.25), CWE/taxonomy coverage (0.15), regression library growth (0.10), residual dependency risk (0.10). Emit cns.supply_chain.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
-{# Emits cns.supply_chain.convergence CNS span (P9) if registered; else notes gap #}
+{# Emits cns.supply_chain.convergence CNS span (P9) — namespace registered #}
 
 INPUT: unresolved_findings = {{ unresolved_findings }} (from previous cycle or current)
 INPUT: defense_layers_present = {{ defense_layers_present }} (from report/probe)
@@ -41,21 +41,18 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
   (CWE categories uncovered by findings/proposals).
 
 CNS SPAN (P9):
-- If `cns.supply_chain.convergence` registered in `CANONICAL_NAMESPACES`:
-  emit span (`target: "cns.supply_chain.convergence"`, message: `"CNS"`,
+- `cns.supply_chain.convergence` is registered in `CANONICAL_NAMESPACES`
+  (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
+  (`target: "cns.supply_chain.convergence"`, message: `"CNS"`,
   operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
   blockers: [...], replicant_host, latency_ms).
-- If NOT registered: note gap explicitly in output (`CANONICAL_NAMESPACES`
-  missing `supply_chain.convergence` — propose registration without
-  inventing registry entry; do not invent span emission — P9 demands
-  registered canonical namespace).
 
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
 blockers: [...], defense_layers_present, defense_layers_missing,
 existing_regressions_count, proposed_regressions_count, unresolved_critical,
 unresolved_high, taxonomy_coverage, residual_dependency_risk, replicant_host,
-cns_span_emitted: bool, cns_span_gap: bool}`.
+cns_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = replicant host; What = convergence metric;
 Where = audit cycle / workspace; When = scan cycle; Why = P9 observable
@@ -74,8 +71,8 @@ license entry for dependency X", "verify registry URL for dependency Y")
 based on real manifest evidence — not speculative.
 OCAP BOUNDARY (P4): Metric computed from workspace manifest evidence only;
 no external dependency download; no ambient dependency scanning.
-CNS REGULATION (P9): Span emission attempted; gap noted explicitly if
-namespace unregistered (honest framing — not inventing registry presence).
+CNS REGULATION (P9): Span emitted unconditionally — namespace registered
+in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
 REPLICANT HOST (P12): `replicant_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden security posture.
 SAFETY FLOOR (P3.1): Supply chain convergence protects Generative Space —
@@ -119,10 +116,8 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 `report` phase logic. Uses `findings` from `probe` (or from previous audit
 cycle if persistence is enabled by user). If no previous cycle, assumes
 `previous_metric = 1.0` (initial state) — explicit assumption, not hidden.
-CNS SPAN GAP HONEST: If `cns.supply_chain.convergence` not registered,
-output explicitly states `cns_span_emitted: false` and `cns_span_gap: true`
-with recommendation to register namespace (`CANONICAL_NAMESPACES`). Does
-not invent span emission (P9 integrity).
+CNS SPAN EMITTED: `cns.supply_chain.convergence` is registered, so the
+span is always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict
-OUTPUT FORMAT (JSON): {convergence_metric, previous_metric, improvement_pct, converged: bool, blockers: [...], defense_layers_present, defense_layers_missing, existing_regressions_count, proposed_regressions_count, unresolved_critical, unresolved_high, taxonomy_coverage, residual_dependency_risk, replicant_host, cns_span_emitted: bool, cns_span_gap: bool}
+OUTPUT FORMAT (JSON): {convergence_metric, previous_metric, improvement_pct, converged: bool, blockers: [...], defense_layers_present, defense_layers_missing, existing_regressions_count, proposed_regressions_count, unresolved_critical, unresolved_high, taxonomy_coverage, residual_dependency_risk, replicant_host, cns_span_emitted: true}
 

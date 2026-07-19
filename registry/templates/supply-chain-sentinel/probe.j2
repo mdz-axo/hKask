@@ -43,7 +43,7 @@ PROBE ACTIONS (concrete — must use file:read, code:search, terminal, or regist
 
 CNS SPAN EMISSION (P9 — every security-sensitive dependency operation):
 - `cns.supply_chain.probe` per manifest read (target: `"cns.supply_chain.probe"`, message: `"CNS"`, operation: `"probe_dependency"`, dependency: `...`, manifest_path: `...`, registry: `...`, replicant_host: `...`, latency_ms: ...).
-- The span registry (`CANONICAL_NAMESPACES`) must include this new domain. If not registered, this skill proposes registration but does not invent registry entries.
+- The span namespace is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
 CONSTRAINT — Evidence integrity (P8 — semantic grounding):
 - No synthetic manifest quotes. Every `evidence_snippet` must be verifiable by reading the cited manifest file at the cited line.
