@@ -261,7 +261,24 @@ All v2 scripts (distillation, preprocessing, config, eval) live in the HuggingFa
 1. **Distill reasoning traces** — Use the base Qwen3.6-27B (4-bit, via Unsloth) to generate real chain-of-thought reasoning traces for the analysis subset (bug_detection, code_review, code_refactoring, code_optimization). The base model reasons well (3,400-5,400 char responses); this captures its actual analysis of each specific code example — not a generic checklist. ~4h on H100. Output: `/workspace/data/distilled/{category}/{idx}.txt`.
 2. **Preprocess v2 data** — Reformat analysis targets with the distilled CoT traces prepended to the conclusion. Use `--use-distilled /workspace/data/distilled/`. Two system prompts: concise for codegen, thorough for analysis. Without distilled traces, falls back to a structured scaffolding checklist (less effective — it's generic boilerplate, not real reasoning).
 3. **Train with v2 config** — Same optimizations as v1 (PiSSA `pissa_niter_4`, patience=25, SDPA, Liger, CCE) but r=32, alpha=64. PiSSA at r=32 is untested — if convergence is slow, increase SVD iterations to `pissa_niter_8`. Expect ~26h, ~$83.
-4. **Eval with vLLM** — vLLM continuous batching gives 10-50x speedup over sequential HF generate (225 examples in ~15 min vs ~18h). Falls back to HF batched generation (4-8x) if vLLM doesn't support Qwen3.6's hybrid attention.
+4. **Merge and save** — After training completes, merge the adapter into the base model and save the merged model. This is MANDATORY for PiSSA adapters — see "PiSSA Inference" below.
+5. **Eval** — Load the merged model (not the adapter) and run the 225-example Strandset test split. Use the pre-flight checks from the `adapter-eval` skill before running.
+
+### PiSSA Inference (Critical Lesson)
+
+PiSSA (`pissa_niter_4`) decomposes the base model weights W = W_residual + A_init × B_init at **load time** via SVD. The decomposition is deterministic for a given set of weights, but **different library versions (transformers, torch) load the model weights slightly differently**. This means:
+
+- **Training pod** (transformers 5.9.0 via Axolotl): SVD(W_training) → principal_training
+- **Eval pod** (transformers 5.5.0 via Unsloth): SVD(W_eval) → principal_eval ≠ principal_training
+- **Result**: The residual base is wrong, so (W - wrong_principal) + saved_adapter = garbage
+
+This was confirmed empirically: the PiSSA residual base alone (adapter disabled) produces multilingual garbage tokens. The adapter weights are correct, but they're paired with the wrong residual base.
+
+**The fix**: Always save the merged model at the end of training, on the same pod with the same library versions. The merged model = W_residual + A_final × B_final, computed consistently. At inference, load the merged model directly — no PiSSA decomposition, no version mismatch.
+
+**SVD conversion to standard LoRA also fails**: Converting PiSSA to standard LoRA by computing delta = W_merged - W_original and SVD-decomposing to rank-r has ~40-50% relative error per layer. This compounds across 256 layers and produces garbage output.
+
+**Rule**: PiSSA adapters are NOT portable across library versions. Always save the merged model. The merged model is the deployment artifact; the adapter is for reference only.
 
 ### Immediate Alternative (No Retrain)
 

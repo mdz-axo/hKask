@@ -55,7 +55,7 @@ distinct from CWE *weakness categories*). `kali-audit` maps to OWASP LLM /
 ATLAS but not to OSC&R. No existing skill provides OSC&R taxonomy mapping.
 
 **Does this skill invent new taxonomy categories?** No. OSC&R is an open-
-source framework (oscar.io) co-created by Google/Microsoft/GitLab. This skill
+source framework (github.com/pbom-dev/OSCAR) co-created by Google/Microsoft/GitLab. This skill
 maps findings to existing OSC&R entries — it does not invent categories.
 
 **Does this skill duplicate `bug-hunt`'s `taxonomize` phase?** No.
@@ -125,8 +125,8 @@ Distinct namespace, distinct purpose.
 | Unverified registry | CWE-829 | SC09 (Unverified registry) | Dependency source is `git = ...` or `path = ...` without registry reference |
 
 **Note:** The OSC&R category names above are *proposed mappings* based on
-public OSC&R documentation (oscar.io). The actual OSC&R taxonomy IDs must be
-verified against the live oscar.io framework before registry commit. This
+public OSC&R documentation (github.com/pbom-dev/OSCAR). The actual OSC&R taxonomy IDs must be
+verified against the live github.com/pbom-dev/OSCAR framework before registry commit. This
 design spec does NOT invent OSC&R categories — it maps existing CWE/OWASP
 findings to existing OSC&R entries.
 
@@ -149,7 +149,7 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
 - Every taxonomy mapping includes concrete evidence (finding reference,
   manifest path, CWE category, OSC&R category ID, OWASP SC category).
 - No invented OSC&R categories — only map to existing entries in the
-  oscar.io framework.
+  github.com/pbom-dev/OSCAR framework.
 - No synthetic findings — consumes findings from `supply-chain-sentinel` and
   `kali-audit` as input; does not generate new findings.
 - Every output includes `replicant_host` identity (P12).
@@ -163,7 +163,7 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
 
 - **OSC&R Framework:** Open Software Supply Chain Attack Reference —
   ATT&CK-like taxonomy for supply chain threats. Co-created by security
-  experts from Google, Microsoft, GitLab. Source: `oscar.io` (verify live
+  experts from Google, Microsoft, GitLab. Source: `github.com/pbom-dev/OSCAR` (verify live
   taxonomy before commit).
 - **MITRE CWE:** CWE-1104 (Unmaintained Third-Party Components), CWE-829
   (Inclusion from Untrusted Control Sphere), CWE-1357 (Reliance on Component
