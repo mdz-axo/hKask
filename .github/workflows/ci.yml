@@ -80,6 +80,8 @@ jobs:
         run: bash scripts/check-convergence-weights.sh
       - name: Jinja2 template syntax validation
         run: cargo test -p hkask-services-skill --test render_templates --quiet
+      - name: Pipeline contract check (warnings)
+        run: cargo test -p hkask-services-skill --test pipeline_contracts --quiet
 
   # ── Lint — fmt + clippy, own cache (clippy artifacts) ───────────────────
   lint:
