@@ -206,9 +206,11 @@ steps:
 
   - ordinal: 7
     action: loop
-    description: Re-enter critique cycle if convergence threshold is not met.
+    description: >
+      Re-enter audit cycle. If user made counter-proposal (step_5 user_choice = 'counter_proposal'),
+      loop to step 1 to re-parse revised goal/artifact. Otherwise loop to step 2 for revised critique cycle.
     input_mapping:
-      loop_target: 2
+      loop_target: "{{ 1 if user_counter_proposal is defined and user_counter_proposal else 2 }}"
 
 error_handling:
   on_gas_exceeded: abort

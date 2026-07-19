@@ -105,7 +105,7 @@ steps:
     gas_cap: 1000
     timeout_seconds: 30
     input_mapping:
-      loop_target: 2
+      loop_target: 2  # By Toyota Kata design: after experiment (step 4), reassess current condition (step 2) — direction (step 1) only revisited if challenge fundamentally changes (see SKILL.md step 4: 'next obstacle if correct'). This preserves direction stability while allowing current-state correction.
 
 error_handling:
   on_gas_exceeded: abort

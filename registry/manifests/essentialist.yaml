@@ -10,7 +10,7 @@ manifest:
     computes convergence, and iterates until no material eliminations or
     contract violations remain.
   functional_role: flowdef
-  version: 0.30.0
+  version: 0.31.0  # synced with hKask release; SKILL.md lacks version field — should be added for traceability
   editor: curator-or-human-admin
   visibility: Public
 
@@ -70,6 +70,10 @@ steps:
       mode: "{{ mode | default('advisory') }}"
       max_rounds: "{{ convergence.max_iterations | default(3) }}"
       max_retries_per_gate: 3
+      # Cross-guard: total gate attempts ≤ max_rounds × gates (3 gates) × retries (3) = 27 max.
+      # Budget is enforced by gas cap (100000) and rjoule cap (2); no explicit cross-guard was present.
+      # Added: retry exhaustion on any gate triggers immediate escalation (see SKILL.md step 10).
+      budget_guard: "retry_exhaustion → escalate; zero_delta → abort"
       scope: auto
 
   - ordinal: 2

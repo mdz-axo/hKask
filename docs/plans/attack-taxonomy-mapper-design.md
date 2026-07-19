@@ -2,23 +2,23 @@
 title: "Skill Design Spec — attack-taxonomy-mapper"
 audience: [architects, replicants, security auditors]
 last_updated: 2026-07-18
-status: draft
-version: 0.1.0
+status: as-built
+version: 0.2.0
 domain: security / supply-chain / taxonomy
-skill_status: draft — not registry-committed
+skill_status: active — registry-committed (2026-07-18)
 ---
 
 # Skill Design Spec — `attack-taxonomy-mapper`
 
-**Status:** `draft` — not registry-committed. Per P5 Essentialism, this skill is
-documented for evolutionary architecture (P7) but NOT implemented to avoid
-speculative abstraction. A `manifest.yaml` and `.j2` templates will be created
-under `registry/templates/attack-taxonomy-mapper/` only after this design
-passes the 5W1H gate review and the OSC&R taxonomy mapping is verified
-against the actual `oscar.io` framework.
+**Status:** `active` — registry-committed (2026-07-18). This design spec
+is retained as as-built documentation. The skill is implemented at
+`registry/templates/attack-taxonomy-mapper/` (manifest.yaml + 4 .j2
+templates) + `.agents/skills/attack-taxonomy-mapper/SKILL.md`.
 
-This spec follows the same structure as `docs/plans/security-skills.md` Skill3.
-It is the design artifact referenced by that plan.
+The `cns.taxonomy.*` namespaces are registered in `CANONICAL_NAMESPACES`
+(`crates/hkask-types/src/event.rs` L309-315). The OSC&R taxonomy was
+verified against `github.com/pbom-dev/OSCAR` `matrix.json` (2026-07-18).
+The skill passed `skill-logic-audit` with all material flaws resolved.
 
 ## 1. Identity
 
@@ -178,47 +178,56 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
 - **`security/regressions/README.md`:** Regression YAML format — the
   `taxonomy_mapping` field extends this format.
 
-## 11. Open Questions (Blocking Registry Commit)
+## 11. Open Questions (Resolved)
 
-1. **`cns.taxonomy.*` namespace registration:** Must be proposed and accepted
-   before skill commit. Verify no conflict with `cns.classify.*` (which is
-   for inference classification drift — distinct purpose).
-2. **OSC&R taxonomy verification:** The OSC&R category names and IDs in §7
-   are *proposed mappings* based on public documentation. Must verify against
-   the live oscar.io framework before commit. Do NOT invent OSC&R IDs.
-3. **`taxonomy_mapping` field format:** What is the exact YAML schema for
-   the `taxonomy_mapping` field added to regression entries? Proposed:
-   ```yaml
-   taxonomy_mapping:
-     osc_r: "T1.2.3"  # OSC&R taxonomy ID (verified against oscar.io)
-     owasp_sc: "SC04" # OWASP Supply Chain category
-   ```
-   Need to verify this is compatible with `scripts/check-kali-regressions.sh`
-   (which is surface-agnostic and parses specific fields — adding a new
-   optional field should not break it, but verify).
-4. **Finding consumption API:** How does this skill consume findings from
-   `supply-chain-sentinel` and `kali-audit`? Via the CNS span history, via
-   the regression library, or via a new finding-passing mechanism? Need to
-   verify the inter-skill data flow path.
-5. **Dual taxonomy value:** Does mapping to BOTH OSC&R and OWASP Supply Chain
-   add value, or is one sufficient? The plan says "dual taxonomy" but P5
-   minimalism may require choosing one. Resolve before commit.
+1. **`cns.taxonomy.*` namespace registration:** RESOLVED — all 5 namespaces
+   registered in `CANONICAL_NAMESPACES` (`event.rs` L309-315). No conflict
+   with `cns.classify.*` (distinct purpose).
+2. **OSC&R taxonomy verification:** RESOLVED — verified against
+   `github.com/pbom-dev/OSCAR` `matrix.json` (2026-07-18). OSC&R uses
+   tactic + technique names, NOT numeric IDs. All 12 tactics and all
+   referenced techniques verified against the live matrix.
+3. **`taxonomy_mapping` field format:** RESOLVED — backward-compatible
+   optional field with `osc_r_tactic`, `osc_r_technique`, `osc_r_categories`,
+   and `owasp_sc_reference` keys. Compatible with `scripts/check-kali-regressions.sh`
+   (which parses specific fields; optional field is safe).
+4. **Finding consumption API:** PARTIALLY OPEN — the skill reads
+   `security/regressions/` YAML files for already-merged findings. It cannot
+   consume fresh findings from a current `supply-chain-sentinel` or
+   `kali-audit` audit cycle in real-time. This limits the skill's utility for
+   real-time incident investigation. See §13 below.
+5. **Dual taxonomy value:** RESOLVED — OSC&R is the primary taxonomy
+   (verified). OWASP SC codes are secondary (PROPOSED — OWASP does not
+   publish a numbered Supply Chain Top 10). The convergence metric treats
+   OWASP SC as a presence/absence signal, not a coverage dimension.
 
-## 12. Path to Registry Commit
+## 12. Path to Registry Commit (COMPLETED)
 
-1. Resolve open questions in §11.
-2. Register `cns.taxonomy.*` namespaces in `CANONICAL_NAMESPACES`
-   (`crates/hkask-types/src/event.rs`).
-3. Verify OSC&R taxonomy IDs against live oscar.io framework.
-4. Create `registry/templates/attack-taxonomy-mapper/manifest.yaml` with
-   4 template entries (select-evidence, map-taxonomy, taxonomize,
-   convergence-check).
-5. Create the 4 `.j2` template files with `{# goal: ... #}` annotations
-   (per `skill-logic-audit` critical revision).
-6. Create `.agents/skills/attack-taxonomy-mapper/SKILL.md` derived from
-   the registry manifest (P5.1 — registry authoritative).
-7. Run `skill-logic-audit` convergence check on the new skill.
-8. User `accept` per `skill-logic-audit` `user-choice` ratchet (P11).
-9. Update `docs/plans/security-skills.md` to mark skill as `active`.
+All steps completed (2026-07-18):
+1. ✅ Resolved open questions in §11 (4 resolved, 1 partially open — see §13).
+2. ✅ Registered `cns.taxonomy.*` namespaces in `CANONICAL_NAMESPACES`.
+3. ✅ Verified OSC&R taxonomy IDs against live `github.com/pbom-dev/OSCAR`.
+4. ✅ Created `registry/templates/attack-taxonomy-mapper/manifest.yaml`.
+5. ✅ Created 4 `.j2` template files with `{# goal: ... #}` annotations.
+6. ✅ Created `.agents/skills/attack-taxonomy-mapper/SKILL.md`.
+7. ✅ Ran `skill-logic-audit` convergence check — all material flaws fixed.
+8. ✅ User accepted per `skill-logic-audit` `user-choice` ratchet.
+9. ✅ Updated `docs/plans/security-skills.md` — skill marked `active`.
 
-Until steps 1-8 complete, this skill remains `draft — not committed`.
+## 13. Remaining Infrastructure Work (Post-Commit)
+
+The skill is registry-committed and passes `kask skill audit` (score 1.00,
+0 defects). However, one infrastructure gap remains before the skill is
+fully invocable for real-time incident investigation:
+
+1. **Finding consumption API:** The skill currently reads
+   `security/regressions/` YAML files for already-merged findings. It cannot
+   consume fresh findings from a current `supply-chain-sentinel` or
+   `kali-audit` audit cycle in real-time. For post-audit taxonomy mapping
+   (the primary use case), this is sufficient. For real-time incident
+   investigation, a finding-passing mechanism (e.g., CNS span history or an
+   inter-skill data flow API) would be needed.
+
+This is an infrastructure task, not a skill design task. The skill itself
+is complete and correct for its primary use case (post-audit taxonomy
+mapping of merged regression entries).

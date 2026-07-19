@@ -43,9 +43,21 @@ status: pending | enforced           # pending = known bug, not yet fixed; enfor
 `scripts/check-kali-regressions.sh` runs all `grep`-kind regressions with
 `status: enforced`. Ratcheted: `pending` regressions are warnings, not failures.
 
-## Relationship to kali-audit skill
+## Relationship to security skills
 
-The `kali-audit` skill (Track C) consumes this library as input — it knows what
-has already been found and can focus on new issues. When the skill finds a new
-issue, it proposes a regression entry (in its report output). Humans review,
-merge, and the library grows.
+Multiple security skills consume this library as input and propose new
+entries as output:
+
+- **`kali-audit`** — consumes the library to avoid re-finding known issues;
+  proposes new entries for code/template/MCP/supply-chain/LLM I/O findings.
+- **`supply-chain-sentinel`** — proposes `surface: supply-chain` entries for
+  dependency manifest findings (version pinning, registry verification,
+  license conflicts, SBOM visibility).
+- **`runtime-posture-monitor`** — proposes `surface: runtime` entries for
+  runtime threat findings (endpoint abuse, bot traffic, LLM usage anomalies).
+  Uses `kind: cns-span` detection (not `kind: grep`).
+- **`attack-taxonomy-mapper`** — adds `taxonomy_mapping` field to existing
+  `surface: supply-chain` entries (OSC&R tactic + technique mapping).
+
+Humans review, merge, and the library grows. The "evolving" property comes
+from the library growing over time, not from autonomous learning.

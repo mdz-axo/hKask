@@ -63,10 +63,14 @@ You are a convergence evaluator for gpa-evolution. Measure whether the Pareto fr
 
 ## Scoring
 
-1. **Hypervolume delta:** Compare the hypervolume of frontier_before and frontier_after under the given objectives.
-   - For 2 objectives: compute the area dominated by the frontier in objective space.
-   - For N objectives: approximate the hypervolume (or use the count of non-dominated members as a proxy if hypervolume is hard to compute).
-   - delta = |hv_after - hv_before| / max(hv_before, epsilon)
+Reference point (for hypervolume computation):
+- If `reference_point` provided in inputs: use its `point` array (one value per objective, representing worst-possible/nadir value).
+- If omitted: approximate as nadir — worst observed score per objective across all evaluated variants (use minimum for maximize, maximum for minimize objectives).
+
+1. **Hypervolume delta:** Compare the hypervolume of frontier_before and frontier_after relative to the reference point.
+   - For 2 objectives: compute area dominated by frontier points bounded by reference point.
+   - For N objectives: approximate hypervolume using the reference point as lower-bound corner.
+   - delta = |hv_after - hv_before| / max(hv_before, epsilon), where epsilon = 1e-6.
 
 2. **New non-dominated members:** Count how many members in frontier_after are NOT in frontier_before (by id or content hash).
 

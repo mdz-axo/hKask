@@ -33,6 +33,8 @@ convergence:
   #
   # IS: The Rust executor's check_convergence() with improvement_gate:
   # "threshold_only" only checks quality <= threshold (executor.rs L884-890).
+  # Hypervolume reference point is required for stable convergence measurement.
+  # See input: reference_point (falls back to nadir approximation: worst observed score per objective).
   threshold: 0.10
   improvement_gate: threshold_only
   max_iterations: 5
@@ -67,6 +69,9 @@ inputs:
   - name: frontier_size
     type: integer
     required: false         # default 8
+  - name: reference_point
+    type: object
+    required: false         # {point: [f1_min, f2_min, ...], source: 'user' | 'nadir' | 'default'} — hypervolume reference point. If omitted, uses worst-observed-objective value per axis as nadir approximation.
 
 steps:
   - ordinal: 1
