@@ -293,3 +293,124 @@ async fn training_preflight_check_passes_with_valid_adapter_via_parameters_seam(
     assert_eq!(checks[1]["status"], "pass");
     std::fs::remove_dir_all(&temp_dir).ok();
 }
+
+// ── Contract tests for previously-untested tools (2026-07-19 cleanup) ──────
+//
+// These tests close the coverage gap identified in the post-mortem: 18 of 21
+// tools had no contract tests. After the 21→14 simplification, these 5 tests
+// cover the most critical untested tools: submit, status, cancel, deploy, teardown.
+// All use the MockTrainingHost (no external API calls).
+
+// REQ: training_submit rejects a missing dataset file without panicking (P5).
+// expect: submit returns an error envelope, not a panic.
+#[tokio::test]
+async fn training_submit_rejects_missing_dataset_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_training::types::TrainSubmitRequest =
+        serde_json::from_value(serde_json::json!({
+            "dataset_path": "/nonexistent/path/to/dataset.jsonl",
+            "base_model": "unsloth/Qwen3.6-27B",
+            "params": null
+        }))
+        .expect("deserialize TrainSubmitRequest");
+    let out = server.training_submit(Parameters(req)).await;
+    // Should return an error, not panic — the exact error format depends on
+    // whether the file check happens before or after host submission.
+    let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
+    // The tool should return either an error envelope or a content with error info.
+    // Either way, it must not be a success with a job_id.
+    assert!(
+        v.get("content").and_then(|c| c.get("job_id")).is_none()
+            || v.get("kind").is_some(),
+        "submit should not return a job_id for a missing dataset: {out}"
+    );
+}
+
+// REQ: training_status returns the host's status for a given job_id (P5).
+// expect: status returns "failed" for the mock host (which always returns Failed).
+#[tokio::test]
+async fn training_status_returns_failed_for_mock_host_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_training::types::TrainStatusRequest =
+        serde_json::from_value(serde_json::json!({
+            "job_id": "test-job-123"
+        }))
+        .expect("deserialize TrainStatusRequest");
+    let out = server.training_status(Parameters(req)).await;
+    let content = parse_content(&out);
+    assert_eq!(
+        content["job_id"], "test-job-123",
+        "status should echo the job_id: {out}"
+    );
+    // MockTrainingHost returns TrainingJobStatus::Failed
+    assert_eq!(
+        content["status"], "failed",
+        "mock host should return failed status: {out}"
+    );
+}
+
+// REQ: training_cancel succeeds when the host cancel succeeds (P5).
+// expect: cancel returns status "cancelled" for the mock host (which returns Ok).
+#[tokio::test]
+async fn training_cancel_succeeds_with_mock_host_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_training::types::TrainCancelRequest =
+        serde_json::from_value(serde_json::json!({
+            "job_id": "test-job-456"
+        }))
+        .expect("deserialize TrainCancelRequest");
+    let out = server.training_cancel(Parameters(req)).await;
+    let content = parse_content(&out);
+    assert_eq!(
+        content["job_id"], "test-job-456",
+        "cancel should echo the job_id: {out}"
+    );
+    assert_eq!(
+        content["status"], "cancelled",
+        "mock host cancel should succeed: {out}"
+    );
+}
+
+// REQ: training_deploy rejects an unknown adapter name without panicking (P5).
+// expect: deploy returns an error for an adapter that doesn't exist in the store.
+#[tokio::test]
+async fn training_deploy_rejects_unknown_adapter_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_training::types::TrainDeployRequest =
+        serde_json::from_value(serde_json::json!({
+            "adapter_name": "nonexistent-adapter-xyz",
+            "provider": "together",
+            "base_model": null,
+            "gpu_type": null
+        }))
+        .expect("deserialize TrainDeployRequest");
+    let out = server.training_deploy(Parameters(req)).await;
+    // Should return an error, not a panic — the adapter doesn't exist in the store.
+    let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
+    assert!(
+        v.get("content").and_then(|c| c.get("endpoint_url")).is_none()
+            || v.get("kind").is_some(),
+        "deploy should not return an endpoint for an unknown adapter: {out}"
+    );
+}
+
+// REQ: training_teardown handles an unknown deployment ID without panicking (P5).
+// expect: teardown returns gracefully (error or no-op) for a nonexistent deployment.
+#[tokio::test]
+async fn training_teardown_handles_unknown_deployment_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_training::types::TrainTeardownRequest =
+        serde_json::from_value(serde_json::json!({
+            "deployment_id": "nonexistent-deployment-xyz"
+        }))
+        .expect("deserialize TrainTeardownRequest");
+    let out = server.training_teardown(Parameters(req)).await;
+    // Should not panic — the deployment doesn't exist.
+    let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
+    // The tool should return either a success (no-op) or an error envelope.
+    // Either way, it must be valid JSON and not a panic.
+    assert!(
+        v.is_object(),
+        "teardown should return valid JSON for unknown deployment: {out}"
+    );
+}
