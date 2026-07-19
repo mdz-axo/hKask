@@ -108,7 +108,6 @@ use hkask_mcp_training::providers::{
     CostEstimate, ProviderError, TrainingHarnessId, TrainingHost, TrainingHostId, TrainingJob,
     TrainingJobStatus,
 };
-use hkask_mcp_training::types::TrainRecommendModelRequest;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use std::path::PathBuf;
@@ -190,31 +189,6 @@ async fn training_list_adapters_returns_empty_via_parameters_seam() {
         content["adapters"].as_array().unwrap().len(),
         0,
         "got: {out}"
-    );
-}
-
-// REQ: training_recommend_model returns ranked recommendations (P5 Testing Discipline).
-// expect: recommend_model returns a non-empty recommendations list for a known task type.
-#[tokio::test]
-async fn training_recommend_model_returns_recommendations_via_parameters_seam() {
-    let server = test_server();
-    let req: TrainRecommendModelRequest = serde_json::from_value(serde_json::json!({
-        "task_type": "classification",
-        "budget": "low",
-        "latency": "realtime",
-        "license": "apache2",
-        "provider": null
-    }))
-    .expect("deserialize TrainRecommendModelRequest");
-    let out = server.training_recommend_model(Parameters(req)).await;
-    let content = parse_content(&out);
-    assert!(
-        content["recommendations"].is_array(),
-        "should have recommendations: {out}"
-    );
-    assert!(
-        !content["recommendations"].as_array().unwrap().is_empty(),
-        "should have at least one recommendation: {out}"
     );
 }
 

@@ -82,26 +82,19 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         .await
     }
 
-    async fn teardown(&self, endpoint_url: &str) -> Result<(), AdapterError> {
-        if self.api_key.is_empty() {
-            return Err(AdapterError::Internal(
-                "RUNPOD_API_KEY not set — cannot teardown endpoint. \
-                 The endpoint may still be active and billing at Runpod."
-                    .into(),
-            ));
-        }
-        self.client
-            .delete(endpoint_url)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .send()
-            .await
-            .map_err(|e| {
-                AdapterError::Internal(format!(
-                    "Runpod teardown HTTP request failed: {e}. \
-                     Endpoint may need manual deletion via Runpod console."
-                ))
-            })?;
-        tracing::info!(target: "cns.adapter", endpoint_url = %endpoint_url, "Runpod endpoint torn down");
+    async fn teardown(&self, _endpoint_url: &str) -> Result<(), AdapterError> {
+        // RunPod serverless endpoints scale to zero when idle — no explicit
+        // teardown is needed. The previous implementation HTTP-DELETEd the
+        // inference URL, which was wrong (you don't DELETE an OpenAI-compatible
+        // endpoint; serverless endpoints are managed by RunPod's infra).
+        //
+        // If this backend is ever extended to support dedicated pods (not
+        // serverless), teardown should call the GraphQL `podTerminate` mutation
+        // with the pod ID — see RunpodHost::drain_all_pods in the training server.
+        tracing::info!(
+            target: "cns.adapter",
+            "Runpod serverless endpoint scales to zero automatically — no teardown needed"
+        );
         Ok(())
     }
 
