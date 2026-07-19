@@ -298,6 +298,18 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.supply_chain.probe",
     "cns.supply_chain.report",
     "cns.supply_chain.convergence",
+    // ── Runtime posture (security audit — runtime-posture-monitor skill) ──
+    "cns.runtime",
+    "cns.runtime.select",
+    "cns.runtime.classify",
+    "cns.runtime.regulate",
+    "cns.runtime.convergence",
+    // ── Attack taxonomy (security audit — attack-taxonomy-mapper skill) ──
+    "cns.taxonomy",
+    "cns.taxonomy.select",
+    "cns.taxonomy.map",
+    "cns.taxonomy.report",
+    "cns.taxonomy.convergence",
     // ── Template ──
     "cns.template",
 ];

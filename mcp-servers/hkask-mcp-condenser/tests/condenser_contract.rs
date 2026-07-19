@@ -322,7 +322,7 @@ async fn condenser_score_saliency_returns_score_via_parameters_seam() {
     let content = parse_content(&out);
     let score = content["score"].as_f64().expect("score should be a number");
     assert!(
-        score >= 0.0 && score <= 1.0,
+        (0.0..=1.0).contains(&score),
         "score should be in [0,1]: {score}"
     );
     assert_eq!(content["against"], "persona");

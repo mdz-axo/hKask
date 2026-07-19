@@ -33,7 +33,6 @@ set -euo pipefail
 # Servers known to lack tool-behavior contract tests today. Shrink over time.
 # Remove a name the moment its tests/ contains a `Parameters(` call.
 ALLOWLIST=(
-  "hkask-mcp-companies"
 )
 
 # Servers that are EXEMPT by design (not agent-facing tool surfaces requiring

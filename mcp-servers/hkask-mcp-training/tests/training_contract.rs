@@ -169,6 +169,7 @@ fn parse_content(out: &str) -> serde_json::Value {
 }
 
 /// Extract the `kind` field from an error envelope, if present.
+#[allow(dead_code)]
 fn error_kind(out: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
     v.get("kind").and_then(|e| e.as_str()).map(String::from)

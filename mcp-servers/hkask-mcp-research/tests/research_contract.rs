@@ -6,7 +6,7 @@
 //! Tested seam: `strip_html`, `ResponseCache`, and request type deserialization (no external API calls).
 
 use hkask_mcp_research::ResearchServer;
-use hkask_services_research::{ProviderPool, RateLimiter, ResponseCache, build_provider_pool};
+use hkask_services_research::{RateLimiter, ResponseCache, build_provider_pool};
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use std::collections::HashMap;
