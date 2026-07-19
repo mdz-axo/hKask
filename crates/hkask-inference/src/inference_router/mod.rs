@@ -187,6 +187,8 @@ impl InferenceRouter {
             ProviderId::Cline => self.cline.as_ref().map(|b| b as &dyn ChatBackend),
             // RunPod is vision/OCR-only — it is not a ChatBackend.
             ProviderId::Runpod => None,
+            // Tinker adapter is scaffolded but not registered as a chat backend.
+            ProviderId::Tinker => None,
         }
     }
 
@@ -203,6 +205,8 @@ impl InferenceRouter {
             ProviderId::Ollama => self.ollama.as_ref().map(|b| b as &dyn VisionBackend),
             ProviderId::Cline => self.cline.as_ref().map(|b| b as &dyn VisionBackend),
             ProviderId::Runpod => self.runpod.as_ref().map(|b| b as &dyn VisionBackend),
+            // Tinker adapter is scaffolded but not registered as a vision backend.
+            ProviderId::Tinker => None,
         }
     }
 

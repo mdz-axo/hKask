@@ -151,7 +151,7 @@ impl ProviderId {
     ///
     /// expect: "The system normalizes provider responses for monitoring"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
-    /// post: returns "DI", "FA", "TG", "RP", "OR", "KC", "OM", or "CL"
+    /// post: returns "DI", "FA", "TG", "RP", "OR", "KC", "OM", "CL", or "TM"
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -163,6 +163,7 @@ impl ProviderId {
             ProviderId::KiloCode => "KC",
             ProviderId::Ollama => "OM",
             ProviderId::Cline => "CL",
+            ProviderId::Tinker => "TM",
         }
     }
 }
