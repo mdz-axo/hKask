@@ -76,6 +76,10 @@ jobs:
         run: bash scripts/check-cns-canonical.sh
       - name: Security regression library
         run: bash scripts/check-kali-regressions.sh
+      - name: Convergence metric weights
+        run: bash scripts/check-convergence-weights.sh
+      - name: Jinja2 template syntax validation
+        run: cargo test -p hkask-services-skill --test render_templates --quiet
 
   # ── Lint — fmt + clippy, own cache (clippy artifacts) ───────────────────
   lint:
