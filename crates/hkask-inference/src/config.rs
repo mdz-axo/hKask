@@ -68,6 +68,11 @@ pub enum ProviderId {
     /// Env: `CLINE_API_KEY`, `CLINE_BASE_URL` (default `https://api.cline.bot/api`).
     #[serde(rename = "CL")]
     Cline,
+    /// Thinking Machines Tinker (cloud) — prefix `TM/`
+    /// Tinker is a training + inference API that handles distributed GPU compute.
+    /// Env: `TINKER_API_KEY`. OpenAI-compatible inference API.
+    #[serde(rename = "TM")]
+    Tinker,
 }
 
 impl ProviderId {
@@ -348,12 +353,11 @@ impl InferenceConfig {
 /// absence or parse failure. Used for tunable thresholds (price caps, etc.).
 fn env_f64(key: &str, default: f64) -> f64 {
     // Tier 1: Environment variable (fast path)
-    if let Ok(val) = std::env::var(key) {
-        if !val.is_empty() {
-            if let Ok(f) = val.parse::<f64>() {
-                return f;
-            }
-        }
+    if let Ok(val) = std::env::var(key)
+        && !val.is_empty()
+        && let Ok(f) = val.parse::<f64>()
+    {
+        return f;
     }
     // Tier 2: OS keychain (loaded from .env at setup time via kask keystore load)
     let keychain_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -361,10 +365,10 @@ fn env_f64(key: &str, default: f64) -> f64 {
     }));
     if let Ok(Ok(zeroizing)) = keychain_result {
         let val_str = String::from_utf8_lossy(&zeroizing);
-        if !val_str.is_empty() {
-            if let Ok(f) = val_str.parse::<f64>() {
-                return f;
-            }
+        if !val_str.is_empty()
+            && let Ok(f) = val_str.parse::<f64>()
+        {
+            return f;
         }
     }
     default
@@ -428,10 +432,10 @@ fn parse_provider_code(raw: &str) -> ProviderId {
 
 /// Resolve a configuration string from env or keychain (2-tier chain).
 fn resolve_config_str(key: &str) -> Option<String> {
-    if let Ok(val) = std::env::var(key) {
-        if !val.is_empty() {
-            return Some(val);
-        }
+    if let Ok(val) = std::env::var(key)
+        && !val.is_empty()
+    {
+        return Some(val);
     }
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         hkask_keystore::resolve(&SecretRef::Keychain(key.to_string()))
