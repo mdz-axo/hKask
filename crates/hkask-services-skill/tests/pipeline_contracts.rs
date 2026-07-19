@@ -28,10 +28,9 @@
 //! fields, or independent template invocation). Review the warnings and fix
 //! only if the mismatch indicates a real pipeline defect.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
 
 /// Standard inputs that the agent provides directly (not produced by prior
 /// templates). These are always available and don't need to come from a
@@ -212,58 +211,56 @@ fn parse_contract_fields(content: &str) -> (HashSet<String>, HashSet<String>) {
     let yaml_text = &after_header[..sep];
 
     // Try parsing as YAML
-    if let Ok(yaml) = serde_yaml_neo::from_str::<serde_yaml_neo::Value>(yaml_text) {
-        if let Some(contract) = yaml.get("contract").and_then(|v| v.as_mapping()) {
-            if let Some(input) = contract.get("input").and_then(|v| v.as_mapping()) {
-                for (key, _) in input {
-                    if let Some(name) = key.as_str() {
-                        input_fields.insert(name.to_string());
-                    }
+    if let Ok(yaml) = serde_yaml_neo::from_str::<serde_yaml_neo::Value>(yaml_text)
+        && let Some(contract) = yaml.get("contract").and_then(|v| v.as_mapping())
+    {
+        if let Some(input) = contract.get("input").and_then(|v| v.as_mapping()) {
+            for (key, _) in input {
+                if let Some(name) = key.as_str() {
+                    input_fields.insert(name.to_string());
                 }
             }
-            if let Some(output) = contract.get("output").and_then(|v| v.as_mapping()) {
-                for (key, _) in output {
-                    if let Some(name) = key.as_str() {
-                        output_fields.insert(name.to_string());
-                    }
+        }
+        if let Some(output) = contract.get("output").and_then(|v| v.as_mapping()) {
+            for (key, _) in output {
+                if let Some(name) = key.as_str() {
+                    output_fields.insert(name.to_string());
                 }
             }
         }
     }
 
     // If YAML parsing didn't find fields, try TOML-style [contract] section
-    if input_fields.is_empty() && output_fields.is_empty() {
-        if yaml_text.contains("[contract]") {
-            // Parse inline format: input: {field: type, ...}
-            let mut in_input = false;
-            let mut in_output = false;
-            for line in yaml_text.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with("input:") {
-                    in_input = true;
-                    in_output = false;
-                    // Inline format: input: {field: type, field2: type2}
-                    let inline = trimmed.strip_prefix("input:").unwrap_or("").trim();
-                    if inline.starts_with('{') {
-                        parse_inline_fields(inline, &mut input_fields);
-                    }
-                } else if trimmed.starts_with("output:") {
-                    in_output = true;
-                    in_input = false;
-                    let inline = trimmed.strip_prefix("output:").unwrap_or("").trim();
-                    if inline.starts_with('{') {
-                        parse_inline_fields(inline, &mut output_fields);
-                    }
-                } else if in_input || in_output {
-                    // Multi-line format: field_name: type
-                    if let Some(colon_pos) = trimmed.find(':') {
-                        let field = trimmed[..colon_pos].trim();
-                        if !field.is_empty() && !field.starts_with('#') {
-                            if in_input {
-                                input_fields.insert(field.to_string());
-                            } else {
-                                output_fields.insert(field.to_string());
-                            }
+    if input_fields.is_empty() && output_fields.is_empty() && yaml_text.contains("[contract]") {
+        // Parse inline format: input: {field: type, ...}
+        let mut in_input = false;
+        let mut in_output = false;
+        for line in yaml_text.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("input:") {
+                in_input = true;
+                in_output = false;
+                // Inline format: input: {field: type, field2: type2}
+                let inline = trimmed.strip_prefix("input:").unwrap_or("").trim();
+                if inline.starts_with('{') {
+                    parse_inline_fields(inline, &mut input_fields);
+                }
+            } else if trimmed.starts_with("output:") {
+                in_output = true;
+                in_input = false;
+                let inline = trimmed.strip_prefix("output:").unwrap_or("").trim();
+                if inline.starts_with('{') {
+                    parse_inline_fields(inline, &mut output_fields);
+                }
+            } else if in_input || in_output {
+                // Multi-line format: field_name: type
+                if let Some(colon_pos) = trimmed.find(':') {
+                    let field = trimmed[..colon_pos].trim();
+                    if !field.is_empty() && !field.starts_with('#') {
+                        if in_input {
+                            input_fields.insert(field.to_string());
+                        } else {
+                            output_fields.insert(field.to_string());
                         }
                     }
                 }
@@ -350,11 +347,9 @@ fn collect_skill_dirs() -> Vec<PathBuf> {
         .join("templates");
 
     let mut dirs = Vec::new();
-    for entry in fs::read_dir(&root).into_iter().flatten() {
-        if let Ok(entry) = entry {
-            if entry.path().is_dir() {
-                dirs.push(entry.path());
-            }
+    for entry in fs::read_dir(&root).into_iter().flatten().flatten() {
+        if entry.path().is_dir() {
+            dirs.push(entry.path());
         }
     }
     dirs.sort();
@@ -446,5 +441,4 @@ fn pipeline_contracts_report_mismatches_as_warnings() {
 
     // WARNING-ONLY: always pass. To make this a hard failure, replace with:
     // if !all_warnings.is_empty() { panic!(...); }
-    assert!(true);
 }
