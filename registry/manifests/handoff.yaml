@@ -117,6 +117,9 @@ steps:
     description: Re-enter handoff cycle if convergence is not met.
     input_mapping:
       loop_target: 1
+      # Carry convergence context into the next iteration.
+      previous_blockers: "{{ step_5_result.blockers | default([]) }}"
+      previous_metric: "{{ step_5_result.convergence_metric | default(1.0) }}"
 
 error_handling:
   on_gas_exceeded: abort

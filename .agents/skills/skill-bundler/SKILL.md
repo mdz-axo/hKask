@@ -62,6 +62,7 @@ Orchestrate and compose multiple skills into a cohesive bundle. Activates a set 
 | Template | Type | Purpose |
 |----------|------|---------|
 | `bundler-compose.j2` | KnowAct | Analyze a set of skills for conflicts, complementarities, and optimal ordering. Classify each skill by polarity (generative/evaluative/ regulative/procedural), assign cascade phase, and produce a structured bundle manifest.  |
+| `bundler-synthesize.j2` | KnowAct | Synthesize the composed bundle manifest: decimate/fuse RDF graph, resolve ontology anchors, and produce the final PKO/DC/PROV-O-anchored manifest.  |
 | `bundler-validate.j2` | KnowAct | Validate a composed bundle manifest: check for contradictory directives in the same cascade phase, cascade depth limits, skill uniqueness, conflict resolution completeness, and convergence criteria.  |
 | `bundler-evolve.j2` | KnowAct | Re-assess a bundle when one or more skills have changed. Re-compose the manifest preserving what hasn't changed and updating what has. Detect drift from the original composition principles.  |
 | `bundler-convergence-check.j2` | KnowAct | Compute a normalized convergence metric for bundle composition loops. Synthesizes compose/validate outputs into `convergence_metric` in [0,1], where 0 means no blocking composition violations remain.  |

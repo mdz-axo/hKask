@@ -117,6 +117,9 @@ steps:
     description: Re-enter analysis cycle if convergence threshold is not met.
     input_mapping:
       loop_target: 1
+      # Carry convergence context into the next iteration.
+      previous_blockers: "{{ step_4_result.blockers | default([]) }}"
+      previous_metric: "{{ step_4_result.convergence_metric | default(1.0) }}"
 
 error_handling:
   on_gas_exceeded: abort
