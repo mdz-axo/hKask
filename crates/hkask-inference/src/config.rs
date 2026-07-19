@@ -349,10 +349,27 @@ impl InferenceConfig {
 /// Parse an `f64` from an environment variable, falling back to `default` on
 /// absence or parse failure. Used for tunable thresholds (price caps, etc.).
 fn env_f64(key: &str, default: f64) -> f64 {
-    std::env::var(key)
-        .ok()
-        .and_then(|v| v.parse::<f64>().ok())
-        .unwrap_or(default)
+    // Tier 1: Environment variable (fast path)
+    if let Ok(val) = std::env::var(key) {
+        if !val.is_empty() {
+            if let Ok(f) = val.parse::<f64>() {
+                return f;
+            }
+        }
+    }
+    // Tier 2: OS keychain (loaded from .env at setup time via kask keystore load)
+    let keychain_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        hkask_keystore::resolve(&SecretRef::Keychain(key.to_string()))
+    }));
+    if let Ok(Ok(zeroizing)) = keychain_result {
+        let val_str = String::from_utf8_lossy(&zeroizing);
+        if !val_str.is_empty() {
+            if let Ok(f) = val_str.parse::<f64>() {
+                return f;
+            }
+        }
+    }
+    default
 }
 
 /// Resolve a provider API key through the 2-tier chain: env var → OS keychain.
@@ -411,41 +428,56 @@ fn parse_provider_code(raw: &str) -> ProviderId {
     }
 }
 
-/// Parse fusion configuration from environment variables.
+/// Resolve a configuration string from env or keychain (2-tier chain).
+fn resolve_config_str(key: &str) -> Option<String> {
+    if let Ok(val) = std::env::var(key) {
+        if !val.is_empty() {
+            return Some(val);
+        }
+    }
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        hkask_keystore::resolve(&SecretRef::Keychain(key.to_string()))
+    }));
+    if let Ok(Ok(zeroizing)) = result {
+        let val_str = String::from_utf8_lossy(&zeroizing);
+        if !val_str.is_empty() {
+            return Some(val_str.to_string());
+        }
+    }
+    None
+}
+
+/// Parse fusion configuration from environment variables or keychain.
 ///
 /// Returns `None` if no fusion is configured.
 fn parse_fusion_config() -> Option<FusionConfig> {
-    // Explicit disable: HKASK_FUSION_DISABLED=1
-    if std::env::var("HKASK_FUSION_DISABLED")
-        .map(|v| v == "1")
-        .unwrap_or(false)
-    {
+    // Explicit disable: HKASK_FUSION_DISABLED=1 (env or keychain)
+    let disabled = resolve_config_str("HKASK_FUSION_DISABLED").unwrap_or_default();
+    if disabled == "1" {
         return None;
     }
 
-    // Parse shared optional fields
-    let mode = std::env::var("HKASK_FUSION_MODE")
-        .ok()
+    // Parse shared optional fields (env or keychain)
+    let mode = resolve_config_str("HKASK_FUSION_MODE")
         .and_then(|m| m.parse().ok())
         .unwrap_or_default();
-    let skills: Vec<FusionSkill> = std::env::var("HKASK_FUSION_SKILLS")
+    let skills: Vec<FusionSkill> = resolve_config_str("HKASK_FUSION_SKILLS")
         .unwrap_or_default()
         .split(',')
         .filter_map(|s| s.trim().parse().ok())
         .collect();
-    let max_rounds = std::env::var("HKASK_FUSION_MAX_ROUNDS")
-        .ok()
+    let max_rounds = resolve_config_str("HKASK_FUSION_MAX_ROUNDS")
         .and_then(|v| v.parse().ok())
         .unwrap_or(5);
-    let algo_method = std::env::var("HKASK_FUSION_ALGO_METHOD")
-        .ok()
+    let algo_method = resolve_config_str("HKASK_FUSION_ALGO_METHOD")
         .and_then(|m| m.parse().ok())
         .unwrap_or_default();
 
-    // Structured config: HKASK_FUSION_JUDGE_MODEL + HKASK_FUSION_PANEL_MODELS
-    if let Ok(judge) = std::env::var("HKASK_FUSION_JUDGE_MODEL") {
-        let panel: Vec<String> = std::env::var("HKASK_FUSION_PANEL_MODELS")
-            .unwrap_or_default()
+    // Structured config: HKASK_FUSION_JUDGE_MODEL + HKASK_FUSION_PANEL_MODELS (env or keychain)
+    let judge = resolve_config_str("HKASK_FUSION_JUDGE_MODEL").unwrap_or_default();
+    if !judge.is_empty() {
+        let panel_str = resolve_config_str("HKASK_FUSION_PANEL_MODELS").unwrap_or_default();
+        let panel: Vec<String> = panel_str
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())

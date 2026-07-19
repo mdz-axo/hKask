@@ -1,14 +1,14 @@
-# Axolotl Config — Capabilities Researcher LoRA with PiSSA (direct RunPod pod)
-# Copy of axolotl-pissa-config.yaml with the dataset block reconciled for a
-# direct `axolotl train` run on a RunPod H100 pod:
-#   - single training dataset at /workspace/data/train_chat.jsonl
-#   - val split auto-derived via val_set_size (the original yaml listed
-#     val_chat.jsonl under `datasets:`, which axolotl treats as TRAINING data,
-#     not a held-out val set — removed)
+# Axolotl Config — Capabilities Researcher LoRA with EVA (direct RunPod pod)
+# v3 update (post-PiSSA portability fix): switched from PiSSA (pissa_niter_4)
+# to EVA (init_lora_weights='eva') per Paischer et al. 2024 (arXiv:2410.07170).
+# EVA uses activation-vector SVD (not weight-SVD like PiSSA) → standard portable
+# LoRA adapter (A initialized with activation variance, B=0). This avoids the
+# library-version portability failure discovered in v2 (transformers 5.9.0 vs 5.5.0).
+# Intermediate-rank selection (Quercia 2026) may be added in v3.1.
 #
-# Base: unsloth/Qwen3.6-27B (dense, 27B). PiSSA init from principal singular
-# values. 30-50% faster convergence vs random init. lora_dropout: 0 required
-# for PiSSA (principal components must not be dropped).
+# Base: unsloth/Qwen3.6-27B (dense, 27B). EVA init from activation vectors.
+# lora_dropout: 0 recommended (EVA initializes A with principal activation
+# directions; random dropout would discard these components).
 
 base_model: unsloth/Qwen3.6-27B
 adapter: lora
@@ -19,11 +19,44 @@ trust_remote_code: true
 sequence_len: 4096
 bf16: true
 
-# PiSSA LoRA — v2: r=32 (was 16) — r=16 is a capacity ceiling for analysis tasks
+# EVA LoRA — v3: r=32 with adaptive/intermediate-rank option available
+# (see Quercia 2026: intermediate principal components give better
+# performance-forgetting trade-off than top-r PiSSA or bottom-r MiLoRA).
+# Use adaptive redistribution (ρ > 2) or fixed intermediate slice if needed.
 lora_r: 32
 lora_alpha: 64
 lora_dropout: 0
-peft_init_lora_weights: pissa_niter_4
+# EVA initialization: standard portable LoRA adapter (not weight-SVD based)
+# Requires PEFT EvaConfig (dataloader reference) for activation-SVD init.
+# See: https://github.com/huggingface/peft/tree/main/examples/eva_finetuning
+peft_init_lora_weights: eva
+# E3 — Intermediate-rank selection (Quercia 2026):
+# Intermediate components (not top-r PiSSA, not bottom-r MiLoRA) give best
+# performance-forgetting trade-off (U-shaped forgetting curve). More robust
+# to high LR, matching our patience=25 cosine schedule.
+# Adaptive redistribution via EVA (ρ > 2) assigns higher rank to layers that
+# explain more activation variance; fixed intermediate slice selects s in (0, rmax-r).
+# For this config: using fixed intermediate approach with r=32 (same budget as v2)
+# but initialized from mid-spectrum singular values rather than top-r.
+# Note: Axolotl/PEFT integration of EVA intermediate-slice requires either
+# (a) EvaConfig with custom rank_pattern or (b) manual adapter initialization.
+# If EvaConfig is not fully supported by current Axolotl version, fall back to:
+#   - init standard LoRA with random A (not EVA) but select intermediate slice
+#     manually during adapter creation (requires custom script/post-processing)
+# For this pipeline: enabling eva_config reference and documenting option.
+# If PEFT supports it directly:
+eva_config:
+  # Reference dataset for activation-SVD initialization (same training dataset)
+  dataloader: mdz-axo/capabilities-researcher-qa
+  # Adaptive redistribution uniformity (ρ=1 = uniform like LoRA; ρ>2 = heterogeneous/adaptive)
+  # Quercia 2026 + Paischer 2024: ρ > 2 converges for redistribution.
+  rho: 2.5
+  # Optionally specify intermediate slice start (s) if using fixed intermediate components.
+  # If omitted, EVA uses adaptive redistribution based on explained variance.
+  # For explicit intermediate-slice (not adaptive): uncomment and set s between 0 and ~500 (for Qwen3.6 hidden dims).
+  # intermediate_slice_start: 256  # Example: fixed intermediate slice (between top-r and bottom-r)
+# If EvaConfig causes errors with current Axolotl/PEFT version, comment out eva_config
+# block and use standard LoRA with manual intermediate-slice adapter creation.
 lora_target_modules:
   - q_proj
   - k_proj

@@ -33,6 +33,17 @@ use crate::providers::types::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
+
+#[cfg(unix)]
+unsafe extern "C" {
+    fn kill(pid: i32, sig: i32) -> i32;
+}
+
+#[cfg(unix)]
+/// Wrapper around the C `kill` syscall (avoids a `libc` crate dependency).
+unsafe fn libc_kill(pid: i32, sig: i32) -> i32 {
+    unsafe { kill(pid, sig) }
+}
 use std::sync::{Arc, Mutex};
 
 /// Prefix that distinguishes a Tinker job ID (which carries a PID) from other
@@ -84,11 +95,11 @@ impl TinkerHost {
 
     /// Check whether a PID is currently running on this host.
     fn pid_running(pid: u32) -> bool {
-        // kill(pid, 0) returns Ok if the process exists and we can signal it.
         #[cfg(unix)]
         {
-            // SAFETY: libc::kill with signal 0 is a standard existence probe.
-            let rc = unsafe { libc::kill(pid as i32, 0) };
+            // SAFETY: kill(pid, 0) is a standard existence probe — signal 0
+            // performs no action, just checks permission/existence.
+            let rc = unsafe { libc_kill(pid as i32, 0) };
             rc == 0
         }
         #[cfg(not(unix))]
@@ -102,8 +113,8 @@ impl TinkerHost {
     fn terminate_pid(pid: u32) -> bool {
         #[cfg(unix)]
         {
-            // SAFETY: libc::kill with SIGTERM is a standard termination signal.
-            let rc = unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+            // SAFETY: kill(pid, SIGTERM) is a standard termination signal.
+            let rc = unsafe { libc_kill(pid as i32, 15) };
             rc == 0
         }
         #[cfg(not(unix))]
@@ -130,10 +141,7 @@ impl TinkerHost {
     /// missing or contains no progress lines.
     fn parse_log_progress(path: &std::path::Path) -> Option<ProgressLine> {
         let content = std::fs::read_to_string(path).ok()?;
-        content
-            .lines()
-            .rev()
-            .find_map(ProgressLine::parse)
+        content.lines().rev().find_map(ProgressLine::parse)
     }
 }
 
@@ -186,7 +194,10 @@ impl TrainingHost for TinkerHost {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
         // Fail fast if the API key is missing — the Python SDK would otherwise
         // emit a traceback that is harder to debug from the host's log file.
-        if std::env::var("TINKER_API_KEY").unwrap_or_default().is_empty() {
+        if std::env::var("TINKER_API_KEY")
+            .unwrap_or_default()
+            .is_empty()
+        {
             return Err(ProviderError::Unavailable(
                 "Tinker API key not configured (set TINKER_API_KEY)".to_string(),
             ));
@@ -400,13 +411,11 @@ impl TrainingHost for TinkerHost {
             Ok(c) => c,
             Err(_) => return Ok(None),
         };
-        let json: serde_json::Value = serde_json::from_str(&content)
-            .map_err(|e| ProviderError::Backend(format!("Invalid Tinker completion marker: {}", e)))?;
+        let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+            ProviderError::Backend(format!("Invalid Tinker completion marker: {}", e))
+        })?;
 
-        let base_model = json["base_model"]
-            .as_str()
-            .unwrap_or("unknown")
-            .to_string();
+        let base_model = json["base_model"].as_str().unwrap_or("unknown").to_string();
         let output_name = json["output_name"].as_str().map(|s| s.to_string());
 
         // Loss / tokens / duration: parse from the log file's last training line.

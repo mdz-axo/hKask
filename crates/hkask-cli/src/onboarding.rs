@@ -529,10 +529,16 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     let has_together = !config.together_api_key.is_empty();
     let has_fal = !config.fal_api_key.is_empty();
     let has_kilocode = !config.kilocode_api_key.is_empty();
+    let has_openrouter = !config.openrouter_api_key.is_empty();
+    let has_cline = !config.cline_api_key.is_empty();
 
-    if has_deepinfra || has_together || has_fal || has_kilocode {
+    if has_deepinfra || has_together || has_fal || has_kilocode || has_openrouter || has_cline {
         let provider_name = if has_kilocode {
             "KiloCode"
+        } else if has_openrouter {
+            "OpenRouter"
+        } else if has_cline {
+            "Cline"
         } else if has_deepinfra {
             "DeepInfra"
         } else if has_together {
@@ -548,6 +554,12 @@ async fn setup_provider() -> Result<(), OnboardingError> {
         let keychain = hkask_keystore::Keychain::default();
         if has_kilocode {
             let _ = keychain.store_by_key("KC_API_KEY", &config.kilocode_api_key);
+        }
+        if has_openrouter {
+            let _ = keychain.store_by_key("OR_API_KEY", &config.openrouter_api_key);
+        }
+        if has_cline {
+            let _ = keychain.store_by_key("CLINE_API_KEY", &config.cline_api_key);
         }
         if has_deepinfra {
             let _ = keychain.store_by_key("DI_API_KEY", &config.deepinfra_api_key);
@@ -591,22 +603,26 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             println!();
             println!("  Supported providers:");
             println!("    KC — KiloCode (unified gateway, recommended)");
+            println!("    OR — OpenRouter (multi-provider gateway)");
             println!("    DI — DeepInfra (wide model catalog)");
             println!("    TG — Together AI (inference + fine-tuning)");
             println!("    FA — fal.ai (specialized vision/OCR models)");
+            println!("    CL — Cline (OpenAI-compatible cloud gateway)");
             println!();
 
-            let provider_str = prompt_line("  Provider code (KC/DI/TG/FA):")?;
+            let provider_str = prompt_line("  Provider code (KC/OR/DI/TG/FA/CL):")?;
             let provider_str = provider_str.trim().to_uppercase();
 
             let key_name = match provider_str.as_str() {
                 "KC" => "KC_API_KEY",
+                "OR" => "OR_API_KEY",
                 "DI" => "DI_API_KEY",
                 "TG" => "TG_API_KEY",
                 "FA" => "FA_API_KEY",
+                "CL" => "CLINE_API_KEY",
                 _ => {
                     println!(
-                        "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use KC, DI, TG, or FA.",
+                        "  \x1b[31m✗\x1b[0m Unknown provider '{}'. Use KC, OR, DI, TG, FA, or CL.",
                         provider_str
                     );
                     return Err(OnboardingError::Cancelled);

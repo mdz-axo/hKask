@@ -1,0 +1,95 @@
+# Training Manifest — Capabilities Researcher LoRA
+#
+# Declarative training recipe. The training server reads this manifest,
+# selects the host + harness, renders the appropriate template, and submits.
+# The skills framework (gpa-evolution, skill-maintenance) can audit and
+# evolve this manifest without recompiling Rust.
+
+name: capabilities-researcher
+version: 1
+description: >
+  PiSSA-initialized LoRA adapter for the Capabilities Researcher persona
+  (John Brooks). Trained on 229,520 ChatML QA pairs generated from
+  curated research literature on organizational capabilities.
+
+# ── Dataset ──────────────────────────────────────────────────────────────
+dataset:
+  huggingface_repo: mdz-axo/capabilities-researcher-qa
+  file: train_chat_full.jsonl
+  format: chatml
+  examples: 229520
+
+# ── Base model ───────────────────────────────────────────────────────────
+base_model: unsloth/Qwen3.6-27B
+# Together AI may require: Qwen/Qwen3.6-27B (official namespace)
+
+# ── LoRA config ──────────────────────────────────────────────────────────
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0  # must be 0 for PiSSA
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  init: pissa_niter_4  # PiSSA SVD initialization
+
+# ── Training hyperparameters ─────────────────────────────────────────────
+training:
+  epochs: 2  # lesson: 3 was too many; peaked at end of epoch 2
+  learning_rate: 0.0001
+  warmup_steps: 100
+  micro_batch_size: 1
+  gradient_accumulation_steps: 16
+  lr_scheduler: cosine
+  weight_decay: 0.01
+  max_grad_norm: 0.3
+  optim: adamw_8bit
+  sequence_len: 4096
+
+# ── Eval + early stopping ────────────────────────────────────────────────
+eval:
+  val_set_size: 0.0012  # ~275 examples auto-split from train
+  eval_steps: 200
+  save_steps: 200
+  save_total_limit: 5
+  early_stopping_patience: 25
+
+# ── Optimizations ────────────────────────────────────────────────────────
+optimizations:
+  liger_kernel: true
+  flash_attention: false  # SDPA (no flash-attn compile needed)
+  cut_cross_entropy: true
+  gradient_checkpointing: true
+  bf16: true
+
+# ── Host selection ───────────────────────────────────────────────────────
+# Options: runpod (GPU pod + axolotl), together (REST API), tinker (subprocess)
+host: runpod
+harness: axolotl  # axolotl, unsloth, tinker
+
+# ── Provider-specific overrides ──────────────────────────────────────────
+hosts:
+  runpod:
+    gpu_type: NVIDIA H100 80GB HBM3
+    container_disk_gb: 60
+    volume_gb: 200
+    volume_mount: /workspace
+    image: runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
+    torch_version: 2.10.0+cu128  # must match driver 580
+    axolotl_version: 0.17.0
+  together:
+    model: Qwen/Qwen3.6-27B  # Together AI official namespace
+    # Together AI handles infra — no GPU/pod config needed
+    # Supports LoRA fine-tuning, early stopping, eval during training
+  tinker:
+    model: Qwen/Qwen3.6-27B  # Tinker official namespace
+    # Tinker handles GPU distribution — runs as local Python subprocess
+    # Note: PiSSA not supported; uses standard LoRA init
+
+# ── Results (filled in after training) ───────────────────────────────────
+results:
+  adapter_repo: mdz-axo/capabilities-researcher-lora
+  best_eval_loss: 1.334
+  best_step: 29000
+  total_steps: 33600
+  training_time_hours: 55.5
+  cost_usd: 177
+  early_stopped: true

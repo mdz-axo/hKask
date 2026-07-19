@@ -60,28 +60,25 @@ This creates:
 - OS keychain entries for the master passphrase and derived encryption keys
 - `~/.config/hkask/settings.json` — configuration
 
-### Loading API Keys
+### Loading API Keys (Setup-Time Only)
 
-Copy the key load template and add your API keys:
+`.env` is the canonical installation settings file. At setup time (`kask init`),
+read `.env` and load all settings (API keys + screening thresholds) into the OS
+keychain. After setup, `.env` is deprecated — the CLI reads settings exclusively
+from the keychain.
 
 ```bash
+# Copy the template to .env and fill in your settings (one-time setup)
 cp key_load_template.env .env
-# Edit .env and add your API keys (DI_API_KEY, KC_API_KEY, etc.)
+# Edit .env (add DI_API_KEY, KC_API_KEY, OR_API_KEY, HKASK_OR_MAX_PRICE, etc.)
+
+# Load settings into the OS keychain
+./target/release/kask keystore load --path .env --prefix HKASK_ --overwrite --shred
 ```
 
-Load the keys into the OS keychain (preferred for persistent use):
-
-```bash
-./target/release/kask keystore load --shred
-```
-
-The `--shred` flag securely deletes `.env` after loading. Once keys are in the
-keychain, `.env` is no longer needed — `kask` resolves keys from the keychain
-automatically. See [Key Management](#key-management) below.
-
-> **Note:** `.env` is still auto-loaded by `dotenvy` at startup for backwards
-> compatibility. If you prefer to use only the keychain, delete `.env` after
-> running `kask keystore load --shred`.
+The `--shred` option securely deletes `.env` after loading. Once settings are in
+the keychain, `.env` is no longer needed — `kask` resolves all settings from the
+keychain automatically. See [Key Management](#key-management) below.
 
 ---
 

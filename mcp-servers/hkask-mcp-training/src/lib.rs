@@ -57,7 +57,7 @@ use crate::adapters::{AdapterMetrics, JobStore};
 use crate::dataset::DatasetPipeline;
 use crate::huggingface::HuggingFaceTraining;
 use crate::providers::{
-    AxolotlHarness, HarnessAdapter, LoraParams, TrainingHarnessId, TrainingHost,
+    AxolotlHarness, HarnessAdapter, LoraParams, TinkerHarness, TrainingHarnessId, TrainingHost,
     TrainingHostConfig, TrainingHostId, TrainingJob, TrainingJobStatus, TrainingParams,
     UnslothHarness, create_host,
 };
@@ -2950,10 +2950,13 @@ pub async fn run(
         together_api_key: std::env::var("TG_API_KEY").unwrap_or_default(),
         runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
         runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
+        tinker_api_key: std::env::var("TINKER_API_KEY").unwrap_or_default(),
+        tinker_python_path: std::env::var("HKASK_PYTHON_PATH").unwrap_or_default(),
     };
     let harness: Box<dyn HarnessAdapter> = match harness_id {
         TrainingHarnessId::Axolotl => Box::new(AxolotlHarness),
         TrainingHarnessId::Unsloth => Box::new(UnslothHarness),
+        TrainingHarnessId::Tinker => Box::new(TinkerHarness),
     };
 
     let cache_dir = PathBuf::from(

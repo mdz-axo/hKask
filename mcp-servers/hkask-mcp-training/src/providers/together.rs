@@ -21,7 +21,7 @@ impl TogetherHost {
     pub fn new(api_key: String, harness: Box<dyn HarnessAdapter>) -> Self {
         Self {
             api_key,
-            base_url: "https://api.together.xyz".to_string(),
+            base_url: "https://api.together.ai".to_string(),
             harness,
             client: reqwest::Client::new(),
         }
@@ -90,12 +90,16 @@ impl TrainingHost for TogetherHost {
             "model": job.base_model,
             "training_file": file_id,
             "n_epochs": job.params.num_epochs,
-            "n_checkpoints": 1,
+            "n_checkpoints": 5,
             "learning_rate": job.params.learning_rate,
             "lora": true,
             "lora_r": job.params.lora.r,
             "lora_alpha": job.params.lora.alpha,
             "batch_size": job.params.batch_size.max(8),
+            "warmup_ratio": 0.0,
+            "weight_decay": job.params.optimization.weight_decay,
+            "max_grad_norm": job.params.optimization.max_grad_norm.unwrap_or(1.0),
+            "train_on_inputs": "auto",
             "suffix": format!("hkask-{}", &job.id[..8]),
         });
 

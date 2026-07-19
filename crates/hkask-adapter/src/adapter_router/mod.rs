@@ -8,6 +8,7 @@
 
 mod openai;
 mod runpod;
+mod tinker;
 mod together;
 
 use crate::AdapterStore;
@@ -110,14 +111,22 @@ impl AdapterRouter {
     pub fn new(store: Arc<AdapterStore>) -> Self {
         let mut backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>> = HashMap::new();
 
-        backends.insert(
-            ProviderId::Together,
-            Arc::new(together::TogetherAdapterBackend::new()),
-        );
-        backends.insert(
-            ProviderId::Runpod,
-            Arc::new(runpod::RunpodAdapterBackend::new()),
-        );
+        // Provider selection: if TINKER_API_KEY is set, Tinker takes the
+        // Together slot (OpenAI-compatible dispatch). Otherwise Together AI.
+        if !std::env::var("TINKER_API_KEY")
+            .unwrap_or_default()
+            .is_empty()
+        {
+            backends.insert(
+                ProviderId::Together,
+                Arc::new(tinker::TinkerAdapterBackend::new()),
+            );
+        } else {
+            backends.insert(
+                ProviderId::Together,
+                Arc::new(together::TogetherAdapterBackend::new()),
+            );
+        }
 
         let router = Self {
             store,

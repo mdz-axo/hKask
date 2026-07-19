@@ -33,6 +33,8 @@ pub enum TrainingHarnessId {
     Axolotl,
     /// unsloth — memory-efficient Python training framework, dispatched to Runpod
     Unsloth,
+    /// tinker — Thinking Machines Tinker SDK, Python subprocess-based training
+    Tinker,
 }
 
 impl TrainingHarnessId {
@@ -66,6 +68,8 @@ pub enum TrainingHostId {
     Together,
     /// runpod — Runpod GPU cloud training, pod-based axolotl dispatch
     Runpod,
+    /// tinker — Thinking Machines Tinker API, subprocess-based LoRA training
+    Tinker,
     // baseten — removed
 }
 
@@ -157,6 +161,7 @@ pub(crate) fn estimate_training_cost_urj(
     let base_per_epoch: u64 = match host {
         TrainingHostId::Together => 1_000_000, // ~$1.00/epoch
         TrainingHostId::Runpod => 500_000,     // ~$0.50/epoch
+        TrainingHostId::Tinker => 300_000,     // ~$0.30/epoch (Tinker bills by compute used)
     };
     let size_mult = extract_model_size_multiplier(base_model);
     base_per_epoch * (num_epochs as u64) * size_mult

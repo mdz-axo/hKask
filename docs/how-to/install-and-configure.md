@@ -148,9 +148,9 @@ The `serve` command accepts `--port` (default 3000) and `--host` (default `127.0
 
 ---
 
-## Environment Variables
+## Environment Variables (.env = setup-time only)
 
-hKask reads configuration from environment variables. The canonical index is at `docs/user-guides/ENVIRONMENT.md`.
+`.env` is read **once at setup/build time** (`kask init` / first boot) to load settings into the OS keychain (`kask keystore load`). After setup, `.env` is deprecated; the CLI reads settings exclusively from the keychain. The `key_load_template.env` is rebuilt from `.env` during setup for reference. See `key_load_template.env` for the full variable index.
 
 ### Inference Provider API Keys
 
@@ -578,7 +578,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 The binary entry point (`crates/hkask-cli/src/main.rs`) is a thin dispatcher. On invocation it:
 
-1. Loads `.env` and parses CLI arguments via Clap.
+1. Parses CLI arguments via Clap (setup-time `.env` is loaded separately by `kask init` / `kask keystore load`).
 2. Initializes the tracing subscriber (JSON or human-readable, debug or default filter).
 3. Creates a Tokio multi-threaded runtime.
 4. Checks fusion model configuration (P9: proactive cost-safety).
@@ -604,8 +604,7 @@ The API server path additionally starts built-in MCP servers (excluding filesyst
 
 ```mermaid
 flowchart TD
-    Start([kask invoked]) --> LoadEnv[Load .env silently]
-    LoadEnv --> ParseArgs[Parse CLI args with Clap]
+    Start([kask invoked]) --> ParseArgs[Parse CLI args with Clap]
     ParseArgs --> InitLog[Init tracing subscriber]
     InitLog --> CreateRt[Create Tokio runtime]
     CreateRt --> ChkFusion[Check fusion model config]

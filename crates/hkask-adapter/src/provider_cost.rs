@@ -138,6 +138,17 @@ impl CostModel {
             currency: "USD".into(),
         }
     }
+
+    /// Tinker — per-token billing, no hourly GPU rate. ~$4.10/M train tokens.
+    pub fn tinker() -> Self {
+        Self {
+            provider: ProviderId::Together, // reuse provider ID space; Tinker is a variant
+            gpu_hourly_rate: 0.0,           // per-token, not per-hour
+            estimated_setup_minutes: 0,     // lazy-provisioned
+            estimated_teardown_grace_seconds: 0,
+            currency: "USD".into(),
+        }
+    }
 }
 
 /// Static provider capabilities.
@@ -165,6 +176,20 @@ impl ProviderCapability {
                 "llama-3.1-70b".into(),
                 "qwen2.5-72b".into(),
                 "mixtral-8x7b".into(),
+                "qwen3.6-27b".into(),
+            ],
+        }
+    }
+
+    /// Tinker supports LoRA fine-tuning for models 1B–1T+.
+    pub fn tinker() -> Self {
+        Self {
+            supports_lora_composition: true,
+            max_adapter_size_mb: Some(500),
+            supported_base_model_families: vec![
+                "qwen3.6-27b".into(),
+                "qwen3.5-9b".into(),
+                "qwen3.6-35b".into(),
             ],
         }
     }
