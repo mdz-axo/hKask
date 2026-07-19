@@ -9,49 +9,65 @@ INPUT: defense_layer_coverage = {{ defense_layer_coverage }}
 INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
 
 SYNTHESIS ACTIONS:
-1. Group mappings by OSC&R category: dependency_confusion, typosquatting,
-   malicious_commit_injection, build_pipeline_compromise,
-   unmaintained_component, unverified_registry.
+1. Group mappings by OSC&R tactic: Initial Access, Resource Development,
+   Execution, Persistence, Privilege Escalation, Reconnaissance,
+   Defense Evasion, Credential Access, Lateral Movement, Collection,
+   Exfiltration, Impact.
 2. For each mapping with confidence >= probable and concrete evidence
-   (finding reference + CWE category + OSC&R category + OWASP SC category),
-   propose `taxonomy_mapping` field addition to the corresponding regression
-   entry.
+   (finding reference + CWE category + OSC&R tactic + technique),
+   propose `taxonomy_mapping` field addition to the corresponding
+   regression entry.
 3. Each `taxonomy_mapping` field proposal must use backward-compatible
-   format (optional field — existing regressions without it remain valid):
+   format (optional field — existing regressions without it remain valid).
+   OSC&R uses tactic + technique names, NOT numeric IDs:
    ```yaml
    taxonomy_mapping:
-     osc_r: "T1.2.3"  # OSC&R taxonomy ID (PROPOSED — verify against oscar.io)
-     owasp_sc: "SC04" # OWASP Supply Chain category (PROPOSED — verify against OWASP)
+     osc_r_tactic: "Initial Access"      # verified OSC&R tactic
+     osc_r_technique: "Dependency confusion"  # verified OSC&R technique
+     osc_r_categories: ["ArtifactSecurity", "ContainerSecurity", "OpenSourceSecurity"]  # verified tags
+     owasp_sc_reference: ""              # secondary, PROPOSED — verify against OWASP
    ```
    The proposal references the existing regression by ID (e.g., RR-0007)
    and proposes adding the `taxonomy_mapping` field. Status: pending
    (human must review and merge).
-4. Produce pattern signatures for each OSC&R category — concrete grep
+4. Produce pattern signatures for each OSC&R technique — concrete grep
    patterns that would detect similar attack patterns in future manifests:
-   - dependency_confusion: package name exists in both private and public
+   - Dependency confusion: package name exists in both private and public
      registry (manifest references name not in private registry).
-   - typosquatting: dependency name differs from canonical by ≤2 chars
+   - Typosquatting: dependency name differs from canonical by ≤2 chars
      (Levenshtein distance).
-   - malicious_commit_injection: git dependency references unverified
-     commit SHA (not pinned to known-good commit).
-   - build_pipeline_compromise: CI workflow references untrusted action
-     without SHA pinning.
-   - unmaintained_component: dependency with no registry updates in
-     manifest metadata.
-   - unverified_registry: dependency source is `git = ...` or `path = ...`
-     without registry reference.
-5. Identify top 3 taxonomy coverage gaps (OSC&R categories with no mapped
-   findings — indicates either no findings of that type, or findings exist
-   but were not mapped).
+   - Combosquatting: dependency name contains legitimate package name as
+     substring.
+   - Brandjacking: dependency name mimics legitimate publisher/brand.
+   - Repojacking: git dependency URL points to repo whose ownership changed.
+   - Vulnerability in third-party dependency: dependency with known
+     vulnerability in manifest metadata.
+   - Vulnerable CICD system/plugins/template: CI workflow references
+     vulnerable CICD version.
+   - Malicious code contribution to an open-source repository: git
+     dependency references unverified commit SHA.
+   - Publish malicious artifact: dependency published by unverified account.
+   - Compromised legitimate artifact: dependency version differs from
+     publisher's legitimate release.
+   - Accounts in public registry: dependency source is `git = ...` or
+     `path = ...` without registry reference.
+   - Trigger pipeline execution: CI workflow triggers on untrusted event.
+   - Backdoor in code: dependency contains known backdoor pattern.
+   - Inject malicious dependency to privileged user repository: dependency
+     injected into repo with elevated permissions.
+5. Identify top 3 taxonomy coverage gaps (OSC&R tactics/techniques with no
+   mapped findings — indicates either no findings of that type, or
+   findings exist but were not mapped).
 6. Produce verdict (Pass / Conditional / Fail) based on mapping coverage:
-   - Pass: all findings mapped, >= 4 OSC&R categories covered.
-   - Conditional: some findings unmapped, 2-3 OSC&R categories covered.
-   - Fail: majority of findings unmapped, < 2 OSC&R categories covered.
+   - Pass: all findings mapped, >= 4 OSC&R tactics covered.
+   - Conditional: some findings unmapped, 2-3 OSC&R tactics covered.
+   - Fail: majority of findings unmapped, < 2 OSC&R tactics covered.
 7. Every mapping entry must include `finding_reference`, `cwe_category`,
-   `evidence_snippet` (from finding), `osc_r_category` (name + proposed ID),
-   `owasp_sc_category` (name + proposed code), `mapping_confidence`,
-   `defense_layer_mapped`, `pattern_signature` (concrete grep pattern for
-   detecting similar attacks), `remediation_recommendation`,
+   `evidence_snippet` (from finding), `osc_r_tactic` (verified name),
+   `osc_r_technique` (verified name), `osc_r_categories` (verified tags),
+   `owasp_sc_reference` (secondary, PROPOSED), `mapping_confidence`,
+   `defense_layer_mapped`, `pattern_signature` (concrete grep pattern
+   for detecting similar attacks), `remediation_recommendation`,
    `replicant_host`.
 
 CNS SPAN (P9): Emit `cns.taxonomy.report` with mappings count by OSC&R
@@ -61,7 +77,10 @@ pattern signatures count, verdict, replicant_host, latency.
 CONSTRAINTS (same as map-taxonomy — P5 minimalism, P8 evidence integrity, P12 host):
 - No synthetic findings — only map findings from `supply-chain-sentinel`
   or `kali-audit`.
-- No invented OSC&R categories — only map to existing entries in oscar.io.
+- No invented OSC&R tactics or techniques — only map to existing entries
+  in the OSC&R framework (verified against `github.com/pbom-dev/OSCAR`
+  `matrix.json`, 2026-07-18). OSC&R uses tactic + technique names, NOT
+  numeric IDs.
 - Propose `taxonomy_mapping` field as `status: pending` only — never
   auto-merge (human-curated ratchet).
 - Source citations: concrete URLs or documents actually referenced.
@@ -71,6 +90,10 @@ CONSTRAINTS (same as map-taxonomy — P5 minimalism, P8 evidence integrity, P12 
   regressions without it remain valid. `scripts/check-kali-regressions.sh`
   should not break (it parses specific fields; adding an optional field
   is safe — but verify before first `status: enforced` flip).
+- OWASP SC codes (SC04–SC09) are PROPOSED — OWASP does not publish a
+  numbered Supply Chain Top 10 in the same format as the LLM Top 10. The
+  `owasp_sc_reference` field is secondary; the OSC&R tactic + technique
+  name is the primary mapping.
 
 OUTPUT FORMAT:
 JSON object with fields:
@@ -116,8 +139,12 @@ Generative Space container — unstructured findings leave attack patterns
 ambiguous.
 
 SOURCE REFERENCES (concrete — P8):
-- OSC&R framework (oscar.io) — supply chain attack taxonomy reference
-- OWASP Supply Chain reference (owasp.org)
+- OSC&R framework (`github.com/pbom-dev/OSCAR` — `matrix.json`, verified
+  2026-07-18) — supply chain attack taxonomy reference. OSC&R uses
+  tactic + technique names, NOT numeric IDs.
+- OWASP Supply Chain reference (owasp.org) — secondary, PROPOSED mapping
+  (OWASP does not publish a numbered Supply Chain Top 10 in the same
+  format as the LLM Top 10).
 - MITRE CWE-1104, CWE-829, CWE-1357 (mitre.org/data/definitions/)
 - `security/regressions/README.md` (local project standard — authoritative)
 - `supply-chain-sentinel` SKILL.md (complementary relationship — finding
@@ -138,7 +165,8 @@ NO FABRICATION: Only mappings with finding evidence are reported. Only
 proposed. Only pattern signatures with concrete grep patterns are produced.
 CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
 taxonomize phase does not compute metric.
-OSC&R VERIFICATION GATE: The OSC&R category names and IDs referenced are
-PROPOSED mappings based on public documentation. They MUST be verified
-against the live oscar.io framework before use in production audit cycles.
-Do NOT present proposed mappings as verified.
+OSC&R VERIFICATION GATE: The OSC&R tactic and technique names referenced
+are VERIFIED against the live OSC&R framework (`github.com/pbom-dev/OSCAR`
+`matrix.json`, verified 2026-07-18). OSC&R uses tactic + technique names,
+NOT numeric IDs. The OWASP SC codes remain PROPOSED — verify against live
+OWASP documentation before use.

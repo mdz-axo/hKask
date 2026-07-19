@@ -22,7 +22,7 @@ description: >
 
 # Attack Taxonomy Mapper
 
-{# goal: Consume findings from supply-chain-sentinel and kali-audit (P4 — consumes workspace findings, no external download). Map each finding to OSC&R attack taxonomy + OWASP Supply Chain dual taxonomy. Propose backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries (status: pending, concrete OSC&R + OWASP SC category). Emit cns.taxonomy.* spans (P9). Compute convergence metric from real mapping evidence only. No synthetic findings; no invented OSC&R categories; replicant_host mandatory (P12). OSC&R IDs are PROPOSED mappings — verify against oscar.io. #}
+{# goal: Consume findings from supply-chain-sentinel and kali-audit (P4 — consumes workspace findings, no external download). Map each finding to OSC&R attack taxonomy (verified against github.com/pbom-dev/OSCAR matrix.json) + OWASP Supply Chain dual taxonomy. Propose backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries (status: pending, concrete OSC&R tactic + technique). Emit cns.taxonomy.* spans (P9). Compute convergence metric from real mapping evidence only. No synthetic findings; no invented OSC&R tactics/techniques; replicant_host mandatory (P12). #}
 
 Attack taxonomy mapping. Consumes findings from `supply-chain-sentinel`
 (CWE-mapped manifest evidence) and `kali-audit` (OWASP/ATLAS-mapped
@@ -34,10 +34,11 @@ and computes a taxonomy mapping convergence metric.
 
 **Important:** This skill does NOT generate new findings. It consumes
 existing findings from `supply-chain-sentinel` and `kali-audit` and adds
-a taxonomy mapping layer. The OSC&R category names and IDs referenced are
-PROPOSED mappings based on public documentation (oscar.io) — they MUST be
-verified against the live oscar.io framework before use in production
-audit cycles.
+a taxonomy mapping layer. The OSC&R tactic and technique names are
+VERIFIED against the live OSC&R framework (`github.com/pbom-dev/OSCAR`
+`matrix.json`, verified 2026-07-18). OSC&R uses tactic + technique names,
+NOT numeric IDs. The OWASP SC codes remain PROPOSED — verify against
+live OWASP documentation before use.
 
 ## When to Use
 
@@ -69,9 +70,11 @@ audit cycles.
 - **P7 Evolutionary:** Pattern signatures compound value over time —
   future audits can detect similar attack patterns automatically.
 - **P8 Semantic grounding:** Every mapping: finding reference, CWE
-  category, OSC&R category, OWASP SC category, evidence snippet, source
-  citation (oscar.io, OWASP, MITRE CWE, supply-chain-sentinel SKILL.md,
-  kali-audit SKILL.md). No fabricated findings or invented OSC&R categories.
+  category, OSC&R tactic + technique (verified), OWASP SC reference
+  (secondary, PROPOSED), evidence snippet, source citation
+  (`github.com/pbom-dev/OSCAR`, OWASP, MITRE CWE, supply-chain-sentinel
+  SKILL.md, kali-audit SKILL.md). No fabricated findings or invented
+  OSC&R tactics/techniques.
 - **P9 CNS regulation:** Emits `cns.taxonomy.select`, `cns.taxonomy.map`,
   `cns.taxonomy.report`, `cns.taxonomy.convergence` spans. All four are
   registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
@@ -156,13 +159,14 @@ CONSTRAINT — Evidence integrity (P8):
 - No synthetic findings. Every `evidence_snippet` must be verifiable by
   reading the cited finding from `supply-chain-sentinel` or `kali-audit`
   output or `security/regressions/` YAML.
-- No invented OSC&R categories. Only map to existing entries in the
-  oscar.io framework. The OSC&R category names and IDs are PROPOSED
-  mappings — verify against live oscar.io before use.
+- No invented OSC&R tactics or techniques. Only map to existing entries
+  in the OSC&R framework (verified against `github.com/pbom-dev/OSCAR`
+  `matrix.json`, 2026-07-18). OSC&R uses tactic + technique names, NOT
+  numeric IDs.
 - Source citations must reference concrete URLs or documents actually
-  consulted: OSC&R framework (oscar.io), OWASP Supply Chain reference,
-  MITRE CWE definitions, supply-chain-sentinel SKILL.md, kali-audit
-  SKILL.md.
+  consulted: OSC&R framework (`github.com/pbom-dev/OSCAR`), OWASP Supply
+  Chain reference, MITRE CWE definitions, supply-chain-sentinel SKILL.md,
+  kali-audit SKILL.md.
 - Every mapping must include `replicant_host` identity (P12) — no
   anonymous taxonomy mapping.
 - This skill complements `supply-chain-sentinel` (adds taxonomy layer to
@@ -182,8 +186,10 @@ CONSTRAINT — Evidence integrity (P8):
    entry. Format (backward-compatible optional field):
    ```yaml
    taxonomy_mapping:
-     osc_r: "T1.2.3"  # PROPOSED — verify against oscar.io
-     owasp_sc: "SC04" # PROPOSED — verify against OWASP
+     osc_r_tactic: "Initial Access"      # verified OSC&R tactic
+     osc_r_technique: "Dependency confusion"  # verified OSC&R technique
+     osc_r_categories: ["ArtifactSecurity", "ContainerSecurity", "OpenSourceSecurity"]  # verified tags
+     owasp_sc_reference: ""              # secondary, PROPOSED — verify against OWASP
    ```
 3. Produce pattern signatures for each OSC&R category — concrete grep
    patterns for detecting similar attack patterns in future manifests.
@@ -227,25 +233,63 @@ CONSTRAINT — Evidence integrity (P8):
 | `taxonomize.j2` | KnowAct | Classify mappings by OSC&R category; produce pattern signatures; propose backward-compatible `taxonomy_mapping` field; emit `cns.taxonomy.report` span. |
 | `convergence-check.j2` | KnowAct | Compute taxonomy coverage convergence metric (OSC&R coverage + OWASP SC coverage + mapping growth). Emit `cns.taxonomy.convergence` span. |
 
-## OSC&R Taxonomy Reference
+## OSC&R Taxonomy Reference (VERIFIED against github.com/pbom-dev/OSCAR)
 
-**IMPORTANT:** The mappings below are PROPOSED based on public OSC&R
-documentation (oscar.io). The OSC&R category names and IDs MUST be
-verified against the live oscar.io framework before use in production
-audit cycles. Do NOT present proposed mappings as verified.
+**Source:** `github.com/pbom-dev/OSCAR` — `matrix.json` (verified 2026-07-18).
 
-| OSC&R Category | CWE Mapping | OWASP SC (proposed) | Detection Pattern |
-|----------------|-------------|---------------------|-------------------|
-| Dependency confusion | CWE-829 | SC04 | Package name exists in both private and public registry |
-| Typosquatting | CWE-829 | SC05 | Dependency name differs from canonical by ≤2 chars (Levenshtein) |
-| Malicious commit injection | CWE-829 | SC06 | Git dependency references unverified commit SHA |
-| Build pipeline compromise | CWE-1357 | SC07 | CI workflow references untrusted action without SHA pinning |
-| Unmaintained component | CWE-1104 | SC08 | Dependency with no registry updates in manifest metadata |
-| Unverified registry | CWE-829 | SC09 | Dependency source is `git = ...` or `path = ...` without registry reference |
+OSC&R is organized by **tactics** (like MITRE ATT&CK), with each tactic
+containing **techniques**. Techniques are tagged with supply chain
+**categories** (the surface the technique targets). There are NO numeric
+IDs — techniques are referenced by name within tactics.
 
-New OSC&R categories can be added as real findings justify them (P7) —
-not speculatively. This taxonomy reference is distinct from `kali-audit`'s
-OWASP LLM / ATLAS catalog and `supply-chain-sentinel`'s CWE catalog.
+### Verified tactic → technique → CWE mapping
+
+| OSC&R Tactic | OSC&R Technique (verified) | CWE Mapping | Detection Pattern |
+|--------------|---------------------------|-------------|-------------------|
+| Initial Access | Dependency confusion | CWE-829 | Package name exists in both private and public registry |
+| Initial Access | Typosquatting | CWE-829 | Dependency name differs from canonical by ≤2 chars (Levenshtein) |
+| Initial Access | Combosquatting | CWE-829 | Dependency name contains legitimate package name as substring |
+| Initial Access | Brandjacking | CWE-829 | Dependency name mimics legitimate publisher/brand |
+| Initial Access | Repojacking | CWE-829 | Git dependency URL points to repo whose ownership changed |
+| Initial Access | Vulnerability in third-party dependency | CWE-1104 | Dependency with known vulnerability in manifest metadata |
+| Initial Access | Vulnerable CICD system | CWE-1357 | CI workflow references vulnerable CICD system version |
+| Initial Access | Vulnerable CICD plugins | CWE-1357 | CI workflow references vulnerable CICD plugin version |
+| Initial Access | Vulnerable CICD template | CWE-1357 | CI workflow references vulnerable CICD template |
+| Resource Development | Malicious code contribution to an open-source repository | CWE-829 | Git dependency references unverified commit SHA |
+| Resource Development | Publish malicious artifact | CWE-829 | Dependency published by unverified account to public registry |
+| Resource Development | Compromised legitimate artifact | CWE-829 | Dependency version differs from publisher's legitimate release |
+| Resource Development | Accounts in public registry | CWE-829 | Dependency source is `git = ...` or `path = ...` without registry reference |
+| Execution | Trigger pipeline execution | CWE-1357 | CI workflow triggers on untrusted event source |
+| Persistence | Backdoor in code | CWE-829 | Dependency contains known backdoor pattern |
+| Privilege Escalation | Inject malicious dependency to privileged user repository | CWE-829 | Dependency injected into repo with elevated permissions |
+
+### OSC&R supply chain categories (tags)
+
+Techniques are tagged with one or more of these supply chain categories:
+
+| Category | Description |
+|----------|-------------|
+| ArtifactSecurity | Security of build artifacts (binaries, packages) |
+| CI/CDPosture | CI/CD pipeline security posture |
+| CloudSecurity | Cloud infrastructure security |
+| CodeSecurity | Source code security |
+| ContainerSecurity | Container image security |
+| Infrastructureascode | IaC (Terraform, etc.) security |
+| OpenSourceSecurity | Open-source dependency security |
+| SCMPosture | Source Code Management (Git) posture |
+| SecretsHygiene | Secrets management hygiene |
+
+New OSC&R tactics/techniques can be added as real findings justify them
+(P7) — not speculatively. This taxonomy reference is distinct from
+`kali-audit`'s OWASP LLM / ATLAS catalog and `supply-chain-sentinel`'s
+CWE catalog.
+
+**Note on OWASP Supply Chain categories:** The OWASP SC codes (SC04–SC09)
+referenced in the templates are PROPOSED mappings — OWASP does not publish
+a numbered Supply Chain Top 10 in the same format as the LLM Top 10. The
+`taxonomy_mapping` field should use the OSC&R tactic + technique name as
+the primary mapping and treat the OWASP SC code as a secondary reference
+pending verification against live OWASP documentation.
 
 ## Relationship to Existing Skills
 
@@ -283,11 +327,11 @@ OWASP LLM / ATLAS catalog and `supply-chain-sentinel`'s CWE catalog.
   optional YAML format with `osc_r` and `owasp_sc` keys.
 - No synthetic findings — only map findings from `supply-chain-sentinel`
   or `kali-audit`.
-- No invented OSC&R categories — only map to existing entries in oscar.io.
+- No invented OSC&R tactics or techniques — only map to existing entries in the OSC&R framework (verified against `github.com/pbom-dev/OSCAR` `matrix.json`, 2026-07-18). OSC&R uses tactic + technique names, NOT numeric IDs.
 - No fabricated mappings; read finding evidence before mapping.
 - Registry (`manifest.yaml` + `.j2`) is authoritative over this SKILL.md
   (P5.1).
-- Do NOT invent OSC&R category IDs not in the oscar.io framework.
+- Do NOT invent OSC&R tactic or technique names not in the OSC&R framework (verified at `github.com/pbom-dev/OSCAR` `matrix.json`).
 - Do NOT claim taxonomy coverage that hasn't been verified through actual
   finding mapping.
 - Every mapping action includes `replicant_host` identity (P12).
@@ -306,8 +350,8 @@ OWASP LLM / ATLAS catalog and `supply-chain-sentinel`'s CWE catalog.
 - Do NOT fabricate mappings — only report what was discovered through
   actual finding analysis.
 - Source citations must reference concrete sources: OSC&R framework
-  (oscar.io), OWASP Supply Chain reference (owasp.org), MITRE CWE
-  definitions (mitre.org), `security/regressions/README.md`,
+  (`github.com/pbom-dev/OSCAR`), OWASP Supply Chain reference (owasp.org),
+  MITRE CWE definitions (mitre.org), `security/regressions/README.md`,
   `supply-chain-sentinel` SKILL.md, `kali-audit` SKILL.md.
 - If evidence discovery finds zero findings to map, return empty
   `findings_to_map` and recommend running `supply-chain-sentinel` first —
@@ -321,20 +365,30 @@ OWASP LLM / ATLAS catalog and `supply-chain-sentinel`'s CWE catalog.
 - The `taxonomy_mapping` field is backward-compatible (optional) — existing
   regressions without it remain valid. `scripts/check-kali-regressions.sh`
   should not break (verify before first `status: enforced` flip).
-- OSC&R category names and IDs are PROPOSED mappings — verify against live
-  oscar.io before use in production audit cycles. Do NOT present proposed
-  mappings as verified.
+- OSC&R tactic and technique names are VERIFIED against the live OSC&R
+  framework (`github.com/pbom-dev/OSCAR` `matrix.json`, verified
+  2026-07-18). OSC&R uses tactic + technique names, NOT numeric IDs. The
+  OWASP SC codes remain PROPOSED — verify against live OWASP documentation
+  before use.
 
 ## Source References and Taxonomy Anchors
 
 This skill is anchored to concrete, verifiable taxonomy sources (P8):
 
 - **OSC&R Framework:** Open Software Supply Chain Attack Reference —
-  ATT&CK-like taxonomy for supply chain threats. Co-created by security
-  experts from Google, Microsoft, GitLab. Source: `oscar.io` (verify live
-  taxonomy before use — proposed mappings must be confirmed).
+  ATT&CK-like taxonomy for supply chain threats. Organized by **tactics**
+  (Initial Access, Resource Development, Execution, etc.) containing
+  **techniques** (Dependency confusion, Typosquatting, etc.). Techniques
+  are tagged with supply chain **categories** (OpenSourceSecurity,
+  ContainerSecurity, CI/CDPosture, etc.). There are NO numeric IDs —
+  techniques are referenced by name within tactics. Source:
+  `github.com/pbom-dev/OSCAR` — `matrix.json` (verified 2026-07-18).
 - **OWASP Supply Chain:** OWASP Software Supply Chain Security reference.
-  Source: `owasp.org/www-project-software-supply-chain-security/`.
+  NOTE: OWASP does not publish a numbered Supply Chain Top 10 in the
+  same format as the LLM Top 10. The OWASP SC codes (SC04–SC09)
+  referenced in earlier design specs are PROPOSED mappings and should be
+  treated as secondary references pending verification. Source:
+  `owasp.org/www-project-software-supply-chain-security/`.
 - **MITRE CWE:** CWE-1104 (Unmaintained Third-Party Components), CWE-829
   (Inclusion from Untrusted Control Sphere), CWE-1357 (Reliance on
   Component Not Updateable). Source: `mitre.org/data/definitions/`.

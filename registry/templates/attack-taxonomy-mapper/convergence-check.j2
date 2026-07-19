@@ -3,8 +3,9 @@
 {# Emits cns.taxonomy.convergence CNS span (P9) — namespace registered #}
 
 INPUT: unmapped_findings = {{ unmapped_findings }} (from previous cycle or current)
-INPUT: oscr_categories_covered = {{ oscr_categories_covered }} (from taxonomize phase)
-INPUT: oscr_categories_missing = {{ oscr_categories_missing }}
+INPUT: oscr_tactics_covered = {{ oscr_tactics_covered }} (from taxonomize phase)
+INPUT: oscr_tactics_missing = {{ oscr_tactics_missing }}
+INPUT: oscr_techniques_covered = {{ oscr_techniques_covered }}
 INPUT: owasp_sc_categories_covered = {{ owasp_sc_categories_covered }}
 INPUT: owasp_sc_categories_missing = {{ owasp_sc_categories_missing }}
 INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings }} (count of regression entries with taxonomy_mapping field)
@@ -16,13 +17,15 @@ COMPUTE METRIC (weighted — evidence-based only, P8, P5):
 - Unmapped findings (critical/high) weight: 0.40
   Score = 0.00 if zero critical/high unmapped; +0.40 if any critical/high remains unmapped.
   Partial = (count_critical * 1.0 + count_high * 0.5) / max(1, previous_critical + previous_high) — only if evidence-backed.
-- OSC&R category coverage weight: 0.25
-  All 6 categories covered (dependency_confusion, typosquatting,
-  malicious_commit_injection, build_pipeline_compromise,
-  unmaintained_component, unverified_registry) = +0.00
-  5 covered = +0.04; 4 = +0.08; 3 = +0.13; 2 = +0.19; 1 = +0.25
-  Each category only counts as covered when at least one finding maps to
-  it (P8 — concrete evidence only, no aspirational coverage).
+- OSC&R tactic coverage weight: 0.25
+  OSC&R has 12 tactics (Initial Access, Collection, Resource Development,
+  Lateral Movement, Execution, Exfiltration, Credential Access, Impact,
+  Reconnaissance, Defense Evasion, Persistence, Privilege Escalation).
+  All 12 tactics covered = +0.00
+  10-11 covered = +0.04; 7-9 = +0.08; 4-6 = +0.13; 2-3 = +0.19; 0-1 = +0.25
+  Each tactic only counts as covered when at least one finding maps to a
+  technique within it (P8 — concrete evidence only, no aspirational
+  coverage). Verified against `github.com/pbom-dev/OSCAR` `matrix.json`.
 - OWASP Supply Chain coverage weight: 0.15
   All OWASP SC categories covered = +0.00
   Partial = +0.08; none = +0.15

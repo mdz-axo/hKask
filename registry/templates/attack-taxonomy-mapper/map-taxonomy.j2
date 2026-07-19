@@ -19,29 +19,53 @@ MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel o
 1. Read each finding listed in `findings_to_map`. Extract: finding reference
    (regression ID or finding ID), CWE category, manifest path, evidence
    snippet, severity.
-2. For each finding, determine the OSC&R taxonomy category via CWE
-   disambiguation:
-   - CWE-829 (Inclusion from Untrusted Control Sphere) + git/path dependency
-     → OSC&R: dependency confusion (if package name exists in both private
-     and public registry) OR typosquatting (if name differs from canonical
-     by ≤2 chars) OR unverified registry (if source is git/path without
-     registry reference).
-   - CWE-1104 (Unmaintained Third-Party Components) + no recent registry
-     updates → OSC&R: unmaintained component.
+2. For each finding, determine the OSC&R taxonomy mapping via CWE
+   disambiguation. OSC&R is organized by **tactics** (like MITRE ATT&CK),
+   with each tactic containing **techniques**. There are NO numeric IDs —
+   techniques are referenced by name within tactics. Verified mappings:
+   - CWE-829 (Inclusion from Untrusted Control Sphere) + package name in
+     both private and public registry → OSC&R Tactic: Initial Access,
+     Technique: Dependency confusion.
+   - CWE-829 + name differs from canonical by ≤2 chars → OSC&R Tactic:
+     Initial Access, Technique: Typosquatting.
+   - CWE-829 + name contains legitimate package name as substring →
+     OSC&R Tactic: Initial Access, Technique: Combosquatting.
+   - CWE-829 + name mimics legitimate publisher/brand → OSC&R Tactic:
+     Initial Access, Technique: Brandjacking.
+   - CWE-829 + git dependency URL repo ownership changed → OSC&R Tactic:
+     Initial Access, Technique: Repojacking.
+   - CWE-1104 (Unmaintained Third-Party Components) + known vulnerability
+     in manifest metadata → OSC&R Tactic: Initial Access, Technique:
+     Vulnerability in third-party dependency.
    - CWE-1357 (Reliance on Component Not Updateable) + CI workflow
-     references untrusted action → OSC&R: build pipeline compromise.
-   - CWE-829 + git dependency references unverified commit SHA → OSC&R:
-     malicious commit injection.
-3. For each OSC&R category, determine the OWASP Supply Chain category
-   (dual taxonomy mapping):
-   - dependency confusion → OWASP SC: SC04
-   - typosquatting → OWASP SC: SC05
-   - malicious commit injection → OWASP SC: SC06
-   - build pipeline compromise → OWASP SC: SC07
-   - unmaintained component → OWASP SC: SC08
-   - unverified registry → OWASP SC: SC09
-   NOTE: The OWASP SC category codes (SC04–SC09) are PROPOSED mappings.
-   Verify against live OWASP Supply Chain documentation before use.
+     references vulnerable CICD system/plugin/template → OSC&R Tactic:
+     Initial Access, Technique: Vulnerable CICD system / plugins / template.
+   - CWE-829 + git dependency references unverified commit SHA → OSC&R
+     Tactic: Resource Development, Technique: Malicious code contribution
+     to an open-source repository.
+   - CWE-829 + dependency published by unverified account → OSC&R Tactic:
+     Resource Development, Technique: Publish malicious artifact.
+   - CWE-829 + dependency version differs from publisher's legitimate
+     release → OSC&R Tactic: Resource Development, Technique:
+     Compromised legitimate artifact.
+   - CWE-829 + dependency source is `git = ...` or `path = ...` without
+     registry reference → OSC&R Tactic: Resource Development, Technique:
+     Accounts in public registry.
+   - CWE-1357 + CI workflow triggers on untrusted event source → OSC&R
+     Tactic: Execution, Technique: Trigger pipeline execution.
+   - CWE-829 + dependency contains known backdoor pattern → OSC&R Tactic:
+     Persistence, Technique: Backdoor in code.
+   - CWE-829 + dependency injected into repo with elevated permissions →
+     OSC&R Tactic: Privilege Escalation, Technique: Inject malicious
+     dependency to privileged user repository.
+   Source: `github.com/pbom-dev/OSCAR` — `matrix.json` (verified 2026-07-18).
+3. For each OSC&R mapping, optionally determine the OWASP Supply Chain
+   category (dual taxonomy mapping). NOTE: OWASP does not publish a
+   numbered Supply Chain Top 10 in the same format as the LLM Top 10.
+   The OWASP SC codes (SC04–SC09) referenced in earlier design specs
+   are PROPOSED mappings and should be treated as secondary references
+   pending verification against live OWASP documentation. The OSC&R
+   tactic + technique name is the primary mapping.
 4. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt` oracle phase):
    - IS vs OUGHT: describe what the finding IS (CWE category + evidence)
      vs what it OUGHT to map to (OSC&R attack pattern + OWASP SC category).
@@ -68,16 +92,18 @@ MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel o
      mapped OSC&R attack pattern?).
 7. For each mapping, emit structured result:
    `finding_reference`, `cwe_category`, `evidence_snippet` (from finding),
-   `osc_r_category` (name + proposed ID), `owasp_sc_category` (name +
-   proposed code), `mapping_confidence` (confirmed/probable/possible),
+   `osc_r_tactic` (verified tactic name), `osc_r_technique` (verified
+   technique name), `osc_r_categories` (tags: e.g., OpenSourceSecurity,
+   ContainerSecurity), `owasp_sc_reference` (secondary, PROPOSED — verify
+   against OWASP), `mapping_confidence` (confirmed/probable/possible),
    `alternative_mappings` (list if ambiguous), `defense_layer_mapped`
-   (which supply-chain-sentinel defense layer addresses this OSC&R category),
-   `provenance`, `epistemic_mode`, `replicant_host`.
+   (which supply-chain-sentinel defense layer addresses this OSC&R
+   technique), `provenance`, `epistemic_mode`, `replicant_host`.
 
 CNS SPAN EMISSION (P9 — every taxonomy mapping):
 - `cns.taxonomy.map` per finding mapped (target: `"cns.taxonomy.map"`,
   message: `"CNS"`, operation: `"map_taxonomy"`, finding_reference: `...`,
-  osc_r_category: `...`, owasp_sc_category: `...`, mapping_confidence: `...`,
+  osc_r_tactic: `...`, osc_r_technique: `...`, mapping_confidence: `...`,
   replicant_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit unconditionally.
@@ -86,13 +112,14 @@ CONSTRAINT — Evidence integrity (P8 — semantic grounding):
 - No synthetic findings. Every `evidence_snippet` must be verifiable by
   reading the cited finding from `supply-chain-sentinel` or `kali-audit`
   output or `security/regressions/` YAML.
-- No invented OSC&R categories. Only map to existing entries in the
-  oscar.io framework. The OSC&R category names and IDs are PROPOSED
-  mappings — verify against live oscar.io before use.
+- No invented OSC&R tactics or techniques. Only map to existing entries
+  in the OSC&R framework (verified against `github.com/pbom-dev/OSCAR`
+  `matrix.json`, 2026-07-18). OSC&R uses tactic + technique names, NOT
+  numeric IDs.
 - Source citations must reference concrete URLs or documents actually
-  consulted: OSC&R framework (oscar.io), OWASP Supply Chain reference,
-  MITRE CWE definitions, supply-chain-sentinel SKILL.md, kali-audit
-  SKILL.md.
+  consulted: OSC&R framework (`github.com/pbom-dev/OSCAR`), OWASP Supply
+  Chain reference, MITRE CWE definitions, supply-chain-sentinel SKILL.md,
+  kali-audit SKILL.md.
 
 RELATIONSHIP TO OTHER SKILLS (explicit — no overlap ambiguity):
 - `supply-chain-sentinel`: performs manifest audit and proposes regressions
