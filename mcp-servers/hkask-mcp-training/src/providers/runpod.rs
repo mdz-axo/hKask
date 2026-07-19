@@ -266,6 +266,16 @@ impl RunpodHost {
         fields.push("cloudType: ALL".to_string());
         fields.push("startSsh: true".to_string());
 
+        // Docker args (startup command) — read from RUNPOD_DOCKER_ARGS env var.
+        // When non-empty, this becomes the Docker CMD, allowing pods without a
+        // template to run a startup script (e.g. install axolotl + train).
+        if !spec.docker_args.is_empty() {
+            fields.push(format!(
+                "dockerArgs: \"{}\"",
+                Self::escape_graphql_string(spec.docker_args)
+            ));
+        }
+
         // GPU pod fields.
         fields.push(format!(
             "gpuTypeId: \"{}\"",
@@ -317,6 +327,7 @@ struct PodDeploySpec<'a> {
     min_memory_gb: u32,
     min_vcpu: u32,
     docker_image: &'a str,
+    docker_args: &'a str,
 }
 
 #[async_trait::async_trait]
@@ -433,6 +444,8 @@ impl TrainingHost for RunpodHost {
             ),
         ];
 
+        let docker_args = std::env::var("RUNPOD_DOCKER_ARGS").unwrap_or_default();
+
         let mutation = self.build_pod_deploy_mutation(
             &job.id,
             &PodDeploySpec {
@@ -441,6 +454,7 @@ impl TrainingHost for RunpodHost {
                 min_memory_gb,
                 min_vcpu,
                 docker_image: &docker_image,
+                docker_args: &docker_args,
             },
             &env_entries,
         );
