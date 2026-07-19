@@ -29,9 +29,7 @@ use hkask_types::template::LLMParameters;
 use std::sync::Arc;
 use uuid::Uuid;
 
-fn load_env() {
-    
-}
+fn load_env() {}
 
 fn test_token(webid: WebID) -> DelegationToken {
     let sk = derive_signing_key(b"live-adapter-test");

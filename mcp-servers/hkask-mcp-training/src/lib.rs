@@ -2695,7 +2695,10 @@ impl TrainingServer {
     #[tool(
         description = "Tear down a deployed adapter endpoint. Stops the cloud inference endpoint and releases GPU resources. CNS span: cns.training.teardown."
     )]
-    pub async fn training_teardown(&self, Parameters(req): Parameters<TrainTeardownRequest>) -> String {
+    pub async fn training_teardown(
+        &self,
+        Parameters(req): Parameters<TrainTeardownRequest>,
+    ) -> String {
         execute_tool(self, "training_teardown", async {
         // Try router first
         if let Some(ref router) = self.adapter_router

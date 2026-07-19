@@ -81,8 +81,6 @@ impl HkaskAcpAgent {
     /// If the daemon is unreachable, the agent starts in degraded mode
     /// and returns actionable errors to the IDE on each request.
     async fn build() -> Self {
-        
-
         tracing_subscriber::fmt()
             .with_env_filter(
                 tracing_subscriber::EnvFilter::try_from_default_env()

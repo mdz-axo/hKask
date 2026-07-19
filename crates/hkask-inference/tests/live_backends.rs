@@ -9,9 +9,7 @@ use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId};
 use hkask_ports::InferencePort;
 use hkask_types::template::LLMParameters;
 
-fn load_env() {
-    
-}
+fn load_env() {}
 
 fn condenser_params() -> LLMParameters {
     LLMParameters {
