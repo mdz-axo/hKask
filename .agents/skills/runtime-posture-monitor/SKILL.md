@@ -85,6 +85,16 @@ posture convergence metric.
 
 ## Instructions
 
+> **Tool dependency:** this skill reads runtime telemetry via the
+> `hkask-mcp-cns` MCP server. Use the `cns_query_spans` tool to query CNS
+> span history by namespace prefix (e.g. `namespace="cns.guard"`,
+> `namespace="cns.regulation"`, `namespace="hkask"`) within a time window,
+> and `cns_span_stats` to aggregate counts by span_category. Both tools
+> accept `since_hours` (default 1.0) and return JSON. When the store is
+> unavailable (no `HKASK_DB_PASSPHRASE`), the tools return
+> `permission_denied` — treat this as a degraded posture finding, not a
+> hard failure.
+
 ### runtime-posture-monitor/select-signal
 
 1. Discover runtime signal sources in the deployed replicant host:

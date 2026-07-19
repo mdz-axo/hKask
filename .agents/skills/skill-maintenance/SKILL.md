@@ -23,7 +23,7 @@ Skill lifecycle management and maintenance. Registry crate (manifest.yaml + *.j2
 ### skill-maintenance-validate
 
 1. Validate the specified skill or all skills in the registry directory against R1-R12 registry checks, Z1-Z8 companion checks, and X1-X4 cross-artifact checks.
-2. Evaluate every check for every targeted skill without omissions.
+2. Evaluate every check for every targeted skill without omissions, including invariant X5: every `.agents/skills/<name>/` must have a matching `registry/manifests/<name>.yaml`, and vice versa. Report exact mismatches by name.
 3. Include specific evidence for any fail results.
 4. Provide actionable fix suggestions for any failures.
 5. Respond with a JSON object containing validation results, pass/fail counts, and fix suggestions.

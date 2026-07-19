@@ -99,6 +99,37 @@ pub trait CnsStoragePort: Send + Sync {
 
     /// Load a persisted loop cursor. Returns `None` if no cursor exists.
     fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError>;
+
+    /// Query events by span_category prefix.
+    ///
+    /// The `namespace_prefix` is the short-name prefix stored in the `span_category`
+    /// column (e.g., "guard" matches "guard.input", "guard.output", etc.).
+    /// Pass the short name — NOT the full `cns.*` namespace.
+    ///
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — query CNS span history
+    /// pre:  `namespace_prefix` is a non-empty short-name prefix
+    /// post: returns Vec of NuEvents with span_category starting with the prefix,
+    ///       since the given timestamp, ordered by timestamp ASC, limited to `limit`
+    fn query_by_namespace(
+        &self,
+        namespace_prefix: &str,
+        since: DateTime<Utc>,
+        limit: u64,
+    ) -> Result<Vec<NuEvent>, InfrastructureError>;
+
+    /// Count events by span_category, grouped by exact category.
+    ///
+    /// The `namespace_prefix` is the short-name prefix stored in the `span_category`
+    /// column.
+    ///
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregate CNS span stats
+    /// pre:  `namespace_prefix` is a non-empty short-name prefix
+    /// post: returns Vec of (span_category, count) tuples, ordered by count DESC
+    fn query_span_stats(
+        &self,
+        namespace_prefix: &str,
+        since: DateTime<Utc>,
+    ) -> Result<Vec<(String, u64)>, InfrastructureError>;
 }
 
 /// A NuEvent with its computed replay weight.

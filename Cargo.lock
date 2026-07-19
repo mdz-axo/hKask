@@ -4346,6 +4346,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-cns"
+version = "0.31.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "hkask-cns",
+ "hkask-database",
+ "hkask-mcp",
+ "hkask-ports",
+ "hkask-storage",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "hkask-mcp-codegraph"
 version = "0.31.0"
 dependencies = [

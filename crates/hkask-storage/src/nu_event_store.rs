@@ -264,6 +264,78 @@ impl NuEventStore {
         .map_err(|e| InfrastructureError::database(e.to_string()))
     }
 
+    /// Query events by span_category prefix (e.g., "cns.guard" matches "cns.guard.input",
+    /// "cns.guard.output", etc.).
+    ///
+    /// The stored `span_category` column holds the short name (e.g., "guard.input",
+    /// "regulation", "gas"). Callers pass the short-name prefix (e.g., "guard",
+    /// "regulation", "gas") — NOT the full `cns.*` namespace.
+    ///
+    /// expect: "The system provides durable storage for event data"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — query CNS span history
+    /// pre:  `namespace_prefix` is a non-empty short-name prefix (e.g., "guard", "regulation", "gas")
+    /// post: returns Vec of NuEvents with span_category starting with the prefix, since the given
+    ///       timestamp, ordered by timestamp ASC, limited to `limit` results
+    pub fn query_by_namespace(
+        &self,
+        namespace_prefix: &str,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: u64,
+    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+        let since_str = since.to_rfc3339();
+        let prefix_pattern = format!("{}%", namespace_prefix);
+        let sql = "SELECT id, timestamp, observer_webid, span_category, span_path, phase, \
+                   observation, regulation, outcome, recursion_depth, parent_event, visibility \
+                   FROM nu_events \
+                   WHERE timestamp > ?1 AND span_category LIKE ?2 \
+                   ORDER BY timestamp ASC \
+                   LIMIT ?3";
+        let params: Vec<DbValue> = vec![
+            DbValue::Text(since_str),
+            DbValue::Text(prefix_pattern),
+            DbValue::Integer(limit as i64),
+        ];
+        query_map(&*self.driver, sql, &params, |row| {
+            row_to_nu_event(row).map_err(|e| db_error(e.to_string()))
+        })
+        .map_err(|e| InfrastructureError::database(e.to_string()))
+    }
+
+    /// Count events by span_category prefix, grouped by exact span_category.
+    ///
+    /// The stored `span_category` column holds the short name (e.g., "guard.input",
+    /// "regulation", "gas"). Callers pass the short-name prefix.
+    ///
+    /// expect: "The system provides durable storage for event data"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregate CNS span stats
+    /// pre:  `namespace_prefix` is a non-empty short-name prefix
+    /// post: returns Vec of (span_category, count) tuples, ordered by count DESC
+    pub fn query_span_stats(
+        &self,
+        namespace_prefix: &str,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<(String, u64)>, InfrastructureError> {
+        let since_str = since.to_rfc3339();
+        let prefix_pattern = format!("{}%", namespace_prefix);
+        let sql = "SELECT span_category, COUNT(*) as cnt \
+                   FROM nu_events \
+                   WHERE timestamp > ?1 AND span_category LIKE ?2 \
+                   GROUP BY span_category \
+                   ORDER BY cnt DESC";
+        let params: Vec<DbValue> = vec![DbValue::Text(since_str), DbValue::Text(prefix_pattern)];
+        query_map(&*self.driver, sql, &params, |row| {
+            let cat: String = row
+                .get_str(0)
+                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?
+                .to_string();
+            let cnt: i64 = row
+                .get_int(1)
+                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+            Ok((cat, cnt as u64))
+        })
+        .map_err(|e| InfrastructureError::database(e.to_string()))
+    }
+
     /// Query algedonic signals from the event store.
     ///
     /// expect: "The system provides durable storage for event data"
@@ -453,6 +525,23 @@ impl hkask_ports::CnsStoragePort for NuEventStore {
 
     fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
         self.load_cursor(key)
+    }
+
+    fn query_by_namespace(
+        &self,
+        namespace_prefix: &str,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: u64,
+    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+        self.query_by_namespace(namespace_prefix, since, limit)
+    }
+
+    fn query_span_stats(
+        &self,
+        namespace_prefix: &str,
+        since: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<(String, u64)>, InfrastructureError> {
+        self.query_span_stats(namespace_prefix, since)
     }
 }
 

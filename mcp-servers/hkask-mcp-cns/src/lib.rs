@@ -1,0 +1,278 @@
+//! MCP server for hkask-cns — CNS span history query tools.
+//!
+//! Exposes two tools for reading CNS ν-event history from the persistent
+//! `NuEventStore`:
+//! - `cns_query_spans` — query events by span_category prefix within a time window
+//! - `cns_span_stats`  — aggregate counts by span_category
+//!
+//! These tools are the runtime telemetry surface that the
+//! `runtime-posture-monitor` skill consumes to observe `cns.guard.*`,
+//! `cns.regulation`, and `hkask.*` performative spans.
+//!
+//! The stored `span_category` column holds the short name (e.g. "guard.input",
+//! "regulation", "gas") — i.e. the `SpanNamespace::short_name()` with the
+//! `cns.` prefix stripped. Callers pass the full `cns.*` namespace (e.g.
+//! "cns.guard"); the server strips the `cns.` prefix before querying so the
+//! `LIKE 'prefix%'` predicate hits the index on `(span_category, phase)`.
+
+#![allow(unused_crate_dependencies)]
+
+use hkask_database::sqlite::SqliteDriver;
+use hkask_mcp::DaemonClient;
+use hkask_mcp::run_server;
+use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_storage::NuEventStore;
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use schemars::JsonSchema;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+const SERVER_NAME: &str = "hkask-mcp-cns";
+const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+hkask_mcp::mcp_server!(
+    pub struct CnsServer {
+        nu_event_store: Option<Arc<NuEventStore>>,
+    }
+);
+
+// ── Request types ─────────────────────────────────────────────────
+
+/// Request for `cns_query_spans`.
+///
+/// `namespace` is the full canonical CNS namespace prefix (e.g. "cns.guard",
+/// "cns.regulation", "hkask"). The server strips the `cns.` prefix before
+/// querying the `span_category` column, which stores short names.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct QuerySpansRequest {
+    /// Canonical namespace prefix (e.g. "cns.guard", "cns.regulation", "hkask").
+    /// Empty string is rejected with `invalid_argument`.
+    namespace: String,
+    /// Lookback window in hours (default 1.0).
+    #[serde(default = "default_since_hours")]
+    since_hours: f64,
+    /// Maximum number of events to return (default 100).
+    #[serde(default = "default_limit")]
+    limit: u64,
+}
+
+fn default_since_hours() -> f64 {
+    1.0
+}
+
+fn default_limit() -> u64 {
+    100
+}
+
+/// Request for `cns_span_stats`.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SpanStatsRequest {
+    /// Canonical namespace prefix (e.g. "cns.guard", "cns.regulation", "hkask").
+    /// Empty string is rejected with `invalid_argument`.
+    namespace: String,
+    /// Lookback window in hours (default 1.0).
+    #[serde(default = "default_since_hours")]
+    since_hours: f64,
+}
+
+// ── Tools ──────────────────────────────────────────────────────────
+
+#[tool_router(server_handler)]
+impl CnsServer {
+    #[tool(
+        description = "Query CNS ν-event history by namespace prefix within a time window. Returns events ordered by timestamp ASC. Use 'cns.guard' for guard violations, 'cns.regulation' for regulation events, 'hkask' for performative telemetry."
+    )]
+    pub async fn cns_query_spans(&self, Parameters(req): Parameters<QuerySpansRequest>) -> String {
+        execute_tool(self, "cns_query_spans", async {
+            let namespace = req.namespace.trim();
+            if namespace.is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "namespace must be a non-empty string (e.g. \"cns.guard\", \"cns.regulation\", \"hkask\")",
+                ));
+            }
+            let Some(ref store) = self.nu_event_store else {
+                return Err(McpToolError::permission_denied(
+                    "NuEventStore not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
+                ));
+            };
+            let since = chrono::Utc::now()
+                - chrono::Duration::seconds((req.since_hours * 3600.0) as i64);
+            // The stored span_category column holds the short name (e.g. "guard.input",
+            // "regulation", "gas"). Strip the "cns." prefix so LIKE 'prefix%' hits the
+            // (span_category, phase) index.
+            let short_prefix = strip_cns_prefix(namespace);
+            let events = store
+                .query_by_namespace(short_prefix, since, req.limit)
+                .map_err(|e| McpToolError::internal(format!("CNS query failed: {e}")))?;
+            let count = events.len();
+            let serialized: Vec<serde_json::Value> = events
+                .iter()
+                .map(|e| {
+                    serde_json::json!({
+                        "id": e.id.to_string(),
+                        "timestamp": e.timestamp.to_rfc3339(),
+                        "observer_webid": e.observer_webid.to_string(),
+                        "namespace": e.span.namespace.as_str(),
+                        "path": e.span.path,
+                        "phase": e.phase.as_str(),
+                        "observation": e.observation,
+                        "regulation": e.regulation,
+                        "outcome": e.outcome,
+                        "recursion_depth": e.recursion_depth,
+                        "parent_event": e.parent_event.map(|id| id.to_string()),
+                        "visibility": e.visibility,
+                    })
+                })
+                .collect();
+            Ok(serde_json::json!({
+                "namespace": namespace,
+                "since": since.to_rfc3339(),
+                "limit": req.limit,
+                "count": count,
+                "events": serialized,
+            }))
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Aggregate CNS ν-event counts by exact span_category within a namespace prefix and time window. Returns a JSON object mapping each span_category to its count, ordered by count DESC."
+    )]
+    pub async fn cns_span_stats(&self, Parameters(req): Parameters<SpanStatsRequest>) -> String {
+        execute_tool(self, "cns_span_stats", async {
+            let namespace = req.namespace.trim();
+            if namespace.is_empty() {
+                return Err(McpToolError::invalid_argument(
+                    "namespace must be a non-empty string (e.g. \"cns.guard\", \"cns.regulation\", \"hkask\")",
+                ));
+            }
+            let Some(ref store) = self.nu_event_store else {
+                return Err(McpToolError::permission_denied(
+                    "NuEventStore not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
+                ));
+            };
+            let since = chrono::Utc::now()
+                - chrono::Duration::seconds((req.since_hours * 3600.0) as i64);
+            let short_prefix = strip_cns_prefix(namespace);
+            let stats = store
+                .query_span_stats(short_prefix, since)
+                .map_err(|e| McpToolError::internal(format!("CNS stats query failed: {e}")))?;
+            let total: u64 = stats.iter().map(|(_, c)| *c).sum();
+            let mut categories: HashMap<String, u64> = HashMap::new();
+            for (cat, cnt) in stats {
+                categories.insert(cat, cnt);
+            }
+            Ok(serde_json::json!({
+                "namespace": namespace,
+                "since": since.to_rfc3339(),
+                "total_events": total,
+                "categories": categories,
+            }))
+        })
+        .await
+    }
+}
+
+/// Strip the `cns.` prefix from a namespace so it matches the short-name
+/// `span_category` column. Non-`cns.` namespaces (e.g. `hkask`) are returned
+/// as-is so callers can query performative telemetry too.
+fn strip_cns_prefix(namespace: &str) -> &str {
+    namespace.strip_prefix("cns.").unwrap_or(namespace)
+}
+
+// ── Server startup ─────────────────────────────────────────────────────
+
+/// Open the NuEventStore from the configured database.
+///
+/// Follows the curator pattern: read `HKASK_DB_PATH` (or fall back to the
+/// CNS pod database path) and `HKASK_DB_PASSPHRASE` from credentials/env.
+/// Returns `None` (graceful degradation) when the database cannot be opened —
+/// the tools then return `permission_denied` so callers see a clear message.
+fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<NuEventStore>> {
+    let db_path = ctx
+        .credentials
+        .get("HKASK_DB_PATH")
+        .cloned()
+        .or_else(|| std::env::var("HKASK_DB_PATH").ok())
+        .unwrap_or_else(|| {
+            let p = hkask_types::agent_paths::agent_pod_db("cns");
+            let resolved = hkask_types::agent_paths::resolve_under_data_dir(&p);
+            if let Some(parent) = resolved.parent() {
+                std::fs::create_dir_all(parent).ok();
+            }
+            resolved.to_string_lossy().to_string()
+        });
+
+    let passphrase = ctx
+        .credentials
+        .get("HKASK_DB_PASSPHRASE")
+        .cloned()
+        .or_else(|| std::env::var("HKASK_DB_PASSPHRASE").ok());
+    let passphrase = match passphrase {
+        Some(pw) => pw,
+        None => {
+            tracing::warn!(
+                target: "hkask.mcp.cns",
+                "HKASK_DB_PASSPHRASE not set — NuEventStore unavailable"
+            );
+            return None;
+        }
+    };
+
+    let db = match hkask_storage::open_or_repair(&db_path, &passphrase) {
+        Ok(db) => db,
+        Err(e) => {
+            tracing::warn!(
+                target: "hkask.mcp.cns",
+                error = %e,
+                path = %db_path,
+                "Failed to open CNS database"
+            );
+            return None;
+        }
+    };
+    let pool = match db.sqlite_pool() {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(
+                target: "hkask.mcp.cns",
+                error = %e,
+                "Failed to get SQLite pool"
+            );
+            return None;
+        }
+    };
+    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    Some(Arc::new(NuEventStore::from_driver(driver)))
+}
+
+pub async fn run(
+    replicant: String,
+    daemon_client: Option<DaemonClient>,
+) -> Result<(), hkask_mcp::McpError> {
+    run_server(
+        SERVER_NAME,
+        SERVER_VERSION,
+        |ctx: hkask_mcp::server::ServerContext| {
+            let nu_event_store = open_nu_event_store(&ctx);
+            Ok(CnsServer::new(
+                ctx.webid,
+                replicant.clone(),
+                daemon_client.clone(),
+                nu_event_store,
+            ))
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PATH",
+                "Path to the SQLCipher database holding the nu_events table",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "SQLCipher encryption passphrase",
+            ),
+        ],
+    )
+    .await
+}

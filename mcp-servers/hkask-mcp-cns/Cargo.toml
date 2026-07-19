@@ -1,0 +1,35 @@
+[package]
+name = "hkask-mcp-cns"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CNS span history query MCP server — runtime telemetry for security skills"
+
+[dependencies]
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-ports = { path = "../../crates/hkask-ports" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-database = { path = "../../crates/hkask-database" }
+hkask-cns = { path = "../../crates/hkask-cns" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+
+[lib]
+name = "hkask_mcp_cns"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hkask-mcp-cns"
+path = "src/main.rs"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+tempfile.workspace = true
