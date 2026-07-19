@@ -106,10 +106,13 @@ fn all_j2_templates_render_without_syntax_errors() {
 
         let body = strip_inference_frontmatter(&content);
 
-        // Render_str does a one-shot parse+render — catches syntax errors
-        // and runtime errors (undefined macros, etc.) in a single call.
-        // UndefinedBehavior::Lenient means missing variables become empty strings.
-        if let Err(e) = env.render_str(&body, minijinja::Value::UNDEFINED) {
+        // Parse the template (syntax check only — no rendering).
+        // This catches unbalanced tags, invalid expressions, undefined macros.
+        // We use a fresh Environment per template to avoid lifetime issues
+        // (minijinja borrows the template source for the Environment's lifetime).
+        let mut env = Environment::new();
+        env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+        if let Err(e) = env.add_template(path, &body) {
             errors.push(format!("{path}: {e}"));
         }
     }

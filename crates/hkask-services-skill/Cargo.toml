@@ -22,3 +22,5 @@ blake3.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+minijinja.workspace = true
+walkdir = { workspace = true }
