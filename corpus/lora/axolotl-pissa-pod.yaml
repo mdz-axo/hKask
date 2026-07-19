@@ -38,6 +38,11 @@ peft_init_lora_weights: eva
 # explain more activation variance; fixed intermediate slice selects s in (0, rmax-r).
 # For this config: using fixed intermediate approach with r=32 (same budget as v2)
 # but initialized from mid-spectrum singular values rather than top-r.
+# Provider options: RunPod (SSH + axolotl, verified workspace /workspace/)
+# OR Tinker (Thinking Machines — TinkerHost, Python script dispatch, GPU service,
+# no SSH, no unsloth dependency, TINKER_API_KEY required from .env line 240).
+# Tinker adapter router: crates/hkask-adapter/src/adapter_router/tinker.rs
+# Registry template: registry/templates/training/tinker-sft.j2
 # Note: Axolotl/PEFT integration of EVA intermediate-slice requires either
 # (a) EvaConfig with custom rank_pattern or (b) manual adapter initialization.
 # If EvaConfig is not fully supported by current Axolotl version, fall back to:
