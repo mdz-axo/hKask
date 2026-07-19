@@ -41,13 +41,13 @@ templates:
     type: KnowAct
     lexicon_terms: [map, classify, taxonomy, oscr, owasp, supply]
     description: >
-      For each finding, map to OSC&R taxonomy entry (dependency confusion,
-      typosquatting, malicious commit injection, build pipeline compromise,
-      unmaintained component, unverified registry) plus OWASP Supply Chain
-      category. Applies pragmatic-cybernetics: feedback loop (does the
-      attack pattern have a defense layer?), variety (alternative attack
-      vectors in same OSC&R category?), Good Regulator (is the defense
-      layer enforcing?). Emits cns.taxonomy.map span per mapping.
+      For each finding, map to OSC&R tactic + technique (verified against
+      github.com/pbom-dev/OSCAR matrix.json) plus OWASP Supply Chain
+      reference (secondary, PROPOSED). Applies pragmatic-cybernetics:
+      feedback loop (does the attack pattern have a defense layer?),
+      variety (alternative attack vectors in same OSC&R tactic?),
+      Good Regulator (is the defense layer enforcing?). Emits
+      cns.taxonomy.map span per mapping.
 
   - id: attack-taxonomy-mapper/taxonomize
     name: "Classify mapped findings and propose taxonomy_mapping fields"
@@ -68,6 +68,6 @@ templates:
     lexicon_terms: [evaluate, converge, taxonomy, coverage, regression]
     description: >
       Compute normalized convergence metric: unmapped findings (0.40),
-      OSC&R category coverage (0.25), OWASP Supply Chain coverage (0.15),
+      OSC&R tactic coverage (0.25), OWASP Supply Chain coverage (0.15),
       regression taxonomy_mapping field growth (0.10), residual unmapped
       risk (0.10). Converged when metric ≤ 0.10 with ≥5% improvement.

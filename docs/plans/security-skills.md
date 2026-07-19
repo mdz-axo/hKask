@@ -80,8 +80,10 @@ Both skills now built and committed to the registry (2026-07-18):
 - `registry/templates/attack-taxonomy-mapper/` — manifest.yaml + 4 .j2
   templates (select-evidence, map-taxonomy, taxonomize, convergence-check)
   + SKILL.md. All `cns.taxonomy.*` spans emitted unconditionally
-  (namespaces pre-registered). OSC&R category IDs flagged as PROPOSED —
-  must be verified against live oscar.io before production use.
+  (namespaces pre-registered). OSC&R taxonomy verified against
+  `github.com/pbom-dev/OSCAR` `matrix.json` (2026-07-18) — OSC&R uses
+  tactic + technique names, NOT numeric IDs. OWASP SC codes remain
+  PROPOSED (OWASP does not publish a numbered Supply Chain Top 10).
 
 Both skills follow the same P5 discipline as `supply-chain-sentinel`:
 4-template decomposition, `{# goal: ... #}` annotations, P12
@@ -107,7 +109,7 @@ Design discipline (`P5` Essentialism): each proposed skill must pass the 5W1H ga
 - **5W1H gate check:** Who = supply chain attacker / threat actor taxonomy; What = software supply chain attack patterns (`OSC&R` taxonomy: dependency confusion, typosquatting, malicious commit injection, build pipeline compromise); Where = dependency registry / CI pipeline / repository; When = audit cycle or incident investigation; Why = `P3.1` requires structured taxonomy for supply chain threats (like `MITRE ATLAS` for LLM, `OWASP LLM Top 10` for LLM); How = map manifest patterns / CI logs to `OSC&R` taxonomy entries → produce taxonomy-aligned findings (`OWASP Supply Chain` + `OSC&R` dual taxonomy).
 - **P5 minimal test:** Uses existing `security/regressions/` format; adds `taxonomy_mapping` field to regression YAML (`osc:r` reference); does NOT invent new taxonomy categories (`OSC&R` is open-source framework — `oscar.io`).
 - **Relationship to existing skills:** Complements `supply-chain-sentinel` (this skill: manifest-level audit; `attack-taxonomy-mapper`: taxonomy mapping layer). Complements `adversarial-red-team` (`MITRE ATLAS` for LLM adversarial; this: `OSC&R` for supply chain adversarial — parallel taxonomy discipline).
-**Status:** `active` — registry committed (2026-07-18). `cns.taxonomy.*` namespaces pre-registered in `CANONICAL_NAMESPACES` (`event.rs` L309-315). Registry crate at `registry/templates/attack-taxonomy-mapper/` (manifest.yaml + 4 .j2 templates: select-evidence, map-taxonomy, taxonomize, convergence-check). SKILL.md at `.agents/skills/attack-taxonomy-mapper/SKILL.md`. Design spec at `docs/plans/attack-taxonomy-mapper-design.md`. OSC&R category IDs are PROPOSED mappings — must be verified against live oscar.io before production use.
+**Status:** `active` — registry committed (2026-07-18). `cns.taxonomy.*` namespaces pre-registered in `CANONICAL_NAMESPACES` (`event.rs` L309-315). Registry crate at `registry/templates/attack-taxonomy-mapper/` (manifest.yaml + 4 .j2 templates: select-evidence, map-taxonomy, taxonomize, convergence-check). SKILL.md at `.agents/skills/attack-taxonomy-mapper/SKILL.md`. Design spec at `docs/plans/attack-taxonomy-mapper-design.md`. OSC&R taxonomy verified against `github.com/pbom-dev/OSCAR` `matrix.json` (2026-07-18) — uses tactic + technique names, NOT numeric IDs. OWASP SC codes remain PROPOSED.
 
 ## CNS Namespace Architecture (Point3 Research — `skill-logic-audit` + codebase)
 

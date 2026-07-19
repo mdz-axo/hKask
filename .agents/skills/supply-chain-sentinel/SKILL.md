@@ -8,7 +8,7 @@ description: >
   unmaintained indicators, and transitive dependency visibility.
   Anchored to MITRE CWE (CWE-1104, CWE-829, CWE-1357), OWASP Supply
   Chain taxonomy, OSC&R framework (Open Software Supply Chain Attack
-  Reference — co-created by Google/Microsoft/GitLab; oscar.io).
+  Reference — `github.com/pbom-dev/OSCAR`).
   Consumes security/regressions/; proposes RR-NNNN.yaml entries with
   surface: supply-chain. Emits cns.supply_chain.* spans (P9). Decomposed
   into 4 phases matching bug-hunt and kali-audit pipeline.
@@ -162,7 +162,7 @@ CONSTRAINT — Evidence integrity (P8):
 - Source citations must reference concrete URLs or documents actually
   consulted: MITRE CWE definitions, deny.toml specification, crates.io
   advisory database docs, OWASP Supply Chain security reference, OSC&R
-  framework (oscar.io), cargo-deny documentation.
+  framework (`github.com/pbom-dev/OSCAR`), cargo-deny documentation.
 - Every finding must include `replicant_host` identity (P12) — no anonymous
   dependency scanning.
 - When referencing `security/regressions/`, read actual YAML files; do not
@@ -338,7 +338,8 @@ not speculatively.
 - Source citations must reference concrete sources (not aspirational):
   MITRE CWE definitions (mitre.org), deny.toml specification (embarkstudios
   / deny documentation), crates.io advisory database format, cargo-deny
-  docs, OWASP Supply Chain reference, OSC&R framework (oscar.io / GitHub),
+  docs, OWASP Supply Chain reference, OSC&R framework
+  (`github.com/pbom-dev/OSCAR`),
   `security/regressions/README.md` for regression format.
 - If manifest discovery finds zero dependency files, return empty
   `manifest_paths` and recommend `surface: cargo` or `surface: deny`
@@ -375,10 +376,9 @@ This skill is anchored to concrete, verifiable taxonomy sources (P8):
   (owasp.org/www-project-software-supply-chain-security/ or equivalent
   documentation).
 - **OSC&R Framework:** Open Software Supply Chain Attack Reference —
-  ATT&CK-like taxonomy for supply chain threats. Co-created by security
-  experts from Google, Microsoft, GitLab. Source: `oscar.io` or
-  GitHub repository (`google/osv` for OSV database integration,
-  `oscar-framework` documentation).
+  ATT&CK-like taxonomy for supply chain threats. Source:
+  `github.com/pbom-dev/OSCAR` (verified 2026-07-18 — uses tactic +
+  technique names, NOT numeric IDs).
 - **deny.toml Specification:** License and advisory policy specification for
   Rust dependency auditing. Source: `embarkstudios/deny` documentation.
 - **crates.io Advisory Database:** Rust crate advisory format and advisory
