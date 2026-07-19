@@ -1,4 +1,4 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unmapped findings (0.40), OSC&R tactic coverage (0.25), OWASP Supply Chain coverage (0.15), regression taxonomy_mapping field growth (0.10), residual unmapped risk (0.10). Emit cns.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unmapped findings (0.45), OSC&R tactic coverage (0.30), regression taxonomy_mapping field growth (0.15), residual unmapped risk (0.10). Emit cns.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
 {# Emits cns.taxonomy.convergence CNS span (P9) — namespace registered #}
 
@@ -6,36 +6,27 @@ INPUT: unmapped_findings = {{ unmapped_findings }} (from previous cycle or curre
 INPUT: oscr_tactics_covered = {{ oscr_tactics_covered }} (from taxonomize phase)
 INPUT: oscr_tactics_missing = {{ oscr_tactics_missing }}
 INPUT: oscr_techniques_covered = {{ oscr_techniques_covered }}
-INPUT: owasp_sc_references_present = {{ owasp_sc_references_present }} (bool — any OWASP SC reference in mappings)
-INPUT: owasp_sc_references_missing = {{ owasp_sc_references_missing }} (bool — no OWASP SC references at all)
 INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings }} (count of regression entries with taxonomy_mapping field)
 INPUT: proposed_taxonomy_mappings = {{ proposed_taxonomy_mappings }} (count from current cycle)
 INPUT: previous_metric = {{ previous_metric | default(1.0) }}
 INPUT: replicant_host = {{ replicant_host }} (P12)
 
 COMPUTE METRIC (weighted — evidence-based only, P8, P5):
-- Unmapped findings (critical/high) weight: 0.40
-  Score = 0.00 if zero critical/high unmapped; +0.40 if any critical/high remains unmapped.
+- Unmapped findings (critical/high) weight: 0.45
+  Score = 0.00 if zero critical/high unmapped; +0.45 if any critical/high remains unmapped.
   Partial = (count_critical * 1.0 + count_high * 0.5) / max(1, previous_critical + previous_high) — only if evidence-backed.
-- OSC&R tactic coverage weight: 0.25
+- OSC&R tactic coverage weight: 0.30
   OSC&R has 12 tactics (Initial Access, Collection, Resource Development,
   Lateral Movement, Execution, Exfiltration, Credential Access, Impact,
   Reconnaissance, Defense Evasion, Persistence, Privilege Escalation).
   All 12 tactics covered = +0.00
-  10-11 covered = +0.04; 7-9 = +0.08; 4-6 = +0.13; 2-3 = +0.19; 0-1 = +0.25
+  10-11 covered = +0.05; 7-9 = +0.10; 4-6 = +0.15; 2-3 = +0.22; 0-1 = +0.30
   Each tactic only counts as covered when at least one finding maps to a
   technique within it (P8 — concrete evidence only, no aspirational
   coverage). Verified against `github.com/pbom-dev/OSCAR` `matrix.json`.
-- OWASP Supply Chain coverage weight: 0.15
-  NOTE: OWASP does not publish a numbered Supply Chain Top 10 in the
-  same format as the LLM Top 10. The OWASP SC codes (SC04–SC09) are
-  PROPOSED mappings. Since the category set is PROPOSED, this dimension
-  uses a fixed contribution: +0.00 if any OWASP SC reference is present
-  in mappings, +0.15 if no OWASP SC references at all. (The OSC&R
-  tactic coverage dimension above carries the primary taxonomy weight.)
-- Regression taxonomy_mapping field growth weight: 0.10
+- Regression taxonomy_mapping field growth weight: 0.15
   New `taxonomy_mapping` field proposed this cycle = +0.00
-  No new proposal despite evidence = +0.10 (stagnation)
+  No new proposal despite evidence = +0.15 (stagnation)
   Existing `taxonomy_mapping` fields remain (no field removal in metric).
 - Residual unmapped risk weight: 0.10
   Zero unmapped findings = +0.00
@@ -49,8 +40,7 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
 - If metric > 0.10 OR improvement < 5%: not converged — identify blockers.
 - Blockers = specific OSC&R tactic gaps (from `oscr_tactics_missing`),
   unmapped critical/high findings (with finding reference), stagnation
-  (no new taxonomy_mapping proposed despite finding evidence), OWASP SC
-  coverage gaps.
+  (no new taxonomy_mapping proposed despite finding evidence).
 
 CNS SPAN (P9):
 - `cns.taxonomy.convergence` is registered in `CANONICAL_NAMESPACES`
@@ -62,8 +52,7 @@ CNS SPAN (P9):
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
 blockers: [...], oscr_tactics_covered, oscr_tactics_missing,
-oscr_techniques_covered, owasp_sc_references_present,
-owasp_sc_references_missing,
+oscr_techniques_covered,
 existing_taxonomy_mappings_count, proposed_taxonomy_mappings_count,
 unmapped_critical, unmapped_high, taxonomy_coverage, residual_unmapped_risk,
 replicant_host, cns_span_emitted: true}`.
@@ -82,9 +71,8 @@ EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts from
 `proposed_taxonomy_mappings` (actual proposal count from current cycle).
 No fabricated numbers.
 EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "map
-finding RR-0007 to OSC&R Initial Access / Typosquatting", "verify
-OWASP SC reference for Dependency confusion against OWASP docs") based
-on real mapping evidence — not speculative.
+finding RR-0007 to OSC&R Initial Access / Typosquatting") based on real
+mapping evidence — not speculative.
 OCAP BOUNDARY (P4): Metric computed from workspace finding evidence only;
 no external taxonomy download; no external package download.
 CNS REGULATION (P9): Span emitted unconditionally — namespace registered
@@ -94,13 +82,12 @@ VISIBILITY (P11): Metric output public; no hidden taxonomy coverage.
 SAFETY FLOOR (P3.1): Taxonomy convergence protects Generative Space —
 unconverged metric indicates unstructured attack pattern awareness.
 SEMANTIC GROUNDING (P8): Every blocker references concrete evidence
-(finding reference, OSC&R tactic gap, OWASP SC coverage gap, regression
-file or missing proposal reason).
+(finding reference, OSC&R tactic gap, regression file or missing proposal
+reason).
 SOURCE REFERENCES (P8 — concrete):
 - OSC&R framework (`github.com/pbom-dev/OSCAR` — `matrix.json`, verified
   2026-07-18) — supply chain attack taxonomy reference. OSC&R uses
   tactic + technique names, NOT numeric IDs.
-- OWASP Supply Chain reference (owasp.org) — secondary, PROPOSED mapping
 - MITRE CWE definitions (mitre.org/data/definitions/)
 - `security/regressions/README.md` (regression format and ratchet lifecycle)
 - `security/regressions/` (actual regression library — read as input)
@@ -130,5 +117,4 @@ blockers, and span emission — nothing more.
 OSC&R VERIFICATION GATE: The OSC&R tactic and technique names referenced
 are VERIFIED against the live OSC&R framework (`github.com/pbom-dev/OSCAR`
 `matrix.json`, verified 2026-07-18). OSC&R uses tactic + technique names,
-NOT numeric IDs. The OWASP SC codes remain PROPOSED — verify against live
-OWASP documentation before use.
+NOT numeric IDs.

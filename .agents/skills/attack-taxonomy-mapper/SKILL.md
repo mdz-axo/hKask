@@ -277,19 +277,12 @@ New OSC&R tactics/techniques can be added as real findings justify them
 `kali-audit`'s OWASP LLM / ATLAS catalog and `supply-chain-sentinel`'s
 CWE catalog.
 
-**Note on OWASP Supply Chain categories:** The OWASP SC codes (SC04–SC09)
-referenced in the templates are PROPOSED mappings — OWASP does not publish
-a numbered Supply Chain Top 10 in the same format as the LLM Top 10. The
-`taxonomy_mapping` field should use the OSC&R tactic + technique name as
-the primary mapping and treat the OWASP SC code as a secondary reference
-pending verification against live OWASP documentation.
-
 ## Relationship to Existing Skills
 
 - **`supply-chain-sentinel`:** `supply-chain-sentinel` performs manifest-
   level audit and proposes regressions with CWE mappings.
-  `attack-taxonomy-mapper` consumes those findings and adds OSC&R + OWASP
-  SC taxonomy layer. Complementary — finding generation vs taxonomy
+  `attack-taxonomy-mapper` consumes those findings and adds OSC&R
+  taxonomy layer. Complementary — finding generation vs taxonomy
   mapping. Zero overlap.
 - **`kali-audit`:** `kali-audit` maps to OWASP LLM / ATLAS for LLM/code.
   `attack-taxonomy-mapper` maps to OSC&R for supply chain. Parallel
@@ -314,10 +307,10 @@ pending verification against live OWASP documentation.
 - `taxonomize.j2`: `visibility: public`.
 - `convergence-check.j2`: `visibility: public`.
 - Every mapping includes concrete finding reference, CWE category, OSC&R
-  category, OWASP SC category, evidence snippet, source citation — not
+  category, evidence snippet, source citation — not
   summary description.
 - Every proposed `taxonomy_mapping` field uses backward-compatible
-  optional YAML format with `osc_r` and `owasp_sc` keys.
+  optional YAML format with `osc_r` keys.
 - No synthetic findings — only map findings from `supply-chain-sentinel`
   or `kali-audit`.
 - No invented OSC&R tactics or techniques — only map to existing entries in the OSC&R framework (verified against `github.com/pbom-dev/OSCAR` `matrix.json`, 2026-07-18). OSC&R uses tactic + technique names, NOT numeric IDs.
@@ -337,15 +330,15 @@ pending verification against live OWASP documentation.
 - Apply `grill-me` self-challenge before proposing mappings.
 - Apply `IS/OUGHT` classification and label `epistemic_mode` and
   `provenance` for every mapping.
-- Convergence metric computed from real evidence: unmapped findings (0.40),
-  OSC&R coverage (0.25), OWASP SC coverage (0.15), mapping growth (0.10),
+- Convergence metric computed from real evidence: unmapped findings (0.45),
+  OSC&R coverage (0.30), mapping growth (0.15),
   residual unmapped risk (0.10).
 - Do NOT fabricate mappings — only report what was discovered through
   actual finding analysis.
 - Source citations must reference concrete sources: OSC&R framework
-  (`github.com/pbom-dev/OSCAR`), OWASP Supply Chain reference (owasp.org),
-  MITRE CWE definitions (mitre.org), `security/regressions/README.md`,
-  `supply-chain-sentinel` SKILL.md, `kali-audit` SKILL.md.
+  (`github.com/pbom-dev/OSCAR`), MITRE CWE definitions (mitre.org),
+  `security/regressions/README.md`, `supply-chain-sentinel` SKILL.md,
+  `kali-audit` SKILL.md.
 - If evidence discovery finds zero findings to map, return empty
   `findings_to_map` and recommend running `supply-chain-sentinel` first —
   do NOT invent findings.
@@ -360,9 +353,7 @@ pending verification against live OWASP documentation.
   should not break (verify before first `status: enforced` flip).
 - OSC&R tactic and technique names are VERIFIED against the live OSC&R
   framework (`github.com/pbom-dev/OSCAR` `matrix.json`, verified
-  2026-07-18). OSC&R uses tactic + technique names, NOT numeric IDs. The
-  OWASP SC codes remain PROPOSED — verify against live OWASP documentation
-  before use.
+  2026-07-18). OSC&R uses tactic + technique names, NOT numeric IDs.
 
 ## Source References and Taxonomy Anchors
 
@@ -376,12 +367,6 @@ This skill is anchored to concrete, verifiable taxonomy sources (P8):
   ContainerSecurity, CI/CDPosture, etc.). There are NO numeric IDs —
   techniques are referenced by name within tactics. Source:
   `github.com/pbom-dev/OSCAR` — `matrix.json` (verified 2026-07-18).
-- **OWASP Supply Chain:** OWASP Software Supply Chain Security reference.
-  NOTE: OWASP does not publish a numbered Supply Chain Top 10 in the
-  same format as the LLM Top 10. The OWASP SC codes (SC04–SC09)
-  referenced in earlier design specs are PROPOSED mappings and should be
-  treated as secondary references pending verification. Source:
-  `owasp.org/www-project-software-supply-chain-security/`.
 - **MITRE CWE:** CWE-1104 (Unmaintained Third-Party Components), CWE-829
   (Inclusion from Untrusted Control Sphere), CWE-1357 (Reliance on
   Component Not Updateable). Source: `mitre.org/data/definitions/`.

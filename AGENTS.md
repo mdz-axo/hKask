@@ -6,7 +6,7 @@
 
 ## Capability Catalog
 
-**49 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **52 capabilities total.**
+**48 Skills** (PDCA), **2 Templates** (one-shot), **1 Bundle** (kata). **51 capabilities total.**
 
 | Type | Behavior |
 |------|----------|
@@ -86,7 +86,6 @@
 | **supply-chain-sentinel** | Dependency manifest audit (Cargo.toml, deny.toml, lockfiles). Deeper than kali-audit's supply-chain surface: version pinning, registry verification, SBOM tracking, license conflicts. Emits `cns.supply_chain.*` spans. |
 | **runtime-posture-monitor** | Runtime security posture monitoring. Observes CNS telemetry (`hkask.*` spans, `cns.guard.*` violations, `cns.regulation` events) for runtime threats: endpoint abuse, bot traffic, LLM usage anomalies. Emits `cns.runtime.*` spans. |
 | **attack-taxonomy-mapper** | Maps supply chain findings to OSC&R attack taxonomy (verified against `github.com/pbom-dev/OSCAR`). Consumes findings from supply-chain-sentinel and kali-audit. Adds `taxonomy_mapping` field to regression YAML. Emits `cns.taxonomy.*` spans. |
-| **security-scan-pdca** | Superseded — retained for backward compatibility. Prefer `kali-audit` + `supply-chain-sentinel` + `runtime-posture-monitor` + `attack-taxonomy-mapper` for new audit work. |
 | **goal-analysis** | Goal specification and completion verification. |
 | **magna-carta-verifier** | Verify Magna Carta principles enforcement. |
 | **structured-extraction** | Extract structured data from unstructured text. |

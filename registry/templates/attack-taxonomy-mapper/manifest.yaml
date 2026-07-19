@@ -9,13 +9,12 @@ crate:
     (OWASP/ATLAS-mapped findings) as input — does NOT generate new
     findings. Maps each finding to the OSC&R attack taxonomy (verified
     against github.com/pbom-dev/OSCAR matrix.json — organized by tactics
-    + techniques, NOT numeric IDs) plus the OWASP Supply Chain dual
-    taxonomy (secondary, PROPOSED). Adds an optional, backward-compatible
+    + techniques, NOT numeric IDs). Adds an optional, backward-compatible
     `taxonomy_mapping` field to existing `surface: supply-chain`
     regression YAML entries. Emits cns.taxonomy.* spans (P9 — all
     registered in CANONICAL_NAMESPACES). P8 evidence-backed: every
     mapping includes concrete evidence (finding reference, CWE category,
-    OSC&R tactic + technique, OWASP SC reference). P12 replicant_host
+    OSC&R tactic + technique). P12 replicant_host
     mandatory. Decomposed into 4 phases matching bug-hunt and
     supply-chain-sentinel pipeline. Minimal (P5): answers all 5W1H;
     single skill, no bundle; complements supply-chain-sentinel (adds
@@ -36,14 +35,13 @@ templates:
       list with concrete evidence references.
 
   - id: attack-taxonomy-mapper/map-taxonomy
-    name: "Map findings to OSC&R and OWASP Supply Chain taxonomy"
+    name: "Map findings to OSC&R taxonomy"
     path: map-taxonomy.j2
     type: KnowAct
-    lexicon_terms: [map, classify, taxonomy, oscr, owasp, supply]
+    lexicon_terms: [map, classify, taxonomy, oscr, supply]
     description: >
       For each finding, map to OSC&R tactic + technique (verified against
-      github.com/pbom-dev/OSCAR matrix.json) plus OWASP Supply Chain
-      reference (secondary, PROPOSED). Applies pragmatic-cybernetics:
+      github.com/pbom-dev/OSCAR matrix.json). Applies pragmatic-cybernetics:
       feedback loop (does the attack pattern have a defense layer?),
       variety (alternative attack vectors in same OSC&R tactic?),
       Good Regulator (is the defense layer enforcing?). Emits
@@ -55,11 +53,11 @@ templates:
     type: KnowAct
     lexicon_terms: [classify, taxonomize, categorize, rank, label, report]
     description: >
-      Classify mapped findings into OSC&R categories + OWASP Supply Chain
-      dual taxonomy. Produce pattern signatures for detecting similar
-      attack patterns. Propose backward-compatible taxonomy_mapping field
-      additions to existing surface: supply-chain regression entries
-      (status: pending). Emits cns.taxonomy.report span.
+      Classify mapped findings into OSC&R categories. Produce pattern
+      signatures for detecting similar attack patterns. Propose
+      backward-compatible taxonomy_mapping field additions to existing
+      surface: supply-chain regression entries (status: pending). Emits
+      cns.taxonomy.report span.
 
   - id: attack-taxonomy-mapper/convergence-check
     name: "Compute taxonomy coverage metric"
@@ -67,7 +65,7 @@ templates:
     type: KnowAct
     lexicon_terms: [evaluate, converge, taxonomy, coverage, regression]
     description: >
-      Compute normalized convergence metric: unmapped findings (0.40),
-      OSC&R tactic coverage (0.25), OWASP Supply Chain coverage (0.15),
-      regression taxonomy_mapping field growth (0.10), residual unmapped
-      risk (0.10). Converged when metric ≤ 0.10 with ≥5% improvement.
+      Compute normalized convergence metric: unmapped findings (0.45),
+      OSC&R tactic coverage (0.30), regression taxonomy_mapping field
+      growth (0.15), residual unmapped risk (0.10). Converged when
+      metric ≤ 0.10 with ≥5% improvement.
