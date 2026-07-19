@@ -1,4 +1,4 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unmapped findings (0.40), OSC&R category coverage (0.25), OWASP Supply Chain coverage (0.15), regression taxonomy_mapping field growth (0.10), residual unmapped risk (0.10). Emit cns.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unmapped findings (0.40), OSC&R tactic coverage (0.25), OWASP Supply Chain coverage (0.15), regression taxonomy_mapping field growth (0.10), residual unmapped risk (0.10). Emit cns.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
 {# Emits cns.taxonomy.convergence CNS span (P9) — namespace registered #}
 
@@ -43,7 +43,7 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
 - Metric ≤ 0.10: near converged.
 - Metric ≤ 0.10 AND relative improvement ≥ 5% from previous_metric: converged.
 - If metric > 0.10 OR improvement < 5%: not converged — identify blockers.
-- Blockers = specific OSC&R category gaps (from `oscr_categories_missing`),
+- Blockers = specific OSC&R tactic gaps (from `oscr_tactics_missing`),
   unmapped critical/high findings (with finding reference), stagnation
   (no new taxonomy_mapping proposed despite finding evidence), OWASP SC
   coverage gaps.
@@ -77,9 +77,9 @@ EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts from
 `proposed_taxonomy_mappings` (actual proposal count from current cycle).
 No fabricated numbers.
 EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "map
-finding RR-0007 to OSC&R typosquatting category", "verify OSC&R ID for
-build_pipeline_compromise against oscar.io") based on real mapping
-evidence — not speculative.
+finding RR-0007 to OSC&R Initial Access / Typosquatting", "verify
+OWASP SC reference for Dependency confusion against OWASP docs") based
+on real mapping evidence — not speculative.
 OCAP BOUNDARY (P4): Metric computed from workspace finding evidence only;
 no external taxonomy download; no external package download.
 CNS REGULATION (P9): Span emitted unconditionally — namespace registered
@@ -89,11 +89,13 @@ VISIBILITY (P11): Metric output public; no hidden taxonomy coverage.
 SAFETY FLOOR (P3.1): Taxonomy convergence protects Generative Space —
 unconverged metric indicates unstructured attack pattern awareness.
 SEMANTIC GROUNDING (P8): Every blocker references concrete evidence
-(finding reference, OSC&R category gap, OWASP SC coverage gap, regression
+(finding reference, OSC&R tactic gap, OWASP SC coverage gap, regression
 file or missing proposal reason).
 SOURCE REFERENCES (P8 — concrete):
-- OSC&R framework (oscar.io) — supply chain attack taxonomy reference
-- OWASP Supply Chain reference (owasp.org)
+- OSC&R framework (`github.com/pbom-dev/OSCAR` — `matrix.json`, verified
+  2026-07-18) — supply chain attack taxonomy reference. OSC&R uses
+  tactic + technique names, NOT numeric IDs.
+- OWASP Supply Chain reference (owasp.org) — secondary, PROPOSED mapping
 - MITRE CWE definitions (mitre.org/data/definitions/)
 - `security/regressions/README.md` (regression format and ratchet lifecycle)
 - `security/regressions/` (actual regression library — read as input)
@@ -120,7 +122,8 @@ CNS SPAN EMITTED: `cns.taxonomy.convergence` is registered, so the span is
 always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.
-OSC&R VERIFICATION GATE: The OSC&R category names referenced are PROPOSED
-mappings based on public documentation. They MUST be verified against the
-live oscar.io framework before the convergence metric is considered
-authoritative. Do NOT present proposed mappings as verified.
+OSC&R VERIFICATION GATE: The OSC&R tactic and technique names referenced
+are VERIFIED against the live OSC&R framework (`github.com/pbom-dev/OSCAR`
+`matrix.json`, verified 2026-07-18). OSC&R uses tactic + technique names,
+NOT numeric IDs. The OWASP SC codes remain PROPOSED — verify against live
+OWASP documentation before use.

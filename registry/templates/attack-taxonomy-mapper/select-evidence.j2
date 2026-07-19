@@ -20,7 +20,7 @@ Existing taxonomy mappings: {{ existing_taxonomy_mappings | default([]) }}
 Convergence baseline: {{ convergence_metric | default(1.0) }}
 
 {# Evidence: concrete finding references only — no fabricated findings #}
-{# Source citations: supply-chain-sentinel SKILL.md, kali-audit SKILL.md, OSC&R framework (oscar.io) #}
+{# Source citations: supply-chain-sentinel SKILL.md, kali-audit SKILL.md, OSC&R framework (github.com/pbom-dev/OSCAR) #}
 {# 5W1H gate: Who = supply chain attacker / threat actor taxonomy; What = finding to map; Where = workspace / regression library; Why = P3.1 structured taxonomy for supply chain threats; How = discover + read + map + taxonomize + report #}
 
 ACTION: Emit `cns.taxonomy.select` span (P9, P12) with discovered evidence sources, findings to map, and existing mapping count.
@@ -34,11 +34,11 @@ CONSTRAINT: This skill is complementary to `supply-chain-sentinel` (performs man
 CONSTRAINT: This skill is complementary to `kali-audit` (maps to OWASP LLM / ATLAS for LLM/code) — this skill maps to OSC&R for supply chain. Parallel taxonomy discipline, distinct taxonomies.
 CONSTRAINT: This skill is parallel to `adversarial-red-team` (uses MITRE ATLAS for LLM adversarial) — this skill uses OSC&R for supply chain adversarial. Same taxonomy discipline, different domain.
 CONSTRAINT: Reference concrete taxonomy: OSC&R framework (Open Software Supply Chain Attack Reference — `github.com/pbom-dev/OSCAR`, verified 2026-07-18; organized by tactics + techniques, NOT numeric IDs), OWASP Supply Chain reference (secondary, PROPOSED), MITRE CWE-1104/CWE-829/CWE-1357.
-CONSTRAINT: Every taxonomy mapping must cite finding reference, CWE category, OSC&R category, OWASP SC category — not summary description alone.
+CONSTRAINT: Every taxonomy mapping must cite finding reference, CWE category, OSC&R tactic + technique, OWASP SC reference — not summary description alone.
 CONSTRAINT: If target_source is 'auto', discover all `surface: supply-chain` regression entries and any `supply-chain-sentinel` findings output. Prioritize entries without existing `taxonomy_mapping` field.
 CONSTRAINT: Read actual regression YAML files (not synthetic) before proposing any taxonomy mapping.
 CONSTRAINT: Every output must include `replicant_host` identity (P12) — no anonymous taxonomy mapping.
-CONSTRAINT: Apply pragmatic-cybernetics (like `bug-hunt` probe phase): trace mapping polarity (does the OSC&R category indicate increasing or decreasing risk?), check variety (are there alternative OSC&R categories for the same finding?), perform Good Regulator check (is the defense layer mapped to the correct OSC&R category?).
+CONSTRAINT: Apply pragmatic-cybernetics (like `bug-hunt` probe phase): trace mapping polarity (does the OSC&R technique indicate increasing or decreasing risk?), check variety (are there alternative OSC&R techniques for the same finding?), perform Good Regulator check (is the defense layer mapped to the correct OSC&R technique?).
 CONSTRAINT: If `security/regressions/` contains entries with `taxonomy_mapping` field, read them as input and skip proposing duplicates.
 CONSTRAINT: Propose `taxonomy_mapping` field format (backward-compatible optional field):
   ```yaml
@@ -54,7 +54,7 @@ CONSTRAINT: The 5W1H gate applies: Who (supply chain attacker / threat actor tax
 CONSTRAINT: When referencing security taxonomy: use OSC&R framework name (Open Software Supply Chain Attack Reference), OWASP Supply Chain, MITRE CWE — not generic descriptions.
 CONSTRAINT: Do NOT reference `supply-chain-sentinel` or `kali-audit` as substitutes; state explicitly how this skill complements them (`supply-chain-sentinel`: manifest-level audit with CWE mappings; `kali-audit`: OWASP/ATLAS mappings for LLM/code; `attack-taxonomy-mapper`: OSC&R taxonomy mapping layer for supply chain findings).
 CONSTRAINT: Minimal — 4 templates only, no bundle, no sub-agent delegation, no extra abstraction layer. Each template answers a specific 5W1H question (select: Where; map: What + How; taxonomize: Why + What; convergence-check: When + Why).
-CONSTRAINT: Every output must include evidence-backed finding references (not synthetic) and source citations (oscar.io, OWASP Supply Chain reference, MITRE CWE list, supply-chain-sentinel SKILL.md, kali-audit SKILL.md).
+CONSTRAINT: Every output must include evidence-backed finding references (not synthetic) and source citations (github.com/pbom-dev/OSCAR, OWASP Supply Chain reference, MITRE CWE list, supply-chain-sentinel SKILL.md, kali-audit SKILL.md).
 CONSTRAINT: Do NOT claim taxonomy coverage that hasn't been verified through actual finding mapping. Convergence metric must reflect real coverage, not aspirational.
 CONSTRAINT: Each taxonomy mapping proposal must use the exact YAML format from `security/regressions/README.md` plus the optional `taxonomy_mapping` field.
 CONSTRAINT: This skill is NOT a replacement for OSC&R or OWASP; it is a hKask-native taxonomy mapping skill that consumes existing findings, maps them to established taxonomies, proposes backward-compatible regression field additions, and tracks taxonomy coverage. It operates within user sovereignty (P1), consent (P2), generative space (P3), OCAP boundaries (P4), essentialism (P5), replicant space (P6), evolutionary architecture (P7), semantic grounding (P8), regulates through CNS spans (P9), operates under explicit bot/replicant taxonomy (P10), respects shared/public visibility (P11), requires host identity (P12).

@@ -97,10 +97,10 @@ CONSTRAINTS (same as map-taxonomy — P5 minimalism, P8 evidence integrity, P12 
 
 OUTPUT FORMAT:
 JSON object with fields:
-`mappings` (grouped by OSC&R category with evidence, OWASP SC mapping,
+`mappings` (grouped by OSC&R tactic with evidence, OWASP SC reference,
 pattern signature, fix recommendation), `proposed_taxonomy_mappings`
 (YAML-format array for human review), `pattern_signatures` (concrete grep
-patterns per OSC&R category), `taxonomy_coverage_gaps` (OSC&R categories
+patterns per OSC&R technique), `taxonomy_coverage_gaps` (OSC&R tactics
 with no mapped findings), `verdict`, `replicant_host`, `source_citations`,
 `cns_span_reference`.
 
@@ -116,14 +116,14 @@ RELATIONSHIP (explicit): Complements `supply-chain-sentinel` (adds
 taxonomy layer to its CWE-mapped findings) and `kali-audit` (parallel
 taxonomy discipline — OWASP/ATLAS vs OSC&R). References
 `security/regressions/README.md` format directly. References OSC&R
-framework (oscar.io) for taxonomy categories.
+framework (`github.com/pbom-dev/OSCAR`) for taxonomy tactics/techniques.
 MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
 EVIDENCE-BACKED ONLY: Every proposed `taxonomy_mapping` includes concrete
-finding reference, CWE category, OSC&R category, OWASP SC category, and
-pattern signature.
+finding reference, CWE category, OSC&R tactic + technique, OWASP SC
+reference, and pattern signature.
 SEMANTIC GROUNDING (P8): Every claim has finding reference, CWE category,
-OSC&R category, OWASP SC category, concrete evidence snippet, source
-citation.
+OSC&R tactic + technique, OWASP SC reference, concrete evidence snippet,
+source citation.
 EVOLUTIONARY (P7): Pattern signatures enable future automated detection
 of similar attack patterns — the taxonomy mapping compounds value over
 time.

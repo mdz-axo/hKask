@@ -7,19 +7,20 @@ crate:
     Attack taxonomy mapping skill for hKask. Consumes findings from
     supply-chain-sentinel (CWE-mapped manifest evidence) and kali-audit
     (OWASP/ATLAS-mapped findings) as input — does NOT generate new
-    findings. Maps each finding to the OSC&R attack taxonomy (dependency
-    confusion, typosquatting, malicious commit injection, build pipeline
-    compromise, unmaintained component, unverified registry) plus the
-    OWASP Supply Chain dual taxonomy. Adds an optional, backward-compatible
-    `taxonomy_mapping` field to existing `surface: supply-chain` regression
-    YAML entries. Emits cns.taxonomy.* spans (P9 — all registered in
-    CANONICAL_NAMESPACES). P8 evidence-backed: every mapping includes
-    concrete evidence (finding reference, CWE category, OSC&R category,
-    OWASP SC category). P12 replicant_host mandatory. Decomposed into 4
-    phases matching bug-hunt and supply-chain-sentinel pipeline. Minimal
-    (P5): answers all 5W1H; single skill, no bundle; complements
-    supply-chain-sentinel (adds taxonomy layer) and adversarial-red-team
-    (parallel taxonomy discipline: ATLAS for LLM, OSC&R for supply chain).
+    findings. Maps each finding to the OSC&R attack taxonomy (verified
+    against github.com/pbom-dev/OSCAR matrix.json — organized by tactics
+    + techniques, NOT numeric IDs) plus the OWASP Supply Chain dual
+    taxonomy (secondary, PROPOSED). Adds an optional, backward-compatible
+    `taxonomy_mapping` field to existing `surface: supply-chain`
+    regression YAML entries. Emits cns.taxonomy.* spans (P9 — all
+    registered in CANONICAL_NAMESPACES). P8 evidence-backed: every
+    mapping includes concrete evidence (finding reference, CWE category,
+    OSC&R tactic + technique, OWASP SC reference). P12 replicant_host
+    mandatory. Decomposed into 4 phases matching bug-hunt and
+    supply-chain-sentinel pipeline. Minimal (P5): answers all 5W1H;
+    single skill, no bundle; complements supply-chain-sentinel (adds
+    taxonomy layer) and adversarial-red-team (parallel taxonomy
+    discipline: ATLAS for LLM, OSC&R for supply chain).
 
 templates:
   - id: attack-taxonomy-mapper/select-evidence

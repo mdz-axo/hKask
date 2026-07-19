@@ -1,12 +1,12 @@
-{# goal: Read finding evidence (from supply-chain-sentinel and kali-audit) within workspace (P4). Map each finding to OSC&R taxonomy entry + OWASP Supply Chain category. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.taxonomy.map spans (P9 — namespace registered). No synthetic findings; replicant_host mandatory (P12). Evidence-backed only (P8). OSC&R IDs are PROPOSED mappings — verify against oscar.io. #}
+{# goal: Read finding evidence (from supply-chain-sentinel and kali-audit) within workspace (P4). Map each finding to OSC&R tactic + technique (verified against github.com/pbom-dev/OSCAR matrix.json) + OWASP Supply Chain reference (secondary, PROPOSED). Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.taxonomy.map spans (P9 — namespace registered). No synthetic findings; replicant_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads findings discovered in select-evidence phase #}
-{# For each finding, maps to OSC&R category + OWASP SC category #}
+{# For each finding, maps to OSC&R tactic + technique + OWASP SC reference #}
 {# Applies pragmatic-cybernetics: feedback loop (defense layer for attack pattern?),
-  variety (alternative attack vectors in same OSC&R category?),
-  Good Regulator (is defense layer mapped to correct OSC&R category?) #}
+  variety (alternative attack vectors in same OSC&R tactic?),
+  Good Regulator (is defense layer mapped to correct OSC&R technique?) #}
 {# Emits `cns.taxonomy.map` span per mapping (P9) #}
 {# Every mapping requires concrete evidence: finding reference, CWE category,
-  OSC&R category, OWASP SC category #}
+  OSC&R tactic + technique, OWASP SC reference #}
 {# Relationships: complements `supply-chain-sentinel` (adds taxonomy layer);
   parallel to `adversarial-red-team` (ATLAS for LLM, OSC&R for supply chain) #}
 
@@ -68,15 +68,15 @@ MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel o
    tactic + technique name is the primary mapping.
 4. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt` oracle phase):
    - IS vs OUGHT: describe what the finding IS (CWE category + evidence)
-     vs what it OUGHT to map to (OSC&R attack pattern + OWASP SC category).
+     vs what it OUGHT to map to (OSC&R tactic + technique + OWASP SC reference).
    - Epistemic mode: `Declarative` (finding observed), `Probabilistic`
-     (OSC&R category inference from CWE + evidence pattern), `Subjunctive`
+     (OSC&R technique inference from CWE + evidence pattern), `Subjunctive`
      (potential alternative mappings — must be labeled clearly).
    - Provenance: `Direct measurement` (read finding), `Inference` (CWE →
      OSC&R disambiguation), `Assessment` (dual taxonomy mapping) — must
      label each mapping's provenance.
 5. Apply grill-me self-challenge (like `bug-hunt`): Could this finding map
-   to a different OSC&R category? Is the CWE → OSC&R mapping ambiguous?
+   to a different OSC&R technique? Is the CWE → OSC&R mapping ambiguous?
    Would a reviewer dispute this mapping? If yes, note alternative mappings
    and downgrade confidence. Only propose `CONFIRMED` mapping when
    evidence is unambiguous.
