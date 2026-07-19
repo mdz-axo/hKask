@@ -14,7 +14,7 @@
 INPUT: signal_sources = {{ signal_sources }}
 INPUT: signal = {{ signal }}
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous scanning)
+INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory; if undefined, raise error: replicant_host is required for all runtime scanning)
 
 CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, or runtime telemetry reader):
 1. For each signal source listed in `signal_sources`, observe the span emission

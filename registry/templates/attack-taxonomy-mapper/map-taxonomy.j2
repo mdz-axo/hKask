@@ -38,8 +38,14 @@ MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel o
      in manifest metadata → OSC&R Tactic: Initial Access, Technique:
      Vulnerability in third-party dependency.
    - CWE-1357 (Reliance on Component Not Updateable) + CI workflow
-     references vulnerable CICD system/plugin/template → OSC&R Tactic:
-     Initial Access, Technique: Vulnerable CICD system / plugins / template.
+     references vulnerable CICD system → OSC&R Tactic: Initial Access,
+     Technique: Vulnerable CICD system.
+   - CWE-1357 + CI workflow references vulnerable CICD plugin → OSC&R
+     Tactic: Initial Access, Technique: Vulnerable CICD plugins.
+   - CWE-1357 + CI workflow references vulnerable CICD template → OSC&R
+     Tactic: Initial Access, Technique: Vulnerable CICD template.
+     (Disambiguate among these three based on evidence: system version,
+     plugin name, or template reference.)
    - CWE-829 + git dependency references unverified commit SHA → OSC&R
      Tactic: Resource Development, Technique: Malicious code contribution
      to an open-source repository.

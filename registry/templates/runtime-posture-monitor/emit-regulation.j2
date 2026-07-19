@@ -31,8 +31,11 @@ SYNTHESIS ACTIONS:
    not vulnerability claim), `owasp_llm_2025: LLM06` or `LLM07`,
    `atlas_tactic: AML.TA0010`, `discovered_in: <span_target>`,
    `discovered_by: runtime-posture-monitor`, `discovered_at`, `severity`,
-   `detection` (`kind: grep` with `pattern` referencing span target or
-   signal value — concrete regex, not vague description), `mitigation`
+   `detection` (`kind: cns-span` with `pattern` referencing span target or
+   signal value — concrete regex against span target, NOT source-file grep;
+   runtime threats are observed in CNS telemetry, not source files. Use
+   `kind: grep` only if the threat has a static code correlate detectable
+   in source files), `mitigation`
    (concrete fix: tighten runtime policy, add regulation rule, block
    tool call chain), `status: pending` (human-curated ratchet — P11
    visibility), `ci_gate: scripts/check-kali-regressions.sh` (existing

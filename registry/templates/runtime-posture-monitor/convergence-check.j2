@@ -13,7 +13,9 @@ INPUT: replicant_host = {{ replicant_host }} (P12)
 COMPUTE METRIC (weighted — evidence-based only, P8, P5):
 - Critical + high unresolved threats weight: 0.40
   Score = 0.00 if zero critical/high; +0.40 if any critical/high remains.
-  Partial = (count_critical * 1.0 + count_high * 0.5) / max(1, previous_critical + previous_high) — only if evidence-backed.
+  (Partial formula for reference: (count_critical * 1.0 + count_high * 0.5) /
+  max(1, previous_critical + previous_high) — informational only, not
+  integrated into the binary score above.)
 - Defense-layer firing coverage weight: 0.25
   6 layers firing (input_filtering, output_filtering, canary_detection,
   runtime_policy, regulation_loop, action_distribution_monitoring) = +0.00
@@ -23,13 +25,14 @@ COMPUTE METRIC (weighted — evidence-based only, P8, P5):
   only, no aspirational coverage). Distinct from kali-audit's static
   presence check — this measures runtime firing, not code presence.
 - Threat-pattern taxonomy coverage weight: 0.15
-  All 4 threat types (endpoint_abuse, bot_traffic, llm_usage_spipe,
+  All 4 threat types (endpoint_abuse, bot_traffic, llm_usage_spike,
   dependency_behavior_anomaly) covered by at least one finding/proposed
   regression = +0.00
   3 covered = +0.04; 2 = +0.08; 1 = +0.12; 0 = +0.15
 - Regression library growth weight: 0.10
   New `surface: runtime` regression proposed this cycle = +0.00
-  No new proposal despite evidence = +0.10 (stagnation)
+  No new proposal despite *unresolved threat evidence* = +0.10 (stagnation)
+  No new proposal because *no new threats* = +0.00 (healthy — not stagnation)
   Existing `enforced` regressions remain enforced (no regression removal in metric).
 - Residual runtime risk weight: 0.10
   Zero unresolved runtime anomalies in observation window = +0.00

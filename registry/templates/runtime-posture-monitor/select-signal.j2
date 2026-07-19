@@ -4,7 +4,7 @@
   {id: 'regulation', targets: ['cns.regulation', 'cns.regulation.impact_verified', 'cns.regulation.action_blocked', 'cns.regulation.action_substituted', 'cns.regulation.plateau_detected'], source: 'hkask-cns cybernetics loop'},
   {id: 'tool', targets: ['cns.tool.invoked', 'cns.tool.completed', 'cns.tool.error'], source: 'MCP tool invocations across all mcp-servers'},
   {id: 'inference', targets: ['cns.inference'], source: 'LLM inference calls'},
-  {id: 'all', targets: ['*'], source: 'auto-discover all hkask.* and cns.* performative spans'}
+  {id: 'all', targets: [], discover: true, source: 'auto-discover all hkask.* and cns.* performative spans actually emitted by the running system'}
 ] %}
 
 {# Discover runtime signal sources in the deployed replicant host #}
@@ -26,6 +26,7 @@ Convergence baseline: {{ convergence_metric | default(1.0) }}
 
 ACTION: Emit `cns.runtime.select` span (P9, P12) with discovered signal sources, selected signal type, and regression count.
 ACTION: Read `security/regressions/` for entries with `surface: runtime` and `status: enforced`.
+NOTE: If no `surface: runtime` entries exist yet, return empty list — this skill bootstraps the runtime surface. The `runtime` surface value extends the README schema (which currently lists `code | template | supply-chain | mcp | config`).
 ACTION: Return JSON: `{signal, signal_sources: [...], signal_types: [...], defense_layers: [...], existing_regressions: [...], replicant_host}`.
 CONSTRAINT: Do NOT fabricate signal sources. Only list span targets that the running system actually emits.
 CONSTRAINT: Each discovered signal source must include concrete span target string (e.g., `cns.guard.input`, `cns.regulation.action_blocked`).

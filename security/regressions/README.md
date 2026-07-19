@@ -13,17 +13,18 @@ incrementing). The schema:
 ```yaml
 id: RR-0001                          # matches filename
 title: "short description"
-surface: code | template | supply-chain | mcp | config   # which kali-audit surface
+surface: code | template | supply-chain | mcp | config | runtime   # which kali-audit surface (runtime = runtime-posture-monitor)
 cwe: CWE-XXX                         # MITRE CWE classification (if applicable)
-owasp_llm: LLMXX                     # OWASP LLM Top 10 risk (if applicable)
+owasp_llm_2025: LLMXX                  # OWASP LLM Top 10 2025 risk (if applicable)
+atlas_tactic: AML.TAXXXX               # MITRE ATLAS tactic (if applicable)
 discovered_in: path/to/file          # where the bug was found
 discovered_by: kali-audit | manual   # who found it
 discovered_at: YYYY-MM-DD
 severity: critical | high | medium | low
 detection:
-  kind: grep | cargo-test | skill-probe
-  pattern: "regex or test name"      # for grep: regex; for cargo-test: test path
-  include: "glob pattern"            # for grep: file scope
+  kind: grep | cargo-test | skill-probe | cns-span
+  pattern: "regex or test name"      # for grep: regex; for cargo-test: test path; for cns-span: span target pattern
+  include: "glob pattern"            # for grep: file scope; for cns-span: observation window
 mitigation: "what the fix looks like"
 ci_gate: scripts/check-kali-regressions.sh  # the script that enforces it
 status: pending | enforced           # pending = known bug, not yet fixed; enforced = fixed, CI catches re-introduction

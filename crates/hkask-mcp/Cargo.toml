@@ -31,7 +31,7 @@ hex.workspace = true
 async-trait.workspace = true
 dirs = "6"
 jsonschema = "0.28"
-dotenvy.workspace = true
+
 
 [dev-dependencies]
 tempfile.workspace = true

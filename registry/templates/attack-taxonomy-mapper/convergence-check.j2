@@ -6,8 +6,8 @@ INPUT: unmapped_findings = {{ unmapped_findings }} (from previous cycle or curre
 INPUT: oscr_tactics_covered = {{ oscr_tactics_covered }} (from taxonomize phase)
 INPUT: oscr_tactics_missing = {{ oscr_tactics_missing }}
 INPUT: oscr_techniques_covered = {{ oscr_techniques_covered }}
-INPUT: owasp_sc_categories_covered = {{ owasp_sc_categories_covered }}
-INPUT: owasp_sc_categories_missing = {{ owasp_sc_categories_missing }}
+INPUT: owasp_sc_references_present = {{ owasp_sc_references_present }} (bool — any OWASP SC reference in mappings)
+INPUT: owasp_sc_references_missing = {{ owasp_sc_references_missing }} (bool — no OWASP SC references at all)
 INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings }} (count of regression entries with taxonomy_mapping field)
 INPUT: proposed_taxonomy_mappings = {{ proposed_taxonomy_mappings }} (count from current cycle)
 INPUT: previous_metric = {{ previous_metric | default(1.0) }}
@@ -27,8 +27,12 @@ COMPUTE METRIC (weighted — evidence-based only, P8, P5):
   technique within it (P8 — concrete evidence only, no aspirational
   coverage). Verified against `github.com/pbom-dev/OSCAR` `matrix.json`.
 - OWASP Supply Chain coverage weight: 0.15
-  All OWASP SC categories covered = +0.00
-  Partial = +0.08; none = +0.15
+  NOTE: OWASP does not publish a numbered Supply Chain Top 10 in the
+  same format as the LLM Top 10. The OWASP SC codes (SC04–SC09) are
+  PROPOSED mappings. Since the category set is PROPOSED, this dimension
+  uses a fixed contribution: +0.00 if any OWASP SC reference is present
+  in mappings, +0.15 if no OWASP SC references at all. (The OSC&R
+  tactic coverage dimension above carries the primary taxonomy weight.)
 - Regression taxonomy_mapping field growth weight: 0.10
   New `taxonomy_mapping` field proposed this cycle = +0.00
   No new proposal despite evidence = +0.10 (stagnation)
@@ -57,8 +61,9 @@ CNS SPAN (P9):
 
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
-blockers: [...], oscr_categories_covered, oscr_categories_missing,
-owasp_sc_categories_covered, owasp_sc_categories_missing,
+blockers: [...], oscr_tactics_covered, oscr_tactics_missing,
+oscr_techniques_covered, owasp_sc_references_present,
+owasp_sc_references_missing,
 existing_taxonomy_mappings_count, proposed_taxonomy_mappings_count,
 unmapped_critical, unmapped_high, taxonomy_coverage, residual_unmapped_risk,
 replicant_host, cns_span_emitted: true}`.
@@ -72,7 +77,7 @@ All 6 present.
 MINIMAL: One template (`KnowAct`); no extra computation; uses evidence from
 previous phases only; no synthetic metrics.
 EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts from
-`mappings`, `oscr_categories_covered` (verified by finding evidence),
+`mappings`, `oscr_tactics_covered` (verified by finding evidence),
 `existing_taxonomy_mappings` (actual YAML file count),
 `proposed_taxonomy_mappings` (actual proposal count from current cycle).
 No fabricated numbers.
@@ -110,7 +115,7 @@ REGISTRY AUTHORITATIVE (P5.1): Registry manifest + `.j2` templates are
 canonical. SKILL.md derived. If conflict, registry wins.
 PUBLIC VISIBILITY: `visibility: public` — no hidden taxonomy coverage.
 NO FABRICATION: Metric computed from evidence counts only. Blockers derived
-from actual `unmapped_findings`, `oscr_categories_missing`,
+from actual `unmapped_findings`, `oscr_tactics_missing`,
 `proposed_taxonomy_mappings`. No synthetic finding references. No synthetic
 mapping counts.
 CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate

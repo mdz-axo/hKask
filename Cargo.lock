@@ -4299,7 +4299,6 @@ version = "0.31.0"
 dependencies = [
  "async-trait",
  "dirs 6.0.0",
- "dotenvy",
  "hex",
  "hkask-capability",
  "hkask-cns",

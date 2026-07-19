@@ -15,7 +15,7 @@
 {# P12: every selection action carries replicant/owner identity #}
 
 Select evidence source: {{ target_source | default('all') }}
-Discovered findings to map: {{ discovered_findings | default([]) }}
+Seed findings (optional, from previous cycle): {{ seed_findings | default([]) }}
 Existing taxonomy mappings: {{ existing_taxonomy_mappings | default([]) }}
 Convergence baseline: {{ convergence_metric | default(1.0) }}
 
