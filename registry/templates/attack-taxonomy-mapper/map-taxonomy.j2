@@ -1,210 +1,132 @@
-{# goal: For each finding from select-evidence, map to an OSC&R taxonomy entry (dependency confusion, typosquatting, malicious commit injection, build pipeline compromise, unmaintained component, unverified registry) plus OWASP Supply Chain category. Apply pragmatic-cybernetics (feedback loop, variety, Good Regulator). Emit cns.taxonomy.map span per mapping (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Every mapping includes concrete evidence (finding reference, CWE category, OSC&R category, OWASP SC category). No invented OSC&R categories. Replicant_host mandatory (P12). Registry authoritative (P5.1). #}
-{# Maps each finding to OSC&R + OWASP Supply Chain dual taxonomy #}
-{# Emits cns.taxonomy.map CNS span per mapping (P9) — namespace registered #}
-{# Applies pragmatic-cybernetics: feedback loop, variety, Good Regulator #}
+{# goal: Read finding evidence (from supply-chain-sentinel and kali-audit) within workspace (P4). Map each finding to OSC&R taxonomy entry + OWASP Supply Chain category. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.taxonomy.map spans (P9 — namespace registered). No synthetic findings; replicant_host mandatory (P12). Evidence-backed only (P8). OSC&R IDs are PROPOSED mappings — verify against oscar.io. #}
+{# Reads findings discovered in select-evidence phase #}
+{# For each finding, maps to OSC&R category + OWASP SC category #}
+{# Applies pragmatic-cybernetics: feedback loop (defense layer for attack pattern?),
+  variety (alternative attack vectors in same OSC&R category?),
+  Good Regulator (is defense layer mapped to correct OSC&R category?) #}
+{# Emits `cns.taxonomy.map` span per mapping (P9) #}
+{# Every mapping requires concrete evidence: finding reference, CWE category,
+  OSC&R category, OWASP SC category #}
+{# Relationships: complements `supply-chain-sentinel` (adds taxonomy layer);
+  parallel to `adversarial-red-team` (ATLAS for LLM, OSC&R for supply chain) #}
 
-INPUT: findings_to_map = {{ findings_to_map }} (structured array from select-evidence phase)
-INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings | default([]) }} (skip — already mapped)
-INPUT: osc_r_reference = {{ osc_r_reference | default([]) }} (OSC&R category list verified against oscar.io — see SKILL.md §OSC&R Taxonomy Reference)
+INPUT: findings_to_map = {{ findings_to_map }}
+INPUT: source = {{ source }}
+INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings | default([]) }}
 INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous mapping)
 
-{# OSC&R category list (PROPOSED — must verify against live oscar.io before
-   registry commit; see SKILL.md note). This skill does NOT invent categories —
-   it maps findings to existing entries. If a finding does not fit any listed
-   category, mark it `unmapped` with `unmapped_reason` — do NOT fabricate a
-   category. #}
-{% set osc_r_categories = [
-  {id: 'dependency_confusion', cwe: 'CWE-829',  owasp_sc: 'SC04', pattern: 'Manifest references package name not in private registry but exists in public registry'},
-  {id: 'typosquatting',         cwe: 'CWE-829',  owasp_sc: 'SC05', pattern: 'Dependency name differs from canonical by <=2 chars (Levenshtein distance)'},
-  {id: 'malicious_commit_injection', cwe: 'CWE-1104', owasp_sc: 'SC06', pattern: 'Git dependency references unverified commit SHA'},
-  {id: 'build_pipeline_compromise', cwe: 'CWE-1357', owasp_sc: 'SC07', pattern: 'CI workflow references untrusted action without SHA pinning'},
-  {id: 'unmaintained_component', cwe: 'CWE-1104', owasp_sc: 'SC08', pattern: 'Dependency with no registry updates in manifest metadata'},
-  {id: 'unverified_registry',   cwe: 'CWE-829',  owasp_sc: 'SC09', pattern: 'Dependency source is git = ... or path = ... without registry reference'}
-] %}
+MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel or kali-audit):
+1. Read each finding listed in `findings_to_map`. Extract: finding reference
+   (regression ID or finding ID), CWE category, manifest path, evidence
+   snippet, severity.
+2. For each finding, determine the OSC&R taxonomy category via CWE
+   disambiguation:
+   - CWE-829 (Inclusion from Untrusted Control Sphere) + git/path dependency
+     → OSC&R: dependency confusion (if package name exists in both private
+     and public registry) OR typosquatting (if name differs from canonical
+     by ≤2 chars) OR unverified registry (if source is git/path without
+     registry reference).
+   - CWE-1104 (Unmaintained Third-Party Components) + no recent registry
+     updates → OSC&R: unmaintained component.
+   - CWE-1357 (Reliance on Component Not Updateable) + CI workflow
+     references untrusted action → OSC&R: build pipeline compromise.
+   - CWE-829 + git dependency references unverified commit SHA → OSC&R:
+     malicious commit injection.
+3. For each OSC&R category, determine the OWASP Supply Chain category
+   (dual taxonomy mapping):
+   - dependency confusion → OWASP SC: SC04
+   - typosquatting → OWASP SC: SC05
+   - malicious commit injection → OWASP SC: SC06
+   - build pipeline compromise → OWASP SC: SC07
+   - unmaintained component → OWASP SC: SC08
+   - unverified registry → OWASP SC: SC09
+   NOTE: The OWASP SC category codes (SC04–SC09) are PROPOSED mappings.
+   Verify against live OWASP Supply Chain documentation before use.
+4. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt` oracle phase):
+   - IS vs OUGHT: describe what the finding IS (CWE category + evidence)
+     vs what it OUGHT to map to (OSC&R attack pattern + OWASP SC category).
+   - Epistemic mode: `Declarative` (finding observed), `Probabilistic`
+     (OSC&R category inference from CWE + evidence pattern), `Subjunctive`
+     (potential alternative mappings — must be labeled clearly).
+   - Provenance: `Direct measurement` (read finding), `Inference` (CWE →
+     OSC&R disambiguation), `Assessment` (dual taxonomy mapping) — must
+     label each mapping's provenance.
+5. Apply grill-me self-challenge (like `bug-hunt`): Could this finding map
+   to a different OSC&R category? Is the CWE → OSC&R mapping ambiguous?
+   Would a reviewer dispute this mapping? If yes, note alternative mappings
+   and downgrade confidence. Only propose `CONFIRMED` mapping when
+   evidence is unambiguous.
+6. Apply pragmatic-cybernetics analysis (feedback loops):
+   - Feedback loop: does the OSC&R attack pattern have a corresponding
+     defense layer? (e.g., dependency confusion → registry verification
+     layer in supply-chain-sentinel).
+   - Variety: are there alternative attack vectors in the same OSC&R
+     category? (e.g., dependency confusion can occur via name collision,
+     registry substitution, or path hijacking).
+   - Good Regulator: is the defense layer mapped to the correct OSC&R
+     category? (e.g., does deny.toml advisory actually prevent the
+     mapped OSC&R attack pattern?).
+7. For each mapping, emit structured result:
+   `finding_reference`, `cwe_category`, `evidence_snippet` (from finding),
+   `osc_r_category` (name + proposed ID), `owasp_sc_category` (name +
+   proposed code), `mapping_confidence` (confirmed/probable/possible),
+   `alternative_mappings` (list if ambiguous), `defense_layer_mapped`
+   (which supply-chain-sentinel defense layer addresses this OSC&R category),
+   `provenance`, `epistemic_mode`, `replicant_host`.
 
-MAPPING ACTIONS (concrete — evidence-backed only, P8):
-1. For each finding in `findings_to_map` (skip entries in
-   `existing_taxonomy_mappings` — already mapped, P5 minimalism):
-2. Match the finding's `cwe_reference` against `osc_r_categories[].cwe`:
-   - CWE-829 (Inclusion from Untrusted Control Sphere) → candidate
-     categories: `dependency_confusion`, `typosquatting`,
-     `unverified_registry`. Disambiguate using the finding's
-     `evidence_snippet` and `defense_layers_missing`:
-       * `dependency_confusion`: evidence references a package name
-                         not in private registry but available publicly.
-       * `typosquatting`: evidence references a dependency name within
-                         Levenshtein distance ≤2 of a canonical name.
-       * `unverified_registry`: evidence references `git = ...` or
-                         `path = ...` without registry URL.
-   - CWE-1104 (Unmaintained Third-Party Components) → candidate
-     categories: `malicious_commit_injection`, `unmaintained_component`.
-     Disambiguate:
-       * `malicious_commit_injection`: evidence references a git
-                         dependency with unverified commit SHA.
-       * `unmaintained_component`: evidence references a dependency
-                         with no registry updates in manifest metadata.
-   - CWE-1357 (Reliance on Component Not Updateable) → candidate
-     category: `build_pipeline_compromise` (CI workflow references
-     untrusted action without SHA pinning — the action is not
-     updateable to a verified version).
-3. If the finding's `cwe_reference` does not match any OSC&R category's
-   CWE mapping, mark the finding `unmapped` with
-   `unmapped_reason: "no_osc_r_category_for_cwe"` — do NOT fabricate
-   a category. Record in `unmapped_findings` output array.
-4. If multiple OSC&R categories match, choose the one whose
-   `pattern` best fits the finding's `evidence_snippet`. Record the
-   runner-up categories in `alternative_mappings` for transparency
-   (P11 visibility).
-5. Apply pragmatic-cybernetics (embedded reasoning, like bug-hunt
-   oracle phase and supply-chain-sentinel probe phase):
-   - Feedback loop: does the mapped OSC&R attack pattern have a
-     corresponding defense layer in the finding's
-     `defense_layers_present`? If yes → defense layer exists (note
-     whether it is enforcing). If no → defense layer missing
-     (record as `defense_gap`).
-   - Variety (Ashby's Law): are there alternative attack vectors
-     within the same OSC&R category that the existing defense
-     layers do not cover? E.g., for `dependency_confusion`, the
-     defense layer `registry_trust` may block public-registry
-     substitution but not internal-namespace confusion. Record
-     `variety_gap` if alternative vectors exist.
-   - Good Regulator check: is the defense layer (if present)
-     actually enforcing the constraint, or is it advisory? E.g.,
-     `deny.toml` advisory section is enforcing (cargo-deny fails
-     CI); a comment in `Cargo.toml` is advisory. Record
-     `regulator_strength: enforcing | advisory | missing`.
-6. For each mapped finding, produce structured mapping:
-   `finding_reference`, `cwe_reference`, `osc_r_category` (the
-   `id` from `osc_r_categories`), `osc_r_pattern` (the matched
-   pattern description), `owasp_sc_category` (e.g., `SC04`), 
-   `evidence_snippet` (quoted from the finding — verifiable),
-   `defense_layers_present` (from finding), `defense_layers_missing`
-   (from finding), `defense_gap` (boolean — does the OSC&R pattern
-   lack a corresponding defense layer?), `variety_gap` (boolean —
-   do alternative vectors in the same category remain uncovered?),
-   `regulator_strength` (`enforcing` | `advisory` | `missing`),
-   `alternative_mappings` (list of runner-up OSC&R categories),
-   `mapping_confidence` (`high` | `medium` | `low` — justified by
-   evidence specificity), `replicant_host`.
-7. For each unmapped finding, produce:
-   `finding_reference`, `cwe_reference`, `unmapped_reason`
-   (`no_osc_r_category_for_cwe` | `ambiguous_evidence` |
-   `missing_cwe_reference`), `evidence_snippet`, `replicant_host`.
+CNS SPAN EMISSION (P9 — every taxonomy mapping):
+- `cns.taxonomy.map` per finding mapped (target: `"cns.taxonomy.map"`,
+  message: `"CNS"`, operation: `"map_taxonomy"`, finding_reference: `...`,
+  osc_r_category: `...`, owasp_sc_category: `...`, mapping_confidence: `...`,
+  replicant_host: `...`, latency_ms: ...).
+- The span namespace is registered in `CANONICAL_NAMESPACES`
+  (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
-CNS SPAN EMISSION (P9 — per mapping):
-- `cns.taxonomy.map` is registered in `CANONICAL_NAMESPACES`
-  (`crates/hkask-types/src/event.rs`). Emit span per mapping:
-  (`target: "cns.taxonomy.map"`, message: `"CNS"`,
-  operation: `"map_taxonomy"`, finding_reference, cwe_reference,
-  osc_r_category, owasp_sc_category, mapping_confidence,
-  defense_gap, replicant_host, latency_ms).
-- Emit unconditionally — namespace IS registered. Do NOT use
-  "if registered; else note gap" language.
+CONSTRAINT — Evidence integrity (P8 — semantic grounding):
+- No synthetic findings. Every `evidence_snippet` must be verifiable by
+  reading the cited finding from `supply-chain-sentinel` or `kali-audit`
+  output or `security/regressions/` YAML.
+- No invented OSC&R categories. Only map to existing entries in the
+  oscar.io framework. The OSC&R category names and IDs are PROPOSED
+  mappings — verify against live oscar.io before use.
+- Source citations must reference concrete URLs or documents actually
+  consulted: OSC&R framework (oscar.io), OWASP Supply Chain reference,
+  MITRE CWE definitions, supply-chain-sentinel SKILL.md, kali-audit
+  SKILL.md.
 
-CONSTRAINTS (P5 minimalism, P8 evidence integrity, P12 host):
-- No invented OSC&R categories — only map to entries in
-  `osc_r_categories` (which must be verified against live oscar.io
-  per SKILL.md note).
-- No synthetic findings — only map findings from `findings_to_map`.
-- Every mapping includes concrete evidence: `finding_reference`,
-  `cwe_reference`, `osc_r_category`, `owasp_sc_category`,
-  `evidence_snippet`.
-- Skip entries in `existing_taxonomy_mappings` — P5 minimalism,
-  no duplicate mapping work.
-- `visibility: public` — no hidden mapping controls (P3, P4).
-- Registry (this manifest.yaml + templates) is authoritative over
-  SKILL.md (P5.1).
-- Every mapping includes `replicant_host` identity (P12).
-- When multiple OSC&R categories match, record `alternative_mappings`
-  for transparency (P11) — do NOT silently pick one.
-- When no OSC&R category matches, mark `unmapped` with explicit
-  reason — do NOT force a mapping.
-- Apply pragmatic-cybernetics feedback loop analysis: defense layer
-  presence/absence for the mapped attack pattern, variety of
-  alternative vectors, Good Regulator enforcement strength.
+RELATIONSHIP TO OTHER SKILLS (explicit — no overlap ambiguity):
+- `supply-chain-sentinel`: performs manifest audit and proposes regressions
+  with CWE mappings. `attack-taxonomy-mapper` consumes those findings and
+  adds OSC&R + OWASP SC taxonomy layer. Complementary — finding generation
+  vs taxonomy mapping.
+- `kali-audit`: maps to OWASP LLM / ATLAS for LLM/code.
+  `attack-taxonomy-mapper` maps to OSC&R for supply chain. Parallel
+  taxonomy discipline, distinct taxonomies.
+- `adversarial-red-team`: uses MITRE ATLAS for LLM adversarial.
+  `attack-taxonomy-mapper` uses OSC&R for supply chain adversarial.
+  Same taxonomy discipline, different domain.
+- `bug-hunt`: provides decomposed pipeline structure. This skill replicates
+  that structure (select-evidence ≈ charter; map-taxonomy ≈ probe + oracle;
+  taxonomize ≈ taxonomize + report; convergence-check ≈ convergence).
+
+MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
+- Who: Supply chain attacker / threat actor taxonomy (the subject of the
+  taxonomy — the agent is the replicant host, P12).
+- What: Finding to map / OSC&R taxonomy entry / OWASP SC category.
+- Where: Workspace / regression library / CI logs.
+- When: Audit cycle / incident investigation.
+- Why: P3.1 (structured taxonomy for supply chain threats — like MITRE
+  ATLAS for LLM); P8 (semantic grounding — findings need taxonomy context
+  for severity and remediation priority); P9 (taxonomy mapping observable
+  via `cns.taxonomy.*` spans).
+- How: Discover findings → read evidence → map to OSC&R → map to OWASP SC
+  → taxonomize → propose taxonomy_mapping field → emit CNS span → compute
+  convergence.
+- If any of these 6 were missing, this skill would violate P5. All 6 present.
 
 OUTPUT FORMAT:
 JSON object with fields:
-`mappings` (structured array — only evidence-backed, each with
-`finding_reference`, `cwe_reference`, `osc_r_category`,
-`osc_r_pattern`, `owasp_sc_category`, `evidence_snippet`,
-`defense_layers_present`, `defense_layers_missing`, `defense_gap`,
-`variety_gap`, `regulator_strength`, `alternative_mappings`,
-`mapping_confidence`, `replicant_host`), `unmapped_findings`
-(structured array with `finding_reference`, `cwe_reference`,
-`unmapped_reason`, `evidence_snippet`, `replicant_host`),
-`mapping_counts` ({total, mapped, unmapped, by_osc_r_category,
-by_owasp_sc_category}), `replicant_host`, `cns_span_emitted: true`.
-
-5W1H GATE CHECK (P5): Who = replicant host (P12); What = OSC&R +
-OWASP SC taxonomy mapping per finding; Where = findings_to_map
-array (from select-evidence); When = map-taxonomy phase (after
-select-evidence); Why = P8 semantic grounding (taxonomy mapping
-gives findings attack-pattern context) / P9 observable regulation;
-How = match CWE → OSC&R category → OWASP SC category → apply
-pragmatic-cybernetics → emit CNS span per mapping.
-All 6 present — passes gate.
-
-RELATIONSHIP (explicit): Consumes findings_to_map from
-select-evidence. Produces mappings consumed by taxonomize. Does
-NOT overlap with supply-chain-sentinel (which produces findings)
-or kali-audit (which produces OWASP/ATLAS mappings for code/templates/
-MCP). This skill is the OSC&R mapping LAYER. P5 minimalism: each
-phase answers one 5W1H dimension. map-taxonomy answers WHAT +
-HOW (mapping logic).
-
-MINIMAL: One template (`KnowAct`); no extra scanning; uses
-findings_to_map from select-evidence only; no synthetic mappings.
-
-EVIDENCE-BACKED ONLY (P8): Every mapping has a `finding_reference`
-traceable to an upstream finding. `evidence_snippet` is quoted from
-the upstream finding — verifiable. No fabricated mappings.
-
-EVOLUTIONARY (P7): New OSC&R categories can be added to
-`osc_r_categories` as the oscar.io framework evolves — but only
-when verified against live oscar.io, not speculatively.
-
-OCAP BOUNDARY (P4): Maps findings to taxonomy entries only; no
-external taxonomy database download without user consent (P2); no
-ambient scanning.
-
-CNS REGULATION (P9): `cns.taxonomy.map` emitted per mapping —
-namespace registered in `CANONICAL_NAMESPACES` (event.rs). Emit
-unconditionally.
-
-REPLICANT HOST (P12): `replicant_host` mandatory in every mapping
-and unmapped_findings entry.
-
-VISIBILITY (P11): Mapping output public; alternative_mappings
-recorded for transparency; unmapped_findings recorded with
-explicit reason.
-
-SAFETY FLOOR (P3.1): Taxonomy mapping gives findings attack-pattern
-context, enabling structured incident response — protects
-Generative Space container.
-
-SOURCE REFERENCES (concrete — P8):
-- MITRE CWE-1104, CWE-829, CWE-1357 (mitre.org/data/definitions/)
-- OWASP Supply Chain reference (owasp.org/www-project-software-supply-chain-security/)
-- OSC&R framework (oscar.io — verify live taxonomy before mapping)
-- security/regressions/README.md (taxonomy_mapping field format)
-- supply-chain-sentinel SKILL.md (source of CWE-mapped findings)
-- kali-audit SKILL.md (source of OWASP/ATLAS-mapped findings —
-  surface: supply-chain subset only)
-- bug-hunt SKILL.md (oracle phase pragmatic-cybernetics pattern
-  adopted: IS/OUGHT, feedback loop, variety, Good Regulator)
-- pragmatic-cybernetics SKILL.md (feedback loop analysis, variety
-  engineering, Good Regulator check)
-- principles.md (P3.1, P5, P5.1, P8, P9, P11, P12 grounding)
-
-REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
-conflict, registry wins. This template is the canonical map-taxonomy
-phase definition.
-
-NO FABRICATION: Only findings with concrete upstream references are
-mapped. Findings without a matching OSC&R category are marked
-`unmapped` with explicit reason — never force-mapped.
-
-CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
-map-taxonomy phase does not compute metric. Maintains pipeline
-decomposition (P5 minimalism).
+`findings_to_map` (list with mapping status), `mappings` (structured array
+— only evidence-backed), `mapping_confidence_summary` (confirmed/probable/
+possible counts), `defense_layer_coverage` (list), `replicant_host`,
+`source_citations`.

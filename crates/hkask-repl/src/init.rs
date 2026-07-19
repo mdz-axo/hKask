@@ -169,13 +169,14 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
         }
     };
     let daemon_pid = child.id();
-    // Drop stdin/stdout handles (already null). Keep stderr for diagnostics if
-    // the daemon fails to bind within the timeout.
+    // Keep stderr for diagnostics if the daemon fails to bind within the timeout.
     let stderr = child.stderr.take();
-    drop(child);
 
     // Poll the socket for up to 5 seconds. The daemon needs time to build
     // AgentService, start CNS loops, and bind the socket.
+    // Note: this is a blocking poll pattern (block_on + thread::sleep), not an
+    // async loop. This is intentional — we're on a blocking thread and need to
+    // wait for the daemon to become ready before proceeding.
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if rt
@@ -187,12 +188,20 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
                 pid = daemon_pid,
                 "Daemon auto-started successfully"
             );
+            // Daemon is live — detach the child by dropping the handle.
+            drop(child);
             return true;
         }
         std::thread::sleep(Duration::from_millis(200));
     }
 
-    // Daemon didn't bind in time. If we captured stderr, log it for diagnostics.
+    // Daemon didn't bind in time. Kill the child process to prevent a zombie
+    // and remove the stale socket so the next attempt starts clean.
+    let _ = child.kill();
+    let _ = child.wait(); // Reap the zombie
+    let _ = std::fs::remove_file(&socket_path); // Remove stale socket
+
+    // Log captured stderr for diagnostics.
     if let Some(mut stderr) = stderr {
         use std::io::Read;
         let mut buf = String::new();
@@ -202,20 +211,20 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
                 target: "hkask.repl",
                 pid = daemon_pid,
                 stderr = %buf.trim(),
-                "Daemon process stderr (did not bind socket within 5s)"
+                "Daemon process stderr (did not bind socket within 5s, process killed)"
             );
         } else {
             tracing::warn!(
                 target: "hkask.repl",
                 pid = daemon_pid,
-                "Daemon did not bind socket within 5s — no stderr output"
+                "Daemon did not bind socket within 5s — no stderr output, process killed"
             );
         }
     } else {
         tracing::warn!(
             target: "hkask.repl",
             pid = daemon_pid,
-            "Daemon did not bind socket within 5s — MCP servers will use direct mode"
+            "Daemon did not bind socket within 5s — process killed, MCP servers will use direct mode"
         );
     }
     false

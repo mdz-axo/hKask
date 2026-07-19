@@ -9,8 +9,6 @@ use hkask_inference::{InferenceConfig, InferenceRouter, ProviderId};
 use hkask_ports::InferencePort;
 use hkask_types::template::LLMParameters;
 
-fn load_env() {}
-
 fn condenser_params() -> LLMParameters {
     LLMParameters {
         temperature: 0.3,
@@ -61,7 +59,6 @@ fn make_config(provider: ProviderId, base_url: &str, api_key: &str) -> Inference
 #[tokio::test]
 #[ignore = "requires DI_API_KEY"]
 async fn deepinfra_summarization() {
-    load_env();
     let api_key = std::env::var("DI_API_KEY").expect("DI_API_KEY must be set");
 
     let config = make_config(ProviderId::DeepInfra, "https://api.deepinfra.com", &api_key);
@@ -95,7 +92,6 @@ async fn deepinfra_summarization() {
 #[tokio::test]
 #[ignore = "requires TG_API_KEY"]
 async fn together_summarization() {
-    load_env();
     let api_key = std::env::var("TG_API_KEY").expect("TG_API_KEY must be set");
 
     let config = make_config(ProviderId::Together, "https://api.together.xyz", &api_key);

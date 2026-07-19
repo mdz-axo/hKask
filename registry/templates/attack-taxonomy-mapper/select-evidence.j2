@@ -1,161 +1,55 @@
-{# goal: Discover evidence sources for OSC&R taxonomy mapping — supply-chain-sentinel findings (CWE-mapped manifest evidence), kali-audit findings (OWASP/ATLAS-mapped), CI logs, manifest evidence. Read security/regressions/ for existing taxonomy_mapping fields on surface: supply-chain entries. Emit cns.taxonomy.select span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). No synthetic findings — consumes upstream skill outputs only. Registry authoritative (P5.1). #}
-{# Discovers evidence sources for taxonomy mapping #}
-{# Reads security/regressions/ for existing taxonomy_mapping fields #}
-{# Emits cns.taxonomy.select CNS span (P9) — namespace registered #}
+{# goal: Discover evidence sources (supply-chain-sentinel findings, kali-audit surface: supply-chain findings, CI logs, manifest evidence) within workspace (P4). Read security/regressions/ for existing taxonomy_mapping fields. Return concrete findings_to_map (verifiable finding references only — no synthetic findings). Emit cns.taxonomy.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Replicant host mandatory (P12). This skill consumes findings — does NOT generate new findings. #}
+{% set evidence_sources = [
+  {id: 'supply-chain-sentinel', type: 'findings', source: 'supply-chain-sentinel probe/report phase output', mapping: 'CWE-1104/CWE-829/CWE-1357 → OSC&R + OWASP SC'},
+  {id: 'kali-audit-supply-chain', type: 'findings', source: 'kali-audit surface: supply-chain regression entries', mapping: 'OWASP/ATLAS → OSC&R + OWASP SC'},
+  {id: 'ci-logs', type: 'logs', source: '.github/workflows/ci.yml + scripts/ output', mapping: 'build pipeline patterns → OSC&R build pipeline compromise'},
+  {id: 'manifest-evidence', type: 'manifest', source: 'Cargo.toml, deny.toml, lockfiles', mapping: 'dependency patterns → OSC&R dependency confusion / typosquatting'},
+  {id: 'all', type: 'auto', source: 'auto-discover all evidence sources', mapping: 'auto'}
+] %}
 
-INPUT: target_surface = {{ target_surface | default('taxonomy') }}
-INPUT: supply_chain_findings = {{ supply_chain_findings | default([]) }} (from supply-chain-sentinel — CWE-mapped manifest evidence)
-INPUT: kali_audit_findings = {{ kali_audit_findings | default([]) }} (from kali-audit — OWASP/ATLAS-mapped)
-INPUT: ci_log_paths = {{ ci_log_paths | default([]) }} (concrete file paths only — no synthetic logs)
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous taxonomy mapping)
+{# Discover evidence sources in the workspace #}
+{# Read security/regressions/ to find existing taxonomy_mapping fields #}
+{# Return: selected_source, findings_to_map, existing_taxonomy_mappings, evidence_sources #}
+{# P5: minimal — no new findings generated; only consumes existing findings #}
+{# P9: emit cns.taxonomy.select span with discovered evidence and mapping count #}
+{# P12: every selection action carries replicant/owner identity #}
 
-{# Evidence sources are CONSUMED, not generated. This skill does NOT scan
-   manifests directly — that is supply-chain-sentinel's responsibility.
-   This skill reads upstream findings + existing regression taxonomy_mapping
-   fields. P5 minimalism: no duplicate manifest scanning. #}
+Select evidence source: {{ target_source | default('all') }}
+Discovered findings to map: {{ discovered_findings | default([]) }}
+Existing taxonomy mappings: {{ existing_taxonomy_mappings | default([]) }}
+Convergence baseline: {{ convergence_metric | default(1.0) }}
 
-DISCOVERY ACTIONS (concrete — must use file:read, registry inspection, or upstream skill output):
-1. Collect supply-chain-sentinel findings: each finding must include
-   `dependency`, `version_spec`, `manifest_path`, `line`, `evidence_snippet`,
-   `cwe_reference` (CWE-1104 / CWE-829 / CWE-1357), `severity`,
-   `defense_layers_present`, `defense_layers_missing`, `source_citation`.
-   Findings without `cwe_reference` are unmappable — flag as
-   `unmappable_reason: "missing_cwe_reference"`.
-2. Collect kali-audit findings with `surface: supply-chain` (the subset
-   relevant to OSC&R taxonomy — kali-audit's other surfaces map to OWASP
-   LLM / ATLAS, not OSC&R). Each finding must include `surface`,
-   `cwe_reference` (if present), `owasp_llm` (if present), `severity`,
-   `evidence_snippet`, `discovered_in`.
-3. Read `security/regressions/` directory for YAML entries with
-   `surface: supply-chain`. For each entry, check whether the optional
-   `taxonomy_mapping` field is present. List:
-   - `existing_taxonomy_mappings`: entries that already have
-     `taxonomy_mapping` (skip re-mapping in map-taxonomy phase — P5
-     minimalism, no duplicate work).
-   - `regressions_needing_mapping`: entries with `surface: supply-chain`
-     and `cwe` field but no `taxonomy_mapping` field yet.
-4. Collect CI log paths (concrete file paths only — no synthetic logs).
-   CI logs may reveal build-pipeline-compromise patterns (untrusted
-   GitHub Actions without SHA pinning, unverified runner image references).
-   Each CI log path must exist on disk — do NOT invent paths.
-5. Build `findings_to_map` array: union of (a) supply-chain-sentinel
-   findings, (b) kali-audit `surface: supply-chain` findings, (c)
-   regressions_needing_mapping entries (treat each as a finding to
-   back-fill taxonomy_mapping for). Each entry tagged with
-   `evidence_source` (`supply-chain-sentinel` | `kali-audit` |
-   `regression-library` | `ci-log`).
-6. Verify every findings_to_map entry has concrete evidence
-   (manifest_path + line, or regression id + cwe field, or ci_log_path +
-   line). Drop entries without evidence — do NOT fabricate evidence
-   to make an entry mappable. Record dropped entries as
-   `unmappable_findings` with `unmappable_reason`.
+{# Evidence: concrete finding references only — no fabricated findings #}
+{# Source citations: supply-chain-sentinel SKILL.md, kali-audit SKILL.md, OSC&R framework (oscar.io) #}
+{# 5W1H gate: Who = supply chain attacker / threat actor taxonomy; What = finding to map; Where = workspace / regression library; Why = P3.1 structured taxonomy for supply chain threats; How = discover + read + map + taxonomize + report #}
 
-CNS SPAN EMISSION (P9):
-- `cns.taxonomy.select` is registered in `CANONICAL_NAMESPACES`
-  (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
-  (`target: "cns.taxonomy.select"`, message: `"CNS"`,
-  operation: `"select_evidence"`, findings_to_map_count,
-  existing_taxonomy_mappings_count, regressions_needing_mapping_count,
-  unmappable_findings_count, replicant_host, latency_ms).
-
-CONSTRAINTS (P5 minimalism, P8 evidence integrity, P12 host):
-- Do NOT scan manifests directly — that is supply-chain-sentinel's
-  responsibility. This skill consumes upstream findings.
-- Do NOT invent findings — only consume what supply-chain-sentinel and
-  kali-audit produced.
-- Do NOT invent CI log paths — only list paths that exist on disk.
-- Do NOT invent OSC&R categories — categories are mapped in the
-  map-taxonomy phase, not here.
-- Every evidence source must be traceable to a concrete artifact
-  (upstream skill output file, regression YAML, CI log file).
-- `visibility: public` — no hidden taxonomy mapping controls (P3, P4).
-- Registry (this manifest.yaml + templates) is authoritative over
-  SKILL.md (P5.1).
-- Every output includes `replicant_host` identity (P12).
-- Apply pragmatic-cybernetics (like bug-hunt probe phase): trace
-  evidence-source polarity (does the upstream finding increase or
-  decrease mapping confidence?), check variety (multiple evidence
-  sources converging on the same finding?), Good Regulator (is the
-  evidence source enforcing the mapping — i.e., does it have a CWE
-  reference that constrains the OSC&R category?).
-
-OUTPUT FORMAT:
-JSON object with fields:
-`evidence_sources` (list: {source: "supply-chain-sentinel" | "kali-audit"
-| "regression-library" | "ci-log", reference: <path or skill-output-id>,
-findings_count}), `findings_to_map` (structured array — only
-evidence-backed, each with `evidence_source`, `finding_reference`,
-`cwe_reference`, `severity`, `evidence_snippet`, `manifest_path` or
-`regression_id` or `ci_log_path`), `existing_taxonomy_mappings` (list
-of regression IDs that already have taxonomy_mapping — skip in
-map-taxonomy), `regressions_needing_mapping` (list of regression IDs
-with cwe but no taxonomy_mapping), `unmappable_findings` (list with
-`unmappable_reason`), `replicant_host`, `cns_span_emitted: true`.
-
-5W1H GATE CHECK (P5): Who = replicant host (P12); What = evidence
-sources for taxonomy mapping; Where = upstream skill outputs +
-security/regressions/ + CI logs; When = audit cycle (consumes prior
-phase outputs); Why = P3.1 safe container / P8 semantic grounding
-(taxonomy mapping requires evidence) / P9 observable regulation;
-How = collect + verify + classify evidence source + emit CNS span.
-All 6 present — passes gate.
-
-RELATIONSHIP (explicit): Consumes supply-chain-sentinel findings
-(CWE-mapped manifest evidence) and kali-audit findings (OWASP/ATLAS-
-mapped). Does NOT overlap with supply-chain-sentinel (which scans
-manifests) or kali-audit (which scans code/templates/MCP). This skill
-is the taxonomy-mapping LAYER on top of their findings — P5 minimalism:
-each skill answers one 5W1H dimension clearly. select-evidence answers
-WHERE (evidence sources).
-
-MINIMAL: One template (`KnowAct`); no extra scanning; uses upstream
-skill outputs only; no synthetic findings.
-
-EVIDENCE-BACKED ONLY (P8): Every findings_to_map entry has a concrete
-reference (upstream skill output, regression YAML, CI log path). No
-fabricated findings. No fabricated evidence snippets.
-
-EVOLUTIONARY (P7): New evidence sources can be added as upstream
-skills evolve (e.g., if a future skill produces SBOM findings, this
-phase can consume them — but only when they exist, not speculatively).
-
-OCAP BOUNDARY (P4): Reads only declared evidence sources (upstream
-skill outputs, regression library, CI logs); no ambient scanning; no
-external taxonomy database download without user consent (P2).
-
-CNS REGULATION (P9): `cns.taxonomy.select` emitted unconditionally —
-namespace registered in `CANONICAL_NAMESPACES` (event.rs).
-
-REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
-
-VISIBILITY (P11): Evidence source list public; no hidden mapping
-controls.
-
-SAFETY FLOOR (P3.1): Taxonomy mapping protects Generative Space —
-unmapped supply chain findings leave attack-pattern context ambiguous,
-degrading incident response.
-
-SOURCE REFERENCES (concrete — P8):
-- MITRE CWE-1104, CWE-829, CWE-1357 (mitre.org/data/definitions/)
-- OWASP Supply Chain reference (owasp.org/www-project-software-supply-chain-security/)
-- OSC&R framework (oscar.io — verify live taxonomy before mapping)
-- security/regressions/README.md (regression YAML format —
-  taxonomy_mapping field extends this format, backward-compatible)
-- supply-chain-sentinel SKILL.md (source of CWE-mapped findings)
-- kali-audit SKILL.md (source of OWASP/ATLAS-mapped findings —
-  surface: supply-chain subset only is relevant to OSC&R mapping)
-- bug-hunt SKILL.md (decomposed pipeline pattern: Charter → Probe ≈
-  this skill's select-evidence → map-taxonomy)
-- principles.md (P3.1, P5, P5.1, P8, P9, P12 grounding)
-
-REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
-conflict, registry wins. This template is the canonical select-evidence
-phase definition.
-
-NO FABRICATION: Only findings with concrete upstream references are
-listed in findings_to_map. Entries without evidence are dropped to
-unmappable_findings with explicit unmappable_reason.
-
-CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
-select-evidence phase does not compute metric. Maintains pipeline
-decomposition (P5 minimalism — each phase answers one 5W1H dimension).
+ACTION: Emit `cns.taxonomy.select` span (P9, P12) with discovered evidence sources, findings to map, and existing mapping count.
+ACTION: Read `security/regressions/` for entries with `surface: supply-chain` and any existing `taxonomy_mapping` field.
+ACTION: Return JSON: `{source, findings_to_map: [...], existing_taxonomy_mappings: [...], evidence_sources: [...], replicant_host}`.
+CONSTRAINT: Do NOT fabricate findings. Only list findings actually produced by `supply-chain-sentinel` or `kali-audit`.
+CONSTRAINT: Each discovered finding must include concrete reference (regression ID, manifest path, finding source skill).
+CONSTRAINT: Use `public` visibility; no hidden taxonomy mappings (P3, P4).
+CONSTRAINT: Registry (this manifest.yaml + templates) is authoritative over SKILL.md (P5.1).
+CONSTRAINT: This skill is complementary to `supply-chain-sentinel` (performs manifest audit and proposes regressions with CWE mappings) — this skill adds OSC&R taxonomy mapping layer. Does NOT duplicate finding generation.
+CONSTRAINT: This skill is complementary to `kali-audit` (maps to OWASP LLM / ATLAS for LLM/code) — this skill maps to OSC&R for supply chain. Parallel taxonomy discipline, distinct taxonomies.
+CONSTRAINT: This skill is parallel to `adversarial-red-team` (uses MITRE ATLAS for LLM adversarial) — this skill uses OSC&R for supply chain adversarial. Same taxonomy discipline, different domain.
+CONSTRAINT: Reference concrete taxonomy: OSC&R framework (Open Software Supply Chain Attack Reference — oscar.io, co-created by Google/Microsoft/GitLab), OWASP Supply Chain reference, MITRE CWE-1104/CWE-829/CWE-1357.
+CONSTRAINT: Every taxonomy mapping must cite finding reference, CWE category, OSC&R category, OWASP SC category — not summary description alone.
+CONSTRAINT: If target_source is 'auto', discover all `surface: supply-chain` regression entries and any `supply-chain-sentinel` findings output. Prioritize entries without existing `taxonomy_mapping` field.
+CONSTRAINT: Read actual regression YAML files (not synthetic) before proposing any taxonomy mapping.
+CONSTRAINT: Every output must include `replicant_host` identity (P12) — no anonymous taxonomy mapping.
+CONSTRAINT: Apply pragmatic-cybernetics (like `bug-hunt` probe phase): trace mapping polarity (does the OSC&R category indicate increasing or decreasing risk?), check variety (are there alternative OSC&R categories for the same finding?), perform Good Regulator check (is the defense layer mapped to the correct OSC&R category?).
+CONSTRAINT: If `security/regressions/` contains entries with `taxonomy_mapping` field, read them as input and skip proposing duplicates.
+CONSTRAINT: Propose `taxonomy_mapping` field format: `taxonomy_mapping: {osc_r: "T1.2.3", owasp_sc: "SC04"}` — backward-compatible optional field.
+CONSTRAINT: Do NOT invent OSC&R category IDs. Only map to existing entries in the oscar.io framework. The OSC&R category names in the SKILL.md are PROPOSED mappings — verify against live oscar.io before use.
+CONSTRAINT: If evidence discovery finds zero findings to map, return empty findings_to_map and recommend running `supply-chain-sentinel` first — do not invent findings.
+CONSTRAINT: The 5W1H gate applies: Who (supply chain attacker / threat actor taxonomy), What (finding to map / taxonomy entry), When (audit cycle / incident investigation), Where (workspace / regression library / CI logs), Why (P3.1 structured taxonomy for supply chain threats / P8 semantic grounding), How (discover + read + map + taxonomize + report + propose taxonomy_mapping field).
+CONSTRAINT: When referencing security taxonomy: use OSC&R framework name (Open Software Supply Chain Attack Reference), OWASP Supply Chain, MITRE CWE — not generic descriptions.
+CONSTRAINT: Do NOT reference `supply-chain-sentinel` or `kali-audit` as substitutes; state explicitly how this skill complements them (`supply-chain-sentinel`: manifest-level audit with CWE mappings; `kali-audit`: OWASP/ATLAS mappings for LLM/code; `attack-taxonomy-mapper`: OSC&R taxonomy mapping layer for supply chain findings).
+CONSTRAINT: Minimal — 4 templates only, no bundle, no sub-agent delegation, no extra abstraction layer. Each template answers a specific 5W1H question (select: Where; map: What + How; taxonomize: Why + What; convergence-check: When + Why).
+CONSTRAINT: Every output must include evidence-backed finding references (not synthetic) and source citations (oscar.io, OWASP Supply Chain reference, MITRE CWE list, supply-chain-sentinel SKILL.md, kali-audit SKILL.md).
+CONSTRAINT: Do NOT claim taxonomy coverage that hasn't been verified through actual finding mapping. Convergence metric must reflect real coverage, not aspirational.
+CONSTRAINT: Each taxonomy mapping proposal must use the exact YAML format from `security/regressions/README.md` plus the optional `taxonomy_mapping` field.
+CONSTRAINT: This skill is NOT a replacement for OSC&R or OWASP; it is a hKask-native taxonomy mapping skill that consumes existing findings, maps them to established taxonomies, proposes backward-compatible regression field additions, and tracks taxonomy coverage. It operates within user sovereignty (P1), consent (P2), generative space (P3), OCAP boundaries (P4), essentialism (P5), replicant space (P6), evolutionary architecture (P7), semantic grounding (P8), regulates through CNS spans (P9), operates under explicit bot/replicant taxonomy (P10), respects shared/public visibility (P11), requires host identity (P12).
+CONSTRAINT: This skill does NOT generate new findings or download external packages. It maps existing findings to taxonomy entries only (P4 boundary — consumes workspace findings, no external taxonomy download).
+CONSTRAINT: The OSC&R taxonomy IDs referenced are PROPOSED mappings based on public documentation. They MUST be verified against the live oscar.io framework before use in audit cycles. Do NOT present proposed mappings as verified.

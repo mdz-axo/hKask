@@ -29,8 +29,6 @@ use hkask_types::template::LLMParameters;
 use std::sync::Arc;
 use uuid::Uuid;
 
-fn load_env() {}
-
 fn test_token(webid: WebID) -> DelegationToken {
     let sk = derive_signing_key(b"live-adapter-test");
     DelegationToken::new(
@@ -69,7 +67,6 @@ fn require_env(var: &str) -> String {
 #[tokio::test]
 #[ignore = "requires TG_API_KEY, HF_TOKEN, HKASK_LIVE_ADAPTER_REPO, HKASK_LIVE_BASE_MODEL"]
 async fn live_together_adapter_e2e() {
-    load_env();
     let api_key = require_env("TG_API_KEY");
     let hf_repo = require_env("HKASK_LIVE_ADAPTER_REPO");
     let base_model = require_env("HKASK_LIVE_BASE_MODEL");

@@ -4,79 +4,69 @@ crate:
   version: "0.31.0"
   visibility: public
   description: >
-    OSC&R taxonomy mapping skill for hKask. Consumes findings from
+    Attack taxonomy mapping skill for hKask. Consumes findings from
     supply-chain-sentinel (CWE-mapped manifest evidence) and kali-audit
-    (OWASP/ATLAS-mapped findings) as input — does NOT generate new findings.
-    Maps each finding to the OSC&R attack taxonomy (dependency confusion,
-    typosquatting, malicious commit injection, build pipeline compromise,
-    unmaintained component, unverified registry) plus the OWASP Supply Chain
-    dual taxonomy. Adds an optional, backward-compatible `taxonomy_mapping`
-    field to existing `surface: supply-chain` regression YAML entries.
-    Emits cns.taxonomy.* spans (P9) — all four namespaces (select, map, report,
-    convergence) are registered in CANONICAL_NAMESPACES
-    (crates/hkask-types/src/event.rs). P8 evidence-backed: every mapping
-    includes concrete evidence (finding reference, CWE category, OSC&R
-    category, OWASP SC category). P12 replicant_host mandatory. Decomposed
-    into 4 phases: select-evidence → map-taxonomy → taxonomize →
-    convergence-check. Minimal (P5): 4 templates only, no bundle, no
-    sub-agent delegation. Does NOT invent OSC&R categories — only maps to
-    existing entries in the oscar.io framework.
+    (OWASP/ATLAS-mapped findings) as input — does NOT generate new
+    findings. Maps each finding to the OSC&R attack taxonomy (dependency
+    confusion, typosquatting, malicious commit injection, build pipeline
+    compromise, unmaintained component, unverified registry) plus the
+    OWASP Supply Chain dual taxonomy. Adds an optional, backward-compatible
+    `taxonomy_mapping` field to existing `surface: supply-chain` regression
+    YAML entries. Emits cns.taxonomy.* spans (P9 — all registered in
+    CANONICAL_NAMESPACES). P8 evidence-backed: every mapping includes
+    concrete evidence (finding reference, CWE category, OSC&R category,
+    OWASP SC category). P12 replicant_host mandatory. Decomposed into 4
+    phases matching bug-hunt and supply-chain-sentinel pipeline. Minimal
+    (P5): answers all 5W1H; single skill, no bundle; complements
+    supply-chain-sentinel (adds taxonomy layer) and adversarial-red-team
+    (parallel taxonomy discipline: ATLAS for LLM, OSC&R for supply chain).
 
 templates:
   - id: attack-taxonomy-mapper/select-evidence
-    name: "Select evidence sources for taxonomy mapping"
+    name: "Select evidence sources and discover findings to map"
     path: select-evidence.j2
     type: KnowAct
-    lexicon_terms: [select, evidence, finding, taxonomy, supply]
+    lexicon_terms: [select, discover, evidence, finding, taxonomy, map]
     description: >
-      Discover evidence sources: supply-chain-sentinel findings
-      (CWE-mapped manifest evidence), kali-audit findings (OWASP/ATLAS-
-      mapped), CI logs, manifest evidence. Read security/regressions/
-      for existing taxonomy_mapping fields on surface: supply-chain
-      entries. Emit cns.taxonomy.select span. Surface parameter:
-      taxonomy (single surface — distinct from supply-chain-sentinel's
-      manifest surface).
+      Discover evidence sources: supply-chain-sentinel findings (CWE-mapped
+      manifest evidence), kali-audit findings with surface: supply-chain
+      (OWASP/ATLAS-mapped), CI logs, manifest evidence. Reads regression
+      library for existing taxonomy_mapping fields. Returns findings_to_map
+      list with concrete evidence references.
 
   - id: attack-taxonomy-mapper/map-taxonomy
     name: "Map findings to OSC&R and OWASP Supply Chain taxonomy"
     path: map-taxonomy.j2
     type: KnowAct
-    lexicon_terms: [map, taxonomy, osc_r, owasp, finding]
+    lexicon_terms: [map, classify, taxonomy, oscr, owasp, supply]
     description: >
-      For each finding from select-evidence, map to an OSC&R taxonomy
-      entry (dependency confusion, typosquatting, malicious commit
-      injection, build pipeline compromise, unmaintained component,
-      unverified registry) plus OWASP Supply Chain category. Apply
-      pragmatic-cybernetics: feedback loop (does the attack pattern
-      have a defense layer?), variety (alternative attack vectors in
-      the same OSC&R category?), Good Regulator (is the defense layer
-      enforcing?). Emit cns.taxonomy.map span per mapping. Every
-      mapping includes concrete evidence (finding reference, CWE
-      category, OSC&R category, OWASP SC category). No invented
-      OSC&R categories.
+      For each finding, map to OSC&R taxonomy entry (dependency confusion,
+      typosquatting, malicious commit injection, build pipeline compromise,
+      unmaintained component, unverified registry) plus OWASP Supply Chain
+      category. Applies pragmatic-cybernetics: feedback loop (does the
+      attack pattern have a defense layer?), variety (alternative attack
+      vectors in same OSC&R category?), Good Regulator (is the defense
+      layer enforcing?). Emits cns.taxonomy.map span per mapping.
 
   - id: attack-taxonomy-mapper/taxonomize
-    name: "Classify mapped findings and propose taxonomy_mapping field"
+    name: "Classify mapped findings and propose taxonomy_mapping fields"
     path: taxonomize.j2
     type: KnowAct
-    lexicon_terms: [taxonomize, classify, pattern, signature, regression]
+    lexicon_terms: [classify, taxonomize, categorize, rank, label, report]
     description: >
-      Classify mapped findings into OSC&R categories + OWASP Supply
-      Chain dual taxonomy. Produce pattern signatures for detecting
-      similar attack patterns. Propose optional, backward-compatible
-      taxonomy_mapping field additions to existing surface: supply-chain
-      regression entries. Emit cns.taxonomy.report span. Produce
-      verdict (Pass / Conditional / Fail).
+      Classify mapped findings into OSC&R categories + OWASP Supply Chain
+      dual taxonomy. Produce pattern signatures for detecting similar
+      attack patterns. Propose backward-compatible taxonomy_mapping field
+      additions to existing surface: supply-chain regression entries
+      (status: pending). Emits cns.taxonomy.report span.
 
   - id: attack-taxonomy-mapper/convergence-check
-    name: "Compute taxonomy mapping coverage metric"
+    name: "Compute taxonomy coverage metric"
     path: convergence-check.j2
     type: KnowAct
-    lexicon_terms: [evaluate, converge, taxonomy, coverage, mapping]
+    lexicon_terms: [evaluate, converge, taxonomy, coverage, regression]
     description: >
       Compute normalized convergence metric: unmapped findings (0.40),
       OSC&R category coverage (0.25), OWASP Supply Chain coverage (0.15),
       regression taxonomy_mapping field growth (0.10), residual unmapped
       risk (0.10). Converged when metric ≤ 0.10 with ≥5% improvement.
-      Emit cns.taxonomy.convergence span unconditionally — namespace
-      registered in CANONICAL_NAMESPACES.

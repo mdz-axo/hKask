@@ -4,72 +4,72 @@ crate:
   version: "0.31.0"
   visibility: public
   description: >
-    Runtime security audit skill for hKask. Observes `hkask.*` performative
-    spans emitted by the running system and classifies runtime threats
-    (API endpoint exposure, bot traffic, LLM usage spikes, runtime
-    dependency behavior anomalies). Emits `cns.runtime.*` spans (P9) for
-    its own PDCA loop and `cns.regulation` / `cns.guard.violation` for
-    downstream defensive action. Proposes `surface: runtime` regressions
-    in `security/regressions/` using the exact YAML format from
-    `security/regressions/README.md`. P4 runtime boundary — distinct from
-    `supply-chain-sentinel`'s manifest boundary (this skill reads only
-    local CNS telemetry already emitted by the running system; no
-    external package download). P12 replicant_host mandatory in every
-    output. Anchored to MITRE CWE-1357 / CWE-829 / CWE-200, OWASP LLM06
-    (Excessive Agency) / LLM07 (System Prompt Leakage), MITRE ATLAS
-    AML.TA0010 (Exfiltration). Decomposed into 4 phases: select-signal →
-    classify-threat → emit-regulation → convergence-check.
+    Runtime security posture monitoring skill for hKask. Observes runtime
+    telemetry (hkask.* performative spans, cns.guard.* violations,
+    cns.regulation events) to detect runtime threats: API endpoint abuse,
+    bot traffic, LLM usage anomalies, and runtime dependency behavior
+    anomalies. Distinct from supply-chain-sentinel (static manifest audit,
+    P4 manifest boundary) — this skill observes runtime behavior (P4
+    runtime boundary). Anchored to MITRE CWE (CWE-1357, CWE-829, CWE-200),
+    OWASP LLM Top 10 (LLM06, LLM07), MITRE ATLAS (AML.TA0010). Consumes
+    security/regressions/ as input; proposes RR-NNNN.yaml entries with
+    surface: runtime. Emits cns.runtime.* spans (P9 — all registered in
+    CANONICAL_NAMESPACES). Decomposed into 4 phases: select-signal →
+    classify-threat → emit-regulation → convergence-check. Minimal (P5):
+    answers all 5W1H; single skill, no bundle; complements
+    supply-chain-sentinel (distinct P4 boundaries) and adversarial-red-team
+    (synthetic vs real traffic).
 
 templates:
   - id: runtime-posture-monitor/select-signal
-    name: "Select runtime signal sources and map signal types"
+    name: "Select runtime signal sources and discover telemetry"
     path: select-signal.j2
     type: KnowAct
-    lexicon_terms: [select, signal, runtime, telemetry, span]
+    lexicon_terms: [select, discover, signal, runtime, telemetry, monitor]
     description: >
-      Discover runtime signal sources (`hkask.*` performative spans,
-      `cns.guard.*` violations, `cns.regulation` events). Map signal
-      types to monitor (API endpoint exposure, bot detection, LLM usage
-      anomalies, runtime dependency behavior). Read `security/regressions/`
-      for existing `surface: runtime` entries. Emit `cns.runtime.select`
-      span. Surface parameter: runtime (single surface).
+      Discover runtime signal sources within the deployed replicant host:
+      hkask.* performative spans (tool invocations, inference calls,
+      communication events), cns.guard.* violation spans (input/output
+      filter firings, canary detections, runtime policy enforcements),
+      cns.regulation events (action blocks, substitutions, plateaus).
+      Reads regression library for existing surface: runtime checks.
+      Signal parameter: guard | regulation | tool | inference | all.
 
   - id: runtime-posture-monitor/classify-threat
-    name: "Classify observed runtime signals into threat patterns"
+    name: "Classify runtime signals into threat patterns"
     path: classify-threat.j2
     type: KnowAct
-    lexicon_terms: [classify, threat, runtime, signal, pattern]
+    lexicon_terms: [classify, threat, anomaly, runtime, signal, pattern]
     description: >
-      Classify observed runtime signals into threat patterns (endpoint
-      abuse, bot traffic, LLM usage spike, dependency behavior anomaly).
-      Apply pragmatic-cybernetics (IS/OUGHT, epistemic mode, provenance,
-      grill-me self-challenge, feedback loop polarity, variety, Good
-      Regulator). Emit `cns.runtime.classify` span per classified threat.
-      Every finding includes concrete runtime signal evidence (span
-      target, timestamp, signal value). No synthetic signals.
+      Read observed runtime signals. Classify into threat patterns:
+      endpoint abuse (repeated tool calls exceeding baseline), bot traffic
+      (automated request patterns), LLM usage spike (inference rate
+      anomaly), dependency behavior anomaly (unexpected tool invocation
+      chain). Apply pragmatic-cybernetics: IS/OUGHT (observed vs expected
+      baseline), feedback loop polarity, variety, Good Regulator. Emit
+      cns.runtime.classify spans per classified threat.
 
   - id: runtime-posture-monitor/emit-regulation
-    name: "Emit regulation events and propose runtime regressions"
+    name: "Synthesize runtime threats and propose regulation actions"
     path: emit-regulation.j2
     type: KnowAct
-    lexicon_terms: [emit, regulate, regression, runtime, guard]
+    lexicon_terms: [synthesize, regulate, emit, block, escalate, report]
     description: >
-      For each classified threat, emit a regulation event
-      (`cns.regulation`) and trigger a defensive action
-      (`cns.guard.violation` if blocking is warranted). Propose
-      `surface: runtime` regression entries using exact YAML format from
-      `security/regressions/README.md`. Emit `cns.runtime.regulate` span.
-      Produce verdict (Pass / Conditional / Fail).
+      Synthesize classified threats with MITRE CWE / OWASP LLM / ATLAS
+      taxonomy. For each threat: emit cns.regulation event and trigger
+      cns.guard.violation if blocking warranted. Propose RR-NNNN.yaml
+      entries with surface: runtime for enforced CI gates. Produce
+      verdict (Pass / Conditional / Fail) based on threat severity and
+      defense-layer firing coverage.
 
   - id: runtime-posture-monitor/convergence-check
     name: "Compute runtime posture coverage metric"
     path: convergence-check.j2
     type: KnowAct
-    lexicon_terms: [evaluate, converge, runtime, coverage, regression]
+    lexicon_terms: [evaluate, converge, runtime, coverage, posture, regression]
     description: >
       Compute normalized convergence metric: unresolved runtime threats
       (0.40), defense-layer runtime coverage (0.25), threat-pattern
-      taxonomy coverage (0.15), regression library growth (0.10),
-      residual runtime risk (0.10). Emit `cns.runtime.convergence` span
-      unconditionally (namespace registered in `CANONICAL_NAMESPACES`).
-      Converged when metric ≤ 0.10 with ≥5% improvement.
+      taxonomy coverage (0.15), regression library growth (0.10), residual
+      runtime risk (0.10). Converged when metric ≤ 0.10 with ≥5%
+      improvement.

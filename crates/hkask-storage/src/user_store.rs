@@ -1,6 +1,8 @@
 //! UserStore — Human user identity, Argon2id auth, encrypted PII, session management.
+use crate::Database;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
+use hkask_database::SqliteDriver;
 use hkask_database::driver::{query_map, query_row};
 use hkask_database::value::DbValue;
 use hkask_identity::{HumanUser, Invite, InviteStatus, ReplicantIdentity, UserSession};
@@ -105,6 +107,23 @@ impl UserStore {
     /// post: users, replicants, sessions tables created if not exists
     fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(include_str!("sql/users.sql"));
+    }
+
+    /// Open a UserStore from a database path and passphrase.
+    ///
+    /// Encapsulates the Database::open → sqlite_pool → SqliteDriver → from_driver
+    /// chain so callers don't need to know about the storage internals.
+    ///
+    /// pre:  db_path is a valid SQLCipher database path; passphrase is correct
+    /// post: returns UserStore backed by the given database; Err on open failure
+    pub fn open(db_path: &str, passphrase: &str) -> UserResult<Self> {
+        let db = Database::open(db_path, passphrase)
+            .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))?;
+        let pool = db
+            .sqlite_pool()
+            .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))?;
+        let driver = std::sync::Arc::new(SqliteDriver::new(pool));
+        Ok(Self::from_driver(driver))
     }
     /// Register a new replicant.
     ///

@@ -294,15 +294,23 @@ pub fn publish_artifact(
 ///
 /// Replaces characters that are problematic in filenames with hyphens.
 /// Agent names can contain spaces (e.g., "Jacques (Zuck)") but filenames shouldn't.
+/// Guards against path traversal: names that sanitize to `.` or `..` are
+/// replaced with `unnamed` to prevent directory escape.
 pub fn sanitize_name(name: &str) -> String {
-    name.chars()
+    let sanitized: String = name
+        .chars()
         .map(|c| match c {
             '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '(' | ')' | ' ' => '-',
             other => other,
         })
         .collect::<String>()
         .trim_matches('-')
-        .to_string()
+        .to_string();
+    // Guard against path traversal: `.` and `..` resolve to current/parent dir.
+    if sanitized == "." || sanitized == ".." {
+        return "unnamed".to_string();
+    }
+    sanitized
 }
 
 #[cfg(test)]
@@ -315,6 +323,14 @@ mod tests {
         assert_eq!(sanitize_name("Jacques (Zuck)"), "Jacques--Zuck");
         assert_eq!(sanitize_name("alice"), "alice");
         assert_eq!(sanitize_name("team 7r7"), "team-7r7");
+    }
+
+    #[test]
+    fn sanitize_rejects_path_traversal() {
+        assert_eq!(sanitize_name(".."), "unnamed");
+        assert_eq!(sanitize_name("."), "unnamed");
+        assert_eq!(sanitize_name("---..---"), "unnamed");
+        assert_eq!(sanitize_name("---.---"), "unnamed");
     }
 
     #[test]

@@ -822,16 +822,11 @@ pub(crate) fn register_in_user_store(
     user_profile: &hkask_types::agent_registry::UserProfile,
     passphrase: &str,
 ) -> Result<(), UserStoreRegistrationError> {
-    use hkask_database::SqliteDriver;
-    use hkask_storage::Database;
     use hkask_storage::user_store::UserStore;
-    use std::sync::Arc;
 
-    let db = Database::open(&config.db_path, &config.db_passphrase)
-        .map_err(UserStoreRegistrationError::DbOpen)?;
-    let pool = db.sqlite_pool().map_err(UserStoreRegistrationError::Pool)?;
-    let driver = Arc::new(SqliteDriver::new(pool));
-    let store = UserStore::from_driver(driver);
+    let store = UserStore::open(&config.db_path, &config.db_passphrase).map_err(|e| {
+        UserStoreRegistrationError::DbOpen(hkask_storage::DatabaseError::SqlCipher(e.to_string()))
+    })?;
 
     // Check if the replicant already exists (idempotent).
     if store
@@ -871,8 +866,6 @@ pub(crate) fn register_in_user_store(
 pub(crate) enum UserStoreRegistrationError {
     #[error("DB open: {0}")]
     DbOpen(#[source] hkask_storage::DatabaseError),
-    #[error("pool: {0}")]
-    Pool(#[source] hkask_storage::DatabaseError),
     #[error("get_replicant: {0}")]
     GetReplicant(#[source] hkask_storage::UserStoreError),
     #[error("register_replicant: {0}")]
@@ -888,8 +881,6 @@ pub(crate) enum UserStoreRegistrationError {
 enum SessionCreationError {
     #[error("DB open: {0}")]
     DbOpen(String),
-    #[error("pool: {0}")]
-    Pool(String),
     #[error("login: {0}")]
     Login(String),
 }
@@ -910,18 +901,10 @@ fn create_user_session(
     config: &ServiceConfig,
     agent_name: &str,
 ) -> Result<String, SessionCreationError> {
-    use hkask_database::SqliteDriver;
-    use hkask_storage::Database;
     use hkask_storage::user_store::UserStore;
-    use std::sync::Arc;
 
-    let db = Database::open(&config.db_path, &config.db_passphrase)
+    let store = UserStore::open(&config.db_path, &config.db_passphrase)
         .map_err(|e| SessionCreationError::DbOpen(e.to_string()))?;
-    let pool = db
-        .sqlite_pool()
-        .map_err(|e| SessionCreationError::Pool(e.to_string()))?;
-    let driver = Arc::new(SqliteDriver::new(pool));
-    let store = UserStore::from_driver(driver);
     let session = store
         .login(agent_name, &config.db_passphrase)
         .map_err(|e| SessionCreationError::Login(e.to_string()))?;

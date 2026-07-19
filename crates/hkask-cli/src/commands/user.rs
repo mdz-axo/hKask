@@ -30,6 +30,11 @@ fn io_or_die<T>(result: std::io::Result<T>, context: &str) -> T {
 }
 
 fn validate_passphrase(passphrase: &str) -> Result<(), ServiceError> {
+    // Security: 8+ alphanumeric is sufficient because Argon2id memory-hard
+    // hashing (in UserStore::hash_passphrase) makes brute-force infeasible
+    // even for lowercase-only passphrases. 36^8 = 2.8T combinations at ~100ms
+    // per Argon2id attempt = ~9000 years. Mixed-case was previously required
+    // but removed because it prevented valid passphrases like "allostery".
     if passphrase.len() < 8 || !passphrase.chars().all(|c| c.is_alphanumeric()) {
         return Err(ServiceError::Domain {
             kind: ErrorKind::BadRequest,

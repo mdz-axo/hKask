@@ -1,110 +1,125 @@
-{# goal: Classify observed runtime signals (`hkask.*` performative spans, `cns.guard.*` violations, `cns.regulation` events) into threat patterns (endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly). Apply pragmatic-cybernetics (IS/OUGHT, epistemic mode, provenance, grill-me self-challenge, feedback loop polarity, variety, Good Regulator). Emit `cns.runtime.classify` span per classified threat. Every finding includes concrete runtime signal evidence (span target, timestamp, signal value). No synthetic signals (P8). Replicant_host mandatory (P12). Registry authoritative (P5.1). #}
+{# goal: Read runtime signal evidence (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed replicant host (P4 runtime boundary). Classify signals into threat patterns: endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.runtime.classify spans (P9 — namespace registered). No synthetic signals; replicant_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads runtime signals discovered in select-signal phase #}
-{# For each observed signal, classifies into one of 4 threat patterns:
-   endpoint_exposure, bot_traffic, llm_usage_spike, dependency_behavior_anomaly #}
+{# For each signal, checks: frequency vs baseline, pattern signatures,
+  defense-layer firing, regulation action triggered, action distribution shift #}
 {# Emits `cns.runtime.classify` span per classified threat (P9) #}
-{# Applies pragmatic-cybernetics: trace signal emission polarity (does this
-   span fire more under attack?), variety of signal sources (multiple sources
-   corroborating same threat?), Good Regulator check (is the regulation loop
-   actually reducing the threat?), delay (how stale is the signal?) #}
-{# Every finding requires concrete evidence: span target, timestamp, signal value #}
-{# Relationships: complements `supply-chain-sentinel` (distinct P4 boundaries);
-   does not overlap with `adversarial-red-team` (synthetic vs real) #}
+{# Applies pragmatic-cybernetics: trace signal polarity (increasing/decreasing risk?),
+  variety of signal sources (alternative indicators for same threat?),
+  Good Regulator check (is defense layer regulating the threat?) #}
+{# Every finding requires concrete evidence: span target, timestamp,
+  signal value, baseline reference #}
+{# Relationships: complements `supply-chain-sentinel` (static manifest audit);
+  does not overlap with `adversarial-red-team` (synthetic LLM I/O attacks) #}
 
-INPUT: signal_sources = {{ signal_sources }} (from select-signal phase)
-INPUT: signal_types = {{ signal_types }}
-INPUT: defense_layers = {{ defense_layers }}
+INPUT: signal_sources = {{ signal_sources }}
+INPUT: signal = {{ signal }}
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
-INPUT: observed_signals = {{ observed_signals | default([]) }} (concrete runtime signals — span target + timestamp + signal value, NOT synthetic)
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous classification)
+INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous scanning)
 
-CLASSIFY ACTIONS (concrete — must use observed CNS telemetry, not synthetic):
-1. For each observed signal in `observed_signals`, extract: `span_target`, `timestamp`, `signal_value`, `source` (which signal source emitted it).
-2. Classify into one of 4 threat patterns (evidence-backed only):
-   - `endpoint_exposure` (CWE-200): evidence = `hkask.api.*` or `hkask.endpoint.*` span emitted from untrusted source, or anomalous invocation rate (signal_value exceeds baseline by threshold). Map to CWE-200 (Information Exposure).
-   - `bot_traffic` (CWE-829): evidence = repeated `hkask.*` performative spans from same source with automated pattern (high frequency, regular interval, identical signal_value). Map to CWE-829 (Inclusion from Untrusted Control Sphere).
-   - `llm_usage_spike` (OWASP LLM06 / ATLAS AML.TA0010): evidence = `hkask.llm.*` or `hkask.tool.*` span emission rate exceeds baseline by threshold, or token count anomaly in signal_value. Map to OWASP LLM06 (Excessive Agency) and ATLAS AML.TA0010 (Exfiltration) if data exfiltration pattern detected.
-   - `dependency_behavior_anomaly` (CWE-1357): evidence = `hkask.dependency.*` or `hkask.crate.*` span invoking unexpected operation, or runtime update check failure. Map to CWE-1357 (Reliance on Component Not Updateable).
-3. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt` oracle phase):
-   - IS vs OUGHT: describe what the runtime signal DOES (current observed behavior) vs what it SHOULD do (within baseline, regulated, no anomaly).
-   - Epistemic mode: `Declarative` (span observed with timestamp + value), `Probabilistic` (anomaly inference from baseline comparison — only when baseline is established from real prior signals), `Subjunctive` (potential threat — must be labeled clearly, not presented as confirmed attack).
-   - Provenance: `Direct measurement` (observed span), `Inference` (baseline comparison), `Assessment` (threat taxonomy mapping) — must label each finding's provenance.
-4. Apply grill-me self-challenge (like `bug-hunt`): Could this signal be intentional? Is the high invocation rate a deliberate load test? Would a reviewer dismiss this finding as benign? If yes, downgrade to `OBSERVATION` or omit. Only propose `THREAT` / `POTENTIAL_THREAT` when evidence is concrete.
-5. Apply pragmatic-cybernetics feedback loop analysis:
-   - Feedback polarity: Is the regulation loop reducing this threat? (positive = threat decreasing after `cns.regulation` event; negative = threat persists or grows).
-   - Variety (Ashby's Law): Does the defense-layer variety match the threat variety? (e.g., 4 threat types vs 6 defense layers — sufficient variety if each threat has at least one matching defense layer).
-   - Good Regulator check: Is the regulation loop actually regulating? (if `cns.regulation` events fire but threat persists, regulator is not good — flag as defense-layer gap).
-   - Delay: How stale is the signal? (timestamp older than threshold = stale evidence, downgrade severity).
-6. Check defense-layer firing (runtime evidence — distinct from kali-audit's static presence check):
-   - `input_filtering` firing: `cns.guard.input` span emitted for this threat? (count > 0 = present)
-   - `output_filtering` firing: `cns.guard.output` span emitted? (count > 0 = present)
-   - `canary_detection` firing: `cns.guard.canary` span emitted? (count > 0 = present)
-   - `runtime_policy_enforcement` firing: `cns.guard.runtime_policy` span emitted? (count > 0 = present)
-   - `regulation_loop_active` firing: `cns.regulation` span emitted for this threat? (count > 0 = present)
-   - `action_distribution_monitoring` firing: `cns.regulation.loop_quality` span emitted? (count > 0 = present)
-7. For each classified threat, emit structured finding:
-   `threat_type` (one of 4), `span_target`, `timestamp`, `signal_value`, `source` (signal source id), `baseline` (if established — concrete prior signal value, not synthetic), `anomaly_delta` (signal_value - baseline, if baseline exists), `severity` (critical/high/medium/low — justified by evidence: critical = confirmed attack with active exfiltration; high = confirmed anomaly with no regulation response; medium = potential anomaly under regulation; low = observation warranting monitoring), `provenance` (Direct/Inference/Assessment), `epistemic_mode` (Declarative/Probabilistic/Subjunctive), `cwe_reference` (CWE-200 / CWE-829 / CWE-1357 — taxonomy mapping, not vulnerability claim), `owasp_llm_reference` (LLM06 / LLM07 if applicable), `atlas_reference` (AML.TA0010 if applicable), `defense_layers_firing` (list with span emission counts), `defense_layers_silent` (list — layers that should have fired but did not), `feedback_polarity` (positive/negative/unknown), `regulator_good` (bool — is regulation loop reducing threat?), `evidence_snippet` (quoted span target + timestamp + signal value), `source_citation` (MITRE CWE reference URL, OWASP LLM Top 10 2025, MITRE ATLAS, hkask-guard pipeline, hkask-cns cybernetics loop).
+CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, or runtime telemetry reader):
+1. For each signal source listed in `signal_sources`, observe the span emission
+   pattern within the observation window.
+2. For `cns.guard.*` signals: count violations per scanner (input filter,
+   output filter, canary, runtime policy). Note violation frequency vs
+   baseline. Record timestamps and violation details.
+3. For `cns.regulation.*` signals: count regulation actions (blocked,
+   substituted, plateau). Note whether actions are increasing (system
+   struggling to regulate) or decreasing (system stable).
+4. For `cns.tool.*` signals: count tool invocations per tool type. Note
+   invocation rate, error rate, and any unusual tool call chains (e.g.,
+   rapid sequential calls to high-risk tools).
+5. For `cns.inference` signals: count LLM inference calls. Note inference
+   rate, token consumption, and any usage spikes exceeding baseline.
+6. Apply cybersecurity taxonomy mapping (evidence-backed only):
+   - Endpoint abuse: evidence = repeated `cns.tool.invoked` for same tool
+     exceeding baseline frequency within observation window.
+   - Bot traffic: evidence = automated request pattern (regular intervals,
+     identical params) detected in `cns.tool.invoked` or `cns.inference` spans.
+   - LLM usage spike: evidence = `cns.inference` rate exceeding 2x baseline
+     within observation window.
+   - Dependency behavior anomaly: evidence = unexpected tool invocation
+     chain (e.g., `filesystem.write` → `web_search.fetch` → `filesystem.read`
+     indicating potential data exfiltration pattern).
+   - Defense-layer bypass: evidence = `cns.guard.*` violation count
+     increasing while `cns.regulation.action_blocked` count not increasing
+     proportionally (defense firing but not regulating).
+7. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt` oracle phase):
+   - IS vs OUGHT: describe what the runtime DOES (observed signal pattern)
+     vs what it SHOULD do (stable baseline, regulated threats, firing defenses).
+   - Epistemic mode: `Declarative` (span observed), `Probabilistic` (threat
+     inference from signal pattern), `Subjunctive` (potential runtime risk —
+     must be labeled clearly, not presented as fact).
+   - Provenance: `Direct measurement` (read span), `Inference` (pattern
+     analysis from span sequence), `Assessment` (security taxonomy mapping)
+     — must label each finding's provenance.
+8. Apply grill-me self-challenge (like `bug-hunt`): Could this signal pattern
+   be intentional? Is the usage spike a deliberate load test? Would a reviewer
+   dismiss this finding? If yes, downgrade to `OBSERVATION` or omit. Only
+   propose `BUG` / `POTENTIAL_BUG` when evidence is concrete.
+9. Check defense-layer firing (runtime-specific, distinct from kali-audit's
+   static presence check):
+   - Input filtering firing (`cns.guard.input` violations observed)
+   - Output filtering firing (`cns.guard.output` violations observed)
+   - Canary detection firing (`cns.guard.canary` violations observed)
+   - Runtime policy enforcing (`cns.guard.runtime_policy` Log/Block observed)
+   - Regulation loop active (`cns.regulation` events observed)
+   - Action distribution monitoring (`cns.regulation.loop_quality` observed)
+10. For each classified threat, emit structured finding:
+    `threat_type`, `signal_target`, `timestamp`, `signal_value`, `baseline_value`,
+    `deviation_pct`, `severity` (critical/high/medium/low — justified by evidence),
+    `provenance` (Direct/Inference/Assessment), `epistemic_mode`,
+    `defense_layers_firing` (list), `defense_layers_silent` (list),
+    `evidence_snippet` (quoted span target + timestamp + value),
+    `source_citation` (MITRE CWE reference, OWASP LLM reference, ATLAS reference,
+    hkask-guard docs, hkask-cns docs).
 
-CNS SPAN EMISSION (P9 — every classified threat):
-- `cns.runtime.classify` per classified threat (target: `"cns.runtime.classify"`, message: `"CNS"`, operation: `"classify_threat"`, threat_type: `...`, span_target: `...`, timestamp: `...`, signal_value: `...`, severity: `...`, replicant_host: `...`, latency_ms: ...).
-- The span namespace is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`). Emit unconditionally — no "if registered" guard.
+CNS SPAN EMISSION (P9 — every classified runtime threat):
+- `cns.runtime.classify` per classified threat (target: `"cns.runtime.classify"`,
+  message: `"CNS"`, operation: `"classify_threat"`, threat_type: `...`,
+  signal_target: `...`, severity: `...`, replicant_host: `...`, latency_ms: ...).
+- The span namespace is registered in `CANONICAL_NAMESPACES`
+  (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
 CONSTRAINT — Evidence integrity (P8 — semantic grounding):
-- No synthetic signals. Every `evidence_snippet` must be verifiable by inspecting the running system's CNS telemetry at the cited timestamp.
-- No synthetic CVE references. Only reference MITRE CWE taxonomy categories (CWE-200: Information Exposure — endpoint exposure; CWE-829: Inclusion from Untrusted Control Sphere — bot traffic / untrusted input; CWE-1357: Reliance on Component Not Updateable — dependency behavior anomaly). These are taxonomy mappings, not vulnerability claims.
-- OWASP LLM Top 10 (2025) references: LLM06 (Excessive Agency — runtime tool misuse / LLM usage spike), LLM07 (System Prompt Leakage — runtime canary detection). Only apply when signal evidence matches the category.
-- MITRE ATLAS reference: AML.TA0010 (Exfiltration) — only when signal evidence indicates data exfiltration pattern (e.g., `hkask.llm.*` output volume anomaly combined with `hkask.tool.*` exfiltration-shaped call pattern).
-- Source citations must reference concrete URLs or documents actually consulted: MITRE CWE definitions (mitre.org/data/definitions/), OWASP LLM Top 10 2025 (owasp.org), MITRE ATLAS (atlas.mitre.org), hkask-guard pipeline docs, hkask-cns cybernetics loop docs.
+- No synthetic span observations. Every `evidence_snippet` must be verifiable
+  by querying the CNS span history for the cited target and timestamp.
+- No synthetic CVE references. Only reference MITRE CWE taxonomy categories
+  (CWE-1357, CWE-829, CWE-200), OWASP LLM 2025 (LLM06, LLM07), MITRE ATLAS
+  (AML.TA0010). These are taxonomy mappings, not vulnerability claims.
+- Source citations must reference concrete URLs or documents actually consulted:
+  MITRE CWE definitions, OWASP LLM Top 10 2025, MITRE ATLAS, hkask-guard
+  pipeline docs, hkask-cns cybernetics loop docs.
 
 RELATIONSHIP TO OTHER SKILLS (explicit — no overlap ambiguity):
-- `supply-chain-sentinel`: covers static dependency manifest declarations (P4 manifest boundary). This skill covers runtime behavior (P4 runtime boundary — distinct surface). They are complementary — `supply-chain-sentinel` proposes `surface: supply-chain` regressions; this skill proposes `surface: runtime` regressions. Zero overlap (distinct P4 boundaries).
-- `kali-audit`: covers static defense-layer presence (8 layers, code/templates/manifests). This skill observes whether defense layers FIRE at runtime (6 runtime layers, distinct catalog). They are complementary — `kali-audit` checks static presence; this skill checks runtime firing.
-- `adversarial-red-team`: covers LLM I/O adversarial robustness with synthetic attacks. This skill observes real runtime traffic for anomalies. Zero overlap (synthetic vs real).
-- `bug-hunt`: provides the `Charter → Probe → Oracle → Taxonomize → Report` pipeline structure. This skill replicates that decomposed pipeline (select-signal ≈ charter/target selection; classify-threat ≈ probe + oracle; emit-regulation ≈ taxonomize + report; convergence-check ≈ convergence). Uses same pragmatic-cybernetics and pragmatic-semantics reasoning patterns embedded in instructions.
+- `supply-chain-sentinel`: covers static dependency manifest audit (P4 manifest
+  boundary). `runtime-posture-monitor` covers runtime behavior (P4 runtime
+  boundary). Zero overlap — distinct P4 boundaries.
+- `kali-audit`: covers static defense-layer presence (8 layers).
+  `runtime-posture-monitor` covers whether those layers actually fire at
+  runtime. Complementary — static presence vs runtime firing.
+- `adversarial-red-team`: covers synthetic LLM I/O attacks.
+  `runtime-posture-monitor` covers real runtime traffic. Zero overlap.
+- `bug-hunt`: provides the decomposed pipeline structure. This skill replicates
+  that structure (select-signal ≈ charter; classify-threat ≈ probe + oracle;
+  emit-regulation ≈ taxonomize + report; convergence-check ≈ convergence).
 
 MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
-- Who: Running replicant host (P12 — `replicant_host` mandatory).
-- What: Runtime signal / classified threat pattern.
-- Where: Local CNS telemetry stream (NOT workspace manifest — distinct from supply-chain-sentinel).
-- When: Continuous — observes spans as emitted (not audit cycle).
-- Why: P3.1 (Generative Space requires safe container — runtime blocking is floor, not ceiling; static audit cannot detect runtime anomalies); P1 (User Sovereignty — user controls which runtime signals are monitored); P4 (Clear Boundaries — runtime telemetry boundary, distinct from manifest boundary); P9 (Homeostatic Regulation — runtime threat must be observable via `cns.runtime.*` spans).
-- How: Observe signal → classify → map taxonomy → emit CNS span → (next phase: emit regulation + propose regression).
-- If any of these 6 were missing, this skill would violate P5. All 6 are present.
+- Who: Running application / replicant host (P12).
+- What: Runtime signal / span target / threat pattern.
+- Where: Deployed runtime environment / production workload.
+- When: Observation window / continuous monitoring (not audit cycle).
+- Why: P3.1 (Generative Space requires safe container — runtime blocking is
+  the Aikido/Zen firewall model); P1 (User Sovereignty — user controls
+  runtime behavior); P4 (Clear Boundaries — runtime behavior must be
+  explicitly observed, not ambient); P9 (Homeostatic Regulation — runtime
+  threats must be observable via `cns.runtime.*` spans).
+- How: Discover signals → observe → classify → regulate → report → propose
+  regression → emit CNS span → compute convergence.
+- If any of these 6 were missing, this skill would violate P5. All 6 present.
 
 OUTPUT FORMAT:
 JSON object with fields:
-`signal_sources` (list), `observed_signals` (list with span_target, timestamp, signal_value, source), `classified_threats` (structured array — only evidence-backed), `defense_layers_firing` (list with counts), `defense_layers_silent` (list), `feedback_polarity_summary` (positive/negative/mixed), `regulator_good_summary` (bool — overall regulation loop health), `replicant_host`, `cns_span_emitted: true`, `source_citations`.
-
-5W1H GATE (P5 — minimal): Who = running replicant host (P12); What = classified runtime threat; Where = local CNS telemetry stream; When = continuous (observes spans as emitted); Why = P9 observable self-correction / P3.1 safe container; How = observe + classify + map taxonomy + emit CNS span. All 6 present.
-
-MINIMAL: One template (`KnowAct`); no extra computation; uses evidence from select-signal phase only; no synthetic metrics.
-EVIDENCE-BACKED ONLY (P8): Every classified threat includes concrete `span_target`, `timestamp`, `signal_value` from observed CNS telemetry. No fabricated signals. No fabricated timestamps. No fabricated signal values.
-EVOLUTIONARY (P7): New threat types proposed only from real runtime evidence (e.g., new `hkask.*` span pattern observed in production, not speculative).
-OCAP BOUNDARY (P4): Classification computed from local CNS telemetry only; no external package download; no OS-level endpoint scanning; no ambient network monitoring.
-CNS REGULATION (P9): `cns.runtime.classify` emitted unconditionally per classified threat — namespace IS registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `replicant_host` mandatory.
-VISIBILITY (P11): Classification output public; no hidden runtime monitoring.
-SAFETY FLOOR (P3.1): Runtime threat classification protects Generative Space — unclassified runtime anomalies are destructive to the space itself.
-SEMANTIC GROUNDING (P8): Every finding references concrete evidence (span target, timestamp, signal value, defense-layer firing count, source citation).
-
-SOURCE REFERENCES (P8 — concrete):
-- MITRE CWE definitions (mitre.org/data/definitions/200.html, 829.html, 1357.html)
-- OWASP LLM Top 10 (2025) — owasp.org (LLM06 Excessive Agency, LLM07 System Prompt Leakage)
-- MITRE ATLAS — atlas.mitre.org (AML.TA0010 Exfiltration)
-- `security/regressions/README.md` (regression format and ratchet lifecycle)
-- `security/regressions/` (actual regression library — read as input)
-- `kali-audit` SKILL.md (§Defense-in-Depth Layer Catalog — static presence vs this skill's runtime firing)
-- `supply-chain-sentinel` SKILL.md (§Relationship — distinct P4 boundaries, zero overlap)
-- `adversarial-red-team` SKILL.md (§Attack Categories — synthetic vs this skill's real runtime)
-- `bug-hunt` SKILL.md (§bug-hunt-oracle — pragmatic-cybernetics and grill-me pattern adopted)
-- `principles.md` (§P3.1 Social Generativity / §P5 Essentialism / §P8 Semantic Grounding / §P9 Homeostatic Self-Regulation / §P12 Replicant Host Mandate)
-- `hkask-guard` pipeline docs (`cns.guard.*` span sources — runtime evidence)
-- `hkask-cns` cybernetics loop docs (`cns.regulation` span sink — downstream regulation)
-- Aikido Security (`aikido.dev`) — ASPM, auto-triage, runtime blocking model (context reference — not replacement)
-- Huntress (`huntress.com`) — Managed EDR / MDR (context — distinct surface, zero overlap per P5 minimal test)
-
-REGISTRY AUTHORITATIVE (P5.1): Registry manifest + `.j2` templates are canonical. SKILL.md derived. If conflict, registry wins. This template is the canonical `classify-threat` phase definition.
-PUBLIC VISIBILITY: `visibility: public` — no hidden runtime classification controls.
-NO FABRICATION: Only observed signals with concrete `span_target` + `timestamp` + `signal_value` are classified. Only threats with concrete evidence are reported. Only defense layers with actual `cns.guard.*` / `cns.regulation` span emission are counted as firing.
-NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by inspecting the running system's CNS telemetry at the cited timestamp. `signal_value` must match an actual emitted span value. `timestamp` must reference an actual span emission time.
-CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this classify-threat phase does not compute metric (that is `convergence-check.j2` responsibility). This maintains pipeline decomposition (P5 minimalism — each phase answers one 5W1H dimension clearly).
+`signal_sources` (list with observation counts), `threats_found` (structured
+array — only evidence-backed), `defense_layers_firing` (list),
+`defense_layers_silent` (list), `baseline_references` (list with source),
+`replicant_host`, `source_citations`.

@@ -1,165 +1,123 @@
-{# goal: Compute normalized convergence metric [0,1] from taxonomy mapping evidence only: unmapped findings (0.40), OSC&R category coverage (0.25), OWASP Supply Chain coverage (0.15), regression taxonomy_mapping field growth (0.10), residual unmapped risk (0.10). Emit cns.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unmapped findings (0.40), OSC&R category coverage (0.25), OWASP Supply Chain coverage (0.15), regression taxonomy_mapping field growth (0.10), residual unmapped risk (0.10). Emit cns.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
 {# Emits cns.taxonomy.convergence CNS span (P9) — namespace registered #}
 
-INPUT: mappings = {{ mappings }} (from map-taxonomy phase)
-INPUT: unmapped_findings = {{ unmapped_findings | default([]) }} (from map-taxonomy)
-INPUT: mapping_counts = {{ mapping_counts | default({}) }} (from map-taxonomy)
-INPUT: proposed_taxonomy_mappings = {{ proposed_taxonomy_mappings | default([]) }} (from taxonomize phase)
-INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings | default([]) }} (from select-evidence phase — already-mapped regressions)
+INPUT: unmapped_findings = {{ unmapped_findings }} (from previous cycle or current)
+INPUT: oscr_categories_covered = {{ oscr_categories_covered }} (from taxonomize phase)
+INPUT: oscr_categories_missing = {{ oscr_categories_missing }}
+INPUT: owasp_sc_categories_covered = {{ owasp_sc_categories_covered }}
+INPUT: owasp_sc_categories_missing = {{ owasp_sc_categories_missing }}
+INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings }} (count of regression entries with taxonomy_mapping field)
+INPUT: proposed_taxonomy_mappings = {{ proposed_taxonomy_mappings }} (count from current cycle)
 INPUT: previous_metric = {{ previous_metric | default(1.0) }}
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12)
-
-{# OSC&R category list — must match map-taxonomy.j2 and SKILL.md §OSC&R
-   Taxonomy Reference. PROPOSED mappings — verify against live oscar.io
-   before registry commit (see SKILL.md note). #}
-{% set osc_r_categories_all = [
-  'dependency_confusion', 'typosquatting', 'malicious_commit_injection',
-  'build_pipeline_compromise', 'unmaintained_component', 'unverified_registry'
-] %}
-{% set owasp_sc_categories_all = [
-  'SC04', 'SC05', 'SC06', 'SC07', 'SC08', 'SC09'
-] %}
+INPUT: replicant_host = {{ replicant_host }} (P12)
 
 COMPUTE METRIC (weighted — evidence-based only, P8, P5):
-- Unmapped findings weight: 0.40
-  Score = 0.00 if zero unmapped findings; +0.40 if any critical/high
-  finding unmapped; partial = (count_unmapped_critical * 1.0 +
-  count_unmapped_high * 0.5) / max(1, total_critical_high_findings) —
-  only if evidence-backed (count from `unmapped_findings` array, not
-  fabricated).
+- Unmapped findings (critical/high) weight: 0.40
+  Score = 0.00 if zero critical/high unmapped; +0.40 if any critical/high remains unmapped.
+  Partial = (count_critical * 1.0 + count_high * 0.5) / max(1, previous_critical + previous_high) — only if evidence-backed.
 - OSC&R category coverage weight: 0.25
-  All 6 categories in `osc_r_categories_all` covered by ≥1 mapping =
-  +0.00; partial = +0.06 per missing category (max +0.25 if none
-  covered). Coverage determined by `mapping_counts.by_osc_r_category`
-  — only categories with ≥1 evidence-backed mapping count as covered.
+  All 6 categories covered (dependency_confusion, typosquatting,
+  malicious_commit_injection, build_pipeline_compromise,
+  unmaintained_component, unverified_registry) = +0.00
+  5 covered = +0.04; 4 = +0.08; 3 = +0.13; 2 = +0.19; 1 = +0.25
+  Each category only counts as covered when at least one finding maps to
+  it (P8 — concrete evidence only, no aspirational coverage).
 - OWASP Supply Chain coverage weight: 0.15
-  All 6 OWASP SC categories in `owasp_sc_categories_all` covered by
-  ≥1 mapping = +0.00; partial = +0.08 per missing category (max
-  +0.15 if none covered). Coverage determined by
-  `mapping_counts.by_owasp_sc_category` — only categories with ≥1
-  evidence-backed mapping count as covered.
-- Regression `taxonomy_mapping` field growth weight: 0.10
-  New `taxonomy_mapping` proposed this cycle (in
-  `proposed_taxonomy_mappings`) = +0.00; no new proposal despite
-  regressions_needing_mapping evidence = +0.10 (stagnation).
-  Existing `taxonomy_mapping` fields (in
-  `existing_taxonomy_mappings`) remain — no regression removal in
-  metric.
+  All OWASP SC categories covered = +0.00
+  Partial = +0.08; none = +0.15
+- Regression taxonomy_mapping field growth weight: 0.10
+  New `taxonomy_mapping` field proposed this cycle = +0.00
+  No new proposal despite evidence = +0.10 (stagnation)
+  Existing `taxonomy_mapping` fields remain (no field removal in metric).
 - Residual unmapped risk weight: 0.10
-  Zero unmapped findings = +0.00; any remaining unmapped finding
-  (regardless of severity) = +0.10.
+  Zero unmapped findings = +0.00
+  Any remaining unmapped finding = +0.10
 
 SUM = sum of contributions, clamp [0, 1].
 
 CONVERGENCE CHECK (P9 — homeostatic regulation):
 - Metric ≤ 0.10: near converged.
-- Metric ≤ 0.10 AND relative improvement ≥ 5% from previous_metric:
-  converged.
-- If metric > 0.10 OR improvement < 5%: not converged — identify
-  blockers.
-- Blockers = specific evidence-backed gaps:
-  * Unmapped critical/high findings (with finding_reference and
-    unmapped_reason from `unmapped_findings`).
-  * OSC&R categories with zero coverage (list missing categories).
-  * OWASP SC categories with zero coverage (list missing categories).
-  * Stagnation (regressions_needing_mapping > 0 but
-    proposed_taxonomy_mappings count = 0).
-  * Residual unmapped risk (any unmapped finding remaining).
+- Metric ≤ 0.10 AND relative improvement ≥ 5% from previous_metric: converged.
+- If metric > 0.10 OR improvement < 5%: not converged — identify blockers.
+- Blockers = specific OSC&R category gaps (from `oscr_categories_missing`),
+  unmapped critical/high findings (with finding reference), stagnation
+  (no new taxonomy_mapping proposed despite finding evidence), OWASP SC
+  coverage gaps.
 
-CNS SPAN EMISSION (P9):
+CNS SPAN (P9):
 - `cns.taxonomy.convergence` is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
   (`target: "cns.taxonomy.convergence"`, message: `"CNS"`,
-  operation: `"convergence_check"`, metric, previous_metric,
-  improvement_pct, blockers: [...], replicant_host, latency_ms).
-- Emit unconditionally — namespace IS registered. Do NOT use
-  "if registered; else note gap" language.
+  operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
+  blockers: [...], replicant_host, latency_ms).
 
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
-blockers: [...], unmapped_findings_count, osc_r_categories_covered,
-osc_r_categories_missing, owasp_sc_categories_covered,
-owasp_sc_categories_missing, existing_taxonomy_mappings_count,
-proposed_taxonomy_mappings_count, regressions_needing_mapping_count,
-residual_unmapped_risk, replicant_host, cns_span_emitted: true}`.
+blockers: [...], oscr_categories_covered, oscr_categories_missing,
+owasp_sc_categories_covered, owasp_sc_categories_missing,
+existing_taxonomy_mappings_count, proposed_taxonomy_mappings_count,
+unmapped_critical, unmapped_high, taxonomy_coverage, residual_unmapped_risk,
+replicant_host, cns_span_emitted: true}`.
 
-5W1H GATE (P5 — minimal): Who = replicant host (P12); What =
-convergence metric; Where = audit cycle / mappings array; When =
-scan cycle (measures temporal progress); Why = P9 observable
-self-correction / P7 evolutionary progress; How = compute metric +
-check improvement + emit CNS span + identify blockers.
+5W1H GATE (P5 — minimal): Who = replicant host; What = convergence metric;
+Where = audit cycle / workspace; When = scan cycle; Why = P9 observable
+self-correction / P7 evolutionary progress; How = compute metric + check
+improvement + emit CNS span + identify blockers.
 All 6 present.
 
-MINIMAL: One template (`KnowAct`); no extra computation; uses
-evidence from previous phases only (mappings, unmapped_findings,
-mapping_counts, proposed_taxonomy_mappings,
-existing_taxonomy_mappings); no synthetic metrics.
-
-EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts
-from `mappings`, `unmapped_findings`, `mapping_counts`,
-`proposed_taxonomy_mappings`, `existing_taxonomy_mappings`. No
-fabricated numbers. Coverage determined by actual mapping counts,
-not aspirational.
-
-EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g.,
-"propose taxonomy_mapping for RR-0123 (cwe: CWE-829, no current
-mapping)", "investigate unmapped finding F-005
-(unmapped_reason: no_osc_r_category_for_cwe)") based on real
+MINIMAL: One template (`KnowAct`); no extra computation; uses evidence from
+previous phases only; no synthetic metrics.
+EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts from
+`mappings`, `oscr_categories_covered` (verified by finding evidence),
+`existing_taxonomy_mappings` (actual YAML file count),
+`proposed_taxonomy_mappings` (actual proposal count from current cycle).
+No fabricated numbers.
+EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "map
+finding RR-0007 to OSC&R typosquatting category", "verify OSC&R ID for
+build_pipeline_compromise against oscar.io") based on real mapping
 evidence — not speculative.
-
-OCAP BOUNDARY (P4): Metric computed from mapping evidence only;
-no external taxonomy database download; no ambient scanning.
-
-CNS REGULATION (P9): `cns.taxonomy.convergence` emitted
-unconditionally — namespace registered in `CANONICAL_NAMESPACES`
-(`crates/hkask-types/src/event.rs`).
-
+OCAP BOUNDARY (P4): Metric computed from workspace finding evidence only;
+no external taxonomy download; no external package download.
+CNS REGULATION (P9): Span emitted unconditionally — namespace registered
+in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
 REPLICANT HOST (P12): `replicant_host` mandatory.
-
-VISIBILITY (P11): Metric output public; no hidden security posture.
-
-SAFETY FLOOR (P3.1): Taxonomy convergence protects Generative Space
-— unconverged metric indicates attack-pattern context gaps.
-
+VISIBILITY (P11): Metric output public; no hidden taxonomy coverage.
+SAFETY FLOOR (P3.1): Taxonomy convergence protects Generative Space —
+unconverged metric indicates unstructured attack pattern awareness.
 SEMANTIC GROUNDING (P8): Every blocker references concrete evidence
-(mapping count, unmapped finding reference, missing OSC&R category,
-stagnation indicator).
-
-SOURCE REFERENCES (concrete — P8):
+(finding reference, OSC&R category gap, OWASP SC coverage gap, regression
+file or missing proposal reason).
+SOURCE REFERENCES (P8 — concrete):
+- OSC&R framework (oscar.io) — supply chain attack taxonomy reference
+- OWASP Supply Chain reference (owasp.org)
 - MITRE CWE definitions (mitre.org/data/definitions/)
-- OWASP Supply Chain reference (owasp.org/www-project-software-supply-chain-security/)
-- OSC&R framework (oscar.io — verify live taxonomy before coverage scoring)
-- security/regressions/README.md (regression format and ratchet lifecycle)
-- security/regressions/ (actual regression library — read as input)
-- supply-chain-sentinel SKILL.md (source of findings — convergence
-  measures taxonomy mapping progress over those findings)
-- kali-audit SKILL.md (parallel taxonomy discipline — convergence
-  pattern adopted for OSC&R coverage)
-- bug-hunt SKILL.md (bug-hunt-convergence-check — convergence metric
+- `security/regressions/README.md` (regression format and ratchet lifecycle)
+- `security/regressions/` (actual regression library — read as input)
+- `supply-chain-sentinel` SKILL.md (§convergence-check — convergence metric
   computation pattern adopted)
-- principles.md (P5 Essentialism, P7 Evolutionary, P8 Semantic
-  Grounding, P9 Homeostatic Self-Regulation, P12 Replicant Host
-  Mandate)
+- `bug-hunt` SKILL.md (§bug-hunt-convergence-check — convergence metric
+  computation pattern adopted)
+- `principles.md` (§P5 Essentialism, §P7 Evolutionary, §P8 Semantic Grounding,
+  §P9 Homeostatic Self-Regulation, §P12 Replicant Host Mandate)
 
-REGISTRY AUTHORITATIVE (P5.1): Registry manifest + `.j2` templates
-are canonical. SKILL.md derived. If conflict, registry wins.
-
-PUBLIC VISIBILITY: `visibility: public` — no hidden mapping controls.
-
-NO FABRICATION: Metric computed from evidence counts only. Blockers
-derived from actual `unmapped_findings`, `mapping_counts`,
-`proposed_taxonomy_mappings`. No synthetic mapping references. No
-synthetic regression counts.
-
+REGISTRY AUTHORITATIVE (P5.1): Registry manifest + `.j2` templates are
+canonical. SKILL.md derived. If conflict, registry wins.
+PUBLIC VISIBILITY: `visibility: public` — no hidden taxonomy coverage.
+NO FABRICATION: Metric computed from evidence counts only. Blockers derived
+from actual `unmapped_findings`, `oscr_categories_missing`,
+`proposed_taxonomy_mappings`. No synthetic finding references. No synthetic
+mapping counts.
 CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
-`taxonomize` phase logic. Uses `mappings` from `map-taxonomy` and
-`proposed_taxonomy_mappings` from `taxonomize`. If no previous
+`taxonomize` phase logic. Uses `mappings` from `map-taxonomy` (or from
+previous audit cycle if persistence is enabled by user). If no previous
 cycle, assumes `previous_metric = 1.0` (initial state) — explicit
 assumption, not hidden.
-
-CNS SPAN EMITTED: `cns.taxonomy.convergence` is registered, so the
-span is always emitted. Output states `cns_span_emitted: true`.
-
-MINIMAL ARTIFACT: This template produces exactly the metric, verdict
-(converged bool), blockers, and CNS span — nothing more.
+CNS SPAN EMITTED: `cns.taxonomy.convergence` is registered, so the span is
+always emitted. Output states `cns_span_emitted: true`.
+MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
+blockers, and span emission — nothing more.
+OSC&R VERIFICATION GATE: The OSC&R category names referenced are PROPOSED
+mappings based on public documentation. They MUST be verified against the
+live oscar.io framework before the convergence metric is considered
+authoritative. Do NOT present proposed mappings as verified.
