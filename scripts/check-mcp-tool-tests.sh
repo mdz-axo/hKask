@@ -33,16 +33,9 @@ set -euo pipefail
 # Servers known to lack tool-behavior contract tests today. Shrink over time.
 # Remove a name the moment its tests/ contains a `Parameters(` call.
 ALLOWLIST=(
-  "hkask-mcp-codegraph"
-  "hkask-mcp-communication"
   "hkask-mcp-companies"
-  "hkask-mcp-condenser"
-  "hkask-mcp-curator"
   "hkask-mcp-docproc"
   "hkask-mcp-media"
-  "hkask-mcp-memory"
-  "hkask-mcp-replica"
-  "hkask-mcp-research"
   "hkask-mcp-scenarios"
   "hkask-mcp-training"
 )

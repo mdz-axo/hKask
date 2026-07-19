@@ -48,7 +48,7 @@ use types::*;
 // ── Server ──────────────────────────────────────────────────────────
 
 hkask_mcp::mcp_server!(
-    struct MemoryServer {
+    pub struct MemoryServer {
         pub episodic: EpisodicMemory,
         pub semantic: Arc<SemanticMemory>,
         pub db: Option<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>,

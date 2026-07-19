@@ -44,7 +44,7 @@ use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 
 hkask_mcp::mcp_server!(
-    struct CondenserServer {
+    pub struct CondenserServer {
         pub engine: Mutex<CondenserEngine>,
         pub episodic: Option<Arc<EpisodicMemory>>,
         pub semantic: Option<Arc<SemanticMemory>>,
@@ -59,7 +59,7 @@ impl CondenserServer {
     /// Fallback persona keywords when no configuration is provided.
     /// These are generic condensation-oriented terms — operators should
     /// override via `HKASK_CONDENSER_PERSONA_KEYWORDS` for domain-specific agents.
-    fn default_persona_keywords() -> Vec<String> {
+    pub fn default_persona_keywords() -> Vec<String> {
         vec![
             "condense".into(),
             "compress".into(),

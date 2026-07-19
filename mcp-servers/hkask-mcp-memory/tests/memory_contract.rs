@@ -6,11 +6,14 @@
 //! Tested seam: `EpisodicMemory` (HMemStore-backed, uses TestDb for isolation).
 
 use hkask_database::sqlite::SqliteDriver;
+use hkask_mcp_memory::MemoryServer;
+use hkask_mcp_memory::types::{RecallRequest, StoreRequest};
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{HMem, HMemStore};
 use hkask_test_harness::TestWebId;
 use hkask_types::Visibility;
 use hkask_types::visibility::AccessControl;
+use rmcp::handler::server::wrapper::Parameters;
 use serde_json::json;
 use std::sync::Arc;
 
@@ -143,4 +146,143 @@ fn storage_usage_reports_count() {
 
     let usage_after = mem.storage_usage(&owner).expect("usage after");
     assert_eq!(usage_after, 2);
+}
+
+// ── Tool-behavior contract tests (Parameters<T> seam) ───────────────────────
+//
+// These exercise the actual MCP tool methods through the public `Parameters<T>`
+// seam — the same surface an agent uses. Closes the test-variety gap that hid
+// the create-new-file, range-inversion, and multibyte-truncation defects in
+// hkask-mcp-filesystem.
+
+/// Construct a MemoryServer backed by an in-memory store.
+fn test_server() -> MemoryServer {
+    let pool = SqliteDriver::in_memory_pool().expect("in-memory pool");
+    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        Arc::new(SqliteDriver::new(pool.clone()));
+    let h_mem_store = HMemStore::from_driver(Arc::clone(&driver));
+    let episodic = EpisodicMemory::new(h_mem_store);
+    let h_mem_store2 = HMemStore::from_driver(driver);
+    let embedding_store =
+        hkask_storage::EmbeddingStore::from_driver(Arc::new(SqliteDriver::new(pool)), 1024);
+    let semantic = Arc::new(hkask_memory::SemanticMemory::new(
+        h_mem_store2,
+        embedding_store,
+    ));
+    MemoryServer::new(
+        TestWebId::alice(),
+        "test-replicant".into(),
+        None,
+        episodic,
+        semantic,
+        None,
+    )
+}
+
+/// Parse the success envelope `{"content": <value>}`; falls back to the raw
+/// value for non-envelope outputs.
+fn parse_content(out: &str) -> serde_json::Value {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("content").cloned().unwrap_or(v)
+}
+
+/// Extract the `kind` field from an error envelope, if present.
+fn error_kind(out: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("kind").and_then(|e| e.as_str()).map(String::from)
+}
+
+// REQ: episodic_ping returns liveness and perspective (P5 Testing Discipline).
+// expect: episodic_ping returns status=ok and the caller's WebID.
+#[tokio::test]
+async fn episodic_ping_returns_status_ok_via_parameters_seam() {
+    let server = test_server();
+    let out = server.episodic_ping().await;
+    let content = parse_content(&out);
+    assert_eq!(content["status"], "ok");
+    assert_eq!(content["server"], "hkask-mcp-memory");
+    assert!(
+        content.get("perspective").is_some(),
+        "should have perspective: {out}"
+    );
+}
+
+// REQ: episodic_store stores a valid h_mem (P5).
+// expect: storing a valid entity/attribute/value returns stored=true.
+#[tokio::test]
+async fn episodic_store_succeeds_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .episodic_store(Parameters(StoreRequest {
+            entity: "session:1".into(),
+            attribute: "action".into(),
+            value: json!("login"),
+            confidence: None,
+        }))
+        .await;
+    let content = parse_content(&out);
+    assert_eq!(content["stored"], true, "got: {out}");
+    assert_eq!(content["entity"], "session:1");
+}
+
+// REQ: episodic_store rejects an empty entity identifier (P5, P3).
+// expect: an empty entity returns kind=invalid_argument.
+#[tokio::test]
+async fn episodic_store_rejects_empty_entity_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .episodic_store(Parameters(StoreRequest {
+            entity: String::new(),
+            attribute: "action".into(),
+            value: json!("v"),
+            confidence: None,
+        }))
+        .await;
+    let kind = error_kind(&out).expect("expected error kind for empty entity");
+    assert_eq!(kind, "invalid_argument", "got: {out}");
+}
+
+// REQ: episodic_recall returns stored episodes for the entity (P5).
+// expect: after storing, recall returns the stored episode.
+#[tokio::test]
+async fn episodic_recall_returns_stored_episode_via_parameters_seam() {
+    let server = test_server();
+    // Store first
+    server
+        .episodic_store(Parameters(StoreRequest {
+            entity: "session:42".into(),
+            attribute: "action".into(),
+            value: json!("test_action"),
+            confidence: None,
+        }))
+        .await;
+    let out = server
+        .episodic_recall(Parameters(RecallRequest {
+            entity: "session:42".into(),
+        }))
+        .await;
+    let content = parse_content(&out);
+    let h_mems = content["h_mems"].as_array().expect("h_mems array");
+    assert!(
+        !h_mems.is_empty(),
+        "should recall at least one h_mem: {out}"
+    );
+}
+
+// REQ: episodic_recall returns empty for a non-existent entity (P5).
+// expect: recalling an entity that was never stored returns an empty array.
+#[tokio::test]
+async fn episodic_recall_returns_empty_for_unknown_entity_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .episodic_recall(Parameters(RecallRequest {
+            entity: "nonexistent:entity".into(),
+        }))
+        .await;
+    let content = parse_content(&out);
+    let h_mems = content["h_mems"].as_array().expect("h_mems array");
+    assert!(
+        h_mems.is_empty(),
+        "should return empty for unknown entity: {out}"
+    );
 }

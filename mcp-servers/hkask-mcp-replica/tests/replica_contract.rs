@@ -7,9 +7,12 @@
 //! - `cosine_distance` (pure function from hkask-services)
 //! - `ProbContractRunner` (probabilistic contract verification for LLM-driven tools)
 
+use hkask_mcp_replica::ReplicaServer;
 use hkask_services_compose::cosine_distance;
 use hkask_test_harness::ProbContractRunner;
+use hkask_types::WebID;
 use proptest::prelude::*;
+use rmcp::handler::server::wrapper::Parameters;
 
 // ── cosine_distance invariants (deterministic contracts) ─────────────────────
 
@@ -268,4 +271,84 @@ fn replica_compose_integration_prob_contract() {
 
     // 1. Open the styles database, 2. Load centroids, 3. Compose prose,
     // 4. Embed output, 5. Verify centroid distance ordering via ProbContractRunner.
+}
+
+// ── Tool-behavior contract tests (Parameters<T> seam) ───────────────────────
+//
+// These exercise the actual MCP tool methods through the public `Parameters<T>`
+// seam — the same surface an agent uses. Closes the test-variety gap that hid
+// the create-new-file, range-inversion, and multibyte-truncation defects in
+// hkask-mcp-filesystem.
+
+/// Construct a ReplicaServer with no external dependencies.
+fn test_server() -> ReplicaServer {
+    ReplicaServer::new(WebID::new(), "test-replicant".into(), None)
+}
+
+/// Parse the success envelope `{"content": <value>}`; falls back to the raw
+/// value for non-envelope outputs.
+fn parse_content(out: &str) -> serde_json::Value {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("content").cloned().unwrap_or(v)
+}
+
+/// Extract the `kind` field from an error envelope, if present.
+fn error_kind(out: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("kind").and_then(|e| e.as_str()).map(String::from)
+}
+
+// REQ: replica_explain returns explanatory info about centroids (P5 Testing Discipline).
+// expect: replica_explain returns a JSON object with explanation content.
+#[tokio::test]
+async fn replica_explain_returns_info_via_parameters_seam() {
+    let server = test_server();
+    let out = server.replica_explain().await;
+    let content = parse_content(&out);
+    // replica_explain returns a JSON object with explanatory fields.
+    assert!(
+        content.is_object(),
+        "explain should return a JSON object: {out}"
+    );
+}
+
+// REQ: replica_build rejects a non-existent config file (P5).
+// expect: a config_path that does not exist returns kind=invalid_argument.
+#[tokio::test]
+async fn replica_build_rejects_missing_config_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_replica::types::BuildRequest = serde_json::from_value(serde_json::json!({
+        "config_path": "/nonexistent/corpus.yaml",
+        "db_path": "/tmp/test.db",
+        "passphrase": null
+    }))
+    .expect("deserialize BuildRequest");
+    let out = server.replica_build(Parameters(req)).await;
+    let kind = error_kind(&out).expect("expected error kind for missing config");
+    assert_eq!(kind, "invalid_argument", "got: {out}");
+}
+
+// REQ: replica_cache_work writes content to the cache directory (P5).
+// expect: caching a work writes a file and returns bytes_written > 0.
+#[tokio::test]
+async fn replica_cache_work_writes_file_via_parameters_seam() {
+    let server = test_server();
+    let dir = tempfile::tempdir().expect("tempdir");
+    let req: hkask_mcp_replica::types::CacheWorkRequest =
+        serde_json::from_value(serde_json::json!({
+            "slug": "test-work",
+            "content": "This is test content for caching.",
+            "cache_dir": dir.path().to_string_lossy()
+        }))
+        .expect("deserialize CacheWorkRequest");
+    let out = server.replica_cache_work(Parameters(req)).await;
+    let content = parse_content(&out);
+    let bytes = content["bytes_written"].as_u64().expect("bytes_written");
+    assert!(bytes > 0, "should write bytes: {out}");
+    // Verify the file was actually written
+    let cached_path = dir.path().join("test-work.txt");
+    assert!(
+        cached_path.exists(),
+        "cache file should exist: {cached_path:?}"
+    );
 }

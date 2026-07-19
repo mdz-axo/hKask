@@ -39,7 +39,7 @@ const RATE_LIMIT_WINDOW_SECS: u64 = 60;
 // ── ResearchServer ──
 
 hkask_mcp::mcp_server!(
-    struct ResearchServer {
+    pub struct ResearchServer {
         pub pool: Arc<dyn WebSearchPort>,
         pub cache: Arc<ResponseCache>,
         pub rate_limiter: RateLimiter,

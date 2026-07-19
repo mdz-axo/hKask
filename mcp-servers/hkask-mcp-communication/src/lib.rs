@@ -41,7 +41,7 @@ use std::sync::Arc;
 // ── Server ───────────────────────────────────────────────────────────────
 
 hkask_mcp::mcp_server!(
-    struct CommunicationServer {
+    pub struct CommunicationServer {
         pub matrix: Arc<MatrixTransport>,
         pub registry: Arc<AgentRegistry>,
     }
@@ -52,7 +52,7 @@ hkask_mcp::mcp_server!(
 #[tool_router(server_handler)]
 impl CommunicationServer {
     #[tool(description = "Speak text aloud using the system TTS engine (espeak)")]
-    async fn tts_speak(
+    pub async fn tts_speak(
         &self,
         Parameters(TtsSpeakRequest { text, voice }): Parameters<TtsSpeakRequest>,
     ) -> String {
@@ -88,7 +88,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "Generate TTS audio file using system TTS. Returns path to WAV file.")]
-    async fn tts_generate(
+    pub async fn tts_generate(
         &self,
         Parameters(TtsGenerateRequest { text, voice }): Parameters<TtsGenerateRequest>,
     ) -> String {
@@ -128,7 +128,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "List available system TTS voices (espeak)")]
-    async fn tts_list_voices(
+    pub async fn tts_list_voices(
         &self,
         Parameters(ListVoicesRequest { language }): Parameters<ListVoicesRequest>,
     ) -> String {
@@ -170,7 +170,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "Send a message to a Matrix room.")]
-    async fn send_message(
+    pub async fn send_message(
         &self,
         Parameters(SendMessageRequest { room_id, body }): Parameters<SendMessageRequest>,
     ) -> String {
@@ -191,7 +191,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "Create a threaded conversation (Matrix room).")]
-    async fn create_thread(
+    pub async fn create_thread(
         &self,
         Parameters(CreateThreadRequest { title, topic }): Parameters<CreateThreadRequest>,
     ) -> String {
@@ -208,7 +208,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "Invite another replicant to a Matrix room.")]
-    async fn invite_agent(
+    pub async fn invite_agent(
         &self,
         Parameters(InviteAgentRequest {
             room_id,
@@ -252,7 +252,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "List active communication threads.")]
-    async fn list_threads(&self) -> String {
+    pub async fn list_threads(&self) -> String {
         execute_tool(self, "list_threads", async {
             match self.matrix.list_rooms().await {
                 Ok(threads) => {
@@ -280,7 +280,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "Assign a thread to an agent's watchlist for monitoring.")]
-    async fn monitor_thread(
+    pub async fn monitor_thread(
         &self,
         Parameters(MonitorThreadRequest {
             room_id,
@@ -315,7 +315,7 @@ impl CommunicationServer {
     }
 
     #[tool(description = "Pull an agent into a discussion by sending them a tagged message.")]
-    async fn tag_agent(
+    pub async fn tag_agent(
         &self,
         Parameters(TagAgentRequest {
             room_id,

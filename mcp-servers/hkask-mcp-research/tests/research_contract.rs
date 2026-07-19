@@ -5,6 +5,12 @@
 //!
 //! Tested seam: `strip_html`, `ResponseCache`, and request type deserialization (no external API calls).
 
+use hkask_mcp_research::ResearchServer;
+use hkask_services_research::{ProviderPool, RateLimiter, ResponseCache, build_provider_pool};
+use hkask_types::WebID;
+use rmcp::handler::server::wrapper::Parameters;
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 // ── HTML stripping tests ───────────────────────────────────────────────────
@@ -130,4 +136,92 @@ fn subscribe_request_parses_valid_json() {
         serde_json::from_value(json).expect("should parse subscribe request");
     assert_eq!(req.url, "https://example.com/feed.xml");
     assert_eq!(req.label, Some("Example Feed".to_string()));
+}
+
+// ── Tool-behavior contract tests (Parameters<T> seam) ───────────────────────
+//
+// These exercise the actual MCP tool methods through the public `Parameters<T>`
+// seam — the same surface an agent uses. Closes the test-variety gap that hid
+// the create-new-file, range-inversion, and multibyte-truncation defects in
+// hkask-mcp-filesystem.
+
+/// Construct a ResearchServer with an empty provider pool (no API keys).
+/// Search tools will return errors, but ping and structural tools work.
+fn test_server() -> ResearchServer {
+    let pool = build_provider_pool(&HashMap::new()).expect("empty provider pool");
+    ResearchServer::new(
+        WebID::new(),
+        "test-replicant".into(),
+        None,
+        Arc::new(pool),
+        Arc::new(ResponseCache::new(10, Duration::from_secs(60))),
+        RateLimiter::new(30, 60),
+        None,
+        reqwest::Client::new(),
+    )
+}
+
+/// Parse the success envelope `{"content": <value>}`; falls back to the raw
+/// value for non-envelope outputs.
+fn parse_content(out: &str) -> serde_json::Value {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("content").cloned().unwrap_or(v)
+}
+
+/// Extract the `kind` field from an error envelope, if present.
+fn error_kind(out: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("kind").and_then(|e| e.as_str()).map(String::from)
+}
+
+// REQ: web_ping returns liveness and provider info (P5 Testing Discipline).
+// expect: web_ping returns status=ok and version info.
+#[tokio::test]
+async fn web_ping_returns_status_ok_via_parameters_seam() {
+    let server = test_server();
+    let out = server.web_ping().await;
+    let content = parse_content(&out);
+    assert_eq!(content["status"], "ok", "got: {out}");
+    assert!(
+        content.get("version").is_some(),
+        "should have version: {out}"
+    );
+}
+
+// REQ: web_search rejects an empty query with invalid_argument (P5).
+// expect: an empty query string returns kind=invalid_argument.
+#[tokio::test]
+async fn web_search_rejects_empty_query_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_research::types::SearchRequest = serde_json::from_value(serde_json::json!({
+        "query": "",
+        "strategy": "quick"
+    }))
+    .expect("deserialize SearchRequest");
+    let out = server.web_search(Parameters(req)).await;
+    let kind = error_kind(&out).expect("expected error kind for empty query");
+    assert_eq!(kind, "invalid_argument", "got: {out}");
+}
+
+// REQ: rss_list_subscriptions rejects when no RSS DB is configured (P5).
+// expect: without an RSS database, returns kind=unavailable.
+#[tokio::test]
+async fn rss_list_subscriptions_rejects_without_db_via_parameters_seam() {
+    let server = test_server();
+    let req: hkask_mcp_research::rss_types::ListSubscriptionsRequest =
+        serde_json::from_value(serde_json::json!({"folder": null}))
+            .expect("deserialize ListSubscriptionsRequest");
+    let out = server.rss_list_subscriptions(Parameters(req)).await;
+    let kind = error_kind(&out).expect("expected error kind for missing RSS db");
+    assert_eq!(kind, "unavailable", "got: {out}");
+}
+
+// REQ: rss_export_opml rejects when no RSS DB is configured (P5).
+// expect: without an RSS database, returns kind=unavailable.
+#[tokio::test]
+async fn rss_export_opml_rejects_without_db_via_parameters_seam() {
+    let server = test_server();
+    let out = server.rss_export_opml().await;
+    let kind = error_kind(&out).expect("expected error kind for missing RSS db");
+    assert_eq!(kind, "unavailable", "got: {out}");
 }

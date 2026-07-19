@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex};
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 hkask_mcp::mcp_server!(
-    struct CodeGraphServer {
+    pub struct CodeGraphServer {
         pub capability_tier: CapabilityTier,
         pipeline: Arc<Mutex<IndexPipeline>>,
         embed_router: Option<EmbeddingRouter>,
@@ -60,7 +60,7 @@ impl CodeGraphServer {
 // ── Request types for tools with structured parameters ────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct QueryRequest {
+pub struct QueryRequest {
     query: String,
     #[serde(default = "default_limit")]
     limit: u64,
@@ -73,7 +73,7 @@ fn default_limit() -> u64 {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct TraverseRequest {
+pub struct TraverseRequest {
     symbol: String,
     #[serde(default = "default_forward")]
     direction: String,
@@ -88,14 +88,14 @@ fn default_depth() -> u64 {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct ImpactRequest {
+pub struct ImpactRequest {
     symbol: String,
     #[serde(default = "default_depth")]
     max_depth: u64,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct ContextRequest {
+pub struct ContextRequest {
     query: String,
     #[serde(default = "default_budget")]
     budget: String,
@@ -105,12 +105,12 @@ fn default_budget() -> String {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct AnalysisRequest {
+pub struct AnalysisRequest {
     kind: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct StructureRequest {
+pub struct StructureRequest {
     #[serde(default = "default_structure_limit")]
     limit: u64,
 }
@@ -119,7 +119,7 @@ fn default_structure_limit() -> u64 {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct StatsRequest {
+pub struct StatsRequest {
     #[serde(default)]
     include_health: bool,
     /// Include language/file-type breakdown (replaces codegraph_project_meta)
@@ -128,7 +128,7 @@ struct StatsRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct FeedbackRequest {
+pub struct FeedbackRequest {
     context_id: String,
     #[serde(default)]
     symbols_provided: Vec<String>,
@@ -137,7 +137,7 @@ struct FeedbackRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct EmbedIndexRequest {
+pub struct EmbedIndexRequest {
     /// Embedding model to use (defaults to HKASK_EMBEDDING_MODEL env var, or DI/Qwen/Qwen3-Embedding-0.6B)
     #[serde(default = "default_embed_model")]
     model: String,

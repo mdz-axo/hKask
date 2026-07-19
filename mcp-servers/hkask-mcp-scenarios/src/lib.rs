@@ -264,7 +264,7 @@ struct StatusRequest {}
 // ── Server struct ──────────────────────────────────────────────────────────
 
 hkask_mcp::mcp_server!(
-    struct ScenariosServer {
+    pub struct ScenariosServer {
         pub forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
         pub client: reqwest::Client,
         pub tree_cache: std::sync::Mutex<Option<types::EventTree>>,

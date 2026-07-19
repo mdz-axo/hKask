@@ -31,3 +31,4 @@ tracing.workspace = true
 [dev-dependencies]
 hkask-test-harness = { path = "../../crates/hkask-test-harness" }
 proptest = "1"
+tokio = { workspace = true, features = ["macros", "rt"] }

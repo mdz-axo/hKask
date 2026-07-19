@@ -72,7 +72,7 @@ fn database_passphrase() -> Result<String, McpToolError> {
 }
 
 hkask_mcp::mcp_server!(
-    struct ReplicaServer;
+    pub struct ReplicaServer;
 );
 
 // ── Response types ──────────────────────────────────────────────────────────

@@ -7,6 +7,16 @@
 
 use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::types::Profile;
+use hkask_condenser::types::{ClassifyRequest, CompressRequest, SetProfileRequest};
+use hkask_mcp::server::CapabilityTier;
+use hkask_mcp_condenser::CondenserServer;
+use hkask_mcp_condenser::SaliencyRequest;
+use hkask_types::WebID;
+use rmcp::handler::server::wrapper::Parameters;
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
 // ── Classification contract tests ───────────────────────────────────────────
 
@@ -134,4 +144,186 @@ fn health_check_flags_low_compression_ratio() {
             .any(|s| s.signal_type == "low_compression_ratio"),
         "expected low_compression_ratio signal after 15 passthrough compressions, got {signals:?}"
     );
+}
+
+// ── Tool-behavior contract tests (Parameters<T> seam) ───────────────────────
+//
+// These exercise the actual MCP tool methods through the public `Parameters<T>`
+// seam — the same surface an agent uses. Closes the test-variety gap that hid
+// the create-new-file, range-inversion, and multibyte-truncation defects in
+// hkask-mcp-filesystem.
+
+/// A no-op InferencePort for testing — avoids real API calls.
+struct NoopInferencePort;
+
+impl hkask_ports::InferencePort for NoopInferencePort {
+    fn generate(
+        &self,
+        _prompt: &str,
+        _parameters: &hkask_types::template::LLMParameters,
+        _tools: Option<&[hkask_ports::ChatToolDefinition]>,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<hkask_ports::InferenceResult, hkask_ports::InferenceError>>
+                + Send
+                + '_,
+        >,
+    > {
+        Box::pin(async {
+            Ok(hkask_ports::InferenceResult {
+                text: String::new(),
+                model: "noop".into(),
+                usage: hkask_ports::InferenceUsage {
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                    total_tokens: 0,
+                },
+                finish_reason: "stop".into(),
+                token_probabilities: None,
+                tool_calls: vec![],
+            })
+        })
+    }
+}
+
+/// Construct a CondenserServer with no persistence and a noop inference port.
+fn test_server() -> CondenserServer {
+    CondenserServer::new(
+        WebID::new(),
+        "test-replicant".into(),
+        None,
+        Mutex::new(CondenserEngine::new()),
+        None,
+        None,
+        Arc::new(NoopInferencePort),
+        "noop-model".into(),
+        CondenserServer::default_persona_keywords(),
+        CapabilityTier::detect(&HashMap::new()),
+    )
+}
+
+/// Parse the success envelope `{"content": <value>}`; falls back to the raw
+/// value for non-envelope outputs.
+fn parse_content(out: &str) -> serde_json::Value {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("content").cloned().unwrap_or(v)
+}
+
+/// Extract the `kind` field from an error envelope, if present.
+fn error_kind(out: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(out).expect("tool output is JSON");
+    v.get("kind").and_then(|e| e.as_str()).map(String::from)
+}
+
+// REQ: condenser_compress rejects empty output with invalid_argument (P5).
+// expect: an empty output string returns kind=invalid_argument.
+#[tokio::test]
+async fn condenser_compress_rejects_empty_output_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .condenser_compress(Parameters(CompressRequest {
+            tool_name: "bash_execute".into(),
+            output: String::new(),
+            category: None,
+        }))
+        .await;
+    let kind = error_kind(&out).expect("expected error kind for empty output");
+    assert_eq!(kind, "invalid_argument", "got: {out}");
+}
+
+// REQ: condenser_compress compresses non-empty output (P5).
+// expect: a non-empty output returns compressed_bytes <= original_bytes.
+#[tokio::test]
+async fn condenser_compress_returns_compressed_via_parameters_seam() {
+    let server = test_server();
+    let input = "line1\nline2\nline3\nline4\nline5\n".repeat(20);
+    let out = server
+        .condenser_compress(Parameters(CompressRequest {
+            tool_name: "bash_execute".into(),
+            output: input.clone(),
+            category: None,
+        }))
+        .await;
+    let content = parse_content(&out);
+    let compressed = content["compressed_bytes"]
+        .as_u64()
+        .expect("compressed_bytes");
+    let original = content["original_bytes"].as_u64().expect("original_bytes");
+    assert!(
+        compressed <= original,
+        "compressed should be <= original: {out}"
+    );
+}
+
+// REQ: condenser_set_profile rejects an invalid profile name (P5).
+// expect: an unknown profile returns kind=invalid_argument.
+#[tokio::test]
+async fn condenser_set_profile_rejects_invalid_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .condenser_set_profile(Parameters(SetProfileRequest {
+            profile: "ultra".into(),
+        }))
+        .await;
+    let kind = error_kind(&out).expect("expected error kind for invalid profile");
+    assert_eq!(kind, "invalid_argument", "got: {out}");
+}
+
+// REQ: condenser_classify returns the category for a tool name (P5).
+// expect: classify returns a category and algorithm for a known tool pattern.
+#[tokio::test]
+async fn condenser_classify_returns_category_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .condenser_classify(Parameters(ClassifyRequest {
+            tool_name: "bash_execute".into(),
+        }))
+        .await;
+    let content = parse_content(&out);
+    assert_eq!(content["tool_name"], "bash_execute");
+    assert!(
+        content.get("category").is_some(),
+        "should have category: {out}"
+    );
+    assert!(
+        content.get("algorithm").is_some(),
+        "should have algorithm: {out}"
+    );
+}
+
+// REQ: condenser_persist rejects when no persistence backend is configured (P5).
+// expect: without episodic memory, returns kind=permission_denied.
+#[tokio::test]
+async fn condenser_persist_rejects_without_persistence_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .condenser_persist(Parameters(hkask_condenser::types::PersistRequest {
+            tool_name: "bash_execute".into(),
+            compressed_output: "some compressed text".into(),
+            confidence: None,
+        }))
+        .await;
+    let kind = error_kind(&out).expect("expected error kind for missing persistence");
+    assert_eq!(kind, "permission_denied", "got: {out}");
+}
+
+// REQ: condenser_score_saliency returns a score in [0.0, 1.0] (P5).
+// expect: persona-based scoring returns a numeric score.
+#[tokio::test]
+async fn condenser_score_saliency_returns_score_via_parameters_seam() {
+    let server = test_server();
+    let out = server
+        .condenser_score_saliency(Parameters(SaliencyRequest {
+            text: "compress the context and summarize".into(),
+            against: None,
+            persona_keywords: None,
+        }))
+        .await;
+    let content = parse_content(&out);
+    let score = content["score"].as_f64().expect("score should be a number");
+    assert!(
+        score >= 0.0 && score <= 1.0,
+        "score should be in [0,1]: {score}"
+    );
+    assert_eq!(content["against"], "persona");
 }
