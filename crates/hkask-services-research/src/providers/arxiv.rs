@@ -132,26 +132,21 @@ fn parse_arxiv_atom(xml: &str) -> Vec<SearchResult> {
         // PDF link from <link title="pdf" href="..."/>
         // Search the whole entry (not line-by-line) — arXiv's Atom XML may
         // emit <link> tags with attributes spanning multiple lines.
+        // Scope the href search to the <link> tag containing title="pdf"
+        // to avoid matching an href from a different <link> tag.
         let pdf_url = entry.find("title=\"pdf\"").and_then(|tag_pos| {
-            // Find the href="..." attribute within the same <link> tag.
-            // Search both directions from the title="pdf" position.
+            // Find the <link tag start before title="pdf".
+            let link_start = entry[..tag_pos].rfind("<link")?;
+            // Find the tag end (> or />) after title="pdf".
+            let link_end_rel = entry[tag_pos..].find('>')?;
+            let link_end = tag_pos + link_end_rel + 1;
+            let link_tag = &entry[link_start..link_end];
+            // Now search for href="..." within this single <link> tag.
             let href_marker = "href=\"";
-            // Look forward first (most common: href after title).
-            if let Some(href_pos) = entry[tag_pos..].find(href_marker) {
-                let start = tag_pos + href_pos + href_marker.len();
-                if let Some(end) = entry[start..].find('"') {
-                    return Some(entry[start..start + end].to_string());
-                }
-            }
-            // Look backward (href before title).
-            let before = &entry[..tag_pos];
-            if let Some(href_pos) = before.rfind(href_marker) {
-                let start = href_pos + href_marker.len();
-                if let Some(end) = entry[start..].find('"') {
-                    return Some(entry[start..start + end].to_string());
-                }
-            }
-            None
+            let href_pos = link_tag.find(href_marker)?;
+            let start = href_pos + href_marker.len();
+            let end = link_tag[start..].find('"')?;
+            Some(link_tag[start..start + end].to_string())
         });
 
         let url = if !pdf_url.as_ref().is_none_or(|u| u.is_empty()) {
