@@ -101,6 +101,10 @@ impl KataEngine {
                     KataError::InferenceFailed(format!("Coaching Q{}: {}", q.number, e))
                 })?;
 
+            // Deduct actual token cost from the bound kanban task's gas budget.
+            // No-op when no task gas accountant is configured (standalone kata execution).
+            self.deduct_task_gas(&response, &format!("coaching-q{}", q.number));
+
             state.step_outputs.insert(
                 format!("q{}", q.number),
                 serde_json::json!({"response": response.text, "question": q.question}),

@@ -32,6 +32,10 @@ impl KataEngine {
                 .map_err(|e| KataError::InferenceFailed(format!("Step {}: {}", step.ordinal, e)))?
         };
 
+        // Deduct actual token cost from the bound kanban task's gas budget.
+        // No-op when no task gas accountant is configured (standalone kata execution).
+        self.deduct_task_gas(&result, &format!("step-{}", step.ordinal));
+
         let response = result.text;
 
         if let Some(ref _schema) = step.output_schema {

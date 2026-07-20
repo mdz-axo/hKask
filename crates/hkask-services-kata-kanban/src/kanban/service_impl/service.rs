@@ -64,6 +64,25 @@ impl KanbanService {
         self
     }
 
+    /// Create a task-scoped gas accountant bound to a specific kanban task.
+    ///
+    /// The accountant decrements `task.gas_remaining` via `task_consume_gas`
+    /// after each inference call. Attach it to a `KataEngine` via
+    /// `with_task_gas_accountant` to close the per-task gas feedback loop.
+    ///
+    /// pre:  task_id refers to an existing task with a gas budget set
+    /// post: returns an `Arc<dyn TaskGasAccountant>` that deducts from the task
+    #[must_use]
+    pub fn gas_accountant_for(
+        self: &Arc<Self>,
+        task_id: TaskId,
+    ) -> Arc<dyn crate::kata::TaskGasAccountant> {
+        Arc::new(KanbanTaskGasAccountant {
+            service: Arc::clone(self),
+            task_id,
+        })
+    }
+
     pub(super) fn require_task_actor(task: &Task, actor: WebID) -> Result<(), KanbanError> {
         if task.owner == actor || task.assignee == Some(actor) {
             Ok(())

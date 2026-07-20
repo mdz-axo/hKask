@@ -131,4 +131,49 @@ impl KataEngine {
             );
         }
     }
+
+    /// Deduct inference token cost from the bound kanban task's gas budget.
+    ///
+    /// Called after each inference call returns. Uses the actual token usage
+    /// from the `InferenceResult` as the cost. When no task gas accountant
+    /// is configured, this is a no-op (the kata engine runs standalone).
+    ///
+    /// `reason` describes the call: "inference: {model} ({tokens} tokens)".
+    ///
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — closes the per-task gas loop.
+    /// pre:  result is a valid InferenceResult with usage data
+    /// post: task.gas_remaining is decremented by total_tokens; GasEntry appended to audit trail
+    pub(super) fn deduct_task_gas(&self, result: &hkask_ports::InferenceResult, step_label: &str) {
+        let Some(ref accountant) = self.task_gas_accountant else {
+            return;
+        };
+        let cost = u64::from(result.usage.total_tokens);
+        if cost == 0 {
+            return; // No tokens consumed — nothing to deduct
+        }
+        let reason = format!(
+            "inference: {} ({} tokens) [{}]",
+            result.model, cost, step_label
+        );
+        match accountant.consume(cost, &reason) {
+            Ok(remaining) => {
+                tracing::debug!(
+                    target: "cns.kata",
+                    step = %step_label,
+                    cost = cost,
+                    remaining = remaining,
+                    "Task gas deducted"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.kata",
+                    step = %step_label,
+                    cost = cost,
+                    error = %e,
+                    "Failed to deduct task gas"
+                );
+            }
+        }
+    }
 }

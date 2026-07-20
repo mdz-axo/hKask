@@ -233,6 +233,25 @@ impl KataEngine {
         self
     }
 
+    /// Bind a task-scoped gas accountant that deducts inference token cost
+    /// from a kanban task's `gas_remaining` budget after each inference call.
+    ///
+    /// This closes the per-task gas feedback loop: when the kata engine runs
+    /// on behalf of a kanban task (via the CLI `kask kata start --task <id>`
+    /// or future subagent wiring), each inference step's actual token usage
+    /// is recorded against the task's budget. When `gas_remaining` hits 0,
+    /// the `unjam_fix` auto-completion path can detect the exhausted task
+    /// and complete it.
+    ///
+    /// `[P9]` Motivating: Homeostatic Self-Regulation — closes the gas consumption loop.
+    /// pre:  accountant must be a valid `Arc<dyn TaskGasAccountant>` bound to a task
+    /// post: returns self with task_gas_accountant set; each inference call will deduct cost
+    #[must_use]
+    pub fn with_task_gas_accountant(mut self, accountant: Arc<dyn TaskGasAccountant>) -> Self {
+        self.task_gas_accountant = Some(accountant);
+        self
+    }
+
     /// Record a practice entry to the SQLite-backed history store, if available.
     ///
     /// This enables concurrent, queryable persistence through the daemon's
