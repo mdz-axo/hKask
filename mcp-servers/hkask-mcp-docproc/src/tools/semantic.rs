@@ -1326,6 +1326,60 @@ mod tests {
         let model = configured_qa_model(Some("OR/openai/gpt-5.6-terra".to_string()));
         assert_eq!(model.as_deref(), Some("OR/openai/gpt-5.6-terra"));
     }
+
+    #[test]
+    fn read_ontology_namespaces_extracts_normalized_keys() {
+        // M4 fix: namespace keys must be normalized (lowercase + trim) so they
+        // match the form produced by validate_ontology_tags in the tagging phase.
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let path = dir.path().join("tagged.jsonl");
+        let content = r#"{"entity_ref":"corpus:researcher:doc:1","ontology_tags":{"FIBO":["ROIC"],"golem":["metaphor"]}}
+{"entity_ref":"corpus:researcher:doc:2","ontology_tags":{"pko":["analysis"]}}
+{"entity_ref":"corpus:researcher:doc:3","dimensions":["what"]}
+"#;
+        std::fs::write(&path, content).expect("write");
+
+        let map = read_ontology_namespaces(path.to_str().unwrap()).expect("read");
+
+        let ns1 = map
+            .get("corpus:researcher:doc:1")
+            .expect("chunk 1 must have namespaces");
+        assert!(ns1.contains("fibo"), "FIBO must be normalized to fibo");
+        assert!(ns1.contains("golem"));
+        assert!(!ns1.contains("FIBO"), "original casing must not survive");
+
+        let ns2 = map
+            .get("corpus:researcher:doc:2")
+            .expect("chunk 2 must have namespaces");
+        assert!(ns2.contains("pko"));
+
+        // Chunk 3 has no ontology_tags — must not appear in the map.
+        assert!(!map.contains_key("corpus:researcher:doc:3"));
+    }
+
+    #[test]
+    fn read_ontology_namespaces_empty_file_returns_empty_map() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let path = dir.path().join("empty.jsonl");
+        std::fs::write(&path, "").expect("write");
+        let map = read_ontology_namespaces(path.to_str().unwrap()).expect("read");
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn read_ontology_namespaces_skips_malformed_lines() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let path = dir.path().join("mixed.jsonl");
+        let content = "not json at all\n{\"entity_ref\":\"ok\",\"ontology_tags\":{\"fibo\":[\"roic\"]}}\n{\"entity_ref\":\"\",\"ontology_tags\":{}}\n";
+        std::fs::write(&path, content).expect("write");
+        let map = read_ontology_namespaces(path.to_str().unwrap()).expect("read");
+        assert_eq!(
+            map.len(),
+            1,
+            "only the valid line with non-empty namespaces must be kept"
+        );
+        assert!(map.contains_key("ok"));
+    }
 }
 
 // ── Request structs ────────────────────────────────────────────────────────
