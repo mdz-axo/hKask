@@ -616,6 +616,16 @@ impl KanbanService {
             ));
         }
 
+        // P4: Clear Boundaries — only tasks in Backlog or Ready can be claimed.
+        // InProgress/Review/Done tasks are not claimable.
+        if !matches!(task.status, TaskStatus::Backlog | TaskStatus::Ready) {
+            return Err(KanbanError::InvalidTransition {
+                task: task_id,
+                from: task.status,
+                to: task.status,
+            });
+        }
+
         task.assignee = Some(actor);
         task.updated_at = chrono::Utc::now();
 
