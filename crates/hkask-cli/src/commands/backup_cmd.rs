@@ -107,7 +107,6 @@ fn unix_days_to_date(days: i64) -> String {
 
 /// Run a backup operation.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is valid, action is valid
 /// post: backup operation executed
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {

@@ -301,7 +301,6 @@ fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, Onboarding
     Ok(replicants[choice - 1].definition.name.clone())
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  user must not cancel at any interactive prompt
 /// post: returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; replicant registered in A2A; user profile stored; matrix registration attempted (non-blocking)
 /// inv:  does not modify any external state before derive_secrets; cancellation at any prompt returns OnboardingError::Cancelled with zero side effects

@@ -13,7 +13,6 @@ use std::io::{self, Write};
 
 /// Run the interactive server initialization.
 ///
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  stdin is a terminal
 /// post: server config, data dir, and keychain entries created
 pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {

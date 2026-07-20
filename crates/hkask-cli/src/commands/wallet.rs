@@ -15,7 +15,6 @@ use std::sync::Arc;
 use crate::error::CliError;
 
 /// Run a wallet subcommand. Builds a standalone WalletService for CLI use.
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is a valid WalletAction variant
 /// post: dispatches to balance, deposit, history, key, fee, withdraw, encumber, release, or report operations
 pub fn run(rt: &tokio::runtime::Runtime, action: WalletAction) {

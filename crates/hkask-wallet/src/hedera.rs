@@ -20,7 +20,7 @@
 //! - Account IDs derived deterministically from treasury public key
 
 use crate::cns_span::WalletSpan;
-use crate::types::{ChainId, PrivacyMode, TxHash, WalletError};
+use crate::types::{ChainId, TxHash, WalletError};
 use async_trait::async_trait;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
@@ -187,11 +187,11 @@ impl HederaPort {
     fn emit_chain_error_for_actor(&self, actor: &WebID, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(
-                SpanNamespace::try_from(WalletSpan::ChainError).expect("canonical span"),
+                SpanNamespace::from_observable(&WalletSpan::ChainError).expect("canonical span"),
                 "error",
             );
             let event = NuEvent::new(
-                actor.clone(),
+                *actor,
                 span_obj,
                 CyclePhase::Sense,
                 serde_json::json!({

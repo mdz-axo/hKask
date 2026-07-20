@@ -42,7 +42,19 @@ DEFAULT_OUTPUT_DIR="${WORKSPACE}/outputs"
 OUTPUT_DIR="${AXOLOTL_OUTPUT_DIR:-${DEFAULT_OUTPUT_DIR}}"
 MANIFEST_PATH="${HKASK_COMPLETION_MANIFEST_PATH:-${WORKSPACE}/completion.json}"
 LOG_DIR="${WORKSPACE}/logs"
-mkdir -p "${WORKSPACE}" "${OUTPUT_DIR}" "${LOG_DIR}"
+mkdir -p "${WORKSPACE}" "${OUTPUT_DIR}" "${LOG_DIR}" \
+    "${WORKSPACE}/.cache/huggingface" "${WORKSPACE}/.cache/pip" "${WORKSPACE}/tmp"
+
+# ── Critical environment variables (per docs/how-to/axolotl-pissa-runpod-guide.md) ─
+# The RunPod container disk is only ~60GB. All caches MUST go to the 200GB+
+# workspace volume, or the disk fills up during pip install / dataset
+# tokenization and causes `No space left on device` → SIGSEGV crash → pod
+# restart loop. This was the root cause of the restart loops in earlier runs.
+export HF_HOME="${WORKSPACE}/.cache/huggingface"
+export PIP_CACHE_DIR="${WORKSPACE}/.cache/pip"
+export TMPDIR="${WORKSPACE}/tmp"
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export HF_HUB_ENABLE_HF_TRANSFER=1  # faster HF downloads (hf_transfer is a dep of axolotl)
 
 # Redirect all stdout+stderr to a log file AND the console (RunPod captures
 # container stderr). This ensures we can inspect failures via the pod's

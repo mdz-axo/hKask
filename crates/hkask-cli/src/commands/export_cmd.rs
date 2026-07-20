@@ -7,7 +7,6 @@ use crate::cli::ExportAction;
 use base64::Engine;
 use std::path::PathBuf;
 
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is ExportAction::Create or ExportAction::Upload
 /// post: dispatches to create or upload handler
 pub fn run(rt: &tokio::runtime::Runtime, action: ExportAction) {

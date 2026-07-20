@@ -44,12 +44,6 @@ use std::sync::{Arc, Mutex};
 use video::FfmpegRunner;
 
 use ab_glyph::Font;
-#[cfg(feature = "face-recognition")]
-use face_id::analyzer::FaceAnalyzer;
-#[cfg(not(feature = "face-recognition"))]
-/// Stub type when face-recognition feature is disabled.
-#[allow(dead_code)]
-pub struct FaceAnalyzer;
 
 // ── Model configuration ───────────────────────────────────────────────
 
@@ -105,7 +99,6 @@ hkask_mcp::mcp_server!(
         pub gallery_store: Arc<GalleryStore>,
         pub template_env: minijinja::Environment<'static>,
         pub ffmpeg: FfmpegRunner,
-        pub face_analyzer: Option<Arc<FaceAnalyzer>>,
     }
 );
 
@@ -361,6 +354,106 @@ impl MediaServer {
                 tracing::warn!(target: "hkask.mcp.media.tags", image_id = %image_id, tag_type = %tag_type, error = %e, "Failed to persist tag")
             }
         }
+    }
+
+    /// Shared face-registration logic used by both the `face_register` MCP tool
+    /// (which takes a gallery image index) and `face_scan_folder` (which
+    /// imports a reference image from a folder, then registers it).
+    ///
+    /// Validates the image via the `validate_face_ref` vision LLM template
+    /// (unless `force` is set), then inserts a row into `face_registry`.
+    /// Returns `(FaceRegistryRecord, Option<FaceValidationResult>)`.
+    async fn register_face_from_url(
+        &self,
+        image_id: &str,
+        image_url: &str,
+        first_name: &str,
+        last_name: &str,
+        force: bool,
+    ) -> Result<
+            (
+                hkask_storage::FaceRegistryRecord,
+                Option<gallery::vision::FaceValidationResult>,
+            ),
+            McpToolError,
+        > {
+        let (status, notes, validation) = if force {
+            ("valid".to_string(), String::new(), None)
+        } else {
+            let (vision_model, _vision_label) = self.require_vision().await?;
+            let v = gallery::vision::validate_face_reference(
+                &self.inference,
+                &self.template_env,
+                image_url,
+                Some(vision_model),
+            )
+            .await
+            .map_err(|e| McpToolError::internal(format!("Face validation failed: {}", e)))?;
+            let status = if v.valid { "valid".to_string() } else { "rejected".to_string() };
+            let notes = if v.valid { String::new() } else { v.issues.join("; ") };
+            (status, notes, Some(v))
+        };
+
+        let record = self
+            .gallery_store
+            .register_face(first_name, last_name, image_id, None, &status, &notes)
+            .map_err(|e| McpToolError::internal(format!("Failed to register face: {}", e)))?;
+        Ok((record, validation))
+    }
+
+    /// Import a reference image file into the current gallery (idempotent by
+    /// SHA-256 hash) and return its gallery `image_id` plus a base64 data URL
+    /// suitable for vision LLM calls. Used by `face_scan_folder`.
+    ///
+    /// If the image is already in the gallery (matched by hash), the existing
+    /// record is reused — no duplicate row is inserted.
+    fn import_reference_image(&self, abs_path: &std::path::Path) -> Result<(String, String), MediaError> {
+        let ga = self.access_gallery()?;
+
+        let data = std::fs::read(abs_path)
+            .map_err(|e| MediaError::Io(format!("Failed to read {}: {}", abs_path.display(), e)))?;
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(&data);
+        let hash = format!("{:x}", hasher.finalize());
+
+        // Reuse existing record if present (idempotent).
+        if let Ok(existing) = self
+            .gallery_store
+            .get_image(&ga.gallery_id, None, Some(&hash))
+        {
+            let url = self.resolve_image_url_by_id(&existing.id)?;
+            return Ok((existing.id, url));
+        }
+
+        let (width, height) = image::image_dimensions(abs_path)
+            .map_err(|e| MediaError::Io(format!("Failed to read dimensions: {}", e)))?;
+        let format = abs_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase())
+            .unwrap_or_default();
+        let relative_path = abs_path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| abs_path.to_string_lossy().to_string());
+        let size_bytes = data.len() as u64;
+
+        let record = self
+            .gallery_store
+            .add_image(
+                &ga.gallery_id,
+                &relative_path,
+                &abs_path.to_string_lossy(),
+                &hash,
+                width,
+                height,
+                &format,
+                size_bytes,
+            )
+            .map_err(|e| MediaError::ImageNotFound(format!("Failed to import reference image: {}", e)))?;
+
+        let url = self.resolve_image_url_by_id(&record.id)?;
+        Ok((record.id, url))
     }
 
     /// Crop a face region from an image using bounding box percentages.
@@ -670,80 +763,6 @@ impl MediaServer {
         (analyzed, errors)
     }
 
-    #[cfg(feature = "face-recognition")]
-    /// Run ONNX-based face detection + embedding extraction on gallery images.
-    /// Returns (faces_found, embeddings_by_image, errors).
-    /// Each embedding is paired with its image_id and bbox for cropping.
-    async fn run_onnx_face_pipeline(
-        &self,
-        indices: &[usize],
-    ) -> (u32, Vec<(String, Vec<u8>, serde_json::Value)>, Vec<String>) {
-        let analyzer = match &self.face_analyzer {
-            Some(a) => a,
-            None => {
-                return (
-                    0,
-                    Vec::new(),
-                    vec!["ONNX analyzer not available".to_string()],
-                );
-            }
-        };
-
-        let mut faces_found = 0u32;
-        let mut embeddings: Vec<(String, Vec<u8>, serde_json::Value)> = Vec::new();
-        let mut errors = Vec::new();
-
-        for idx in indices {
-            let image_id = match self.resolve_image_id(*idx) {
-                Ok(id) => id,
-                Err(e) => {
-                    errors.push(format!("image {}: {}", idx, e));
-                    continue;
-                }
-            };
-            let image_path = match self.resolve_image_path(*idx) {
-                Ok(p) => p,
-                Err(e) => {
-                    errors.push(format!("image {}: {}", idx, e));
-                    continue;
-                }
-            };
-
-            let img = match image::open(&image_path) {
-                Ok(i) => i,
-                Err(e) => {
-                    errors.push(format!("image {} open: {}", idx, e));
-                    continue;
-                }
-            };
-
-            #[cfg(feature = "face-recognition")]
-            match analyzer.analyze(&img) {
-                Ok(faces) => {
-                    for face in &faces {
-                        let bbox = serde_json::json!({
-                            "x_pct": (face.detection.bbox.x1 * 100.0).round(),
-                            "y_pct": (face.detection.bbox.y1 * 100.0).round(),
-                            "w_pct": ((face.detection.bbox.x2 - face.detection.bbox.x1) * 100.0).round(),
-                            "h_pct": ((face.detection.bbox.y2 - face.detection.bbox.y1) * 100.0).round(),
-                        });
-                        let blob = embedding_to_blob(&face.embedding);
-                        embeddings.push((image_id.clone(), blob, bbox));
-                        faces_found += 1;
-                    }
-                }
-                #[cfg(feature = "face-recognition")]
-                Err(e) => {
-                    errors.push(format!("image {} analysis: {}", idx, e));
-                }
-                #[cfg(not(feature = "face-recognition"))]
-                _ => {}
-            }
-        }
-
-        (faces_found, embeddings, errors)
-    }
-
     /// Extract EXIF metadata from an image file.
     /// Returns key fields as a JSON object, or null if EXIF is unavailable.
     fn extract_exif(path: &str) -> serde_json::Value {
@@ -860,27 +879,6 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     }
 }
 
-#[cfg(feature = "face-recognition")]
-/// Convert a 512-dim f32 embedding to raw bytes for BLOB storage.
-fn embedding_to_blob(embedding: &[f32]) -> Vec<u8> {
-    embedding.iter().flat_map(|f| f.to_le_bytes()).collect()
-}
-
-#[cfg(feature = "face-recognition")]
-/// Convert raw BLOB bytes back to a 512-dim f32 embedding.
-#[allow(dead_code)]
-fn blob_to_embedding(blob: &[u8]) -> Option<Vec<f32>> {
-    if !blob.len().is_multiple_of(4) {
-        return None;
-    }
-    let count = blob.len() / 4;
-    let mut vec = Vec::with_capacity(count);
-    for chunk in blob.chunks_exact(4) {
-        vec.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
-    }
-    Some(vec)
-}
-
 // ── Combined tool router (P5 Essentialism — modular tool groups) ──────────
 
 impl MediaServer {
@@ -923,7 +921,7 @@ pub async fn run(
 
     // Create an in-memory GalleryStore for the media server.
     // Gracefully degrade if DB initialization fails — gallery tools
-    // will return errors but the server stays alive (matching face_analyzer pattern).
+    // will return errors but the server stays alive.
     // GalleryStore schema initialized by from_driver().
     let gallery_store = {
         let db = Database::in_memory().expect("in-memory DB");
@@ -933,26 +931,9 @@ pub async fn run(
         Arc::new(GalleryStore::from_driver(driver))
     };
 
-    // Initialize ONNX face analyzer (downloads ~250MB models on first run).
-    // Gated behind the `face-recognition` feature — without it, all face
-    // tools fall back to vision LLM comparison.
-    #[cfg(feature = "face-recognition")]
-    let face_analyzer = match FaceAnalyzer::from_hf().build().await {
-        Ok(a) => {
-            tracing::info!(target: "hkask.mcp.media", "ONNX face analyzer ready");
-            Some(Arc::new(a))
-        }
-        Err(e) => {
-            tracing::warn!(target: "hkask.mcp.media", error = %e, "ONNX face analyzer unavailable — face detection will use vision LLM fallback");
-            None
-        }
-    };
-    #[cfg(not(feature = "face-recognition"))]
-    let face_analyzer: Option<Arc<FaceAnalyzer>> = None;
-
     hkask_mcp::run_server(
         "hkask-mcp-media",
-        env!("CARGO_PKG_VERSION"),
+        env!(CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             Ok(MediaServer::new(
                 ctx.webid,
@@ -963,7 +944,6 @@ pub async fn run(
                 gallery_store.clone(),
                 templates::create_env(),
                 FfmpegRunner::detect(),
-                face_analyzer.clone(),
             ))
         },
         vec![

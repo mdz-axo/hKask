@@ -7,7 +7,6 @@ use crate::cli::MatrixAction;
 use crate::error::CliError;
 use std::path::{Path, PathBuf};
 
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  action is a valid MatrixAction variant
 /// post: dispatches to deploy_sidecar, register_agent, register_user, or status_sidecar
 pub fn run(action: MatrixAction) {

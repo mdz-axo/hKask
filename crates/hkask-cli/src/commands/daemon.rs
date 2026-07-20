@@ -13,7 +13,6 @@ use crate::error::CliError;
 use hkask_mcp::daemon::{DaemonHandler, DaemonListener, daemon_socket_path, ping_daemon};
 use std::sync::Arc;
 
-/// expect: "I can access all hKask functionality through the kask CLI"
 /// pre:  rt is a valid tokio Runtime; action is a valid DaemonAction variant
 /// post: starts, checks status, or stops the daemon; prints result to stdout
 pub fn run(rt: &tokio::runtime::Runtime, action: DaemonAction) {

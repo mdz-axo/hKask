@@ -1,24 +1,28 @@
 # hkask-cli
 
-CLI commands for hKask — the primary user interface.
+CLI for hKask — admin, config, startup, shutdown, and the single `tui` runtime launch.
 
-39 subcommand groups + interactive REPL with `/model` slash commands.
+**Design rule:** CLI = admin, config, startup, shutdown. Runtime operations
+(skills, bundles, templates, kata, kanban, goals, adapters, CNS queries,
+curator escalations, consolidation, style, web search) live in the TUI's
+REPL slash commands or are invoked via MCP tools from within the runtime.
+The CLI does not expose side-doors to MCP tools.
 
-## Key Subcommands
+## Commands
 
 | Group | Commands |
 |-------|----------|
-| `chat` | Interactive Curator chat |
-| `agent`, `bot`, `pod`, `replicant` | Agent lifecycle |
-| `template`, `skill`, `bundle` | Composition |
-| `mcp` | MCP server management |
-| `cns`, `loops` | CNS observability |
-| `sovereignty` | Magna Carta enforcement |
-| `backup`, `git` | Storage and backup |
-| `spec`, `docs` | Specification and docs |
-| `kata` | Toyota Kata coaching |
-| `qa` | Fuzz triage and mutation analysis |
-| `daemon`, `serve`, `matrix` | Server modes |
+| `tui` | Launch interactive ratatui workspace (embeds REPL); `-f` for non-interactive/pipe mode |
+| `init`, `onboard`, `doctor`, `settings`, `keystore` | Config |
+| `daemon` (start/status/stop), `serve`, `matrix` (deploy/register/status) | Startup |
+| `replicant` (register/login/logout/sessions/list/show/rename/delete/invite) | User lifecycle |
+| `backup`, `git`, `export`, `repair` | Storage admin |
+| `federation`, `token`, `wallet` | Admin |
+| `deploy init --domain` | Remote cluster bootstrap (K3s/Hetzner) |
+| `pod` (export-container, export-k8s) | Deployment artifact generation |
+| `sovereignty verify` | Magna Carta structural audit |
+| `mcp` (list-servers, list-tools, get-tool) | MCP inventory (read-only) |
+| `adapter` | Trained adapter lifecycle (Phase 2 — pending MCP migration) |
 
 ## Configuration
 
@@ -30,4 +34,4 @@ CLI commands for hKask — the primary user interface.
 
 ## Observability
 
-CLI CNS spans log the **command group only** (e.g., `backup`, `consolidate`) to avoid leaking sensitive arguments such as passphrases.
+CLI CNS spans log the **command group only** (e.g., `backup`, `deploy`) to avoid leaking sensitive arguments such as passphrases.

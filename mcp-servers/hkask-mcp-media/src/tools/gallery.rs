@@ -818,79 +818,13 @@ impl MediaServer {
             let image_id = self
                 .resolve_image_id(image_index)
                 .map_err(map_media_error)?;
+            let image_url = self
+                .resolve_image_url(image_index)
+                .map_err(map_media_error)?;
 
-            let (status, notes, validation) = if force {
-                ("valid", String::new(), None)
-            } else {
-                let image_url = self
-                    .resolve_image_url(image_index)
-                    .map_err(map_media_error)?;
-
-                let (vision_model, _vision_label) = self.require_vision().await?;
-
-                let v = vision::validate_face_reference(
-                    &self.inference,
-                    &self.template_env,
-                    &image_url,
-                    Some(vision_model),
-                )
-                .await
-                .map_err(|e| {
-                    McpToolError::internal(format!("Face validation failed: {}", e))
-                })?;
-
-                let status = if v.valid { "valid" } else { "rejected" };
-                let notes = if v.valid {
-                    String::new()
-                } else {
-                    v.issues.join("; ")
-                };
-                (status, notes, Some(v))
-            };
-
-            let embedding_blob: Option<Vec<u8>> = {
-                #[cfg(feature = "face-recognition")]
-                {
-                    if let Some(ref analyzer) = self.face_analyzer {
-                        match self.resolve_image_path(image_index) {
-                            Ok(path) => match image::open(&path) {
-                                Ok(img) => match analyzer.analyze(&img) {
-                                    Ok(faces) => faces.first().map(|f| embedding_to_blob(&f.embedding)),
-                                    Err(e) => {
-                                        tracing::warn!(target: "cns.mcp.media.face", error = %e, "ONNX face analysis failed during registration");
-                                        None
-                                    }
-                                },
-                                Err(e) => {
-                                    tracing::warn!(target: "cns.mcp.media.face", error = %e, "Failed to open image for embedding");
-                                    None
-                                }
-                            },
-                            Err(_) => None,
-                        }
-                    } else {
-                        None
-                    }
-                }
-                #[cfg(not(feature = "face-recognition"))]
-                {
-                    None
-                }
-            };
-
-            let record = self
-                .gallery_store
-                .register_face(
-                    &first_name,
-                    &last_name,
-                    &image_id,
-                    embedding_blob.as_deref(),
-                    status,
-                    &notes,
-                )
-                .map_err(|e| {
-                    McpToolError::internal(format!("Failed to register face: {}", e))
-                })?;
+            let (record, validation) = self
+                .register_face_from_url(&image_id, &image_url, &first_name, &last_name, force)
+                .await?;
 
             Ok(serde_json::json!({
                 "face_id": record.id,
@@ -899,6 +833,161 @@ impl MediaServer {
                 "status": record.status,
                 "validation": validation,
                 "notes": record.notes,
+            }))
+        })
+        .await
+    }
+
+    #[tool(
+        description = "Scan a folder of reference face images and register each one in the face_registry. Each image must have a YAML sidecar (e.g. `alice.jpg.yaml`) with `first_name`, `last_name`, and optional `notes`. Images are imported into the current gallery (idempotent by SHA-256 hash) so they can be matched against detected faces during gallery_refresh. Default folder: `~/.hkask/faces/`."
+    )]
+    pub async fn face_scan_folder(
+        &self,
+        Parameters(FaceScanFolderRequest { folder_path, force }): Parameters<FaceScanFolderRequest>,
+    ) -> String {
+        execute_tool(self, "face_scan_folder", async {
+            let folder = if let Some(p) = folder_path {
+                std::path::PathBuf::from(p)
+            } else {
+                let home = std::env::var_os("HOME").ok_or_else(|| {
+                    McpToolError::invalid_argument(
+                        "HOME not set and no folder_path provided".to_string(),
+                    )
+                })?;
+                std::path::PathBuf::from(home).join(".hkask").join("faces")
+            };
+
+            if !folder.is_dir() {
+                return Err(McpToolError::invalid_argument(format!(
+                    "Face folder does not exist: {}",
+                    folder.display()
+                )));
+            }
+
+            // Image extensions we recognize as reference faces.
+            const IMG_EXTS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
+
+            let mut scanned = 0u32;
+            let mut registered = 0u32;
+            let mut skipped = 0u32;
+            let mut rejected = 0u32;
+            let mut errors: Vec<String> = Vec::new();
+            let mut registered_faces: Vec<serde_json::Value> = Vec::new();
+
+            for entry in walkdir::WalkDir::new(&folder)
+                .max_depth(1)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let path = entry.path();
+                if !path.is_file() {
+                    continue;
+                }
+                let ext = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| e.to_lowercase())
+                    .unwrap_or_default();
+                if !IMG_EXTS.contains(&ext.as_str()) {
+                    continue;
+                }
+
+                scanned += 1;
+
+                // Locate the YAML sidecar: `<image>.yaml`.
+                let sidecar = path.with_extension(format!("{}.yaml", ext));
+                let sidecar = if sidecar.is_file() {
+                    sidecar
+                } else {
+                    // Also accept `<image>.yml`.
+                    let alt = path.with_extension(format!("{}.yml", ext));
+                    if alt.is_file() {
+                        alt
+                    } else {
+                        skipped += 1;
+                        errors.push(format!(
+                            "{}: no YAML sidecar found (expected {} or {})",
+                            path.file_name().unwrap_or_default().to_string_lossy(),
+                            path.with_extension(format!("{}.yaml", ext)).display(),
+                            path.with_extension(format!("{}.yml", ext)).display(),
+                        ));
+                        continue;
+                    }
+                };
+
+                let sidecar_text = match std::fs::read_to_string(&sidecar) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        errors.push(format!(
+                            "{}: failed to read sidecar: {}",
+                            path.file_name().unwrap_or_default().to_string_lossy(),
+                            e
+                        ));
+                        continue;
+                    }
+                };
+
+                let parsed: FaceSidecar = match serde_yaml_neo::from_str(&sidecar_text) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        errors.push(format!(
+                            "{}: invalid sidecar YAML: {}",
+                            sidecar.display(),
+                            e
+                        ));
+                        continue;
+                    }
+                };
+
+                // Import the image into the gallery (idempotent by hash) and
+                // resolve a data URL for the vision LLM.
+                let (image_id, image_url) = match self.import_reference_image(path) {
+                    Ok(pair) => pair,
+                    Err(e) => {
+                        errors.push(format!(
+                            "{}: import failed: {}",
+                            path.file_name().unwrap_or_default().to_string_lossy(),
+                            e
+                        ));
+                        continue;
+                    }
+                };
+
+                let (record, validation) = self
+                    .register_face_from_url(
+                        &image_id,
+                        &image_url,
+                        &parsed.first_name,
+                        &parsed.last_name,
+                        force,
+                    )
+                    .await?;
+
+                if record.status == "valid" {
+                    registered += 1;
+                } else {
+                    rejected += 1;
+                }
+
+                registered_faces.push(serde_json::json!({
+                    "face_id": record.id,
+                    "first_name": record.first_name,
+                    "last_name": record.last_name,
+                    "status": record.status,
+                    "notes": record.notes,
+                    "validation": validation,
+                    "source": path.file_name().unwrap_or_default().to_string_lossy(),
+                }));
+            }
+
+            Ok(serde_json::json!({
+                "folder": folder.to_string_lossy(),
+                "scanned": scanned,
+                "registered": registered,
+                "skipped": skipped,
+                "rejected": rejected,
+                "faces": registered_faces,
+                "errors": errors,
             }))
         })
         .await

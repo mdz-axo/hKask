@@ -40,7 +40,8 @@ pub use escalation::{
     EscalationStatus,
 };
 pub use gallery::{
-    GalleryMode, GalleryRecord, GalleryStore, GalleryStoreError, ImageRecord, TagRecord,
+    FaceRegistryRecord, GalleryMode, GalleryRecord, GalleryStore, GalleryStoreError, ImageRecord,
+    TagRecord,
 };
 pub use goals::{GoalRepositoryError, QuarantinedGoal, SqliteGoalRepository};
 pub use hkask_types::HMemId;

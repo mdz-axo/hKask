@@ -7,7 +7,6 @@ description = "Media generation MCP server (image, video, audio, 3D via fal.ai a
 
 [features]
 default = []
-face-recognition = ["dep:face_id"]
 
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
@@ -40,7 +39,6 @@ imageproc.workspace = true
 ab_glyph = "0.2"
 uuid.workspace = true
 nom-exif = "3"
-face_id = { version = "0.4", optional = true }
 
 [lib]
 name = "hkask_mcp_media"

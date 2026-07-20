@@ -161,10 +161,32 @@ pub struct FaceListRequest {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+[derive(Debug, Deserialize, JsonSchema)]
 pub struct FaceRemoveRequest {
     /// Face registry ID to remove.
     pub face_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FaceScanFolderRequest {
+    /// Absolute path to the folder of reference face images. Each image must
+    /// have a YAML sidecar (e.g. `alice.jpg.yaml`) with `first_name`,
+    /// `last_name`, and optional `notes`. Defaults to `~/.hkask/faces/`.
+    pub folder_path: Option<String>,
+    /// Skip validation and register each face directly as valid (default: false).
+    /// Use when you know the images are good references but validation is overly strict.
+    #[serde(default)]
+    pub force: bool,
+}
+
+/// YAML sidecar format for `face_scan_folder`.
+/// Maps a reference image file to a person name.
+#[derive(Debug, Deserialize)]
+pub struct FaceSidecar {
+    pub first_name: String,
+    pub last_name: String,
+    #[serde(default)]
+    pub notes: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
