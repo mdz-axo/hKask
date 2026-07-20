@@ -17,7 +17,6 @@ Plan → Backlog | Do → InProgress | Check → Review | Act → Done
 |--------|---------|
 | `kata` | Toyota Kata engine — coaching, improvement, starter, execution, manifest, state, history, metrics |
 | `kanban` | Kanban board — types (Board, Task, SpawnSpec), service (CRUD, WIP limits, verification, de-jam), socratic inquiry |
-| `bridge` | `KanbanKataBridge` — executes full kata cycles on kanban tasks, delegating to `KataEngine` |
 
 ## Key Types
 

@@ -19,11 +19,9 @@ use hkask_types::id::{BoardId, TaskId};
 use serde_json::Value;
 
 use super::types::KanbanError;
-use crate::bridge::KanbanKataBridge;
 use crate::kanban::{
     Board, ColumnDef, GasEntry, Priority, Task, TaskFilter, TaskSpec, TaskStatus, Verification,
 };
-use crate::kata::{KataManifest, KataResult};
 
 /// Core kanban coordination service.
 ///
@@ -36,7 +34,6 @@ use crate::kata::{KataManifest, KataResult};
 pub struct KanbanService {
     pub(crate) store: HMemStore,
     pub(crate) pod_manager: Option<Arc<hkask_agents::pod::ActivePods>>,
-    pub(crate) kata_bridge: Option<Arc<KanbanKataBridge>>,
 }
 
 // HMem entity prefixes
@@ -54,7 +51,6 @@ impl KanbanService {
         Self {
             store,
             pod_manager: None,
-            kata_bridge: None,
         }
     }
 
@@ -65,16 +61,6 @@ impl KanbanService {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_pod_manager(mut self, pm: Arc<hkask_agents::pod::ActivePods>) -> Self {
         self.pod_manager = Some(pm);
-        self
-    }
-
-    /// Attach a KataEngine bridge for kata cycle execution on tasks.
-    ///
-    /// pre:  engine is a valid `Arc<KataEngine>` configured with inference, CNS, and history
-    /// post: returns Self with kata_bridge set to Some(KanbanKataBridge::new(engine))
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_kata_engine(mut self, engine: Arc<crate::kata::KataEngine>) -> Self {
-        self.kata_bridge = Some(Arc::new(KanbanKataBridge::new(engine)));
         self
     }
 
@@ -963,75 +949,6 @@ impl KanbanService {
         let _ = board;
 
         Ok(deleted_count)
-    }
-
-    // ── Kata Execution (bridge delegation) ──────────────────────────
-
-    /// Run a full coaching kata cycle on a task using the bridge.
-    ///
-    /// When the kata bridge is configured, delegates to KataEngine for
-    /// inference, CNS span emission, gas tracking, and automaticity.
-    /// When the bridge is not configured, returns an error.
-    #[must_use = "result must be used"]
-    pub async fn run_coaching_kata(
-        &self,
-        task_id: TaskId,
-        manifest: &KataManifest,
-    ) -> Result<KataResult, KanbanError> {
-        let task = self.task_get(task_id)?.ok_or_else(|| {
-            KanbanError::NotFound(NotFound {
-                entity_type: "task".to_string(),
-                id: task_id.to_string(),
-            })
-        })?;
-        let bridge = self
-            .kata_bridge
-            .as_ref()
-            .ok_or_else(|| KanbanError::Internal("kata bridge not configured".into()))?;
-        Ok(bridge.run_coaching_on_task(&task, manifest).await?)
-    }
-
-    /// Run a full improvement kata cycle on a task using the bridge.
-    #[must_use = "result must be used"]
-    pub async fn run_improvement_kata(
-        &self,
-        task_id: TaskId,
-        manifest: &KataManifest,
-    ) -> Result<KataResult, KanbanError> {
-        let task = self.task_get(task_id)?.ok_or_else(|| {
-            KanbanError::NotFound(NotFound {
-                entity_type: "task".to_string(),
-                id: task_id.to_string(),
-            })
-        })?;
-        let bridge = self
-            .kata_bridge
-            .as_ref()
-            .ok_or_else(|| KanbanError::Internal("kata bridge not configured".into()))?;
-        Ok(bridge.run_improvement_on_task(&task, manifest).await?)
-    }
-
-    /// Run a starter kata observation drill on a task using the bridge.
-    #[must_use = "result must be used"]
-    pub async fn run_starter_kata(
-        &self,
-        task_id: TaskId,
-        sub_problem: &str,
-        manifest: &KataManifest,
-    ) -> Result<KataResult, KanbanError> {
-        let task = self.task_get(task_id)?.ok_or_else(|| {
-            KanbanError::NotFound(NotFound {
-                entity_type: "task".to_string(),
-                id: task_id.to_string(),
-            })
-        })?;
-        let bridge = self
-            .kata_bridge
-            .as_ref()
-            .ok_or_else(|| KanbanError::Internal("kata bridge not configured".into()))?;
-        Ok(bridge
-            .run_starter_on_task(&task, sub_problem, manifest)
-            .await?)
     }
 
     // ── De-jamming ────────────────────────────────────────────────────
