@@ -459,6 +459,13 @@ impl TrainingHost for RunpodHost {
             &env_entries,
         );
 
+        tracing::debug!(
+            target: "hkask.training.runpod.mutation",
+            mutation_len = mutation.len(),
+            docker_args_len = docker_args.len(),
+            "Built pod deploy mutation"
+        );
+
         let result = self.graphql_query(&mutation, json!({})).await?;
 
         let pod_id = result["data"]["podFindAndDeployOnDemand"]["id"]

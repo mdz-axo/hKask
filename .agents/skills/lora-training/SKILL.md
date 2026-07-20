@@ -388,46 +388,27 @@ CONSTRAINT — Evidence integrity (P8):
 | `report.j2` | KnowAct | Synthesize findings with arXiv citations and PEFT doc references; propose `RR-NNNN.yaml` entries (`surface: training`); emit `cns.lora.report` span. |
 | `convergence-check.j2` | KnowAct | Compute training-readiness convergence metric (math-contract coverage + QLoRA coverage + data/eval + forgetting). Emit `cns.lora.convergence` span. |
 
-## Method Catalog
+## Method & Gate Catalog
 
-| Method | When (gate) | Init | Mergeable | Source |
-|--------|-------------|------|-----------|--------|
-| LoRA | G4=default | `B=0`, `A~Gaussian` | Yes | arXiv:2106.09685 |
-| QLoRA | G2=memory-bound | LoRA init on NF4 base | Yes (after dequant) | arXiv:2305.14314 |
-| rsLoRA | G3=r>64 | LoRA init, `α/√r` scaling | Yes | arXiv:2312.03732 |
-| DoRA | G4=cost-sensitive, low r | LoRA init + magnitude | Yes (PEFT ≥0.10) | arXiv:2402.09353 |
-| PiSSA | G4=fast convergence | SVD of base weight | Yes (via `subtract_mutated_init`) | arXiv:2404.02948 |
-| LoRA-GA | G4=fast convergence | Gradient SVD | Yes (via `save_mutated_as_lora`) | arXiv:2407.05000 |
-| CorDA-KP | G5=knowledge preservation | Context-oriented | Yes | PEFT v0.19.0 `corda_config` |
-| EVA | G4=data-driven init | SVD of activations | Yes | PEFT v0.19.0 `eva_config` |
-| AdaLoRA | (not default) | SVD-parameterized | Yes | arXiv:2303.10512 |
-| aLoRA | G1=dynamic-switching | LoRA init | No (selective) | PEFT v0.19.0 `alora_invocation_tokens` |
-| IA³ | (extreme param budget) | Vector scaling | Yes | PEFT `IA3Config` |
-| Prefix Tuning | (not recommended for production) | Prefix vectors | No | PEFT `PrefixTuningConfig` |
+The full method catalog (12 PEFT methods), gate catalog (16 quality
+gates: G-M1..G-M5, G-Q1..G-Q6, G-D1..G-D3, G-F1..G-F2), convergence
+metric weights, and source references live in
+[`docs/reference/lora-training-catalog.md`](../../docs/reference/lora-training-catalog.md).
 
-New methods can be added as PEFT exposes them and literature justifies
-them (P7) — not speculatively.
+Summary:
 
-## Gate Catalog
-
-| Gate | ID | Phase | Source |
-|------|----|-------|--------|
-| No-op-at-init invariant | G-M1 | audit | LoRA paper §4.1 |
-| Merge equivalence | G-M2 | audit | LoRA paper §4.2; PEFT `bias` docstring |
-| Scaling form (`α/r` or `α/√r`) | G-M3 | audit | LoRA §4.1; rsLoRA arXiv:2312.03732 |
-| Rank budget | G-M4 | audit | LoRA §4.3 |
-| Trainable param count | G-M5 | audit | LoRA Table 5 |
-| Frozen base quantized | G-Q1 | audit | QLoRA §3 |
-| Adapter dtype | G-Q2 | audit | QLoRA §3 |
-| Gradient flow | G-Q3 | audit | QLoRA §3 |
-| No silent upcast | G-Q4 | audit | QLoRA §3; PEFT `prepare_model_for_kbit_training` |
-| Paged optimizer (conditional) | G-Q5 | audit | QLoRA §3 |
-| NF4 optimality assumption | G-Q6 | audit | QLoRA §3 |
-| Dataset size vs quality | G-D1 | audit | QLoRA §5 |
-| Eval protocol | G-D2 | audit | QLoRA §5 |
-| Lemon-pick analysis | G-D3 | audit | QLoRA §6 |
-| Intruder dimension check | G-F1 | post-train | Razin et al. arXiv:2410.21228 |
-| Knowledge preservation (CorDA) | G-F2 | post-train | CorDA; PEFT `corda_config` |
+- **Methods:** LoRA, QLoRA, rsLoRA, DoRA, PiSSA, LoRA-GA, CorDA-KP,
+  EVA, AdaLoRA, aLoRA, IA³, Prefix Tuning.
+- **Math gates (G-M1..G-M5):** no-op-at-init, merge equivalence,
+  scaling form, rank budget, trainable param count.
+- **QLoRA gates (G-Q1..G-Q6):** frozen base quantized, adapter dtype,
+  gradient flow, no silent upcast, paged optimizer, NF4 optimality.
+- **Data/eval gates (G-D1..G-D3):** dataset size vs quality, eval
+  protocol, lemon-pick analysis.
+- **Forgetting gates (G-F1..G-F2):** intruder dimension check,
+  knowledge preservation (CorDA).
+- **Convergence weights:** critical/high (0.40), math (0.25), QLoRA
+  (0.15), data/eval (0.10), forgetting (0.10).
 
 ## Relationship to Existing Skills
 
@@ -530,67 +511,30 @@ them (P7) — not speculatively.
   equivalence; `lora_alpha/r` or `lora_alpha/sqrt(r)` = scaling form;
   etc.).
 
-## Source References and Taxonomy Anchors
+## Source References
 
-This skill is anchored to concrete, verifiable literature and
-documentation sources (P8):
+Anchored to concrete, verifiable literature and documentation (P8).
+Full citations with gate anchors live in
+[`docs/reference/lora-training-catalog.md`](../../docs/reference/lora-training-catalog.md).
 
-- **LoRA:** Hu et al., "LoRA: Low-Rank Adaptation of Large Language
-  Models," arXiv:2106.09685. Source: `arxiv.org/abs/2106.09685`.
-  Anchors: G-M1 (no-op init, §4.1), G-M2 (merge equivalence, §4.2),
-  G-M3 (α/r scaling, §4.1), G-M4 (rank budget, §4.3), G-M5 (param
-  count, Table 5).
-- **QLoRA:** Dettmers et al., "QLoRA: Efficient Finetuning of
-  Quantized LLMs," arXiv:2305.14314. Source: `arxiv.org/abs/2305.14314`.
-  Anchors: G-Q1..G-Q6 (§3 NF4, double quant, paged optim, bf16
-  compute), G-D1..G-D3 (§5 data quality, §6 eval protocol).
-- **rsLoRA:** Kalajdzievski, "A Rank Stabilization Scaling Factor for
-  Fine-Tuning with LoRA," arXiv:2312.03732. Source:
-  `arxiv.org/abs/2312.03732`. Anchors: G-M3 (`α/√r` for r>64).
-- **DoRA:** Liu et al., "DoRA: Weight-Decomposed Low-Rank Adaptation,"
-  arXiv:2402.09353. Source: `arxiv.org/abs/2402.09353`. Anchors: G4
-  method choice (magnitude/direction decomposition).
-- **PiSSA:** Meng et al., "PiSSA: Principal Singular Values and
-  Singular Vectors Adaptation," arXiv:2404.02948. Source:
-  `arxiv.org/abs/2404.02948`. Anchors: G4 method choice (fast
-  convergence via SVD init).
-- **LoRA-GA:** Bao et al., "LoRA-GA: Low-Rank Adaptation with
-  Gradient Approximation," arXiv:2407.05000. Source:
-  `arxiv.org/abs/2407.05000`. Anchors: G4 method choice (gradient SVD
-  init, 2-4× faster convergence).
-- **AdaLoRA:** Zhang et al., "AdaLoRA: Adaptive Budget Allocation for
-  Parameter-Efficient Fine-Tuning," arXiv:2303.10512. Source:
-  `arxiv.org/abs/2303.10512`. Anchors: Method catalog (dynamic rank —
-  not default, overhead caveat).
-- **Razin et al. (intruder dimensions):** "LoRA vs Full Fine-tuning:
-  An Illusion of Equivalence," arXiv:2410.21228. Source:
-  `arxiv.org/abs/2410.21228`. Anchors: G-F1 (intruder dimension check).
-- **CorDA:** PEFT v0.19.0 `LoraConfig.corda_config` docstring. Source:
-  `huggingface.co/docs/peft/v0.19.0/package_reference/lora`. Anchors:
-  G-F2 (knowledge preservation mode).
-- **EVA:** PEFT v0.19.0 `LoraConfig.eva_config` docstring and
-  `initialize_lora_eva_weights`. Source:
-  `huggingface.co/docs/peft/v0.19.0/package_reference/lora`. Anchors:
-  Method catalog (data-driven SVD init).
-- **PEFT v0.19.0:** Hugging Face PEFT library documentation. Source:
-  `huggingface.co/docs/peft/v0.19.0/package_reference/lora`. Anchors:
-  config surface (`LoraConfig` fields), `init_lora_weights` options,
-  `use_rslora`, `use_dora`, `use_qalora`, `lora_ga_config`,
-  `corda_config`, `loftq_config`, `eva_config`, `alora_invocation_tokens`,
-  `reduce_intruder_dimension`.
-- **AutoPEFT:** Zhou et al., "AutoPEFT: Automatic Configuration Search
-  for Parameter-Efficient Fine-Tuning," arXiv:2301.12132, TACL 2024.
-  Source: `arxiv.org/abs/2301.12132`. Referenced as the *rejected*
-  alternative — multi-objective BO over hundreds of training runs is
-  infeasible per training job. This skill uses a deterministic gate
-  instead, citing AutoPEFT as the reason a search is not used.
-- **Practitioner consensus (2024-2026):** Raschka (Lit-GPT
-  experiments, `magazine.sebastianraschka.com/p/practical-tips-for-finetuning-llms`),
-  Brenndoerfer (PEFT decision guide,
-  `mbrenndoerfer.com/writing/peft-comparison-lora-qlora-adapters-selection-guide`),
-  Spheron (2026 PEFT decision guide,
-  `spheron.network/blog/peft-methods-2026-dora-galore-pissa-vera-guide`),
-  Databricks (LoRA guide, `databricks.com/blog/efficient-fine-tuning-lora-guide-llms`),
-  Gradient Flow (`gradientflow.com/lora-or-full-fine-tuning/`).
-  Anchors: G3 rank heuristics (r=16 default, sweep {8,16,32,64}),
-  α=2r heuristic, all-linear targets consensus, LR-vs-r interaction.
+Key sources:
+
+- **LoRA:** arXiv:2106.09685 — anchors G-M1..G-M5.
+- **QLoRA:** arXiv:2305.14314 — anchors G-Q1..G-Q6, G-D1..G-D3.
+- **rsLoRA:** arXiv:2312.03732 — anchors G-M3 (`α/√r`).
+- **DoRA:** arXiv:2402.09353 — anchors G4 method choice.
+- **PiSSA:** arXiv:2404.02948 — anchors G4 method choice.
+- **LoRA-GA:** arXiv:2407.05000 — anchors G4 method choice.
+- **AdaLoRA:** arXiv:2303.10512 — method catalog (not default).
+- **Razin et al. (intruder dimensions):** arXiv:2410.21228 — anchors G-F1.
+- **AutoPEFT (rejected alternative):** arXiv:2301.12132 — multi-objective
+  BO infeasible per training job; deterministic gate used instead.
+- **PEFT v0.19.0:** huggingface.co/docs/peft/v0.19.0/package_reference/lora
+  — config surface (`LoraConfig` fields, `init_lora_weights` options,
+  `use_rslora`, `use_dora`, `use_qalora`, `lora_ga_config`, `corda_config`,
+  `loftq_config`, `eva_config`, `alora_invocation_tokens`,
+  `reduce_intruder_dimension`).
+- **Practitioner consensus (2024-2026):** Raschka, Brenndoerfer, Spheron,
+  Databricks, Gradient Flow — anchors G3 rank heuristics (r=16 default,
+  sweep {8,16,32,64}), α=2r heuristic, all-linear targets consensus,
+  LR-vs-r interaction.
