@@ -225,7 +225,11 @@ impl RunpodHost {
     /// Escape a string for safe interpolation into a GraphQL literal.
     /// Backslashes first, then double quotes — standard GraphQL string escaping.
     fn escape_graphql_string(s: &str) -> String {
-        s.replace('\u{005c}', "\\\\").replace('"', "\\\"")
+        s.replace('\u{005c}', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t")
     }
 
     /// Build the inline `podFindAndDeployOnDemand` GraphQL mutation.
@@ -657,6 +661,22 @@ mod tests {
             RunpodHost::escape_graphql_string("path\\to\\file"),
             "path\\\\to\\\\file"
         );
+    }
+
+    #[test]
+    fn escape_graphql_string_handles_newlines() {
+        // GraphQL string literals cannot contain raw newlines — they must be \n
+        let script = "#!/bin/bash\necho hello\n";
+        let escaped = RunpodHost::escape_graphql_string(script);
+        assert!(
+            !escaped.contains('\n'),
+            "escaped string must not contain raw newlines"
+        );
+        assert!(
+            escaped.contains("\\n"),
+            "escaped string must contain \\n for newlines"
+        );
+        assert_eq!(escaped, "#!/bin/bash\\necho hello\\n");
     }
 
     fn make_host(template_id: &str) -> RunpodHost {
