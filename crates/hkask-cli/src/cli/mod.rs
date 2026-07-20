@@ -2,14 +2,12 @@
 
 mod actions;
 mod helpers;
-mod markdown;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 pub use actions::*;
 pub use helpers::{init_logging, parse_template_type};
-pub use markdown::generate_cli_markdown;
 
 #[derive(Debug, Parser)]
 #[command(name = "kask")]
@@ -82,12 +80,6 @@ pub enum Commands {
     Backup {
         #[command(subcommand)]
         action: BackupAction,
-    },
-
-    /// A2A agent registration and management
-    Agent {
-        #[command(subcommand)]
-        action: AgentAction,
     },
 
     /// Federation lifecycle — cross-server curator sync
@@ -205,7 +197,6 @@ impl Commands {
             Commands::Sovereignty { .. } => "sovereignty",
             Commands::Git { .. } => "git",
             Commands::Backup { .. } => "backup",
-            Commands::Agent { .. } => "agent",
             Commands::Federation { .. } => "federation",
             Commands::Token { .. } => "token",
             Commands::Replicant { .. } => "replicant",

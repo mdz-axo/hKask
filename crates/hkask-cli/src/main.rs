@@ -146,7 +146,6 @@ fn main() {
         Commands::Git { action } => commands::git_cmd::run(&rt, action),
 
         Commands::Backup { action } => commands::backup_cmd::run(&rt, action),
-
         Commands::Federation { action } => commands::federation::run_federation(&rt, action),
 
         Commands::Token { action } => commands::token::run_token(&rt, action),

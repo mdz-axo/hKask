@@ -18,6 +18,7 @@ use crate::repl_host::CliHost;
 ///
 /// pre:  rt is a valid tokio Runtime; registry is initialized; runtime is an McpRuntime
 /// post: launches TUI (interactive) or prints one chat response (non-interactive via -f)
+#[allow(clippy::too_many_arguments)]
 pub fn run_tui(
     rt: &tokio::runtime::Runtime,
     registry: &mut SqliteRegistry,

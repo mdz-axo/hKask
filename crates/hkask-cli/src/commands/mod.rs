@@ -31,7 +31,4 @@ pub mod user;
 pub mod wallet;
 
 // Re-exports from chat (used by tui.rs non-interactive mode)
-pub use chat::{
-    ChatTurnResponse, TokenUsage, chat_with_agent, chat_with_agent_streaming,
-    chat_with_agent_streaming_with_params, chat_with_agent_with_params,
-};
+pub use chat::{ChatTurnResponse, TokenUsage, chat_with_agent_streaming};

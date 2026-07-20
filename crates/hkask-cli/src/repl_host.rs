@@ -30,6 +30,11 @@ impl ReplHost for CliHost {
         crate::commands::helpers::list_templates_local()
     }
 
+    #[cfg(feature = "tui")]
+    fn open_transcript_viewer(&self, path: &std::path::Path) -> anyhow::Result<()> {
+        crate::transcript_viewer::TranscriptViewer::from_file(path).and_then(|mut v| v.run())
+    }
+
     fn run_sovereignty_status(&self) {
         // Inline sovereignty status — the CLI no longer exposes this as a
         // command (it's admin-only now), but the REPL still needs it.

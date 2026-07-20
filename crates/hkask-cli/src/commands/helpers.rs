@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use hkask_ports::RegistryIndex;
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceConfig;
 use hkask_services_onboarding::ResolvedSecrets;
