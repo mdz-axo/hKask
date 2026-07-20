@@ -170,10 +170,17 @@ impl CodeGraphServer {
             let results =
                 graph::search::search(pipeline.store().conn(), &req.query, req.limit as usize)
                     .map_err(|e| McpToolError::internal(e.to_string()))?;
-            // If name provided, return exact symbol match (replaces codegraph_node)
+            // If name provided, return exact symbol match (replaces codegraph_node).
+            // Returns an explicit error when the name is not found, matching
+            // codegraph_traverse's contract — never a silent null.
             if let Some(ref name) = req.name {
                 let exact = results.iter().find(|r| r.symbol.name == *name);
-                return Ok(serde_json::json!(exact.map(|r| &r.symbol)));
+                return match exact {
+                    Some(r) => Ok(serde_json::json!(&r.symbol)),
+                    None => Ok(serde_json::json!({
+                        "error": format!("symbol not found: {name}")
+                    })),
+                };
             }
             Ok(serde_json::json!(results))
         })
@@ -405,13 +412,19 @@ impl CodeGraphServer {
     pub async fn codegraph_reindex(&self) -> String {
         execute_tool(self, "codegraph_reindex", async {
             let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            let pipeline = self.pipeline.lock()
+            // Acquire a mutable lock so we can call finalize() (which needs &mut self).
+            let mut pipeline = self.pipeline.lock()
                 .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
             let results = pipeline.index_directory(&cwd)
                 .map_err(|e| McpToolError::internal(e.to_string()))?;
             let total_sym: usize = results.iter().map(|r| r.symbols).sum();
             let total_edg: usize = results.iter().map(|r| r.edges).sum();
             let indexed: usize = results.iter().filter(|r| !r.skipped).count();
+            // Recompute PageRank and reset staleness — matches ensure_indexed() behavior.
+            // Without this, codegraph_structure returns stale rankings after a forced reindex.
+            if let Err(e) = pipeline.finalize() {
+                tracing::warn!(target: "hkask.mcp.codegraph", error = %e, "Finalize failed after reindex");
+            }
             let stats = pipeline.stats().map_err(|e| McpToolError::internal(e.to_string()))?;
             Ok(serde_json::json!({
                 "files_indexed": indexed, "symbols_added": total_sym, "edges_added": total_edg,

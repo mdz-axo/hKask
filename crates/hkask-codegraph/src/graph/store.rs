@@ -111,7 +111,11 @@ impl GraphStore {
 
     // ── Symbol insertion ───────────────────────────────────────────
 
-    /// Insert a batch of symbols. Returns the (name, id) mapping for edge resolution.
+    /// Insert a batch of symbols. Returns the (name, id) mapping for **all**
+    /// symbols in this file (not just newly inserted ones) — `INSERT OR IGNORE`
+    /// means re-inserting an unchanged file is a no-op at the SQL level, but
+    /// the returned mapping covers every symbol in the file so the caller can
+    /// resolve edge targets by name regardless of whether the symbol was new.
     pub fn insert_symbols(&self, symbols: &[Symbol], file_id: i64) -> Result<Vec<(String, i64)>> {
         let mut stmt = self.conn.prepare_cached(
             "INSERT OR IGNORE INTO symbols
@@ -164,44 +168,6 @@ impl GraphStore {
     }
 
     // ── Edge insertion ─────────────────────────────────────────────
-
-    /// Insert a batch of edges, resolving call/import targets by name.
-    ///
-    /// For `Calls` and `References` edges, targets are resolved by looking up
-    /// the callee/referenced name in the symbols table. Unresolved edges are
-    /// silently skipped (they'll be resolved on next re-index when the target
-    /// is available or the edge was for an external crate).
-    pub fn insert_edges(&self, edges: &[Edge], file_id: i64) -> Result<usize> {
-        let mut stmt = self.conn.prepare_cached(
-            "INSERT OR IGNORE INTO edges (from_id, to_id, kind, file_id, line)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-        )?;
-
-        let mut inserted = 0;
-        for edge in edges {
-            // For Calls and References, resolve the target symbol by name.
-            // We skip edges where the target can't be found (external crate symbols).
-            if edge.to_id == 0 {
-                // We need a name to resolve. The extractor doesn't store names on edges
-                // directly — resolution happens in the pipeline after symbol insertion,
-                // using the (name, id) mapping.
-                //
-                // For now, edges with placeholder IDs are skipped. The pipeline
-                // (Component 4) will handle resolution.
-                continue;
-            }
-
-            stmt.execute(params![
-                edge.from_id,
-                edge.to_id,
-                edge.kind.to_string(),
-                file_id,
-                edge.line as i64,
-            ])?;
-            inserted += 1;
-        }
-        Ok(inserted)
-    }
 
     /// Insert a single edge with resolved IDs.
     pub fn insert_edge(

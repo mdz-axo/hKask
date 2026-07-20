@@ -57,7 +57,7 @@ Part of hKask's code intelligence layer. Indexes the current workspace on first 
 | `StructureRequest` | `limit` (default 20) |
 | `StatsRequest` | `include_health` (bool), `include_meta` (bool) |
 | `FeedbackRequest` | `context_id`, `symbols_provided`, `symbols_used` |
-| `EmbedIndexRequest` | `model` (optional), `batch_size` (default 50) |
+| `EmbedIndexRequest` | `model` (optional), `batch_size` (default 32) |
 
 ## Running
 

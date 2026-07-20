@@ -11,7 +11,7 @@ Built-in MCP servers shipped with hKask. Each server is a thin surface over doma
 |--------|-------|--------|-------|-------------|
 | Scenarios | `mcp-servers/hkask-mcp-scenarios` | Event-tree forecasting (Tetlock/Schwartz/Chermack) | 18 | `hkask-forecast` |
 | [Companies](companies.md) | `mcp-servers/hkask-mcp-companies` | FIBO-anchored financial forecasting | 41 | `hkask-forecast` |
-| CodeGraph | `mcp-servers/hkask-mcp-codegraph` | Code understanding (query, traverse, impact) | 11 | `hkask-codegraph` |
+| CodeGraph | `mcp-servers/hkask-mcp-codegraph` | Code understanding (query, traverse, impact) | 10 | `hkask-codegraph` |
 | Curator | `mcp-servers/hkask-mcp-curator` | Curator agent metacognition | — | — |
 | Memory | `mcp-servers/hkask-mcp-memory` | Episodic and semantic memory | — | — |
 | DocProc | `mcp-servers/hkask-mcp-docproc` | Document processing and QA generation | — | — |

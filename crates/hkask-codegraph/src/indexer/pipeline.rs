@@ -1,14 +1,17 @@
 //! Incremental indexing pipeline.
 //!
 //! Coordinates the full flow:
-//!   1. Walk files, compute SHA-256 hashes
+//!   1. Walk files, compute BLAKE3 hashes
 //!   2. Compare against stored hashes (skip unchanged files)
 //!   3. Parse changed files with tree-sitter
 //!   4. Extract symbols and edges
 //!   5. Insert into database, resolve edge targets by name
 //!
-//! G1 fix: per-file SHA-256 hash-on-read before any tool use.
-//! G2 fix: "parse parallel, write serial" — rayon for parsing, serialized DB writes.
+//! G1 fix: per-file BLAKE3 hash-on-read before any tool use.
+//! Indexing is sequential — one file at a time, parse + extract + insert
+//! all in the calling thread. Parallel parsing was considered but rejected
+//! because `rusqlite::Connection` is `!Sync`, requiring a channel-based
+//! writer or per-thread connections to do safely.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -135,8 +138,10 @@ impl IndexPipeline {
             return Ok(results);
         }
 
-        // Parse all files in parallel with rayon (G2 fix: parse parallel)
-        // But writes are serialized — thread-local Vec accumulation, single DB transaction.
+        // Indexing is sequential — `rusqlite::Connection` is `!Sync`, so
+        // parallel parsing would require a channel-based writer or per-thread
+        // connections. The current design is simple and correct; parallelism is
+        // a future optimization if profiling shows it's needed.
         let dir = dir.to_path_buf();
         for path in &rs_files {
             if let Ok(rel) = path.strip_prefix(&dir) {

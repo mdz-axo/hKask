@@ -444,10 +444,12 @@ impl<'a> Extractor<'a> {
 
         while let Some(parent) = current {
             let kind = parent.kind();
-            // Only certain node kinds contribute to the qualified name
+            // Only certain node kinds contribute to the qualified name.
+            // `block` is intentionally excluded: bare blocks have no name field,
+            // so including them was a dead arm that misled readers.
             if matches!(
                 kind,
-                "impl_item" | "trait_item" | "struct_item" | "enum_item" | "mod_item" | "block" // for fn in bare blocks
+                "impl_item" | "trait_item" | "struct_item" | "enum_item" | "mod_item"
             ) {
                 if let Some(name_node) = parent.child_by_field_name("name") {
                     let name = self.node_text(&name_node);
