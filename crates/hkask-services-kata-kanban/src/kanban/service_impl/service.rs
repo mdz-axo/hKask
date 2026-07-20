@@ -19,6 +19,7 @@ use hkask_types::id::{BoardId, TaskId};
 use serde_json::Value;
 
 use super::types::KanbanError;
+use crate::kanban::service_impl::dejam::KanbanTaskGasAccountant;
 use crate::kanban::{
     Board, ColumnDef, GasEntry, Priority, Task, TaskFilter, TaskSpec, TaskStatus, Verification,
 };
