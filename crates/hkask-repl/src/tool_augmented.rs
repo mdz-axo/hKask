@@ -1,22 +1,21 @@
-//! Tool-augmented chat — parse model responses for tool call directives
-//! and invoke them through GovernedTool or the Communication Loop.
+//! Tool-augmented chat — parse model responses for tool call directives.
 //
 //! The REPL turn loop (`turn.rs::run_turn_loop`) calls `extract_tool_calls`
-//! to parse model responses, then `invoke_tool_call` for each tool, and
-//! `format_tool_results` to build the feedback string for the next
-//! iteration. Display is handled by the turn loop via the `TurnSink` trait,
-//! not in this module.
+//! to parse model responses, then invokes tools via `ReplToolInvoker` (which
+//! delegates to `GovernedTool::invoke_with_secret`), and `format_tool_results`
+//! to build the feedback string for the next iteration. Display is handled by
+//! the turn loop via the `TurnSink` trait, not in this module.
 //
 //! Tool call sources (in priority order):
 //! 1. **Structured**: `InferenceResult.tool_calls` when `finish_reason == "tool_calls"`
 //! 2. **Text fallback**: `<<tool:server/tool_name\n{args}\n>>` directives in text
 
-use hkask_cns::GovernedTool;
-use hkask_mcp::RawMcpToolPort;
+use hkask_ports::{ChatToolDefinition, ChatToolFunction, StructuredToolCall, ToolInfo};
+use std::collections::BTreeMap;
 
 /// Common prefix for the tool-call instruction section of the system prompt.
 ///
-/// Used by both `format_tool_prompt_section` (dynamic) and the hardcoded
+/// Used by `format_tool_prompt_section` (dynamic) and the hardcoded
 /// fallback in `chat_with_agent` (when no MCP runtime is available).
 pub(crate) const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
          You have access to MCP tools. When you need to invoke a tool, include a \
@@ -26,12 +25,6 @@ pub(crate) const TOOL_CALL_FORMAT_INTRO: &str = "\n## Tool Calls\n\
          {\"key\": \"value\"}\n\
          >>\n\
          \n";
-use hkask_capability::derive_signing_key;
-use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
-use hkask_ports::{ChatToolDefinition, ChatToolFunction, StructuredToolCall, ToolInfo, ToolPort};
-use hkask_types::WebID;
-use std::collections::BTreeMap;
-use std::sync::Arc;
 
 /// Convert MCP-discovered tools to OpenAI-compatible `ChatToolDefinition`s.
 ///
@@ -231,32 +224,6 @@ pub fn parse_tool_calls(response: &str) -> ParsedResponse {
     }
 }
 
-/// Invoke a parsed tool call through the GovernedTool membrane.
-///
-/// Mints a DelegationToken from the session's A2A secret for OCAP
-/// authorization, then routes through GovernedTool (energy budgets, CNS).
-pub async fn invoke_tool_call(
-    call: &ToolCall,
-    governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
-    agent_webid: &WebID,
-    a2a_secret: &[u8],
-    host: &dyn crate::host::ReplHost,
-) -> anyhow::Result<serde_json::Value> {
-    let token = DelegationToken::new(
-        DelegationResource::Tool,
-        call.tool.clone(),
-        DelegationAction::Execute,
-        host.resolve_user_webid(),
-        *agent_webid,
-        &derive_signing_key(a2a_secret),
-    );
-
-    governed_tool
-        .invoke(&call.server, &call.tool, call.args.clone(), &token)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}: {}", call.tool, e))
-}
-
 /// Build the tool results context to feed back to the model.
 pub fn format_tool_results(calls: &[(ToolCall, anyhow::Result<serde_json::Value>)]) -> String {
     if calls.is_empty() {
@@ -300,7 +267,7 @@ pub fn format_tool_results(calls: &[(ToolCall, anyhow::Result<serde_json::Value>
 /// 2. `<<tool:...>>` text directives as fallback
 ///
 /// Pure — no I/O side effects. The caller is responsible for invoking
-/// tools (via `invoke_tool_call`) and displaying results.
+/// tools (via ReplToolInvoker → GovernedTool::invoke_with_secret) and displaying results.
 pub fn extract_tool_calls(
     response_text: &str,
     structured_tool_calls: Option<&[StructuredToolCall]>,

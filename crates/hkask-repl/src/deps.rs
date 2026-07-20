@@ -265,11 +265,9 @@ pub struct ReplToolInvoker {
     agent_webid: WebID,
     /// A2A secret for minting delegation tokens. Wrapped in `ZeroizingSecret`
     /// so the bytes are scrubbed from memory when the invoker is dropped.
-    /// Defense-in-depth: the caller in `lib.rs` already wraps the secret in
-    /// `ZeroizingSecret`; storing it here as a `Vec<u8>` would defeat that
-    /// protection by copying the bytes into a non-zeroizing allocation.
     a2a_secret: hkask_types::secret::ZeroizingSecret,
-    host: Arc<dyn super::host::ReplHost>,
+    /// Principal (user) WebID — resolved once at construction, not per-call.
+    principal_webid: WebID,
 }
 
 impl ReplToolInvoker {
@@ -278,7 +276,7 @@ impl ReplToolInvoker {
             governed_tool: state.service_context.governed_tool(state.agent_webid),
             agent_webid: state.agent_webid,
             a2a_secret: hkask_types::secret::ZeroizingSecret::new(a2a_secret.to_vec()),
-            host: state.host.clone(),
+            principal_webid: state.host.resolve_user_webid(),
         }
     }
 }
@@ -286,14 +284,17 @@ impl ReplToolInvoker {
 #[async_trait::async_trait]
 impl ToolInvoker for ReplToolInvoker {
     async fn invoke(&self, call: &ToolCall) -> anyhow::Result<serde_json::Value> {
-        super::tool_augmented::invoke_tool_call(
-            call,
-            &self.governed_tool,
-            &self.agent_webid,
-            self.a2a_secret.as_bytes(),
-            self.host.as_ref(),
-        )
-        .await
+        self.governed_tool
+            .invoke_with_secret(
+                &call.server,
+                &call.tool,
+                call.args.clone(),
+                self.a2a_secret.as_bytes(),
+                self.principal_webid,
+                self.agent_webid,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("{}: {}", call.tool, e))
     }
 }
 

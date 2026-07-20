@@ -1,11 +1,7 @@
 //! `/invoke <tool> [args]` — direct tool invocation from the REPL.
 //!
-//! Mints a capability token from the session's A2A secret, then routes
-//! the invocation through GovernedTool (OCAP + energy budget + CNS observability).
-
-use hkask_capability::derive_signing_key;
-use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
-use hkask_ports::ToolPort;
+//! Routes the invocation through GovernedTool::invoke_with_secret, which
+//! mints the DelegationToken internally and applies OCAP + energy + CNS.
 
 /// Handle `/invoke <tool> [args]` or `/invoke <server>/<tool> [args]`.
 ///
@@ -61,9 +57,8 @@ pub fn handle_invoke(
         }
     };
 
-    // Mint a capability token for this tool invocation using the A2A secret
-    // from onboarding. Capability tokens are signed with the same secret that
-    // governs OCAP authority throughout the system.
+    // Resolve the A2A secret from onboarding. Used by GovernedTool to
+    // mint the DelegationToken internally (OCAP + energy + CNS).
     let a2a_secret = match state.resolved_secrets {
         Some(ref secrets) => secrets.a2a_secret.as_bytes(),
         None => {
@@ -74,19 +69,11 @@ pub fn handle_invoke(
         }
     };
 
-    let from_webid = state.host.resolve_user_webid(); // system
-    let to_webid = state.agent_webid;
-    let token = DelegationToken::new(
-        DelegationResource::Tool,
-        tool_name.to_string(),
-        DelegationAction::Execute,
-        from_webid,
-        to_webid,
-        &derive_signing_key(a2a_secret),
-    );
+    let principal_webid = state.host.resolve_user_webid();
+    let agent_webid = state.agent_webid;
 
-    // Invoke through the GovernedTool membrane — all governance
-    // (OCAP verification, energy budget, CNS observability) applies.
+    // Invoke through the GovernedTool membrane — token minting, OCAP
+    // verification, energy budget, and CNS observability all happen inside.
     print!("  \x1b[2mInvoking \x1b[36m{}\x1b[0m", tool_name);
     if !server.is_empty() {
         print!(" on \x1b[36m{}\x1b[0m", server);
@@ -96,8 +83,15 @@ pub fn handle_invoke(
     let result = rt.block_on(async {
         state
             .service_context
-            .governed_tool(state.agent_webid)
-            .invoke(server, tool_name, args, &token)
+            .governed_tool(agent_webid)
+            .invoke_with_secret(
+                server,
+                tool_name,
+                args,
+                a2a_secret,
+                principal_webid,
+                agent_webid,
+            )
             .await
     });
 

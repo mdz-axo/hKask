@@ -41,6 +41,18 @@ pub enum MediaError {
     /// Vision response parsing errors.
     #[error("{0}")]
     VisionParse(String),
+
+    /// Face scan: no YAML sidecar found for an image (skippable).
+    #[error("{0}: no YAML sidecar found")]
+    SidecarNotFound(String),
+
+    /// Face scan: sidecar YAML parse or validation failure.
+    #[error("{0}")]
+    SidecarInvalid(String),
+
+    /// Face scan: image import or registration failure.
+    #[error("{0}")]
+    FaceRegistration(String),
 }
 
 impl From<std::io::Error> for MediaError {
@@ -79,6 +91,9 @@ pub fn map_media_error(e: MediaError) -> McpToolError {
         | MediaError::FfmpegFailed(_)
         | MediaError::VisionApi(_)
         | MediaError::VisionParse(_)
-        | MediaError::Template(_) => McpToolError::internal(e.to_string()),
+        | MediaError::Template(_)
+        | MediaError::SidecarNotFound(_)
+        | MediaError::SidecarInvalid(_)
+        | MediaError::FaceRegistration(_) => McpToolError::internal(e.to_string()),
     }
 }

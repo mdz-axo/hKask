@@ -26,7 +26,9 @@ use crate::cybernetics_loop::CyberneticsLoop;
 use crate::energy::GasCost;
 use crate::tool_stats::ToolStats;
 use crate::types::loops::ToolConsumptionEvent;
-use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, capabilities_match};
+use hkask_capability::{
+    DelegationAction, DelegationResource, DelegationToken, capabilities_match, derive_signing_key,
+};
 use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
@@ -89,7 +91,7 @@ pub struct GovernedTool<P: ToolPort> {
     tool_stats: Option<Arc<ToolStats>>,
 }
 
-impl<P: ToolPort> GovernedTool<P> {
+impl<P: ToolPort + 'static> GovernedTool<P> {
     /// Create a new GovernedTool membrane wrapping an inner ToolPort.
     ///
     /// expect: "The system creates a governed tool membrane that gates execution behind energy and OCAP checks"
@@ -193,6 +195,36 @@ impl<P: ToolPort> GovernedTool<P> {
             },
             None => false,
         }
+    }
+
+    /// Invoke a tool, minting the DelegationToken internally from the A2A secret.
+    ///
+    /// This collapses the former 4-layer chain (ReplToolInvoker →
+    /// tool_augmented::invoke_tool_call → GovernedTool::invoke → inner).
+    /// The caller provides the raw A2A secret bytes and the two WebIDs; the
+    /// membrane handles token minting, OCAP verification, gas reservation,
+    /// CNS span emission, and delegation to the inner tool port.
+    ///
+    /// The secret is consumed as `&[u8]` so the caller retains ownership of
+    /// the `ZeroizingSecret` wrapper — no secret bytes are copied.
+    pub async fn invoke_with_secret(
+        &self,
+        server: &str,
+        tool: &str,
+        args: serde_json::Value,
+        a2a_secret: &[u8],
+        principal: hkask_types::WebID,
+        delegate: hkask_types::WebID,
+    ) -> Result<serde_json::Value, ToolPortError> {
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            tool.to_string(),
+            DelegationAction::Execute,
+            principal,
+            delegate,
+            &derive_signing_key(a2a_secret),
+        );
+        self.invoke(server, tool, args, &token).await
     }
 }
 

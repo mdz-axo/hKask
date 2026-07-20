@@ -355,7 +355,7 @@ All tool calls route through `GovernedTool`, which provides:
 2. **Energy Budget:** Gas is charged for tool execution
 3. **CNS Observability:** Tool invocations emit `cns.tool.*` spans
 
-The full invocation chain: `tool_augmented::invoke_tool_call()` → `GovernedTool::invoke()` → `RawMcpToolPort` → `McpRuntime`.
+The invocation chain: `ReplToolInvoker::invoke()` → `GovernedTool::invoke_with_secret()` → `RawMcpToolPort` (implements `ToolPort` for `McpRuntime`) → `McpRuntime::call_tool()` → MCP server (JSON-RPC). The `GovernedTool::invoke_with_secret` method mints the `DelegationToken` internally from the A2A secret — the previous `tool_augmented::invoke_tool_call` free function was inlined to collapse the chain.
 
 ### 6.4 Tool Results → Followup
 

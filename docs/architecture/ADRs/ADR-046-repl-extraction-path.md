@@ -72,12 +72,20 @@ The `CliHost` struct in `hkask-cli` implements the trait.
 
 ## Verification
 
+The extraction is complete. The `crates/hkask-cli/src/repl/` directory no longer exists — all REPL code lives in `crates/hkask-repl/`. The original baseline command below is preserved for historical reference but will return zero results.
+
 ```bash
-# Current REPL size baseline
-find crates/hkask-cli/src/repl -name "*.rs" | wc -l && \
-  wc -l crates/hkask-cli/src/repl/**/*.rs crates/hkask-cli/src/repl/*.rs 2>/dev/null | tail -1
-# Expected: ~20 files, ~9,542 lines total
+# Historical baseline (extraction complete — directory no longer exists)
+# find crates/hkask-cli/src/repl -name "*.rs" | wc -l
+# Expected: 0 (extraction complete)
+
+# Current REPL size (authoritative)
+find crates/hkask-repl/src -name "*.rs" | wc -l && \
+  wc -l crates/hkask-repl/src/**/*.rs crates/hkask-repl/src/*.rs 2>/dev/null | tail -1
+# Expected: ~40 files (15 src + 25 handlers), ~5,000 lines
 ```
+
+The `ReplHost` trait in `crates/hkask-repl/src/host.rs` is implemented by `CliHost` in `crates/hkask-cli/src/repl_host.rs`. The `deps` module (`crates/hkask-repl/src/deps.rs`) exposes the turn-loop dependency injection traits (`TurnExecutor`, `GasGovernor`, `ToolInvoker`, `ThreadMemory`) for independent testability.
 
 ## Related Documents
 

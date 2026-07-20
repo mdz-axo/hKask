@@ -739,7 +739,13 @@ impl MediaServer {
         path: &std::path::Path,
         ext: &str,
         force: bool,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, MediaError> {
+        let fname = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
         let sidecar = path.with_extension(format!("{}.yaml", ext));
         let sidecar = if sidecar.is_file() {
             sidecar
@@ -748,30 +754,23 @@ impl MediaServer {
             if alt.is_file() {
                 alt
             } else {
-                return Err(format!(
-                    "{}: no YAML sidecar found",
-                    path.file_name().unwrap_or_default().to_string_lossy(),
-                ));
+                return Err(MediaError::SidecarNotFound(fname));
             }
         };
 
-        let sidecar_text = std::fs::read_to_string(&sidecar).map_err(|e| {
-            format!(
-                "{}: failed to read sidecar: {}",
-                path.file_name().unwrap_or_default().to_string_lossy(),
+        let sidecar_text = std::fs::read_to_string(&sidecar)
+            .map_err(|e| MediaError::Io(format!("{}: failed to read sidecar: {}", fname, e)))?;
+
+        let parsed: FaceSidecar = serde_yaml_neo::from_str(&sidecar_text).map_err(|e| {
+            MediaError::SidecarInvalid(format!(
+                "{}: invalid sidecar YAML: {}",
+                sidecar.display(),
                 e
-            )
+            ))
         })?;
 
-        let parsed: FaceSidecar = serde_yaml_neo::from_str(&sidecar_text)
-            .map_err(|e| format!("{}: invalid sidecar YAML: {}", sidecar.display(), e))?;
-
         let (image_id, image_url) = self.import_reference_image(path).map_err(|e| {
-            format!(
-                "{}: import failed: {}",
-                path.file_name().unwrap_or_default().to_string_lossy(),
-                e
-            )
+            MediaError::FaceRegistration(format!("{}: import failed: {}", fname, e))
         })?;
 
         let (record, validation) = self
@@ -785,11 +784,7 @@ impl MediaServer {
             )
             .await
             .map_err(|e| {
-                format!(
-                    "{}: registration failed: {}",
-                    path.file_name().unwrap_or_default().to_string_lossy(),
-                    e
-                )
+                MediaError::FaceRegistration(format!("{}: registration failed: {}", fname, e))
             })?;
 
         Ok(serde_json::json!({
@@ -852,10 +847,10 @@ impl MediaServer {
                     registered_faces.push(face_json);
                 }
                 Err(e) => {
-                    if e.contains("no YAML sidecar") {
+                    if matches!(e, MediaError::SidecarNotFound(_)) {
                         skipped += 1;
                     }
-                    errors.push(e);
+                    errors.push(e.to_string());
                 }
             }
         }

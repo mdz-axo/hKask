@@ -1,3 +1,6 @@
+use std::future::Future;
+use std::pin::Pin;
+
 use hkask_capability::DelegationToken;
 use hkask_types::NotFound;
 
@@ -20,6 +23,9 @@ impl From<NotFound> for ToolPortError {
     }
 }
 
+/// Pinned boxed future type used by [`ToolPort`] for dyn-compatibility.
+pub type ToolFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
 /// Governance membrane for MCP tool invocation.
 ///
 /// GovernedTool checks: OCAP authority → budget → emit span → delegate → account cost → emit outcome.
@@ -33,6 +39,12 @@ impl From<NotFound> for ToolPortError {
 /// a token to use them). This follows the MCP protocol's own design: `tools/list` is an
 /// unauthenticated handshake. OCAP enforcement applies at the actuator boundary
 /// (`invoke`), not the sensor boundary (`discover`).
+///
+/// # Dyn-compatibility
+///
+/// All methods return `Pin<Box<dyn Future + Send + '_>>` (via [`ToolFuture`]) so the trait
+/// is object-safe: `Arc<dyn ToolPort>` works. This eliminates the adapter layers that
+/// previously wrapped `McpRuntime` to satisfy a non-dyn `ToolPort`.
 pub trait ToolPort: Send + Sync {
     /// Invoke a tool. Requires a [`DelegationToken`] proving OCAP authorization.
     ///
@@ -44,20 +56,17 @@ pub trait ToolPort: Send + Sync {
         tool: &str,
         args: serde_json::Value,
         token: &DelegationToken,
-    ) -> impl std::future::Future<Output = Result<serde_json::Value, ToolPortError>> + Send;
+    ) -> ToolFuture<'_, Result<serde_json::Value, ToolPortError>>;
 
     /// Discover available tools. Public metadata — no token required.
     ///
     /// Tool schemas are public per the MCP protocol design:
     /// `tools/list` is an unauthenticated handshake. OCAP enforcement
     /// applies at the actuator boundary (`invoke`), not here.
-    fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send;
+    fn discover_tools(&self) -> ToolFuture<'_, Vec<String>>;
 
     /// Get metadata for a specific tool. Public metadata — no token required.
-    fn get_tool_info(
-        &self,
-        tool_name: &str,
-    ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send;
+    fn get_tool_info(&self, tool_name: &str) -> ToolFuture<'_, Option<ToolInfo>>;
 }
 
 /// Canonical tool metadata for OCAP capability matching.
