@@ -54,6 +54,7 @@
 pub mod adapters;
 pub mod dataset;
 pub mod huggingface;
+pub mod lora_validation;
 pub mod mlschema;
 pub mod providers;
 pub mod types;
@@ -382,11 +383,50 @@ impl TrainingServer {
             }
 
             let num_epochs = params.as_ref().map(|p| p.num_epochs).unwrap_or(3);
+            let resolved_params = params.unwrap_or_default();
+
+            // Validate training params against LoRA/QLoRA math-contract gates
+            // (lora-training skill: G-M1..G-M5, G-Q1..G-Q6). Static subset only —
+            // runtime gates (gradient flow, param count) are checked post-training.
+            let validation_findings = lora_validation::validate_training_params(&resolved_params);
+            if lora_validation::has_refusals(&validation_findings) {
+                let refusals: Vec<_> = validation_findings
+                    .iter()
+                    .filter(|f| f.severity == lora_validation::ValidationSeverity::Refuse)
+                    .collect();
+                let messages: Vec<String> = refusals
+                    .iter()
+                    .map(|f| format!("{}: {}", f.gate_id, f.message))
+                    .collect();
+                tracing::warn!(
+                    target: "hkask.training.validation.refused",
+                    gate_count = refusals.len(),
+                    gates = ?refusals.iter().map(|f| f.gate_id).collect::<Vec<_>>(),
+                    "Training job refused — math-contract gate violation"
+                );
+                return Err(McpToolError::invalid_argument(format!(
+                    "Training config failed math-contract validation: {}",
+                    messages.join("; ")
+                )));
+            }
+            // Log warnings and info findings — do not block submission.
+            for finding in &validation_findings {
+                if finding.severity == lora_validation::ValidationSeverity::Warn {
+                    tracing::warn!(
+                        target: "hkask.training.validation.warn",
+                        gate = finding.gate_id,
+                        message = %finding.message,
+                        remediation = %finding.remediation,
+                        "Training config warning"
+                    );
+                }
+            }
+
             let mut job = TrainingJob {
                 id: uuid::Uuid::new_v4().to_string(),
                 dataset_path: normalized_path.clone(),
                 base_model: base_model.clone(),
-                params: params.unwrap_or_default(),
+                params: resolved_params,
                 status: TrainingJobStatus::Queued,
                 created_at: chrono::Utc::now(),
                 host: self.host_id,

@@ -84,8 +84,9 @@ check_regressions() {
       enforced=$((enforced + 1))
       local matches
       if [ ${#include_array[@]} -gt 0 ]; then
-        matches=$(grep -rPn "$rr_pattern" . "${include_array[@]}" \
+        matches=$(grep -rPn ${include_array[@]} "$rr_pattern" . \
           --exclude-dir=target --exclude-dir=.git --exclude-dir=node_modules \
+          --exclude-dir=regressions \
           2>/dev/null || true)
       else
         # Fall back to per-regression include field (kali-style).
