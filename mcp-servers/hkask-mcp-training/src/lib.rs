@@ -353,6 +353,7 @@ impl TrainingServer {
 
             let normalized_path = if retrain_mode {
                 let feedback = PathBuf::from(feedback_path.as_ref().unwrap());
+                hkask_mcp::validate_path("feedback_path", feedback.to_str().unwrap_or(""), 4096)?;
                 if !feedback.exists() {
                     return Err(McpToolError::invalid_argument(format!(
                         "Feedback file not found: {}",
@@ -365,6 +366,9 @@ impl TrainingServer {
                         "skill_name is required when feedback_path is set (retrain mode)"
                     ));
                 }
+                // Validate skill_name as an identifier — it flows into file paths
+                // (merged dataset path) and adapter metadata. Prevents path traversal.
+                hkask_mcp::validate_identifier("skill_name", &skill, 64)?;
 
                 tracing::info!(
                     target: "hkask.training.retrain.started",
@@ -421,6 +425,9 @@ impl TrainingServer {
                 let merged_path = merged_output_path.unwrap_or_else(|| {
                     format!("/tmp/hkask-retrain-{}.jsonl", &skill)
                 });
+                // Validate the merged output path — it's user-controlled and we're
+                // about to write to it. Prevents path traversal / arbitrary file write.
+                hkask_mcp::validate_path("merged_output_path", &merged_path, 4096)?;
                 std::fs::write(&merged_path, &merged).map_err(|e| {
                     McpToolError::internal(format!("Failed to write merged dataset: {}", e))
                 })?;
@@ -906,22 +913,24 @@ impl TrainingServer {
                         // Runs for both pre-registered and auto-registered adapters.
                         // Only applicable when the adapter has a skill_name (retrains),
                         // not for generic/semantic fine-tuning (skill_name is empty).
+                        //
+                        // Uses `get_previous_by_skill_name` (excludes the current
+                        // adapter by ID) — `get_by_skill_name` would return the
+                        // current adapter since it was pre-registered before job
+                        // completion, making the A/B block dead code.
                         let adapter_skill = adapter.skill_name.clone().unwrap_or_default();
                         if !adapter_skill.is_empty() {
                             let current_loss =
                                 Self::metrics_from_trained(&adapter).and_then(|m| m.loss);
                             if let Some(prev) = self
                                 .adapter_store
-                                .get_by_skill_name(&adapter_skill)
+                                .get_previous_by_skill_name(&adapter_skill, adapter.id)
                                 .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
                             {
-                                // Don't compare against self
-                                if prev.id != adapter.id
-                                    && let (Some(new_loss), Some(prev_loss)) = (
-                                        current_loss,
-                                        Self::metrics_from_trained(&prev).and_then(|m| m.loss),
-                                    )
-                                {
+                                if let (Some(new_loss), Some(prev_loss)) = (
+                                    current_loss,
+                                    Self::metrics_from_trained(&prev).and_then(|m| m.loss),
+                                ) {
                                     let improved = new_loss < prev_loss;
                                     result["ab_comparison"] = json!({
                                         "skill_name": adapter_skill,
@@ -1218,7 +1227,11 @@ impl TrainingServer {
                     ..Default::default()
                 };
 
-                match router.generate(&prompt, &params, None).await {
+                // Route to the user-specified model. The `model` field is
+                // provider-prefixed (e.g., "TG/my-finetuned-model") — pass it
+                // as the model_override so the inference router targets the
+                // correct backend, not the default model.
+                match router.generate_with_model(&prompt, &params, Some(&model), None).await {
                     Ok(response) => {
                         total_tokens += response.usage.total_tokens as u64;
                         let generated = response.text.trim();
@@ -1235,7 +1248,7 @@ impl TrainingServer {
                                      GENERATED ANSWER:\n{generated}\n\n\
                                      Reply with ONLY 'CORRECT' or 'INCORRECT'."
                                 );
-                                match router.generate(&judge_prompt, &params, None).await {
+                                match router.generate_with_model(&judge_prompt, &params, Some(&model), None).await {
                                     Ok(judge) => judge.text.trim().to_uppercase().contains("CORRECT"),
                                     Err(_) => false,
                                 }

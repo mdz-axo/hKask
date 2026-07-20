@@ -225,11 +225,28 @@ impl RunpodHost {
     /// Escape a string for safe interpolation into a GraphQL literal.
     /// Backslashes first, then double quotes — standard GraphQL string escaping.
     fn escape_graphql_string(s: &str) -> String {
-        s.replace('\u{005c}', "\\\\")
-            .replace('"', "\\\"")
-            .replace('\n', "\\n")
-            .replace('\r', "\\r")
-            .replace('\t', "\\t")
+        // GraphQL spec (June 2018 §2.9.2) requires escaping:
+        //   " \ / \b \f \n \r \t and all control chars U+0000–U+001F
+        // We escape backslash, quote, newline, CR, tab, and all remaining
+        // control characters. Forward slash is not escaped (not required by
+        // GraphQL, only by JSON — and RunPod's parser accepts it raw).
+        let mut out = String::with_capacity(s.len() + 8);
+        for c in s.chars() {
+            match c {
+                '\\' => out.push_str("\\\\"),
+                '"' => out.push_str("\\\""),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                '\u{0008}' => out.push_str("\\b"),
+                '\u{000C}' => out.push_str("\\f"),
+                c if c.is_control() && c as u32 <= 0x1F => {
+                    out.push_str(&format!("\\u{:04x}", c as u32));
+                }
+                c => out.push(c),
+            }
+        }
+        out
     }
 
     /// Build the inline `podFindAndDeployOnDemand` GraphQL mutation.
@@ -337,12 +354,47 @@ struct PodDeploySpec<'a> {
 #[async_trait::async_trait]
 impl TrainingHost for RunpodHost {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
-        let gpu_type_id =
-            std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| "NVIDIA RTX 4090".to_string());
+        // GPU selection: if RUNPOD_GPU_TYPE_ID is set, use it. Otherwise,
+        // select based on model size — small models (≤14B) use RTX 4090,
+        // large models (20B–70B) use A100, very large (120B+) use H100.
+        // This is a heuristic — the lora-training skill's G2 gate
+        // (memory budget vs model size) informs this choice.
+        let gpu_type_id = std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| {
+            let lower = job.base_model.to_lowercase();
+            if ["70b", "72b", "120b", "405b"]
+                .iter()
+                .any(|p| lower.contains(p))
+            {
+                "NVIDIA H100 80GB HBM3".to_string()
+            } else if ["20b", "30b", "34b", "35b"]
+                .iter()
+                .any(|p| lower.contains(p))
+            {
+                "NVIDIA A100 80GB".to_string()
+            } else {
+                "NVIDIA RTX 4090".to_string()
+            }
+        });
+        // Container disk: larger models need more disk for weights + checkpoints.
         let container_disk_gb: u32 = std::env::var("RUNPOD_CONTAINER_DISK_GB")
             .ok()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(50);
+            .unwrap_or_else(|| {
+                let lower = job.base_model.to_lowercase();
+                if ["70b", "72b", "120b", "405b"]
+                    .iter()
+                    .any(|p| lower.contains(p))
+                {
+                    200 // 70B model weights ~140GB + checkpoints
+                } else if ["13b", "14b", "20b", "30b"]
+                    .iter()
+                    .any(|p| lower.contains(p))
+                {
+                    100
+                } else {
+                    50
+                }
+            });
         let min_memory_gb: u32 = std::env::var("RUNPOD_MIN_MEMORY_GB")
             .ok()
             .and_then(|s| s.parse().ok())
@@ -368,7 +420,7 @@ impl TrainingHost for RunpodHost {
             ));
         }
 
-        let env_entries: Vec<(&str, String)> = vec![
+        let mut env_entries: Vec<(&str, String)> = vec![
             ("HKASK_JOB_ID", job.id.clone()),
             ("HKASK_BASE_MODEL", job.base_model.clone()),
             (
@@ -400,6 +452,24 @@ impl TrainingHost for RunpodHost {
             (
                 "HKASK_LORA_TARGET_MODULES",
                 job.params.lora.target_modules.join(","),
+            ),
+            (
+                "HKASK_LORA_USE_RSLORA",
+                job.params.lora.use_rslora.to_string(),
+            ),
+            ("HKASK_LORA_USE_DORA", job.params.lora.use_dora.to_string()),
+            (
+                "HKASK_LORA_INIT_WEIGHTS",
+                job.params
+                    .lora
+                    .init_lora_weights
+                    .as_ref()
+                    .map(|i| i.as_config_value())
+                    .unwrap_or_default(),
+            ),
+            (
+                "HKASK_LORA_BIAS",
+                format!("{:?}", job.params.lora.bias).to_lowercase(),
             ),
             ("HKASK_LEARNING_RATE", job.params.learning_rate.to_string()),
             ("HKASK_BATCH_SIZE", job.params.batch_size.to_string()),
@@ -446,9 +516,112 @@ impl TrainingHost for RunpodHost {
                     .map(|v| v.to_string())
                     .unwrap_or_default(),
             ),
+            (
+                "HKASK_LOAD_IN_4BIT",
+                job.params.quantization.load_in_4bit.to_string(),
+            ),
+            (
+                "HKASK_BNB_4BIT_QUANT_TYPE",
+                job.params
+                    .quantization
+                    .bnb_4bit_quant_type
+                    .clone()
+                    .unwrap_or_default(),
+            ),
+            (
+                "HKASK_BNB_4BIT_COMPUTE_DTYPE",
+                job.params
+                    .quantization
+                    .bnb_4bit_compute_dtype
+                    .clone()
+                    .unwrap_or_default(),
+            ),
+            (
+                "HKASK_BNB_4BIT_USE_DOUBLE_QUANT",
+                job.params
+                    .quantization
+                    .bnb_4bit_use_double_quant
+                    .to_string(),
+            ),
+            ("HKASK_BF16", job.params.advanced.bf16.to_string()),
+            ("HKASK_FP16", job.params.advanced.fp16.to_string()),
+            (
+                "HKASK_GRADIENT_CHECKPOINTING",
+                job.params
+                    .advanced
+                    .gradient_checkpointing
+                    .clone()
+                    .unwrap_or_default(),
+            ),
+            (
+                "HKASK_ATTN_IMPLEMENTATION",
+                job.params
+                    .advanced
+                    .attn_implementation
+                    .clone()
+                    .unwrap_or_default(),
+            ),
         ];
 
-        let docker_args = std::env::var("RUNPOD_DOCKER_ARGS").unwrap_or_default();
+        // Render the axolotl YAML config from TrainingParams and pass it to
+        // the pod as an env var. The pod's startup script writes it to
+        // /workspace/config.yml and runs `axolotl train /workspace/config.yml`.
+        let axolotl_yaml = crate::providers::AxolotlHarness
+            .render_config(job)
+            .map_err(|e| {
+                ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}"))
+            })?;
+        env_entries.push(("HKASK_AXOLOTL_CONFIG", axolotl_yaml));
+
+        // Generate docker args if not provided via env var.
+        // The startup script: writes the axolotl config, installs deps, runs training,
+        // uploads the adapter to HuggingFace, and writes the completion manifest.
+        let docker_args = std::env::var("RUNPOD_DOCKER_ARGS").unwrap_or_else(|_| {
+            // Default startup script — runs axolotl training in the pod.
+            r#"bash -c '
+set -euo pipefail
+
+# Write the axolotl config from the env var
+echo "$HKASK_AXOLOTL_CONFIG" > /workspace/config.yml
+
+# Install axolotl if not present (the docker image may already have it)
+if ! command -v axolotl &>/dev/null; then
+  pip install axolotl
+fi
+
+# Run training
+axolotl train /workspace/config.yml
+
+# Upload adapter to HuggingFace if HF_TOKEN is set
+if [ -n "$HF_TOKEN" ]; then
+  python -c "
+from huggingface_hub import HfApi
+import json, os
+api = HfApi(token=os.environ[\"HF_TOKEN\"])
+repo = os.environ[\"HKASK_HF_MODEL_REPOSITORY\"]
+api.create_repo(repo_id=repo, exist_ok=True)
+api.upload_folder(folder_path=os.environ.get(\"AXOLOTL_OUTPUT_DIR\", \"./axolotl-output\"), repo_id=repo)
+print(json.dumps({\"adapter_path\": repo, \"status\": \"uploaded\"}))
+"
+fi
+
+# Write completion manifest
+python -c "
+import json, os
+manifest = {
+    \"job_id\": os.environ.get(\"HKASK_JOB_ID\", \"\"),
+    \"base_model\": os.environ.get(\"HKASK_BASE_MODEL\", \"\"),
+    \"status\": \"completed\",
+    \"output_path\": os.environ.get(\"HKASK_HF_MODEL_REPOSITORY\", \"\")
+}
+manifest_path = os.environ.get(\"HKASK_COMPLETION_MANIFEST_PATH\", \"/workspace/completion.json\")
+with open(manifest_path, \"w\") as f:
+    json.dump(manifest, f)
+print(f\"Completion manifest written to {manifest_path}\")
+"
+'
+"#.to_string()
+        });
 
         let mutation = self.build_pod_deploy_mutation(
             &job.id,

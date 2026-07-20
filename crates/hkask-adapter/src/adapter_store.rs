@@ -475,8 +475,12 @@ impl AdapterStore {
         Ok(rows)
     }
 
-    /// Retrieve the latest adapter for a given skill name (highest version).
+    /// Retrieve the latest adapter for a given skill name (most recently created).
     /// Returns `None` if no adapter exists for this skill.
+    ///
+    /// Note: orders by `created_at DESC`, not by version number. For A/B
+    /// comparison against a known current adapter, use
+    /// `get_previous_by_skill_name` instead.
     pub fn get_by_skill_name(
         &self,
         skill_name: &str,
@@ -489,6 +493,36 @@ impl AdapterStore {
             &*self.driver,
             &sql,
             &[DbValue::Text(skill_name.to_string())],
+            |row| {
+                let r = Self::row_to_adapter_row(row)?;
+                Self::row_to_adapter(r)
+                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+            },
+        )?;
+        Ok(rows.into_iter().next())
+    }
+
+    /// Retrieve the previous adapter for a given skill name, excluding the
+    /// given adapter ID. Used by the training server's A/B comparison to find
+    /// the prior adapter (not the current one) when a retrain completes.
+    ///
+    /// Returns `None` if no previous adapter exists for this skill.
+    pub fn get_previous_by_skill_name(
+        &self,
+        skill_name: &str,
+        exclude_id: Uuid,
+    ) -> Result<Option<TrainedLoRAAdapter>, AdapterStoreError> {
+        let sql = format!(
+            "{} WHERE skill_name = ?1 AND adapter_id != ?2 ORDER BY created_at DESC LIMIT 1",
+            ADAPTER_SELECT
+        );
+        let rows: Vec<TrainedLoRAAdapter> = query_map(
+            &*self.driver,
+            &sql,
+            &[
+                DbValue::Text(skill_name.to_string()),
+                DbValue::Text(exclude_id.to_string()),
+            ],
             |row| {
                 let r = Self::row_to_adapter_row(row)?;
                 Self::row_to_adapter(r)

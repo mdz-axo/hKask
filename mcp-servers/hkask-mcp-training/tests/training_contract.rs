@@ -311,3 +311,113 @@ async fn training_validate_config_refuses_rank_zero_via_parameters_seam() {
         "should have a G-M3 refuse finding: {out}"
     );
 }
+
+// REQ: training_submit retrain mode rejects path traversal in skill_name (P5, security).
+// expect: submit with skill_name containing "../" returns an error, not a file write.
+#[tokio::test]
+async fn training_submit_rejects_path_traversal_in_skill_name_via_parameters_seam() {
+    let server = test_server();
+    // Create a minimal valid dataset file so we get past the file-exists check.
+    let temp_ds = std::env::temp_dir().join("hkask_traversal_test_original.jsonl");
+    std::fs::write(&temp_ds, r#"{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"a"}]}"#).ok();
+    let temp_fb = std::env::temp_dir().join("hkask_traversal_test_feedback.jsonl");
+    std::fs::write(&temp_fb, r#"{"messages":[{"role":"user","content":"q2"},{"role":"assistant","content":"a2"}]}"#).ok();
+
+    let req: hkask_mcp_training::types::TrainSubmitRequest =
+        serde_json::from_value(serde_json::json!({
+            "dataset_path": temp_ds.to_string_lossy(),
+            "base_model": "unsloth/Qwen3.6-27B",
+            "params": null,
+            "feedback_path": temp_fb.to_string_lossy(),
+            "skill_name": "../../etc/cron.d/evil",
+            "adapter_name": null,
+            "merged_output_path": null
+        }))
+        .expect("deserialize TrainSubmitRequest");
+    let out = server.training_submit(Parameters(req)).await;
+    let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
+    // Should return an error — skill_name contains path traversal.
+    assert!(
+        v.get("kind").is_some() || v.get("content").and_then(|c| c.get("job_id")).is_none(),
+        "submit should reject path traversal in skill_name: {out}"
+    );
+    std::fs::remove_file(&temp_ds).ok();
+    std::fs::remove_file(&temp_fb).ok();
+}
+
+// REQ: training_submit retrain mode rejects path traversal in merged_output_path (P5, security).
+// expect: submit with merged_output_path containing "../" returns an error.
+#[tokio::test]
+async fn training_submit_rejects_path_traversal_in_merged_output_path_via_parameters_seam() {
+    let server = test_server();
+    let temp_ds = std::env::temp_dir().join("hkask_merged_traversal_test_original.jsonl");
+    std::fs::write(&temp_ds, r#"{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"a"}]}"#).ok();
+    let temp_fb = std::env::temp_dir().join("hkask_merged_traversal_test_feedback.jsonl");
+    std::fs::write(&temp_fb, r#"{"messages":[{"role":"user","content":"q2"},{"role":"assistant","content":"a2"}]}"#).ok();
+
+    let req: hkask_mcp_training::types::TrainSubmitRequest =
+        serde_json::from_value(serde_json::json!({
+            "dataset_path": temp_ds.to_string_lossy(),
+            "base_model": "unsloth/Qwen3.6-27B",
+            "params": null,
+            "feedback_path": temp_fb.to_string_lossy(),
+            "skill_name": "valid-skill",
+            "adapter_name": null,
+            "merged_output_path": "/tmp/../../etc/cron.d/evil.jsonl"
+        }))
+        .expect("deserialize TrainSubmitRequest");
+    let out = server.training_submit(Parameters(req)).await;
+    let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
+    assert!(
+        v.get("kind").is_some() || v.get("content").and_then(|c| c.get("job_id")).is_none(),
+        "submit should reject path traversal in merged_output_path: {out}"
+    );
+    std::fs::remove_file(&temp_ds).ok();
+    std::fs::remove_file(&temp_fb).ok();
+}
+
+// REQ: AdapterStore::get_previous_by_skill_name excludes the given adapter ID (P5).
+// expect: returns None when only one adapter exists for the skill (no previous).
+#[test]
+fn get_previous_by_skill_name_returns_none_when_only_one_exists() {
+    use hkask_adapter::{AdapterStore, TrainedLoRAAdapter, expertise::{Expertise, MdsDomain, TrainingProvenance}};
+    use hkask_types::id::WebID;
+
+    let pool = hkask_database::sqlite::SqliteDriver::in_memory_pool().unwrap();
+    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+    let store = AdapterStore::from_driver(driver);
+
+    // Store one adapter with skill_name "test-skill"
+    let adapter_id = uuid::Uuid::new_v4();
+    let adapter = TrainedLoRAAdapter {
+        id: adapter_id,
+        expertise: Expertise::new(
+            "test-adapter".to_string(),
+            MdsDomain::CodeGeneration,
+            serde_json::Value::Null,
+            TrainingProvenance {
+                training_run_id: "job-1".to_string(),
+                training_source: String::new(),
+                completed_at: String::new(),
+                base_model_family: "test-model".to_string(),
+                dataset_hash: None,
+                training_metrics: serde_json::Value::Null,
+            },
+        ).unwrap(),
+        checksum: hkask_adapter::adapter_store::Checksum::from_hex("0000000000000000"),
+        storage_path: String::new(),
+        base_model_family: "test-model".to_string(),
+        version: Some("1".to_string()),
+        source: hkask_adapter::AdapterSource::HuggingFace { repo: "test/repo".to_string() },
+        size_bytes: None,
+        owner: WebID::from_persona(b"test"),
+        skill_name: Some("test-skill".to_string()),
+        lifecycle: hkask_adapter::expertise::AdapterLifecycle::Durable,
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+    store.store(&adapter).unwrap();
+
+    // get_previous_by_skill_name should return None (only one adapter, excluded)
+    let result = store.get_previous_by_skill_name("test-skill", adapter_id).unwrap();
+    assert!(result.is_none(), "should return None when only one adapter exists");
+}

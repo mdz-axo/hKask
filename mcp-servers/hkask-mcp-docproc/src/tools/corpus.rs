@@ -62,8 +62,10 @@ fn cluster_within_source(
     for (idx, emb) in &indexed_embs {
         let mut found = None;
         for (ci, rep_emb) in cluster_reps.iter().enumerate() {
-            let dot: f32 = emb.iter().zip(rep_emb.iter()).map(|(a, b)| a * b).sum();
-            if dot > threshold {
+            // Vectors are pre-normalized (normalize_in_place at line 119/215),
+            // so the dot product equals cosine similarity.
+            let cosine_sim: f32 = emb.iter().zip(rep_emb.iter()).map(|(a, b)| a * b).sum();
+            if cosine_sim > threshold {
                 found = Some(ci);
                 break;
             }
@@ -713,11 +715,20 @@ impl DocProcServer {
                             .iter()
                             .filter(|(er, _)| er.as_str() != tc.entity_ref)
                             .map(|(er, v)| {
-                                let dot: f32 = query_vec.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
-                                (*er, dot)
+                                // Vectors are pre-normalized, so dot product = cosine similarity.
+                                let cosine_sim: f32 = query_vec.iter().zip(v.iter()).map(|(a, b)| a * b).sum();
+                                (*er, cosine_sim)
                             })
                             .collect();
                         let top_k: Vec<(&String, f32)> = if scored.len() > k {
+                            // Partition around index k-1 so that elements 0..k are
+                            // the top-k by score (descending). The return value
+                            // (pivot, left, right) is discarded — only the
+                            // partitioning side effect matters. After partitioning,
+                            // scored[..k] contains the top-k but unsorted, so we
+                            // sort that slice in place. This avoids sorting the
+                            // entire scored vec (O(n log n)) in favor of
+                            // partition + partial sort (O(n + k log k)).
                             scored.select_nth_unstable_by(k.saturating_sub(1), |a, b| {
                                 b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
                             });
@@ -1419,4 +1430,245 @@ pub struct IngestQaRequest {
 
 fn default_dataset() -> String {
     "capabilities-researcher".to_string()
+}
+
+// ── Training dataset preparation ───────────────────────────────────────────
+
+/// Request for `docproc_prepare_training_dataset`.
+///
+/// Converts Alpaca-format JSONL (from `docproc_ingest_qa`) to ChatML format
+/// (what `training_submit` expects), applies the lora-training skill's G-D1
+/// gate (dataset size check), and returns lora-training config recommendations.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PrepareTrainingDatasetRequest {
+    /// Path to Alpaca-format JSONL (from docproc_ingest_qa).
+    /// Each line: {"instruction": "...", "input": "", "output": "..."}
+    pub input_jsonl: String,
+    /// Output path for ChatML-format JSONL (for training_submit).
+    /// Each line: {"messages": [{"role": "user", ...}, {"role": "assistant", ...}]}
+    pub output_jsonl: String,
+    /// Optional system prompt to prepend to each conversation.
+    #[serde(default)]
+    pub system_prompt: Option<String>,
+    /// Base model the dataset will be used to fine-tune (e.g., "Qwen/Qwen2.5-7B").
+    /// Used to generate lora-training config recommendations.
+    pub base_model: String,
+    /// If true, convert and validate without writing the output file.
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+impl DocProcServer {
+    /// Prepare a training dataset from corpus QA pairs for LoRA fine-tuning.
+    ///
+    /// This tool bridges the docproc corpus pipeline and the training server:
+    /// 1. Reads Alpaca-format JSONL from `docproc_ingest_qa`
+    /// 2. Converts to ChatML format (what `training_submit` expects)
+    /// 3. Applies the lora-training skill's G-D1 gate (dataset size check)
+    /// 4. Returns lora-training config recommendations (rank, alpha, QLoRA)
+    ///
+    /// The config recommendations are derived from the lora-training skill's
+    /// 5-gate decision (G1 inference, G2 memory, G3 task distance, G4 quality,
+    /// G5 knowledge preservation) using the base model size and dataset stats.
+    #[tool(
+        description = "Convert Alpaca-format QA JSONL to ChatML training format, apply lora-training G-D1 dataset size gate, and return PEFT config recommendations (rank, alpha, QLoRA, init strategy) based on the base model and dataset characteristics. Bridges the docproc corpus pipeline to the training server."
+    )]
+    pub async fn docproc_prepare_training_dataset(
+        &self,
+        Parameters(req): Parameters<PrepareTrainingDatasetRequest>,
+    ) -> String {
+        execute_tool(self, "docproc_prepare_training_dataset", async {
+            let content = std::fs::read_to_string(&req.input_jsonl).map_err(|e| {
+                McpToolError::invalid_argument(format!(
+                    "Cannot read input JSONL '{}': {e}",
+                    req.input_jsonl
+                ))
+            })?;
+
+            // Parse Alpaca-format lines and convert to ChatML
+            let mut chatml_lines: Vec<String> = Vec::new();
+            let mut parse_errors: Vec<serde_json::Value> = Vec::new();
+            let mut total_tokens_approx: usize = 0;
+
+            for (i, line) in content.lines().enumerate() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                match serde_json::from_str::<serde_json::Value>(trimmed) {
+                    Ok(v) => {
+                        let instruction = v.get("instruction")
+                            .and_then(|i| i.as_str())
+                            .unwrap_or("");
+                        let input = v.get("input")
+                            .and_then(|i| i.as_str())
+                            .unwrap_or("");
+                        let output = v.get("output")
+                            .and_then(|o| o.as_str())
+                            .unwrap_or("");
+
+                        if instruction.is_empty() || output.is_empty() {
+                            parse_errors.push(json!({
+                                "line": i + 1,
+                                "error": "missing instruction or output"
+                            }));
+                            continue;
+                        }
+
+                        // Build the user message (combine instruction + input if present)
+                        let user_content = if input.is_empty() {
+                            instruction.to_string()
+                        } else {
+                            format!("{instruction}\n\n{input}")
+                        };
+
+                        // Build the ChatML conversation
+                        let mut messages: Vec<serde_json::Value> = Vec::new();
+                        if let Some(ref sp) = req.system_prompt {
+                            messages.push(json!({"role": "system", "content": sp}));
+                        }
+                        messages.push(json!({"role": "user", "content": user_content}));
+                        messages.push(json!({"role": "assistant", "content": output}));
+
+                        let chatml = json!({"messages": messages});
+                        chatml_lines.push(serde_json::to_string(&chatml).unwrap_or_default());
+
+                        // Approximate token count (1 token ≈ 4 chars)
+                        total_tokens_approx += (user_content.len() + output.len()) / 4;
+                    }
+                    Err(e) => {
+                        parse_errors.push(json!({
+                            "line": i + 1,
+                            "error": format!("JSON parse error: {e}")
+                        }));
+                    }
+                }
+            }
+
+            let n_samples = chatml_lines.len();
+
+            // G-D1: Dataset size gate (from lora-training skill)
+            let mut gd1_warnings: Vec<String> = Vec::new();
+            if n_samples < 1000 {
+                gd1_warnings.push(format!(
+                    "G-D1 WARN: dataset has only {} examples — QLoRA paper §5 recommends small high-quality, but <1000 may be insufficient",
+                    n_samples
+                ));
+            }
+            if n_samples > 100_000 {
+                gd1_warnings.push(format!(
+                    "G-D1 WARN: dataset has {} examples — large datasets require quality audit (dedup, contamination)",
+                    n_samples
+                ));
+            }
+
+            // Generate lora-training config recommendations
+            // based on the 5-gate decision (G1-G5)
+            let lower = req.base_model.to_lowercase();
+            let model_size_b: u32 = if ["1b", "3b"].iter().any(|p| lower.contains(p)) {
+                1
+            } else if ["7b", "8b", "9b"].iter().any(|p| lower.contains(p)) {
+                8
+            } else if ["13b", "14b"].iter().any(|p| lower.contains(p)) {
+                14
+            } else if ["30b", "34b", "35b"].iter().any(|p| lower.contains(p)) {
+                35
+            } else if ["70b", "72b"].iter().any(|p| lower.contains(p)) {
+                70
+            } else {
+                8 // default
+            };
+
+            // G2: Memory budget — model_size × 2 (bf16) > 24GB → QLoRA
+            let use_qlora = (model_size_b * 2) > 24;
+
+            // G3: Task distance — QA pairs from corpus are "moderate" (new domain knowledge)
+            let recommended_r = if n_samples < 1000 { 16 } else { 32 };
+            let recommended_alpha = recommended_r * 2;
+
+            // G4: Quality/cost — default LoRA (not DoRA/PiSSA)
+            let recommended_init = "true"; // PEFT default
+
+            // G5: Knowledge preservation — not required for new domain adaptation
+            let recommended_use_rslora = recommended_r > 64;
+
+            let config_recommendation = json!({
+                "base_model": req.base_model,
+                "model_size_b": model_size_b,
+                "use_qlora": use_qlora,
+                "lora": {
+                    "r": recommended_r,
+                    "alpha": recommended_alpha,
+                    "dropout": 0.0,
+                    "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+                    "use_rslora": recommended_use_rslora,
+                    "use_dora": false,
+                    "init_lora_weights": recommended_init,
+                    "bias": "none"
+                },
+                "quantization": if use_qlora {
+                    json!({
+                        "load_in_4bit": true,
+                        "bnb_4bit_quant_type": "nf4",
+                        "bnb_4bit_compute_dtype": "bf16",
+                        "bnb_4bit_use_double_quant": true
+                    })
+                } else {
+                    json!({"load_in_4bit": false})
+                },
+                "optimization": {
+                    "optimizer": if use_qlora { "paged_adamw_8bit" } else { "adamw_torch" },
+                    "lr_scheduler": "cosine",
+                    "gradient_accumulation_steps": 1
+                },
+                "advanced": {
+                    "bf16": true,
+                    "gradient_checkpointing": "true"
+                },
+                "gate_decisions": {
+                    "G1_inference": "must-merge (LoRA-family)",
+                    "G2_memory": if use_qlora { "QLoRA (NF4)" } else { "LoRA (bf16)" },
+                    "G3_task_distance": "moderate (new domain knowledge)",
+                    "G4_quality_cost": "default (LoRA with PEFT default init)",
+                    "G5_knowledge_preservation": "not required"
+                }
+            });
+
+            // Write output if not dry run
+            if !req.dry_run && !chatml_lines.is_empty() {
+                std::fs::write(&req.output_jsonl, chatml_lines.join("\n") + "\n")
+                    .map_err(|e| {
+                        McpToolError::internal(format!(
+                            "Cannot write output '{}': {e}",
+                            req.output_jsonl
+                        ))
+                    })?;
+            }
+
+            tracing::info!(
+                target: "hkask.docproc.training_dataset_prepared",
+                input_path = %req.input_jsonl,
+                output_path = %req.output_jsonl,
+                n_samples = n_samples,
+                approx_tokens = total_tokens_approx,
+                use_qlora = use_qlora,
+                recommended_r = recommended_r,
+                "Training dataset prepared from corpus QA pairs"
+            );
+
+            Ok(json!({
+                "input_jsonl": req.input_jsonl,
+                "output_jsonl": req.output_jsonl,
+                "n_samples": n_samples,
+                "approx_tokens": total_tokens_approx,
+                "parse_errors": parse_errors,
+                "parse_error_count": parse_errors.len(),
+                "gd1_warnings": gd1_warnings,
+                "config_recommendation": config_recommendation,
+                "dry_run": req.dry_run,
+                "next_step": "Pass output_jsonl to training_submit with the config_recommendation params"
+            }))
+        })
+        .await
+    }
 }
