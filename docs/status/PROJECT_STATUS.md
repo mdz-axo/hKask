@@ -238,7 +238,7 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 - `DEFAULT_DB_PATH` changed from `"hkask.db"` to `"data/hkask.db"` in `config.rs`
 - Kata system: deep research on Mike Rother's Toyota Kata methodology, full refactor from 1 skill with 3 artificial types → 4 skills (kata-starter, kata-improvement, kata-coaching, kata bundle) with 23 templates split across 4 directories, 5 manifests, 26 bootstrap entries
 - 2 pre-existing bugs fixed: `identity.rs` missing `passphrase_set_at`, `docproc/tools.rs` broken `CnsObserver` impl
-- Docs created: `docs/guides/kata-user-guide.md` (361 lines), `docs/status/skill-inventory.md` (117 lines)
+- Docs created: `docs/how-to/skills-and-composition.md` (kata content inlined), `docs/status/skill-inventory.md` (117 lines)
 - Docs updated: 4 frontmatter dates, `docs/README.md` portal, `hKask-architecture-master.md`, `DIAGRAMS_INDEX.md`, `PROJECT_STATUS.md`
 - 18 files updated with corrected path references across YAML, Rust, markdown, and shell scripts
 

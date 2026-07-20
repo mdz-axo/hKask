@@ -1045,7 +1045,7 @@ status: VERIFIED
 
 Kanban operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Kanban }`.
 
-See also: `docs/user-guides/kanban-user-guide.md`
+See also: [`docs/how-to/skills-and-composition.md`](../../how-to/skills-and-composition.md) (kata-kanban execution boundary and PDCA lifecycle)
 
 ---
 

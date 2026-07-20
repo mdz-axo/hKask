@@ -5,7 +5,7 @@
 #[cfg(test)]
 mod tests {
     use hkask_database::sqlite::SqliteDriver;
-    use hkask_services_kata_kanban::kanban::{ColumnDef, KanbanService, TaskSpec, TaskStatus};
+    use hkask_services_kata_kanban::kanban::{ColumnDef, KanbanService, TaskSpec};
     use hkask_storage::HMemStore;
     use std::sync::Arc;
 
