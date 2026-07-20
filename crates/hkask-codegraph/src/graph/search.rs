@@ -28,17 +28,15 @@ pub fn search(conn: &Connection, query: &str, limit: usize) -> Result<Vec<Search
     let mut results = Vec::new();
 
     // Try FTS5 first
-    let sql = format!(
-        "SELECT s.id, s.name, s.kind, f.path, s.signature, s.visibility,
-                s.start_line, s.end_line, s.doc_comment, s.complexity_json, s.pagerank,
-                rank
-         FROM symbols_fts
-         JOIN symbols s ON symbols_fts.rowid = s.id
-         JOIN code_files f ON s.file_id = f.id
-         WHERE symbols_fts MATCH ?1
-         ORDER BY rank
-         LIMIT ?2"
-    );
+    let sql = "SELECT s.id, s.name, s.kind, f.path, s.signature, s.visibility,
+            s.start_line, s.end_line, s.doc_comment, s.complexity_json, s.pagerank,
+            rank
+     FROM symbols_fts
+     JOIN symbols s ON symbols_fts.rowid = s.id
+     JOIN code_files f ON s.file_id = f.id
+     WHERE symbols_fts MATCH ?1
+     ORDER BY rank
+     LIMIT ?2";
 
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params![query, limit as i64], |row| {
@@ -66,15 +64,13 @@ pub fn search(conn: &Connection, query: &str, limit: usize) -> Result<Vec<Search
     // If FTS5 returned nothing, fall back to LIKE
     if results.is_empty() {
         let like_query = format!("%{query}%");
-        let sql = format!(
-            "SELECT s.id, s.name, s.kind, f.path, s.signature, s.visibility,
-                    s.start_line, s.end_line, s.doc_comment, s.complexity_json, s.pagerank
-             FROM symbols s
-             JOIN code_files f ON s.file_id = f.id
-             WHERE s.name LIKE ?1
-             ORDER BY s.pagerank DESC
-             LIMIT ?2"
-        );
+        let sql = "SELECT s.id, s.name, s.kind, f.path, s.signature, s.visibility,
+                s.start_line, s.end_line, s.doc_comment, s.complexity_json, s.pagerank
+         FROM symbols s
+         JOIN code_files f ON s.file_id = f.id
+         WHERE s.name LIKE ?1
+         ORDER BY s.pagerank DESC
+         LIMIT ?2";
 
         let mut stmt = conn.prepare(&sql)?;
         let rows = stmt.query_map(rusqlite::params![like_query, limit as i64], |row| {
@@ -106,15 +102,13 @@ pub fn search(conn: &Connection, query: &str, limit: usize) -> Result<Vec<Search
 /// Search by symbol name prefix (for autocomplete).
 pub fn search_prefix(conn: &Connection, prefix: &str, limit: usize) -> Result<Vec<Symbol>> {
     let like = format!("{prefix}%");
-    let sql = format!(
-        "SELECT s.id, s.name, s.kind, f.path, s.signature, s.visibility,
-                s.start_line, s.end_line, s.doc_comment, s.complexity_json, s.pagerank
-         FROM symbols s
-         JOIN code_files f ON s.file_id = f.id
-         WHERE s.name LIKE ?1
-         ORDER BY s.name
-         LIMIT ?2"
-    );
+    let sql = "SELECT s.id, s.name, s.kind, f.path, s.signature, s.visibility,
+            s.start_line, s.end_line, s.doc_comment, s.complexity_json, s.pagerank
+     FROM symbols s
+     JOIN code_files f ON s.file_id = f.id
+     WHERE s.name LIKE ?1
+     ORDER BY s.name
+     LIMIT ?2";
 
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params![like, limit as i64], |row| {
