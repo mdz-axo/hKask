@@ -659,7 +659,7 @@ mod tests {
         let temp = std::env::temp_dir().join("test_large_dataset.jsonl");
         // Write 100001 examples (above 100000 threshold) — use a compact format
         let line = "{\"messages\":[{\"role\":\"user\",\"content\":\"q\"},{\"role\":\"assistant\",\"content\":\"a\"}]}}";
-        let content: Vec<&str> = std::iter::repeat(line).take(100_001).collect();
+        let content: Vec<&str> = std::iter::repeat_n(line, 100_001).collect();
         std::fs::write(&temp, content.join("\n")).unwrap();
         let findings = validate_dataset_size(&temp);
         assert!(
