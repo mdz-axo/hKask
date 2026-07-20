@@ -386,7 +386,7 @@ fn run_turn_with_state(
     agent_override: Option<&str>,
     sink: &mut impl TurnSink,
 ) -> TurnOutcome {
-    let governed_runtime = state.service_context.governed_tool(state.agent_webid);
+    let governed_runtime = state.service_context.infra().mcp.clone();
     let config = TurnConfig {
         max_loops: state.repl_settings.tool_loop_limit,
         gas_heuristic: state.repl_settings.gas_heuristic,
@@ -682,7 +682,7 @@ mod tests {
         }
     }
 
-    fn turn_result(text: &str, tools: Vec<crate::ToolCall>) -> TurnResult {
+    fn turn_result(text: &str, tools: Vec<ToolCall>) -> TurnResult {
         use hkask_ports::StructuredToolCall;
         TurnResult {
             text: text.to_string(),
@@ -708,8 +708,8 @@ mod tests {
                 .collect(),
         }
     }
-    fn tool_call(name: &str) -> crate::ToolCall {
-        crate::ToolCall {
+    fn tool_call(name: &str) -> ToolCall {
+        ToolCall {
             server: "mock".into(),
             tool: name.into(),
             args: serde_json::json!({}),

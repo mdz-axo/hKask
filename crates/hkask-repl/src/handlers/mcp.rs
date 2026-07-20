@@ -4,7 +4,6 @@
 //! Servers are listed with numbered status; user opts in by name, number pattern,
 //! or "all".
 
-
 use super::super::builtin_servers;
 
 /// Handle /mcp — manage MCP server connections with affirmative consent.
@@ -328,11 +327,11 @@ fn start_selection(
 /// Refresh tool definitions after starting servers so the LLM
 /// becomes aware of newly available tools.
 fn refresh_tool_section(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
-    let gov_tool = state.service_context.governed_tool(state.agent_webid);
-    let tool_names = rt.block_on(gov_tool.discover_tools());
+    let mcp = state.service_context.infra().mcp.clone();
+    let tool_names = rt.block_on(mcp.discover_tools());
     let mut tools: Vec<hkask_ports::ToolInfo> = Vec::new();
     for name in &tool_names {
-        if let Some(info) = rt.block_on(gov_tool.get_tool_info(name)) {
+        if let Some(info) = rt.block_on(mcp.get_tool_info(name)) {
             tools.push(info);
         }
     }

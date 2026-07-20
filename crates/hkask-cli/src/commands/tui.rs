@@ -7,7 +7,6 @@
 //! Non-interactive mode: `kask tui -f <file>` or `kask tui -f -` reads from
 //! a file or stdin, prints the agent's response, and exits — no TUI launched.
 
-use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::SqliteRegistry;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -16,13 +15,12 @@ use crate::repl_host::CliHost;
 
 /// Launch the TUI workspace or non-interactive chat.
 ///
-/// pre:  rt is a valid tokio Runtime; registry is initialized; runtime is an McpRuntime
+/// pre:  rt is a valid tokio Runtime; registry is initialized
 /// post: launches TUI (interactive) or prints one chat response (non-interactive via -f)
 #[allow(clippy::too_many_arguments)]
 pub fn run_tui(
     rt: &tokio::runtime::Runtime,
     registry: &mut SqliteRegistry,
-    runtime: &McpRuntime,
     handle: &tokio::runtime::Handle,
     template: Option<String>,
     input: Option<PathBuf>,
@@ -72,7 +70,6 @@ pub fn run_tui(
         {
             hkask_repl::run_tui(
                 registry,
-                runtime,
                 template.as_deref(),
                 &agent,
                 model.as_deref(),
@@ -85,7 +82,6 @@ pub fn run_tui(
             eprintln!("TUI not built — rebuild with `cargo build --features tui`");
             hkask_repl::run(
                 registry,
-                runtime,
                 template.as_deref(),
                 &agent,
                 model.as_deref(),

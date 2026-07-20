@@ -126,8 +126,8 @@ impl CuratorContext {
 
     /// Late-binding setter: attach a ManifestExecutor after construction.
     ///
-    /// The ManifestExecutor depends on McpDispatcher, which is built after
-    /// CuratorContext. This setter allows the executor to be wired in later
+    /// The ManifestExecutor depends on the governed McpRuntime, which is built
+    /// after CuratorContext. This setter allows the executor to be wired in later
     /// without changing the construction order.
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"

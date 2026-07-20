@@ -3,7 +3,6 @@
 use super::super::*;
 use super::foundation::Foundation;
 use super::loops::LoopWiring;
-use super::mcp_pods::McpPods;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 use hkask_services_self_heal::{HealAction, HealContext, HealRegistry, HealStrategy, SelfHealer};
 use hkask_wallet::manager::{WalletManager, WalletSelfHealer};
@@ -23,7 +22,6 @@ pub(super) async fn build_registry_and_wallet(
     config: &ServiceConfig,
     f: &Foundation,
     l: &LoopWiring,
-    _mcp: &McpPods,
 ) -> Result<RegWallet, ServiceError> {
     // Registry
     let registry_pool = f.db.sqlite_pool().map_err(|e| ServiceError::Domain {

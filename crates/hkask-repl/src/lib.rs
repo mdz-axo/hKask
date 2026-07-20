@@ -27,7 +27,6 @@ mod threads;
 mod tui_bridges;
 mod turn;
 
-use hkask_mcp::runtime::McpRuntime;
 use hkask_services_context::AgentService;
 use hkask_services_kata_kanban::KanbanService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
@@ -163,16 +162,13 @@ impl std::fmt::Debug for ReplState {
 
 pub fn run(
     _registry: &mut SqliteRegistry,
-    _runtime: &McpRuntime,
     template_id: Option<&str>,
     _agent_name: &str,
     initial_model: Option<&str>,
     rt_handle: tokio::runtime::Handle,
     host: Arc<dyn host::ReplHost>,
 ) {
-    let Some(mut state) =
-        init::init_repl_state(_registry, _runtime, initial_model, &rt_handle, host)
-    else {
+    let Some(mut state) = init::init_repl_state(_registry, initial_model, &rt_handle, host) else {
         return;
     };
 
@@ -290,20 +286,15 @@ fn history_path() -> std::path::PathBuf {
 #[cfg(feature = "tui")]
 pub fn run_tui(
     _registry: &mut SqliteRegistry,
-    _runtime: &McpRuntime,
     template_id: Option<&str>,
     _agent_name: &str,
     initial_model: Option<&str>,
     rt_handle: tokio::runtime::Handle,
     host: Arc<dyn host::ReplHost>,
 ) {
-    let Some(state) = init::init_repl_state(
-        _registry,
-        _runtime,
-        initial_model,
-        &rt_handle,
-        Arc::clone(&host),
-    ) else {
+    let Some(state) =
+        init::init_repl_state(_registry, initial_model, &rt_handle, Arc::clone(&host))
+    else {
         return;
     };
 
@@ -372,7 +363,6 @@ pub fn run_tui(
             // Can't recover ReplState from inside the Arc<Mutex>, so just run fresh
             run(
                 _registry,
-                _runtime,
                 template_id,
                 _agent_name,
                 initial_model,

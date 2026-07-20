@@ -121,7 +121,8 @@ pub fn handle_talk(
             let result = rt.block_on(async {
                 state
                     .service_context
-                    .governed_tool(state.agent_webid)
+                    .infra()
+                    .mcp
                     .invoke(
                         "hkask-mcp-media",
                         "voice_design",
@@ -258,7 +259,8 @@ pub fn speak_response(response_text: &str, state: &ReplState, rt: &tokio::runtim
         }
         state
             .service_context
-            .governed_tool(state.agent_webid)
+            .infra()
+            .mcp
             .invoke("hkask-mcp-media", "generate_speech", args, &token)
             .await
     });

@@ -355,15 +355,15 @@ pub async fn api_key_auth_middleware(
             &ctx.key_id.to_string(),
             request.uri().path(),
             true, // scope was verified by authenticate() above
-            0,    // gas consumed is settled downstream by GovernedTool
+            0,    // gas consumed is settled downstream by the governed McpRuntime
             encumbrance.as_ref(),
             rate_limit_status,
         );
         span.emit_to(sink.as_ref(), &WebID::default());
     }
 
-    // Register wallet-backed budget so GovernedTool/GovernedInference
-    // debit from this key's encumbrance during the request.
+    // Register wallet-backed budget so the governed McpRuntime
+    // debits from this key's encumbrance during the request.
     let budget_principal = ApiKeyAuthService::budget_principal_for_key(ctx.key_id);
     let _ = auth
         .wallet_service

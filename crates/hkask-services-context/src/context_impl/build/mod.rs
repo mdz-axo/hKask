@@ -74,7 +74,7 @@ impl AgentService {
 
         // ── Registry + wallet: agent records, A2A restore, rJoule ───────
         let reg_wallet =
-            reg_wallet::build_registry_and_wallet(&config, &foundation, &loops, &mcp_pods).await?;
+            reg_wallet::build_registry_and_wallet(&config, &foundation, &loops).await?;
 
         Ok(AgentServiceWiring {
             foundation,

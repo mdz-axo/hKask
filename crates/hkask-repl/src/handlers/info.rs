@@ -78,12 +78,7 @@ pub fn handle_templates(state: &crate::ReplState, rt: &tokio::runtime::Handle) {
 }
 
 pub fn handle_tools(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
-    let tools = rt.block_on(
-        state
-            .service_context
-            .governed_tool(state.agent_webid)
-            .discover_tools(),
-    );
+    let tools = rt.block_on(state.service_context.infra().mcp.discover_tools());
     if tools.is_empty() {
         println!("  No MCP tools available.");
         println!(
@@ -92,12 +87,9 @@ pub fn handle_tools(state: &mut super::super::ReplState, rt: &tokio::runtime::Ha
     } else {
         println!("  \x1b[1mMCP Tools ({}):\x1b[0m", tools.len());
         for tool_name in &tools {
-            if let Some(info) = rt.block_on(
-                state
-                    .service_context
-                    .governed_tool(state.agent_webid)
-                    .get_tool_info(tool_name),
-            ) {
+            if let Some(info) =
+                rt.block_on(state.service_context.infra().mcp.get_tool_info(tool_name))
+            {
                 println!("  \x1b[36m{}\x1b[0m — {}", info.name, info.description);
             } else {
                 println!("  \x1b[36m{}\x1b[0m", tool_name);

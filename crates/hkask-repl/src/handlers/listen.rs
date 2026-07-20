@@ -85,7 +85,8 @@ fn handle_start(duration_arg: &str, state: &mut ReplState, rt: &tokio::runtime::
     let capture_result = rt.block_on(async {
         state
             .service_context
-            .governed_tool(state.agent_webid)
+            .infra()
+            .mcp
             .invoke(
                 "hkask-mcp-media",
                 "audio_capture",
@@ -129,7 +130,8 @@ fn handle_start(duration_arg: &str, state: &mut ReplState, rt: &tokio::runtime::
     let transcribe_result = rt.block_on(async {
         state
             .service_context
-            .governed_tool(state.agent_webid)
+            .infra()
+            .mcp
             .invoke(
                 "hkask-mcp-media",
                 "transcribe_bundle",

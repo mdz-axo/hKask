@@ -1,5 +1,5 @@
-//! REPL dependency injection — wires CNS, loops, dispatch, energy budgets,
-//! GovernedTool, and builds the initial ReplState.
+//! REPL dependency injection — wires CNS, loops, energy budgets, and builds
+//! the initial ReplState.
 //!
 //! Uses `AgentService::build()` for all shared infrastructure (CNS, loop system,
 //! curation, tool dispatch, pod manager). Surface-specific concerns (InferenceLoop
@@ -15,8 +15,8 @@ use hkask_cns::{GasBudget, GasCost};
 
 use super::{TalkConfig, TalkMode};
 use hkask_mcp::McpRuntime;
-use hkask_ports::{ToolInfo};
-use hkask_templates::{ManifestExecutor, McpPort};
+use hkask_ports::ToolInfo;
+use hkask_templates::ManifestExecutor;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 
@@ -276,7 +276,7 @@ fn load_thread_registry(agent_name: &str, stm_life: u32) -> crate::threads::Thre
     reg
 }
 
-/// Discover MCP tools via the GovernedTool membrane and populate the tool prompt.
+/// Discover MCP tools via the governed McpRuntime and populate the tool prompt.
 ///
 /// Used by: `init_repl_state`
 fn discover_tools(
@@ -312,11 +312,10 @@ fn discover_tools(
 ///
 /// Uses `AgentService::build()` for shared infrastructure (CNS, loop system,
 /// curation loop, pod manager, registry, MCP runtime) and adds CLI-specific
-/// concerns on top (inference, per-agent memory, GovernedTool for tool
+/// concerns on top (inference, per-agent memory, governed McpRuntime for tool
 /// discovery, onboarding state).
 pub(super) fn init_repl_state(
     registry: &mut hkask_templates::SqliteRegistry,
-    _runtime: &hkask_mcp::runtime::McpRuntime,
     initial_model: Option<&str>,
     rt: &tokio::runtime::Handle,
     host: Arc<dyn crate::host::ReplHost>,
@@ -410,7 +409,7 @@ pub(super) fn init_repl_state(
     // Consent). Every entry MUST exist in `hkask_mcp::BUILTIN_SERVERS` — the
     // compile-time assertion below enforces this to prevent phantom exclusions.
     const CORE_EXCLUDED: &[&str] = &["companies", "communication", "training", "replica"];
-    let mcp_runtime = ctx.infra().mcp.clone().clone();
+    let mcp_runtime = ctx.infra().mcp.clone();
     let degraded = rt.block_on(async {
         let mut started = 0u32;
         let mut failed = Vec::new();
@@ -464,6 +463,9 @@ pub(super) fn init_repl_state(
     });
 
     // ── Phase 9: GovernedTool (lazy via AgentService::governed_tool) ─────────
+    // NOTE: `governed_tool` was removed; the governed `McpRuntime` is now built
+    // once at `AgentService::build()` time (see `build_mcp_and_pods`) and lives in
+    // `ctx.infra().mcp`. OCAP + gas + CNS spans are wired via `with_governance`.
 
     // ── Phase 10: Energy Budget + Well + Wallet ────────────────────────────
     rt.block_on(async {
@@ -536,7 +538,7 @@ pub(super) fn init_repl_state(
     };
 
     // ── Phase 13: Tool Discovery ───────────────────────────────────────────
-    let gov_tool = ctx.governed_tool(agent_webid);
+    let gov_tool = ctx.infra().mcp.clone();
     state.tool_definitions = discover_tools(&gov_tool, rt);
 
     // ── Phase 14: Agent Definition + Process Manifest ───────────────────────
@@ -575,16 +577,11 @@ pub(super) fn init_repl_state(
                 .map(|s| s.a2a_secret.as_bytes().to_vec())
                 .unwrap_or_default();
 
-            let mcp_dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(
-                (*mcp_runtime).clone(),
-                ctx.governed_tool(agent_webid),
-            );
-
             let inference_port = ctx.inference_port().expect("inference port");
 
             let executor = ManifestExecutor::new(
                 inference_port.clone(),
-                Arc::new(mcp_dispatcher) as Arc<dyn McpPort>,
+                ctx.infra().mcp.clone() as Arc<dyn hkask_ports::ToolPort>,
                 LLMParameters::default(),
                 a2a_secret,
             );
@@ -960,11 +957,9 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         let mut registry = hkask_templates::SqliteRegistry::new(None)
             .expect("SqliteRegistry::new with None should succeed");
-        let runtime = hkask_mcp::runtime::McpRuntime::new();
 
         let state = init_repl_state(
             &mut registry,
-            &runtime,
             Some("test-model"),
             rt.handle(),
             Arc::new(MockReplHost),
@@ -1013,15 +1008,8 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let mut registry = hkask_templates::SqliteRegistry::new(None)
             .expect("SqliteRegistry::new with None should succeed");
-        let runtime = hkask_mcp::runtime::McpRuntime::new();
 
-        let state = init_repl_state(
-            &mut registry,
-            &runtime,
-            None,
-            rt.handle(),
-            Arc::new(MockReplHost),
-        );
+        let state = init_repl_state(&mut registry, None, rt.handle(), Arc::new(MockReplHost));
 
         if let Some(s) = state {
             // degraded_servers is a Vec<(String, String)> — server_id → error message.

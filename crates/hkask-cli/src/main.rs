@@ -9,7 +9,6 @@ use clap::Parser;
 use hkask_cli::cli::Commands;
 use hkask_cli::commands;
 use hkask_inference::InferenceConfig;
-use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::BundleRegistryIndex;
 use hkask_templates::SqliteRegistry;
 use hkask_templates::load_manifest_from_yaml;
@@ -123,18 +122,7 @@ fn main() {
             agent,
             model,
         } => {
-            // McpRuntime created only when TUI needs it (P5: avoid waste)
-            let runtime = McpRuntime::new();
-            commands::tui::run_tui(
-                &rt,
-                &mut registry,
-                &runtime,
-                &handle,
-                template,
-                input,
-                agent,
-                model,
-            );
+            commands::tui::run_tui(&rt, &mut registry, &handle, template, input, agent, model);
         }
 
         Commands::Pod { action } => commands::pod::run_pod(&rt, action),
