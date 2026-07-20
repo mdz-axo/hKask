@@ -7,16 +7,19 @@ embedding, QA generation, caching, and semantic query. Supersedes the former
 ## Architecture
 
 ```
-lib.rs           — Server struct, CNS observer, shared helpers (extract_text, cosine_similarity,
-                   template rendering, embedding model resolution, normalize_concept,
-                   find_balanced_json_object)
+lib.rs           — Server struct, CNS observer, shared helpers (extract_text,
+                   embedding model resolution, normalize_concept)
+helpers.rs        — Math/text helpers (cosine_similarity, tokens_to_words, chunk_word_bounds,
+                   serialize_passages)
+json_extract.rs   — Brace-balanced JSON extraction from LLM responses (RR-0017)
 tools/
   document.rs    — docproc_convert, docproc_ocr, docproc_chunk
   semantic/      — docproc_generate_qa, docproc_generate_qa_batch, docproc_extract_triples,
                    docproc_embed (tool methods in mod.rs; helpers in qa.rs, triples.rs,
                    ontology_io.rs)
-  corpus.rs      — docproc_dedup_chunks, docproc_consolidate_chunks, docproc_build_prompts,
-                   docproc_ingest_qa, docproc_prepare_training_dataset
+  corpus/        — docproc_dedup_chunks, docproc_consolidate_chunks, docproc_build_prompts,
+                   docproc_ingest_qa, docproc_prepare_training_dataset (tool methods in
+                   mod.rs; helpers in clustering.rs, qa_types.rs, qa_parsing.rs)
   storage.rs     — docproc_cache, docproc_query, docproc_clear_index, docproc_purge_qa
   tagging/       — docproc_tag_chunks (ontology tagging with validate_ontology_tags)
 ocr/ (11 modules)
