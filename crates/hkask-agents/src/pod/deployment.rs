@@ -32,7 +32,7 @@ use super::types::{AgentPersona, PodID, PodKind};
 use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
 use crate::curator::SemanticIndex;
-use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
+use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::TemplateCrateLoader;
 
 // ── PodDeployment — The pod IS the deployment unit ──────────────────────────
@@ -52,14 +52,11 @@ pub struct PodDeployment {
     pub storage: PerPodStorage,
     /// Dedicated CNS runtime. Variety counters scoped to this pod.
     pub cns: PerPodCnsRuntime,
-    /// MCP server bindings for this pod
-    pub tools: PerPodToolBinding,
     /// Capability checker for OCAP verification
-    pub capability_checker: Option<Arc<CapabilityChecker>>,
+    pub capability_checker: Arc<CapabilityChecker>,
     /// Sovereignty checker wired to consent port
     pub sovereignty_checker: SovereigntyChecker,
-    /// NuEvent sink for lifecycle events
-    pub nu_event_sink: Option<Arc<dyn NuEventSink>>,
+
     /// MCP runtime for tool dispatch
     pub mcp_runtime: Arc<McpRuntime>,
     /// Episodic storage port (backed by this pod's SQLCipher)
@@ -103,12 +100,6 @@ pub struct PerPodCnsRuntime {
     span_namespace: String,
     /// The actual CNS runtime — per-pod isolate
     inner: CnsRuntime,
-}
-
-/// PerPodToolBinding owns the MCP server instances for this pod.
-///
-pub struct PerPodToolBinding {
-    pub mcp_runtime: Arc<McpRuntime>,
 }
 
 // ── PodDeployError ──────────────────────────────────────────────────────────
@@ -243,8 +234,7 @@ impl PodFactory {
         persona: &AgentPersona,
         pod_kind: PodKind,
         mcp_runtime: Arc<McpRuntime>,
-        capability_checker: Option<Arc<CapabilityChecker>>,
-        nu_event_sink: Option<Arc<dyn NuEventSink>>,
+        capability_checker: Arc<CapabilityChecker>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Result<PodDeployment, PodDeployError> {
         // 1. Create the underlying AgentPod
@@ -265,9 +255,6 @@ impl PodFactory {
         // 3. Initialize per-pod CNS runtime
         let cns = PerPodCnsRuntime::scoped(pod_id);
 
-        let tools = PerPodToolBinding {
-            mcp_runtime: Arc::clone(&mcp_runtime),
-        };
         let sovereignty_checker = pod.sovereignty_checker.clone();
 
         let adapter: Arc<crate::adapters::memory_loop_adapter::MemoryLoopForwarder> =
@@ -308,10 +295,8 @@ impl PodFactory {
             pod,
             storage,
             cns,
-            tools,
             capability_checker,
             sovereignty_checker,
-            nu_event_sink,
             mcp_runtime,
             episodic_storage: episodic,
             semantic_storage: semantic,

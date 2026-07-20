@@ -84,8 +84,7 @@ use hkask_templates::TemplateCrateLoader;
 pub use active_pods::{ActivePods, PodStatusInfo};
 pub use context::{MemoryContext, PodContext};
 pub use deployment::{
-    PerPodCnsRuntime, PerPodStorage, PerPodToolBinding, PodDeployError, PodDeployment, PodFactory,
-    PodRegistry,
+    PerPodCnsRuntime, PerPodStorage, PodDeployError, PodDeployment, PodFactory, PodRegistry,
 };
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
 pub use types::{
@@ -318,25 +317,14 @@ impl AgentPod {
         Ok(())
     }
 
-    /// Activate the pod for A2A communication
+    /// Activate the pod for A2A communication.
     ///
-    /// Transitions state: `Registered` → `Activated`
-    ///
-    /// # Arguments
-    /// * `mcp` — MCP runtime port for tool access grants
-    ///
-    /// # Returns
-    /// * `Ok(())` — Activation successful
-    /// * `Err(AgentPodError)` — MCP access grant failed
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P1\] Motivating: User Sovereignty — activate grants MCP access
-    /// \[P4\] Constraining: Clear Boundaries — requires Registered state
-    /// pre:  `self.state` must be `Registered` (or `Activated` for
-    ///       idempotent re-activation); `mcp` is a valid `MCPRuntimePort`.
-    /// post: On success, `self.state` is `Activated` and MCP tool access
-    ///       is granted. On failure, state is unchanged.
-    pub fn activate(&mut self, mcp: &dyn crate::ports::MCPRuntimePort) -> AgentPodResult<()> {
+    /// Transitions state: `Registered` → `Activated` after verifying that the
+    /// pod's capability token is rooted in the configured OCAP authority.
+    pub fn activate(
+        &mut self,
+        checker: &hkask_capability::CapabilityChecker,
+    ) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Activated) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
@@ -344,7 +332,14 @@ impl AgentPod {
             ));
         }
 
-        mcp.grant_tool_access(self.capability_token.clone())?;
+        if !checker.verify(&self.capability_token)
+            || self.capability_token.delegated_to != self.webid
+        {
+            return Err(AgentPodError::CapabilityDenied {
+                resource: hkask_capability::DelegationResource::Tool,
+                action: hkask_capability::DelegationAction::Execute,
+            });
+        }
 
         self.state = PodLifecycleState::Activated;
 

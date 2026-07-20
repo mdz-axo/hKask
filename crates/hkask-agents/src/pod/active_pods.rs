@@ -9,25 +9,20 @@ use super::deployment::{PodDeployment, PodFactory, PodRegistry};
 use super::types::{AgentKind, AgentPersona, PodID, PodKind, PodLifecycleState};
 use crate::a2a::A2ARuntime;
 use crate::curator::SemanticIndex;
-use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
-use hkask_database::sqlite::SqliteDriver;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
-use hkask_types::{NuEventSink, WebID};
+use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct ActivePods {
     deployments: RwLock<HashMap<PodID, PodDeployment>>,
-    factory: Option<Arc<PodFactory>>,
-    a2a_runtime: Option<Arc<A2ARuntime>>,
-    mcp_runtime: Option<Arc<McpRuntime>>,
-    capability_checker: Option<Arc<CapabilityChecker>>,
-    nu_event_sink: Option<Arc<dyn NuEventSink>>,
-    episodic_adapter: Option<Arc<dyn EpisodicStoragePort>>,
-    semantic_adapter: Option<Arc<dyn SemanticStoragePort>>,
+    factory: Arc<PodFactory>,
+    a2a_runtime: Arc<A2ARuntime>,
+    mcp_runtime: Arc<McpRuntime>,
+    capability_checker: Arc<CapabilityChecker>,
     inference_port: Option<Arc<dyn InferencePort>>,
     /// CuratorPod's SemanticIndex — shared with all pod contexts for
     /// merged-lens semantic recall (Step 5).
@@ -37,16 +32,18 @@ pub struct ActivePods {
 }
 
 impl ActivePods {
-    pub fn new() -> Self {
+    pub fn new(
+        factory: Arc<PodFactory>,
+        a2a_runtime: Arc<A2ARuntime>,
+        mcp_runtime: Arc<McpRuntime>,
+        capability_checker: Arc<CapabilityChecker>,
+    ) -> Self {
         Self {
             deployments: RwLock::new(HashMap::new()),
-            factory: None,
-            a2a_runtime: None,
-            mcp_runtime: None,
-            capability_checker: None,
-            nu_event_sink: None,
-            episodic_adapter: None,
-            semantic_adapter: None,
+            factory,
+            a2a_runtime,
+            mcp_runtime,
+            capability_checker,
             inference_port: None,
             curator_index: RwLock::new(None),
             matrix_homeserver_url: None,
@@ -94,8 +91,6 @@ impl ActivePods {
     fn new_test_harness_inner(data_dir: &std::path::Path) -> Self {
         use crate::AllowAllConsent;
         use crate::a2a::A2ARuntime;
-        use crate::adapters::mcp_runtime::CapabilityOnlyAdapter;
-        use crate::adapters::memory_loop_adapter::MemoryLoopForwarder;
         use crate::pod::{PodFactory, system_capability_checker};
         use hkask_database::types::DbProvider;
 
@@ -108,11 +103,6 @@ impl ActivePods {
             );
         }
 
-        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(
-            SqliteDriver::in_memory_pool().expect("in-memory pool"),
-        )) as _;
-        let adapter =
-            Arc::new(MemoryLoopForwarder::from_driver(driver).expect("in-memory adapter"));
         let a2a = Arc::new(A2ARuntime::new(b"mock"));
         // Anchor the checker to BOTH the system OCAP authority (pre-registration
         // tokens) and the A2A root (post-registration tokens), so legitimate pod
@@ -122,7 +112,6 @@ impl ActivePods {
                 .expect("system capability checker (test master key set)")
                 .trust_root(a2a.root_public_key()),
         );
-        let mcp = Arc::new(CapabilityOnlyAdapter::new(Arc::clone(&checker)));
         let factory = Arc::new(PodFactory::new(
             Arc::new(hkask_templates::TemplateCrateLoader::from_path(
                 data_dir.join("templates"),
@@ -131,41 +120,7 @@ impl ActivePods {
             data_dir.to_path_buf(),
             DbProvider::Sqlite,
         ));
-        Self::new().with_a2a_runtime(a2a).with_factory_and_ports(
-            factory,
-            Arc::new(McpRuntime::new()),
-            Some(checker),
-            None,
-            adapter.clone() as Arc<dyn EpisodicStoragePort>,
-            adapter as Arc<dyn SemanticStoragePort>,
-        )
-    }
-
-    /// Wire the factory and port adapters so create_pod/activate_pod work
-    /// with the simple old PodManager-style signatures.
-    #[allow(clippy::too_many_arguments)]
-    pub fn with_factory_and_ports(
-        mut self,
-        factory: Arc<PodFactory>,
-        mcp_runtime: Arc<McpRuntime>,
-        capability_checker: Option<Arc<CapabilityChecker>>,
-        nu_event_sink: Option<Arc<dyn NuEventSink>>,
-        episodic_adapter: Arc<dyn EpisodicStoragePort>,
-        semantic_adapter: Arc<dyn SemanticStoragePort>,
-    ) -> Self {
-        self.factory = Some(factory);
-        self.mcp_runtime = Some(mcp_runtime);
-        self.capability_checker = capability_checker;
-        self.nu_event_sink = nu_event_sink;
-        self.episodic_adapter = Some(episodic_adapter);
-        self.semantic_adapter = Some(semantic_adapter);
-        self
-    }
-
-    /// Wire the A2A runtime for pod registration.
-    pub fn with_a2a_runtime(mut self, a2a: Arc<A2ARuntime>) -> Self {
-        self.a2a_runtime = Some(a2a);
-        self
+        Self::new(factory, a2a, Arc::new(McpRuntime::new()), checker)
     }
 
     /// Set the inference port for pods to use.
@@ -310,12 +265,8 @@ impl ActivePods {
         _name: Option<String>,
         pod_kind: PodKind,
     ) -> Result<PodID, AgentPodError> {
-        let factory = self.factory.as_ref().ok_or_else(|| {
-            AgentPodError::PersonaParseError("ActivePods not wired with PodFactory".into())
-        })?;
-        let mcp = Arc::clone(self.mcp_runtime.as_ref().ok_or_else(|| {
-            AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
-        })?);
+        let factory = &self.factory;
+        let mcp = Arc::clone(&self.mcp_runtime);
         // Enforce CuratorPod singleton (P5 Essentialism).
         // Check BEFORE deployment to avoid SQLCipher HMAC mismatch on
         // already-encrypted curator.db from a prior pod.
@@ -335,8 +286,7 @@ impl ActivePods {
                 persona,
                 pod_kind,
                 mcp,
-                self.capability_checker.clone(),
-                self.nu_event_sink.clone(),
+                Arc::clone(&self.capability_checker),
                 self.inference_port.clone(),
             )
             .await
@@ -451,12 +401,7 @@ impl ActivePods {
     /// Activate a pod — matches old PodManager::activate_pod(id).
     /// Handles full lifecycle: Populated → Registered → Activated.
     pub async fn activate_pod(&self, pod_id: &PodID) -> Result<(), AgentPodError> {
-        let mcp = self.mcp_runtime.as_ref().ok_or_else(|| {
-            AgentPodError::PersonaParseError("ActivePods not wired with MCP runtime".into())
-        })?;
-        let a2a = self.a2a_runtime.as_ref().ok_or_else(|| {
-            AgentPodError::PersonaParseError("ActivePods not wired with A2A runtime".into())
-        })?;
+        let a2a = &self.a2a_runtime;
 
         // Register with A2A if still Populated
         let registration_data = {
@@ -546,7 +491,7 @@ impl ActivePods {
                 }
             }
         }
-        d.pod.activate(mcp.as_ref())
+        d.pod.activate(&self.capability_checker)
     }
 
     /// Deactivate a pod — matches old PodManager::deactivate_pod(id).
@@ -627,10 +572,7 @@ impl ActivePods {
         pod_id: PodID,
         output_dir: &std::path::Path,
     ) -> Result<(), super::AgentPodError> {
-        let factory = self.factory.as_ref().ok_or_else(|| {
-            super::AgentPodError::PersonaParseError("ActivePods not wired with PodFactory".into())
-        })?;
-        factory
+        self.factory
             .export_container(pod_id, output_dir)
             .map_err(|e| super::AgentPodError::PersonaParseError(e.to_string()))
     }

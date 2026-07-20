@@ -5,7 +5,7 @@
 //! - **Lifecycle Management**: Populated → Registered → Activated → Deactivated
 //! - **Capability Tokens**: OCAP-based access control with attenuation
 //! - **A2A Runtime**: Agent registration, A2A messaging, capability verification
-//! - **Hexagonal Ports**: MCPRuntimePort, CnsEmit, TemplateCrateLoader
+//! - **Hexagonal Ports**: memory, consent, escalation, and registry boundaries
 //!
 //! # Example
 //!

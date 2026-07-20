@@ -279,7 +279,7 @@ impl DaemonHandler for ServiceDaemonHandler {
             }
         };
 
-        match ctx.invoke_tool(tool, input.clone()) {
+        match ctx.invoke_tool(tool, input.clone()).await {
             Ok(output) => (true, Some(output), None),
             Err(e) => (false, None, Some(e.to_string())),
         }

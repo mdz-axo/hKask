@@ -25,8 +25,8 @@ use super::types::PodID;
 use crate::SovereigntyChecker;
 use crate::curator::SemanticIndex;
 use crate::ports::{
-    EpisodicStoragePort, MCPRuntimePort, RecallRequest, RecalledEpisode, RecalledSemantic,
-    SemanticStoragePort, StorageRequest,
+    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
+    StorageRequest,
 };
 
 /// Result of a paired memory recall — semantic (third-person) and
@@ -56,16 +56,9 @@ pub struct PodContext {
     mcp_runtime: Arc<McpRuntime>,
 
     /// Cryptographic capability checker for OCAP verification.
-    /// When set, `require_capability()` verifies the token's Ed25519 signature
-    /// against the configured trusted root(s) and that it is delegated to this
-    /// pod's WebID. When absent, `require_capability()` \[NORMATIVE\] denies by
-    /// default — OCAP must fail closed (P4 — Clear Boundaries).
-    capability_checker: Option<Arc<CapabilityChecker>>,
-    /// Sovereignty checker for this pod — wired to a live `SovereigntyConsent`
-    /// port so grants via the API or CLI are observed. `None` means the
-    /// manager was constructed without sovereignty wiring; in that case
-    /// `require_sovereignty` denies by default.
-    sovereignty_checker: Option<Arc<SovereigntyChecker>>,
+    capability_checker: Arc<CapabilityChecker>,
+    /// Sovereignty checker wired to the pod's live consent port.
+    sovereignty_checker: SovereigntyChecker,
     /// Per-pod CNS runtime — used to emit `cns.semantic.published` events
     /// on semantic writes. Cloned from PodDeployment (CnsRuntime is Arc-wrapped).
     cns: PerPodCnsRuntime,
@@ -91,8 +84,8 @@ impl PodContext {
             semantic_storage: Arc::clone(&deployment.semantic_storage),
             mcp_runtime: Arc::clone(&deployment.mcp_runtime),
 
-            capability_checker: deployment.capability_checker.clone(),
-            sovereignty_checker: Some(Arc::new(deployment.sovereignty_checker.clone())),
+            capability_checker: Arc::clone(&deployment.capability_checker),
+            sovereignty_checker: deployment.sovereignty_checker.clone(),
             cns: deployment.cns.clone(),
             curator_index: None,
         })
@@ -122,20 +115,7 @@ impl PodContext {
         _resource_id: &str,
         action: DelegationAction,
     ) -> Result<(), AgentPodError> {
-        let checker = match self.capability_checker {
-            Some(ref c) => c,
-            None => {
-                // \[NORMATIVE\] No checker configured — OCAP must fail closed.
-                // Authority cannot be established, so deny (P4 — Clear Boundaries).
-                tracing::error!(
-                    target: "hkask.ocap",
-                    webid = ?self.webid,
-                    resource = ?resource,
-                    "No capability checker configured — denying (fail closed)"
-                );
-                return Err(AgentPodError::CapabilityDenied { resource, action });
-            }
-        };
+        let checker = &self.capability_checker;
         // \[NORMATIVE\] Pod-boundary perimeter (P4.1): the pod boundary IS the OCAP
         // enforcement perimeter. A pod is authorized for its OWN resources when it
         // holds a token that (a) verifies against a trusted root [authority] and
@@ -165,21 +145,10 @@ impl PodContext {
         data_category: &DataCategory,
         requester: &WebID,
     ) -> Result<(), AgentPodError> {
-        let checker = match self.sovereignty_checker {
-            Some(ref c) => c,
-            None => {
-                tracing::error!(
-                    target: "hkask.sovereignty",
-                    webid = ?self.webid,
-                    "No sovereignty checker configured — sovereignty check denied"
-                );
-                return Err(AgentPodError::SovereigntyDenied {
-                    category: data_category.clone(),
-                    requester: *requester,
-                });
-            }
-        };
-        if !checker.can_access(data_category, requester) {
+        if !self
+            .sovereignty_checker
+            .can_access(data_category, requester)
+        {
             return Err(AgentPodError::SovereigntyDenied {
                 category: data_category.clone(),
                 requester: *requester,
@@ -487,14 +456,8 @@ impl PodContext {
 
     /// Invoke an MCP tool by name.
     ///
-    /// When a `GovernedTool` membrane is configured, routes through it to get
-    /// CNS governance (energy budget enforcement, variety tracking, algedonic spans).
-    /// When no membrane is present, falls back to the raw `mcp_runtime` path
-    /// which performs OCAP verification but bypasses CNS observability.
-    ///
-    /// expect: "The system provides bounded agent pod context with capability-gated resource access"
-    /// post: returns the tool's JSON output; Err on OCAP denial, missing tool, or invocation failure
-    pub fn invoke_tool(
+    /// Tool routing, OCAP, gas accounting, and CNS events are owned by `McpRuntime`.
+    pub async fn invoke_tool(
         &self,
         tool_name: &str,
         input: serde_json::Value,
@@ -505,22 +468,23 @@ impl PodContext {
             DelegationAction::Execute,
         )?;
 
-        let rt = tokio::runtime::Handle::current();
-        // Look up server for tool asynchronously, then invoke synchronously.
-        let server_id = rt
-            .block_on(async {
-                let info = self.mcp_runtime.get_tool_info(tool_name).await?;
-                Some(info.server_id)
-            })
-            .unwrap_or_else(|| tool_name.to_string());
-        match rt.block_on(self.mcp_runtime.invoke(
-            &server_id,
-            tool_name,
-            input,
-            &self.capability_token,
-        )) {
-            Ok(value) => Ok(value),
-            Err(e) => Err(AgentPodError::ToolError(e.into())),
-        }
+        let server_id = self
+            .mcp_runtime
+            .get_tool_info(tool_name)
+            .await
+            .map(|info| info.server_id)
+            .ok_or_else(|| {
+                AgentPodError::ToolError(
+                    hkask_ports::ToolPortError::NotFound(hkask_types::NotFound {
+                        entity_type: "tool".to_string(),
+                        id: tool_name.to_string(),
+                    })
+                    .into(),
+                )
+            })?;
+        self.mcp_runtime
+            .invoke(&server_id, tool_name, input, &self.capability_token)
+            .await
+            .map_err(|error| AgentPodError::ToolError(error.into()))
     }
 }
