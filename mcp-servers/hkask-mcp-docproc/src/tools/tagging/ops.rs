@@ -53,9 +53,10 @@ struct OntologyTags {
     /// Flexible ontology tags keyed by namespace (e.g., "fibo", "golem", "omc", "pko", "other").
     #[serde(default)]
     ontology_tags: std::collections::HashMap<String, Vec<String>>,
-    /// Expertise level: "practitioner", "analyst", or "researcher".
+    /// Expertise level — deserialized via `ExpertiseLevel`'s custom serde,
+    /// which maps invalid strings to `Analyst`.
     #[serde(default)]
-    expertise_level: String,
+    expertise_level: hkask_types::corpus::ExpertiseLevel,
 }
 
 fn read_input_chunks(path: &str) -> Result<Vec<InputChunk>, McpToolError> {
@@ -133,13 +134,9 @@ fn validate_ontology_tags(mut tags: OntologyTags) -> OntologyTags {
         valid_dims
     };
 
-    // Expertise level: allowlist, default to "analyst".
-    if !matches!(
-        tags.expertise_level.as_str(),
-        "practitioner" | "analyst" | "researcher"
-    ) {
-        tags.expertise_level = "analyst".to_string();
-    }
+    // Expertise level: the custom serde deserializer on ExpertiseLevel
+    // already maps invalid strings to Analyst. No runtime validation needed
+    // here — the type system enforces the invariant.
 
     // dc_subject: normalize + dedup + length cap.
     tags.dc_subject = normalize_and_cap_concept_list(&tags.dc_subject);
@@ -328,7 +325,7 @@ impl DocProcServer {
                             dc_type: "bibo:Document".to_string(),
                             dc_subject: Vec::new(),
                             ontology_tags: std::collections::HashMap::new(),
-                            expertise_level: "analyst".to_string(),
+                            expertise_level: hkask_types::corpus::ExpertiseLevel::default(),
                         };
                         let mut results = results.lock().unwrap();
                         results[i] = Some(fallback);
@@ -360,7 +357,7 @@ impl DocProcServer {
                         dc_type: "bibo:Document".to_string(),
                         dc_subject: Vec::new(),
                         ontology_tags: std::collections::HashMap::new(),
-                        expertise_level: "analyst".to_string(),
+                        expertise_level: hkask_types::corpus::ExpertiseLevel::default(),
                     });
 
                     // Union all ontology_tags values, normalized for graph consistency.
@@ -552,7 +549,7 @@ mod tests {
     fn validate_ontology_tags_filters_invalid_dimensions() {
         let tags = OntologyTags {
             dimensions: vec!["who".into(), "invalid".into(), "what".into()],
-            expertise_level: "analyst".into(),
+            expertise_level: hkask_types::corpus::ExpertiseLevel::default(),
             ..Default::default()
         };
         let out = validate_ontology_tags(tags);
@@ -568,12 +565,15 @@ mod tests {
 
     #[test]
     fn validate_ontology_tags_defaults_invalid_expertise_to_analyst() {
-        let tags = OntologyTags {
-            expertise_level: "guru".into(),
-            ..Default::default()
-        };
-        let out = validate_ontology_tags(tags);
-        assert_eq!(out.expertise_level, "analyst");
+        // The custom serde deserializer on ExpertiseLevel maps unknown
+        // strings to Analyst. Test via JSON deserialization to exercise
+        // the deserializer path.
+        let json = r#"{"expertise_level":"guru"}"#;
+        let tags: OntologyTags = serde_json::from_str(json).expect("parse");
+        assert_eq!(
+            tags.expertise_level,
+            hkask_types::corpus::ExpertiseLevel::Analyst
+        );
     }
 
     #[test]

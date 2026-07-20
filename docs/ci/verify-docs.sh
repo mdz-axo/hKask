@@ -72,11 +72,19 @@ all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 
 FORWARD_LOOKING_DIRS='^docs/(plans/|guides/|status/|OPEN_QUESTIONS\.md)'
 
+# Non-crate identifiers that match the hkask-* pattern but are not workspace
+# members (systemd service names, env var fragments, etc.). These are
+# legitimate references and must not be flagged as stale.
+ALLOW_NON_CRATE='hkask-daemon|hkask-daemon-user|hkask-default-passphrase-2024|hkask-db-passphrase'
+
 while IFS=: read -r file name; do
   [ -z "$file" ] && continue
   if ! echo "$all_actual" | grep -qxF "$name"; then
     parent_name=$(echo "$name" | sed 's/-fuzz$//')
     if echo "$all_actual" | grep -qxF "$parent_name"; then
+      continue
+    fi
+    if echo "$name" | grep -qE "^($ALLOW_NON_CRATE)$"; then
       continue
     fi
     if echo "$file" | grep -qE "$FORWARD_LOOKING_DIRS"; then

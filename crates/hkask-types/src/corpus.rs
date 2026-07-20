@@ -7,6 +7,97 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Expertise level supported by the corpus pipeline.
+///
+/// Closed enum — the LLM may produce arbitrary strings, but the tagging
+/// validation (`validate_ontology_tags`) maps invalid values to `Analyst`
+/// before they enter a `TaggedChunk`. This makes invalid states
+/// unrepresentable in the persistent record.
+///
+/// Serialization is lowercase to match the JSONL format produced by the
+/// tagging template (`tag-chunks.j2`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ExpertiseLevel {
+    Practitioner,
+    #[default]
+    Analyst,
+    Researcher,
+}
+
+impl ExpertiseLevel {
+    /// Parse a string into an `ExpertiseLevel`. Unknown values fall back to
+    /// `Analyst` (the default). Case-insensitive.
+    pub fn from_str_fallback(s: &str) -> Self {
+        match s.to_ascii_lowercase().as_str() {
+            "practitioner" => Self::Practitioner,
+            "researcher" => Self::Researcher,
+            _ => Self::Analyst,
+        }
+    }
+
+    /// Return the lowercase string form used in JSONL and template variables.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Practitioner => "practitioner",
+            Self::Analyst => "analyst",
+            Self::Researcher => "researcher",
+        }
+    }
+
+    /// Numeric rank for consolidation: researcher > analyst > practitioner.
+    /// Used by `docproc_consolidate_chunks` to take the highest expertise level
+    /// across cluster members.
+    pub fn rank(&self) -> u8 {
+        match self {
+            Self::Practitioner => 1,
+            Self::Analyst => 2,
+            Self::Researcher => 3,
+        }
+    }
+
+    /// Construct from a numeric rank (inverse of `rank`).
+    pub fn from_rank(rank: u8) -> Self {
+        match rank {
+            3 => Self::Researcher,
+            1 => Self::Practitioner,
+            _ => Self::Analyst,
+        }
+    }
+}
+
+impl std::fmt::Display for ExpertiseLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for ExpertiseLevel {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from_str_fallback(s))
+    }
+}
+
+impl Serialize for ExpertiseLevel {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for ExpertiseLevel {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(Self::from_str_fallback(&s))
+    }
+}
+
 /// Dublin Core + PKO metadata attached to consolidated chunks.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ChunkOntology {
@@ -68,9 +159,14 @@ pub struct TaggedChunk {
     #[serde(default)]
     pub dc_subject: Vec<String>,
 
-    /// Expertise level: "practitioner", "analyst", or "researcher".
+    /// Expertise level supported by the passage.
+    ///
+    /// Stored as `ExpertiseLevel` so invalid values are impossible in the
+    /// persistent record. The custom serde deserializer maps unknown strings
+    /// to `Analyst` (the default), matching the `validate_ontology_tags`
+    /// runtime allowlist behavior.
     #[serde(default)]
-    pub expertise_level: String,
+    pub expertise_level: ExpertiseLevel,
 
     // ── Flexible ontology tags (open-world) ──────────────────────────────
     /// Domain-specific ontology concepts, keyed by namespace.
