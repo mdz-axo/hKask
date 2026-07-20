@@ -1,13 +1,21 @@
-//! Curator commands — delegates to GovernanceContext and ChatService.
+//! `kask deploy` — Remote cluster deployment (K3s/Hetzner bootstrap).
+//!
+//! Extracted from the former `kask curator init` command, which was misnamed:
+//! it deploys the cluster (Conduit + hKask pod via kubectl), not the Curator
+//! daemon. This is admin/startup work, not runtime.
 
-use hkask_services_chat::chat::service::ChatService;
-use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_storage::EscalationEntry;
-
-use crate::block_on;
-use crate::cli::CuratorAction;
+use crate::cli::DeployAction;
 use crate::error::CliError;
-use std::sync::Arc;
+
+/// Dispatch `kask deploy` subcommands.
+pub fn run(rt: &tokio::runtime::Runtime, action: DeployAction) {
+    match action {
+        DeployAction::Init { domain } => match rt.block_on(deploy_init(&domain)) {
+            Ok(()) => {}
+            Err(e) => eprintln!("Deploy init failed: {e}"),
+        },
+    }
+}
 
 /// Initialize the hKask system on a Hetzner K3s cluster.
 ///
@@ -19,7 +27,7 @@ use std::sync::Arc;
 ///   5. Deploys the shared Conduit Matrix homeserver from deploy/k8s/conduit/
 ///   6. Deploys the hKask pod from deploy/k8s/
 ///   7. Prints the Matrix URL and Curator URL
-pub async fn curator_init(domain: &str) -> Result<(), CliError> {
+pub async fn deploy_init(domain: &str) -> Result<(), CliError> {
     // 1. Validate environment
     let hcloud_token = std::env::var("HCLOUD_TOKEN").map_err(|_| {
         CliError::Config("HCLOUD_TOKEN not set. Set your Hetzner Cloud API token.".into())
@@ -64,7 +72,7 @@ pub async fn curator_init(domain: &str) -> Result<(), CliError> {
     }
 
     // 3. Validate cloud provider access
-    println!("=== hKask Curator Init ===");
+    println!("=== hKask Deploy Init ===");
     println!("Domain: {domain}");
     println!();
 
@@ -215,154 +223,4 @@ fn copy_conduit_manifests(
         }
     }
     Ok(())
-}
-
-/// List pending escalations — reads directly from the escalation queue.
-pub async fn curator_escalations() -> Result<Vec<EscalationEntry>, ServiceError> {
-    let ctx = crate::commands::helpers::build_agent_service_result().map_err(|e| {
-        ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Infrastructure,
-            source: None,
-            message: e.to_string(),
-        }
-    })?;
-    let queue = &ctx.governance().escalations;
-    queue.list_pending().map_err(|e| ServiceError::Domain {
-        domain: DomainKind::Curator,
-        kind: ErrorKind::ServiceUnavailable,
-        source: None,
-        message: e.to_string(),
-    })
-}
-
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  id is a valid escalation identifier
-/// post: returns Ok(()) if escalation resolved successfully
-pub async fn curator_resolve(id: &str) -> Result<(), ServiceError> {
-    let ctx = crate::commands::helpers::build_agent_service_result().map_err(|e| {
-        ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Infrastructure,
-            source: None,
-            message: e.to_string(),
-        }
-    })?;
-    ctx.governance().resolve_escalation(id, "cli-user")
-}
-
-/// Dismiss an escalation — delegates to GovernanceContext.
-pub async fn curator_dismiss(id: &str) -> Result<(), ServiceError> {
-    let ctx = crate::commands::helpers::build_agent_service_result().map_err(|e| {
-        ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Infrastructure,
-            source: None,
-            message: e.to_string(),
-        }
-    })?;
-    ctx.governance().dismiss_escalation(id, "cli-user")
-}
-
-/// Run metacognition cycle — delegates to ChatService.
-pub async fn curator_metacognition() -> Result<String, ServiceError> {
-    let ctx = crate::commands::helpers::build_agent_service_result().map_err(|e| {
-        ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Infrastructure,
-            source: None,
-            message: e.to_string(),
-        }
-    })?;
-    ChatService::run_curator_metacognition(&ctx).await
-}
-
-/// Run a curator command — delegates to appropriate handler.
-///
-/// pre:  rt is a valid tokio runtime
-/// pre:  registry, runtime, handle are valid
-/// pre:  action is a valid CuratorAction variant
-/// post: dispatches to chat/escalations/resolve/dismiss/metacognition/init
-/// post: prints result or error to stdout
-pub fn run_curator(
-    rt: &tokio::runtime::Runtime,
-    registry: &mut hkask_templates::SqliteRegistry,
-    runtime: &hkask_mcp::runtime::McpRuntime,
-    handle: &tokio::runtime::Handle,
-    action: crate::cli::CuratorAction,
-) {
-    tracing::info!(target: "hkask.cli", operation = "curator", action = ?action, "CNS");
-    use crate::commands;
-
-    match action {
-        CuratorAction::Chat => {
-            hkask_repl::run(
-                registry,
-                runtime,
-                None,
-                "Curator",
-                None,
-                handle.clone(),
-                Arc::new(crate::repl_host::CliHost),
-            );
-        }
-        CuratorAction::Escalations => {
-            let escalations = block_on!(
-                rt,
-                commands::curator_escalations(),
-                "Failed to list escalations"
-            );
-            if escalations.is_empty() {
-                println!("No pending escalations.");
-            } else {
-                println!("{:<20} {:<15} {:<10} CONTEXT", "ID", "BOT", "CONFIDENCE");
-                println!("{}", "-".repeat(80));
-                for esc in &escalations {
-                    println!(
-                        "{:<20} {:<15} {:<10.2} {}",
-                        &esc.id.to_string()[..std::cmp::min(20, esc.id.to_string().len())],
-                        esc.bot_id
-                            .as_uuid()
-                            .to_string()
-                            .split('-')
-                            .next()
-                            .unwrap_or("unknown"),
-                        esc.confidence,
-                        &esc.error_context[..std::cmp::min(40, esc.error_context.len())],
-                    );
-                }
-                println!("\nTotal: {} pending escalations", escalations.len());
-            }
-        }
-        CuratorAction::Resolve { id } => {
-            block_on!(
-                rt,
-                commands::curator_resolve(&id),
-                "Failed to resolve escalation"
-            );
-            println!("Escalation {} resolved.", id);
-        }
-        CuratorAction::Dismiss { id } => {
-            block_on!(
-                rt,
-                commands::curator_dismiss(&id),
-                "Failed to dismiss escalation"
-            );
-            println!("Escalation {} dismissed.", id);
-        }
-        CuratorAction::Metacognition => {
-            println!(
-                "{}",
-                block_on!(
-                    rt,
-                    commands::curator_metacognition(),
-                    "Metacognition cycle failed"
-                )
-            );
-        }
-        CuratorAction::Init { domain } => match rt.block_on(curator_init(&domain)) {
-            Ok(()) => {}
-            Err(e) => eprintln!("Curator init failed: {e}"),
-        },
-    }
 }

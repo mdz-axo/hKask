@@ -1,4 +1,8 @@
-//! MCP command handlers for `kask mcp`
+//! MCP server inventory — read-only listing of registered servers and tools.
+//!
+//! Tool invocation is runtime-only. Use the TUI REPL's `/invoke` slash command
+//! or the agent's autonomous tool dispatch. The CLI does not expose a
+//! side-door to MCP tool invocation.
 
 use crate::cli::McpAction;
 use hkask_mcp::BUILTIN_SERVERS;
@@ -10,9 +14,7 @@ fn build_agent_service(rt: &tokio::runtime::Runtime) -> hkask_services_context::
     ctx
 }
 
-/// expect: "I can access all hKask functionality through the kask CLI"
-/// pre:  rt is a valid tokio Runtime; action is a valid McpAction variant
-/// post: dispatches to list_servers, list_tools, get_tool, or invoke tool operations
+/// Run an MCP inventory command (list-servers, list-tools, get-tool).
 pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
     match action {
         McpAction::ListServers => {
@@ -60,45 +62,6 @@ pub fn run(rt: &tokio::runtime::Runtime, action: McpAction) {
                     std::process::exit(1);
                 }
             }
-        }
-        McpAction::Invoke {
-            server: _,
-            tool,
-            input,
-        } => {
-            use hkask_templates::McpPort;
-            let input_value: serde_json::Value =
-                super::helpers::or_exit(serde_json::from_str(&input), "parse JSON input");
-            let ctx = build_agent_service(rt);
-            let from = super::helpers::resolve_user_webid();
-            let to = super::helpers::resolve_user_webid();
-            // Grant the exact tool the caller named (--tool), not the server id.
-            // issue_capability's resource_id must equal the tool name for
-            // verify_capability_exact (token.resource_id == tool_name), and must
-            // match the stripped domain for the fallback. Passing the server id
-            // (e.g. "hkask-mcp-docproc") matched neither, so governed tools were
-            // never authorizable via `kask mcp invoke`.
-            let token = ctx
-                .governance()
-                .dispatcher
-                .issue_capability(tool.clone(), from, to);
-            let result = match rt.block_on(ctx.governance().dispatcher.invoke(
-                &tool,
-                input_value,
-                &token,
-            )) {
-                Ok(v) => v,
-                Err(e) => {
-                    eprintln!("Tool invocation error: {}", e);
-                    rt.block_on(ctx.governance().dispatcher.shutdown_all());
-                    std::process::exit(1);
-                }
-            };
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
-            );
-            rt.block_on(ctx.governance().dispatcher.shutdown_all());
         }
     }
 }

@@ -6,11 +6,6 @@
 ///
 /// # Panics
 /// Exits the process with code 1 if the future returns an error.
-///
-/// # Provenance
-/// Reconstructed from call-site patterns in `backup_cmd`, `bundle`,
-/// `federation`, and `git_cmd` modules. The original definition site
-/// could not be located.
 #[macro_export]
 macro_rules! block_on {
     ($rt:expr, $future:expr, $msg:expr $(,)?) => {
@@ -33,5 +28,3 @@ pub mod experience;
 pub mod onboarding;
 pub mod onboarding_session;
 pub mod repl_host;
-#[cfg(feature = "tui")]
-pub mod transcript_viewer;

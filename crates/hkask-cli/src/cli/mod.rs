@@ -35,8 +35,8 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Curator chat interface (interactive by default)
-    Chat {
+    /// Launch the interactive ratatui workspace (embeds the REPL)
+    Tui {
         /// Agent to chat with (default: Curator)
         #[arg(default_value = "Curator")]
         agent: String,
@@ -49,55 +49,27 @@ pub enum Commands {
         #[arg(short, long)]
         model: Option<String>,
 
-        /// Optional: input file (non-interactive mode)
+        /// Optional: input file (non-interactive mode). Use "-" for stdin.
         #[arg(short = 'f', long)]
         input: Option<PathBuf>,
-
-        /// Launch the TUI workspace instead of the line-based REPL
-        #[arg(long)]
-        tui: bool,
     },
 
-    /// Template management
-    Template {
-        #[command(subcommand)]
-        action: TemplateAction,
-    },
-
-    /// Bot capability management
-    Bot {
-        #[command(subcommand)]
-        action: BotAction,
-    },
-
-    /// Agent pod management
+    /// Agent pod management (admin: export-container, export-k8s)
     Pod {
         #[command(subcommand)]
         action: PodAction,
     },
 
-    /// MCP server/tool management
+    /// MCP server inventory (read-only). Tool invocation is runtime-only — use the TUI.
     Mcp {
         #[command(subcommand)]
         action: McpAction,
-    },
-
-    /// CNS monitoring
-    Cns {
-        #[command(subcommand)]
-        action: CnsAction,
     },
 
     /// User sovereignty management (Magna Carta enforcement)
     Sovereignty {
         #[command(subcommand)]
         action: SovereigntyAction,
-    },
-
-    /// Goal coordination substrate (OCAP-gated, CNS-observed)
-    Goal {
-        #[command(subcommand)]
-        action: GoalAction,
     },
 
     /// Git archival and CAS actions
@@ -112,22 +84,10 @@ pub enum Commands {
         action: BackupAction,
     },
 
-    /// Documentation generation
-    Docs {
-        #[command(subcommand)]
-        action: DocsAction,
-    },
-
     /// A2A agent registration and management
     Agent {
         #[command(subcommand)]
         action: AgentAction,
-    },
-
-    /// Curator governance and metacognition
-    Curator {
-        #[command(subcommand)]
-        action: CuratorAction,
     },
 
     /// Federation lifecycle — cross-server curator sync
@@ -136,7 +96,7 @@ pub enum Commands {
         action: FederationAction,
     },
 
-    /// Token issuance and management
+    /// Token issuance and management (OCAP credential provisioning)
     Token {
         #[command(subcommand)]
         action: TokenAction,
@@ -154,44 +114,11 @@ pub enum Commands {
         action: KeystoreAction,
     },
 
-    /// Skill bundle management (compose, apply, evolve)
-    Bundle {
-        #[command(subcommand)]
-        action: BundleAction,
-    },
-
-    /// Skill management (list, status, publish)
-    Skill {
-        #[command(subcommand)]
-        action: SkillAction,
-    },
-
-    /// Style operations — compose prose or embed corpora
-    Style {
-        #[command(subcommand)]
-        action: StyleAction,
-    },
-
-    /// Kata operations — list and inspect kata manifests
-    Kata {
-        #[command(subcommand)]
-        action: KataAction,
-    },
-
-    /// Kanban board and task coordination
-    Kanban {
-        #[command(subcommand)]
-        action: KanbanAction,
-    },
-
     /// Trained adapter lifecycle — deploy, infer, teardown
     Adapter {
         #[command(subcommand)]
         action: AdapterAction,
     },
-
-    /// List available LLM models
-    Models,
 
     /// Validate all configured providers and API keys
     Doctor {
@@ -211,64 +138,11 @@ pub enum Commands {
         action: SettingsAction,
     },
 
-    /// Trigger episodic→semantic consolidation with optional semantic cleanup
-    Consolidate {
-        /// Agent name or WebID whose episodic memory to consolidate
-        #[arg(short, long)]
-        agent: Option<String>,
-
-        /// Maximum episodic h_mems to consolidate (default: 100)
-        #[arg(short, long, default_value = "100")]
-        limit: usize,
-
-        /// Confidence floor — semantic h_mems at or below this confidence
-        /// are deleted after consolidation (default: SemanticLoop threshold, 0.33)
-        #[arg(long)]
-        confidence_floor: Option<f64>,
-
-        /// Maximum semantic h_mems to retain after consolidation.
-        /// If exceeded, lowest-confidence h_mems are deleted.
-        #[arg(long)]
-        max_semantic_triples: Option<usize>,
-
-        /// Master passphrase for authorization. SQLCipher uses the separately
-        /// configured `HKASK_DB_PASSPHRASE`.
-        #[arg(long)]
-        passphrase: Option<String>,
-    },
-
-    /// Run the 6-loop regulation system
-    Loops,
-
     /// Start the hKask daemon (Unix socket for MCP server auth + CNS monitoring)
     Daemon {
         /// Daemon action
         #[command(subcommand)]
         action: DaemonAction,
-    },
-
-    /// Run contract tests and report REQ-tagged violations
-    Test {
-        /// Crate to test (default: all priority crates)
-        #[arg(short, long)]
-        crate_name: Option<String>,
-
-        /// Output format (default: text)
-        #[arg(short, long, default_value = "text")]
-        format: String,
-
-        /// Watch mode — run continuously at interval (seconds)
-        #[arg(long)]
-        watch: Option<u64>,
-    },
-
-    /// Search the web
-    WebSearch {
-        /// Search query
-        query: String,
-        /// Maximum number of results
-        #[arg(long, default_value = "5")]
-        max_results: usize,
     },
 
     /// Initialize hKask server configuration (interactive)
@@ -297,30 +171,6 @@ pub enum Commands {
         action: WalletAction,
     },
 
-    /// List artifacts in a registry (e.g., "styles", "bots", "templates")
-    List {
-        /// Registry name to list (e.g., "styles")
-        registry: String,
-    },
-
-    /// Remove an artifact from a registry (e.g., "styles-hemingway")
-    Rm {
-        /// Registry and artifact name, hyphen-separated (e.g., "styles-hemingway")
-        target: String,
-        /// Database path
-        #[arg(short, long, env = "HKASK_DB_PATH")]
-        db: Option<String>,
-        /// Database passphrase
-        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
-        passphrase: Option<String>,
-    },
-
-    /// View a transcript bundle with synchronized audio playback (TUI)
-    Transcript {
-        /// Path to the transcript bundle JSON file
-        path: PathBuf,
-    },
-
     /// Matrix messaging — sidecar deployment, agent registration, health checks
     Matrix {
         #[command(subcommand)]
@@ -338,10 +188,10 @@ pub enum Commands {
         force: bool,
     },
 
-    /// QA operations — run autonomous test scripts
-    Qa {
+    /// Deploy hKask to a remote cluster (K3s/Hetzner bootstrap)
+    Deploy {
         #[command(subcommand)]
-        action: QaAction,
+        action: DeployAction,
     },
 }
 
@@ -349,48 +199,29 @@ impl Commands {
     /// Safe label for logging — excludes sensitive arguments.
     pub fn label(&self) -> &'static str {
         match self {
-            Commands::Chat { .. } => "chat",
-            Commands::Template { .. } => "template",
-            Commands::Bot { .. } => "bot",
+            Commands::Tui { .. } => "tui",
             Commands::Pod { .. } => "pod",
             Commands::Mcp { .. } => "mcp",
-            Commands::Cns { .. } => "cns",
             Commands::Sovereignty { .. } => "sovereignty",
-            Commands::Goal { .. } => "goal",
             Commands::Git { .. } => "git",
             Commands::Backup { .. } => "backup",
-            Commands::Docs { .. } => "docs",
             Commands::Agent { .. } => "agent",
-            Commands::Curator { .. } => "curator",
             Commands::Federation { .. } => "federation",
             Commands::Token { .. } => "token",
             Commands::Replicant { .. } => "replicant",
             Commands::Keystore { .. } => "keystore",
-            Commands::Bundle { .. } => "bundle",
-            Commands::Skill { .. } => "skill",
-            Commands::Style { .. } => "style",
-            Commands::Kata { .. } => "kata",
-            Commands::Kanban { .. } => "kanban",
             Commands::Adapter { .. } => "adapter",
-            Commands::Models => "models",
             Commands::Doctor { .. } => "doctor",
             Commands::Onboard => "onboard",
             Commands::Settings { .. } => "settings",
-            Commands::Consolidate { .. } => "consolidate",
-            Commands::Loops => "loops",
             Commands::Daemon { .. } => "daemon",
-            Commands::Test { .. } => "test",
-            Commands::WebSearch { .. } => "web_search",
             Commands::Init => "init",
             Commands::Export { .. } => "export",
             Commands::Serve { .. } => "serve",
             Commands::Wallet { .. } => "wallet",
-            Commands::List { .. } => "list",
-            Commands::Rm { .. } => "rm",
-            Commands::Transcript { .. } => "transcript",
             Commands::Matrix { .. } => "matrix",
             Commands::Repair { .. } => "repair",
-            Commands::Qa { .. } => "qa",
+            Commands::Deploy { .. } => "deploy",
         }
     }
 }

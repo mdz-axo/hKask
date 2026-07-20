@@ -1,232 +1,65 @@
-//! CLI action enums — subcommand types for each top-level command
+//! CLI action enums — subcommand types for each top-level command.
+//!
+//! Phase 1 trim: runtime/side-door commands removed. CLI is now admin, config,
+//! startup, shutdown, and the single `tui` runtime launch. Runtime operations
+//! (skills, bundles, templates, kata, kanban, goals, adapters, CNS queries,
+//! curator escalations, consolidation, style, web search) live in the TUI's
+//! REPL slash commands or are invoked via MCP tools from within the runtime.
 
 use clap::Subcommand;
 use std::path::PathBuf;
 
-#[derive(Debug, Subcommand)]
-pub enum TemplateAction {
-    List {
-        #[arg(short, long)]
-        r#type: Option<String>,
-    },
-    Register {
-        #[arg(short, long)]
-        id: String,
-        #[arg(short, long)]
-        path: PathBuf,
-        #[arg(short, long)]
-        r#type: String,
-        #[arg(short, long)]
-        lexicon: Option<String>,
-        #[arg(short, long)]
-        description: Option<String>,
-    },
-    Get {
-        #[arg()]
-        id: String,
-    },
-    Search {
-        #[arg()]
-        term: String,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum BotAction {
-    List {
-        #[arg(short, long)]
-        kind: Option<String>,
-    },
-    Status {
-        #[arg()]
-        name: String,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum AgentAction {
-    Register {
-        #[arg(long)]
-        webid: String,
-        #[arg(long)]
-        agent_type: String,
-        #[arg(long)]
-        capabilities: String,
-    },
-    Unregister {
-        #[arg(long)]
-        name: String,
-    },
-    List,
-    Capabilities {
-        #[arg(long)]
-        name: String,
-    },
-    /// Revert an agent pod to a prior snapshot with safety backup
-    Revert {
-        /// Pod name to revert
-        #[arg()]
-        name: String,
-        /// Commit hash to revert to
-        #[arg(long)]
-        commit: String,
-        /// Reason for the revert (recorded in CNS)
-        #[arg(short, long)]
-        reason: String,
-    },
-    /// Spawn a new agent pod from a prior snapshot (fork)
-    SpawnAgent {
-        /// Source pod name whose state to clone
-        #[arg()]
-        source: String,
-        /// New pod name for the spawned agent
-        #[arg(long = "as")]
-        new_name: String,
-        /// Commit hash to spawn from
-        #[arg(long)]
-        commit: String,
-    },
-}
-
+/// Pod admin actions — only deployment artifact generation. Lifecycle ops
+/// (create/activate/deactivate/assign/mode) are runtime operations available
+/// from the TUI REPL or the HTTP API.
 #[derive(Debug, Subcommand)]
 pub enum PodAction {
-    Create {
-        #[arg(short, long)]
-        template: String,
-        #[arg(short, long)]
-        persona: PathBuf,
-        #[arg(short, long)]
-        name: Option<String>,
-    },
-    Activate {
-        #[arg()]
-        pod_id: String,
-    },
-    Deactivate {
-        #[arg()]
-        pod_id: String,
-    },
-    Status {
-        #[arg()]
-        pod_id: String,
-        #[arg(short, long)]
-        verbose: bool,
-    },
-    List,
-    Assign {
-        #[arg()]
-        name: String,
-        #[arg()]
-        role: String,
-    },
-    Mode {
-        #[arg()]
-        name: String,
-        #[arg()]
-        mode: String,
-        #[arg(short, long)]
-        role: Option<String>,
-    },
-    /// Export a pod as a container build context (Containerfile + pod files)
+    /// Generate a Containerfile + pod files for Docker builds
     ExportContainer {
         #[arg()]
         pod_id: String,
-        #[arg(short, long, default_value = "./pod-build")]
+        #[arg(short, long)]
         output: PathBuf,
     },
-    /// Export a pod as K8s manifests for Hetzner K3s deployment
+    /// Copy canonical K8s manifests from `deploy/k8s/` into an output directory
     ExportK8s {
         #[arg()]
         pod_id: String,
-        #[arg(short = 'v', long, default_value = "10")]
+        #[arg(long, default_value = "10")]
         volume_size_gb: u32,
-        #[arg(short = 'r', long, default_value = "3")]
+        #[arg(long, default_value = "1")]
         max_replicas: u32,
-        #[arg(short, long, default_value = "./k8s-manifests")]
+        #[arg(short, long)]
         output: PathBuf,
     },
 }
 
+/// MCP server inventory — read-only. Tool invocation is runtime-only.
+/// Use the TUI REPL's `/invoke` slash command or the agent's autonomous
+/// tool dispatch.
 #[derive(Debug, Subcommand)]
 pub enum McpAction {
+    /// List registered MCP servers
     ListServers,
+    /// List all tools across all servers
     ListTools,
+    /// Get a single tool's definition
     GetTool {
         #[arg()]
         name: String,
     },
-    Invoke {
-        #[arg(long)]
-        server: String,
-        #[arg(long)]
-        tool: String,
-        #[arg(long)]
-        input: String,
-    },
 }
 
-#[derive(Debug, Subcommand)]
-pub enum CnsAction {
-    Health,
-    Alerts,
-    Variety,
-    Subscribe {
-        #[arg(long)]
-        agent: String,
-        #[arg(long)]
-        spans: String,
-    },
-    SetPoints {
-        #[arg(long)]
-        gas_min_remaining: Option<f64>,
-        #[arg(long)]
-        variety_max_deficit: Option<f64>,
-        #[arg(long)]
-        error_rate_max: Option<f64>,
-        #[arg(long)]
-        connector_latency_max_secs: Option<f64>,
-        #[arg(long)]
-        communication_backpressure_threshold: Option<f64>,
-    },
-}
-
+/// Sovereignty admin — structural verification only. Live consent grants/revokes
+/// and status checks are runtime operations available from the TUI REPL or API.
 #[derive(Debug, Subcommand)]
 pub enum SovereigntyAction {
-    Status,
-    Grant {
-        #[arg(long)]
-        category: String,
-        /// Target agent name whose WebID should receive the grant. Defaults to the CLI user.
-        /// Use "curator" to grant consent for the Curator daemon's WebID.
-        #[arg(long)]
-        agent: Option<String>,
-    },
-    Revoke,
-    Check {
-        #[arg(long)]
-        category: String,
-    },
+    /// Run a Magna Carta structural audit against the codebase
     Verify {
         #[arg(long)]
         principle: Option<String>,
         #[arg(long)]
         json: bool,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum DocsAction {
-    Openapi {
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-    Cli {
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-    All {
-        #[arg(short, long)]
-        output: PathBuf,
     },
 }
 
@@ -338,7 +171,7 @@ pub enum BackupAction {
     Status,
 }
 
-/// Curator governance actions
+/// OCAP token issuance — admin credential provisioning for MCP gateways.
 #[derive(Debug, Subcommand)]
 pub enum TokenAction {
     /// Issue a new DelegationToken for a replicant
@@ -359,27 +192,6 @@ pub enum TokenAction {
     Revoke {
         #[arg()]
         token_id: String,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-pub enum CuratorAction {
-    Chat,
-    Escalations,
-    Resolve {
-        #[arg()]
-        id: String,
-    },
-    Dismiss {
-        #[arg()]
-        id: String,
-    },
-    Metacognition,
-    /// Initialize the hKask system: deploy shared Conduit, create org tokens
-    Init {
-        /// Domain for the hKask installation (e.g., hkask.example.com)
-        #[arg(long, default_value = "localhost")]
-        domain: String,
     },
 }
 
@@ -536,7 +348,6 @@ pub enum ReplicantAction {
 pub enum ExportAction {
     /// Create an encrypted sovereignty backup archive
     Create {
-        /// Passphrase to encrypt the archive
         #[arg(short, long)]
         passphrase: String,
     },
@@ -590,191 +401,6 @@ pub enum KeystoreAction {
         /// the current passphrase is used with the incremented version.
         #[arg(short, long)]
         passphrase: Option<String>,
-    },
-}
-
-/// Style subcommands — compose prose or embed corpora
-#[derive(Debug, Subcommand)]
-pub enum StyleAction {
-    /// Generate prose with exemplar retrieval and centroid validation
-    Compose {
-        #[arg(short, long)]
-        prompt: String,
-        #[arg(short, long)]
-        cognition: PathBuf,
-        #[arg(short, long)]
-        db: PathBuf,
-        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
-        passphrase: String,
-        #[arg(long)]
-        no_validate: bool,
-    },
-    /// Download, chunk, embed, and store a style corpus
-    EmbedCorpus {
-        #[arg(short, long)]
-        config: PathBuf,
-        #[arg(short, long)]
-        replicant: String,
-        #[arg(long)]
-        passphrase: String,
-        #[arg(short, long)]
-        db: Option<PathBuf>,
-    },
-    /// Discover an academic author's works and generate a corpus.yaml
-    Discover {
-        /// Author name (e.g., "David Dunning")
-        author_name: String,
-        /// Max works to include
-        #[arg(short, long, default_value = "20")]
-        max_works: usize,
-        /// Output directory for corpus.yaml
-        #[arg(short, long)]
-        output_dir: Option<String>,
-        /// Cache directory for downloaded content
-        #[arg(long, default_value = "./.cache")]
-        cache_dir: String,
-        /// SerpAPI key for web + YouTube transcript search
-        #[arg(long, env = "HKASK_SERPAPI_API_KEY")]
-        serpapi_key: Option<String>,
-        /// Skip YouTube transcript search
-        #[arg(long)]
-        no_transcripts: bool,
-        /// Skip web search
-        #[arg(long)]
-        no_web: bool,
-        /// Skip curation — auto-include all web + YouTube results
-        #[arg(long)]
-        no_curate: bool,
-        /// Search terms for web + YouTube queries (e.g., "Dunning-Kruger effect metacognition overconfidence")
-        #[arg(long)]
-        search_terms: Option<String>,
-        /// Skip LLM-based concept extraction and method inference
-        #[arg(long)]
-        no_methods: bool,
-        /// Biographical details for author disambiguation
-        /// (e.g., "professor of psychology at Cornell University")
-        #[arg(long)]
-        bio: Option<String>,
-    },
-}
-
-/// Skill bundle management actions
-#[derive(Debug, Subcommand)]
-pub enum BundleAction {
-    Compose {
-        #[arg(num_args = 1..)]
-        skills: Vec<String>,
-        #[arg(short, long)]
-        name: Option<String>,
-        #[arg(short, long, default_value = "private")]
-        visibility: String,
-    },
-    Apply {
-        #[arg()]
-        bundle_id: String,
-    },
-    List,
-    Show {
-        #[arg()]
-        bundle_id: String,
-    },
-    Evolve {
-        #[arg()]
-        bundle_id: String,
-    },
-    Skills,
-    Off,
-}
-
-/// Goal actions — minimal multi-agent coordination substrate.
-///
-/// Goal operations are available to anyone with DB access — no token ceremony.
-#[derive(Debug, Subcommand)]
-pub enum GoalAction {
-    Create {
-        text: String,
-        #[arg(long, default_value = "private")]
-        visibility: String,
-    },
-    List {
-        #[arg(long)]
-        state: Option<String>,
-    },
-    SetState {
-        id: String,
-        state: String,
-    },
-}
-
-/// Skill management actions — visibility, publish, change detection, derivation.
-///
-/// Two-zone model (src→dist pattern):
-/// - `registry/templates/<name>/` — source of truth (canonical registry crate, P5.1)
-/// - `.agents/skills/<name>/SKILL.md` — derived companion for the Zed agent,
-///   generated via `kask skill derive` (reverse-translated from the registry crate)
-#[derive(Debug, Subcommand)]
-pub enum SkillAction {
-    List {
-        #[arg(long)]
-        visibility: Option<String>,
-    },
-    Status {
-        name: String,
-    },
-    Publish {
-        name: String,
-    },
-    /// Derive (reverse-translate) the SKILL.md companion from the registry crate.
-    ///
-    /// Reads `registry/templates/<name>/manifest.yaml` + `*.j2`, renders the
-    /// `skill-maintenance/skill-maintenance-reverse` KnowAct template, infers the
-    /// SKILL.md content via the default model, and writes `.agents/skills/<name>/SKILL.md`.
-    /// This is the P5.1 derivation path — SKILL.md is generated, not hand-authored.
-    Derive {
-        /// Skill name (the `registry/templates/<name>` crate directory).
-        name: String,
-    },
-    /// Run the dual-layer skill audit and optionally fail the process for CI.
-    Audit {
-        /// Fail the process if any skill scores below this threshold.
-        #[arg(long, default_value = "0.8")]
-        fail_below: f64,
-        /// Emit machine-readable JSON instead of human-readable tables.
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-/// Kata actions — list, inspect, and execute kata manifests
-#[derive(Debug, Subcommand)]
-pub enum KataAction {
-    /// List available kata manifests
-    List,
-    /// Show details of a specific kata manifest
-    Show {
-        /// Manifest name (e.g., "kata-starter", "kata-improvement")
-        name: String,
-    },
-    /// Execute a kata cycle
-    Start {
-        /// Manifest name (e.g., "kata-improvement", "kata-starter")
-        name: String,
-        /// Learner bot identity (e.g., "Alice")
-        #[arg(short, long)]
-        bot: String,
-        /// Optional context key=value pairs
-        #[arg(short, long = "ctx", num_args = 1..)]
-        context: Vec<String>,
-        /// Save state to a file after execution
-        #[arg(long)]
-        save: Option<PathBuf>,
-        /// Resume from a previously saved state file
-        #[arg(long)]
-        resume: Option<PathBuf>,
-        /// Bind execution to a kanban task — deducts inference token cost
-        /// from the task's gas budget. Requires a kanban database.
-        #[arg(long)]
-        task: Option<String>,
     },
 }
 
@@ -964,49 +590,6 @@ pub enum MatrixAction {
     StatusSidecar,
 }
 
-#[derive(Subcommand, Debug, Clone)]
-pub enum KanbanAction {
-    /// Create a new kanban board
-    BoardCreate {
-        name: String,
-        #[arg(short, long, default_value = "")]
-        columns: Option<String>,
-    },
-    /// List all boards
-    BoardList,
-    /// View a board as a text-based column layout
-    BoardView { board_id: String },
-    /// Create a new task
-    TaskCreate {
-        board_id: String,
-        title: String,
-        #[arg(short, long)]
-        description: Option<String>,
-        #[arg(short, long)]
-        criteria: Vec<String>,
-        #[arg(short, long)]
-        assign: Option<String>,
-    },
-    /// List tasks on a board
-    TaskList {
-        board_id: String,
-        #[arg(short, long)]
-        status: Option<String>,
-    },
-    /// Show task details
-    TaskShow { task_id: String },
-    /// Move a task to a new column
-    TaskMove { task_id: String, status: String },
-    /// Assign a task to an agent
-    TaskAssign { task_id: String, agent: String },
-    /// Verify a task against acceptance criteria
-    TaskVerify {
-        task_id: String,
-        #[arg(short, long)]
-        evidence: String,
-    },
-}
-
 #[derive(Debug, Subcommand)]
 pub enum DaemonAction {
     /// Start the daemon (binds Unix socket, runs CNS loops, serves until shutdown)
@@ -1019,43 +602,16 @@ pub enum DaemonAction {
     Stop,
 }
 
-/// Trained adapter lifecycle — deploy, infer, teardown
+/// Remote cluster deployment — K3s/Hetzner bootstrap.
+/// Extracted from the former `curator init` command (which was misnamed —
+/// it deploys the cluster, not the Curator daemon).
 #[derive(Debug, Subcommand)]
-pub enum AdapterAction {
-    /// List trained adapters (delegates to training MCP)
-    List {
-        #[arg(short, long)]
-        skill: Option<String>,
+pub enum DeployAction {
+    /// Initialize the hKask system on a Hetzner K3s cluster:
+    /// validates env, deploys shared Conduit, creates org tokens, deploys hKask pod.
+    Init {
+        /// Domain for the hKask installation (e.g., hkask.example.com)
+        #[arg(long, default_value = "localhost")]
+        domain: String,
     },
-    /// Deploy an adapter to a cloud inference provider
-    Deploy {
-        /// Adapter name or ID
-        adapter: String,
-        /// Cloud provider (together, runpod)
-        #[arg(short, long, default_value = "together")]
-        provider: String,
-    },
-    /// Check deployment status
-    Status {
-        /// Deployment ID from deploy command
-        deployment_id: String,
-    },
-    /// Tear down a deployed endpoint
-    Teardown {
-        /// Deployment ID to tear down
-        deployment_id: String,
-    },
-}
-
-/// QA actions — run autonomous test scripts
-#[derive(Debug, Subcommand)]
-pub enum QaAction {
-    /// Run a QA script manifest
-    Run {
-        /// Path to the manifest YAML file
-        #[arg(short, long)]
-        script: PathBuf,
-    },
-    /// List available QA manifests
-    List,
 }

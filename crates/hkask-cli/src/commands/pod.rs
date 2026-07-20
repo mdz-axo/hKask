@@ -1,98 +1,20 @@
-//! Pod management command handlers — direct calls to pod manager.
-//! Formerly delegated to PodService (removed v0.31.0 per P5).
-
-use hkask_agents::pod::PodStatusInfo;
+//! Pod admin commands — deployment artifact generation only.
+//!
+//! Pod lifecycle ops (create/activate/deactivate/assign/mode) are runtime
+//! operations available from the TUI REPL or the HTTP API. The CLI exposes
+//! only `export-container` and `export-k8s` (deployment artifact generation),
+//! which operate on static files, not the live system.
 
 use crate::cli::PodAction;
 use crate::error::CliError;
 
-/// Run a pod command.
+/// Run a pod admin command.
 pub fn run_pod(rt: &tokio::runtime::Runtime, action: PodAction) {
     rt.block_on(run_pod_inner(action));
 }
 
 async fn run_pod_inner(action: PodAction) {
     match action {
-        PodAction::Create {
-            template,
-            persona,
-            name,
-        } => match create_pod(&template, &persona, name.as_deref()).await {
-            Ok(pod_id) => println!("Created pod: {}", pod_id),
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        },
-        PodAction::List => match list_pods().await {
-            Ok(pods) => {
-                if pods.is_empty() {
-                    println!("No pods registered.");
-                } else {
-                    for p in &pods {
-                        println!(
-                            "  {} [{}] {} ({})",
-                            p.pod_id,
-                            p.state,
-                            p.name.as_deref().unwrap_or("unnamed"),
-                            p.agent_type
-                        );
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        },
-        PodAction::Activate { pod_id } => match activate_pod(&pod_id).await {
-            Ok(()) => println!("Pod {} activated", pod_id),
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        },
-        PodAction::Deactivate { pod_id } => match deactivate_pod(&pod_id).await {
-            Ok(()) => println!("Pod {} deactivated", pod_id),
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        },
-        PodAction::Status { pod_id, verbose: _ } => match get_pod_status(&pod_id).await {
-            Ok(status) => {
-                println!("Pod {}", status.pod_id);
-                println!(
-                    "  name:       {}",
-                    status.name.as_deref().unwrap_or("unnamed")
-                );
-                println!("  state:      {}", status.state);
-                println!("  webid:      {}", status.webid);
-                println!("  agent_type: {}", status.agent_type);
-                println!("  template:   {}", status.template);
-                println!("  created_at: {}", status.created_at);
-            }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        },
-        PodAction::Assign { name, role } => match assign_role(&name, &role).await {
-            Ok(()) => println!("Role '{}' assigned to '{}'", role, name),
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        },
-        PodAction::Mode { name, mode, role } => {
-            match set_mode(&name, &mode, role.as_deref()).await {
-                Ok(()) => println!("Mode '{}' set for '{}'", mode, name),
-                Err(e) => {
-                    eprintln!("{}", e);
-                    std::process::exit(1);
-                }
-            }
-        }
         PodAction::ExportContainer { pod_id, output } => {
             match export_container(&pod_id, &output).await {
                 Ok(()) => println!(
@@ -143,7 +65,7 @@ fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, CliError> {
         .map_err(|_| CliError::InvalidInput(format!("Invalid pod ID '{}'", id)))
 }
 
-pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusInfo, CliError> {
+async fn get_pod_status(pod_id: &str) -> Result<hkask_agents::pod::PodStatusInfo, CliError> {
     let ctx = super::helpers::build_agent_service();
     let pid = parse_pod_id(pod_id)?;
     ctx.infra()
@@ -152,81 +74,6 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatusInfo, CliError> {
         .get_pod_status(&pid)
         .await
         .map_err(|e| CliError::AgentService(format!("Failed to get pod status: {e}")))
-}
-
-pub async fn list_pods() -> Result<Vec<PodStatusInfo>, CliError> {
-    let ctx = super::helpers::build_agent_service();
-    ctx.infra()
-        .pods
-        .clone()
-        .list_pods()
-        .await
-        .map_err(|e| CliError::AgentService(format!("Failed to list pods: {e}")))
-}
-
-pub async fn create_pod(
-    template: &str,
-    persona_path: &std::path::PathBuf,
-    name: Option<&str>,
-) -> Result<String, CliError> {
-    let yaml = std::fs::read_to_string(persona_path)
-        .map_err(|e| CliError::Io(format!("Cannot read persona file: {e}")))?;
-    let persona = hkask_agents::pod::AgentPersona::from_yaml(&yaml)
-        .map_err(|e| CliError::InvalidInput(format!("Invalid persona YAML: {e}")))?;
-    let ctx = super::helpers::build_agent_service();
-    let pm = ctx.infra().pods.clone();
-    let pod_id = pm
-        .create_pod(
-            template,
-            &persona,
-            name.map(String::from),
-            hkask_agents::pod::PodKind::Replicant,
-        )
-        .await
-        .map_err(|e| CliError::AgentService(format!("Failed to create pod: {e}")))?;
-    Ok(pod_id.to_string())
-}
-
-pub async fn activate_pod(pod_id: &str) -> Result<(), CliError> {
-    let ctx = super::helpers::build_agent_service();
-    let pid = parse_pod_id(pod_id)?;
-    ctx.infra()
-        .pods
-        .clone()
-        .activate_pod(&pid)
-        .await
-        .map_err(|e| CliError::AgentService(format!("Failed to activate pod: {e}")))
-}
-
-pub async fn deactivate_pod(pod_id: &str) -> Result<(), CliError> {
-    let ctx = super::helpers::build_agent_service();
-    let pid = parse_pod_id(pod_id)?;
-    ctx.infra()
-        .pods
-        .clone()
-        .deactivate_pod(&pid)
-        .await
-        .map_err(|e| CliError::AgentService(format!("Failed to deactivate pod: {e}")))
-}
-
-pub async fn assign_role(name: &str, role: &str) -> Result<(), CliError> {
-    let ctx = super::helpers::build_agent_service();
-    ctx.infra()
-        .pods
-        .clone()
-        .assign_role(name, role)
-        .await
-        .map_err(|e| CliError::AgentService(format!("Failed to assign role: {e}")))
-}
-
-pub async fn set_mode(name: &str, mode: &str, role: Option<&str>) -> Result<(), CliError> {
-    let ctx = super::helpers::build_agent_service();
-    ctx.infra()
-        .pods
-        .clone()
-        .set_mode(name, mode, role)
-        .await
-        .map_err(|e| CliError::AgentService(format!("Failed to set mode: {e}")))
 }
 
 /// Export a pod as a container build context (delegates to PodFactory).
