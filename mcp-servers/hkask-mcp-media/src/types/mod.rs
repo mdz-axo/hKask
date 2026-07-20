@@ -179,14 +179,49 @@ pub struct FaceScanFolderRequest {
     pub force: bool,
 }
 
-/// YAML sidecar format for `face_scan_folder`.
-/// Maps a reference image file to a person name.
-#[derive(Debug, Deserialize)]
-pub struct FaceSidecar {
-    pub first_name: String,
-    pub last_name: String,
-    #[serde(default)]
-    pub notes: String,
+/// Lifecycle status of a face registry entry.
+/// Stored as TEXT in SQLite; the storage layer accepts `&str` and this enum
+/// implements `AsRef<str>` for a typed call site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FaceStatus {
+    Valid,
+    Rejected,
+    Pending,
+}
+
+impl FaceStatus {
+    /// Returns true if this status is `Valid`.
+    pub fn is_valid(self) -> bool {
+        matches!(self, Self::Valid)
+    }
+}
+
+impl std::fmt::Display for FaceStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_ref())
+    }
+}
+
+impl AsRef<str> for FaceStatus {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Valid => "valid",
+            Self::Rejected => "rejected",
+            Self::Pending => "pending",
+        }
+    }
+}
+
+impl std::str::FromStr for FaceStatus {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "valid" => Ok(Self::Valid),
+            "rejected" => Ok(Self::Rejected),
+            "pending" => Ok(Self::Pending),
+            other => Err(format!("unknown face status: {}", other)),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

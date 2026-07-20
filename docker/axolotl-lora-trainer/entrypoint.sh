@@ -65,6 +65,21 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 exec > >(tee -a "${LOG_DIR}/entrypoint.log" /entrypoint.log) 2>&1
 set -x  # trace every command for debugging
 
+# Background log uploader — uploads the entrypoint log to HuggingFace every
+# 60 seconds so we can inspect failures even when SSH is unavailable.
+# The log goes to the adapter repo (or a fallback repo) as 'entrypoint.log'.
+LOG_UPLOAD_REPO="${HKASK_HF_MODEL_REPOSITORY:-mdz-axo/hkask-training-logs}"
+if [ -n "${HF_TOKEN:-}" ]; then
+    (
+        while true; do
+            sleep 60
+            huggingface-cli repo create "${LOG_UPLOAD_REPO}" --type model --exist-ok 2>/dev/null || true
+            huggingface-cli upload "${LOG_UPLOAD_REPO}" "${LOG_DIR}/entrypoint.log" --commit-message "log update $(date -u +%H:%M:%S)" 2>/dev/null || true
+        done
+    ) &
+    log "background log uploader started (repo: ${LOG_UPLOAD_REPO})"
+fi
+
 log() { printf '[entrypoint] %s\n' "$*" >&2; }
 
 log "entrypoint started at $(date -u +%Y-%m-%dT%H:%M:%SZ)"

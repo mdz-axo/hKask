@@ -370,6 +370,7 @@ impl MediaServer {
         image_url: &str,
         first_name: &str,
         last_name: &str,
+        user_notes: &str,
         force: bool,
     ) -> Result<
         (
@@ -379,7 +380,7 @@ impl MediaServer {
         McpToolError,
     > {
         let (status, notes, validation) = if force {
-            ("valid".to_string(), String::new(), None)
+            (FaceStatus::Valid, user_notes.to_string(), None)
         } else {
             let (vision_model, _vision_label) = self.require_vision().await?;
             let v = gallery::vision::validate_face_reference(
@@ -391,21 +392,69 @@ impl MediaServer {
             .await
             .map_err(|e| McpToolError::internal(format!("Face validation failed: {}", e)))?;
             let status = if v.valid {
-                "valid".to_string()
+                FaceStatus::Valid
             } else {
-                "rejected".to_string()
+                FaceStatus::Rejected
             };
             let notes = if v.valid {
-                String::new()
-            } else {
+                user_notes.to_string()
+            } else if user_notes.is_empty() {
                 v.issues.join("; ")
+            } else {
+                format!("{}; {}", user_notes, v.issues.join("; "))
             };
             (status, notes, Some(v))
         };
 
+        // Produce a 512-dim face embedding via the `embed_face` vision LLM
+        // template. Stored as raw f32-le bytes in the `embedding` BLOB column
+        // for fast cosine-similarity matching during gallery_refresh. Falls
+        // back to None (LLM-only matching) if embedding extraction fails.
+        let embedding_blob: Option<Vec<u8>> = if status.is_valid() {
+            match self.require_vision().await {
+                Ok((vision_model, _)) => {
+                    match gallery::vision::embed_face(
+                        &self.inference,
+                        &self.template_env,
+                        image_url,
+                        Some(vision_model),
+                    )
+                    .await
+                    {
+                        Ok(result) => Some(embedding_to_blob(&result.embedding)),
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "hkask.mcp.media.face",
+                                error = %e,
+                                "Face embedding extraction failed — will use LLM-only matching"
+                            );
+                            None
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.mcp.media.face",
+                        error = %e,
+                        "No vision model available for embedding — will use LLM-only matching"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         let record = self
             .gallery_store
-            .register_face(first_name, last_name, image_id, None, &status, &notes)
+            .register_face(
+                first_name,
+                last_name,
+                image_id,
+                embedding_blob.as_deref(),
+                status.as_ref(),
+                &notes,
+            )
             .map_err(|e| McpToolError::internal(format!("Failed to register face: {}", e)))?;
         Ok((record, validation))
     }
@@ -482,13 +531,16 @@ impl MediaServer {
     }
 
     /// Run face matching: for each `face` tag in the gallery, compare against
-    /// every entry in the face registry using the `match_faces` vision LLM
-    /// template. On a match (confidence ≥ 0.7), persist a `face` tag with the
-    /// person's name and registry_id. Returns `(faces_matched, errors)`.
+    /// every entry in the face registry. Prefers cosine similarity on stored
+    /// embeddings (fast, local — produced by the `embed_face` template at
+    /// registration time). Falls back to the `match_faces` vision LLM template
+    /// when embeddings are missing or the cosine score is in the uncertain
+    /// band [0.3, 0.5). On a match (confidence ≥ 0.5 for embeddings, 0.7 for
+    /// LLM), persist a `face` tag with the person's name and registry_id.
+    /// Returns `(faces_matched, errors)`.
     ///
     /// This is the composable face-matching stage called by `gallery_refresh`
-    /// when `include_faces=true`. It is also reusable by any future tool that
-    /// wants to re-run matching without re-scanning.
+    /// when `include_faces=true`.
     async fn run_face_matching(
         &self,
         ga: &GalleryAccess,
@@ -513,6 +565,19 @@ impl MediaServer {
             }
         };
 
+        // Pre-decode registry embeddings once (avoid re-parsing the BLOB for
+        // every face tag).
+        let registry_embeddings: Vec<(usize, Vec<f32>)> = registry
+            .iter()
+            .enumerate()
+            .filter_map(|(i, r)| {
+                r.embedding
+                    .as_ref()
+                    .and_then(|b| blob_to_embedding(b))
+                    .map(|e| (i, e))
+            })
+            .collect();
+
         for (tag, _path) in &all_tags {
             if tag.tag_type != "face" {
                 continue;
@@ -520,10 +585,10 @@ impl MediaServer {
 
             let face_image_id = &tag.image_id;
 
-            let face_bbox: Option<serde_json::Value> =
-                serde_json::from_str::<serde_json::Value>(&tag.value)
-                    .ok()
-                    .and_then(|v| v.get("bbox").cloned());
+            // Parse the tag value once — used for both bbox extraction and
+            // face_index preservation on match.
+            let parsed: Option<serde_json::Value> = serde_json::from_str(&tag.value).ok();
+            let face_bbox = parsed.as_ref().and_then(|v| v.get("bbox").cloned());
 
             let query_url = if let Some(ref bbox) = face_bbox {
                 match self.crop_face_region(face_image_id, bbox) {
@@ -546,7 +611,73 @@ impl MediaServer {
                 }
             };
 
-            for reg_entry in registry {
+            // Produce a query embedding once per face tag. Used for the fast
+            // cosine path; falls back to LLM-only if extraction fails.
+            let query_embedding: Option<Vec<f32>> = match gallery::vision::embed_face(
+                &self.inference,
+                &self.template_env,
+                &query_url,
+                Some(vision_model),
+            )
+            .await
+            {
+                Ok(result) => Some(result.embedding),
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.mcp.media.face",
+                        error = %e,
+                        "Query embedding extraction failed — falling back to LLM-only matching"
+                    );
+                    None
+                }
+            };
+
+            for (reg_idx, reg_entry) in registry.iter().enumerate() {
+                // ── Fast path: cosine similarity on stored embeddings ──
+                let cosine_match: Option<(f32, &str)> = (|| {
+                    let q = query_embedding.as_ref()?;
+                    let r = registry_embeddings
+                        .iter()
+                        .find(|(i, _)| *i == reg_idx)
+                        .map(|(_, e)| e)?;
+                    let sim = cosine_similarity(q, r);
+                    if sim >= 0.5 {
+                        Some((sim, "embedding_cosine"))
+                    } else if sim < 0.3 {
+                        // Confident non-match — skip the LLM call entirely.
+                        Some((sim, "embedding_cosine_reject"))
+                    } else {
+                        // Uncertain band — fall through to LLM.
+                        None
+                    }
+                })();
+
+                if let Some((confidence, method)) = cosine_match {
+                    if method == "embedding_cosine_reject" {
+                        continue; // confident non-match, try next registry entry
+                    }
+                    // Embedding match — persist and move to next face tag.
+                    let name = format!("{} {}", reg_entry.first_name, reg_entry.last_name);
+                    let face_index = parsed.as_ref().and_then(|v| v["face_index"].as_u64());
+                    let new_value = serde_json::json!({
+                        "face_index": face_index,
+                        "name": name,
+                        "match_confidence": confidence,
+                        "registry_id": reg_entry.id,
+                        "method": method,
+                    });
+                    self.persist_tag(
+                        &tag.image_id,
+                        "face",
+                        &new_value.to_string(),
+                        confidence as f64,
+                        vision_model,
+                    );
+                    faces_matched += 1;
+                    break;
+                }
+
+                // ── Slow path: vision LLM `match_faces` template ──
                 let ref_url = match self.resolve_image_url_by_id(&reg_entry.image_id) {
                     Ok(url) => url,
                     Err(e) => {
@@ -567,26 +698,22 @@ impl MediaServer {
                     Ok(result) => {
                         if result.is_match && result.confidence >= 0.7 {
                             let name = format!("{} {}", reg_entry.first_name, reg_entry.last_name);
-                            if let Ok(parsed) =
-                                serde_json::from_str::<serde_json::Value>(&tag.value)
-                            {
-                                let face_index = parsed["face_index"].as_u64();
-                                let new_value = serde_json::json!({
-                                    "face_index": face_index,
-                                    "name": name,
-                                    "match_confidence": result.confidence,
-                                    "registry_id": reg_entry.id,
-                                    "method": "vision_llm",
-                                });
-                                self.persist_tag(
-                                    &tag.image_id,
-                                    "face",
-                                    &new_value.to_string(),
-                                    result.confidence,
-                                    vision_model,
-                                );
-                                faces_matched += 1;
-                            }
+                            let face_index = parsed.as_ref().and_then(|v| v["face_index"].as_u64());
+                            let new_value = serde_json::json!({
+                                "face_index": face_index,
+                                "name": name,
+                                "match_confidence": result.confidence,
+                                "registry_id": reg_entry.id,
+                                "method": "vision_llm",
+                            });
+                            self.persist_tag(
+                                &tag.image_id,
+                                "face",
+                                &new_value.to_string(),
+                                result.confidence,
+                                vision_model,
+                            );
+                            faces_matched += 1;
                             break;
                         }
                     }
@@ -600,6 +727,82 @@ impl MediaServer {
         (faces_matched, errors)
     }
 
+    /// Process a single reference face image: locate sidecar, parse, import,
+    /// validate, embed, and register. Returns `Ok(json)` on success (the JSON
+    /// summary for this one face), or `Err(message)` on failure (the error
+    /// string to push into the scan's error list).
+    ///
+    /// Extracted from `run_face_scan_folder` for testability — this is the
+    /// per-file unit of work.
+    async fn register_one_face(
+        &self,
+        path: &std::path::Path,
+        ext: &str,
+        force: bool,
+    ) -> Result<serde_json::Value, String> {
+        let sidecar = path.with_extension(format!("{}.yaml", ext));
+        let sidecar = if sidecar.is_file() {
+            sidecar
+        } else {
+            let alt = path.with_extension(format!("{}.yml", ext));
+            if alt.is_file() {
+                alt
+            } else {
+                return Err(format!(
+                    "{}: no YAML sidecar found",
+                    path.file_name().unwrap_or_default().to_string_lossy(),
+                ));
+            }
+        };
+
+        let sidecar_text = std::fs::read_to_string(&sidecar).map_err(|e| {
+            format!(
+                "{}: failed to read sidecar: {}",
+                path.file_name().unwrap_or_default().to_string_lossy(),
+                e
+            )
+        })?;
+
+        let parsed: FaceSidecar = serde_yaml_neo::from_str(&sidecar_text)
+            .map_err(|e| format!("{}: invalid sidecar YAML: {}", sidecar.display(), e))?;
+
+        let (image_id, image_url) = self.import_reference_image(path).map_err(|e| {
+            format!(
+                "{}: import failed: {}",
+                path.file_name().unwrap_or_default().to_string_lossy(),
+                e
+            )
+        })?;
+
+        let (record, validation) = self
+            .register_face_from_url(
+                &image_id,
+                &image_url,
+                &parsed.first_name,
+                &parsed.last_name,
+                &parsed.notes,
+                force,
+            )
+            .await
+            .map_err(|e| {
+                format!(
+                    "{}: registration failed: {}",
+                    path.file_name().unwrap_or_default().to_string_lossy(),
+                    e
+                )
+            })?;
+
+        Ok(serde_json::json!({
+            "face_id": record.id,
+            "first_name": record.first_name,
+            "last_name": record.last_name,
+            "status": record.status,
+            "notes": record.notes,
+            "validation": validation,
+            "source": path.file_name().unwrap_or_default().to_string_lossy(),
+        }))
+    }
+
     /// Internal face-folder scan logic shared by the `face_scan_folder` MCP
     /// tool and the `gallery_refresh` orchestrator. Walks `folder` for image
     /// files with `.yaml` sidecars, imports each image into the gallery
@@ -610,7 +813,7 @@ impl MediaServer {
         folder: &std::path::Path,
         force: bool,
     ) -> Result<serde_json::Value, McpToolError> {
-        const IMG_EXTS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
+        const IMG_EXTS: &[&str] = crate::IMAGE_EXTENSIONS;
 
         let mut scanned = 0u32;
         let mut registered = 0u32;
@@ -639,95 +842,22 @@ impl MediaServer {
 
             scanned += 1;
 
-            let sidecar = path.with_extension(format!("{}.yaml", ext));
-            let sidecar = if sidecar.is_file() {
-                sidecar
-            } else {
-                let alt = path.with_extension(format!("{}.yml", ext));
-                if alt.is_file() {
-                    alt
-                } else {
-                    skipped += 1;
-                    errors.push(format!(
-                        "{}: no YAML sidecar found",
-                        path.file_name().unwrap_or_default().to_string_lossy(),
-                    ));
-                    continue;
+            match self.register_one_face(path, &ext, force).await {
+                Ok(face_json) => {
+                    if face_json["status"] == FaceStatus::Valid.as_ref() {
+                        registered += 1;
+                    } else {
+                        rejected += 1;
+                    }
+                    registered_faces.push(face_json);
                 }
-            };
-
-            let sidecar_text = match std::fs::read_to_string(&sidecar) {
-                Ok(t) => t,
                 Err(e) => {
-                    errors.push(format!(
-                        "{}: failed to read sidecar: {}",
-                        path.file_name().unwrap_or_default().to_string_lossy(),
-                        e
-                    ));
-                    continue;
+                    if e.contains("no YAML sidecar") {
+                        skipped += 1;
+                    }
+                    errors.push(e);
                 }
-            };
-
-            let parsed: crate::types::FaceSidecar = match serde_yaml_neo::from_str(&sidecar_text) {
-                Ok(s) => s,
-                Err(e) => {
-                    errors.push(format!(
-                        "{}: invalid sidecar YAML: {}",
-                        sidecar.display(),
-                        e
-                    ));
-                    continue;
-                }
-            };
-
-            let (image_id, image_url) = match self.import_reference_image(path) {
-                Ok(pair) => pair,
-                Err(e) => {
-                    errors.push(format!(
-                        "{}: import failed: {}",
-                        path.file_name().unwrap_or_default().to_string_lossy(),
-                        e
-                    ));
-                    continue;
-                }
-            };
-
-            let (record, validation) = match self
-                .register_face_from_url(
-                    &image_id,
-                    &image_url,
-                    &parsed.first_name,
-                    &parsed.last_name,
-                    force,
-                )
-                .await
-            {
-                Ok(pair) => pair,
-                Err(e) => {
-                    errors.push(format!(
-                        "{}: registration failed: {}",
-                        path.file_name().unwrap_or_default().to_string_lossy(),
-                        e
-                    ));
-                    continue;
-                }
-            };
-
-            if record.status == "valid" {
-                registered += 1;
-            } else {
-                rejected += 1;
             }
-
-            registered_faces.push(serde_json::json!({
-                "face_id": record.id,
-                "first_name": record.first_name,
-                "last_name": record.last_name,
-                "status": record.status,
-                "notes": record.notes,
-                "validation": validation,
-                "source": path.file_name().unwrap_or_default().to_string_lossy(),
-            }));
         }
 
         Ok(serde_json::json!({
@@ -1162,6 +1292,42 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     } else {
         dot / (norm_a * norm_b)
     }
+}
+
+/// Convert an f32 embedding vector to raw bytes for BLOB storage.
+fn embedding_to_blob(embedding: &[f32]) -> Vec<u8> {
+    embedding.iter().flat_map(|f| f.to_le_bytes()).collect()
+}
+
+/// Convert raw BLOB bytes back to an f32 embedding vector.
+fn blob_to_embedding(blob: &[u8]) -> Option<Vec<f32>> {
+    if !blob.len().is_multiple_of(4) {
+        return None;
+    }
+    blob.chunks_exact(4)
+        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .collect::<Vec<_>>()
+        .into()
+}
+
+/// YAML sidecar format for `face_scan_folder`.
+/// Maps a reference image file to a person name.
+#[derive(Debug, serde::Deserialize)]
+struct FaceSidecar {
+    first_name: String,
+    last_name: String,
+    #[serde(default)]
+    notes: String,
+}
+
+/// Image file extensions recognized by the media server for gallery scans
+/// and face reference imports. Kept in sync with `gallery::state::DEFAULT_EXTENSIONS`.
+pub const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
+
+/// Resolve the default face reference folder: `~/.hkask/faces/`.
+/// Returns `None` if `HOME` is not set.
+fn default_face_folder() -> Option<std::path::PathBuf> {
+    std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".hkask").join("faces"))
 }
 
 // ── Combined tool router (P5 Essentialism — modular tool groups) ──────────

@@ -51,10 +51,9 @@ pub fn handle_goal(
 
         "list" => {
             let state_filter = rest
-                .trim()
                 .split_whitespace()
                 .next()
-                .and_then(|s| hkask_types::GoalState::parse_str(s));
+                .and_then(hkask_types::GoalState::parse_str);
 
             match repo.list_goals(&webid, state_filter) {
                 Ok(goals) => {

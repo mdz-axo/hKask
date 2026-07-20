@@ -426,11 +426,7 @@ impl MediaServer {
                 // Stage 1: scan the face reference folder for new reference
                 // faces. Default folder: ~/.hkask/faces/. Skipped silently if
                 // the folder does not exist.
-                let home = std::env::var_os("HOME");
-                let default_folder = home
-                    .as_ref()
-                    .map(|h| std::path::PathBuf::from(h).join(".hkask").join("faces"));
-                if let Some(folder) = default_folder {
+                if let Some(folder) = crate::default_face_folder() {
                     if folder.is_dir() {
                         match self.run_face_scan_folder(&folder, false).await {
                             Ok(result) => {
@@ -744,7 +740,7 @@ impl MediaServer {
                 .map_err(map_media_error)?;
 
             let (record, validation) = self
-                .register_face_from_url(&image_id, &image_url, &first_name, &last_name, force)
+                .register_face_from_url(&image_id, &image_url, &first_name, &last_name, "", force)
                 .await?;
 
             Ok(serde_json::json!({
@@ -760,7 +756,7 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Scan a folder of reference face images and register each one in the face_registry. Each image must have a YAML sidecar (e.g. `alice.jpg.yaml`) with `first_name`, `last_name`, and optional `notes`. Images are imported into the current gallery (idempotent by SHA-256 hash) so they can be matched against detected faces during gallery_refresh. Default folder: `~/.hkask/faces/`."
+        description = "Scan a folder of reference face images (with YAML sidecars) and register each in face_registry. Default: ~/.hkask/faces/"
     )]
     pub async fn face_scan_folder(
         &self,
@@ -770,12 +766,11 @@ impl MediaServer {
             let folder = if let Some(p) = folder_path {
                 std::path::PathBuf::from(p)
             } else {
-                let home = std::env::var_os("HOME").ok_or_else(|| {
+                crate::default_face_folder().ok_or_else(|| {
                     McpToolError::invalid_argument(
                         "HOME not set and no folder_path provided".to_string(),
                     )
-                })?;
-                std::path::PathBuf::from(home).join(".hkask").join("faces")
+                })?
             };
 
             if !folder.is_dir() {

@@ -31,7 +31,6 @@ pub fn handle_skill(subcommand: &str, rest: &str, _state: &mut ReplState) {
 
         "list" => {
             let vis_filter = rest
-                .trim()
                 .split_whitespace()
                 .next()
                 .and_then(Visibility::parse_str);
