@@ -9,15 +9,14 @@ use hkask_services_core::ServiceError;
 /// MCP + pods: governed tool, dispatcher, pod manager, daemon handler.
 pub(super) struct McpPods {
     pub mcp_runtime: Arc<McpRuntime>,
-    pub mcp_dispatcher: Arc<McpDispatcher>,
+
     pub pod_manager: Arc<ActivePods>,
     pub capability_checker: Arc<CapabilityChecker>,
     pub daemon_handler: Arc<hkask_services_runtime::ServiceDaemonHandler>,
     pub energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
     /// Statistical learner shared between GovernedTool and CyberneticsLoop.
     pub tool_stats: Arc<hkask_cns::ToolStats>,
-    /// Keeps the CuratorSync cancellation channel alive.
-    pub _curator_cancel: tokio::sync::watch::Sender<bool>,
+
     pub curator_ready: tokio::sync::oneshot::Receiver<()>,
 }
 
@@ -25,7 +24,6 @@ pub(super) async fn build_mcp_and_pods(
     config: &ServiceConfig,
     l: &LoopWiring,
     f: &Foundation,
-    system_webid: WebID,
 ) -> Result<McpPods, ServiceError> {
     // Governed McpRuntime — OCAP + gas + CNS wired in via with_governance.
     let energy_estimator: Arc<CalibratedEnergyEstimator> = Arc::new(
@@ -72,7 +70,6 @@ pub(super) async fn build_mcp_and_pods(
         Arc::clone(&l.cybernetics_loop),
         Arc::clone(&f.cns_event_sink),
         estimator,
-        system_webid,
     ));
 
     // Pod manager — anchor the capability checker to BOTH the system OCAP
@@ -88,13 +85,7 @@ pub(super) async fn build_mcp_and_pods(
             })?
             .trust_root(l.a2a_runtime.root_public_key()),
     );
-    // Replace dispatcher with one that has the signing key.
-    // The original was created before the checker existed.
-    let mcp_dispatcher = Arc::new(McpDispatcher::with_governed_tool_and_checker(
-        (*mcp_runtime).clone(),
-        Arc::clone(&mcp_runtime),
-        Arc::clone(&capability_checker),
-    ));
+
     let mut pods = hkask_agents::pod::ActivePods::new(
         Arc::new(hkask_agents::pod::PodFactory::new(
             Arc::new(hkask_templates::TemplateCrateLoader::from_path(
@@ -129,7 +120,6 @@ pub(super) async fn build_mcp_and_pods(
     }
 
     // Start CuratorPod + CuratorSync (semantic aggregation loop).
-    let (curator_cancel_tx, curator_cancel_rx) = tokio::sync::watch::channel(false);
     let (curator_ready_tx, curator_ready_rx) = tokio::sync::oneshot::channel();
     let curator_pm = Arc::clone(&pod_manager);
     let curator_data_dir = std::path::Path::new(&config.db_path)
@@ -137,10 +127,7 @@ pub(super) async fn build_mcp_and_pods(
         .unwrap_or(std::path::Path::new("."))
         .to_path_buf();
     tokio::spawn(async move {
-        match curator_pm
-            .ensure_curator(curator_data_dir, curator_cancel_rx)
-            .await
-        {
+        match curator_pm.ensure_curator(curator_data_dir).await {
             Ok(Some(_)) => {
                 tracing::info!(target: "hkask.startup", "CuratorPod activated and CuratorSync running");
                 let _ = curator_ready_tx.send(());
@@ -184,26 +171,24 @@ pub(super) async fn build_mcp_and_pods(
 
     Ok(McpPods {
         mcp_runtime,
-        mcp_dispatcher,
         pod_manager,
         capability_checker,
         daemon_handler,
         energy_estimator,
         tool_stats,
-        _curator_cancel: curator_cancel_tx,
         curator_ready: curator_ready_rx,
     })
 }
 
 pub(super) async fn wire_manifest_executor(
     loops: &LoopWiring,
-    mcp_dispatcher: &Arc<McpDispatcher>,
+    mcp_runtime: &Arc<McpRuntime>,
     config: &ServiceConfig,
 ) -> Result<(), ServiceError> {
     if let Some(inference_port) = loops.inference_port.clone() {
         let executor = Arc::new(hkask_templates::ManifestExecutor::new(
             inference_port,
-            mcp_dispatcher.clone() as Arc<dyn hkask_templates::McpPort>,
+            mcp_runtime.clone() as Arc<dyn hkask_ports::ToolPort>,
             hkask_types::LLMParameters::default(),
             config.a2a_secret.clone(),
         ));

@@ -108,9 +108,8 @@ impl CuratorSync {
         Arc::clone(&self.artifact_index)
     }
 
-    /// Run the sync loop — polls source pods' h_mems tables on each tick.
-    /// Returns when the provided cancellation token fires.
-    pub async fn run(&self, mut cancel: tokio::sync::watch::Receiver<bool>) {
+    /// Run the sync loop — polls source pods' h_mems tables until runtime shutdown.
+    pub async fn run(&self) {
         tracing::info!(
             target: "hkask.curator.sync",
             "Curator sync loop started — polling every {:?}",
@@ -118,30 +117,25 @@ impl CuratorSync {
         );
 
         loop {
-            tokio::select! {
-                _ = tokio::time::sleep(self.interval) => {
-                    if let Err(e) = self.tick().await {
-                        let failures = self.consecutive_failures.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-                        tracing::warn!(
-                            target: "hkask.curator.sync",
-                            error = %e,
-                            consecutive_failures = failures,
-                            "Curator sync tick failed"
-                        );
-                        // Escalate after 10 consecutive failures (~10s)
-                        if failures >= 10 {
-                            tracing::error!(
-                                target: "hkask.curator.sync.degraded",
-                                consecutive_failures = failures,
-                                "CURATOR_SYNC_DEGRADED: {} consecutive sync failures — check passphrase derivation and pod availability",
-                                failures
-                            );
-                        }
-                    }
-                }
-                _ = cancel.changed() => {
-                    tracing::info!(target: "hkask.curator.sync", "Curator sync loop stopped");
-                    return;
+            tokio::time::sleep(self.interval).await;
+            if let Err(e) = self.tick().await {
+                let failures = self
+                    .consecutive_failures
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                    + 1;
+                tracing::warn!(
+                    target: "hkask.curator.sync",
+                    error = %e,
+                    consecutive_failures = failures,
+                    "Curator sync tick failed"
+                );
+                if failures >= 10 {
+                    tracing::error!(
+                        target: "hkask.curator.sync.degraded",
+                        consecutive_failures = failures,
+                        "CURATOR_SYNC_DEGRADED: {} consecutive sync failures — check passphrase derivation and pod availability",
+                        failures
+                    );
                 }
             }
         }

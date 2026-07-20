@@ -317,11 +317,10 @@ impl ActivePods {
     /// If not, creates one, activates it, spawns the sync loop.
     ///
     /// Returns the shared SemanticIndex Arc for consumers that need it.
-    /// The sync loop runs as a background task until the cancellation token fires.
+    /// The sync loop runs as a background task until runtime shutdown.
     pub async fn ensure_curator(
         &self,
         data_dir: std::path::PathBuf,
-        cancel: tokio::sync::watch::Receiver<bool>,
     ) -> Result<Option<Arc<std::sync::RwLock<SemanticIndex>>>, AgentPodError> {
         // Idempotent — if curator already exists, don't spawn a second sync
         {
@@ -334,7 +333,7 @@ impl ActivePods {
         let (index, registry) = self.create_curator_pod(&data_dir).await?;
         let sync = crate::curator::CuratorSync::new(Arc::clone(&index), registry);
         tokio::spawn(async move {
-            sync.run(cancel).await;
+            sync.run().await;
         });
         tracing::info!("CuratorSync spawned — polling semantic h_mems from all pods");
 

@@ -6,8 +6,8 @@ use super::types::DiscoveredWork;
 use super::utils::{extract_search_terms, slugify};
 use crate::embed::EntityConfig;
 use hkask_capability::DelegationToken;
+use hkask_ports::ToolPort;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_templates::ports::McpPort;
 use std::path::PathBuf;
 
 use super::cache::download_and_cache;
@@ -29,7 +29,7 @@ impl DiscoveryService {
     #[must_use = "result must be used"]
     pub async fn discover(
         req: &DiscoverRequest,
-        mcp: &dyn McpPort,
+        mcp: &dyn ToolPort,
         token: &DelegationToken,
     ) -> Result<DiscoverResult, ServiceError> {
         // P9: CNS span

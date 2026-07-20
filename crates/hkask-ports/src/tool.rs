@@ -28,8 +28,7 @@ pub type ToolFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Governance membrane for MCP tool invocation.
 ///
-/// GovernedTool checks: OCAP authority → budget → emit span → delegate → account cost → emit outcome.
-/// Impl: `McpDispatcher` (hkask-mcp)
+/// `McpRuntime` checks OCAP authority → budget → dispatch → account cost → emit outcome.
 ///
 /// # Authentication asymmetry
 ///

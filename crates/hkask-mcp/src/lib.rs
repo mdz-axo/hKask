@@ -1,4 +1,4 @@
-//! hKask MCP — MCP runtime and dispatch
+//! hKask MCP — MCP runtime and server lifecycle
 //!
 //! Provides:
 //! - MCP runtime for server management
@@ -8,7 +8,7 @@
 //! - Server scaffolding (McpToolError, McpToolOutput, CredentialRequirement, ServerContext, run_stdio_server)
 
 pub mod daemon; // Unix socket transport for MCP binary ↔ hKask daemon
-pub mod dispatch; // Tool dispatch through GovernedTool membrane
+
 pub mod runtime;
 pub(crate) mod security;
 pub mod server;
@@ -41,7 +41,7 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
 ];
 
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
-pub use dispatch::McpDispatcher;
+
 pub use hkask_ports::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{

@@ -333,7 +333,7 @@ async fn select_input_mapping_resolves_arrays_and_objects() {
     ]);
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )
@@ -401,7 +401,7 @@ async fn loop_input_mapping_carries_prior_state() {
     ]);
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )

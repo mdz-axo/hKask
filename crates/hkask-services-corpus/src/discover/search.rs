@@ -3,14 +3,14 @@
 use super::types::{DiscoveredWork, USER_AGENT};
 use super::utils::slugify;
 use hkask_capability::DelegationToken;
+use hkask_ports::ToolPort;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_templates::ports::McpPort;
 
 // ── MCP web_search ─────────────────────────────────────────────────────────
 
 /// Call the MCP server's web_search tool and parse results into DiscoveredWork structs.
 pub(crate) async fn mcp_search(
-    mcp: &dyn McpPort,
+    mcp: &dyn ToolPort,
     token: &DelegationToken,
     query: &str,
     num_results: usize,
@@ -22,15 +22,28 @@ pub(crate) async fn mcp_search(
         "num_results": num_results,
     });
 
-    let result = mcp.invoke("web_search", input, token).await.map_err(|e| {
-        let msg = format!("MCP web_search failed: {e}");
-        ServiceError::Domain {
+    let server_id = mcp
+        .get_tool_info("web_search")
+        .await
+        .map(|info| info.server_id)
+        .ok_or_else(|| ServiceError::Domain {
             domain: DomainKind::Wallet,
             kind: ErrorKind::ServiceUnavailable,
-            source: Some(Box::new(e)),
-            message: msg,
-        }
-    })?;
+            source: None,
+            message: "MCP web_search tool is not registered".to_string(),
+        })?;
+    let result = mcp
+        .invoke(&server_id, "web_search", input, token)
+        .await
+        .map_err(|e| {
+            let msg = format!("MCP web_search failed: {e}");
+            ServiceError::Domain {
+                domain: DomainKind::Wallet,
+                kind: ErrorKind::ServiceUnavailable,
+                source: Some(Box::new(e)),
+                message: msg,
+            }
+        })?;
 
     tracing::debug!(target: "hkask.discover", query = %query, has_results = result.get("results").is_some(), result_keys = ?result.as_object().map(|o| o.keys().collect::<Vec<_>>()), "MCP search response");
 

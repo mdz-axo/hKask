@@ -442,42 +442,9 @@ pub struct AdvancedParams {
     /// Use fp16 mixed precision.
     #[serde(default)]
     pub fp16: bool,
-    /// Evaluation split ratio used by non-Axolotl harnesses.
+    /// Evaluation split ratio (fraction of dataset held out for eval).
     #[serde(default)]
     pub eval_split_ratio: Option<f32>,
-    /// Per-device evaluation batch size.
-    #[serde(default)]
-    pub eval_batch_size: Option<u32>,
-    /// Axolotl validation split ratio.
-    #[serde(default)]
-    pub val_set_size: Option<f32>,
-    /// Evaluate every N optimizer steps.
-    #[serde(default)]
-    pub eval_steps: Option<u32>,
-    /// Save a checkpoint every N optimizer steps.
-    #[serde(default)]
-    pub save_steps: Option<u32>,
-    /// Maximum number of checkpoints to retain.
-    #[serde(default)]
-    pub save_total_limit: Option<u32>,
-    /// Number of evaluations without improvement before stopping.
-    #[serde(default)]
-    pub early_stopping_patience: Option<u32>,
-    /// Enable the Liger fused-kernel integration.
-    #[serde(default)]
-    pub liger_kernel: Option<bool>,
-    /// Enable Axolotl's flash-attention integration.
-    #[serde(default)]
-    pub flash_attention: Option<bool>,
-    /// Enable cut cross entropy.
-    #[serde(default)]
-    pub cut_cross_entropy: Option<bool>,
-    /// Allow model repositories to provide custom model code.
-    #[serde(default)]
-    pub trust_remote_code: Option<bool>,
-    /// Enable strict Axolotl config validation.
-    #[serde(default)]
-    pub strict: Option<bool>,
 }
 
 /// Canonical training hyperparameters — the union of capabilities supported by

@@ -45,6 +45,7 @@ reqwest = { workspace = true, features = ["multipart"] }
 base64.workspace = true
 sha2.workspace = true
 hf-hub = "1.0.0"
+minijinja.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

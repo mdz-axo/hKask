@@ -204,26 +204,11 @@ mod tests {
         params.lora.r = 32;
         params.lora.alpha = 64;
         params.lora.init_lora_weights = Some(types::LoraInit::Eva);
-        params.optimization.optimizer = Some("adamw_8bit".to_string());
-        params.optimization.weight_decay = 0.01;
         params.optimization.gradient_accumulation_steps = 16;
         params.optimization.lr_scheduler = Some("cosine".to_string());
         params.optimization.warmup_steps = Some(100);
-        params.optimization.max_grad_norm = Some(0.3);
         params.sequence.sequence_len = Some(4096);
-        params.advanced.gradient_checkpointing = Some("true".to_string());
         params.advanced.bf16 = true;
-        params.advanced.eval_batch_size = Some(1);
-        params.advanced.val_set_size = Some(0.0012);
-        params.advanced.eval_steps = Some(200);
-        params.advanced.save_steps = Some(200);
-        params.advanced.save_total_limit = Some(5);
-        params.advanced.early_stopping_patience = Some(25);
-        params.advanced.liger_kernel = Some(true);
-        params.advanced.flash_attention = Some(false);
-        params.advanced.cut_cross_entropy = Some(true);
-        params.advanced.trust_remote_code = Some(true);
-        params.advanced.strict = Some(false);
 
         let mut job = TrainingJob::new(
             std::path::PathBuf::from("/tmp/train_chat_full.jsonl"),
@@ -249,7 +234,7 @@ mod tests {
             "peft_init_lora_weights: eva",
             "optim: adamw_8bit",
             "eval_batch_size: 1",
-            "val_set_size: 0.0012",
+            "val_set_size: 0.05",
             "early_stopping_patience: 25",
             "liger_kernel: true",
             "flash_attention: false",

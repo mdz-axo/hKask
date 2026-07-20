@@ -37,14 +37,13 @@ impl AgentService {
         let loops = loops::build_loops(&config, &mut foundation, system_webid).await?;
 
         // ── MCP + pods: governed tool, dispatcher, pod manager, daemon ───
-        let mcp_pods =
-            mcp_pods::build_mcp_and_pods(&config, &loops, &foundation, system_webid).await?;
+        let mcp_pods = mcp_pods::build_mcp_and_pods(&config, &loops, &foundation).await?;
 
         // ── Wire ManifestExecutor into CuratorContext (late-binding) ───
-        // ManifestExecutor depends on McpDispatcher, which is built above.
+        // ManifestExecutor shares the governed MCP runtime built above.
         // The CuratorContext was created earlier (in build_loops) and stored
         // in LoopWiring for this late-binding step.
-        mcp_pods::wire_manifest_executor(&loops, &mcp_pods.mcp_dispatcher, &config).await?;
+        mcp_pods::wire_manifest_executor(&loops, &mcp_pods.mcp_runtime, &config).await?;
 
         // ── Matrix transport + 7R7 listener ──────────────────────────────
         let matrix_transport =
@@ -110,11 +109,10 @@ impl AgentServiceWiring {
         let governance = governance::GovernanceContext::new(
             Arc::clone(&self.mcp_pods.capability_checker),
             Arc::clone(&self.foundation.consent_manager),
-            Arc::clone(&self.mcp_pods.mcp_dispatcher),
             Arc::clone(&self.loops.a2a_runtime),
             Arc::clone(&self.foundation.escalation_queue),
             Arc::clone(&self.foundation.cns_event_sink) as Arc<dyn NuEventSink>,
-            Some(self.foundation.curation_inbox_tx.clone()),
+            self.foundation.curation_inbox_tx.clone(),
         );
 
         let cns = cns::CnsContext::new(
@@ -157,7 +155,6 @@ impl AgentServiceWiring {
             system_webid: self.system_webid,
             curator_ready: Some(self.mcp_pods.curator_ready),
             config: self.config,
-            governed_tool: std::sync::OnceLock::new(),
             inference_loop: None,
         }
     }
