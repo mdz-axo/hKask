@@ -397,3 +397,120 @@ impl Default for McpRuntime {
         Self::new()
     }
 }
+
+// ── ToolPort implementation ──────────────────────────────────────────────
+//
+// McpRuntime implements ToolPort directly. This eliminates the former
+// RawMcpToolPort adapter layer — GovernedTool<McpRuntime> is now the single
+// tool surface. The invoke logic (live-connection check, error-flag check,
+// result parsing) lives here, not in a separate wrapper struct.
+
+impl hkask_ports::ToolPort for McpRuntime {
+    fn invoke(
+        &self,
+        server: &str,
+        tool: &str,
+        args: Value,
+        _token: &hkask_capability::DelegationToken,
+    ) -> hkask_ports::ToolFuture<'_, Result<Value, hkask_ports::ToolPortError>> {
+        Box::pin(async move {
+            // Try the live connection first
+            if self.get_peer(server).await.is_some() {
+                let arguments = args.as_object().cloned().unwrap_or_default();
+                let result = self
+                    .call_tool(server, tool, arguments)
+                    .await
+                    .map_err(|e| hkask_ports::ToolPortError::InvocationFailed(e.to_string()))?;
+
+                if result.is_error.unwrap_or(false) {
+                    let msg = extract_text_content(&result);
+                    return Err(hkask_ports::ToolPortError::InvocationFailed(msg));
+                }
+                return Ok(parse_call_result(&result));
+            }
+
+            // No live connection — is the tool at least registered?
+            if !self.tool_exists(tool).await {
+                return Err(hkask_ports::ToolPortError::NotFound(
+                    hkask_types::NotFound {
+                        entity_type: "tool".to_string(),
+                        id: format!("Tool '{}' not found in MCP runtime", tool),
+                    },
+                ));
+            }
+
+            tracing::warn!(
+                target: "hkask.mcp",
+                tool = %tool,
+                server = %server,
+                "Server registered but not connected — start it with McpRuntime::start_server()"
+            );
+            Err(hkask_ports::ToolPortError::InvocationFailed(format!(
+                "Server '{}' is registered but not connected — call McpRuntime::start_server() first",
+                server
+            )))
+        })
+    }
+
+    fn discover_tools(&self) -> hkask_ports::ToolFuture<'_, Vec<String>> {
+        Box::pin(async move { McpRuntime::discover_tools(self).await })
+    }
+
+    fn get_tool_info(
+        &self,
+        tool_name: &str,
+    ) -> hkask_ports::ToolFuture<'_, Option<hkask_ports::ToolInfo>> {
+        Box::pin(async move { McpRuntime::get_tool_info(self, tool_name).await })
+    }
+}
+
+/// Extract concatenated text from a CallToolResult's content items.
+fn extract_text_content(result: &rmcp::model::CallToolResult) -> String {
+    result
+        .content
+        .iter()
+        .filter_map(|c| match &**c {
+            rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Parse a CallToolResult into a JSON Value.
+///
+/// For a single text content item, tries to parse as JSON first
+/// (structured tool responses often return JSON strings).
+/// Falls back to a plain JSON string if parsing fails.
+/// For multiple items, wraps them in a JSON array.
+fn parse_call_result(result: &rmcp::model::CallToolResult) -> Value {
+    use rmcp::model::RawContent;
+    if result.content.is_empty() {
+        return Value::Null;
+    }
+
+    if result.content.len() == 1
+        && let RawContent::Text(text_content) = &*result.content[0]
+    {
+        if let Ok(v) = serde_json::from_str::<Value>(&text_content.text) {
+            return v;
+        }
+        return Value::String(text_content.text.clone());
+    }
+
+    let items: Vec<Value> = result
+        .content
+        .iter()
+        .map(|c| match &**c {
+            RawContent::Text(t) => serde_json::from_str::<Value>(&t.text)
+                .unwrap_or_else(|_| Value::String(t.text.clone())),
+            RawContent::Image(i) => serde_json::json!({
+                "type": "image",
+                "data": i.data,
+                "mimeType": i.mime_type,
+            }),
+            _ => Value::Null,
+        })
+        .collect();
+    Value::Array(items)
+}
