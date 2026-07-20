@@ -41,8 +41,6 @@ pub struct SpawnSpec {
 
 impl SpawnSpec {
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  value is a valid skills
-    /// post: returns Self with skills set
     /// pre:  task_id is valid
     /// post: returns a SpawnSpec with standard delegation defaults
     pub fn new(task_id: TaskId) -> Self {
@@ -71,7 +69,7 @@ impl SpawnSpec {
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  value is valid for skills
-    /// post:      /// post: returns Self with skills set
+    /// post: returns Self with skills set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_skills(mut self, skills: Vec<String>) -> Self {
         self.delegated_skills = skills;
@@ -80,7 +78,7 @@ impl SpawnSpec {
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  value is valid for memory
-    /// post:      /// post: returns Self with memory set
+    /// post: returns Self with memory set
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_memory(mut self, scope: &str) -> Self {
         self.memory_scope = scope.into();

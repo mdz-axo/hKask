@@ -356,7 +356,6 @@ fn test_mcp_server() -> hkask_mcp_kata_kanban::KanbanServer {
         "test-replicant".into(),
         None,
         service,
-        None,
     )
 }
 

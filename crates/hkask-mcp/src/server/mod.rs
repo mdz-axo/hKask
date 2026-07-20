@@ -38,7 +38,9 @@ pub use tool_span::{
     record_via_daemon, tool_internal_error,
 };
 pub use transport::{run_stdio_server, run_stdio_server_with_preloaded};
-pub use validation::{validate_identifier, validate_path, validate_tool_url};
+pub use validation::{
+    validate_identifier, validate_path, validate_tool_url, validate_tool_url_permissive,
+};
 
 #[cfg(test)]
 mod tests {

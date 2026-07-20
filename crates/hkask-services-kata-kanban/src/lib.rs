@@ -5,8 +5,7 @@
 //! > **Kata is the process. Kanban is the tool/board/framework for applying the kata process to work.**
 //!
 //! This crate unifies the previously separate `hkask-services-kata` and `hkask-services-kanban`
-//! crates. See `docs/plans/kata-kanban-merge-plan.md` for the full merge rationale and
-//! implementation plan.
+//! crates into a single workflow service where PDCA phases map directly to Kanban task statuses.
 //!
 //! ## Module Structure
 //!

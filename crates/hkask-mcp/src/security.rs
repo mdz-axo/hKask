@@ -7,7 +7,7 @@ use std::net::IpAddr;
 
 /// URL validation error types
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum SecurityError {
+pub enum SecurityError {
     #[error("Non-HTTP(S) scheme not allowed: {0}")]
     DisallowedScheme(String),
 
@@ -25,12 +25,35 @@ pub(crate) enum SecurityError {
 }
 
 /// URL validation configuration
+///
+/// Controls whether private IP ranges and loopback addresses are allowed.
+/// The default (`UrlValidationConfig::default()`) is strict: both are
+/// rejected. Use `UrlValidationConfig::permissive()` to allow both, for
+/// user-curated URL lists like RSS subscriptions where the user has
+/// explicitly chosen to fetch from a local network address.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct UrlValidationConfig {
-    /// Allow private IP addresses (10.x, 172.16-31.x, 192.168.x)
+pub struct UrlValidationConfig {
+    /// Allow private IP addresses (10.x, 172.16-31.x, 192.168.x, 169.254.x)
     pub allow_private_ips: bool,
     /// Allow loopback addresses (127.x.x.x, ::1)
     pub allow_loopback: bool,
+}
+
+impl UrlValidationConfig {
+    /// Permissive config: allows private IPs and loopback.
+    ///
+    /// Use this for user-curated URL lists (e.g., RSS subscriptions) where
+    /// the user has explicitly chosen to fetch from a local address (e.g.,
+    /// a self-hosted RSS aggregator at `http://localhost:4000/feed.xml`).
+    /// Do NOT use this for arbitrary user-supplied URLs from untrusted
+    /// sources (e.g., `web_extract` tool input).
+    #[must_use]
+    pub fn permissive() -> Self {
+        Self {
+            allow_private_ips: true,
+            allow_loopback: true,
+        }
+    }
 }
 
 /// Validate a URL for use in MCP web/scholar requests.
@@ -40,10 +63,7 @@ pub(crate) struct UrlValidationConfig {
 /// - Rejects URLs with embedded credentials (user:pass@host)
 /// - Rejects private IPs unless explicitly permitted
 /// - Rejects loopback addresses unless explicitly permitted
-pub(crate) fn validate_url(
-    raw_url: &str,
-    config: &UrlValidationConfig,
-) -> Result<(), SecurityError> {
+pub fn validate_url(raw_url: &str, config: &UrlValidationConfig) -> Result<(), SecurityError> {
     let scheme_end = raw_url
         .find("://")
         .ok_or_else(|| SecurityError::InvalidUrl("No scheme separator '://' found".to_string()))?;

@@ -63,6 +63,17 @@ pub fn validate_provider_url(url: &str) -> Result<(), WebError> {
     validate_tool_url(url).map_err(|e| WebError::BadArgs(e.message))
 }
 
+/// Validate a URL with permissive SSRF config (allows private IPs and loopback).
+///
+/// Used by RSS tools (`rss_fetch`, `import_opml`) where the user has
+/// explicitly subscribed to a feed that may be on a local network (e.g.,
+/// a self-hosted RSS aggregator at `http://localhost:4000/feed.xml`).
+/// The strict variant (`validate_provider_url`) is used for arbitrary
+/// user-supplied URLs (`web_extract`, `web_browse`, `discover_feeds`).
+pub fn validate_provider_url_permissive(url: &str) -> Result<(), WebError> {
+    hkask_mcp::server::validate_tool_url_permissive(url).map_err(|e| WebError::BadArgs(e.message))
+}
+
 /// Port trait for web search operations at the application core boundary.
 ///
 /// Tool handlers depend on this trait; `ProviderPool` implements it as the

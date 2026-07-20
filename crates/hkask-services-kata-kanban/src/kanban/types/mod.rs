@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 pub(crate) mod board;
 pub(crate) mod column;
 
-pub(crate) mod contract;
 pub(crate) mod gas;
 pub(crate) mod phase;
 pub(crate) mod priority;

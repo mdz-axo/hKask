@@ -20,7 +20,6 @@ use serde_json::Value;
 
 use super::types::KanbanError;
 use crate::bridge::KanbanKataBridge;
-use crate::kanban::types::contract::TaskContract;
 use crate::kanban::{
     Board, ColumnDef, GasEntry, Priority, Task, TaskFilter, TaskSpec, TaskStatus, Verification,
 };
@@ -689,11 +688,26 @@ impl KanbanService {
         // Task completion is user-feedback-driven.
         // Evidence (the user's confirmation text) IS the completion signal.
         // Criteria are informational — they guide work but don't gate completion.
-        let mut contract = TaskContract::new("inline".into(), task.owner, verifier, &task);
-        let result = contract.check_completion(evidence);
-
-        let passed = result.passed;
-        let reasoning = result.reasoning;
+        let passed = !evidence.trim().is_empty();
+        let reasoning = if passed {
+            let criteria_list: Vec<String> = task
+                .criteria
+                .iter()
+                .map(|c| format!("  - {}", c.description))
+                .collect();
+            let criteria_block = if criteria_list.is_empty() {
+                String::new()
+            } else {
+                format!("\nCriteria:\n{}", criteria_list.join("\n"))
+            };
+            format!(
+                "User feedback received.{} Evidence length: {} chars.",
+                criteria_block,
+                evidence.len()
+            )
+        } else {
+            "No evidence provided — task not verified.".into()
+        };
 
         let verification = Verification::new(passed, reasoning, verifier);
         task.verification = Some(verification.clone());

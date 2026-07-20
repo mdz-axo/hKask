@@ -1,6 +1,6 @@
 //! hkask-mcp-kata-kanban — Kata-Kanban workflow coordination MCP server.
 //!
-//! Provides 8 MCP tools for kanban board and task management.
+//! Provides 18 MCP tools for kanban board and task management.
 //! All tools carry the caller's WebID for P12 compliance.
 //!
 //! The KanbanServer struct and tool methods are exported from the library
@@ -29,7 +29,6 @@ use types::*;
 hkask_mcp::mcp_server!(
     pub struct KanbanServer {
         pub service: KanbanService,
-        pub db: Option<r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>>,
     }
 );
 
@@ -969,7 +968,6 @@ pub async fn run(
                     replicant.clone(),
                     daemon_client.clone(),
                     service,
-                    db.sqlite_pool().ok(),
                 ))
             })()
             .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {

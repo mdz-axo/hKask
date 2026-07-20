@@ -499,7 +499,10 @@ impl ResearchServer {
         execute_tool(self, "rss_subscribe", async {
             let db = require_rss_db!(self);
 
-            validate_tool_url(&url)?;
+            // Use permissive SSRF config: RSS feeds may be self-hosted on
+            // local networks (e.g., http://localhost:4000/feed.xml). The user
+            // is explicitly subscribing to this URL by choice.
+            hkask_mcp::server::validate_tool_url_permissive(&url)?;
             let fetch_result = fetch_feed(&self.rss_client, &url, None, None).await
                 .map_err(|e| McpToolError::unavailable(format!("Fetch failed: {}", e)))?;
             let stream_id = format!("feed/{url}");
@@ -514,23 +517,24 @@ impl ResearchServer {
                 .unwrap_or_default();
             let entry_count = fetch_result.feed.entries.len();
             let result = spawn_db(db, move |conn| {
-                // N3: wrap the multi-statement operation in a transaction so a
-                // mid-loop failure (e.g., insert_entries hits a constraint)
-                // rolls back the upsert_feed and any prior entry inserts.
-                conn.execute("BEGIN", [])?;
-                let tx_result: Result<serde_json::Value, anyhow::Error> = (|| {
-                    let feed_id = upsert_feed(conn, &url_c, &fetch_result.feed)?;
-                    insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
-                    update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
-                    let exists: bool = conn.query_row("SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1", [&stream_id], |row| row.get::<_, i64>(0)).map(|c| c > 0)?;
-                    if exists { return Ok(serde_json::json!({"stream_id": stream_id, "url": url_c, "subscribed": true, "note": "Already subscribed, feed refreshed"})); }
-                    conn.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
-                    Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count}))
-                })();
-                match tx_result {
-                    Ok(v) => { conn.execute("COMMIT", [])?; Ok(v) }
-                    Err(e) => { let _ = conn.execute("ROLLBACK", []); Err(e) }
-                }
+                // N3 (panic-safe): use rusqlite's Transaction guard so a panic
+                // between BEGIN and COMMIT automatically rolls back.
+                let tx = rusqlite::Transaction::new_unchecked(
+                    conn,
+                    rusqlite::TransactionBehavior::Deferred,
+                )?;
+                let feed_id = upsert_feed(&tx, &url_c, &fetch_result.feed)?;
+                insert_entries(&tx, feed_id, &fetch_result.feed.entries)?;
+                update_feed_cache_headers(&tx, feed_id, etag.as_deref(), lm.as_deref())?;
+                let exists: bool = tx.query_row("SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1", [&stream_id], |row| row.get::<_, i64>(0)).map(|c| c > 0)?;
+                let result = if exists {
+                    serde_json::json!({"stream_id": stream_id, "url": url_c, "subscribed": true, "note": "Already subscribed, feed refreshed"})
+                } else {
+                    tx.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
+                    serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count})
+                };
+                tx.commit()?;
+                Ok::<serde_json::Value, anyhow::Error>(result)
             }).await;
             handle_db_result!(result, |v| v)
         }).await
@@ -596,8 +600,10 @@ impl ResearchServer {
             // fetching. The URL was originally user-supplied via rss_subscribe
             // or rss_import_opml; re-validate at fetch time to catch URLs that
             // were inserted before validation was added, or that a compromised
-            // DB could have altered.
-            validate_tool_url(&feed_url)?;
+            // DB could have altered. Use permissive config (allows localhost/
+            // private IPs) because RSS feeds may be self-hosted on local
+            // networks — the user explicitly subscribed to them.
+            hkask_mcp::server::validate_tool_url_permissive(&feed_url)?;
 
             let db = require_rss_db!(self);
             let fetch_result = fetch_feed(
@@ -623,18 +629,17 @@ impl ResearchServer {
             let lm = fetch_result.last_modified.clone();
 
             let result = spawn_db(db, move |conn| {
-                // N3: wrap the multi-statement operation in a transaction.
-                conn.execute("BEGIN", [])?;
-                let tx_result: Result<usize, anyhow::Error> = (|| {
-                    let feed_id = upsert_feed(conn, &feed_url, &fetch_result.feed)?;
-                    let new_count = insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
-                    update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
-                    Ok::<usize, anyhow::Error>(new_count)
-                })();
-                match tx_result {
-                    Ok(v) => { conn.execute("COMMIT", [])?; Ok(v) }
-                    Err(e) => { let _ = conn.execute("ROLLBACK", []); Err(e) }
-                }
+                // N3 (panic-safe): use rusqlite's Transaction guard so a panic
+                // between BEGIN and COMMIT automatically rolls back.
+                let tx = rusqlite::Transaction::new_unchecked(
+                    conn,
+                    rusqlite::TransactionBehavior::Deferred,
+                )?;
+                let feed_id = upsert_feed(&tx, &feed_url, &fetch_result.feed)?;
+                let new_count = insert_entries(&tx, feed_id, &fetch_result.feed.entries)?;
+                update_feed_cache_headers(&tx, feed_id, etag.as_deref(), lm.as_deref())?;
+                tx.commit()?;
+                Ok::<usize, anyhow::Error>(new_count)
             })
             .await;
 

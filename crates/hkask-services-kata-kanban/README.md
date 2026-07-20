@@ -33,7 +33,6 @@ Plan → Backlog | Do → InProgress | Check → Review | Act → Done
 - `Board` / `ColumnDef` — board with columns and WIP limits
 - `Task` / `TaskSpec` / `TaskStatus` / `Priority` — task lifecycle
 - `SpawnSpec` / `CapabilityPackage` — sub-replicant spawning with delegated capabilities
-- `TaskContract` / `ContractState` — OCAP contract for task delegation
 - `socratic` — Socratic inquiry cycle (4-stage: Elicit → Structure → Test → Summarize)
 
 ## Key Features

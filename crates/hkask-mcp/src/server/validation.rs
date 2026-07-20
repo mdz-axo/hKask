@@ -84,6 +84,23 @@ pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
         .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
 }
 
+/// Validate a tool URL with permissive SSRF config (allows private IPs and loopback).
+///
+/// Use this for user-curated URL lists like RSS subscriptions, where the
+/// user has explicitly chosen to fetch from a local address (e.g., a
+/// self-hosted RSS aggregator). Do NOT use this for arbitrary user-supplied
+/// URLs from untrusted sources.
+///
+/// expect: "The system validates tool input against safety and length constraints"
+/// pre:  url is non-empty
+/// post: returns Ok(()) if valid http/https URL (private IPs and loopback allowed)
+/// post: returns Err if invalid scheme or format
+#[must_use = "result must be used"]
+pub fn validate_tool_url_permissive(url: &str) -> Result<(), McpToolError> {
+    crate::security::validate_url(url, &crate::security::UrlValidationConfig::permissive())
+        .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

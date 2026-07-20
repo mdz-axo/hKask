@@ -135,12 +135,14 @@ impl HarnessAdapter for AxolotlHarness {
         if opt.weight_decay > 0.0 {
             yaml.push_str(&format!("weight_decay: {}\n", opt.weight_decay));
         }
-        if opt.gradient_accumulation_steps > 1 {
-            yaml.push_str(&format!(
-                "gradient_accumulation_steps: {}\n",
-                opt.gradient_accumulation_steps
-            ));
-        }
+        // Always emit gradient_accumulation_steps — axolotl 0.18+ requires at
+        // least two of {micro_batch_size, gradient_accumulation_steps,
+        // batch_size} to be set. We always emit micro_batch_size above, so
+        // emitting gradient_accumulation_steps here satisfies the validator.
+        yaml.push_str(&format!(
+            "gradient_accumulation_steps: {}\n",
+            opt.gradient_accumulation_steps
+        ));
         if let Some(ref sched) = opt.lr_scheduler {
             yaml.push_str(&format!("lr_scheduler: {}\n", sched));
         }

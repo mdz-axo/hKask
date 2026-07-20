@@ -86,8 +86,6 @@ impl Task {
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  arguments are valid
-    /// post: returns new instance with defaults
     /// pre:  target is a valid transition from self.status
     /// post: returns true iff self.status.can_transition_to(target)
     pub fn can_move_to(&self, target: TaskStatus) -> bool {
@@ -113,8 +111,8 @@ pub struct Comment {
 
 impl Comment {
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  arguments are valid
-    /// post:      /// post: returns new instance with defaults
+    /// pre:  task_id is valid; author is a valid WebID; body is non-empty
+    /// post: returns a new Comment with created_at=now
     pub(crate) fn new(task_id: TaskId, author: WebID, body: String) -> Self {
         Self {
             id: CommentId::new(),
@@ -182,7 +180,7 @@ impl TaskFilter {
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  priority is a valid Priority
-    /// post:      /// post: returns tasks sorted by priority
+    /// post: returns a filter matching only tasks with the given priority
     pub fn by_priority(priority: Priority) -> Self {
         Self {
             status: None,
