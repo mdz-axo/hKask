@@ -169,40 +169,11 @@ pub struct TurnRequest {
     /// to the system prompt so the model adopts the interaction posture.
     /// None means no improv posture (default agent behavior).
     pub improv_mode: Option<hkask_improv::ImprovMode>,
-    /// Source of this turn — which communication channel the message arrived from.
-    /// None means unknown/CLI. When set, enables the agent
-    /// to maintain separate conversation contexts per source (P12: every action
-    /// has an author).
-    pub source: Option<MessageSource>,
+
     /// OpenAI-compatible tool definitions for native function calling.
     /// Built from MCP-discovered tools by the REPL at init time.
     /// When present, the model may return structured tool calls.
     pub tools: Option<Vec<ChatToolDefinition>>,
-}
-
-/// Which communication channel a turn's input arrived from.
-///
-/// Enables agents to distinguish between different humans and channels,
-/// maintaining separate conversation contexts. Per P12 (Replicant Host Mandate),
-/// every action must trace to an author — the source field provides that trace.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum MessageSource {
-    /// Message from a Matrix room.
-    Matrix {
-        /// Matrix room ID (e.g., "!abc123:example.com")
-        room_id: String,
-        /// Sender's Matrix user ID (e.g., "@bob-jones:example.com")
-        sender_mxid: String,
-    },
-    /// Message from the daemon socket (local agent-to-agent).
-    Daemon {
-        /// Sender's WebID
-        sender_webid: String,
-    },
-    /// Message from the CLI REPL (stdin).
-    Cli,
-    /// Message from the HTTP API.
-    Api,
 }
 
 /// Result of a single-agent turn from `ChatService::execute_turn()`.
@@ -211,10 +182,7 @@ pub struct TurnResult {
     pub text: String,
     /// Token usage for this iteration
     pub usage: TokenUsage,
-    /// Iteration count (as passed in TurnRequest.iteration)
-    pub iterations: usize,
-    /// Why the model stopped ("stop", "tool_calls", etc.)
-    pub finish_reason: String,
+
     /// Structured tool calls when the model requests tools.
     /// Empty if finish_reason != "tool_calls".
     pub structured_tool_calls: Vec<StructuredToolCall>,

@@ -175,7 +175,6 @@ impl TurnExecutor for ReplTurnExecutor {
             pre_compress: settings.pre_compress,
             thread_history: input.thread_history.clone(),
             improv_mode: self.improv_mode.clone(),
-            source: None,
             tool_section: String::new(),
             tools: if self.tool_definitions.is_empty() {
                 None

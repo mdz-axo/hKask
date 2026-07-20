@@ -292,23 +292,7 @@ impl ManifestExecutor {
         tool_ref: &str,
         input: serde_json::Value,
     ) -> Result<serde_json::Value> {
-        // Create a delegation token for tool invocation.
-        let secret_bytes: [u8; 32] = self.a2a_secret[..32].try_into().map_err(|_| {
-            crate::ports::TemplateError::Manifest("A2A secret must be at least 32 bytes".into())
-        })?;
-        let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
-        // signing_key is dropped here; secret_bytes is a stack copy that will
-        // be overwritten when the function returns. The Zeroizing<Vec<u8>>
-        // in self ensures the heap copy is zeroed on drop.
-        let token = DelegationToken::new(
-            DelegationResource::Tool,
-            tool_ref.to_string(),
-            DelegationAction::Execute,
-            WebID::from_persona(b"manifest-executor"),
-            WebID::from_persona(b"manifest-executor"),
-            &signing_key,
-        );
-        self.invoke_tool(tool_ref, input, &token, 0)
+        self.invoke_tool(tool_ref, input, 0)
             .await
             .map(|(result, _)| result)
     }
@@ -317,7 +301,6 @@ impl ManifestExecutor {
         &self,
         tool_name: &str,
         input: Value,
-        token: &DelegationToken,
         action_number: u64,
     ) -> Result<(Value, ToolTaint)> {
         let tool_info = self.tools.get_tool_info(tool_name).await.ok_or_else(|| {
@@ -353,9 +336,23 @@ impl ManifestExecutor {
             }
         }
 
+        let secret_bytes: [u8; 32] = self.a2a_secret[..32]
+            .try_into()
+            .map_err(|_| TemplateError::Manifest("A2A secret must be at least 32 bytes".into()))?;
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
+        let executor_webid = WebID::from_persona(b"manifest-executor");
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            tool_name.to_string(),
+            DelegationAction::Execute,
+            executor_webid,
+            executor_webid,
+            &signing_key,
+        );
+
         let result = self
             .tools
-            .invoke(&tool_info.server_id, tool_name, input, token)
+            .invoke(&tool_info.server_id, tool_name, input, &token)
             .await
             .map_err(|error| match error {
                 ToolPortError::CapabilityDenied(message) => {
@@ -1290,22 +1287,8 @@ impl ManifestExecutor {
                 )
             });
 
-        // Create a delegation token for tool invocation
-        let secret_bytes: [u8; 32] = self.a2a_secret[..32]
-            .try_into()
-            .expect("a2a_secret must be at least 32 bytes");
-        let signing_key = ed25519_dalek::SigningKey::from_bytes(&secret_bytes);
-        let token = DelegationToken::new(
-            DelegationResource::Tool,
-            mcp_ref.to_string(),
-            DelegationAction::Execute,
-            WebID::from_persona(b"manifest-executor"),
-            WebID::from_persona(b"manifest-executor"),
-            &signing_key,
-        );
-
         let (result, tool_taint) = self
-            .invoke_tool(&mcp_ref, input, &token, context.len() as u64)
+            .invoke_tool(&mcp_ref, input, context.len() as u64)
             .await?;
 
         let result_key = format!("step_{}_result", step.ordinal);

@@ -43,7 +43,7 @@ impl ChatService {
         {
             return None;
         }
-        let episodes = Self::recall_raw_episodes(
+        let episodes = MemoryService::recall_raw_episodes(
             &req.episodic_storage,
             &req.agent_webid,
             token,

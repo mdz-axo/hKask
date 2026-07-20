@@ -14,18 +14,15 @@ use futures_util::Stream;
 use futures_util::StreamExt;
 
 use hkask_agents::curator::persona_filter;
-use hkask_agents::ports::{
-    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
-    StorageRequest,
-};
-use hkask_capability::{DelegationAction, DelegationToken};
+use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_capability::DelegationAction;
 use hkask_ports::InferencePort;
 use hkask_types::PersonaConstraints;
 use hkask_types::cns::CnsSpan;
 
 use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
-use hkask_types::{Confidence, DataCategory, WebID};
+use hkask_types::{DataCategory, WebID};
 
 use super::improv::improv_system_prompt;
 use super::types::{
@@ -434,7 +431,7 @@ impl ChatService {
             &prepared.agent_webid,
             &DataCategory::EpisodicMemory,
         ) {
-            Self::store_episodic(
+            MemoryService::store_episodic(
                 &prepared.episodic_port,
                 &req.input,
                 &result.text,
@@ -576,7 +573,7 @@ impl ChatService {
                 &prepared.agent_webid,
                 &DataCategory::EpisodicMemory,
             ) {
-                ChatService::store_episodic(
+                MemoryService::store_episodic(
                     &prepared.episodic_port,
                     &req.input,
                     &full_text,
@@ -600,270 +597,6 @@ impl ChatService {
                 memory_stored,
             };
         })
-    }
-
-    /// Sovereignty gate for chat-path memory access (H3).
-    ///
-    /// The chat orchestration path operates with raw storage ports rather than a
-    /// `PodContext`, so it must apply the same consent gate that
-    /// Recall semantic memory h_mems relevant to the input.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  semantic_port must be initialized; input must be non-empty; token must be valid
-    /// post: returns Some(String) of concatenated h_mem values if matches found; None if no matches or recall fails
-    ///
-    /// expect: "The system provides dual-path memory recall (semantic + episodic) with perspective-bound access"
-    #[must_use]
-    pub fn recall_semantic(
-        semantic_port: &Arc<dyn SemanticStoragePort>,
-        input: &str,
-        token: &DelegationToken,
-    ) -> Option<String> {
-        let request = RecallRequest::semantic(input, token.clone());
-        let h_mems = match semantic_port.recall_semantic(&request) {
-            Ok(t) if !t.is_empty() => t,
-            _ => return None,
-        };
-
-        let context: Vec<String> = h_mems
-            .iter()
-            .filter_map(|t: &RecalledSemantic| t.value.as_str().map(|s| s.to_string()))
-            .collect();
-
-        // Only return the most recent context to bound prompt size
-        let context: Vec<String> = context.into_iter().take(10).collect();
-
-        if context.is_empty() {
-            None
-        } else {
-            Some(context.join("\n"))
-        }
-    }
-
-    /// Recall episodic memories relevant to the input, sorted by salience.
-    ///
-    /// Mirrors `recall_semantic`: both return `Option<String>` of concatenated
-    /// memory values, both take top N results, both are called together in
-    /// `prepare_chat` and merged before injection into context.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  episodic_port must be initialized; input must be non-empty; agent_webid must be valid; token must be valid
-    /// post: returns Some(String) of formatted episodes sorted by relevance to input; None if no episodes or recall fails
-    ///
-    /// expect: "The system provides dual-path memory recall (semantic + episodic) with perspective-bound access"
-    #[must_use]
-    pub fn recall_episodic(
-        episodic_port: &Arc<dyn EpisodicStoragePort>,
-        input: &str,
-        agent_webid: &WebID,
-        token: &DelegationToken,
-    ) -> Option<String> {
-        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
-        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
-            Ok(v) if !v.is_empty() => v,
-            _ => return None,
-        };
-
-        // Build scored entries: (salience_score, formatted_text)
-        let input_lower = input.to_lowercase();
-        let keywords: Vec<&str> = input_lower
-            .split_whitespace()
-            .filter(|w| w.len() > 2)
-            .collect();
-
-        let mut scored: Vec<(usize, String)> = episodes
-            .iter()
-            .filter_map(|e| {
-                let v = e.value.as_object()?;
-                let ui = v.get("user_input")?.as_str()?;
-                let ar = v.get("agent_response")?.as_str()?;
-                let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
-                let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
-                Some((
-                    score,
-                    format!(
-                        "User: {}
-Agent: {}",
-                        ui, ar
-                    ),
-                ))
-            })
-            .collect();
-
-        // Sort descending by salience score, take top 10
-        scored.sort_by(|a, b| b.0.cmp(&a.0));
-        let top: Vec<String> = scored.into_iter().take(10).map(|(_, text)| text).collect();
-
-        if top.is_empty() {
-            None
-        } else {
-            Some(top.join(
-                "
-
-",
-            ))
-        }
-    }
-
-    /// Paired memory recall — returns both semantic (third-person) and
-    /// episodic (first-person) memories merged into a single context string.
-    ///
-    /// This is the standalone entry point for the dual-recall circuit.
-    /// Mirrors the merge pattern in `prepare_chat` but without prompt composition —
-    /// callers get just the memory context for injection wherever needed.
-    ///
-    /// \[P5\] Motivating: Essentialism — single entry point for paired memory access.
-    /// pre:  both ports must be initialized; input must be non-empty; agent_webid valid; token valid
-    /// post: returns Some(String) with merged semantic+episodic context; None if both recalled empty; each recall independently gated
-    ///
-    /// expect: "The system provides dual-path memory recall (semantic + episodic) with perspective-bound access"
-    #[must_use]
-    pub fn recall_memory(
-        semantic_port: &Arc<dyn SemanticStoragePort>,
-        episodic_port: &Arc<dyn EpisodicStoragePort>,
-        input: &str,
-        agent_webid: &WebID,
-        token: &DelegationToken,
-    ) -> Option<String> {
-        let semantic = MemoryService::recall_semantic(semantic_port, input, token);
-        let episodic = MemoryService::recall_episodic(episodic_port, input, agent_webid, token);
-
-        match (semantic, episodic) {
-            (Some(s), Some(e)) => Some(format!("{}\n\n{}", s, e)),
-            (Some(s), None) => Some(s),
-            (None, Some(e)) => Some(e),
-            (None, None) => None,
-        }
-    }
-
-    /// Store the chat exchange as an episodic h_mem.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  episodic_port must be initialized; input and response must be non-empty; agent_webid must be valid; token must be valid
-    /// post: chat exchange is stored as episodic h_mem with confidence 0.7; failures are logged but not returned (best-effort)
-    ///
-    /// expect: "The system provides dual-path memory recall (semantic + episodic) with perspective-bound access"
-    pub fn store_episodic(
-        episodic_port: &Arc<dyn EpisodicStoragePort>,
-        input: &str,
-        response: &str,
-        agent_webid: WebID,
-        token: &DelegationToken,
-        agent_name: &str,
-    ) {
-        let request = StorageRequest::episodic(
-            "chatted",
-            "chat_turn",
-            serde_json::json!({
-                "user_input": input,
-                "agent_response": response,
-            }),
-            Confidence::new(0.7),
-            agent_webid,
-        );
-        match episodic_port.store_episodic(request, token) {
-            Ok(_) => {
-                tracing::debug!(
-                    target: "hkask.chat.memory",
-                    agent = %agent_name,
-                    "Episodic trace stored"
-                );
-            }
-            Err(e) => {
-                tracing::debug!(
-                    target: "hkask.chat.memory",
-                    agent = %agent_name,
-                    error = %e,
-                    "Episodic storage failed — response still returned"
-                );
-            }
-        }
-    }
-
-    /// Recall recent chat turns from episodic memory as pre-formatted context.
-    ///
-    /// Returns `None` if episodic storage is empty or recall fails.
-    /// Each episode stores `user_input` + `agent_response` from `store_episodic()`.
-    /// Formatted as "[Previous conversation]\nUser: ...\nAgent: ...\n[/Previous conversation]"
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
-    /// post: returns Some(String) of formatted recent turns; None if no episodes or recall fails
-    ///
-    /// expect: "The system provides dual-path memory recall (semantic + episodic) with perspective-bound access"
-    ///
-    /// # REQ: P2-svc-chat-session-history — every history access routes through episodic storage
-    /// # REQ: P4-svc-chat-ocap-history — recall requires DelegationToken with Read on Manifest
-    #[must_use]
-    pub fn recall_recent_turns(
-        episodic_port: &Arc<dyn EpisodicStoragePort>,
-        agent_webid: &WebID,
-        token: &DelegationToken,
-        limit: usize,
-    ) -> Option<String> {
-        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
-        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
-            Ok(v) if !v.is_empty() => v,
-            _ => return None,
-        };
-        let recent: Vec<String> = episodes
-            .iter()
-            .rev()
-            .take(limit)
-            .filter_map(|e| {
-                let v = e.value.as_object()?;
-                let input = v.get("user_input")?.as_str()?;
-                let response = v.get("agent_response")?.as_str()?;
-                Some(format!("User: {}\nAgent: {}", input, response))
-            })
-            .collect();
-        if recent.is_empty() {
-            None
-        } else {
-            let formatted = recent.into_iter().rev().collect::<Vec<_>>().join("\n\n");
-            Some(format!(
-                "[Previous conversation]\n{}\n[/Previous conversation]\n\n",
-                formatted
-            ))
-        }
-    }
-
-    /// Recall raw episodes (not formatted text) for condensation.
-    ///
-    /// Returns episodes as `Vec<(role, content)>` tuples suitable for
-    /// passing to the condenser's `condenser_thread_summary` MCP tool.
-    /// Each episode yields one user message and one assistant message.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  episodic_port must be initialized; agent_webid must be valid; token must be valid; limit must be > 0
-    /// post: returns `Vec<Value>` of {role, content} messages; empty Vec if no episodes or recall fails
-    ///
-    /// expect: "The system provides dual-path memory recall (semantic + episodic) with perspective-bound access"
-    #[must_use]
-    pub fn recall_raw_episodes(
-        episodic_port: &Arc<dyn EpisodicStoragePort>,
-        agent_webid: &WebID,
-        token: &DelegationToken,
-        limit: usize,
-    ) -> Vec<serde_json::Value> {
-        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
-        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
-            Ok(v) if !v.is_empty() => v,
-            _ => return vec![],
-        };
-        let mut messages: Vec<serde_json::Value> = Vec::new();
-        for e in episodes.iter().rev().take(limit) {
-            if let Some(v) = e.value.as_object() {
-                if let Some(input) = v.get("user_input").and_then(|s| s.as_str()) {
-                    messages.push(serde_json::json!({"role": "user", "content": input}));
-                }
-                if let Some(response) = v.get("agent_response").and_then(|s| s.as_str()) {
-                    messages.push(serde_json::json!({"role": "assistant", "content": response}));
-                }
-            }
-        }
-        messages.reverse();
-        messages
     }
 
     /// Run a process manifest cascade for the agent, returning manifest-derived context.
@@ -1006,54 +739,17 @@ Agent: {}",
                 req.input.clone()
             };
 
-        // 2. Build context — invariant structure for all agents:
-        //    [thread history] → [semantic facts] → [episodic history] → [user input]
-        //
-        // Thread history is short-term memory: the active thread's recent
-        // conversation stream. Episodic is long-term memory: past sessions,
-        // other threads, consolidated experience. Semantic injects relevant
-        // facts derived from both. All three layers coexist structurally;
-        // each may be empty (None) but the assembly order is invariant.
+        // 2. Add the active thread's short-term history. Semantic and episodic
+        // memory are recalled once by `prepare_chat`, after all turn context is
+        // assembled, so the recall query matches the actual inference input.
         let history_token = req.capability_checker.grant_registry(
             DelegationAction::Read,
             req.system_webid,
             req.agent_webid,
         );
-        let history_suffix = if MemoryService::has_memory_consent(
-            ctx,
-            &req.agent_webid,
-            &DataCategory::EpisodicMemory,
-        ) {
-            Self::recall_recent_turns(
-                &req.episodic_storage,
-                &req.agent_webid,
-                &history_token,
-                req.condense_saliency_window,
-            )
-        } else {
-            None
-        };
-        let semantic_suffix = if MemoryService::has_memory_consent(
-            ctx,
-            &req.agent_webid,
-            &DataCategory::SemanticMemory,
-        ) {
-            let semantic_context =
-                MemoryService::recall_semantic(&req.semantic_storage, &base_input, &history_token);
-            semantic_context.map(|s| format!("## Relevant Facts\n{}", s))
-        } else {
-            None
-        };
-        let mut input_with_context = match (&req.thread_history, &history_suffix, &semantic_suffix)
-        {
-            (Some(t), Some(e), Some(s)) => format!("{}\n\n{}\n\n{}\n\n{}", base_input, t, s, e),
-            (Some(t), Some(e), None) => format!("{}\n\n{}\n\n{}", base_input, t, e),
-            (Some(t), None, Some(s)) => format!("{}\n\n{}\n\n{}", base_input, t, s),
-            (Some(t), None, None) => format!("{}\n\n{}", base_input, t),
-            (None, Some(e), Some(s)) => format!("{}\n\n{}\n\n{}", base_input, s, e),
-            (None, Some(e), None) => format!("{}\n\n{}", base_input, e),
-            (None, None, Some(s)) => format!("{}\n\n{}", base_input, s),
-            (None, None, None) => base_input.clone(),
+        let mut input_with_context = match &req.thread_history {
+            Some(thread_history) => format!("{}\n\n{}", base_input, thread_history),
+            None => base_input.clone(),
         };
 
         // 2b. Auto-condense: if enabled and context exceeds the configured
@@ -1084,7 +780,8 @@ Agent: {}",
             input_with_context
         };
 
-        // 4. Execute inference via ChatService::chat().
+        // 4. Execute inference. `chat` owns the sole memory recall, prompt
+        // assembly, inference, and episodic-storage path for this turn.
         // 4a. Inject improv mode instructions into the system prompt.
         let effective_input = if let Some(ref mode) = req.improv_mode {
             let improv_instruction = improv_system_prompt(mode);
@@ -1128,8 +825,6 @@ Agent: {}",
                 completion_tokens: 0,
                 total_tokens: 0,
             }),
-            iterations: req.iteration,
-            finish_reason: chat_response.finish_reason,
             structured_tool_calls: chat_response.tool_calls,
         })
     }

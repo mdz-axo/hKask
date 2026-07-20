@@ -1,7 +1,7 @@
 //! Chat service — unified inference, memory integration, and prompt composition.
 //!
 //! Module structure:
-//! - `types` — Request/response structs, token accounting, message sources
+//! - `types` — Request/response structs and token accounting
 //! - `service` — `ChatService` struct and core orchestration methods
 //! - `condenser` — Auto-condensation of conversation history
 //! - `improv` — Improv mode system prompt generation
@@ -15,6 +15,6 @@ pub mod types;
 
 pub use service::ChatService;
 pub use types::{
-    ChatStreamEvent, ChatTurnRequest, ChatTurnResponse, MessageSource, PreparedChat, TokenUsage,
-    TurnRequest, TurnResult,
+    ChatStreamEvent, ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage, TurnRequest,
+    TurnResult,
 };

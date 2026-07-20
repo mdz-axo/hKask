@@ -691,12 +691,6 @@ mod tests {
                 completion_tokens: 5,
                 total_tokens: 15,
             },
-            iterations: 1,
-            finish_reason: if tools.is_empty() {
-                "stop".to_string()
-            } else {
-                "tool_calls".to_string()
-            },
             structured_tool_calls: tools
                 .into_iter()
                 .map(|tc| StructuredToolCall {
