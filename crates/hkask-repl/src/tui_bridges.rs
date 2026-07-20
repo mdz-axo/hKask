@@ -634,86 +634,26 @@ impl MediaDataBridge for TuiReplBridge {
 }
 
 // ── TrainingDataBridge ───────────────────────────────────────────────
+//
+// NOTE: The adapter list and deployment list previously called the
+// `training_list_adapters` MCP tool. That tool was deleted in the
+// 2026-07-19 simplification (replaced by `AdapterPort::list_adapters`).
+// The proper migration is to route through `AdapterRouter` directly via
+// the service context's adapter store. For now, these return empty lists
+// (graceful degradation) — the TUI shows no adapters until the migration
+// is complete.
 
 impl TrainingDataBridge for TuiReplBridge {
     fn adapter_list(&self) -> Vec<AdapterSummary> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
-        self.rt_handle.block_on(async {
-            let args = serde_json::Map::new();
-            match runtime
-                .call_tool("training", "training_list_adapters", args)
-                .await
-            {
-                Ok(ref result) => {
-                    let content = parse_mcp_json(result);
-                    content
-                        .as_ref()
-                        .and_then(|v| v["adapters"].as_array())
-                        .map(|adapters| {
-                            adapters
-                                .iter()
-                                .filter_map(|a| {
-                                    Some(AdapterSummary {
-                                        name: a["name"].as_str()?.to_string(),
-                                        base_model: a["base_model"].as_str()?.to_string(),
-                                        version: a["version"].as_str().unwrap_or("v1").to_string(),
-                                        size_bytes: a["size_bytes"].as_u64().unwrap_or(0),
-                                        expertise: a["expertise"]
-                                            .as_str()
-                                            .unwrap_or("")
-                                            .to_string(),
-                                    })
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                }
-                Err(_) => Vec::new(),
-            }
-        })
+        // TODO: migrate to AdapterPort::list_adapters via AdapterRouter.
+        // The training MCP server no longer exposes training_list_adapters.
+        Vec::new()
     }
 
     fn deployment_list(&self) -> Vec<DeploymentSummary> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
-        self.rt_handle.block_on(async {
-            let args = serde_json::Map::new();
-            match runtime
-                .call_tool("training", "training_list_adapters", args)
-                .await
-            {
-                Ok(ref result) => {
-                    let content = parse_mcp_json(result);
-                    content
-                        .as_ref()
-                        .and_then(|v| v["adapters"].as_array())
-                        .map(|adapters| {
-                            adapters
-                                .iter()
-                                .filter_map(|a| {
-                                    let deployed = a["deployment"].as_object()?;
-                                    Some(DeploymentSummary {
-                                        adapter_name: a["name"].as_str()?.to_string(),
-                                        provider: deployed
-                                            .get("provider")
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("-")
-                                            .to_string(),
-                                        status: deployed
-                                            .get("status")
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("inactive")
-                                            .to_string(),
-                                    })
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                }
-                Err(_) => Vec::new(),
-            }
-        })
+        // TODO: migrate to AdapterPort::endpoint_status via AdapterRouter.
+        // The training MCP server no longer exposes training_deployment_status.
+        Vec::new()
     }
 
     fn session_count(&self) -> usize {

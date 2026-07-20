@@ -18,7 +18,7 @@ use thiserror::Error;
 
 /// Training harnesses — the tooling that runs on top of a host.
 ///
-/// This is the *harness* layer (Axolotl/Unsloth tooling), distinct from the
+/// This is the *harness* layer (Axolotl tooling), distinct from the
 /// *host* layer (where compute runs: Runpod) and the *base model* layer
 /// (what model is fine-tuned: Qwen/Gemma/Mistral).
 ///
@@ -31,8 +31,6 @@ use thiserror::Error;
 pub enum TrainingHarnessId {
     /// axolotl — YAML-based training framework, dispatched to Runpod
     Axolotl,
-    /// unsloth — memory-efficient Python training framework, dispatched to Runpod
-    Unsloth,
 }
 
 impl TrainingHarnessId {
@@ -41,7 +39,6 @@ impl TrainingHarnessId {
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "axolotl" => Some(Self::Axolotl),
-            "unsloth" => Some(Self::Unsloth),
             _ => None,
         }
     }
@@ -52,12 +49,12 @@ impl TrainingHarnessId {
 /// Training hosts — where the GPU compute runs.
 ///
 /// This is the *host* layer (cloud only — no local training), distinct from the
-/// *harness* layer (Axolotl/Unsloth tooling) and the *base model* layer
+/// *harness* layer (Axolotl tooling) and the *base model* layer
 /// (Qwen/Gemma/Mistral/etc.). Each variant represents a cloud backend that
 /// executes training jobs.
 ///
 /// Host → Harness mapping:
-///   Runpod → Axolotl | Unsloth
+///   Runpod → Axolotl
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingHostId {
@@ -198,7 +195,7 @@ pub struct LoraParams {
     pub r: u32,
     /// LoRA alpha scaling factor.
     pub alpha: u32,
-    /// LoRA dropout rate. 0.0 is optimized by Unsloth.
+    /// LoRA dropout rate. 0.0 is the standard for QLoRA training.
     #[serde(default)]
     pub dropout: f32,
     /// Target modules for LoRA adaptation.
@@ -320,7 +317,7 @@ impl Default for LoraParams {
         Self {
             r: 16,
             alpha: 32,
-            // Unsloth optimizes kernels for dropout=0; non-zero disables fast paths.
+            // dropout=0 is the standard for QLoRA training; non-zero can degrade quality.
             dropout: 0.0,
             target_modules: vec![
                 "q_proj".to_string(),
@@ -439,7 +436,7 @@ pub struct AdvancedParams {
     /// Attention implementation ("flash_attention_2", "sdpa", "eager").
     #[serde(default)]
     pub attn_implementation: Option<String>,
-    /// Gradient checkpointing ("unsloth" for Unsloth-optimized, "true" for standard).
+    /// Gradient checkpointing ("true" for standard, "unsloth" for Unsloth-optimized).
     #[serde(default)]
     pub gradient_checkpointing: Option<String>,
     /// Use bf16 mixed precision.
@@ -526,7 +523,7 @@ pub enum ProviderError {
 /// Pluggable training host — where a training job runs.
 ///
 /// This is the *host* layer (cloud or local GPU), distinct from the *harness* layer
-/// (Axolotl/Unsloth tooling) and the *base model* layer (Qwen/Gemma/Mistral).
+/// (Axolotl tooling) and the *base model* layer (Qwen/Gemma/Mistral).
 /// Each implementation talks to a specific compute backend.
 ///
 /// Implementations translate canonical `TrainingJob` representations into

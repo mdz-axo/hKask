@@ -37,9 +37,11 @@ Simplified from 21 → 15 → 8 across 2026-07-19 cleanups.
 
 ## Providers
 
-Single cloud host: **Runpod**. Two harnesses: **Axolotl** (YAML) and **Unsloth** (Python).
+Single cloud host: **Runpod**. Single harness: **Axolotl** (YAML).
 
 Deleted providers (2026-07-19): `TogetherHost` (Together AI REST API) and `TinkerHost` (Thinking Machines subprocess). The Runpod host is sufficient for all training workloads.
+
+Deleted harnesses (2026-07-19): `UnslothHarness` (Python). Re-add when there's a concrete data/training need — Axolotl is sufficient until then.
 
 ## Configuration
 
@@ -47,7 +49,6 @@ Deleted providers (2026-07-19): `TogetherHost` (Together AI REST API) and `Tinke
 |----------|-------------|
 | `RUNPOD_API_KEY` | Runpod API key |
 | `RUNPOD_TEMPLATE_ID` | Runpod GPU pod template ID with axolotl pre-installed |
-| `HKASK_TRAINING_HARNESS` | Override harness (axolotl\|unsloth) — what tooling runs |
 | `HKASK_PODS_FILE` | Path to RunPod pod ID persistence file (default: `data/training-pods.json`) — ensures orphaned pods can be terminated after restarts |
 
 ## lora-training skill integration

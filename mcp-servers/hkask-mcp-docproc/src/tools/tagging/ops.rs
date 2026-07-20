@@ -5,12 +5,27 @@
 //! and expertise level. Uses LLM-based extraction via a Jinja2 template.
 //! Every chunk gets at least one 5W1H dimension — no zero-tag chunks.
 
-use crate::tools::semantic::{GUARD, INPUT_GUARD_ENABLED};
+use crate::tools::semantic::GUARD;
 use crate::*;
 use hkask_inference::model_constants::classifier_model;
 use hkask_types::corpus::TaggedChunk;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+/// Maximum length of a single concept string after normalization.
+/// Guards against LLM-produced or injected oversized concept strings that
+/// would bloat embedding annotation prefixes and QA system prompts.
+const MAX_CONCEPT_LEN: usize = 80;
+
+/// Maximum number of concepts per ontology namespace. Guards against
+/// LLM-produced concept spam that would dominate the salience graph.
+const MAX_CONCEPTS_PER_NS: usize = 30;
+
+/// Failure-rate threshold above which the pipeline reports `degraded`
+/// outcome. A run with more than 10% of chunks failing LLM extraction
+/// indicates a systemic issue (model unavailable, prompt broken, or
+/// adversarial input) and must not be reported as `success`.
+const DEGRADED_FAILURE_THRESHOLD: usize = 10; // percent
 
 /// Minimal chunk for tagging (from chunks.jsonl).
 #[derive(Debug, Clone, Deserialize)]
@@ -84,6 +99,92 @@ fn compute_salience(tagged: &[TaggedChunk]) -> Vec<f32> {
     hkask_memory::salience::compute_salience_batch(&all_tags)
 }
 
+/// Validate and normalize LLM-extracted ontology tags before they enter the
+/// corpus. This is the security-critical boundary between untrusted LLM output
+/// and the trusted `TaggedChunk` record.
+///
+/// Applies the following invariants:
+/// - `dimensions`: filtered to the 5W1H allowlist; defaults to `["what"]` if empty.
+/// - `expertise_level`: must be one of `practitioner` | `analyst` | `researcher`;
+///   defaults to `analyst`.
+/// - `dc_subject`: each entry normalized via `normalize_concept`, deduped, length-capped.
+/// - `ontology_tags`: each namespace key lowercased + trimmed; each concept
+///   normalized, deduped per-namespace, length-capped, count-capped per namespace.
+///
+/// This function is the single point where LLM-produced strings become trusted
+/// corpus tags. Downstream consumers (salience graph, embedding annotation,
+/// QA prompt injection) rely on this normalization being applied uniformly.
+fn validate_ontology_tags(mut tags: OntologyTags) -> OntologyTags {
+    // Dimensions: allowlist filter, default to ["what"] if empty.
+    let valid_dims: Vec<String> = tags
+        .dimensions
+        .iter()
+        .filter(|d| {
+            matches!(
+                d.as_str(),
+                "who" | "what" | "when" | "where" | "why" | "how"
+            )
+        })
+        .cloned()
+        .collect();
+    tags.dimensions = if valid_dims.is_empty() {
+        vec!["what".to_string()]
+    } else {
+        valid_dims
+    };
+
+    // Expertise level: allowlist, default to "analyst".
+    if !matches!(
+        tags.expertise_level.as_str(),
+        "practitioner" | "analyst" | "researcher"
+    ) {
+        tags.expertise_level = "analyst".to_string();
+    }
+
+    // dc_subject: normalize + dedup + length cap.
+    tags.dc_subject = normalize_and_cap_concept_list(&tags.dc_subject);
+
+    // ontology_tags: normalize namespace keys, normalize + cap concept lists.
+    let mut cleaned_tags: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for (ns, concepts) in tags.ontology_tags {
+        let norm_ns = normalize_concept(&ns);
+        if norm_ns.is_empty() {
+            continue;
+        }
+        let cleaned_concepts = normalize_and_cap_concept_list(&concepts);
+        if !cleaned_concepts.is_empty() {
+            cleaned_tags.insert(norm_ns, cleaned_concepts);
+        }
+    }
+    tags.ontology_tags = cleaned_tags;
+
+    tags
+}
+
+/// Normalize a list of concept strings: lowercase + trim + collapse whitespace,
+/// dedup preserving first-seen order, drop empties, cap each string at
+/// `MAX_CONCEPT_LEN`, cap the list at `MAX_CONCEPTS_PER_NS`.
+fn normalize_and_cap_concept_list(raw: &[String]) -> Vec<String> {
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut out: Vec<String> = Vec::new();
+    for c in raw {
+        let mut norm = normalize_concept(c);
+        if norm.len() > MAX_CONCEPT_LEN {
+            // Truncate at a word boundary if possible, else hard truncate.
+            if let Some(last_space) = norm[..MAX_CONCEPT_LEN].rfind(' ') {
+                norm.truncate(last_space);
+            } else {
+                norm.truncate(MAX_CONCEPT_LEN);
+            }
+        }
+        if !norm.is_empty() && seen.insert(norm.clone()) && out.len() < MAX_CONCEPTS_PER_NS {
+            out.push(norm);
+        }
+    }
+    out
+}
+
 #[tool_router(router = tagging_router, vis = "pub")]
 impl DocProcServer {
     #[tool(
@@ -153,13 +254,17 @@ impl DocProcServer {
                         prompt
                     };
 
-                    // ContentGuard input scan — operator may disable via HKASK_ENABLE_CONTENT_GUARD
-                    if *INPUT_GUARD_ENABLED {
-                        let input_scan = GUARD.scan_input(&prompt);
-                        if !input_scan.passed {
-                            failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                            return;
-                        }
+                    // ContentGuard input scan — ALWAYS active on the tagging boundary.
+                    // The docproc pipeline ingests PDFs, HTML, and plain text — "operator-curated"
+                    // is a trust assumption, not a guarantee. A poisoned PDF chunk can
+                    // contain prompt-injection text that reaches the LLM unfiltered if the
+                    // guard is disabled. The output guard (scan_output) only strips secrets;
+                    // it cannot detect that the LLM's JSON output was hijacked. Therefore the
+                    // input guard on this boundary is non-disableable. (M2 fix.)
+                    let input_scan = GUARD.scan_input(&prompt);
+                    if !input_scan.passed {
+                        failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        return;
                     }
 
                     let params = LLMParameters {
@@ -206,23 +311,7 @@ impl DocProcServer {
                         let content = output_scan.output.content(&response.text);
                         let cleaned = extract_json_from_response(content);
                         serde_json::from_str::<OntologyTags>(&cleaned)
-                            .map(|mut tags| {
-                                // Validate dimensions against 5W1H allowlist
-                                let valid_dims: Vec<String> = tags.dimensions.iter()
-                                    .filter(|d| matches!(d.as_str(), "who"|"what"|"when"|"where"|"why"|"how"))
-                                    .cloned()
-                                    .collect();
-                                tags.dimensions = if valid_dims.is_empty() {
-                                    vec!["what".to_string()]
-                                } else {
-                                    valid_dims
-                                };
-                                // Validate expertise_level
-                                if !matches!(tags.expertise_level.as_str(), "practitioner"|"analyst"|"researcher") {
-                                    tags.expertise_level = "analyst".to_string();
-                                }
-                                tags
-                            })
+                            .map(validate_ontology_tags)
                             .ok()
                     } else {
                         None
@@ -352,7 +441,29 @@ impl DocProcServer {
                 "time_seconds": elapsed,
             });
 
-            let outcome = if f > total / 2 { "degraded" } else { "success" };
+            // Outcome classification. A run is `degraded` when the failure rate
+            // exceeds the threshold (default 10%). The old `f > total / 2` bar
+            // silently reported a 49% failure rate as `success` — masking
+            // systemic issues (model unavailable, prompt broken, adversarial
+            // input). The 10% threshold is conservative: any sustained failure
+            // rate above it indicates the pipeline should not be trusted to
+            // produce training data without operator review. (M1 fix.)
+            let failure_pct = if total == 0 { 0 } else { (f * 100) / total };
+            let outcome = if failure_pct >= DEGRADED_FAILURE_THRESHOLD {
+                "degraded"
+            } else {
+                "success"
+            };
+            if outcome == "degraded" {
+                tracing::warn!(
+                    target: "hkask.mcp.docproc.tag_chunks",
+                    failed = f,
+                    total = total,
+                    failure_pct = failure_pct,
+                    threshold_pct = DEGRADED_FAILURE_THRESHOLD,
+                    "Tagging run degraded — failure rate exceeds threshold"
+                );
+            }
             self.record_experience(
                 "docproc_tag_chunks",
                 &format!("{} chunks", total),
@@ -389,29 +500,6 @@ fn default_tag_concurrency() -> usize {
 mod tests {
     use super::*;
     use hkask_types::corpus::TaggedChunk;
-
-    #[test]
-    fn normalize_lowercases_trims_and_collapses_whitespace() {
-        assert_eq!(normalize_concept("ROIC"), "roic");
-        assert_eq!(
-            normalize_concept("  Return On Capital  "),
-            "return on capital"
-        );
-        assert_eq!(
-            normalize_concept("discounted   cash\tflow"),
-            "discounted cash flow"
-        );
-        assert_eq!(normalize_concept("   "), "");
-    }
-
-    #[test]
-    fn normalize_merges_case_variants_into_one_node() {
-        let a = normalize_concept("ROIC");
-        let b = normalize_concept("roic");
-        let c = normalize_concept("Roic ");
-        assert_eq!(a, b);
-        assert_eq!(b, c);
-    }
 
     #[test]
     fn salience_routes_through_memory_service_concepts_only() {
@@ -458,5 +546,137 @@ mod tests {
             scores[2], 0.0,
             "concept-less chunk must be an isolate (0.0)"
         );
+    }
+
+    #[test]
+    fn validate_ontology_tags_filters_invalid_dimensions() {
+        let tags = OntologyTags {
+            dimensions: vec!["who".into(), "invalid".into(), "what".into()],
+            expertise_level: "analyst".into(),
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        assert_eq!(out.dimensions, vec!["who".to_string(), "what".to_string()]);
+    }
+
+    #[test]
+    fn validate_ontology_tags_defaults_empty_dimensions_to_what() {
+        let tags = OntologyTags::default();
+        let out = validate_ontology_tags(tags);
+        assert_eq!(out.dimensions, vec!["what".to_string()]);
+    }
+
+    #[test]
+    fn validate_ontology_tags_defaults_invalid_expertise_to_analyst() {
+        let tags = OntologyTags {
+            expertise_level: "guru".into(),
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        assert_eq!(out.expertise_level, "analyst");
+    }
+
+    #[test]
+    fn validate_ontology_tags_normalizes_concept_case_and_whitespace() {
+        // C2 fix: case variants of the same concept must merge into one graph node.
+        let mut ontology_tags = std::collections::HashMap::new();
+        ontology_tags.insert(
+            "fibo".to_string(),
+            vec!["ROIC".into(), "roic ".into(), "Return On Capital".into()],
+        );
+        let tags = OntologyTags {
+            ontology_tags,
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        let fibo = out.ontology_tags.get("fibo").unwrap();
+        assert_eq!(
+            fibo.len(),
+            2,
+            "ROIC and roic merge; Return On Capital stays separate"
+        );
+        assert!(fibo.contains(&"roic".to_string()));
+        assert!(fibo.contains(&"return on capital".to_string()));
+    }
+
+    #[test]
+    fn validate_ontology_tags_normalizes_namespace_keys() {
+        let mut ontology_tags = std::collections::HashMap::new();
+        ontology_tags.insert("FIBO".to_string(), vec!["roic".into()]);
+        let tags = OntologyTags {
+            ontology_tags,
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        assert!(
+            out.ontology_tags.contains_key("fibo"),
+            "namespace key must be lowercased"
+        );
+        assert!(!out.ontology_tags.contains_key("FIBO"));
+    }
+
+    #[test]
+    fn validate_ontology_tags_caps_concept_length() {
+        let long_concept = "a".repeat(MAX_CONCEPT_LEN + 50);
+        let mut ontology_tags = std::collections::HashMap::new();
+        ontology_tags.insert("other".to_string(), vec![long_concept]);
+        let tags = OntologyTags {
+            ontology_tags,
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        let other = out.ontology_tags.get("other").unwrap();
+        assert_eq!(other.len(), 1);
+        assert!(
+            other[0].len() <= MAX_CONCEPT_LEN,
+            "concept must be truncated to MAX_CONCEPT_LEN"
+        );
+    }
+
+    #[test]
+    fn validate_ontology_tags_caps_concepts_per_namespace() {
+        let many: Vec<String> = (0..(MAX_CONCEPTS_PER_NS + 10))
+            .map(|i| format!("concept {i}"))
+            .collect();
+        let mut ontology_tags = std::collections::HashMap::new();
+        ontology_tags.insert("other".to_string(), many);
+        let tags = OntologyTags {
+            ontology_tags,
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        let other = out.ontology_tags.get("other").unwrap();
+        assert_eq!(
+            other.len(),
+            MAX_CONCEPTS_PER_NS,
+            "concept count must be capped"
+        );
+    }
+
+    #[test]
+    fn validate_ontology_tags_drops_empty_namespaces() {
+        let mut ontology_tags = std::collections::HashMap::new();
+        ontology_tags.insert("fibo".to_string(), vec!["   ".into(), "".into()]);
+        let tags = OntologyTags {
+            ontology_tags,
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        assert!(
+            out.ontology_tags.is_empty(),
+            "namespace with only empty concepts must be dropped"
+        );
+    }
+
+    #[test]
+    fn validate_ontology_tags_normalizes_dc_subject() {
+        let tags = OntologyTags {
+            dc_subject: vec!["ROIC".into(), "roic".into(), "  Return On Capital  ".into()],
+            ..Default::default()
+        };
+        let out = validate_ontology_tags(tags);
+        assert_eq!(out.dc_subject.len(), 2);
+        assert!(out.dc_subject.contains(&"roic".to_string()));
+        assert!(out.dc_subject.contains(&"return on capital".to_string()));
     }
 }

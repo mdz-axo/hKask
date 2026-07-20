@@ -18,7 +18,7 @@ pub mod types;
 
 // ── Re-exports for lib.rs compatibility ──────────────────────────────────
 
-pub use harness::{AxolotlHarness, HarnessAdapter, HarnessCapability, UnslothHarness};
+pub use harness::{AxolotlHarness, HarnessAdapter, HarnessCapability};
 pub use runpod::RunpodHost;
 pub use types::{
     AdvancedParams, CompletionMetadata, CostEstimate, LoraParams, OptimizationParams,
@@ -30,10 +30,9 @@ pub use types::{
 
 /// Create a training host from configuration and a pre-built harness.
 ///
-/// The harness selects the tooling (Axolotl/Unsloth). The host is fixed to
+/// The harness selects the tooling (Axolotl). The host is fixed to
 /// Runpod — the only cloud host. The harness is injected into the host at
-/// construction — the caller (lib.rs) selects the harness based on
-/// `harness_id` from config.
+/// construction.
 pub fn create_host(
     config: &TrainingHostConfig,
     harness: Box<dyn HarnessAdapter>,
@@ -95,10 +94,6 @@ mod tests {
         assert_eq!(
             TrainingHarnessId::from_str("AXOLOTL"),
             Some(TrainingHarnessId::Axolotl)
-        );
-        assert_eq!(
-            TrainingHarnessId::from_str("unsloth"),
-            Some(TrainingHarnessId::Unsloth)
         );
         assert_eq!(TrainingHarnessId::from_str("unknown"), None);
     }
@@ -204,13 +199,6 @@ mod tests {
         let harness = AxolotlHarness;
         let path = harness.output_dir("job-123");
         assert!(path.to_string_lossy().contains("job-123"));
-    }
-
-    #[test]
-    fn unsloth_harness_output_dir() {
-        let harness = UnslothHarness;
-        let path = harness.output_dir("job-456");
-        assert!(path.to_string_lossy().contains("job-456"));
     }
 
     #[test]

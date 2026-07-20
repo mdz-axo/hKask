@@ -141,8 +141,14 @@ pub struct TrainIngestDatasetRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TrainValidateConfigRequest {
     /// Training parameters to validate against the lora-training skill's
-    /// math-contract gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4).
+    /// math-contract gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4, G-Q5).
     pub params: TrainingParams,
+    /// Optional dataset path — if provided, runs G-D1 (dataset size vs quality).
+    #[serde(default)]
+    pub dataset_path: Option<String>,
+    /// Optional base model — if provided, runs G-Q5 (paged optimizer heuristic).
+    #[serde(default)]
+    pub base_model: Option<String>,
 }
 
 // ── Supporting types ─────────────────────────────────────────────────────

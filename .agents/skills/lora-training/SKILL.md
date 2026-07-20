@@ -99,7 +99,7 @@ convergence metric.
 
 1. Read each config file; quote lines for evidence (not synthetic).
 2. Extract `LoraConfig`, `BitsAndBytesConfig`, and training script parameters.
-3. Apply the 16 quality gates (G-M1..G-M5 math, G-Q1..G-Q6 QLoRA, G-D1..G-D3 data/eval, G-F1..G-F2 forgetting). Full gate definitions live in `audit-config.j2` and `docs/reference/lora-training-catalog.md`.
+3. Apply the 16 quality gates (13 implemented: G-M1..G-M5, G-Q1, G-Q2, G-Q4, G-Q5, G-D1, G-D2, G-D3, G-F1; 3 deferred to runtime: G-Q3, G-Q6, G-F2). Pre-submit gates run in `lora_validation.rs`; post-training gates run in `training_preflight_check`. Full gate definitions live in `audit-config.j2` and `docs/reference/lora-training-catalog.md`.
 4. Apply pragmatic-semantics (IS/OUGHT, epistemic mode, provenance) and grill-me self-challenge.
 5. Emit `cns.lora.audit` spans per gate evaluated.
 

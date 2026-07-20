@@ -5,7 +5,7 @@
 //! `hkask-storage` to avoid re-processing.
 //!
 //! Each provider adapter then translates canonical ChatML to its native format
-//! for cloud dispatch (axolotl YAML configs → Together/Runpod, unsloth).
+//! for cloud dispatch (axolotl YAML configs → Runpod).
 //! All training is cloud-only — there is no local training path.
 
 use serde::{Deserialize, Serialize};
@@ -395,34 +395,6 @@ impl DatasetPipeline {
 /// config YAML references it directly.
 pub fn to_axolotl_format(normalized_path: &std::path::Path) -> PathBuf {
     normalized_path.to_path_buf()
-}
-
-/// Convert canonical ChatML JSONL to unsloth-compatible text format.
-///
-/// Unsloth expects a single text field per example. We concatenate
-/// each conversation into a formatted text block.
-pub fn to_unsloth_format(
-    normalized_path: &std::path::Path,
-    conversations: &[ChatConversation],
-) -> Result<PathBuf, DatasetError> {
-    let output_path = normalized_path.with_extension("unsloth.jsonl");
-    let mut output = String::new();
-    for conv in conversations {
-        let text: Vec<String> = conv
-            .messages
-            .iter()
-            .map(|m| format!("<|{}|>\n{}", m.role, m.content))
-            .collect();
-        let record = serde_json::json!({"text": text.join("\n")});
-        output.push_str(
-            &serde_json::to_string(&record)
-                .map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?,
-        );
-        output.push('\n');
-    }
-    std::fs::write(&output_path, output)
-        .map_err(|e| DatasetError::Cache(format!("Failed to write unsloth format: {}", e)))?;
-    Ok(output_path)
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
