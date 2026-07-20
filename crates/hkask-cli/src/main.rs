@@ -156,6 +156,8 @@ fn main() {
 
         Commands::Adapter { action } => commands::adapter::run(action),
 
+        Commands::Skill { action } => commands::skill::run(action),
+
         Commands::Doctor { bootstrap } => {
             if bootstrap {
                 commands::doctor::run_bootstrap_check(&rt);

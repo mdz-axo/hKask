@@ -24,6 +24,7 @@ pub mod pod;
 pub mod repair;
 pub mod serve;
 pub mod settings;
+pub mod skill;
 pub mod sovereignty;
 pub mod token;
 pub mod tui;

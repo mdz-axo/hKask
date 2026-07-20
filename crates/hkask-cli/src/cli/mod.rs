@@ -112,6 +112,12 @@ pub enum Commands {
         action: AdapterAction,
     },
 
+    /// Skill corpus audit (CI gate; runtime ops via `/skill` in the REPL)
+    Skill {
+        #[command(subcommand)]
+        action: SkillAction,
+    },
+
     /// Validate all configured providers and API keys
     Doctor {
         /// Check the full bootstrap chain: daemon, socket, keychain, DB
@@ -202,6 +208,7 @@ impl Commands {
             Commands::Replicant { .. } => "replicant",
             Commands::Keystore { .. } => "keystore",
             Commands::Adapter { .. } => "adapter",
+            Commands::Skill { .. } => "skill",
             Commands::Doctor { .. } => "doctor",
             Commands::Onboard => "onboard",
             Commands::Settings { .. } => "settings",

@@ -616,6 +616,23 @@ pub enum DeployAction {
     },
 }
 
+/// Skill corpus audit — health-score verification. Discovery, status,
+/// publishing, and derivation remain REPL-only (`/skill`) since they
+/// operate on the live registry; the CLI exposes only the structural
+/// audit, which CI runs as a gate.
+#[derive(Debug, Subcommand)]
+pub enum SkillAction {
+    /// Audit all skills; exit non-zero if any skill's health score is below `--fail-below`.
+    Audit {
+        /// Minimum health score required to exit 0 (default: 0.8).
+        #[arg(long, default_value = "0.8")]
+        fail_below: f64,
+        /// Emit the full report as JSON instead of human-readable text.
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 /// Trained adapter lifecycle — Phase 2: pending MCP/API migration.
 /// Runtime operations that will move to an MCP server or API route.
 #[derive(Debug, Subcommand)]
