@@ -58,7 +58,7 @@ pub fn traverse(
             JOIN symbols s ON e.{to_col} = s.id
             JOIN code_files f ON s.file_id = f.id
             JOIN trav t ON e.{from_col} = t.node_id
-            WHERE t.depth < {max_depth}
+            WHERE t.depth < ?2
         )
         SELECT DISTINCT node_id, name, kind, path, signature, visibility,
                start_line, end_line, doc_comment, complexity_json, pagerank,
@@ -68,7 +68,7 @@ pub fn traverse(
     );
 
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(rusqlite::params![symbol_id], |row| {
+    let rows = stmt.query_map(rusqlite::params![symbol_id, max_depth as i64], |row| {
         Ok(TraversalNode {
             symbol: Symbol {
                 id: Some(row.get(0)?),

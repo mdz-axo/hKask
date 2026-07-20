@@ -50,11 +50,14 @@ log() { printf '[entrypoint] %s\n' "$*" >&2; }
 # pods), we transiently install build-essential and remove it after.
 if ! command -v axolotl >/dev/null 2>&1; then
     log "pip installing axolotl + huggingface_hub (this takes a few minutes)"
-    python3 -m pip install --no-cache-dir --upgrade pip wheel
-    if ! python3 -m pip install --no-cache-dir axolotl huggingface_hub 2>"${LOG_DIR}/pip.log"; then
+    # --break-system-packages: this is a single-purpose container; PEP 668
+    # does not apply here. Avoids the venv activation dance and keeps
+    # axolotl on the system PATH for RunPod's docker_args invocation.
+    python3 -m pip install --no-cache-dir --break-system-packages --upgrade pip wheel
+    if ! python3 -m pip install --no-cache-dir --break-system-packages axolotl huggingface_hub 2>"${LOG_DIR}/pip.log"; then
         log "pip install failed — retrying with build-essential (transient)"
         apt-get update && apt-get install -y --no-install-recommends build-essential
-        python3 -m pip install --no-cache-dir axolotl huggingface_hub \
+        python3 -m pip install --no-cache-dir --break-system-packages axolotl huggingface_hub \
             || { cat "${LOG_DIR}/pip.log" >&2; exit 3; }
         apt-get purge -y build-essential && apt-get autoremove -y
         rm -rf /var/lib/apt/lists/*

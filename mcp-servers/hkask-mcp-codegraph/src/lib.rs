@@ -358,6 +358,10 @@ impl CodeGraphServer {
     #[tool(description = "Get index statistics")]
     pub async fn codegraph_stats(&self, Parameters(req): Parameters<StatsRequest>) -> String {
         execute_tool(self, "codegraph_stats", async {
+            // Intentionally does NOT call ensure_indexed() — stats is a lightweight
+            // query that should return immediately. On a fresh server with no prior
+            // tool call, stats returns zeros. Call codegraph_reindex or any other
+            // tool first to populate the index.
             let pipeline = self
                 .pipeline
                 .lock()
@@ -520,7 +524,20 @@ impl CodeGraphServer {
                 let embeddings = embed_router.embed_sentences(&req.model, &text_refs).await
                     .map_err(|e| McpToolError::internal(format!("Embedding failed: {e}")))?;
 
+                // Reject partial responses — a provider returning fewer embeddings than
+                // requested would silently drop symbols if we just skipped the extras.
+                if embeddings.len() != chunk.len() {
+                    return Err(McpToolError::internal(format!(
+                        "Embedding provider returned {} vectors for {} symbols — \
+                         refusing to silently drop symbols (model: {})",
+                        embeddings.len(),
+                        chunk.len(),
+                        req.model,
+                    )));
+                }
+
                 for (i, (id, _ctx)) in chunk.iter().enumerate() {
+                    // Length already validated above, but guard defensively against panics.
                     if i < embeddings.len() {
                         all_embeddings.push((*id, embeddings[i].clone()));
                     }

@@ -37,11 +37,11 @@ pub fn search(conn: &Connection, query: &str, limit: usize) -> Result<Vec<Search
          JOIN code_files f ON s.file_id = f.id
          WHERE symbols_fts MATCH ?1
          ORDER BY rank
-         LIMIT {limit}"
+         LIMIT ?2"
     );
 
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(rusqlite::params![query], |row| {
+    let rows = stmt.query_map(rusqlite::params![query, limit as i64], |row| {
         Ok(SearchResult {
             symbol: Symbol {
                 id: Some(row.get(0)?),
@@ -73,11 +73,11 @@ pub fn search(conn: &Connection, query: &str, limit: usize) -> Result<Vec<Search
              JOIN code_files f ON s.file_id = f.id
              WHERE s.name LIKE ?1
              ORDER BY s.pagerank DESC
-             LIMIT {limit}"
+             LIMIT ?2"
         );
 
         let mut stmt = conn.prepare(&sql)?;
-        let rows = stmt.query_map(rusqlite::params![like_query], |row| {
+        let rows = stmt.query_map(rusqlite::params![like_query, limit as i64], |row| {
             Ok(SearchResult {
                 symbol: Symbol {
                     id: Some(row.get(0)?),
@@ -113,11 +113,11 @@ pub fn search_prefix(conn: &Connection, prefix: &str, limit: usize) -> Result<Ve
          JOIN code_files f ON s.file_id = f.id
          WHERE s.name LIKE ?1
          ORDER BY s.name
-         LIMIT {limit}"
+         LIMIT ?2"
     );
 
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(rusqlite::params![like], |row| {
+    let rows = stmt.query_map(rusqlite::params![like, limit as i64], |row| {
         Ok(Symbol {
             id: Some(row.get(0)?),
             name: row.get(1)?,

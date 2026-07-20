@@ -14,22 +14,24 @@
 
 FROM debian:bookworm-slim
 
-# python3 + pip + bash + ca-certificates + curl + git. axolotl ships
-# prebuilt wheels for torch/transformers/peft/tokenizers, so we do NOT need
-# build-essential in the image (saves ~300MB). If a pip install at pod
-# startup needs a compiler for an edge-case wheel, entrypoint.sh installs
-# the build deps transiently via `apt-get install -y build-essential` and
-# removes them after — keeping the committed image under 100MB.
+# Install python3-minimal + bash + ca-certificates + curl only. We avoid
+# python3-pip (pulls ~30MB of recommended deps) and bootstrap pip manually
+# via get-pip.py — this is the standard slim-Python pattern and keeps the
+# image under 100MB. axolotl ships prebuilt wheels for torch/transformers/
+# peft/tokenizers, so we do NOT need build-essential or git in the image.
+# If a pip install at pod startup needs a compiler for an edge-case wheel,
+# entrypoint.sh installs build-essential transiently and removes it after.
 # No CUDA, no torch wheels baked in.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 \
-        python3-pip \
-        python3-venv \
+        python3-minimal \
+        python3-distutils \
         bash \
         ca-certificates \
         curl \
-        git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSLO https://bootstrap.pypa.io/get-pip.py \
+    && python3 get-pip.py --break-system-packages \
+    && rm get-pip.py
 
 # Create the workspace directory where the config and outputs live.
 RUN mkdir -p /workspace/outputs
