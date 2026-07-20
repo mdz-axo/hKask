@@ -158,6 +158,7 @@ fn show_manifest(name: &str) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn start_kata(
     rt: &tokio::runtime::Runtime,
     name: &str,
