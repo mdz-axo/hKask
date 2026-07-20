@@ -412,7 +412,11 @@ impl TrainingHost for RunpodHost {
 
         // The pod must resolve an image: either an explicit docker image or a
         // template id. Mirrors the SDK's `create_pod` validation.
-        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE").unwrap_or_default();
+        // Default to the minimal axolotl-lora-trainer image pushed to Docker Hub
+        // (docker.io/mdzaxo/axolotl-lora-trainer:latest, ~44MB compressed).
+        // The image's bash entrypoint handles the full training lifecycle.
+        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE")
+            .unwrap_or_else(|_| "docker.io/mdzaxo/axolotl-lora-trainer:latest".to_string());
         if docker_image.is_empty() && self.template_id.is_empty() {
             return Err(ProviderError::InvalidConfig(
                 "Either RUNPOD_DOCKER_IMAGE or RUNPOD_TEMPLATE_ID must be set to create a RunPod pod"
@@ -574,54 +578,19 @@ impl TrainingHost for RunpodHost {
         env_entries.push(("HKASK_AXOLOTL_CONFIG", axolotl_yaml));
 
         // Generate docker args if not provided via env var.
-        // The startup script: writes the axolotl config, installs deps, runs training,
-        // uploads the adapter to HuggingFace, and writes the completion manifest.
-        let docker_args = std::env::var("RUNPOD_DOCKER_ARGS").unwrap_or_else(|_| {
-            // Default startup script — runs axolotl training in the pod.
-            r#"bash -c '
-set -euo pipefail
-
-# Write the axolotl config from the env var
-echo "$HKASK_AXOLOTL_CONFIG" > /workspace/config.yml
-
-# Install axolotl if not present (the docker image may already have it)
-if ! command -v axolotl &>/dev/null; then
-  pip install axolotl
-fi
-
-# Run training
-axolotl train /workspace/config.yml
-
-# Upload adapter to HuggingFace if HF_TOKEN is set
-if [ -n "$HF_TOKEN" ]; then
-  python -c "
-from huggingface_hub import HfApi
-import json, os
-api = HfApi(token=os.environ[\"HF_TOKEN\"])
-repo = os.environ[\"HKASK_HF_MODEL_REPOSITORY\"]
-api.create_repo(repo_id=repo, exist_ok=True)
-api.upload_folder(folder_path=os.environ.get(\"AXOLOTL_OUTPUT_DIR\", \"./axolotl-output\"), repo_id=repo)
-print(json.dumps({\"adapter_path\": repo, \"status\": \"uploaded\"}))
-"
-fi
-
-# Write completion manifest
-python -c "
-import json, os
-manifest = {
-    \"job_id\": os.environ.get(\"HKASK_JOB_ID\", \"\"),
-    \"base_model\": os.environ.get(\"HKASK_BASE_MODEL\", \"\"),
-    \"status\": \"completed\",
-    \"output_path\": os.environ.get(\"HKASK_HF_MODEL_REPOSITORY\", \"\")
-}
-manifest_path = os.environ.get(\"HKASK_COMPLETION_MANIFEST_PATH\", \"/workspace/completion.json\")
-with open(manifest_path, \"w\") as f:
-    json.dump(manifest, f)
-print(f\"Completion manifest written to {manifest_path}\")
-"
-'
-"#.to_string()
-        });
+        // The image `docker.io/mdzaxo/axolotl-lora-trainer:latest` ships a bash
+        // entrypoint at /usr/local/bin/entrypoint.sh that handles the full
+        // training lifecycle: pip install axolotl, write config from
+        // HKASK_AXOLOTL_CONFIG, run `axolotl train`, upload adapter via
+        // `huggingface-cli upload`, write completion manifest, and
+        // `exec sleep infinity` for SSH debugging.
+        //
+        // We invoke the entrypoint directly (no inline bash, no Python) —
+        // the entrypoint is the single source of truth for pod startup logic,
+        // and Rust remains the single source of truth for config generation
+        // (per AGENTS.md tooling policy: Rust only, no Python in our code).
+        let docker_args = std::env::var("RUNPOD_DOCKER_ARGS")
+            .unwrap_or_else(|_| "/usr/local/bin/entrypoint.sh".to_string());
 
         let mutation = self.build_pod_deploy_mutation(
             &job.id,
