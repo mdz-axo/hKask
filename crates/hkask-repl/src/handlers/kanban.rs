@@ -666,7 +666,7 @@ fn handle_submit(service: &KanbanService, webid: WebID, rest: &str) {
             return;
         }
     };
-    // Contract-based verification (TaskContract.check_completion)
+    // Evidence-based verification (non-empty evidence = user confirmed)
     match service.task_verify(tid, evidence, webid) {
         Ok((task, v)) => {
             println!(
