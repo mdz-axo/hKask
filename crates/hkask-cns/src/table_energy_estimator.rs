@@ -15,7 +15,7 @@
 //
 //! Unknown servers default to 10. Use `CompositeEnergyEstimator` for production.
 
-use crate::governed_tool::EnergyEstimator;
+use crate::energy_estimator::EnergyEstimator;
 use serde_json::Value;
 use std::collections::HashMap;
 

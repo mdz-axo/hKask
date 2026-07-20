@@ -23,7 +23,6 @@ pub mod host;
 pub use host::{OnboardingError, OnboardingOutcome, ReplHost};
 mod init;
 mod threads;
-mod tool_augmented;
 #[cfg(feature = "tui")]
 mod tui_bridges;
 mod turn;
@@ -98,13 +97,6 @@ pub type ManifestState = Option<ManifestCascade>;
 /// `impl Trait` returns, making re-derivation via `Arc<dyn ToolPort>`
 /// infeasible without changing the port trait.
 #[derive(Debug, Clone)]
-pub struct ToolPrompt {
-    /// Pre-formatted tool section of the system prompt.
-    pub section: String,
-    /// OpenAI-compatible tool definitions for native function calling.
-    /// When non-empty, tools are included in inference requests.
-    pub definitions: Vec<ChatToolDefinition>,
-}
 
 /// REPL state — surface-specific presentation fields.
 /// All infrastructure (inference, memory, tool dispatch, gas tracking)
@@ -128,7 +120,6 @@ pub struct ReplState {
     /// `Arc<dyn ToolPort>`. Re-derive here when servers start/stop
     /// dynamically, or when making `ToolPort` dyn-compatible becomes
     /// a justified refactor.
-    pub tool_prompt: ToolPrompt,
     /// Manifest state — `Some` when the agent has a process manifest
     /// cascade defined, `None` otherwise. The cascade bundles manifest +
     /// executor together so the "both present" invariant is enforced by

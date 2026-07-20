@@ -11,7 +11,6 @@ pub mod fusion;
 pub mod goal;
 pub mod improv;
 pub mod info;
-pub mod invoke;
 pub mod kata;
 pub mod listen;
 #[cfg(feature = "communication")]
@@ -39,7 +38,6 @@ pub use fusion::handle_fusion;
 pub use goal::handle_goal;
 pub use improv::handle_improv;
 pub use info::{handle_history, handle_pods, handle_templates, handle_tools};
-pub use invoke::handle_invoke;
 pub use kanban::handle_kanban;
 pub use kata::handle_kata;
 pub use listen::handle_listen;

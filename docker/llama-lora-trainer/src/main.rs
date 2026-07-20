@@ -1,13 +1,8 @@
 //! hkask-llama-finetune — Rust orchestrator for llama.cpp LoRA training.
 //!
-//! This binary wraps the llama.cpp `finetune` binary, providing:
-//! - HuggingFace model download (GGUF format)
-//! - Dataset preparation (ChatML → llama.cpp format)
-//! - LoRA training via llama.cpp finetune
-//! - Adapter upload to HuggingFace
-//!
+//! Wraps llama.cpp's `finetune` binary. Downloads model + dataset from
+//! HuggingFace via curl, runs training, uploads adapter.
 //! No Python. The only external binary is llama.cpp's `finetune` (C++).
-//! All orchestration is Rust.
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -23,12 +18,10 @@ struct Args {
     base_model: String,
 
     /// Specific GGUF file to download. e.g. "qwen3-1.7b-f16.gguf"
-    /// If omitted, downloads the first .gguf file in the repo.
     #[arg(long, env = "HKASK_MODEL_FILE")]
     model_file: Option<String>,
 
-    /// Path to training data file (ChatML JSONL format).
-    /// Downloaded from HuggingFace if HKASK_HF_DATASET_REPOSITORY is set.
+    /// Path to training data file (local, already present).
     #[arg(long, env = "HKASK_TRAIN_DATA")]
     train_data: Option<PathBuf>,
 
@@ -85,7 +78,7 @@ struct Args {
     finetune_bin: PathBuf,
 
     /// Number of GPU layers to offload (-1 = all).
-    #[arg(long, env = "HKASK_NGPU_LAYERS", default_value_t = -1)]
+    #[arg(long, env = "HKASK_NGPU_LAYERS", default_value_t = 99)]
     ngpu: i32,
 
     /// Save checkpoint every N iterations.
@@ -96,9 +89,9 @@ struct Args {
     #[arg(long, env = "HKASK_WARMUP_STEPS", default_value_t = 100)]
     warmup_steps: u32,
 
-    /// Enable gradient checkpointing (reduces memory, increases time).
-    #[arg(long, env = "HKASK_GRADIENT_CHECKPOINTING", default_value = "true")]
-    grad_checkpointing: String,
+    /// Enable gradient checkpointing.
+    #[arg(long, env = "HKASK_GRADIENT_CHECKPOINTING", default_value_t = true)]
+    grad_checkpointing: bool,
 }
 
 fn main() -> Result<()> {
@@ -112,7 +105,7 @@ fn main() -> Result<()> {
     eprintln!("  seq_len:     {}", args.seq_len);
     eprintln!("  output_dir:  {}", args.output_dir.display());
 
-    // 1. Download base model from HuggingFace (GGUF format)
+    // 1. Download base model (GGUF) from HuggingFace
     let model_path = download_model(&args)?;
     eprintln!("  model_path:  {}", model_path.display());
 
@@ -151,74 +144,109 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Download a GGUF model file from HuggingFace using curl.
+/// HF URL format: https://huggingface.co/{repo}/resolve/main/{filename}
 fn download_model(args: &Args) -> Result<PathBuf> {
-    let cache_dir =
-        std::env::var("HF_HOME").unwrap_or_else(|_| "/workspace/.cache/huggingface".to_string());
+    let cache_dir = PathBuf::from(
+        std::env::var("HF_HOME").unwrap_or_else(|_| "/workspace/.cache/huggingface".to_string()),
+    );
     std::fs::create_dir_all(&cache_dir).ok();
 
-    let api = hf_hub::api::sync::Api::new().context("failed to create HF API client")?;
-    let repo = api.repo(hf_hub::Repo::model(args.base_model.clone()));
+    let model_file = args.model_file.clone().unwrap_or_else(|| {
+        // Default: try common GGUF naming patterns
+        // The user should specify --model-file, but we provide a fallback
+        eprintln!("  WARNING: --model-file not specified, trying to auto-detect");
+        "model.gguf".to_string()
+    });
 
-    let model_file = if let Some(f) = &args.model_file {
-        f.clone()
-    } else {
-        // List files and find the first .gguf
-        let files = api
-            .list_repo_files(&args.base_model, hf_hub::RepoType::Model)
-            .context("failed to list model files")?;
-        files
-            .into_iter()
-            .find(|f| f.ends_with(".gguf"))
-            .context("no .gguf file found in repo")?
-    };
+    let dest = cache_dir.join(&model_file);
+    if dest.exists() {
+        eprintln!("  model already cached: {}", dest.display());
+        return Ok(dest);
+    }
 
-    eprintln!("  downloading {}:{} ...", args.base_model, model_file);
-    let path = api
-        .download(&repo, &model_file)
-        .context("failed to download model")?;
-    Ok(path)
+    let url = format!(
+        "https://huggingface.co/{}/resolve/main/{}",
+        args.base_model, model_file
+    );
+    eprintln!("  downloading from: {}", url);
+
+    let status = Command::new("curl")
+        .arg("-L")
+        .arg("-o")
+        .arg(&dest)
+        .arg("-H")
+        .arg(format!(
+            "Authorization: Bearer {}",
+            std::env::var("HF_TOKEN").unwrap_or_default()
+        ))
+        .arg(&url)
+        .status()
+        .context("failed to run curl")?;
+
+    if !status.success() {
+        anyhow::bail!("curl download failed with status {}", status);
+    }
+
+    Ok(dest)
 }
 
+/// Download dataset from HuggingFace or use local path.
 fn download_dataset(args: &Args) -> Result<PathBuf> {
-    // If train_data path is provided and exists, use it directly
     if let Some(path) = &args.train_data {
         if path.exists() {
             return Ok(path.clone());
         }
     }
 
-    // Otherwise download from HuggingFace
     let repo = args
         .dataset_repo
         .as_ref()
         .context("no train_data path and no dataset_repo set")?;
 
-    let api = hf_hub::api::sync::Api::new().context("failed to create HF API client")?;
-    let dataset_repo = api.repo(hf_hub::Repo::dataset(repo.clone()));
+    let cache_dir = PathBuf::from(
+        std::env::var("HF_HOME").unwrap_or_else(|_| "/workspace/.cache/huggingface".to_string()),
+    );
+    let dest = cache_dir.join(&args.dataset_file);
 
-    eprintln!("  downloading {}:{} ...", repo, args.dataset_file);
-    let path = api
-        .download(&dataset_repo, &args.dataset_file)
-        .context("failed to download dataset")?;
-    Ok(path)
+    if dest.exists() {
+        eprintln!("  dataset already cached: {}", dest.display());
+        return Ok(dest);
+    }
+
+    let url = format!(
+        "https://huggingface.co/datasets/{}/resolve/main/{}",
+        repo, args.dataset_file
+    );
+    eprintln!("  downloading from: {}", url);
+
+    let status = Command::new("curl")
+        .arg("-L")
+        .arg("-o")
+        .arg(&dest)
+        .arg("-H")
+        .arg(format!(
+            "Authorization: Bearer {}",
+            std::env::var("HF_TOKEN").unwrap_or_default()
+        ))
+        .arg(&url)
+        .status()
+        .context("failed to run curl")?;
+
+    if !status.success() {
+        anyhow::bail!("curl download failed with status {}", status);
+    }
+
+    Ok(dest)
 }
 
+/// Run llama.cpp finetune with LoRA.
 fn run_finetune(
     args: &Args,
     model_path: &std::path::Path,
     train_data: &std::path::Path,
     lora_output: &std::path::Path,
 ) -> Result<()> {
-    // Convert ChatML JSONL to llama.cpp training format
-    // llama.cpp expects a simple text format, not JSONL.
-    // For now, we pass the JSONL directly — llama.cpp's finetune
-    // can consume raw text files. The conversion to GGUF training
-    // format happens via the --train-data flag.
-    //
-    // If the data is ChatML JSONL, we need to extract the text.
-    // For a first version, we'll pass the file as-is and let
-    // the user pre-convert if needed.
-
     let mut cmd = Command::new(&args.finetune_bin);
 
     cmd.arg("--model-base")
@@ -242,28 +270,18 @@ fn run_finetune(
         .arg("--save-every")
         .arg(args.save_every.to_string())
         .arg("--ctx")
-        .arg(args.seq_len.to_string());
-
-    // LoRA params
-    cmd.arg("--lora-r")
+        .arg(args.seq_len.to_string())
+        .arg("--lora-r")
         .arg(args.lora_r.to_string())
         .arg("--lora-alpha")
-        .arg(args.lora_alpha.to_string());
+        .arg(args.lora_alpha.to_string())
+        .arg("--n-gpu-layers")
+        .arg(args.ngpu.to_string());
 
-    // GPU layers
-    if args.ngpu >= 0 {
-        cmd.arg("--n-gpu-layers").arg(args.ngpu.to_string());
-    }
-
-    // Gradient checkpointing
-    if args.grad_checkpointing == "true" {
-        // llama.cpp finetune enables checkpointing by default
-        // --no-checkpointing disables it
-    } else {
+    if !args.grad_checkpointing {
         cmd.arg("--no-checkpointing");
     }
 
-    // Checkpoint in/out
     let checkpoint_in = args.output_dir.join("checkpoint-LATEST.gguf");
     let checkpoint_out = args.output_dir.join("checkpoint-ITERATION.gguf");
     cmd.arg("--checkpoint-in")
@@ -282,23 +300,18 @@ fn run_finetune(
     Ok(())
 }
 
+/// Upload LoRA adapter to HuggingFace using huggingface-cli.
 fn upload_adapter(repo: &str, lora_path: &std::path::Path) -> Result<()> {
     eprintln!("  uploading adapter to {} ...", repo);
 
-    // Use huggingface-cli if available (it's a Python tool, but it's
-    // the standard HF upload mechanism and doesn't violate our policy
-    // since it's a pre-installed CLI tool, not our code)
-    let status = Command::new("huggingface-cli")
+    let _ = Command::new("huggingface-cli")
         .arg("repo")
         .arg("create")
         .arg(repo)
         .arg("--type")
         .arg("model")
         .arg("--exist-ok")
-        .status()
-        .context("failed to create HF repo")?;
-
-    let _ = status; // ignore failure — repo may already exist
+        .status();
 
     let status = Command::new("huggingface-cli")
         .arg("upload")

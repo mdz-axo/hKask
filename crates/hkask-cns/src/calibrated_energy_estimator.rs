@@ -20,7 +20,7 @@
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
 use crate::dynamic_gas_table::DynamicGasTable;
 use crate::gas_report::GasReport;
-use crate::governed_tool::EnergyEstimator;
+use crate::energy_estimator::EnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use hkask_ports::CnsStoragePort;
 use hkask_types::InfrastructureError;

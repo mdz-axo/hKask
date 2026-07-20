@@ -10,7 +10,7 @@
 //! This closes the Good Regulator feedback loop (P9).
 
 use crate::composite_energy_estimator::CompositeEnergyEstimator;
-use crate::governed_tool::EnergyEstimator;
+use crate::energy_estimator::EnergyEstimator;
 use serde_json::Value;
 
 /// Energy estimator that wraps `CompositeEnergyEstimator` and carries

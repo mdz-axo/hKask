@@ -19,7 +19,7 @@ use hkask_types::WebID;
 
 use super::energy::EnergyGuard;
 use super::threads::ThreadRegistry;
-use super::tool_augmented::ToolCall;
+use super::turn::ToolCall;
 
 // ── TurnInput: primitive inputs to a turn ────────────────────────────
 
@@ -117,7 +117,6 @@ pub struct ReplTurnExecutor {
     current_model: String,
     agent_webid: WebID,
     persona_constraints: Option<PersonaConstraints>,
-    tool_section: String,
     tool_definitions: Vec<hkask_ports::ChatToolDefinition>,
     improv_mode: Option<hkask_improv::ImprovMode>,
 }
@@ -133,8 +132,6 @@ impl ReplTurnExecutor {
             current_model: state.current_model.clone(),
             agent_webid: state.agent_webid,
             persona_constraints: state.persona_constraints.clone(),
-            tool_section: state.tool_prompt.section.clone(),
-            tool_definitions: state.tool_prompt.definitions.clone(),
             improv_mode: state.improv_mode.clone(),
         }
     }
@@ -160,7 +157,6 @@ impl TurnExecutor for ReplTurnExecutor {
             semantic_storage: mem.semantic_storage,
             agent_webid: self.agent_webid,
             persona_constraints: self.persona_constraints.clone(),
-            tool_section: self.tool_section.clone(),
             api_spec: None,
             llm_params: super::handlers::to_llm_params(settings),
             capability_checker: self.ctx.governance().checker.clone(),

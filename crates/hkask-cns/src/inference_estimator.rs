@@ -5,7 +5,7 @@
 //! This estimator can be used with `GovernedTool` to govern inference
 //! through the unified tool membrane.
 
-use crate::governed_tool::EnergyEstimator;
+use crate::energy_estimator::EnergyEstimator;
 use serde_json::Value;
 
 /// Characters per token heuristic (English text ≈ 4 chars/token).

@@ -346,7 +346,6 @@ fn refresh_tool_section(state: &mut super::super::ReplState, rt: &tokio::runtime
             tools.push(info);
         }
     }
-    state.tool_prompt.section = super::super::tool_augmented::format_tool_prompt_section(&tools);
 }
 
 #[cfg(test)]

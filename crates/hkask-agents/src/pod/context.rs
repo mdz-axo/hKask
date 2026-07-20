@@ -12,7 +12,6 @@
 
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use hkask_cns::ExperienceClassification;
-use hkask_cns::GovernedTool;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
 use hkask_ports::ToolPort;
@@ -59,7 +58,7 @@ pub struct PodContext {
     /// (energy budget, variety tracking, event spans). When present, `invoke_tool`
     /// routes through this membrane instead of the raw `mcp_runtime`, ensuring
     /// pod-initiated calls are subject to Cybernetics governance.
-    governed_tool: Option<Arc<GovernedTool<McpRuntime>>>,
+    governed_tool: Arc<McpRuntime>,
     /// Cryptographic capability checker for OCAP verification.
     /// When set, `require_capability()` verifies the token's Ed25519 signature
     /// against the configured trusted root(s) and that it is delegated to this
@@ -510,32 +509,29 @@ impl PodContext {
             DelegationAction::Execute,
         )?;
 
-        if let Some(ref governed) = self.governed_tool {
-            // Route through GovernedTool membrane (CNS governance: gas, variety, spans)
-            let server = self
-                .mcp_runtime
-                .resolve_tool_server(tool_name)
-                .ok_or_else(|| {
-                    let msg = format!(
-                        "Tool '{}' not registered on any MCP server — invocation denied",
-                        tool_name
-                    );
-                    AgentPodError::ToolError(Box::new(std::io::Error::new(
-                        std::io::ErrorKind::NotFound,
-                        msg,
-                    )))
-                })?;
+        let server = self
+            .mcp_runtime
+            .resolve_tool_server(tool_name)
+            .ok_or_else(|| {
+                let msg = format!(
+                    "Tool '{}' not registered on any MCP server — invocation denied",
+                    tool_name
+                );
+                AgentPodError::ToolError(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    msg,
+                )))
+            })?;
 
-            let rt = tokio::runtime::Handle::current();
-            match rt.block_on(governed.invoke(&server, tool_name, input, &self.capability_token)) {
-                Ok(value) => Ok(value),
-                Err(e) => Err(AgentPodError::ToolError(e.into())),
-            }
-        } else {
-            // Fallback: raw mcp_runtime path (OCAP verification but no CNS governance)
-            self.mcp_runtime
-                .invoke_tool(tool_name, input, &self.capability_token)
-                .map_err(|e| AgentPodError::ToolError(e.into()))
+        let rt = tokio::runtime::Handle::current();
+        match rt.block_on(self.governed_tool.invoke(
+            &server,
+            tool_name,
+            input,
+            &self.capability_token,
+        )) {
+            Ok(value) => Ok(value),
+            Err(e) => Err(AgentPodError::ToolError(e.into())),
         }
     }
 }

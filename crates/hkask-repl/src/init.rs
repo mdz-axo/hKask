@@ -11,9 +11,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use hkask_agents::InferenceLoop;
-use hkask_cns::{GasBudget, GasCost, GovernedTool};
+use hkask_cns::{GasBudget, GasCost};
 
-use super::{TalkConfig, TalkMode, ToolPrompt};
+use super::{TalkConfig, TalkMode};
 use hkask_mcp::McpRuntime;
 use hkask_ports::{ToolInfo, ToolPort};
 use hkask_templates::{ManifestExecutor, McpPort};
@@ -21,7 +21,7 @@ use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 
 use super::ReplState;
-use super::tool_augmented;
+
 
 /// Load skills from `.agents/skills/` and `skills/` into the registry.
 ///
@@ -281,7 +281,7 @@ fn load_thread_registry(agent_name: &str, stm_life: u32) -> crate::threads::Thre
 ///
 /// Used by: `init_repl_state`
 fn discover_tools(
-    governed_tool: &Arc<GovernedTool<McpRuntime>>,
+    governed_tool: &Arc<McpRuntime>,
     rt: &tokio::runtime::Handle,
 ) -> ToolPrompt {
     let tool_names = rt.block_on(governed_tool.discover_tools());
@@ -292,8 +292,7 @@ fn discover_tools(
         }
     }
     ToolPrompt {
-        section: tool_augmented::format_tool_prompt_section(&tools),
-        definitions: tool_augmented::tools_to_definitions(&tools),
+        definitions: tools_to_definitions(&tools),
     }
 }
 
@@ -513,7 +512,6 @@ pub(super) fn init_repl_state(
         active_session: None,
         resolved_secrets: onboarding_outcome.resolved_secrets,
         persona_constraints: None,
-        tool_prompt: ToolPrompt {
             section: String::new(),
             definitions: Vec::new(),
         },
@@ -534,7 +532,6 @@ pub(super) fn init_repl_state(
 
     // ── Phase 13: Tool Discovery ───────────────────────────────────────────
     let gov_tool = ctx.governed_tool(agent_webid);
-    state.tool_prompt = discover_tools(&gov_tool, rt);
 
     // ── Phase 14: Agent Definition + Process Manifest ───────────────────────
     let rich_def = ctx

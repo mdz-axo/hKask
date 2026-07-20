@@ -322,7 +322,6 @@ pub(super) fn handle_slash_command(
             state.host.run_sovereignty_status();
         }
         "ask" => handlers::handle_ask(arg1, arg2, rt, state),
-        "invoke" | "inv" => handlers::handle_invoke(arg1, arg2, state, rt),
         "model" | "m" => handlers::handle_model(arg1, rt, state),
         "fusion" => handlers::handle_fusion(arg1, state),
         "consolidate" | "cons" => {

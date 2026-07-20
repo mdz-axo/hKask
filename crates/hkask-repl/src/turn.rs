@@ -14,7 +14,7 @@ use super::TalkMode;
 use super::cns_display;
 use super::deps::{TurnConfig, TurnDeps, TurnInput};
 use super::handlers::speak_response;
-use super::tool_augmented;
+
 
 // ── TurnSink: output abstraction ─────────────────────────────────────
 
@@ -208,7 +208,7 @@ fn run_turn_loop(
 
         let response = chat_response.text;
         let structured_calls = chat_response.structured_tool_calls;
-        let parsed = tool_augmented::extract_tool_calls(
+        let parsed = extract_tool_calls(
             &response,
             if structured_calls.is_empty() {
                 None
@@ -289,7 +289,7 @@ fn run_turn_loop(
         }
 
         current_input = response;
-        tool_results = Some(tool_augmented::format_tool_results(&tool_results_vec));
+        tool_results = Some(format_tool_results(&tool_results_vec));
     }
 
     let (gas_remaining, gas_cap) = deps.gas.gas_status();
@@ -683,7 +683,7 @@ mod tests {
         }
     }
 
-    fn turn_result(text: &str, tools: Vec<crate::tool_augmented::ToolCall>) -> TurnResult {
+    fn turn_result(text: &str, tools: Vec<crate::ToolCall>) -> TurnResult {
         use hkask_ports::StructuredToolCall;
         TurnResult {
             text: text.to_string(),
@@ -709,8 +709,8 @@ mod tests {
                 .collect(),
         }
     }
-    fn tool_call(name: &str) -> crate::tool_augmented::ToolCall {
-        crate::tool_augmented::ToolCall {
+    fn tool_call(name: &str) -> crate::ToolCall {
+        crate::ToolCall {
             server: "mock".into(),
             tool: name.into(),
             args: serde_json::json!({}),
@@ -892,4 +892,57 @@ mod capture_sink_tests {
         s.status("  max iterations reached");
         assert!(s.response_text.contains("max iterations"));
     }
+}
+
+// ── Tool call parsing (inlined from deleted tool_augmented.rs) ──────────
+
+#[derive(Debug, Clone)]
+pub struct ToolCall {
+    pub server: String,
+    pub tool: String,
+    pub args: serde_json::Value,
+}
+
+impl From<hkask_ports::StructuredToolCall> for ToolCall {
+    fn from(stc: hkask_ports::StructuredToolCall) -> Self {
+        Self { server: stc.server, tool: stc.tool, args: stc.args }
+    }
+}
+
+pub struct ParsedResponse {
+    pub text: String,
+    pub tool_calls: Vec<ToolCall>,
+}
+
+pub fn extract_tool_calls(
+    response_text: &str,
+    structured_tool_calls: Option<&[hkask_ports::StructuredToolCall]>,
+) -> ParsedResponse {
+    if let Some(calls) = structured_tool_calls
+        && !calls.is_empty()
+    {
+        return ParsedResponse {
+            text: response_text.to_string(),
+            tool_calls: calls.iter().cloned().map(ToolCall::from).collect(),
+        };
+    }
+    parse_tool_calls(response_text)
+}
+
+
+pub fn format_tool_results(calls: &[(ToolCall, anyhow::Result<serde_json::Value>)]) -> String {
+    if calls.is_empty() {
+        return String::new();
+    }
+    let mut parts = vec!["Tool results:".to_string(), String::new()];
+    for (call, result) in calls {
+        match result {
+            Ok(value) => {
+                let formatted = serde_json::to_string_pretty(value).unwrap_or_else(|_| format!("{:?}", value));
+                parts.push(format!("✓ {} → {}", call.tool, formatted));
+            }
+            Err(err) => parts.push(format!("✗ {} → ERROR: {}", call.tool, err)),
+        }
+    }
+    parts.join("\n")
 }

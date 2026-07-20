@@ -2,7 +2,7 @@
 //! all other tools to TableEnergyEstimator.
 
 use crate::dynamic_gas_table::DynamicGasTable;
-use crate::governed_tool::EnergyEstimator;
+use crate::energy_estimator::EnergyEstimator;
 use crate::inference_estimator::InferenceEnergyEstimator;
 use crate::table_energy_estimator::TableEnergyEstimator;
 use serde_json::Value;
