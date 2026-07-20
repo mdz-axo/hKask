@@ -10,7 +10,7 @@ Homeostatic self-regulation engine for the hKask agent platform. CNS enforces As
 | `cybernetics_loop` | Loop 6 main sense→compute→act cycle |
 | `energy` | Gas budgets (`hJoules`), `GasBudget`, `GasCost` |
 | `energy_budget_management` | Budget registration, reservation, settlement |
-| `governed_inference` | Inference call membrane — CNS-gated LLM access |
+
 | `governed_tool` | Tool invocation membrane — CNS-gated MCP calls |
 | `algedonic` | Algedonic signal channel (positive/negative valence) |
 | `circuit_breaker` | Regulation circuit breaker |
@@ -27,7 +27,7 @@ Homeostatic self-regulation engine for the hKask agent platform. CNS enforces As
 |------|-------------|
 | `CnsRuntime` | Central CNS state machine with health, variety, alerts |
 | `CyberneticsLoop` | Loop 6 regulation cycle |
-| `GovernedInference` | OCAP-gated inference boundary |
+
 | `GovernedTool` | OCAP-gated tool invocation boundary |
 | `GasBudget` | Energy budget with hJoule accounting |
 | `CircuitBreaker` | Fail-open regulation circuit breaker |

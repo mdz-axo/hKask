@@ -8,6 +8,76 @@ use hkask_ports::{
 use hkask_types::template::LLMParameters;
 use std::pin::Pin;
 
+impl InferenceRouter {
+    pub(super) fn generate_ungoverned(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        if !parameters.bypass_fusion && model_override.is_none() {
+            let fusion = parameters
+                .fusion_config
+                .clone()
+                .or_else(|| self.config.fusion.clone());
+            if let Some(fusion) = fusion {
+                let prompt = prompt.to_string();
+                let parameters = parameters.clone();
+                let tools = tools.map(<[ChatToolDefinition]>::to_vec);
+                return Box::pin(async move {
+                    validate_prompt(&prompt)?;
+                    self.orchestrate_fusion(&prompt, &parameters, tools.as_deref(), &fusion)
+                        .await
+                        .map_err(|error| self.heal_error(error, "generate_with_model"))
+                });
+            }
+        }
+
+        if let Some(adapter) = &parameters.adapter {
+            let (provider, model) = match self.resolve_chat(adapter) {
+                Ok(route) => route,
+                Err(error) => {
+                    return Box::pin(
+                        async move { Err(self.heal_error(error, "generate_with_model")) },
+                    );
+                }
+            };
+            let model = model.to_string();
+            let prompt = prompt.to_string();
+            let parameters = parameters.clone();
+            let tools = tools.map(<[ChatToolDefinition]>::to_vec);
+            return Box::pin(async move {
+                validate_prompt(&prompt)?;
+                self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
+                    .await
+                    .map_err(|error| self.heal_error(error, "generate_with_model"))
+            });
+        }
+
+        let model_name = self.effective_model(model_override, parameters);
+        let (provider, model) = match self.resolve_chat(&model_name) {
+            Ok(route) => route,
+            Err(error) => {
+                return Box::pin(async move { Err(self.heal_error(error, "generate_with_model")) });
+            }
+        };
+        let model = model.to_string();
+        let prompt = prompt.to_string();
+        let parameters = parameters.clone();
+        let tools = tools.map(<[ChatToolDefinition]>::to_vec);
+
+        Box::pin(async move {
+            validate_prompt(&prompt)?;
+            self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
+                .await
+                .map_err(|error| self.heal_error(error, "generate_with_model"))
+        })
+    }
+}
+
 impl InferencePort for InferenceRouter {
     // pre:  prompt is non-empty; parameters are valid
     // post: Ok(InferenceResult) when resolved provider backend is configured;
@@ -20,62 +90,7 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
-        // Provider-agnostic fusion orchestration: when fusion is active and not bypassed,
-        // send to all panel models in parallel, then have the judge synthesize.
-        // Priority: per-call fusion_config override > global config.
-        if !parameters.bypass_fusion {
-            let fusion = parameters
-                .fusion_config
-                .clone()
-                .or_else(|| self.config.fusion.clone());
-            if let Some(fusion) = fusion {
-                let prompt = prompt.to_string();
-                let parameters = parameters.clone();
-                let tools = tools.map(|t| t.to_vec());
-                return Box::pin(async move {
-                    validate_prompt(&prompt)?;
-                    self.orchestrate_fusion(&prompt, &parameters, tools.as_deref(), &fusion)
-                        .await
-                        .map_err(|e| self.heal_error(e, "generate"))
-                });
-            }
-        }
-
-        // LoRA adapter overrides the model entirely (includes base model).
-        // Format: "Qwen3.5-9B#pragmatic-semantics-v1" — adapter IS the full model identifier.
-        if let Some(ref adapter) = parameters.adapter {
-            let (provider, model) = match self.resolve_chat(adapter) {
-                Ok(r) => r,
-                Err(e) => return Box::pin(async move { Err(self.heal_error(e, "generate")) }),
-            };
-            let model = model.to_string();
-            let prompt = prompt.to_string();
-            let parameters = parameters.clone();
-            let tools = tools.map(|t| t.to_vec());
-            return Box::pin(async move {
-                validate_prompt(&prompt)?;
-                self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
-                    .await
-                    .map_err(|e| self.heal_error(e, "generate"))
-            });
-        }
-
-        let model_name = self.effective_model(None, parameters);
-        let (provider, model) = match self.resolve_chat(&model_name) {
-            Ok(r) => r,
-            Err(e) => return Box::pin(async move { Err(self.heal_error(e, "generate")) }),
-        };
-        let model = model.to_string();
-        let prompt = prompt.to_string();
-        let parameters = parameters.clone();
-        let tools = tools.map(|t| t.to_vec());
-
-        Box::pin(async move {
-            validate_prompt(&prompt)?;
-            self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
-                .await
-                .map_err(|e| self.heal_error(e, "generate"))
-        })
+        self.generate_with_model(prompt, parameters, None, tools)
     }
 
     // pre:  prompt is non-empty; parameters are valid; model_override may be None
@@ -90,64 +105,16 @@ impl InferencePort for InferenceRouter {
     ) -> Pin<
         Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
     > {
-        // Provider-agnostic fusion orchestration: when fusion is active, not bypassed,
-        // and no explicit model_override is given, use multi-model deliberation.
-        // Priority: per-call fusion_config override > global config.
-        if !parameters.bypass_fusion && model_override.is_none() {
-            let fusion = parameters
-                .fusion_config
-                .clone()
-                .or_else(|| self.config.fusion.clone());
-            if let Some(fusion) = fusion {
-                let prompt = prompt.to_string();
-                let parameters = parameters.clone();
-                let tools = tools.map(|t| t.to_vec());
-                return Box::pin(async move {
-                    validate_prompt(&prompt)?;
-                    self.orchestrate_fusion(&prompt, &parameters, tools.as_deref(), &fusion)
-                        .await
-                        .map_err(|e| self.heal_error(e, "generate_with_model"))
-                });
-            }
-        }
-
-        // LoRA adapter overrides the model entirely (bypasses fusion).
-        if let Some(ref adapter) = parameters.adapter {
-            let (provider, model) = match self.resolve_chat(adapter) {
-                Ok(r) => r,
-                Err(e) => {
-                    return Box::pin(async move { Err(self.heal_error(e, "generate_with_model")) });
-                }
-            };
-            let model = model.to_string();
-            let prompt = prompt.to_string();
-            let parameters = parameters.clone();
-            let tools = tools.map(|t| t.to_vec());
-            return Box::pin(async move {
-                validate_prompt(&prompt)?;
-                self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
-                    .await
-                    .map_err(|e| self.heal_error(e, "generate_with_model"))
-            });
-        }
-
-        let model_name = self.effective_model(model_override, parameters);
-        let (provider, model) = match self.resolve_chat(&model_name) {
-            Ok(r) => r,
-            Err(e) => {
-                return Box::pin(async move { Err(self.heal_error(e, "generate_with_model")) });
-            }
+        let Some(governance) = self.governance.clone() else {
+            return self.generate_ungoverned(prompt, parameters, model_override, tools);
         };
-        let model = model.to_string();
         let prompt = prompt.to_string();
         let parameters = parameters.clone();
-        let tools = tools.map(|t| t.to_vec());
-
+        let model_override = model_override.map(str::to_string);
+        let tools = tools.map(<[ChatToolDefinition]>::to_vec);
         Box::pin(async move {
-            validate_prompt(&prompt)?;
-            self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
+            self.generate_governed(governance, prompt, parameters, model_override, tools)
                 .await
-                .map_err(|e| self.heal_error(e, "generate_with_model"))
         })
     }
 

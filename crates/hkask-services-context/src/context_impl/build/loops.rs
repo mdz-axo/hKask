@@ -75,14 +75,13 @@ pub(super) async fn build_loops(
     let inference_port: Option<Arc<dyn InferencePort>> = if config.in_memory {
         None
     } else {
-        let router = hkask_inference::InferenceRouter::new(config.inference_config.clone());
-        let raw_port: Arc<dyn InferencePort> = Arc::new(router);
-        let governed_port: Arc<dyn InferencePort> = Arc::new(hkask_cns::GovernedInference::new(
-            raw_port,
-            Arc::clone(&cybernetics_loop),
-            Arc::clone(&f.cns_event_sink),
-            system_webid,
-        ));
+        let governed_port: Arc<dyn InferencePort> = Arc::new(
+            hkask_inference::InferenceRouter::new(config.inference_config.clone()).with_governance(
+                Arc::clone(&cybernetics_loop),
+                Arc::clone(&f.cns_event_sink),
+                system_webid,
+            ),
+        );
         let inference_loop = hkask_agents::InferenceLoop::new()
             .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
             .with_model(&config.default_model);

@@ -215,7 +215,7 @@ pub struct LoraParams {
     /// How to initialize LoRA weights. PEFT default is `true` (B=0, A~Gaussian
     /// — adapter is a no-op at step 0). Other values: `"gaussian"`,
     /// `"pissa"`, `"pissa_niter_N"`, `"loftq"`, `"olora"`, `"corda"`,
-    /// `"orthogonal"`, `false`.
+    /// `"eva"`, `"orthogonal"`, `false`.
     /// Axolotl YAML: `peft_init_lora_weights: <value>`.
     /// Non-default values may require preprocessing (e.g., `preprocess_loraga`).
     #[serde(default)]
@@ -248,6 +248,12 @@ pub enum LoraInit {
     Corda,
     /// Orthogonal init (like OLoRA but base weights untouched). Requires even r.
     Orthogonal,
+    /// EVA: activation-vector SVD init (Paischer et al. 2024, arXiv:2410.07170).
+    /// Initializes A with principal activation directions, B=0. Produces standard
+    /// portable LoRA adapters (unlike PiSSA which is weight-SVD based and
+    /// non-portable across transformers versions). No-op at init (B=0 → ΔW=0).
+    /// Requires PEFT EvaConfig with a dataloader reference for activation-SVD.
+    Eva,
     /// Random init (debugging only — not a no-op at step 0).
     Random,
 }
@@ -264,6 +270,7 @@ impl LoraInit {
             Self::Olora => "olora".to_string(),
             Self::Corda => "corda".to_string(),
             Self::Orthogonal => "orthogonal".to_string(),
+            Self::Eva => "eva".to_string(),
             Self::Random => "false".to_string(),
         }
     }
@@ -278,7 +285,7 @@ impl LoraInit {
 
     /// Whether the adapter is a no-op at step 0 (ΔW = 0).
     pub fn is_noop_at_init(&self) -> bool {
-        matches!(self, Self::Default)
+        matches!(self, Self::Default | Self::Eva)
     }
 }
 
@@ -435,9 +442,42 @@ pub struct AdvancedParams {
     /// Use fp16 mixed precision.
     #[serde(default)]
     pub fp16: bool,
-    /// Evaluation split ratio (fraction of dataset held out for eval).
+    /// Evaluation split ratio used by non-Axolotl harnesses.
     #[serde(default)]
     pub eval_split_ratio: Option<f32>,
+    /// Per-device evaluation batch size.
+    #[serde(default)]
+    pub eval_batch_size: Option<u32>,
+    /// Axolotl validation split ratio.
+    #[serde(default)]
+    pub val_set_size: Option<f32>,
+    /// Evaluate every N optimizer steps.
+    #[serde(default)]
+    pub eval_steps: Option<u32>,
+    /// Save a checkpoint every N optimizer steps.
+    #[serde(default)]
+    pub save_steps: Option<u32>,
+    /// Maximum number of checkpoints to retain.
+    #[serde(default)]
+    pub save_total_limit: Option<u32>,
+    /// Number of evaluations without improvement before stopping.
+    #[serde(default)]
+    pub early_stopping_patience: Option<u32>,
+    /// Enable the Liger fused-kernel integration.
+    #[serde(default)]
+    pub liger_kernel: Option<bool>,
+    /// Enable Axolotl's flash-attention integration.
+    #[serde(default)]
+    pub flash_attention: Option<bool>,
+    /// Enable cut cross entropy.
+    #[serde(default)]
+    pub cut_cross_entropy: Option<bool>,
+    /// Allow model repositories to provide custom model code.
+    #[serde(default)]
+    pub trust_remote_code: Option<bool>,
+    /// Enable strict Axolotl config validation.
+    #[serde(default)]
+    pub strict: Option<bool>,
 }
 
 /// Canonical training hyperparameters — the union of capabilities supported by

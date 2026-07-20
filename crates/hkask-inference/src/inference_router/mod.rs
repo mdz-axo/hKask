@@ -14,10 +14,15 @@ use crate::ollama_backend::OllamaBackend;
 use crate::openrouter_backend::OpenRouterBackend;
 use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
+use hkask_cns::{CyberneticsLoop, GasCost};
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
+use hkask_types::cns::CnsSpan;
+use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
+use hkask_types::{NuEventSink, WebID};
 use std::sync::Arc;
-use tracing::warn;
+use tokio::sync::RwLock;
+use tracing::{info, warn};
 
 pub(crate) mod backend;
 mod dispatch;
@@ -27,6 +32,13 @@ mod models;
 pub(crate) use backend::{ChatBackend, VisionBackend};
 
 type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
+
+#[derive(Clone)]
+struct InferenceGovernance {
+    cybernetics: Arc<RwLock<CyberneticsLoop>>,
+    event_sink: Arc<dyn NuEventSink>,
+    agent: WebID,
+}
 
 /// Multi-provider inference router implementing `InferencePort`.
 ///
@@ -49,6 +61,7 @@ pub struct InferenceRouter {
     cline: Option<ClineBackend>,
     embedding: EmbeddingRouter,
     heal_error_cb: Option<HealCallback>,
+    governance: Option<InferenceGovernance>,
 }
 
 impl InferenceRouter {
@@ -152,7 +165,131 @@ impl InferenceRouter {
             cline,
             embedding,
             heal_error_cb: None,
+            governance: None,
         }
+    }
+
+    /// Enable gas accounting and CNS events for inference calls.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_governance(
+        mut self,
+        cybernetics: Arc<RwLock<CyberneticsLoop>>,
+        event_sink: Arc<dyn NuEventSink>,
+        agent: WebID,
+    ) -> Self {
+        self.governance = Some(InferenceGovernance {
+            cybernetics,
+            event_sink,
+            agent,
+        });
+        self
+    }
+
+    async fn generate_governed(
+        &self,
+        governance: InferenceGovernance,
+        prompt: String,
+        parameters: LLMParameters,
+        model_override: Option<String>,
+        tools: Option<Vec<ChatToolDefinition>>,
+    ) -> Result<InferenceResult, InferenceError> {
+        let estimated = GasCost(u64::from(parameters.max_tokens.max(1)));
+        let model = model_override.as_deref().unwrap_or("default");
+
+        let cybernetics = governance.cybernetics.read().await;
+        if !cybernetics.can_proceed(&governance.agent, estimated).await {
+            return Err(InferenceError::Generation(
+                "Energy budget exceeded for inference call".into(),
+            ));
+        }
+        cybernetics
+            .reserve_gas(&governance.agent, estimated)
+            .await
+            .map_err(|error| {
+                InferenceError::Generation(format!("Gas reservation failed: {error}"))
+            })?;
+        drop(cybernetics);
+
+        let invoked = NuEvent::new(
+            governance.agent,
+            Span::new(
+                SpanNamespace::try_from(CnsSpan::Inference).expect("canonical span"),
+                "invoked",
+            ),
+            CyclePhase::Sense,
+            serde_json::json!({
+                "model": model,
+                "estimated_cost": estimated.0,
+                "max_tokens": parameters.max_tokens,
+                "settled": false,
+            }),
+            0,
+        );
+        if let Err(error) = governance.event_sink.persist(&invoked) {
+            warn!(target: "cns.inference", %error, "failed to persist inference invocation");
+        }
+
+        let result = self
+            .generate_ungoverned(
+                &prompt,
+                &parameters,
+                model_override.as_deref(),
+                tools.as_deref(),
+            )
+            .await;
+        let actual = if result.is_ok() {
+            estimated.0
+        } else {
+            estimated.0 / 2
+        };
+
+        if let Err(error) = governance
+            .cybernetics
+            .read()
+            .await
+            .settle_gas(&governance.agent, estimated, GasCost(actual))
+            .await
+        {
+            warn!(target: "cns.inference", %error, "failed to settle inference gas");
+        }
+
+        let (status, error, tokens_used) = match &result {
+            Ok(response) => ("success", None, Some(response.usage.total_tokens)),
+            Err(error) => ("failure", Some(error.to_string()), None),
+        };
+        let completed = NuEvent::new(
+            governance.agent,
+            Span::new(
+                SpanNamespace::try_from(CnsSpan::Inference).expect("canonical span"),
+                "completed",
+            ),
+            CyclePhase::Act,
+            serde_json::json!({
+                "model": model,
+                "estimated_cost": estimated.0,
+                "actual_cost": actual,
+                "status": status,
+                "error": error,
+                "tokens_used": tokens_used,
+                "settled": true,
+            }),
+            0,
+        )
+        .with_parent(invoked.id);
+        if let Err(error) = governance.event_sink.persist(&completed) {
+            warn!(target: "cns.inference", %error, "failed to persist inference outcome");
+        }
+
+        info!(
+            target: "cns.inference",
+            agent = ?governance.agent,
+            model,
+            reserved = estimated.0,
+            actual,
+            status,
+            "inference gas settled"
+        );
+        result
     }
 
     /// Attach a self-healing callback for automatic error recovery.

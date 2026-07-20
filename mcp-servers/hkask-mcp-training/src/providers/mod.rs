@@ -188,6 +188,79 @@ mod tests {
         assert!(path.to_string_lossy().contains("job-123"));
     }
 
+    /// expect: The Capabilities Researcher job renders every operator-selected Axolotl setting.
+    /// [P2] Motivating: User Sovereignty — the submitted job must match the declared training config.
+    /// pre: A training job contains the canonical EVA LoRA parameters.
+    /// post: The rendered YAML preserves those parameters without silent defaults.
+    /// [P4] Constraining: Clear Boundaries — only explicit parameters cross the provider boundary.
+    #[test]
+    fn axolotl_harness_renders_capabilities_researcher_config() {
+        let mut params = TrainingParams {
+            num_epochs: 3,
+            batch_size: 1,
+            learning_rate: 1e-4,
+            ..TrainingParams::default()
+        };
+        params.lora.r = 32;
+        params.lora.alpha = 64;
+        params.lora.init_lora_weights = Some(types::LoraInit::Eva);
+        params.optimization.optimizer = Some("adamw_8bit".to_string());
+        params.optimization.weight_decay = 0.01;
+        params.optimization.gradient_accumulation_steps = 16;
+        params.optimization.lr_scheduler = Some("cosine".to_string());
+        params.optimization.warmup_steps = Some(100);
+        params.optimization.max_grad_norm = Some(0.3);
+        params.sequence.sequence_len = Some(4096);
+        params.advanced.gradient_checkpointing = Some("true".to_string());
+        params.advanced.bf16 = true;
+        params.advanced.eval_batch_size = Some(1);
+        params.advanced.val_set_size = Some(0.0012);
+        params.advanced.eval_steps = Some(200);
+        params.advanced.save_steps = Some(200);
+        params.advanced.save_total_limit = Some(5);
+        params.advanced.early_stopping_patience = Some(25);
+        params.advanced.liger_kernel = Some(true);
+        params.advanced.flash_attention = Some(false);
+        params.advanced.cut_cross_entropy = Some(true);
+        params.advanced.trust_remote_code = Some(true);
+        params.advanced.strict = Some(false);
+
+        let mut job = TrainingJob::new(
+            std::path::PathBuf::from("/tmp/train_chat_full.jsonl"),
+            "unsloth/Qwen3.6-27B".to_string(),
+            params,
+            TrainingHostId::Runpod,
+            TrainingHarnessId::Axolotl,
+        );
+        job.artifacts = Some(crate::huggingface::TrainingArtifacts {
+            dataset: crate::huggingface::TrainingArtifact {
+                repository: "mdz-axo/capabilities-researcher-qa".to_string(),
+                revision: "main".to_string(),
+                path: "train_chat_full.jsonl".to_string(),
+                sha256: String::new(),
+            },
+            model_repository: "mdz-axo/capabilities-researcher-v3-eva".to_string(),
+            completion_manifest_path: "/workspace/completion.json".to_string(),
+        });
+
+        let yaml = AxolotlHarness.render_config(&job).expect("render config");
+
+        for expected in [
+            "peft_init_lora_weights: eva",
+            "optim: adamw_8bit",
+            "eval_batch_size: 1",
+            "val_set_size: 0.0012",
+            "early_stopping_patience: 25",
+            "liger_kernel: true",
+            "flash_attention: false",
+            "cut_cross_entropy: true",
+            "trust_remote_code: true",
+            "strict: false",
+        ] {
+            assert!(yaml.contains(expected), "missing `{expected}` in:\n{yaml}");
+        }
+    }
+
     #[test]
     fn host_config_default() {
         let config = TrainingHostConfig::default();

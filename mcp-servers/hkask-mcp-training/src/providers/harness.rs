@@ -130,7 +130,7 @@ impl HarnessAdapter for AxolotlHarness {
 
         // Optimizer & scheduler
         if let Some(ref optimizer) = opt.optimizer {
-            yaml.push_str(&format!("optimizer: {}\n", optimizer));
+            yaml.push_str(&format!("optim: {}\n", optimizer));
         }
         if opt.weight_decay > 0.0 {
             yaml.push_str(&format!("weight_decay: {}\n", opt.weight_decay));
@@ -183,6 +183,35 @@ impl HarnessAdapter for AxolotlHarness {
         }
         if let Some(esr) = adv.eval_split_ratio {
             yaml.push_str(&format!("eval_split_ratio: {}\n", esr));
+        }
+        if let Some(value) = adv.eval_batch_size {
+            yaml.push_str(&format!("eval_batch_size: {}\n", value));
+        }
+        if let Some(value) = adv.val_set_size {
+            yaml.push_str(&format!("val_set_size: {}\n", value));
+        }
+        if let Some(value) = adv.eval_steps {
+            yaml.push_str(&format!("eval_steps: {}\n", value));
+        }
+        if let Some(value) = adv.save_steps {
+            yaml.push_str(&format!("save_steps: {}\n", value));
+        }
+        if let Some(value) = adv.save_total_limit {
+            yaml.push_str(&format!("save_total_limit: {}\n", value));
+        }
+        if let Some(value) = adv.early_stopping_patience {
+            yaml.push_str(&format!("early_stopping_patience: {}\n", value));
+        }
+        for (key, value) in [
+            ("liger_kernel", adv.liger_kernel),
+            ("flash_attention", adv.flash_attention),
+            ("cut_cross_entropy", adv.cut_cross_entropy),
+            ("trust_remote_code", adv.trust_remote_code),
+            ("strict", adv.strict),
+        ] {
+            if let Some(value) = value {
+                yaml.push_str(&format!("{}: {}\n", key, value));
+            }
         }
 
         Ok(yaml)
