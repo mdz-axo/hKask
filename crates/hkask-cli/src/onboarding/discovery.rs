@@ -123,17 +123,17 @@ fn classify_kind(model_id: &str, name: Option<&str>) -> ModelKind {
 ///
 /// Returns `(models, source_label)` where models is the list
 /// and source_label describes where they came from.
+///
+/// The OpenRouter `/v1/models` endpoint is public (no API key required),
+/// so we always run the OpenRouter pipeline first to get a filtered,
+/// ranked list. Only if OpenRouter is unreachable do we fall back to
+/// the provider API list (with heuristic filters applied).
 pub(crate) async fn discover_models(config: &InferenceConfig) -> (Vec<OnboardingModel>, String) {
     // ── OpenRouter pipeline (spec) ────────────────────────────────────
-    let or_has_key = !config.openrouter_api_key.is_empty();
-    if or_has_key {
-        eprintln!("  Discovering models via OpenRouter...");
-    }
-    let or_results: Vec<OnboardingModel> = if config.openrouter_api_key.is_empty() {
-        Vec::new()
-    } else {
-        run_openrouter_pipeline(config).await.unwrap_or_default()
-    };
+    // The /v1/models endpoint is public — no key needed for discovery.
+    eprintln!("  Discovering models via OpenRouter...");
+    let or_results: Vec<OnboardingModel> =
+        run_openrouter_pipeline(config).await.unwrap_or_default();
 
     if !or_results.is_empty() {
         return (
@@ -189,13 +189,18 @@ async fn run_openrouter_pipeline(
         OR_SUPPORTED_PARAMETERS
     );
 
-    let resp = client
+    let mut req = client
         .get(&url)
-        .header(
+        .header("User-Agent", "hKask-onboarding/0.31");
+    // The /v1/models endpoint is public, but we send the Authorization
+    // header when a key is available so OpenRouter can personalize results.
+    if !config.openrouter_api_key.is_empty() {
+        req = req.header(
             "Authorization",
             format!("Bearer {}", config.openrouter_api_key),
-        )
-        .header("User-Agent", "hKask-onboarding/0.31")
+        );
+    }
+    let resp = req
         .send()
         .await
         .map_err(|e| CliError::Onboarding(format!("OpenRouter API request failed: {e}")))?;
@@ -370,11 +375,72 @@ fn extract_family_from_id(model_id: &str) -> String {
 
 // ── Fallback builders ──────────────────────────────────────────────────────
 
+/// Heuristic: model IDs that indicate a non-chat model (embeddings, OCR,
+/// image generation, safety classifiers, free-tier placeholders, auto-routers).
+/// Used to filter the provider-API fallback when OpenRouter is unreachable.
+const NON_CHAT_PATTERNS: &[&str] = &[
+    // Embedding / reranking
+    "embed",
+    "rerank",
+    "mxbai-embed",
+    // OCR / vision-only
+    "paddleocr",
+    "docres",
+    "lightonocr",
+    "olmocr",
+    "deepseek-ocr",
+    // Image / audio generation
+    "lyria",
+    "nano-banana",
+    // Safety / moderation
+    "safety",
+    "safeguard",
+    "guard",
+    // Auto-routing placeholders (not real models)
+    "auto-beta",
+    "openrouter/auto",
+    "openrouter/free",
+    "openrouter/fusion",
+    "openrouter/pareto",
+    // Free-tier duplicates (we prefer the paid variant)
+    ":free",
+    // Cloud variants (prefer the local-direct variant)
+    "-cloud",
+    // Tiny models unlikely to meet intelligence threshold
+    ":1b",
+    ":2b",
+    ":3b",
+    ":4b",
+    "-1b",
+    "-2b",
+    "-3b",
+    "-4b",
+];
+
+/// Heuristic: filter out non-chat models from the provider API list.
+/// This is a coarse filter — the OpenRouter pipeline is the source of truth
+/// for cost/intelligence/parameter filtering. This only runs when OpenRouter
+/// is unreachable.
+fn is_likely_chat_model(model_id: &str) -> bool {
+    let lower = model_id.to_lowercase();
+    !NON_CHAT_PATTERNS.iter().any(|p| lower.contains(p))
+}
+
 fn build_from_router(models: Vec<RouterModelEntry>) -> Vec<OnboardingModel> {
+    // Filter out non-chat models (embeddings, OCR, image-gen, safety, free,
+    // cloud, tiny) before classification. This is a coarse heuristic — the
+    // OpenRouter pipeline is the source of truth for cost/intelligence
+    // filtering, but this ensures the fallback doesn't dump every model
+    // from the provider API.
+    let chat_models: Vec<RouterModelEntry> = models
+        .into_iter()
+        .filter(|m| is_likely_chat_model(&m.model))
+        .collect();
+
     // Classify and deduplicate by family
     let mut by_family: HashMap<String, Vec<RouterModelEntry>> = HashMap::new();
 
-    for m in models {
+    for m in chat_models {
         let family = extract_family_from_id(&m.model);
         by_family.entry(family).or_default().push(m);
     }
@@ -571,5 +637,27 @@ mod tests {
     #[test]
     fn shorten_display_strips_prefixes() {
         assert_eq!(shorten_for_display("OR/openai/gpt-4o"), "Gpt 4o");
+    }
+
+    #[test]
+    fn is_likely_chat_model_filters_non_chat() {
+        // Embeddings, OCR, image-gen, safety, free, cloud, tiny → filtered out
+        assert!(!is_likely_chat_model("mxbai-embed-large:335m"));
+        assert!(!is_likely_chat_model("paddleocr"));
+        assert!(!is_likely_chat_model("LightOnOCR-2:1b"));
+        assert!(!is_likely_chat_model("google/lyria-3-pro-preview"));
+        assert!(!is_likely_chat_model(
+            "nvidia/nemotron-3.5-content-safety:free"
+        ));
+        assert!(!is_likely_chat_model("openrouter/auto-beta"));
+        assert!(!is_likely_chat_model("qwen3.5:397b-cloud"));
+        assert!(!is_likely_chat_model("qwen3.5:4b"));
+        assert!(!is_likely_chat_model("ornith:9b"));
+        assert!(!is_likely_chat_model("llama3.1:8b"));
+        // Real chat models → pass
+        assert!(is_likely_chat_model("deepseek-ai/DeepSeek-V4-Pro"));
+        assert!(is_likely_chat_model("zai-org/GLM-5.2"));
+        assert!(is_likely_chat_model("Qwen/Qwen3.5-397B-A17B"));
+        assert!(is_likely_chat_model("deepseek-ai/DeepSeek-R1-0528"));
     }
 }
