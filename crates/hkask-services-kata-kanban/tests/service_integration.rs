@@ -27,6 +27,81 @@ mod tests {
         KanbanService::standard_columns()
     }
 
+    /// Parse a kata manifest from a YAML string.
+    fn parse_manifest(yaml: &str) -> KataManifest {
+        serde_yaml_neo::from_str(yaml).expect("manifest YAML must parse")
+    }
+
+    /// A 1-question coaching manifest with CNS spans disabled for test isolation.
+    const COACHING_MANIFEST_1Q: &str = r#"
+manifest:
+  id: test-coaching-1q
+  name: Test Coaching 1Q
+  kata_type: coaching
+  description: Test
+gas:
+  cap: 100000
+  alert_threshold: 0.7
+  hard_limit: true
+questions:
+  - number: 1
+    question: "What is your target condition?"
+    description: "Target"
+cns:
+  emit_spans: false
+  span_namespace: "test.kata"
+  variety_monitoring: false
+"#;
+
+    /// A 3-question coaching manifest for multi-step gas deduction tests.
+    const COACHING_MANIFEST_3Q: &str = r#"
+manifest:
+  id: test-coaching-3q
+  name: Test Coaching 3Q
+  kata_type: coaching
+  description: Test
+gas:
+  cap: 100000
+  alert_threshold: 0.7
+  hard_limit: true
+questions:
+  - number: 1
+    question: "Q1?"
+    description: "D1"
+  - number: 2
+    question: "Q2?"
+    description: "D2"
+  - number: 3
+    question: "Q3?"
+    description: "D3"
+cns:
+  emit_spans: false
+  span_namespace: "test.kata"
+  variety_monitoring: false
+"#;
+
+    /// A 1-step improvement manifest.
+    const IMPROVEMENT_MANIFEST_1S: &str = r#"
+manifest:
+  id: test-improvement-1s
+  name: Test Improvement 1S
+  kata_type: improvement
+  description: Test
+gas:
+  cap: 100000
+  alert_threshold: 0.7
+  hard_limit: true
+steps:
+  - ordinal: 1
+    action: "understand_direction"
+    description: "Understand the direction"
+    gas_cap: 2000
+cns:
+  emit_spans: false
+  span_namespace: "test.kata"
+  variety_monitoring: false
+"#;
+
     // ── KanbanService construction ──────────────────────────────────────
 
     #[test]
@@ -38,8 +113,6 @@ mod tests {
     #[test]
     fn kanban_service_builder_chain_with_pod_manager() {
         let svc = KanbanService::new(make_test_store());
-        // PodManager construction requires a running runtime; verify the
-        // builder method exists and compiles without panicking on a None pod.
         let _ = svc;
     }
 
@@ -47,9 +120,6 @@ mod tests {
 
     #[test]
     fn kata_prompt_methods_emit_cns_spans() {
-        // Verify that the CNS span infrastructure exists and compiles.
-        // Actual span emission is verified by integration tests with
-        // tracing subscriber configured.
         let svc = KanbanService::new(make_test_store());
         let owner = hkask_types::WebID::new();
         let board = svc
@@ -58,7 +128,6 @@ mod tests {
         let spec = TaskSpec::new("CNS Task".into());
         let task = svc.task_create(board.id, spec, owner).unwrap();
 
-        // These should emit cns.kata spans (verified by tracing subscriber in CI)
         let coaching = svc.task_coaching_prompt(task.id);
         assert!(coaching.is_ok());
 
@@ -105,101 +174,6 @@ mod tests {
         }
     }
 
-    /// A minimal coaching kata manifest for testing — 1 question, minimal config.
-    fn test_coaching_manifest() -> KataManifest {
-        use hkask_services_kata_kanban::{
-            CoachQuestion, ErrorHandling, KataAuditConfig, KataCnsConfig, KataGasConfig, KataStep,
-            ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,
-        };
-        KataManifest {
-            manifest: ManifestMeta {
-                id: "test-coaching".into(),
-                name: "Test Coaching".into(),
-                kata_type: "coaching".into(),
-                description: "Test".into(),
-                editor: "test".into(),
-                visibility: "test".into(),
-            },
-            gas: KataGasConfig {
-                cap: 100_000,
-                alert_threshold: 0.7,
-                hard_limit: true,
-            },
-            steps: vec![],
-            questions: vec![CoachQuestion {
-                number: 1,
-                question: "What is your target condition?".into(),
-                description: "Target".into(),
-                cns_span: None,
-                expected_output: None,
-            }],
-            practices: vec![],
-            error_handling: ErrorHandling::default(),
-            cns: KataCnsConfig {
-                emit_spans: false,
-                span_namespace: "test.kata".into(),
-                variety_monitoring: false,
-                algedonic_threshold: None,
-                escalation_target: None,
-            },
-            outcomes: vec![],
-            metrics: vec![],
-            starter_outcomes: vec![],
-            audit: KataAuditConfig::default(),
-        }
-    }
-
-    /// A minimal improvement kata manifest for testing — 1 step, minimal config.
-    fn test_improvement_manifest() -> KataManifest {
-        use hkask_services_kata_kanban::{
-            CoachQuestion, ErrorHandling, KataAuditConfig, KataCnsConfig, KataGasConfig, KataStep,
-            ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,
-        };
-        KataManifest {
-            manifest: ManifestMeta {
-                id: "test-improvement".into(),
-                name: "Test Improvement".into(),
-                kata_type: "improvement".into(),
-                description: "Test".into(),
-                editor: "test".into(),
-                visibility: "test".into(),
-            },
-            gas: KataGasConfig {
-                cap: 100_000,
-                alert_threshold: 0.7,
-                hard_limit: true,
-            },
-            steps: vec![KataStep {
-                ordinal: 1,
-                action: "understand_direction".into(),
-                description: "Understand the direction".into(),
-                renderer: None,
-                template_ref: None,
-                classifier: false,
-                gas_cap: Some(2000),
-                timeout_seconds: None,
-                output_schema: None,
-                target: None,
-                mcp: None,
-                tool: None,
-            }],
-            questions: vec![],
-            practices: vec![],
-            error_handling: ErrorHandling::default(),
-            cns: KataCnsConfig {
-                emit_spans: false,
-                span_namespace: "test.kata".into(),
-                variety_monitoring: false,
-                algedonic_threshold: None,
-                escalation_target: None,
-            },
-            outcomes: vec![],
-            metrics: vec![],
-            starter_outcomes: vec![],
-            audit: KataAuditConfig::default(),
-        }
-    }
-
     #[tokio::test]
     async fn task_gas_accountant_deducts_from_coaching_kata() {
         // Setup: kanban service with a task that has a gas budget of 500
@@ -223,7 +197,7 @@ mod tests {
         let engine = KataEngine::new(mock_inference, registry).with_task_gas_accountant(accountant);
 
         // Execute a coaching kata cycle (1 question = 1 inference call)
-        let manifest = test_coaching_manifest();
+        let manifest = parse_manifest(COACHING_MANIFEST_1Q);
         let result = engine
             .execute(&manifest, "test-bot", std::collections::HashMap::new())
             .await
@@ -275,7 +249,7 @@ mod tests {
         let engine = KataEngine::new(mock_inference, registry).with_task_gas_accountant(accountant);
 
         // Execute an improvement kata cycle (1 step = 1 inference call)
-        let manifest = test_improvement_manifest();
+        let manifest = parse_manifest(IMPROVEMENT_MANIFEST_1S);
         let result = engine
             .execute(&manifest, "test-bot", std::collections::HashMap::new())
             .await
@@ -319,7 +293,7 @@ mod tests {
         // No with_task_gas_accountant — standalone kata execution
         let engine = KataEngine::new(mock_inference, registry);
 
-        let manifest = test_coaching_manifest();
+        let manifest = parse_manifest(COACHING_MANIFEST_1Q);
         let result = engine
             .execute(&manifest, "test-bot", std::collections::HashMap::new())
             .await
@@ -344,10 +318,6 @@ mod tests {
     async fn task_gas_accountant_deducts_across_multiple_steps() {
         // Verify that multiple inference calls accumulate deductions correctly.
         // 3 coaching questions × 100 tokens each = 300 total deducted.
-        use hkask_services_kata_kanban::{
-            CoachQuestion, ErrorHandling, KataAuditConfig, KataCnsConfig, KataGasConfig, KataStep,
-            ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,
-        };
         let svc = Arc::new(KanbanService::new(make_test_store()));
         let owner = hkask_types::WebID::new();
         let board = svc
@@ -364,59 +334,7 @@ mod tests {
         let accountant: Arc<dyn TaskGasAccountant> = svc.gas_accountant_for(task.id);
         let engine = KataEngine::new(mock_inference, registry).with_task_gas_accountant(accountant);
 
-        let manifest = KataManifest {
-            manifest: ManifestMeta {
-                id: "test-multi-coaching".into(),
-                name: "Test Multi Coaching".into(),
-                kata_type: "coaching".into(),
-                description: "Test".into(),
-                editor: "test".into(),
-                visibility: "test".into(),
-            },
-            gas: KataGasConfig {
-                cap: 100_000,
-                alert_threshold: 0.7,
-                hard_limit: true,
-            },
-            steps: vec![],
-            questions: vec![
-                CoachQuestion {
-                    number: 1,
-                    question: "Q1?".into(),
-                    description: "D1".into(),
-                    cns_span: None,
-                    expected_output: None,
-                },
-                CoachQuestion {
-                    number: 2,
-                    question: "Q2?".into(),
-                    description: "D2".into(),
-                    cns_span: None,
-                    expected_output: None,
-                },
-                CoachQuestion {
-                    number: 3,
-                    question: "Q3?".into(),
-                    description: "D3".into(),
-                    cns_span: None,
-                    expected_output: None,
-                },
-            ],
-            practices: vec![],
-            error_handling: ErrorHandling::default(),
-            cns: KataCnsConfig {
-                emit_spans: false,
-                span_namespace: "test.kata".into(),
-                variety_monitoring: false,
-                algedonic_threshold: None,
-                escalation_target: None,
-            },
-            outcomes: vec![],
-            metrics: vec![],
-            starter_outcomes: vec![],
-            audit: KataAuditConfig::default(),
-        };
-
+        let manifest = parse_manifest(COACHING_MANIFEST_3Q);
         let result = engine
             .execute(&manifest, "test-bot", std::collections::HashMap::new())
             .await
