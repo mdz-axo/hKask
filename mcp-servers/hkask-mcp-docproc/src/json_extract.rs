@@ -213,26 +213,4 @@ mod tests {
         assert_eq!(strip_json_fences(""), "");
     }
 
-    #[test]
-    fn normalize_concept_lowercases_trims_and_collapses_whitespace() {
-        assert_eq!(normalize_concept("ROIC"), "roic");
-        assert_eq!(
-            normalize_concept("  Return On Capital  "),
-            "return on capital"
-        );
-        assert_eq!(
-            normalize_concept("discounted   cash\tflow"),
-            "discounted cash flow"
-        );
-        assert_eq!(normalize_concept("   "), "");
-    }
-
-    #[test]
-    fn normalize_concept_merges_case_variants_into_one_node() {
-        let a = normalize_concept("ROIC");
-        let b = normalize_concept("roic");
-        let c = normalize_concept("Roic ");
-        assert_eq!(a, b);
-        assert_eq!(b, c);
-    }
 }

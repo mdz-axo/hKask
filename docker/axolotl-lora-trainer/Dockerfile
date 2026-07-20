@@ -18,7 +18,8 @@ RUN pip install --no-cache-dir axolotl[transformers] pyyaml huggingface_hub
 # Copy the training entrypoint and config generator
 COPY entrypoint.sh /workspace/axolotl-entrypoint.sh
 COPY generate_config.py /workspace/generate_config.py
-RUN chmod +x /workspace/axolotl-entrypoint.sh
+COPY base-entrypoint.sh /entrypoint.sh
+RUN chmod +x /workspace/axolotl-entrypoint.sh /entrypoint.sh
 
 # Default environment variables (can be overridden at pod creation time)
 ENV HKASK_BASE_MODEL=""
@@ -63,8 +64,7 @@ ENV HKASK_OUTPUT_DIR="/workspace/outputs"
 ENV HKASK_WORKSPACE="/workspace"
 ENV HKASK_JOB_ID=""
 
-# Don't override the base image's ENTRYPOINT — it sets up CUDA, Python, etc.
-# Instead, override CMD to run our training script after the base entrypoint.
-# The base image's entrypoint accepts a MODE argument: jupyter|train|shell
-# We add a new mode "axolotl-train" that runs our training script.
+# Keep the base image's ENTRYPOINT (which sets up CUDA, Python, etc.)
+# and override CMD to run our training mode.
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["axolotl-train"]
