@@ -44,6 +44,7 @@ use std::sync::{Arc, Mutex};
 use video::FfmpegRunner;
 
 use ab_glyph::Font;
+use sha2::Digest;
 
 // ── Model configuration ───────────────────────────────────────────────
 
@@ -371,12 +372,12 @@ impl MediaServer {
         last_name: &str,
         force: bool,
     ) -> Result<
-            (
-                hkask_storage::FaceRegistryRecord,
-                Option<gallery::vision::FaceValidationResult>,
-            ),
-            McpToolError,
-        > {
+        (
+            hkask_storage::FaceRegistryRecord,
+            Option<gallery::vision::FaceValidationResult>,
+        ),
+        McpToolError,
+    > {
         let (status, notes, validation) = if force {
             ("valid".to_string(), String::new(), None)
         } else {
@@ -389,8 +390,16 @@ impl MediaServer {
             )
             .await
             .map_err(|e| McpToolError::internal(format!("Face validation failed: {}", e)))?;
-            let status = if v.valid { "valid".to_string() } else { "rejected".to_string() };
-            let notes = if v.valid { String::new() } else { v.issues.join("; ") };
+            let status = if v.valid {
+                "valid".to_string()
+            } else {
+                "rejected".to_string()
+            };
+            let notes = if v.valid {
+                String::new()
+            } else {
+                v.issues.join("; ")
+            };
             (status, notes, Some(v))
         };
 
@@ -407,7 +416,10 @@ impl MediaServer {
     ///
     /// If the image is already in the gallery (matched by hash), the existing
     /// record is reused — no duplicate row is inserted.
-    fn import_reference_image(&self, abs_path: &std::path::Path) -> Result<(String, String), MediaError> {
+    fn import_reference_image(
+        &self,
+        abs_path: &std::path::Path,
+    ) -> Result<(String, String), MediaError> {
         let ga = self.access_gallery()?;
 
         let data = std::fs::read(abs_path)
@@ -450,10 +462,261 @@ impl MediaServer {
                 &format,
                 size_bytes,
             )
-            .map_err(|e| MediaError::ImageNotFound(format!("Failed to import reference image: {}", e)))?;
+            .map_err(|e| {
+                MediaError::ImageNotFound(format!("Failed to import reference image: {}", e))
+            })?;
 
         let url = self.resolve_image_url_by_id(&record.id)?;
         Ok((record.id, url))
+    }
+
+    /// Run face matching: for each `face` tag in the gallery, compare against
+    /// every entry in the face registry using the `match_faces` vision LLM
+    /// template. On a match (confidence ≥ 0.7), persist a `face` tag with the
+    /// person's name and registry_id. Returns `(faces_matched, errors)`.
+    ///
+    /// This is the composable face-matching stage called by `gallery_refresh`
+    /// when `include_faces=true`. It is also reusable by any future tool that
+    /// wants to re-run matching without re-scanning.
+    async fn run_face_matching(
+        &self,
+        ga: &GalleryAccess,
+        registry: &[hkask_storage::FaceRegistryRecord],
+    ) -> (u32, Vec<String>) {
+        let mut faces_matched = 0u32;
+        let mut errors = Vec::new();
+
+        let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
+            Ok(t) => t,
+            Err(e) => {
+                errors.push(format!("Failed to query tags: {}", e));
+                return (0, errors);
+            }
+        };
+
+        let vision_model = match self.resolve_vision_model().await {
+            Some((m, _label)) => m,
+            None => {
+                errors.push("Face matching skipped: no vision model available".to_string());
+                return (0, errors);
+            }
+        };
+
+        for (tag, _path) in &all_tags {
+            if tag.tag_type != "face" {
+                continue;
+            }
+
+            let face_image_id = &tag.image_id;
+
+            let face_bbox: Option<serde_json::Value> =
+                serde_json::from_str::<serde_json::Value>(&tag.value)
+                    .ok()
+                    .and_then(|v| v.get("bbox").cloned());
+
+            let query_url = if let Some(ref bbox) = face_bbox {
+                match self.crop_face_region(face_image_id, bbox) {
+                    Ok(cropped_url) => cropped_url,
+                    Err(_) => match self.resolve_image_url_by_id(face_image_id) {
+                        Ok(url) => url,
+                        Err(e) => {
+                            errors.push(format!("Face tag {}: {}", tag.id, e));
+                            continue;
+                        }
+                    },
+                }
+            } else {
+                match self.resolve_image_url_by_id(face_image_id) {
+                    Ok(url) => url,
+                    Err(e) => {
+                        errors.push(format!("Face tag {}: {}", tag.id, e));
+                        continue;
+                    }
+                }
+            };
+
+            for reg_entry in registry {
+                let ref_url = match self.resolve_image_url_by_id(&reg_entry.image_id) {
+                    Ok(url) => url,
+                    Err(e) => {
+                        errors.push(format!("Registry entry {}: {}", reg_entry.id, e));
+                        continue;
+                    }
+                };
+
+                match gallery::vision::match_faces(
+                    &self.inference,
+                    &self.template_env,
+                    &ref_url,
+                    &query_url,
+                    Some(&vision_model),
+                )
+                .await
+                {
+                    Ok(result) => {
+                        if result.is_match && result.confidence >= 0.7 {
+                            let name = format!("{} {}", reg_entry.first_name, reg_entry.last_name);
+                            if let Ok(parsed) =
+                                serde_json::from_str::<serde_json::Value>(&tag.value)
+                            {
+                                let face_index = parsed["face_index"].as_u64();
+                                let new_value = serde_json::json!({
+                                    "face_index": face_index,
+                                    "name": name,
+                                    "match_confidence": result.confidence,
+                                    "registry_id": reg_entry.id,
+                                    "method": "vision_llm",
+                                });
+                                self.persist_tag(
+                                    &tag.image_id,
+                                    "face",
+                                    &new_value.to_string(),
+                                    result.confidence,
+                                    &vision_model,
+                                );
+                                faces_matched += 1;
+                            }
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(format!("Match {} vs {}: {}", reg_entry.id, tag.id, e));
+                    }
+                }
+            }
+        }
+
+        (faces_matched, errors)
+    }
+
+    /// Internal face-folder scan logic shared by the `face_scan_folder` MCP
+    /// tool and the `gallery_refresh` orchestrator. Walks `folder` for image
+    /// files with `.yaml` sidecars, imports each image into the gallery
+    /// (idempotent by hash), validates via the vision LLM (unless `force`),
+    /// and registers in `face_registry`. Returns a JSON summary.
+    async fn run_face_scan_folder(
+        &self,
+        folder: &std::path::Path,
+        force: bool,
+    ) -> Result<serde_json::Value, McpToolError> {
+        const IMG_EXTS: &[&str] = &["jpg", "jpeg", "png", "webp", "gif"];
+
+        let mut scanned = 0u32;
+        let mut registered = 0u32;
+        let mut skipped = 0u32;
+        let mut rejected = 0u32;
+        let mut errors: Vec<String> = Vec::new();
+        let mut registered_faces: Vec<serde_json::Value> = Vec::new();
+
+        for entry in walkdir::WalkDir::new(folder)
+            .max_depth(1)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let ext = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_lowercase())
+                .unwrap_or_default();
+            if !IMG_EXTS.contains(&ext.as_str()) {
+                continue;
+            }
+
+            scanned += 1;
+
+            let sidecar = path.with_extension(format!("{}.yaml", ext));
+            let sidecar = if sidecar.is_file() {
+                sidecar
+            } else {
+                let alt = path.with_extension(format!("{}.yml", ext));
+                if alt.is_file() {
+                    alt
+                } else {
+                    skipped += 1;
+                    errors.push(format!(
+                        "{}: no YAML sidecar found",
+                        path.file_name().unwrap_or_default().to_string_lossy(),
+                    ));
+                    continue;
+                }
+            };
+
+            let sidecar_text = match std::fs::read_to_string(&sidecar) {
+                Ok(t) => t,
+                Err(e) => {
+                    errors.push(format!(
+                        "{}: failed to read sidecar: {}",
+                        path.file_name().unwrap_or_default().to_string_lossy(),
+                        e
+                    ));
+                    continue;
+                }
+            };
+
+            let parsed: crate::types::FaceSidecar = match serde_yaml_neo::from_str(&sidecar_text) {
+                Ok(s) => s,
+                Err(e) => {
+                    errors.push(format!(
+                        "{}: invalid sidecar YAML: {}",
+                        sidecar.display(),
+                        e
+                    ));
+                    continue;
+                }
+            };
+
+            let (image_id, image_url) = match self.import_reference_image(path) {
+                Ok(pair) => pair,
+                Err(e) => {
+                    errors.push(format!(
+                        "{}: import failed: {}",
+                        path.file_name().unwrap_or_default().to_string_lossy(),
+                        e
+                    ));
+                    continue;
+                }
+            };
+
+            let (record, validation) = self
+                .register_face_from_url(
+                    &image_id,
+                    &image_url,
+                    &parsed.first_name,
+                    &parsed.last_name,
+                    force,
+                )
+                .await?;
+
+            if record.status == "valid" {
+                registered += 1;
+            } else {
+                rejected += 1;
+            }
+
+            registered_faces.push(serde_json::json!({
+                "face_id": record.id,
+                "first_name": record.first_name,
+                "last_name": record.last_name,
+                "status": record.status,
+                "notes": record.notes,
+                "validation": validation,
+                "source": path.file_name().unwrap_or_default().to_string_lossy(),
+            }));
+        }
+
+        Ok(serde_json::json!({
+            "folder": folder.to_string_lossy(),
+            "scanned": scanned,
+            "registered": registered,
+            "skipped": skipped,
+            "rejected": rejected,
+            "faces": registered_faces,
+            "errors": errors,
+        }))
     }
 
     /// Crop a face region from an image using bounding box percentages.
@@ -933,7 +1196,7 @@ pub async fn run(
 
     hkask_mcp::run_server(
         "hkask-mcp-media",
-        env!(CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
             Ok(MediaServer::new(
                 ctx.webid,

@@ -161,7 +161,7 @@ pub struct FaceListRequest {
     pub status: Option<String>,
 }
 
-[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct FaceRemoveRequest {
     /// Face registry ID to remove.
     pub face_id: String,

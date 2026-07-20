@@ -391,7 +391,7 @@ impl MediaServer {
     }
 
     #[tool(
-        description = "Refresh the gallery: scan for new/removed images, then update all AI metadata (objects, colors, composition, scene descriptions). Face detection is OFF by default. When include_faces=true, also auto-matches detected faces against the face_registry — named faces get person names instead of face_group numbers."
+        description = "Refresh the gallery: scan for new/removed images, then update all AI metadata (objects, colors, composition, scene descriptions). Face detection is OFF by default. When include_faces=true, also scans the face reference folder (~/.hkask/faces/ by default) for new reference faces, then auto-matches detected faces against the face_registry — named faces get person names instead of face_group numbers."
     )]
     pub async fn gallery_refresh(
         &self,
@@ -420,7 +420,29 @@ impl MediaServer {
             let mut faces_matched = 0u32;
             let mut registry_count = 0usize;
             let mut match_errors: Vec<String> = Vec::new();
+            let mut face_scan = serde_json::json!(null);
             if include_faces {
+                // Stage 1: scan the face reference folder for new reference
+                // faces. Default folder: ~/.hkask/faces/. Skipped silently if
+                // the folder does not exist.
+                let home = std::env::var_os("HOME");
+                let default_folder = home
+                    .as_ref()
+                    .map(|h| std::path::PathBuf::from(h).join(".hkask").join("faces"));
+                if let Some(folder) = default_folder {
+                    if folder.is_dir() {
+                        match self.run_face_scan_folder(&folder, false).await {
+                            Ok(result) => {
+                                face_scan = result;
+                            }
+                            Err(e) => {
+                                match_errors.push(format!("face_scan_folder: {}", e));
+                            }
+                        }
+                    }
+                }
+
+                // Stage 2: match detected faces against the registry.
                 let ga = match self.access_gallery() {
                     Ok(ga) => ga,
                     Err(e) => {
@@ -456,114 +478,10 @@ impl MediaServer {
                 };
                 registry_count = registry.len();
 
-                // Face matching: always use vision LLM (open-weight Qwen2.5-VL via fal).
-                // The ONNX embedding path is optional behind the `face-recognition` feature.
                 if !registry.is_empty() {
-                    let all_tags = match self.gallery_store.get_all_tags(&ga.gallery_id) {
-                        Ok(t) => t,
-                        Err(e) => {
-                            match_errors.push(format!("Failed to query tags: {}", e));
-                            Vec::new()
-                        }
-                    };
-
-                    let vision_model = self.resolve_vision_model().await;
-                    if vision_model.is_none() {
-                        match_errors
-                            .push("Face matching skipped: no vision model available".to_string());
-                    }
-
-                    for (tag, _path) in &all_tags {
-                        if tag.tag_type != "face" || vision_model.is_none() {
-                            continue;
-                        }
-                        let (vision_model, _vision_label) = vision_model.as_ref().unwrap();
-
-                        let face_image_id = &tag.image_id;
-
-                        let face_bbox: Option<serde_json::Value> =
-                            serde_json::from_str::<serde_json::Value>(&tag.value)
-                                .ok()
-                                .and_then(|v| v.get("bbox").cloned());
-
-                        let query_url = if let Some(ref bbox) = face_bbox {
-                            match self.crop_face_region(face_image_id, bbox) {
-                                Ok(cropped_url) => cropped_url,
-                                Err(_) => match self.resolve_image_url_by_id(face_image_id) {
-                                    Ok(url) => url,
-                                    Err(e) => {
-                                        match_errors.push(format!("Face tag {}: {}", tag.id, e));
-                                        continue;
-                                    }
-                                },
-                            }
-                        } else {
-                            match self.resolve_image_url_by_id(face_image_id) {
-                                Ok(url) => url,
-                                Err(e) => {
-                                    match_errors.push(format!("Face tag {}: {}", tag.id, e));
-                                    continue;
-                                }
-                            }
-                        };
-
-                        for reg_entry in &registry {
-                            let ref_url = match self.resolve_image_url_by_id(&reg_entry.image_id) {
-                                Ok(url) => url,
-                                Err(e) => {
-                                    match_errors
-                                        .push(format!("Registry entry {}: {}", reg_entry.id, e));
-                                    continue;
-                                }
-                            };
-
-                            match vision::match_faces(
-                                &self.inference,
-                                &self.template_env,
-                                &ref_url,
-                                &query_url,
-                                Some(vision_model),
-                            )
-                            .await
-                            {
-                                Ok(result) => {
-                                    if result.is_match && result.confidence >= 0.7 {
-                                        let name = format!(
-                                            "{} {}",
-                                            reg_entry.first_name, reg_entry.last_name
-                                        );
-                                        if let Ok(parsed) =
-                                            serde_json::from_str::<serde_json::Value>(&tag.value)
-                                        {
-                                            let face_index = parsed["face_index"].as_u64();
-                                            let new_value = serde_json::json!({
-                                                "face_index": face_index,
-                                                "name": name,
-                                                "match_confidence": result.confidence,
-                                                "registry_id": reg_entry.id,
-                                                "method": "vision_llm",
-                                            });
-                                            self.persist_tag(
-                                                &tag.image_id,
-                                                "face",
-                                                &new_value.to_string(),
-                                                result.confidence,
-                                                vision_model,
-                                            );
-                                            faces_matched += 1;
-                                        }
-                                        break;
-                                    }
-                                }
-                                Err(e) => {
-                                    match_errors.push(format!(
-                                        "Match {} vs {}: {}",
-                                        reg_entry.id, tag.id, e
-                                    ));
-                                }
-                            }
-                        }
-                    }
+                    let (matched, errs) = self.run_face_matching(&ga, &registry).await;
+                    faces_matched = matched;
+                    match_errors.extend(errs);
                 }
             }
 
@@ -579,6 +497,7 @@ impl MediaServer {
                     "images_analyzed": analyzed,
                     "pipelines": pipelines,
                 },
+                "face_scan_folder": face_scan,
                 "face_matching": {
                     "faces_matched": faces_matched,
                     "registry_entries": registry_count,
