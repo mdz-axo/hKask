@@ -606,3 +606,77 @@ fn try_open_history_store() -> Option<Arc<KataHistoryStore>> {
     let store = KataHistoryStore::from_driver(driver);
     Some(Arc::new(store))
 }
+
+/// Bind a kanban task gas accountant to the kata engine for per-task gas tracking.
+///
+/// Constructs a `KanbanService` from the agent's kanban database, looks up the
+/// task, and returns an `Arc<dyn TaskGasAccountant>` that deducts inference
+/// token cost from the task's `gas_remaining` budget.
+///
+/// Returns an error if the task ID is invalid, the task is not found, or the
+/// kanban database cannot be opened.
+fn bind_task_gas_accountant(
+    _engine: &KataEngine,
+    task_id_str: &str,
+    bot: &str,
+) -> Result<Arc<dyn hkask_services_kata_kanban::TaskGasAccountant>, String> {
+    use hkask_services_kata_kanban::kanban::KanbanService;
+    use hkask_storage::HMemStore;
+    use std::sync::Arc;
+
+    let task_id: hkask_types::TaskId = task_id_str
+        .parse()
+        .map_err(|e| format!("invalid task ID '{}': {}", task_id_str, e))?;
+
+    // Resolve the kanban DB path — same logic as the MCP server.
+    let relative_path = hkask_types::agent_paths::agent_kanban_db(bot);
+    let kanban_db_path = hkask_types::agent_paths::resolve_under_data_dir(&relative_path);
+    if !kanban_db_path.exists() {
+        return Err(format!(
+            "kanban database not found at {} — run 'kask chat' first to initialize",
+            kanban_db_path.display()
+        ));
+    }
+
+    // Open the database. Use the default passphrase resolution — if
+    // HKASK_DB_PASSPHRASE is set, use it; otherwise use the deterministic
+    // default key (same as the MCP server).
+    let passphrase = std::env::var("HKASK_DB_PASSPHRASE")
+        .unwrap_or_else(|_| format!("__k4nb4n__{}__d3f4ult__", bot));
+    let db = hkask_storage::Database::open(&kanban_db_path, &passphrase)
+        .map_err(|e| format!("failed to open kanban database: {}", e))?;
+    let pool = db
+        .sqlite_pool()
+        .map_err(|e| format!("failed to get connection pool: {}", e))?;
+    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+    let store = HMemStore::from_driver(driver);
+    store
+        .driver()
+        .execute_batch(
+            "CREATE TABLE IF NOT EXISTS h_mems (
+            id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL,
+            value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT,
+            confidence REAL NOT NULL, perspective TEXT, visibility TEXT NOT NULL,
+            owner_webid TEXT NOT NULL
+        )",
+        )
+        .map_err(|e| format!("failed to initialize h_mems table: {}", e))?;
+
+    let svc = Arc::new(KanbanService::new(store));
+
+    // Verify the task exists
+    let task = svc
+        .task_get(task_id)
+        .map_err(|e| format!("failed to query task: {}", e))?
+        .ok_or_else(|| format!("task {} not found in kanban database", task_id_str))?;
+
+    if task.gas_remaining.is_none() {
+        eprintln!(
+            "Warning: task {} has no gas budget set. Use 'kanban_task_add_gas' to set one.",
+            task_id_str
+        );
+    }
+
+    Ok(svc.gas_accountant_for(task_id))
+}
