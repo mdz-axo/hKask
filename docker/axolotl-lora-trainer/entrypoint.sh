@@ -59,25 +59,33 @@ export TMPDIR="${WORKSPACE}/tmp"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
-# Redirect all stdout+stderr to a log file AND the console.
-# Also write a copy to /entrypoint.log on the container disk (always writable)
-# in case /workspace isn't mounted yet.
-exec > >(tee -a "${LOG_DIR}/entrypoint.log" /entrypoint.log) 2>&1
+# Redirect all stdout+stderr to a log file on the container disk (always
+# writable, even if /workspace isn't mounted yet). We use a simple redirect
+# (not tee/process substitution) to avoid SIGPIPE if the workspace volume
+# disconnects — process substitution + tee can kill the shell if the tee
+# process dies.
+exec >> /entrypoint.log 2>&1
 set -x  # trace every command for debugging
 
 # Background log uploader — uploads the entrypoint log to HuggingFace every
 # 60 seconds so we can inspect failures even when SSH is unavailable.
 # The log goes to the adapter repo (or a fallback repo) as 'entrypoint.log'.
+# Waits for pip install to complete (huggingface-cli not available until then).
 LOG_UPLOAD_REPO="${HKASK_HF_MODEL_REPOSITORY:-mdz-axo/hkask-training-logs}"
 if [ -n "${HF_TOKEN:-}" ]; then
     (
+        # Wait for huggingface-cli to be available (installed by step 1)
+        while ! command -v huggingface-cli >/dev/null 2>&1; do
+            sleep 30
+        done
         while true; do
             sleep 60
+            cp /entrypoint.log "${LOG_DIR}/entrypoint.log" 2>/dev/null || true
             huggingface-cli repo create "${LOG_UPLOAD_REPO}" --type model --exist-ok 2>/dev/null || true
-            huggingface-cli upload "${LOG_UPLOAD_REPO}" "${LOG_DIR}/entrypoint.log" --commit-message "log update $(date -u +%H:%M:%S)" 2>/dev/null || true
+            huggingface-cli upload "${LOG_UPLOAD_REPO}" /entrypoint.log --commit-message "log update $(date -u +%H:%M:%S)" 2>/dev/null || true
         done
     ) &
-    log "background log uploader started (repo: ${LOG_UPLOAD_REPO})"
+    log "background log uploader started (will upload after pip install completes)"
 fi
 
 log() { printf '[entrypoint] %s\n' "$*" >&2; }
