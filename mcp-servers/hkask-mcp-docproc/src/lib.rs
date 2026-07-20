@@ -369,7 +369,6 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
     Ok(extract_result)
 }
 
-
 /// Load a docproc template from registry and render with minijinja.
 ///
 /// Templates live in `registry/templates/docproc/` as Jinja2 files.
@@ -524,7 +523,6 @@ mod tests {
         assert_eq!(a, b);
         assert_eq!(b, c);
     }
-
 
     #[test]
     fn cache_label_sanitization() {

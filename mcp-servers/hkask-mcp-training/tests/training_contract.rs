@@ -319,9 +319,17 @@ async fn training_submit_rejects_path_traversal_in_skill_name_via_parameters_sea
     let server = test_server();
     // Create a minimal valid dataset file so we get past the file-exists check.
     let temp_ds = std::env::temp_dir().join("hkask_traversal_test_original.jsonl");
-    std::fs::write(&temp_ds, r#"{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"a"}]}"#).ok();
+    std::fs::write(
+        &temp_ds,
+        r#"{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"a"}]}"#,
+    )
+    .ok();
     let temp_fb = std::env::temp_dir().join("hkask_traversal_test_feedback.jsonl");
-    std::fs::write(&temp_fb, r#"{"messages":[{"role":"user","content":"q2"},{"role":"assistant","content":"a2"}]}"#).ok();
+    std::fs::write(
+        &temp_fb,
+        r#"{"messages":[{"role":"user","content":"q2"},{"role":"assistant","content":"a2"}]}"#,
+    )
+    .ok();
 
     let req: hkask_mcp_training::types::TrainSubmitRequest =
         serde_json::from_value(serde_json::json!({
@@ -351,9 +359,17 @@ async fn training_submit_rejects_path_traversal_in_skill_name_via_parameters_sea
 async fn training_submit_rejects_path_traversal_in_merged_output_path_via_parameters_seam() {
     let server = test_server();
     let temp_ds = std::env::temp_dir().join("hkask_merged_traversal_test_original.jsonl");
-    std::fs::write(&temp_ds, r#"{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"a"}]}"#).ok();
+    std::fs::write(
+        &temp_ds,
+        r#"{"messages":[{"role":"user","content":"q"},{"role":"assistant","content":"a"}]}"#,
+    )
+    .ok();
     let temp_fb = std::env::temp_dir().join("hkask_merged_traversal_test_feedback.jsonl");
-    std::fs::write(&temp_fb, r#"{"messages":[{"role":"user","content":"q2"},{"role":"assistant","content":"a2"}]}"#).ok();
+    std::fs::write(
+        &temp_fb,
+        r#"{"messages":[{"role":"user","content":"q2"},{"role":"assistant","content":"a2"}]}"#,
+    )
+    .ok();
 
     let req: hkask_mcp_training::types::TrainSubmitRequest =
         serde_json::from_value(serde_json::json!({
@@ -380,11 +396,15 @@ async fn training_submit_rejects_path_traversal_in_merged_output_path_via_parame
 // expect: returns None when only one adapter exists for the skill (no previous).
 #[test]
 fn get_previous_by_skill_name_returns_none_when_only_one_exists() {
-    use hkask_adapter::{AdapterStore, TrainedLoRAAdapter, expertise::{Expertise, MdsDomain, TrainingProvenance}};
+    use hkask_adapter::{
+        AdapterStore, TrainedLoRAAdapter,
+        expertise::{Expertise, MdsDomain, TrainingProvenance},
+    };
     use hkask_types::id::WebID;
 
     let pool = hkask_database::sqlite::SqliteDriver::in_memory_pool().unwrap();
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
     let store = AdapterStore::from_driver(driver);
 
     // Store one adapter with skill_name "test-skill"
@@ -403,12 +423,15 @@ fn get_previous_by_skill_name_returns_none_when_only_one_exists() {
                 dataset_hash: None,
                 training_metrics: serde_json::Value::Null,
             },
-        ).unwrap(),
+        )
+        .unwrap(),
         checksum: hkask_adapter::adapter_store::Checksum::from_hex("0000000000000000"),
         storage_path: String::new(),
         base_model_family: "test-model".to_string(),
         version: Some("1".to_string()),
-        source: hkask_adapter::AdapterSource::HuggingFace { repo: "test/repo".to_string() },
+        source: hkask_adapter::AdapterSource::HuggingFace {
+            repo: "test/repo".to_string(),
+        },
         size_bytes: None,
         owner: WebID::from_persona(b"test"),
         skill_name: Some("test-skill".to_string()),
@@ -418,6 +441,11 @@ fn get_previous_by_skill_name_returns_none_when_only_one_exists() {
     store.store(&adapter).unwrap();
 
     // get_previous_by_skill_name should return None (only one adapter, excluded)
-    let result = store.get_previous_by_skill_name("test-skill", adapter_id).unwrap();
-    assert!(result.is_none(), "should return None when only one adapter exists");
+    let result = store
+        .get_previous_by_skill_name("test-skill", adapter_id)
+        .unwrap();
+    assert!(
+        result.is_none(),
+        "should return None when only one adapter exists"
+    );
 }

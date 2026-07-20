@@ -212,5 +212,4 @@ mod tests {
     fn strip_json_fences_empty_input() {
         assert_eq!(strip_json_fences(""), "");
     }
-
 }
