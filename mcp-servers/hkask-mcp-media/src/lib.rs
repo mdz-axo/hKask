@@ -549,7 +549,7 @@ impl MediaServer {
                     &self.template_env,
                     &ref_url,
                     &query_url,
-                    Some(&vision_model),
+                    Some(vision_model),
                 )
                 .await
                 {
@@ -572,7 +572,7 @@ impl MediaServer {
                                     "face",
                                     &new_value.to_string(),
                                     result.confidence,
-                                    &vision_model,
+                                    vision_model,
                                 );
                                 faces_matched += 1;
                             }

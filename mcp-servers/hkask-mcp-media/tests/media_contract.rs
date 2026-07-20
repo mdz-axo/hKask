@@ -117,8 +117,7 @@ fn test_server() -> MediaServer {
         Arc::new(Mutex::new(None)), // no gallery state
         gallery_store,
         minijinja::Environment::new(),
-        hkask_mcp_media::video::FfmpegRunner::detect(),
-        None, // no face analyzer
+        hkask_mcp_media::video::FfmpegRunner::detect(), // no face analyzer
     )
 }
 

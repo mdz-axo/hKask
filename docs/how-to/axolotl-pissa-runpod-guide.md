@@ -1,5 +1,12 @@
 # Prompt: Train a LoRA Adapter with Axolotl + PiSSA on RunPod
 
+> **Note**: This guide covers the original PiSSA-based workflow. For the
+> consolidated lessons from all RunPod training runs (including the EVA
+> migration and the minimal Docker image workflow), see
+> [`runpod-lora-training-guide.md`](./runpod-lora-training-guide.md) — that
+> guide is the canonical reference for agents. This document is kept for
+> historical context on the PiSSA portability failure.
+
 ## Objective
 
 Train a PiSSA-initialized LoRA adapter on a large language model (e.g., Qwen3.6-27B) using Axolotl on a RunPod H100 GPU pod. The adapter should blend multiple datasets (coding, analysis, reasoning) with shuffled mixing, Liger Kernel optimizations, and sufficient early-stopping patience to let the cosine LR schedule work.

@@ -85,6 +85,7 @@ Only #1 partially CI-gated; #2–#4 enforced by review.
 | Module design / simplification | `essentialist` (3 gates) | `deep-module` |
 | Security audit | `kali-audit` | `supply-chain-sentinel` (manifests) |
 | LoRA/QLoRA training config audit | `lora-training` | `tdd` (training-loop code) |
+| RunPod training pod creation | [`docs/how-to/runpod-lora-training-guide.md`](docs/how-to/runpod-lora-training-guide.md) | `lora-training` (config audit) |
 | Self-improvement / prompt evolution | `metacognition` | `gpa-evolution` (post-convergence) |
 | Multi-agent coaching | `kata-coaching` | `improv` (interaction grammar) |
 | Session handoff | `handoff` | — |
