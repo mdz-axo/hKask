@@ -21,7 +21,7 @@ use hkask_cns::DEFAULT_VARIETY_MAX_DEFICIT;
 use hkask_cns::cybernetics_loop::CyberneticsLoop;
 use hkask_cns::governed_tool::{EnergyEstimator, GovernedTool};
 use hkask_cns::runtime::CnsRuntime;
-use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
+use hkask_ports::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
 use hkask_storage::NuEventStore;
 use hkask_types::WebID;
 use std::sync::Arc;
@@ -33,31 +33,35 @@ use tokio::sync::RwLock;
 struct EchoToolPort;
 
 impl ToolPort for EchoToolPort {
-    async fn invoke(
-        &self,
-        _server: &str,
-        _tool: &str,
+    fn invoke<'a>(
+        &'a self,
+        _server: &'a str,
+        _tool: &'a str,
         args: serde_json::Value,
-        _token: &DelegationToken,
-    ) -> Result<serde_json::Value, ToolPortError> {
-        Ok(serde_json::json!({
-            "echo": args,
-            "status": "ok",
-        }))
+        _token: &'a DelegationToken,
+    ) -> ToolFuture<'a, Result<serde_json::Value, ToolPortError>> {
+        Box::pin(async move {
+            Ok(serde_json::json!({
+                "echo": args,
+                "status": "ok",
+            }))
+        })
     }
 
-    async fn discover_tools(&self) -> Vec<String> {
-        vec!["echo".to_string()]
+    fn discover_tools<'a>(&'a self) -> ToolFuture<'a, Vec<String>> {
+        Box::pin(async move { vec!["echo".to_string()] })
     }
 
-    async fn get_tool_info(&self, _tool_name: &str) -> Option<ToolInfo> {
-        Some(ToolInfo {
-            name: "echo".to_string(),
-            description: "Echo tool for integration testing".to_string(),
-            input_schema: serde_json::json!({}),
-            server_id: "echo_server".to_string(),
-            required_capability: Some("tool:cns:execute".to_string()),
-            taint: hkask_types::ToolTaint::Pure,
+    fn get_tool_info<'a>(&'a self, _tool_name: &'a str) -> ToolFuture<'a, Option<ToolInfo>> {
+        Box::pin(async move {
+            Some(ToolInfo {
+                name: "echo".to_string(),
+                description: "Echo tool for integration testing".to_string(),
+                input_schema: serde_json::json!({}),
+                server_id: "echo_server".to_string(),
+                required_capability: Some("tool:cns:execute".to_string()),
+                taint: hkask_types::ToolTaint::Pure,
+            })
         })
     }
 }

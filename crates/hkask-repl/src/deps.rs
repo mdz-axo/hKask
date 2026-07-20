@@ -9,8 +9,8 @@
 
 use std::sync::Arc;
 
-use hkask_cns::GovernedTool;
-use hkask_mcp::RawMcpToolPort;
+use hkask_mcp::McpRuntime;
+use hkask_ports::ToolPort;
 use hkask_services_chat::{ChatService, TurnRequest, TurnResult};
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;
@@ -48,6 +48,12 @@ pub struct TurnConfig {
     /// emits a response with no tool calls on iteration 1, the loop injects a
     /// nudge reminding the model that tools are available.
     pub has_tools: bool,
+    /// A2A secret for minting tool delegation tokens.
+    pub a2a_secret: hkask_types::secret::ZeroizingSecret,
+    /// Principal (user) WebID — the authorizing identity.
+    pub principal_webid: hkask_types::WebID,
+    /// Agent WebID — the delegated identity.
+    pub agent_webid: hkask_types::WebID,
 }
 
 // ── Capability traits ────────────────────────────────────────────────
@@ -74,11 +80,9 @@ pub trait GasReservation: Send {
     fn release(&mut self);
 }
 
-/// Invoke tool calls through governance.
-#[async_trait::async_trait]
-pub trait ToolInvoker: Send + Sync {
-    async fn invoke(&self, call: &ToolCall) -> anyhow::Result<serde_json::Value>;
-}
+/// Invoke tool calls through the governed McpRuntime.
+/// Now dyn-compatible — `TurnDeps` holds `&dyn ToolPort` directly.
+/// Tests mock `ToolPort` instead of a separate `ToolInvoker` trait.
 
 /// Thread memory: short-term conversation stream.
 pub trait ThreadMemory: Send {
@@ -88,16 +92,14 @@ pub trait ThreadMemory: Send {
     fn mark_seeded(&mut self);
 }
 
-// ── TurnDeps: bundled dependencies (5 fields) ────────────────────────
+// ── TurnDeps: bundled dependencies ───────────────────────────────────
 
 /// All dependencies `run_turn_loop` needs.
-///
-/// 4 traits (behavioral) + 1 closure (CNS tick). Each is independently
-/// mockable. Talk-mode speech is handled by wrappers post-loop.
+/// 3 traits (behavioral) + 1 tool port + 1 closure (CNS tick).
 pub struct TurnDeps<'a> {
     pub executor: &'a dyn TurnExecutor,
     pub gas: &'a dyn GasGovernor,
-    pub tools: &'a dyn ToolInvoker,
+    pub tools: &'a dyn ToolPort,
     pub threads: &'a mut dyn ThreadMemory,
     pub on_cns_update: &'a dyn Fn(),
 }
@@ -256,45 +258,6 @@ impl GasReservation for ReplGasReservation {
         if let Some(g) = self.guard.take() {
             g.release();
         }
-    }
-}
-
-/// Wraps `GovernedTool` + token minting.
-pub struct ReplToolInvoker {
-    governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
-    agent_webid: WebID,
-    /// A2A secret for minting delegation tokens. Wrapped in `ZeroizingSecret`
-    /// so the bytes are scrubbed from memory when the invoker is dropped.
-    a2a_secret: hkask_types::secret::ZeroizingSecret,
-    /// Principal (user) WebID — resolved once at construction, not per-call.
-    principal_webid: WebID,
-}
-
-impl ReplToolInvoker {
-    pub fn from_state(state: &super::ReplState, a2a_secret: &[u8]) -> Self {
-        Self {
-            governed_tool: state.service_context.governed_tool(state.agent_webid),
-            agent_webid: state.agent_webid,
-            a2a_secret: hkask_types::secret::ZeroizingSecret::new(a2a_secret.to_vec()),
-            principal_webid: state.host.resolve_user_webid(),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl ToolInvoker for ReplToolInvoker {
-    async fn invoke(&self, call: &ToolCall) -> anyhow::Result<serde_json::Value> {
-        self.governed_tool
-            .invoke_with_secret(
-                &call.server,
-                &call.tool,
-                call.args.clone(),
-                self.a2a_secret.as_bytes(),
-                self.principal_webid,
-                self.agent_webid,
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("{}: {}", call.tool, e))
     }
 }
 

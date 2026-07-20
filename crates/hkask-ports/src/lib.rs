@@ -41,5 +41,5 @@ pub use inference_types::{
 pub use registry::{
     RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
 };
-pub use tool::{ToolInfo, ToolPort, ToolPortError};
+pub use tool::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
 pub use wallet_budget_port::{WalletBudgetError, WalletBudgetPort};

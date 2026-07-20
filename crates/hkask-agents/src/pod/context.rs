@@ -13,7 +13,7 @@
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use hkask_cns::ExperienceClassification;
 use hkask_cns::GovernedTool;
-use hkask_mcp::RawMcpToolPort;
+use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
 use hkask_ports::ToolPort;
 use hkask_types::DataCategory;
@@ -59,7 +59,7 @@ pub struct PodContext {
     /// (energy budget, variety tracking, event spans). When present, `invoke_tool`
     /// routes through this membrane instead of the raw `mcp_runtime`, ensuring
     /// pod-initiated calls are subject to Cybernetics governance.
-    governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+    governed_tool: Option<Arc<GovernedTool<McpRuntime>>>,
     /// Cryptographic capability checker for OCAP verification.
     /// When set, `require_capability()` verifies the token's Ed25519 signature
     /// against the configured trusted root(s) and that it is delegated to this

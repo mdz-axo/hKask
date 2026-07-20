@@ -14,7 +14,7 @@ use hkask_agents::InferenceLoop;
 use hkask_cns::{GasBudget, GasCost, GovernedTool};
 
 use super::{TalkConfig, TalkMode, ToolPrompt};
-use hkask_mcp::RawMcpToolPort;
+use hkask_mcp::McpRuntime;
 use hkask_ports::{ToolInfo, ToolPort};
 use hkask_templates::{ManifestExecutor, McpPort};
 use hkask_types::WebID;
@@ -281,7 +281,7 @@ fn load_thread_registry(agent_name: &str, stm_life: u32) -> crate::threads::Thre
 ///
 /// Used by: `init_repl_state`
 fn discover_tools(
-    governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
+    governed_tool: &Arc<GovernedTool<McpRuntime>>,
     rt: &tokio::runtime::Handle,
 ) -> ToolPrompt {
     let tool_names = rt.block_on(governed_tool.discover_tools());

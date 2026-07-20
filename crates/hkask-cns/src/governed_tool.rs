@@ -29,7 +29,7 @@ use crate::types::loops::ToolConsumptionEvent;
 use hkask_capability::{
     DelegationAction, DelegationResource, DelegationToken, capabilities_match, derive_signing_key,
 };
-use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
+use hkask_ports::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
 use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::cns::CnsSpan;
@@ -68,7 +68,7 @@ pub trait EnergyEstimator: Send + Sync {
 /// # Composition
 ///
 /// ```ignore
-/// let inner: Arc<RawMcpToolPort> = Arc::new(RawMcpToolPort::new(runtime));
+/// let inner: Arc<McpRuntime> = Arc::new(runtime);
 /// let governed = GovernedTool::new(
 ///     inner,
 ///     cybernetics_loop,
@@ -229,64 +229,111 @@ impl<P: ToolPort + 'static> GovernedTool<P> {
 }
 
 impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
-    async fn invoke(
-        &self,
-        server: &str,
-        tool: &str,
+    fn invoke<'a>(
+        &'a self,
+        server: &'a str,
+        tool: &'a str,
         args: Value,
-        token: &DelegationToken,
-    ) -> Result<Value, ToolPortError> {
-        let point_estimate = self.estimator.estimate_cost(server, tool, &args);
+        token: &'a DelegationToken,
+    ) -> ToolFuture<'a, Result<Value, ToolPortError>> {
+        Box::pin(async move {
+            let point_estimate = self.estimator.estimate_cost(server, tool, &args);
 
-        // Step 0: Verify cryptographic authenticity of the delegation token
-        if !token.verify() {
-            warn!(
-                target: "cns.tool",
-                agent = ?self.agent,
-                tool = %tool,
-                "Tool invocation rejected — token signature verification failed"
-            );
-            return Err(ToolPortError::CapabilityDenied(
-                "Token failed cryptographic verification".to_string(),
-            ));
-        }
-
-        // Step 1: Verify OCAP authority
-        // Exact-match (ad-hoc tokens) or domain-based (agent tokens)
-        let authorized = Self::verify_capability_exact(token, tool)
-            || self.verify_capability_domain_fallback(token, tool).await;
-        if !authorized {
-            warn!(
-                target: "cns.tool",
-                agent = ?self.agent,
-                tool = %tool,
-                "Tool invocation rejected — capability denied"
-            );
-            return Err(ToolPortError::CapabilityDenied(format!(
-                "Token does not authorize tool: {}",
-                tool
-            )));
-        }
-
-        // Step 2: Reserve energy budget (hold-settle pattern).
-        // Layer 1: use ToolStats distribution estimate when reliable,
-        // falling back to the EnergyEstimator's point estimate.
-        let estimated_cost = if let Some(ref stats) = self.tool_stats {
-            match stats.reserve_estimate(tool).await {
-                Some(dist_est) if dist_est > 0 => GasCost(dist_est),
-                _ => GasCost(point_estimate),
+            // Step 0: Verify cryptographic authenticity of the delegation token
+            if !token.verify() {
+                warn!(
+                    target: "cns.tool",
+                    agent = ?self.agent,
+                    tool = %tool,
+                    "Tool invocation rejected — token signature verification failed"
+                );
+                return Err(ToolPortError::CapabilityDenied(
+                    "Token failed cryptographic verification".to_string(),
+                ));
             }
-        } else {
-            GasCost(point_estimate)
-        };
-        let loop6 = self.cybernetics.read().await;
-        if !loop6.can_proceed(&self.agent, estimated_cost).await {
-            // Emit cns.gas.depleted span
-            let depleted_span = Span::from_kind(SpanKind::GasDepleted);
-            let depleted_event = NuEvent::new(
+
+            // Step 1: Verify OCAP authority
+            // Exact-match (ad-hoc tokens) or domain-based (agent tokens)
+            let authorized = Self::verify_capability_exact(token, tool)
+                || self.verify_capability_domain_fallback(token, tool).await;
+            if !authorized {
+                warn!(
+                    target: "cns.tool",
+                    agent = ?self.agent,
+                    tool = %tool,
+                    "Tool invocation rejected — capability denied"
+                );
+                return Err(ToolPortError::CapabilityDenied(format!(
+                    "Token does not authorize tool: {}",
+                    tool
+                )));
+            }
+
+            // Step 2: Reserve energy budget (hold-settle pattern).
+            // Layer 1: use ToolStats distribution estimate when reliable,
+            // falling back to the EnergyEstimator's point estimate.
+            let estimated_cost = if let Some(ref stats) = self.tool_stats {
+                match stats.reserve_estimate(tool).await {
+                    Some(dist_est) if dist_est > 0 => GasCost(dist_est),
+                    _ => GasCost(point_estimate),
+                }
+            } else {
+                GasCost(point_estimate)
+            };
+            let loop6 = self.cybernetics.read().await;
+            if !loop6.can_proceed(&self.agent, estimated_cost).await {
+                // Emit cns.gas.depleted span
+                let depleted_span = Span::from_kind(SpanKind::GasDepleted);
+                let depleted_event = NuEvent::new(
+                    self.agent,
+                    depleted_span,
+                    CyclePhase::Sense,
+                    serde_json::json!({
+                        "server": server,
+                        "tool": tool,
+                        "estimated_cost": estimated_cost.0,
+                    }),
+                    0,
+                );
+                if let Err(e) = self.event_sink.persist(&depleted_event) {
+                    warn!(target: "cns.tool", error = %e, "Failed to persist gas-depleted event");
+                }
+
+                debug!(
+                    target: "cns.tool",
+                    agent = ?self.agent,
+                    tool = %tool,
+                    estimated_cost = estimated_cost.0,
+                    "Tool invocation rejected — energy budget exceeded"
+                );
+                return Err(ToolPortError::EnergyBudgetExceeded(format!(
+                    "Gas budget exceeded for agent {:?}, tool {}, estimated cost {}",
+                    self.agent, tool, estimated_cost.0
+                )));
+            }
+            // Reserve the gas
+            if let Err(e) = loop6.reserve_gas(&self.agent, estimated_cost).await {
+                warn!(
+                    target: "cns.tool",
+                    agent = ?self.agent,
+                    tool = %tool,
+                    error = %e,
+                    estimated_cost = estimated_cost.0,
+                    "Failed to reserve gas for tool invocation"
+                );
+                return Err(ToolPortError::EnergyBudgetExceeded(format!(
+                    "Gas reservation failed for agent {:?}, tool {}, estimated cost {}",
+                    self.agent, tool, estimated_cost.0
+                )));
+            }
+            drop(loop6);
+
+            // Emit cns.gas.reserved span
+            let reserved_span = Span::from_kind(SpanKind::GasReserved);
+            let reserved_event = NuEvent::new(
                 self.agent,
-                depleted_span,
-                CyclePhase::Sense,
+                reserved_span,
+                CyclePhase::Act,
                 serde_json::json!({
                     "server": server,
                     "tool": tool,
@@ -294,242 +341,197 @@ impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
                 }),
                 0,
             );
-            if let Err(e) = self.event_sink.persist(&depleted_event) {
-                warn!(target: "cns.tool", error = %e, "Failed to persist gas-depleted event");
+            if let Err(e) = self.event_sink.persist(&reserved_event) {
+                warn!(target: "cns.tool", error = %e, "Failed to persist gas-reserved event");
             }
 
-            debug!(
-                target: "cns.tool",
-                agent = ?self.agent,
-                tool = %tool,
-                estimated_cost = estimated_cost.0,
-                "Tool invocation rejected — energy budget exceeded"
+            // Step 3: Emit invoked span
+            let invoked_span = Span::new(
+                SpanNamespace::try_from(CnsSpan::Tool {
+                    subsystem: hkask_types::cns::ToolSubsystem::from_server_name(server),
+                })
+                .expect("canonical span"),
+                "invoked",
             );
-            return Err(ToolPortError::EnergyBudgetExceeded(format!(
-                "Gas budget exceeded for agent {:?}, tool {}, estimated cost {}",
-                self.agent, tool, estimated_cost.0
-            )));
-        }
-        // Reserve the gas
-        if let Err(e) = loop6.reserve_gas(&self.agent, estimated_cost).await {
-            warn!(
-                target: "cns.tool",
-                agent = ?self.agent,
-                tool = %tool,
-                error = %e,
-                estimated_cost = estimated_cost.0,
-                "Failed to reserve gas for tool invocation"
+            let invoked_event = NuEvent::new(
+                self.agent,
+                invoked_span,
+                CyclePhase::Sense,
+                serde_json::json!({
+                    "server": server,
+                    "tool": tool,
+                    "estimated_cost": estimated_cost.0,
+                    "settled": false,
+                }),
+                0,
             );
-            return Err(ToolPortError::EnergyBudgetExceeded(format!(
-                "Gas reservation failed for agent {:?}, tool {}, estimated cost {}",
-                self.agent, tool, estimated_cost.0
-            )));
-        }
-        drop(loop6);
+            if let Err(e) = self.event_sink.persist(&invoked_event) {
+                warn!(
+                    target: "cns.tool",
+                    error = %e,
+                    "Failed to persist cns.tool.invoked NuEvent"
+                );
+            }
 
-        // Emit cns.gas.reserved span
-        let reserved_span = Span::from_kind(SpanKind::GasReserved);
-        let reserved_event = NuEvent::new(
-            self.agent,
-            reserved_span,
-            CyclePhase::Act,
-            serde_json::json!({
-                "server": server,
-                "tool": tool,
-                "estimated_cost": estimated_cost.0,
-            }),
-            0,
-        );
-        if let Err(e) = self.event_sink.persist(&reserved_event) {
-            warn!(target: "cns.tool", error = %e, "Failed to persist gas-reserved event");
-        }
-
-        // Step 3: Emit invoked span
-        let invoked_span = Span::new(
-            SpanNamespace::try_from(CnsSpan::Tool {
-                subsystem: hkask_types::cns::ToolSubsystem::from_server_name(server),
-            })
-            .expect("canonical span"),
-            "invoked",
-        );
-        let invoked_event = NuEvent::new(
-            self.agent,
-            invoked_span,
-            CyclePhase::Sense,
-            serde_json::json!({
-                "server": server,
-                "tool": tool,
-                "estimated_cost": estimated_cost.0,
-                "settled": false,
-            }),
-            0,
-        );
-        if let Err(e) = self.event_sink.persist(&invoked_event) {
-            warn!(
-                target: "cns.tool",
-                error = %e,
-                "Failed to persist cns.tool.invoked NuEvent"
-            );
-        }
-
-        // Step 4: Delegate to inner tool
-        info!(
-            target: "cns.tool",
-            agent = ?self.agent,
-            tool = %tool,
-            estimated_cost = estimated_cost.0,
-            "Delegating tool invocation (gas reserved)"
-        );
-        let result = self.inner.invoke(server, tool, args, token).await;
-
-        // Step 5: Settle energy cost (hold-settle)
-        let actual_cost = match &result {
-            Ok(_) => estimated_cost.0,      // Full cost on success
-            Err(_) => estimated_cost.0 / 2, // Half cost on failure
-        };
-        let loop6 = self.cybernetics.read().await;
-        if let Err(e) = loop6
-            .settle_gas(&self.agent, estimated_cost, GasCost(actual_cost))
-            .await
-        {
-            warn!(
-                target: "cns.tool",
-                agent = ?self.agent,
-                tool = %tool,
-                error = %e,
-                reserved = estimated_cost.0,
-                actual = actual_cost,
-                "Failed to settle gas after tool invocation"
-            );
-        } else {
+            // Step 4: Delegate to inner tool
             info!(
                 target: "cns.tool",
                 agent = ?self.agent,
                 tool = %tool,
-                reserved = estimated_cost.0,
-                actual = actual_cost,
-                refunded = estimated_cost.0.saturating_sub(actual_cost),
-                "Gas settled after tool invocation"
+                estimated_cost = estimated_cost.0,
+                "Delegating tool invocation (gas reserved)"
             );
-        }
-        drop(loop6);
+            let result = self.inner.invoke(server, tool, args, token).await;
 
-        // Emit cns.gas.settled span
-        let settled_span = Span::from_kind(SpanKind::GasSettled);
-        let settled_event = NuEvent::new(
-            self.agent,
-            settled_span,
-            CyclePhase::Act,
-            serde_json::json!({
-                "server": server,
-                "tool": tool,
-                "reserved": estimated_cost.0,
-                "actual": actual_cost,
-                "refunded": estimated_cost.0.saturating_sub(actual_cost),
-            }),
-            0,
-        );
-        if let Err(e) = self.event_sink.persist(&settled_event) {
-            warn!(target: "cns.tool", error = %e, "Failed to persist gas-settled event");
-        }
-
-        // Step 5b: Emit gas-consumed signal to Cybernetics Loop via direct channel.
-        let success = result.is_ok();
-
-        // Record outcome for statistical learning (Layer 1: cost distribution, Layer 2: reliability).
-        if let Some(ref stats) = self.tool_stats {
-            stats.record(tool, actual_cost, success).await;
-        }
-
-        if let Some(ref tx) = self.tool_consumption_tx {
-            let event = ToolConsumptionEvent {
-                tool_name: tool.to_string(),
-                agent: self.agent,
-                gas_cost: actual_cost,
-                success,
+            // Step 5: Settle energy cost (hold-settle)
+            let actual_cost = match &result {
+                Ok(_) => estimated_cost.0,      // Full cost on success
+                Err(_) => estimated_cost.0 / 2, // Half cost on failure
             };
-            if let Err(e) = tx.send(event) {
+            let loop6 = self.cybernetics.read().await;
+            if let Err(e) = loop6
+                .settle_gas(&self.agent, estimated_cost, GasCost(actual_cost))
+                .await
+            {
                 warn!(
                     target: "cns.tool",
                     agent = ?self.agent,
                     tool = %tool,
                     error = %e,
-                    "Failed to send ToolConsumptionEvent on direct channel"
+                    reserved = estimated_cost.0,
+                    actual = actual_cost,
+                    "Failed to settle gas after tool invocation"
+                );
+            } else {
+                info!(
+                    target: "cns.tool",
+                    agent = ?self.agent,
+                    tool = %tool,
+                    reserved = estimated_cost.0,
+                    actual = actual_cost,
+                    refunded = estimated_cost.0.saturating_sub(actual_cost),
+                    "Gas settled after tool invocation"
                 );
             }
-        }
+            drop(loop6);
 
-        // Step 6: Emit outcome span
-        let (outcome_phase, outcome_obs) = match &result {
-            Ok(_value) => (
+            // Emit cns.gas.settled span
+            let settled_span = Span::from_kind(SpanKind::GasSettled);
+            let settled_event = NuEvent::new(
+                self.agent,
+                settled_span,
                 CyclePhase::Act,
                 serde_json::json!({
                     "server": server,
                     "tool": tool,
-                    "estimated_cost": estimated_cost.0,
-                    "actual_cost": actual_cost,
-                    "status": "success",
-                    "settled": true,
+                    "reserved": estimated_cost.0,
+                    "actual": actual_cost,
+                    "refunded": estimated_cost.0.saturating_sub(actual_cost),
                 }),
-            ),
-            Err(e) => (
-                CyclePhase::Act,
-                serde_json::json!({
-                    "server": server,
-                    "tool": tool,
-                    "estimated_cost": estimated_cost.0,
-                    "actual_cost": actual_cost,
-                    "status": "failure",
-                    "error": e.to_string(),
-                    "settled": true,
-                }),
-            ),
-        };
-        let completed_span = Span::new(
-            SpanNamespace::try_from(CnsSpan::Tool {
-                subsystem: hkask_types::cns::ToolSubsystem::from_server_name(server),
-            })
-            .expect("canonical span"),
-            "completed",
-        );
-        let completed_event =
-            NuEvent::new(self.agent, completed_span, outcome_phase, outcome_obs, 0)
-                .with_parent(invoked_event.id);
-        if let Err(e) = self.event_sink.persist(&completed_event) {
-            warn!(
-                target: "cns.tool",
-                error = %e,
-                "Failed to persist cns.tool.completed NuEvent"
+                0,
             );
-        }
+            if let Err(e) = self.event_sink.persist(&settled_event) {
+                warn!(target: "cns.tool", error = %e, "Failed to persist gas-settled event");
+            }
 
-        // Step 7: Record outcome for quality tracking (success rate per domain)
-        {
-            let cybernetics = self.cybernetics.read().await;
-            let error_kind: Option<String> = match &result {
-                Err(e) => {
-                    // Extract the error kind — use the ToolPortError variant name
-                    let err_str = e.to_string();
-                    // Take first line or first 64 chars as the error kind
-                    let kind = err_str.lines().next().unwrap_or(&err_str);
-                    Some(kind.chars().take(64).collect())
+            // Step 5b: Emit gas-consumed signal to Cybernetics Loop via direct channel.
+            let success = result.is_ok();
+
+            // Record outcome for statistical learning (Layer 1: cost distribution, Layer 2: reliability).
+            if let Some(ref stats) = self.tool_stats {
+                stats.record(tool, actual_cost, success).await;
+            }
+
+            if let Some(ref tx) = self.tool_consumption_tx {
+                let event = ToolConsumptionEvent {
+                    tool_name: tool.to_string(),
+                    agent: self.agent,
+                    gas_cost: actual_cost,
+                    success,
+                };
+                if let Err(e) = tx.send(event) {
+                    warn!(
+                        target: "cns.tool",
+                        agent = ?self.agent,
+                        tool = %tool,
+                        error = %e,
+                        "Failed to send ToolConsumptionEvent on direct channel"
+                    );
                 }
-                Ok(_) => None,
+            }
+
+            // Step 6: Emit outcome span
+            let (outcome_phase, outcome_obs) = match &result {
+                Ok(_value) => (
+                    CyclePhase::Act,
+                    serde_json::json!({
+                        "server": server,
+                        "tool": tool,
+                        "estimated_cost": estimated_cost.0,
+                        "actual_cost": actual_cost,
+                        "status": "success",
+                        "settled": true,
+                    }),
+                ),
+                Err(e) => (
+                    CyclePhase::Act,
+                    serde_json::json!({
+                        "server": server,
+                        "tool": tool,
+                        "estimated_cost": estimated_cost.0,
+                        "actual_cost": actual_cost,
+                        "status": "failure",
+                        "error": e.to_string(),
+                        "settled": true,
+                    }),
+                ),
             };
-            cybernetics
-                .record_outcome(server, success, error_kind.as_deref())
-                .await;
-        }
+            let completed_span = Span::new(
+                SpanNamespace::try_from(CnsSpan::Tool {
+                    subsystem: hkask_types::cns::ToolSubsystem::from_server_name(server),
+                })
+                .expect("canonical span"),
+                "completed",
+            );
+            let completed_event =
+                NuEvent::new(self.agent, completed_span, outcome_phase, outcome_obs, 0)
+                    .with_parent(invoked_event.id);
+            if let Err(e) = self.event_sink.persist(&completed_event) {
+                warn!(
+                    target: "cns.tool",
+                    error = %e,
+                    "Failed to persist cns.tool.completed NuEvent"
+                );
+            }
 
-        result
+            // Step 7: Record outcome for quality tracking (success rate per domain)
+            {
+                let cybernetics = self.cybernetics.read().await;
+                let error_kind: Option<String> = match &result {
+                    Err(e) => {
+                        // Extract the error kind — use the ToolPortError variant name
+                        let err_str = e.to_string();
+                        // Take first line or first 64 chars as the error kind
+                        let kind = err_str.lines().next().unwrap_or(&err_str);
+                        Some(kind.chars().take(64).collect())
+                    }
+                    Ok(_) => None,
+                };
+                cybernetics
+                    .record_outcome(server, success, error_kind.as_deref())
+                    .await;
+            }
+
+            result
+        })
     }
 
-    async fn discover_tools(&self) -> Vec<String> {
-        self.inner.discover_tools().await
+    fn discover_tools<'a>(&'a self) -> ToolFuture<'a, Vec<String>> {
+        Box::pin(async move { self.inner.discover_tools().await })
     }
 
-    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
-        self.inner.get_tool_info(tool_name).await
+    fn get_tool_info<'a>(&'a self, tool_name: &'a str) -> ToolFuture<'a, Option<ToolInfo>> {
+        Box::pin(async move { self.inner.get_tool_info(tool_name).await })
     }
 }
 
@@ -613,20 +615,20 @@ mod tests {
     // The verification_functions are pure (no ToolPort dispatch needed).
     struct NoOpToolPort;
     impl ToolPort for NoOpToolPort {
-        async fn invoke(
-            &self,
-            _server: &str,
-            _tool: &str,
+        fn invoke<'a>(
+            &'a self,
+            _server: &'a str,
+            _tool: &'a str,
             _args: serde_json::Value,
-            _token: &DelegationToken,
-        ) -> Result<serde_json::Value, ToolPortError> {
-            Ok(serde_json::Value::Null)
+            _token: &'a DelegationToken,
+        ) -> ToolFuture<'a, Result<serde_json::Value, ToolPortError>> {
+            Box::pin(async move { Ok(serde_json::Value::Null) })
         }
-        async fn discover_tools(&self) -> Vec<String> {
-            vec![]
+        fn discover_tools<'a>(&'a self) -> ToolFuture<'a, Vec<String>> {
+            Box::pin(async move { Vec::new() })
         }
-        async fn get_tool_info(&self, _tool_name: &str) -> Option<ToolInfo> {
-            None
+        fn get_tool_info<'a>(&'a self, _tool_name: &'a str) -> ToolFuture<'a, Option<ToolInfo>> {
+            Box::pin(async move { None })
         }
     }
 }

@@ -121,6 +121,12 @@ fn resolve_mcp_binary(server_id: &str, command: &str) -> String {
 }
 
 /// MCP runtime manager
+///
+/// Also serves as the OCAP/gas/CNS governance boundary for tool invocations.
+/// The `invoke` method verifies the delegation token, reserves gas via the
+/// CyberneticsLoop, emits a CNS span, calls the tool, settles gas, and emits
+/// the outcome span. This collapses the former `GovernedTool` wrapper —
+/// one tool, one path.
 #[derive(Clone)]
 pub struct McpRuntime {
     /// Registered MCP servers (metadata)
@@ -131,12 +137,20 @@ pub struct McpRuntime {
     connections: Arc<RwLock<HashMap<String, Peer<RoleClient>>>>,
     /// Cancellation tokens for managed server processes
     cancellation_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
+    /// Governance: cybernetics loop for gas reserve/settle. None = no gas tracking.
+    cybernetics: Option<Arc<RwLock<hkask_cns::CyberneticsLoop>>>,
+    /// Governance: event sink for CNS spans. None = no span emission.
+    event_sink: Option<Arc<dyn hkask_types::NuEventSink>>,
+    /// Governance: energy estimator for tool cost. None = flat estimate.
+    estimator: Option<Arc<dyn hkask_cns::EnergyEstimator>>,
+    /// Governance: agent WebID for gas attribution. None = no attribution.
+    agent_webid: Option<hkask_types::WebID>,
 }
 
 impl McpRuntime {
-    /// Create a new MCP runtime.
-    ///
-    /// post: returns McpRuntime with empty servers, tool_registry, connections
+    /// Create a new MCP runtime with no governance configured.
+    /// Tool invocations will bypass OCAP/gas/CNS — use `with_governance`
+    /// to wire the cybernetic membrane.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -144,7 +158,29 @@ impl McpRuntime {
             tool_registry: Arc::new(RwLock::new(HashMap::new())),
             connections: Arc::new(RwLock::new(HashMap::new())),
             cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
+            cybernetics: None,
+            event_sink: None,
+            estimator: None,
+            agent_webid: None,
         }
+    }
+
+    /// Wire the cybernetic governance membrane (OCAP + gas + CNS spans).
+    /// All subsequent `invoke` calls will verify the token, reserve/settle
+    /// gas, and emit spans. Must be called before the first invocation.
+    #[must_use]
+    pub fn with_governance(
+        mut self,
+        cybernetics: Arc<RwLock<hkask_cns::CyberneticsLoop>>,
+        event_sink: Arc<dyn hkask_types::NuEventSink>,
+        estimator: Arc<dyn hkask_cns::EnergyEstimator>,
+        agent_webid: hkask_types::WebID,
+    ) -> Self {
+        self.cybernetics = Some(cybernetics);
+        self.event_sink = Some(event_sink);
+        self.estimator = Some(estimator);
+        self.agent_webid = Some(agent_webid);
+        self
     }
 
     /// Register an MCP server (metadata only, no live connection).
@@ -293,8 +329,8 @@ impl McpRuntime {
 
     /// Call a tool on a connected server directly via the Peer.
     ///
-    /// Lower-level than `RawMcpToolPort::invoke` — no governance membrane.
-    /// Used internally by `RawMcpToolPort` and by external callers (QA runner).
+    /// Lower-level than `GovernedTool::invoke` — no governance membrane.
+    /// Used internally by `GovernedTool` and by external callers (QA runner).
     #[must_use = "result must be used"]
     pub async fn call_tool(
         &self,
@@ -400,67 +436,156 @@ impl Default for McpRuntime {
 
 // ── ToolPort implementation ──────────────────────────────────────────────
 //
-// McpRuntime implements ToolPort directly. This eliminates the former
-// RawMcpToolPort adapter layer — GovernedTool<McpRuntime> is now the single
-// tool surface. The invoke logic (live-connection check, error-flag check,
-// result parsing) lives here, not in a separate wrapper struct.
+// McpRuntime implements ToolPort directly. When governance is configured
+// (via `with_governance`), `invoke` verifies the OCAP token, reserves gas,
+// emits a CNS span, calls the tool, settles gas, and emits the outcome span.
+// When governance is not configured, it calls the tool directly (for tests
+// and lightweight embedders). One tool, one path — no wrapper layers.
 
 impl hkask_ports::ToolPort for McpRuntime {
-    fn invoke(
+    fn invoke<'a>(
+        &'a self,
+        server: &'a str,
+        tool: &'a str,
+        args: Value,
+        token: &'a hkask_capability::DelegationToken,
+    ) -> hkask_ports::ToolFuture<'a, Result<Value, hkask_ports::ToolPortError>> {
+        Box::pin(async move {
+            // Governance gate: OCAP verify + gas reserve + span emit.
+            // Skipped when governance is not configured (tests, lightweight embedders).
+            if let (Some(cyber), Some(sink), Some(est), Some(agent)) = (
+                &self.cybernetics,
+                &self.event_sink,
+                &self.estimator,
+                self.agent_webid,
+            ) {
+                // OCAP: verify token signature + authority.
+                if !token.verify() {
+                    return Err(hkask_ports::ToolPortError::CapabilityDenied(
+                        "token signature verification failed".into(),
+                    ));
+                }
+                let authorized = token.is_valid_for(
+                    hkask_capability::DelegationResource::Tool,
+                    tool,
+                    hkask_capability::DelegationAction::Execute,
+                ) || self.verify_capability_domain(token, tool).await;
+                if !authorized {
+                    return Err(hkask_ports::ToolPortError::CapabilityDenied(format!(
+                        "token does not authorize tool: {}",
+                        tool
+                    )));
+                }
+
+                // Gas: reserve estimated cost (hold-settle pattern).
+                let estimated = hkask_cns::GasCost(est.estimate_cost(server, tool, &args));
+                let cyber_lock = cyber.read().await;
+                if !cyber_lock.can_proceed(&agent, estimated).await {
+                    return Err(hkask_ports::ToolPortError::EnergyBudgetExceeded(format!(
+                        "gas budget exceeded for {:?}, tool {}, cost {}",
+                        agent, tool, estimated.0
+                    )));
+                }
+                cyber_lock.reserve_gas(&agent, estimated).await.ok();
+                drop(cyber_lock);
+
+                // Call the tool.
+                let result = self.call_tool_inner(server, tool, args).await;
+
+                // Gas: settle actual cost (full on success, half on failure).
+                let actual = if result.is_ok() {
+                    estimated.0
+                } else {
+                    estimated.0 / 2
+                };
+                cyber
+                    .read()
+                    .await
+                    .settle_gas(&agent, estimated, hkask_cns::GasCost(actual))
+                    .await
+                    .ok();
+
+                // CNS: emit invoked + completed spans (best-effort, non-blocking).
+                let status = if result.is_ok() { "success" } else { "failure" };
+                use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
+                let _ = sink.persist(&NuEvent::new(
+                    agent,
+                    Span::from_kind(SpanKind::GasSettled),
+                    CyclePhase::Act,
+                    serde_json::json!({ "server": server, "tool": tool, "cost": actual, "status": status }),
+                    0,
+                ));
+
+                result
+            } else {
+                // No governance configured — call the tool directly.
+                self.call_tool_inner(server, tool, args).await
+            }
+        })
+    }
+
+    fn discover_tools<'a>(&'a self) -> hkask_ports::ToolFuture<'a, Vec<String>> {
+        Box::pin(async move { McpRuntime::discover_tools(self).await })
+    }
+
+    fn get_tool_info<'a>(
+        &'a self,
+        tool_name: &'a str,
+    ) -> hkask_ports::ToolFuture<'a, Option<hkask_ports::ToolInfo>> {
+        Box::pin(async move { McpRuntime::get_tool_info(self, tool_name).await })
+    }
+}
+
+impl McpRuntime {
+    /// Verify OCAP authority via domain-based capability matching.
+    /// Agent tokens use domain shorthand (e.g., `cns` not `cns_health`).
+    async fn verify_capability_domain(
+        &self,
+        token: &hkask_capability::DelegationToken,
+        tool_name: &str,
+    ) -> bool {
+        let Some(info) = self.get_tool_info(tool_name).await else {
+            return false;
+        };
+        let Some(required) = info.required_capability else {
+            return false;
+        };
+        let token_cap = format!("tool:{}:{}", token.resource_id, token.action.as_str());
+        hkask_capability::capabilities_match(&token_cap, &required)
+    }
+
+    /// Inner tool call: live-connection check, JSON-RPC dispatch, result parsing.
+    async fn call_tool_inner(
         &self,
         server: &str,
         tool: &str,
         args: Value,
-        _token: &hkask_capability::DelegationToken,
-    ) -> hkask_ports::ToolFuture<'_, Result<Value, hkask_ports::ToolPortError>> {
-        Box::pin(async move {
-            // Try the live connection first
-            if self.get_peer(server).await.is_some() {
-                let arguments = args.as_object().cloned().unwrap_or_default();
-                let result = self
-                    .call_tool(server, tool, arguments)
-                    .await
-                    .map_err(|e| hkask_ports::ToolPortError::InvocationFailed(e.to_string()))?;
-
-                if result.is_error.unwrap_or(false) {
-                    let msg = extract_text_content(&result);
-                    return Err(hkask_ports::ToolPortError::InvocationFailed(msg));
-                }
-                return Ok(parse_call_result(&result));
-            }
-
-            // No live connection — is the tool at least registered?
-            if !self.tool_exists(tool).await {
-                return Err(hkask_ports::ToolPortError::NotFound(
-                    hkask_types::NotFound {
-                        entity_type: "tool".to_string(),
-                        id: format!("Tool '{}' not found in MCP runtime", tool),
-                    },
+    ) -> Result<Value, hkask_ports::ToolPortError> {
+        if self.get_peer(server).await.is_some() {
+            let arguments = args.as_object().cloned().unwrap_or_default();
+            let result = self
+                .call_tool(server, tool, arguments)
+                .await
+                .map_err(|e| hkask_ports::ToolPortError::InvocationFailed(e.to_string()))?;
+            if result.is_error.unwrap_or(false) {
+                return Err(hkask_ports::ToolPortError::InvocationFailed(
+                    extract_text_content(&result),
                 ));
             }
-
-            tracing::warn!(
-                target: "hkask.mcp",
-                tool = %tool,
-                server = %server,
-                "Server registered but not connected — start it with McpRuntime::start_server()"
-            );
-            Err(hkask_ports::ToolPortError::InvocationFailed(format!(
-                "Server '{}' is registered but not connected — call McpRuntime::start_server() first",
-                server
-            )))
-        })
-    }
-
-    fn discover_tools(&self) -> hkask_ports::ToolFuture<'_, Vec<String>> {
-        Box::pin(async move { McpRuntime::discover_tools(self).await })
-    }
-
-    fn get_tool_info(
-        &self,
-        tool_name: &str,
-    ) -> hkask_ports::ToolFuture<'_, Option<hkask_ports::ToolInfo>> {
-        Box::pin(async move { McpRuntime::get_tool_info(self, tool_name).await })
+            return Ok(parse_call_result(&result));
+        }
+        if !self.tool_exists(tool).await {
+            return Err(hkask_ports::ToolPortError::NotFound(
+                hkask_types::NotFound {
+                    entity_type: "tool".to_string(),
+                    id: format!("Tool '{}' not found in MCP runtime", tool),
+                },
+            ));
+        }
+        Err(hkask_ports::ToolPortError::InvocationFailed(format!(
+            "Server '{}' registered but not connected — call start_server() first",
+            server
+        )))
     }
 }
 

@@ -13,7 +13,7 @@ use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
 use hkask_cns::GovernedTool;
 use hkask_database::sqlite::SqliteDriver;
-use hkask_mcp::RawMcpToolPort;
+use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
 use hkask_types::{NuEventSink, WebID};
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ pub struct ActivePods {
     factory: Option<Arc<PodFactory>>,
     a2a_runtime: Option<Arc<A2ARuntime>>,
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
-    governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+    governed_tool: Option<Arc<GovernedTool<McpRuntime>>>,
     capability_checker: Option<Arc<CapabilityChecker>>,
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
     episodic_adapter: Option<Arc<dyn EpisodicStoragePort>>,
@@ -152,7 +152,7 @@ impl ActivePods {
         mut self,
         factory: Arc<PodFactory>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
-        governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+        governed_tool: Option<Arc<GovernedTool<McpRuntime>>>,
         capability_checker: Option<Arc<CapabilityChecker>>,
         nu_event_sink: Option<Arc<dyn NuEventSink>>,
         episodic_adapter: Arc<dyn EpisodicStoragePort>,

@@ -201,7 +201,7 @@ impl MCPRuntimePort for FullMcpAdapter {
             }
         }
 
-        // Resolve server_id for the tool, then invoke through RawMcpToolPort
+        // Resolve server_id for the tool, then invoke through McpRuntime (ToolPort impl)
         let server_id = self
             .handle
             .block_on(self.mcp_runtime.get_tool_info(tool_name))
@@ -214,9 +214,9 @@ impl MCPRuntimePort for FullMcpAdapter {
                 ),
             })?;
 
-        let raw_port = hkask_mcp::RawMcpToolPort::new(self.mcp_runtime.as_ref().clone());
+        let runtime = self.mcp_runtime.as_ref().clone();
         match self.handle.block_on(hkask_ports::ToolPort::invoke(
-            &raw_port, &server_id, tool_name, input, token,
+            &runtime, &server_id, tool_name, input, token,
         )) {
             Ok(value) => Ok(value),
             Err(hkask_ports::ToolPortError::NotFound(nf)) => {

@@ -19,7 +19,7 @@ use hkask_cns::CnsRuntime;
 use hkask_cns::GovernedTool;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_database::types::DbProvider;
-use hkask_mcp::RawMcpToolPort;
+use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
 use hkask_storage::{Database, EmbeddingStore, HMemStore};
 use hkask_types::event::SpanNamespace;
@@ -110,7 +110,7 @@ pub struct PerPodCnsRuntime {
 ///
 pub struct PerPodToolBinding {
     pub mcp_runtime: Arc<dyn MCPRuntimePort>,
-    pub governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+    pub governed_tool: Option<Arc<GovernedTool<McpRuntime>>>,
 }
 
 // ── PodDeployError ──────────────────────────────────────────────────────────
@@ -245,7 +245,7 @@ impl PodFactory {
         persona: &AgentPersona,
         pod_kind: PodKind,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
-        governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
+        governed_tool: Option<Arc<GovernedTool<McpRuntime>>>,
         capability_checker: Option<Arc<CapabilityChecker>>,
         nu_event_sink: Option<Arc<dyn NuEventSink>>,
         inference_port: Option<Arc<dyn InferencePort>>,

@@ -38,15 +38,14 @@ use hkask_cns::types::loops::CuratorHandle;
 use hkask_cns::types::loops::HkaskLoop;
 use hkask_cns::types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
 use hkask_cns::{
-    CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, GovernedTool,
-    SeamSummary, SeamWatcher, load_set_points,
+    CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, SeamSummary,
+    SeamWatcher, load_set_points,
 };
 use hkask_database::sqlite::SqliteDriver;
 use hkask_federation::sync::FederationLinkManager;
 use hkask_federation::sync::FederationSync;
 use hkask_federation::sync::transport::InMemoryFederationTransport;
 use hkask_mcp::McpDispatcher;
-use hkask_mcp::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
@@ -130,9 +129,9 @@ pub struct AgentService {
     /// `gas_remaining()` and `gas_cap()`.
     inference_loop: Option<Arc<InferenceLoop>>,
 
-    /// Lazily-built GovernedTool for surface tool invocations (REPL, API).
+    /// Lazily-built governed McpRuntime for surface tool invocations (REPL, API).
     /// Constructed on first access via `governed_tool()`.
-    governed_tool: std::sync::OnceLock<Arc<GovernedTool<RawMcpToolPort>>>,
+    governed_tool: std::sync::OnceLock<Arc<hkask_mcp::McpRuntime>>,
 }
 
 /// Per-agent memory infrastructure — storage ports and ConsolidationService
@@ -401,12 +400,12 @@ impl AgentService {
 
     // --- Surface infrastructure accessors ---
 
-    /// GovernedTool membrane for tool invocations. Lazily constructed
+    /// Governed MCP runtime for tool invocations. Lazily constructed
     /// from CNS components on first access, then cached via `OnceLock`.
     ///
-    /// All surface tool calls (REPL `/invoke`, API MCP endpoints) route
-    /// through this membrane for OCAP enforcement, energy budget tracking,
-    /// and CNS observability.
+    /// The runtime has OCAP enforcement, energy budget tracking, and CNS
+    /// observability wired in via `with_governance`. All surface tool calls
+    /// (REPL `/invoke`, API MCP endpoints) route through this single runtime.
     ///
     /// **Single-agent invariant:** `AgentService` is constructed for one
     /// agent identity at startup. The first `webid` passed to this method
@@ -414,20 +413,15 @@ impl AgentService {
     /// return the same cached tool. This is correct because the service
     /// serves a single agent per process. Multi-agent API servers must
     /// construct a separate `AgentService` per identity.
-    pub fn governed_tool(&self, webid: WebID) -> Arc<GovernedTool<RawMcpToolPort>> {
+    pub fn governed_tool(&self, webid: WebID) -> Arc<hkask_mcp::McpRuntime> {
         self.governed_tool
             .get_or_init(|| {
-                let raw = Arc::new(RawMcpToolPort::new(self.infra.mcp.as_ref().clone()));
-                Arc::new(
-                    GovernedTool::new(
-                        raw,
-                        self.cns.cybernetics.clone(),
-                        self.cns.events.clone(),
-                        self.cns.energy.clone(),
-                        webid,
-                    )
-                    .with_tool_stats(self.cns.tool_stats.clone()),
-                )
+                Arc::new(self.infra.mcp.as_ref().clone().with_governance(
+                    self.cns.cybernetics.clone(),
+                    self.cns.events.clone(),
+                    self.cns.energy.clone(),
+                    webid,
+                ))
             })
             .clone()
     }

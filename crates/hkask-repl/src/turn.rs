@@ -251,7 +251,23 @@ fn run_turn_loop(
             line.push_str("...");
             sink.tool_log(&line);
 
-            let result = rt.block_on(deps.tools.invoke(call));
+            let result = rt.block_on(async {
+                use hkask_capability::{
+                    DelegationAction, DelegationResource, DelegationToken, derive_signing_key,
+                };
+                let token = DelegationToken::new(
+                    DelegationResource::Tool,
+                    call.tool.clone(),
+                    DelegationAction::Execute,
+                    config.principal_webid,
+                    config.agent_webid,
+                    &derive_signing_key(config.a2a_secret.as_bytes()),
+                );
+                deps.tools
+                    .invoke(&call.server, &call.tool, call.args.clone(), &token)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}: {}", call.tool, e))
+            });
             match &result {
                 Ok(value) => {
                     sink.tool_log(&format!("  \x1b[32m  \u{2713}\x1b[0m {}", call.tool));
@@ -371,23 +387,26 @@ fn run_turn_with_state(
     agent_override: Option<&str>,
     sink: &mut impl TurnSink,
 ) -> TurnOutcome {
+    let governed_runtime = state.service_context.governed_tool(state.agent_webid);
     let config = TurnConfig {
         max_loops: state.repl_settings.tool_loop_limit,
         gas_heuristic: state.repl_settings.gas_heuristic,
         saliency_window: state.repl_settings.condense_saliency_window,
         default_agent: state.current_agent.clone(),
         has_tools: !state.tool_prompt.definitions.is_empty(),
+        a2a_secret: hkask_types::secret::ZeroizingSecret::new(a2a_secret.to_vec()),
+        principal_webid: state.host.resolve_user_webid(),
+        agent_webid: state.agent_webid,
     };
     let executor = super::deps::ReplTurnExecutor::from_state(state);
     let gas = super::deps::ReplGasGovernor::from_state(state, rt);
-    let tools = super::deps::ReplToolInvoker::from_state(state, a2a_secret);
     let svc_ctx = &state.service_context;
     let on_cns_update = || cns_display::update_cns_and_display(svc_ctx, rt);
     let mut threads = super::deps::ReplThreadMemory::new(&mut state.thread_registry);
     let deps = TurnDeps {
         executor: &executor,
         gas: &gas,
-        tools: &tools,
+        tools: governed_runtime.as_ref(),
         threads: &mut threads,
         on_cns_update: &on_cns_update,
     };
@@ -609,16 +628,29 @@ mod tests {
             self
         }
     }
-    #[async_trait::async_trait]
-    impl ToolInvoker for MockTools {
-        async fn invoke(
+    impl hkask_ports::ToolPort for MockTools {
+        fn invoke<'a>(
+            &'a self,
+            _server: &'a str,
+            tool: &'a str,
+            _args: serde_json::Value,
+            _token: &'a hkask_capability::DelegationToken,
+        ) -> hkask_ports::ToolFuture<'a, Result<serde_json::Value, hkask_ports::ToolPortError>>
+        {
+            Box::pin(async move {
+                self.results.get(tool).cloned().ok_or_else(|| {
+                    hkask_ports::ToolPortError::InvocationFailed(format!("no mock for {}", tool))
+                })
+            })
+        }
+        fn discover_tools(&self) -> hkask_ports::ToolFuture<'_, Vec<String>> {
+            Box::pin(async move { vec![] })
+        }
+        fn get_tool_info(
             &self,
-            c: &crate::tool_augmented::ToolCall,
-        ) -> anyhow::Result<serde_json::Value> {
-            self.results
-                .get(&c.tool)
-                .cloned()
-                .ok_or_else(|| anyhow::anyhow!("no mock for {}", c.tool))
+            _: &str,
+        ) -> hkask_ports::ToolFuture<'_, Option<hkask_ports::ToolInfo>> {
+            Box::pin(async move { None })
         }
     }
 
@@ -691,6 +723,9 @@ mod tests {
             saliency_window: 5,
             default_agent: "TestAgent".into(),
             has_tools: false,
+            a2a_secret: hkask_types::secret::ZeroizingSecret::new(vec![]),
+            principal_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "replicant"),
+            agent_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "replicant"),
         }
     }
     fn noop() {}

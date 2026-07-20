@@ -50,23 +50,23 @@ pub trait ToolPort: Send + Sync {
     ///
     /// pre:  token must be valid and not expired
     /// post: returns tool output or `ToolPortError::CapabilityDenied` if token is insufficient
-    fn invoke(
-        &self,
-        server: &str,
-        tool: &str,
+    fn invoke<'a>(
+        &'a self,
+        server: &'a str,
+        tool: &'a str,
         args: serde_json::Value,
-        token: &DelegationToken,
-    ) -> ToolFuture<'_, Result<serde_json::Value, ToolPortError>>;
+        token: &'a DelegationToken,
+    ) -> ToolFuture<'a, Result<serde_json::Value, ToolPortError>>;
 
     /// Discover available tools. Public metadata — no token required.
     ///
     /// Tool schemas are public per the MCP protocol design:
     /// `tools/list` is an unauthenticated handshake. OCAP enforcement
     /// applies at the actuator boundary (`invoke`), not here.
-    fn discover_tools(&self) -> ToolFuture<'_, Vec<String>>;
+    fn discover_tools<'a>(&'a self) -> ToolFuture<'a, Vec<String>>;
 
     /// Get metadata for a specific tool. Public metadata — no token required.
-    fn get_tool_info(&self, tool_name: &str) -> ToolFuture<'_, Option<ToolInfo>>;
+    fn get_tool_info<'a>(&'a self, tool_name: &'a str) -> ToolFuture<'a, Option<ToolInfo>>;
 }
 
 /// Canonical tool metadata for OCAP capability matching.

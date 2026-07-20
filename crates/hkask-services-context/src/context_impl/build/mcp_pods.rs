@@ -29,7 +29,7 @@ pub(super) async fn build_mcp_and_pods(
 ) -> Result<McpPods, ServiceError> {
     // GovernedTool membrane
     let mcp_runtime = McpRuntime::new();
-    let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
+    let raw_tool_port: Arc<McpRuntime> = Arc::new(mcp_runtime.clone());
     let energy_estimator: Arc<CalibratedEnergyEstimator> = Arc::new(
         CalibratedEnergyEstimator::new(Arc::clone(&f.gas_event_store))
             .with_event_sink(Arc::clone(&f.cns_event_sink)),
