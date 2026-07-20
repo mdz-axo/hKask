@@ -7,6 +7,8 @@
 //! - Welcome banner with the Kask amphora logo
 //! - Categorized help so the menu is scannable
 
+mod builtin_servers;
+
 #[cfg(feature = "tui")]
 use hkask_tui::SystemBridge;
 mod cns_display;
@@ -115,8 +117,10 @@ pub struct ReplState {
     /// dynamically, or when making `ToolPort` dyn-compatible becomes
     /// a justified refactor.
     pub tool_prompt: ToolPrompt,
-    /// Manifest state — process manifest and executor for agents that
-    /// have a manifest cascade defined. Both Some or both None.
+    /// Manifest state — `Some` when the agent has a process manifest
+    /// cascade defined, `None` otherwise. The cascade bundles manifest +
+    /// executor together so the "both present" invariant is enforced by
+    /// construction.
     pub manifest_state: ManifestState,
     /// Shared service context — the canonical assembly point for all
     /// infrastructure.

@@ -124,8 +124,8 @@ impl ReplTurnExecutor {
     pub fn from_state(state: &super::ReplState) -> Self {
         Self {
             ctx: state.service_context.clone(),
-            manifest_executor: state.manifest_state.executor.clone(),
-            manifest: state.manifest_state.manifest.clone(),
+            manifest_executor: state.manifest_state.as_ref().map(|c| c.executor.clone()),
+            manifest: state.manifest_state.as_ref().map(|c| c.manifest.clone()),
             settings: state.repl_settings.clone(),
             current_agent: state.current_agent.clone(),
             current_model: state.current_model.clone(),

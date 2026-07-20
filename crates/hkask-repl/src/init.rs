@@ -13,7 +13,7 @@ use std::sync::Arc;
 use hkask_agents::InferenceLoop;
 use hkask_cns::{GasBudget, GasCost, GovernedTool};
 
-use super::{ManifestState, TalkConfig, ToolPrompt};
+use super::{TalkConfig, ToolPrompt};
 use hkask_mcp::RawMcpToolPort;
 use hkask_ports::{ToolInfo, ToolPort};
 use hkask_templates::{ManifestExecutor, McpPort};
@@ -517,10 +517,7 @@ pub(super) fn init_repl_state(
             section: String::new(),
             definitions: Vec::new(),
         },
-        manifest_state: ManifestState {
-            executor: None,
-            manifest: None,
-        },
+        manifest_state: None,
         service_context: ctx.clone(),
         repl_settings,
         is_first_run: onboarding_outcome.is_first_run,
@@ -596,8 +593,10 @@ pub(super) fn init_repl_state(
                 "Loaded process manifest for agent"
             );
 
-            state.manifest_state.manifest = Some(bundle);
-            state.manifest_state.executor = Some(executor);
+            state.manifest_state = Some(super::ManifestCascade {
+                manifest: bundle,
+                executor,
+            });
         } else {
             tracing::warn!(
                 target: "hkask.repl",

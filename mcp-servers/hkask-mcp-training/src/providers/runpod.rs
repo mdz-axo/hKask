@@ -856,7 +856,7 @@ mod tests {
                 min_vcpu: 8,
                 docker_image: "",
                 docker_args: "",
-                template_id: "v2ickqhz9s",
+                template_id: "tpl-123",
             },
             &[("HKASK_JOB_ID", "job-1".to_string())],
         );
