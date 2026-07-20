@@ -6,7 +6,7 @@ version: "0.31.0"
 status: "Active"
 domain: "Core"
 mds_categories: [domain, composition, trust, lifecycle, curation]
-last-verified-against: "mcp-servers/hkask-mcp-research/src/; crates/hkask-services-research/src/"
+last-verified-against: "mcp-servers/hkask-mcp-research/src/; crates/hkask-services-research/src/; crates/hkask-mcp/src/security.rs; crates/hkask-mcp/src/server/validation.rs"
 ---
 
 # hkask-mcp-research — Adversarial Code Review (Follow-Up)
@@ -29,7 +29,12 @@ smallest independently-actionable step.
 
 ## Fix status (2026-07-20)
 
-All 11 new findings have been fixed in the codebase.
+All 11 new findings have been fixed in the codebase. An additional 7
+follow-up items (panic-safe transactions, silent no-op warning, permissive
+SSRF for RSS, regression tests, strip_html edge cases, arXiv href scoping,
+circuit-breaker ADR) were addressed in a second pass.
+
+### Primary fixes (11 findings)
 
 | Finding | Status | Files changed |
 |---------|--------|---------------|
@@ -43,7 +48,19 @@ All 11 new findings have been fixed in the codebase.
 | N8 — `ResponseCache` O(n) eviction | **Documented** | `cache.rs` — trade-off comment added; acceptable because `max_entries` capped at 200 |
 | N9 — arXiv `pdf_url` extraction breaks on multi-line `<link>` | **Fixed** | `providers/arxiv.rs` — `entry.lines().find` → `entry.find("title=\"pdf\"")` with bidirectional `href` search |
 | N10 — `discover_feeds` fetches URL without SSRF validation | **Fixed** | `feed.rs` — `validate_provider_url` call added before `client.get(url)` |
-| N11 — Stored SSRF in `rss_fetch` + `import_opml` | **Fixed** | `lib.rs` — `validate_tool_url(&feed_url)` added in `rss_fetch`; `db.rs` — `validate_provider_url` per-URL in `import_opml` |
+| N11 — Stored SSRF in `rss_fetch` + `import_opml` | **Fixed** | `lib.rs` — `validate_tool_url_permissive(&feed_url)` added in `rss_fetch`; `db.rs` — `validate_provider_url_permissive` per-URL in `import_opml` |
+
+### Follow-up fixes (7 items)
+
+| Item | Status | Files changed |
+|------|--------|---------------|
+| #1 — Panic-safe transactions | **Fixed** | `db.rs`, `lib.rs` — replaced raw `BEGIN`/`COMMIT`/`ROLLBACK` with `rusqlite::Transaction::new_unchecked` guard (Drop impl rolls back on panic) |
+| #2 — `edit_tags` silent no-op warning | **Fixed** | `db.rs` — `tracing::warn!` when `add_label`/`remove_label` fields are set (fields retained for deserialization compat) |
+| #3 — Permissive SSRF for RSS | **Fixed** | `security.rs` — `UrlValidationConfig` made `pub`, added `permissive()` constructor; `validation.rs` — `validate_tool_url_permissive` helper; `lib.rs` — `rss_subscribe`/`rss_fetch` use permissive; `db.rs` — `import_opml` uses permissive; `providers/mod.rs` — `validate_provider_url_permissive` |
+| #4 — Regression tests | **Fixed** | `research_contract.rs` — 4 new tests: `web_search_news_strategy_returns_unavailable`, `edit_tags_add_label_is_ignored`, `import_opml_rejects_invalid_urls`, `rss_fetch_validates_stored_url`; `test_rss_db()` + `test_server_with_db()` helpers |
+| #5 — `strip_html` empty comment edge case | **Verified** | `strip_html.rs` — 2 new tests (`strip_html_removes_empty_comment`, `strip_html_removes_empty_double_dash_comment`); existing 3-char window handles `<!-->` correctly, no code change |
+| #6 — arXiv `pdf_url` href scoping | **Fixed** | `arxiv.rs` — href search now scoped to the `<link>` tag containing `title="pdf"` (finds `<link` start and `>` end, searches within) |
+| #7 — Circuit-breaker ADR | **Documented** | `docs/architecture/ADRs/ADR-055-per-provider-circuit-breaker.md` — defers the enhancement with rationale and future implementation sketch |
 
 ## Findings
 
