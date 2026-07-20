@@ -196,6 +196,23 @@ impl KanbanService {
         ]
     }
 
+    /// The standard 5-column kanban board layout:
+    /// Backlog → Ready → In Progress → Review → Done.
+    ///
+    /// This is the default layout used when no custom columns are provided
+    /// to `board_create`. Exposed publicly so tests and downstream consumers
+    /// share a single source of truth for the canonical column set.
+    #[must_use]
+    pub fn standard_columns() -> Vec<ColumnDef> {
+        vec![
+            ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
+            ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
+            ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
+            ColumnDef::new("Review".into(), TaskStatus::Review, 3),
+            ColumnDef::new("Done".into(), TaskStatus::Done, 4),
+        ]
+    }
+
     /// List all boards for a given owner.
     ///
     /// pre:  owner is a valid WebID

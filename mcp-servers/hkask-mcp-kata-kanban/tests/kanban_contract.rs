@@ -23,13 +23,7 @@ fn setup() -> (KanbanService, WebID) {
 }
 
 fn default_columns() -> Vec<hkask_services_kata_kanban::ColumnDef> {
-    vec![
-        hkask_services_kata_kanban::ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
-        hkask_services_kata_kanban::ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
-        hkask_services_kata_kanban::ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
-        hkask_services_kata_kanban::ColumnDef::new("Review".into(), TaskStatus::Review, 3),
-        hkask_services_kata_kanban::ColumnDef::new("Done".into(), TaskStatus::Done, 4),
-    ]
+    hkask_mcp_kata_kanban::default_columns()
 }
 
 // ── Board CRUD contract tests ──────────────────────────────────────────────

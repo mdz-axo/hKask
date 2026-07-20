@@ -876,33 +876,7 @@ fn map_kanban_error(e: KanbanError) -> McpToolError {
 }
 
 pub fn default_columns() -> Vec<hkask_services_kata_kanban::ColumnDef> {
-    vec![
-        hkask_services_kata_kanban::ColumnDef::new(
-            "Backlog".into(),
-            hkask_services_kata_kanban::TaskStatus::Backlog,
-            0,
-        ),
-        hkask_services_kata_kanban::ColumnDef::new(
-            "Ready".into(),
-            hkask_services_kata_kanban::TaskStatus::Ready,
-            1,
-        ),
-        hkask_services_kata_kanban::ColumnDef::new(
-            "In Progress".into(),
-            hkask_services_kata_kanban::TaskStatus::InProgress,
-            2,
-        ),
-        hkask_services_kata_kanban::ColumnDef::new(
-            "Review".into(),
-            hkask_services_kata_kanban::TaskStatus::Review,
-            3,
-        ),
-        hkask_services_kata_kanban::ColumnDef::new(
-            "Done".into(),
-            hkask_services_kata_kanban::TaskStatus::Done,
-            4,
-        ),
-    ]
+    hkask_services_kata_kanban::KanbanService::standard_columns()
 }
 
 /// Run the kanban MCP server (used by binary target).

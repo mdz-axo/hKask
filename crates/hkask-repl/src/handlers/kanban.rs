@@ -1076,11 +1076,5 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
 }
 
 fn default_columns() -> Vec<ColumnDef> {
-    vec![
-        ColumnDef::new("Backlog".into(), TaskStatus::Backlog, 0),
-        ColumnDef::new("Ready".into(), TaskStatus::Ready, 1),
-        ColumnDef::new("In Progress".into(), TaskStatus::InProgress, 2),
-        ColumnDef::new("Review".into(), TaskStatus::Review, 3),
-        ColumnDef::new("Done".into(), TaskStatus::Done, 4),
-    ]
+    KanbanService::standard_columns()
 }
