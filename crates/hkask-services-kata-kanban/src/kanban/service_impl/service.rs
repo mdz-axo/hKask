@@ -267,8 +267,7 @@ impl KanbanService {
             } else if let Some(p) = Priority::parse_str(f) {
                 tasks.retain(|t| t.priority == Some(p));
                 Some(format!("priority={}", p))
-            } else if f.len() > 30 && f.parse::<WebID>().is_ok() {
-                let wid: WebID = f.parse().expect("validated by is_ok check above");
+            } else if let Ok(wid) = f.parse::<WebID>() {
                 tasks.retain(|t| t.assignee == Some(wid));
                 Some(format!("assignee={}", wid.redacted_display()))
             } else {

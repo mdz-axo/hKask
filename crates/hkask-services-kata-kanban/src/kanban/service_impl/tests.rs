@@ -181,6 +181,59 @@ fn task_claim_records_authenticated_actor() {
 }
 
 #[test]
+fn task_claim_rejects_in_progress_task() {
+    let (svc, board, owner) = make_service_with_board();
+    let task = svc
+        .task_create(board.id, TaskSpec::new("Test".into()), owner)
+        .unwrap();
+    // Move to InProgress (not claimable)
+    svc.task_move(task.id, TaskStatus::Ready, owner).unwrap();
+    svc.task_move(task.id, TaskStatus::InProgress, owner)
+        .unwrap();
+
+    let err = svc.task_claim(task.id, WebID::new()).unwrap_err();
+    assert!(
+        matches!(err, super::KanbanError::InvalidTransition { .. }),
+        "claiming an InProgress task should fail with InvalidTransition, got: {err}"
+    );
+}
+
+#[test]
+fn task_claim_rejects_done_task() {
+    let (svc, board, owner) = make_service_with_board();
+    let task = svc
+        .task_create(board.id, TaskSpec::new("Test".into()), owner)
+        .unwrap();
+    // Move all the way to Done (not claimable)
+    svc.task_move(task.id, TaskStatus::Ready, owner).unwrap();
+    svc.task_move(task.id, TaskStatus::InProgress, owner)
+        .unwrap();
+    svc.task_move(task.id, TaskStatus::Review, owner).unwrap();
+    svc.task_verify(task.id, "done", owner).unwrap();
+
+    let err = svc.task_claim(task.id, WebID::new()).unwrap_err();
+    assert!(
+        matches!(err, super::KanbanError::InvalidTransition { .. }),
+        "claiming a Done task should fail with InvalidTransition, got: {err}"
+    );
+}
+
+#[test]
+fn task_claim_accepts_ready_task() {
+    let (svc, board, owner) = make_service_with_board();
+    let task = svc
+        .task_create(board.id, TaskSpec::new("Test".into()), owner)
+        .unwrap();
+    // Move to Ready (claimable)
+    svc.task_move(task.id, TaskStatus::Ready, owner).unwrap();
+
+    let agent = WebID::new();
+    let assigned = svc.task_claim(task.id, agent).unwrap();
+    assert_eq!(assigned.assignee, Some(agent));
+    assert_eq!(assigned.status, TaskStatus::Ready);
+}
+
+#[test]
 fn task_verify_pass() {
     let (svc, board, owner) = make_service_with_board();
     let spec = TaskSpec::new("Test".into())
