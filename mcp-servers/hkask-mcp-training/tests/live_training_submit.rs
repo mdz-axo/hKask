@@ -48,6 +48,7 @@ async fn submit_real_training_job() {
         }
     }
 
+    let template_id_display = template_id.clone();
     let harness = AxolotlHarness;
     let host = hkask_mcp_training::providers::runpod::RunpodHost::new(
         api_key,
@@ -83,7 +84,7 @@ async fn submit_real_training_job() {
     println!("GPU type: {}", gpu_type);
     println!("Model repo: mdz-axo/capabilities-researcher-v3-eva");
     println!("Dataset: mdz-axo/capabilities-researcher-qa/train_chat_full.jsonl");
-    println!("Template: {} (axolotl)", template_id);
+    println!("Template: {} (axolotl)", template_id_display);
     println!();
 
     let pod_id = host.submit(&job).await.expect("submit should succeed");
