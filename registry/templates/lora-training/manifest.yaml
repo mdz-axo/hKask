@@ -1,0 +1,93 @@
+# Registry manifest for lora-training skill
+# hKask v0.31.0
+
+crate:
+  name: lora-training
+  version: "0.31.0"
+  visibility: public
+  description: >
+    LoRA/QLoRA training configuration and contract enforcement skill for
+    hKask. Selects a PEFT method via a deterministic 5-gate decision
+    (inference constraint, memory budget, task distance, quality/cost
+    trade-off, knowledge preservation) — not a search (AutoPEFT-style BO
+    is infeasible per training job). Enforces the LoRA/QLoRA math
+    contracts as quality gates: no-op-at-init invariant, merge
+    equivalence, scaling form (α/r or α/√r), rank budget, trainable
+    param count, frozen-base quantization, adapter dtype, gradient flow,
+    no silent fp32 upcast, NF4 optimality, dataset size vs quality,
+    eval protocol, lemon-pick analysis, intruder dimensions, knowledge
+    preservation. Anchored to LoRA (arXiv:2106.09685), QLoRA
+    (arXiv:2305.14314), rsLoRA (arXiv:2312.03732), DoRA
+    (arXiv:2402.09353), PiSSA (arXiv:2404.02948), LoRA-GA
+    (arXiv:2407.05000), CorDA, EVA, Razin et al. intruder dimensions
+    (arXiv:2410.21228), and PEFT v0.19.0 config surface. Consumes
+    security/regressions/ as input; proposes RR entries with surface:
+    training. Emits cns.lora.* spans (P9). Decomposed into 4 phases:
+    select-method → audit-config → report → convergence-check.
+
+templates:
+  - id: lora-training/select-method
+    name: "Select PEFT method via 5-gate decision"
+    path: select-method.j2
+    type: KnowAct
+    lexicon_terms: [select, decide, gate, method, config, training]
+    description: >
+      Apply deterministic 5-gate decision (inference constraint, memory
+      budget vs model size, task distance from pretraining, quality/cost
+      trade-off, knowledge preservation requirement). Emit a
+      LoraConfig-shaped JSON with per-gate justification citations.
+      Refuse with cited reason when config violates a hard contract
+      (rank defeats low-rank premise, OOM-certain memory mismatch,
+      merge-equivalence break with must-merge constraint, init strategy
+      without required preprocessing call). AutoPEFT (arXiv:2301.12132)
+      is referenced as the rejected alternative — multi-objective BO
+      over hundreds of training runs is infeasible per training job.
+
+  - id: lora-training/audit-config
+    name: "Audit training config against math/quant/data/forgetting gates"
+    path: audit-config.j2
+    type: KnowAct
+    lexicon_terms: [audit, verify, gate, contract, evidence, config]
+    description: >
+      Read training config evidence (LoraConfig, BitsAndBytesConfig,
+      accelerate config, training script arguments). Apply 16 quality
+      gates: 5 math-contract (G-M1 no-op-at-init, G-M2 merge
+      equivalence, G-M3 scaling form, G-M4 rank budget, G-M5 trainable
+      param count), 6 QLoRA-specific (G-Q1..G-Q6: frozen base
+      quantized, adapter dtype, gradient flow, no silent upcast, paged
+      optimizer, NF4 optimality), 3 data/eval (G-D1 dataset size vs
+      quality, G-D2 eval protocol, G-D3 lemon-pick analysis), 2
+      forgetting (G-F1 intruder dimensions, G-F2 knowledge preservation
+      for CorDA mode). Apply pragmatic-cybernetics (IS/OUGHT, epistemic
+      mode, provenance, grill-me self-challenge). Emit cns.lora.audit
+      spans per gate evaluated.
+
+  - id: lora-training/report
+    name: "Synthesize training-config findings and propose regressions"
+    path: report.j2
+    type: KnowAct
+    lexicon_terms: [synthesize, report, regression, severity, gate, training]
+    description: >
+      Synthesize audit findings with concrete config evidence, source
+      citations (arXiv paper sections + PEFT v0.19.0 doc sections),
+      severity (critical/high/medium/low), gate ID, and remediation.
+      Propose RR-NNNN.yaml entries with surface: training for CI-enforced
+      config gates. Identify contract gaps and top 3 highest-priority
+      fixes. Produce verdict: Pass (zero critical/high, all math gates
+      pass), Conditional (medium findings or 1-2 gates warn), Fail
+      (critical/high findings or any gate refuses).
+
+  - id: lora-training/convergence-check
+    name: "Compute training-readiness convergence metric"
+    path: convergence-check.j2
+    type: KnowAct
+    lexicon_terms: [evaluate, converge, gate, coverage, training, readiness]
+    description: >
+      Compute normalized convergence metric [0, 1] where 0 = fully
+      converged (training-ready). Weighted dimensions: unresolved
+      critical/high findings (0.40), math-contract gate coverage
+      (0.25), QLoRA gate coverage (0.15, only if QLoRA mode), data/eval
+      gate coverage (0.10), forgetting gate coverage (0.10). Converged
+      when metric ≤ 0.10 with ≥5% relative improvement from previous
+      cycle. Emit cns.lora.convergence span (P9 — registered in
+      CANONICAL_NAMESPACES).

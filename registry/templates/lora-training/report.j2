@@ -1,0 +1,205 @@
+{# goal: Synthesize training-config findings with arXiv paper citations and PEFT v0.19.0 doc references (P8). Propose RR-NNNN.yaml entries (surface: training, status: pending, concrete grep pattern against config content or Python assertion code for runtime gates). Identify contract gaps. Emit cns.lora.report span (P9). Replicant_host mandatory (P12). No synthetic findings or benchmark claims (P8). Registry authoritative (P5.1). #}
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- synthesize
+- report
+- regression
+- severity
+- gate
+- training
+contract:
+  input:
+    findings: array
+    gate_results: object
+    existing_regressions: array
+    replicant_host: string
+  output:
+    findings_grouped: array
+    proposed_regressions: array
+    verdict: string
+    contract_gaps: array
+    cns_span_emitted: boolean
+energy_cap: 6144
+visibility: Public
+---
+{# Template: lora-training/report.j2 #}
+{# Functional Role: KnowAct — Synthesize findings and propose regressions #}
+{# Produces: findings_grouped, proposed_regressions, verdict, contract_gaps #}
+{# Design: proposes surface: training regressions for CI gate #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "terse"
+max_tokens = 4096
+thinking_budget = "full"
+
+{# Synthesizes audit-config findings with arXiv + PEFT doc citations #}
+{# Proposes RR-NNNN.yaml entries with surface: training #}
+{# Emits `cns.lora.report` CNS span (P9) #}
+
+INPUT: findings = {{ findings }} (structured array from audit-config phase)
+INPUT: gate_results = {{ gate_results }} (map of gate_id → result)
+INPUT: existing_regressions = {{ existing_regressions }}
+INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
+
+SYNTHESIS ACTIONS:
+1. Group findings by severity:
+   - critical (refuse gates: `r >= min(d_in, d_out)`, OOM-certain
+     memory mismatch, merge-equivalence break with must-merge
+     constraint, init strategy without preprocessing call)
+   - high (fail gates: wrong scaling form, silent fp32 upcast, no
+     gradient flow, no-op-at-init break without justification)
+   - medium (warn gates: `r > 128`, NF4 on non-normal weights, no
+     lemon-pick analysis, no intruder check)
+   - low (informational: suboptimal LR for rank, missing
+     `modules_to_save` for embeddings)
+2. For severity >= medium findings with concrete evidence (quoted
+   config snippet + file path + parameter value), propose regression
+   entry.
+3. Each regression proposal must use exact format from
+   `security/regressions/README.md`: `id: RR-XXXX` (human assigns
+   final number — this skill proposes the entry for review), `title`,
+   `surface: training`, `gate: G-M3` (or G-Q1, G-F1, etc. — the gate
+   ID from the catalog), `discovered_in: <config_path>`,
+   `discovered_by: lora-training`, `discovered_at`, `severity`,
+   `detection` (`kind: grep` with `pattern` referencing config content
+   — concrete regex, not vague description; OR `kind: runtime-assert`
+   with Python assertion code for runtime gates like G-Q3 gradient
+   flow), `mitigation` (concrete fix: set `use_rslora=True`, switch to
+   `paged_adamw_8bit`, add `preprocess_loraga()` call, etc.),
+   `status: pending` (human-curated ratchet — P11 visibility),
+   `ci_gate: scripts/check-lora-training-regressions.sh` (new CI gate
+   — this skill proposes its creation; existing
+   `scripts/check-kali-regressions.sh` covers `surface: code`/
+   `template`/`mcp`/`supply-chain`, not `surface: training`).
+4. Identify top 3 contract gaps from `gate_results` (gates that
+   failed or warned). Propose highest-priority fixes based on
+   severity.
+5. Produce verdict:
+   - Pass: zero critical/high findings, all math-contract gates
+     (G-M1..G-M5) pass, all QLoRA-specific gates (G-Q1..G-Q6) pass
+     (if QLoRA mode).
+   - Conditional: medium findings present or 1-2 gates warn.
+   - Fail: critical/high findings present or any gate refuses.
+6. Every finding entry must include `evidence_snippet` (quoted config
+   line), `config_path`, `line`, `parameter`, `value`, `gate_id`,
+   `source_citation` (arXiv paper section + PEFT docs section),
+   `remediation` (concrete fix), `replicant_host`.
+
+CNS SPAN (P9): Emit `cns.lora.report` with findings count by
+severity, gate results summary, proposed regression count,
+replicant_host, verdict, latency_ms.
+
+CONSTRAINTS (same as audit-config — P5 minimalism, P8 evidence
+integrity, P12 host):
+- No synthetic config quotes — every snippet verifiable from
+  config_path.
+- No synthetic benchmark numbers — only reference paper-reported
+  results with explicit citation (paper, table/section).
+- Propose `status: pending` only — never `enforced` (human-curated
+  ratchet).
+- Source citations: concrete URLs or document names actually
+  referenced.
+- Do NOT propose regression for findings without concrete evidence.
+- Registry (`manifest.yaml` + `.j2`) authoritative.
+
+OUTPUT FORMAT:
+JSON object with fields:
+`findings` (grouped array with evidence, severity, gate_id, taxonomy
+mapping, fix recommendation), `gate_results_summary` (map of gate_id
+→ pass/warn/fail/refuse count), `contract_gaps` (list of failed/
+warned gates), `proposed_regressions` (YAML-format array for human
+review), `verdict` (Pass | Conditional | Fail), `replicant_host`,
+`source_citations`, `cns_span_reference`.
+
+5W1H GATE CHECK (P5): Who = training operator / replicant host; What
+= findings synthesis; Where = workspace config paths; When = pre-
+training cycle; Why = P3.1 safe container / P9 observable regulation;
+How = synthesize + classify + propose regression + emit CNS span +
+compute verdict. All 6 present — passes gate.
+
+RELATIONSHIP (explicit): Complements `kali-audit` (security surface
+vs training-config surface — zero overlap), `tdd` (training-loop code
+vs training config — complementary), `supply-chain-sentinel`
+(dependency manifest vs training config — both pre-flight gates),
+`diagnose` (post-failure loop vs pre-flight gate — this skill
+proposes regressions that `diagnose` can use to anchor hypotheses).
+References `security/regressions/README.md` format directly.
+
+MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
+EVIDENCE-BACKED ONLY: Every proposed regression includes concrete
+`pattern` (regex against config content, or Python assertion code for
+runtime gates) and `evidence_snippet` (quoted file content).
+SEMANTIC GROUNDING (P8): Every claim has file path, line, parameter
+value, concrete snippet, gate ID, source citation (arXiv paper
+section + PEFT docs section).
+EVOLUTIONARY (P7): New contract gaps proposed only from real config
+evidence (e.g., missing `preprocess_loraga()` call observed in
+training script, not speculative).
+OCAP BOUNDARY (P4): Audit reads only declared workspace config paths;
+no actual training execution; no model download; no network calls to
+HuggingFace Hub without explicit consent (P2).
+CNS REGULATION (P9): `cns.lora.report` emitted; namespace registered
+in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
+REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+VISIBILITY (P11): Regression proposals `status: pending` — public
+transparency, not hidden control.
+SAFETY FLOOR (P3.1): Training-config findings protect Generative
+Space container — silent quality degradation (wrong scaling, broken
+init, fp32 upcast) is destructive to the space itself.
+
+SOURCE REFERENCES (concrete — P8):
+- LoRA: arXiv:2106.09685 (arxiv.org/abs/2106.09685) — §4.1 init,
+  §4.2 merge, §4.1 α/r scaling, §4.3 rank budget, Table 5 param count.
+- QLoRA: arXiv:2305.14314 (arxiv.org/abs/2305.14314) — §3 NF4,
+  double quant, paged optim, bf16 compute; §5 data quality; §6 eval.
+- rsLoRA: arXiv:2312.03732 (arxiv.org/abs/2312.03732) — α/√r for
+  high rank.
+- DoRA: arXiv:2402.09353 (arxiv.org/abs/2402.09353) — magnitude/
+  direction decomposition.
+- PiSSA: arXiv:2404.02948 (arxiv.org/abs/2404.02948) — SVD init,
+  fast convergence.
+- LoRA-GA: arXiv:2407.05000 (arxiv.org/abs/2407.05000) — gradient
+  SVD init, 2-4× faster convergence.
+- AdaLoRA: arXiv:2303.10512 (arxiv.org/abs/2303.10512) — dynamic
+  rank (not default; overhead caveat).
+- Razin et al. (intruder dimensions): arXiv:2410.21228
+  (arxiv.org/abs/2410.21228) — LoRA ≠ full fine-tune; structured
+  forgetting.
+- PEFT v0.19.0: huggingface.co/docs/peft/v0.19.0/package_reference/lora
+  — LoraConfig field docstrings (init_lora_weights, bias, use_rslora,
+  use_dora, use_qalora, lora_ga_config, corda_config, loftq_config,
+  eva_config, alora_invocation_tokens, reduce_intruder_dimension).
+- `security/regressions/README.md` (local project standard —
+  authoritative for regression format).
+- `kali-audit` SKILL.md (complementary relationship — security
+  surface vs training-config surface).
+- `tdd` SKILL.md (complementary relationship — training-loop code vs
+  training config).
+- `bug-hunt` SKILL.md (decomposed pipeline pattern adopted:
+  Charter→Probe→Report ≈ this skill's select→audit→report).
+- `supply-chain-sentinel` SKILL.md (parallel pre-flight gate pattern).
+- `principles.md` (P1–P12 grounding — this skill explicitly
+  references P3.1 Social Generativity / P5 Essentialism / P9
+  Homeostatic Regulation / P12 Replicant Host Mandate in its design
+  and outputs).
+
+REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
+(`manifest.yaml` + `.j2`) conflict, registry wins. This template is
+the canonical `report` phase definition.
+PUBLIC VISIBILITY: `visibility: public` — no hidden training-config
+audit controls (P3, P4).
+NO FABRICATION: Only findings with quoted config evidence are
+reported. Only regressions with concrete `pattern` (regex against
+config content, or Python assertion code for runtime gates) are
+proposed. Only gates with config evidence are counted as pass.
+NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by reading
+the cited `config_path`. `parameter` and `value` must exist in that
+file. `line` must reference an actual line number.
+CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
+report phase does not compute metric (that is
+`convergence-check.j2` responsibility). This maintains pipeline
+decomposition (P5 minimalism — each phase answers one 5W1H dimension
+clearly).

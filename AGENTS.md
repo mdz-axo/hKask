@@ -6,7 +6,7 @@
 
 ## Capability Groups (Principle-Aligned)
 
-50 skills in `.agents/skills/` (47 PDCA skills + 2 templates + 1 bundle). Below: 6 principle-aligned groups covering the active registry. Full list: `.agents/skills/`.
+50 skills in `.agents/skills/` (47 PDCA skills + 2 templates + 1 bundle). Below: 7 principle-aligned groups covering the active registry. Full list: `.agents/skills/`.
 
 | Group | Activation | Principle / Defense Link | Key Skills |
 |---|---|---|---|
@@ -16,6 +16,7 @@
 | **Kata & Coaching** | Ensemble / coaching loop | P4 (clear boundaries) | `kata` (bundle), `kata-improvement`, `kata-coaching`, `improv` |
 | **Meta & Maintenance** | Agent-autonomous (self-improvement) | P1 · P12 | `skill-maintenance`, `skill-logic-audit`, `gpa-evolution`, `handoff` |
 | **Security & Posture** | Agent-autonomous (runtime) | P5–P8 · P12 | `kali-audit`, `supply-chain-sentinel`, `runtime-posture-monitor`, `attack-taxonomy-mapper` |
+| **Training** | Pre-flight (before training job) | P3.1 · P5 · P8 · P12 | `lora-training` |
 
 *Note: `media-workflow`, `logo-builder`, `qa-script-builder` are specialized templates; activate as needed, not by default.*
 
@@ -32,6 +33,7 @@
 - `gpa-evolution` — Genetic-Pareto mutation of text artifacts.
 - `bug-hunt` / `diagnose` — Exploration and debugging.
 - `kali-audit` / `supply-chain-sentinel` — Security posture.
+- `lora-training` — PEFT method selection + math-contract gates (pre-flight before training job).
 
 ### Ensemble / Coaching (Multi-agent interaction)
 - `kata` bundle, `kata-coaching`, `improv` — Toyota Kata dialogues.
@@ -60,6 +62,7 @@
 | MCP servers: tool-behavior contract tests | `Parameters(` seam | `scripts/check-mcp-tool-tests.sh` |
 | CNS namespace invariant (`cns.*` → `CANONICAL_NAMESPACES`) | Canonical span check | `scripts/check-cns-canonical.sh` |
 | Security regression library enforced | Every `status: enforced` checked | `scripts/check-kali-regressions.sh` |
+| Training-config regression library enforced | Every `surface: training` `status: enforced` checked | `scripts/check-lora-training-regressions.sh` |
 
 Only #1 partially CI-gated; #2–#4 enforced by review.
 
@@ -81,6 +84,7 @@ Only #1 partially CI-gated; #2–#4 enforced by review.
 | Hard bug / regression | `diagnose` | `codegraph` (if unknown structure) |
 | Module design / simplification | `essentialist` (3 gates) | `deep-module` |
 | Security audit | `kali-audit` | `supply-chain-sentinel` (manifests) |
+| LoRA/QLoRA training config audit | `lora-training` | `tdd` (training-loop code) |
 | Self-improvement / prompt evolution | `metacognition` | `gpa-evolution` (post-convergence) |
 | Multi-agent coaching | `kata-coaching` | `improv` (interaction grammar) |
 | Session handoff | `handoff` | — |

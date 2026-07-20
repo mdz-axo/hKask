@@ -1,0 +1,344 @@
+{# goal: Audit training config (LoraConfig, BitsAndBytesConfig, accelerate config, training script arguments) against 16 quality gates (5 math-contract G-M1..G-M5, 6 QLoRA G-Q1..G-Q6, 3 data/eval G-D1..G-D3, 2 forgetting G-F1..G-F2) within workspace (P4). Apply pragmatic-cybernetics (IS/OUGHT, epistemic mode, provenance, grill-me). Emit cns.lora.audit spans per gate (P9). No synthetic findings; replicant_host mandatory (P12). Evidence-backed only (P8). #}
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- audit
+- verify
+- gate
+- contract
+- evidence
+- config
+contract:
+  input:
+    config_paths: array
+    selected_method: string
+    existing_regressions: array
+    replicant_host: string
+  output:
+    findings: array
+    gate_results: object
+    parameters_extracted: array
+    cns_span_emitted: boolean
+energy_cap: 8192
+visibility: Public
+---
+{# Template: lora-training/audit-config.j2 #}
+{# Functional Role: KnowAct — Training config audit against 16 quality gates #}
+{# Produces: findings, gate_results, parameters_extracted #}
+{# Design: evidence-backed only (P8); 16 gates from LoRA/QLoRA/rsLoRA/Razin et al. #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "terse"
+max_tokens = 8192
+thinking_budget = "full"
+
+{# Reads training config files discovered/selected in select-method phase #}
+{# For each config entry, checks: math contracts, quantization contracts,
+  data/eval contracts, forgetting contracts #}
+{# Emits `cns.lora.audit` span per gate evaluated (P9) #}
+{# Applies pragmatic-cybernetics: trace scaling×rank interaction,
+  variety of init strategies, Good Regulator (init matched to goal),
+  delay (init preprocessing overhead vs convergence speedup) #}
+{# Every finding requires concrete evidence: file path, config line,
+  parameter value, source citation (arXiv paper section + PEFT docs section) #}
+{# Relationships: complements kali-audit (security surface) and tdd
+  (training-loop code) — zero overlap #}
+
+INPUT: config_paths = {{ config_paths | default([]) }} (LoraConfig, BitsAndBytesConfig, accelerate config, training script)
+INPUT: selected_method = {{ selected_method }} (from select-method phase)
+INPUT: existing_regressions = {{ existing_regressions | default([]) }}
+INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous config auditing)
+
+AUDIT ACTIONS (concrete — must use file:read, code:search, terminal):
+1. Read each config file in `config_paths`. Quote config lines for
+   evidence (not synthetic). Record concrete line numbers.
+2. For `LoraConfig`: extract `r`, `lora_alpha`, `target_modules`,
+   `lora_dropout`, `bias`, `init_lora_weights`, `use_rslora`,
+   `use_dora`, `modules_to_save`, `layers_to_transform`,
+   `rank_pattern`, `alpha_pattern`, `lora_ga_config`, `corda_config`,
+   `loftq_config`, `eva_config`, `alora_invocation_tokens`,
+   `use_qalora`, `qalora_group_size`, `lora_bias`, `target_parameters`.
+3. For `BitsAndBytesConfig` (if QLoRA mode): extract `load_in_4bit`,
+   `bnb_4bit_quant_type` (must be `'nf4'`), `bnb_4bit_compute_dtype`
+   (must be `torch.bfloat16` or `torch.float16`),
+   `bnb_4bit_use_double_quant` (should be `True`),
+   `llm_int8_skip_modules`.
+4. For training script: extract `learning_rate`, `lr_scheduler_type`,
+   `num_train_epochs`, `per_device_train_batch_size`,
+   `gradient_accumulation_steps`, `optim` (`'paged_adamw_8bit'` if
+   QLoRA), `gradient_checkpointing`, `bf16`/`fp16`.
+5. Apply the 16 quality gates (each is a single assertion with a
+   citation):
+
+   MATH-CONTRACT GATES (from LoRA paper, arXiv:2106.09685):
+
+   G-M1 No-op-at-init invariant:
+   - Assert: `init_lora_weights=True` (default) produces ΔW=0 at step 0
+     (B initialized to zero).
+   - Test: forward pass with adapter enabled == forward pass with
+     adapter disabled at step 0.
+   - If `init_lora_weights` is `'gaussian'`, `'eva'`, `'olora'`,
+     `'pissa'`, `'pissa_niter_*'`, `'corda'`, `'orthogonal'`, or
+     `False`: adapter is NOT a no-op at init → flag and require
+     explicit justification.
+   - gate_result: pass | warn (with justification) | fail (without
+     justification).
+   - source_citation: LoRA paper §4.1; PEFT v0.19.0
+     `LoraConfig.init_lora_weights` docstring.
+
+   G-M2 Merge equivalence:
+   - Assert: `W_merged = W + (α/r)·BA` produces identical outputs to
+     `W + adapter` within fp tolerance.
+   - Test: `‖merge(W) − forward_with_adapter(W)‖ < ε`.
+   - Broken by `bias='all'` or `bias='lora_only'` (PEFT docs explicit
+     warning).
+   - Broken by `use_dora=True` on PEFT < 0.10 (magnitude component
+     applied incorrectly — Spheron 2026 guide).
+   - gate_result: pass | fail.
+   - source_citation: LoRA paper §4.2; PEFT v0.19.0 `LoraConfig.bias`
+     docstring.
+
+   G-M3 Scaling form:
+   - Assert: scaling is `α/r` (or `α/√r` if `use_rslora=True`).
+   - Never `α`, never `r/α`, never `1`.
+   - Test: `scaling == lora_alpha / (math.sqrt(r) if use_rslora else r)`.
+   - If r > 64 AND not use_rslora → warn (recommend use_rslora=True).
+   - gate_result: pass | warn | fail.
+   - source_citation: LoRA paper §4.1 (`α/r`); rsLoRA paper
+     arXiv:2312.03732 (`α/√r` for high rank).
+
+   G-M4 Rank budget:
+   - Assert: `r < min(d_in, d_out)`.
+   - Warn if `r >= 0.5 × min(d_in, d_out)` (defeats low-rank premise).
+   - Refuse if `r >= min(d_in, d_out)` (not low-rank at all).
+   - gate_result: pass | warn | refuse.
+   - source_citation: LoRA paper §4.3 (rank sufficiency experiments).
+
+   G-M5 Trainable param count:
+   - Assert: `2 · r · (d_in + d_out) · n_target_layers` matches
+     `model.print_trainable_parameters()`.
+   - Test: assert computed count == reported count within 1%.
+   - gate_result: pass | fail.
+   - source_citation: LoRA paper Table 5.
+
+   QLORA-SPECIFIC GATES (from QLoRA paper, arXiv:2305.14314 — only
+   apply if QLoRA mode selected):
+
+   G-Q1 Frozen base is quantized:
+   - Assert: `base_param.dtype` is 4-bit (`torch.uint8` container with
+     `bnb_4bit_quant_type='nf4'`) when QLoRA mode is on.
+   - gate_result: pass | fail.
+   - source_citation: QLoRA paper §3 (NF4).
+
+   G-Q2 Adapter dtype:
+   - Assert: LoRA `A`, `B` are bf16 or fp32, never 4-bit.
+   - Test: `lora_A.dtype in (torch.bfloat16, torch.float32)`.
+   - gate_result: pass | fail.
+   - source_citation: QLoRA paper §3 (compute in bf16 through frozen
+     base).
+
+   G-Q3 Gradient flow:
+   - Assert: gradients reach `A` and `B`.
+   - Test: after first backward, `A.grad is not None and
+     B.grad is not None`.
+   - gate_result: pass | fail.
+   - source_citation: QLoRA paper §3 (backprop through frozen 4-bit
+     base).
+
+   G-Q4 No silent upcast:
+   - Assert: frozen base params are not cast to fp32 by
+     `prepare_model_for_kbit_training` or accelerate config.
+   - Test: assert `base_param.dtype != torch.float32` when QLoRA mode
+     is on (silent 2× memory).
+   - gate_result: pass | fail.
+   - source_citation: QLoRA paper §3; PEFT
+     `prepare_model_for_kbit_training` docstring.
+
+   G-Q5 Paged optimizer (conditional):
+   - Assert: `optim='paged_adamw_8bit'` only required if peak memory >
+     available VRAM.
+   - Gate is conditional, not absolute.
+   - gate_result: pass | warn (if not used and memory tight).
+   - source_citation: QLoRA paper §3 (paged optimizers).
+
+   G-Q6 NF4 optimality assumption:
+   - Assert: NF4 is information-theoretically optimal for normally-
+     distributed weights.
+   - Warn if base model is known to have non-normal weights (e.g.,
+     post-quantization-pruned, sparse).
+   - gate_result: pass | warn.
+   - source_citation: QLoRA paper §3 (NF4 derivation).
+
+   DATA/EVAL GATES (from QLoRA paper, arXiv:2305.14314):
+
+   G-D1 Dataset size vs quality:
+   - If `n_samples < 1000`: require explicit justification.
+   - If `n_samples > 100000`: require quality audit (dedup,
+     contamination check).
+   - gate_result: pass | warn.
+   - source_citation: QLoRA paper §5 (small high-quality > large
+     noisy).
+
+   G-D2 Eval protocol:
+   - Assert: chatbot benchmarks (Vicuna, MMLU alone) are not
+     trustworthy.
+   - Require held-out human eval or GPT-4 eval.
+   - gate_result: pass | warn | fail.
+   - source_citation: QLoRA paper §5 (GPT-4 eval as cheap proxy).
+
+   G-D3 Lemon-pick analysis:
+   - Assert: report failure cases, not just aggregate score.
+   - gate_result: pass | warn.
+   - source_citation: QLoRA paper §6 (lemon-picked analysis).
+
+   FORGETTING GATES (post-QLoRA literature):
+
+   G-F1 Intruder dimension check (post-training):
+   - Assert: report intruder dimensions before/after training using
+     `peft.tuners.lora.intruders.reduce_intruder_dimension`.
+   - gate_result: pass (planned) | warn (not planned).
+   - source_citation: Razin et al. arXiv:2410.21228 ("LoRA vs Full
+     Fine-tuning: An Illusion of Equivalence").
+
+   G-F2 Knowledge preservation (CorDA mode):
+   - If `init_lora_weights='corda'` with
+     `corda_config.mode='knowledge_preserved'`: assert world-knowledge
+     eval doesn't regress beyond threshold.
+   - gate_result: pass | warn | fail.
+   - source_citation: CorDA paper; PEFT v0.19.0 `LoraConfig.corda_config`
+     docstring.
+
+6. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt`
+   oracle phase):
+   - IS vs OUGHT: describe config content (`IS`) vs training contract
+     (`OUGHT` — no-op init, merge equivalence, correct scaling).
+   - Epistemic mode: `Declarative` (config read), `Probabilistic`
+     (memory estimate — only when config provides explicit batch size
+     and model size), `Subjunctive` (potential training failure —
+     labeled clearly, not presented as fact).
+   - Provenance: `Direct measurement` (read config), `Inference`
+     (param count math), `Assessment` (contract violation mapping) —
+     label each finding explicitly.
+7. Apply grill-me self-challenge (like `bug-hunt`): Could this config
+   choice be intentional? Is `bias='lora_only'` a deliberate
+   extraction-from-full-finetune scenario? Would a reviewer dismiss
+   this finding? If yes, downgrade to `OBSERVATION` or omit. Only
+   propose `BUG` / `POTENTIAL_BUG` when evidence is concrete.
+8. Apply pragmatic-cybernetics feedback loop analysis: trace
+   scaling×rank interaction (does higher r need lower LR? — yes per
+   Brenndoerfer 2024), check variety (alternative init strategy
+   available?), Good Regulator (is init strategy matched to training
+   goal?), delay (init preprocessing overhead vs convergence speedup).
+9. For each config entry, produce structured finding:
+   `parameter`, `value`, `source_line`, `config_path`, `gate_id`
+   (e.g., `G-M3`), `gate_result` (pass | warn | fail | refuse),
+   `severity` (critical/high/medium/low — justified by evidence),
+   `provenance` (Direct/Inference/Assessment), `epistemic_mode`,
+   `evidence_snippet` (quoted config line + file path),
+   `source_citation` (arXiv paper section + PEFT docs section),
+   `remediation` (concrete fix), `replicant_host`.
+
+CNS SPAN EMISSION (P9 — every gate evaluated):
+- `cns.lora.audit` per gate: target `"cns.lora.audit"`, message
+  `"CNS"`, operation `"audit_gate"`, gate_id, parameter, value,
+  gate_result, replicant_host, latency_ms.
+- Namespace registered in `CANONICAL_NAMESPACES`
+  (`crates/hkask-types/src/event.rs`). Emit unconditionally.
+
+CONSTRAINT — Evidence integrity (P8 — semantic grounding):
+- No synthetic config quotes. Every `evidence_snippet` must be
+  verifiable by reading the cited config file at the cited line.
+- No synthetic benchmark numbers. Only reference paper-reported results
+  with explicit citation (paper, table/section).
+- Source citations must reference concrete URLs or documents actually
+  consulted: arXiv paper URLs (abs/2106.09685, abs/2305.14314,
+  abs/2312.03732, abs/2402.09353, abs/2404.02948, abs/2407.05000,
+  abs/2410.21228, abs/2303.10512), PEFT v0.19.0 docs
+  (huggingface.co/docs/peft/v0.19.0/package_reference/lora).
+- Every finding must include `replicant_host` identity (P12) — no
+  anonymous config auditing.
+- When referencing `security/regressions/`, read actual YAML files; do
+  not invent regression entries. Only propose new entries when concrete
+  evidence supports them.
+- This skill complements `kali-audit` (security surface) and `tdd`
+  (training-loop code) by governing training configuration and
+  contracts. State relationship explicitly in reports.
+
+RELATIONSHIP TO OTHER SKILLS (explicit — no overlap ambiguity):
+- `kali-audit`: covers security surfaces (Rust code, templates, MCP,
+  supply chain). This skill covers training configuration and
+  contracts. Zero overlap — different surface (`surface: training` vs
+  `surface: code`/`template`/`mcp`/`supply-chain`). Both consume
+  `security/regressions/` as input; both propose new entries for human
+  review.
+- `tdd`: covers training-loop code (test-driven development of Rust
+  crates). This skill governs the training *configuration* passed to
+  that code, not the code itself. Complementary: `tdd` builds the
+  training loop; `lora-training` audits the config the loop consumes.
+- `bug-hunt`: provides the `Charter → Probe → Oracle → Taxonomize →
+  Report` pipeline structure. This skill replicates that decomposed
+  pipeline (select-method ≈ charter; audit-config ≈ probe + oracle;
+  report ≈ taxonomize + report; convergence-check ≈ convergence).
+  Uses same pragmatic-cybernetics and pragmatic-semantics reasoning
+  patterns embedded in instructions.
+- `supply-chain-sentinel`: audits dependency manifests. This skill
+  audits training configs. Both are pre-flight gates (supply chain
+  before deploy; training config before training). Both emit CNS spans
+  and propose regressions.
+- `diagnose`: if a training run fails or produces a degraded model,
+  `diagnose` handles the cybernetic debugging loop (reproduce →
+  hypothesize → instrument → fix → regression-test). This skill is the
+  *pre-flight* gate; `diagnose` is the *post-failure* loop. This skill
+  proposes regressions that `diagnose` can use to anchor hypotheses.
+
+MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
+- Who: Training operator / replicant host (P12).
+- What: PEFT config / training hyperparameters / dataset
+  characteristics.
+- Where: Training script / config file / model card.
+- When: Pre-training gate (config audit) and post-training gate
+  (intruder check, merge equivalence).
+- Why: P3.1 (Generative Space requires safe container — training-
+  config errors silently degrade model quality); P1 (User Sovereignty
+  — user controls training choices); P4 (Clear Boundaries — config
+  must be explicitly declared, not ambient authority); P9
+  (Homeostatic Regulation — training risk must be observable via
+  `cns.lora.*` spans).
+- How: Read config → apply 16 gates → classify → report → propose
+  regression → emit CNS span → compute convergence.
+- If any of these 6 were missing, this skill would violate P5. All 6
+  are present.
+
+OUTPUT FORMAT:
+JSON object with fields:
+`config_paths` (list with line counts), `parameters_extracted` (list),
+`findings` (structured array — only evidence-backed), `gate_results`
+(map of gate_id → result), `replicant_host`, `source_citations`,
+`cns_span_reference`.
+
+5W1H GATE CHECK (P5): Who = training operator / replicant host; What =
+config audit findings; Where = workspace config paths; When = pre-
+training cycle; Why = P3.1 safe container / P9 observable regulation;
+How = read + apply gates + classify + emit CNS span. All 6 present —
+passes gate.
+
+REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
+(`manifest.yaml` + `.j2`) conflict, registry wins. This template is
+the canonical `audit-config` phase definition.
+PUBLIC VISIBILITY: `visibility: public` — no hidden training-config
+audit controls (P3, P4).
+NO FABRICATION: Only findings with quoted config evidence are
+reported. Only regressions with concrete `pattern` (regex against
+config content, or Python assertion code for runtime gates) are
+proposed. Only gates with config evidence (init_lora_weights=True =
+no-op-at-init; bias='none' = merge equivalence; lora_alpha/r or
+lora_alpha/sqrt(r) = scaling form; etc.) are counted as pass.
+NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by reading
+the cited `config_path`. `parameter` and `value` must exist in that
+file. `line` must reference an actual line number.
+CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
+audit phase does not compute metric (that is `convergence-check.j2`
+responsibility). This maintains pipeline decomposition (P5 minimalism
+— each phase answers one 5W1H dimension clearly).

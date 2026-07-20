@@ -310,6 +310,12 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.taxonomy.map",
     "cns.taxonomy.report",
     "cns.taxonomy.convergence",
+    // ── LoRA training (training-config audit — lora-training skill) ──
+    "cns.lora",
+    "cns.lora.select",
+    "cns.lora.audit",
+    "cns.lora.report",
+    "cns.lora.convergence",
     // ── Template ──
     "cns.template",
     // ── Training providers (provider HTTP call observability — post-mortem 2026-07-19) ──

@@ -1,0 +1,198 @@
+{# goal: Compute normalized training-readiness convergence metric [0,1] from evidence counts only: unresolved critical/high findings (0.40), math-contract gate coverage (0.25), QLoRA gate coverage (0.15, only if QLoRA mode), data/eval gate coverage (0.10), forgetting gate coverage (0.10). Emit cns.lora.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- evaluate
+- converge
+- gate
+- coverage
+- training
+- readiness
+contract:
+  input:
+    unresolved_findings: array
+    gate_results: object
+    qlora_mode: boolean
+    corda_mode: boolean
+    existing_regressions: array
+    proposed_regressions: array
+    previous_metric: number
+    replicant_host: string
+  output:
+    convergence_metric: number
+    converged: boolean
+    blockers: array
+    gate_results_summary: object
+    cns_span_emitted: boolean
+energy_cap: 4096
+visibility: Public
+---
+{# Template: lora-training/convergence-check.j2 #}
+{# Functional Role: KnowAct — Training-readiness convergence metric #}
+{# Produces: convergence_metric, converged, blockers, gate_results_summary #}
+{# Design: evidence-based only (P8); weighted dimensions from LoRA/QLoRA contracts #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "medium"
+verbosity = "terse"
+max_tokens = 2048
+thinking_budget = "full"
+
+{# Computes normalized metric [0, 1] where 0 = fully converged (training-ready) #}
+{# Emits `cns.lora.convergence` CNS span (P9) — namespace registered #}
+
+INPUT: unresolved_findings = {{ unresolved_findings }} (from previous cycle or current)
+INPUT: gate_results = {{ gate_results }} (map of gate_id → pass/warn/fail/refuse, from audit-config phase)
+INPUT: qlora_mode = {{ qlora_mode | default(false) }} (bool — if true, G-Q1..G-Q6 gates apply)
+INPUT: corda_mode = {{ corda_mode | default(false) }} (bool — if true, G-F2 knowledge-preservation assert applies)
+INPUT: existing_regressions = {{ existing_regressions }} (count of surface: training entries)
+INPUT: proposed_regressions = {{ proposed_regressions }} (count from current cycle)
+INPUT: previous_metric = {{ previous_metric | default(1.0) }}
+INPUT: replicant_host = {{ replicant_host }} (P12)
+
+COMPUTE METRIC (weighted — evidence-based only, P8, P5):
+
+- Critical + high unresolved findings weight: 0.40
+  Score = 0.00 if zero critical/high; +0.40 if any critical/high
+  remains. Partial = (count_critical * 1.0 + count_high * 0.5) /
+  max(1, previous_critical + previous_high) — only if evidence-backed.
+
+- Math-contract gate coverage weight: 0.25
+  All 5 math gates (G-M1 no-op-at-init, G-M2 merge equivalence,
+  G-M3 scaling form, G-M4 rank budget, G-M5 trainable param count)
+  pass = +0.00
+  4 pass = +0.05; 3 pass = +0.10; 2 pass = +0.15; <2 pass = +0.25
+  Each gate only counts as pass when config evidence confirms it
+  (P8 — concrete evidence only, no aspirational coverage).
+
+- QLoRA gate coverage weight: 0.15 (only if qlora_mode=true)
+  All 6 QLoRA gates (G-Q1 frozen base quantized, G-Q2 adapter dtype,
+  G-Q3 gradient flow, G-Q4 no silent upcast, G-Q5 paged optimizer,
+  G-Q6 NF4 optimality) pass = +0.00
+  5 pass = +0.03; 4 pass = +0.06; <4 pass = +0.15
+  (If qlora_mode=false, this dimension is +0.00 — LoRA mode does not
+  require QLoRA gates.)
+
+- Data/eval gate coverage weight: 0.10
+  All 3 data/eval gates (G-D1 dataset size vs quality, G-D2 eval
+  protocol, G-D3 lemon-pick analysis) pass = +0.00
+  2 pass = +0.03; 1 pass = +0.06; 0 pass = +0.10
+
+- Forgetting gate coverage weight: 0.10
+  G-F1 intruder dimension check planned = +0.00; not planned = +0.05
+  G-F2 knowledge-preservation assert planned (if corda_mode=true) =
+  +0.00; not planned = +0.05
+  (If corda_mode=false, G-F2 contributes +0.00 — not applicable.)
+
+SUM = sum of contributions, clamp [0, 1].
+
+CONVERGENCE CHECK (P9 — homeostatic regulation):
+- Metric ≤ 0.10: near converged (training-ready).
+- Metric ≤ 0.10 AND relative improvement ≥ 5% from previous_metric:
+  converged.
+- If metric > 0.10 OR improvement < 5%: not converged — identify
+  blockers.
+- Blockers = specific gate failures (from `gate_results`), unresolved
+  critical/high findings (with config evidence), stagnation (no new
+  regression proposed despite finding evidence), contract gaps
+  (math/QLoRA/data/forgetting gates uncovered).
+
+CNS SPAN (P9):
+- `cns.lora.convergence` is registered in `CANONICAL_NAMESPACES`
+  (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
+  (`target: "cns.lora.convergence"`, message: `"CNS"`,
+  operation: `"convergence_check"`, metric, previous_metric,
+  improvement_pct, blockers: [...], replicant_host, latency_ms).
+
+OUTPUT FORMAT (JSON):
+`{convergence_metric, previous_metric, improvement_pct, converged:
+bool, blockers: [...], gate_results_summary: {math_pass_count,
+qlora_pass_count, data_pass_count, forgetting_pass_count},
+existing_regressions_count, proposed_regressions_count,
+unresolved_critical, unresolved_high, qlora_mode, corda_mode,
+replicant_host, cns_span_emitted: true}`.
+
+5W1H GATE (P5 — minimal): Who = replicant host; What = convergence
+metric; Where = audit cycle / workspace; When = pre-training cycle;
+Why = P9 observable self-correction / P7 evolutionary progress; How =
+compute metric + check improvement + emit CNS span (or note gap) +
+identify blockers. All 6 present.
+
+MINIMAL: One template (`KnowAct`); no extra computation; uses
+evidence from previous phases only; no synthetic metrics.
+EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts
+from `findings`, `gate_results` (verified by config evidence),
+`existing_regressions` (actual YAML file count),
+`proposed_regressions` (actual proposal count from current cycle).
+No fabricated numbers.
+EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "set
+`use_rslora=True` for r=128 config", "add `preprocess_loraga()`
+call before training", "plan intruder-dimension check post-
+training") based on real config evidence — not speculative.
+OCAP BOUNDARY (P4): Metric computed from workspace config evidence
+only; no actual training execution; no model download; no network
+calls to HuggingFace Hub without explicit consent (P2).
+CNS REGULATION (P9): Span emitted unconditionally — namespace
+registered in `CANONICAL_NAMESPACES`
+(`crates/hkask-types/src/event.rs`).
+REPLICANT HOST (P12): `replicant_host` mandatory.
+VISIBILITY (P11): Metric output public; no hidden training posture.
+SAFETY FLOOR (P3.1): Training convergence protects Generative Space
+— unconverged metric indicates training-config risk.
+SEMANTIC GROUNDING (P8): Every blocker references concrete evidence
+(config path, parameter, gate ID, source citation).
+
+SOURCE REFERENCES (P8 — concrete):
+- LoRA: arXiv:2106.09685 (arxiv.org/abs/2106.09685) — §4.1 init,
+  §4.2 merge, §4.1 α/r scaling, §4.3 rank budget, Table 5 param count.
+- QLoRA: arXiv:2305.14314 (arxiv.org/abs/2305.14314) — §3 NF4,
+  double quant, paged optim, bf16 compute; §5 data quality; §6 eval.
+- rsLoRA: arXiv:2312.03732 (arxiv.org/abs/2312.03732) — α/√r for
+  high rank.
+- DoRA: arXiv:2402.09353 (arxiv.org/abs/2402.09353) — magnitude/
+  direction decomposition.
+- PiSSA: arXiv:2404.02948 (arxiv.org/abs/2404.02948) — SVD init,
+  fast convergence.
+- LoRA-GA: arXiv:2407.05000 (arxiv.org/abs/2407.05000) — gradient
+  SVD init, 2-4× faster convergence.
+- AdaLoRA: arXiv:2303.10512 (arxiv.org/abs/2303.10512) — dynamic
+  rank (not default; overhead caveat).
+- Razin et al. (intruder dimensions): arXiv:2410.21228
+  (arxiv.org/abs/2410.21228) — LoRA ≠ full fine-tune; structured
+  forgetting.
+- PEFT v0.19.0: huggingface.co/docs/peft/v0.19.0/package_reference/lora
+  — LoraConfig field docstrings.
+- `security/regressions/README.md` (regression format and ratchet
+  lifecycle).
+- `security/regressions/` (actual regression library — read as
+  input).
+- `kali-audit` SKILL.md (§Defense-in-Depth Layer Catalog, §Relationship
+  to adversarial-red-team, §Constraints — complements this skill).
+- `tdd` SKILL.md (§Relationship — training-loop code vs training
+  config).
+- `bug-hunt` SKILL.md (§bug-hunt-convergence-check — convergence
+  metric computation pattern adopted).
+- `supply-chain-sentinel` SKILL.md (§convergence-check — parallel
+  pre-flight gate convergence pattern).
+- `principles.md` (§P5 Essentialism, §P7 Evolutionary, §P8 Semantic
+  Grounding, §P9 Homeostatic Self-Regulation, §P12 Replicant Host
+  Mandate).
+
+REGISTRY AUTHORITATIVE (P5.1): Registry manifest + `.j2` templates
+are canonical. SKILL.md derived. If conflict, registry wins.
+PUBLIC VISIBILITY: `visibility: public` — no hidden audit controls.
+NO FABRICATION: Metric computed from evidence counts only. Blockers
+derived from actual `findings`, `gate_results`,
+`proposed_regressions`. No synthetic config references. No synthetic
+regression counts.
+CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
+`report` phase logic. Uses `findings` and `gate_results` from
+`audit-config` (or from previous audit cycle if persistence is
+enabled by user). If no previous cycle, assumes `previous_metric =
+1.0` (initial state) — explicit assumption, not hidden.
+CNS SPAN EMITTED: `cns.lora.convergence` is registered, so the span
+is always emitted. Output states `cns_span_emitted: true`.
+MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
+and blockers — no extra synthesis (that is `report.j2`
+responsibility).

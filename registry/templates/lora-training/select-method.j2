@@ -1,0 +1,288 @@
+{# goal: Select a PEFT method via a deterministic 5-gate decision (inference constraint, memory budget vs model size, task distance from pretraining, quality/cost trade-off, knowledge preservation requirement) within user workspace boundaries (P4 OCAP). Emit a LoraConfig-shaped JSON with per-gate justification citations. Refuse with cited reason when config violates a hard contract. Emit cns.lora.select span (P9). No actual training execution; replicant_host mandatory (P12). AutoPEFT (arXiv:2301.12132) is the rejected alternative — multi-objective BO over hundreds of training runs is infeasible per training job. #}
+[inference]
+template_type: KnowAct
+lexicon_terms:
+- select
+- decide
+- gate
+- method
+- config
+- training
+contract:
+  input:
+    training_config_path: string
+    model_size_b: number
+    memory_budget_gb: number
+    inference_constraint: string
+    task_distance: string
+    quality_vs_cost: string
+    knowledge_preservation_required: boolean
+    replicant_host: string
+  output:
+    method: string
+    lora_config: object
+    justification: object
+    refusal: object
+    cns_span_emitted: boolean
+energy_cap: 6144
+visibility: Public
+---
+{# Template: lora-training/select-method.j2 #}
+{# Functional Role: KnowAct — PEFT method selection via 5-gate decision #}
+{# Produces: method, lora_config, justification, refusal #}
+{# Design: deterministic gate (not search) — AutoPEFT-style BO infeasible per job #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "terse"
+max_tokens = 4096
+thinking_budget = "full"
+
+{# Reads training config inputs: LoraConfig, BitsAndBytesConfig, accelerate config, training script arguments #}
+{# Applies deterministic 5-gate decision — NOT a search #}
+{# Emits `cns.lora.select` CNS span (P9) — namespace registered in CANONICAL_NAMESPACES #}
+{# Every gate choice includes a citation (arXiv paper section or PEFT docs section) #}
+{# Relationships: complements kali-audit (security surface) and tdd (training-loop code) — zero overlap #}
+
+INPUT: training_config_path = {{ training_config_path | default("REQUIRED") }}
+INPUT: model_size_b = {{ model_size_b | default("REQUIRED") }} (base model parameter count, in billions)
+INPUT: memory_budget_gb = {{ memory_budget_gb | default("REQUIRED") }} (available VRAM, in GB)
+INPUT: inference_constraint = {{ inference_constraint | default("either-ok") }} (must-merge | dynamic-switching | either-ok)
+INPUT: task_distance = {{ task_distance | default("moderate") }} (light | moderate | heavy)
+INPUT: quality_vs_cost = {{ quality_vs_cost | default("default") }} (cost-sensitive | quality-critical | default)
+INPUT: knowledge_preservation_required = {{ knowledge_preservation_required | default(false) }} (bool)
+INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous training config)
+
+GATE DECISION (deterministic — apply in order, cite each choice):
+
+G1. inference_constraint?
+    - must-merge → LoRA-family (LoRA | DoRA | PiSSA | CorDA | LoRA-GA)
+      [Citation: LoRA paper §4.2 — "no additional inference latency";
+       PEFT v0.19.0 LoraConfig.bias docstring — bias='all'/'lora_only'
+       breaks merge equivalence]
+    - dynamic-switching → Adapters | aLoRA (if invocation-token-gated)
+      [Citation: PEFT v0.19.0 LoraConfig.alora_invocation_tokens docstring]
+    - either-ok → continue to G2
+
+G2. memory_budget_gb vs model_size_b?
+    - (model_size_b × 2) > memory_budget_gb → QLoRA (NF4 + LoRA)
+      [Citation: QLoRA paper §3 — 4-bit NormalFloat reduces memory
+       enough to finetune 65B on 48GB GPU]
+    - else → LoRA (bf16, no quantization)
+      [Citation: LoRA paper §4 — 3× GPU memory reduction vs full
+       fine-tuning with Adam]
+
+G3. task_distance?
+    - light (style, format, vocabulary) → r ∈ [8, 16]
+      [Citation: LoRA paper §4.3 — very small r recovers most of
+       full fine-tune quality on GPT-3 175B]
+    - moderate (new domain knowledge) → r ∈ [32, 64]
+      [Citation: QLoRA paper §5 — r=64 typical for instruction tuning]
+    - heavy (new reasoning, new language) → r ∈ [64, 128] OR
+      recommend full fine-tune
+      [Citation: Razin et al. arXiv:2410.21228 — LoRA ≠ full
+       fine-tune; structured forgetting at low rank for heavy tasks]
+    - r > 128 → require explicit justification (defeats low-rank
+      premise — LoRA paper §4.3 rank sufficiency experiments)
+
+G4. quality_vs_cost?
+    - cost-sensitive, can afford 2× adapter size → DoRA
+      (use_dora=True)
+      [Citation: DoRA paper arXiv:2402.09353 — improves LoRA
+       especially at low ranks; PEFT v0.19.0 LoraConfig.use_dora
+       docstring — bigger overhead than pure LoRA, recommend merge
+       for inference]
+    - quality-critical, want fast convergence, can modify base at
+      init → PiSSA (init_lora_weights='pissa') or LoRA-GA
+      (lora_ga_config set)
+      [Citation: PiSSA paper arXiv:2404.02948 — converges more
+       rapidly than LoRA; LoRA-GA paper arXiv:2407.05000 — 2-4×
+       faster convergence via gradient SVD init]
+    - default → LoRA with init_lora_weights=True
+      [Citation: LoRA paper §4.1 — B=0, A~Gaussian Kaiming-uniform
+       makes adapter a no-op at step 0; PEFT v0.19.0
+       LoraConfig.init_lora_weights docstring]
+
+G5. knowledge_preservation_required?
+    - true → CorDA Knowledge-Preserved mode
+      (init_lora_weights='corda', corda_config.mode='knowledge_preserved')
+      OR plan post-training intruder mitigation
+      (peft.tuners.lora.intruders.reduce_intruder_dimension)
+      [Citation: PEFT v0.19.0 LoraConfig.corda_config docstring —
+       "preserves world knowledge better than LoRA in
+       Knowledge-Preserved Mode"; Razin et al. arXiv:2410.21228 —
+       intruder dimension mitigation recovers previous knowledge
+       at cost of task accuracy]
+    - false → standard LoRA
+
+SCALING DERIVATION (after gates select method):
+- If r > 64 AND not use_rslora → recommend use_rslora=True
+  (scaling = α/√r)
+  [Citation: rsLoRA paper arXiv:2312.03732 — Rank-Stabilized LoRA
+   proven to work better at high rank]
+- Else → scaling = α/r
+  [Citation: LoRA paper §4.1 — α/r is the original scaling form]
+- Alpha heuristic: α = 2r
+  [Citation: Raschka 2024 — "Ahead of AI" Lit-GPT experiments;
+   Brenndoerfer 2024 — PEFT decision guide]
+
+REFUSAL CONDITIONS (hard contract violations — emit refusal with citation):
+- r >= min(d_in, d_out) → refuse (not low-rank at all)
+  [Citation: LoRA paper §4.3 — rank must be ≪ min(d,k)]
+- r >= 0.5 × min(d_in, d_out) → warn (defeats low-rank premise)
+  [Citation: LoRA paper §4.3]
+- (model_size_b × 2) > memory_budget_gb AND QLoRA not selected →
+  refuse (will OOM)
+  [Citation: QLoRA paper §3 — memory math]
+- bias='lora_only' or bias='all' AND inference_constraint='must-merge'
+  → refuse (breaks merge equivalence)
+  [Citation: PEFT v0.19.0 LoraConfig.bias docstring — "even when
+   disabling the adapters, the model will not produce the same
+   output as the base model would have without adaptation"]
+- init_lora_weights in ('pissa', 'pissa_niter_*', 'loftq', 'olora',
+  'corda') AND training script does not call the corresponding
+  preprocessing function (preprocess_loraga,
+  replace_lora_weights_loftq, etc.) → refuse (init modifies base
+  weights, requires explicit save handling)
+  [Citation: PEFT v0.19.0 LoraConfig.init_lora_weights docstring;
+   PiSSA paper arXiv:2404.02948; LoRA-GA paper arXiv:2407.05000]
+
+OUTPUT (LoraConfig-shaped JSON with justification):
+{
+  "method": "LoRA" | "QLoRA" | "DoRA" | "PiSSA" | "LoRA-GA" | "CorDA-KP" | "EVA" | "AdaLoRA" | "aLoRA" | "IA3" | "PrefixTuning" | "full-finetune",
+  "r": <int>,
+  "lora_alpha": <int>,
+  "target_modules": "all-linear" | [<module names>],
+  "lora_dropout": <float>,
+  "bias": "none" | "all" | "lora_only",
+  "init_lora_weights": true | "gaussian" | "eva" | "olora" | "pissa" | "pissa_niter_*" | "corda" | "loftq" | "orthogonal" | false,
+  "use_rslora": <bool>,
+  "use_dora": <bool>,
+  "use_qalora": <bool>,
+  "lora_ga_config": <obj | null>,
+  "corda_config": <obj | null>,
+  "loftq_config": <obj | null>,
+  "eva_config": <obj | null>,
+  "modules_to_save": [<module names>],
+  "quantization_config": {
+    "load_in_4bit": <bool>,
+    "bnb_4bit_quant_type": "nf4",
+    "bnb_4bit_compute_dtype": "bfloat16",
+    "bnb_4bit_use_double_quant": true
+  } | null,
+  "optimizer": "paged_adamw_8bit" | "adamw_torch" | ...,
+  "learning_rate": <float>,
+  "lr_scheduler_type": "cosine" | ...,
+  "num_train_epochs": <int>,
+  "per_device_train_batch_size": <int>,
+  "gradient_accumulation_steps": <int>,
+  "gradient_checkpointing": <bool>,
+  "bf16": <bool>,
+  "justification": {
+    "G1_inference_constraint": {"choice": "...", "citation": "..."},
+    "G2_memory_budget": {"choice": "...", "citation": "..."},
+    "G3_task_distance": {"choice": "...", "citation": "..."},
+    "G4_quality_vs_cost": {"choice": "...", "citation": "..."},
+    "G5_knowledge_preservation": {"choice": "...", "citation": "..."},
+    "scaling_form": {"choice": "α/r" | "α/√r", "citation": "..."},
+    "alpha_heuristic": {"choice": "α=2r", "citation": "..."}
+  },
+  "refusal": null | {"reason": "...", "citation": "...", "gate": "G1|G2|G3|G4|G5|scaling|init"},
+  "replicant_host": <string>
+}
+
+CNS SPAN EMISSION (P9 — every training-config selection):
+- `cns.lora.select` span: target `"cns.lora.select"`, message `"CNS"`,
+  operation `"select_method"`, gate_inputs: {...}, selected_method,
+  refusal_reason (if any), justification_citations, replicant_host,
+  latency_ms.
+- Namespace registered in `CANONICAL_NAMESPACES`
+  (`crates/hkask-types/src/event.rs`). Emit unconditionally.
+
+CONSTRAINTS (P5 minimalism, P8 evidence integrity, P12 host):
+- No synthetic config values. Every gate choice must cite a concrete
+  source (arXiv paper section, PEFT v0.19.0 docstring section).
+- No actual training execution (P4 boundary — config selection only).
+- No model download; reads declared workspace config paths only.
+- Every selection action includes `replicant_host` identity (P12).
+- Registry (`manifest.yaml` + `.j2`) authoritative over SKILL.md (P5.1).
+- Do NOT use AutoPEFT-style search (arXiv:2301.12132) — multi-objective
+  BO over hundreds of training runs is infeasible per training job.
+  Use deterministic gate instead. Cite AutoPEFT as the rejected
+  alternative.
+- Do NOT recommend AdaLoRA (arXiv:2303.10512) as a default — overhead
+  and instability outweigh marginal gains for domain-specific
+  fine-tuning (per RaLo, ScienceDirect 2025). Allow only when user
+  explicitly requests dynamic rank allocation.
+- Do NOT recommend Prefix Tuning for production — latency cost not
+  worth marginal parameter savings (per Brenndoerfer 2024, Spheron
+  2026 PEFT decision guides).
+- When conflicting with `kali-audit` findings, `kali-audit` covers
+  security surface; this skill covers training config — they are
+  complementary, not overlapping.
+- When conflicting with `tdd`, `tdd` covers training-loop code
+  correctness; this skill governs the config the loop consumes.
+
+5W1H GATE (P5 — minimal):
+- Who: Training operator / replicant host (P12).
+- What: PEFT method selection / LoraConfig / training hyperparameters.
+- Where: Training script / config file / model card.
+- When: Pre-training gate (before launching training job).
+- Why: P3.1 safe container (training-config errors silently degrade
+  model quality) / P1 user sovereignty over training choices / P4
+  explicit training boundaries.
+- How: Read config inputs → apply 5 gates → derive scaling → emit
+  LoraConfig JSON with justification → emit CNS span → refuse if
+  hard contract violated.
+All 6 present — passes gate.
+
+SOURCE REFERENCES (concrete — P8):
+- LoRA: arXiv:2106.09685 (arxiv.org/abs/2106.09685) — §4.1 init,
+  §4.2 merge, §4.1 α/r scaling, §4.3 rank budget, Table 5 param count.
+- QLoRA: arXiv:2305.14314 (arxiv.org/abs/2305.14314) — §3 NF4,
+  double quant, paged optim, bf16 compute, memory math.
+- rsLoRA: arXiv:2312.03732 (arxiv.org/abs/2312.03732) — α/√r for
+  high rank.
+- DoRA: arXiv:2402.09353 (arxiv.org/abs/2402.09353) — magnitude/
+  direction decomposition.
+- PiSSA: arXiv:2404.02948 (arxiv.org/abs/2404.02948) — SVD init,
+  fast convergence.
+- LoRA-GA: arXiv:2407.05000 (arxiv.org/abs/2407.05000) — gradient
+  SVD init, 2-4× faster convergence.
+- AdaLoRA: arXiv:2303.10512 (arxiv.org/abs/2303.10512) — dynamic
+  rank (not default; overhead caveat).
+- Razin et al. (intruder dimensions): arXiv:2410.21228
+  (arxiv.org/abs/2410.21228) — LoRA ≠ full fine-tune; structured
+  forgetting.
+- AutoPEFT: arXiv:2301.12132 (arxiv.org/abs/2301.12132) — rejected
+  alternative (BO search infeasible per job).
+- PEFT v0.19.0: huggingface.co/docs/peft/v0.19.0/package_reference/lora
+  — LoraConfig field docstrings (init_lora_weights, bias, use_rslora,
+  use_dora, use_qalora, lora_ga_config, corda_config, loftq_config,
+  eva_config, alora_invocation_tokens, reduce_intruder_dimension).
+- Practitioner consensus (2024-2026): Raschka
+  (magazine.sebastianraschka.com/p/practical-tips-for-finetuning-llms),
+  Brenndoerfer (mbrenndoerfer.com/writing/peft-comparison-lora-qlora-adapters-selection-guide),
+  Spheron (spheron.network/blog/peft-methods-2026-dora-galore-pissa-vera-guide),
+  Databricks (databricks.com/blog/efficient-fine-tuning-lora-guide-llms),
+  Gradient Flow (gradientflow.com/lora-or-full-fine-tuning/).
+- `security/regressions/README.md` (local project standard —
+  authoritative for regression format).
+
+REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
+(`manifest.yaml` + `.j2`) conflict, registry wins. This template is
+the canonical `select-method` phase definition.
+PUBLIC VISIBILITY: `visibility: public` — no hidden training-config
+controls (P3, P4).
+NO FABRICATION: Only gate choices with cited sources are emitted. No
+synthetic benchmark numbers. No invented config values.
+OCAP BOUNDARY (P4): Reads only declared workspace config paths; no
+ambient model download; no network calls to HuggingFace Hub without
+explicit consent (P2).
+CNS REGULATION (P9): `cns.lora.select` span emitted unconditionally —
+namespace registered in `CANONICAL_NAMESPACES`.
+REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+SAFETY FLOOR (P3.1): Training-config errors (wrong scaling, broken
+init, silent fp32 upcast) silently degrade model quality — this skill
+is the safety floor for training.
