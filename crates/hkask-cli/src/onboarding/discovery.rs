@@ -184,9 +184,11 @@ async fn run_openrouter_pipeline(
         .build_client()
         .map_err(|e| CliError::Onboarding(e.to_string()))?;
     let url = format!(
-        "{}/v1/models?output_modalities=text&sort=intelligence-high-to-low&supported_parameters={}",
+        "{}/v1/models?output_modalities=text&sort=intelligence-high-to-low&supported_parameters={}&max_price={}&min_intelligence_index={}",
         config.openrouter_base_url.trim_end_matches('/'),
-        OR_SUPPORTED_PARAMETERS
+        OR_SUPPORTED_PARAMETERS,
+        config.openrouter_max_prompt_price_per_m,
+        config.openrouter_min_intelligence_index
     );
 
     let mut req = client
@@ -641,7 +643,7 @@ mod tests {
 
     #[test]
     fn is_likely_chat_model_filters_non_chat() {
-        // Embeddings, OCR, image-gen, safety, free, cloud, tiny → filtered out
+        // Embeddings, OCR, image-gen, safety, free, cloud, auto-router → filtered out
         assert!(!is_likely_chat_model("mxbai-embed-large:335m"));
         assert!(!is_likely_chat_model("paddleocr"));
         assert!(!is_likely_chat_model("LightOnOCR-2:1b"));
@@ -652,12 +654,12 @@ mod tests {
         assert!(!is_likely_chat_model("openrouter/auto-beta"));
         assert!(!is_likely_chat_model("qwen3.5:397b-cloud"));
         assert!(!is_likely_chat_model("qwen3.5:4b"));
-        assert!(!is_likely_chat_model("ornith:9b"));
-        assert!(!is_likely_chat_model("llama3.1:8b"));
-        // Real chat models → pass
+        // Real chat models (including small ones) → pass
         assert!(is_likely_chat_model("deepseek-ai/DeepSeek-V4-Pro"));
         assert!(is_likely_chat_model("zai-org/GLM-5.2"));
         assert!(is_likely_chat_model("Qwen/Qwen3.5-397B-A17B"));
         assert!(is_likely_chat_model("deepseek-ai/DeepSeek-R1-0528"));
+        assert!(is_likely_chat_model("ornith:9b"));
+        assert!(is_likely_chat_model("llama3.1:8b"));
     }
 }
