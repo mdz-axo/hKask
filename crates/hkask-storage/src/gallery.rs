@@ -111,7 +111,9 @@ pub struct FaceRegistryRecord {
     pub first_name: String,
     pub last_name: String,
     pub image_id: String,
-    /// 512-dim ArcFace embedding as raw f32 bytes (None if not yet computed).
+    /// Serialized face descriptor (template-produced) as raw bytes. None if
+    /// not yet computed. Compared via cosine similarity on the descriptor
+    /// vector for fast matching.
     #[serde(skip)]
     pub embedding: Option<Vec<u8>>,
     pub status: String,

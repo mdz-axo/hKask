@@ -420,6 +420,7 @@ impl MediaServer {
             let mut faces_matched = 0u32;
             let mut registry_count = 0usize;
             let mut match_errors: Vec<String> = Vec::new();
+            let mut face_scan_errors: Vec<String> = Vec::new();
             let mut face_scan = serde_json::json!(null);
             if include_faces {
                 // Stage 1: scan the face reference folder for new reference
@@ -436,7 +437,7 @@ impl MediaServer {
                                 face_scan = result;
                             }
                             Err(e) => {
-                                match_errors.push(format!("face_scan_folder: {}", e));
+                                face_scan_errors.push(format!("face_scan_folder: {}", e));
                             }
                         }
                     }
@@ -504,6 +505,7 @@ impl MediaServer {
                 },
                 "errors": {
                     "analysis": analyze_errors,
+                    "face_scan": face_scan_errors,
                     "matching": match_errors,
                 },
             }))

@@ -143,7 +143,7 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         primary: "bundle",
         aliases: &["b"],
-        args: "[SKILL1 SKILL2 ...] | list | off | skills",
+        args: "[SKILL1 SKILL2 ...] | list | show <id> | apply <id> | evolve <id> | skills | off",
         about: "Compose, apply, or manage skill bundles",
     },
     SlashCommand {
@@ -151,6 +151,18 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         aliases: &[],
         args: "[SETTING] [VALUE]",
         about: "Show or set REPL inference settings",
+    },
+    SlashCommand {
+        primary: "skill",
+        aliases: &["sk"],
+        args: "list [public|private] | status <name> | publish <name> | audit [--json] | derive <name>",
+        about: "Skill discovery, status, publishing, and auditing",
+    },
+    SlashCommand {
+        primary: "goal",
+        aliases: &[],
+        args: "create <text> | list [state] | set-state <id> <state>",
+        about: "Goal coordination substrate",
     },
     SlashCommand {
         primary: "consolidate",
@@ -304,37 +316,24 @@ pub(super) fn handle_slash_command(
             handlers::handle_consolidate(&cons_arg, state, rt);
         }
         "bundle" | "b" => match arg1 {
-            "list" => {
-                println!("  \x1b[1mSkill Bundles\x1b[0m");
-                println!("  (use \x1b[36mkask bundle list\x1b[0m for full details)");
-                println!();
-            }
-            "off" => {
-                println!("  Bundle deactivated.");
-                println!();
-            }
-            "skills" => {
-                println!("  \x1b[1mAvailable Skills\x1b[0m");
-                println!("  (use \x1b[36mkask bundle skills\x1b[0m for full details)");
-                println!();
-            }
-            "" => {
-                println!("  \x1b[1mBundle Commands\x1b[0m");
-                println!("    \x1b[36m/bundle SKILL1 SKILL2\x1b[0m  Compose a bundle from skills");
-                println!("    \x1b[36m/bundle list\x1b[0m          List all bundles");
-                println!("    \x1b[36m/bundle off\x1b[0m           Deactivate current bundle");
-                println!("    \x1b[36m/bundle skills\x1b[0m        List available skills");
-                println!();
+            "list" | "show" | "apply" | "evolve" | "skills" | "off" | "" => {
+                let rest = if arg2.is_empty() {
+                    arg1.to_string()
+                } else {
+                    format!("{} {}", arg1, arg2)
+                };
+                handlers::handle_bundle(arg1, &rest, state, rt);
             }
             skills_arg => {
-                println!("  Composing bundle from: {}", skills_arg);
-                println!(
-                    "  (use \x1b[36mkask bundle compose SKILL1 SKILL2\x1b[0m for full composition)"
-                );
-                println!();
+                // Compose: /bundle skill1 skill2 ...
+                let rest = format!("{} {}", arg1, arg2);
+                handlers::handle_bundle("", &rest, state, rt);
+                let _ = skills_arg;
             }
         },
         "repl" => handlers::handle_repl_set(arg1, arg2, state),
+        "skill" | "sk" => handlers::handle_skill(arg1, arg2, state),
+        "goal" => handlers::handle_goal(arg1, arg2, state, rt),
         "start" | "tour" | "onboarding" => handlers::handle_start(state),
         "feedback" => handlers::handle_feedback(state),
         "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),

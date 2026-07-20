@@ -415,7 +415,8 @@ impl MediaServer {
     /// suitable for vision LLM calls. Used by `face_scan_folder`.
     ///
     /// If the image is already in the gallery (matched by hash), the existing
-    /// record is reused — no duplicate row is inserted.
+    /// record is reused — no duplicate row is inserted. The file is read from
+    /// disk exactly once; the base64 URL is computed from the in-memory bytes.
     fn import_reference_image(
         &self,
         abs_path: &std::path::Path,
@@ -428,22 +429,33 @@ impl MediaServer {
         hasher.update(&data);
         let hash = format!("{:x}", hasher.finalize());
 
+        // Compute the base64 data URL once from the in-memory bytes — avoids
+        // re-reading the file from disk in resolve_image_url_by_id.
+        let ext = abs_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase())
+            .unwrap_or_default();
+        let mime = match ext.as_str() {
+            "png" => "image/png",
+            "jpg" | "jpeg" => "image/jpeg",
+            "webp" => "image/webp",
+            "gif" => "image/gif",
+            _ => "image/png",
+        };
+        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &data);
+        let image_url = format!("data:{};base64,{}", mime, b64);
+
         // Reuse existing record if present (idempotent).
         if let Ok(existing) = self
             .gallery_store
             .get_image(&ga.gallery_id, None, Some(&hash))
         {
-            let url = self.resolve_image_url_by_id(&existing.id)?;
-            return Ok((existing.id, url));
+            return Ok((existing.id, image_url));
         }
 
         let (width, height) = image::image_dimensions(abs_path)
             .map_err(|e| MediaError::Io(format!("Failed to read dimensions: {}", e)))?;
-        let format = abs_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| e.to_lowercase())
-            .unwrap_or_default();
         let relative_path = abs_path
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
@@ -459,15 +471,14 @@ impl MediaServer {
                 &hash,
                 width,
                 height,
-                &format,
+                &ext,
                 size_bytes,
             )
             .map_err(|e| {
                 MediaError::ImageNotFound(format!("Failed to import reference image: {}", e))
             })?;
 
-        let url = self.resolve_image_url_by_id(&record.id)?;
-        Ok((record.id, url))
+        Ok((record.id, image_url))
     }
 
     /// Run face matching: for each `face` tag in the gallery, compare against
@@ -681,7 +692,7 @@ impl MediaServer {
                 }
             };
 
-            let (record, validation) = self
+            let (record, validation) = match self
                 .register_face_from_url(
                     &image_id,
                     &image_url,
@@ -689,7 +700,18 @@ impl MediaServer {
                     &parsed.last_name,
                     force,
                 )
-                .await?;
+                .await
+            {
+                Ok(pair) => pair,
+                Err(e) => {
+                    errors.push(format!(
+                        "{}: registration failed: {}",
+                        path.file_name().unwrap_or_default().to_string_lossy(),
+                        e
+                    ));
+                    continue;
+                }
+            };
 
             if record.status == "valid" {
                 registered += 1;

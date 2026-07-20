@@ -19,6 +19,7 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-inference = { path = "../hkask-services-inference" }
 hkask-services-kata-kanban = { path = "../hkask-services-kata-kanban" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }
+hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-database = { path = "../hkask-database" }
 hkask-templates = { path = "../hkask-templates" }
