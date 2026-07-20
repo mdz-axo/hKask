@@ -562,7 +562,7 @@ assert!(!TaskStatus::Done.can_transition_to(TaskStatus::Review));
 
 ### CNS Integration
 
-Kanban operations emit CNS spans for observability. The `KanbanKataBridge` in `crates/hkask-services-kata-kanban/src/bridge.rs` connects the kanban and kata subsystems, enabling kata cycles to run directly on kanban tasks with full CNS observability, gas tracking, and automaticity computation.
+Kanban operations emit CNS spans for observability. The kanban service exposes kata prompt generation (`task_coaching_prompt`, `task_improvement_prompt`, `task_practice_prompt`) for MCP/REPL surfaces. Full kata execution is available through the CLI `kask kata start` command, which constructs `KataEngine` directly and calls `execute()` with full CNS observability, gas tracking, and automaticity computation.
 
 The kanban board is also accessible in the TUI through the Kanban window (`crates/hkask-tui/src/windows/kanban.rs`), connected via `KanbanDataBridge`.
 
@@ -647,16 +647,20 @@ Every kata execution produces a `KataResult` containing:
 
 ### Running Kata on Kanban Tasks
 
-The `KanbanKataBridge` connects kata and kanban subsystems:
+Full kata execution is available through the CLI `kask kata start` command, which constructs `KataEngine` directly and calls `execute()`. The kanban service exposes only prompt generation for MCP/REPL surfaces:
 
 ```rust
-let bridge = KanbanKataBridge::new(engine);
-let result = bridge.run_coaching_on_task(&task, &manifest).await?;
-let result = bridge.run_improvement_on_task(&task, &manifest).await?;
-let result = bridge.run_starter_on_task(&task, "sub-problem desc", &manifest).await?;
+// MCP/REPL path — prompt generation only
+let prompt = service.task_coaching_prompt(task_id)?;
+let prompt = service.task_improvement_prompt(task_id)?;
+let prompt = service.task_practice_prompt(task_id, "sub-problem")?;
+
+// CLI path — full kata execution via KataEngine
+let engine = KataEngine::from_env(registry);
+let result = engine.execute(&manifest, &learner_bot, context).await?;
 ```
 
-Task fields (title, description, criteria, comments, deliverables) are mapped into kata context.
+Task fields (title, description, criteria, comments, deliverables) can be mapped into kata context when constructing the CLI invocation.
 
 ---
 

@@ -910,9 +910,9 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 The Improvement Kata PDCA cycle in `hkask-services-kata-kanban` executes as a 5-step **single-pass** sequential pipeline within the `KataEngine` that maps to four conceptual PDCA phases. Each step runs an LLM inference via the registered template (e.g., `kata-improvement/improvement-step1-direction`), validates output against the step's `output_schema`, records a `StepExperience`, and emits CNS spans. The `KataEngine::run_improvement_from()` iterates through steps **exactly once** (`for step in &manifest.steps` — no re-entry loop). The cycle is bounded by `gas.cap` (default 15,000). Metric capture flanks the execution: `metric_before` is captured pre-cycle and `metric_after` post-cycle, yielding an `ImprovementSignal` (Positive/Negative/Stalled/NotMeasured). CNS algedonic alerts fire if variety deficit exceeds threshold.
 
-**Convergence iteration lives elsewhere:** The convergence loop (`max_iterations`, threshold, re-entry with updated data) is implemented in `ManifestExecutor::execute_manifest()` in `crates/hkask-templates/src/executor.rs` — the Pattern A Skills Model execution engine. The kata engine is a *step executor* called within that loop; it does not drive convergence itself. Kanban task mapping through `KanbanKataBridge` translates PDCA phases to `TaskStatus`: Plan→Backlog, Do→InProgress, Check→Review, Act→Done (or Backlog if convergence unmet at the ManifestExecutor level).
+**Convergence iteration lives elsewhere:** The convergence loop (`max_iterations`, threshold, re-entry with updated data) is implemented in `ManifestExecutor::execute_manifest()` in `crates/hkask-templates/src/executor.rs` — the Pattern A Skills Model execution engine. The kata engine is a *step executor* called within that loop; it does not drive convergence itself. The CLI `kask kata start` command constructs `KataEngine` directly and calls `execute()`; the kanban service exposes only prompt generation for MCP/REPL surfaces.
 
-**Key source:** `crates/hkask-services-kata-kanban/src/kata/mod.rs:333-486` (`execute` — single-pass orchestration), `crates/hkask-services-kata-kanban/src/kata/improvement.rs:20-121` (`run_improvement_from` — single-pass `for` loop, no re-entry), `crates/hkask-services-kata-kanban/src/bridge.rs:43-56` (`run_improvement_on_task`), `crates/hkask-services-kata-kanban/src/kata/metrics.rs:6-133` (metric capture + signal).
+**Key source:** `crates/hkask-services-kata-kanban/src/kata/mod.rs:333-486` (`execute` — single-pass orchestration), `crates/hkask-services-kata-kanban/src/kata/improvement.rs:20-121` (`run_improvement_from` — single-pass `for` loop, no re-entry), `crates/hkask-services-kata-kanban/src/kata/metrics.rs:6-133` (metric capture + signal).
 
 **Convergence loop source:** `crates/hkask-templates/src/executor.rs:267-679` (`execute_manifest` — `'cascade: loop` with convergence check and re-entry at step 0), `crates/hkask-templates/src/executor.rs:746-799` (`check_convergence` — threshold + improvement ratio gating).
 
@@ -1040,7 +1040,7 @@ stateDiagram-v2
 
 | PDCA Phase | Kanban `TaskStatus` | CNS Event | Trigger |
 |------------|---------------------|-----------|---------|
-| **Plan** | `Backlog` | `cns.tool.kanban` (task created) | `KanbanKataBridge::run_improvement_on_task()` |
+| **Plan** | `Backlog` | `cns.tool.kanban` (task created) | `kask kata start` (CLI constructs KataEngine directly) |
 | **Do** | `InProgress` | `cns.tool.kanban` (task moved) | Coaching Q4: "What is your next step?" |
 | **Check** | `Review` | `cns.tool.kanban` (task verified) | Coaching Q5: task transitions to Review |
 | **Act** | `Done` | `cns.tool.kanban` (task completed) | Verification passes |
@@ -1071,7 +1071,7 @@ cns.prompt.kata.improvement
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FW-005
 verified_date: 2026-07-01
-verified_against: crates/hkask-services-kata-kanban/src/kata/mod.rs (execute:333-486), crates/hkask-services-kata-kanban/src/kata/improvement.rs (run_improvement_from:20-121 — single-pass for loop, no re-entry), crates/hkask-services-kata-kanban/src/bridge.rs (KanbanKataBridge:18-73), crates/hkask-services-kata-kanban/src/kata/metrics.rs (capture_before/after:6-105, compute_improvement_signal:76-105), crates/hkask-services-kata-kanban/src/kata/manifest.rs (KataStep, KataManifest, convergence config), crates/hkask-services-kata-kanban/src/kanban/types/status.rs (TaskStatus transitions), registry/manifests/kata-improvement.yaml (step definitions, convergence parameters, CNS spans:150-160), crates/hkask-templates/src/executor.rs (execute_manifest:209-686 — convergence loop, check_convergence:746-799)
+verified_against: crates/hkask-services-kata-kanban/src/kata/mod.rs (execute:333-486), crates/hkask-services-kata-kanban/src/kata/improvement.rs (run_improvement_from:20-121 — single-pass for loop, no re-entry), crates/hkask-services-kata-kanban/src/kata/metrics.rs (capture_before/after:6-105, compute_improvement_signal:76-105), crates/hkask-services-kata-kanban/src/kata/manifest.rs (KataStep, KataManifest, convergence config), crates/hkask-services-kata-kanban/src/kanban/types/status.rs (TaskStatus transitions), registry/manifests/kata-improvement.yaml (step definitions, convergence parameters, CNS spans:150-160), crates/hkask-templates/src/executor.rs (execute_manifest:209-686 — convergence loop, check_convergence:746-799), crates/hkask-cli/src/commands/kata.rs (start_kata — CLI constructs KataEngine directly)
 status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop is ManifestExecutor concern)
 -->
 
@@ -1083,8 +1083,6 @@ status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop
 - [`kata/improvement.rs`](crates/hkask-services-kata-kanban/src/kata/improvement.rs) — `run_improvement_from()` single-pass step loop (L20-121)
 - [`executor.rs`](crates/hkask-templates/src/executor.rs) — `ManifestExecutor::execute_manifest()` convergence loop (L209-686), `check_convergence()` (L746-799)
 - [`kata/metrics.rs`](crates/hkask-services-kata-kanban/src/kata/metrics.rs) — before/after capture, signal computation (L6-133)
-- [`kata/manifest.rs`](crates/hkask-services-kata-kanban/src/kata/manifest.rs) — `KataStep`, `KataManifest`, convergence config
-- [`bridge.rs`](crates/hkask-services-kata-kanban/src/bridge.rs) — `KanbanKataBridge` PDCA→task mapping (L18-73)
 - [`kanban/types/status.rs`](crates/hkask-services-kata-kanban/src/kanban/types/status.rs) — `TaskStatus` column-ordered transitions
 - [`registry/manifests/kata-improvement.yaml`](registry/manifests/kata-improvement.yaml) — canonical step definitions, convergence params, CNS spans
 
@@ -1096,7 +1094,7 @@ status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop
 
 # Kata-Kanban Execution Boundary
 
-This reference sequence separates the two currently implemented Kata paths. The Kanban MCP exposes task-scoped **prompt generation**. Full Kata execution is available only through an optional `KanbanKataBridge` configured on `KanbanService`; the shown MCP tools do not invoke that bridge. The distinction is operationally important because prompt generation does not execute the manifest’s convergence, budget, or OCAP declarations.
+This reference sequence separates the two Kata paths. The Kanban MCP exposes task-scoped **prompt generation**. Full Kata execution is available through the CLI `kask kata start` command, which constructs `KataEngine` directly and calls `execute()`. The MCP prompt tools do not invoke the engine; the distinction is operationally important because prompt generation does not execute the manifest’s convergence, budget, or OCAP declarations.
 
 ```mermaid
 sequenceDiagram
@@ -1104,7 +1102,7 @@ sequenceDiagram
     participant MCP as Kanban MCP
     participant Service as KanbanService
     participant Task as Task Store
-    participant Bridge as KanbanKataBridge
+    participant CLI as kask kata start
     participant Engine as KataEngine
 
     Caller->>+MCP: kanban_task_kata_improvement(task_id)
@@ -1114,25 +1112,22 @@ sequenceDiagram
     Service-->>-MCP: rendered prompt text
     MCP-->>-Caller: TaskKataResponse
 
-    opt Service configured with KataEngine
-        Caller->>+Service: run_improvement_kata(task_id, manifest)
-        Service->>+Task: task_get(task_id)
-        Task-->>-Service: Task
-        Service->>+Bridge: run_improvement_on_task(task, manifest)
-        Bridge->>+Engine: execute(manifest, learner, context)
-        Engine-->>-Bridge: KataResult
-        Bridge-->>-Service: KataResult
-        Service-->>-Caller: KataResult
+    opt Full kata execution via CLI
+        Caller->>+CLI: kask kata start --name kata-improvement --bot agent
+        CLI->>+Engine: KataEngine::from_env(registry)
+        CLI->>+Engine: execute(manifest, learner, context)
+        Engine-->>-CLI: KataResult
+        CLI-->>-Caller: KataResult
     end
 
-    Note over MCP,Engine: The MCP prompt tools do not enter the optional bridge path.
+    Note over MCP,Engine: The MCP prompt tools do not invoke the engine.\nFull execution is via the CLI, not the MCP surface.
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FW-006
-verified_date: 2026-07-10
-verified_against: mcp-servers/hkask-mcp-kata-kanban/src/lib.rs:680-780; crates/hkask-services-kata-kanban/src/kanban/service_impl/kata.rs:1-210; crates/hkask-services-kata-kanban/src/bridge.rs:18-76; crates/hkask-services-kata-kanban/src/kata/mod.rs:334-498
-status: VERIFIED
+verified_date: 2026-07-20
+verified_against: mcp-servers/hkask-mcp-kata-kanban/src/lib.rs:656-686 (kanban_task_kata_improvement calls task_improvement_prompt); crates/hkask-services-kata-kanban/src/kanban/service_impl/kata.rs:104-177 (task_improvement_prompt); crates/hkask-services-kata-kanban/src/kata/mod.rs:334-498 (KataEngine::execute); crates/hkask-cli/src/commands/kata.rs:225-287 (start_kata constructs KataEngine directly)
+status: VERIFIED (v2 — bridge deleted; CLI is the full-execution path)
 -->
 
 ## Cross-reference
