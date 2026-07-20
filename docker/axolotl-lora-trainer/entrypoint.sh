@@ -1,15 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# hKask Axolotl LoRA Trainer — Entrypoint
+# hKask Axolotl LoRA Trainer — Training Script
 # =============================================================================
-# This script runs inside the Docker container on RunPod. It:
-# 1. Starts the container's normal services (Jupyter, SSH) in background
-# 2. Downloads the dataset from HuggingFace
-# 3. Generates the axolotl config from environment variables
-# 4. Runs axolotl training
-# 5. Uploads the adapter to HuggingFace
-# 6. Writes a completion manifest
-# 7. Keeps the container alive for SSH debugging
+# This script is called by the base image's entrypoint when MODE=axolotl-train.
+# It runs inside the container after the base image has set up CUDA, Python, etc.
 # =============================================================================
 
 set -euo pipefail
@@ -39,21 +33,7 @@ if [ -z "$HKASK_HF_MODEL_REPO" ]; then
     exit 1
 fi
 
-# ── Step 1: Start container services in background ────────────────────────
-# The axolotl image has /start.sh which starts Jupyter and SSH.
-# We run it in background so the container stays alive and SSH works.
-if [ -f /start.sh ]; then
-    echo "Starting container services (Jupyter, SSH)..."
-    /start.sh &
-    START_PID=$!
-    # Give services time to initialize
-    sleep 5
-    echo "Container services started (PID: $START_PID)"
-else
-    echo "Warning: /start.sh not found, skipping service startup"
-fi
-
-# ── Step 2: Set up HuggingFace authentication ─────────────────────────────
+# ── Step 1: Set up HuggingFace authentication ─────────────────────────────
 if [ -n "$HKASK_HF_TOKEN" ]; then
     echo "Logging in to HuggingFace..."
     python3 -c "
@@ -66,7 +46,7 @@ else
     echo "Warning: HKASK_HF_TOKEN not set, using anonymous access"
 fi
 
-# ── Step 3: Download dataset from HuggingFace ─────────────────────────────
+# ── Step 2: Download dataset from HuggingFace ─────────────────────────────
 mkdir -p "$HKASK_WORKSPACE/data"
 DATASET_PATH="$HKASK_WORKSPACE/data/$HKASK_HF_DATASET_FILE"
 
@@ -87,7 +67,7 @@ size = os.path.getsize(os.environ['DATASET_PATH'])
 print(f'Dataset downloaded: {size} bytes ({size / 1024 / 1024:.1f} MB)')
 "
 
-# ── Step 4: Generate axolotl config ───────────────────────────────────────
+# ── Step 3: Generate axolotl config ───────────────────────────────────────
 echo "Generating axolotl config..."
 python3 /workspace/generate_config.py > "$HKASK_WORKSPACE/config.yaml"
 echo "Config written to $HKASK_WORKSPACE/config.yaml"
@@ -96,7 +76,7 @@ head -20 "$HKASK_WORKSPACE/config.yaml"
 echo "..."
 echo
 
-# ── Step 5: Run training ──────────────────────────────────────────────────
+# ── Step 4: Run training ──────────────────────────────────────────────────
 echo "============================================"
 echo "Starting axolotl training"
 echo "============================================"
@@ -115,7 +95,7 @@ else
     echo "Check $HKASK_WORKSPACE/training.log for details"
 fi
 
-# ── Step 6: Upload adapter to HuggingFace ─────────────────────────────────
+# ── Step 5: Upload adapter to HuggingFace ───────────────────────────────
 if [ -d "$HKASK_OUTPUT_DIR" ] && [ "$(ls -A $HKASK_OUTPUT_DIR 2>/dev/null)" ]; then
     echo "Uploading adapter to HuggingFace..."
     python3 -c "
@@ -142,7 +122,7 @@ else
     echo "No output directory found, skipping upload"
 fi
 
-# ── Step 7: Write completion manifest ─────────────────────────────────────
+# ── Step 6: Write completion manifest ─────────────────────────────────────
 echo "Writing completion manifest..."
 python3 -c "
 import json, os, datetime
@@ -166,7 +146,7 @@ with open(manifest_path, 'w') as f:
 print(f'Manifest written to {manifest_path}')
 " || echo "Manifest write failed"
 
-# ── Step 8: Keep container alive for SSH debugging ────────────────────────
+# ── Step 7: Keep container alive for SSH debugging ────────────────────────
 echo "============================================"
 echo "Training complete (exit code: $TRAIN_EXIT)"
 echo "Container staying alive for SSH debugging."

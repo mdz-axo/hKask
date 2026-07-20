@@ -63,6 +63,8 @@ ENV HKASK_OUTPUT_DIR="/workspace/outputs"
 ENV HKASK_WORKSPACE="/workspace"
 ENV HKASK_JOB_ID=""
 
-# The entrypoint runs the container's normal startup, then starts training
-ENTRYPOINT ["/bin/bash", "/workspace/axolotl-entrypoint.sh"]
-CMD ["train"]
+# Don't override the base image's ENTRYPOINT — it sets up CUDA, Python, etc.
+# Instead, override CMD to run our training script after the base entrypoint.
+# The base image's entrypoint accepts a MODE argument: jupyter|train|shell
+# We add a new mode "axolotl-train" that runs our training script.
+CMD ["axolotl-train"]

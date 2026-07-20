@@ -1,22 +1,28 @@
 //! hKask MCP DocProc — Unified document processing MCP server
 //!
 //! Combines format conversion, OCR, chunking, h_mem extraction, embedding,
-//! QA generation, caching, query, and Kindle book export (12 tools). Supersedes the former
+//! QA generation, caching, query, and Kindle book export (17 tools). Supersedes the former
 //! `hkask-mcp-markitdown` and `hkask-mcp-doc-knowledge` servers.
 //!
 //! Server struct in lib.rs, tool methods in tools/ module.
-//! (kanban pattern) for fuzz test construction and P5 Testing Discipline
-//! compliance.
+//! Helpers in helpers.rs (math/text) and json_extract.rs (LLM JSON parsing).
 
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
 pub mod convert;
+mod helpers;
+mod json_extract;
 pub mod ocr;
 pub mod template;
 pub mod tools;
 
 // Re-export template renderer for tool modules (accessible via `use crate::*;`)
 pub(crate) use template::render_docproc_template;
+// Re-export helpers used by tool modules.
+pub(crate) use helpers::{
+    chunk_word_bounds, cosine_similarity, serialize_passages, tokens_to_words,
+};
+pub(crate) use json_extract::extract_json_from_response;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
@@ -363,144 +369,6 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
     Ok(extract_result)
 }
 
-/// Cosine similarity between two vectors. Consolidated from ocr/semantic.rs (C4).
-/// Returns 0.0 if either vector is empty or dimensions mismatch.
-pub(crate) fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-    if a.is_empty() || b.is_empty() || a.len() != b.len() {
-        return 0.0;
-    }
-    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 {
-        return 0.0;
-    }
-    (dot / (norm_a * norm_b)).clamp(0.0, 1.0)
-}
-
-/// Approximate token-to-word conversion: 1 word ≈ 1.33 tokens.
-/// So tokens ÷ 1.33 = words. This is the standard BPE ratio for English text.
-pub(crate) fn tokens_to_words(tokens: usize) -> usize {
-    ((tokens as f64) / 1.33) as usize
-}
-
-/// Compute (max_words, min_words) from (max_tokens, overlap_tokens).
-/// `overlap_tokens` determines the minimum chunk size (hard floor below which
-/// a buffer won't flush). Falls back to HkaskSettings::chunk_max_tokens() when
-/// max_tokens is None.
-pub(crate) fn chunk_word_bounds(
-    max_tokens: Option<usize>,
-    overlap_tokens: Option<usize>,
-) -> (usize, usize) {
-    let default_max = HkaskSettings::load().chunk_max_tokens();
-    let max_w = tokens_to_words(max_tokens.unwrap_or(default_max));
-    let min_w = tokens_to_words(overlap_tokens.unwrap_or(64)).max(max_w / 4);
-    (max_w, min_w)
-}
-
-/// Serialize (entity_ref, text) pair slice into json.
-fn serialize_passages(passages: &[(String, String)]) -> Vec<serde_json::Value> {
-    passages
-        .iter()
-        .map(|(entity_ref, passage_text)| json!({"entity_ref": entity_ref, "text": passage_text}))
-        .collect()
-}
-
-/// Strip markdown code fences from LLM JSON responses.
-/// Models often wrap JSON in ```json ... ``` blocks.
-fn strip_json_fences(text: &str) -> String {
-    let trimmed = text.trim();
-    if trimmed.starts_with("```") {
-        // Find the first newline after the opening fence
-        if let Some(after_fence) = trimmed.find('\n') {
-            let content = &trimmed[after_fence + 1..];
-            // Strip closing fence
-            if let Some(close_pos) = content.rfind("```") {
-                content[..close_pos].trim().to_string()
-            } else {
-                content.trim().to_string()
-            }
-        } else {
-            trimmed.to_string()
-        }
-    } else {
-        trimmed.to_string()
-    }
-}
-
-/// Extract a single JSON object from an LLM response that may contain
-/// thinking-mode reasoning.
-///
-/// Models like GLM-5.2 and Qwen3.6 produce reasoning text before the JSON
-/// payload. This function strips code fences, then scans for the first `{`
-/// and uses brace balancing to find its matching `}` — discarding any
-/// reasoning preamble or trailing text.
-///
-/// Security: brace-balanced extraction defeats the first-`{`-to-last-`}`
-/// substring grab attack, where a poisoned chunk embeds a JSON-looking block
-/// in its text and the LLM echoes it in its reasoning preamble. The old
-/// `find('{')` ... `rfind('}')` approach would silently merge the injected
-/// block with the model's real answer. Brace balancing ensures we extract
-/// exactly one top-level object.
-///
-/// Returns the matched object substring, or the de-fenced text if no balanced
-/// object is found (callers fall back to error handling on parse failure).
-///
-/// Proven against GLM-5.2 (~640-830 reasoning tokens) and Qwen3-235B-A22B-Instruct.
-pub(crate) fn extract_json_from_response(text: &str) -> String {
-    let de_fenced = strip_json_fences(text);
-    match find_balanced_json_object(&de_fenced) {
-        Some(slice) => slice.to_string(),
-        None => de_fenced,
-    }
-}
-
-/// Find the first balanced top-level JSON object in `text`.
-///
-/// Scans from the first `{`, tracking nesting depth and respecting string
-/// literals (so braces inside strings don't affect the count). Returns the
-/// slice from the opening `{` to its matching `}` inclusive, or `None` if
-/// no balanced object exists.
-///
-/// This is the security-critical primitive: it prevents an attacker from
-/// injecting a JSON-looking block in chunk text that the LLM echoes in its
-/// reasoning preamble, which the old `find('{')` ... `rfind('}')` approach
-/// would silently merge with the model's real answer.
-fn find_balanced_json_object(text: &str) -> Option<&str> {
-    let bytes = text.as_bytes();
-    let start = bytes.iter().position(|&b| b == b'{')?;
-    let mut depth: i32 = 0;
-    let mut in_string = false;
-    let mut escape = false;
-    let mut i = start;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if in_string {
-            if escape {
-                escape = false;
-            } else if b == b'\\' {
-                escape = true;
-            } else if b == b'"' {
-                in_string = false;
-            }
-        } else if b == b'"' {
-            in_string = true;
-        } else if b == b'{' {
-            depth += 1;
-        } else if b == b'}' {
-            depth -= 1;
-            if depth == 0 {
-                return Some(&text[start..=i]);
-            }
-            if depth < 0 {
-                // Unbalanced — more closing than opening. No valid object.
-                return None;
-            }
-        }
-        i += 1;
-    }
-    None
-}
 
 /// Load a docproc template from registry and render with minijinja.
 ///
