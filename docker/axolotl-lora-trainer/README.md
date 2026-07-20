@@ -2,7 +2,7 @@
 
 Minimal Docker image for LoRA fine-tuning with [Axolotl](https://github.com/axolotl-ai-cloud/axolotl) on [RunPod](https://runpod.io) H100 pods. Pushed to `docker.io/mdzaxo/axolotl-lora-trainer:latest`.
 
-**Image size: <100MB.** All heavy packages (PyTorch, axolotl, PEFT, transformers) are pip-installed at pod startup — **not** baked into the image.
+**Image size: ~129MB uncompressed, ~44MB compressed.** All heavy packages (PyTorch, axolotl, PEFT, transformers) are pip-installed at pod startup — **not** baked into the image. Previous attempts produced 22-31GB images by baking in CUDA toolkits, Unsloth, and Python config generators; this image avoids all three.
 
 ## Design
 
@@ -77,6 +77,10 @@ The build completes in seconds and the push is small enough to finish in seconds
 
 ```bash
 podman images docker.io/mdzaxo/axolotl-lora-trainer:latest --format '{{.Size}}'
+# ~129MB uncompressed
+podman save docker.io/mdzaxo/axolotl-lora-trainer:latest -o /tmp/img.tar
+gzip -c /tmp/img.tar | wc -c
+# ~44MB compressed (what actually gets pushed)
 ```
 
 ## Usage from hKask
@@ -97,4 +101,4 @@ export HF_TOKEN=hf_xxx
 - **No Unsloth** — deprecated per project policy.
 - **No baked-in model weights or datasets** — pulled from HuggingFace at runtime.
 - **No Python config generator** — the config is rendered in Rust and passed as `HKASK_AXOLOTL_CONFIG`.
-- **No bloated 5GB+ image** — target is <100MB.
+- **No bloated 5GB+ image** — target is <500MB; this image is ~129MB uncompressed (~44MB compressed push).

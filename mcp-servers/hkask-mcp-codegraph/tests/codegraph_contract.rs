@@ -128,6 +128,7 @@ fn test_server() -> CodeGraphServer {
         Arc::new(Mutex::new(pipeline)),
         None, // no embed router — embedding tools return invalid_argument
         Environment::new(),
+        Arc::new(std::sync::atomic::AtomicBool::new(false)),
     )
 }
 
@@ -211,8 +212,8 @@ async fn codegraph_context_rejects_invalid_budget_via_parameters_seam() {
     assert_eq!(kind, "invalid_argument", "got: {out}");
 }
 
-// REQ: codegraph_feedback records symbol usage ratio (P5).
-// expect: feedback returns recorded=true and a ratio of used/provided.
+// REQ: codegraph_feedback logs symbol usage ratio (P5).
+// expect: feedback returns logged=true, persisted=false, and a ratio of used/provided.
 #[tokio::test]
 async fn codegraph_feedback_records_ratio_via_parameters_seam() {
     let server = test_server();
@@ -224,7 +225,8 @@ async fn codegraph_feedback_records_ratio_via_parameters_seam() {
     .expect("deserialize FeedbackRequest");
     let out = server.codegraph_feedback(Parameters(req)).await;
     let content = parse_content(&out);
-    assert_eq!(content["recorded"], true);
+    assert_eq!(content["logged"], true);
+    assert_eq!(content["persisted"], false);
     assert_eq!(content["context_id"], "test-ctx-1");
     // 1 used / 3 provided = 0.333...
     let ratio = content["ratio"].as_f64().expect("ratio should be a number");

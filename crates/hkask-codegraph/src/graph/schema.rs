@@ -16,6 +16,28 @@
 
 use rusqlite::Connection;
 
+/// Default embedding vector dimension. Must match the output dimension of
+/// the configured embedding model. The default model
+/// `DI/Qwen/Qwen3-Embedding-0.6B` produces 1024-dim vectors.
+/// Override via the `HKASK_EMBEDDING_DIM` env var if using a different model.
+///
+/// **Migration note:** changing the dimension on an existing database requires
+/// dropping and recreating the `symbols_vec` table — existing embeddings are
+/// not compatible with a new dimension. The schema init uses `CREATE VIRTUAL
+/// TABLE IF NOT EXISTS`, so it will NOT migrate an existing table.
+pub const DEFAULT_EMBEDDING_DIM: usize = 1024;
+
+/// Resolve the embedding dimension from the `HKASK_EMBEDDING_DIM` env var,
+/// falling back to `DEFAULT_EMBEDDING_DIM` (1024, matching the default model
+/// `DI/Qwen/Qwen3-Embedding-0.6B`).
+fn resolve_embedding_dim() -> usize {
+    std::env::var("HKASK_EMBEDDING_DIM")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .filter(|&d: &usize| d > 0)
+        .unwrap_or(DEFAULT_EMBEDDING_DIM)
+}
+
 /// Initialize the code graph schema in a SQLite connection.
 ///
 /// Idempotent — safe to call on an existing database.
@@ -24,6 +46,11 @@ use rusqlite::Connection;
 /// `journal_mode = WAL`. See `hkask_database::init_wal_pragmas` for the
 /// shared helper and rationale (this crate doesn't depend on
 /// `hkask-database` to stay lightweight).
+///
+/// Embedding dimension: reads `HKASK_EMBEDDING_DIM` env var (default 1024).
+/// If the existing `symbols_vec` table has a different dimension, the CREATE
+/// IF NOT EXISTS is a no-op and inserts will fail — drop and recreate the
+/// table manually to migrate dimensions.
 pub fn initialize_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch("PRAGMA busy_timeout = 5000;")?;
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
@@ -116,14 +143,21 @@ pub fn initialize_schema(conn: &Connection) -> rusqlite::Result<()> {
     // sqlite-vec virtual table for semantic search (G13)
     // Requires sqlite-vec runtime extension. If not loaded, vector search is unavailable
     // but FTS5 keyword search still works.
-    if let Err(e) = conn.execute_batch(
+    //
+    // Dimension is configurable via HKASK_EMBEDDING_DIM (default 1024, matching
+    // DI/Qwen/Qwen3-Embedding-0.6B). The previous hardcoded 384 was wrong for
+    // the default model — INSERTs silently failed via INSERT OR IGNORE.
+    let embedding_dim = resolve_embedding_dim();
+    let vec_sql = format!(
         "CREATE VIRTUAL TABLE IF NOT EXISTS symbols_vec USING vec0(
-            embedding float[384] distance_metric=cosine
-        );",
-    ) {
+            embedding float[{embedding_dim}] distance_metric=cosine
+        );"
+    );
+    if let Err(e) = conn.execute_batch(&vec_sql) {
         tracing::warn!(
             target: "hkask.codegraph",
             error = %e,
+            embedding_dim = embedding_dim,
             "sqlite-vec not available — vector search disabled"
         );
     }

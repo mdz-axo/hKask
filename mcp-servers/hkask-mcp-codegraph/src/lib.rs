@@ -27,11 +27,23 @@ hkask_mcp::mcp_server!(
         pipeline: Arc<Mutex<IndexPipeline>>,
         embed_router: Option<EmbeddingRouter>,
         jinja: Environment<'static>,
+        /// Tracks whether the workspace has been indexed at least once.
+        /// `ensure_indexed()` checks this to avoid re-walking the workspace on
+        /// every read tool call. `codegraph_reindex` resets it to force a
+        /// fresh index on the next read.
+        indexed_once: Arc<std::sync::atomic::AtomicBool>,
     }
 );
 
 impl CodeGraphServer {
     fn ensure_indexed(&self) -> Result<(), McpToolError> {
+        // Fast path: if we've already indexed, skip the walk entirely.
+        // The BLAKE3 hash check inside index_directory still catches changed
+        // files on the next explicit codegraph_reindex call.
+        if self.indexed_once.load(std::sync::atomic::Ordering::Acquire) {
+            return Ok(());
+        }
+
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let mut pipeline = self
             .pipeline
@@ -53,6 +65,10 @@ impl CodeGraphServer {
         if let Err(e) = pipeline.finalize() {
             tracing::warn!(target: "hkask.mcp.codegraph", error = %e, "Finalize failed");
         }
+
+        // Mark as indexed so subsequent read tool calls skip the walk.
+        self.indexed_once
+            .store(true, std::sync::atomic::Ordering::Release);
         Ok(())
     }
 }
@@ -430,6 +446,8 @@ impl CodeGraphServer {
                 tracing::warn!(target: "hkask.mcp.codegraph", error = %e, "Finalize failed after reindex");
             }
             let stats = pipeline.stats().map_err(|e| McpToolError::internal(e.to_string()))?;
+            // Mark as indexed so subsequent read tool calls skip the walk.
+            self.indexed_once.store(true, std::sync::atomic::Ordering::Release);
             Ok(serde_json::json!({
                 "files_indexed": indexed, "symbols_added": total_sym, "edges_added": total_edg,
                 "total_files": stats.files, "total_symbols": stats.symbols, "total_edges": stats.edges,
@@ -438,7 +456,10 @@ impl CodeGraphServer {
     }
 
     #[tool(
-        description = "Record which symbols from a context_id were actually used (G12 feedback loop)"
+        description = "Log which symbols from a context_id were actually used. \
+         Emits a tracing event only — feedback is NOT persisted to the store, \
+         so it does not influence future context assembly. The log event is \
+         consumed by the CNS tracing substrate for observability."
     )]
     pub async fn codegraph_feedback(&self, Parameters(req): Parameters<FeedbackRequest>) -> String {
         execute_tool(self, "codegraph_feedback", async {
@@ -454,7 +475,11 @@ impl CodeGraphServer {
                 symbols_used = req.symbols_used.len(),
                 ratio = ratio,
             );
-            Ok(serde_json::json!({"recorded": true, "context_id": req.context_id, "ratio": ratio}))
+            // NOTE: feedback is logged but not persisted — the G12 feedback loop
+            // is not yet wired to the store. A future `context_feedback` table
+            // would close the loop by letting `assemble_context` weight symbols
+            // by historical usage.
+            Ok(serde_json::json!({"logged": true, "context_id": req.context_id, "ratio": ratio, "persisted": false}))
         })
         .await
     }
@@ -645,6 +670,7 @@ pub async fn run(
                 Arc::new(Mutex::new(pipeline)),
                 embed_router,
                 jinja,
+                Arc::new(std::sync::atomic::AtomicBool::new(false)),
             ))
         },
         vec![],

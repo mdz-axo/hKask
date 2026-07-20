@@ -6,7 +6,7 @@
 use rusqlite::{Connection, params};
 
 use crate::error::Result;
-use crate::types::{Edge, EdgeKind, Symbol};
+use crate::types::{EdgeKind, Symbol};
 
 /// Load the sqlite-vec extension into a single connection.
 ///

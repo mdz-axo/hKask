@@ -84,63 +84,96 @@ impl<'a> Extractor<'a> {
             _ => {}
         }
 
-        match kind {
-            // ── Declarations ──────────────────────────────────────────
-            "function_item" | "function_signature_item" => {
-                self.extract_function(node, SymbolKind::Function);
-            }
-            "struct_item" => {
-                self.extract_named_item(node, SymbolKind::Struct);
-            }
-            "enum_item" => {
-                self.extract_named_item(node, SymbolKind::Enum);
-                // Walk into enum body for variants *without* recursing into
-                // variant children (they're extracted in the variant handler).
-                self.walk_enum_variants(node);
-                return; // Don't double-walk children
-            }
-            "trait_item" => {
-                self.extract_named_item(node, SymbolKind::Trait);
-                // Extract trait bounds as Inherits edges.
-                self.extract_trait_bounds(node);
-            }
-            "impl_item" => {
-                self.extract_impl(node);
-            }
-            "mod_item" => {
-                self.extract_named_item(node, SymbolKind::Module);
-            }
-            "const_item" => {
-                self.extract_named_item(node, SymbolKind::Const);
-            }
-            "static_item" => {
-                self.extract_named_item(node, SymbolKind::Static);
-            }
-            "type_item" => {
-                self.extract_named_item(node, SymbolKind::TypeAlias);
-            }
-            "macro_definition" => {
-                self.extract_named_item(node, SymbolKind::Macro);
-            }
+        // Track whether this node is a function — if so, we need to snapshot
+        // complexity AFTER walking its body, not before (G14 fix: the previous
+        // code snapshotted before the walk, so function N got function N-1's
+        // complexity).
+        let is_function = matches!(kind, "function_item" | "function_signature_item");
+        // For functions, remember the Symbol index so we can update its complexity
+        // after walking the body.
+        let function_symbol_index = if is_function {
+            self.extract_function(node, SymbolKind::Function)
+        } else {
+            None
+        };
 
-            // ── Relationships ─────────────────────────────────────────
-            "call_expression" => {
-                self.extract_call(node);
-            }
-            "use_declaration" => {
-                self.extract_import(node);
-            }
-            "field_declaration" => {
-                self.extract_field_reference(node);
-            }
+        if !is_function {
+            match kind {
+                // ── Declarations ──────────────────────────────────────────
+                "struct_item" => {
+                    self.extract_named_item(node, SymbolKind::Struct);
+                }
+                "enum_item" => {
+                    self.extract_named_item(node, SymbolKind::Enum);
+                    // Walk into enum body for variants *without* recursing into
+                    // variant children (they're extracted in the variant handler).
+                    self.walk_enum_variants(node);
+                    return; // Don't double-walk children
+                }
+                "trait_item" => {
+                    self.extract_named_item(node, SymbolKind::Trait);
+                    // Extract trait bounds as Inherits edges.
+                    self.extract_trait_bounds(node);
+                }
+                "impl_item" => {
+                    self.extract_impl(node);
+                }
+                "mod_item" => {
+                    self.extract_named_item(node, SymbolKind::Module);
+                }
+                "const_item" => {
+                    self.extract_named_item(node, SymbolKind::Const);
+                }
+                "static_item" => {
+                    self.extract_named_item(node, SymbolKind::Static);
+                }
+                "type_item" => {
+                    self.extract_named_item(node, SymbolKind::TypeAlias);
+                }
+                "macro_definition" => {
+                    self.extract_named_item(node, SymbolKind::Macro);
+                }
 
-            _ => {}
+                // ── Relationships ─────────────────────────────────────────
+                "call_expression" => {
+                    self.extract_call(node);
+                }
+                "use_declaration" => {
+                    self.extract_import(node);
+                }
+                "field_declaration" => {
+                    self.extract_field_reference(node);
+                }
+
+                _ => {}
+            }
         }
 
         // Recurse into children
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             self.walk(&child, depth + 1);
+        }
+
+        // G14 fix: after walking a function's body, snapshot the accumulated
+        // complexity onto the function's Symbol. The counters now hold THIS
+        // function's complexity (not the previous function's).
+        if let Some(idx) = function_symbol_index {
+            let complexity = if self.cyclomatic > 1 || self.cognitive > 0 {
+                Complexity::Computed {
+                    cyclomatic: self.cyclomatic,
+                    cognitive: self.cognitive,
+                }
+            } else {
+                Complexity::NotComputed
+            };
+            if let Some(sym) = self.symbols.get_mut(idx) {
+                sym.complexity = complexity;
+            }
+            // Reset counters so they don't leak into the next sibling function.
+            // The parent context (module/impl) doesn't accumulate complexity.
+            self.cyclomatic = 0;
+            self.cognitive = 0;
         }
 
         // Decrement nesting after leaving block-like nodes (G9)
@@ -151,22 +184,19 @@ impl<'a> Extractor<'a> {
 
     // ── Declaration Extractors ───────────────────────────────────────
 
-    /// Extract a function declaration.
-    fn extract_function(&mut self, node: &Node<'_>, kind: SymbolKind) {
+    /// Extract a function declaration. Returns the index of the pushed Symbol
+    /// in `self.symbols`, so the caller (`walk`) can update its complexity
+    /// after walking the function body (G14 fix: complexity must be
+    /// snapshotted AFTER the body is walked, not before).
+    fn extract_function(&mut self, node: &Node<'_>, kind: SymbolKind) -> Option<usize> {
         let name = self.child_text(node, "name");
         if name.is_empty() {
-            return;
+            return None;
         }
 
-        // Snapshot complexity before extracting (reset for this function)
-        let complexity = if self.cyclomatic > 0 || self.cognitive > 0 {
-            Complexity::Computed {
-                cyclomatic: self.cyclomatic,
-                cognitive: self.cognitive,
-            }
-        } else {
-            Complexity::NotComputed
-        };
+        // Reset complexity counters for this function. The body will be walked
+        // by `walk()` after this returns, accumulating into these counters.
+        // `walk()` then snapshots the accumulated values onto the Symbol.
         self.cyclomatic = 1; // base complexity = 1
         self.cognitive = 0;
 
@@ -198,8 +228,10 @@ impl<'a> Extractor<'a> {
             signature,
             visibility,
             doc_comment: doc,
-            complexity,
+            // Placeholder — `walk()` fills this in after walking the body.
+            complexity: Complexity::NotComputed,
         });
+        Some(self.symbols.len() - 1)
     }
 
     /// Extract a named declaration (struct, enum, trait, module, etc.).
