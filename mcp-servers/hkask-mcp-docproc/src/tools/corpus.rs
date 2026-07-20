@@ -483,23 +483,15 @@ impl DocProcServer {
                         }
                         v
                     };
-                    // Take highest expertise level (researcher > analyst > practitioner)
+                    // Take highest expertise level (researcher > analyst > practitioner).
+                    // Uses ExpertiseLevel::rank() and from_rank() so the enum
+                    // invariant is preserved — no string matching needed.
                     let expertise_level = cluster
                         .iter()
-                        .map(|&idx| match chunks[idx].expertise_level.as_str() {
-                            "researcher" => 3,
-                            "analyst" => 2,
-                            "practitioner" => 1,
-                            _ => 0,
-                        })
+                        .map(|&idx| chunks[idx].expertise_level.rank())
                         .max()
-                        .map(|level| match level {
-                            3 => "researcher",
-                            2 => "analyst",
-                            _ => "practitioner",
-                        })
-                        .unwrap_or("analyst")
-                        .to_string();
+                        .map(hkask_types::corpus::ExpertiseLevel::from_rank)
+                        .unwrap_or_default();
 
                     // Build ontology annotation prefix for consistent re-embedding.
                     // Consolidated chunks must use the same [ns: concepts] prefix as
@@ -872,11 +864,9 @@ impl DocProcServer {
                     } else {
                         tc.dimensions.join(", ")
                     };
-                    let expertise = if tc.expertise_level.is_empty() {
-                        "analyst"
-                    } else {
-                        tc.expertise_level.as_str()
-                    };
+                    // ExpertiseLevel is always valid (deserializer maps unknown
+                    // strings to Analyst), so no empty-check needed.
+                    let expertise = tc.expertise_level.as_str();
                     let dc_type = if tc.dc_type.is_empty() {
                         "bibo:Document"
                     } else {
