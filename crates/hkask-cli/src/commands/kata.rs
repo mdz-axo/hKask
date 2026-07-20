@@ -34,6 +34,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: KataAction, registry: &SqliteRe
             context,
             save,
             resume,
+            task,
         } => start_kata(
             rt,
             &name,
@@ -41,6 +42,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: KataAction, registry: &SqliteRe
             &context,
             save.as_deref(),
             resume.as_deref(),
+            task.as_deref(),
             registry,
         ),
     }
@@ -163,6 +165,7 @@ fn start_kata(
     context: &[String],
     save_path: Option<&Path>,
     resume_path: Option<&Path>,
+    task_id_str: Option<&str>,
     registry: &SqliteRegistry,
 ) {
     let dir = manifests_dir();
@@ -289,6 +292,22 @@ fn start_kata(
     // Conditionally add SQLite history store (falls back to JSON when unavailable)
     if let Some(ref store) = history_store {
         engine = engine.with_history_store(store.clone());
+    }
+
+    // Conditionally bind a kanban task gas accountant — deducts inference
+    // token cost from the task's gas_remaining budget after each call.
+    // Closes the per-task gas feedback loop (Option C wiring).
+    if let Some(task_id_str) = task_id_str {
+        match bind_task_gas_accountant(&engine, task_id_str, bot) {
+            Ok(accountant) => {
+                engine = engine.with_task_gas_accountant(accountant);
+                eprintln!("Task gas accounting: bound to task {}", task_id_str);
+            }
+            Err(e) => {
+                eprintln!("Warning: could not bind task gas accountant: {}", e);
+                eprintln!("         kata will run without per-task gas tracking.");
+            }
+        }
     }
 
     // Load manifest

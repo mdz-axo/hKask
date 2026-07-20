@@ -771,6 +771,10 @@ pub enum KataAction {
         /// Resume from a previously saved state file
         #[arg(long)]
         resume: Option<PathBuf>,
+        /// Bind execution to a kanban task — deducts inference token cost
+        /// from the task's gas budget. Requires a kanban database.
+        #[arg(long)]
+        task: Option<String>,
     },
 }
 
