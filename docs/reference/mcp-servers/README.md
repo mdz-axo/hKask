@@ -45,6 +45,7 @@ Every MCP server MUST include **tool-behavior contract tests** that invoke tools
 
 - [Skill MCP Server](skill-server.md) — Skill server architecture reference (3 tools, diagram)
 - [Research MCP Adversarial Review](../../status/research-mcp-adversarial-review-2026-07-17.md) — code smell inventory for the research server
+- [Research MCP Adversarial Review (Follow-Up 2026-07-20)](../../status/research-mcp-adversarial-review-2026-07-20.md) — 11 new findings: dead CapabilityContext, edit_tags feed-relabeling bug, missing transactions, stored SSRF, stub health checks
 - [Filesystem Server Reference](filesystem.md) — sandbox model, 7 tools, CNS spans, current behavior and known limitations (DIAG-RF-003)
 - [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code smell inventory for the scenarios server
 - [Companies MCP Server Reference](companies.md) — 41 tools, dual-provider routing, forecast store, portfolio ledger (DIAG-RF-004)
@@ -54,3 +55,4 @@ Every MCP server MUST include **tool-behavior contract tests** that invoke tools
 - [Scenario Forecasting Pipeline Diagram](../../diagrams/flowchart-scenario-forecasting-pipeline.md) — scenarios tool flow
 - [Superforecasting: Layered Model](../../explanation/superforecasting-layers.md) — three-layer architecture
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence
+- [CodeGraph Adversarial Review](../../status/codegraph-mcp-adversarial-review-2026-07-20.md) — adversarial code review of the codegraph server (17 findings, all fixed)

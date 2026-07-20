@@ -48,5 +48,6 @@ hf-hub = "1.0.0"
 
 [dev-dependencies]
 tempfile.workspace = true
-tokio = { workspace = true, features = ["macros", "rt"] }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 async-trait.workspace = true
+tracing-subscriber.workspace = true

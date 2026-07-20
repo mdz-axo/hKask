@@ -130,14 +130,29 @@ fn parse_arxiv_atom(xml: &str) -> Vec<SearchResult> {
         // arXiv ID from <id> tag (full URL like https://arxiv.org/abs/...)
         let arxiv_url = extract_tag(entry, "id");
         // PDF link from <link title="pdf" href="..."/>
-        let pdf_url = entry
-            .lines()
-            .find(|line| line.contains("title=\"pdf\""))
-            .and_then(|line| {
-                let start = line.find("href=\"")? + 6;
-                let end = line[start..].find('"')?;
-                Some(line[start..start + end].to_string())
-            });
+        // Search the whole entry (not line-by-line) — arXiv's Atom XML may
+        // emit <link> tags with attributes spanning multiple lines.
+        let pdf_url = entry.find("title=\"pdf\"").and_then(|tag_pos| {
+            // Find the href="..." attribute within the same <link> tag.
+            // Search both directions from the title="pdf" position.
+            let href_marker = "href=\"";
+            // Look forward first (most common: href after title).
+            if let Some(href_pos) = entry[tag_pos..].find(href_marker) {
+                let start = tag_pos + href_pos + href_marker.len();
+                if let Some(end) = entry[start..].find('"') {
+                    return Some(entry[start..start + end].to_string());
+                }
+            }
+            // Look backward (href before title).
+            let before = &entry[..tag_pos];
+            if let Some(href_pos) = before.rfind(href_marker) {
+                let start = href_pos + href_marker.len();
+                if let Some(end) = entry[start..].find('"') {
+                    return Some(entry[start..start + end].to_string());
+                }
+            }
+            None
+        });
 
         let url = if !pdf_url.as_ref().is_none_or(|u| u.is_empty()) {
             pdf_url.unwrap_or(arxiv_url)

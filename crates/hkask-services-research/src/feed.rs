@@ -2,6 +2,7 @@
 
 use reqwest::Client;
 
+use crate::providers::validate_provider_url;
 use crate::rss_types::FetchResult;
 
 /// Fetch an RSS/Atom feed with conditional GET (ETag/Last-Modified).
@@ -69,6 +70,10 @@ pub async fn discover_feeds(
     client: &Client,
     url: &str,
 ) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+    // SSRF defense: validate the URL before fetching. discover_feeds is
+    // reachable from the rss_discover_feeds tool, so user-supplied URLs
+    // must pass the same validation as web_extract/web_browse.
+    validate_provider_url(url).map_err(|e| anyhow::anyhow!("URL validation failed: {e}"))?;
     let response = client.get(url).send().await?;
     let content_type = response
         .headers()

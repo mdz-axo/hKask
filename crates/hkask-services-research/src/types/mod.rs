@@ -402,17 +402,10 @@ pub struct PingOutput {
 }
 
 // ── Capability context ──
-
-/// OCAP enforcement context. `None` = allow all.
-#[derive(Debug, Clone, Default)]
-pub struct CapabilityContext {
-    pub requester_id: Option<String>,
-    pub capabilities: Vec<String>,
-}
-
-impl CapabilityContext {
-    /// If `capabilities` is empty, allows all. Otherwise requires explicit match.
-    pub fn allows(&self, tool: &str) -> bool {
-        self.capabilities.is_empty() || self.capabilities.iter().any(|c| c == tool)
-    }
-}
+//
+// N1 (2026-07-20): CapabilityContext removed. Every tool call in the MCP
+// server passed `None` for `ctx`, making the OCAP-at-port check dead code.
+// OCAP is enforced at the dispatcher membrane (GovernedTool), not at the
+// port — see docs/explanation/architecture-patterns.md. The port-level
+// check was speculative and never wired. If per-tool capability gating is
+// needed at the port in the future, reintroduce it with a real wiring plan.

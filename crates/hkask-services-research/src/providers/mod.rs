@@ -74,26 +74,19 @@ pub trait WebSearchPort: Send + Sync {
         &self,
         query: &SearchQuery,
         strategy: SearchStrategy,
-        ctx: Option<&CapabilityContext>,
     ) -> Result<CompoundSearchResult, WebError>;
     async fn find_similar(
         &self,
         url: &str,
         num_results: u32,
-        ctx: Option<&CapabilityContext>,
     ) -> Result<ProviderSearchOutput, WebError>;
-    async fn extract(
-        &self,
-        url: &str,
-        opts: &ExtractOptions,
-        ctx: Option<&CapabilityContext>,
-    ) -> Result<ExtractedContent, WebError>;
+    async fn extract(&self, url: &str, opts: &ExtractOptions)
+    -> Result<ExtractedContent, WebError>;
     async fn browse(
         &self,
         url: &str,
         instruction: &str,
         timeout: Duration,
-        ctx: Option<&CapabilityContext>,
     ) -> Result<BrowseResult, WebError>;
     async fn health_check(&self) -> Vec<ProviderHealthEntry>;
     fn provider_fingerprint(&self) -> String;
@@ -481,18 +474,7 @@ fn health_entry(kind: String, result: Result<(), WebError>) -> ProviderHealthEnt
     }
 }
 
-fn check_capability(ctx: Option<&CapabilityContext>, name: &str) -> Result<(), WebError> {
-    if let Some(ctx) = ctx
-        && !ctx.allows(name)
-    {
-        Err(WebError::ProviderUnavailable(
-            "capability not authorized".into(),
-        ))
-    } else {
-        Ok(())
-    }
-}
-
+// WebSearchPort implementation - ProviderPool as the adapter
 // WebSearchPort implementation - ProviderPool as the adapter
 
 #[async_trait]
@@ -501,10 +483,9 @@ impl WebSearchPort for ProviderPool {
         &self,
         query: &SearchQuery,
         strategy: SearchStrategy,
-        ctx: Option<&CapabilityContext>,
     ) -> Result<CompoundSearchResult, WebError> {
-        check_capability(ctx, "web_search")?;
-
+        // N1: CapabilityContext removed; OCAP is enforced at the dispatcher
+        // membrane (GovernedTool), not at the port.
         if query.query.is_empty() {
             return Err(WebError::BadArgs("query must not be empty".into()));
         }
@@ -560,6 +541,24 @@ impl WebSearchPort for ProviderPool {
                 duplicates_removed: 0,
             }
         } else {
+            // N4: before dispatching a compound search, verify the strategy's
+            // provider filter actually matches at least one configured provider.
+            // Without this, `strategy: "news"` silently returns 0 results when
+            // no News-capable provider has an API key (Brave/SerpAPI absent),
+            // and the user sees an empty result with no explanation.
+            if let ProviderFilter::Capabilities(ref caps) = strategy.provider_filter() {
+                let has_match = self.search_providers.iter().any(|p| {
+                    let p_caps = p.capabilities();
+                    caps.iter().all(|c| p_caps.contains(c))
+                });
+                if !has_match {
+                    return Err(WebError::ProviderUnavailable(format!(
+                        "No providers configured for strategy '{strategy}'. \
+                         Required capabilities: {:?}. Set the corresponding API key.",
+                        caps
+                    )));
+                }
+            }
             // Deep strategy: request more results from each provider for a broader
             // RRF candidate pool, giving fusion more signal to dedup and rank.
             let search_query = if strategy == SearchStrategy::Deep {
@@ -628,9 +627,7 @@ impl WebSearchPort for ProviderPool {
         &self,
         url: &str,
         num_results: u32,
-        ctx: Option<&CapabilityContext>,
     ) -> Result<ProviderSearchOutput, WebError> {
-        check_capability(ctx, "web_find_similar")?;
         match self.exa {
             Some(ref exa) => exa.find_similar(url, num_results).await,
             None => Err(WebError::NoProvider),
@@ -641,9 +638,7 @@ impl WebSearchPort for ProviderPool {
         &self,
         url: &str,
         opts: &ExtractOptions,
-        ctx: Option<&CapabilityContext>,
     ) -> Result<ExtractedContent, WebError> {
-        check_capability(ctx, "web_extract")?;
         self.extract_with_fallback(url, opts).await
     }
 
@@ -652,9 +647,7 @@ impl WebSearchPort for ProviderPool {
         url: &str,
         instruction: &str,
         timeout: Duration,
-        ctx: Option<&CapabilityContext>,
     ) -> Result<BrowseResult, WebError> {
-        check_capability(ctx, "web_browse")?;
         self.browse_with_fallback(url, instruction, timeout).await
     }
 

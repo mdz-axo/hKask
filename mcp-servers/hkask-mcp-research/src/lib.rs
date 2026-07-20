@@ -237,7 +237,7 @@ impl ResearchServer {
 
             let mut compound = self
                 .pool
-                .search(&search_query, strat, None)
+                .search(&search_query, strat)
                 .await
                 .map_err(McpToolError::from)?;
 
@@ -303,7 +303,7 @@ impl ResearchServer {
             let num = num_results.unwrap_or(5).min(20);
 
             self.pool
-                .find_similar(&url, num, None)
+                .find_similar(&url, num)
                 .await
                 .map(|output| {
                     let results: Vec<FindSimilarResultOutput> = output
@@ -404,7 +404,7 @@ impl ResearchServer {
 
             let json_result = self
                 .pool
-                .extract(&url, &opts, None)
+                .extract(&url, &opts)
                 .await
                 .map(|result| {
                     let output = ExtractOutput {
@@ -472,7 +472,7 @@ impl ResearchServer {
                 Duration::from_secs(timeout_secs.unwrap_or(30)).min(Duration::from_secs(120));
 
             self.pool
-                .browse(&url, &instr, timeout, None)
+                .browse(&url, &instr, timeout)
                 .await
                 .map(|result| {
                     let output = BrowseOutput {
@@ -514,13 +514,23 @@ impl ResearchServer {
                 .unwrap_or_default();
             let entry_count = fetch_result.feed.entries.len();
             let result = spawn_db(db, move |conn| {
-                let feed_id = upsert_feed(conn, &url_c, &fetch_result.feed)?;
-                insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
-                update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
-                let exists: bool = conn.query_row("SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1", [&stream_id], |row| row.get::<_, i64>(0)).map(|c| c > 0)?;
-                if exists { return Ok(serde_json::json!({"stream_id": stream_id, "url": url_c, "subscribed": true, "note": "Already subscribed, feed refreshed"})); }
-                conn.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
-                Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count}))
+                // N3: wrap the multi-statement operation in a transaction so a
+                // mid-loop failure (e.g., insert_entries hits a constraint)
+                // rolls back the upsert_feed and any prior entry inserts.
+                conn.execute("BEGIN", [])?;
+                let tx_result: Result<serde_json::Value, anyhow::Error> = (|| {
+                    let feed_id = upsert_feed(conn, &url_c, &fetch_result.feed)?;
+                    insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
+                    update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
+                    let exists: bool = conn.query_row("SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1", [&stream_id], |row| row.get::<_, i64>(0)).map(|c| c > 0)?;
+                    if exists { return Ok(serde_json::json!({"stream_id": stream_id, "url": url_c, "subscribed": true, "note": "Already subscribed, feed refreshed"})); }
+                    conn.execute("INSERT INTO subscriptions (feed_id, stream_id, title, label, folder) VALUES (?1, ?2, ?3, ?4, ?5)", rusqlite::params![feed_id, stream_id, feed_title, label_c, folder_c])?;
+                    Ok::<serde_json::Value, anyhow::Error>(serde_json::json!({"stream_id": stream_id, "url": url_c, "label": label_c, "folder": folder_c, "subscribed": true, "entry_count": entry_count}))
+                })();
+                match tx_result {
+                    Ok(v) => { conn.execute("COMMIT", [])?; Ok(v) }
+                    Err(e) => { let _ = conn.execute("ROLLBACK", []); Err(e) }
+                }
             }).await;
             handle_db_result!(result, |v| v)
         }).await
@@ -582,6 +592,13 @@ impl ResearchServer {
                 }
             };
 
+            // Stored-SSRF defense: validate the DB-stored feed URL before
+            // fetching. The URL was originally user-supplied via rss_subscribe
+            // or rss_import_opml; re-validate at fetch time to catch URLs that
+            // were inserted before validation was added, or that a compromised
+            // DB could have altered.
+            validate_tool_url(&feed_url)?;
+
             let db = require_rss_db!(self);
             let fetch_result = fetch_feed(
                 &self.rss_client,
@@ -606,10 +623,18 @@ impl ResearchServer {
             let lm = fetch_result.last_modified.clone();
 
             let result = spawn_db(db, move |conn| {
-                let feed_id = upsert_feed(conn, &feed_url, &fetch_result.feed)?;
-                let new_count = insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
-                update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
-                Ok::<usize, anyhow::Error>(new_count)
+                // N3: wrap the multi-statement operation in a transaction.
+                conn.execute("BEGIN", [])?;
+                let tx_result: Result<usize, anyhow::Error> = (|| {
+                    let feed_id = upsert_feed(conn, &feed_url, &fetch_result.feed)?;
+                    let new_count = insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
+                    update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
+                    Ok::<usize, anyhow::Error>(new_count)
+                })();
+                match tx_result {
+                    Ok(v) => { conn.execute("COMMIT", [])?; Ok(v) }
+                    Err(e) => { let _ = conn.execute("ROLLBACK", []); Err(e) }
+                }
             })
             .await;
 

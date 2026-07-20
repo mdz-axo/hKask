@@ -33,6 +33,15 @@ pub struct ResponseCache {
     default_ttl: Duration,
 }
 
+// N8 (2026-07-20): Eviction is O(n) — `insert` scans all entries to find
+// the least-recently-accessed one. This is acceptable because `max_entries`
+// is capped at MAX_CACHE_MAX_ENTRIES (200) via the constructor, so the scan
+// is bounded at 200 iterations. A true O(1) LRU would require a
+// LinkedHashMap or a doubly-linked-list + HashMap composite, which is not
+// in std and would add a dependency. The current design is the path of
+// least action for the bounded-size use case. If `max_entries` grows beyond
+// ~1000, revisit this trade-off.
+
 impl ResponseCache {
     pub fn new(max_entries: usize, default_ttl: Duration) -> Self {
         Self {

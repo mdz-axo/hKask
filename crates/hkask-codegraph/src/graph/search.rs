@@ -38,7 +38,7 @@ pub fn search(conn: &Connection, query: &str, limit: usize) -> Result<Vec<Search
      ORDER BY rank
      LIMIT ?2";
 
-    let mut stmt = conn.prepare(&sql)?;
+    let mut stmt = conn.prepare(sql)?;
     let rows = stmt.query_map(rusqlite::params![query, limit as i64], |row| {
         Ok(SearchResult {
             symbol: Symbol {
@@ -72,7 +72,7 @@ pub fn search(conn: &Connection, query: &str, limit: usize) -> Result<Vec<Search
          ORDER BY s.pagerank DESC
          LIMIT ?2";
 
-        let mut stmt = conn.prepare(&sql)?;
+        let mut stmt = conn.prepare(sql)?;
         let rows = stmt.query_map(rusqlite::params![like_query, limit as i64], |row| {
             Ok(SearchResult {
                 symbol: Symbol {
@@ -110,7 +110,7 @@ pub fn search_prefix(conn: &Connection, prefix: &str, limit: usize) -> Result<Ve
      ORDER BY s.name
      LIMIT ?2";
 
-    let mut stmt = conn.prepare(&sql)?;
+    let mut stmt = conn.prepare(sql)?;
     let rows = stmt.query_map(rusqlite::params![like, limit as i64], |row| {
         Ok(Symbol {
             id: Some(row.get(0)?),

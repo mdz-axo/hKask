@@ -99,6 +99,31 @@ impl WebSearchProvider for TavilyProvider {
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        Ok(())
+        // Lightweight liveness check: send a minimal search request and verify
+        // we get a non-5xx response. A 401/403 means the key is invalid;
+        // a 429 means the service is alive but rate-limited (healthy).
+        let payload = serde_json::json!({
+            "api_key": self.api_key,
+            "query": "test",
+            "max_results": 1,
+        });
+        let resp = self
+            .client
+            .post(format!("{TAVILY_API_BASE}/search"))
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("Tavily health check failed: {e}"))
+            })?;
+        let status = resp.status();
+        if status.is_success() || status.as_u16() == 429 {
+            Ok(())
+        } else {
+            Err(WebError::ProviderUnavailable(format!(
+                "Tavily health check returned {status}"
+            )))
+        }
     }
 }

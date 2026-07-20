@@ -360,14 +360,28 @@ pub fn mark_stream_read(conn: &Connection, stream_id: &str) -> Result<usize, any
         .collect();
 
     let now = now_rfc3339();
-    for id in &entry_ids {
-        conn.execute(
-            "INSERT INTO entry_states (entry_id, is_read, read_at) VALUES (?1, 1, ?2)
-             ON CONFLICT(entry_id) DO UPDATE SET is_read = 1, read_at = ?2",
-            rusqlite::params![id, now],
-        )?;
+    // N3: wrap the per-id update loop in a transaction so a mid-loop
+    // failure doesn't leave a partial read-state.
+    conn.execute("BEGIN", [])?;
+    let tx_result: Result<(), anyhow::Error> = (|| {
+        for id in &entry_ids {
+            conn.execute(
+                "INSERT INTO entry_states (entry_id, is_read, read_at) VALUES (?1, 1, ?2)\n                 ON CONFLICT(entry_id) DO UPDATE SET is_read = 1, read_at = ?2",
+                rusqlite::params![id, now],
+            )?;
+        }
+        Ok(())
+    })();
+    match tx_result {
+        Ok(()) => {
+            conn.execute("COMMIT", [])?;
+            Ok(entry_ids.len())
+        }
+        Err(e) => {
+            let _ = conn.execute("ROLLBACK", []);
+            Err(e)
+        }
     }
-    Ok(entry_ids.len())
 }
 
 pub fn edit_tags(
@@ -377,68 +391,71 @@ pub fn edit_tags(
     let now = now_rfc3339();
     let mut updated = 0u64;
 
-    for id in &req.entry_ids {
-        let exists: bool = conn
-            .query_row("SELECT COUNT(*) FROM entries WHERE id = ?1", [id], |row| {
-                row.get::<_, i64>(0)
-            })
-            .map(|c| c > 0)?;
-        if !exists {
-            continue;
-        }
+    // N3: wrap the per-entry update loop in a transaction so a mid-loop
+    // failure doesn't leave a partial tag state across entries.
+    conn.execute("BEGIN", [])?;
+    let tx_result: Result<u64, anyhow::Error> = (|| {
+        for id in &req.entry_ids {
+            let exists: bool = conn
+                .query_row("SELECT COUNT(*) FROM entries WHERE id = ?1", [id], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .map(|c| c > 0)?;
+            if !exists {
+                continue;
+            }
 
-        if req.add_read == Some(true) {
-            conn.execute(
-                "INSERT INTO entry_states (entry_id, is_read, read_at) VALUES (?1, 1, ?2)
-                 ON CONFLICT(entry_id) DO UPDATE SET is_read = 1, read_at = ?2",
-                rusqlite::params![id, now],
-            )?;
-            updated += 1;
+            if req.add_read == Some(true) {
+                conn.execute(
+                    "INSERT INTO entry_states (entry_id, is_read, read_at) VALUES (?1, 1, ?2)\n                     ON CONFLICT(entry_id) DO UPDATE SET is_read = 1, read_at = ?2",
+                    rusqlite::params![id, now],
+                )?;
+                updated += 1;
+            }
+            if req.remove_read == Some(true) {
+                conn.execute(
+                    "INSERT INTO entry_states (entry_id, is_read) VALUES (?1, 0)\n                     ON CONFLICT(entry_id) DO UPDATE SET is_read = 0, read_at = NULL",
+                    rusqlite::params![id],
+                )?;
+                updated += 1;
+            }
+            if req.add_starred == Some(true) {
+                conn.execute(
+                    "INSERT INTO entry_states (entry_id, is_starred, starred_at) VALUES (?1, 1, ?2)\n                     ON CONFLICT(entry_id) DO UPDATE SET is_starred = 1, starred_at = ?2",
+                    rusqlite::params![id, now],
+                )?;
+                updated += 1;
+            }
+            if req.remove_starred == Some(true) {
+                conn.execute(
+                    "INSERT INTO entry_states (entry_id, is_starred) VALUES (?1, 0)\n                     ON CONFLICT(entry_id) DO UPDATE SET is_starred = 0, starred_at = NULL",
+                    rusqlite::params![id],
+                )?;
+                updated += 1;
+            }
+            // N2: add_label/remove_label removed. The previous implementation
+            // updated the subscription's label based on an entry's feed_id,
+            // which silently relabeled every entry in that feed — not just the
+            // requested entry. Per-entry labels require a schema change (a
+            // labels table keyed by entry_id) and are out of scope for this fix.
+            // The fields remain on EditTagRequest for backward-compatible
+            // deserialization but are now ignored.
         }
-        if req.remove_read == Some(true) {
-            conn.execute(
-                "INSERT INTO entry_states (entry_id, is_read) VALUES (?1, 0)
-                 ON CONFLICT(entry_id) DO UPDATE SET is_read = 0, read_at = NULL",
-                rusqlite::params![id],
-            )?;
-            updated += 1;
+        Ok(updated)
+    })();
+    match tx_result {
+        Ok(updated) => {
+            conn.execute("COMMIT", [])?;
+            Ok(serde_json::json!({
+                "updated": updated,
+                "entry_count": req.entry_ids.len(),
+            }))
         }
-        if req.add_starred == Some(true) {
-            conn.execute(
-                "INSERT INTO entry_states (entry_id, is_starred, starred_at) VALUES (?1, 1, ?2)
-                 ON CONFLICT(entry_id) DO UPDATE SET is_starred = 1, starred_at = ?2",
-                rusqlite::params![id, now],
-            )?;
-            updated += 1;
-        }
-        if req.remove_starred == Some(true) {
-            conn.execute(
-                "INSERT INTO entry_states (entry_id, is_starred) VALUES (?1, 0)
-                 ON CONFLICT(entry_id) DO UPDATE SET is_starred = 0, starred_at = NULL",
-                rusqlite::params![id],
-            )?;
-            updated += 1;
-        }
-        if let Some(ref label) = req.add_label {
-            conn.execute(
-                "UPDATE subscriptions SET label = ?1 WHERE feed_id = (SELECT feed_id FROM entries WHERE id = ?2)",
-                rusqlite::params![label, id],
-            )?;
-            updated += 1;
-        }
-        if let Some(ref label) = req.remove_label {
-            conn.execute(
-                "UPDATE subscriptions SET label = NULL WHERE label = ?1 AND feed_id = (SELECT feed_id FROM entries WHERE id = ?2)",
-                rusqlite::params![label, id],
-            )?;
-            updated += 1;
+        Err(e) => {
+            let _ = conn.execute("ROLLBACK", []);
+            Err(e)
         }
     }
-
-    Ok(serde_json::json!({
-        "updated": updated,
-        "entry_count": req.entry_ids.len(),
-    }))
 }
 
 // Search and listing
@@ -565,7 +582,7 @@ pub fn import_opml(
     conn: &Connection,
     opml_content: &str,
 ) -> Result<serde_json::Value, anyhow::Error> {
-    let re = regex::Regex::new(r#"<outline[^>]*xmlUrl\s*=\s*"([^"]+)"[^>]*/?\s*>"#)?;
+    let re = regex::Regex::new(r#"<outline[^>]*xmlUrl\s*=\s*\"([^\"]+)\"[^>]*/?\s*>"#)?;
 
     let mut imported = 0u32;
     let mut skipped = 0u32;
@@ -576,44 +593,78 @@ pub fn import_opml(
         .filter_map(|cap| Some(cap.get(1)?.as_str().to_string()))
         .collect();
 
-    for url in feeds {
-        let stream_id = format!("feed/{url}");
-        let exists: bool = conn
-            .query_row(
-                "SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1",
-                [&stream_id],
-                |row| row.get::<_, i64>(0),
-            )
-            .map(|c| c > 0)
-            .unwrap_or(false);
+    // Wrap the entire import in a transaction so a mid-loop failure rolls
+    // back all prior inserts (N3: partial-commit risk).
+    conn.execute("BEGIN", [])?;
+    let tx_result: Result<(), anyhow::Error> = (|| {
+        for url in feeds {
+            // N11: SSRF defense — validate each OPML-sourced URL before
+            // inserting it into the feeds table. A malicious OPML file could
+            // otherwise seed the DB with internal URLs that rss_fetch would
+            // later fetch (stored-SSRF).
+            if let Err(e) = crate::providers::validate_provider_url(&url) {
+                tracing::warn!(url = %url, error = %e, "OPML import: rejecting invalid URL");
+                errors += 1;
+                continue;
+            }
 
-        if exists {
-            skipped += 1;
-            continue;
+            let stream_id = format!("feed/{url}");
+            // N6: propagate the COUNT query error instead of swallowing it
+            // via unwrap_or(false). A poisoned lock or schema drift should
+            // surface, not silently look like "no existing subscription".
+            let exists: bool = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1",
+                    [&stream_id],
+                    |row| row.get::<_, i64>(0),
+                )
+                .map(|c| c > 0)?;
+
+            if exists {
+                skipped += 1;
+                continue;
+            }
+
+            conn.execute(
+                "INSERT OR IGNORE INTO feeds (url, last_fetched_at) VALUES (?1, datetime('now'))",
+                [&url],
+            )?;
+
+            // N6: propagate the feed_id lookup error instead of unwrap_or(0).
+            // A 0 sentinel silently counted as an error, masking the real cause.
+            let feed_id: i64 =
+                conn.query_row("SELECT id FROM feeds WHERE url = ?1", [&url], |row| {
+                    row.get(0)
+                })?;
+
+            match conn.execute(
+                "INSERT INTO subscriptions (feed_id, stream_id) VALUES (?1, ?2)",
+                rusqlite::params![feed_id, stream_id],
+            ) {
+                Ok(_) => imported += 1,
+                // Constraint violation (duplicate stream_id from a race) is
+                // the only expected error here; treat as skipped, not a hard
+                // error.
+                Err(rusqlite::Error::SqliteFailure(ref e, _))
+                    if e.code == rusqlite::ErrorCode::ConstraintViolation =>
+                {
+                    skipped += 1;
+                }
+                Err(e) => return Err(e.into()),
+            }
         }
+        Ok(())
+    })();
 
-        conn.execute(
-            "INSERT OR IGNORE INTO feeds (url, last_fetched_at) VALUES (?1, datetime('now'))",
-            [&url],
-        )?;
-
-        let feed_id: i64 = conn
-            .query_row("SELECT id FROM feeds WHERE url = ?1", [&url], |row| {
-                row.get(0)
-            })
-            .unwrap_or(0);
-
-        if feed_id == 0 {
-            errors += 1;
-            continue;
+    match tx_result {
+        Ok(()) => {
+            conn.execute("COMMIT", [])?;
         }
-
-        match conn.execute(
-            "INSERT INTO subscriptions (feed_id, stream_id) VALUES (?1, ?2)",
-            rusqlite::params![feed_id, stream_id],
-        ) {
-            Ok(_) => imported += 1,
-            Err(_) => errors += 1,
+        Err(e) => {
+            // Best-effort rollback; ignore rollback failure to surface the
+            // original error.
+            let _ = conn.execute("ROLLBACK", []);
+            return Err(e);
         }
     }
 

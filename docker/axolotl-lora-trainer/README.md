@@ -85,14 +85,51 @@ gzip -c /tmp/img.tar | wc -c
 
 ## Usage from hKask
 
-`RunpodHost::submit()` will create a pod with this image when `RUNPOD_DOCKER_IMAGE=docker.io/mdzaxo/axolotl-lora-trainer:latest` is set. The pod's `docker_args` invoke the entrypoint directly. GPU selection defaults to `NVIDIA H100 80GB HBM3` for 70B+ models; override with `RUNPOD_GPU_TYPE_ID`. The lora-training skill's G2 gate (memory budget vs model size) informs this heuristic.
+`RunpodHost::submit()` defaults to this image — no env var required. The pod's `docker_args` invoke `/usr/local/bin/entrypoint.sh` directly (no inline bash, no Python). GPU selection defaults to `NVIDIA H100 80GB HBM3` for 70B+ models; override with `RUNPOD_GPU_TYPE_ID`. The lora-training skill's G2 gate (memory budget vs model size) informs this heuristic.
 
 ```bash
-export RUNPOD_DOCKER_IMAGE=docker.io/mdzaxo/axolotl-lora-trainer:latest
+# Image is pushed to Docker Hub — RunpodHost::submit() pulls it automatically.
+# Override only if you need a custom image:
+# export RUNPOD_DOCKER_IMAGE=docker.io/mdzaxo/axolotl-lora-trainer:latest
 export RUNPOD_GPU_TYPE_ID="NVIDIA H100 80GB HBM3"
 export HF_TOKEN=hf_xxx
 # then submit a training job via the hkask-mcp-training server
 ```
+
+### End-to-end flow
+
+```mermaid
+sequenceDiagram
+    participant Rust as RunpodHost::submit()
+    participant Hub as Docker Hub
+    participant Pod as RunPod H100 pod
+    participant HF as HuggingFace
+
+    Rust->>Rust: AxolotlHarness::render_config(job) → YAML
+    Rust->>Pod: podFindAndDeployOnDemand (image, env vars, docker_args)
+    Pod->>Hub: pull docker.io/mdzaxo/axolotl-lora-trainer:latest (~44MB)
+    Pod->>Pod: /usr/local/bin/entrypoint.sh
+    Pod->>Hub: pip install axolotl huggingface_hub
+    Pod->>Pod: write $HKASK_AXOLOTL_CONFIG → /workspace/config.yml
+    Pod->>HF: huggingface-cli login (HF_TOKEN)
+    Pod->>HF: pull base_model + dataset (from YAML)
+    Pod->>Pod: axolotl train /workspace/config.yml
+    Pod->>HF: huggingface-cli upload adapter → HKASK_HF_MODEL_REPOSITORY
+    Pod->>Pod: write completion.json (bash heredoc, no Python)
+    Pod->>Pod: exec sleep infinity (SSH debugging)
+    Rust->>Pod: cancel() via GraphQL when done
+```
+
+### Env var contract (Rust → pod)
+
+The `HKASK_AXOLOTL_CONFIG` env var carries the full axolotl YAML rendered by Rust. The other `HKASK_*` env vars are passed for observability and for the entrypoint's completion manifest — they are **already baked into the YAML** by `AxolotlHarness::render_config()`, so the entrypoint does not re-read them to configure training. The entrypoint reads only:
+
+- `HKASK_AXOLOTL_CONFIG` — writes to `/workspace/config.yml`
+- `HF_TOKEN` — HuggingFace login + adapter upload
+- `HKASK_HF_MODEL_REPOSITORY` — adapter upload destination
+- `HKASK_JOB_ID`, `HKASK_BASE_MODEL` — completion manifest fields
+- `HKASK_COMPLETION_MANIFEST_PATH` — where to write the manifest
+- `AXOLOTL_OUTPUT_DIR` — override axolotl output dir (optional)
 
 ## What is NOT in this image
 

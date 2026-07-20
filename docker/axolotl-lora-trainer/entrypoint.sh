@@ -36,7 +36,10 @@ set -euo pipefail
 
 WORKSPACE=/workspace
 CONFIG_PATH="${WORKSPACE}/config.yml"
-OUTPUT_DIR="${AXOLOTL_OUTPUT_DIR:-${WORKSPACE}/outputs}"
+# OUTPUT_DIR is resolved after the config is written (step 2) by parsing
+# `output_dir:` from the YAML. AXOLOTL_OUTPUT_DIR is an override escape hatch.
+DEFAULT_OUTPUT_DIR="${WORKSPACE}/outputs"
+OUTPUT_DIR="${AXOLOTL_OUTPUT_DIR:-${DEFAULT_OUTPUT_DIR}}"
 MANIFEST_PATH="${HKASK_COMPLETION_MANIFEST_PATH:-${WORKSPACE}/completion.json}"
 LOG_DIR="${WORKSPACE}/logs"
 mkdir -p "${WORKSPACE}" "${OUTPUT_DIR}" "${LOG_DIR}"
@@ -72,6 +75,17 @@ if [ -z "${HKASK_AXOLOTL_CONFIG:-}" ]; then
 fi
 log "writing axolotl config to ${CONFIG_PATH}"
 printf '%s\n' "${HKASK_AXOLOTL_CONFIG}" > "${CONFIG_PATH}"
+
+# Resolve OUTPUT_DIR from the YAML (rendered by AxolotlHarness::output_dir).
+# AXOLOTL_OUTPUT_DIR env var remains the override escape hatch.
+if [ -z "${AXOLOTL_OUTPUT_DIR:-}" ]; then
+    YAML_OUTPUT_DIR=$(grep -E '^output_dir:' "${CONFIG_PATH}" 2>/dev/null | head -1 | sed 's/^output_dir:[[:space:]]*//' || true)
+    if [ -n "${YAML_OUTPUT_DIR}" ]; then
+        OUTPUT_DIR="${YAML_OUTPUT_DIR}"
+        mkdir -p "${OUTPUT_DIR}"
+        log "resolved output_dir from config: ${OUTPUT_DIR}"
+    fi
+fi
 
 # ── 3. HuggingFace login (if token provided) ────────────────────────────────
 if [ -n "${HF_TOKEN:-}" ]; then

@@ -286,6 +286,31 @@ impl WebSearchProvider for SerapiProvider {
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        Ok(())
+        // Lightweight liveness check: send a minimal Google search request.
+        // A 429 means the service is alive but rate-limited (healthy).
+        let params: Vec<(&str, String)> = vec![
+            ("q", "test".to_string()),
+            ("api_key", self.api_key.clone()),
+            ("engine", "google".to_string()),
+            ("num", "1".to_string()),
+            ("output", "json".to_string()),
+        ];
+        let resp = self
+            .client
+            .get(SERPAPI_BASE)
+            .query(&params)
+            .send()
+            .await
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("SerpAPI health check failed: {e}"))
+            })?;
+        let status = resp.status();
+        if status.is_success() || status.as_u16() == 429 {
+            Ok(())
+        } else {
+            Err(WebError::ProviderUnavailable(format!(
+                "SerpAPI health check returned {status}"
+            )))
+        }
     }
 }

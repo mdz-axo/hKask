@@ -4,11 +4,32 @@ pub fn strip_html(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut in_tag = false;
     let mut in_script = false;
+    let mut in_comment = false;
+    // Three-char sliding window for detecting '-->' comment end.
+    let mut comment_tail: [char; 3] = ['\0', '\0', '\0'];
     let mut tag_name = String::new();
     let mut collecting_tag = false;
 
     for ch in html.chars() {
+        if in_comment {
+            // Skip everything until we see '-->'. Track the last three chars
+            // in a small buffer since comment content is not pushed to `result`.
+            comment_tail[0] = comment_tail[1];
+            comment_tail[1] = comment_tail[2];
+            comment_tail[2] = ch;
+            if comment_tail == ['-', '-', '>'] {
+                in_comment = false;
+            }
+            continue;
+        }
         if in_tag {
+            // Detect comment start: tag_name is empty and we see '!'
+            // immediately after '<'. This catches '<!-- ... -->'.
+            if tag_name.is_empty() && !collecting_tag && ch == '!' {
+                in_comment = true;
+                in_tag = false;
+                continue;
+            }
             if ch == '>' {
                 let tag_lower = tag_name.to_lowercase();
                 if tag_lower == "script" || tag_lower == "style" {
@@ -33,6 +54,12 @@ pub fn strip_html(html: &str) -> String {
                 } else if tag_lower == "/h1" || tag_lower == "/h2" || tag_lower == "/h3" {
                     result.push('\n');
                 } else if tag_lower == "li" || tag_lower.starts_with("li ") {
+                    // Insert newline before list items unless we're already
+                    // at the start of a line. Fixes the concatenation bug
+                    // where consecutive <li> elements produced "- item1- item2".
+                    if !result.is_empty() && !result.ends_with('\n') {
+                        result.push('\n');
+                    }
                     result.push_str("- ");
                 }
                 in_tag = false;
@@ -91,9 +118,28 @@ mod tests {
 
     #[test]
     fn strip_html_list_items() {
-        // Note: consecutive <li> elements without separators produce concatenated "- " prefixes
-        // without newlines between them. The closing </li> itself doesn't insert newlines.
-        assert_eq!(strip_html("<li>item1</li><li>item2</li>"), "- item1- item2");
+        // Consecutive <li> elements now produce separate list items on
+        // their own lines (previously concatenated as "- item1- item2").
+        assert_eq!(
+            strip_html("<li>item1</li><li>item2</li>"),
+            "- item1\n- item2"
+        );
+    }
+
+    #[test]
+    fn strip_html_removes_html_comments() {
+        // HTML comments <!-- ... --> are stripped entirely, including
+        // any nested content. Previously, comment text leaked into output.
+        let input = "<p>before</p><!-- a comment --><p>after</p>";
+        assert_eq!(strip_html(input), "before\nafter");
+    }
+
+    #[test]
+    fn strip_html_removes_conditional_comments() {
+        // Downlevel-revealed conditional comments like <!--[if IE]>...<![endif]-->
+        // should also be stripped.
+        let input = "<p>x</p><!--[if IE]><p>ie-only</p><![endif]--><p>y</p>";
+        assert_eq!(strip_html(input), "x\ny");
     }
 
     #[test]

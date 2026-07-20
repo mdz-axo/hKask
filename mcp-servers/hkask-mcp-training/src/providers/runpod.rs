@@ -92,6 +92,18 @@ impl RunpodHost {
         }
     }
 
+    /// Borrow the job_id → pod_id map for lookup (used by smoke test examples).
+    pub fn jobs_for_lookup(&self) -> std::sync::MutexGuard<'_, HashMap<String, String>> {
+        self.jobs.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Inject a synthetic job_id → pod_id mapping where the job_id equals the
+    /// pod_id (used by smoke test examples that only have the pod_id).
+    pub fn inject_pod_id(&self, pod_id: &str) {
+        let mut map = self.jobs.lock().unwrap_or_else(|e| e.into_inner());
+        map.insert(pod_id.to_string(), pod_id.to_string());
+    }
+
     /// Load persisted pod IDs from the JSON file.
     fn load_pods(path: &std::path::Path) -> HashMap<String, String> {
         match std::fs::read_to_string(path) {

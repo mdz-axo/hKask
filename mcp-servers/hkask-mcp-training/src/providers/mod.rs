@@ -42,10 +42,26 @@ pub fn create_host(
             "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
         ));
     }
-    if config.runpod_template_id.is_empty() {
-        return Err(ProviderError::Unavailable(
-            "Runpod template ID not configured (set RUNPOD_TEMPLATE_ID)".to_string(),
-        ));
+    // Template ID is optional when a Docker image is used directly. The
+    // default image (docker.io/mdzaxo/axolotl-lora-trainer:latest) is baked
+    // into RunpodHost::submit(), so neither RUNPOD_TEMPLATE_ID nor
+    // RUNPOD_DOCKER_IMAGE must be set explicitly for the canonical flow.
+    // We only refuse if BOTH are empty — meaning the operator provided no
+    // image source at all.
+    let has_image = std::env::var("RUNPOD_DOCKER_IMAGE")
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+    if config.runpod_template_id.is_empty() && !has_image {
+        // Allow construction with neither set — RunpodHost::submit() defaults
+        // RUNPOD_DOCKER_IMAGE to the canonical axolotl-lora-trainer image.
+        // We log a warning rather than refusing, so the canonical flow works
+        // out of the box without requiring the operator to set either var.
+        tracing::warn!(
+            target: "hkask.training.runpod",
+            "Neither RUNPOD_TEMPLATE_ID nor RUNPOD_DOCKER_IMAGE is set — \
+             RunpodHost::submit() will default to \
+             docker.io/mdzaxo/axolotl-lora-trainer:latest"
+        );
     }
     Ok(Box::new(RunpodHost::new(
         config.runpod_api_key.clone(),
