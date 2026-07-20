@@ -44,6 +44,12 @@ MANIFEST_PATH="${HKASK_COMPLETION_MANIFEST_PATH:-${WORKSPACE}/completion.json}"
 LOG_DIR="${WORKSPACE}/logs"
 mkdir -p "${WORKSPACE}" "${OUTPUT_DIR}" "${LOG_DIR}"
 
+# Redirect all stdout+stderr to a log file AND the console (RunPod captures
+# container stderr). This ensures we can inspect failures via the pod's
+# log output even if the container exits.
+exec > >(tee -a "${LOG_DIR}/entrypoint.log") 2>&1
+set -x  # trace every command for debugging
+
 log() { printf '[entrypoint] %s\n' "$*" >&2; }
 
 # ── 1. Install axolotl + huggingface_hub at pod startup ─────────────────────
@@ -58,7 +64,7 @@ if ! command -v axolotl >/dev/null 2>&1; then
         log "pip install failed — retrying with build-essential (transient)"
         apt-get update && apt-get install -y --no-install-recommends build-essential
         python3 -m pip install --no-cache-dir axolotl huggingface_hub \
-            || { cat "${LOG_DIR}/pip.log" >&2; exit 3; }
+            || { cat "${LOG_DIR}/pip.log" >&2; log "pip install failed — sleeping for debugging"; exec sleep infinity; }
         apt-get purge -y build-essential && apt-get autoremove -y
         rm -rf /var/lib/apt/lists/*
     fi
@@ -71,7 +77,8 @@ if [ -z "${HKASK_AXOLOTL_CONFIG:-}" ]; then
     log "FATAL: HKASK_AXOLOTL_CONFIG is not set"
     log "RunpodHost::submit must render the config via AxolotlHarness::render_config"
     log "and pass it as HKASK_AXOLOTL_CONFIG. Refusing to start training."
-    exit 2
+    log "sleeping for debugging — cancel via RunpodHost::cancel"
+    exec sleep infinity
 fi
 log "writing axolotl config to ${CONFIG_PATH}"
 printf '%s\n' "${HKASK_AXOLOTL_CONFIG}" > "${CONFIG_PATH}"
