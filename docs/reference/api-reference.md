@@ -951,15 +951,18 @@ hKask REPL — interactive agent session with slash-command dispatch.
 
 | Module | Purpose |
 |--------|---------|
-| `display` | Display formatting for REPL output |
-| `handlers` | Slash-command handler modules |
-| `host` | `ReplHost`, `OnboardingError`, `OnboardingOutcome` |
+| `deps` | Turn-loop dependency injection: `TurnDeps`, `TurnConfig`, `TurnInput`, `TurnExecutor`, `GasGovernor`, `GasReservation`, `ToolInvoker`, `ThreadMemory`, `ReplTurnExecutor`, `ReplGasGovernor`, `ReplToolInvoker`, `ReplThreadMemory` |
+| `display` | Display formatting for REPL output (banner, help, command help) |
+| `handlers` | Slash-command handler modules — one file per command domain (25 handlers: agent, ask, bundle, consolidation, escalation, feedback, fusion, goal, improv, info, invoke, kanban, kata, listen, mcp, model, pod, repl_settings, skill, start, status, talk, thread, plus `adapter` and `matrix` behind feature flags) |
+| `host` | `ReplHost` trait, `OnboardingError`, `OnboardingOutcome` — implemented by `CliHost` in `hkask-cli` |
 
-**Key Public Types:** `TalkConfig`, `ManifestState`, `ToolPrompt`, `ReplState`, `ReplHost`, `OnboardingError`, `OnboardingOutcome`.
+**Key Public Types:** `TalkConfig`, `TalkMode`, `ManifestCascade`, `ManifestState` (type alias for `Option<ManifestCascade>`), `ToolPrompt`, `ReplState` (manual `Debug` impl redacts secrets), `ReplHost`, `OnboardingError`, `OnboardingOutcome`, `TurnCapture` (TUI feature only).
 
-**Public Functions:** `run()`, `run_tui()`.
+**Public Functions:** `run()`, `run_tui()` (TUI feature only), `single_agent_turn_captured()` (TUI feature only).
 
-**Feature Flags:** `tui` — enables TUI mode via `run_tui()`.
+**Feature Flags:** `tui` — enables TUI mode via `run_tui()`, pulls in `hkask-tui`. `communication` — enables Matrix commands (`/matrix`, `/msg`).
+
+**Internal Modules (not public):** `builtin_servers`, `cns_display`, `commands`, `energy`, `helper`, `init`, `threads`, `tool_augmented`, `tui_bridges` (TUI feature only), `turn`.
 
 ---
 

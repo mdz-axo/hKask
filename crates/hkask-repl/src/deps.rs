@@ -263,7 +263,12 @@ impl GasReservation for ReplGasReservation {
 pub struct ReplToolInvoker {
     governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
     agent_webid: WebID,
-    a2a_secret: Vec<u8>,
+    /// A2A secret for minting delegation tokens. Wrapped in `ZeroizingSecret`
+    /// so the bytes are scrubbed from memory when the invoker is dropped.
+    /// Defense-in-depth: the caller in `lib.rs` already wraps the secret in
+    /// `ZeroizingSecret`; storing it here as a `Vec<u8>` would defeat that
+    /// protection by copying the bytes into a non-zeroizing allocation.
+    a2a_secret: hkask_types::secret::ZeroizingSecret,
     host: Arc<dyn super::host::ReplHost>,
 }
 
@@ -272,7 +277,7 @@ impl ReplToolInvoker {
         Self {
             governed_tool: state.service_context.governed_tool(state.agent_webid),
             agent_webid: state.agent_webid,
-            a2a_secret: a2a_secret.to_vec(),
+            a2a_secret: hkask_types::secret::ZeroizingSecret::new(a2a_secret.to_vec()),
             host: state.host.clone(),
         }
     }
@@ -285,7 +290,7 @@ impl ToolInvoker for ReplToolInvoker {
             call,
             &self.governed_tool,
             &self.agent_webid,
-            &self.a2a_secret,
+            self.a2a_secret.as_bytes(),
             self.host.as_ref(),
         )
         .await

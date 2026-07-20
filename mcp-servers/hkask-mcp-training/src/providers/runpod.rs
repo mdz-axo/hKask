@@ -15,8 +15,13 @@
 //! `podTerminate(input: { podId })` — both still present in the current API.
 //!
 //! Environment variables:
-//! - `RUNPOD_API_KEY` — Runpod API key
-//! - `RUNPOD_TEMPLATE_ID` — GPU pod template ID with axolotl pre-installed
+//! - `RUNPOD_API_KEY` — Runpod API key (required)
+//! - `RUNPOD_TEMPLATE_ID` — GPU pod template ID (optional; defaults to
+//!   `DEFAULT_RUNPOD_TEMPLATE_ID` = `f4wac8wrhz`, the `hkask-axolotl-config-from-env`
+//!   template with axolotl pre-installed)
+//! - `RUNPOD_DOCKER_IMAGE` — Docker image name (optional; takes precedence
+//!   over template; defaults to `DEFAULT_RUNPOD_DOCKER_IMAGE` =
+//!   `winglian/axolotl-cloud:main-latest`)
 //! - `RUNPOD_GPU_TYPE_ID` — GPU type ID, e.g. "NVIDIA RTX 4090" or
 //!   "NVIDIA A100-SXM4-80GB" (default: "NVIDIA RTX 4090"). Note: the variable
 //!   is `RUNPOD_GPU_TYPE_ID`, not `RUNPOD_GPU_TYPE` — the latter is ignored.
@@ -31,6 +36,35 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+
+// ── Default pod template configuration ─────────────────────────────────────
+//
+// These are the canonical defaults for hKask training pods. They are exposed
+// as module-level constants (not magic strings in submit()) so they can be
+// referenced, documented, and overridden together.
+//
+// Override via env vars:
+//   RUNPOD_TEMPLATE_ID  — a RunPod template ID with axolotl pre-installed
+//   RUNPOD_DOCKER_IMAGE — a Docker image name (takes precedence over template)
+//
+// See docs/how-to/runpod-lora-training-guide.md for the full rationale.
+
+/// Default RunPod template ID for axolotl training.
+///
+/// This template (`hkask-axolotl-config-from-env`) uses the
+/// `winglian/axolotl-cloud:main-latest` image with axolotl + all deps
+/// pre-installed, and a startup script that reads the `HKASK_AXOLOTL_CONFIG`
+/// env var (rendered by Rust `AxolotlHarness::render_config`).
+///
+/// Using a pre-built template avoids the pip-install restart loop documented
+/// in Lesson 10 of runpod-lora-training-guide.md.
+const DEFAULT_RUNPOD_TEMPLATE_ID: &str = "f4wac8wrhz";
+
+/// Default Docker image for axolotl training.
+///
+/// RunPod's `podFindAndDeployOnDemand` requires `imageName` to be non-empty
+/// even when a template is used. This is the image the template is based on.
+const DEFAULT_RUNPOD_DOCKER_IMAGE: &str = "winglian/axolotl-cloud:main-latest";
 
 /// Runpod GPU cloud training host — dispatches training to GPU pods.
 ///
@@ -377,6 +411,7 @@ impl TrainingHost for RunpodHost {
         // GPU selection: if RUNPOD_GPU_TYPE_ID is set, use it. Otherwise,
         // select based on model size — small models (≤14B) use RTX 4090,
         // large models (20B–70B) use A100, very large (120B+) use H100.
+        // GPU type IDs must match RunPod's gpuTypes query exactly.
         // This is a heuristic — the lora-training skill's G2 gate
         // (memory budget vs model size) informs this choice.
         let gpu_type_id = std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| {
@@ -390,9 +425,9 @@ impl TrainingHost for RunpodHost {
                 .iter()
                 .any(|p| lower.contains(p))
             {
-                "NVIDIA A100 80GB".to_string()
+                "NVIDIA A100-SXM4-80GB".to_string()
             } else {
-                "NVIDIA RTX 4090".to_string()
+                "NVIDIA GeForce RTX 4090".to_string()
             }
         });
         // Container disk: larger models need more disk for weights + checkpoints.
@@ -430,19 +465,21 @@ impl TrainingHost for RunpodHost {
             )
         })?;
 
-        // The pod must resolve an image: either an explicit docker image or a
-        // template id. Mirrors the SDK's `create_pod` validation.
-        // Default to the pre-built axolotl template (RunPod template ID
-        // `24s5mdxz26` — `winglian/axolotl-cloud:main-latest`). This template
-        // has axolotl + all deps pre-installed, avoiding the pip-install
-        // restart loop (Lesson 10 in runpod-lora-training-guide.md).
-        // Override with RUNPOD_DOCKER_IMAGE for custom images.
-        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE").unwrap_or_default();
+        // Resolve the pod template and image. Defaults use the pre-built
+        // axolotl template (DEFAULT_RUNPOD_TEMPLATE_ID) which has axolotl +
+        // all deps pre-installed and reads config from HKASK_AXOLOTL_CONFIG.
+        // Override with RUNPOD_TEMPLATE_ID or RUNPOD_DOCKER_IMAGE.
+        // See docs/how-to/runpod-lora-training-guide.md Lesson 10.
         let template_id = if !self.template_id.is_empty() {
             self.template_id.clone()
         } else {
-            std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_else(|_| "24s5mdxz26".to_string())
+            std::env::var("RUNPOD_TEMPLATE_ID")
+                .unwrap_or_else(|_| DEFAULT_RUNPOD_TEMPLATE_ID.to_string())
         };
+        // RunPod's podFindAndDeployOnDemand requires imageName to be non-empty
+        // even when using a template. Default to the template's base image.
+        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE")
+            .unwrap_or_else(|_| DEFAULT_RUNPOD_DOCKER_IMAGE.to_string());
         if docker_image.is_empty() && template_id.is_empty() {
             return Err(ProviderError::InvalidConfig(
                 "Either RUNPOD_DOCKER_IMAGE or RUNPOD_TEMPLATE_ID must be set to create a RunPod pod"

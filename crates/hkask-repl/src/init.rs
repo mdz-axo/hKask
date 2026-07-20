@@ -13,7 +13,7 @@ use std::sync::Arc;
 use hkask_agents::InferenceLoop;
 use hkask_cns::{GasBudget, GasCost, GovernedTool};
 
-use super::{TalkConfig, ToolPrompt};
+use super::{TalkConfig, TalkMode, ToolPrompt};
 use hkask_mcp::RawMcpToolPort;
 use hkask_ports::{ToolInfo, ToolPort};
 use hkask_templates::{ManifestExecutor, McpPort};
@@ -522,7 +522,7 @@ pub(super) fn init_repl_state(
         repl_settings,
         is_first_run: onboarding_outcome.is_first_run,
         talk_config: TalkConfig {
-            enabled: false,
+            mode: TalkMode::Off,
             voice_design: None,
         },
         improv_mode: None,

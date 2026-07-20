@@ -1,8 +1,8 @@
 ---
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
-last_updated: 2026-06-30
-version: "0.31.0"
+last_updated: 2026-07-20
+version: "0.32.0"
 status: "Active"
 domain: "Surface"
 mds_categories: [domain, composition, lifecycle, curation]
@@ -84,61 +84,56 @@ crates/hkask-repl/src/
 
 ### 3.2 ReplState — Central State Object
 
-Three paired-field groups were extracted into sub-structs (v0.31.0) to reduce the God Object surface:
+All infrastructure (inference port, inference loop, episodic/semantic storage, governed tool) is accessed through `service_context: Arc<AgentService>` — the canonical assembly point. The REPL no longer holds these as direct fields. Three sub-structs group paired state:
 
-- `TalkConfig { enabled: bool, voice_design: Option<String> }` — set together via `/talk`
-- `ManifestState { executor: Option<ManifestExecutor>, manifest: Option<BundleManifest> }` — both `Some` or both `None`
-- `ToolPrompt { section: String, definitions: Vec<ChatToolDefinition> }` — refreshed together during MCP discovery
+- `TalkConfig { mode: TalkMode, voice_design: Option<String> }` — `mode` is an enum (`On`/`Off`), not a `bool`, so the on/off decision is explicit at the type level. Set together via `/talk`.
+- `ManifestState = Option<ManifestCascade>` — a type alias. `ManifestCascade { manifest, executor }` bundles both fields so the "both present" invariant is enforced by construction: the invalid state `Some(manifest) + None(executor)` is unrepresentable.
+- `ToolPrompt { section: String, definitions: Vec<ChatToolDefinition> }` — refreshed together during MCP discovery.
 
 ```rust
-pub(crate) struct ReplState {
-    pub(crate) inference_port: Arc<dyn InferencePort>,          // Shared Okapi inference port
-    pub(crate) inference_loop: Arc<InferenceLoop>,              // CNS-observable gas budget + model tracking
-    pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,  // Private, agent-scoped memory
-    pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,  // Public, shared memory
-    pub(crate) agent_webid: WebID,                              // From --webid (OAuth identity)
-    pub(crate) current_model: String,                           // Active model name
-    pub(crate) current_agent: String,                           // Active agent name (from onboarding)
-    pub(crate) active_session: Option<String>,                  // Future multi-agent session ID
-    pub(crate) resolved_secrets: Option<ResolvedSecrets>,       // From onboarding
-    pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>, // OCAP + CNS membrane
-    pub(crate) tool_prompt: ToolPrompt,                         // MCP-discovered tool section + definitions
-    pub(crate) manifest_state: ManifestState,                   // Process manifest + executor (both Some or both None)
-    pub(crate) service_context: Arc<AgentService>,              // Canonical infrastructure assembly
-    pub(crate) repl_settings: ReplSettings,                     // User-configurable parameters (P3)
-    pub(crate) is_first_run: bool,                              // Onboarding gate
-    pub(crate) talk_config: TalkConfig,                         // /talk on|off|voice
-    pub(crate) improv_mode: Option<ImprovMode>,                 // /improv posture
-    pub(crate) kanban_service: Option<KanbanService>,           // Lazy /kanban
-    pub(crate) degraded_servers: Vec<(String, String)>,         // Failed auto-start servers
-    pub(crate) thread_registry: ThreadRegistry,                 // /thread management
+pub struct ReplState {
+    pub agent_webid: WebID,                              // Derived from agent name
+    pub current_model: String,                           // Active model name
+    pub current_agent: String,                           // Active agent name (from onboarding)
+    pub active_session: Option<String>,                  // Future multi-agent session ID
+    pub resolved_secrets: Option<ResolvedSecrets>,       // From onboarding (redacted in Debug)
+    persona_constraints: Option<PersonaConstraints>,     // Private — loaded from agent YAML
+    pub tool_prompt: ToolPrompt,                         // MCP-discovered tool section + definitions (cache)
+    pub manifest_state: ManifestState,                   // Option<ManifestCascade> — None or both present
+    pub service_context: Arc<AgentService>,              // Canonical infrastructure assembly
+    pub repl_settings: ReplSettings,                     // User-configurable parameters (P3)
+    pub is_first_run: bool,                              // Onboarding gate
+    pub talk_config: TalkConfig,                         // /talk on|off|voice
+    pub improv_mode: Option<ImprovMode>,                 // /improv posture
+    pub kanban_service: Option<KanbanService>,           // Lazy /kanban
+    pub degraded_servers: Vec<(String, String)>,         // Failed auto-start servers
+    pub thread_registry: ThreadRegistry,                 // /thread management
+    pub host: Arc<dyn ReplHost>,                         // CLI bridge (WebID, onboarding, templates)
 }
 ```
 
-**Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. Three fields remain private: `consolidation_service`, `persona_constraints`. The paired-group sub-structs (`ToolPrompt`, `ManifestState`, `TalkConfig`) enforce invariants at the type level that were previously only conventions. History access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` gates the First Steps guide shown in the welcome banner.
+**Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. One field remains private: `persona_constraints` (loaded from agent YAML, not mutated after init). A manual `Debug` impl redacts `resolved_secrets`, `manifest_state`, `service_context`, and `host` so the central state object can be inspected in diagnostics without leaking secrets or hitting non-Debug trait-object bounds. History access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` gates the First Steps guide shown in the welcome banner. The `tool_prompt` cache exists because `ToolPort` uses `impl Trait` returns (not dyn-compatible); re-derive when MCP servers start/stop.
 
 ### 3.3 Dependency Injection (init.rs)
 
 The `init_repl_state()` function assembles the REPL's dependency graph in order:
 
-1. Receive WebID from `--webid` flag (set by server per authenticated user session)
-2. Run onboarding if `is_first_run` — replicant creation and model selection for first-time OAuth sign-ins. Sets `is_first_run`.
-3. Resolve effective model: onboarding selection > persisted `ReplSettings` > CLI `--model` arg > hardcoded default (`deepseek-v4-pro`)
-4. Load persisted `ReplSettings` from per-user config (`~/.config/hkask/settings.json`)
-4a. Propagate condensation settings (`condense_pressure_threshold`, `condense_saliency_window`) to the condenser MCP server via `HKASK_CONDENSE_PRESSURE_THRESHOLD` and `HKASK_CONDENSE_SALIENCY_WINDOW` so both condensation paths (auto-condense in `ChatService` and agent-initiated condenser tools) share the same user-configured thresholds
-5. Resolve Okapi base URL from server environment (`OKAPI_BASE_URL`) or default
-6. Initialize shared `InferencePort` for selected model + wrap in `InferenceLoop`
-7. Build `AgentService::build()` — creates CNS, loop system, governed tool, pod manager, MCP runtime
-8. Register inference loop on loop system
-9. Start built-in MCP servers (9 core servers)
-10. Build `GovernedTool` membrane wrapped around MCP runtime
-11. Register agent gas budget with `CyberneticsLoop`
-12. Open per-agent SQLCipher-encrypted memory database (keyed by WebID)
-13. Build per-agent memory via `AgentService::build_per_agent_memory()` (episodic/semantic ports + ConsolidationService)
-14. Populate tool prompt section from MCP runtime discovery
-15. Load persona constraints and process manifest for initial agent
+1. **Phase 1 — Onboarding:** `host.run_onboarding(rt)` — interactive replicant creation and model selection. Sets `is_first_run`, `resolved_secrets`, `signed_in_agent`, `selected_model`.
+2. **Phase 2 — Settings + Condensation Env:** Load persisted `ReplSettings` from per-user config. Propagate `condense_pressure_threshold` and `condense_saliency_window` to env vars (`HKASK_CONDENSE_*`) so both condensation paths (auto-condense in `ChatService` and agent-initiated condenser tools) share the same thresholds.
+3. **Phase 4 — Service Config:** Build `ServiceConfig` from onboarding secrets (propagating `HKASK_MASTER_KEY` and `HKASK_DB_PASSPHRASE` to env) or fall back to `from_env()` / `in_memory()`.
+4. **Phase 5 — WebID + Skills:** Derive `agent_webid` from the onboarding persona via `WebID::from_persona_with_namespace`. Load skills from `.agents/skills/` and `skills/` into the registry.
+5. **Phase 6 — Shared Infrastructure:** `AgentService::build(service_config)` — creates CNS, loop system, governed tool, pod manager, MCP runtime, storage. Wait for CuratorPod readiness (non-fatal on failure).
+6. **Phase 6 (cont.) — InferenceLoop:** Build `InferenceLoop` with energy budget and model. Register on loop system. Wire into `AgentService` via `set_inference_loop`.
+7. **Phase 7 — Replicant Env:** Propagate `HKASK_PROJECT_ROOT`, `HKASK_MCP_HOST`, `HKASK_REPLICANT_PERSONA` to env for child MCP processes.
+8. **Phase 7.5 — Daemon Auto-Start:** Probe the daemon socket; spawn `kask daemon start` as a detached child if no live listener. Non-fatal on failure — MCP servers fall back to direct mode.
+9. **Phase 8 — Core MCP Server Auto-Start:** Start all `BUILTIN_SERVERS` except those in `CORE_EXCLUDED` (currently `companies`, `communication`, `training`, `replica` — 4 servers requiring explicit opt-in via `/mcp start`). 12 servers auto-start. A `debug_assert!` verifies every `CORE_EXCLUDED` entry exists in `BUILTIN_SERVERS` to prevent phantom exclusions.
+10. **Phase 10 — Energy Budget + Well + Wallet:** Register gas budget with `CyberneticsLoop`. Create default Well if none exists. Create gas wallet for the replicant if none exists.
+11. **Phase 12 — Assemble ReplState:** Construct the `ReplState` struct with all fields. `manifest_state` starts as `None`.
+12. **Phase 13 — Tool Discovery:** Query `GovernedTool::discover_tools()` and populate `tool_prompt` (section + definitions).
+13. **Phase 14 — Agent Definition + Process Manifest:** Load agent YAML from storage or disk. Extract `persona_constraints`. If a `process_manifest` is defined, resolve it and build a `ManifestCascade` (manifest + executor).
+14. **Phase 15 — Model Metadata:** Populate `model_meta` from the model catalog.
 
-**Note:** The WebID arrives from the server via `--webid` (derived from OAuth identity). Onboarding uses the server's configured inference providers (cloud-only). All state (config, memory, history) is scoped to the authenticated WebID.
+**Note:** The WebID is derived from the onboarding persona (not a `--webid` flag). Onboarding uses the configured inference providers. All state (config, memory, history) is scoped to the authenticated WebID.
 
 ## 4. Input Loop
 
@@ -380,8 +375,11 @@ This followup prompt is fed back into the next loop iteration.
 
 ### 6.5 Streaming Behavior
 
-- **Iteration 1:** Uses `chat_with_agent_streaming_with_params()` — tokens are printed incrementally to stdout, prefixed with `"{agent_name}: "`
-- **Iteration 2+:** Uses `chat_with_agent_with_params()` — non-streaming to avoid redundant output during tool loop followups
+The REPL turn loop uses `ChatService::execute_turn()` uniformly across all iterations — there is no longer a split between streaming (iteration 1) and non-streaming (iteration 2+). The previous `chat_with_agent_streaming_with_params()` path has been removed.
+
+- **CLI (stdout):** The full response text is printed after each iteration via `TurnSink::agent_text()`. There is no incremental token streaming to the terminal.
+- **TUI:** `start_inference()` spawns a background thread that runs `single_agent_turn_captured()`. The full response text is published to the `streaming_text` buffer once the turn completes — the TUI polls this buffer each frame. The previous implementation faked streaming by chunking the text 3 chars at a time with an 8ms sleep; this was removed because it added latency without value. Real incremental streaming would require wiring `InferencePort::generate_stream_with_model()` through the turn loop.
+- **Tool loop followups:** Each iteration's response is displayed via the sink before tool calls are invoked. The final response (no tool calls) is the one persisted to thread history.
 
 ## 7. Ensemble (Multi-Agent) Turn Pipeline — Deferred (2026-06-14)
 
@@ -599,36 +597,32 @@ You have access to MCP tools. When you need to invoke a tool, use:
 You may include multiple tool calls in a single response.
 ```
 
-### 12.2 Built-in MCP Servers (11)
+### 12.2 Built-in MCP Servers (16)
 
-Available MCP servers (9 auto-start; 3 require `/mcp start` for opt-in):
+The canonical registry is `hkask_mcp::BUILTIN_SERVERS` — 16 servers total. 12 auto-start at REPL boot; 4 require explicit opt-in via `/mcp start` (P2: Affirmative Consent).
 
-| Server ID | Binary | Purpose |
-|-----------|--------|---------|
-| `memory` | `hkask-mcp-memory` | Semantic + episodic memory operations |
-| `condenser` | `hkask-mcp-condenser` | Context condensation (compress, thread_summary). Respects `HKASK_CONDENSE_*` env vars for unified configuration with auto-condense path. |
-| `research` | `hkask-mcp-research` | Web search, extraction, and feed-based research |
-| `companies` | `hkask-mcp-companies` | Company financial data (FMP + EODHD dual-provider) |
-| `communication` | `hkask-mcp-communication` | Thin MCP wrapper over core communication crate |
-| `media` | `hkask-mcp-media` | Media generation (image, video, audio, 3D) |
-| `docproc` | `hkask-mcp-docproc` | Unified document processing (format conversion, OCR, chunking, parsing) |
-| `replica` | `hkask-mcp-replica` | Style embedding and prose composition |
-| `training` | `hkask-mcp-training` | Model training data ingestion |
-| `kanban` | `hkask-mcp-kata-kanban` | Kanban board coordination |
-| `filesystem` | `hkask-mcp-filesystem` | Filesystem read/write/search + shell command execution for agent code interaction |
+| Server ID | Binary | Auto-start? | Purpose |
+|-----------|--------|-------------|---------|
+| `memory` | `hkask-mcp-memory` | yes | Semantic + episodic memory operations |
+| `condenser` | `hkask-mcp-condenser` | yes | Context condensation (compress, thread_summary). Respects `HKASK_CONDENSE_*` env vars. |
+| `research` | `hkask-mcp-research` | yes | Web search, extraction, and feed-based research |
+| `curator` | `hkask-mcp-curator` | yes | Curator daemon — metacognition, curation |
+| `media` | `hkask-mcp-media` | yes | Media generation (image, video, audio, 3D) |
+| `docproc` | `hkask-mcp-docproc` | yes | Unified document processing (format conversion, OCR, chunking, parsing) |
+| `kanban` | `hkask-mcp-kata-kanban` | yes | Kanban board coordination |
+| `skill` | `hkask-mcp-skill` | yes | Skill discovery, status, publishing, auditing |
+| `filesystem` | `hkask-mcp-filesystem` | yes | Filesystem read/write/search + shell command execution |
+| `codegraph` | `hkask-mcp-codegraph` | yes | Code graph query, traverse, impact analysis |
+| `scenarios` | `hkask-mcp-scenarios` | yes | Scenario planning and forecasting |
+| `cns` | `hkask-mcp-cns` | yes | CNS observability and alerting |
+| `companies` | `hkask-mcp-companies` | **no** | Company financial data (FMP + EODHD dual-provider) |
+| `communication` | `hkask-mcp-communication` | **no** | Thin MCP wrapper over core communication crate |
+| `training` | `hkask-mcp-training` | **no** | Model training data ingestion |
+| `replica` | `hkask-mcp-replica` | **no** | Style embedding and prose composition |
 
-Servers that fail to start are logged and skipped — their tools simply won't be available.
+Servers that fail to start are logged and skipped — their tools simply won't be available. Failed servers appear in the session banner as degraded capabilities.
 
-The `filesystem` server auto-starts at REPL boot as the essential sensory/actuation
-interface for agents. All other servers require explicit consent via `/mcp start`.
-
-**Auto-start policy (v0.31.0):** Nine core servers form the agent's autonomous
-nervous system and auto-start at REPL boot: `filesystem`, `memory`, `condenser`,
-`research`, `skill`, `curator`, `kanban`, `docproc`, `media`. These provide the
-full sensory (read/search/research), model (memory/condenser), regulatory
-(curator/kanban), and actuation (write/exec/skill/docproc/media) capabilities.
-Four specialized servers require explicit opt-in: `communication`, `companies`,
-`training`, `spec`.
+**Auto-start policy:** The `CORE_EXCLUDED` list in `init.rs` defines the 4 opt-in servers: `companies`, `communication`, `training`, `replica`. A `debug_assert!` verifies every `CORE_EXCLUDED` entry exists in `BUILTIN_SERVERS` to prevent phantom exclusions (a previous version referenced `fal` and `fal-workflow`, which do not exist in `BUILTIN_SERVERS`).
 
 Condensation configuration (`condense_saliency_window`, `condense_pressure_threshold`)
 is set via `/repl` and propagated to the condenser MCP server at REPL init via

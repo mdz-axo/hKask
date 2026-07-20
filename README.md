@@ -176,7 +176,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **MCP Servers** | 16 |
 | **Workspace Members** | 70 (54 crates + 16 MCP servers, excluding fuzz targets) |
 | **Tests** | ~2,300 (`#[test]` + `#[tokio::test]` annotations across workspace) |
-| **CLI Subcommands** | 19 |
+| **CLI Subcommands** | 22 |
 | **API Route Groups** | 27 |
 | **Build/Clippy/Fmt/Test/UnusedDeps** | All passing |
 | **Skills** | 51 (86 registry manifests, 384 Jinja2 templates) |

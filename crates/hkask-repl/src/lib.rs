@@ -54,9 +54,21 @@ use helper::KaskHelper;
 /// to decide whether to summarize and speak responses aloud.
 #[derive(Debug, Clone)]
 pub struct TalkConfig {
-    pub enabled: bool,
+    /// Whether spoken summaries are emitted. Uses an enum (not `bool`)
+    /// so the invalid state "off but has voice_design" is representable
+    /// but the on/off decision is explicit at the type level.
+    pub mode: TalkMode,
     /// Voice design JSON for TTS (None = default "Rachel" voice).
     pub voice_design: Option<String>,
+}
+
+/// Talk mode — whether the REPL speaks responses aloud.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TalkMode {
+    /// Spoken summaries are emitted after each turn.
+    On,
+    /// No spoken output.
+    Off,
 }
 
 /// Manifest cascade — process manifest paired with its executor.
@@ -151,6 +163,39 @@ pub struct ReplState {
     /// Host trait — provides WebID resolution, onboarding, template
     /// listing, and transcript viewing to the REPL subsystem.
     pub host: Arc<dyn host::ReplHost>,
+}
+
+impl std::fmt::Debug for ReplState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReplState")
+            .field("agent_webid", &self.agent_webid)
+            .field("current_model", &self.current_model)
+            .field("current_agent", &self.current_agent)
+            .field("active_session", &self.active_session)
+            // Redacted: carries master key and DB passphrase.
+            .field("resolved_secrets", &"<redacted>")
+            .field("persona_constraints", &self.persona_constraints)
+            .field("tool_prompt", &self.tool_prompt)
+            // ManifestCascade wraps non-Debug trait objects.
+            .field(
+                "manifest_state",
+                &if self.manifest_state.is_some() {
+                    "Some(<ManifestCascade>)"
+                } else {
+                    "None"
+                },
+            )
+            .field("service_context", &"<AgentService>")
+            .field("repl_settings", &self.repl_settings)
+            .field("is_first_run", &self.is_first_run)
+            .field("talk_config", &self.talk_config)
+            .field("improv_mode", &self.improv_mode)
+            .field("kanban_service", &self.kanban_service.is_some())
+            .field("degraded_servers", &self.degraded_servers)
+            .field("thread_registry", &self.thread_registry)
+            .field("host", &"<ReplHost>")
+            .finish()
+    }
 }
 
 pub fn run(
@@ -302,12 +347,13 @@ pub fn run_tui(
     let agent_name = state.current_agent.clone();
     let model = state.current_model.clone();
 
-    // Resolve A2A secret for capability tokens
+    // Resolve A2A secret for capability tokens. Wrapped in ZeroizingSecret
+    // so the bytes are scrubbed from memory when the bridge is dropped.
     let a2a_secret = state
         .resolved_secrets
         .as_ref()
-        .map(|s| s.a2a_secret.as_bytes().to_vec())
-        .unwrap_or_default();
+        .map(|s| hkask_types::secret::ZeroizingSecret::new(s.a2a_secret.as_bytes().to_vec()))
+        .unwrap_or_else(|| hkask_types::secret::ZeroizingSecret::new(Vec::new()));
 
     // Compute layout path before agent_name is moved into the bridge
     let layout_path = hkask_tui::layout::layout_path(&agent_name);
@@ -379,7 +425,7 @@ pub fn run_tui(
 struct TuiReplBridge {
     state: Arc<std::sync::Mutex<ReplState>>,
     rt_handle: tokio::runtime::Handle,
-    a2a_secret: Vec<u8>,
+    a2a_secret: hkask_types::secret::ZeroizingSecret,
     agent_name: String,
     model: String,
     pending: std::sync::Mutex<Option<std::sync::mpsc::Receiver<hkask_tui::TuiTurnResult>>>,
@@ -441,18 +487,19 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
 
         std::thread::spawn(move || {
             let mut s = state.lock().unwrap_or_else(|e| e.into_inner());
-            let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, &a2a);
+            let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, a2a.as_bytes());
             let result = Self::build_result(&capture);
 
-            // Feed response into streaming buffer chunk by chunk
-            let text = result.text.clone();
-            let chars: Vec<char> = text.chars().collect();
-            for chunk in chars.chunks(3) {
-                let s: String = chunk.iter().collect();
-                if let Ok(mut buf) = streaming.lock() {
-                    buf.push_str(&s);
-                }
-                std::thread::sleep(std::time::Duration::from_millis(8));
+            // Publish the full response text to the streaming buffer so the
+            // TUI can render it immediately on the next poll. The previous
+            // implementation faked streaming by chunking the text 3 chars at
+            // a time with an 8ms sleep — this added latency (a 1000-char
+            // response took ~2.7s of artificial delay on top of the actual
+            // inference time) and blocked a thread doing nothing. Real
+            // streaming should be wired through InferencePort::generate_stream
+            // if progressive display is desired.
+            if let Ok(mut buf) = streaming.lock() {
+                buf.push_str(&result.text);
             }
 
             let _ = tx.send(result);
@@ -473,7 +520,12 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         std::thread::spawn(move || {
             let mut s = state.lock().unwrap_or_else(|e| e.into_inner());
 
-            // Filter tool definitions to only the scoped MCP server
+            // Scope tool definitions to the requested MCP server. We save
+            // and restore the originals around the turn. If the turn panics,
+            // the definitions would be left scoped — but the thread is
+            // isolated and the next /mcp start refreshes tool_prompt anyway.
+            // A panic-safe guard would require passing scoped tools as a
+            // parameter to single_agent_turn_captured (a larger refactor).
             let original_tools = std::mem::take(&mut s.tool_prompt.definitions);
             let prefix = format!("{}/", scope);
             s.tool_prompt.definitions = original_tools
@@ -482,21 +534,17 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 .cloned()
                 .collect();
 
-            let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, &a2a);
+            let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, a2a.as_bytes());
 
-            // Restore original tool definitions
+            // Restore original tool definitions.
             s.tool_prompt.definitions = original_tools;
 
             let result = Self::build_result(&capture);
 
-            let text = result.text.clone();
-            let chars: Vec<char> = text.chars().collect();
-            for chunk in chars.chunks(3) {
-                let s: String = chunk.iter().collect();
-                if let Ok(mut buf) = streaming.lock() {
-                    buf.push_str(&s);
-                }
-                std::thread::sleep(std::time::Duration::from_millis(8));
+            // Publish the full response text to the streaming buffer immediately.
+            // See start_inference for why we don't fake-stream chunk by chunk.
+            if let Ok(mut buf) = streaming.lock() {
+                buf.push_str(&result.text);
             }
 
             let _ = tx.send(result);
@@ -535,7 +583,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 input,
                 &mut state,
                 &self.rt_handle,
-                &self.a2a_secret,
+                self.a2a_secret.as_bytes(),
             );
             let ctx_len = state
                 .repl_settings
@@ -616,10 +664,11 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
     fn mcp_status(&self) -> (usize, usize) {
         if let Ok(s) = self.state.lock() {
             let runtime = s.service_context.infra().mcp.clone().clone();
-            let servers = self.rt_handle.block_on(runtime.list_servers());
-            (0, servers.len())
+            let loaded = self.rt_handle.block_on(runtime.list_servers()).len();
+            let total = hkask_mcp::BUILTIN_SERVERS.len();
+            (loaded, total)
         } else {
-            (0, 6)
+            (0, hkask_mcp::BUILTIN_SERVERS.len())
         }
     }
     fn pod_counts(&self) -> (usize, usize, usize) {

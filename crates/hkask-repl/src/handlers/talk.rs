@@ -7,6 +7,7 @@
 //! keeping only what a person would say aloud.
 
 use crate::ReplState;
+use crate::TalkMode;
 use hkask_capability::DelegationAction;
 use hkask_capability::DelegationResource;
 use hkask_capability::DelegationToken;
@@ -34,7 +35,7 @@ pub fn handle_talk(
 ) {
     match subcommand {
         "on" => {
-            state.talk_config.enabled = true;
+            state.talk_config.mode = TalkMode::On;
             let voice_info = match &state.talk_config.voice_design {
                 Some(vd) => {
                     if let Ok(design) = serde_json::from_str::<serde_json::Value>(vd) {
@@ -55,7 +56,7 @@ pub fn handle_talk(
             println!();
         }
         "off" => {
-            state.talk_config.enabled = false;
+            state.talk_config.mode = TalkMode::Off;
             println!("  Talk mode \x1b[1moff\x1b[0m");
             println!();
         }
@@ -149,10 +150,9 @@ pub fn handle_talk(
             println!();
         }
         "" => {
-            let status = if state.talk_config.enabled {
-                "on"
-            } else {
-                "off"
+            let status = match state.talk_config.mode {
+                TalkMode::On => "on",
+                TalkMode::Off => "off",
             };
             let voice_info = match &state.talk_config.voice_design {
                 Some(vd) => voice_preset_from_design(vd),

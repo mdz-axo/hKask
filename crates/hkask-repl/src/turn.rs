@@ -10,6 +10,7 @@
 use hkask_services_chat::TokenUsage;
 
 use super::ReplState;
+use super::TalkMode;
 use super::cns_display;
 use super::deps::{TurnConfig, TurnDeps, TurnInput};
 use super::handlers::speak_response;
@@ -318,7 +319,7 @@ pub(super) fn single_agent_turn(
     let mut sink = StdoutSink;
     let outcome = run_turn_with_state(input, state, rt, a2a_secret, agent_override, &mut sink);
     if let Some(ref resp) = outcome.final_response
-        && state.talk_config.enabled
+        && state.talk_config.mode == TalkMode::On
     {
         speak_response(resp, state, rt);
     }
@@ -346,7 +347,7 @@ pub fn single_agent_turn_captured(
     let mut sink = CaptureSink::new();
     let outcome = run_turn_with_state(input, state, rt, a2a_secret, None, &mut sink);
     if let Some(ref resp) = outcome.final_response
-        && state.talk_config.enabled
+        && state.talk_config.mode == TalkMode::On
     {
         speak_response(resp, state, rt);
     }
