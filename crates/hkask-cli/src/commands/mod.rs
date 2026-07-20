@@ -6,7 +6,6 @@
 //! web search) live in the TUI's REPL slash commands or are invoked via
 //! MCP tools from within the runtime.
 
-pub mod adapter;
 pub mod backup_cmd;
 pub mod chat; // chat_with_agent_streaming used by tui.rs for non-interactive mode
 pub mod daemon;

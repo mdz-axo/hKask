@@ -1,5 +1,6 @@
 //! REPL sub-handler modules — one file per slash command domain
 
+pub mod adapter;
 pub mod agent;
 pub mod ask;
 pub mod bundle;
@@ -27,6 +28,7 @@ pub mod kanban;
 pub mod talk;
 pub mod thread;
 
+pub use adapter::handle_adapter;
 pub use agent::{handle_agent, handle_agents};
 pub use ask::handle_ask;
 pub use bundle::handle_bundle;

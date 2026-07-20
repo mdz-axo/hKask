@@ -263,19 +263,49 @@ Plain `&` doesn't survive SSH disconnect.
 
 ---
 
-## Lesson 10: Minimal Docker Image — Don't Bake In Heavy Deps
+## Lesson 10: Use Pre-Built Axolotl Image — Don't pip Install at Startup
+
+**Symptom**: Pod restarts every 15-20 minutes. Port changes between status
+queries. No adapter uploaded. No error visible.
+
+**Root cause**: pip-installing axolotl at pod startup downloads ~2GB of wheels
+(torch, CUDA libs, transformers, peft) and uses ~2GB of memory. This causes
+OOM kills or container crashes during the pip install phase, before training
+even starts. RunPod restarts the container, which starts pip install again,
+creating a restart loop.
+
+**Fix**: Use a pre-built axolotl template (RunPod template ID `24s5mdxz26` —
+`winglian/axolotl-cloud:main-latest`). Axolotl and all dependencies are
+pre-installed in the image. The pod starts training immediately — no pip
+install delay, no OOM risk.
+
+**Detection**: If the pod restarts every 15-20 min and the port changes, check
+if the image is `python:3.11-slim` (pip install at startup) vs
+`winglian/axolotl-cloud:main-latest` (pre-built). The pre-built image is the
+fix.
+
+**Cost wasted**: ~$30 in this session across multiple restart-loop pods.
+
+**Note**: The minimal Docker image (`docker.io/mdzaxo/axolotl-lora-trainer:latest`)
+remains useful for debugging and as a fallback, but production training should
+use the pre-built axolotl template. The minimal image is ~129MB vs the
+pre-built axolotl image which is ~10GB+ but has all deps ready.
+
+---
+
+## Lesson 11: Minimal Docker Image — Don't Bake In Heavy Deps
 
 **Symptom**: Docker image is 22-31GB. Push takes hours. Pull on RunPod is slow.
 
 **Root cause**: Baking in CUDA toolkit, PyTorch, Unsloth, and Python config
 generators produces bloated images that violate the minimal design ethic.
 
-**Fix**: Use `python:3.11-slim` base (~130MB). pip-install axolotl at pod
-startup (not in the image). The image is ~129MB uncompressed, ~44MB compressed.
-Push completes in seconds. The entrypoint is pure bash — no Python config
-generator (Rust generates the config via `AxolotlHarness::render_config()`).
+**Fix**: Use `python:3.11-slim` base (~130MB) for the minimal image. But for
+production training, use the pre-built axolotl template (Lesson 10). The
+minimal image is for debugging and fallback only.
 
-**Image**: `docker.io/mdzaxo/axolotl-lora-trainer:latest`
+**Image**: `docker.io/mdzaxo/axolotl-lora-trainer:latest` (minimal, ~129MB)
+**Template**: `24s5mdxz26` (pre-built axolotl, production use)
 
 ---
 

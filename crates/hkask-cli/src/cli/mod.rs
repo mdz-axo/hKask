@@ -106,12 +106,6 @@ pub enum Commands {
         action: KeystoreAction,
     },
 
-    /// Trained adapter lifecycle — deploy, infer, teardown
-    Adapter {
-        #[command(subcommand)]
-        action: AdapterAction,
-    },
-
     /// Skill corpus audit (CI gate; runtime ops via `/skill` in the REPL)
     Skill {
         #[command(subcommand)]
@@ -207,7 +201,6 @@ impl Commands {
             Commands::Token { .. } => "token",
             Commands::Replicant { .. } => "replicant",
             Commands::Keystore { .. } => "keystore",
-            Commands::Adapter { .. } => "adapter",
             Commands::Skill { .. } => "skill",
             Commands::Doctor { .. } => "doctor",
             Commands::Onboard => "onboard",

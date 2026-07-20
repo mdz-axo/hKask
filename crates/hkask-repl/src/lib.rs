@@ -7,8 +7,6 @@
 //! - Welcome banner with the Kask amphora logo
 //! - Categorized help so the menu is scannable
 
-mod builtin_servers;
-
 #[cfg(feature = "tui")]
 use hkask_tui::SystemBridge;
 mod cns_display;
@@ -59,19 +57,25 @@ pub struct TalkConfig {
     pub voice_design: Option<String>,
 }
 
-/// Manifest state — process manifest and its executor.
+/// Manifest cascade — process manifest paired with its executor.
 ///
-/// Both are `Some` together (manifest loaded + executor built) or both
-/// `None` (no manifest defined). The sub-struct makes this invariant
-/// explicit rather than relying on callers to keep two fields in sync.
+/// The two fields are always present together: the manifest defines the
+/// steps, the executor runs them. Wrapping in a single `Option` enforces
+/// the "both Some or both None" invariant at the type level — the invalid
+/// state `Some(manifest) + None(executor)` is unrepresentable.
 ///
 /// Cannot derive `Debug` because `ManifestExecutor` wraps non-Debug types
 /// (trait objects, secrets).
 #[allow(missing_debug_implementations)]
-pub struct ManifestState {
-    pub executor: Option<ManifestExecutor>,
-    pub manifest: Option<BundleManifest>,
+pub struct ManifestCascade {
+    pub manifest: BundleManifest,
+    pub executor: ManifestExecutor,
 }
+
+/// Manifest state — `Some` when the agent has a process manifest cascade
+/// defined, `None` otherwise. The invariant (both fields together) is
+/// enforced by the single `Option<ManifestCascade>` wrapper.
+pub type ManifestState = Option<ManifestCascade>;
 
 /// Tool prompt cache — the pre-formatted tool section and definitions.
 ///

@@ -322,10 +322,17 @@ impl RunpodHost {
         fields.push("dataCenterId: null".to_string());
 
         // Template ID (if set) — provides the image + startup script.
-        if !self.template_id.is_empty() {
+        // Takes precedence over self.template_id (which comes from config)
+        // so submit() can resolve a default template at runtime.
+        let template_id = if !spec.template_id.is_empty() {
+            spec.template_id
+        } else {
+            &self.template_id
+        };
+        if !template_id.is_empty() {
             fields.push(format!(
                 "templateId: \"{}\"",
-                Self::escape_graphql_string(&self.template_id)
+                Self::escape_graphql_string(template_id)
             ));
         }
 
@@ -361,6 +368,7 @@ struct PodDeploySpec<'a> {
     min_vcpu: u32,
     docker_image: &'a str,
     docker_args: &'a str,
+    template_id: &'a str,
 }
 
 #[async_trait::async_trait]
@@ -424,12 +432,18 @@ impl TrainingHost for RunpodHost {
 
         // The pod must resolve an image: either an explicit docker image or a
         // template id. Mirrors the SDK's `create_pod` validation.
-        // Default to the minimal axolotl-lora-trainer image pushed to Docker Hub
-        // (docker.io/mdzaxo/axolotl-lora-trainer:latest, ~44MB compressed).
-        // The image's bash entrypoint handles the full training lifecycle.
-        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE")
-            .unwrap_or_else(|_| "docker.io/mdzaxo/axolotl-lora-trainer:latest".to_string());
-        if docker_image.is_empty() && self.template_id.is_empty() {
+        // Default to the pre-built axolotl template (RunPod template ID
+        // `24s5mdxz26` — `winglian/axolotl-cloud:main-latest`). This template
+        // has axolotl + all deps pre-installed, avoiding the pip-install
+        // restart loop (Lesson 10 in runpod-lora-training-guide.md).
+        // Override with RUNPOD_DOCKER_IMAGE for custom images.
+        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE").unwrap_or_default();
+        let template_id = if !self.template_id.is_empty() {
+            self.template_id.clone()
+        } else {
+            std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_else(|_| "24s5mdxz26".to_string())
+        };
+        if docker_image.is_empty() && template_id.is_empty() {
             return Err(ProviderError::InvalidConfig(
                 "Either RUNPOD_DOCKER_IMAGE or RUNPOD_TEMPLATE_ID must be set to create a RunPod pod"
                     .to_string(),
@@ -616,6 +630,7 @@ impl TrainingHost for RunpodHost {
                 min_vcpu,
                 docker_image: &docker_image,
                 docker_args: &docker_args,
+                template_id: &template_id,
             },
             &env_entries,
         );
@@ -841,6 +856,7 @@ mod tests {
                 min_vcpu: 8,
                 docker_image: "",
                 docker_args: "",
+                template_id: "v2ickqhz9s",
             },
             &[("HKASK_JOB_ID", "job-1".to_string())],
         );
@@ -871,6 +887,7 @@ mod tests {
                 min_vcpu: 8,
                 docker_image: "runpod/pytorch:2.6.0",
                 docker_args: "",
+                template_id: "",
             },
             &[],
         );
@@ -890,6 +907,7 @@ mod tests {
                 min_vcpu: 8,
                 docker_image: "",
                 docker_args: "",
+                template_id: "",
             },
             &[],
         );

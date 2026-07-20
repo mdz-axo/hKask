@@ -632,32 +632,3 @@ pub enum SkillAction {
         json: bool,
     },
 }
-
-/// Trained adapter lifecycle — Phase 2: pending MCP/API migration.
-/// Runtime operations that will move to an MCP server or API route.
-#[derive(Debug, Subcommand)]
-pub enum AdapterAction {
-    /// List trained adapters (delegates to training MCP)
-    List {
-        #[arg(short, long)]
-        skill: Option<String>,
-    },
-    /// Deploy an adapter to a cloud inference provider
-    Deploy {
-        /// Adapter name or ID
-        adapter: String,
-        /// Cloud provider (together, runpod)
-        #[arg(short, long, default_value = "together")]
-        provider: String,
-    },
-    /// Check deployment status
-    Status {
-        /// Deployment ID from deploy command
-        deployment_id: String,
-    },
-    /// Tear down a deployed endpoint
-    Teardown {
-        /// Deployment ID to tear down
-        deployment_id: String,
-    },
-}

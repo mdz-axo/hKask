@@ -177,6 +177,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "Pod lifecycle management",
     },
     SlashCommand {
+        primary: "adapter",
+        aliases: &[],
+        args: "list | status <job_id> | deploy <id> <provider> | teardown <id>",
+        about: "Trained adapter lifecycle",
+    },
+    SlashCommand {
         primary: "consolidate",
         aliases: &["cons"],
         args: "[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]",
@@ -348,6 +354,7 @@ pub(super) fn handle_slash_command(
         "goal" => handlers::handle_goal(arg1, arg2, state, rt),
         "kata" => handlers::handle_kata(arg1, arg2, state, rt),
         "pod" => handlers::handle_pod(arg1, arg2, state, rt),
+        "adapter" => handlers::handle_adapter(arg1, arg2, state),
         "start" | "tour" | "onboarding" => handlers::handle_start(state),
         "feedback" => handlers::handle_feedback(state),
         "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),

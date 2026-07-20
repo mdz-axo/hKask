@@ -400,14 +400,10 @@ pub(super) fn init_repl_state(
     ensure_daemon_running(rt);
 
     // ── Phase 8: Core MCP Server Auto-Start ────────────────────────────────
-    const CORE_EXCLUDED: &[&str] = &[
-        "companies",
-        "communication",
-        "fal",
-        "fal-workflow",
-        "training",
-        "replica",
-    ];
+    // Excluded servers require explicit opt-in via `/mcp start` (P2: Affirmative
+    // Consent). Every entry MUST exist in `hkask_mcp::BUILTIN_SERVERS` — the
+    // compile-time assertion below enforces this to prevent phantom exclusions.
+    const CORE_EXCLUDED: &[&str] = &["companies", "communication", "training", "replica"];
     let mcp_runtime = ctx.infra().mcp.clone().clone();
     let degraded = rt.block_on(async {
         let mut started = 0u32;
@@ -431,6 +427,17 @@ pub(super) fn init_repl_state(
                 }
             }
         }
+        // Compile-time invariant: every CORE_EXCLUDED entry must exist in
+        // BUILTIN_SERVERS. Prevents phantom exclusions (e.g., removed servers
+        // that silently no-op the exclusion). Evaluated at runtime here because
+        // BUILTIN_SERVERS is a runtime constant slice; a true const_assert would
+        // require const fn on the slice.
+        debug_assert!(
+            CORE_EXCLUDED
+                .iter()
+                .all(|ex| { hkask_mcp::BUILTIN_SERVERS.iter().any(|(id, _)| id == ex) }),
+            "CORE_EXCLUDED references a server not in BUILTIN_SERVERS"
+        );
         if started > 0 {
             tracing::info!(
                 target: "hkask.repl",

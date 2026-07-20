@@ -154,8 +154,6 @@ fn main() {
 
         Commands::Keystore { action } => commands::keystore::run(action),
 
-        Commands::Adapter { action } => commands::adapter::run(action),
-
         Commands::Skill { action } => commands::skill::run(action),
 
         Commands::Doctor { bootstrap } => {
