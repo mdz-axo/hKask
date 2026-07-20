@@ -143,6 +143,20 @@ mod tests {
     }
 
     #[test]
+    fn strip_html_removes_empty_comment() {
+        // Empty comment <!--> should be stripped entirely (HTML5 allows it).
+        let input = "<p>before</p><!--><p>after</p>";
+        assert_eq!(strip_html(input), "before\nafter");
+    }
+
+    #[test]
+    fn strip_html_removes_empty_double_dash_comment() {
+        // The minimal valid comment is <!-- --> (with space). Verify it works.
+        let input = "<p>a</p><!-- --><p>b</p>";
+        assert_eq!(strip_html(input), "a\nb");
+    }
+
+    #[test]
     fn strip_html_removes_script_content() {
         let input = "<script>alert('hi')</script><p>visible</p>";
         assert_eq!(strip_html(input), "visible");
