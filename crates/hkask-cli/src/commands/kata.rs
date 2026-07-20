@@ -643,7 +643,7 @@ fn bind_task_gas_accountant(
     // default key (same as the MCP server).
     let passphrase = std::env::var("HKASK_DB_PASSPHRASE")
         .unwrap_or_else(|_| format!("__k4nb4n__{}__d3f4ult__", bot));
-    let db = hkask_storage::Database::open(&kanban_db_path, &passphrase)
+    let db = hkask_storage::Database::open(&kanban_db_path.to_string_lossy(), &passphrase)
         .map_err(|e| format!("failed to open kanban database: {}", e))?;
     let pool = db
         .sqlite_pool()
