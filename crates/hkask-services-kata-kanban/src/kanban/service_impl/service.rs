@@ -801,8 +801,15 @@ impl KanbanService {
 
     /// Unassign a task — remove the assignee.
     ///
-    /// pre:  task_id is valid
-    /// post: task.assignee is set to None
+    /// Authority model: the task owner (creator) has unilateral unassignment
+    /// authority. This is consistent with kanban semantics where the task
+    /// creator owns the task lifecycle. The assignee's consent is not required
+    /// for unassignment because the owner bears the responsibility for the
+    /// task's completion. The `unjam_fix` auto-unassign uses the same path
+    /// with `task.owner` as the actor after a 24h idle timeout.
+    ///
+    /// pre:  task_id is valid; actor is the task owner
+    /// post: task.assignee is set to None; task.updated_at refreshed
     #[must_use = "result must be used"]
     pub fn task_unassign(&self, task_id: TaskId, actor: WebID) -> Result<Task, KanbanError> {
         let mut task = self.task_get(task_id)?.ok_or_else(|| {
