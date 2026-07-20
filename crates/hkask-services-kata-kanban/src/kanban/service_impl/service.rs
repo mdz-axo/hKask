@@ -29,6 +29,9 @@ use crate::kata::{KataManifest, KataResult};
 ///
 /// Persists boards and tasks as RDF h_mems in a HMemStore.
 /// Public surface: board and task coordination operations.
+///
+/// `Clone` is required because the REPL caches the service in `ReplState`
+/// and clones it per-command to avoid holding a borrow across the REPL loop.
 #[derive(Clone)]
 pub struct KanbanService {
     pub(crate) store: HMemStore,
