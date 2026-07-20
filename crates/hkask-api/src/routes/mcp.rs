@@ -8,8 +8,8 @@
 //! # Service layer depth test
 //!
 //! McpService was considered but **rejected** as shallow: every handler is a
-//! thin delegation to `McpRuntime`/`McpDispatcher` methods (`list_servers`,
-//! `discover_tools`, `invoke`, `get_tool_info`) plus HTTP response mapping.
+//! thin delegation to `McpRuntime` methods (`list_servers`, `discover_tools`,
+//! `invoke`, `get_tool_info`) plus HTTP response mapping.
 //! No CLI MCP commands share this logic (CLI `commands/mcp.rs` uses a separate
 //! `create_mcp_dispatcher_with_servers` path). An McpService would just be
 //! `self.infra().mcp.clone().discover_tools()` — a pure pass-through.
@@ -20,8 +20,8 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::State};
+use hkask_ports::ToolPort;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_templates::McpPort;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use utoipa_axum::{router::OpenApiRouter, routes};
@@ -170,39 +170,36 @@ pub(crate) async fn mcp_invoke(
         req.input
     };
 
-    // Invoke via the MCP dispatcher with the authenticated capability token
-    let result = state
-        .agent_service
-        .governance()
-        .dispatcher
+    let runtime = &state.agent_service.infra().mcp;
+    let server_id = runtime
+        .get_tool_info(&req.tool)
+        .await
+        .map(|tool| tool.server_id)
+        .ok_or_else(|| ServiceError::Domain {
+            kind: ErrorKind::NotFound,
+            domain: DomainKind::Infrastructure,
+            message: format!("Tool '{}' is not registered", req.tool),
+            source: None,
+        })?;
+    let result = runtime
         .invoke(
+            &server_id,
             &req.tool,
             input,
             auth.token.as_ref().ok_or_else(|| ServiceError::Domain {
-                kind: hkask_services_core::ErrorKind::BadRequest,
-                domain: hkask_services_core::DomainKind::Storage,
+                kind: ErrorKind::BadRequest,
+                domain: DomainKind::Storage,
                 message: "Session auth not supported for MCP invoke".to_string(),
                 source: None,
             })?,
         )
         .await
-        .map_err(|e| ServiceError::Domain {
-            kind: hkask_services_core::ErrorKind::BadRequest,
-            domain: hkask_services_core::DomainKind::Storage,
-            message: e.to_string(),
+        .map_err(|error| ServiceError::Domain {
+            kind: ErrorKind::BadRequest,
+            domain: DomainKind::Infrastructure,
+            message: error.to_string(),
             source: None,
         })?;
-
-    // Resolve server_id from the runtime's tool registry
-    let server_id = state
-        .agent_service
-        .infra()
-        .mcp
-        .clone()
-        .get_tool_info(&req.tool)
-        .await
-        .map(|t| t.server_id)
-        .unwrap_or_else(|| "unknown".to_string());
 
     Ok(Json(McpInvokeResponse {
         server: server_id,
