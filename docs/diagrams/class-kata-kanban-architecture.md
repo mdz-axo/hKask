@@ -3,7 +3,9 @@
 **Diataxis type:** Reference
 **Status:** Current (v0.31.0)
 
-This diagram maps the structural relationships in the `hkask-mcp-kata-kanban` MCP server and its backing `hkask-services-kata-kanban` service crate. The MCP server (`KanbanServer`) is a thin tri-surface wrapper that delegates every tool call to `KanbanService`. The service owns an `HMemStore` (board/task persistence) and an optional `ActivePods` (subagent spawning). Full kata execution is available through the CLI `kask kata start` command, which constructs a `KataEngine` directly — the kanban service exposes only kata prompt generation (`task_coaching_prompt` / `task_improvement_prompt` / `task_practice_prompt`) for MCP/REPL surfaces.
+This diagram maps the structural relationships in the `hkask-mcp-kata-kanban` MCP server and its backing `hkask-services-kata-kanban` service crate. The MCP server (`KanbanServer`) is a thin tri-surface wrapper that delegates every tool call to `KanbanService`. The service owns an `HMemStore` (board/task persistence) and an optional `ActivePods` (subagent spawning). Full kata execution is available through the CLI `kask kata start` command, which constructs a `KataEngine` directly. The kanban service exposes kata prompt generation (`task_coaching_prompt` / `task_improvement_prompt` / `task_practice_prompt`) for MCP/REPL surfaces.
+
+The `--task <id>` flag on `kask kata start` binds a `TaskGasAccountant` to the engine, closing the per-task gas feedback loop: each inference call's actual token usage is deducted from the bound kanban task's `gas_remaining` budget via `task_consume_gas`.
 
 Cross-links:
 - [Kata PDCA Lifecycle State Machine](../how-to/skills-and-composition.md#kata-pdca-lifecycle-state-machine) — single-pass execution flow
@@ -92,12 +94,24 @@ classDiagram
         +history_store: Option~Arc~KataHistoryStore~~
         +metric_collector: Option~MetricCollectorFn~
         +cns_runtime: Option~Arc~RwLock~CnsRuntime~~
+        +task_gas_accountant: Option~Arc~dyn TaskGasAccountant~~
         +new() KataEngine
         +from_env() KataEngine
         +execute() Result~KataResult~
         +run_bundle() Result~KataResult~
         +load_manifest() Result~KataManifest~
         +record_history_entry() Result~Option~i64~~
+        +with_task_gas_accountant() KataEngine
+    }
+
+    class TaskGasAccountant {
+        <<interface>>
+        +consume(cost, reason) Result~u64~
+    }
+
+    class KanbanTaskGasAccountant {
+        -service: Arc~KanbanService~
+        -task_id: TaskId
     }
 
     class HMemStore {
@@ -162,6 +176,10 @@ classDiagram
     KanbanService --> HMemStore : persists via
     KanbanService --> Board : manages
     KanbanService --> Task : manages
+    KanbanService ..> TaskGasAccountant : gas_accountant_for()
+    KanbanTaskGasAccountant ..|> TaskGasAccountant : implements
+    KataEngine --> TaskGasAccountant : with_task_gas_accountant()
+    KataEngine ..> KanbanService : CLI constructs directly, not via service
     Board --> ColumnDef : contains
     Board --> KanbanPhase : contains
     Task --> TaskStatus : has
@@ -169,7 +187,6 @@ classDiagram
     Task --> GasEntry : audit trail
     Task --> Verification : result
     SocraticRole ..> Task : spawns inquiries as
-    KataEngine ..> KanbanService : CLI constructs directly, not via service
 ```
 
 <!-- DIAGRAM_ALIGNMENT

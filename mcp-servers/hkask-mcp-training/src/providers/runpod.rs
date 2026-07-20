@@ -591,18 +591,21 @@ impl TrainingHost for RunpodHost {
 
         // Generate docker args if not provided via env var.
         // The image `docker.io/mdzaxo/axolotl-lora-trainer:latest` ships a bash
-        // entrypoint at /usr/local/bin/entrypoint.sh that handles the full
-        // training lifecycle: pip install axolotl, write config from
-        // HKASK_AXOLOTL_CONFIG, run `axolotl train`, upload adapter via
-        // `huggingface-cli upload`, write completion manifest, and
+        // entrypoint at /usr/local/bin/entrypoint.sh (set as Docker ENTRYPOINT)
+        // that handles the full training lifecycle: pip install axolotl, write
+        // config from HKASK_AXOLOTL_CONFIG, run `axolotl train`, upload adapter
+        // via `huggingface-cli upload`, write completion manifest, and
         // `exec sleep infinity` for SSH debugging.
         //
-        // We invoke the entrypoint directly (no inline bash, no Python) —
-        // the entrypoint is the single source of truth for pod startup logic,
-        // and Rust remains the single source of truth for config generation
-        // (per AGENTS.md tooling policy: Rust only, no Python in our code).
-        let docker_args = std::env::var("RUNPOD_DOCKER_ARGS")
-            .unwrap_or_else(|_| "/usr/local/bin/entrypoint.sh".to_string());
+        // We do NOT set dockerArgs by default — RunPod's dockerArgs overrides
+        // the Docker CMD, and our image uses ENTRYPOINT (not CMD) to invoke
+        // the entrypoint. Setting dockerArgs would pass the script path as
+        // arguments to the entrypoint, causing unexpected behavior. Leaving
+        // dockerArgs empty lets the image's ENTRYPOINT run naturally.
+        //
+        // RUNPOD_DOCKER_ARGS remains available as an override for operators
+        // who need to customize the startup command.
+        let docker_args = std::env::var("RUNPOD_DOCKER_ARGS").unwrap_or_default();
 
         let mutation = self.build_pod_deploy_mutation(
             &job.id,

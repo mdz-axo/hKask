@@ -5,6 +5,8 @@
 
 This diagram shows the valid state transitions for a kanban `Task`. Transitions are column-ordered: forward one step or backward one step — no skipping. The `task_reopen` operation is a special backward transition from `Done` directly to `InProgress` (clearing verification), bypassing the one-step rule. Gas/rJoule exhaustion auto-completes a task from `InProgress` or `Review` directly to `Done` via `task_gas_exhaust`.
 
+The gas feedback loop is now wired: when `kask kata start --task <id>` is used, each inference call deducts its actual token cost from `task.gas_remaining` via `task_consume_gas`. When `gas_remaining` hits 0, the `unjam_fix` auto-completion path detects the exhausted task (after a 60-minute grace period) and completes it via `task_gas_exhaust`.
+
 Cross-links:
 - [Kata-Kanban Architecture](class-kata-kanban-architecture.md) — DIAG-IC-017
 - [Kata PDCA Lifecycle](../how-to/skills-and-composition.md#kata-pdca-lifecycle-state-machine) — PDCA phase mapping
