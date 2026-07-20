@@ -117,7 +117,7 @@ impl ProviderId {
     /// uppercase ASCII letters before the slash — i.e. it *looks* like a
     /// provider-prefixed name even when the prefix is not recognized.
     ///
-    /// [`InferenceRouter::resolve`] uses this to reject unknown prefixes
+    /// `InferenceRouter::parse_provider` uses this to reject unknown prefixes
     /// with a clear error rather than silently routing them to the default
     /// provider as a garbage model name.
     ///

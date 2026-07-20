@@ -54,9 +54,11 @@ async fn main() -> anyhow::Result<()> {
     let base_model = "Qwen/Qwen3-1.7B".to_string();
 
     // Minimal params: 1 epoch, default LoRA (r=16, alpha=32).
-    let mut params = TrainingParams::default();
-    params.num_epochs = 1;
-    params.batch_size = 1;
+    let params = TrainingParams {
+        num_epochs: 1,
+        batch_size: 1,
+        ..Default::default()
+    };
 
     let mut job = TrainingJob::new(
         dataset_path,

@@ -18,7 +18,7 @@ use zeroize::Zeroizing;
 /// a known attack pattern (OWASP LLM07:2025 System Prompt Leakage).
 ///
 /// Source: OWASP LLM Top 10 (2025), Thinkst canarytokens
-/// (https://www.toxsec.com/p/canary-tokens-for-prompt-injection)
+/// (<https://www.toxsec.com/p/canary-tokens-for-prompt-injection>)
 #[derive(Debug, Clone)]
 pub struct CanaryToken(Zeroizing<String>);
 
