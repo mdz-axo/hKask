@@ -23,8 +23,7 @@ pub struct ActivePods {
     deployments: RwLock<HashMap<PodID, PodDeployment>>,
     factory: Option<Arc<PodFactory>>,
     a2a_runtime: Option<Arc<A2ARuntime>>,
-    mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
-    governed_tool: Arc<McpRuntime>,
+    mcp_runtime: Option<Arc<McpRuntime>>,
     capability_checker: Option<Arc<CapabilityChecker>>,
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
     episodic_adapter: Option<Arc<dyn EpisodicStoragePort>>,
@@ -44,7 +43,6 @@ impl ActivePods {
             factory: None,
             a2a_runtime: None,
             mcp_runtime: None,
-            governed_tool: Arc::new(McpRuntime::new()),
             capability_checker: None,
             nu_event_sink: None,
             episodic_adapter: None,
@@ -135,7 +133,6 @@ impl ActivePods {
         ));
         Self::new().with_a2a_runtime(a2a).with_factory_and_ports(
             factory,
-            mcp.clone(),
             Arc::new(McpRuntime::new()),
             Some(checker),
             None,
@@ -150,8 +147,7 @@ impl ActivePods {
     pub fn with_factory_and_ports(
         mut self,
         factory: Arc<PodFactory>,
-        mcp_runtime: Arc<dyn MCPRuntimePort>,
-        governed_tool: Arc<McpRuntime>,
+        mcp_runtime: Arc<McpRuntime>,
         capability_checker: Option<Arc<CapabilityChecker>>,
         nu_event_sink: Option<Arc<dyn NuEventSink>>,
         episodic_adapter: Arc<dyn EpisodicStoragePort>,
@@ -159,7 +155,6 @@ impl ActivePods {
     ) -> Self {
         self.factory = Some(factory);
         self.mcp_runtime = Some(mcp_runtime);
-        self.governed_tool = governed_tool;
         self.capability_checker = capability_checker;
         self.nu_event_sink = nu_event_sink;
         self.episodic_adapter = Some(episodic_adapter);
@@ -340,7 +335,6 @@ impl ActivePods {
                 persona,
                 pod_kind,
                 mcp,
-                self.governed_tool.clone(),
                 self.capability_checker.clone(),
                 self.nu_event_sink.clone(),
                 self.inference_port.clone(),

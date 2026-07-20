@@ -9,7 +9,6 @@
 
 use std::sync::Arc;
 
-use hkask_mcp::McpRuntime;
 use hkask_ports::ToolPort;
 use hkask_services_chat::{ChatService, TurnRequest, TurnResult};
 use hkask_services_context::AgentService;
@@ -19,7 +18,6 @@ use hkask_types::WebID;
 
 use super::energy::EnergyGuard;
 use super::threads::ThreadRegistry;
-use super::turn::ToolCall;
 
 // ── TurnInput: primitive inputs to a turn ────────────────────────────
 

@@ -19,7 +19,6 @@ use serde_json::Value;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tracing::warn;
 
 // ── McpDispatcher ──
 

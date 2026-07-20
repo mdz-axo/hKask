@@ -53,12 +53,8 @@ pub struct PodContext {
     episodic_storage: Arc<dyn EpisodicStoragePort>,
     /// Semantic memory storage — shared, public knowledge (OCAP: DelegationToken)
     semantic_storage: Arc<dyn SemanticStoragePort>,
-    mcp_runtime: Arc<dyn MCPRuntimePort>,
-    /// GovernedTool membrane — routes tool invocations through CNS governance
-    /// (energy budget, variety tracking, event spans). When present, `invoke_tool`
-    /// routes through this membrane instead of the raw `mcp_runtime`, ensuring
-    /// pod-initiated calls are subject to Cybernetics governance.
-    governed_tool: Arc<McpRuntime>,
+    mcp_runtime: Arc<McpRuntime>,
+
     /// Cryptographic capability checker for OCAP verification.
     /// When set, `require_capability()` verifies the token's Ed25519 signature
     /// against the configured trusted root(s) and that it is delegated to this
@@ -94,7 +90,7 @@ impl PodContext {
             episodic_storage: Arc::clone(&deployment.episodic_storage),
             semantic_storage: Arc::clone(&deployment.semantic_storage),
             mcp_runtime: Arc::clone(&deployment.mcp_runtime),
-            governed_tool: deployment.tools.governed_tool.clone(),
+
             capability_checker: deployment.capability_checker.clone(),
             sovereignty_checker: Some(Arc::new(deployment.sovereignty_checker.clone())),
             cns: deployment.cns.clone(),
@@ -509,23 +505,16 @@ impl PodContext {
             DelegationAction::Execute,
         )?;
 
-        let server = self
-            .mcp_runtime
-            .resolve_tool_server(tool_name)
-            .ok_or_else(|| {
-                let msg = format!(
-                    "Tool '{}' not registered on any MCP server — invocation denied",
-                    tool_name
-                );
-                AgentPodError::ToolError(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    msg,
-                )))
-            })?;
-
         let rt = tokio::runtime::Handle::current();
-        match rt.block_on(self.governed_tool.invoke(
-            &server,
+        // Look up server for tool asynchronously, then invoke synchronously.
+        let server_id = rt
+            .block_on(async {
+                let info = self.mcp_runtime.get_tool_info(tool_name).await?;
+                Some(info.server_id)
+            })
+            .unwrap_or_else(|| tool_name.to_string());
+        match rt.block_on(self.mcp_runtime.invoke(
+            &server_id,
             tool_name,
             input,
             &self.capability_token,

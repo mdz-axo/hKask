@@ -36,7 +36,7 @@ use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
 use hkask_cns::types::loops::CuratorHandle;
 use hkask_cns::types::loops::HkaskLoop;
-use hkask_cns::types::loops::{CurationInput, CuratorDirective, ToolConsumptionEvent};
+use hkask_cns::types::loops::{CurationInput, CuratorDirective};
 use hkask_cns::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, SeamSummary,
     SeamWatcher, load_set_points,

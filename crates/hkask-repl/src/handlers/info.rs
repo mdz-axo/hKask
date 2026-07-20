@@ -1,6 +1,5 @@
 //! REPL info handlers — /history, /pods, /templates, /tools
 
-use hkask_ports::ToolPort;
 use hkask_services_chat::MemoryService;
 
 pub fn handle_history(state: &super::super::ReplState) {

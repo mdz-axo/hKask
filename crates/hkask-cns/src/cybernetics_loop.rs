@@ -53,7 +53,7 @@ use crate::regulation_policy::{
 };
 use crate::types::loops::{
     ActionDecision, ActionType, CurationInput, Deviation, HkaskLoop, ImpactReport, LoopAction,
-    LoopActionParams, LoopId, LoopQuality, Signal, SignalMetric, ToolConsumptionEvent,
+    LoopActionParams, LoopId, LoopQuality, Signal, SignalMetric,
     TriggerOrigin,
 };
 use crate::types::loops::{BudgetOption, RegulationData};
@@ -97,7 +97,6 @@ pub struct CyberneticsLoop {
     /// Direct alerts channel: Cybernetics → Curation (CurationInput).
     alerts_tx: Option<mpsc::UnboundedSender<CurationInput>>,
     /// Direct tool consumption channel: GovernedTool → Cybernetics.
-    tool_consumption_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<ToolConsumptionEvent>>>>,
     /// Direct curator directive channel: Curation → Cybernetics.
     curator_directive_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<CuratorDirective>>>>,
     /// Loop-quality telemetry from the most recent tick cycle.
@@ -186,7 +185,6 @@ impl CyberneticsLoop {
             dampener,
             event_sink: None,
             alerts_tx: None,
-            tool_consumption_rx: None,
             slo_provider: None,
             curator_directive_rx: None,
             loop_quality: RwLock::new(LoopQuality::default()),
@@ -228,13 +226,6 @@ impl CyberneticsLoop {
     /// expect: "The system provides configurable cybernetic self-regulation"
     /// post: returns Self for chaining
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_tool_consumption_channel(
-        mut self,
-        rx: mpsc::UnboundedReceiver<ToolConsumptionEvent>,
-    ) -> Self {
-        self.tool_consumption_rx = Some(Arc::new(RwLock::new(rx)));
-        self
-    }
 
     /// Wire the direct curator directive channel: Curation → Cybernetics.
     ///
@@ -733,25 +724,6 @@ impl CyberneticsLoop {
             }
         }
 
-        // Drain direct tool consumption channel.
-        if let Some(ref rx) = self.tool_consumption_rx {
-            let mut tc_rx = rx.write().await;
-            let mut tc_processed = 0;
-            while let Ok(event) = tc_rx.try_recv() {
-                tc_processed += 1;
-                tracing::info!(
-                    target: "cns.cybernetics",
-                    tool = %event.tool_name,
-                    agent = %event.agent,
-                    gas_cost = event.gas_cost,
-                    success = event.success,
-                    "Tool consumption event received (direct channel)"
-                );
-            }
-            if tc_processed > 0 {
-                tracing::info!(target: "cns.cybernetics", processed = tc_processed, "Processed direct tool consumption events");
-            }
-        }
 
         self.gas_budget_manager
             .read()

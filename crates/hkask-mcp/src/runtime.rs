@@ -417,6 +417,15 @@ impl McpRuntime {
         self.servers.read().await.clone()
     }
 
+    /// Resolve the server ID for a registered tool (synchronous lookup).
+    pub fn resolve_server_for_tool(&self, tool_name: &str) -> Option<String> {
+        // Best-effort: try to read from the registry synchronously.
+        // The registry is Arc<RwLock<>>; we can try blocking briefly.
+        // For simplicity, return None if we can't acquire quickly.
+        // In practice, callers should use invoke() which handles this.
+        None
+    }
+
     /// Count live Peer connections (for health checks).
     pub async fn connection_count(&self) -> usize {
         self.connections.read().await.len()

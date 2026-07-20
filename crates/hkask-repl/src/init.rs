@@ -15,7 +15,7 @@ use hkask_cns::{GasBudget, GasCost};
 
 use super::{TalkConfig, TalkMode};
 use hkask_mcp::McpRuntime;
-use hkask_ports::{ToolInfo, ToolPort};
+use hkask_ports::{ToolInfo};
 use hkask_templates::{ManifestExecutor, McpPort};
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;

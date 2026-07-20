@@ -61,7 +61,7 @@ pub struct PodDeployment {
     /// NuEvent sink for lifecycle events
     pub nu_event_sink: Option<Arc<dyn NuEventSink>>,
     /// MCP runtime for tool dispatch
-    pub mcp_runtime: Arc<dyn MCPRuntimePort>,
+    pub mcp_runtime: Arc<McpRuntime>,
     /// Episodic storage port (backed by this pod's SQLCipher)
     pub episodic_storage: Arc<dyn EpisodicStoragePort>,
     /// Semantic storage port (backed by this pod's SQLCipher)
@@ -108,8 +108,7 @@ pub struct PerPodCnsRuntime {
 /// PerPodToolBinding owns the MCP server instances for this pod.
 ///
 pub struct PerPodToolBinding {
-    pub mcp_runtime: Arc<dyn MCPRuntimePort>,
-    pub governed_tool: Arc<McpRuntime>,
+    pub mcp_runtime: Arc<McpRuntime>,
 }
 
 // ── PodDeployError ──────────────────────────────────────────────────────────
@@ -243,8 +242,7 @@ impl PodFactory {
         template_name: &str,
         persona: &AgentPersona,
         pod_kind: PodKind,
-        mcp_runtime: Arc<dyn MCPRuntimePort>,
-        governed_tool: Arc<McpRuntime>,
+        mcp_runtime: Arc<McpRuntime>,
         capability_checker: Option<Arc<CapabilityChecker>>,
         nu_event_sink: Option<Arc<dyn NuEventSink>>,
         inference_port: Option<Arc<dyn InferencePort>>,
@@ -269,7 +267,6 @@ impl PodFactory {
 
         let tools = PerPodToolBinding {
             mcp_runtime: Arc::clone(&mcp_runtime),
-            governed_tool,
         };
         let sovereignty_checker = pod.sovereignty_checker.clone();
 

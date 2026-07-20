@@ -28,7 +28,6 @@ mod tui_bridges;
 mod turn;
 
 use hkask_mcp::runtime::McpRuntime;
-use hkask_ports::ChatToolDefinition;
 use hkask_services_context::AgentService;
 use hkask_services_kata_kanban::KanbanService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};

@@ -20,7 +20,6 @@ pub(super) struct LoopWiring {
     pub inference_port: Option<Arc<dyn InferencePort>>,
     pub episodic_storage: Arc<dyn EpisodicStoragePort>,
     pub semantic_storage: Arc<dyn SemanticStoragePort>,
-    pub tool_consumption_tx: tokio::sync::mpsc::UnboundedSender<ToolConsumptionEvent>,
     pub a2a_runtime: Arc<hkask_agents::A2ARuntime>,
     /// CuratorContext — late-bound ManifestExecutor set after MCP pods built.
     pub curator_context: Arc<hkask_agents::CuratorContext>,
@@ -50,8 +49,6 @@ pub(super) async fn build_loops(
 ) -> Result<LoopWiring, ServiceError> {
     let loop_system = Arc::new(LoopSystem::new());
 
-    let (tool_consumption_tx, tool_consumption_rx) =
-        tokio::sync::mpsc::unbounded_channel::<ToolConsumptionEvent>();
     let (curator_directive_tx, curator_directive_rx) =
         tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
 
@@ -60,7 +57,6 @@ pub(super) async fn build_loops(
     let cybernetics_loop = CyberneticsLoop::with_set_points(Arc::clone(&f.cns_runtime), set_points)
         .with_event_sink(Arc::clone(&f.cns_event_sink))
         .with_alerts_channel(f.curation_inbox_tx.clone())
-        .with_tool_consumption_channel(tool_consumption_rx)
         .with_curator_directive_channel(curator_directive_rx)
         .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
             &f.nu_event_store,
@@ -279,7 +275,6 @@ pub(super) async fn build_loops(
         inference_port,
         episodic_storage,
         semantic_storage,
-        tool_consumption_tx,
         a2a_runtime,
         curator_context: curator_context_for_loops,
         federation_link_manager,

@@ -4,7 +4,6 @@
 //! Servers are listed with numbered status; user opts in by name, number pattern,
 //! or "all".
 
-use hkask_ports::ToolPort;
 
 use super::super::builtin_servers;
 
