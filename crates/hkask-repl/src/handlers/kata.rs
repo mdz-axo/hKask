@@ -261,7 +261,7 @@ fn start_kata(
     );
     println!();
 
-    let result = rt.block_on(async { engine.execute(&manifest, bot, &ctx).await });
+    let result = rt.block_on(async { engine.execute(&manifest, bot, ctx).await });
 
     match result {
         Ok(kata_result) => {
@@ -270,14 +270,14 @@ fn start_kata(
             println!("    Gas consumed: {}", kata_result.gas_consumed);
             println!();
         }
-        Err(KataError::NoSteps) => {
+        Err(KataError::NoSteps(_)) => {
             eprintln!(
                 "  \x1b[31m✗\x1b[0m Kata '{}' has no steps/questions/practices",
                 name
             );
             println!();
         }
-        Err(KataError::GasExceeded) => {
+        Err(KataError::GasExceeded { .. }) => {
             eprintln!("  \x1b[31m✗\x1b[0m Kata '{}' exceeded gas budget", name);
             println!();
         }

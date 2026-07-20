@@ -165,6 +165,18 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "Goal coordination substrate",
     },
     SlashCommand {
+        primary: "kata",
+        aliases: &[],
+        args: "list | show <name> | start <name> [--bot <name>] [--ctx key=val]",
+        about: "Kata practice cycles (coaching, improvement, starter)",
+    },
+    SlashCommand {
+        primary: "pod",
+        aliases: &[],
+        args: "list | status <id> | create <template> <persona> [name] | activate <id> | deactivate <id>",
+        about: "Pod lifecycle management",
+    },
+    SlashCommand {
         primary: "consolidate",
         aliases: &["cons"],
         args: "[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]",
@@ -277,7 +289,7 @@ pub(super) fn handle_slash_command(
 
         // Delegated to handler modules
         "status" | "st" => handlers::handle_status(state, template_id, rt),
-        "agent" | "a" => handlers::handle_agent(arg1, state, rt),
+        "agent" | "a" => handlers::handle_agent(arg1, arg2, state, rt),
         "agents" | "ls" => handlers::handle_agents(state),
         "history" | "hist" => handlers::handle_history(state),
         "pods" => handlers::handle_pods(rt, state),
@@ -334,6 +346,8 @@ pub(super) fn handle_slash_command(
         "repl" => handlers::handle_repl_set(arg1, arg2, state),
         "skill" | "sk" => handlers::handle_skill(arg1, arg2, state),
         "goal" => handlers::handle_goal(arg1, arg2, state, rt),
+        "kata" => handlers::handle_kata(arg1, arg2, state, rt),
+        "pod" => handlers::handle_pod(arg1, arg2, state, rt),
         "start" | "tour" | "onboarding" => handlers::handle_start(state),
         "feedback" => handlers::handle_feedback(state),
         "listen" | "rec" | "record" => handlers::handle_listen(arg1, arg2, state, rt),

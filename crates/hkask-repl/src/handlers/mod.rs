@@ -11,11 +11,13 @@ pub mod goal;
 pub mod improv;
 pub mod info;
 pub mod invoke;
+pub mod kata;
 pub mod listen;
 #[cfg(feature = "communication")]
 pub mod matrix;
 pub mod mcp;
 pub mod model;
+pub mod pod;
 pub mod repl_settings;
 pub mod skill;
 pub mod start;
@@ -37,11 +39,13 @@ pub use improv::handle_improv;
 pub use info::{handle_history, handle_pods, handle_templates, handle_tools};
 pub use invoke::handle_invoke;
 pub use kanban::handle_kanban;
+pub use kata::handle_kata;
 pub use listen::handle_listen;
 #[cfg(feature = "communication")]
 pub use matrix::{handle_matrix, handle_msg};
 pub use mcp::handle_mcp;
 pub use model::handle_model;
+pub use pod::handle_pod;
 pub use repl_settings::{ReplSettings, handle_repl_set, to_llm_params};
 pub use skill::handle_skill;
 pub use start::handle_start;

@@ -21,6 +21,7 @@ hkask-services-kata-kanban = { path = "../hkask-services-kata-kanban" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }
 hkask-services-skill = { path = "../hkask-services-skill" }
 hkask-storage = { path = "../hkask-storage" }
+serde_yaml_neo.workspace = true
 hkask-database = { path = "../hkask-database" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-types = { path = "../hkask-types" }
