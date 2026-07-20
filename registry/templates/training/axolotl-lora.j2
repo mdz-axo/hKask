@@ -6,7 +6,7 @@
 # PiSSA (pissa_niter_4) is NOT supported — it is non-portable across
 # transformers/torch library versions (residual base mismatch produces
 # garbage output; SVD conversion has ~40-50% relative error per layer).
-# See: docs/how-to/axolotl-pissa-runpod-guide.md L267-283.
+# See: docs/how-to/runpod-lora-training-guide.md Lesson 6.
 base_model: {{ base_model }}
 adapter: lora
 load_in_4bit: {{ load_in_4bit | default("false") }}
