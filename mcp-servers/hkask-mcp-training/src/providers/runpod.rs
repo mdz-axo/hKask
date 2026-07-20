@@ -671,6 +671,7 @@ mod tests {
                 min_memory_gb: 80,
                 min_vcpu: 8,
                 docker_image: "",
+                docker_args: "",
             },
             &[("HKASK_JOB_ID", "job-1".to_string())],
         );
@@ -700,6 +701,7 @@ mod tests {
                 min_memory_gb: 24,
                 min_vcpu: 8,
                 docker_image: "runpod/pytorch:2.6.0",
+                docker_args: "",
             },
             &[],
         );
@@ -718,6 +720,7 @@ mod tests {
                 min_memory_gb: 24,
                 min_vcpu: 8,
                 docker_image: "",
+                docker_args: "",
             },
             &[],
         );
