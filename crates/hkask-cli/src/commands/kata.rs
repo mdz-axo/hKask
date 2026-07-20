@@ -5,6 +5,7 @@
 //! accumulates state. Uses the centralized inference router.
 
 use crate::cli::KataAction;
+use crate::error::CliError;
 use crate::experience::CliExperienceRecorder;
 use hkask_cns::CnsRuntime;
 use hkask_services_kata_kanban::{KataEngine, KataError, KataHistory, PracticeEntry};
@@ -620,23 +621,23 @@ fn bind_task_gas_accountant(
     _engine: &KataEngine,
     task_id_str: &str,
     bot: &str,
-) -> Result<Arc<dyn hkask_services_kata_kanban::TaskGasAccountant>, String> {
+) -> Result<Arc<dyn hkask_services_kata_kanban::TaskGasAccountant>, CliError> {
     use hkask_services_kata_kanban::kanban::KanbanService;
     use hkask_storage::HMemStore;
     use std::sync::Arc;
 
     let task_id: hkask_types::TaskId = task_id_str
         .parse()
-        .map_err(|e| format!("invalid task ID '{}': {}", task_id_str, e))?;
+        .map_err(|e| CliError::InvalidInput(format!("invalid task ID '{}': {}", task_id_str, e)))?;
 
     // Resolve the kanban DB path — same logic as the MCP server.
     let relative_path = hkask_types::agent_paths::agent_kanban_db(bot);
     let kanban_db_path = hkask_types::agent_paths::resolve_under_data_dir(&relative_path);
     if !kanban_db_path.exists() {
-        return Err(format!(
+        return Err(CliError::Config(format!(
             "kanban database not found at {} — run 'kask chat' first to initialize",
             kanban_db_path.display()
-        ));
+        )));
     }
 
     // Open the database. Use the default passphrase resolution — if
@@ -645,10 +646,10 @@ fn bind_task_gas_accountant(
     let passphrase = std::env::var("HKASK_DB_PASSPHRASE")
         .unwrap_or_else(|_| format!("__k4nb4n__{}__d3f4ult__", bot));
     let db = hkask_storage::Database::open(&kanban_db_path.to_string_lossy(), &passphrase)
-        .map_err(|e| format!("failed to open kanban database: {}", e))?;
+        .map_err(|e| CliError::Config(format!("failed to open kanban database: {}", e)))?;
     let pool = db
         .sqlite_pool()
-        .map_err(|e| format!("failed to get connection pool: {}", e))?;
+        .map_err(|e| CliError::Config(format!("failed to get connection pool: {}", e)))?;
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
         Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
     let store = HMemStore::from_driver(driver);
@@ -662,15 +663,17 @@ fn bind_task_gas_accountant(
             owner_webid TEXT NOT NULL
         )",
         )
-        .map_err(|e| format!("failed to initialize h_mems table: {}", e))?;
+        .map_err(|e| CliError::Io(format!("failed to initialize h_mems table: {}", e)))?;
 
     let svc = Arc::new(KanbanService::new(store));
 
     // Verify the task exists
     let task = svc
         .task_get(task_id)
-        .map_err(|e| format!("failed to query task: {}", e))?
-        .ok_or_else(|| format!("task {} not found in kanban database", task_id_str))?;
+        .map_err(|e| CliError::AgentService(format!("failed to query task: {}", e)))?
+        .ok_or_else(|| {
+            CliError::InvalidInput(format!("task {} not found in kanban database", task_id_str))
+        })?;
 
     if task.gas_remaining.is_none() {
         eprintln!(
