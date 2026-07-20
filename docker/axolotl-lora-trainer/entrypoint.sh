@@ -45,7 +45,7 @@ LOG_DIR="${WORKSPACE}/logs"
 mkdir -p "${WORKSPACE}" "${OUTPUT_DIR}" "${LOG_DIR}" \
     "${WORKSPACE}/.cache/huggingface" "${WORKSPACE}/.cache/pip" "${WORKSPACE}/tmp"
 
-# ── Critical environment variables (per docs/how-to/axolotl-pissa-runpod-guide.md) ─
+# ── Critical environment variables (per docs/how-to/runpod-lora-training-guide.md Lesson 1) ─
 # The RunPod container disk is only ~60GB. All caches MUST go to the 200GB+
 # workspace volume, or the disk fills up during pip install / dataset
 # tokenization and causes `No space left on device` → SIGSEGV crash → pod

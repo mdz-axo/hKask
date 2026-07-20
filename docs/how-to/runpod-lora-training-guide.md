@@ -374,6 +374,6 @@ sequenceDiagram
 
 | Date | Author | Change |
 |---|---|---|
-| 2026-07-19 | mdz-axo | Initial PiSSA guide (`axolotl-pissa-runpod-guide.md`) |
+| 2026-07-19 | mdz-axo | Initial PiSSA guide (deleted; superseded by this guide) |
 | 2026-07-19 | mdz-axo | Post-mortem: $600 billing leak, PiSSA→EVA, pod persistence |
 | 2026-07-20 | agent | Consolidated guide: Lessons 1-11 from this session's debugging |
