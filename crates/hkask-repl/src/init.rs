@@ -22,7 +22,6 @@ use hkask_types::template::LLMParameters;
 
 use super::ReplState;
 
-
 /// Load skills from `.agents/skills/` and `skills/` into the registry.
 ///
 /// Populates `registry.skills()` for bundle composition, skill listing,
@@ -283,7 +282,7 @@ fn load_thread_registry(agent_name: &str, stm_life: u32) -> crate::threads::Thre
 fn discover_tools(
     governed_tool: &Arc<McpRuntime>,
     rt: &tokio::runtime::Handle,
-) -> ToolPrompt {
+) -> Vec<hkask_ports::ChatToolDefinition> {
     let tool_names = rt.block_on(governed_tool.discover_tools());
     let mut tools: Vec<ToolInfo> = Vec::new();
     for name in &tool_names {
@@ -291,9 +290,17 @@ fn discover_tools(
             tools.push(info);
         }
     }
-    ToolPrompt {
-        definitions: tools_to_definitions(&tools),
-    }
+    tools
+        .iter()
+        .map(|tool| hkask_ports::ChatToolDefinition {
+            tool_type: "function".to_string(),
+            function: hkask_ports::ChatToolFunction {
+                name: format!("{}/{}", tool.server_id, tool.name),
+                description: tool.description.clone(),
+                parameters: tool.input_schema.clone(),
+            },
+        })
+        .collect()
 }
 
 // ── Orchestrator ───────────────────────────────────────────────────────────
@@ -512,9 +519,7 @@ pub(super) fn init_repl_state(
         active_session: None,
         resolved_secrets: onboarding_outcome.resolved_secrets,
         persona_constraints: None,
-            section: String::new(),
-            definitions: Vec::new(),
-        },
+        tool_definitions: Vec::new(),
         manifest_state: None,
         service_context: ctx.clone(),
         repl_settings,
@@ -532,6 +537,7 @@ pub(super) fn init_repl_state(
 
     // ── Phase 13: Tool Discovery ───────────────────────────────────────────
     let gov_tool = ctx.governed_tool(agent_webid);
+    state.tool_definitions = discover_tools(&gov_tool, rt);
 
     // ── Phase 14: Agent Definition + Process Manifest ───────────────────────
     let rich_def = ctx

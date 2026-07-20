@@ -80,59 +80,32 @@ pub enum TalkMode {
 /// Cannot derive `Debug` because `ManifestExecutor` wraps non-Debug types
 /// (trait objects, secrets).
 #[allow(missing_debug_implementations)]
+#[derive(Clone)]
 pub struct ManifestCascade {
     pub manifest: BundleManifest,
     pub executor: ManifestExecutor,
 }
 
 /// Manifest state — `Some` when the agent has a process manifest cascade
-/// defined, `None` otherwise. The invariant (both fields together) is
-/// enforced by the single `Option<ManifestCascade>` wrapper.
+/// defined, `None` otherwise.
 pub type ManifestState = Option<ManifestCascade>;
-
-/// Tool prompt cache — the pre-formatted tool section and definitions.
-///
-/// Both are refreshed together during MCP tool discovery (REPL init
-/// and after server start/stop). Cached because `ToolPort` uses
-/// `impl Trait` returns, making re-derivation via `Arc<dyn ToolPort>`
-/// infeasible without changing the port trait.
-#[derive(Debug, Clone)]
 
 /// REPL state — surface-specific presentation fields.
 /// All infrastructure (inference, memory, tool dispatch, gas tracking)
 /// is accessed through `service_context: Arc<AgentService>`.
 pub struct ReplState {
-    /// Agent WebID — derived from the agent name, used for memory operations
     pub agent_webid: WebID,
     pub current_model: String,
     pub current_agent: String,
     pub active_session: Option<String>,
-    /// Pre-resolved secrets from onboarding, carried forward to avoid
-    /// re-resolving from the OS keychain (which may use a mock backend
-    /// with EntryOnly persistence on Linux).
     pub resolved_secrets: Option<hkask_services_onboarding::ResolvedSecrets>,
-    /// Persona constraints for the current agent — loaded from agent definition.
-    /// When set, the persona filter strips forbidden patterns from model output.
     persona_constraints: Option<PersonaConstraints>,
-    /// Tool prompt cache — derived from MCP runtime discovery. The cache is
-    /// intentional: `ToolPort` uses `impl Trait` returns so it is not
-    /// dyn-compatible, which prevents re-deriving on demand via
-    /// `Arc<dyn ToolPort>`. Re-derive here when servers start/stop
-    /// dynamically, or when making `ToolPort` dyn-compatible becomes
-    /// a justified refactor.
-    /// Manifest state — `Some` when the agent has a process manifest
-    /// cascade defined, `None` otherwise. The cascade bundles manifest +
-    /// executor together so the "both present" invariant is enforced by
-    /// construction.
+    /// Tool definitions for native function calling. Discovered from McpRuntime
+    /// at init and refreshed when servers start/stop.
+    pub tool_definitions: Vec<hkask_ports::ChatToolDefinition>,
     pub manifest_state: ManifestState,
-    /// Shared service context — the canonical assembly point for all
-    /// infrastructure.
     pub service_context: Arc<AgentService>,
-    /// REPL settings — user-configurable inference parameters.
-    /// Exposed via /repl command. Magna Carta P3 (Generative Space).
     pub repl_settings: ReplSettings,
-    /// Whether this session started from a first-run onboarding (true)
-    /// or a returning session (false). Controls First Steps display.
     pub is_first_run: bool,
     /// Talk configuration — voice design and enabled state.
     /// Set via /talk command; checked in the turn pipeline.
@@ -166,7 +139,7 @@ impl std::fmt::Debug for ReplState {
             // Redacted: carries master key and DB passphrase.
             .field("resolved_secrets", &"<redacted>")
             .field("persona_constraints", &self.persona_constraints)
-            .field("tool_prompt", &self.tool_prompt)
+            .field("tool_definitions", &self.tool_definitions)
             // ManifestCascade wraps non-Debug trait objects.
             .field(
                 "manifest_state",
@@ -517,9 +490,9 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
             // isolated and the next /mcp start refreshes tool_prompt anyway.
             // A panic-safe guard would require passing scoped tools as a
             // parameter to single_agent_turn_captured (a larger refactor).
-            let original_tools = std::mem::take(&mut s.tool_prompt.definitions);
+            let original_tools = std::mem::take(&mut s.tool_definitions);
             let prefix = format!("{}/", scope);
-            s.tool_prompt.definitions = original_tools
+            s.tool_definitions = original_tools
                 .iter()
                 .filter(|td| td.function.name.starts_with(&prefix))
                 .cloned()
@@ -528,7 +501,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
             let capture = turn::single_agent_turn_captured(&input, &mut s, &rt, a2a.as_bytes());
 
             // Restore original tool definitions.
-            s.tool_prompt.definitions = original_tools;
+            s.tool_definitions = original_tools;
 
             let result = Self::build_result(&capture);
 

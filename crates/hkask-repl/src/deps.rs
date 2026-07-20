@@ -133,6 +133,7 @@ impl ReplTurnExecutor {
             agent_webid: state.agent_webid,
             persona_constraints: state.persona_constraints.clone(),
             improv_mode: state.improv_mode.clone(),
+            tool_definitions: state.tool_definitions.clone(),
         }
     }
 }
@@ -177,6 +178,7 @@ impl TurnExecutor for ReplTurnExecutor {
             thread_history: input.thread_history.clone(),
             improv_mode: self.improv_mode.clone(),
             source: None,
+            tool_section: String::new(),
             tools: if self.tool_definitions.is_empty() {
                 None
             } else {

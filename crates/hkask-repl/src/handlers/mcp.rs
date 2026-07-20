@@ -326,26 +326,28 @@ fn start_selection(
     println!();
 }
 
-/// Refresh the tool prompt section after starting servers so the LLM
+/// Refresh tool definitions after starting servers so the LLM
 /// becomes aware of newly available tools.
 fn refresh_tool_section(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
-    let tool_names = rt.block_on(
-        state
-            .service_context
-            .governed_tool(state.agent_webid)
-            .discover_tools(),
-    );
+    let gov_tool = state.service_context.governed_tool(state.agent_webid);
+    let tool_names = rt.block_on(gov_tool.discover_tools());
     let mut tools: Vec<hkask_ports::ToolInfo> = Vec::new();
     for name in &tool_names {
-        if let Some(info) = rt.block_on(
-            state
-                .service_context
-                .governed_tool(state.agent_webid)
-                .get_tool_info(name),
-        ) {
+        if let Some(info) = rt.block_on(gov_tool.get_tool_info(name)) {
             tools.push(info);
         }
     }
+    state.tool_definitions = tools
+        .iter()
+        .map(|tool| hkask_ports::ChatToolDefinition {
+            tool_type: "function".to_string(),
+            function: hkask_ports::ChatToolFunction {
+                name: format!("{}/{}", tool.server_id, tool.name),
+                description: tool.description.clone(),
+                parameters: tool.input_schema.clone(),
+            },
+        })
+        .collect();
 }
 
 #[cfg(test)]

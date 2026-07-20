@@ -126,7 +126,7 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         primary: "invoke",
         aliases: &["inv"],
         args: "<server>/<tool> [args]",
-        about: "Invoke an MCP tool through GovernedTool",
+        about: "Invoke an MCP tool",
     },
     SlashCommand {
         primary: "sovereignty",

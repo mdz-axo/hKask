@@ -104,7 +104,7 @@ pub fn handle_tools(state: &mut super::super::ReplState, rt: &tokio::runtime::Ha
                 println!("  \x1b[36m{}\x1b[0m", tool_name);
             }
         }
-        println!("  \x1b[2mAll tool calls route through GovernedTool (OCAP + gas)\x1b[0m");
+        println!("  \x1b[2mAll tool calls route through McpRuntime (OCAP + gas)\x1b[0m");
     }
     println!();
 }

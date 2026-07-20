@@ -15,7 +15,6 @@ use super::cns_display;
 use super::deps::{TurnConfig, TurnDeps, TurnInput};
 use super::handlers::speak_response;
 
-
 // ── TurnSink: output abstraction ─────────────────────────────────────
 
 trait TurnSink {
@@ -393,7 +392,7 @@ fn run_turn_with_state(
         gas_heuristic: state.repl_settings.gas_heuristic,
         saliency_window: state.repl_settings.condense_saliency_window,
         default_agent: state.current_agent.clone(),
-        has_tools: !state.tool_prompt.definitions.is_empty(),
+        has_tools: !state.tool_definitions.is_empty(),
         a2a_secret: hkask_types::secret::ZeroizingSecret::new(a2a_secret.to_vec()),
         principal_webid: state.host.resolve_user_webid(),
         agent_webid: state.agent_webid,
@@ -905,7 +904,11 @@ pub struct ToolCall {
 
 impl From<hkask_ports::StructuredToolCall> for ToolCall {
     fn from(stc: hkask_ports::StructuredToolCall) -> Self {
-        Self { server: stc.server, tool: stc.tool, args: stc.args }
+        Self {
+            server: stc.server,
+            tool: stc.tool,
+            args: stc.args,
+        }
     }
 }
 
@@ -918,17 +921,17 @@ pub fn extract_tool_calls(
     response_text: &str,
     structured_tool_calls: Option<&[hkask_ports::StructuredToolCall]>,
 ) -> ParsedResponse {
-    if let Some(calls) = structured_tool_calls
-        && !calls.is_empty()
-    {
-        return ParsedResponse {
-            text: response_text.to_string(),
-            tool_calls: calls.iter().cloned().map(ToolCall::from).collect(),
-        };
+    let tool_calls = structured_tool_calls
+        .unwrap_or(&[])
+        .iter()
+        .cloned()
+        .map(ToolCall::from)
+        .collect();
+    ParsedResponse {
+        text: response_text.to_string(),
+        tool_calls,
     }
-    parse_tool_calls(response_text)
 }
-
 
 pub fn format_tool_results(calls: &[(ToolCall, anyhow::Result<serde_json::Value>)]) -> String {
     if calls.is_empty() {
@@ -938,7 +941,8 @@ pub fn format_tool_results(calls: &[(ToolCall, anyhow::Result<serde_json::Value>
     for (call, result) in calls {
         match result {
             Ok(value) => {
-                let formatted = serde_json::to_string_pretty(value).unwrap_or_else(|_| format!("{:?}", value));
+                let formatted =
+                    serde_json::to_string_pretty(value).unwrap_or_else(|_| format!("{:?}", value));
                 parts.push(format!("✓ {} → {}", call.tool, formatted));
             }
             Err(err) => parts.push(format!("✗ {} → ERROR: {}", call.tool, err)),
