@@ -37,14 +37,15 @@ stateDiagram-v2
     end note
 
     note right of Backlog
-        task_claim does NOT check status
-        (any unassigned task can be claimed)
+        task_claim only allows
+        Backlog or Ready tasks
+        (InProgress/Review/Done rejected)
     end note
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FW-008
 verified_date: 2026-07-20
-verified_against: crates/hkask-services-kata-kanban/src/kanban/types/status.rs:61-73 (can_transition_to), crates/hkask-services-kata-kanban/src/kanban/service_impl/service.rs:814-837 (task_reopen), crates/hkask-services-kata-kanban/src/kanban/service_impl/dejam.rs:180-207 (task_gas_exhaust), crates/hkask-services-kata-kanban/src/kanban/service_impl/service.rs:617-658 (task_claim)
+verified_against: crates/hkask-services-kata-kanban/src/kanban/types/status.rs:61-73 (can_transition_to), crates/hkask-services-kata-kanban/src/kanban/service_impl/service.rs:820-843 (task_reopen), crates/hkask-services-kata-kanban/src/kanban/service_impl/dejam.rs:180-207 (task_gas_exhaust), crates/hkask-services-kata-kanban/src/kanban/service_impl/service.rs:613-624 (task_claim status check)
 status: VERIFIED
 -->

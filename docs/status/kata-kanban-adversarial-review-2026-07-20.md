@@ -14,7 +14,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Review method:** Loaded `improve-codebase-architecture`, `bug-hunt`, `diagnose`, `coding-guidelines`, `idiomatic-rust`, `pragmatic-laziness`, `pragmatic-semantics`, `pragmatic-cybernetics`, `diataxis-diagram` skills. Challenged findings through `essentialist` (3-gate deletion test) and `grill-me` (Socratic interrogation) perspectives. Took an adversarial skeptical stance to catch issues that a friendly review would miss.
 
-**Build status:** `cargo check` ✅ | `cargo clippy -D warnings` ✅ | `cargo test` 60/60 ✅
+**Build status:** `cargo check` ✅ | `cargo clippy -D warnings` ✅ | `cargo test` 63/63 ✅
+
+**Resolution status:** All 14 findings resolved on 2026-07-20. See §7 for the resolution log.
 
 ---
 

@@ -3,9 +3,7 @@
 **Diataxis type:** Reference
 **Status:** Current (v0.31.0)
 
-This diagram maps the structural relationships in the `hkask-mcp-kata-kanban` MCP server and its backing `hkask-services-kata-kanban` service crate. The MCP server (`KanbanServer`) is a thin tri-surface wrapper that delegates every tool call to `KanbanService`. The service owns an `HMemStore` (board/task persistence), an optional `ActivePods` (subagent spawning), and an optional `KanbanKataBridge` (full kata execution). The bridge delegates to `KataEngine`, which holds the inference port, template registry, and optional CNS/history/metric callbacks.
-
-Two execution paths exist: (1) **prompt generation** — `task_coaching_prompt` / `task_improvement_prompt` / `task_practice_prompt` produce a rendered string for the caller to feed to an LLM; (2) **full kata execution** — `run_coaching_kata` / `run_improvement_kata` / `run_starter_kata` invoke `KataEngine::execute()` end-to-end with inference, gas tracking, and CNS spans. The MCP surface exposes only path (1); path (2) is available only through the REPL `kask kanban kata` commands and the service API.
+This diagram maps the structural relationships in the `hkask-mcp-kata-kanban` MCP server and its backing `hkask-services-kata-kanban` service crate. The MCP server (`KanbanServer`) is a thin tri-surface wrapper that delegates every tool call to `KanbanService`. The service owns an `HMemStore` (board/task persistence) and an optional `ActivePods` (subagent spawning). Full kata execution is available through the CLI `kask kata start` command, which constructs a `KataEngine` directly — the kanban service exposes only kata prompt generation (`task_coaching_prompt` / `task_improvement_prompt` / `task_practice_prompt`) for MCP/REPL surfaces.
 
 Cross-links:
 - [Kata PDCA Lifecycle State Machine](../how-to/skills-and-composition.md#kata-pdca-lifecycle-state-machine) — single-pass execution flow
@@ -22,7 +20,6 @@ classDiagram
         +replicant: String
         +daemon: Option~DaemonClient~
         +service: KanbanService
-        +db: Option~SqlitePool~
         +kanban_board_create() String
         +kanban_board_list() String
         +kanban_task_create() String
@@ -46,7 +43,7 @@ classDiagram
     class KanbanService {
         +store: HMemStore
         +pod_manager: Option~Arc~ActivePods~~
-        +kata_bridge: Option~Arc~KanbanKataBridge~~
+        +standard_columns() Vec~ColumnDef~
         +board_create() Result~Board~
         +board_list() Result~Vec~Board~~
         +board_get() Result~Option~Board~~
@@ -73,9 +70,6 @@ classDiagram
         +task_coaching_prompt() Result~String~
         +task_improvement_prompt() Result~String~
         +task_practice_prompt() Result~String~
-        +run_coaching_kata() Result~KataResult~
-        +run_improvement_kata() Result~KataResult~
-        +run_starter_kata() Result~KataResult~
         +spawn_task() Result~String~
         +unjam_report() Result~Vec~UnjamItem~~
         +unjam_fix() Result~Vec~UnjamFix~~
@@ -87,13 +81,6 @@ classDiagram
         +tasks_by_phase() Result~Vec~Task~~
         +verification_prompt() Result~String~
         +verify_with_llm() Result~(Task, Verification)~
-    }
-
-    class KanbanKataBridge {
-        +engine: Arc~KataEngine~
-        +run_coaching_on_task() Result~KataResult~
-        +run_improvement_on_task() Result~KataResult~
-        +run_starter_on_task() Result~KataResult~
     }
 
     class KataEngine {
@@ -163,18 +150,6 @@ classDiagram
         Done
     }
 
-    class TaskContract {
-        -package_name: String
-        -delegator: WebID
-        -delegate: WebID
-        -task_id: TaskId
-        -gas_limit: u64
-        -timeout: u64
-        -max_attenuation: u8
-        -state: ContractState
-        +check_completion() ContractVerification
-    }
-
     class SocraticRole {
         <<enumeration>>
         Planner
@@ -185,23 +160,21 @@ classDiagram
 
     KanbanServer --> KanbanService : delegates
     KanbanService --> HMemStore : persists via
-    KanbanService --> KanbanKataBridge : optional
-    KanbanKataBridge --> KataEngine : delegates to
     KanbanService --> Board : manages
     KanbanService --> Task : manages
     Board --> ColumnDef : contains
     Board --> KanbanPhase : contains
     Task --> TaskStatus : has
-    Task --> TaskContract : creates transiently
     Task --> Comment : contains
     Task --> GasEntry : audit trail
     Task --> Verification : result
     SocraticRole ..> Task : spawns inquiries as
+    KataEngine ..> KanbanService : CLI constructs directly, not via service
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-017
 verified_date: 2026-07-20
-verified_against: mcp-servers/hkask-mcp-kata-kanban/src/lib.rs:29-34 (KanbanServer struct), crates/hkask-services-kata-kanban/src/kanban/service_impl/service.rs:34-38 (KanbanService struct), crates/hkask-services-kata-kanban/src/bridge.rs:18-20 (KanbanKataBridge struct), crates/hkask-services-kata-kanban/src/kata/mod.rs:76-94 (KataEngine struct), crates/hkask-storage/src/hmem.rs:134-138 (HMemStore struct), crates/hkask-services-kata-kanban/src/kanban/types/task.rs:9-55 (Task struct), crates/hkask-services-kata-kanban/src/kanban/types/status.rs:16-27 (TaskStatus enum), crates/hkask-services-kata-kanban/src/kanban/types/contract.rs:17-40 (TaskContract struct), crates/hkask-services-kata-kanban/src/kanban/socratic.rs:265-270 (SocraticRole enum)
+verified_against: mcp-servers/hkask-mcp-kata-kanban/src/lib.rs:29-33 (KanbanServer struct — db field deleted), crates/hkask-services-kata-kanban/src/kanban/service_impl/service.rs:34-37 (KanbanService struct — kata_bridge field deleted), crates/hkask-services-kata-kanban/src/kata/mod.rs:76-94 (KataEngine struct), crates/hkask-storage/src/hmem.rs:134-138 (HMemStore struct), crates/hkask-services-kata-kanban/src/kanban/types/task.rs:9-55 (Task struct), crates/hkask-services-kata-kanban/src/kanban/types/status.rs:16-27 (TaskStatus enum), crates/hkask-services-kata-kanban/src/kanban/socratic.rs:265-270 (SocraticRole enum)
 status: VERIFIED
 -->
