@@ -10,52 +10,6 @@
 use crate::providers::types::*;
 use std::path::PathBuf;
 
-// ── Harness capability enumeration ───────────────────────────────────
-
-/// Harness capabilities — features that a training harness supports.
-/// Used for capability filtering when generating provider-specific config
-/// from canonical `TrainingParams`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HarnessCapability {
-    Qlora4bit,
-    Qlora8bit,
-    DoubleQuant,
-    RsLora,
-    SequencePacking,
-    Neftune,
-    FlashAttention2,
-    FlashAttention3,
-    Sdpa,
-    GradientCheckpointing,
-    Fp8Mixed,
-    DeepSpeed,
-    Fsdp,
-    SampleGeneration,
-    LoraPlus,
-}
-
-impl HarnessCapability {
-    pub fn cns_span(&self) -> &'static str {
-        match self {
-            HarnessCapability::Qlora4bit => "cns.training.harness.qlora_4bit",
-            HarnessCapability::Qlora8bit => "cns.training.harness.qlora_8bit",
-            HarnessCapability::DoubleQuant => "cns.training.harness.double_quant",
-            HarnessCapability::RsLora => "cns.training.harness.rslora",
-            HarnessCapability::SequencePacking => "cns.training.harness.sequence_packing",
-            HarnessCapability::Neftune => "cns.training.harness.neftune",
-            HarnessCapability::FlashAttention2 => "cns.training.harness.flash_attn2",
-            HarnessCapability::FlashAttention3 => "cns.training.harness.flash_attn3",
-            HarnessCapability::Sdpa => "cns.training.harness.sdpa",
-            HarnessCapability::GradientCheckpointing => "cns.training.harness.grad_ckpt",
-            HarnessCapability::Fp8Mixed => "cns.training.harness.fp8_mixed",
-            HarnessCapability::DeepSpeed => "cns.training.harness.deepspeed",
-            HarnessCapability::Fsdp => "cns.training.harness.fsdp",
-            HarnessCapability::SampleGeneration => "cns.training.harness.sample_gen",
-            HarnessCapability::LoraPlus => "cns.training.harness.loraplus",
-        }
-    }
-}
-
 // ── HarnessAdapter trait ───────────────────────────────────────────────────
 
 /// Renders training configuration in a harness-specific format.

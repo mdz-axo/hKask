@@ -7,6 +7,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 
+/// Failure-rate threshold (percent) above which embedding and QA-batch runs
+/// report `degraded` outcome. Matches the threshold used by `docproc_tag_chunks`.
+/// A run exceeding this rate indicates systemic issues (model unavailable,
+/// rate limiting, adversarial input) and must not be reported as `success`.
+const DEGRADED_FAILURE_THRESHOLD: usize = 10;
+
+/// Maximum LLM retry attempts for batch QA generation. Matches the 3-attempt
+/// pattern used by `docproc_tag_chunks` and `docproc_extract_triples`.
+const QA_BATCH_MAX_RETRIES: u32 = 3;
+
 // Content safety guard — mandatory at every LLM boundary (OWASP LLM01/02/04/06).
 // The output pipeline (secret stripping) is ALWAYS active — secrets must never
 // enter shared memory (P3.1 floor). The input pipeline (prompt injection / role
@@ -1341,10 +1351,34 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
             "failed": failed,
             "model": model_name,
         });
+        // B2 fix: report degraded outcome when failure rate exceeds threshold.
+        // The old code unconditionally reported "success", masking silent batch
+        // drops that created holes in the embedding index — holes that degrade
+        // the KNN scaffold used by build_prompts.
+        let failure_pct = if total == 0 {
+            0
+        } else {
+            (failed * 100) / total
+        };
+        let outcome = if failure_pct >= DEGRADED_FAILURE_THRESHOLD {
+            "degraded"
+        } else {
+            "success"
+        };
+        if outcome == "degraded" {
+            tracing::warn!(
+                target: "hkask.mcp.docproc.embed",
+                failed = failed,
+                total = total,
+                failure_pct = failure_pct,
+                threshold_pct = DEGRADED_FAILURE_THRESHOLD,
+                "Embedding run degraded — failure rate exceeds threshold"
+            );
+        }
         self.record_experience(
             "docproc_embed",
             &format!("batch: {} chunks", total),
-            "success",
+            outcome,
             result.clone(),
         );
         Ok(result)

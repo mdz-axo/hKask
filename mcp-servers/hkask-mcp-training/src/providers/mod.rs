@@ -18,12 +18,12 @@ pub mod types;
 
 // ── Re-exports for lib.rs compatibility ──────────────────────────────────
 
-pub use harness::{AxolotlHarness, HarnessAdapter, HarnessCapability};
+pub use harness::{AxolotlHarness, HarnessAdapter};
 pub use runpod::RunpodHost;
 pub use types::{
-    AdvancedParams, CompletionMetadata, CostEstimate, LoraParams, OptimizationParams,
-    ProviderError, QuantizationParams, SequenceParams, TrainingHarnessId, TrainingHost,
-    TrainingHostId, TrainingJob, TrainingJobStatus, TrainingParams,
+    AdvancedParams, CompletionMetadata, LoraParams, OptimizationParams, ProviderError,
+    QuantizationParams, SequenceParams, TrainingHarnessId, TrainingHost, TrainingHostId,
+    TrainingJob, TrainingJobStatus, TrainingParams,
 };
 
 // ── Host factory ───────────────────────────────────────────────────────────
@@ -156,35 +156,6 @@ mod tests {
         let params = TrainingParams::default();
         assert_eq!(params.num_epochs, 3);
         assert!(params.batch_size > 0);
-    }
-
-    #[test]
-    fn harness_capability_cns_spans() {
-        use HarnessCapability::*;
-        for cap in [
-            Qlora4bit,
-            Qlora8bit,
-            DoubleQuant,
-            RsLora,
-            SequencePacking,
-            Neftune,
-            FlashAttention2,
-            FlashAttention3,
-            Sdpa,
-            GradientCheckpointing,
-            Fp8Mixed,
-            DeepSpeed,
-            Fsdp,
-            SampleGeneration,
-            LoraPlus,
-        ] {
-            let span = cap.cns_span();
-            assert!(!span.is_empty(), "{cap:?} has empty CNS span");
-            assert!(
-                span.starts_with("cns."),
-                "{cap:?} span '{span}' doesn't start with cns."
-            );
-        }
     }
 
     #[test]

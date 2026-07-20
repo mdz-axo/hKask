@@ -595,25 +595,10 @@ impl TrainingHost for RunpodHost {
             "Training pod terminated"
         );
         tracing::info!(
-            target: "cns.training.provider.runpod.cancel",
-            pod_id = %pod_id,
-            "RunPod pod cancelled"
+        target: "cns.training.provider.runpod.cancel",
+        pod_id = %pod_id,
+        "RunPod pod cancelled"
         );
-        Ok(())
-    }
-
-    async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
-        // List completed pods — adapters are identified by job_id
-        let map = self
-            .jobs
-            .lock()
-            .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
-        Ok(map.keys().cloned().collect())
-    }
-
-    async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError> {
-        // Terminate the pod if still running
-        let _ = self.cancel(adapter_id).await;
         Ok(())
     }
 

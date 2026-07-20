@@ -58,7 +58,7 @@ impl TrainingHarnessId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingHostId {
-    /// runpod — Runpod GPU cloud training, pod-based axolotl/unsloth dispatch
+    /// runpod — Runpod GPU cloud training, pod-based axolotl dispatch
     Runpod,
 }
 
@@ -542,12 +542,6 @@ pub trait TrainingHost: Send + Sync {
     /// Cancel a running or queued job.
     async fn cancel(&self, job_id: &str) -> Result<(), ProviderError>;
 
-    /// List all LoRA adapters produced by this provider.
-    async fn list_adapters(&self) -> Result<Vec<String>, ProviderError>;
-
-    /// Delete a LoRA adapter and its associated artifacts.
-    async fn delete_adapter(&self, adapter_id: &str) -> Result<(), ProviderError>;
-
     /// Return completion metadata for a finished job (base model, metrics, output path).
     /// Returns `None` if the job is not completed or the provider doesn't support metadata.
     /// Default implementation returns `None`.
@@ -567,34 +561,6 @@ pub trait TrainingHost: Send + Sync {
     ) -> Result<Option<PathBuf>, ProviderError> {
         Ok(None)
     }
-
-    /// Download adapter weights from cloud host to a local cache path.
-    ///
-    /// Returns the local path after download, or `None` if the host doesn't
-    /// support weight download (e.g., weights are on HuggingFace, not the host's storage).
-    ///
-    /// Default implementation returns `None` — local hosts already have weights
-    /// on disk, and cloud hosts return `Some(local_path)` after download.
-    /// The default is `None` because most cloud hosts store weights on
-    /// third-party services (HuggingFace, S3), not the host's own storage.
-    async fn download_adapter(
-        &self,
-        _adapter_id: &str,
-        _cache_dir: &std::path::Path,
-    ) -> Result<Option<PathBuf>, ProviderError> {
-        Ok(None)
-    }
-
-    /// Estimate the cost of a training job before execution.
-    ///
-    /// Used by `training_recommend_model` to surface cost before committing to a job.
-    /// Cloud hosts return GPU-hour pricing; local hosts return 0.0
-    /// (cost is the user's own hardware).
-    ///
-    /// Default implementation returns a zero estimate.
-    async fn estimate_cost(&self, _job: &TrainingJob) -> CostEstimate {
-        CostEstimate::default()
-    }
 }
 
 /// Metadata returned by a provider when a training job completes.
@@ -610,27 +576,4 @@ pub struct CompletionMetadata {
     pub training_duration_secs: Option<u64>,
     /// Number of tokens processed.
     pub tokens_processed: Option<u64>,
-}
-
-// ── Cost estimation ────────────────────────────────────────────────────────
-
-/// Estimated training cost broken down by resource.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CostEstimate {
-    /// GPU hours consumed (cloud = billed, local = 0.0).
-    pub gpu_hours: f32,
-    /// Tokens processed during training.
-    pub total_tokens: u64,
-    /// Estimated cost in USD (cloud hosts) or 0.0 (local).
-    pub estimated_dollars: f32,
-}
-
-impl Default for CostEstimate {
-    fn default() -> Self {
-        Self {
-            gpu_hours: 0.0,
-            total_tokens: 0,
-            estimated_dollars: 0.0,
-        }
-    }
 }

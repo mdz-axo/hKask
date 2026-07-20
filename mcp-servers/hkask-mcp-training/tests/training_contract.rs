@@ -115,8 +115,7 @@ use hkask_inference::InferenceConfig;
 use hkask_mcp_training::TrainingServer;
 use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
-    CostEstimate, ProviderError, TrainingHarnessId, TrainingHost, TrainingHostId, TrainingJob,
-    TrainingJobStatus,
+    ProviderError, TrainingHarnessId, TrainingHost, TrainingHostId, TrainingJob, TrainingJobStatus,
 };
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
@@ -136,15 +135,6 @@ impl TrainingHost for MockTrainingHost {
     }
     async fn cancel(&self, _job_id: &str) -> Result<(), ProviderError> {
         Ok(())
-    }
-    async fn list_adapters(&self) -> Result<Vec<String>, ProviderError> {
-        Ok(vec![])
-    }
-    async fn delete_adapter(&self, _adapter_id: &str) -> Result<(), ProviderError> {
-        Ok(())
-    }
-    async fn estimate_cost(&self, _job: &TrainingJob) -> CostEstimate {
-        CostEstimate::default()
     }
 }
 

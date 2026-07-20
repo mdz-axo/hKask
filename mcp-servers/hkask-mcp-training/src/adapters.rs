@@ -59,8 +59,9 @@ pub struct StoredJob {
 }
 
 /// Persistent job registry backed by the same SQLite database.
-/// Survives server restarts — enables `training_status` and `training_retrain`
-/// to look up original job parameters.
+/// Survives server restarts — enables `training_status` to look up
+/// original job parameters (and `training_submit` retrain mode to
+/// pre-register adapter metadata).
 pub struct JobStore {
     pool: r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>,
 }

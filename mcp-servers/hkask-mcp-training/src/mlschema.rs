@@ -70,14 +70,11 @@ pub const HAS_DATA: MlConcept = "mls:hasData";
 pub fn training_op_to_mlschema(op: &str) -> Option<MlConcept> {
     match op {
         "training_submit" => Some(RUN),
-        "training_sweep" => Some(RUN),
         "training_assemble_dataset" => Some(DATA),
         "training_ingest_dataset" => Some(DATA),
+        "training_ingest_qa" => Some(DATA),
         "training_evaluate" => Some(EVALUATION),
-        "training_register_adapter" => Some(MODEL),
-        "training_list_adapters" => Some(MODEL),
-        "training_merge_adapters" => Some(MODEL),
-        "training_retrain" => Some(RUN),
+        "training_validate_config" => Some(EVALUATION),
         _ => None,
     }
 }
@@ -112,8 +109,8 @@ mod tests {
             Some(DATA)
         );
         assert_eq!(
-            training_op_to_mlschema("training_register_adapter"),
-            Some(MODEL)
+            training_op_to_mlschema("training_validate_config"),
+            Some(EVALUATION)
         );
         assert_eq!(training_op_to_mlschema("unknown"), None);
     }
