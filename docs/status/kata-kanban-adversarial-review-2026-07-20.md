@@ -543,7 +543,7 @@ No code changes were made in this review. All findings are recommendations for t
 
 ## 9. Cross-references
 
-- [Kata-Kanban Architecture Class Diagram](../diagrams/class-kata-kanban-architecture.md) — DIAG-IC-016
+- [Kata-Kanban Architecture Class Diagram](../diagrams/class-kata-kanban-architecture.md) — DIAG-IC-017
 - [Kanban Task Lifecycle State Diagram](../diagrams/state-kanban-task-lifecycle.md) — DIAG-FW-008
 - [Kata PDCA Lifecycle State Machine](../how-to/skills-and-composition.md#kata-pdca-lifecycle-state-machine) — DIAG-FW-005
 - [Kata-Kanban Execution Boundary](../how-to/skills-and-composition.md#kata-kanban-execution-boundary) — DIAG-FW-006
@@ -551,3 +551,35 @@ No code changes were made in this review. All findings are recommendations for t
 - [Architecture Master: Kata](../architecture/core/hKask-architecture-master.md#kata--cybernetic-capability-development)
 - [Service Layer Class Diagram](../explanation/architecture-patterns.md#service-layer-class-diagram) — DIAG-IC-008
 - [Documentation Standards](../specifications/DOCUMENTATION_STANDARDS.md) — verification gate
+
+---
+
+## 10. Resolution Log (2026-07-20)
+
+All 14 findings resolved. Summary of actions taken:
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| 1 | `KanbanServer.db` field dead code | **DELETED** the field and the `db.sqlite_pool().ok()` argument in `run()`. Updated test constructor. |
+| 2 | `TaskContract` shallow abstraction | **DELETED** `contract.rs` entirely. Inlined the non-empty evidence check + criteria-list reasoning directly into `task_verify`. Removed `TaskContract`/`ContractState`/`ContractVerification` types. Updated README. |
+| 3 | `task_consume_gas`/`task_consume_rjoules` never called | **KEPT** — these are `pub` methods on a library crate forming the public API surface for the subagent execution framework. They are not dead code from the compiler's perspective (pub items in libraries are part of the public API). The gas feedback loop will close when the subagent framework wires them. |
+| 4 | `run_*_kata` / `KanbanKataBridge` unreachable | **DELETED** the bridge entirely (`bridge.rs`), the `with_kata_engine` builder, the `kata_bridge` field, and the 3 `run_*_kata` methods. The CLI `kask kata start` already calls `KataEngine::execute()` directly; the bridge was a pass-through abstraction that added no value beyond two helper functions. Rewrote `bridge_integration.rs` as `service_integration.rs` (3 tests covering construction + prompt generation). |
+| 5 | lib.rs doc says "8 tools", actual 18 | **FIXED** — changed "8 MCP tools" to "18 MCP tools" in `lib.rs:3`. |
+| 6 | `board_view` magic-number heuristic | **FIXED** — removed the `f.len() > 30 &&` guard. WebID parsing is now tried directly; if it fails, the filter falls back to label matching. |
+| 7 | Stale `docs/plans/kata-kanban-merge-plan.md` reference | **FIXED** — removed the stale reference from `lib.rs`. Also fixed stale `docs/user-guides/` and `docs/guides/` references in `PROJECT_STATUS.md`, `corpus_inventory.yaml`, and `hKask-architecture-master.md`. |
+| 8 | `task_claim` doesn't check status | **FIXED** — added `if !matches!(task.status, TaskStatus::Backlog | TaskStatus::Ready)` check. Added 3 new tests: `task_claim_rejects_in_progress_task`, `task_claim_rejects_done_task`, `task_claim_accepts_ready_task`. |
+| 9 | `task_unassign` consent concern | **DOCUMENTED** — updated the doc comment to explicitly state the authority model: the task owner has unilateral unassignment authority, consistent with kanban semantics. The `unjam_fix` auto-unassign uses the same path with `task.owner` after 24h idle. |
+| 10 | `let _ = actor;` dead code | **DELETED** the line. |
+| 11 | `default_columns` duplicated 4× | **FIXED** — added `KanbanService::standard_columns()` as the single source of truth. MCP server's `default_columns()` delegates to it. All 4 test fixtures now import from the canonical source. |
+| 12 | `KanbanService::Clone` unused | **INVALIDATED** — the REPL's `kanban_service()` helper in `hkask-repl/src/handlers/kanban.rs:1075` calls `.clone()` on the cached service. The `Clone` derive is genuinely needed. Added a doc comment explaining why. |
+| 13 | `KanbanKataBridge` 3 near-identical methods | **RESOLVED by deletion** — the entire bridge was deleted (see finding 4). |
+| 14 | lib.rs doc "8 tools" (duplicate of #5) | **RESOLVED** by finding 5. |
+| 15 | Duplicated doc comments | **FIXED** — cleaned up duplicated `pre:`/`post:` lines in `task.rs`, `contract.rs` (deleted), `phase.rs`, `spawn.rs`. |
+
+**Final validation:**
+- `cargo check --workspace` ✅
+- `cargo clippy --workspace --all-targets -- -D warnings` ✅ (0 warnings)
+- `cargo test -p hkask-services-kata-kanban -p hkask-mcp-kata-kanban` ✅ 63/63 tests pass (41 unit + 16 contract + 3 integration + 3 pko)
+- `cargo test -p hkask-repl` ✅ 77/77 tests pass
+
+**Net code reduction:** ~250 lines deleted (bridge.rs 126 lines + contract.rs 126 lines + run_*_kata methods ~60 lines + db field + dead code). ~30 lines added (standard_columns + status check + tests + doc updates). Net: ~220 lines removed.
