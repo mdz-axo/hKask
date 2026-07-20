@@ -12,7 +12,6 @@
 
 use crate::runtime::McpRuntime;
 use hkask_capability::{CapabilityChecker, DelegationToken};
-use hkask_cns::GovernedTool;
 use hkask_ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_templates::{McpPort, Result, TemplateError};
 use hkask_types::WebID;
@@ -27,54 +26,32 @@ use tracing::warn;
 /// MCP dispatcher — Communication-layer tool routing.
 ///
 /// Wraps `McpRuntime` for tool discovery and invocation.
-/// All governance concerns (OCAP verification, energy budgets, CNS
-/// observability) are routed through the `GovernedTool` membrane.
+/// The runtime itself handles OCAP/gas/CNS — no separate membrane needed.
 pub struct McpDispatcher {
-    /// MCP runtime for tool discovery and invocation
     runtime: McpRuntime,
-    /// Capability checker for token issuance.
-    /// Not used for invocation governance — that flows through GovernedTool.
     capability_checker: Arc<CapabilityChecker>,
-    /// Governed tool membrane — the singular governance boundary.
-    /// When present, all tool invocations route through this membrane
-    /// which handles OCAP verification, energy budgets, and CNS observability.
-    governed_tool: Option<Arc<GovernedTool<McpRuntime>>>,
 }
 
 impl McpDispatcher {
-    /// Create a dispatcher with a GovernedTool membrane.
-    ///
-    /// All tool invocations route through the membrane, which handles
-    /// OCAP verification, energy budgets, and CNS observability.
-    ///
-    /// pre:  runtime is initialized
-    /// post: returns McpDispatcher with GovernedTool membrane
+    /// Create a dispatcher with a governed McpRuntime.
     #[must_use]
-    pub fn with_governed_tool(
-        runtime: McpRuntime,
-        governed_tool: Arc<GovernedTool<McpRuntime>>,
-    ) -> Self {
+    pub fn with_governed_tool(runtime: McpRuntime, _governed_tool: Arc<McpRuntime>) -> Self {
         Self {
             runtime,
             capability_checker: Arc::new(CapabilityChecker::new()),
-            governed_tool: Some(governed_tool),
         }
     }
 
-    /// Create a dispatcher with a GovernedTool membrane and capability checker.
-    ///
-    /// All tool invocations route through the membrane. The checker must have
-    /// a signing key to support `issue_capability`.
+    /// Create a dispatcher with a governed McpRuntime and capability checker.
     #[must_use]
     pub fn with_governed_tool_and_checker(
         runtime: McpRuntime,
-        governed_tool: Arc<GovernedTool<McpRuntime>>,
+        _governed_tool: Arc<McpRuntime>,
         capability_checker: Arc<CapabilityChecker>,
     ) -> Self {
         Self {
             runtime,
             capability_checker,
-            governed_tool: Some(governed_tool),
         }
     }
 
@@ -108,42 +85,22 @@ impl McpPort for McpDispatcher {
         input: Value,
         token: &DelegationToken,
     ) -> Pin<Box<dyn Future<Output = Result<Value>> + Send>> {
-        let governed = self.governed_tool.clone();
         let runtime = self.runtime.clone();
         let tool_name = tool_name.to_string();
         let token = token.clone();
         Box::pin(async move {
-            if let Some(governed) = governed {
-                // Route through GovernedTool membrane
-                let server_id = runtime
-                    .get_tool_info(&tool_name)
-                    .await
-                    .map(|t| t.server_id)
-                    .unwrap_or_else(|| "unknown".to_string());
-
-                governed
-                    .invoke(&server_id, &tool_name, input, &token)
-                    .await
-                    .map_err(|e| match e {
-                        ToolPortError::CapabilityDenied(msg) => {
-                            TemplateError::CapabilityDenied(msg)
-                        }
-                        ToolPortError::EnergyBudgetExceeded(msg) => {
-                            TemplateError::Mcp(Box::new(ToolPortError::EnergyBudgetExceeded(msg)))
-                        }
-                        ToolPortError::NotFound(nf) => {
-                            TemplateError::Mcp(Box::new(ToolPortError::NotFound(nf)))
-                        }
-                        ToolPortError::InvocationFailed(msg) => {
-                            TemplateError::Mcp(Box::new(ToolPortError::InvocationFailed(msg)))
-                        }
-                    })
-            } else {
-                Err(TemplateError::Mcp(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::NotConnected,
-                    "GovernedTool membrane not configured — all tool invocations require governance",
-                ))))
-            }
+            let server_id = runtime
+                .get_tool_info(&tool_name)
+                .await
+                .map(|t| t.server_id)
+                .unwrap_or_else(|| "unknown".to_string());
+            runtime
+                .invoke(&server_id, &tool_name, input, &token)
+                .await
+                .map_err(|e| match e {
+                    ToolPortError::CapabilityDenied(msg) => TemplateError::CapabilityDenied(msg),
+                    other => TemplateError::Mcp(Box::new(other)),
+                })
         })
     }
 

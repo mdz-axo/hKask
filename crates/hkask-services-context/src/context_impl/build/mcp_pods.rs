@@ -27,9 +27,7 @@ pub(super) async fn build_mcp_and_pods(
     f: &Foundation,
     system_webid: WebID,
 ) -> Result<McpPods, ServiceError> {
-    // GovernedTool membrane
-    let mcp_runtime = McpRuntime::new();
-    let raw_tool_port: Arc<McpRuntime> = Arc::new(mcp_runtime.clone());
+    // Governed McpRuntime — OCAP + gas + CNS wired in via with_governance.
     let energy_estimator: Arc<CalibratedEnergyEstimator> = Arc::new(
         CalibratedEnergyEstimator::new(Arc::clone(&f.gas_event_store))
             .with_event_sink(Arc::clone(&f.cns_event_sink)),
@@ -63,26 +61,20 @@ pub(super) async fn build_mcp_and_pods(
     let estimator: Arc<dyn EnergyEstimator> =
         Arc::clone(&energy_estimator) as Arc<dyn EnergyEstimator>;
 
-    // Wire ToolStats into the CyberneticsLoop for reliability sensor and
-    // into GovernedTool for statistical cost distribution learning.
+    // Wire ToolStats into the CyberneticsLoop for reliability sensor.
     let tool_stats = f.cns_runtime.read().await.tool_stats().await;
     l.cybernetics_loop
         .write()
         .await
         .set_tool_stats(Arc::clone(&tool_stats));
 
-    let governed_tool = Arc::new(
-        GovernedTool::new(
-            raw_tool_port,
-            Arc::clone(&l.cybernetics_loop),
-            Arc::clone(&f.cns_event_sink),
-            estimator,
-            system_webid,
-        )
-        .with_tool_consumption_channel(l.tool_consumption_tx.clone())
-        .with_tool_stats(Arc::clone(&tool_stats)),
-    );
-    let mcp_runtime = Arc::new(mcp_runtime);
+    let governed_tool = Arc::new(McpRuntime::new().with_governance(
+        Arc::clone(&l.cybernetics_loop),
+        Arc::clone(&f.cns_event_sink),
+        estimator,
+        system_webid,
+    ));
+    let mcp_runtime = Arc::new((*governed_tool).clone());
 
     // Pod manager — anchor the capability checker to BOTH the system OCAP
     // authority (pre-registration pod tokens) and the A2A root (post-registration
@@ -124,7 +116,7 @@ pub(super) async fn build_mcp_and_pods(
                 config.db_provider,
             )),
             Arc::new(mcp_runtime_adapter),
-            Some(governed_tool.clone()),
+            governed_tool.clone(),
             Some(Arc::clone(&capability_checker)),
             None,
             Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>,

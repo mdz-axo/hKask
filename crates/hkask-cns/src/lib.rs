@@ -18,8 +18,8 @@ pub mod cybernetics_loop; // Loop 6
 pub(crate) mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — energy budgets (hJoules)
 pub mod energy_budget_management; // Loop 6 — energy budget registration/reservation/settlement
+pub mod energy_estimator; // Loop 6 — tool cost estimation trait
 pub mod governed_inference; // Loop 6 → inference call membrane
-pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub(crate) mod inference_estimator;
 pub mod infra_span;
 pub mod qa_span;
@@ -76,9 +76,9 @@ pub use energy::{
     AgentGasStatus, DEFAULT_GAS_ALERT_THRESHOLD, GasBudget, GasCost, GasDelta, GasError,
 };
 pub use energy_budget_management::GasBudgetManager;
+pub use energy_estimator::EnergyEstimator;
 pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 pub use governed_inference::GovernedInference;
-pub use governed_tool::{EnergyEstimator, GovernedTool};
 pub use hkask_types::cns::QueueDepth;
 pub use hkask_types::curator::CurationThresholdConfig;
 pub use infra_span::InfraSpan;
