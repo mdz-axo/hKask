@@ -407,16 +407,14 @@ fn validate_compute_dtype(quant: &QuantizationParams, findings: &mut Vec<Validat
 /// If QLoRA mode, bf16 should be true (not fp16-only). fp16 can cause
 /// silent upcast to fp32 in some operations, doubling memory.
 fn validate_no_silent_upcast(params: &TrainingParams, findings: &mut Vec<ValidationFinding>) {
-    if params.quantization.load_in_4bit {
-        if !params.advanced.bf16 && params.advanced.fp16 {
-            findings.push(ValidationFinding {
+    if params.quantization.load_in_4bit && !params.advanced.bf16 && params.advanced.fp16 {
+        findings.push(ValidationFinding {
                 gate_id: "G-Q4",
                 severity: ValidationSeverity::Warn,
                 message: "QLoRA mode with fp16=true and bf16=false — fp16 can cause silent upcast to fp32 in some operations".to_string(),
                 source: "QLoRA paper §3 (bf16 compute); PEFT prepare_model_for_kbit_training docstring",
                 remediation: "Set bf16=true (preferred over fp16 for QLoRA)".to_string(),
             });
-        }
     }
 }
 

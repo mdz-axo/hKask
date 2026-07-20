@@ -926,8 +926,7 @@ impl TrainingServer {
                                 .adapter_store
                                 .get_previous_by_skill_name(&adapter_skill, adapter.id)
                                 .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
-                            {
-                                if let (Some(new_loss), Some(prev_loss)) = (
+                            && let (Some(new_loss), Some(prev_loss)) = (
                                     current_loss,
                                     Self::metrics_from_trained(&prev).and_then(|m| m.loss),
                                 ) {
@@ -952,7 +951,6 @@ impl TrainingServer {
                                         "A/B comparison completed"
                                     );
                                 }
-                            }
                         }
                     }
 

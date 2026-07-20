@@ -1,35 +1,24 @@
 # =============================================================================
 # hKask Axolotl LoRA Trainer — General-purpose LoRA fine-tuning image
 # =============================================================================
-# Extends winglian/axolotl-cloud:main-latest with a configurable training
-# entrypoint that reads all parameters from environment variables.
+# Extends the existing hkask-unsloth-training image by adding axolotl and
+# a configurable training entrypoint.
 #
-# Usage:
-#   docker build -t mdzaxolotl/axolotl-lora-trainer:latest .
-#   docker push mdzaxolotl/axolotl-lora-trainer:latest
-#
-# Then on RunPod:
-#   imageName: mdzaxolotl/axolotl-lora-trainer:latest
-#   env:
-#     - HKASK_BASE_MODEL=unsloth/Qwen3.6-27B
-#     - HKASK_HF_DATASET_REPO=mdz-axo/capabilities-researcher-qa
-#     - HKASK_HF_DATASET_FILE=train_chat_full.jsonl
-#     - HKASK_HF_MODEL_REPO=mdz-axo/capabilities-researcher-v3-eva
-#     - HKASK_HF_TOKEN=hf_xxx
-#     - HKASK_LORA_R=32
-#     - HKASK_LORA_ALPHA=64
-#     - ... (see README.md for full parameter list)
+# Build:
+#   podman build -t docker.io/mdzaxo/axolotl-lora-trainer:latest .
+# Push:
+#   podman push docker.io/mdzaxo/axolotl-lora-trainer:latest
 # =============================================================================
 
-FROM docker.io/winglian/axolotl-cloud:main-latest
+FROM localhost/mdzaxo/hkask-unsloth-training:v1.0.0
 
-# Install huggingface_hub for dataset download and adapter upload
-RUN pip install --no-cache-dir huggingface_hub pyyaml
+# Install axolotl and dependencies
+RUN pip install --no-cache-dir axolotl[transformers] pyyaml huggingface_hub
 
 # Copy the training entrypoint and config generator
-COPY entrypoint.sh /workspace/entrypoint.sh
+COPY entrypoint.sh /workspace/axolotl-entrypoint.sh
 COPY generate_config.py /workspace/generate_config.py
-RUN chmod +x /workspace/entrypoint.sh
+RUN chmod +x /workspace/axolotl-entrypoint.sh
 
 # Default environment variables (can be overridden at pod creation time)
 ENV HKASK_BASE_MODEL=""
@@ -72,6 +61,8 @@ ENV HKASK_DATASET_TYPE="chat_template"
 ENV HKASK_TRUST_REMOTE_CODE="true"
 ENV HKASK_OUTPUT_DIR="/workspace/outputs"
 ENV HKASK_WORKSPACE="/workspace"
+ENV HKASK_JOB_ID=""
 
 # The entrypoint runs the container's normal startup, then starts training
-ENTRYPOINT ["/bin/bash", "/workspace/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/workspace/axolotl-entrypoint.sh"]
+CMD ["train"]

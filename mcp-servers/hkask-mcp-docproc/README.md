@@ -8,11 +8,17 @@ embedding, QA generation, caching, and semantic query. Supersedes the former
 
 ```
 lib.rs           — Server struct, CNS observer, shared helpers (extract_text, cosine_similarity,
-                   template rendering, embedding model resolution)
+                   template rendering, embedding model resolution, normalize_concept,
+                   find_balanced_json_object)
 tools/
   document.rs    — docproc_convert, docproc_ocr, docproc_chunk
-  semantic.rs    — docproc_generate_qa, docproc_extract_triples, docproc_embed
-  storage.rs     — docproc_cache, docproc_query, docproc_clear_index
+  semantic/      — docproc_generate_qa, docproc_generate_qa_batch, docproc_extract_triples,
+                   docproc_embed (tool methods in mod.rs; helpers in qa.rs, triples.rs,
+                   ontology_io.rs)
+  corpus.rs      — docproc_dedup_chunks, docproc_consolidate_chunks, docproc_build_prompts,
+                   docproc_ingest_qa, docproc_prepare_training_dataset
+  storage.rs     — docproc_cache, docproc_query, docproc_clear_index, docproc_purge_qa
+  tagging/       — docproc_tag_chunks (ontology tagging with validate_ontology_tags)
 ocr/ (11 modules)
   pipeline.rs    — OcrExecutor trait, run_pipeline orchestrator, cross-validation,
                    semantic enrichment, Levenshtein distance
@@ -27,22 +33,30 @@ ocr/ (11 modules)
   calibration.rs — Threshold drift analysis with CNS alerting (human approval required)
   mod.rs         — Re-exports
 convert.rs        — Format detection, HTML stripping, markdown frontmatter removal
+template.rs       — Cached minijinja environment for docproc prompt templates
 ```
 
-## Tools (10)
+## Tools (17)
 
 | Tool | Description |
 |------|-------------|
 | `docproc_convert` | Extract text from a document. For PDFs: tries fast text extraction first (~50ms for text-native), falls back to typed OCR pipeline (decimate→score→route→OCR→verify) if near-empty. Supports `force_ocr` mode. Formats: PDF, MD, HTML, TXT. |
 | `docproc_ocr` | OCR a document using a local vision model. Requires `HKASK_OCR_MODEL` or explicit `model` parameter. |
 | `docproc_chunk` | Chunk text into passages at configurable token granularity. Accepts raw text or file path. Supports single-tier and multi-tier (coarse/medium/fine). Auto-indexing into in-memory vector store. |
+| `docproc_tag_chunks` | Tag chunks with multi-dimensional ontology annotations: 5W1H interrogatory dimensions, Dublin Core metadata, PKO/FIBO/GOLEM domain concepts, and expertise level. Uses LLM-based extraction via Jinja2 template with `validate_ontology_tags` schema enforcement. Computes graph-centrality salience. Input guard is always-on (non-disableable). |
+| `docproc_dedup_chunks` | Deduplicate chunks by semantic embedding similarity (cosine > 0.85 default). Clusters within each source file, keeps highest-salience chunk per cluster. |
+| `docproc_consolidate_chunks` | Consolidate semantically related chunks via LLM synthesis. Clusters by cosine > 0.75, synthesizes each multi-chunk cluster into a single passage, re-embeds. Merges ontology tags with normalization. |
+| `docproc_build_prompts` | Build QA generation prompts from tagged chunks with KNN context scaffold, ontology context, and h_mem knowledge graph. Outputs prompts JSONL consumed by `docproc_generate_qa_batch`. |
 | `docproc_generate_qa` | Generate validated QA pairs from one source chunk or a cited cross-reference set. Accepts an optional provider-prefixed `model`; every accepted response includes model, parameters, template, and source provenance. |
-| `docproc_generate_qa_batch` | Generate validated QA pairs for a batch under one optional provider-prefixed model. Processing is sequential; `concurrency` is retained for API compatibility. |
-| `docproc_extract_triples` | Extract RDF triples with confidence scores. Uses registry template `docproc/extract-hmems.j2` (falls back to inline prompt). |
-| `docproc_embed` | Generate embedding vectors via the configured embedding model (`HKASK_EMBEDDING_MODEL` or `~/.config/hkask/settings.json`). |
+| `docproc_generate_qa_batch` | Generate validated QA pairs for a batch under one optional provider-prefixed model. Concurrent processing with 3-attempt retry and `degraded` outcome classification on >10% failure rate. |
+| `docproc_ingest_qa` | Parse, quality-filter, dedup, and store generated QAs as training-ready JSONL. Stores h_mems with ontology provenance. |
+| `docproc_prepare_training_dataset` | Prepare a training dataset from ingested QAs. |
+| `docproc_extract_triples` | Extract RDF triples with confidence scores. Uses registry template `docproc/extract-hmems.j2` (falls back to inline prompt). Hallucination guard cross-checks predicate namespace against chunk ontology_tags (M4 fix). |
+| `docproc_embed` | Generate embedding vectors via the configured embedding model (`HKASK_EMBEDDING_MODEL` or `~/.config/hkask/settings.json`). Ontology tags prepended as annotation prefixes (INSTRUCTOR method). Reports `degraded` outcome on >10% failure rate. |
 | `docproc_cache` | Cache processed document text keyed by label in `~/.config/hkask/docproc-cache/`. |
 | `docproc_query` | Semantic search over indexed passages. Embeds query, computes cosine similarity, returns top-k. Optional LLM-augmented answer via `docproc/rag-answer.j2` template. |
 | `docproc_clear_index` | Clear the in-memory vector index between document sets. |
+| `docproc_purge_qa` | Purge QA h_mems from the memory DB by dataset name. |
 
 ## OCR Pipeline
 

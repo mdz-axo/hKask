@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
-| 2 | **Essential Tools** | 15 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter, KiloCode) |
+| 2 | **Essential Tools** | 16 MCP servers + Inference Router (DeepInfra, Together AI, fal.ai, OpenRouter, KiloCode) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Templates + manifests compose into iterative PDCA Skill loops (46 skills, 2 templates, 1 bundle) |
@@ -173,7 +173,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | **Total LOC** | ~232,100 |
 | **Core Crates** | 54 (14 foundation + 16 infra + 14 services + 3 wallet/identity/ledger + 2 ontology/interface + 5 bridges) |
 | **MCP Servers** | 15 |
-| **Workspace Members** | 69 (54 crates + 15 MCP servers, excluding fuzz targets) |
+| **Workspace Members** | 69 (54 crates + 16 MCP servers, excluding fuzz targets) |
 | **Tests** | ~2,166 (`#[test]` + `#[tokio::test]` annotations across workspace) |
 | **CLI Subcommands** | 37 |
 | **API Route Groups** | 23 |
@@ -242,4 +242,4 @@ hKask follows the [Diataxis](https://diataxis.fr/) documentation methodology. Th
 
 *ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 54 crates. 15 MCP servers. 46 PDCA skill loops. 367 templates.*
+*CI green. 54 crates. 16 MCP servers. 46 PDCA skill loops. 367 templates.*

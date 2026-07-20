@@ -228,10 +228,11 @@ pub struct LoraParams {
 }
 
 /// LoRA initialization strategy (mirrors PEFT `init_lora_weights`).
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum LoraInit {
     /// PEFT default: B=0, A~Gaussian Kaiming-uniform. Adapter is a no-op at step 0.
+    #[default]
     Default,
     /// Gaussian initialization scaled by rank.
     Gaussian,
@@ -249,12 +250,6 @@ pub enum LoraInit {
     Orthogonal,
     /// Random init (debugging only — not a no-op at step 0).
     Random,
-}
-
-impl Default for LoraInit {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl LoraInit {
@@ -288,21 +283,16 @@ impl LoraInit {
 }
 
 /// LoRA bias type (mirrors PEFT `bias`).
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum LoraBias {
     /// No bias trained (default). Safe for merge.
+    #[default]
     None,
     /// Train bias on all layers. Breaks merge equivalence.
     All,
     /// Train bias only on LoRA layers. Breaks merge equivalence.
     LoraOnly,
-}
-
-impl Default for LoraBias {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl LoraBias {
