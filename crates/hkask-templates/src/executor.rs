@@ -37,15 +37,15 @@
 //!   `renderer` as an inline template string with simple `{{key}}` substitution.
 //!
 //! Architecture: hkask-templates owns the executor because it needs
-//! `InferencePort` (for select/populate) and `McpPort` (for execute),
+//! `InferencePort` (for select/populate) and `ToolPort` (for execute),
 //! both of which are already dependencies of this crate.
 
 use crate::bundle::BundleManifest;
 use crate::bundle::BundleManifestStep;
-use crate::ports::{McpPort, Result, TemplateError};
+use crate::ports::{Result, TemplateError};
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_guard::{SpotlightMode, Spotlighter};
-use hkask_ports::{InferencePort, InferenceResult};
+use hkask_ports::{InferencePort, InferenceResult, ToolPort, ToolPortError};
 use hkask_types::NotFound;
 use hkask_types::ToolTaint;
 use hkask_types::WebID;
@@ -89,15 +89,15 @@ fn safe_template_join(base: &std::path::Path, template_ref: &str) -> Option<Path
 /// ports it needs:
 ///
 /// - `InferencePort` — for rendering selector templates and populating prompts
-/// - `McpPort` — for invoking MCP tools in execute steps
+/// - `ToolPort` — for invoking MCP tools in execute steps
 /// - `template_base_path` — filesystem path for resolving `template_ref` values
 ///   when `renderer == "minijinja"`
 #[derive(Clone)]
 pub struct ManifestExecutor {
     /// Inference port for select/populate actions.
     inference: Arc<dyn InferencePort>,
-    /// MCP port for execute actions
-    mcp: Arc<dyn McpPort>,
+    /// Tool port for execute actions.
+    tools: Arc<dyn ToolPort>,
     /// Default LLM parameters for inference calls
     default_params: LLMParameters,
     /// Secret for minting delegation tokens. Zeroized on drop.
@@ -132,13 +132,13 @@ impl ManifestExecutor {
     /// post: returns ManifestExecutor with default template_base_path
     pub fn new(
         inference: Arc<dyn InferencePort>,
-        mcp: Arc<dyn McpPort>,
+        tools: Arc<dyn ToolPort>,
         default_params: LLMParameters,
         a2a_secret: Vec<u8>,
     ) -> Self {
         Self {
             inference,
-            mcp,
+            tools,
             default_params,
             a2a_secret: Zeroizing::new(a2a_secret),
             template_base_path: PathBuf::from(DEFAULT_TEMPLATE_BASE_PATH),
@@ -308,7 +308,65 @@ impl ManifestExecutor {
             WebID::from_persona(b"manifest-executor"),
             &signing_key,
         );
-        self.mcp.invoke(tool_ref, input, &token).await
+        self.invoke_tool(tool_ref, input, &token, 0)
+            .await
+            .map(|(result, _)| result)
+    }
+
+    async fn invoke_tool(
+        &self,
+        tool_name: &str,
+        input: Value,
+        token: &DelegationToken,
+        action_number: u64,
+    ) -> Result<(Value, ToolTaint)> {
+        let tool_info = self.tools.get_tool_info(tool_name).await.ok_or_else(|| {
+            TemplateError::NotFound(NotFound {
+                entity_type: "tool".to_string(),
+                id: tool_name.to_string(),
+            })
+        })?;
+
+        if let Some(policy) = &self.runtime_policy {
+            use hkask_cns::PolicyVerdict;
+
+            match policy.check(
+                tool_name,
+                tool_info.taint,
+                self.check_untrusted_input(&input),
+                action_number,
+            ) {
+                PolicyVerdict::Block(reason) => {
+                    return Err(TemplateError::Manifest(format!(
+                        "Runtime policy blocked tool '{tool_name}': {reason}"
+                    )));
+                }
+                PolicyVerdict::RequireHuman(reason) => {
+                    return Err(TemplateError::Manifest(format!(
+                        "Runtime policy requires human confirmation for '{tool_name}': {reason}"
+                    )));
+                }
+                PolicyVerdict::Log(message) => {
+                    info!(target: "cns.guard.runtime_policy", tool = tool_name, %message, "CNS");
+                }
+                PolicyVerdict::Allow => {}
+            }
+        }
+
+        let result = self
+            .tools
+            .invoke(&tool_info.server_id, tool_name, input, token)
+            .await
+            .map_err(|error| match error {
+                ToolPortError::CapabilityDenied(message) => {
+                    TemplateError::CapabilityDenied(message)
+                }
+                other => TemplateError::Mcp(Box::new(other)),
+            })?;
+        Ok((
+            spotlight_tool_output(&self.spotlighter, &result),
+            tool_info.taint,
+        ))
     }
 
     /// Execute the full manifest cascade with iterative PDCA convergence.
@@ -1246,56 +1304,9 @@ impl ManifestExecutor {
             &signing_key,
         );
 
-        // Runtime policy check (Layer 6 defense — VeriGuard/AgentGuard pattern).
-        // If a policy is attached, look up the tool's taint label and check
-        // the proposed action before execution. Uses exact FIDES taint
-        // propagation: if any input argument references a tainted (Source)
-        // context entry, has_untrusted_input is true.
-        if let Some(ref policy) = self.runtime_policy {
-            use hkask_cns::PolicyVerdict;
-
-            // Look up the tool's taint label from its registration metadata.
-            // Falls back to Pure if the tool isn't registered or lookup fails.
-            let tool_info = self.mcp.get_tool_info(&mcp_ref).await;
-            let taint = tool_info.map(|info| info.taint).unwrap_or(ToolTaint::Pure);
-
-            // Exact taint check: scan the input JSON for $ref references
-            // to context entries that are labeled Source (untrusted).
-            // This replaces the heuristic string-matching approach with
-            // precise FIDES label propagation.
-            let has_untrusted = self.check_untrusted_input(&input);
-
-            let action_number = context.len() as u64;
-            match policy.check(&mcp_ref, taint, has_untrusted, action_number) {
-                PolicyVerdict::Block(reason) => {
-                    return Err(TemplateError::Manifest(format!(
-                        "Runtime policy blocked tool '{}': {}",
-                        mcp_ref, reason
-                    )));
-                }
-                PolicyVerdict::RequireHuman(reason) => {
-                    return Err(TemplateError::Manifest(format!(
-                        "Runtime policy requires human confirmation for '{}': {}",
-                        mcp_ref, reason
-                    )));
-                }
-                PolicyVerdict::Log(msg) => {
-                    info!(target: "cns.guard.runtime_policy", tool = %mcp_ref, msg = %msg, "CNS");
-                }
-                PolicyVerdict::Allow => {}
-            }
-        }
-
-        let result = self
-            .mcp
-            .invoke(&mcp_ref, input, &token)
-            .await
-            .map_err(|e| TemplateError::Mcp(Box::new(e)))?;
-
-        // Apply spotlighting to tool output before it enters the LLM context.
-        // Layer 2 defense (Microsoft Research arXiv:2403.14720) — transforms
-        // untrusted tool output so the LLM can distinguish it from instructions.
-        let result = spotlight_tool_output(&self.spotlighter, &result);
+        let (result, tool_taint) = self
+            .invoke_tool(&mcp_ref, input, &token, context.len() as u64)
+            .await?;
 
         let result_key = format!("step_{}_result", step.ordinal);
 
@@ -1303,12 +1314,6 @@ impl ManifestExecutor {
         // data from external sources), mark the result as tainted so downstream
         // Sink tools can detect it via check_untrusted_input.
         // Layer 5 defense (Microsoft Research FIDES arXiv:2505.23643).
-        let tool_taint = self
-            .mcp
-            .get_tool_info(&mcp_ref)
-            .await
-            .map(|info| info.taint)
-            .unwrap_or(ToolTaint::Pure);
         if tool_taint == ToolTaint::Source {
             self.taint_labels
                 .lock()

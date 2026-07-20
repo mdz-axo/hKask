@@ -128,6 +128,13 @@ fn resolve_mcp_binary(server_id: &str, command: &str) -> String {
 /// the outcome span. This collapses the former `GovernedTool` wrapper —
 /// one tool, one path.
 #[derive(Clone)]
+struct ToolGovernance {
+    cybernetics: Arc<RwLock<hkask_cns::CyberneticsLoop>>,
+    event_sink: Arc<dyn hkask_types::NuEventSink>,
+    estimator: Arc<dyn hkask_cns::EnergyEstimator>,
+}
+
+#[derive(Clone)]
 pub struct McpRuntime {
     /// Registered MCP servers (metadata)
     servers: Arc<RwLock<HashMap<String, McpServer>>>,
@@ -137,14 +144,7 @@ pub struct McpRuntime {
     connections: Arc<RwLock<HashMap<String, Peer<RoleClient>>>>,
     /// Cancellation tokens for managed server processes
     cancellation_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
-    /// Governance: cybernetics loop for gas reserve/settle. None = no gas tracking.
-    cybernetics: Option<Arc<RwLock<hkask_cns::CyberneticsLoop>>>,
-    /// Governance: event sink for CNS spans. None = no span emission.
-    event_sink: Option<Arc<dyn hkask_types::NuEventSink>>,
-    /// Governance: energy estimator for tool cost. None = flat estimate.
-    estimator: Option<Arc<dyn hkask_cns::EnergyEstimator>>,
-    /// Governance: agent WebID for gas attribution. None = no attribution.
-    agent_webid: Option<hkask_types::WebID>,
+    governance: Option<ToolGovernance>,
 }
 
 impl McpRuntime {
@@ -158,10 +158,7 @@ impl McpRuntime {
             tool_registry: Arc::new(RwLock::new(HashMap::new())),
             connections: Arc::new(RwLock::new(HashMap::new())),
             cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
-            cybernetics: None,
-            event_sink: None,
-            estimator: None,
-            agent_webid: None,
+            governance: None,
         }
     }
 
@@ -174,12 +171,12 @@ impl McpRuntime {
         cybernetics: Arc<RwLock<hkask_cns::CyberneticsLoop>>,
         event_sink: Arc<dyn hkask_types::NuEventSink>,
         estimator: Arc<dyn hkask_cns::EnergyEstimator>,
-        agent_webid: hkask_types::WebID,
     ) -> Self {
-        self.cybernetics = Some(cybernetics);
-        self.event_sink = Some(event_sink);
-        self.estimator = Some(estimator);
-        self.agent_webid = Some(agent_webid);
+        self.governance = Some(ToolGovernance {
+            cybernetics,
+            event_sink,
+            estimator,
+        });
         self
     }
 
@@ -417,15 +414,6 @@ impl McpRuntime {
         self.servers.read().await.clone()
     }
 
-    /// Resolve the server ID for a registered tool (synchronous lookup).
-    pub fn resolve_server_for_tool(&self, tool_name: &str) -> Option<String> {
-        // Best-effort: try to read from the registry synchronously.
-        // The registry is Arc<RwLock<>>; we can try blocking briefly.
-        // For simplicity, return None if we can't acquire quickly.
-        // In practice, callers should use invoke() which handles this.
-        None
-    }
-
     /// Count live Peer connections (for health checks).
     pub async fn connection_count(&self) -> usize {
         self.connections.read().await.len()
@@ -462,12 +450,11 @@ impl hkask_ports::ToolPort for McpRuntime {
         Box::pin(async move {
             // Governance gate: OCAP verify + gas reserve + span emit.
             // Skipped when governance is not configured (tests, lightweight embedders).
-            if let (Some(cyber), Some(sink), Some(est), Some(agent)) = (
-                &self.cybernetics,
-                &self.event_sink,
-                &self.estimator,
-                self.agent_webid,
-            ) {
+            if let Some(governance) = &self.governance {
+                let cyber = &governance.cybernetics;
+                let sink = &governance.event_sink;
+                let est = &governance.estimator;
+                let agent = token.delegated_to;
                 // OCAP: verify token signature + authority.
                 if !token.verify() {
                     return Err(hkask_ports::ToolPortError::CapabilityDenied(

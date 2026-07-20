@@ -12,7 +12,8 @@ use hkask_templates::bundle::config::{
 };
 use hkask_templates::bundle::manifest::{BundleManifest, BundleManifestStep};
 use hkask_templates::executor::ManifestExecutor;
-use hkask_templates::ports::NoopMcpPort;
+mod common;
+use common::NoopToolPort;
 use hkask_types::fusion::{AlgoMethod, FusionConfig, FusionMode, NonEmptyVec};
 use hkask_types::template::LLMParameters;
 use hkask_types::visibility::Visibility;
@@ -180,7 +181,7 @@ async fn manifest_fusion_config_propagates_to_params() {
     let (mock, captured) = CapturingInferencePort::new();
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )
@@ -221,7 +222,7 @@ async fn step_fusion_false_bypasses_manifest_fusion() {
     let (mock, captured) = CapturingInferencePort::new();
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )
@@ -262,7 +263,7 @@ async fn no_manifest_fusion_uses_global_default() {
     let (mock, captured) = CapturingInferencePort::new();
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )

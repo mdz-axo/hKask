@@ -68,13 +68,12 @@ pub(super) async fn build_mcp_and_pods(
         .await
         .set_tool_stats(Arc::clone(&tool_stats));
 
-    let governed_tool = Arc::new(McpRuntime::new().with_governance(
+    let mcp_runtime = Arc::new(McpRuntime::new().with_governance(
         Arc::clone(&l.cybernetics_loop),
         Arc::clone(&f.cns_event_sink),
         estimator,
         system_webid,
     ));
-    let mcp_runtime = Arc::new((*governed_tool).clone());
 
     // Pod manager — anchor the capability checker to BOTH the system OCAP
     // authority (pre-registration pod tokens) and the A2A root (post-registration
@@ -93,35 +92,25 @@ pub(super) async fn build_mcp_and_pods(
     // The original was created before the checker existed.
     let mcp_dispatcher = Arc::new(McpDispatcher::with_governed_tool_and_checker(
         (*mcp_runtime).clone(),
-        governed_tool.clone(),
+        Arc::clone(&mcp_runtime),
         Arc::clone(&capability_checker),
     ));
-    let mcp_runtime_adapter = hkask_agents::adapters::mcp_runtime::FullMcpAdapter::new(
-        Arc::clone(&capability_checker),
-        Arc::new((*mcp_runtime).clone()),
-        tokio::runtime::Handle::current(),
-    );
-    let mut pods = hkask_agents::pod::ActivePods::new()
-        .with_a2a_runtime(l.a2a_runtime.clone())
-        .with_factory_and_ports(
-            Arc::new(hkask_agents::pod::PodFactory::new(
-                Arc::new(hkask_templates::TemplateCrateLoader::from_path(
-                    std::path::PathBuf::from(&config.template_cache_path),
-                )),
-                Arc::new(hkask_agents::DenyAllConsent),
-                std::path::Path::new(&config.db_path)
-                    .parent()
-                    .unwrap_or(std::path::Path::new("."))
-                    .to_path_buf(),
-                config.db_provider,
+    let mut pods = hkask_agents::pod::ActivePods::new(
+        Arc::new(hkask_agents::pod::PodFactory::new(
+            Arc::new(hkask_templates::TemplateCrateLoader::from_path(
+                std::path::PathBuf::from(&config.template_cache_path),
             )),
-            Arc::new(mcp_runtime_adapter),
-            governed_tool.clone(),
-            Some(Arc::clone(&capability_checker)),
-            None,
-            Arc::clone(&l.episodic_storage) as Arc<dyn EpisodicStoragePort>,
-            Arc::clone(&l.semantic_storage) as Arc<dyn SemanticStoragePort>,
-        );
+            Arc::new(hkask_agents::DenyAllConsent),
+            std::path::Path::new(&config.db_path)
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .to_path_buf(),
+            config.db_provider,
+        )),
+        Arc::clone(&l.a2a_runtime),
+        Arc::clone(&mcp_runtime),
+        Arc::clone(&capability_checker),
+    );
     if let Some(inf) = l.inference_port.clone() {
         pods = pods.with_inference_port(inf);
     }

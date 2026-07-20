@@ -13,8 +13,6 @@
 //! - `EpisodicStoragePort` / `SemanticStoragePort` → promoted to `hkask-memory`
 //!   (two consumers: `hkask-agents` + `hkask-services-context`)
 
-
-
 pub mod memory_storage;
 
 pub use crate::types::audit::{AuditEntry, AuditOutcome};

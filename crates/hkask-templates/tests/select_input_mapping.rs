@@ -14,7 +14,8 @@ use hkask_templates::bundle::config::{
 };
 use hkask_templates::bundle::manifest::{BundleManifest, BundleManifestStep};
 use hkask_templates::executor::ManifestExecutor;
-use hkask_templates::ports::NoopMcpPort;
+mod common;
+use common::NoopToolPort;
 use hkask_types::template::LLMParameters;
 use hkask_types::visibility::Visibility;
 use std::collections::HashMap;
@@ -112,7 +113,7 @@ async fn select_input_mapping_resolves_cross_step_variable() {
     let (mock, prompts) = PromptCapturingPort::new();
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )

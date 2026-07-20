@@ -28,7 +28,6 @@
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
 //! use hkask_templates::TemplateCrateLoader;
 //! use hkask_agents::a2a::A2ARuntime;
-//! use hkask_agents::adapters::mcp_runtime::CapabilityOnlyAdapter;
 //! use hkask_types::WebID;
 //! use hkask_capability::CapabilityChecker;
 //! use hkask_agents::{DenyAllConsent, SovereigntyConsent};
@@ -38,8 +37,7 @@
 //! let loader = TemplateCrateLoader::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
 //! let a2a_runtime = Arc::new(A2ARuntime::default());
 //! let checker = Arc::new(CapabilityChecker::new());
-//! let mcp_runtime = CapabilityOnlyAdapter::new(checker);
-//!
+
 //! // Create a simple persona YAML
 //! let yaml_str = r#"
 //! name: test-bot
@@ -132,9 +130,6 @@ pub enum AgentPodError {
 
     #[error("A2A registration failed: {0}")]
     A2ARegistrationError(String),
-
-    #[error("MCP access grant failed: {0}")]
-    MCPAccessError(#[from] crate::error::AgentMcpError),
 
     #[error("Capability attenuation limit exceeded")]
     AttenuationLimitExceeded,

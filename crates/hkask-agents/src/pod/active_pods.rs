@@ -616,12 +616,6 @@ pub struct PodStatusInfo {
     pub created_at: i64,
 }
 
-impl Default for ActivePods {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Register a pod on the Matrix homeserver (Conduit).
 ///
 /// Uses m.login.dummy auth — the pod's Matrix identity is daemon-managed.

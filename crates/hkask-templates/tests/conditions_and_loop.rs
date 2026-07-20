@@ -9,7 +9,8 @@ use hkask_templates::bundle::config::{
 };
 use hkask_templates::bundle::manifest::{BundleManifest, BundleManifestStep};
 use hkask_templates::executor::ManifestExecutor;
-use hkask_templates::ports::NoopMcpPort;
+mod common;
+use common::NoopToolPort;
 use hkask_types::template::LLMParameters;
 use hkask_types::visibility::Visibility;
 use std::collections::HashMap;
@@ -218,7 +219,7 @@ async fn condition_eq_runs_step_when_matching() {
     let (mock, prompts) = ScriptedPort::new(vec![r#"{"mode": "plussing"}"#, r#"{"out": "ran"}"#]);
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )
@@ -276,7 +277,7 @@ async fn condition_eq_skips_step_when_not_matching() {
     let (mock, prompts) = ScriptedPort::new(vec![r#"{"mode": "plussing"}"#]);
     let executor = ManifestExecutor::new(
         Arc::new(mock),
-        Arc::new(NoopMcpPort),
+        Arc::new(NoopToolPort),
         LLMParameters::default(),
         b"test-secret".to_vec(),
     )
