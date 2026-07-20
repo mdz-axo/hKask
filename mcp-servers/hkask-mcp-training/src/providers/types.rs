@@ -19,8 +19,8 @@ use thiserror::Error;
 /// Training harnesses — the tooling that runs on top of a host.
 ///
 /// This is the *harness* layer (Axolotl/Unsloth tooling), distinct from the
-/// *host* layer (where compute runs: Together/Runpod/Baseten) and the
-/// *base model* layer (what model is fine-tuned: Qwen/Gemma/Mistral).
+/// *host* layer (where compute runs: Runpod) and the *base model* layer
+/// (what model is fine-tuned: Qwen/Gemma/Mistral).
 ///
 /// Each variant represents a training framework that produces LoRA adapters.
 /// All training runs on cloud hosts — there is no local training path.
@@ -29,12 +29,10 @@ use thiserror::Error;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingHarnessId {
-    /// axolotl — YAML-based training framework, dispatched to Together AI or Runpod
+    /// axolotl — YAML-based training framework, dispatched to Runpod
     Axolotl,
     /// unsloth — memory-efficient Python training framework, dispatched to Runpod
     Unsloth,
-    /// tinker — Thinking Machines Tinker SDK, Python subprocess-based training
-    Tinker,
 }
 
 impl TrainingHarnessId {
@@ -59,18 +57,12 @@ impl TrainingHarnessId {
 /// executes training jobs.
 ///
 /// Host → Harness mapping:
-///   Together → Axolotl
-///   Runpod   → Axolotl
+///   Runpod → Axolotl | Unsloth
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingHostId {
-    /// together — Together AI cloud fine-tuning API (Axolotl harness)
-    Together,
-    /// runpod — Runpod GPU cloud training, pod-based axolotl dispatch
+    /// runpod — Runpod GPU cloud training, pod-based axolotl/unsloth dispatch
     Runpod,
-    /// tinker — Thinking Machines Tinker API, subprocess-based LoRA training
-    Tinker,
-    // baseten — removed
 }
 
 impl TrainingHostId {
@@ -78,7 +70,6 @@ impl TrainingHostId {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "together" => Some(Self::Together),
             "runpod" => Some(Self::Runpod),
             _ => None,
         }
@@ -159,9 +150,7 @@ pub(crate) fn estimate_training_cost_urj(
     base_model: &str,
 ) -> u64 {
     let base_per_epoch: u64 = match host {
-        TrainingHostId::Together => 1_000_000, // ~$1.00/epoch
-        TrainingHostId::Runpod => 500_000,     // ~$0.50/epoch
-        TrainingHostId::Tinker => 300_000,     // ~$0.30/epoch (Tinker bills by compute used)
+        TrainingHostId::Runpod => 500_000, // ~$0.50/epoch
     };
     let size_mult = extract_model_size_multiplier(base_model);
     base_per_epoch * (num_epochs as u64) * size_mult
@@ -196,6 +185,13 @@ pub(crate) fn extract_model_size_multiplier(base_model: &str) -> u64 {
 }
 
 /// LoRA-specific training parameters.
+///
+/// Field set mirrors the subset of PEFT `LoraConfig` fields that axolotl
+/// can render to YAML (see `AxolotlHarness::render_config`). Fields not
+/// renderable by axolotl (e.g., `lora_ga_config`, `corda_config`,
+/// `eva_config`, `alora_invocation_tokens`) are intentionally absent —
+/// adding them would create a phantom config surface that the harness
+/// can't consume.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LoraParams {
     /// LoRA rank (r value). Typical range: 4–64.
@@ -211,8 +207,112 @@ pub struct LoraParams {
     #[serde(default)]
     pub modules_to_save: Vec<String>,
     /// Use Rank-Stabilized LoRA (scales by alpha/sqrt(r)).
+    /// Axolotl YAML: `peft_use_rslora: true`.
     #[serde(default)]
     pub use_rslora: bool,
+    /// Use Weight-Decomposed Low-Rank Adaptation (DoRA).
+    /// Axolotl YAML: `peft_use_dora: true`.
+    /// Requires PEFT >= 0.10 for correct magnitude folding during merge.
+    #[serde(default)]
+    pub use_dora: bool,
+    /// How to initialize LoRA weights. PEFT default is `true` (B=0, A~Gaussian
+    /// — adapter is a no-op at step 0). Other values: `"gaussian"`,
+    /// `"pissa"`, `"pissa_niter_N"`, `"loftq"`, `"olora"`, `"corda"`,
+    /// `"orthogonal"`, `false`.
+    /// Axolotl YAML: `peft_init_lora_weights: <value>`.
+    /// Non-default values may require preprocessing (e.g., `preprocess_loraga`).
+    #[serde(default)]
+    pub init_lora_weights: Option<LoraInit>,
+    /// Bias type for LoRA. `"none"` (default) is the only safe setting for
+    /// must-merge inference. `"all"` and `"lora_only"` break merge equivalence.
+    /// Axolotl YAML: emitted via `peft:` config block.
+    #[serde(default)]
+    pub bias: LoraBias,
+}
+
+/// LoRA initialization strategy (mirrors PEFT `init_lora_weights`).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoraInit {
+    /// PEFT default: B=0, A~Gaussian Kaiming-uniform. Adapter is a no-op at step 0.
+    Default,
+    /// Gaussian initialization scaled by rank.
+    Gaussian,
+    /// PiSSA: SVD of base weight. Requires `subtract_mutated_init` for merge.
+    Pissa,
+    /// PiSSA with Fast-SVD: `pissa_niter_N` where N is iterations (e.g., 16).
+    PissaNiter(u32),
+    /// LoftQ: quantization-error-minimizing init. Requires `replace_lora_weights_loftq`.
+    Loftq,
+    /// OLoRA: orthogonal init.
+    Olora,
+    /// CorDA: context-oriented init. May be Knowledge-Preserved or Instruction-Previewed.
+    Corda,
+    /// Orthogonal init (like OLoRA but base weights untouched). Requires even r.
+    Orthogonal,
+    /// Random init (debugging only — not a no-op at step 0).
+    Random,
+}
+
+impl Default for LoraInit {
+    fn default() -> Self {
+        Self::Default
+    }
+}
+
+impl LoraInit {
+    /// Render to the PEFT/axolotl YAML value.
+    pub fn as_config_value(&self) -> String {
+        match self {
+            Self::Default => "true".to_string(),
+            Self::Gaussian => "gaussian".to_string(),
+            Self::Pissa => "pissa".to_string(),
+            Self::PissaNiter(n) => format!("pissa_niter_{}", n),
+            Self::Loftq => "loftq".to_string(),
+            Self::Olora => "olora".to_string(),
+            Self::Corda => "corda".to_string(),
+            Self::Orthogonal => "orthogonal".to_string(),
+            Self::Random => "false".to_string(),
+        }
+    }
+
+    /// Whether this init strategy modifies base weights (requires explicit save handling).
+    pub fn modifies_base_weights(&self) -> bool {
+        matches!(
+            self,
+            Self::Pissa | Self::PissaNiter(_) | Self::Loftq | Self::Olora | Self::Corda
+        )
+    }
+
+    /// Whether the adapter is a no-op at step 0 (ΔW = 0).
+    pub fn is_noop_at_init(&self) -> bool {
+        matches!(self, Self::Default)
+    }
+}
+
+/// LoRA bias type (mirrors PEFT `bias`).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LoraBias {
+    /// No bias trained (default). Safe for merge.
+    None,
+    /// Train bias on all layers. Breaks merge equivalence.
+    All,
+    /// Train bias only on LoRA layers. Breaks merge equivalence.
+    LoraOnly,
+}
+
+impl Default for LoraBias {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl LoraBias {
+    /// Whether this bias setting breaks merge equivalence.
+    pub fn breaks_merge(&self) -> bool {
+        matches!(self, Self::All | Self::LoraOnly)
+    }
 }
 
 impl Default for LoraParams {
@@ -233,6 +333,9 @@ impl Default for LoraParams {
             ],
             modules_to_save: vec![],
             use_rslora: false,
+            use_dora: false,
+            init_lora_weights: None, // None = PEFT default (true)
+            bias: LoraBias::None,
         }
     }
 }
@@ -459,7 +562,7 @@ pub trait TrainingHost: Send + Sync {
     }
 
     /// Return the filesystem path to adapter weights, if stored locally.
-    /// Returns `None` for cloud hosts (Together AI) where weights are server-side.
+    /// Returns `None` for cloud hosts where weights are server-side.
     /// Default implementation returns `None`.
     async fn adapter_weight_path(
         &self,

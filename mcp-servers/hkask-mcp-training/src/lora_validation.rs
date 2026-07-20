@@ -5,27 +5,29 @@
 //! catch config errors that would silently degrade model quality or waste
 //! GPU time.
 //!
-//! Gates implemented (static subset — runtime gates like gradient flow are
-//! documented but not enforced here):
-//!
+//! Gates implemented (12 of 16):
 //! - G-M1: No-op-at-init invariant (init_lora_weights produces ΔW=0 at step 0)
 //! - G-M2: Merge equivalence (bias='none' required for must-merge inference)
 //! - G-M3: Scaling form (α/r or α/√r, never raw α or 1)
 //! - G-M4: Rank budget (r < min(d_in, d_out), warn if r ≥ 0.5×min)
+//! - G-M5: Trainable param count (post-training, in preflight check)
 //! - G-Q1: Frozen base quantized (QLoRA mode: load_in_4bit + nf4)
 //! - G-Q2: Adapter dtype (compute dtype is bf16/fp16, not fp32)
 //! - G-Q4: No silent upcast (QLoRA mode: bf16=true, not fp16-only)
+//! - G-Q5: Paged optimizer (conditional — warns for large models with QLoRA)
+//! - G-D1: Dataset size vs quality (warns <1000 or >100000 samples)
+//! - G-D2: Eval protocol (advisory in preflight — Vicuna/MMLU not trustworthy)
+//! - G-D3: Lemon-pick analysis (advisory in preflight — report failure cases)
+//! - G-F1: Intruder dimension check (advisory in preflight — requires Python PEFT)
 //!
-//! Gates NOT enforced here (require runtime instrumentation):
-//! - G-M5: Trainable param count (needs model loaded)
-//! - G-Q3: Gradient flow (needs backward pass)
-//! - G-Q5: Paged optimizer (conditional on peak memory)
-//! - G-Q6: NF4 optimality (needs weight distribution analysis)
-//! - G-D1..G-D3: Data/eval gates (need dataset stats)
-//! - G-F1..G-F2: Forgetting gates (post-training)
+//! Gates NOT enforced (require runtime instrumentation in Python/training loop):
+//! - G-Q3: Gradient flow (needs backward pass — A.grad and B.grad must be non-None)
+//! - G-Q6: NF4 optimality (needs weight distribution analysis — NF4 assumes normal)
+//! - G-F2: Knowledge preservation (needs CorDA mode + world-knowledge eval)
 //!
 //! Anchored to: LoRA (arXiv:2106.09685), QLoRA (arXiv:2305.14314),
-//! rsLoRA (arXiv:2312.03732), PEFT v0.19.0.
+//! rsLoRA (arXiv:2312.03732), DoRA (arXiv:2402.09353), PiSSA (arXiv:2404.02948),
+//! Razin et al. (arXiv:2410.21228), PEFT v0.19.0.
 
 use crate::providers::types::{LoraParams, QuantizationParams, TrainingParams};
 
@@ -64,45 +66,187 @@ pub fn validate_training_params(params: &TrainingParams) -> Vec<ValidationFindin
     let mut findings = Vec::new();
 
     // G-M1: No-op-at-init invariant.
-    // PEFT default init (B=0, A~Gaussian) makes ΔW=0 at step 0.
-    // Our LoraParams doesn't expose init_lora_weights yet — the default
-    // (r, alpha, dropout, target_modules, modules_to_save, use_rslora)
-    // matches PEFT's default init. If we add init_lora_weights later,
-    // this gate should check it.
-    // Source: LoRA paper §4.1; PEFT v0.19.0 LoraConfig.init_lora_weights docstring.
-    // (No finding emitted — default init is safe. Documented for completeness.)
+    validate_noop_at_init(&params.lora, &mut findings);
 
     // G-M2: Merge equivalence.
-    // bias='none' is the only safe setting for must-merge inference.
-    // Our LoraParams doesn't expose bias yet — default is 'none' (PEFT default).
-    // If we add bias later, this gate should refuse bias='all'/'lora_only'
-    // when inference requires merging.
-    // Source: LoRA paper §4.2; PEFT v0.19.0 LoraConfig.bias docstring.
-    // (No finding emitted — default bias is safe. Documented for completeness.)
+    validate_merge_equivalence(&params.lora, &mut findings);
 
     // G-M3: Scaling form.
-    // scaling = α/r (or α/√r if use_rslora).
-    // We check that alpha and r are non-zero and that the ratio is reasonable.
     validate_scaling_form(&params.lora, &mut findings);
 
     // G-M4: Rank budget.
-    // r should be < min(d_in, d_out). We don't know d_in/d_out without the
-    // model loaded, but we can warn on absurdly high r.
     validate_rank_budget(&params.lora, &mut findings);
 
     // G-Q1: Frozen base quantized (QLoRA mode only).
-    // If load_in_4bit is true, bnb_4bit_quant_type must be 'nf4'.
     validate_qlora_quantization(&params.quantization, &mut findings);
 
     // G-Q2: Adapter dtype (compute dtype).
-    // If QLoRA mode, bnb_4bit_compute_dtype should be bf16 or fp16, not fp32.
     validate_compute_dtype(&params.quantization, &mut findings);
 
     // G-Q4: No silent upcast.
-    // If QLoRA mode, bf16 should be true (not fp16-only, which can upcast).
     validate_no_silent_upcast(params, &mut findings);
 
     findings
+}
+
+/// G-D1: Dataset size vs quality gate.
+///
+/// QLoRA paper §5: small high-quality datasets beat large noisy ones.
+/// - n_samples < 1000: warn (require explicit justification)
+/// - n_samples > 100000: warn (require quality audit — dedup, contamination)
+///
+/// This gate is called from `training_submit` after dataset normalization,
+/// not from `validate_training_params` (which doesn't have the dataset path).
+pub fn validate_dataset_size(dataset_path: &std::path::Path) -> Vec<ValidationFinding> {
+    let mut findings = Vec::new();
+
+    let content = match std::fs::read_to_string(dataset_path) {
+        Ok(c) => c,
+        Err(_) => return findings, // File read error is handled elsewhere
+    };
+
+    // Count non-empty lines (each line is one training example in ChatML JSONL).
+    let n_samples = content.lines().filter(|l| !l.trim().is_empty()).count();
+
+    if n_samples < 1000 {
+        findings.push(ValidationFinding {
+            gate_id: "G-D1",
+            severity: ValidationSeverity::Warn,
+            message: format!(
+                "Dataset has only {} examples — QLoRA paper §5 recommends small high-quality datasets, but <1000 may be insufficient for stable convergence",
+                n_samples
+            ),
+            source: "QLoRA paper §5 (small high-quality > large noisy)",
+            remediation: format!(
+                "Add more examples (current: {}) or document explicit justification for the small dataset",
+                n_samples
+            ),
+        });
+    }
+
+    if n_samples > 100_000 {
+        findings.push(ValidationFinding {
+            gate_id: "G-D1",
+            severity: ValidationSeverity::Warn,
+            message: format!(
+                "Dataset has {} examples — large datasets require quality audit (dedup, contamination check) per QLoRA paper §5",
+                n_samples
+            ),
+            source: "QLoRA paper §5 (small high-quality > large noisy)",
+            remediation: "Run dedup and contamination checks before training. Consider subsampling to a high-quality subset.".to_string(),
+        });
+    }
+
+    findings
+}
+
+/// G-Q5: Paged optimizer gate (conditional).
+///
+/// QLoRA paper §3: paged optimizers manage memory spikes. Required when
+/// peak memory is likely to exceed available VRAM. We can't measure peak
+/// memory pre-submission, but we can warn when the config suggests high
+/// memory pressure (large model + 4-bit + high batch size).
+pub fn validate_paged_optimizer(
+    params: &TrainingParams,
+    base_model: &str,
+) -> Vec<ValidationFinding> {
+    let mut findings = Vec::new();
+
+    if params.quantization.load_in_4bit {
+        // Heuristic: large models (13B+) with QLoRA should use paged optimizer.
+        let lower = base_model.to_lowercase();
+        let is_large = ["13b", "14b", "20b", "30b", "70b", "72b", "120b", "405b"]
+            .iter()
+            .any(|p| lower.contains(p));
+
+        let uses_paged = params
+            .optimization
+            .optimizer
+            .as_deref()
+            .map(|o| o.contains("paged"))
+            .unwrap_or(false);
+
+        if is_large && !uses_paged {
+            findings.push(ValidationFinding {
+                gate_id: "G-Q5",
+                severity: ValidationSeverity::Warn,
+                message: format!(
+                    "QLoRA on large model ({}) without paged optimizer — may OOM on attention spikes",
+                    base_model
+                ),
+                source: "QLoRA paper §3 (paged optimizers)",
+                remediation: "Set optimizer=\"paged_adamw_8bit\" to handle memory spikes".to_string(),
+            });
+        }
+    }
+
+    findings
+}
+
+/// G-M1: No-op-at-init invariant.
+///
+/// PEFT default init (B=0, A~Gaussian) produces ΔW=0 at step 0.
+/// Non-default inits are NOT no-ops — they require explicit justification.
+/// Inits that modify base weights (PiSSA, LoftQ, OLoRA, CorDA) require
+/// preprocessing calls (e.g., `preprocess_loraga`, `replace_lora_weights_loftq`).
+fn validate_noop_at_init(lora: &LoraParams, findings: &mut Vec<ValidationFinding>) {
+    if let Some(ref init) = lora.init_lora_weights {
+        if !init.is_noop_at_init() {
+            findings.push(ValidationFinding {
+                gate_id: "G-M1",
+                severity: ValidationSeverity::Warn,
+                message: format!(
+                    "init_lora_weights={:?} — adapter is NOT a no-op at step 0 (ΔW≠0)",
+                    init
+                ),
+                source: "LoRA paper §4.1; PEFT v0.19.0 LoraConfig.init_lora_weights docstring",
+                remediation:
+                    "Default init (true) is safe. Non-default inits require explicit justification."
+                        .to_string(),
+            });
+        }
+        if init.modifies_base_weights() {
+            findings.push(ValidationFinding {
+                gate_id: "G-M1",
+                severity: ValidationSeverity::Warn,
+                message: format!(
+                    "init_lora_weights={:?} modifies base weights — requires preprocessing call and explicit save handling",
+                    init
+                ),
+                source: "PiSSA arXiv:2404.02948; LoRA-GA arXiv:2407.05000; PEFT v0.19.0 docs",
+                remediation: match init {
+                    crate::providers::types::LoraInit::Pissa
+                    | crate::providers::types::LoraInit::PissaNiter(_) => {
+                        "Call subtract_mutated_init() before merge, or use save_mutated_as_lora pattern".to_string()
+                    }
+                    crate::providers::types::LoraInit::Loftq => {
+                        "Call replace_lora_weights_loftq() after model load".to_string()
+                    }
+                    _ => "Ensure training script calls the corresponding preprocessing function".to_string(),
+                },
+            });
+        }
+    }
+}
+
+/// G-M2: Merge equivalence.
+///
+/// bias='none' is the only safe setting for must-merge inference.
+/// bias='all' and bias='lora_only' break merge equivalence — the model
+/// will not produce the same output as the base model when adapters are disabled.
+fn validate_merge_equivalence(lora: &LoraParams, findings: &mut Vec<ValidationFinding>) {
+    if lora.bias.breaks_merge() {
+        findings.push(ValidationFinding {
+            gate_id: "G-M2",
+            severity: ValidationSeverity::Warn,
+            message: format!(
+                "bias={:?} breaks merge equivalence — model will not match base model when adapter disabled",
+                lora.bias
+            ),
+            source: "LoRA paper §4.2; PEFT v0.19.0 LoraConfig.bias docstring",
+            remediation: "Set bias=none for must-merge inference. Use lora_only/all only when extracting from full fine-tune.".to_string(),
+        });
+    }
 }
 
 /// G-M3: Scaling form validation.
@@ -115,7 +259,7 @@ fn validate_scaling_form(lora: &LoraParams, findings: &mut Vec<ValidationFinding
         findings.push(ValidationFinding {
             gate_id: "G-M3",
             severity: ValidationSeverity::Refuse,
-            message: format!("LoRA rank r=0 — division by zero in scaling α/r"),
+            message: "LoRA rank r=0 — division by zero in scaling α/r".to_string(),
             source: "LoRA paper §4.1 (α/r scaling); rsLoRA arXiv:2312.03732",
             remediation: "Set r to a positive integer (typical: 8–64)".to_string(),
         });
@@ -124,7 +268,7 @@ fn validate_scaling_form(lora: &LoraParams, findings: &mut Vec<ValidationFinding
         findings.push(ValidationFinding {
             gate_id: "G-M3",
             severity: ValidationSeverity::Refuse,
-            message: format!("LoRA alpha=0 — scaling factor is zero, adapter has no effect"),
+            message: "LoRA alpha=0 — scaling factor is zero, adapter has no effect".to_string(),
             source: "LoRA paper §4.1 (α/r scaling)",
             remediation: "Set alpha to a positive integer (typical: 2×r)".to_string(),
         });
@@ -263,14 +407,16 @@ fn validate_compute_dtype(quant: &QuantizationParams, findings: &mut Vec<Validat
 /// If QLoRA mode, bf16 should be true (not fp16-only). fp16 can cause
 /// silent upcast to fp32 in some operations, doubling memory.
 fn validate_no_silent_upcast(params: &TrainingParams, findings: &mut Vec<ValidationFinding>) {
-    if params.quantization.load_in_4bit && !params.advanced.bf16 && params.advanced.fp16 {
-        findings.push(ValidationFinding {
-            gate_id: "G-Q4",
-            severity: ValidationSeverity::Warn,
-            message: "QLoRA mode with fp16=true and bf16=false — fp16 can cause silent upcast to fp32 in some operations".to_string(),
-            source: "QLoRA paper §3 (bf16 compute); PEFT prepare_model_for_kbit_training docstring",
-            remediation: "Set bf16=true (preferred over fp16 for QLoRA)".to_string(),
-        });
+    if params.quantization.load_in_4bit {
+        if !params.advanced.bf16 && params.advanced.fp16 {
+            findings.push(ValidationFinding {
+                gate_id: "G-Q4",
+                severity: ValidationSeverity::Warn,
+                message: "QLoRA mode with fp16=true and bf16=false — fp16 can cause silent upcast to fp32 in some operations".to_string(),
+                source: "QLoRA paper §3 (bf16 compute); PEFT prepare_model_for_kbit_training docstring",
+                remediation: "Set bf16=true (preferred over fp16 for QLoRA)".to_string(),
+            });
+        }
     }
 }
 
@@ -310,6 +456,56 @@ mod tests {
             refusals.is_empty(),
             "Default params should not refuse: {:?}",
             refusals
+        );
+    }
+
+    #[test]
+    fn pissa_init_warns_gm1() {
+        let mut params = default_params();
+        params.lora.init_lora_weights = Some(crate::providers::types::LoraInit::Pissa);
+        let findings = validate_training_params(&params);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-M1" && f.severity == ValidationSeverity::Warn)
+        );
+    }
+
+    #[test]
+    fn default_init_does_not_warn_gm1() {
+        let params = default_params();
+        let findings = validate_training_params(&params);
+        assert!(findings.iter().all(|f| f.gate_id != "G-M1"));
+    }
+
+    #[test]
+    fn bias_all_warns_gm2() {
+        let mut params = default_params();
+        params.lora.bias = crate::providers::types::LoraBias::All;
+        let findings = validate_training_params(&params);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-M2" && f.severity == ValidationSeverity::Warn)
+        );
+    }
+
+    #[test]
+    fn bias_none_does_not_warn_gm2() {
+        let params = default_params();
+        let findings = validate_training_params(&params);
+        assert!(findings.iter().all(|f| f.gate_id != "G-M2"));
+    }
+
+    #[test]
+    fn loftq_init_warns_modifies_base() {
+        let mut params = default_params();
+        params.lora.init_lora_weights = Some(crate::providers::types::LoraInit::Loftq);
+        let findings = validate_training_params(&params);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-M1" && f.message.contains("modifies base weights"))
         );
     }
 
@@ -439,5 +635,95 @@ mod tests {
                 .iter()
                 .any(|f| f.gate_id == "G-Q4" && f.severity == ValidationSeverity::Warn)
         );
+    }
+
+    // ── G-D1: Dataset size tests ──
+
+    #[test]
+    fn small_dataset_warns_gd1() {
+        let temp = std::env::temp_dir().join("test_small_dataset.jsonl");
+        // Write 100 examples (below 1000 threshold)
+        let content: Vec<String> = (0..100)
+            .map(|i| format!("{{\"messages\": [{{\"role\": \"user\", \"content\": \"q{}\"}}, {{\"role\": \"assistant\", \"content\": \"a{}\"}}]}}", i, i))
+            .collect();
+        std::fs::write(&temp, content.join("\n")).unwrap();
+        let findings = validate_dataset_size(&temp);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-D1" && f.severity == ValidationSeverity::Warn)
+        );
+        std::fs::remove_file(&temp).ok();
+    }
+
+    #[test]
+    fn large_dataset_warns_gd1() {
+        let temp = std::env::temp_dir().join("test_large_dataset.jsonl");
+        // Write 100001 examples (above 100000 threshold) — use a compact format
+        let line = "{\"messages\":[{\"role\":\"user\",\"content\":\"q\"},{\"role\":\"assistant\",\"content\":\"a\"}]}}";
+        let content: Vec<&str> = std::iter::repeat(line).take(100_001).collect();
+        std::fs::write(&temp, content.join("\n")).unwrap();
+        let findings = validate_dataset_size(&temp);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-D1" && f.severity == ValidationSeverity::Warn)
+        );
+        assert!(findings[0].message.contains("quality audit"));
+        std::fs::remove_file(&temp).ok();
+    }
+
+    #[test]
+    fn normal_dataset_no_gd1_warning() {
+        let temp = std::env::temp_dir().join("test_normal_dataset.jsonl");
+        // Write 5000 examples (between 1000 and 100000)
+        let content: Vec<String> = (0..5000)
+            .map(|i| format!("{{\"messages\": [{{\"role\": \"user\", \"content\": \"q{}\"}}, {{\"role\": \"assistant\", \"content\": \"a{}\"}}]}}", i, i))
+            .collect();
+        std::fs::write(&temp, content.join("\n")).unwrap();
+        let findings = validate_dataset_size(&temp);
+        assert!(findings.iter().all(|f| f.gate_id != "G-D1"));
+        std::fs::remove_file(&temp).ok();
+    }
+
+    // ── G-Q5: Paged optimizer tests ──
+
+    #[test]
+    fn large_model_qlora_without_paged_warns_gq5() {
+        let mut params = default_params();
+        params.quantization.load_in_4bit = true;
+        params.optimization.optimizer = Some("adamw_8bit".to_string());
+        let findings = validate_paged_optimizer(&params, "meta-llama/Llama-2-70b");
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-Q5" && f.severity == ValidationSeverity::Warn)
+        );
+    }
+
+    #[test]
+    fn large_model_qlora_with_paged_passes_gq5() {
+        let mut params = default_params();
+        params.quantization.load_in_4bit = true;
+        params.optimization.optimizer = Some("paged_adamw_8bit".to_string());
+        let findings = validate_paged_optimizer(&params, "meta-llama/Llama-2-70b");
+        assert!(findings.iter().all(|f| f.gate_id != "G-Q5"));
+    }
+
+    #[test]
+    fn small_model_qlora_no_gq5_warning() {
+        let mut params = default_params();
+        params.quantization.load_in_4bit = true;
+        params.optimization.optimizer = Some("adamw_8bit".to_string());
+        let findings = validate_paged_optimizer(&params, "Qwen/Qwen2.5-7B");
+        assert!(findings.iter().all(|f| f.gate_id != "G-Q5"));
+    }
+
+    #[test]
+    fn non_qlora_no_gq5_warning() {
+        let params = default_params();
+        // load_in_4bit is false by default
+        let findings = validate_paged_optimizer(&params, "meta-llama/Llama-2-70b");
+        assert!(findings.iter().all(|f| f.gate_id != "G-Q5"));
     }
 }

@@ -24,8 +24,8 @@ async fn submit_real_training_job() {
         .expect("RUNPOD_TEMPLATE_ID must be set (use v2ickqhz9s for axolotl)");
 
     // Read the startup script
-    let startup_script = std::fs::read_to_string("/tmp/hkask_startup.sh")
-        .expect("startup script not found at /tmp/hkask_startup.sh");
+    let startup_script = std::fs::read_to_string("/tmp/hkask_startup_simple.sh")
+        .expect("startup script not found at /tmp/hkask_startup_simple.sh");
 
     // Use a persistent pods file (not temp) so we can track the pod across restarts
     let pods_path = "data/training-pods.json";

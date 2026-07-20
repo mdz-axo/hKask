@@ -1,8 +1,13 @@
-//! CLI adapter command handlers — thin wrappers that delegate to MCP tools.
+//! CLI adapter command handlers — thin wrappers that delegate to AdapterPort.
 //!
-//! The adapter lifecycle tools live in the training MCP server.
-//! These CLI commands print usage guidance pointing users to the MCP gateway,
-//! since `kask tool call` is the universal dispatch mechanism.
+//! The adapter lifecycle operations (list, deploy, status, teardown) are
+//! canonical `hkask_adapter::AdapterPort` trait methods. These CLI commands
+//! print usage guidance pointing users at the adapter crate's direct surface,
+//! since the training MCP server no longer wraps these (deleted 2026-07-19).
+//!
+//! To call these programmatically, use `AdapterPort::{list_adapters,
+//! create_endpoint, endpoint_status, teardown_endpoint}` via the
+//! `hkask-adapter` crate directly.
 
 use crate::cli::AdapterAction;
 
@@ -10,52 +15,44 @@ use crate::cli::AdapterAction;
 pub fn run(action: AdapterAction) {
     match action {
         AdapterAction::List { skill } => {
-            println!("Adapter list — delegates to training MCP.");
+            println!("Adapter list — delegates to AdapterPort::list_adapters.");
             println!();
             if let Some(s) = skill {
-                println!(
-                    "  kask tool call training_list_adapters --params '{{\"skill_name\": \"{}\"}}'",
-                    s
-                );
+                println!("  kask adapter list --skill \"{}\"", s);
             } else {
-                println!("  kask tool call training_list_adapters");
+                println!("  kask adapter list");
             }
         }
         AdapterAction::Deploy { adapter, provider } => {
             println!(
-                "Deploy adapter '{}' to {} — delegates to training MCP.",
+                "Deploy adapter '{}' to {} — delegates to AdapterPort::create_endpoint.",
                 adapter, provider
             );
             println!();
             println!(
-                "  kask tool call training_deploy --params '{{\"adapter_name\": \"{}\", \"provider\": \"{}\"}}'",
-                adapter, provider
-            );
-            println!();
-            println!(
-                "Or via REPL: /training_deploy adapter_name=\"{}\" provider=\"{}\"",
+                "  kask adapter deploy --adapter \"{}\" --provider \"{}\"",
                 adapter, provider
             );
         }
         AdapterAction::Status { deployment_id } => {
             println!(
-                "Deployment status '{}' — delegates to training MCP.",
+                "Deployment status '{}' — delegates to AdapterPort::endpoint_status.",
                 deployment_id
             );
             println!();
             println!(
-                "  kask tool call training_deployment_status --params '{{\"deployment_id\": \"{}\"}}'",
+                "  kask adapter status --deployment-id \"{}\"",
                 deployment_id
             );
         }
         AdapterAction::Teardown { deployment_id } => {
             println!(
-                "Teardown deployment '{}' — delegates to training MCP.",
+                "Teardown deployment '{}' — delegates to AdapterPort::teardown_endpoint.",
                 deployment_id
             );
             println!();
             println!(
-                "  kask tool call training_teardown --params '{{\"deployment_id\": \"{}\"}}'",
+                "  kask adapter teardown --deployment-id \"{}\"",
                 deployment_id
             );
         }

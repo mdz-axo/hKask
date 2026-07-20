@@ -199,6 +199,51 @@ fn read_ontology_tags_annotated(
         .collect())
 }
 
+/// Read ontology namespace keys per chunk from a tagged chunks JSONL file.
+///
+/// Returns a map of `entity_ref` → set of normalized namespace keys
+/// (e.g. `{"fibo", "golem"}`). Used by `extract_triples_batch` to cross-check
+/// that a triple's predicate namespace was actually tagged for the chunk
+/// before bypassing the text-containment hallucination guard (M4 fix).
+///
+/// Namespace keys are normalized via `normalize_concept` (lowercase + trim +
+/// collapse whitespace) so they match the form produced by
+/// `validate_ontology_tags` in the tagging phase.
+fn read_ontology_namespaces(
+    path: &str,
+) -> Result<std::collections::HashMap<String, std::collections::HashSet<String>>, McpToolError> {
+    let content = std::fs::read_to_string(path).map_err(|e| {
+        McpToolError::invalid_argument(format!("Cannot read tagged_jsonl '{path}': {e}"))
+    })?;
+    let mut map: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let v: serde_json::Value = match serde_json::from_str(line) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let entity_ref = v.get("entity_ref").and_then(|v| v.as_str()).unwrap_or("");
+        if entity_ref.is_empty() {
+            continue;
+        }
+        if let Some(tags) = v.get("ontology_tags").and_then(|t| t.as_object()) {
+            let namespaces: std::collections::HashSet<String> = tags
+                .keys()
+                .map(|ns| normalize_concept(ns))
+                .filter(|ns| !ns.is_empty())
+                .collect();
+            if !namespaces.is_empty() {
+                map.insert(entity_ref.to_string(), namespaces);
+            }
+        }
+    }
+    Ok(map)
+}
+
 /// Map an RDF predicate to a 5W1H dimension.
 ///
 /// Migrated from the CLI binary's `predicate_to_dimension` function.
@@ -791,6 +836,21 @@ impl DocProcServer {
             };
         let ontology_map = Arc::new(ontology_map);
 
+        // Read ontology namespace sets per chunk (M4 fix). Used to cross-check
+        // that a triple's predicate namespace was actually tagged for the
+        // chunk before bypassing the text-containment hallucination guard.
+        // Without this, any `golem:`/`eso:`/`fibo:`/`pko:` predicate bypasses
+        // the guard regardless of whether the chunk was tagged with that
+        // ontology — allowing the LLM to emit abstract-namespace predicates
+        // for chunks where that ontology was never detected.
+        let namespace_map: std::collections::HashMap<String, std::collections::HashSet<String>> =
+            if let Some(tagged_path) = tagged_jsonl {
+                read_ontology_namespaces(tagged_path)?
+            } else {
+                std::collections::HashMap::new()
+            };
+        let namespace_map = Arc::new(namespace_map);
+
         // Open DB once, share across concurrent tasks
         let dim = embedding_dim();
         let semantic = Arc::new(
@@ -820,12 +880,16 @@ impl DocProcServer {
             let failed = Arc::clone(&failed);
             let h_mems_stored = Arc::clone(&h_mems_stored);
             let ontology_map = Arc::clone(&ontology_map);
+            let namespace_map = Arc::clone(&namespace_map);
 
             let handle = tokio::spawn(async move {
                 let _permit = sem.acquire().await;
 
                 // Build prompt from registry template
                 let ontology_context = ontology_map.get(&entity_ref).cloned().unwrap_or_default();
+                // Namespace set for this chunk (M4 cross-check). Empty if no
+                // tagged_jsonl was provided or the chunk has no ontology tags.
+                let chunk_namespaces = namespace_map.get(&entity_ref).cloned().unwrap_or_default();
                 let mut vars: std::collections::HashMap<&str, String> =
                     std::collections::HashMap::new();
                 vars.insert("limit", max_triples.to_string());
@@ -964,13 +1028,26 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                         let dimension = predicate_to_dimension(predicate);
 
                         // Gap 5: Hallucination verification — check if subject and
-                        // object strings appear in the chunk text. Skip for
-                        // golem:*, eso:*, fibo:*, pko:* predicates where abstract/interpretive
-                        // concepts are expected. Cap at 0.5 (not 0.3 — too aggressive).
-                        let is_abstract = predicate.starts_with("golem:")
-                            || predicate.starts_with("eso:")
-                            || predicate.starts_with("fibo:")
-                            || predicate.starts_with("pko:");
+                        // object strings appear in the chunk text. Skip the check
+                        // for abstract-namespace predicates (golem/eso/fibo/pko)
+                        // where interpretive concepts are expected. Cap at 0.5
+                        // (not 0.3 — too aggressive).
+                        //
+                        // M4 fix: the bypass only applies if the predicate's
+                        // namespace was actually tagged for this chunk. Without
+                        // this cross-check, the LLM could emit any `golem:`/
+                        // `eso:`/`fibo:`/`pko:` predicate to bypass the guard
+                        // for chunks where that ontology was never detected —
+                        // allowing hallucinated triples to enter the knowledge
+                        // graph at full LLM-reported confidence.
+                        let pred_ns = predicate.split(':').next().unwrap_or("").to_lowercase();
+                        let is_abstract_ns = matches!(
+                            pred_ns.as_str(),
+                            "golem" | "eso" | "fibo" | "pko" | "epistemic" | "omc" | "other"
+                        );
+                        let namespace_tagged =
+                            !chunk_namespaces.is_empty() && chunk_namespaces.contains(&pred_ns);
+                        let is_abstract = is_abstract_ns && namespace_tagged;
                         let confidence = if is_abstract {
                             raw_confidence
                         } else {
@@ -987,11 +1064,20 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                             };
                             let obj_in_text = obj_str.is_empty() || text_lower.contains(&obj_str);
                             if (!subj_in_text || !obj_in_text) && raw_confidence > 0.5 {
+                                let reason = if is_abstract_ns && !namespace_tagged {
+                                    format!(
+                                        "abstract namespace '{}' not in chunk ontology tags {:?} — confidence capped at 0.5",
+                                        pred_ns, chunk_namespaces
+                                    )
+                                } else {
+                                    "Triple subject/object not found in chunk text — confidence capped at 0.5".to_string()
+                                };
                                 tracing::warn!(
                                     target: "hkask.mcp.docproc.triples",
                                     entity = %entity_ref,
                                     subject = %subject,
-                                    "Triple subject/object not found in chunk text — confidence capped at 0.5"
+                                    predicate = %predicate,
+                                    "{reason}"
                                 );
                                 0.5
                             } else {

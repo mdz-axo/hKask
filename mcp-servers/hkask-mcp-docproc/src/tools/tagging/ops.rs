@@ -84,19 +84,6 @@ fn compute_salience(tagged: &[TaggedChunk]) -> Vec<f32> {
     hkask_memory::salience::compute_salience_batch(&all_tags)
 }
 
-// Normalize a concept string for salience-graph consistency. The graph keys on
-// exact strings, so "ROIC", "Roic", "roic  " would be three disconnected nodes.
-// Lowercase + trim + collapse whitespace merges them. Corpus-specific
-// canonicalization (e.g. "DCF" → "discounted cash flow") is driven by the
-// tagging template, not hardcoded here — docproc is a general processor.
-fn normalize_concept(s: &str) -> String {
-    s.trim()
-        .to_lowercase()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
 #[tool_router(router = tagging_router, vis = "pub")]
 impl DocProcServer {
     #[tool(

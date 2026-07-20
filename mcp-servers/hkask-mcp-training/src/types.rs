@@ -1,58 +1,19 @@
 //! Request types for the Training MCP server — all tool input structs and their supporting types.
-//! Fourteen tools (simplified from 21 on 2026-07-19): ingest_qa, submit, status,
-//! cancel, delete_adapter, assemble_dataset, evaluate, register_adapter, retrain,
-//! ingest_dataset, preflight_check, deploy, deployment_status, teardown.
+//!
+//! Eight tools: ingest_qa, ingest_dataset, assemble_dataset, submit (handles
+//! retrain via optional feedback_path), status, cancel, evaluate,
+//! validate_config. Deployment tools removed in favor of `AdapterPort`;
+//! register/list/delete adapters removed in favor of `AdapterStore` /
+//! `AdapterPort` direct calls; preflight_check replaced by validate_config
+//! (runs the actual lora-training skill gates).
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use chrono;
-use hkask_adapter::{EndpointLifecycle, EndpointPhase};
-
 use crate::providers::TrainingParams;
-use hkask_inference::ProviderId;
 
-// ── Deployment provider ─────────────────────────────────────────────────
+// ── Request structs ──────────────────────────────────────────────────────
 
-/// Cloud provider for adapter deployment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum DeploymentProvider {
-    /// Together AI — fine-tuned models auto-deployed. ~30s setup.
-    Together,
-    /// Runpod — GPU pod with adapter weights mounted. ~3min setup.
-    Runpod,
-}
-
-impl DeploymentProvider {
-    /// Map to `hkask_inference::ProviderId` for use with `hkask-adapter::AdapterRouter`.
-    pub fn as_provider_id(&self) -> ProviderId {
-        match self {
-            DeploymentProvider::Together => ProviderId::Together,
-            DeploymentProvider::Runpod => ProviderId::Runpod,
-        }
-    }
-
-    /// Estimated setup time in seconds.
-    pub fn setup_seconds(&self) -> u64 {
-        match self {
-            DeploymentProvider::Together => 30,
-            DeploymentProvider::Runpod => 300,
-        }
-    }
-
-    /// Estimated cost per hour in USD.
-    pub fn cost_per_hour(&self, gpu: Option<&str>) -> f32 {
-        match self {
-            DeploymentProvider::Together => 0.0,
-            DeploymentProvider::Runpod => match gpu.unwrap_or("RTX 4090") {
-                "A100" => 1.99,
-                "H100" => 2.99,
-                _ => 0.79,
-            },
-        }
-    }
-}
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct QaItem {
     pub question: String,
@@ -60,8 +21,6 @@ pub struct QaItem {
     #[serde(default)]
     pub bloom_level: Option<String>,
 }
-
-// ── Request structs ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct IngestQaRequest {
@@ -83,6 +42,33 @@ pub struct TrainSubmitRequest {
     /// Optional training hyperparameters. Uses defaults if not provided.
     #[serde(default)]
     pub params: Option<TrainingParams>,
+    // ── Retrain mode (optional) ──────────────────────────────────────────
+    //
+    // When `feedback_path` is set, `training_submit` enters retrain mode:
+    // it merges `dataset_path` (original) with `feedback_path` (curated
+    // feedback), deduplicates by user question, increments the adapter
+    // version based on existing adapters with the same `skill_name`, and
+    // pre-registers the adapter metadata so `training_status` can complete
+    // the A/B comparison on job completion.
+    //
+    // When `feedback_path` is absent, this is a normal training submit.
+    /// Path to a feedback JSONL file to merge into the original dataset
+    /// (enables retrain mode).
+    #[serde(default)]
+    pub feedback_path: Option<String>,
+    /// Skill name for the adapter registry (retrain mode only).
+    /// When set, enables A/B comparison against prior adapters with the
+    /// same skill name on job completion.
+    #[serde(default)]
+    pub skill_name: Option<String>,
+    /// Adapter name for the new version (retrain mode only).
+    /// If omitted, a name is derived from the skill_name + version.
+    #[serde(default)]
+    pub adapter_name: Option<String>,
+    /// Path to write the merged dataset (retrain mode only).
+    /// Defaults to an auto-generated path in the cache dir.
+    #[serde(default)]
+    pub merged_output_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -95,12 +81,6 @@ pub struct TrainStatusRequest {
 pub struct TrainCancelRequest {
     /// Job ID to cancel.
     pub job_id: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TrainDeleteAdapterRequest {
-    /// Adapter ID to delete.
-    pub adapter_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -128,6 +108,7 @@ pub struct AssembleDatasetRequest {
     #[serde(default)]
     pub system_prompt: Option<String>,
 }
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TrainEvaluateRequest {
     /// Adapter ID or fine-tuned model name to evaluate.
@@ -136,8 +117,6 @@ pub struct TrainEvaluateRequest {
     /// with user/assistant turns. The last assistant message is the expected answer.
     pub test_dataset_path: String,
     /// Model identifier to run evaluation against (provider-prefixed).
-    /// For Together AI adapters, use the fine-tuned model name
-    /// (e.g., "mdz-axolotl/Qwen3.5-9B-ft-abc123").
     pub model: String,
     /// Evaluation method: "exact_match" (default), "contains", or "semantic".
     /// - exact_match: generated == expected after trimming
@@ -151,63 +130,6 @@ pub struct TrainEvaluateRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct TrainRegisterAdapterRequest {
-    /// Adapter ID (from training job completion).
-    pub adapter_id: String,
-    /// Human-readable name for the adapter (e.g., "pragmatic-semantics-v1").
-    pub name: String,
-    /// Skill name this adapter serves (e.g., "pragmatic-semantics").
-    /// Enables adapter-to-skill mapping for the registry.
-    pub skill_name: String,
-    /// Base model the adapter was trained on (provider-prefixed).
-    pub base_model: String,
-    /// Content hash of the training dataset.
-    #[serde(default)]
-    pub dataset_hash: Option<String>,
-    /// ID of the originating training job.
-    #[serde(default)]
-    pub training_job_id: Option<String>,
-    /// Size of adapter weights in bytes.
-    #[serde(default)]
-    pub size_bytes: Option<u64>,
-    /// Final training loss.
-    #[serde(default)]
-    pub loss: Option<f32>,
-    /// Perplexity at end of training.
-    #[serde(default)]
-    pub perplexity: Option<f32>,
-    /// Training duration in seconds.
-    #[serde(default)]
-    pub training_duration_secs: Option<u64>,
-    /// Number of tokens processed.
-    #[serde(default)]
-    pub tokens_processed: Option<u64>,
-    /// Adapter version number (default: 1). Increment on retraining.
-    #[serde(default)]
-    pub version: Option<u32>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TrainRetrainRequest {
-    /// Path to the original training dataset.
-    pub original_dataset_path: String,
-    /// Path to the feedback JSONL file (from training_curate_feedback).
-    pub feedback_path: String,
-    /// Base model to fine-tune (provider-prefixed).
-    pub base_model: String,
-    /// Adapter name for the new version (e.g., "pragmatic-semantics-v2").
-    pub adapter_name: String,
-    /// Skill name for the adapter registry.
-    pub skill_name: String,
-    /// Optional training hyperparameters. Uses defaults if not provided.
-    #[serde(default)]
-    pub params: Option<TrainingParams>,
-    /// Path to write the merged dataset (default: auto-generated in cache dir).
-    #[serde(default)]
-    pub merged_output_path: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct TrainIngestDatasetRequest {
     /// Path to the raw dataset file (JSONL, JSON, or TXT).
     pub dataset_path: String,
@@ -217,88 +139,17 @@ pub struct TrainIngestDatasetRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct TrainDeployRequest {
-    /// Adapter ID or skill/expertise name to deploy (e.g., "pragmatic-semantics-v1").
-    pub adapter_name: String,
-    /// Cloud inference provider for deployment.
-    pub provider: DeploymentProvider,
-    /// Base model the adapter was trained on. Auto-resolved from AdapterStore if omitted.
-    #[serde(default)]
-    pub base_model: Option<String>,
-    /// GPU type preference (e.g., "A100", "H100", "RTX 4090"). Provider-specific.
-    #[serde(default)]
-    pub gpu_type: Option<String>,
+pub struct TrainValidateConfigRequest {
+    /// Training parameters to validate against the lora-training skill's
+    /// math-contract gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4).
+    pub params: TrainingParams,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TrainTeardownRequest {
-    /// Deployment ID from a previous training_deploy call.
-    pub deployment_id: String,
-}
+// ── Supporting types ─────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize)]
 pub struct AbBaseline {
     pub previous_version: u32,
     pub previous_loss: f32,
     pub previous_perplexity: f32,
-}
-
-/// A deployed adapter endpoint — tracks the lifecycle of a trained adapter
-/// that has been deployed to a cloud inference provider.
-///
-/// Uses `EndpointLifecycle` for state machine governance:
-///   Provisioning → Ready → Active → Draining → Terminated
-#[derive(Debug, Clone, Serialize)]
-pub struct AdapterDeployment {
-    pub deployment_id: String,
-    pub adapter_name: String,
-    pub base_model: String,
-    pub provider: DeploymentProvider,
-    pub endpoint_url: Option<String>,
-    /// Lifecycle state machine — governs phase transitions.
-    #[serde(skip)]
-    pub lifecycle: EndpointLifecycle,
-    pub estimated_cost_per_hour: f32,
-    pub deployed_at: chrono::DateTime<chrono::Utc>,
-}
-
-impl AdapterDeployment {
-    /// Current phase from the lifecycle state machine.
-    pub fn phase(&self) -> EndpointPhase {
-        self.lifecycle.phase
-    }
-
-    /// Accrued cost from the lifecycle.
-    pub fn cost_accrued(&self) -> f64 {
-        self.lifecycle.cost_accrued
-    }
-}
-
-// ── Pre-flight check ───────────────────────────────────────────────────────
-
-/// Request for `training_preflight_check` — verifies an adapter is safe to
-/// deploy before running a full eval or registering it as ready.
-///
-/// Three checks run sequentially, fail-fast:
-/// 1. **load** — adapter_config.json parses and init_lora_weights is valid
-/// 2. **weights** — adapter_model.safetensors exists and is non-empty
-/// 3. **sanity** — a test prompt produces output > 50 chars (optional, requires inference)
-///
-/// This tool prevents the class of failures where a PiSSA-trained adapter is
-/// loaded with `init_lora_weights: true` without conversion, causing the
-/// principal components to be double-counted and the model to regress.
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TrainPreflightCheckRequest {
-    /// Path to the adapter directory containing adapter_config.json and
-    /// adapter_model.safetensors.
-    pub adapter_path: String,
-    /// Model identifier for the sanity-check inference call (provider-prefixed).
-    /// If omitted, only the load and weights checks run (no inference).
-    #[serde(default)]
-    pub model: Option<String>,
-    /// Test prompt for the sanity check. If omitted, a default Rust prompt is used.
-    #[serde(default)]
-    pub test_prompt: Option<String>,
-    /// Minimum acceptable response length for the sanity check (default: 50).
-    #[serde(default)]
-    pub min_response_chars: Option<usize>,
 }

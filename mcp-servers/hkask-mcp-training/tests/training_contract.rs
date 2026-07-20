@@ -60,6 +60,12 @@ fn training_submit_request_type_exists() {
 }
 
 #[test]
+fn training_validate_config_request_type_exists() {
+    let _type_name = std::any::type_name::<hkask_mcp_training::types::TrainValidateConfigRequest>();
+    assert!(_type_name.contains("hkask_mcp_training"));
+}
+
+#[test]
 fn training_host_id_enum_exists() {
     let _type_name = std::any::type_name::<hkask_mcp_training::providers::TrainingHostId>();
     assert!(_type_name.contains("hkask_mcp_training"));
@@ -88,6 +94,10 @@ fn request_types_have_schemas() {
     assert!(schema_json.is_object());
 
     let schema = schemars::schema_for!(hkask_mcp_training::types::TrainSubmitRequest);
+    let schema_json = serde_json::to_value(&schema).expect("schema should serialize");
+    assert!(schema_json.is_object());
+
+    let schema = schemars::schema_for!(hkask_mcp_training::types::TrainValidateConfigRequest);
     let schema_json = serde_json::to_value(&schema).expect("schema should serialize");
     assert!(schema_json.is_object());
 }
@@ -149,14 +159,13 @@ fn test_server() -> TrainingServer {
         None,
         None, // no semantic memory
         Box::new(MockTrainingHost),
-        TrainingHostId::Together,
+        TrainingHostId::Runpod,
         TrainingHarnessId::Axolotl,
         Mutex::new(DatasetPipeline::new(PathBuf::from("/tmp/hkask-test-cache"))),
         adapter_store,
         None, // no job store
         None, // no adapter router
         InferenceConfig::default(),
-        Mutex::new(std::collections::HashMap::new()),
     )
 }
 
@@ -174,132 +183,13 @@ fn error_kind(out: &str) -> Option<String> {
     v.get("kind").and_then(|e| e.as_str()).map(String::from)
 }
 
-// REQ: training_list_adapters returns an empty list for a fresh server (P5).
-// expect: list_adapters returns an empty adapters array.
-#[tokio::test]
-async fn training_list_adapters_returns_empty_via_parameters_seam() {
-    let server = test_server();
-    let out = server.training_list_adapters().await;
-    let content = parse_content(&out);
-    assert!(
-        content["adapters"].is_array(),
-        "adapters should be an array: {out}"
-    );
-    assert_eq!(
-        content["adapters"].as_array().unwrap().len(),
-        0,
-        "got: {out}"
-    );
-}
-
-// REQ: training_preflight_check fails on a missing adapter_config.json (P5).
-// expect: preflight returns all_pass=false, failed_at=load.
-#[tokio::test]
-async fn training_preflight_check_fails_on_missing_config_via_parameters_seam() {
-    let server = test_server();
-    let req: hkask_mcp_training::types::TrainPreflightCheckRequest =
-        serde_json::from_value(serde_json::json!({
-            "adapter_path": "/nonexistent/path",
-            "model": null,
-            "test_prompt": null,
-            "min_response_chars": null
-        }))
-        .expect("deserialize TrainPreflightCheckRequest");
-    let out = server.training_preflight_check(Parameters(req)).await;
-    let content = parse_content(&out);
-    assert_eq!(
-        content["all_pass"], false,
-        "should fail on missing config: {out}"
-    );
-    assert_eq!(
-        content["failed_at"], "load",
-        "should fail at load check: {out}"
-    );
-}
-
-// REQ: training_preflight_check fails on a missing adapter_model.safetensors (P5).
-// expect: preflight returns all_pass=false, failed_at=weights when config exists but weights don't.
-#[tokio::test]
-async fn training_preflight_check_fails_on_missing_weights_via_parameters_seam() {
-    let server = test_server();
-    // Create a temp dir with a valid adapter_config.json but no safetensors
-    let temp_dir = std::env::temp_dir().join("hkask_preflight_test_no_weights");
-    std::fs::create_dir_all(&temp_dir).ok();
-    std::fs::write(
-        temp_dir.join("adapter_config.json"),
-        r#"{"init_lora_weights": true, "r": 32, "lora_alpha": 64, "base_model_name_or_path": "test"}"#,
-    )
-    .ok();
-
-    let req: hkask_mcp_training::types::TrainPreflightCheckRequest =
-        serde_json::from_value(serde_json::json!({
-            "adapter_path": temp_dir.to_string_lossy(),
-            "model": null,
-            "test_prompt": null,
-            "min_response_chars": null
-        }))
-        .expect("deserialize TrainPreflightCheckRequest");
-    let out = server.training_preflight_check(Parameters(req)).await;
-    let content = parse_content(&out);
-    assert_eq!(
-        content["all_pass"], false,
-        "should fail on missing weights: {out}"
-    );
-    assert_eq!(
-        content["failed_at"], "weights",
-        "should fail at weights check: {out}"
-    );
-    std::fs::remove_dir_all(&temp_dir).ok();
-}
-
-// REQ: training_preflight_check passes when config and weights exist (P5).
-// expect: preflight returns all_pass=true with load and weights both pass (sanity skipped).
-#[tokio::test]
-async fn training_preflight_check_passes_with_valid_adapter_via_parameters_seam() {
-    let server = test_server();
-    // Create a temp dir with a valid config and a dummy safetensors file
-    let temp_dir = std::env::temp_dir().join("hkask_preflight_test_valid");
-    std::fs::create_dir_all(&temp_dir).ok();
-    std::fs::write(
-        temp_dir.join("adapter_config.json"),
-        r#"{"init_lora_weights": true, "r": 32, "lora_alpha": 64, "base_model_name_or_path": "unsloth/Qwen3.6-27B"}"#,
-    )
-    .ok();
-    // Write a dummy safetensors file > 1KB
-    std::fs::write(temp_dir.join("adapter_model.safetensors"), vec![0u8; 2048]).ok();
-
-    let req: hkask_mcp_training::types::TrainPreflightCheckRequest =
-        serde_json::from_value(serde_json::json!({
-            "adapter_path": temp_dir.to_string_lossy(),
-            "model": null,
-            "test_prompt": null,
-            "min_response_chars": null
-        }))
-        .expect("deserialize TrainPreflightCheckRequest");
-    let out = server.training_preflight_check(Parameters(req)).await;
-    let content = parse_content(&out);
-    assert_eq!(
-        content["all_pass"], true,
-        "should pass with valid adapter (no inference): {out}"
-    );
-    let checks = content["checks"].as_array().expect("checks is array");
-    assert!(
-        checks.len() >= 2,
-        "should have load and weights checks: {out}"
-    );
-    assert_eq!(checks[0]["check"], "load");
-    assert_eq!(checks[0]["status"], "pass");
-    assert_eq!(checks[1]["check"], "weights");
-    assert_eq!(checks[1]["status"], "pass");
-    std::fs::remove_dir_all(&temp_dir).ok();
-}
-
-// ── Contract tests for previously-untested tools (2026-07-19 cleanup) ──────
+// ── Contract tests for retained tools (2026-07-19 cleanup, second pass) ────
 //
-// These tests close the coverage gap identified in the post-mortem: 18 of 21
-// tools had no contract tests. After the 21→14 simplification, these 5 tests
-// cover the most critical untested tools: submit, status, cancel, deploy, teardown.
-// All use the MockTrainingHost (no external API calls).
+// After the 21 → 15 → 8 simplification, these tests cover the retained tools
+// that have observable behavior with a mock host: submit, status, cancel,
+// validate_config. Deployment/register/list/delete tools were removed (they
+// are now `AdapterPort` / `AdapterStore` direct calls). All use the
+// MockTrainingHost (no external API calls).
 
 // REQ: training_submit rejects a missing dataset file without panicking (P5).
 // expect: submit returns an error envelope, not a panic.
@@ -310,7 +200,11 @@ async fn training_submit_rejects_missing_dataset_via_parameters_seam() {
         serde_json::from_value(serde_json::json!({
             "dataset_path": "/nonexistent/path/to/dataset.jsonl",
             "base_model": "unsloth/Qwen3.6-27B",
-            "params": null
+            "params": null,
+            "feedback_path": null,
+            "skill_name": null,
+            "adapter_name": null,
+            "merged_output_path": null
         }))
         .expect("deserialize TrainSubmitRequest");
     let out = server.training_submit(Parameters(req)).await;
@@ -370,48 +264,60 @@ async fn training_cancel_succeeds_with_mock_host_via_parameters_seam() {
     );
 }
 
-// REQ: training_deploy rejects an unknown adapter name without panicking (P5).
-// expect: deploy returns an error for an adapter that doesn't exist in the store.
+// REQ: training_validate_config passes default params with no refusals (P5).
+// expect: validate_config returns verdict "pass" for default TrainingParams
+// (no gate violations — defaults are safe per PEFT v0.19.0).
 #[tokio::test]
-async fn training_deploy_rejects_unknown_adapter_via_parameters_seam() {
+async fn training_validate_config_passes_default_params_via_parameters_seam() {
     let server = test_server();
-    let req: hkask_mcp_training::types::TrainDeployRequest =
+    let req: hkask_mcp_training::types::TrainValidateConfigRequest =
         serde_json::from_value(serde_json::json!({
-            "adapter_name": "nonexistent-adapter-xyz",
-            "provider": "together",
-            "base_model": null,
-            "gpu_type": null
+            "params": hkask_mcp_training::providers::TrainingParams::default()
         }))
-        .expect("deserialize TrainDeployRequest");
-    let out = server.training_deploy(Parameters(req)).await;
-    // Should return an error, not a panic — the adapter doesn't exist in the store.
-    let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
-    assert!(
-        v.get("content")
-            .and_then(|c| c.get("endpoint_url"))
-            .is_none()
-            || v.get("kind").is_some(),
-        "deploy should not return an endpoint for an unknown adapter: {out}"
+        .expect("deserialize TrainValidateConfigRequest");
+    let out = server.training_validate_config(Parameters(req)).await;
+    let content = parse_content(&out);
+    assert_eq!(
+        content["verdict"], "pass",
+        "default TrainingParams should pass all static gates: {out}"
+    );
+    assert_eq!(
+        content["has_refusals"], false,
+        "no refusals for default params: {out}"
     );
 }
 
-// REQ: training_teardown handles an unknown deployment ID without panicking (P5).
-// expect: teardown returns gracefully (error or no-op) for a nonexistent deployment.
+// REQ: training_validate_config refuses rank=0 (G-M3 scaling form gate) (P5).
+// expect: validate_config returns verdict "fail" with has_refusals=true when
+// the LoRA rank is zero (scaling form α/r is undefined).
 #[tokio::test]
-async fn training_teardown_handles_unknown_deployment_via_parameters_seam() {
+async fn training_validate_config_refuses_rank_zero_via_parameters_seam() {
     let server = test_server();
-    let req: hkask_mcp_training::types::TrainTeardownRequest =
+    let mut params = hkask_mcp_training::providers::TrainingParams::default();
+    params.lora.r = 0;
+    let req: hkask_mcp_training::types::TrainValidateConfigRequest =
         serde_json::from_value(serde_json::json!({
-            "deployment_id": "nonexistent-deployment-xyz"
+            "params": params
         }))
-        .expect("deserialize TrainTeardownRequest");
-    let out = server.training_teardown(Parameters(req)).await;
-    // Should not panic — the deployment doesn't exist.
-    let v: serde_json::Value = serde_json::from_str(&out).expect("tool output is JSON");
-    // The tool should return either a success (no-op) or an error envelope.
-    // Either way, it must be valid JSON and not a panic.
+        .expect("deserialize TrainValidateConfigRequest");
+    let out = server.training_validate_config(Parameters(req)).await;
+    let content = parse_content(&out);
+    assert_eq!(
+        content["verdict"], "fail",
+        "rank=0 should fail the scaling form gate: {out}"
+    );
+    assert_eq!(
+        content["has_refusals"], true,
+        "rank=0 should produce a refusal: {out}"
+    );
+    // Verify the finding is from the scaling form gate (G-M3).
+    let findings = content["findings"]
+        .as_array()
+        .expect("findings should be an array");
     assert!(
-        v.is_object(),
-        "teardown should return valid JSON for unknown deployment: {out}"
+        findings
+            .iter()
+            .any(|f| f["gate_id"] == "G-M3" && f["severity"] == "refuse"),
+        "should have a G-M3 refuse finding: {out}"
     );
 }
