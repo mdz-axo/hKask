@@ -4,7 +4,6 @@ use hkask_federation::service::FederationService;
 use hkask_ports::federation::FederationDispatch;
 use std::sync::Arc;
 
-use crate::block_on;
 use crate::cli::FederationAction;
 
 /// Run federation commands from the CLI.

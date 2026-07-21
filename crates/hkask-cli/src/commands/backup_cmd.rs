@@ -10,7 +10,6 @@ use std::sync::Arc;
 use hkask_git_cas::GixCasAdapter;
 use hkask_ports::git_cas::{CommitHash, GitCASPort};
 
-use crate::block_on;
 use crate::cli::BackupAction;
 
 /// Resolve the concrete `GixCasAdapter` for pod-directory backup operations.
