@@ -259,11 +259,10 @@ impl ChatWindow {
                 self.messages.clear();
                 self.scroll_offset = 0;
             }
-            :
-                        "model" => {
-                            let sub = parts.get(1).copied().unwrap_or("");
-                            match sub {
-                                "list" => match self.settings_bridge.as_ref() {
+            "model" => {
+                let sub = parts.get(1).copied().unwrap_or("");
+                match sub {
+                    "list" => match self.settings_bridge.as_ref() {
                                     Some(b) => match b.list_models() {
                                         Ok(models) if models.is_empty() => self.add_message(
                                             MessageSender::CnsAlert,
@@ -333,7 +332,7 @@ impl ChatWindow {
                                     ),
                                 },
                             }
-                        }
+            }
             "status" => {
                 let gas = self.bridge.gas_remaining();
                 let cap = self.bridge.gas_cap();

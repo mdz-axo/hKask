@@ -44,11 +44,9 @@ pub use listen::handle_listen;
 #[cfg(feature = "communication")]
 pub use matrix::{handle_matrix, handle_msg};
 pub use mcp::handle_mcp;
-pub use model::{handle_model, resolve_and_set_model};
+pub use model::handle_model;
 pub use pod::handle_pod;
-pub use repl_settings::{
-    ReplSettings, apply_setting, handle_repl_set, render_settings, to_llm_params,
-};
+pub use repl_settings::{ReplSettings, handle_repl_set, to_llm_params};
 pub use skill::handle_skill;
 pub use start::handle_start;
 pub use status::handle_status;

@@ -94,25 +94,20 @@ impl SettingsBridge for MockReplBridge {
 
 /// Create a mock bridge for tests. Returns both system and repl Arcs
 /// backed by the same MockReplBridge instance.
-pub(crate) fn mock_bridges() -> (
-    Arc<dyn SystemBridge>,
-    Arc<dyn ReplBridge>,
-    Arc<dyn SettingsBridge>,
-) {
-    pub(crate) fn mock_bridges() -> (Arc<dyn SystemBridge>, Arc<dyn ReplBridge>) {
-        let bridge = Arc::new(MockReplBridge {
-            agent_name: "test-agent".to_string(),
-            model_name: "test-model".to_string(),
-        });
-        let system: Arc<dyn SystemBridge> = bridge.clone();
-        let repl: Arc<dyn ReplBridge> = bridge;
-        (system, repl)
-    }
+pub(crate) fn mock_bridges() -> (Arc<dyn SystemBridge>, Arc<dyn ReplBridge>) {
+    let bridge = Arc::new(MockReplBridge {
+        agent_name: "test-agent".to_string(),
+        model_name: "test-model".to_string(),
+    });
+    let system: Arc<dyn SystemBridge> = bridge.clone();
+    let repl: Arc<dyn ReplBridge> = bridge;
+    (system, repl)
+}
 
-    /// A mock `SettingsBridge` for tests that exercise `/model` or `/repl`.
-    pub(crate) fn mock_settings_bridge() -> Arc<dyn SettingsBridge> {
-        Arc::new(MockReplBridge {
-            agent_name: "test-agent".to_string(),
-            model_name: "test-model".to_string(),
-        })
-    }
+/// A mock `SettingsBridge` for tests that exercise `/model` or `/repl`.
+pub(crate) fn mock_settings_bridge() -> Arc<dyn SettingsBridge> {
+    Arc::new(MockReplBridge {
+        agent_name: "test-agent".to_string(),
+        model_name: "test-model".to_string(),
+    })
+}

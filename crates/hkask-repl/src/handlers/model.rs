@@ -2,7 +2,6 @@
 
 use crate::handlers::repl_settings::ModelMeta;
 use hkask_services_inference::{InferenceContext, InferenceService};
-use hkask_tui::ModelSwitchResult;
 
 pub fn populate_model_meta(state: &mut super::super::ReplState, _rt: &tokio::runtime::Handle) {
     state.repl_settings.model_meta = Some(ModelMeta {
@@ -10,6 +9,17 @@ pub fn populate_model_meta(state: &mut super::super::ReplState, _rt: &tokio::run
         supports_thinking: false,
         capabilities: Vec::new(),
     });
+}
+
+/// Resolved model switch — resolved name + rendered detail.
+///
+/// Internal to `hkask-repl`: the REPL `/model` handler prints it, and the
+/// TUI `SettingsBridge` (in `hkask-repl`'s lib, behind the `tui` feature)
+/// maps this to `hkask_tui::ModelSwitchResult` at the trait boundary. Kept
+/// local so the resolver compiles without the optional `hkask-tui` dep.
+pub(crate) struct ResolvedModel {
+    pub resolved_name: String,
+    pub detail: String,
 }
 
 /// Resolve `name` against the model catalog and apply it to `state`.
@@ -22,7 +32,7 @@ pub(crate) fn resolve_and_set_model(
     state: &mut super::super::ReplState,
     rt: &tokio::runtime::Handle,
     name: &str,
-) -> ModelSwitchResult {
+) -> ResolvedModel {
     let ctx = InferenceContext::from(state.service_context.as_ref());
     match rt.block_on(InferenceService::search_models(&ctx, name)) {
         Ok(models) if models.len() == 1 => {
@@ -39,14 +49,14 @@ pub(crate) fn resolve_and_set_model(
                 detail.push_str(&format!("Quantization: {}\n", quant));
             }
             populate_model_meta(state, rt);
-            ModelSwitchResult {
+            ResolvedModel {
                 resolved_name: state.current_model.clone(),
                 detail,
             }
         }
         Ok(models) if models.is_empty() => {
             state.current_model = name.to_string();
-            ModelSwitchResult {
+            ResolvedModel {
                 resolved_name: name.to_string(),
                 detail: "Provider unreachable — model name stored for next inference.".to_string(),
             }
@@ -57,14 +67,14 @@ pub(crate) fn resolve_and_set_model(
                 d.push_str(&format!("  {}\n", m.name));
             }
             d.push_str("Use /model <exact-name> to switch.");
-            ModelSwitchResult {
+            ResolvedModel {
                 resolved_name: state.current_model.clone(),
                 detail: d,
             }
         }
         Err(_) => {
             state.current_model = name.to_string();
-            ModelSwitchResult {
+            ResolvedModel {
                 resolved_name: name.to_string(),
                 detail: "Provider unreachable — model name stored for next inference.".to_string(),
             }
@@ -81,15 +91,18 @@ pub fn handle_model(arg1: &str, rt: &tokio::runtime::Handle, state: &mut super::
         match models {
             Ok(models) if models.is_empty() => {
                 println!(
-                    "  [33mRefreshed — no models reachable. Check providers / Ollama daemon.[0m"
+                    "  \x1b[33mRefreshed — no models reachable. Check providers / Ollama daemon.\x1b[0m"
                 );
             }
             Ok(models) => {
-                println!("  [32mRefreshed — {} models available.[0m", models.len());
-                println!("  Use [36m/model list[0m to browse them.");
+                println!(
+                    "  \x1b[32mRefreshed — {} models available.\x1b[0m",
+                    models.len()
+                );
+                println!("  Use \x1b[36m/model list\x1b[0m to browse them.");
             }
             Err(e) => {
-                println!("  [31mRefresh failed: {}[0m", e);
+                println!("  \x1b[31mRefresh failed: {}\x1b[0m", e);
             }
         }
         println!();

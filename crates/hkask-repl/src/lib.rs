@@ -754,7 +754,11 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
 impl hkask_tui::SettingsBridge for TuiReplBridge {
     fn set_model(&self, name: &str) -> hkask_tui::ModelSwitchResult {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        handlers::resolve_and_set_model(&mut state, &self.rt_handle, name)
+        let r = handlers::model::resolve_and_set_model(&mut state, &self.rt_handle, name);
+        hkask_tui::ModelSwitchResult {
+            resolved_name: r.resolved_name,
+            detail: r.detail,
+        }
     }
 
     fn list_models(&self) -> anyhow::Result<Vec<hkask_tui::TuiModelInfo>> {
@@ -779,11 +783,11 @@ impl hkask_tui::SettingsBridge for TuiReplBridge {
 
     fn settings_display(&self) -> String {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        handlers::render_settings(&state)
+        handlers::repl_settings::render_settings(&state)
     }
 
     fn set_setting(&self, key: &str, value: &str) -> anyhow::Result<String> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        handlers::apply_setting(&mut state, key, value)
+        handlers::repl_settings::apply_setting(&mut state, key, value)
     }
 }
