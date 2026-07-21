@@ -288,4 +288,79 @@ mod tests {
         let config = TrainingHostConfig::default();
         assert_eq!(config.host, TrainingHostId::Runpod);
     }
+
+    /// expect: The TRL harness renders a valid SFTTrainer Python script from canonical TrainingParams.
+    /// [P2] Motivating: User Sovereignty — the operator can choose TRL as an alternative to Axolotl.
+    /// pre: A training job contains canonical EVA LoRA parameters with harness=Trl.
+    /// post: The rendered Python script contains SFTTrainer, SFTConfig, LoraConfig, and all params.
+    /// [P4] Constraining: Clear Boundaries — only explicit parameters cross the provider boundary.
+    #[test]
+    fn trl_harness_renders_sft_script() {
+        let mut params = TrainingParams {
+            num_epochs: 3,
+            batch_size: 1,
+            learning_rate: 1e-4,
+            ..TrainingParams::default()
+        };
+        params.lora.r = 32;
+        params.lora.alpha = 64;
+        params.lora.init_lora_weights = Some(types::LoraInit::Eva);
+        params.optimization.gradient_accumulation_steps = 16;
+        params.optimization.lr_scheduler = Some("cosine".to_string());
+        params.optimization.warmup_steps = Some(100);
+        params.sequence.sequence_len = Some(4096);
+        params.advanced.bf16 = true;
+        params.harness = Some(TrainingHarnessId::Trl);
+        params.trl_trainer = Some(types::TrlTrainer::Sft);
+
+        let mut job = TrainingJob::new(
+            std::path::PathBuf::from("/tmp/train_chat_full.jsonl"),
+            "unsloth/Qwen3.6-27B".to_string(),
+            params,
+            TrainingHostId::Runpod,
+            TrainingHarnessId::Trl,
+        );
+        job.artifacts = Some(crate::huggingface::TrainingArtifacts {
+            dataset: crate::huggingface::TrainingArtifact {
+                repository: "mdz-axo/capabilities-researcher-qa".to_string(),
+                revision: "main".to_string(),
+                path: "train_chat_full.jsonl".to_string(),
+                sha256: String::new(),
+            },
+            model_repository: "mdz-axo/capabilities-researcher-v3-eva".to_string(),
+            completion_manifest_path: "/workspace/completion.json".to_string(),
+        });
+
+        let script = crate::providers::TrlHarness
+            .render_config(&job)
+            .expect("render TRL SFT script");
+
+        for expected in [
+            "from trl import SFTConfig, SFTTrainer",
+            "from peft import LoraConfig",
+            "base_model = \"unsloth/Qwen3.6-27B\"",
+            "r=32",
+            "lora_alpha=64",
+            "init_lora_weights=\"eva\"",
+            "num_train_epochs=3",
+            "per_device_train_batch_size=1",
+            "gradient_accumulation_steps=16",
+            "learning_rate=0.0001",
+            "lr_scheduler_type=\"cosine\"",
+            "warmup_steps=100",
+            "max_length=4096",
+            "bf16=True",
+            "gradient_checkpointing=True",
+            "load_dataset(\"mdz-axo/capabilities-researcher-qa\"",
+            "data_files=\"train_chat_full.jsonl\"",
+            "trainer = SFTTrainer(",
+            "trainer.train()",
+            "trainer.save_model",
+        ] {
+            assert!(
+                script.contains(expected),
+                "missing `{expected}` in:\n{script}"
+            );
+        }
+    }
 }

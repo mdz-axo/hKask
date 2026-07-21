@@ -116,20 +116,11 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn check_assignment(&self, userpod: &str, role: &str) -> bool {
-        // P9: CNS span
+        // Role assignment tracking was removed (1:1 userpod model — tools
+        // accessed via OCAP capabilities, not role assignments). Always
+        // return true; the capability check (check_capability) is the real gate.
         tracing::info!(target: "hkask.daemon", operation = "check_assignment", userpod = %userpod, role = %role, "CNS");
-
-        match self.pod_manager.find_pod_by_name(userpod).await {
-            Some(pod_id) => {
-                let assigned = self.pod_manager.is_assigned_to_role(&pod_id, role).await;
-                tracing::debug!(target: "hkask.daemon", userpod = %userpod, role = %role, assigned = assigned, "Assignment check");
-                assigned
-            }
-            None => {
-                tracing::warn!(target: "hkask.daemon", userpod = %userpod, "Pod not found for assignment check");
-                false
-            }
-        }
+        true
     }
 
     async fn check_capability(&self, userpod: &str, tool: &str) -> bool {

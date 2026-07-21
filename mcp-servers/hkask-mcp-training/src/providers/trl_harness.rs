@@ -113,30 +113,37 @@ impl TrlHarness {
             ),
         ]);
 
-        // Optional fields — only inserted when present, same pattern as AxolotlHarness.
-        for (key, value) in [
-            (
-                "peft_init_lora_weights",
+        // Optional fields — always inserted (with empty defaults) so the
+        // template's {% if field %} checks work with minijinja Strict
+        // undefined behavior. This mirrors the AxolotlHarness pattern.
+        context.insert(
+            "peft_init_lora_weights".to_string(),
+            serde_json::json!(
                 lo.init_lora_weights
                     .as_ref()
-                    .map(|init| init.as_config_value()),
+                    .map(|init| init.as_config_value())
             ),
-            ("optim", opt.optimizer.clone()),
-            ("lr_scheduler", opt.lr_scheduler.clone()),
-            (
-                "sequence_len",
-                p.sequence.sequence_len.map(|v| v.to_string()),
-            ),
-            ("warmup_steps", opt.warmup_steps.map(|v| v.to_string())),
-            ("max_grad_norm", opt.max_grad_norm.map(|v| v.to_string())),
-            ("use_rslora", Some(lo.use_rslora.to_string())),
-            ("use_dora", Some(lo.use_dora.to_string())),
-        ] {
-            if let Some(value) = value {
-                context.insert(key.to_string(), serde_json::json!(value));
-            }
-        }
-        if opt.weight_decay > 0.0 {
+        );
+        context.insert("optim".to_string(), serde_json::json!(opt.optimizer.clone()));
+        context.insert(
+            "lr_scheduler".to_string(),
+            serde_json::json!(opt.lr_scheduler.clone()),
+        );
+        context.insert(
+            "sequence_len".to_string(),
+            serde_json::json!(p.sequence.sequence_len.map(|v| v.to_string())),
+        );
+        context.insert(
+            "warmup_steps".to_string(),
+            serde_json::json!(opt.warmup_steps.map(|v| v.to_string())),
+        );
+        context.insert(
+            "max_grad_norm".to_string(),
+            serde_json::json!(opt.max_grad_norm.map(|v| v.to_string())),
+        );
+        context.insert("use_rslora".to_string(), serde_json::json!(lo.use_rslora.to_string()));
+        context.insert("use_dora".to_string(), serde_json::json!(lo.use_dora.to_string()));
+        context.insert("weight_decay".to_string(), serde_json::json!(opt.weight_decay));
             context.insert(
                 "weight_decay".to_string(),
                 serde_json::json!(opt.weight_decay),
@@ -145,9 +152,7 @@ impl TrlHarness {
 
         // TRL-specific fields (no axolotl equivalent).
         // packing: TRL SFTConfig.packing — enables example packing for efficiency.
-        if p.sequence.sample_packing {
-            context.insert("packing".to_string(), serde_json::json!(true));
-        }
+        context.insert("packing".to_string(), serde_json::json!(p.sequence.sample_packing));
 
         let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
             .map(PathBuf::from)

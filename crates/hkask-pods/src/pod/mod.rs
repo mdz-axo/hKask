@@ -75,7 +75,7 @@ pub use deployment::{
     PerPodCnsRuntime, PerPodStorage, PodDeployError, PodDeployment, PodFactory, PodRegistry,
 };
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
-pub use types::{AgentMode, CommunicationPosture, PodID, PodKind, PodLifecycleState};
+pub use types::{CommunicationPosture, PodID, PodKind, PodLifecycleState};
 
 /// Agent Pod — Runtime container for A2A agents
 pub struct AgentPod {
@@ -97,10 +97,6 @@ pub struct AgentPod {
     pub created_at: i64,
     /// Sovereignty checker for this pod
     pub(crate) sovereignty_checker: SovereigntyChecker,
-    /// Current operating mode (None = not in any active mode)
-    pub mode: Option<AgentMode>,
-    /// MCP server roles this agent is assigned to serve (e.g., ["research", "condenser"])
-    pub assigned_mcp_roles: Vec<String>,
 }
 
 /// Agent pod error types
@@ -164,14 +160,6 @@ pub enum AgentPodError {
     #[error("Pod must be activated before creating context")]
     PodNotActive,
 
-    #[error("Agent is already in {0} mode — exit current mode first")]
-    ModeConflict(AgentMode),
-
-    #[error("Agent must be Active before entering a mode (current state: {0})")]
-    ModeRequiresActivation(PodLifecycleState),
-
-    #[error("Agent is not assigned to MCP role '{0}'. Assigned roles: {1:?}")]
-    RoleNotAssigned(String, Vec<String>),
 }
 
 use crate::error::MemoryError;
@@ -248,8 +236,6 @@ impl AgentPod {
             state: PodLifecycleState::Active,
             created_at: current_timestamp()?,
             sovereignty_checker,
-            mode: None,
-            assigned_mcp_roles: Vec::new(),
         })
     }
 
@@ -383,97 +369,8 @@ impl AgentPod {
 
     // ── Agent Mode Transitions ──
 
-    /// Enter server mode for a specific MCP role.
-    ///
-    /// P4 Dual Gate:
-    /// 1. \[NORMATIVE\] Agent must be Active (lifecycle gate) (P4 — Clear Boundaries)
-    /// 2. \[NORMATIVE\] Agent must be assigned to the role (sovereignty/consent gate) (P2 — Affirmative Consent)
-    /// 3. \[NORMATIVE\] Agent must not already be in another mode (mutual exclusion) (P4 — Clear Boundaries)
-    ///
-    /// Capability verification (P4 Gate 1) is performed by the daemon
-    /// at connection time, not here.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P1\] Motivating: User Sovereignty — enter server mode to serve MCP role
-    /// \[P4\] Constraining: Clear Boundaries — requires Activated + assigned role
-    /// pre:  `self.state == Active`; `self.mode == None`; `role` is
-    ///       in `self.assigned_mcp_roles`.
-    /// post: `self.mode` is set to `Some(AgentMode::Server)`.
-    ///       Returns `Err` if any precondition fails.
-    pub fn enter_server_mode(&mut self, role: &str) -> AgentPodResult<()> {
-        if self.state != PodLifecycleState::Active {
-            return Err(AgentPodError::ModeRequiresActivation(self.state));
-        }
-        if let Some(ref current) = self.mode {
-            return Err(AgentPodError::ModeConflict(*current));
-        }
-        if !self.assigned_mcp_roles.iter().any(|r| r == role) {
-            return Err(AgentPodError::RoleNotAssigned(
-                role.to_string(),
-                self.assigned_mcp_roles.clone(),
-            ));
-        }
-        self.mode = Some(AgentMode::Server);
-        tracing::info!(
-            target: "hkask.pod",
-            span = "cns.agent_pod.server_mode_enter",
-            pod_id = %self.id,
-            webid = %self.webid,
-            role = %role,
-            "Agent entered server mode"
-        );
-        Ok(())
-    }
 
-    /// Enter chat mode.
-    ///
-    /// Requires: Active state, not already in another mode.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P1\] Motivating: User Sovereignty — enter chat mode for interactive use
-    /// \[P4\] Constraining: Clear Boundaries — requires Activated + no other mode
-    /// pre:  `self.state == Active`; `self.mode == None`.
-    /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
-    ///       Returns `Err` if any precondition fails.
-    pub fn enter_chat_mode(&mut self) -> AgentPodResult<()> {
-        if self.state != PodLifecycleState::Active {
-            return Err(AgentPodError::ModeRequiresActivation(self.state));
-        }
-        if let Some(ref current) = self.mode {
-            return Err(AgentPodError::ModeConflict(*current));
-        }
-        self.mode = Some(AgentMode::Chat);
-        tracing::info!(
-            target: "hkask.pod",
-            span = "cns.agent_pod.chat_mode_enter",
-            pod_id = %self.id,
-            webid = %self.webid,
-            "Agent entered chat mode"
-        );
-        Ok(())
-    }
 
-    /// Exit the current mode, returning the agent to no active mode.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P1\] Motivating: User Sovereignty — exit current mode
-    /// pre:  (none — always valid).
-    /// post: `self.mode` is set to `None`; the previous mode (if any)
-    ///       is logged. Always returns `Ok(())`.
-    pub fn exit_mode(&mut self) -> AgentPodResult<()> {
-        let previous = self.mode.take();
-        if let Some(mode) = previous {
-            tracing::info!(
-                target: "hkask.pod",
-                span = "cns.agent_pod.mode_exit",
-                pod_id = %self.id,
-                webid = %self.webid,
-                mode = %mode,
-                "Agent exited mode"
-            );
-        }
-        Ok(())
-    }
 
     /// Check if the agent is currently in server mode.
     ///
@@ -487,22 +384,6 @@ impl AgentPod {
 
     // ── Voice ──
 
-    /// Consume the REPL/chat loop event reference from transcript bundle (S5 closure).
-    /// Minimal surgical addition: no new framework, just event consumption.
-    /// References: stt-tts.yaml (repl_chat_hook: repl_chat_ref), transcript.rs (repl_chat_ref field).
-    pub fn consume_transcript_ref(&mut self, repl_chat_ref: Option<String>) -> String {
-        match repl_chat_ref {
-            Some(r) => {
-                tracing::info!(target: "agent.pod", pod_id = %self.id, ref = %r, "REPL/chat loop event consumed (S5 closure)");
-                format!(
-                    "loop_closed: {} (agent pod chat mode: {})",
-                    r,
-                    self.is_in_chat_mode()
-                )
-            }
-            None => "loop_open: no repl_chat_ref received".to_string(),
-        }
-    }
 
     /// Check if the agent is currently in chat mode.
     ///

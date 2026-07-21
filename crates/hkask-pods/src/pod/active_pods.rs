@@ -193,20 +193,7 @@ impl ActivePods {
         self.get_pod_webid(pod_id).await
     }
 
-    /// Alias for has_role — matches old PodManager::is_assigned_to_role.
-    pub async fn is_assigned_to_role(&self, pod_id: &PodID, role: &str) -> bool {
-        self.deployments
-            .read()
-            .await
-            .get(pod_id)
-            .map(|d| d.pod.assigned_mcp_roles.iter().any(|r| r == role))
-            .unwrap_or(false)
-    }
 
-    /// Alias for is_assigned_to_role.
-    pub async fn has_role(&self, pod_id: &PodID, role: &str) -> bool {
-        self.is_assigned_to_role(pod_id, role).await
-    }
 
     pub async fn has_capability(&self, pod_id: &PodID, tool: &str) -> bool {
         self.deployments
@@ -459,19 +446,6 @@ impl ActivePods {
             .collect()
     }
 
-    pub async fn assign_role(&self, name: &str, role: &str) -> Result<(), AgentPodError> {
-        let pod_id = self.find_by_name(name).await.ok_or_else(|| {
-            AgentPodError::PodNotFoundByName(name.to_string())
-        })?;
-        let mut d = self.deployments.write().await;
-        let d = d
-            .get_mut(&pod_id)
-            .ok_or(AgentPodError::PodNotFound(pod_id))?;
-        if !d.pod.assigned_mcp_roles.iter().any(|r| r == role) {
-            d.pod.assigned_mcp_roles.push(role.to_string());
-        }
-        Ok(())
-    }
 
     /// Export a pod as a container build context (delegates to PodFactory).
     pub fn export_container(
@@ -484,31 +458,6 @@ impl ActivePods {
             .map_err(|e| super::AgentPodError::DeployError(e.to_string()))
     }
 
-    pub async fn set_mode(
-        &self,
-        name: &str,
-        mode: &str,
-        role: Option<&str>,
-    ) -> Result<(), AgentPodError> {
-        let pod_id = self.find_by_name(name).await.ok_or_else(|| {
-            AgentPodError::PodNotFoundByName(name.to_string())
-        })?;
-        let mut d = self.deployments.write().await;
-        let d = d
-            .get_mut(&pod_id)
-            .ok_or(AgentPodError::PodNotFound(pod_id))?;
-        match mode {
-            "server" => d.pod.enter_server_mode(role.ok_or_else(|| {
-                AgentPodError::ModeError("role required for server mode".to_string())
-            })?),
-            "chat" => d.pod.enter_chat_mode(),
-            "exit" => d.pod.exit_mode(),
-            other => Err(AgentPodError::ModeError(format!(
-                "Unknown mode: {}",
-                other
-            ))),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
