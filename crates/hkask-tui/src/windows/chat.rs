@@ -1008,4 +1008,73 @@ mod tests {
             last.content
         );
     }
+
+    #[test]
+    fn agent_switch_uses_session_bridge_and_updates_chat_window() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let session = crate::test_util::mock_session_bridge();
+        let mut chat = ChatWindow::new(make_window_id(), "old-agent", "m", repl)
+            .with_session_bridge(session);
+
+        chat.execute_slash_command("/agent new-agent");
+
+        assert_eq!(chat.agent_name, "new-agent", "/agent must update ChatWindow.agent_name");
+        let last = chat.messages.last().expect("a confirmation was added");
+        assert!(
+            last.content.contains("Switched to agent: new-agent"),
+            "/agent <name> must confirm via SessionBridge; got: {}",
+            last.content
+        );
+    }
+
+    #[test]
+    fn agent_no_arg_shows_live_current_agent() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let session = crate::test_util::mock_session_bridge();
+        let mut chat = ChatWindow::new(make_window_id(), "stale-name", "m", repl)
+            .with_session_bridge(session);
+
+        chat.execute_slash_command("/agent");
+
+        let last = chat.messages.last().expect("a status was added");
+        assert!(
+            last.content.contains("Current agent: test-agent"),
+            "/agent must show the live current_agent from SessionBridge, not the cached field; got: {}",
+            last.content
+        );
+    }
+
+    #[test]
+    fn agents_command_renders_list_via_session_bridge() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let session = crate::test_util::mock_session_bridge();
+        let mut chat = ChatWindow::new(make_window_id(), "a", "m", repl)
+            .with_session_bridge(session);
+
+        chat.execute_slash_command("/agents");
+
+        let last = chat.messages.last().expect("an agent list was added");
+        assert!(
+            last.content.contains("(mock agents)"),
+            "/agents must render list_agents_display; got: {}",
+            last.content
+        );
+    }
+
+    #[test]
+    fn history_command_renders_via_session_bridge() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let session = crate::test_util::mock_session_bridge();
+        let mut chat = ChatWindow::new(make_window_id(), "a", "m", repl)
+            .with_session_bridge(session);
+
+        chat.execute_slash_command("/history");
+
+        let last = chat.messages.last().expect("a history display was added");
+        assert!(
+            last.content.contains("(mock history)"),
+            "/history must render history_display; got: {}",
+            last.content
+        );
+    }
     }

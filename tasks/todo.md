@@ -8,7 +8,9 @@
 
 ## Phase 1 — Foundation types
 - [x] **T1.1a** Rename `ReplicantIdentity`→`UserPod` + strangler-fig alias `pub type ReplicantIdentity = UserPod;` (hkask-identity). *Workspace build GREEN; alias removed in Phase 6.* — *Done 2026-07-20*
-- [ ] **T1.1b** Drop `is_primary` field from `UserPod` + `new()` (sub-slice S-1to1-a; gates S-1to1-b) — *Acc: identity compiles; ≤2 files*
+- [x] **T1.1b** Drop `is_primary` from API surface (S-1to1-b) + CLI prints (S-1to1-c). Switcher removed from terminal UI. *Committed 0c06d9f7; workspace green.* — *Done 2026-07-20*
+- [ ] **T1.1c (deferred migration)** Drop `is_primary` field from `UserPod` + `user_store.rs` mapping + DB column — *deferred per user decision (leave DB column for now)*
+- [ ] **T1.1d (cleanup)** Remove orphan `#replicant-select` CSS rule at `terminal.rs:229` — *≤1 file*
 - [ ] **T1.2** Delete `AgentKind` enum (via S-AK-a/b/c strangler-fig); delete `PodKind::Team`; rename `PodKind::Replicant`→`PodKind::UserPod`. Update `hkask-types` — *Acc: hkask-types compiles; ≤2 files*
 
 ## Phase 2 — UserPod runtime (focus obstacle, early)

@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use hkask_tui::{
-    InferenceRequestId, ModelSwitchResult, ReplBridge, SettingsBridge, SystemBridge, TuiModelInfo,
-    TuiTurnResult, Window, WindowId, WindowKind, Workspace,
+    InferenceRequestId, ModelSwitchResult, ReplBridge, SessionBridge, SettingsBridge,
+    SystemBridge, TuiModelInfo, TuiTurnResult, Window, WindowId, WindowKind, Workspace,
     windows::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
         CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
@@ -150,6 +150,21 @@ impl SettingsBridge for MockBridge {
     }
     fn set_setting(&self, _key: &str, _value: &str) -> anyhow::Result<String> {
         Ok("(mock)".to_string())
+    }
+}
+
+impl SessionBridge for MockBridge {
+    fn current_agent(&self) -> String {
+        self.agent_name.clone()
+    }
+    fn set_agent(&self, name: &str) -> anyhow::Result<String> {
+        Ok(format!("Switched to agent: {}", name))
+    }
+    fn list_agents_display(&self) -> String {
+        "(mock agents)".to_string()
+    }
+    fn history_display(&self) -> String {
+        "(mock history)".to_string()
     }
 }
 
