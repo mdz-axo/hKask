@@ -9,8 +9,6 @@
 
 mod builtin_servers;
 
-#[cfg(feature = "tui")]
-mod reg_display;
 mod commands;
 pub mod deps;
 pub mod display;
@@ -18,6 +16,8 @@ mod energy;
 pub mod handlers;
 mod helper;
 pub mod host;
+#[cfg(feature = "tui")]
+mod reg_display;
 #[cfg(feature = "tui")]
 pub use host::{OnboardingError, OnboardingOutcome, ReplHost};
 mod init;
@@ -108,7 +108,7 @@ pub struct ReplState {
     pub talk_config: TalkConfig,
     /// Active improv mode — set via /improv command.
     /// None means no improv posture is active (default agent behavior).
-    pub improv_mode: Option<hkask_improv::ImprovMode>,
+    pub improv_mode: Option<hkask_services_chat::ImprovMode>,
     /// Kanban service — lazily initialized for /kanban commands.
     pub kanban_service: Option<KanbanService>,
     /// MCP servers that failed to auto-start (server_id → error message).

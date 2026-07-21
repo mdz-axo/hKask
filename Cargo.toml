@@ -49,7 +49,6 @@ members = [
     "crates/hkask-cli",
     "crates/hkask-tui",
     "crates/hkask-api",
-    "crates/hkask-improv",
     "crates/hkask-communication",
     "crates/hkask-test-harness",
     "crates/hkask-adapter",

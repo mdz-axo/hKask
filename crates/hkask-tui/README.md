@@ -6,12 +6,13 @@ Terminal user interface built with Ratatui. The crate owns workspace state, rend
 
 ## Features
 
-- 22 window types via workspace splits
+- 20 window types via workspace splits
 - 15 optional domain-specific bridge traits with mock and production adapters
 - Interactive kanban board: 5-column layout, keyboard navigation (h/j/k/l), task moving (m), Tab-to-chat
 - PTY-backed interactive shell (`portable-pty`, bash/fish)
 - File editor with open/save (`Ctrl+S`/`Ctrl+O`)
-- Logo window rasterized from SVG at half-block Unicode
+- Curator chat is the default mode in the Chat window (P12.1 dual-presence)
+- Window management via slash commands: `/open`, `/close`, `/split`, `/focus`, `/tab`, `/palette`
 - Required system/inference bridges plus optional domain adapters; missing adapters degrade individual windows instead of blocking startup
 
 ## Key Controls
@@ -19,8 +20,8 @@ Terminal user interface built with Ratatui. The crate owns workspace state, rend
 | Key | Action |
 |-----|--------|
 | `Ctrl+N` | New Chat window |
-| `Ctrl+P` | Command palette (fuzzy search 22 window kinds) |
-| `Ctrl+W` | Close focused window (persistent Logo is protected) |
+| `Ctrl+P` | Command palette (fuzzy search 20 window kinds) |
+| `Ctrl+W` | Close focused window |
 | `Tab` | Focus next pane (in Kanban: toggle board/chat) |
 | `Ctrl+Q` | Quit |
 | `?` | Help overlay |

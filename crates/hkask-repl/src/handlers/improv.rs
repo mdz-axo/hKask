@@ -1,13 +1,13 @@
 //! REPL /improv handler — set or display the active improv mode.
 //!
 //! Improv modes (Plussing, Yes And, Yes But, Freestyling, Riffing, Cascade)
-//! set the userpod's interaction posture. Uses the `hkask_improv::ImprovMode`
-//! type directly — no stringly-typed intermediation.
+//! set the userpod's interaction posture. Uses the `ImprovMode` type from
+//! `hkask-services-chat` directly — no stringly-typed intermediation.
 
 use crate::ReplState;
-use hkask_improv::cascade::{ImprovCascade, MATRYOSHKA_LIMIT};
-use hkask_improv::modes::ImprovMode;
-use hkask_improv::riffing::RiffReturn;
+use hkask_services_chat::ImprovMode;
+use hkask_services_chat::MATRYOSHKA_LIMIT;
+use hkask_services_chat::RiffReturn;
 use std::time::Duration;
 
 /// Mode descriptions for display.
@@ -52,11 +52,12 @@ fn format_mode(mode: &ImprovMode) -> String {
             format!("riffing ({})", policy)
         }
         ImprovMode::Cascade(c) => {
-            let step_labels: Vec<String> = c.modes.iter().map(|m| m.label().to_string()).collect();
+            let step_labels: Vec<String> = c.iter().map(|m| m.label().to_string()).collect();
+            let total = ImprovMode::total_applications(c);
             format!(
                 "cascade [{}] ({}/{})",
                 step_labels.join(" → "),
-                c.total_applications(),
+                total,
                 MATRYOSHKA_LIMIT
             )
         }
@@ -77,10 +78,10 @@ pub fn handle_improv(arg1: &str, arg2: &str, state: &mut ReplState) {
                 println!("  Active improv mode: \x1b[1m{}\x1b[0m", format_mode(mode));
                 println!("  {}", mode_description(mode));
                 if let ImprovMode::Cascade(c) = mode {
-                    println!("  Steps: {}", c.step_count());
+                    println!("  Steps: {}", c.len());
                     println!(
                         "  Total applications: {} (limit: {})",
-                        c.total_applications(),
+                        ImprovMode::total_applications(c),
                         MATRYOSHKA_LIMIT
                     );
                 }
@@ -118,10 +119,10 @@ pub fn handle_improv(arg1: &str, arg2: &str, state: &mut ReplState) {
             println!("  Improv mode set to: \x1b[1m{}\x1b[0m", format_mode(&mode));
             println!("  {}", mode_description(&mode));
             if let ImprovMode::Cascade(c) = &mode {
-                println!("  Steps: {}", c.step_count());
+                println!("  Steps: {}", c.len());
                 println!(
                     "  Total applications: {} (matryoshka limit: {})",
-                    c.total_applications(),
+                    ImprovMode::total_applications(c),
                     MATRYOSHKA_LIMIT
                 );
             }
@@ -172,9 +173,16 @@ fn parse_improv_mode(input: &str) -> anyhow::Result<ImprovMode> {
                 let mode = parse_improv_mode(part)?;
                 modes.push(mode);
             }
-            let cascade =
-                ImprovCascade::new(modes).map_err(|e| anyhow::Error::msg(e.to_string()))?;
-            Ok(ImprovMode::Cascade(cascade))
+            // Validate matryoshka limit.
+            let total = ImprovMode::total_applications(&modes);
+            if total > MATRYOSHKA_LIMIT {
+                return Err(anyhow::anyhow!(
+                    "Cascade exceeds matryoshka limit: {} applications (max {})",
+                    total,
+                    MATRYOSHKA_LIMIT
+                ));
+            }
+            Ok(ImprovMode::Cascade(modes))
         }
 
         _ => Err(anyhow::anyhow!("Unknown improv mode: '{}'", base)),

@@ -43,11 +43,11 @@ macro_rules! mk_bridge {
     }};
 }
 
-pub(crate) fn window_kinds() -> Vec<WindowKind> {
+pub fn window_kinds() -> Vec<WindowKind> {
     WindowKind::META.iter().map(|(k, ..)| *k).collect()
 }
 
-pub(crate) fn window_kind_from_title(title: &str) -> Option<WindowKind> {
+pub fn window_kind_from_title(title: &str) -> Option<WindowKind> {
     WindowKind::META
         .iter()
         .find(|(_, t, ..)| *t == title)

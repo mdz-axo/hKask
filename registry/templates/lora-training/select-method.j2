@@ -73,8 +73,8 @@ RECOMMENDATION RECORD (compose fields; never replace the whole record):
 - initializer: default_no_op | eva | pissa | lora_ga | corda_kp | operator_requested | undetermined
 - preservation: standard | corda_kp | post_training_intruder_mitigation | undetermined
 - rank_range: {min: <int>, max: <int>} | undetermined
-- harness: axolotl | trl | undetermined
-- trainer: sft | dpo | kto | orpo | reward | undetermined (only meaningful when harness=trl)
+- harness: axolotl | trl | ludwig | undetermined
+- trainer: sft | dpo | kto | orpo | reward | grpo | undetermined (only meaningful when harness=trl or ludwig)
 - alternatives: []
 - constraints: []
 - conflicts: []
@@ -176,12 +176,19 @@ G6. harness_capability? (after G1-G5; depends on method/task distance)
     - If the operator declared a harness preference, preserve it (P1). Record as
       `operator_requested`; do not overwrite.
     - If task_distance is light/moderate AND the task is SFT (no preference data
-      declared): harness=`undetermined`; list both axolotl and trl/sft as
+      declared): harness=`undetermined`; list all three harnesses as
       alternatives with trade-offs:
         - axolotl: YAML config, mature, single-file, SFT-only.
         - trl/sft: Python script, HF-native, supports assistant_only_loss,
           packing strategies (bfd/bfd_split/wrapped), VLMs, chunked cross-entropy.
-      [Citation: TRL SFTTrainer — https://huggingface.co/docs/trl/main/en/sft_trainer]
+        [Citation: TRL SFTTrainer — https://huggingface.co/docs/trl/main/en/sft_trainer]
+        - ludwig: YAML config (declarative, like axolotl), Linux Foundation AI &
+          Data, Apache-2.0. Covers SFT plus the full alignment spectrum
+          (DPO/KTO/ORPO/GRPO) and advanced PEFT initializers (PiSSA, EVA, CorDA,
+          LoftQ) that axolotl cannot render. Best choice when the operator needs
+          GRPO (reward-model-free RLHF) or when the accepted initializer is one
+          axolotl does not support in config (e.g., corda, loftq).
+        [Citation: Ludwig — https://ludwig.ai/latest/ · https://github.com/ludwig-ai/ludwig]
     - If the task requires preference optimization (operator declared preference
       data or DPO/KTO/ORPO intent): harness=`trl`; trainer based on data shape:
         - paired preference data (chosen/rejected) → trainer=`dpo`
@@ -190,10 +197,23 @@ G6. harness_capability? (after G1-G5; depends on method/task distance)
           [Citation: KTO arXiv:2402.01306]
         - single-stage SFT + preference → trainer=`orpo`
           [Citation: ORPO arXiv:2403.07691]
+      Ludwig also covers DPO/KTO/ORPO, but TRL is the HF-native path and remains
+      the default for preference optimization. Recommend ludwig only when the
+      operator explicitly needs a YAML-based preference workflow or when GRPO
+      is required (see below).
     - If the task requires reward modeling: harness=`trl`; trainer=`reward`.
       [Citation: TRL RewardTrainer — https://huggingface.co/docs/trl/main/en/reward_trainer]
+    - If the task requires GRPO (reward-model-free RLHF — operator declared GRPO
+      intent or reward-model-free alignment): harness=`ludwig`; trainer=`grpo`.
+      Ludwig is the only harness in the candidate set covering GRPO. TRL's online
+      RL trainers (GRPO, RLOO, PPO) are deferred and require vLLM co-location;
+      Ludwig implements GRPO natively in config via `trainer.type: grpo`.
+      [Citation: Ludwig GRPO — https://ludwig.ai/latest/configuration/ · GRPO arXiv:2402.03300]
     - If harness=`trl` and trainer is undetermined, list applicable trainers as
       alternatives with their data format requirements.
+    - If harness=`ludwig` and trainer is undetermined, list applicable Ludwig
+      trainer types (finetune, dpo, kto, orpo, grpo) as alternatives with their
+      data format requirements.
     - Axolotl remains the runtime default when harness=`undetermined` (preserves
       existing behavior — no silent migration).
     - G6 cannot override G1-G5 constraints. If a harness selection conflicts with
@@ -242,8 +262,8 @@ OUTPUT (JSON; emit only derivable values and explicit undetermined states):
     "initializer": "default_no_op" | "eva" | "pissa" | "lora_ga" | "corda_kp" | "operator_requested" | "undetermined",
     "preservation": "standard" | "corda_kp" | "post_training_intruder_mitigation" | "undetermined",
     "rank_range": {"min": <int>, "max": <int>} | "undetermined",
-    "harness": "axolotl" | "trl" | "undetermined",
-    "trainer": "sft" | "dpo" | "kto" | "orpo" | "reward" | "undetermined",
+    "harness": "axolotl" | "trl" | "ludwig" | "undetermined",
+    "trainer": "sft" | "dpo" | "kto" | "orpo" | "reward" | "grpo" | "undetermined",
     "alternatives": [
       {"field": "...", "value": "...", "condition": "...", "citation": "..."}
     ],
@@ -341,6 +361,13 @@ SOURCE REFERENCES (concrete — P8):
   KTOTrainer (unpaired preference). huggingface.co/docs/trl/main/en/orpo_trainer
   — ORPOTrainer (single-stage SFT + preference).
   huggingface.co/docs/trl/main/en/reward_trainer — RewardTrainer.
+- Ludwig v0.17: ludwig.ai/latest/ — declarative YAML deep-learning framework
+  (Linux Foundation AI & Data, Apache-2.0). Covers SFT, DPO, KTO, ORPO, and
+  GRPO (reward-model-free RLHF) via trainer.type. Advanced PEFT initializers
+  (PiSSA, EVA, CorDA, LoftQ) native in config. github.com/ludwig-ai/ludwig.
+- GRPO: arXiv:2402.03300 — Group Relative Policy Optimization (reward-model-free
+  RLHF). Implemented in Ludwig via trainer.type: grpo; TRL's online RL trainers
+  are deferred (require vLLM co-location).
 - DPO: arXiv:2305.18290 — Direct Preference Optimization.
 - KTO: arXiv:2402.01306 — Kahneman-Tversky Optimization.
 - ORPO: arXiv:2403.07691 — Odds Ratio Preference Optimization.

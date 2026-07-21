@@ -147,8 +147,14 @@ STATIC_CONFIG
   - harness=trl → config must be a Python script using the matching TRL
     trainer class (SFTTrainer for sft, DPOTrainer for dpo, etc.) and the
     matching Config class (SFTConfig, DPOConfig, etc.).
+  - harness=ludwig → config must be YAML with `model_type: llm` and
+    `adapter: type: lora`. Ludwig supports SFT (`trainer.type: finetune`),
+    DPO/KTO/ORPO, and GRPO via `trainer.type`. If a TRL-specific `trl_trainer`
+    field is present in the canonical TrainingParams, warn (Ludwig ignores it —
+    it uses its own `trainer.type` taxonomy).
   - harness=undetermined → `not_evaluated` (runtime defaults to axolotl).
-  [Citation: TRL trainer taxonomy — https://huggingface.co/docs/trl/index]
+  [Citation: TRL trainer taxonomy — https://huggingface.co/docs/trl/index;
+   Ludwig — https://ludwig.ai/latest/configuration/]
   Runtime enforcement: `lora_validation::validate_harness_compatibility()`.
 
 HARNESS

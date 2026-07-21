@@ -11,9 +11,9 @@ use hkask_tui::{
     TuiModelInfo, TuiTurnResult, Window, WindowId, WindowKind, Workspace,
     windows::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
-        CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
-        MediaWindow, MemoryWindow, PodsWindow, RegistryWindow, ReplicaWindow, ResearchWindow,
-        ScenariosWindow, SkillsWindow, TerminalWindow, TrainingWindow, WalletWindow,
+        DocprocWindow, EditorWindow, KanbanWindow, MatrixWindow, MediaWindow, MemoryWindow,
+        PodsWindow, RegistryWindow, ReplicaWindow, ResearchWindow, ScenariosWindow, SkillsWindow,
+        TerminalWindow, TrainingWindow, WalletWindow,
     },
 };
 

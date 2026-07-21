@@ -58,12 +58,12 @@ pub struct WeightedEvent {
 const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &[
     "gas",
     "variety",
-    "agent_pod",
+    "pod",
     "wallet.key_expired",
     "wallet.key_exhausted",
     "communication.message",
     "communication.thread",
-    "regulation",
+    "outcome",
     "contract.violated",
 ];
 
@@ -185,7 +185,11 @@ impl RegulationArchive {
         .map(|rows| rows == 1)
     }
 
-    fn insert_with_sql(&self, sql: &str, event: &RegulationRecord) -> Result<usize, InfrastructureError> {
+    fn insert_with_sql(
+        &self,
+        sql: &str,
+        event: &RegulationRecord,
+    ) -> Result<usize, InfrastructureError> {
         let (span_category, span_path) = span_to_columns(&event.span);
         self.driver
             .execute(

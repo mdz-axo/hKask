@@ -271,15 +271,12 @@ impl ChatWindow {
             "help" => {
                 self.add_message(
                     MessageSender::CnsAlert,
-                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /tui /export /curator".into(),
+                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /tui /export /curator /open /close /split /focus /tab /palette".into(),
                 );
             }
             "quit" | "exit" => {
-                // Handled by global keybinding; here we just acknowledge
-                self.add_message(
-                    MessageSender::CnsAlert,
-                    "Use Ctrl+Q to quit the TUI.".into(),
-                );
+                self.pending_action = Some(WorkspaceAction::Quit);
+                self.add_message(MessageSender::CnsAlert, "Quitting TUI...".into());
             }
             "clear" => {
                 self.messages.clear();
@@ -465,7 +462,7 @@ impl ChatWindow {
                 self.mode = TuiMode::Curator;
                 self.add_message(
                     MessageSender::CnsAlert,
-                    "Switched to Curator mode. Type /repl to return to chat.".into(),
+                    "Curator mode active. Type /repl to switch to userpod chat.".into(),
                 );
             }
             "tui" => {
@@ -491,6 +488,84 @@ impl ChatWindow {
             }
             "export" => {
                 self.export_to_markdown();
+            }
+            // ── Window management slash commands ──────────────────────
+            // These set `pending_action` which is drained by the workspace
+            // during the next tick cycle.
+            "open" => {
+                let kind_str = parts.get(1).copied().unwrap_or("");
+                if kind_str.is_empty() {
+                    let mut listing = String::from("Usage: /open <window-kind>\nAvailable kinds:");
+                    for k in crate::window_catalog::window_kinds() {
+                        listing.push_str(&format!(
+                            "\n  {} — {}",
+                            k.default_title(),
+                            k.description()
+                        ));
+                    }
+                    self.add_message(MessageSender::CnsAlert, listing);
+                } else if let Some(kind) = crate::window_catalog::window_kind_from_title(kind_str) {
+                    self.pending_action = Some(WorkspaceAction::OpenWindow(kind));
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        format!("Opening {} window...", kind.default_title()),
+                    );
+                } else {
+                    self.add_message(
+                        MessageSender::CnsAlert,
+                        format!(
+                            "Unknown window kind: '{}'. Use /open with no args to list kinds.",
+                            kind_str
+                        ),
+                    );
+                }
+            }
+            "close" => {
+                self.pending_action = Some(WorkspaceAction::CloseFocused);
+                self.add_message(MessageSender::CnsAlert, "Closing focused window...".into());
+            }
+            "split" => {
+                let dir = parts.get(1).copied().unwrap_or("v");
+                match dir {
+                    "h" | "horizontal" => {
+                        self.pending_action =
+                            Some(WorkspaceAction::Split(SplitDirection::Horizontal));
+                        self.add_message(
+                            MessageSender::CnsAlert,
+                            "Splitting horizontally...".into(),
+                        );
+                    }
+                    "v" | "vertical" | "" => {
+                        self.pending_action =
+                            Some(WorkspaceAction::Split(SplitDirection::Vertical));
+                        self.add_message(MessageSender::CnsAlert, "Splitting vertically...".into());
+                    }
+                    _ => {
+                        self.add_message(MessageSender::CnsAlert, "Usage: /split h|v".into());
+                    }
+                }
+            }
+            "focus" => {
+                let dir = parts.get(1).copied().unwrap_or("next");
+                match dir {
+                    "prev" | "p" => {
+                        self.pending_action = Some(WorkspaceAction::FocusPrev);
+                    }
+                    _ => {
+                        self.pending_action = Some(WorkspaceAction::FocusNext);
+                    }
+                }
+                self.add_message(
+                    MessageSender::CnsAlert,
+                    format!("Focusing {} window...", dir),
+                );
+            }
+            "tab" => {
+                self.pending_action = Some(WorkspaceAction::NewTab);
+                self.add_message(MessageSender::CnsAlert, "Creating new tab...".into());
+            }
+            "palette" => {
+                self.pending_action = Some(WorkspaceAction::OpenPalette);
             }
             _ => {
                 self.add_message(
@@ -649,15 +724,12 @@ impl Window for ChatWindow {
                 true
             }
             KeyCode::Esc => {
-                if self.mode == TuiMode::Command || self.mode == TuiMode::Curator {
+                if self.mode == TuiMode::Command {
                     self.mode = TuiMode::Chat;
-                    self.input.clear();
-                    self.cursor_pos = 0;
-                } else {
-                    // Clear input on Esc in chat mode
-                    self.input.clear();
-                    self.cursor_pos = 0;
                 }
+                // Clear input on Esc in any mode
+                self.input.clear();
+                self.cursor_pos = 0;
                 true
             }
             _ => false,
@@ -719,6 +791,10 @@ impl Window for ChatWindow {
                 self.inference_state = InferenceState::Idle;
             }
         }
+    }
+
+    fn drain_action(&mut self) -> Option<WorkspaceAction> {
+        self.pending_action.take()
     }
 }
 

@@ -1,11 +1,15 @@
 //! Dataset ingestion and preprocessing pipeline.
 //!
-//! Converts raw input files (JSONL, ShareGPT, Alpaca, raw text) into canonical
-//! ChatML format, validates structure, and caches the normalized output in
-//! `hkask-storage` to avoid re-processing.
+//! Converts raw input files (JSONL, ShareGPT, Alpaca, raw text, preference)
+//! into canonical format, validates structure, and caches the normalized
+//! output in `hkask-storage` to avoid re-processing.
 //!
-//! Each provider adapter then translates canonical ChatML to its native format
-//! for cloud dispatch (axolotl YAML configs → Runpod).
+//! Two canonical output types:
+//! - `ChatConversation` — for SFT (messages array)
+//! - `PreferenceExample` — for DPO/KTO/ORPO/Reward (prompt + chosen + rejected)
+//!
+//! Each provider adapter then translates the canonical output to its native
+//! format for cloud dispatch (axolotl YAML, TRL Python → Runpod).
 //! All training is cloud-only — there is no local training path.
 
 use serde::{Deserialize, Serialize};
@@ -27,6 +31,42 @@ pub struct ChatConversation {
     pub messages: Vec<ChatMessage>,
 }
 
+// ── Canonical preference types ────────────────────────────────────────────
+
+/// A preference example for DPO/KTO/ORPO/Reward training.
+///
+/// Canonical format for preference optimization — parallel to `ChatConversation`
+/// for SFT. TRL's preference trainers consume this format directly.
+///
+/// Fields:
+/// - `prompt`: optional prompt (string or conversational). Absent for ORPO
+///   (prompt is implicit in chosen/rejected).
+/// - `chosen`: the preferred completion (string or conversational).
+/// - `rejected`: the dispreferred completion (string or conversational).
+/// - `label`: for KTO only — `true` if the completion is good, `false` if bad.
+///   Absent for DPO/ORPO/Reward (which use chosen/rejected pairs).
+///
+/// References:
+/// - DPO: https://huggingface.co/docs/trl/main/en/dpo_trainer#expected-dataset-type-and-format
+/// - KTO: https://huggingface.co/docs/trl/main/en/kto_trainer#expected-dataset-type-and-format
+/// - ORPO: https://huggingface.co/docs/trl/main/en/orpo_trainer#expected-dataset-type-and-format
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreferenceExample {
+    /// Optional prompt (string or conversational). Absent for ORPO.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<serde_json::Value>,
+    /// The preferred completion (string or conversational).
+    pub chosen: serde_json::Value,
+    /// The dispreferred completion (string or conversational).
+    /// Absent for KTO (which uses label instead of rejected).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rejected: Option<serde_json::Value>,
+    /// KTO only: `true` if the completion is good, `false` if bad.
+    /// Absent for DPO/ORPO/Reward.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<bool>,
+}
+
 /// Source format identifiers for input datasets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -39,6 +79,15 @@ pub enum DatasetFormat {
     Alpaca,
     /// Raw text file — each line is a standalone training example.
     RawText,
+    /// DPO preference format: `{"prompt": ..., "chosen": ..., "rejected": ...}`.
+    /// Prompt can be string or conversational; chosen/rejected can be string or conversational.
+    PreferenceDpo,
+    /// KTO preference format: `{"prompt": ..., "completion": ..., "label": bool}`.
+    /// Unpaired binary preference data.
+    PreferenceKto,
+    /// ORPO preference format: `{"chosen": ..., "rejected": ...}`.
+    /// Prompt is implicit in chosen/rejected.
+    PreferenceOrpo,
 }
 
 impl DatasetFormat {
@@ -47,9 +96,24 @@ impl DatasetFormat {
         let ext = path.extension()?.to_str()?;
         match ext.to_lowercase().as_str() {
             "jsonl" => {
-                // Could be ChatML or ShareGPT — read first line to disambiguate.
+                // Could be ChatML, ShareGPT, or preference — read first line to disambiguate.
                 if let Ok(content) = std::fs::read_to_string(path) {
                     let first_line = content.lines().next().unwrap_or("");
+                    // Preference formats take precedence over ChatML when preference
+                    // fields are present — a DPO dataset with conversational chosen/rejected
+                    // might also contain "messages" in the prompt, but the top-level
+                    // chosen/rejected fields identify it as preference data.
+                    if first_line.contains("\"chosen\"") && first_line.contains("\"rejected\"") {
+                        // DPO (has prompt) or ORPO (no prompt)
+                        if first_line.contains("\"prompt\"") {
+                            return Some(Self::PreferenceDpo);
+                        }
+                        return Some(Self::PreferenceOrpo);
+                    }
+                    // KTO: has prompt + completion + label (no chosen/rejected)
+                    if first_line.contains("\"completion\"") && first_line.contains("\"label\"") {
+                        return Some(Self::PreferenceKto);
+                    }
                     if first_line.contains("\"messages\"") {
                         return Some(Self::ChatML);
                     }
@@ -73,6 +137,14 @@ impl DatasetFormat {
             _ => None,
         }
     }
+
+    /// Whether this format is a preference format (DPO/KTO/ORPO).
+    pub fn is_preference(&self) -> bool {
+        matches!(
+            self,
+            Self::PreferenceDpo | Self::PreferenceKto | Self::PreferenceOrpo
+        )
+    }
 }
 
 // ── Pipeline errors ───────────────────────────────────────────────────────
@@ -93,12 +165,50 @@ pub enum DatasetError {
 
 // ── DatasetPipeline ────────────────────────────────────────────────────────
 
+/// The normalized output of the dataset pipeline.
+///
+/// SFT formats (ChatML, ShareGPT, Alpaca, RawText) normalize to `Sft` (a list
+/// of `ChatConversation`). Preference formats (DPO, KTO, ORPO) normalize to
+/// `Preference` (a list of `PreferenceExample`). The pipeline does not force
+/// preference data through ChatML normalization — preference data has a
+/// different structure (prompt + chosen + rejected) that cannot be represented
+/// as a single conversation.
+#[derive(Debug, Clone)]
+pub enum NormalizedDataset {
+    /// SFT data — a list of conversations.
+    Sft(Vec<ChatConversation>),
+    /// Preference data — a list of preference examples.
+    Preference(Vec<PreferenceExample>),
+}
+
+impl NormalizedDataset {
+    /// Number of examples in the dataset.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Sft(conv) => conv.len(),
+            Self::Preference(examples) => examples.len(),
+        }
+    }
+
+    /// Whether the dataset is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Whether this is a preference dataset.
+    pub fn is_preference(&self) -> bool {
+        matches!(self, Self::Preference(_))
+    }
+}
+
 /// Ingest, normalize, validate, and cache datasets for training.
 ///
 /// Pipeline: `ingest(file_path) → normalize → validate → cache`
 ///
-/// Normalization always produces canonical ChatML. Provider adapters consume
-/// the normalized output and translate it to their native format.
+/// SFT formats normalize to canonical ChatML (`NormalizedDataset::Sft`).
+/// Preference formats normalize to canonical `PreferenceExample`
+/// (`NormalizedDataset::Preference`). Provider adapters consume the normalized
+/// output and translate it to their native format.
 pub struct DatasetPipeline {
     /// Cache directory for normalized datasets.
     cache_dir: PathBuf,
@@ -155,10 +265,19 @@ impl DatasetPipeline {
 
         let raw = std::fs::read_to_string(file_path)?;
         let normalized = match format {
-            DatasetFormat::ChatML => self.normalize_chatml(&raw)?,
-            DatasetFormat::ShareGPT => self.normalize_sharegpt(&raw)?,
-            DatasetFormat::Alpaca => self.normalize_alpaca(&raw)?,
-            DatasetFormat::RawText => self.normalize_raw_text(&raw)?,
+            DatasetFormat::ChatML => NormalizedDataset::Sft(self.normalize_chatml(&raw)?),
+            DatasetFormat::ShareGPT => NormalizedDataset::Sft(self.normalize_sharegpt(&raw)?),
+            DatasetFormat::Alpaca => NormalizedDataset::Sft(self.normalize_alpaca(&raw)?),
+            DatasetFormat::RawText => NormalizedDataset::Sft(self.normalize_raw_text(&raw)?),
+            DatasetFormat::PreferenceDpo => {
+                NormalizedDataset::Preference(self.normalize_preference_dpo(&raw)?)
+            }
+            DatasetFormat::PreferenceKto => {
+                NormalizedDataset::Preference(self.normalize_preference_kto(&raw)?)
+            }
+            DatasetFormat::PreferenceOrpo => {
+                NormalizedDataset::Preference(self.normalize_preference_orpo(&raw)?)
+            }
         };
 
         self.validate(&normalized)?;

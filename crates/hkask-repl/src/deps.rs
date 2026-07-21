@@ -110,7 +110,7 @@ pub struct ReplTurnExecutor {
     current_model: String,
     agent_webid: WebID,
     tool_definitions: Vec<hkask_ports::ChatToolDefinition>,
-    improv_mode: Option<hkask_improv::ImprovMode>,
+    improv_mode: Option<hkask_services_chat::ImprovMode>,
 }
 
 impl ReplTurnExecutor {

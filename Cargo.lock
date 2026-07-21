@@ -3946,15 +3946,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-improv"
-version = "0.31.0"
-dependencies = [
- "hkask-types",
- "serde",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "hkask-inference"
 version = "0.31.0"
 dependencies = [
@@ -4611,7 +4602,6 @@ dependencies = [
  "hkask-capability",
  "hkask-communication",
  "hkask-database",
- "hkask-improv",
  "hkask-inference",
  "hkask-mcp",
  "hkask-memory",
@@ -4649,7 +4639,6 @@ dependencies = [
  "hkask-capability",
  "hkask-communication",
  "hkask-condenser",
- "hkask-improv",
  "hkask-pods",
  "hkask-ports",
  "hkask-regulation",
