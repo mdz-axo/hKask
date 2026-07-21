@@ -519,6 +519,50 @@ fn parse_mcp_json(result: &serde_json::Value) -> Option<serde_json::Value> {
     }
 }
 
+/// Invoke an MCP tool, parse the JSON response, and extract an array field.
+///
+/// Collapses the repeated pattern:
+/// `invoke → match Ok/Err → parse_mcp_json → and_then(v["key"].as_array())`.
+/// Returns an empty slice on any failure (missing key, wrong type, MCP error).
+async fn mcp_array<'a>(
+    bridge: &TuiReplBridge,
+    server: &str,
+    tool: &str,
+    args: serde_json::Map<String, serde_json::Value>,
+    array_key: &str,
+) -> Vec<&'a serde_json::Value> {
+    // The borrow from invoke_mcp_tool's returned Value doesn't live long enough
+    // for a real borrowed slice; we own the Value via the Ok arm and extract
+    // references within the same async scope. The caller must `.clone()` or
+    // extract primitive values immediately.
+    match bridge.invoke_mcp_tool(server, tool, args).await {
+        Ok(ref result) => {
+            let content = parse_mcp_json(result);
+            content
+                .as_ref()
+                .and_then(|v| v[array_key].as_array())
+                .map(|arr| arr.iter().collect())
+                .unwrap_or_default()
+        }
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Invoke an MCP tool, parse the JSON response, and extract a text field.
+///
+/// For MCP tools that return a string (not JSON), use `mcp_text` instead.
+async fn mcp_text(
+    bridge: &TuiReplBridge,
+    server: &str,
+    tool: &str,
+    args: serde_json::Map<String, serde_json::Value>,
+) -> Option<String> {
+    match bridge.invoke_mcp_tool(server, tool, args).await {
+        Ok(ref result) => extract_mcp_text(result),
+        Err(_) => None,
+    }
+}
+
 impl MediaDataBridge for TuiReplBridge {
     fn gallery_status(&self) -> GalleryStatus {
         self.rt_handle.block_on(async {

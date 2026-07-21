@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through Search→Feeds→Extract→Chat.
 
 use crate::bridges::ResearchDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -86,7 +87,12 @@ impl Window for ResearchWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "research", f, area),
+            McpTab::Chat => <ResearchWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "research",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -145,78 +151,61 @@ impl Window for ResearchWindow {
     }
 }
 
-impl McpTabbedWindow for ResearchWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "research"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "research", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!(
-                "Research: {} ([ ] to navigate)",
-                self.section.title()
-            )),
-            Line::from(""),
-        ];
-        let feed_data: Vec<(String, usize)> = self
-            .research
-            .as_ref()
-            .map(|r| {
-                r.feed_list()
-                    .iter()
-                    .map(|f| (f.title.clone(), f.unread))
-                    .collect()
-            })
-            .unwrap_or_default();
-        if let Some(ref r) = self.research {
-            match self.section {
-                ResearchSection::Search => {
-                    if let Some(ref q) = r.last_query() {
-                        lines.push(Line::from(format!("  Query: {}", q)));
-                    }
-                    let search_results = r.search("");
-                    for result in &search_results {
-                        lines.push(Line::from(vec![
-                            Span::raw("  • "),
-                            Span::styled(result.title.clone(), Style::default().fg(Color::Green)),
-                            Span::raw(format!("  {}", result.url)),
-                        ]));
-                        lines.push(Line::from(format!("    {}", result.snippet)));
-                    }
+impl_mcp_tabbed!(ResearchWindow, "research", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!(
+            "Research: {} ([ ] to navigate)",
+            this.section.title()
+        )),
+        Line::from(""),
+    ];
+    let feed_data: Vec<(String, usize)> = this
+        .research
+        .as_ref()
+        .map(|r| {
+            r.feed_list()
+                .iter()
+                .map(|f| (f.title.clone(), f.unread))
+                .collect()
+        })
+        .unwrap_or_default();
+    if let Some(ref r) = this.research {
+        match this.section {
+            ResearchSection::Search => {
+                if let Some(ref q) = r.last_query() {
+                    lines.push(Line::from(format!("  Query: {}", q)));
                 }
-                ResearchSection::Feeds => {
-                    lines.push(Line::from(format!("  {} feed(s)", feed_data.len())));
-                    for (title, count) in &feed_data {
-                        let unread_str = if *count > 0 {
-                            format!(" ({} unread)", count)
-                        } else {
-                            String::new()
-                        };
-                        lines.push(Line::from(vec![
-                            Span::raw("  📡 "),
-                            Span::styled(title.as_str(), Style::default().fg(Color::Cyan)),
-                            Span::styled(unread_str, Style::default().fg(Color::Yellow)),
-                        ]));
-                    }
-                }
-                ResearchSection::Extract => {
-                    lines.push(Line::from("  Extract content from URLs into markdown."));
+                let search_results = r.search("");
+                for result in &search_results {
+                    lines.push(Line::from(vec![
+                        Span::raw("  • "),
+                        Span::styled(result.title.clone(), Style::default().fg(Color::Green)),
+                        Span::raw(format!("  {}", result.url)),
+                    ]));
+                    lines.push(Line::from(format!("    {}", result.snippet)));
                 }
             }
-        } else {
-            lines.push(Line::from("  Use `kask mcp start research` to enable."));
+            ResearchSection::Feeds => {
+                lines.push(Line::from(format!("  {} feed(s)", feed_data.len())));
+                for (title, count) in &feed_data {
+                    let unread_str = if *count > 0 {
+                        format!(" ({} unread)", count)
+                    } else {
+                        String::new()
+                    };
+                    lines.push(Line::from(vec![
+                        Span::raw("  📡 "),
+                        Span::styled(title.as_str(), Style::default().fg(Color::Cyan)),
+                        Span::styled(unread_str, Style::default().fg(Color::Yellow)),
+                    ]));
+                }
+            }
+            ResearchSection::Extract => {
+                lines.push(Line::from("  Extract content from URLs into markdown."));
+            }
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    } else {
+        lines.push(Line::from("  Use `kask mcp start research` to enable."));
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

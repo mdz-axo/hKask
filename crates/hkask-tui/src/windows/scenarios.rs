@@ -5,6 +5,7 @@
 //! `c` calibrate, `r` research selected event.
 
 use crate::bridges::{EventNode, ScenariosDataBridge};
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -113,7 +114,12 @@ impl Window for ScenariosWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "scenarios", f, area),
+            McpTab::Chat => <ScenariosWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "scenarios",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -267,217 +273,197 @@ impl ScenariosWindow {
     }
 }
 
-impl McpTabbedWindow for ScenariosWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "scenarios"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "scenarios", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!(
-                "Scenarios: {}  ([ ] to navigate)",
-                self.section.title()
-            )),
-            Line::from(""),
-        ];
-        match self.scenarios.as_ref() {
-            Some(sc) => match self.section {
-                ScenarioSection::Pipeline => {
-                    if let Some(state) = sc.pipeline_state() {
-                        lines.push(Line::from(vec![
-                            Span::raw("  Forecasts: "),
-                            Span::styled(
-                                format!("{}", state.forecast_count),
-                                Style::default().fg(Color::Cyan).bold(),
-                            ),
-                            Span::raw(format!(
-                                "  ({} resolved, {} pending)",
-                                state.resolved_count, state.pending_count
-                            )),
-                        ]));
-                        if let Some(brier) = state.overall_brier {
-                            let (color, label) = if brier < 0.05 {
-                                (Color::Green, "excellent")
-                            } else if brier < 0.10 {
-                                (Color::Green, "good")
-                            } else if brier < 0.20 {
-                                (Color::Yellow, "fair")
-                            } else if brier < 0.33 {
-                                (Color::Yellow, "poor")
-                            } else {
-                                (Color::Red, "needs work")
-                            };
-                            lines.push(Line::from(vec![
-                                Span::raw("  Brier:   "),
-                                Span::styled(
-                                    format!("{:.4} ({})", brier, label),
-                                    Style::default().fg(color),
-                                ),
-                            ]));
-                        }
-                        lines.push(Line::from(""));
-                        lines.push(Line::from(Span::styled(
-                            "  Recent Forecasts",
-                            Style::default().fg(Color::White).bold(),
-                        )));
-                        for fc in &state.recent_forecasts {
-                            let oc = match fc.outcome {
-                                Some(true) => (Color::Green, " \u{2713}"),
-                                Some(false) => (Color::Red, " \u{2717}"),
-                                None => (Color::DarkGray, " \u{2026}"),
-                            };
-                            lines.push(Line::from(vec![
-                                Span::raw("  \u{2022} "),
-                                Span::styled(
-                                    fc.event_name.clone(),
-                                    Style::default().fg(Color::Cyan),
-                                ),
-                                Span::raw(format!("  {:.0}%", fc.probability * 100.0)),
-                                Span::styled(oc.1, Style::default().fg(oc.0)),
-                            ]));
-                        }
-                    } else {
-                        lines.push(Line::from(
-                            "  No scenario data. Use `kask mcp start scenarios` to enable.",
-                        ));
-                    }
-                }
-                ScenarioSection::Calibration => {
-                    if let Some(cal) = sc.calibration() {
-                        lines.push(Line::from(vec![
-                            Span::raw("  Resolved: "),
-                            Span::styled(
-                                format!("{}", cal.resolved_forecasts),
-                                Style::default().fg(Color::Cyan),
-                            ),
-                            Span::raw(format!(" / {} total", cal.total_forecasts)),
-                        ]));
-                        if let Some(brier) = cal.overall_brier {
-                            lines.push(Line::from(vec![
-                                Span::raw("  Brier:    "),
-                                Span::styled(
-                                    format!("{:.4}", brier),
-                                    Style::default().fg(if brier < 0.10 {
-                                        Color::Green
-                                    } else {
-                                        Color::Yellow
-                                    }),
-                                ),
-                            ]));
-                        }
-                        if let Some(oc) = cal.overconfidence_score {
-                            let (color, desc) = if oc.abs() < 0.05 {
-                                (Color::Green, "well calibrated")
-                            } else if oc > 0.0 {
-                                (Color::Red, "overconfident")
-                            } else {
-                                (Color::Yellow, "underconfident")
-                            };
-                            lines.push(Line::from(vec![
-                                Span::raw("  Bias:     "),
-                                Span::styled(
-                                    format!("{:+.3} ({})", oc, desc),
-                                    Style::default().fg(color),
-                                ),
-                            ]));
-                        }
-                        lines.push(Line::from(vec![
-                            Span::raw("  Verdict:  "),
-                            Span::styled(
-                                cal.interpretation.clone(),
-                                Style::default().fg(Color::White),
-                            ),
-                        ]));
-                    } else {
-                        lines.push(Line::from("  No calibration data."));
-                    }
-                }
-                ScenarioSection::Tree => {
-                    if let Some(tree) = sc.event_tree() {
-                        let flat = Self::flatten_tree(&tree.root_nodes, &self.expanded, 0);
-                        lines.push(Line::from(vec![
-                            Span::raw("  "),
-                            Span::styled(
-                                tree.subject.clone(),
-                                Style::default().fg(Color::Cyan).bold(),
-                            ),
-                            Span::raw(format!("  |  {}  |  Joint: ", tree.time_horizon)),
-                            Span::styled(
-                                format!("{:.1}%", tree.all_events_probability * 100.0),
-                                Style::default().fg(Color::Green),
-                            ),
-                        ]));
-                        lines.push(Line::from(Span::styled(
-                            "  \u{2191}\u{2193}nav \u{2192}expand \u{2190}collapse Space c calibrate r research e all w collapse",
-                            Style::default().fg(Color::DarkGray),
-                        )));
-                        lines.push(Line::from(""));
-                        if flat.is_empty() {
-                            lines.push(Line::from("  No events in tree."));
+impl_mcp_tabbed!(ScenariosWindow, "scenarios", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!(
+            "Scenarios: {}  ([ ] to navigate)",
+            this.section.title()
+        )),
+        Line::from(""),
+    ];
+    match this.scenarios.as_ref() {
+        Some(sc) => match this.section {
+            ScenarioSection::Pipeline => {
+                if let Some(state) = sc.pipeline_state() {
+                    lines.push(Line::from(vec![
+                        Span::raw("  Forecasts: "),
+                        Span::styled(
+                            format!("{}", state.forecast_count),
+                            Style::default().fg(Color::Cyan).bold(),
+                        ),
+                        Span::raw(format!(
+                            "  ({} resolved, {} pending)",
+                            state.resolved_count, state.pending_count
+                        )),
+                    ]));
+                    if let Some(brier) = state.overall_brier {
+                        let (color, label) = if brier < 0.05 {
+                            (Color::Green, "excellent")
+                        } else if brier < 0.10 {
+                            (Color::Green, "good")
+                        } else if brier < 0.20 {
+                            (Color::Yellow, "fair")
+                        } else if brier < 0.33 {
+                            (Color::Yellow, "poor")
                         } else {
-                            let vis_h = area.height.saturating_sub(8) as usize;
-                            let start = self.scroll.min(flat.len().saturating_sub(1));
-                            let end = (start + vis_h.max(1)).min(flat.len());
-                            for (i, (depth, node)) in
-                                flat.iter().enumerate().skip(start).take(end - start)
-                            {
-                                let indent = "  ".repeat(*depth);
-                                let marker = if node.children.is_empty() {
-                                    "  "
-                                } else if self.expanded.contains(&node.id) {
-                                    "[-]"
-                                } else {
-                                    "[+]"
-                                };
-                                let is_cursor = i == self.cursor;
-                                let cm = if is_cursor { ">" } else { " " };
-                                let ns = if is_cursor {
-                                    Style::default().fg(Color::Cyan).bold()
-                                } else {
-                                    Style::default().fg(Color::Cyan)
-                                };
-                                let tc = match node.certainty_tier.as_str() {
-                                    "proximate" => Color::Green,
-                                    "probable" => Color::Yellow,
-                                    _ => Color::Red,
-                                };
-                                lines.push(Line::from(vec![
-                                    Span::raw(format!("{}{} {} ", cm, indent, marker)),
-                                    Span::styled(node.name.clone(), ns),
-                                    Span::raw("  "),
-                                    Span::styled(
-                                        format!("{:.0}%", node.probability * 100.0),
-                                        Style::default().fg(tc),
-                                    ),
-                                    Span::raw(format!("  {}", node.certainty_tier)),
-                                ]));
-                            }
-                        }
-                    } else {
-                        lines.push(Line::from("  No active event tree. Build via scenario_frame \u{2192} brainstorm \u{2192} quantify."));
+                            (Color::Red, "needs work")
+                        };
+                        lines.push(Line::from(vec![
+                            Span::raw("  Brier:   "),
+                            Span::styled(
+                                format!("{:.4} ({})", brier, label),
+                                Style::default().fg(color),
+                            ),
+                        ]));
                     }
+                    lines.push(Line::from(""));
+                    lines.push(Line::from(Span::styled(
+                        "  Recent Forecasts",
+                        Style::default().fg(Color::White).bold(),
+                    )));
+                    for fc in &state.recent_forecasts {
+                        let oc = match fc.outcome {
+                            Some(true) => (Color::Green, " \u{2713}"),
+                            Some(false) => (Color::Red, " \u{2717}"),
+                            None => (Color::DarkGray, " \u{2026}"),
+                        };
+                        lines.push(Line::from(vec![
+                            Span::raw("  \u{2022} "),
+                            Span::styled(fc.event_name.clone(), Style::default().fg(Color::Cyan)),
+                            Span::raw(format!("  {:.0}%", fc.probability * 100.0)),
+                            Span::styled(oc.1, Style::default().fg(oc.0)),
+                        ]));
+                    }
+                } else {
+                    lines.push(Line::from(
+                        "  No scenario data. Use `kask mcp start scenarios` to enable.",
+                    ));
                 }
-            },
-            None => {
-                lines.push(Line::from("  No scenarios MCP server connected."));
             }
+            ScenarioSection::Calibration => {
+                if let Some(cal) = sc.calibration() {
+                    lines.push(Line::from(vec![
+                        Span::raw("  Resolved: "),
+                        Span::styled(
+                            format!("{}", cal.resolved_forecasts),
+                            Style::default().fg(Color::Cyan),
+                        ),
+                        Span::raw(format!(" / {} total", cal.total_forecasts)),
+                    ]));
+                    if let Some(brier) = cal.overall_brier {
+                        lines.push(Line::from(vec![
+                            Span::raw("  Brier:    "),
+                            Span::styled(
+                                format!("{:.4}", brier),
+                                Style::default().fg(if brier < 0.10 {
+                                    Color::Green
+                                } else {
+                                    Color::Yellow
+                                }),
+                            ),
+                        ]));
+                    }
+                    if let Some(oc) = cal.overconfidence_score {
+                        let (color, desc) = if oc.abs() < 0.05 {
+                            (Color::Green, "well calibrated")
+                        } else if oc > 0.0 {
+                            (Color::Red, "overconfident")
+                        } else {
+                            (Color::Yellow, "underconfident")
+                        };
+                        lines.push(Line::from(vec![
+                            Span::raw("  Bias:     "),
+                            Span::styled(
+                                format!("{:+.3} ({})", oc, desc),
+                                Style::default().fg(color),
+                            ),
+                        ]));
+                    }
+                    lines.push(Line::from(vec![
+                        Span::raw("  Verdict:  "),
+                        Span::styled(
+                            cal.interpretation.clone(),
+                            Style::default().fg(Color::White),
+                        ),
+                    ]));
+                } else {
+                    lines.push(Line::from("  No calibration data."));
+                }
+            }
+            ScenarioSection::Tree => {
+                if let Some(tree) = sc.event_tree() {
+                    let flat = Self::flatten_tree(&tree.root_nodes, &this.expanded, 0);
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(
+                            tree.subject.clone(),
+                            Style::default().fg(Color::Cyan).bold(),
+                        ),
+                        Span::raw(format!("  |  {}  |  Joint: ", tree.time_horizon)),
+                        Span::styled(
+                            format!("{:.1}%", tree.all_events_probability * 100.0),
+                            Style::default().fg(Color::Green),
+                        ),
+                    ]));
+                    lines.push(Line::from(Span::styled(
+                        "  \u{2191}\u{2193}nav \u{2192}expand \u{2190}collapse Space c calibrate r research e all w collapse",
+                        Style::default().fg(Color::DarkGray),
+                    )));
+                    lines.push(Line::from(""));
+                    if flat.is_empty() {
+                        lines.push(Line::from("  No events in tree."));
+                    } else {
+                        let vis_h = area.height.saturating_sub(8) as usize;
+                        let start = this.scroll.min(flat.len().saturating_sub(1));
+                        let end = (start + vis_h.max(1)).min(flat.len());
+                        for (i, (depth, node)) in
+                            flat.iter().enumerate().skip(start).take(end - start)
+                        {
+                            let indent = "  ".repeat(*depth);
+                            let marker = if node.children.is_empty() {
+                                "  "
+                            } else if this.expanded.contains(&node.id) {
+                                "[-]"
+                            } else {
+                                "[+]"
+                            };
+                            let is_cursor = i == this.cursor;
+                            let cm = if is_cursor { ">" } else { " " };
+                            let ns = if is_cursor {
+                                Style::default().fg(Color::Cyan).bold()
+                            } else {
+                                Style::default().fg(Color::Cyan)
+                            };
+                            let tc = match node.certainty_tier.as_str() {
+                                "proximate" => Color::Green,
+                                "probable" => Color::Yellow,
+                                _ => Color::Red,
+                            };
+                            lines.push(Line::from(vec![
+                                Span::raw(format!("{}{} {} ", cm, indent, marker)),
+                                Span::styled(node.name.clone(), ns),
+                                Span::raw("  "),
+                                Span::styled(
+                                    format!("{:.0}%", node.probability * 100.0),
+                                    Style::default().fg(tc),
+                                ),
+                                Span::raw(format!("  {}", node.certainty_tier)),
+                            ]));
+                        }
+                    }
+                } else {
+                    lines.push(Line::from("  No active event tree. Build via scenario_frame \u{2192} brainstorm \u{2192} quantify."));
+                }
+            }
+        },
+        None => {
+            lines.push(Line::from("  No scenarios MCP server connected."));
         }
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "  Tetlock + Schwartz + Chermack via hkask-mcp-scenarios.",
-            Style::default().fg(Color::DarkGray),
-        )));
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
-}
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "  Tetlock + Schwartz + Chermack via hkask-mcp-scenarios.",
+        Style::default().fg(Color::DarkGray),
+    )));
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through Browse→Execute→Active→Chat.
 
 use crate::bridges::{RegistryDataBridge, SkillsDataBridge};
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -92,7 +93,12 @@ impl Window for SkillsWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "skill", f, area),
+            McpTab::Chat => <SkillsWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "skill",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -151,94 +157,77 @@ impl Window for SkillsWindow {
     }
 }
 
-impl McpTabbedWindow for SkillsWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "skill"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "skill", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!(
-                "Skills: {} ([ ] to navigate)",
-                self.section.title()
-            )),
-            Line::from(""),
-        ];
-        match self.section {
-            SkillSection::Browse => {
-                if let Some(ref sk) = self.skills {
-                    let list = sk.skill_list();
-                    lines.push(Line::from(format!("  {} skill(s) registered", list.len())));
-                    let skill_items: Vec<(String, String)> = list
-                        .iter()
-                        .map(|s| (s.id.clone(), s.description.clone()))
-                        .collect();
-                    for (id, desc) in &skill_items {
-                        lines.push(Line::from(vec![
-                            Span::raw("  • "),
-                            Span::styled(id.clone(), Style::default().fg(Color::Green)),
-                            Span::raw(" — "),
-                            Span::styled(desc.clone(), Style::default().fg(Color::DarkGray)),
-                        ]));
-                    }
-                } else if let Some(ref r) = self.registry {
-                    lines.push(Line::from(format!(
-                        "  Templates: {}   Bundles: {}",
-                        r.template_count(),
-                        r.bundle_count()
-                    )));
-                    let tmpl_ids: Vec<String> =
-                        r.list_templates().iter().map(|t| t.id.clone()).collect();
-                    for id in &tmpl_ids {
-                        lines.push(Line::from(vec![
-                            Span::raw("  • "),
-                            Span::styled(id.clone(), Style::default().fg(Color::Green)),
-                        ]));
-                    }
-                } else {
-                    lines.push(Line::from("  Use `kask mcp start skill` to enable."));
+impl_mcp_tabbed!(SkillsWindow, "skill", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!(
+            "Skills: {} ([ ] to navigate)",
+            this.section.title()
+        )),
+        Line::from(""),
+    ];
+    match this.section {
+        SkillSection::Browse => {
+            if let Some(ref sk) = this.skills {
+                let list = sk.skill_list();
+                lines.push(Line::from(format!("  {} skill(s) registered", list.len())));
+                let skill_items: Vec<(String, String)> = list
+                    .iter()
+                    .map(|s| (s.id.clone(), s.description.clone()))
+                    .collect();
+                for (id, desc) in &skill_items {
+                    lines.push(Line::from(vec![
+                        Span::raw("  • "),
+                        Span::styled(id.clone(), Style::default().fg(Color::Green)),
+                        Span::raw(" — "),
+                        Span::styled(desc.clone(), Style::default().fg(Color::DarkGray)),
+                    ]));
                 }
-            }
-            SkillSection::Execute => {
-                lines.push(Line::from(
-                    "  Execute a skill template with context variables.",
-                ));
-                lines.push(Line::from(
-                    "  Use the Chat tab to run: skill_execute <id> <context_json>",
-                ));
-                if let Some(ref sk) = self.skills {
-                    lines.push(Line::from(format!(
-                        "  {} skill(s) available for execution",
-                        sk.skill_count()
-                    )));
+            } else if let Some(ref r) = this.registry {
+                lines.push(Line::from(format!(
+                    "  Templates: {}   Bundles: {}",
+                    r.template_count(),
+                    r.bundle_count()
+                )));
+                let tmpl_ids: Vec<String> =
+                    r.list_templates().iter().map(|t| t.id.clone()).collect();
+                for id in &tmpl_ids {
+                    lines.push(Line::from(vec![
+                        Span::raw("  • "),
+                        Span::styled(id.clone(), Style::default().fg(Color::Green)),
+                    ]));
                 }
-            }
-            SkillSection::Active => {
-                if let Some(ref r) = self.registry {
-                    let bundles = r.list_bundles();
-                    for b in &bundles {
-                        lines.push(Line::from(vec![
-                            Span::raw("  • "),
-                            Span::styled(b.name.clone(), Style::default().fg(Color::Magenta)),
-                            Span::raw(format!(" v{}  ({} skills)", b.version, b.skill_count)),
-                        ]));
-                    }
-                } else {
-                    lines.push(Line::from("  No active bundles."));
-                }
+            } else {
+                lines.push(Line::from("  Use `kask mcp start skill` to enable."));
             }
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+        SkillSection::Execute => {
+            lines.push(Line::from(
+                "  Execute a skill template with context variables.",
+            ));
+            lines.push(Line::from(
+                "  Use the Chat tab to run: skill_execute <id> <context_json>",
+            ));
+            if let Some(ref sk) = this.skills {
+                lines.push(Line::from(format!(
+                    "  {} skill(s) available for execution",
+                    sk.skill_count()
+                )));
+            }
+        }
+        SkillSection::Active => {
+            if let Some(ref r) = this.registry {
+                let bundles = r.list_bundles();
+                for b in &bundles {
+                    lines.push(Line::from(vec![
+                        Span::raw("  • "),
+                        Span::styled(b.name.clone(), Style::default().fg(Color::Magenta)),
+                        Span::raw(format!(" v{}  ({} skills)", b.version, b.skill_count)),
+                    ]));
+                }
+            } else {
+                lines.push(Line::from("  No active bundles."));
+            }
+        }
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});
