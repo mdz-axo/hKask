@@ -2,7 +2,6 @@
 use hkask_database::driver::{query_map, query_row};
 use hkask_database::value::DbValue;
 use hkask_storage_core::{define_driver_store, impl_from_db_error};
-use hkask_types::AgentKind;
 use hkask_types::InfrastructureError;
 use hkask_types::NotFound;
 use hkask_types::agent_registry::{

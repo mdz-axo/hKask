@@ -9,7 +9,7 @@
 //! (different error types and source-path handling), so it stays in each module.
 
 use crate::types::agent::PersonaConstraints;
-use crate::types::agent::{AgentDefinition, AgentKind, Charter};
+use crate::types::agent::{AgentDefinition, Charter};
 use crate::types::agent::{Responsibility, Right};
 use serde::Deserialize;
 
@@ -159,7 +159,7 @@ impl RawYamlAgent {
     pub(crate) fn build_definition<E>(
         self,
         missing_agent_err: impl FnOnce() -> E,
-        unknown_type_err: impl FnOnce(String) -> E,
+        _unknown_type_err: impl FnOnce(String) -> E,
     ) -> Result<AgentDefinition, E> {
         let header = self.agent.or(self.bot).ok_or_else(missing_agent_err)?;
         Ok(AgentDefinition {

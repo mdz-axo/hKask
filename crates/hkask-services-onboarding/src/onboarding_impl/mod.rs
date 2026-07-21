@@ -8,9 +8,9 @@ use hkask_agents::A2ARuntime;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_keystore::{Keychain, master_key::derive_all_internal_secrets};
 use hkask_storage::{AgentRegistryStore, Database, now_rfc3339};
+use hkask_types::WebID;
 use hkask_types::agent_paths;
 use hkask_types::agent_registry::{AgentDefinition, Charter, RegisteredAgent, UserProfile};
-use hkask_types::{AgentKind, WebID};
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 

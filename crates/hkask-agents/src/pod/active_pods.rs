@@ -6,7 +6,7 @@
 use super::AgentPodError;
 use super::context::PodContext;
 use super::deployment::{PodDeployment, PodFactory, PodRegistry};
-use super::types::{AgentKind, AgentPersona, PodID, PodKind, PodLifecycleState};
+use super::types::{AgentPersona, PodID, PodKind, PodLifecycleState};
 use crate::a2a::A2ARuntime;
 use crate::curator::SemanticIndex;
 use hkask_capability::CapabilityChecker;
