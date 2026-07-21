@@ -1505,18 +1505,11 @@ pub async fn run(
     replicant: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
-    dotenvy::dotenv().ok();
     // Host is fixed to Runpod (cloud-only, single host).
     // Harness is fixed to Axolotl (sole harness until data and training
     // pipelines are validated — re-add Unsloth when there's a concrete need).
     let host_id = TrainingHostId::Runpod;
     let harness_id = TrainingHarnessId::Axolotl;
-    let host_config = TrainingHostConfig {
-        host: host_id,
-        runpod_api_key: std::env::var("RUNPOD_API_KEY").unwrap_or_default(),
-        runpod_template_id: std::env::var("RUNPOD_TEMPLATE_ID").unwrap_or_default(),
-    };
-    let harness: Box<dyn HarnessAdapter> = Box::new(AxolotlHarness);
 
     let cache_dir = PathBuf::from(
         std::env::var("HKASK_TRAINING_CACHE_DIR").unwrap_or_else(|_| {
@@ -1527,7 +1520,7 @@ pub async fn run(
     );
     let pipeline = DatasetPipeline::new(cache_dir);
 
-    hkask_mcp::run_server(
+    hkask_mcp::run_server_with_preloaded(
         "hkask-mcp-training",
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::ServerContext| {
@@ -1600,6 +1593,20 @@ pub async fn run(
                     }
                 };
 
+                let host_config = TrainingHostConfig {
+                    host: host_id,
+                    runpod_api_key: ctx
+                        .credentials
+                        .get("RUNPOD_API_KEY")
+                        .cloned()
+                        .unwrap_or_default(),
+                    runpod_template_id: ctx
+                        .credentials
+                        .get("RUNPOD_TEMPLATE_ID")
+                        .cloned()
+                        .unwrap_or_default(),
+                };
+                let harness: Box<dyn HarnessAdapter> = Box::new(AxolotlHarness);
                 let host = create_host(&host_config, harness)
                     .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
 
@@ -1626,6 +1633,14 @@ pub async fn run(
             })
         },
         vec![
+            hkask_mcp::CredentialRequirement::required(
+                "RUNPOD_API_KEY",
+                "RunPod API key for governed training-job submission",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "RUNPOD_TEMPLATE_ID",
+                "RunPod template ID; defaults to the canonical Axolotl template when unset",
+            ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_TRAINING_DB",
                 "Path to per-agent training database for job/adapter/QA storage (defaults to agents/{replicant}/training.db)",
@@ -1635,6 +1650,7 @@ pub async fn run(
                 "Passphrase for the training database (resolved via credentials or keystore; in-memory if unavailable)",
             ),
         ],
+        std::collections::HashMap::new(),
     )
     .await
 }

@@ -12,6 +12,7 @@
 
 use hkask_inference::InferenceConfig;
 use hkask_inference::{FusionMode, ProviderId};
+pub use hkask_repl::host::OnboardingOutcome;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 use hkask_services_onboarding::{MatrixRegistrationResult, OnboardingService, ResolvedSecrets};
 use hkask_types::agent_registry::{RegisteredAgent, UserProfile};
@@ -32,25 +33,6 @@ pub enum OnboardingError {
     Service(#[from] hkask_services_core::ServiceError),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-}
-
-/// Outcome of the onboarding flow
-pub struct OnboardingOutcome {
-    /// The replicant name the user signed in as
-    pub signed_in_agent: String,
-    /// Resolved secrets from onboarding, when available.
-    ///
-    /// Present when onboarding derived secrets from a passphrase (first-run
-    /// or sign-in). Carries the secrets forward so the REPL can use them
-    /// directly instead of re-resolving from the OS keychain (which may not
-    /// persist across Entry instances with the mock backend).
-    pub resolved_secrets: Option<ResolvedSecrets>,
-    /// The model selected during onboarding (first-run only).
-    /// When present, the REPL uses this instead of the hardcoded default.
-    pub selected_model: Option<String>,
-    /// Whether this is a first-run (true) or a returning session (false).
-    /// Used by the REPL to decide whether to show the First Steps guide.
-    pub is_first_run: bool,
 }
 
 // ── Public entry points ────────────────────────────────────────────────────

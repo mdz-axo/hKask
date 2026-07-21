@@ -1,10 +1,10 @@
 //! Host trait — implemented by the CLI binary to provide REPL dependencies.
 
-/// Outcome of the onboarding flow.
+/// Canonical outcome returned by a host-owned onboarding flow.
 ///
-/// NOTE: mirrors `crate::onboarding::OnboardingOutcome` in hkask-cli.
-/// Duplicated here to avoid a circular dependency between hkask-repl
-/// and hkask-cli. Keep field names synchronized.
+/// The REPL consumes this contract after the outer host completes setup.
+/// CLI onboarding returns this type directly, keeping the dependency direction
+/// from CLI to REPL and avoiding a mirrored outcome type.
 #[derive(Debug, Clone)]
 pub struct OnboardingOutcome {
     pub signed_in_agent: String,

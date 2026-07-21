@@ -15,12 +15,7 @@ impl ReplHost for CliHost {
         rt: &tokio::runtime::Handle,
     ) -> Result<OnboardingOutcome, OnboardingError> {
         match rt.block_on(crate::onboarding::run_onboarding()) {
-            Ok(outcome) => Ok(OnboardingOutcome {
-                signed_in_agent: outcome.signed_in_agent,
-                resolved_secrets: outcome.resolved_secrets,
-                selected_model: outcome.selected_model,
-                is_first_run: outcome.is_first_run,
-            }),
+            Ok(outcome) => Ok(outcome),
             Err(crate::onboarding::OnboardingError::Cancelled) => Err(OnboardingError::Cancelled),
             Err(e) => Err(OnboardingError::Failed(e.to_string())),
         }
