@@ -4,7 +4,6 @@
 # EVA uses activation-vector SVD (not weight-SVD like PiSSA) → standard portable
 # LoRA adapter (A initialized with activation variance, B=0). This avoids the
 # library-version portability failure discovered in v2 (transformers 5.9.0 vs 5.5.0).
-# Intermediate-rank selection (Quercia 2026) may be added in v3.1.
 #
 # Base: unsloth/Qwen3.6-27B (dense, 27B). EVA init from activation vectors.
 # lora_dropout: 0 recommended (EVA initializes A with principal activation

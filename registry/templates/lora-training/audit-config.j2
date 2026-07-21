@@ -336,8 +336,9 @@ PUBLIC VISIBILITY: `visibility: public` — no hidden training-config
 audit controls (P3, P4).
 NO FABRICATION: Only findings with quoted config evidence are
 reported. Only regressions with concrete `pattern` (regex against
-config content, or Python assertion code for runtime gates) are
-proposed. Only gates with config evidence (init_lora_weights=True =
+config content, or a Rust runtime assertion at the owning training
+boundary for runtime gates) are proposed. Only gates with config
+evidence (init_lora_weights=True =
 no-op-at-init; bias='none' = merge equivalence; lora_alpha/r or
 lora_alpha/sqrt(r) = scaling form; etc.) are counted as pass.
 NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by reading

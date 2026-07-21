@@ -1,4 +1,4 @@
-{# goal: Synthesize training-config findings with arXiv paper citations and PEFT v0.19.0 doc references (P8). Propose RR-NNNN.yaml entries (surface: training, status: pending, concrete grep pattern against config content or Python assertion code for runtime gates). Identify contract gaps. Emit cns.lora.report span (P9). Replicant_host mandatory (P12). No synthetic findings or benchmark claims (P8). Registry authoritative (P5.1). #}
+{# goal: Synthesize training-config findings with arXiv paper citations and PEFT v0.19.0 doc references (P8). Propose RR-NNNN.yaml entries (surface: training, status: pending, concrete grep patterns or Rust runtime assertions at the owning training boundary). Identify contract gaps. Emit cns.lora.report span (P9). Replicant_host mandatory (P12). No synthetic findings or benchmark claims (P8). Registry authoritative (P5.1). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -193,8 +193,9 @@ PUBLIC VISIBILITY: `visibility: public` — no hidden training-config
 audit controls (P3, P4).
 NO FABRICATION: Only findings with quoted config evidence are
 reported. Only regressions with concrete `pattern` (regex against
-config content, or Python assertion code for runtime gates) are
-proposed. Only gates with config evidence are counted as pass.
+config content, or a Rust runtime assertion at the owning training
+boundary) are proposed. Only gates with config evidence are counted as
+pass.
 NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by reading
 the cited `config_path`. `parameter` and `value` must exist in that
 file. `line` must reference an actual line number.

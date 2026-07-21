@@ -199,10 +199,22 @@ mod tests {
         for step in &manifest.steps {
             assert!(!step.tool.is_empty(), "every step must name a tool");
         }
-        assert!(
-            manifest.steps.iter().any(|s| s.tool.contains("train")),
-            "pipeline must have a training step"
+        let training_step = manifest
+            .steps
+            .iter()
+            .find(|step| step.tool == "training_submit")
+            .expect("pipeline must have a training_submit step");
+        let training_params = training_step
+            .params
+            .as_ref()
+            .expect("training_submit must declare typed parameters");
+        assert_eq!(
+            training_params["params"]["lora"]["init_lora_weights"],
+            "eva"
         );
+        assert_eq!(training_params["params"]["lora"]["r"], 32);
+        assert!(training_params.get("config_file").is_none());
+        assert!(training_params.get("host").is_none());
         assert!(
             manifest.steps.iter().any(|s| s.tool.contains("docproc")),
             "pipeline must have a document processing step"

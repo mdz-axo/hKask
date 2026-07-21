@@ -2,11 +2,11 @@
 # Rendered from registry/templates/training/axolotl-lora.j2
 # Evolvable via gpa-evolution / skill-maintenance — no Rust recompile needed.
 #
-# Default init: EVA (activation-vector SVD) — standard portable LoRA adapter.
-# PiSSA (pissa_niter_4) is NOT supported — it is non-portable across
-# transformers/torch library versions (residual base mismatch produces
-# garbage output; SVD conversion has ~40-50% relative error per layer).
-# See: docs/how-to/runpod-lora-training-guide.md Lesson 6.
+# LoRA initialization is rendered from the typed TrainingParams boundary.
+# EVA requires a harness call to initialize_lora_eva_weights with the training
+# dataloader; the current preflight refuses EVA until that seam is implemented.
+# PiSSA is not used for the Capabilities Researcher adapter because its
+# mutated-base save contract is not portable across the verified environments.
 base_model: {{ base_model }}
 adapter: lora
 load_in_4bit: {{ load_in_4bit | default("false") }}
@@ -17,8 +17,9 @@ sequence_len: {{ sequence_len | default(4096) }}
 bf16: true
 
 {% if peft_init_lora_weights %}
-# EVA — activation-vector SVD initialization. Standard portable LoRA (B=0).
-# Must keep dropout=0 (activation components must not be dropped).
+# Explicit PEFT initialization strategy. EVA is accepted here only as rendered
+# evidence; preflight owns the initializer-support decision.
+# Keep dropout=0 for data-driven activation initialization.
 lora_r: {{ lora_r }}
 lora_alpha: {{ lora_alpha }}
 lora_dropout: 0

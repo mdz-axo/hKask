@@ -3,6 +3,8 @@
 //! Implements the 9 domain-specific bridge traits from `hkask-tui` so that
 //! TUI windows receive live service data rather than mock fallbacks.
 
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, derive_signing_key};
+use hkask_ports::ToolPort;
 use hkask_templates::BundleRegistryIndex;
 use hkask_tui::SystemBridge;
 use hkask_tui::bridges::{
@@ -533,28 +535,51 @@ impl BackupDataBridge for TuiReplBridge {
 
 // ── MediaDataBridge ──────────────────────────────────────────────────
 
-fn extract_mcp_text(result: &rmcp::model::CallToolResult) -> Option<String> {
-    result
-        .content
-        .iter()
-        .filter_map(|c| match &**c {
-            rmcp::model::RawContent::Text(t) => Some(t.text.clone()),
-            _ => None,
-        })
-        .next()
+impl TuiReplBridge {
+    async fn invoke_mcp_tool(
+        &self,
+        server: &str,
+        tool: &str,
+        args: serde_json::Map<String, serde_json::Value>,
+    ) -> Result<serde_json::Value, hkask_ports::ToolPortError> {
+        let (runtime, principal, agent) = {
+            let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            (
+                state.service_context.infra().mcp.clone(),
+                state.host.resolve_user_webid(),
+                state.agent_webid,
+            )
+        };
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
+            tool.to_string(),
+            DelegationAction::Execute,
+            principal,
+            agent,
+            &derive_signing_key(self.a2a_secret.as_bytes()),
+        );
+        runtime
+            .invoke(server, tool, serde_json::Value::Object(args), &token)
+            .await
+    }
 }
 
-fn parse_mcp_json(result: &rmcp::model::CallToolResult) -> Option<serde_json::Value> {
-    extract_mcp_text(result).and_then(|text| serde_json::from_str(&text).ok())
+fn extract_mcp_text(result: &serde_json::Value) -> Option<String> {
+    result.as_str().map(String::from)
+}
+
+fn parse_mcp_json(result: &serde_json::Value) -> Option<serde_json::Value> {
+    match result {
+        serde_json::Value::String(text) => serde_json::from_str(text).ok(),
+        value => Some(value.clone()),
+    }
 }
 
 impl MediaDataBridge for TuiReplBridge {
     fn gallery_status(&self) -> GalleryStatus {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match runtime.call_tool("media", "gallery_status", args).await {
+            match self.invoke_mcp_tool("media", "gallery_status", args).await {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     GalleryStatus {
@@ -587,13 +612,11 @@ impl MediaDataBridge for TuiReplBridge {
     }
 
     fn recent_images(&self, limit: usize) -> Vec<ImageSummary> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("query".into(), serde_json::Value::String(String::new()));
             args.insert("limit".into(), serde_json::Value::from(limit as u64));
-            match runtime.call_tool("media", "gallery_search", args).await {
+            match self.invoke_mcp_tool("media", "gallery_search", args).await {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     content
@@ -669,8 +692,6 @@ impl TrainingDataBridge for TuiReplBridge {
 
 impl CompaniesDataBridge for TuiReplBridge {
     fn search(&self, query: &str) -> Vec<CompanySummary> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         let query = query.to_string();
         // Store the query for last_searched
         *self
@@ -681,7 +702,10 @@ impl CompaniesDataBridge for TuiReplBridge {
             let mut args = serde_json::Map::new();
             args.insert("query".into(), serde_json::Value::String(query));
             args.insert("limit".into(), serde_json::Value::from(10_u64));
-            match runtime.call_tool("companies", "symbol_search", args).await {
+            match self
+                .invoke_mcp_tool("companies", "symbol_search", args)
+                .await
+            {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     content
@@ -723,8 +747,6 @@ impl CompaniesDataBridge for TuiReplBridge {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()?;
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         let sym = symbol.clone();
         let sym2 = symbol.clone();
         self.rt_handle.block_on(async {
@@ -732,8 +754,8 @@ impl CompaniesDataBridge for TuiReplBridge {
             let mut metric_args = serde_json::Map::new();
             metric_args.insert("symbol".into(), serde_json::Value::String(sym.clone()));
             metric_args.insert("limit".into(), serde_json::Value::from(1_u64));
-            let metrics = runtime
-                .call_tool("companies", "key_metrics", metric_args)
+            let metrics = self
+                .invoke_mcp_tool("companies", "key_metrics", metric_args)
                 .await
                 .ok()
                 .and_then(|r| parse_mcp_json(&r));
@@ -741,8 +763,8 @@ impl CompaniesDataBridge for TuiReplBridge {
             // Fetch stock quote (price, change)
             let mut quote_args = serde_json::Map::new();
             quote_args.insert("symbol".into(), serde_json::Value::String(sym2.clone()));
-            let quote = runtime
-                .call_tool("companies", "stock_quote", quote_args)
+            let quote = self
+                .invoke_mcp_tool("companies", "stock_quote", quote_args)
                 .await
                 .ok()
                 .and_then(|r| parse_mcp_json(&r));
@@ -772,11 +794,12 @@ impl CompaniesDataBridge for TuiReplBridge {
     }
 
     fn portfolio_list(&self) -> Vec<PortfolioSummary> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match runtime.call_tool("companies", "portfolio_list", args).await {
+            match self
+                .invoke_mcp_tool("companies", "portfolio_list", args)
+                .await
+            {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     content
@@ -807,8 +830,6 @@ impl CompaniesDataBridge for TuiReplBridge {
 
 impl ResearchDataBridge for TuiReplBridge {
     fn search(&self, query: &str) -> Vec<SearchResult> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         let query = query.to_string();
         *self
             .last_research_search
@@ -818,7 +839,7 @@ impl ResearchDataBridge for TuiReplBridge {
             let mut args = serde_json::Map::new();
             args.insert("query".into(), serde_json::Value::String(query));
             args.insert("count".into(), serde_json::Value::from(10_u64));
-            match runtime.call_tool("research", "web_search", args).await {
+            match self.invoke_mcp_tool("research", "web_search", args).await {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     content
@@ -852,8 +873,6 @@ impl ResearchDataBridge for TuiReplBridge {
     }
 
     fn extract(&self, url: &str) -> Option<ExtractResult> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         let url = url.to_string();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
@@ -862,7 +881,7 @@ impl ResearchDataBridge for TuiReplBridge {
                 "format".into(),
                 serde_json::Value::String("markdown".into()),
             );
-            match runtime.call_tool("research", "web_extract", args).await {
+            match self.invoke_mcp_tool("research", "web_extract", args).await {
                 Ok(ref result) => {
                     let text = extract_mcp_text(result)?;
                     Some(ExtractResult {
@@ -888,13 +907,11 @@ impl ResearchDataBridge for TuiReplBridge {
 
 impl DocprocDataBridge for TuiReplBridge {
     fn chunk_list(&self) -> Vec<ChunkInfo> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("text".into(), serde_json::Value::String("".into()));
             args.insert("max_tokens".into(), serde_json::Value::from(512_u64));
-            match runtime.call_tool("docproc", "docproc_chunk", args).await {
+            match self.invoke_mcp_tool("docproc", "docproc_chunk", args).await {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     content
@@ -927,13 +944,11 @@ impl DocprocDataBridge for TuiReplBridge {
     }
 
     fn index_status(&self) -> (usize, usize) {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("question".into(), serde_json::Value::String("".into()));
             args.insert("top_k".into(), serde_json::Value::from(1_u64));
-            match runtime.call_tool("docproc", "docproc_query", args).await {
+            match self.invoke_mcp_tool("docproc", "docproc_query", args).await {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     let total = content
@@ -952,12 +967,13 @@ impl DocprocDataBridge for TuiReplBridge {
 
 impl ReplicaDataBridge for TuiReplBridge {
     fn list_replicas(&self) -> Vec<ReplicaInfo> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("action".into(), serde_json::Value::String("list".into()));
-            match runtime.call_tool("replica", "replica_registry", args).await {
+            match self
+                .invoke_mcp_tool("replica", "replica_registry", args)
+                .await
+            {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     content
@@ -995,11 +1011,9 @@ impl ReplicaDataBridge for TuiReplBridge {
 
 impl SkillsDataBridge for TuiReplBridge {
     fn skill_list(&self) -> Vec<SkillListItem> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match runtime.call_tool("skill", "skill_list", args).await {
+            match self.invoke_mcp_tool("skill", "skill_list", args).await {
                 Ok(ref result) => {
                     let content = parse_mcp_json(result);
                     content
@@ -1027,15 +1041,13 @@ impl SkillsDataBridge for TuiReplBridge {
     }
 
     fn skill_execute(&self, skill_id: &str, context: &str) -> Option<SkillExecResult> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         let skill_id = skill_id.to_string();
         let context = context.to_string();
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("skill_id".into(), serde_json::Value::String(skill_id));
             args.insert("context".into(), serde_json::Value::String(context));
-            match runtime.call_tool("skill", "skill_execute", args).await {
+            match self.invoke_mcp_tool("skill", "skill_execute", args).await {
                 Ok(ref result) => {
                     let text = extract_mcp_text(result)?;
                     Some(SkillExecResult {
@@ -1058,12 +1070,10 @@ impl SkillsDataBridge for TuiReplBridge {
 
 impl ScenariosDataBridge for TuiReplBridge {
     fn pipeline_state(&self) -> Option<ScenarioPipelineState> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match runtime
-                .call_tool("scenarios", "scenario_status", args)
+            match self
+                .invoke_mcp_tool("scenarios", "scenario_status", args)
                 .await
             {
                 Ok(ref result) => {
@@ -1099,12 +1109,10 @@ impl ScenariosDataBridge for TuiReplBridge {
     }
 
     fn calibration(&self) -> Option<CalibrationSummary> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match runtime
-                .call_tool("scenarios", "scenario_status", args)
+            match self
+                .invoke_mcp_tool("scenarios", "scenario_status", args)
                 .await
             {
                 Ok(ref result) => {
@@ -1127,12 +1135,10 @@ impl ScenariosDataBridge for TuiReplBridge {
     }
 
     fn event_tree(&self) -> Option<EventTreeDetail> {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let runtime = state.service_context.infra().mcp.clone().clone();
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match runtime
-                .call_tool("scenarios", "scenario_status", args)
+            match self
+                .invoke_mcp_tool("scenarios", "scenario_status", args)
                 .await
             {
                 Ok(ref result) => {

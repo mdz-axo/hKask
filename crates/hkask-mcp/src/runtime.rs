@@ -324,12 +324,11 @@ impl McpRuntime {
         self.connections.read().await.get(server_id).cloned()
     }
 
-    /// Call a tool on a connected server directly via the Peer.
+    /// Call a tool on a connected server directly via the peer.
     ///
-    /// Lower-level than `GovernedTool::invoke` — no governance membrane.
-    /// Used internally by `GovernedTool` and by external callers (QA runner).
+    /// Private transport primitive used by the governed `ToolPort` path.
     #[must_use = "result must be used"]
-    pub async fn call_tool(
+    async fn call_tool(
         &self,
         server_id: &str,
         tool: &str,
