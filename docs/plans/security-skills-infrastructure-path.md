@@ -34,10 +34,10 @@ The `runtime-posture-monitor` skill instructs the agent to observe `hkask.*`
 performative spans and `cns.*` canonical spans. However, there is no MCP
 tool for querying CNS span history. The existing infrastructure has:
 
-- `NuEventStore` (`crates/hkask-storage/src/nu_event_store.rs`) — stores
+- `RegulationArchive` (`crates/hkask-storage/src/nu_event_store.rs`) — stores
   events in SQLite, has `query_algedonic()` but NO general-purpose
   `query_by_target()` or `query_by_namespace()`.
-- `CnsStoragePort` trait (`crates/hkask-ports/src/cns.rs`) — defines
+- `LedgerStoragePort` trait (`crates/hkask-ports/src/cns.rs`) — defines
   `query_algedonic()` and `replay_weighted()` but NO general query method.
 - No MCP server for CNS span queries (existing MCP servers: codegraph,
   communication, companies, condenser, curator, docproc, filesystem,
@@ -45,14 +45,14 @@ tool for querying CNS span history. The existing infrastructure has:
 
 ### Recommended Path
 
-**Option A: Add `query_by_namespace` to `NuEventStore` + `CnsStoragePort`**
+**Option A: Add `query_by_namespace` to `RegulationArchive` + `LedgerStoragePort`**
 
 Minimal, surgical change:
 1. Add `query_by_namespace(namespace: &str, since: DateTime<Utc>, limit: u64)`
-   to `NuEventStore` — queries `nu_events` table by `span_category` prefix.
-2. Add the method to the `CnsStoragePort` trait.
+   to `RegulationArchive` — queries `nu_events` table by `span_category` prefix.
+2. Add the method to the `LedgerStoragePort` trait.
 3. Create `mcp-servers/hkask-mcp-cns/` MCP server with a `cns_query_spans`
-   tool that calls `CnsStoragePort::query_by_namespace`.
+   tool that calls `LedgerStoragePort::query_by_namespace`.
 4. The `runtime-posture-monitor` skill can then instruct the agent to use
    the `cns_query_spans` MCP tool.
 
@@ -64,7 +64,7 @@ that needs to query CNS telemetry.
 **Option B: Extend existing `curator` MCP server**
 
 Add a `cns_query_spans` tool to `mcp-servers/hkask-mcp-curator/` (which
-already has access to the CuratorContext and NuEventStore).
+already has access to the CuratorContext and RegulationArchive).
 
 **Effort:** Low (1 new tool in existing server).
 **Risk:** Low — but conflates curator concerns with CNS query concerns.
@@ -77,10 +77,10 @@ concerns separate from curator concerns.
 
 ### Implementation Steps (Option A)
 
-1. Add `query_by_namespace()` to `NuEventStore` (query `nu_events` by
+1. Add `query_by_namespace()` to `RegulationArchive` (query `nu_events` by
    `span_category` LIKE prefix).
-2. Add `query_by_namespace()` to `CnsStoragePort` trait.
-3. Implement `CnsStoragePort::query_by_namespace` in `NuEventStore`.
+2. Add `query_by_namespace()` to `LedgerStoragePort` trait.
+3. Implement `LedgerStoragePort::query_by_namespace` in `RegulationArchive`.
 4. Create `mcp-servers/hkask-mcp-cns/` with:
    - `cns_query_spans` tool (query by namespace + time window)
    - `cns_span_stats` tool (aggregate counts by namespace)

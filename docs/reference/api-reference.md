@@ -40,18 +40,18 @@ ID types, nu-event, and visibility types for hKask.
 |--------|-------------|
 | `agent` | Agent kind and persona constraint types |
 | `agent_paths` | Filesystem path conventions for userpod storage |
-| `cns` | CNS span types (`CnsSpan`) and circuit state (`CircuitState`) |
+| `cns` | CNS span types (`RegulationSpan`) and circuit state (`CircuitState`) |
 | `crypto` | Cryptographic primitives including `Ed25519PublicKey` |
 | `curation` | Sovereignty boundary types: `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState` |
 | `curator` | Curation configuration: `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity` |
 | `error` | Cross-cutting error types: `InfrastructureError`, `McpErrorKind`, `DatabaseErrorKind`, `NotFound`, `CapabilityDenied`, `DimensionMismatch` |
-| `event` | Event primitives: `NuEvent`, `NuEventSink`, `Span`, `SpanKind`, `SpanNamespace`, `SpanCategory`, `CyclePhase` |
+| `event` | Event primitives: `RegulationRecord`, `RegulationSink`, `Span`, `SpanKind`, `SpanNamespace`, `SpanCategory`, `CyclePhase` |
 | `fusion` | Fusion types |
 | `goal` | Goal state tracking: `GoalState` |
 | `id` | Type-safe UUID identifier system: `Id<T>`, `IdKind`, `WebID`, and all concrete ID type aliases |
 | `identity` | Agent identity types |
 | `keychain_keys` | Keychain key storage |
-| `loops` | Loop type system: `LoopId`, `LoopAction`, `LoopActionParams`, `ActionType`, `ActionDecision`, `ImpactReport`, `LoopQuality`, `Signal`, `SignalMetric`, `Deviation`, `DeviationDirection`, `BudgetOption`, `RegulationData`, `TriggerOrigin`, `ExperienceClassification` (15 types) |
+| `loops` | Loop type system: `LoopId`, `RegulatoryAction`, `RegulatoryActionParams`, `ActionType`, `ActionDecision`, `ImpactReport`, `LoopMetrics`, `Signal`, `SignalMetric`, `Deviation`, `DeviationDirection`, `BudgetOption`, `RegulationData`, `TriggerOrigin`, `ExperienceClassification` (15 types) |
 | `macros` | Shared macros: `enum_str_ops!` |
 | `observable_span` | `ObservableSpan` trait for decoupled CNS observability |
 | `retry` | Retry policy types |
@@ -95,9 +95,9 @@ ID types, nu-event, and visibility types for hKask.
 
 `WebID` — Unique identifier for agents. Newtype over `Uuid`. Methods: `new()`, `from_uuid()`, `as_uuid()`, `for_agent_name()`, `from_persona()`, `from_persona_with_namespace()`, `redacted_display()`. Implements `From<BotID>`, `FromStr`, `Default`, `Display`.
 
-`NuEvent` — The canonical ν-event. Fields: `id`, `timestamp`, `observer_webid`, `span`, `phase`, `observation`, `regulation`, `outcome`, `recursion_depth`, `parent_event`, `visibility`. Constructors: `new()`, with builder methods `with_outcome()`, `with_regulation()`, `with_parent()`, `with_visibility()`.
+`RegulationRecord` — The canonical ν-event. Fields: `id`, `timestamp`, `observer_webid`, `span`, `phase`, `observation`, `regulation`, `outcome`, `recursion_depth`, `parent_event`, `visibility`. Constructors: `new()`, with builder methods `with_outcome()`, `with_regulation()`, `with_parent()`, `with_visibility()`.
 
-`NuEventSink` — Trait for persisting NuEvents. Single method: `fn persist(&self, event: &NuEvent)`.
+`RegulationSink` — Trait for persisting RegulationRecords. Single method: `fn persist(&self, event: &RegulationRecord)`.
 
 `ObservableSpan` — Trait for typed observability spans. Dyn-compatible (`Display + Debug + Send + Sync + 'static`). **4 methods:**
 
@@ -105,10 +105,10 @@ ID types, nu-event, and visibility types for hKask.
 |--------|-----------|-------------|
 | `as_str` | `(&self) -> &'static str` | Canonical dot-separated namespace string. Required. |
 | `emit` | `(&self, operation: &str)` | Log-only tracing event with `target = "cns"`. Default impl. |
-| `to_event` | `(&self, operation, observer, phase, observation) -> Option<NuEvent>` | Produces a NuEvent without persisting. Returns `None` on namespace miss. Default impl. |
-| `emit_to` | `(&self, sink, operation, observer, phase, observation)` | Produces a NuEvent via `to_event()`, persists through sink, and logs. Degrades to `emit()` on failure. Default impl. |
+| `to_event` | `(&self, operation, observer, phase, observation) -> Option<RegulationRecord>` | Produces a RegulationRecord without persisting. Returns `None` on namespace miss. Default impl. |
+| `emit_to` | `(&self, sink, operation, observer, phase, observation)` | Produces a RegulationRecord via `to_event()`, persists through sink, and logs. Degrades to `emit()` on failure. Default impl. |
 
-`SpanKind` — Enum of CNS span kinds: `ToolInvoked`, `ToolCompleted`, `ToolError`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `AgentPodDeactivated`, `VarietyAlgedonicAlert`, `DepositCredited`, `ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopQualityTelemetry`.
+`SpanKind` — Enum of CNS span kinds: `ToolInvoked`, `ToolCompleted`, `ToolError`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `AgentPodDeactivated`, `VarietyAlgedonicAlert`, `DepositCredited`, `ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopMetricsTelemetry`.
 
 `SpanNamespace` — Validated string wrapper for canonical CNS span namespaces. Constructed via `new()` (fallible) or `parse()`.
 
@@ -128,7 +128,7 @@ ID types, nu-event, and visibility types for hKask.
 
 `DatabaseErrorKind` — Recovery-path discrimination: `Connection`, `Query`, `Constraint`, `Migration`, `Other`.
 
-**Re-exports at Crate Root:** `AgentKind`, `PersonaConstraints`, `CircuitState`, `Ed25519PublicKey`, `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState`, `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity`, `InfrastructureError`, `McpErrorKind`, `NuEvent`, `NuEventSink`, `GoalState`, all 17 ID type aliases, `WebID`, `LoopId`, `ActionDecision`, `ActionType`, `BudgetOption`, `Deviation`, `DeviationDirection`, `ExperienceClassification`, `ImpactReport`, `LoopAction`, `LoopActionParams`, `LoopQuality`, `RegulationData`, `Signal`, `SignalMetric`, `TriggerOrigin`, `ObservableSpan`, `SkillPolarity`, `LLMParameters`, `TemplateType`, `TimedWord`, `TranscriptBundle`, `TranscriptSegment`, `Confidence`, `Dimension`, `Visibility`.
+**Re-exports at Crate Root:** `AgentKind`, `PersonaConstraints`, `CircuitState`, `Ed25519PublicKey`, `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState`, `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity`, `InfrastructureError`, `McpErrorKind`, `RegulationRecord`, `RegulationSink`, `GoalState`, all 17 ID type aliases, `WebID`, `LoopId`, `ActionDecision`, `ActionType`, `BudgetOption`, `Deviation`, `DeviationDirection`, `ExperienceClassification`, `ImpactReport`, `RegulatoryAction`, `RegulatoryActionParams`, `LoopMetrics`, `RegulationData`, `Signal`, `SignalMetric`, `TriggerOrigin`, `ObservableSpan`, `SkillPolarity`, `LLMParameters`, `TemplateType`, `TimedWord`, `TranscriptBundle`, `TranscriptSegment`, `Confidence`, `Dimension`, `Visibility`.
 
 **Feature Flags:** `sql` — enables `sql_impls` module and `From<rusqlite::Error> for InfrastructureError`.
 
@@ -144,13 +144,13 @@ SQLite + SQLCipher storage for hKask.
 |--------|---------|
 | `embeddings` | `EmbeddingStore` — vector embeddings with similarity search |
 | `goals` | `SqliteGoalRepository` — OCAP-gated goal records with quarantine |
-| `nu_event_store` | `NuEventStore` — weighted event log with `DecayConfig` |
+| `nu_event_store` | `RegulationArchive` — weighted event log with `DecayConfig` |
 | `user_store` | User identity, authentication, and userpod records |
 | `wallet` | `WalletStore` — wallet data persistence |
 
 **Re-exports from hkask-storage-core:** `Database`, `DatabaseError`, `open_database`, `open_or_repair`, `check_passphrase`, `define_driver_store` (macro), `impl_from_db_error` (macro), `sanitize_path`.
 
-**Key Types:** `HMemStore` (episodic memory store, `HMemError`), `NuEventStore` (weighted event log), `EmbeddingStore` / `StoredEmbedding` / `SimilarityResult` / `EmbeddingError`, `ConsentStore` / `StoredConsentRecord` / `ConsentStoreError`, `EscalationQueue` / `EscalationEntry` / `EscalationBatch` / `EscalationStats` / `EscalationStatus` / `EscalationError`, `GalleryStore` / `GalleryRecord` / `ImageRecord` / `TagRecord` / `GalleryMode` / `GalleryStoreError`, `KataHistoryStore` / `KataHistoryEntry` / `KataHistoryError`, `SovereigntyBoundaryStore` / `SovereigntyBoundaryEntry` / `SovereigntyStoreError`, `BackupArchive` / `BackupMeta` / `MigrationReceipt` / `ArchiveError`, `SqliteGoalRepository` / `QuarantinedGoal` / `GoalRepositoryError`, `TokenRegistryStore`, `WalletStore`.
+**Key Types:** `HMemStore` (episodic memory store, `HMemError`), `RegulationArchive` (weighted event log), `EmbeddingStore` / `StoredEmbedding` / `SimilarityResult` / `EmbeddingError`, `ConsentStore` / `StoredConsentRecord` / `ConsentStoreError`, `EscalationQueue` / `EscalationEntry` / `EscalationBatch` / `EscalationStats` / `EscalationStatus` / `EscalationError`, `GalleryStore` / `GalleryRecord` / `ImageRecord` / `TagRecord` / `GalleryMode` / `GalleryStoreError`, `KataHistoryStore` / `KataHistoryEntry` / `KataHistoryError`, `SovereigntyBoundaryStore` / `SovereigntyBoundaryEntry` / `SovereigntyStoreError`, `BackupArchive` / `BackupMeta` / `MigrationReceipt` / `ArchiveError`, `SqliteGoalRepository` / `QuarantinedGoal` / `GoalRepositoryError`, `TokenRegistryStore`, `WalletStore`.
 
 **Feature Flags:** None. Core dependency.
 
@@ -250,9 +250,9 @@ Semantic and episodic memory pipelines for hKask.
 
 `ConsolidationService` — Higher-level consolidation service for scheduled/triggered consolidation.
 
-`EpisodicLoop` — Loop wrapper for `EpisodicMemory` with budget regulation. Implements `HkaskLoop`.
+`EpisodicLoop` — Loop wrapper for `EpisodicMemory` with budget regulation. Implements `RegulationLoop`.
 
-`SemanticLoop` — Loop wrapper for `SemanticMemory` with two regulatory triggers. Constants: `DEFAULT_SEMANTIC_STORAGE_BUDGET` (25,000), `DEFAULT_LOW_CONFIDENCE_THRESHOLD` (0.33), `DEFAULT_CONDENSATION_WINDOW_DAYS` (30), `CONDENSED_SUMMARY_CONFIDENCE` (0.6). Implements `HkaskLoop`.
+`SemanticLoop` — Loop wrapper for `SemanticMemory` with two regulatory triggers. Constants: `DEFAULT_SEMANTIC_STORAGE_BUDGET` (25,000), `DEFAULT_LOW_CONFIDENCE_THRESHOLD` (0.33), `DEFAULT_CONDENSATION_WINDOW_DAYS` (30), `CONDENSED_SUMMARY_CONFIDENCE` (0.6). Implements `RegulationLoop`.
 
 `CentroidResult` — Result of computing a style centroid. Fields: `centroid: Vec<f32>`, `passage_count: usize`, `stored: bool`.
 
@@ -293,7 +293,7 @@ Cybernetic Nervous System for hKask.
 | `governed_tool` | `GovernedTool` (implements `ToolPort`), `EnergyEstimator` trait |
 | `infra_span` | `InfraSpan` |
 | `qa_span` | `QaSpan` |
-| `runtime` | `CnsRuntime`, `NoopEventSink` |
+| `runtime` | `RegulationLedger`, `NoopEventSink` |
 | `seam_span` | `SeamSpan` |
 | `seam_types` | `SeamInventory`, `SeamCoverage` |
 | `seam_watcher` | `SeamWatcher`, `SeamDrift`, `SeamSummary` |
@@ -311,7 +311,7 @@ Cybernetic Nervous System for hKask.
 
 **Key Public Types:**
 
-`CnsRuntime` — Single entry point for all CNS operations. Provides variety counting (Ashby's Law) and algedonic alerting. Internally composes `AlgedonicManager`, `VarietyTracker`, and `SloManager`.
+`RegulationLedger` — Single entry point for all CNS operations. Provides variety counting (Ashby's Law) and algedonic alerting. Internally composes `AlgedonicManager`, `VarietyTracker`, and `SloManager`.
 
 `CyberneticsLoop` — Closed-loop homeostatic controller (Loop 6). Functional contract: Sense → Compare → Compute → Act. Key internals: `Dampener`, `StagnationDetector`, `SensorRegistry`, `SystemSimulator`, `StrategyEvaluator`.
 
@@ -333,7 +333,7 @@ Cybernetic Nervous System for hKask.
 
 `CircuitBreaker` — Implements `CircuitBreakerPort`. States: `Closed`, `Open`, `HalfOpen`.
 
-**Re-exports at Crate Root:** `RuntimeAlert`, `ApiMeter`, `ApiMeteringAlert`, `ApiRequestSpan`, `EndpointWeight`, `RateLimitStatus`, `endpoint_weight()`, `CalibratedEnergyEstimator`, `CompositeEnergyEstimator`, `CircuitBreaker`, `AcpSpan`, `ClassifySpan`, contract event emitters, `ContractSpan`, `CyberneticsLoop`, `DynamicGasTable`, `GasBudget`, `GasCost`, `GasDelta`, `GasError`, `AgentGasStatus`, `GasBudgetManager`, gas report types, `GovernedInference`, `GovernedTool`, `EnergyEstimator`, `QueueDepth`, `CurationThresholdConfig`, `InfraSpan`, `QaSpan`, `CnsRuntime`, `NoopEventSink`, `SeamSpan`, `SeamCoverage`, `SeamInventory`, `SeamDrift`, `SeamSummary`, `SeamWatcher`, `SetPoints`, `SetPointsConfig`, `InferenceThrottleMode`, `load_set_points()`, 7 `DEFAULT_*` constants, SLO types, `WalletBackedBudget`, `WalletEnergyEstimator`, `WalletGasCalibrator`, loop types from `hkask_types::loops`.
+**Re-exports at Crate Root:** `RuntimeAlert`, `ApiMeter`, `ApiMeteringAlert`, `ApiRequestSpan`, `EndpointWeight`, `RateLimitStatus`, `endpoint_weight()`, `CalibratedEnergyEstimator`, `CompositeEnergyEstimator`, `CircuitBreaker`, `AcpSpan`, `ClassifySpan`, contract event emitters, `ContractSpan`, `CyberneticsLoop`, `DynamicGasTable`, `GasBudget`, `GasCost`, `GasDelta`, `GasError`, `AgentGasStatus`, `GasBudgetManager`, gas report types, `GovernedInference`, `GovernedTool`, `EnergyEstimator`, `QueueDepth`, `CurationThresholdConfig`, `InfraSpan`, `QaSpan`, `RegulationLedger`, `NoopEventSink`, `SeamSpan`, `SeamCoverage`, `SeamInventory`, `SeamDrift`, `SeamSummary`, `SeamWatcher`, `SetPoints`, `SetPointsConfig`, `InferenceThrottleMode`, `load_set_points()`, 7 `DEFAULT_*` constants, SLO types, `WalletBackedBudget`, `WalletEnergyEstimator`, `WalletGasCalibrator`, loop types from `hkask_types::loops`.
 
 **Feature Flags:** None. Core dependency.
 
@@ -396,7 +396,7 @@ Agent pods, ACP, and bot/userpod management for hKask.
 | `curator_agent` | Curator persona layer (Loop 5). Sub-module: `metacognition`. Type: `CuratorAgent` |
 | `error` | `CoreError`, `MemoryError` |
 | `inference_loop` | Inference loop (Loop 1). Type: `InferenceLoop` |
-| `loop_system` | Loop orchestration system. Type: `LoopSystem` |
+| `loop_system` | Loop orchestration system. Type: `LoopScheduler` |
 | `pod` | Agent pod lifecycle: `AgentPod`, `AgentPersona`, `PodDeployment`, `PodFactory`, `PodKind`, `PodID`, `PodRegistry`, `ActivePods`, `AgentMode` |
 | `ports` | Hexagonal port traits: `EpisodicStoragePort`, `SemanticStoragePort`, `RecallRequest`, `RecalledEpisode`, `RecalledSemantic`, `StorageRequest` |
 | `registry_loader` | Agent registry loading |
@@ -415,13 +415,13 @@ Agent pods, ACP, and bot/userpod management for hKask.
 
 `InferenceLoop` — Inference loop (Loop 1). Wraps inference logic with loop-level regulation.
 
-`LoopSystem` — Loop orchestration system managing all hKask loops.
+`LoopScheduler` — Loop orchestration system managing all hKask loops.
 
 `SovereigntyConsent` (trait) — Consent decision-making during sovereignty enforcement. Implementations: `AllowAllConsent`, `DenyAllConsent`.
 
 `EpisodicStoragePort` / `SemanticStoragePort` (traits) — Port traits for memory storage operations.
 
-**Re-exports at Crate Root:** `A2AAgent`, `A2AError`, `A2AMessage`, `A2ARuntime`, `ConsentError`, `ConsentManager`, `CuratorContext`, `CurationLoop`, `CuratorSync`, `SemanticIndex`, `CuratorAgent`, `CoreError`, `MemoryError`, `InferenceLoop`, `LoopSystem`, `ActivePods`, `AgentMode`, `AgentPersona`, `PodDeployment`, `PodFactory`, `PodID`, `PodKind`, `PodRegistry`, `EpisodicStoragePort`, `RecallRequest`, `RecalledEpisode`, `RecalledSemantic`, `SemanticStoragePort`, `StorageRequest`, `AllowAllConsent`, `DenyAllConsent`, `SovereigntyChecker`, `SovereigntyConsent`, `VoiceDesign`.
+**Re-exports at Crate Root:** `A2AAgent`, `A2AError`, `A2AMessage`, `A2ARuntime`, `ConsentError`, `ConsentManager`, `CuratorContext`, `CurationLoop`, `CuratorSync`, `SemanticIndex`, `CuratorAgent`, `CoreError`, `MemoryError`, `InferenceLoop`, `LoopScheduler`, `ActivePods`, `AgentMode`, `AgentPersona`, `PodDeployment`, `PodFactory`, `PodID`, `PodKind`, `PodRegistry`, `EpisodicStoragePort`, `RecallRequest`, `RecalledEpisode`, `RecalledSemantic`, `SemanticStoragePort`, `StorageRequest`, `AllowAllConsent`, `DenyAllConsent`, `SovereigntyChecker`, `SovereigntyConsent`, `VoiceDesign`.
 
 **Feature Flags:** None. Core dependency.
 
@@ -626,7 +626,7 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 
 | Module | Description |
 |--------|-------------|
-| `cns` | CNS port traits: `CircuitBreakerPort`, `CnsObserver`, `CnsStoragePort` + types (`ConsolidationRequest`, `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `WeightedEvent`, `DecayConfig`) |
+| `cns` | CNS port traits: `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort` + types (`ConsolidationRequest`, `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `WeightedEvent`, `DecayConfig`) |
 | `consent_port` | `ConsentPort`, `StoredConsentRecord` |
 | `embedding` | `EmbeddingGenerationError` |
 | `embedding_port` | `EmbeddingPort`, `StoredEmbedding` |
@@ -648,8 +648,8 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 | # | Trait | Module | Purpose |
 |---|-------|--------|---------|
 | 1 | `CircuitBreakerPort` | `cns` | Circuit breaker boundary: `allow_request()`, `record_success()`, `record_failure()`, `state()` |
-| 2 | `CnsObserver` | `cns` | CNS event subscription: `interest_mask()`, `on_event()`, `on_depletion()`, `on_backpressure()` |
-| 3 | `CnsStoragePort` | `cns` | CNS event queries: `query_algedonic()`, `replay_weighted()`, `persist_cursor()`, `load_cursor()` |
+| 2 | `LedgerObserver` | `cns` | CNS event subscription: `interest_mask()`, `on_event()`, `on_depletion()`, `on_backpressure()` |
+| 3 | `LedgerStoragePort` | `cns` | CNS event queries: `query_algedonic()`, `replay_weighted()`, `persist_cursor()`, `load_cursor()` |
 | 4 | `ConsentPort` | `consent_port` | Consent record persistence: `initialize_schema()`, `store()`, `list_active()` |
 | 5 | `EmbeddingPort` | `embedding_port` | Embedding storage: `store()`, `get()`, `search()`, `delete()` |
 | 6 | `EscalationPort` | `escalation` | Escalation lifecycle: `list_pending()`, `get()`, `resolve()`, `dismiss()`, `persist_batch()` |
@@ -666,7 +666,7 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 
 **Key Public Types:** `InferenceStreamChunk`, `ToolInfo`, `ToolPortError` (`CapabilityDenied`, `EnergyBudgetExceeded`, `NotFound`, `InvocationFailed`), `ConsolidationRequest` / `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `DecayConfig`, `FederationMessage`, `FederatedTriple`, `EmbeddingGenerationError`, `StoredEmbedding`.
 
-**Re-exports at Crate Root:** `BackpressureSignal`, `CircuitBreakerPort`, `CnsObserver`, `CnsStoragePort`, `ConsolidationOutcome`, `ConsolidationRequest`, `DecayConfig`, `DepletionSignal`, `WeightedEvent`, `EmbeddingGenerationError`, `FlowDefValidationFinding`, `FlowDefValidationReport`, `validate_convergence_field()`, `validate_step_input_mapping()`, `InferencePort`, `InferenceStreamChunk`, `ChatToolDefinition`, `ChatToolFunction`, `InferenceError`, `InferenceResult`, `InferenceUsage`, `StructuredToolCall`, `TokenProb`, `TokenProbability`, `compute_confidence()`, `RegistryEntry`, `RegistryError`, `RegistryIndex`, `Skill`, `SkillRegistryIndex`, `SkillZone`, `ToolInfo`, `ToolPort`, `ToolPortError`, `ReplicaId`, `WalletBudgetError`, `WalletBudgetPort`.
+**Re-exports at Crate Root:** `BackpressureSignal`, `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort`, `ConsolidationOutcome`, `ConsolidationRequest`, `DecayConfig`, `DepletionSignal`, `WeightedEvent`, `EmbeddingGenerationError`, `FlowDefValidationFinding`, `FlowDefValidationReport`, `validate_convergence_field()`, `validate_step_input_mapping()`, `InferencePort`, `InferenceStreamChunk`, `ChatToolDefinition`, `ChatToolFunction`, `InferenceError`, `InferenceResult`, `InferenceUsage`, `StructuredToolCall`, `TokenProb`, `TokenProbability`, `compute_confidence()`, `RegistryEntry`, `RegistryError`, `RegistryIndex`, `Skill`, `SkillRegistryIndex`, `SkillZone`, `ToolInfo`, `ToolPort`, `ToolPortError`, `ReplicaId`, `WalletBudgetError`, `WalletBudgetPort`.
 
 **Feature Flags:** None. Core dependency.
 
@@ -886,7 +886,7 @@ Shared test fixtures and harness for hKask — temp DBs, keystores, WebID factor
 | `strategies` | Test strategies |
 | `test_runner` | `ExpectProposal` |
 
-**Key Public Types:** `TestDb`, `TestKeystore`, `TestWebId`, `MockCnsState`, `MockAlgedonicSignal`, `SignalValence` (enum), `MockCnsRuntime`, `MockToolState` (enum).
+**Key Public Types:** `TestDb`, `TestKeystore`, `TestWebId`, `MockCnsState`, `MockAlgedonicSignal`, `SignalValence` (enum), `MockRegulationLedger`, `MockToolState` (enum).
 
 **Public Functions:** `temp_dir()`, `test_event()`, `test_h_mem()`.
 
@@ -1023,7 +1023,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 | Module | Purpose |
 |--------|---------|
 | `cns` | `CnsContext` — CNS context (runtime, cybernetics, loops, events, energy, tool_stats) |
-| `cns_store_slo_provider` | `CnsStoreSloProvider` — SLO data provider backed by `NuEventStore` |
+| `cns_store_slo_provider` | `CnsStoreSloProvider` — SLO data provider backed by `RegulationArchive` |
 | `governance` | `GovernanceContext` — OCAP, consent, dispatch, A2A, escalations, curation signals |
 | `infra` | `InfraContext` — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas calibration, federation |
 | `mcp_server_guard` | MCP server guard integration |

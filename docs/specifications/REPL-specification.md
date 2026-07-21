@@ -319,7 +319,7 @@ The turn pipeline is now split between the service layer and the CLI:
 │    └─ If < 20%: yellow warning. If 0: red exhausted warning.          │
 │                                                                      │
 │ 9. CNS Update (read-only)                                            │
-│    └─ Algedonic alert check, LoopSystem tick                           │
+│    └─ Algedonic alert check, LoopScheduler tick                           │
 │                                                                      │
 │ 10. Episodic Storage (handled by ChatService::chat() automatically)    │
 │    └─ Store (user_input, agent_name, response) as episodic hMem     │
@@ -652,13 +652,13 @@ After each turn, `cns_display::update_cns_and_display()` executes:
    - Topic keywords → `cns.inference.prompt_domain`
 
 2. **Algedonic Alert Check:**
-   - Queries `CnsRuntime::critical_alerts()`
+   - Queries `RegulationLedger::critical_alerts()`
    - Displays alerts with deficit/threshold values
    - Deficits > threshold/2 (50) → escalate to Curator
    - Deficits > threshold (100) → escalate to human
 
-3. **LoopSystem Tick:**
-   - Runs `LoopSystem::tick()` — sense→compare→compute→act cycle
+3. **LoopScheduler Tick:**
+   - Runs `LoopScheduler::tick()` — sense→compare→compute→act cycle
    - `CyberneticsLoop` reads CNS variety + gas budgets → produces regulatory actions
    - Regulatory actions are logged via tracing (visible with `RUST_LOG=cns.cybernetics=debug`)
 

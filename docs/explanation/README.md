@@ -22,7 +22,7 @@ Seven guides cover architecture patterns, the terminal UI boundary, cybernetic r
 | [Sovereignty and OCAP](sovereignty-and-ocap.md) | Object Capability MCP dispatch (DelegationToken, GovernedTool 6-step membrane, fail-closed semantics), Diataxis quality review (diagram audit gates, OWASP anchoring). | Core |
 | [Federation and Transport](federation-and-transport.md) | Cross-instance federation protocol, FederationDispatch lifecycle (register→invite→accept→pause→revoke→leave→dissolve), CRDT-based sync, merged registries, sovereignty guarantees. | Core |
 | [Energy and Economy](energy-and-economy.md) | Gas system (GasBudget, Well, WalletManager, rJoule), double-entry ledger, database driver abstraction (SQLite/PostgreSQL, SQLCipher, column-level encryption), LoRA adapter store lifecycle (AdapterStore, AdapterRouter, EndpointLifecycle, provider selection). | Core |
-| [Cognition and Replica](cognition-and-replica.md) | Fusion system design recommendations (multi-model deliberation), scenario forecasting (Schwartz + Tetlock + Chermack pipeline), ν-event semantics (ObservableSpan, NuEvent, CANONICAL_NAMESPACES, decay-weighted replay), Companies MCP server (41 tools, DCF valuation, forecast feedback, portfolio ledger). | Core |
+| [Cognition and Replica](cognition-and-replica.md) | Fusion system design recommendations (multi-model deliberation), scenario forecasting (Schwartz + Tetlock + Chermack pipeline), ν-event semantics (ObservableSpan, RegulationRecord, CANONICAL_NAMESPACES, decay-weighted replay), Companies MCP server (41 tools, DCF valuation, forecast feedback, portfolio ledger). | Core |
 
 ## ADR Archive
 

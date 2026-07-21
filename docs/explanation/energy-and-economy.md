@@ -220,7 +220,7 @@ flowchart TD
     TRAIT["DatabaseDriver trait\n(dyn-compatible)"]
     SQLITE["SqliteDriver\nr2d2 pool + WAL\nSQLCipher encryption"]
     POSTGRES["PostgresDriver\nsqlx via block_on\nplaceholder translation"]
-    STORES["Stores\n(WalletStore, NuEventStore,\nEmbeddingStore, ConsentStore, ...)"]
+    STORES["Stores\n(WalletStore, RegulationArchive,\nEmbeddingStore, ConsentStore, ...)"]
 
     STORES -->|"Arc&lt;dyn DatabaseDriver&gt;"| TRAIT
     TRAIT -.implemented by.-> SQLITE
@@ -238,7 +238,7 @@ status: VERIFIED
 
 ### Implications
 
-The `DatabaseDriver` abstraction means that storage is a deployment-time decision, not a code-level one. A developer runs hKask locally with SQLite + SQLCipher; a production deployment uses PostgreSQL. The same store code (`WalletStore`, `NuEventStore`, `EmbeddingStore`, etc.) works with both — the only difference is which driver is injected at construction time. The `from_driver()` pattern ensures that schema initialization is automatic and idempotent — there is no manual migration step. The column-level encryption layer provides defense-in-depth for sensitive data, with a separate key from the SQLCipher key, so that a compromise of one encryption layer does not compromise the other. The `TransactionHandle` RAII pattern prevents leaked transactions — a dropped guard rolls back automatically, ensuring the database is never left in an inconsistent state by a panic or early return.
+The `DatabaseDriver` abstraction means that storage is a deployment-time decision, not a code-level one. A developer runs hKask locally with SQLite + SQLCipher; a production deployment uses PostgreSQL. The same store code (`WalletStore`, `RegulationArchive`, `EmbeddingStore`, etc.) works with both — the only difference is which driver is injected at construction time. The `from_driver()` pattern ensures that schema initialization is automatic and idempotent — there is no manual migration step. The column-level encryption layer provides defense-in-depth for sensitive data, with a separate key from the SQLCipher key, so that a compromise of one encryption layer does not compromise the other. The `TransactionHandle` RAII pattern prevents leaked transactions — a dropped guard rolls back automatically, ensuring the database is never left in an inconsistent state by a panic or early return.
 
 ---
 

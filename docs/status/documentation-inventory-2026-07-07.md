@@ -196,7 +196,7 @@ Has doc comments (<5%) | 11 | Storage sub-crates, bridges, hkask-ledger, hkask-t
 
 | Change | Docs Updated? | Evidence |
 |--------|--------------|----------|
-| CnsSpan → domain-specific ObservableSpan enums (commit `407820c6`) | ✅ | docs reference `ObservableSpan` and domain-specific spans |
+| RegulationSpan → domain-specific ObservableSpan enums (commit `407820c6`) | ✅ | docs reference `ObservableSpan` and domain-specific spans |
 | MDS specification system removed (commit `7d5ae1b5`) | ⚠️ Partially | `MDS.md` still describes the system, `FUNCTIONAL_SPECIFICATION.md` has stale MDS link |
 | hMem → HMem rename (commit `960450a9`) | ✅ | All docs use `HMem` |
 | Energy* → Gas* rename | ✅ | Docs reference `GasBudget`, `RJoule` |

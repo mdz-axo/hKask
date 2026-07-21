@@ -164,9 +164,9 @@ The system must remain observable and self-correcting through cybernetic feedbac
 
 **§9.1 — CNS Span Coverage (v0.31.0)**
 
-CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `CnsSpan` enum variants (P8 — Semantic Grounding), are registered in `CANONICAL_NAMESPACES`, mapped to a `SpanCategory`, and connected to a cybernetic loop via ν-events. The `cns.*` prefix is reserved for these canonical spans — every `cns.*` tracing target MUST be registered. Performative telemetry (CLI, API middleware, and other observability logs) uses `hkask.*` tracing targets, NOT `cns.*`; those are deliberately NOT registered, NOT categorized, and NOT loop-connected — they are observability logs, not regulated variables. The two are distinguished by registry presence: `SpanNamespace::new` accepts only canonical spans.
+CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `RegulationSpan` enum variants (P8 — Semantic Grounding), are registered in `CANONICAL_NAMESPACES`, mapped to a `SpanCategory`, and connected to a cybernetic loop via ν-events. The `cns.*` prefix is reserved for these canonical spans — every `cns.*` tracing target MUST be registered. Performative telemetry (CLI, API middleware, and other observability logs) uses `hkask.*` tracing targets, NOT `cns.*`; those are deliberately NOT registered, NOT categorized, and NOT loop-connected — they are observability logs, not regulated variables. The two are distinguished by registry presence: `SpanNamespace::new` accepts only canonical spans.
 
-| Domain | Target | Spans | Status | CnsSpan Variant |
+| Domain | Target | Spans | Status | RegulationSpan Variant |
 |--------|--------|-------|--------|-----------------|
 | Tool dispatch (all MCP servers) | `cns.tool.*` | ~170 | ✅ `ToolSpanGuard` per-tool | `Tool { subsystem }` |
 | Inference (8 providers: DeepInfra, fal.ai, Together, OpenRouter, KiloCode, Ollama, Cline, RunPod) | `cns.inference` | 53 | ✅ generate/generate_vision — 7 chat backends + RunPod (vision/OCR only) | `Inference` |
@@ -194,7 +194,7 @@ CNS (Cybernetic Nervous System) spans are the primary observability primitive. E
 tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, ..., "CNS");
 ```
 
-- Target: `"cns.{canonical_domain}"` — uses the `cns.*` namespace convention. Essential domains map to `CnsSpan` variants in `hkask-types::cns`; performative spans (CLI, API) use stringly-typed tracing targets.
+- Target: `"cns.{canonical_domain}"` — uses the `cns.*` namespace convention. Essential domains map to `RegulationSpan` variants in `hkask-types::cns`; performative spans (CLI, API) use stringly-typed tracing targets.
 - Message: Must be `"CNS"` — enables ν-event filtering
 - Latency: Use `std::time::Instant`, emit as `latency_ms`
 - Authority: Every span carries a `userpod` or `owner` WebID

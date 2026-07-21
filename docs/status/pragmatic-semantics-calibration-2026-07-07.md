@@ -47,7 +47,7 @@ Every descriptive claim must be verifiable against the codebase or runtime behav
 | "16 built-in servers" (in `BUILTIN_SERVERS`) | IS-DEC | ✅ DIRECT: verified in `hkask-mcp/src/lib.rs` | PASS |
 | "Creates `~/.hkask/db.sqlcipher`" | IS-DEC | ⚠️ INFERRED: path is the documented default; actual path depends on `kask init` behavior at runtime | **LOW RISK** — needs runtime verification |
 | "Skills are PDCA loops that compose templates" | IS-DEC | ✅ DIRECT: verified in `hkask-cns::types::loops` | PASS |
-| "Each span has a namespace... timestamp... payload" | IS-DEC | ✅ DIRECT: matches `NuEvent` and `ObservableSpan` types | PASS |
+| "Each span has a namespace... timestamp... payload" | IS-DEC | ✅ DIRECT: matches `RegulationRecord` and `ObservableSpan` types | PASS |
 
 **Calibration:** 5/6 claims verified directly. 1 claim (file paths from `kask init`) needs runtime verification.
 
@@ -71,7 +71,7 @@ Every descriptive claim must be verifiable against the codebase or runtime behav
 | "Workspace compiles clean" | IS-DEC | ✅ DIRECT: `cargo check --workspace` exit 0 | PASS |
 | "14/15 MCP servers have READMEs" | IS-DEC | ✅ DIRECT: checked filesystem | PASS |
 | "MDS system removed in commit 7d5ae1b5" | IS-DEC | ✅ DIRECT: git log shows removal | PASS |
-| "CnsSpan decomposed into ObservableSpan enums" | IS-DEC | ✅ DIRECT: commit 407820c6 | PASS |
+| "RegulationSpan decomposed into ObservableSpan enums" | IS-DEC | ✅ DIRECT: commit 407820c6 | PASS |
 | "hMem → HMem rename" | IS-DEC | ✅ DIRECT: commit 960450a9 | PASS |
 
 **Calibration:** 7/7 claims verified directly. The inventory is mechanically grounded.
@@ -136,9 +136,9 @@ Per P5.4, every major claim should have both a process-identity (PKO) and a stat
 
 | Claim | Process Axis | State Axis | Complete? |
 |-------|-------------|-----------|-----------|
-| "CNS homeostatic loop — sense → act → observe" (flowchart diagram) | ✅ PKO: feedback loop steps | ✅ DC: SetPoints, LoopAction, ImpactReport types | ✅ |
+| "CNS homeostatic loop — sense → act → observe" (flowchart diagram) | ✅ PKO: feedback loop steps | ✅ DC: SetPoints, RegulatoryAction, ImpactReport types | ✅ |
 | "MCP bootstrap sequence" (sequence diagram) | ✅ PKO: startup → gate check → tool dispatch | ✅ DC: ToolContext, StartupGateResult types | ✅ |
-| "LoopAction lifecycle" (state diagram) | ✅ PKO: Pending → Active → Completed transitions | ✅ DC: ActionType enum, LoopActionParams struct | ✅ |
+| "RegulatoryAction lifecycle" (state diagram) | ✅ PKO: Pending → Active → Completed transitions | ✅ DC: ActionType enum, RegulatoryActionParams struct | ✅ |
 | "Ports trait hierarchy" (class diagram) | ⚠️ Partial: shows relationships but not creation process | ✅ DC: trait signatures, implementor relationships | **Partial GAP** |
 | "Getting started tutorial steps" | ✅ PKO: step-by-step procedure | ✅ DC: file paths, command names, version numbers | ✅ |
 

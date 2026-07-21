@@ -93,7 +93,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 |-------------|-------|----------|
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
-| `CnsContext` | `cns` | `runtime` (CnsRuntime), `cybernetics` (CyberneticsLoop), `loops` (LoopSystem), `events` (NuEventSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `CnsContext` | `cns` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
 
 #### Public Methods (20)
 
@@ -213,7 +213,7 @@ The CLI provides two pod export paths for cloud deployment. Both are implemented
 
 **Canonical deployment manifests** live in `deploy/k8s/` -- single source of truth. The directory contains a complete K8s deployment: single-container pod (kask + Conduit + Litestream via supervisord), ConfigMap, Secret, PVC, Service, Ingress with cert-manager TLS, Kustomization, entrypoint script, and templated config files. See `deploy/k8s/README.md` for the full deployment guide.
 
-**CNS spans:** `CnsSpan::SessionOpen`, `CnsSpan::SessionClose`, `CnsSpan::BackupExport`, `CnsSpan::BackupAutoExport`, `CnsSpan::BackupUpload` — deployment lifecycle observability.
+**CNS spans:** `RegulationSpan::SessionOpen`, `RegulationSpan::SessionClose`, `RegulationSpan::BackupExport`, `RegulationSpan::BackupAutoExport`, `RegulationSpan::BackupUpload` — deployment lifecycle observability.
 
 **Curator init flow:** `kask curator init` calls `export_k8s(&curator_dir)` → `kubectl apply -f <manifests_dir>`. The `PodService` abstraction was removed in v0.31.0 per P5 (Essentialism) — pod management is now direct calls to `ActivePods` + `PodFactory`.
 
@@ -263,7 +263,7 @@ hkask-cns/src/
 
 ### CNS Spans
 
-The `CnsSpan` enum (`crates/hkask-types/src/cns.rs`) defines the canonical CNS span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
+The `RegulationSpan` enum (`crates/hkask-types/src/cns.rs`) defines the canonical CNS span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
 
 Key deployment-related spans added in v0.31.0:
 
@@ -281,7 +281,7 @@ Key deployment-related spans added in v0.31.0:
 
 > **Incorporated from:** `docs/architecture/core/CNS_MEMORY_VERB_CONTRACTS.md`
 
-13 CNS `MemoryEncode` NuEvents emitted by autonomous memory operations:
+13 CNS `MemoryEncode` RegulationRecords emitted by autonomous memory operations:
 
 | # | Verb | Source | Trigger |
 |---|------|--------|---------|
@@ -383,7 +383,7 @@ erDiagram
     AlgedonicManager ||--o{ RuntimeAlert : "fires"
     AlgedonicManager ||--o{ VarietyCounter : "monitors"
     AlgedonicManager ||--o{ CurationLoop : "signals"
-    RuntimeAlert ||--o{ CnsSpan : "emits"
+    RuntimeAlert ||--o{ RegulationSpan : "emits"
     AlgedonicManager }o--|| P9_Homeostatic : "goal"
     RuntimeAlert }o--|| P4_OCAP : "constrained by"
     AlgedonicManager {
@@ -425,16 +425,16 @@ status: VERIFIED
 
 ```mermaid
 erDiagram
-    CnsRuntime ||--o{ VarietyMonitor : "owns"
-    CnsRuntime ||--o{ OutcomeTracker : "owns"
-    CnsRuntime ||--o{ GasBudget : "registers"
-    CnsRuntime ||--o{ CnsObserver : "subscribes"
+    RegulationLedger ||--o{ VarietyMonitor : "owns"
+    RegulationLedger ||--o{ OutcomeTracker : "owns"
+    RegulationLedger ||--o{ GasBudget : "registers"
+    RegulationLedger ||--o{ LedgerObserver : "subscribes"
     VarietyMonitor ||--o{ SpanNamespace : "counters"
     OutcomeTracker ||--o{ RuntimeAlert : "emits"
-    CnsRuntime }o--|| P9_Homeostatic : "goal"
-    CnsRuntime }o--|| P3_Generative : "constrained by"
-    CnsRuntime }o--|| P12_Consent : "constrained by"
-    CnsRuntime {
+    RegulationLedger }o--|| P9_Homeostatic : "goal"
+    RegulationLedger }o--|| P3_Generative : "constrained by"
+    RegulationLedger }o--|| P12_Consent : "constrained by"
+    RegulationLedger {
         string userExpectation "User expects unified CNS observability and regulation feedback"
     }
 ```
@@ -452,43 +452,43 @@ status: VERIFIED
 | FR-R1 | `VarietyMonitor::new() -> Self` | [P9] Goal: Homeostatic Self-Regulation — monitor enables feedback loops; [P5] Constraining: Essentialism |
 | FR-R2 | `VarietyMonitor::variety_for_domain(domain) -> u64` | [P9] Goal: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
 | FR-R3 | `VarietyMonitor::domains() -> Vec<&str>` | [P9] Goal: Homeostatic Self-Regulation — domain enumeration enables loop feedback; [P8] Constraining: Semantic Grounding |
-| FR-R4 | `CnsRuntime::with_threshold(threshold) -> Self` | [P9] Goal: Homeostatic Self-Regulation — runtime creation enables regulation; [P7] Constraining: Evolutionary Architecture |
-| FR-R5 | `CnsRuntime::health() -> CnsHealth` | [P9] Goal: Homeostatic Self-Regulation — health query drives loop decisions; [P8] Constraining: Semantic Grounding |
-| FR-R6 | `CnsRuntime::alerts() -> Vec<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — alert retrieval enables loop response; [P8] Constraining: Semantic Grounding |
-| FR-R7 | `CnsRuntime::default_threshold() -> u64` | [P9] Goal: Homeostatic Self-Regulation — threshold config enables loop tuning; [P7] Constraining: Evolutionary Architecture |
-| FR-R8 | `CnsRuntime::critical_alerts() -> Vec<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — critical alert filtering enables prioritised response; [P8] Constraining: Semantic Grounding |
-| FR-R9 | `CnsRuntime::variety() -> HashMap<SpanNamespace, u64>` | [P9] Goal: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
-| FR-R10 | `CnsRuntime::variety_for_domain(domain) -> u64` | [P9] Goal: Homeostatic Self-Regulation — domain-specific variety; [P8] Constraining: Semantic Grounding |
-| FR-R11 | `CnsRuntime::record_outcome(domain, success, err) -> ()` | [P9] Goal: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation; [P4] Constraining: Clear Boundaries |
-| FR-R12 | `CnsRuntime::check_outcome(domain) -> Option<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — outcome check drives loop decisions; [P4] Constraining: Clear Boundaries |
-| FR-R13 | `CnsRuntime::outcome_success_rate(domain) -> Option<f64>` | [P9] Goal: Homeostatic Self-Regulation — success rate is a feedback metric; [P8] Constraining: Semantic Grounding |
-| FR-R14 | `CnsRuntime::increment_variety(domain, state_name)` | [P9] Goal: Homeostatic Self-Regulation — variety counter drives loop closure; [P4] Constraining: Clear Boundaries |
-| FR-R15 | `CnsRuntime::check_variety(domain) -> Option<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — variety check drives loop closure; [P4] Constraining: Clear Boundaries |
-| FR-R16 | `CnsRuntime::register_energy_budget(agent, budget)` | [P9] Goal: Homeostatic Self-Regulation — budget registration enables energy tracking; [P4] Constraining: Clear Boundaries |
-| FR-R17 | `CnsRuntime::replenish_agent_budget(agent, amount) -> GasCost` | [P9] Goal: Homeostatic Self-Regulation — budget replenishment drives energy loop; [P4] Constraining: Clear Boundaries |
-| FR-R18 | `CnsRuntime::agent_gas_status(agent) -> Option<AgentEnergyStatus>` | [P9] Goal: Homeostatic Self-Regulation — gas status query drives energy loop; [P8] Constraining: Semantic Grounding |
+| FR-R4 | `RegulationLedger::with_threshold(threshold) -> Self` | [P9] Goal: Homeostatic Self-Regulation — runtime creation enables regulation; [P7] Constraining: Evolutionary Architecture |
+| FR-R5 | `RegulationLedger::health() -> LedgerHealth` | [P9] Goal: Homeostatic Self-Regulation — health query drives loop decisions; [P8] Constraining: Semantic Grounding |
+| FR-R6 | `RegulationLedger::alerts() -> Vec<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — alert retrieval enables loop response; [P8] Constraining: Semantic Grounding |
+| FR-R7 | `RegulationLedger::default_threshold() -> u64` | [P9] Goal: Homeostatic Self-Regulation — threshold config enables loop tuning; [P7] Constraining: Evolutionary Architecture |
+| FR-R8 | `RegulationLedger::critical_alerts() -> Vec<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — critical alert filtering enables prioritised response; [P8] Constraining: Semantic Grounding |
+| FR-R9 | `RegulationLedger::variety() -> HashMap<SpanNamespace, u64>` | [P9] Goal: Homeostatic Self-Regulation — variety measurement drives loop closure; [P8] Constraining: Semantic Grounding |
+| FR-R10 | `RegulationLedger::variety_for_domain(domain) -> u64` | [P9] Goal: Homeostatic Self-Regulation — domain-specific variety; [P8] Constraining: Semantic Grounding |
+| FR-R11 | `RegulationLedger::record_outcome(domain, success, err) -> ()` | [P9] Goal: Homeostatic Self-Regulation — outcome tracking enables quality-based regulation; [P4] Constraining: Clear Boundaries |
+| FR-R12 | `RegulationLedger::check_outcome(domain) -> Option<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — outcome check drives loop decisions; [P4] Constraining: Clear Boundaries |
+| FR-R13 | `RegulationLedger::outcome_success_rate(domain) -> Option<f64>` | [P9] Goal: Homeostatic Self-Regulation — success rate is a feedback metric; [P8] Constraining: Semantic Grounding |
+| FR-R14 | `RegulationLedger::increment_variety(domain, state_name)` | [P9] Goal: Homeostatic Self-Regulation — variety counter drives loop closure; [P4] Constraining: Clear Boundaries |
+| FR-R15 | `RegulationLedger::check_variety(domain) -> Option<RuntimeAlert>` | [P9] Goal: Homeostatic Self-Regulation — variety check drives loop closure; [P4] Constraining: Clear Boundaries |
+| FR-R16 | `RegulationLedger::register_energy_budget(agent, budget)` | [P9] Goal: Homeostatic Self-Regulation — budget registration enables energy tracking; [P4] Constraining: Clear Boundaries |
+| FR-R17 | `RegulationLedger::replenish_agent_budget(agent, amount) -> GasCost` | [P9] Goal: Homeostatic Self-Regulation — budget replenishment drives energy loop; [P4] Constraining: Clear Boundaries |
+| FR-R18 | `RegulationLedger::agent_gas_status(agent) -> Option<AgentEnergyStatus>` | [P9] Goal: Homeostatic Self-Regulation — gas status query drives energy loop; [P8] Constraining: Semantic Grounding |
 
 #### P3 Blocking Variants (1)
 
 | FR# | Function | Principle Annotations |
 |-----|----------|---------------------|
-| FR-R19 | `CnsRuntime::blocking_variety_for_domain(domain) -> u64` | [P3] Goal: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries — must not be called from async context |
+| FR-R19 | `RegulationLedger::blocking_variety_for_domain(domain) -> u64` | [P3] Goal: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries — must not be called from async context |
 
 
 #### P7 Calibrate & P3 Blocking Variants (2)
 
 | FR# | Function | Principle Annotations |
 |-----|----------|---------------------|
-| FR-R20 | `CnsRuntime::calibrate_threshold(domain, new_threshold)` | [P7] Goal: Evolutionary Architecture — threshold parameter emerged from real usage; [P4] Constraining: Clear Boundaries |
-| FR-R21 | `CnsRuntime::calibrate_threshold_blocking(domain, new_threshold)` | [P3] Goal: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries |
+| FR-R20 | `RegulationLedger::calibrate_threshold(domain, new_threshold)` | [P7] Goal: Evolutionary Architecture — threshold parameter emerged from real usage; [P4] Constraining: Clear Boundaries |
+| FR-R21 | `RegulationLedger::calibrate_threshold_blocking(domain, new_threshold)` | [P3] Goal: Generative Space — sync access preserves generative capability; [P7] Constraining: Evolutionary Architecture — blocking variant emerged from real usage; [P4] Constraining: Clear Boundaries |
 
 #### P12 Subscriber Contracts (3)
 
 | FR# | Function | Principle Annotations |
 |-----|----------|---------------------|
-| FR-R22 | `CnsRuntime::subscribe(observer: Arc<dyn CnsObserver>)` | [P12] Goal: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
-| FR-R23 | `CnsRuntime::subscribe_async(observer: Arc<dyn CnsObserver>)` | [P12] Goal: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
-| FR-R24 | `CnsRuntime::emit_backpressure(signal: BackpressureSignal)` | [P9] Goal: Homeostatic Self-Regulation — backpressure signal closes the regulation loop; [P4] Constraining: Clear Boundaries |
+| FR-R22 | `RegulationLedger::subscribe(observer: Arc<dyn LedgerObserver>)` | [P12] Goal: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
+| FR-R23 | `RegulationLedger::subscribe_async(observer: Arc<dyn LedgerObserver>)` | [P12] Goal: Affirmative Consent — observer registration requires explicit subscription; [P2] Constraining: User Sovereignty |
+| FR-R24 | `RegulationLedger::emit_backpressure(signal: BackpressureSignal)` | [P9] Goal: Homeostatic Self-Regulation — backpressure signal closes the regulation loop; [P4] Constraining: Clear Boundaries |
 
 #### Test Contracts (6)
 
@@ -802,7 +802,7 @@ These domains are documented here for completeness. The canonical contract forma
 ### 3.2 Storage (`hkask-storage`)
 
 **213 expect:-annotated contracts** — storage spans multiple principles:
-- **P3 (Generative Space)** — CRUD stores: agent registry, embeddings, gallery, goals, hMems, wallet store, kata history, escalation, NuEvent store, spec store
+- **P3 (Generative Space)** — CRUD stores: agent registry, embeddings, gallery, goals, hMems, wallet store, kata history, escalation, RegulationRecord store, spec store
 - **P1 (User Sovereignty)** — user store, sovereignty boundaries, wallet-store tests
 - **P2 (Affirmative Consent)** — consent store
 - **P4 (Clear Boundaries)** — lock helpers, path safety, encrypted database, service→storage contract tests
@@ -818,7 +818,7 @@ These domains are documented here for completeness. The canonical contract forma
 | Path safety | P4 | 1 | `P4-sto-path-safe-join` |
 | Consent store | P2 | 4 | `P2-sto-consent-schema`, `P2-sto-consent-store`, `P2-sto-consent-get`, `P2-sto-consent-delete` |
 | Sovereignty boundaries | P1 | 4 | `P1-sto-sovereignty-schema`, `P1-sto-sovereignty-store`, `P1-sto-sovereignty-get`, `P1-sto-sovereignty-delete` |
-| NuEvent store | P3/P9 | 5 | `P3-sto-nu-event-replay`, `P3-sto-nu-event-decay`, `P3-sto-nu-event-cursor-store`, `P3-sto-nu-event-cursor-load`, `P3-sto-nu-event-algedonic-query` |
+| RegulationRecord store | P3/P9 | 5 | `P3-sto-nu-event-replay`, `P3-sto-nu-event-decay`, `P3-sto-nu-event-cursor-store`, `P3-sto-nu-event-cursor-load`, `P3-sto-nu-event-algedonic-query` |
 | Spec store | P3 | 6 | `P3-sto-spec-schema`, `P3-sto-spec-curation-*` |
 | Spec types | P8 | 6 | `P8-sto-spec-str-enum-*`, `P8-sto-spec-id-*`, `P8-sto-spec-category-*`, `P8-sto-spec-infer-category` |
 | Database | P4 | 7 | `P4-sto-database-open`, `P4-sto-database-in-memory`, `P4-sto-database-conn-arc`, `P4-sto-database-*-unwrap` |
@@ -1201,8 +1201,8 @@ Representative domains:
 - **P1 (User Sovereignty)** — `AgentPod`, `PodDeployment`, `PodFactory`, `ActivePods`, `PodRegistry`, `SovereigntyChecker`
 - **P2 (Affirmative Consent)** — `ConsentRecord`, `ConsentManager`
 - **P4 (Clear Boundaries)** — `PodKind` (Curator/Team/UserPod), A2A runtime, MCP capability adapters, `PerPodToolBinding`
-- **P9 (Homeostatic Self-Regulation)** — `CuratorSync`, `SemanticIndex`, Curator, Metacognition, LoopSystem, BotHealth, prompt classification
-- **P11 (Digital Sphere)** — `PerPodStorage`, `PerPodCnsRuntime`, per-pod SQLCipher files
+- **P9 (Homeostatic Self-Regulation)** — `CuratorSync`, `SemanticIndex`, Curator, Metacognition, LoopScheduler, BotHealth, prompt classification
+- **P11 (Digital Sphere)** — `PerPodStorage`, `PerPodRegulationLedger`, per-pod SQLCipher files
 
 **Crate:** `hkask-agents` | **Sources:** `src/consent.rs`, `src/sovereignty.rs`, `src/loop_system.rs`, `src/prompt_analysis.rs`, `src/registry_loader.rs`, `src/acp/**/*.rs`, `src/curator/**/*.rs`, `src/curator_agent/**/*.rs`, `src/pod/**/*.rs`, `src/adapters/**/*.rs`, `src/ports/memory_storage.rs`, `tests/agent_pod_integration.rs`
 
@@ -1212,7 +1212,7 @@ Representative domains:
 |--------|-----------|-----------|
 | Consent | P2 | ConsentRecord (new, grant, revoke, is-active, has-category), ConsentManager (new, with-sink, grant, revoke, check, granted-categories) |
 | Sovereignty | P1 | SovereigntyChecker (new, can-access, can-perform) |
-| Loop System | P9 | LoopSystem (new, interval, register, cancel-token, run, tick, run-ticks, stop, count, ids) |
+| Loop System | P9 | LoopScheduler (new, interval, register, cancel-token, run, tick, run-ticks, stop, count, ids) |
 | Prompt Analysis | P9 | PromptClassify |
 | Registry | P3 | RegistryLoader (new, restore, load, store), RegistrySource (new) |
 | ACP | P4 | AcpAudit (new, append), AcpMessage (visit, sender, id, type), A2aRuntime (new), AcpSecret (derive), AcpToken (issue), AcpAgent (unregister), Agents (restore, list), AcpRoot (new, token-issue) |
@@ -1224,7 +1224,7 @@ Representative domains:
 | Bot Health | P9 | BotHealth (classify) |
 | Semantic Sync | P9, P1, P11 | CuratorSync (new, run, tick, pod), SemanticIndex (new, insert, query, cursor) |
 | Pod Lifecycle | P1 | Pod (new, register, activate, deactivate, delegate, is-active, state, enter-server-mode, enter-chat-mode, exit-mode, is-server-mode, set-voice, get-voice, voice-description, is-chat-mode, check-sovereignty) |
-| Pod Deployment | P1, P4, P11 | PodDeployment (new), PodFactory (deploy), PodKind, PerPodStorage, PerPodCnsRuntime, PerPodToolBinding, PodRegistry (scan, scan-by-kind, find-curator, find-teams), ActivePods (new, context, create-pod, activate-pod, deactivate-pod, status, list-pods, find-by-name, webid, has-role, has-capability, assign-role, set-mode), PodContext (new, store-semantic, recall-semantic, invoke-tool) |
+| Pod Deployment | P1, P4, P11 | PodDeployment (new), PodFactory (deploy), PodKind, PerPodStorage, PerPodRegulationLedger, PerPodToolBinding, PodRegistry (scan, scan-by-kind, find-curator, find-teams), ActivePods (new, context, create-pod, activate-pod, deactivate-pod, status, list-pods, find-by-name, webid, has-role, has-capability, assign-role, set-mode), PodContext (new, store-semantic, recall-semantic, invoke-tool) |
 | Pod Types | P4 | PodLifecycle (can-transition) |
 
 > **Note:** `hkask-agents/src/` contains **142 `expect:`-annotated contracts**.
@@ -1250,9 +1250,9 @@ Representative domains:
 ### 3.11 Types (`hkask-types`)
 
 **40 contracts** — P8 (Semantic Grounding)
-- `CnsSpan` — canonical span registry (P8)
+- `RegulationSpan` — canonical span registry (P8)
 - `WebID` — agent identity type (P8)
-- `NuEvent` — event type system (P8)
+- `RegulationRecord` — event type system (P8)
 - Port definitions, error types, serialization
 
 ### 3.12 API Surface (`hkask-api`)
@@ -1299,7 +1299,7 @@ The web interface provides two browser-based surfaces: (1) an xterm.js terminal 
 | FR-WEB8 | `GET /api/v1/terminal/ws` (WebSocket upgrade) | [P1] Goal: User Sovereignty — verifies session cookie, extracts WebID, spawns PTY; [P4] Constraining: Clear Boundaries — WebSocket scoped to authenticated WebID |
 | FR-WEB9 | PTY spawn: `kask repl --webid <webid>` | [P1] Goal: User Sovereignty — each user gets a process scoped to their WebID; [P4] Constraining: Clear Boundaries — PTY I/O piped over WebSocket, no filesystem access beyond user scope |
 | FR-WEB10 | Static `/terminal` page serving xterm.js | [P4] Goal: Clear Boundaries — single static HTML file (~50 lines), no JavaScript framework; [P5] Constraining: Essentialism — xterm.js loaded from CDN or bundled as static asset |
-| FR-WEB11 | `CnsSpan::SessionOpen { user_id, provider }` | [P1] Goal: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if CNS sink subscribed |
+| FR-WEB11 | `RegulationSpan::SessionOpen { user_id, provider }` | [P1] Goal: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if CNS sink subscribed |
 | FR-WEB12 | All hMemStore queries scoped `WHERE owner_webid = ?` | [P1] Goal: User Sovereignty — users only access own hMems, pods, wallet; [P4] Constraining: Clear Boundaries — per-user resource isolation |
 | FR-WEB13 | Tiled/tabbed terminal layout: 1/2/4 tiles, up to 6 tabs per tile, max 24 terminals | [P1] User Sovereignty — user controls workspace; [P5] Essentialism — client-side DOM, no server multiplexing |
 | FR-WEB14 | Each new tab opens WebSocket to `/api/v1/terminal/ws` with existing session cookie | [P1] User Sovereignty — auto-authenticated; [P4] Clear Boundaries — each tab is independent PTY process |
@@ -1336,8 +1336,8 @@ The server registration mode (`open` or `closed`, default: `closed`) is set duri
 | FR-MU6 | `GET /api/v1/auth/accept-invite?code=` — invitee clicks link, OAuth flow, account linked | [P2] Goal: Affirmative Consent — invitee explicitly accepts; [P12] Constraining: Subscriber Consent — emits `InviteAccepted` CNS span |
 | FR-MU7 | `GET /api/v1/admin/sessions` (Admin-only) | [P1] Goal: User Sovereignty — admin can view all active sessions; [P4] Constraining: Clear Boundaries — Member cannot access this endpoint |
 | FR-MU8 | `GET/PATCH /api/v1/user/settings` (Member: own settings only) | [P1] Goal: User Sovereignty — user controls own settings; [P4] Constraining: Clear Boundaries — WebID-scoped, cannot modify other users |
-| FR-MU9 | `CnsSpan::RoleAssigned { webid, role }` | [P1] Goal: User Sovereignty — role assignment is observable; [P12] Constraining: Subscriber Consent — emitted at provisioning time |
-| FR-MU10 | `CnsSpan::InviteSent { email, invited_by }`, `CnsSpan::InviteAccepted { email, webid }` | [P1] Goal: User Sovereignty — invitation lifecycle is observable; [P12] Constraining: Subscriber Consent — both spans emitted only if CNS sink subscribed |
+| FR-MU9 | `RegulationSpan::RoleAssigned { webid, role }` | [P1] Goal: User Sovereignty — role assignment is observable; [P12] Constraining: Subscriber Consent — emitted at provisioning time |
+| FR-MU10 | `RegulationSpan::InviteSent { email, invited_by }`, `RegulationSpan::InviteAccepted { email, webid }` | [P1] Goal: User Sovereignty — invitation lifecycle is observable; [P12] Constraining: Subscriber Consent — both spans emitted only if CNS sink subscribed |
 | FR-MU11 | `ServerConfig.registration` field (`open` \| `closed`) — controls self-registration | [P1] Goal: User Sovereignty — admin chooses membership model; [P4] Constraining: Clear Boundaries — stored in `~/.config/hkask/config.json` |
 | FR-MU12 | Open registration: OAuth callback auto-provisions user without invite check | [P3] Goal: Generative Space — frictionless onboarding for open communities; [P1] Constraining: User Sovereignty — user still authenticates via OAuth |
 | FR-MU13 | Closed registration: OAuth callback requires valid invite cookie or returns 403 | [P2] Goal: Affirmative Consent — admin controls membership; [P4] Constraining: Clear Boundaries — gate enforced before user creation |
@@ -1383,10 +1383,10 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 
 | FR# | Span | Fields |
 |-----|------|--------|
-| FR-BK-C1 | `CnsSpan::BackupExport` | `{ h_mem_count, bytes, duration_ms }` |
-| FR-BK-C2 | `CnsSpan::BackupAutoExport` | `{ webid, h_mem_count, bytes, duration_ms }` |
-| FR-BK-C3 | `CnsSpan::BackupUpload` | `{ h_mem_count, bytes_sent, duration_ms }` |
-| FR-BK-C4 | `CnsSpan::UserPodMerge` | `{ source, target, h_mem_count, duration_ms }` |
+| FR-BK-C1 | `RegulationSpan::BackupExport` | `{ h_mem_count, bytes, duration_ms }` |
+| FR-BK-C2 | `RegulationSpan::BackupAutoExport` | `{ webid, h_mem_count, bytes, duration_ms }` |
+| FR-BK-C3 | `RegulationSpan::BackupUpload` | `{ h_mem_count, bytes_sent, duration_ms }` |
+| FR-BK-C4 | `RegulationSpan::UserPodMerge` | `{ source, target, h_mem_count, duration_ms }` |
 
 #### Test Contracts (3)
 
@@ -1679,8 +1679,8 @@ erDiagram
         u64 cap
         float replenish_rate
     }
-    CnsRuntime ||--o{ RuntimeAlert : fires
-    CnsRuntime {
+    RegulationLedger ||--o{ RuntimeAlert : fires
+    RegulationLedger {
         u64 variety_threshold
     }
     RuntimeAlert {
@@ -1773,8 +1773,8 @@ erDiagram
         string test_name
         string test_type "property | integration | fuzz"
     }
-    Function ||--o{ CnsSpan : "emits"
-    CnsSpan {
+    Function ||--o{ RegulationSpan : "emits"
+    RegulationSpan {
         string span_name "cns.{domain}.{operation}"
         string target
         string message "CNS"

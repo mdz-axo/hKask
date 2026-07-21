@@ -57,10 +57,10 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Domain, Lifecycle
 - **Text:** When any significant operation occurs, I want a typed event emitted, so I can observe system behavior.
 - **Criteria:**
-  - [x] `NuEvent` struct with span, phase, observer, payload
+  - [x] `RegulationRecord` struct with span, phase, observer, payload
   - [x] 22 span namespaces (15 canonical + 7 hierarchical)
-  - [x] `NuEventSink` trait for emission
-- **Implementation:** `hkask-types::event::NuEvent`, `hkask-types::event::Span`, `hkask-types::event::NuEventSink`
+  - [x] `RegulationSink` trait for emission
+- **Implementation:** `hkask-types::event::RegulationRecord`, `hkask-types::event::Span`, `hkask-types::event::RegulationSink`
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
@@ -290,10 +290,10 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Lifecycle
 - **Text:** When a capability is invoked, I want a CNS span emitted, so I can monitor system behavior.
 - **Criteria:**
-  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`))
-  - [x] `NuEvent` with phase (Sense/Compute/Compare/Act; legacy aliases: Observe\u2192Sense, Regulate\u2192Compute, Outcome\u2192Act)
-  - [x] `NuEventSink` trait for emission
-- **Implementation:** `hkask-types::event::Span`, `hkask-cns::runtime::CnsRuntime`
+  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`))
+  - [x] `RegulationRecord` with phase (Sense/Compute/Compare/Act; legacy aliases: Observe\u2192Sense, Regulate\u2192Compute, Outcome\u2192Act)
+  - [x] `RegulationSink` trait for emission
+- **Implementation:** `hkask-types::event::Span`, `hkask-cns::runtime::RegulationLedger`
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -440,9 +440,9 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] `hkask-communication` core infrastructure crate (952 LOC)
   - [x] `MatrixTransport` — matrix-sdk wrapper: login, send/receive, rooms, files
-  - [x] `SevenR7Listener` — passive room observer, polls Matrix rooms, persists CNS NuEvents
+  - [x] `SevenR7Listener` — passive room observer, polls Matrix rooms, persists CNS RegulationRecords
   - [x] `AgentRegistry` — WebID↔Matrix UserId mapping, thread watchlists
-  - [x] CNS bridge — communication events flow to `NuEventStore` → curation inbox
+  - [x] CNS bridge — communication events flow to `RegulationArchive` → curation inbox
   - [x] CAT engagement gate — `convergence_bias` scalar per agent
   - [x] Response dispatch — agent responses routed back via Matrix rooms
   - [x] CLI: `kask matrix deploy-sidecar`, `register`, `listen`, `status-sidecar`

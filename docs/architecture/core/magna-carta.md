@@ -374,7 +374,7 @@ pub struct UserSovereigntyState {
 ### Curator Pipeline Integration
 
 The `DefaultSpecCurator` is the curator that enforces the Magna Carta. It
-records sovereignty checks as `cns.sovereignty.checked` `NuEvent`s when an
+records sovereignty checks as `cns.sovereignty.checked` `RegulationRecord`s when an
 event sink is wired. The agent-pod `SovereigntyChecker` enforces the
 sovereignty policy on every memory access.
 
@@ -382,7 +382,7 @@ sovereignty policy on every memory access.
 // In hkask-agents::curator_agent::DefaultSpecCurator
 impl DefaultSpecCurator {
     /// Record a sovereignty check for a spec evaluation.
-    /// Emits a `cns.sovereignty.checked` NuEvent (CyclePhase::Compare).
+    /// Emits a `cns.sovereignty.checked` RegulationRecord (CyclePhase::Compare).
     pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) { /* ... */ }
 }
 

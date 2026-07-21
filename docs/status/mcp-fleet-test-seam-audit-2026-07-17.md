@@ -91,7 +91,7 @@ No code path reads the operation verb for regulation. The two emission paths are
 | Path | Mechanism | Consumed by |
 |------|-----------|-------------|
 | Framework `execute_tool` | `ToolSpanGuard` → `tracing::info!(target:"cns.tool", …)` **+** `record_via_daemon` (semantic memory) | tracing logs **and** the daemon (regulation/memory) |
-| Server `emit_cns` | `CnsSpan::Tool{Filesystem}.emit(verb)` → `tracing::info!` | tracing logs only |
+| Server `emit_cns` | `RegulationSpan::Tool{Filesystem}.emit(verb)` → `tracing::info!` | tracing logs only |
 
 So `emit_cns` adds operation-verb granularity to the **tracing substrate** (humans, log aggregators) but does not feed programmatic CNS regulation. The framework span already records outcome (`ok`/`error`) and feeds the daemon. Conclusion: the dual emission is intentional tracing granularity, not cruft — but it is *not* a regulation signal. This validates the earlier essentialist call ("do not delete `emit_cns` without evidence of disuse") and sharpens the documentation: the filesystem reference page now states operation spans are success-path tracing events, while the framework span is the regulation/memory path.
 
@@ -133,4 +133,4 @@ No in-repo consumer breaks. External agent clients read these fields flexibly. R
 
 - [Filesystem Server Reference](../reference/mcp-servers/filesystem.md) — sandbox model, security model notes, DIAG-RF-003
 - [MCP Server Registry](../reference/mcp-servers/README.md) — 15 servers, common patterns, testing standard
-- [CNS Span Registry](../reference/cns-spans.md) — `CnsSpan::Tool` and `ToolSubsystem::Filesystem`
+- [CNS Span Registry](../reference/cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`

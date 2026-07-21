@@ -140,7 +140,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 | Strategy | Details |
 |----------|---------|
-| **Primary seam** | `WebID`, `NuEvent` public APIs |
+| **Primary seam** | `WebID`, `RegulationRecord` public APIs |
 | **Test type** | Unit: type construction, parsing, validation. Serialization round-trips |
 | **Key invariant** | Lexicon round-trips (markdown → YAML → loaded vocabulary) |
 | **Anti-pattern** | Testing internal hashmap structure of lexicon types |
@@ -185,7 +185,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 | Strategy | Details |
 |----------|---------|
-| **Primary seam** | `CnsRuntime`, `AlgedonicManager`, `NuEventSink` |
+| **Primary seam** | `RegulationLedger`, `AlgedonicManager`, `RegulationSink` |
 | **Test type** | Unit: span emission, variety counter thresholds; Integration: CNS feedback loop closure |
 | **Key invariant** | Algedonic alerts fire at threshold; homeostasis restores after perturbation |
 | **Anti-pattern** | Testing `tracing::info!` output format rather than the observer's behavior |
@@ -236,7 +236,7 @@ Invariants at crate boundaries detect **semantic drift** — when a type changes
 
 ### 6.2 P8 — Semantic Grounding
 
-Every test verifies an IS claim about system behavior. The CNS span registry (`CnsSpan` in `crates/hkask-types/src/cns.rs`) defines the canonical observability namespace. Test output is traceable to span types.
+Every test verifies an IS claim about system behavior. The CNS span registry (`RegulationSpan` in `crates/hkask-types/src/cns.rs`) defines the canonical observability namespace. Test output is traceable to span types.
 
 ### 6.3 P9 — Homeostatic Self-Regulation
 
@@ -462,7 +462,7 @@ Without `DI_API_KEY`, classify steps gracefully degrade through `classifier_unav
 |-----------|----------|----------------|
 | QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, step execution, gas, CNS |
 | CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa run --script`, `kask qa list` |
-| CNS QA spans | `crates/hkask-types/src/cns.rs` | 4 `CnsSpan` variants |
+| CNS QA spans | `crates/hkask-types/src/cns.rs` | 4 `RegulationSpan` variants |
 | Classifier config | `registry/classify/qa-triage.yaml` | Canonical classifier triage prompt (HKASK_CLASSIFIER_MODEL) |
 | QA manifests | `registry/manifests/qa-*.yaml` | 9 manifests (4 executable, 5 planned) |
 

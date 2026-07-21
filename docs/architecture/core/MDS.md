@@ -32,7 +32,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 | `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
 | `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
 | `hMem` | `hkask-storage` | Entity-Attribute-Value knowledge representation, bitemporal | P3 |
-| `CnsRuntime` | `hkask-cns` | Cybernetic nervous system — variety monitoring, alerts, gas budgets | P9 |
+| `RegulationLedger` | `hkask-cns` | Cybernetic nervous system — variety monitoring, alerts, gas budgets | P9 |
 | `GasBudget` | `hkask-cns` | Per-agent gas budget with cap, replenish rate, hold-settle pattern | P9 |
 | `CircuitBreaker` | `hkask-cns` | Failure-gating state machine for external service calls | P9 |
 
@@ -535,7 +535,7 @@ All 9 fields are **private** and exposed through **20 public methods** grouped b
 |-------------|-------|----------|
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
-| `CnsContext` | `cns` | `runtime` (CnsRuntime), `cybernetics` (CyberneticsLoop), `loops` (LoopSystem), `events` (NuEventSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `CnsContext` | `cns` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
 
 #### Public Methods (20)
 

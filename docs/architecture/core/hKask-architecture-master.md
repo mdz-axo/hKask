@@ -118,19 +118,19 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 **Key properties:**
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
-- **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `CnsRuntime::calibrate_threshold()`.
-- **94 canonical CNS span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `CnsSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
+- **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`.
+- **94 canonical CNS span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
 - **Good Regulator contract enforced.** CNS variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 - **Regulation is policy-driven.** `RegulationPolicy` consolidates `(metric, deviation) → (actions, thresholds)` into a pure-data type. Each `RegulationRule` defines a substitution ladder, stage/block thresholds, and stagnation detection — replacing the former scattered `classify_decision` and `default_substitution_ladder` free functions.
-- **Sensor providers are pluggable (Fermi Extractor pattern).** `SensorProvider` trait decouples metric sensing from the regulation loop. `SensorRegistry` holds providers; `CyberneticsLoop::sense()` walks them. Current providers: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`.
-- **Regulation history tracked.** `CnsRuntime` maintains a `regulation_history` ring buffer (100 entries) of `RegulationCycleEntry` records, exposed via `regulation_history(n)` for Curator queries.
-- **Metacognition sees regulation effectiveness.** `HealthSnapshot.regulation_effectiveness` (0.0–1.0 ratio of accepted actions) is read from `CnsRuntime::regulation_health()` during metacognition sense.
+- **Sensor providers are pluggable (Fermi Extractor pattern).** `Sensor` trait decouples metric sensing from the regulation loop. `SensorRegistry` holds providers; `CyberneticsLoop::sense()` walks them. Current providers: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`.
+- **Regulation history tracked.** `RegulationLedger` maintains a `regulation_history` ring buffer (100 entries) of `RegulationCycleEntry` records, exposed via `regulation_history(n)` for Curator queries.
+- **Metacognition sees regulation effectiveness.** `HealthSnapshot.regulation_effectiveness` (0.0–1.0 ratio of accepted actions) is read from `RegulationLedger::regulation_health()` during metacognition sense.
 - **Five-phase loop closure.** The cybernetic cycle is now `sense → compare → compute → act → verify`, with `verify_impact()` producing `ImpactReport` with `ActionDecision::Accept | Stage | Block`. `StagnationDetector` tracks repeated ineffectiveness; `RegulatoryPlateau` escalates when all substitution alternatives are exhausted.
 - **CNS spans: `cns.regulation.*`.** Four new span kinds emitted during regulation: `ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`. Stored in `cns.regulation` namespace, visible to algedonic queries.
 - **Statistical tool learning.** `ToolStats` records per-tool gas costs and success/failure outcomes at settle time. Fits LogNormal cost distributions (reserve at p90 instead of point estimate) and tracks Beta reliability (pre-escalate when P(success) < 0.80). Wired into `GovernedTool` for distribution-based reserving; `ToolReliabilitySensor` feeds reliability into the regulation pipeline.
-- **Set-point auto-calibration (v0.32.0).** `SetPointCalibrator` closes the Conant-Ashby loop: the CNS observes its own regulation effectiveness via `NuEventStore` replay and self-tunes `SetPoints` within bounded ranges. Plateau detection widens stagnation thresholds; action blocks tighten worsening ratios; repeated substitutions decrease the substitution delay. Spawns as a background task alongside `CalibratedEnergyEstimator`; defaults to 1-hour interval with a 50-event minimum before any adjustment. Configure via `HKASK_SET_POINT_MIN_OBSERVATIONS`.
+- **Set-point auto-calibration (v0.32.0).** `SetPointCalibrator` closes the Conant-Ashby loop: the CNS observes its own regulation effectiveness via `RegulationArchive` replay and self-tunes `SetPoints` within bounded ranges. Plateau detection widens stagnation thresholds; action blocks tighten worsening ratios; repeated substitutions decrease the substitution delay. Spawns as a background task alongside `CalibratedEnergyEstimator`; defaults to 1-hour interval with a 50-event minimum before any adjustment. Configure via `HKASK_SET_POINT_MIN_OBSERVATIONS`.
 - **Contract violations feed CurationLoop (v0.32.0).** `contract.violated` span category added to `ALGEDONIC_SPAN_CATEGORIES` — contract violations emitted by `emit_contract_violated()` now flow through `query_algedonic()` into the `CurationLoop`'s sense phase for curator review.
-- **ObservableSpan trait extended (v0.32.0).** `to_event()` produces a `NuEvent` from any typed span; `emit_to(sink, observer, phase, observation)` persists through the NuEventSink and falls back to log-only on failure. The trait bridges typed spans (`CnsSpan`, `WalletSpan`, `InfraSpan`, etc.) to durable NuEvent persistence.
+- **ObservableSpan trait extended (v0.32.0).** `to_event()` produces a `RegulationRecord` from any typed span; `emit_to(sink, observer, phase, observation)` persists through the RegulationSink and falls back to log-only on failure. The trait bridges typed spans (`RegulationSpan`, `WalletSpan`, `InfraSpan`, etc.) to durable RegulationRecord persistence.
 
 **Crates:** `hkask-cns`, `hkask-types` (CNS types, SpanNamespace)
 
@@ -273,7 +273,7 @@ pub struct PodDeployment {
     pub pod_id: PodID,
     pub pod: AgentPod,
     pub storage: PerPodStorage,  // Per-pod SQLCipher file at {data_dir}/agents/{sanitized_name}/pod.db
-    pub cns: PerPodCnsRuntime,    // Per-pod variety counters at cns.agent_pod.{pod_id}.*
+    pub cns: PerPodRegulationLedger,    // Per-pod variety counters at cns.agent_pod.{pod_id}.*
     pub tools: PerPodToolBinding, // Per-pod MCP server bindings
 }
 ```
@@ -383,9 +383,9 @@ status: VERIFIED
 **The composition chain:**
 1. **Skills drive Agents.** Pods created from FlowDef templates. Personas are WordAct. Cognitive strategies are KnowAct. Templates are the loom; agents are the fabric.
 2. **CNS monitors Agents.** Every tool call, inference, memory operation emits CNS span. Variety counter tracks behavioral diversity. Algedonic alerts fire on deficit.
-3. **CNS signals Curator.** AlgedonicManager → RuntimeAlert → NuEventStore → CurationLoop reads via cursor → CuratorAgent assesses via metacognition. Contract violations flow through the same path.
-4. **CNS self-tunes.** SetPointCalibrator queries regulation outcome events from NuEventStore, detects patterns (plateaus, blocks, substitutions), and adjusts SetPoints within bounded ranges — closing the Conant-Ashby loop.
-5. **Curator regulates CNS.** `CuratorDirective::CalibrateThreshold` on direct `mpsc` channel → `CyberneticsLoop` → `CnsRuntime::calibrate_threshold()`. Brain regulates autonomic nervous system.
+3. **CNS signals Curator.** AlgedonicManager → RuntimeAlert → RegulationArchive → CurationLoop reads via cursor → CuratorAgent assesses via metacognition. Contract violations flow through the same path.
+4. **CNS self-tunes.** SetPointCalibrator queries regulation outcome events from RegulationArchive, detects patterns (plateaus, blocks, substitutions), and adjusts SetPoints within bounded ranges — closing the Conant-Ashby loop.
+5. **Curator regulates CNS.** `CuratorDirective::CalibrateThreshold` on direct `mpsc` channel → `CyberneticsLoop` → `RegulationLedger::calibrate_threshold()`. Brain regulates autonomic nervous system.
 6. **Curator curates Skills.** `DefaultSpecCurator` evaluates coherence, detects drift, recommends revisions. Ensures template DNA stays aligned with implemented system.
 6. **Agents produce CNS data.** Agency produces observability; observability enables regulation; regulation ensures healthy agency. Virtuous cycle.
 
@@ -603,7 +603,7 @@ Every loop-to-loop interaction is governed by a capability membrane with explici
 
 | Access | Meaning | Example |
 |--------|---------|---------|
-| **Read** | Can observe state | Curation reads `NuEventStore` |
+| **Read** | Can observe state | Curation reads `RegulationArchive` |
 | **Write** | Can modify state | Inference writes to episodic memory |
 | **Signal** | Can send directive | Curation signals Cybernetics via `mpsc` |
 | **Never** | Forbidden crossing | Inference never reads Curator's metacognition state |
@@ -611,9 +611,9 @@ Every loop-to-loop interaction is governed by a capability membrane with explici
 | Membrane | Source → Target | Access | Mechanism |
 |----------|----------------|--------|-----------|
 | Inference → Memory | Inference → Memory | Write | `EpisodicMemory::store()` via OCAP |
-| Memory → Curation | Memory → Curation | Read | `NuEventStore` cursor-based query |
+| Memory → Curation | Memory → Curation | Read | `RegulationArchive` cursor-based query |
 | Curation → Cybernetics | Curation → Cybernetics | Signal | `CuratorDirective` on `mpsc` channel |
-| Cybernetics → Curation | Cybernetics → Curation | Signal | `RuntimeAlert` → `NuEventStore` |
+| Cybernetics → Curation | Cybernetics → Curation | Signal | `RuntimeAlert` → `RegulationArchive` |
 | Inference → Cybernetics | Inference → Cybernetics | Signal | CNS span per inference call |
 | Cybernetics → Inference | Cybernetics → Inference | Signal | `BackpressureSignal`, `CircuitBreaker` |
 
@@ -1045,7 +1045,7 @@ status: VERIFIED
 
 `hkask-mcp-kata-kanban` depends on `hkask-services-kata-kanban` — permitted as a tri-surface for KanbanService.
 
-Kanban operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Kanban }`.
+Kanban operations emit observability through `RegulationSpan::Tool { subsystem: ToolSubsystem::Kanban }`.
 
 See also: [`docs/how-to/skills-and-composition.md`](../../how-to/skills-and-composition.md) (kata-kanban execution boundary and PDCA lifecycle)
 
@@ -1234,7 +1234,7 @@ verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
-Adapter and endpoint operations emit observability through `CnsSpan::Tool { subsystem: ToolSubsystem::Training }`, `CnsSpan::Inference`, and `CnsSpan::Gas`.
+Adapter and endpoint operations emit observability through `RegulationSpan::Tool { subsystem: ToolSubsystem::Training }`, `RegulationSpan::Inference`, and `RegulationSpan::Gas`.
 
 See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-training-guide.md`
 
@@ -1551,7 +1551,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADRs/ADR-045-cli-bootstrap-strategy.md`](../ADRs/ADR-045-cli-bootstrap-strategy.md) | CLI bootstrap strategy — database initialization and first-run experience |
 | [`ADRs/ADR-046-repl-extraction-path.md`](../ADRs/ADR-046-repl-extraction-path.md) | REPL extraction into standalone crate with ReplHost trait |
 | [`ADRs/ADR-047-storage-modularization.md`](../ADRs/ADR-047-storage-modularization.md) | Storage crate modularization — 9 sub-crates behind facade |
-| [`ADRs/ADR-048-cns-type-decomposition.md`](../ADRs/ADR-048-cns-type-decomposition.md) | CNS type system decomposition — CnsSpan reduced to 7 variants, domain enums per crate |
+| [`ADRs/ADR-048-cns-type-decomposition.md`](../ADRs/ADR-048-cns-type-decomposition.md) | CNS type system decomposition — RegulationSpan reduced to 7 variants, domain enums per crate |
 
 **Also present:** [`ADRs/ADR-043-database-driver.md`](../ADRs/ADR-043-database-driver.md) — Database driver abstraction.
 
@@ -1690,12 +1690,12 @@ The former `mcp-servers/hkask-mcp-communication/src/matrix.rs` (303 lines of zer
 | Module | Lines | Purpose |
 |--------|-------|---------|
 | `matrix.rs` | 596 | `MatrixTransport` — matrix-sdk wrapper: login, send/receive messages, create rooms, invite users, list rooms, upload/send files |
-| `listener.rs` | 191 | `SevenR7Listener` — passive room observer, polls rooms on configurable interval, persists CNS NuEvents for curation awareness |
+| `listener.rs` | 191 | `SevenR7Listener` — passive room observer, polls rooms on configurable interval, persists CNS RegulationRecords for curation awareness |
 | `agent_registration.rs` | 152 | `AgentRegistry` — WebID↔UserId mapping, thread watchlists, deregistration |
 | `lib.rs` | 13 | Crate root — public module declarations |
 | `tests/` | 652 | Integration tests (marked `#[ignore]`, require running Conduit) + unit tests for MXID derivation |
 
-**Implemented pipeline:** Matrix message arrives → 7R7 Listener polls → transport retains its stable Matrix `event_id` → listener ignores self-authored messages and persists the derived ν-event exactly once → `CurationLoop::sense()` filters communication events from `NuEventStore` and pushes directly to curation context → `MetacognitionLoop` evaluates via the CAT engagement gate → response dispatches through `MatrixTransport::send_message()`.
+**Implemented pipeline:** Matrix message arrives → 7R7 Listener polls → transport retains its stable Matrix `event_id` → listener ignores self-authored messages and persists the derived ν-event exactly once → `CurationLoop::sense()` filters communication events from `RegulationArchive` and pushes directly to curation context → `MetacognitionLoop` evaluates via the CAT engagement gate → response dispatches through `MatrixTransport::send_message()`.
 
 **Deferred:** E2EE (SQLCipher/SQLite linking conflict with matrix-sdk-sqlite), continuous sync (v1 uses on-demand polling via `get_messages()`).
 
@@ -1712,7 +1712,7 @@ The original stub design declared intent to embed Conduit as a library dependenc
 | `MatrixTransport::upload_file()` / `send_file()` | ✅ Implemented | File attachment support (deferred in original spec) |
 | `SevenR7Listener` (passive room observer) | ✅ Implemented | Configurable poll interval, self-message filtering, and idempotent CNS ν-event persistence keyed by Matrix event ID |
 | `AgentRegistry` (WebID↔UserId mapping, watchlists) | ✅ Implemented | record, deregister, resolve, watchlist operations |
-| CNS bridge (NuEvent persistence) | ✅ Implemented | Messages flow once from listener → NuEventStore → curation inbox; repeated timeline polls are ignored |
+| CNS bridge (RegulationRecord persistence) | ✅ Implemented | Messages flow once from listener → RegulationArchive → curation inbox; repeated timeline polls are ignored |
 | CAT engagement gate | ✅ Implemented | `convergence_bias` scalar in agent config |
 | Response dispatch (agent → Matrix room) | ✅ Implemented | `MatrixTransport::send_message()` via daemon |
 | `kask matrix deploy-sidecar` | ✅ Implemented | Docker Compose + Caddyfile + conduit.toml generation |
@@ -3497,7 +3497,7 @@ kask matrix register --agent Alice-Smith
 
 **Purpose:** Define every `cns.communication.matrix.*` span emitted by the Matrix integration. Each span specifies its namespace, phase, payload schema, and algedonic thresholds.
 
-**Status: Implemented.** Spans are emitted via `tracing` macros in the current implementation. Additionally, the 7R7 Listener persists observed messages as `NuEvent` records into the `NuEventStore` via the CNS bridge, making communication events visible to the Curation Loop. Formal CNS registry registration (`CnsSpan` enum variants) is deferred.
+**Status: Implemented.** Spans are emitted via `tracing` macros in the current implementation. Additionally, the 7R7 Listener persists observed messages as `RegulationRecord` records into the `RegulationArchive` via the CNS bridge, making communication events visible to the Curation Loop. Formal CNS registry registration (`RegulationSpan` enum variants) is deferred.
 
 ### Implemented Spans (v1 — Operational)
 
@@ -3531,7 +3531,7 @@ These spans are specified but not implemented. They require the continuous sync 
 
 ### Algedonic Thresholds (v1 — sidecar health + message observation)
 
-The 7R7 Listener emits `cns.communication.message.observed` spans for every message, persisting them as NuEvents. CurationLoop.sense() filters communication.* events from its own query_algedonic() call and pushes them to the curation context. Sidecar health is checked on-demand via `kask matrix status-sidecar`. The daemon periodic health task is deferred. When implemented, thresholds are:
+The 7R7 Listener emits `cns.communication.message.observed` spans for every message, persisting them as RegulationRecords. CurationLoop.sense() filters communication.* events from its own query_algedonic() call and pushes them to the curation context. Sidecar health is checked on-demand via `kask matrix status-sidecar`. The daemon periodic health task is deferred. When implemented, thresholds are:
 
 | Condition | Warning | Critical |
 |-----------|---------|----------|
@@ -4441,7 +4441,7 @@ kask cns federation thresholds
 | `FUNCTIONAL_SPECIFICATION.md` | Contract anchoring (§5), CNS span registry (§9.1) |
 | `crates/hkask-types/src/curator.rs` | `CuratorHandle`, `CuratorDirective`, `CurationThresholdConfig` |
 | `crates/hkask-types/src/curation.rs` | `OcapTokenKind` (extend with `Federation`) |
-| `crates/hkask-types/src/cns.rs` | `CnsSpan` (extend with 18 federation spans) |
+| `crates/hkask-types/src/cns.rs` | `RegulationSpan` (extend with 18 federation spans) |
 | `crates/hkask-types/src/loops/mod.rs` | `LoopId` (6 variants) |
 | `crates/hkask-agents/src/curator/semantic_index.rs` | `SemanticIndex` — model for federation index |
 | `crates/hkask-agents/src/curator/semantic_sync.rs` | `CuratorSync` — model for `FederationSync` polling loop |
@@ -4904,7 +4904,7 @@ This diagram models the storage layer for all [MDS Core Entities](MDS.md#11-core
 - **`Wallet`** → `wallet_balances`, `wallet_transactions`, `encumbrances`, `deposit_addresses`, `deposit_references`
 - **`ApiKey`** → `api_keys` table
 - **`hMem`** → `triples` table
-- **`CnsRuntime`** → `nu_events`, `cns_variety_checkpoint`, `cns_alerts` tables
+- **`RegulationLedger`** → `nu_events`, `cns_variety_checkpoint`, `cns_alerts` tables
 - **`GasBudget`** → `loop_cursors` table (cursor-based gas tracking)
 
 All FK relationships align with the ownership chains defined in [PRINCIPLES.md](PRINCIPLES.md) P1 (User Sovereignty) and P9 (Economic Layer). The `webid` columns in `triples`, `goals`, `consent_records`, `sovereignty_boundaries`, and `nu_events` implement the multi-tenant data isolation required by P1 and P4 (Clear Boundaries).

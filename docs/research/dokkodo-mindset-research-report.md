@@ -394,7 +394,7 @@ The Dokkodo could be an **always-on persona** — a perpetual perceptual filter 
 
 ### 9.2 CNS Integration
 
-Should perceptual calibration emit CNS spans? A `CnsSpan::PerceptualCalibration` could track precept alignment scores over time, shift magnitude trends, and activation frequency. Precept 4 ("think seriously of the world") suggests the CNS should take perceptual calibration seriously.
+Should perceptual calibration emit CNS spans? A `RegulationSpan::PerceptualCalibration` could track precept alignment scores over time, shift magnitude trends, and activation frequency. Precept 4 ("think seriously of the world") suggests the CNS should take perceptual calibration seriously.
 
 **Stance:** Deferred. Requires CNS span registry extension (v0.31+).
 

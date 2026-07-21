@@ -207,7 +207,7 @@ A ν-event (nu-event) is a thin domain event — a timestamped, attributed, name
 
 ### Evidence
 
-The `NuEvent` struct at `crates/hkask-types/src/event.rs:16` carries:
+The `RegulationRecord` struct at `crates/hkask-types/src/event.rs:16` carries:
 
 - `id: EventID` — unique identifier
 - `timestamp: DateTime<Utc>` — when the event occurred
@@ -221,27 +221,27 @@ The `NuEvent` struct at `crates/hkask-types/src/event.rs:16` carries:
 - `parent_event: Option<EventID>` — causal chain link
 - `visibility: String` — `"private"` by default
 
-#### ObservableSpan vs NuEvent
+#### ObservableSpan vs RegulationRecord
 
-This distinction is crucial. `ObservableSpan` (at `crates/hkask-types/src/observable_span.rs:56`) is a trait that typed span enums implement — it produces a canonical dot-separated namespace string like `"cns.tool.web_search"`. `CnsSpan` is the primary implementor, but the trait is designed to be domain-extensible: `FederationSpan`, `WalletSpan`, and other domain span enums can implement it. A span is a **trace** — it marks where in the system something happened.
+This distinction is crucial. `ObservableSpan` (at `crates/hkask-types/src/observable_span.rs:56`) is a trait that typed span enums implement — it produces a canonical dot-separated namespace string like `"cns.tool.web_search"`. `RegulationSpan` is the primary implementor, but the trait is designed to be domain-extensible: `FederationSpan`, `WalletSpan`, and other domain span enums can implement it. A span is a **trace** — it marks where in the system something happened.
 
-A `NuEvent` contains a `Span`, but it adds: who, when, what, which phase, and what was the regulatory outcome. A span says "tool invoked"; a ν-event says "Agent A invoked the web_search tool in the Sense phase, observing {server, tool, estimated_cost}, with no regulation applied, at recursion depth 0."
+A `RegulationRecord` contains a `Span`, but it adds: who, when, what, which phase, and what was the regulatory outcome. A span says "tool invoked"; a ν-event says "Agent A invoked the web_search tool in the Sense phase, observing {server, tool, estimated_cost}, with no regulation applied, at recursion depth 0."
 
-The bridging function is `SpanNamespace::from_observable()` — it takes any `impl ObservableSpan`, validates against the canonical namespace set in `CANONICAL_NAMESPACES` (139 entries at v0.31.0), and produces a validated `SpanNamespace` for `NuEvent` construction. This design decouples domain span definitions from namespace validation: domain crates define their spans; the event system validates.
+The bridging function is `SpanNamespace::from_observable()` — it takes any `impl ObservableSpan`, validates against the canonical namespace set in `CANONICAL_NAMESPACES` (139 entries at v0.31.0), and produces a validated `SpanNamespace` for `RegulationRecord` construction. This design decouples domain span definitions from namespace validation: domain crates define their spans; the event system validates.
 
 #### The Emission Contract
 
 The emission contract has three participants:
 
-- **Emitter** — Any system component that creates a `NuEvent`. `GovernedTool::invoke()` is the canonical emitter for tool invocations; `CyberneticsLoop` emits regulation spans; the Curator emits curation spans. The emitter constructs the event with `NuEvent::new(observer_webid, span, phase, observation, recursion_depth)`, optionally chaining `.with_outcome()`, `.with_regulation()`, `.with_parent()`, and `.with_visibility()`.
+- **Emitter** — Any system component that creates a `RegulationRecord`. `GovernedTool::invoke()` is the canonical emitter for tool invocations; `CyberneticsLoop` emits regulation spans; the Curator emits curation spans. The emitter constructs the event with `RegulationRecord::new(observer_webid, span, phase, observation, recursion_depth)`, optionally chaining `.with_outcome()`, `.with_regulation()`, `.with_parent()`, and `.with_visibility()`.
 
-- **Sink** — `NuEventSink` (line 640) is the persistence trait. It has a single method: `fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError>`. The production implementation is `NuEventStore` in `hkask-storage`. The sink is the durable boundary — once persisted, the event is available for CNS sensing, Curator review, and forensic audit.
+- **Sink** — `RegulationSink` (line 640) is the persistence trait. It has a single method: `fn persist(&self, event: &RegulationRecord) -> Result<(), InfrastructureError>`. The production implementation is `RegulationArchive` in `hkask-storage`. The sink is the durable boundary — once persisted, the event is available for CNS sensing, Curator review, and forensic audit.
 
-- **Observer** — The CNS itself. `CurationLoop::sense()` reads algedonic-significant events from the store using cursor-based review. `CyberneticsLoop::sense()` reads via sensor providers (`SensorProvider` trait). Events are also replayed with decay weighting via `CnsStoragePort::replay_weighted()`.
+- **Observer** — The CNS itself. `CurationLoop::sense()` reads algedonic-significant events from the store using cursor-based review. `CyberneticsLoop::sense()` reads via sensor providers (`Sensor` trait). Events are also replayed with decay weighting via `LedgerStoragePort::replay_weighted()`.
 
 #### CNS Span Namespaces
 
-The `CnsSpan` enum at `crates/hkask-types/src/cns.rs:111` defines the core span identifiers:
+The `RegulationSpan` enum at `crates/hkask-types/src/cns.rs:111` defines the core span identifiers:
 
 | Variant | Namespace | Purpose |
 |---------|-----------|---------|
@@ -253,37 +253,37 @@ The `CnsSpan` enum at `crates/hkask-types/src/cns.rs:111` defines the core span 
 | `SelfHeal` | `cns.heal` | Self-healing operations |
 | `MemoryEncode` | `cns.memory.encode` | Memory encoding events |
 
-The `SpanKind` enum at `event.rs:523` provides typed construction for common spans, eliminating string typos: `ToolInvoked`, `ToolCompleted`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `VarietyAlgedonicAlert`, and the v0.31.0 regulation spans (`ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopQualityTelemetry`).
+The `SpanKind` enum at `event.rs:523` provides typed construction for common spans, eliminating string typos: `ToolInvoked`, `ToolCompleted`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `VarietyAlgedonicAlert`, and the v0.31.0 regulation spans (`ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopMetricsTelemetry`).
 
-Beyond `CnsSpan`, the `CANONICAL_NAMESPACES` array registers 139 namespace strings spanning architecture seams, chat, CI, classification, condenser, consent, consolidation, contracts, curation, cybernetics, deploy, federation (14 spans), gas, guard, healing, inference, kata, MCP media, memory, multi-agent, platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), QA (4 spans), regulation, userpod, semantic, skills, SLOs, sovereignty (5 spans), specs, storage, tools, variety, and wallet (10 sub-spans).
+Beyond `RegulationSpan`, the `CANONICAL_NAMESPACES` array registers 139 namespace strings spanning architecture seams, chat, CI, classification, condenser, consent, consolidation, contracts, curation, cybernetics, deploy, federation (14 spans), gas, guard, healing, inference, kata, MCP media, memory, multi-agent, platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), QA (4 spans), regulation, userpod, semantic, skills, SLOs, sovereignty (5 spans), specs, storage, tools, variety, and wallet (10 sub-spans).
 
 #### How ν-Events Feed the CNS Homeostatic Loop
 
-The CNS loop is sense → compare → compute → act → verify. ν-events enter at sense — they are the afferent signals. `CyberneticsLoop::sense()` (at `cybernetics_loop.rs:733`) reads via pluggable `SensorProvider` implementations: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`. Each sensor queries the ν-event store for relevant events and produces `Signal` values with metrics and set-points.
+The CNS loop is sense → compare → compute → act → verify. ν-events enter at sense — they are the afferent signals. `CyberneticsLoop::sense()` (at `cybernetics_loop.rs:733`) reads via pluggable `Sensor` implementations: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`. Each sensor queries the ν-event store for relevant events and produces `Signal` values with metrics and set-points.
 
-In the compare phase, signals are measured against set-points to produce `Deviation` values with direction (`AboveSetPoint` / `BelowSetPoint`). In compute, deviations map to `LoopAction` with action types like `Calibrate`, `Escalate`, `Throttle`, `Notify`. In act, actions are executed. In verify_impact, the `ImpactReport` records whether actions were effective.
+In the compare phase, signals are measured against set-points to produce `Deviation` values with direction (`AboveSetPoint` / `BelowSetPoint`). In compute, deviations map to `RegulatoryAction` with action types like `Calibrate`, `Escalate`, `Throttle`, `Notify`. In act, actions are executed. In verify_impact, the `ImpactReport` records whether actions were effective.
 
 The `parent_event` field creates causal chains: the `cns.tool.completed` event has `parent_event` set to the `cns.tool.invoked` event's ID. This enables causality tracing through the event graph.
 
 #### WeightedEvent and Decay
 
-Events do not persist at full weight forever. `WeightedEvent` at `crates/hkask-ports/src/cns.rs:106` pairs a `NuEvent` with a `weight: f64`. `DecayConfig` (line 116) defines per-category exponential decay constants: cybernetics has a 5-minute half-life, curation 15 minutes, inference 2 minutes, episodic 10 minutes. Events below `weight_threshold` (default 0.001) are not replayed. This implements episodic memory — recent events matter more than ancient ones — and prevents the CNS from drowning in historical noise.
+Events do not persist at full weight forever. `WeightedEvent` at `crates/hkask-ports/src/cns.rs:106` pairs a `RegulationRecord` with a `weight: f64`. `DecayConfig` (line 116) defines per-category exponential decay constants: cybernetics has a 5-minute half-life, curation 15 minutes, inference 2 minutes, episodic 10 minutes. Events below `weight_threshold` (default 0.001) are not replayed. This implements episodic memory — recent events matter more than ancient ones — and prevents the CNS from drowning in historical noise.
 
-The `CnsStoragePort::replay_weighted()` method provides time-decayed event replay, enabling the CNS to reconstruct system state from recent history without loading the entire event store. This is the computational expression of the least-action principle applied to observability: only the computationally cheapest (most recent, most salient) events factor into regulation decisions.
+The `LedgerStoragePort::replay_weighted()` method provides time-decayed event replay, enabling the CNS to reconstruct system state from recent history without loading the entire event store. This is the computational expression of the least-action principle applied to observability: only the computationally cheapest (most recent, most salient) events factor into regulation decisions.
 
 ### Diagram
 
 ```mermaid
 flowchart TD
     EMITTER["Emitter\n(GovernedTool, CyberneticsLoop,\nCurator)"]
-    EVENT["NuEvent\nid, timestamp, observer_webid,\nspan, phase, observation,\nregulation, outcome, parent_event"]
-    SINK["NuEventSink\npersist() trait"]
-    STORE["NuEventStore\n(hkask-storage)"]
-    SENSORS["SensorProvider\n(EnergyBudget, Variety,\nToolReliability, WalletKeyHealth)"]
+    EVENT["RegulationRecord\nid, timestamp, observer_webid,\nspan, phase, observation,\nregulation, outcome, parent_event"]
+    SINK["RegulationSink\npersist() trait"]
+    STORE["RegulationArchive\n(hkask-storage)"]
+    SENSORS["Sensor\n(EnergyBudget, Variety,\nToolReliability, WalletKeyHealth)"]
     CNS["CyberneticsLoop\nsense → compare → compute → act → verify"]
     CURATOR["CurationLoop\ncursor-based review"]
 
-    EMITTER -->|"NuEvent::new()"| EVENT
+    EMITTER -->|"RegulationRecord::new()"| EVENT
     EVENT --> SINK
     SINK --> STORE
     STORE -->|"query"| SENSORS
@@ -544,7 +544,7 @@ sequenceDiagram
     participant Bridge as ConsolidationBridge
     participant Svc as ConsolidationService
     participant Sq as SQLCipher<br/>(per-agent isolation)
-    participant CNS as CNS NuEventSink
+    participant CNS as CNS RegulationSink
 
     rect rgb(245, 248, 252)
         Note over Tool,Epi: Phase 1 — Tool Call Experience → Episodic Store
@@ -562,7 +562,7 @@ sequenceDiagram
         else valid Private + perspective
             Epi->>+Sq: h_mem_store.insert(&triple)
             Sq-->>-Epi: Ok(())
-            Epi->>+CNS: persist(NuEvent { span: cns.memory.encode.episodic_stored })
+            Epi->>+CNS: persist(RegulationRecord { span: cns.memory.encode.episodic_stored })
             CNS-->>-Epi: ()
 
             Epi->>+Epi: storage_usage(perspective)

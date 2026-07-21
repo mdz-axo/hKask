@@ -89,9 +89,9 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 
 ### 4.1 Crate API Reference (22 documents)
 
-`docs/reference/api/hkask-types.md` — ID types, NuEvent, ObservableSpan, visibility, error types
-`docs/reference/api/hkask-ports.md` — Hexagonal port traits: InferencePort, ToolPort, CnsObserver, FederationDispatch
-`docs/reference/api/hkask-cns.md` — CnsRuntime, CyberneticsLoop, GovernedTool, SetPoints, GasBudget
+`docs/reference/api/hkask-types.md` — ID types, RegulationRecord, ObservableSpan, visibility, error types
+`docs/reference/api/hkask-ports.md` — Hexagonal port traits: InferencePort, ToolPort, LedgerObserver, FederationDispatch
+`docs/reference/api/hkask-cns.md` — RegulationLedger, CyberneticsLoop, GovernedTool, SetPoints, GasBudget
 `docs/reference/api/hkask-mcp.md` — MCP runtime, dispatch, DaemonClient, `bootstrap_mcp_server`, `mcp_server!`
 `docs/reference/api/hkask-codegraph.md` — Symbol, Edge, IndexPipeline, AssembledContext (10 MCP tools)
 `docs/reference/api/hkask-agents.md` — PodManager, CuratorAgent, ConsentManager, A2ARuntime, PodDeployment
@@ -101,7 +101,7 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 `docs/reference/api/hkask-capability.md` — DelegationToken, CapabilityChecker, TokenRegistry
 `docs/reference/api/hkask-guard.md` — ContentGuard, GuardConfig, GuardResult
 `docs/reference/api/hkask-database.md` — DatabaseDriver, SqliteDriver, PostgresDriver
-`docs/reference/api/hkask-storage.md` — Storage facade, HMemStore, NuEventStore, EmbeddingStore
+`docs/reference/api/hkask-storage.md` — Storage facade, HMemStore, RegulationArchive, EmbeddingStore
 `docs/reference/api/hkask-cli.md` — 33 CLI subcommands, flags, env vars
 `docs/reference/api/hkask-api.md` — 26 HTTP API route groups, request/response types
 `docs/reference/api/hkask-keystore.md` — Keychain, AES-256-GCM, derive_key

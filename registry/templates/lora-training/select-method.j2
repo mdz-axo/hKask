@@ -20,6 +20,8 @@ contract:
     userpod_host: string
     harness_preference: string
     trainer_preference: string
+    adapter_purpose: string
+    dataset_format_hint: string
   output:
     recommendation: object
     readiness: object
@@ -57,6 +59,8 @@ INPUT: knowledge_preservation_required = {{ knowledge_preservation_required | de
 INPUT: userpod_host = {{ userpod_host | default("REQUIRED") }} (P12 — no anonymous training config)
 INPUT: harness_preference = {{ harness_preference | default("undetermined") }} (axolotl | trl | ludwig | undetermined)
 INPUT: trainer_preference = {{ trainer_preference | default("undetermined") }} (sft | dpo | kto | orpo | reward | grpo | undetermined)
+INPUT: adapter_purpose = {{ adapter_purpose | default("undetermined") }} (instruction | reasoning | vision | preference | reward_model | undetermined)
+INPUT: dataset_format_hint = {{ dataset_format_hint | default("undetermined") }} (chatml | preference_dpo | preference_kto | preference_orpo | raw_text | undetermined)
 
 AUTHORITY CONTRACT (P1, P3, P4, P12):
 - This skill emits an advisory recommendation from declared evidence.
@@ -71,12 +75,14 @@ AUTHORITY CONTRACT (P1, P3, P4, P12):
   available.
 
 RECOMMENDATION RECORD (compose fields; never replace the whole record):
+- adapter_purpose: instruction | reasoning | vision | preference | reward_model | undetermined
 - base_mode: full_precision | quantized_4bit | undetermined
 - adapter_form: lora | dora | alora | full_finetune | operator_requested | undetermined
 - scaling: original | rank_stabilized | undetermined
 - initializer: default_no_op | eva | pissa | lora_ga | corda_kp | operator_requested | undetermined
 - preservation: standard | corda_kp | post_training_intruder_mitigation | undetermined
 - rank_range: {min: <int>, max: <int>} | undetermined
+- target_module_strategy: minimal | attention | all_linear | operator_requested | undetermined
 - harness: axolotl | trl | ludwig | undetermined
 - trainer: sft | dpo | kto | orpo | reward | grpo | undetermined (only meaningful when harness=trl or ludwig)
 - alternatives: []

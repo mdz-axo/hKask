@@ -16,19 +16,19 @@ CNS spans are the observability substrate of hKask's Cybernetic Nervous System (
 A **span** is a typed identifier that pins an observation to a canonical dot-separated namespace (e.g., `cns.tool.web_search`). Spans carry an **operation** verb (e.g., `invoked`, `completed`, `reserved`) and optional structured fields. They flow through two paths:
 
 1. **tracing infrastructure** — `tracing::info!(target: "cns", cns_domain = …, operation = …)` — for structured logging
-2. **ν-event persistence** — `NuEvent::new()` → `NuEventSink::persist()` — for the cybernetic audit trail
+2. **ν-event persistence** — `RegulationRecord::new()` → `RegulationSink::persist()` — for the cybernetic audit trail
 
-### Span vs. NuEvent
+### Span vs. RegulationRecord
 
 | Concept | Role | Contains |
 |---|---|---|
 | **ObservableSpan** (trait) | Typed span enums implement this; provides `as_str()`, `emit()`, `to_event()`, and `emit_to()` | Canonical namespace string |
 | **Span** (struct) | Pair of `SpanNamespace` + path (e.g., `cns.tool` + `invoked` → `cns.tool.invoked`) | Namespace + full path |
 | **SpanNamespace** (newtype) | Validated string wrapper; construction validates against `CANONICAL_NAMESPACES` | Dot-separated namespace string |
-| **NuEvent** (struct) | Full cybernetic observation: who observed, what span, what phase, what was observed | Span, `WebID`, `CyclePhase`, `observation` (JSON), `regulation`, `outcome`, recursion depth |
+| **RegulationRecord** (struct) | Full cybernetic observation: who observed, what span, what phase, what was observed | Span, `WebID`, `CyclePhase`, `observation` (JSON), `regulation`, `outcome`, recursion depth |
 | **SpanKind** (enum) | Typed constructors for common span paths (eliminates string typos) | Canonical (namespace, path) pairs |
 
-Spans describe *what* happened; NuEvents describe *who observed it, when, in what context, and what they saw*.
+Spans describe *what* happened; RegulationRecords describe *who observed it, when, in what context, and what they saw*.
 
 ### Span validation
 
@@ -53,7 +53,7 @@ Namespaces form a tree rooted at `cns`. The namespace prefix maps to a `SpanCate
 
 ## 3. Domain-Specific Span Enums
 
-### 3.1 CnsSpan — Core CNS Spans
+### 3.1 RegulationSpan — Core CNS Spans
 
 **File:** `crates/hkask-types/src/cns.rs`
 
@@ -69,7 +69,7 @@ Core spans used across 2+ crates. This is the foundational enum implementing `Ob
 | `SelfHeal` | `cns.heal` | Self-healing operation | The CNS runtime's heal callback fires |
 | `MemoryEncode` | `cns.memory.encode` | Memory encoding operation | Episodic or semantic memory encodes an observation |
 
-**ToolSubsystem variants** for `CnsSpan::Tool`:
+**ToolSubsystem variants** for `RegulationSpan::Tool`:
 
 `WebSearch`, `Condenser`, `Training`, `Replica`, `Research`, `Communication`, `Registry`, `Wallet`, `Media`, `Kanban`, `Memory`, `Companies`, `Docproc`, `Filesystem`, `Curator`, `Other` (catch-all).
 
@@ -95,7 +95,7 @@ Core spans used across 2+ crates. This is the foundational enum implementing `Ob
 
 **File:** `crates/hkask-cns/src/contract_span.rs`
 
-Emitted through `emit_contract_*()` functions in `crates/hkask-cns/src/contract_events.rs`. All events use `CyclePhase::Act` and are persisted via `NuEventSink`.
+Emitted through `emit_contract_*()` functions in `crates/hkask-cns/src/contract_events.rs`. All events use `CyclePhase::Act` and are persisted via `RegulationSink`.
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
@@ -155,7 +155,7 @@ Monitors architectural seam health — the boundaries where Strangler Fig migrat
 |---|---|---|---|
 | `SloEvaluated` | `cns.slo.evaluated` | SLO metric evaluated | SloManager evaluates a service-level objective against its window |
 
-**Algedonic threshold:** SLO breach escalations are handled by `CnsRuntime` via `cns.slo.breach_escalated` (emitted as a tracing event, not a typed span variant). Severity is `Critical` if the SLO's `Severity` field is `Critical`.
+**Algedonic threshold:** SLO breach escalations are handled by `RegulationLedger` via `cns.slo.breach_escalated` (emitted as a tracing event, not a typed span variant). Severity is `Critical` if the SLO's `Severity` field is `Critical`.
 
 ### 3.9 FederationSpan — Federation Operations
 
@@ -200,11 +200,11 @@ Emitted through `ApiRequestSpan::emit_to()` in the API key auth middleware (`cra
 EMISSION ────────► STORAGE ────────► QUERY ────────► DECAY
     │                  │                │               │
     ▼                  ▼                ▼               ▼
-tracing::info!    NuEventStore    GasReport       VarietyTracker
-(target: "cns")   (SQLite)        CnsRuntime      (EMA α=0.1)
+tracing::info!    RegulationArchive    GasReport       VarietyTracker
+(target: "cns")   (SQLite)        RegulationLedger      (EMA α=0.1)
     │                                               │
     ▼                                               ▼
-NuEvent::new()                              AlgedonicManager
+RegulationRecord::new()                              AlgedonicManager
 + sink.persist()                            (binary thresholds)
 ```
 
@@ -212,13 +212,13 @@ NuEvent::new()                              AlgedonicManager
 
 Spans are emitted through two mechanisms:
 
-1. **Tracing path** (`ObservableSpan::emit()` / `CnsSpan::emit()`): writes `tracing::info!(target: "cns", cns_domain = …, operation = …, "CNS")`. Used by `CnsSpan` variants and by domain-span enums that delegate to `ObservableSpan`.
+1. **Tracing path** (`ObservableSpan::emit()` / `RegulationSpan::emit()`): writes `tracing::info!(target: "cns", cns_domain = …, operation = …, "CNS")`. Used by `RegulationSpan` variants and by domain-span enums that delegate to `ObservableSpan`.
 
-2. **ν-event path**: constructs `NuEvent` with a `Span` (namespace + path), `CyclePhase`, observation JSON, and optional regulation/outcome metadata; persists via `NuEventSink::persist()`. Used by contract events, seam watcher, wallet CNS manager, governed inference/tool, cybernetics loop, and consent manager.
+2. **ν-event path**: constructs `RegulationRecord` with a `Span` (namespace + path), `CyclePhase`, observation JSON, and optional regulation/outcome metadata; persists via `RegulationSink::persist()`. Used by contract events, seam watcher, wallet CNS manager, governed inference/tool, cybernetics loop, and consent manager.
 
 ### 4.2 Storage
 
-NuEvents are persisted to a `NuEventStore` (SQLite-backed) via the `CnsStoragePort` trait. The store supports:
+RegulationRecords are persisted to a `RegulationArchive` (SQLite-backed) via the `LedgerStoragePort` trait. The store supports:
 
 - **`query_algedonic()`** — filtered queries by span category, time window, and agent. Used by `GasReport` to aggregate gas consumption per tool/agent.
 
@@ -228,8 +228,8 @@ NuEvents are persisted to a `NuEventStore` (SQLite-backed) via the `CnsStoragePo
 - **`kask cns alerts`** — lists only active algedonic alerts.
 - **`kask cns variety`** — prints per-namespace variety counters.
 - **`kask cns subscribe --agent <name> --spans <csv>`** — subscribes to a live SSE event stream filtered to specific span namespaces.
-- `CnsRuntime::variety()` — programmatic `HashMap<SpanNamespace, u64>`.
-- `CnsRuntime::health()` — `CnsHealth` struct with aggregate deficit and alert counts.
+- `RegulationLedger::variety()` — programmatic `HashMap<SpanNamespace, u64>`.
+- `RegulationLedger::health()` — `LedgerHealth` struct with aggregate deficit and alert counts.
 - `GasReport` — programmatic gas consumption aggregation over time windows.
 
 ### 4.4 Decay
@@ -278,11 +278,11 @@ kask cns subscribe --agent curator --spans cns.tool.web_search,cns.inference
 ### Programmatic
 
 ```rust
-use hkask_cns::CnsRuntime;
+use hkask_cns::RegulationLedger;
 
-let rt = CnsRuntime::with_threshold(100);
+let rt = RegulationLedger::with_threshold(100);
 let variety = rt.variety().await; // HashMap<SpanNamespace, u64>
-let health = rt.health().await;   // CnsHealth
+let health = rt.health().await;   // LedgerHealth
 let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 ```
 
@@ -291,21 +291,21 @@ let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 1. Create or extend a domain span enum implementing `ObservableSpan`
 2. Add the namespace string to `CANONICAL_NAMESPACES` in `crates/hkask-types/src/event.rs`
 3. Add a test verifying `SpanNamespace::new(span.as_str())` succeeds
-4. Emit through `SpanNamespace::from_observable()` → `Span::new()` → `NuEvent::new()` → `sink.persist()`
-5. (Optional) If the span should trigger algedonic alerts, call `CnsRuntime::increment_variety(domain, state_name)`
+4. Emit through `SpanNamespace::from_observable()` → `Span::new()` → `RegulationRecord::new()` → `sink.persist()`
+5. (Optional) If the span should trigger algedonic alerts, call `RegulationLedger::increment_variety(domain, state_name)`
 
 ---
 
-## 6. Cross-Reference: ObservableSpan vs NuEvent
+## 6. Cross-Reference: ObservableSpan vs RegulationRecord
 
-| | ObservableSpan (trait) | NuEvent (struct) |
+| | ObservableSpan (trait) | RegulationRecord (struct) |
 |---|---|---|
 | **What it is** | A typed span identifier with a canonical namespace string | A full cybernetic observation record |
 | **Implements** | `Display + Debug + Send + Sync + 'static` | `Serialize + Deserialize + Clone` |
-| **Key fields** | `as_str() -> &'static str`, `emit(operation)`, `to_event(operation, observer, phase, observation) -> Option<NuEvent>`, `emit_to(sink, operation, observer, phase, observation)` | `id` (EventID), `span` (Span), `observer_webid` (WebID), `phase` (CyclePhase), `observation` (JSON Value), `regulation`, `outcome`, `recursion_depth` |
-| **How emitted** | `tracing::info!(target: "cns", cns_domain = ..., operation = ...)` | Constructed explicitly, persisted via `NuEventSink` |
+| **Key fields** | `as_str() -> &'static str`, `emit(operation)`, `to_event(operation, observer, phase, observation) -> Option<RegulationRecord>`, `emit_to(sink, operation, observer, phase, observation)` | `id` (EventID), `span` (Span), `observer_webid` (WebID), `phase` (CyclePhase), `observation` (JSON Value), `regulation`, `outcome`, `recursion_depth` |
+| **How emitted** | `tracing::info!(target: "cns", cns_domain = ..., operation = ...)` | Constructed explicitly, persisted via `RegulationSink` |
 | **Validation** | Namespace string validated at `SpanNamespace` construction against `CANONICAL_NAMESPACES` | None beyond serde deserialization |
 | **Purpose** | Lightweight, type-safe span emission | Persistent audit trail with full provenance |
-| **Example** | `CnsSpan::Tool { subsystem: ToolSubsystem::WebSearch }.emit("invoked")` | `NuEvent::new(webid, span, CyclePhase::Act, observation, 0)` |
+| **Example** | `RegulationSpan::Tool { subsystem: ToolSubsystem::WebSearch }.emit("invoked")` | `RegulationRecord::new(webid, span, CyclePhase::Act, observation, 0)` |
 
-NuEvents *contain* spans. The `Span` inside a NuEvent holds a `SpanNamespace` constructed from an `ObservableSpan` implementation via `SpanNamespace::from_observable()`. The reverse is not true — NuEvents are the persistent record; ObservableSpans are the typed factory for constructing them.
+RegulationRecords *contain* spans. The `Span` inside a RegulationRecord holds a `SpanNamespace` constructed from an `ObservableSpan` implementation via `SpanNamespace::from_observable()`. The reverse is not true — RegulationRecords are the persistent record; ObservableSpans are the typed factory for constructing them.

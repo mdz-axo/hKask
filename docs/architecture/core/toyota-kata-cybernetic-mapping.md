@@ -92,9 +92,9 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 **Kata correspondence:** The CNS Feedback Plane is the **sensing and regulation surface**. It implements Steps 2 (Grasp Current Condition) and 4 (Experiment/Act) of the Improvement Kata, plus Q2 (Actual Condition) and Q4 (Next Step) of the Coaching Kata.
 
 **Nodes:**
-- `CnsRuntime` — the central nervous system (variety counters, algedonic manager, regulation history)
+- `RegulationLedger` — the central nervous system (variety counters, algedonic manager, regulation history)
 - `CyberneticsLoop` — the homeostatic regulator (sense → compare → compute → act → verify)
-- `SensorCatalog` — the unified sensor registry (per-loop `SensorRegistry` instances)
+- `SensorRegistry` — the unified sensor registry (per-loop `SensorRegistry` instances)
 - `RegulationPolicy` — the per-metric action mapping (metric, deviation) → (actions, thresholds)
 - `SetPoints` — the regulatory thresholds (the system's set-points)
 - `SetPointCalibrator` — the self-tuning regulator (Conant-Ashby closure)
@@ -105,23 +105,23 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 - `SystemSimulator` — the predictive digital twin (MovingAverageExtrapolator)
 
 **Edges:**
-- `SensorCatalog → CyberneticsLoop::sense()` — afferent signals
+- `SensorRegistry → CyberneticsLoop::sense()` — afferent signals
 - `CyberneticsLoop::compute() → RegulationPolicy::decide()` — deviation → proposed action
 - `CyberneticsLoop::act() → target loop's regulate()` — efferent signal
 - `CyberneticsLoop::verify_impact() → ImpactReport` — Conant-Ashby closure
-- `SetPointCalibrator → NuEventStore → SetPoints` — self-tuning loop
+- `SetPointCalibrator → RegulationArchive → SetPoints` — self-tuning loop
 - `AlgedonicManager → CurationLoop` — escalation pathway (Cybernetics → Curation)
-- `CuratorDirective::CalibrateThreshold → CyberneticsLoop → CnsRuntime::calibrate_threshold()` — Curation → Cybernetics (brain regulates autonomic nervous system)
+- `CuratorDirective::CalibrateThreshold → CyberneticsLoop → RegulationLedger::calibrate_threshold()` — Curation → Cybernetics (brain regulates autonomic nervous system)
 
 **Interaction loops:**
 - **Five-phase regulation loop:** sense → compare → compute → act → verify_impact (the `Loop` trait)
 - **Algedonic escalation loop:** Cybernetics detects deficit → `RuntimeAlert` → `CurationInput::Alert` → CurationLoop sense → CuratorAgent assess → `CuratorDirective` → Cybernetics act
-- **Self-tuning loop:** `SetPointCalibrator` queries `NuEventStore` replay → detects patterns (plateaus, blocks, substitutions) → adjusts `SetPoints` within bounded ranges
+- **Self-tuning loop:** `SetPointCalibrator` queries `RegulationArchive` replay → detects patterns (plateaus, blocks, substitutions) → adjusts `SetPoints` within bounded ranges
 - **Statistical learning loop:** `ToolStats` records per-tool gas costs and success/failure at settle time → fits LogNormal/Beta distributions → `GovernedTool` reserves at p90 → `ToolReliabilitySensor` feeds reliability into regulation
 - **Predictive regulation loop:** `SystemSimulator` observes metric trends → predicts ticks-to-threshold → `CyberneticsLoop::compute()` emits `Notify` action before deviation occurs
 
 **Kata alignment:**
-- Step 2 (Grasp Current Condition) = `SensorCatalog::sense_all()` + `CyberneticsLoop::sense()`
+- Step 2 (Grasp Current Condition) = `SensorRegistry::sense_all()` + `CyberneticsLoop::sense()`
 - Step 4 (Experiment/Act) = `CyberneticsLoop::compute()` + `act()` + `verify_impact()`
 - Q2 (Actual Condition) = `verify_impact()` — the re-sensing that grounds in data
 - Q5 (How quickly can we go and see?) = `verify_impact()` is called in the same tick — delay = 0
@@ -146,8 +146,8 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 - `MetacognitionLoop → InferencePort` — template-driven diagnosis (KnowAct)
 - `CuratorAgent → A2ARuntime` — bot orchestration (direct_bot)
 - `CuratorAgent → MatrixTransport` — standing session posting
-- `CuratorContext → CnsRuntime` — capability-disciplined CNS access
-- `SeamWatcher → CnsRuntime` — seam coverage as variety dimension
+- `CuratorContext → RegulationLedger` — capability-disciplined CNS access
+- `SeamWatcher → RegulationLedger` — seam coverage as variety dimension
 
 **Interaction loops:**
 - **Two-level meta-loop:** Cybernetics regulates agents → Curation regulates Cybernetics → if Cybernetics unstable, Curation detects via metacognitive monitoring and intervenes
@@ -172,14 +172,14 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 - `PodFactory` — the stateless constructor
 - `PodRegistry` — filesystem-based discovery
 - `ActivePods` — the runtime registry
-- `PerPodCnsRuntime` — per-pod CNS isolation (`cns.agent_pod.{pod_id}.*`)
+- `PerPodRegulationLedger` — per-pod CNS isolation (`cns.agent_pod.{pod_id}.*`)
 - `PerPodStorage` — per-pod SQLCipher boundary
 - `AgentPod` — identity, lifecycle, persona, capability token
 - `A2ARuntime` — agent-to-agent messaging (TemplateDispatch, TemplateResponse, MemoryArtifact)
 
 **Edges:**
 - `PodFactory::deploy() → PodDeployment` — pod creation
-- `PodDeployment → PerPodCnsRuntime` — per-pod CNS scoping
+- `PodDeployment → PerPodRegulationLedger` — per-pod CNS scoping
 - `PodDeployment → McpRuntime` — per-pod MCP bindings
 - `A2ARuntime → A2AMessage` — inter-agent communication
 - `CuratorSync → SemanticIndex` — cross-pod semantic aggregation
@@ -193,7 +193,7 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 **Kata alignment:**
 - The learner (UserPod) practices the Kata on this plane
 - The coach (Curator) observes via CNS spans emitted from this plane
-- Each pod's `PerPodCnsRuntime` is the learner's local sensorium — the coach cannot see inside the learner's head, only the behaviors the learner emits
+- Each pod's `PerPodRegulationLedger` is the learner's local sensorium — the coach cannot see inside the learner's head, only the behaviors the learner emits
 
 ---
 
@@ -210,9 +210,9 @@ graph TD
     end
 
     subgraph PlaneB["Plane B: CNS Feedback (Sensing & Regulation)"]
-        CR["CnsRuntime"]
+        CR["RegulationLedger"]
         CL["CyberneticsLoop"]
-        SC["SensorCatalog"]
+        SC["SensorRegistry"]
         RP["RegulationPolicy"]
         SP["SetPoints"]
         SPC["SetPointCalibrator"]
@@ -231,7 +231,7 @@ graph TD
 
     subgraph PlaneD["Plane D: Agent Pods (Implementation)"]
         PD["PodDeployment"]
-        PCNS["PerPodCnsRuntime"]
+        PCNS["PerPodRegulationLedger"]
         A2A["A2ARuntime"]
         CS["CuratorSync"]
     end
@@ -276,10 +276,10 @@ graph TD
 
 ```mermaid
 sequenceDiagram
-    participant SC as SensorCatalog
+    participant SC as SensorRegistry
     participant CL as CyberneticsLoop
     participant RP as RegulationPolicy
-    participant CR as CnsRuntime
+    participant CR as RegulationLedger
     participant SPC as SetPointCalibrator
 
     SC->>CL: sense_all(Cybernetics)
@@ -299,16 +299,16 @@ sequenceDiagram
 **Cybernetic properties:**
 - **Polarity:** Negative feedback (deviation → corrective action)
 - **Delay:** Zero — `verify_impact()` is called in the same `tick()` cycle
-- **Gain:** `LoopQuality::gain` = actions / deviations (1.0 = every deviation produced an action)
+- **Gain:** `LoopMetrics::gain` = actions / deviations (1.0 = every deviation produced an action)
 - **Closure:** `ImpactReport` with `ActionDecision::Accept/Stage/Block` — the loop is closed
-- **Fidelity:** `LoopQuality::fidelity_score` = matched_deviations / total_deviations
+- **Fidelity:** `LoopMetrics::fidelity_score` = matched_deviations / total_deviations
 
 ### 4.2 The Meta-Regulation Loop (Plane B → Plane C → Plane B)
 
 ```mermaid
 sequenceDiagram
     participant CL as CyberneticsLoop
-    participant CR as CnsRuntime
+    participant CR as RegulationLedger
     participant CUL as CurationLoop
     participant ML as MetacognitionLoop
     participant CA as CuratorAgent
@@ -343,7 +343,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant SPC as SetPointCalibrator
-    participant NES as NuEventStore
+    participant NES as RegulationArchive
     participant SP as SetPoints
     participant CL as CyberneticsLoop
 
@@ -369,7 +369,7 @@ sequenceDiagram
 sequenceDiagram
     participant ME as ManifestExecutor
     participant FD as FlowDef
-    participant CR as CnsRuntime
+    participant CR as RegulationLedger
     participant DSC as DefaultSpecCurator
     participant CUL as CurationLoop
 
@@ -399,8 +399,8 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant PD as PodDeployment
-    participant PCNS as PerPodCnsRuntime
-    participant CR as CnsRuntime
+    participant PCNS as PerPodRegulationLedger
+    participant CR as RegulationLedger
     participant CL as CyberneticsLoop
     participant CUL as CurationLoop
 
@@ -429,23 +429,23 @@ sequenceDiagram
 | Toyota Kata Element | hKask Implementation | Control Plane | Cybernetic Function |
 |---------------------|---------------------|---------------|---------------------|
 | **Improvement Kata Step 1: Understand Direction** | `FlowDef` manifest's `goal` field; `CuratorDirective` from level above | A + C | Set-point definition |
-| **Improvement Kata Step 2: Grasp Current Condition** | `SensorCatalog::sense_all()`; `CyberneticsLoop::sense()`; `CurationLoop::sense()` | B + C | Afferent sensing |
+| **Improvement Kata Step 2: Grasp Current Condition** | `SensorRegistry::sense_all()`; `CyberneticsLoop::sense()`; `CurationLoop::sense()` | B + C | Afferent sensing |
 | **Improvement Kata Step 3: Establish Target Condition** | `convergence.threshold`; `SetPoints`; `SetPointCalibrator` self-tuning | A + B | Set-point adjustment |
 | **Improvement Kata Step 4: Experiment (PDCA)** | `CyberneticsLoop::compute() + act() + verify_impact()`; `FlowDef` cascade steps | B + A | Regulatory action with prediction and verification |
 | **Coaching Kata Q1: Target Condition?** | `CuratorDirective::CalibrateThreshold`; `MetacognitionLoop` target | C | Set-point validation |
 | **Coaching Kata Q2: Actual Condition?** | `verify_impact()` re-sensing; `HealthSnapshot`; per-pod CNS variety | B + C + D | Sensing fidelity check |
 | **Coaching Kata Q3: Obstacles? Which ONE?** | `MetacognitionLoop` obstacle prioritization; `RegulationPolicy` substitution ladder (one metric at a time) | C + B | Variety attenuation |
 | **Coaching Kata Q4: Next Step? What do you expect?** | `RegulationPolicy::decide()` → proposed action with `reason`; `FlowDef` step with `condition` expression | B + A | Hypothesis-driven action |
-| **Coaching Kata Q5: How quickly can we go and see?** | `verify_impact()` in same tick (delay = 0); `LoopSystem` tick intervals | B | Delay minimization |
+| **Coaching Kata Q5: How quickly can we go and see?** | `verify_impact()` in same tick (delay = 0); `LoopScheduler` tick intervals | B | Delay minimization |
 | **The Coach (meta-regulator)** | `CuratorAgent` + `CurationLoop` + `MetacognitionLoop` | C | Conant-Ashby: regulator of the regulator |
-| **The Learner (regulated actor)** | `UserPod` + `PodDeployment` + `PerPodCnsRuntime` | D | VSM S1 Implementation |
-| **The Kata Storyboard** | `NuEventStore` (ν-events) + `KataHistory` + `regulation_history` ring buffer | B + C | Cybernetic audit trail |
+| **The Learner (regulated actor)** | `UserPod` + `PodDeployment` + `PerPodRegulationLedger` | D | VSM S1 Implementation |
+| **The Kata Storyboard** | `RegulationArchive` (ν-events) + `KataHistory` + `regulation_history` ring buffer | B + C | Cybernetic audit trail |
 | **The Obstacles Parking Lot** | `EscalationEntry` queue; `StagnationDetector` stagnation keys | B + C | Disturbance inventory |
 | **Practice Frequency / Streaks** | `KataHistory::PracticeEntry`; `cns.kata` spans | C | Habit formation tracking |
 | **Automaticity Score** | `KataHistory` graduation criteria; skill health score | A + C | Skill maturity signal |
 | **The "One Obstacle" Rule** | `RegulationPolicy` processes one `(metric, direction)` at a time; `StagnationDetector` tracks one `(metric, action_type)` pair | B | Ashby's Law: variety attenuation |
 | **The Prediction** | `FlowDef` step's `condition` expression; `SystemSimulator` trend prediction | A + B | Hypothesis before action |
-| **The "Go and See"** | `verify_impact()` re-sensing; `LoopQuality::effectiveness_score` | B | Feedback loop closure |
+| **The "Go and See"** | `verify_impact()` re-sensing; `LoopMetrics::effectiveness_score` | B | Feedback loop closure |
 
 ---
 
@@ -455,11 +455,11 @@ sequenceDiagram
 
 **Kata:** Every action carries an explicit prediction. "If I do X, I expect Y because Z."
 
-**hKask gap:** The `LoopAction` struct has a `reason` field (free-form string) but no `prediction` field. The `verify_impact()` step checks "did the metric improve?" but not "did the metric improve *as predicted*?"
+**hKask gap:** The `RegulatoryAction` struct has a `reason` field (free-form string) but no `prediction` field. The `verify_impact()` step checks "did the metric improve?" but not "did the metric improve *as predicted*?"
 
 **Impact:** The regulator learns whether its actions are effective, but not whether its *model* is correct. Two different actions could produce the same metric improvement via different mechanisms — without a prediction, the regulator cannot distinguish between them.
 
-**Recommendation:** Add an optional `prediction: Option<f64>` field to `LoopActionParams` — the expected metric value after the action. The `verify_impact()` step can then compare `after` vs. `prediction` (model validation) in addition to `after` vs. `before` (effectiveness).
+**Recommendation:** Add an optional `prediction: Option<f64>` field to `RegulatoryActionParams` — the expected metric value after the action. The `verify_impact()` step can then compare `after` vs. `prediction` (model validation) in addition to `after` vs. `before` (effectiveness).
 
 ### 6.2 The One-Obstacle-at-a-Time Gap
 
@@ -495,7 +495,7 @@ sequenceDiagram
 
 **Kata:** The learner explicitly marks the boundary of their current knowledge. "I don't know what will happen if I do X" is a valid and important statement.
 
-**hKask gap:** The `LoopQuality` struct has `fidelity_confidence` (0.6–1.0) but no explicit "knowledge threshold" marker. The system cannot say "I don't know whether this action will work."
+**hKask gap:** The `LoopMetrics` struct has `fidelity_confidence` (0.6–1.0) but no explicit "knowledge threshold" marker. The system cannot say "I don't know whether this action will work."
 
 **Impact:** The regulator acts with false confidence. When `fidelity_confidence` is 0.6 (string-heuristic matching was used), the system should treat its own actions as hypotheses, not certainties — but there is no mechanism to escalate "low confidence" actions differently from "high confidence" ones.
 
@@ -505,7 +505,7 @@ sequenceDiagram
 
 ## 7. The Unified Sensing Ontology — Mapping to the Kata
 
-The sensor flattening (Phase 0 of ADR-056) established the `SensorCatalog` as the unified registration point. The Kata mapping reveals the *ontology* of sensing — what each sensor *means* in Kata terms:
+The sensor flattening (Phase 0 of ADR-056) established the `SensorRegistry` as the unified registration point. The Kata mapping reveals the *ontology* of sensing — what each sensor *means* in Kata terms:
 
 ### 7.1 Sensor Categories (Kata-aligned)
 
@@ -536,9 +536,9 @@ hKask's observability maps onto the three pillars defined in Sridharan, C. (2018
 
 | Pillar | hKask Implementation | Kata Correspondence |
 |--------|---------------------|---------------------|
-| **Metrics** | `LoopQuality` (delay_ms, gain, fidelity_score, effectiveness_score); `CnsHealth` (variety, deficit); `GasReport` | Kata Step 2 (Grasp Current Condition) — the measured data |
+| **Metrics** | `LoopMetrics` (delay_ms, gain, fidelity_score, effectiveness_score); `LedgerHealth` (variety, deficit); `GasReport` | Kata Step 2 (Grasp Current Condition) — the measured data |
 | **Logs** | `tracing` spans with `target: "cns.*"` and `target: "hkask.*"` | Kata storyboard — the audit trail of what happened |
-| **Traces** | `NuEvent` (ν-events) with `Span`, `CyclePhase`, `parent_event` — distributed tracing across loops | Kata practice history — the sequence of experiments and outcomes |
+| **Traces** | `RegulationRecord` (ν-events) with `Span`, `CyclePhase`, `parent_event` — distributed tracing across loops | Kata practice history — the sequence of experiments and outcomes |
 
 ### 8.2 DORA Metrics (Forsgren)
 
@@ -582,12 +582,12 @@ Harold Bloom's method (used in the `metacognition` skill) distinguishes between:
 
 ### 9.2 Near-term (Phase 4 of ADR-056)
 
-4. **Migrate inline `sense()` methods** to `SensorProvider` implementations registered with `SensorCatalog` (completes the sensor unification)
-5. **Wire `SensorCatalog` into `build_loops()`** so the catalog is instantiated at startup
+4. **Migrate inline `sense()` methods** to `Sensor` implementations registered with `SensorRegistry` (completes the sensor unification)
+5. **Wire `SensorRegistry` into `build_loops()`** so the catalog is instantiated at startup
 
 ### 9.3 Medium-term (Kata alignment)
 
-6. **Add `prediction` field to `LoopActionParams`** — the expected metric value after the action (closes the prediction gap, §6.1)
+6. **Add `prediction` field to `RegulatoryActionParams`** — the expected metric value after the action (closes the prediction gap, §6.1)
 7. **Add `prioritize_deviation()` to `CyberneticsLoop`** — process one obstacle at a time (closes the one-obstacle gap, §6.2)
 8. **Add `SetPointCoverageSensor`** — detect metrics with no configured set-point (closes the direction sensor gap, §7.2)
 9. **Add `confidence_threshold` to `SetPoints`** — route low-confidence actions to Curation (closes the knowledge threshold gap, §6.5)
@@ -605,7 +605,7 @@ The Toyota Kata is not just a methodology — it is a **proven cybernetic feedba
 
 The mapping reveals that hKask's architecture is **structurally sound** — the four control planes, the five interaction loops, and the sensor/regulator/meta-regulator hierarchy all have direct Kata correspondences. The gaps identified in §6 are not architectural failures but **implementation gaps** — places where the Kata's wisdom has not yet been encoded into the system's sensing and regulation logic.
 
-The most important insight from the mapping is the **prediction gap** (§6.1). The Kata's genius is not in the action — it is in the *prediction*. "What do you expect?" is the question that turns a fix into an experiment. Without a prediction, `verify_impact()` can only answer "did it work?" — it cannot answer "did it work *for the reason we thought*?" Adding a `prediction` field to `LoopActionParams` would close this gap and bring hKask's regulation loops into full Kata alignment.
+The most important insight from the mapping is the **prediction gap** (§6.1). The Kata's genius is not in the action — it is in the *prediction*. "What do you expect?" is the question that turns a fix into an experiment. Without a prediction, `verify_impact()` can only answer "did it work?" — it cannot answer "did it work *for the reason we thought*?" Adding a `prediction` field to `RegulatoryActionParams` would close this gap and bring hKask's regulation loops into full Kata alignment.
 
 ---
 

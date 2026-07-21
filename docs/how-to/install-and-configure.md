@@ -623,14 +623,14 @@ flowchart TD
 
     subgraph PhaseA["Phase A: Foundation"]
         BuildAgent --> OpenDb[Database::open SQLCipher]
-        OpenDb --> NuEvt[NuEventStore CNS event sink]
+        OpenDb --> NuEvt[RegulationArchive CNS event sink]
         NuEvt --> Stores[Create 7 stores]
-        Stores --> CnsRt[CnsRuntime with threshold]
+        Stores --> CnsRt[RegulationLedger with threshold]
         CnsRt --> SeamW[SeamWatcher load + drift check]
     end
 
     subgraph PhaseB["Phase B: Loops"]
-        SeamW --> LoopSys[LoopSystem::new]
+        SeamW --> LoopSys[LoopScheduler::new]
         LoopSys --> Cybernetics[CyberneticsLoop + set points]
         Cybernetics --> Inference{in_memory?}
         Inference -->|No| InfRouter[InferenceRouter → GovernedInference]
@@ -699,13 +699,13 @@ flowchart TD
 - `crates/hkask-services-core/src/config.rs:140–204` — `ServiceConfig::from_env()` — env vars + keystore secret resolution
 - `crates/hkask-services-context/src/context_impl/build/mod.rs:30–76` — `AgentService::build()` — 4-phase canonical assembly
 - `crates/hkask-services-context/src/context_impl/build/foundation.rs:168–292` — `build_foundation()` — DB open, 7 stores, CNS runtime, seam watcher
-- `crates/hkask-services-context/src/context_impl/build/loops.rs:324–530` — `build_loops()` — LoopSystem, CyberneticsLoop, Inference, Memory, Curator, Federation
+- `crates/hkask-services-context/src/context_impl/build/loops.rs:324–530` — `build_loops()` — LoopScheduler, CyberneticsLoop, Inference, Memory, Curator, Federation
 - `crates/hkask-services-context/src/context_impl/build/mcp_pods.rs:547–712` — `build_mcp_and_pods()` — GovernedTool, McpDispatcher, CapabilityChecker, ActivePods, CuratorPod, DaemonListener
 - `crates/hkask-services-context/src/context_impl/build/reg_wallet.rs:744–820` — `build_registry_and_wallet()` — SqliteRegistry, A2A restore, WalletService
 - `crates/hkask-services-context/src/context_impl/build/mod.rs:95–146` — `into_service()` — AgentServiceWiring → AgentService
 - `crates/hkask-api/src/lib.rs:102–155` — `ApiState::with_defaults()` + `from_service_context()`
 - `crates/hkask-api/src/lib.rs:201–279` — `create_router()` — axum router + middleware layers
-- `crates/hkask-cns/src/runtime.rs:290–310` — `CnsRuntime` struct and initialization
+- `crates/hkask-cns/src/runtime.rs:290–310` — `RegulationLedger` struct and initialization
 - `crates/hkask-mcp/src/runtime.rs:124–145` — `McpRuntime` struct and `new()`
 - `docs/architecture/core/MDS.md:631–638` — MDS Bootstrap Sequence reference
 - `docs/DIAGRAMS_INDEX.md:61` — DIAG-PL-004 predecessor (now superseded by this DIAG-PL-006)

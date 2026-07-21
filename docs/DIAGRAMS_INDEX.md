@@ -134,7 +134,7 @@ The `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` contains 14 inline Merm
 | DIAG-FS-002 | Loop Architecture Membrane — Domain Loops (Inference, Memory) + Curation + Cybernetics + Transport | §1.5.3 | Flowchart (graph TD) |
 | DIAG-FS-003 | GasBudget ERD — Energy Budgeting with OCAP/P9 constraints | §2.1 | ERD (erDiagram) |
 | DIAG-FS-004 | AlgedonicManager ERD — Algedonic Signalling with VarietyCounter, CurationLoop | §2.2 | ERD (erDiagram) |
-| DIAG-FS-005 | CnsRuntime ERD — Runtime Observability with VarietyMonitor, OutcomeTracker | §2.3 | ERD (erDiagram) |
+| DIAG-FS-005 | RegulationLedger ERD — Runtime Observability with VarietyMonitor, OutcomeTracker | §2.3 | ERD (erDiagram) |
 | DIAG-FS-006 | GovernedTool ERD — Tool Governance with OCAP, Consent, GasBudget constraints | §2.4 | ERD (erDiagram) |
 | DIAG-FS-007 | GovernedInference ERD — Inference Governance with CompositeEnergyEstimator | §2.5 | ERD (erDiagram) |
 | DIAG-FS-008 | CircuitBreaker ERD — Failure/Success/HalfOpen state tracking | §2.6 | ERD (erDiagram) |
@@ -196,7 +196,7 @@ The following diagrams were standalone files not individually tracked in the ori
 | `sequence-mcp-bootstrap.md` | sequence | `explanation/architecture-patterns.md` | MCP Bootstrap and Tool Dispatch |
 | `state-guard-violations.md` | state | `explanation/sovereignty-and-ocap.md` | Guard Violation Lifecycle |
 | `state-invite-lifecycle.md` | state | `how-to/deployment-and-transport.md` | Invite Lifecycle State Machine |
-| `state-loop-action-lifecycle.md` | state | `explanation/cns-and-loops.md` | LoopAction Lifecycle |
+| `state-loop-action-lifecycle.md` | state | `explanation/cns-and-loops.md` | RegulatoryAction Lifecycle |
 
 ## 12. Summary
 

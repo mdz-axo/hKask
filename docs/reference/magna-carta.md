@@ -288,7 +288,7 @@ kask pod status <pod_id> --verbose
 | Artefact | Crate/Module | Role |
 |----------|-------------|------|
 | `PerPodToolBinding` | `hkask-agents::pod::deployment` | Scoped MCP runtime + GovernedTool per pod |
-| `PerPodCnsRuntime` | `hkask-agents::pod::deployment` | Per-pod variety counters |
+| `PerPodRegulationLedger` | `hkask-agents::pod::deployment` | Per-pod variety counters |
 | `PerPodStorage` | `hkask-agents::pod::deployment` | Dedicated SQLCipher file per pod at `{data_dir}/agents/{sanitized_name}/pod.db` |
 | `PodDeployment` | `hkask-agents::pod::deployment` | Complete pod: identity, storage, CNS, tools, capability checker |
 | `ActivePods` | `hkask-agents::pod::active_pods` | Registry of all pods; no shared state between entries |

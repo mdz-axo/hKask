@@ -28,7 +28,7 @@ behavior of the shipping code and the standing properties of its sandbox design.
 
 Two distinct CNS emission paths run per tool call: the framework-level
 `execute_tool` span (tool name + outcome, via `ToolSpanGuard`) and the
-server-level `emit_cns` span (operation verb, via `CnsSpan::Tool`). Both target
+server-level `emit_cns` span (operation verb, via `RegulationSpan::Tool`). Both target
 `cns.tool.filesystem.*`; the operation span carries the verb.
 
 ## Sandbox path resolution and tool dispatch
@@ -180,6 +180,6 @@ kask mcp start filesystem
 ## Cross-links
 
 - [MCP Server Registry](README.md) — catalog of all 15 built-in servers
-- [CNS Span Registry](../cns-spans.md) — `CnsSpan::Tool` and `ToolSubsystem::Filesystem`
+- [CNS Span Registry](../cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence
 - [Diagram Index](../../DIAGRAMS_INDEX.md) — DIAG-RF-003 registration

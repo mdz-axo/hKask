@@ -34,7 +34,7 @@ The `hkask-ports` crate defines **17 trait contracts**, each guarding a distinct
 
 | Concern | Traits |
 |---------|--------|
-| CNS regulation | `CircuitBreakerPort`, `CnsStoragePort`, `CnsObserver` |
+| CNS regulation | `CircuitBreakerPort`, `LedgerStoragePort`, `LedgerObserver` |
 | Federation | `FederationTransport`, `FederationSyncPort`, `FederationDispatch` |
 | Inference and tools | `InferencePort`, `ToolPort` |
 | Governance and pipelines | `ConsentPort`, `EscalationPort`, `WalletBudgetPort`, `StepExecutor` |
@@ -47,9 +47,9 @@ The eight primary infrastructure boundaries are documented in detail below. The 
 
 **`CircuitBreakerPort`** (`crates/hkask-ports/src/cns.rs`) — The circuit breaker boundary for the Cybernetics membrane. A minimal trait — `allow_request()`, `record_success()`, `record_failure()`, `state()` — that allows the Inference loop to use circuit breaking without depending on `hkask-cns`. The concrete implementor is `CircuitBreaker` in `hkask-cns`. When the CNS detects elevated error rates above the `error_rate_max` set-point (default: 30%), it opens the circuit and the inference loop stops sending requests.
 
-**`CnsStoragePort`** (`crates/hkask-ports/src/cns.rs`) — Storage abstraction for CNS event queries. While `CircuitBreakerPort` is the actuator boundary, `CnsStoragePort` is the memory boundary — it abstracts the `NuEventStore` behind a trait so the cybernetic regulation layer (`GasReport`, `CalibratedEnergyEstimator`, `WalletGasCalibrator`) can be tested without a real SQLite database. It provides `query_algedonic()` for alert retrospectives, `replay_weighted()` for temporal decay-weighted event replay, and `persist_cursor()`/`load_cursor()` for crash recovery.
+**`LedgerStoragePort`** (`crates/hkask-ports/src/cns.rs`) — Storage abstraction for CNS event queries. While `CircuitBreakerPort` is the actuator boundary, `LedgerStoragePort` is the memory boundary — it abstracts the `RegulationArchive` behind a trait so the cybernetic regulation layer (`GasReport`, `CalibratedEnergyEstimator`, `WalletGasCalibrator`) can be tested without a real SQLite database. It provides `query_algedonic()` for alert retrospectives, `replay_weighted()` for temporal decay-weighted event replay, and `persist_cursor()`/`load_cursor()` for crash recovery.
 
-**`CnsObserver`** (`crates/hkask-ports/src/cns.rs`) — The subscriber interface for CNS events. Observers declare an `interest_mask()` of `SpanNamespace` values they care about, then receive `on_event()`, `on_depletion()`, and `on_backpressure()` callbacks. The concrete implementor in `hkask-inference` uses this to react to throttle and circuit-break signals.
+**`LedgerObserver`** (`crates/hkask-ports/src/cns.rs`) — The subscriber interface for CNS events. Observers declare an `interest_mask()` of `SpanNamespace` values they care about, then receive `on_event()`, `on_depletion()`, and `on_backpressure()` callbacks. The concrete implementor in `hkask-inference` uses this to react to throttle and circuit-break signals.
 
 **`ConsentPort`** (`crates/hkask-ports/src/consent_port.rs`) — Decouples agent pods from the concrete `ConsentStore` in `hkask-storage`. A CRUD trait for consent records — `initialize_schema()`, `store()`, `list_active()` — that ensures the Affirmative Consent (P2) verification layer can be tested independently of the database schema.
 
@@ -71,8 +71,8 @@ flowchart TD
         IP["InferencePort"]
         TP["ToolPort"]
         CBP["CircuitBreakerPort"]
-        CSP["CnsStoragePort"]
-        CNO["CnsObserver"]
+        CSP["LedgerStoragePort"]
+        CNO["LedgerObserver"]
         CP["ConsentPort"]
         EP["EmbeddingPort"]
         FD["FederationDispatch"]
@@ -111,7 +111,7 @@ status: VERIFIED
 
 The hexagonal pattern in hKask serves three purposes, each grounded in a specific project constraint:
 
-**Testability.** The CNS must be testable without external dependencies. `CnsStoragePort` means the `CyberneticsLoop` test suite runs against in-memory data. `ToolPort` means the OCAP enforcement tests do not need running MCP servers. `InferencePort` means the prompt assembly tests do not burn API credits.
+**Testability.** The CNS must be testable without external dependencies. `LedgerStoragePort` means the `CyberneticsLoop` test suite runs against in-memory data. `ToolPort` means the OCAP enforcement tests do not need running MCP servers. `InferencePort` means the prompt assembly tests do not burn API credits.
 
 **Provider independence.** The `InferencePort` abstraction means the system can route to any LLM provider without changing agent logic. The `CircuitBreakerPort` means the circuit breaker implementation can be swapped without touching the inference loop.
 
@@ -136,7 +136,7 @@ InferenceLoop
 
 The `CircuitBreakerPort` gates the `InferencePort`: if the circuit is open (too many recent failures), the inference loop skips the LLM call entirely and returns an error. The `ToolPort` governs tool execution: even if the LLM produces a tool call, the OCAP membrane checks whether the agent's delegation token authorizes that specific tool before dispatching.
 
-This composition is not wired by magic — it is wired by the `InferenceLoop` in `hkask-inference`, which holds references to all three ports and sequences them explicitly. The CNS observes the results (`CnsObserver::on_event()`) and may decide to open the circuit or escalate based on the outcome.
+This composition is not wired by magic — it is wired by the `InferenceLoop` in `hkask-inference`, which holds references to all three ports and sequences them explicitly. The CNS observes the results (`LedgerObserver::on_event()`) and may decide to open the circuit or escalate based on the outcome.
 
 #### The GovernedTool Decorator Pattern
 
@@ -177,7 +177,7 @@ hKask's README opens with a design philosophy: "Austere and efficient recombinat
 
 The loom is everything compiled. It is the `kask` binary — 45 core crates, 15 MCP servers, ~192,700 lines of Rust. It is:
 
-- **The CNS** (`hkask-cns`). The cybernetic loop: sense, compare, compute, act, verify. This loop does not change based on configuration. It is structural — a `Loop` trait with fixed semantics, `LoopAction` types with fixed authority hierarchy.
+- **The CNS** (`hkask-cns`). The cybernetic loop: sense, compare, compute, act, verify. This loop does not change based on configuration. It is structural — a `Loop` trait with fixed semantics, `RegulatoryAction` types with fixed authority hierarchy.
 
 - **The Energy Layer** (`GasBudget`, `Well`, `WalletManager`). The hold-settle pattern, stale reservation detection, hard limits, invariance enforcement (`remaining + reserved ≤ cap`). These invariants are compile-time guarantees via private fields and constructor assertions.
 
@@ -368,9 +368,9 @@ The Viable System Model (VSM), developed by Stafford Beer, is a cybernetic frame
 
 #### S1: Operations — Pods and MCP Servers
 
-System 1 in VSM is the collection of autonomous operational units that do the actual work. In hKask, these are the agent pods — each a `PodDeployment` at `crates/hkask-agents/src/pod/deployment.rs:47` — and their bound MCP servers, held in `PerPodToolBinding`. Each pod is autonomous: it owns its storage (`PerPodStorage` — a dedicated SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`), its CNS runtime (`PerPodCnsRuntime` — variety counters scoped to the pod), and its tool bindings.
+System 1 in VSM is the collection of autonomous operational units that do the actual work. In hKask, these are the agent pods — each a `PodDeployment` at `crates/hkask-agents/src/pod/deployment.rs:47` — and their bound MCP servers, held in `PerPodToolBinding`. Each pod is autonomous: it owns its storage (`PerPodStorage` — a dedicated SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`), its CNS runtime (`PerPodRegulationLedger` — variety counters scoped to the pod), and its tool bindings.
 
-MCP servers provide the operational capabilities: web search, condenser, media, memory, wallet, codegraph, and others — 15 tool subsystems tracked in `CnsSpan::Tool { subsystem }` at `crates/hkask-types/src/cns.rs:111`. Each pod's variety is measured independently via `PerPodCnsRuntime`, enabling per-pod regulation.
+MCP servers provide the operational capabilities: web search, condenser, media, memory, wallet, codegraph, and others — 15 tool subsystems tracked in `RegulationSpan::Tool { subsystem }` at `crates/hkask-types/src/cns.rs:111`. Each pod's variety is measured independently via `PerPodRegulationLedger`, enabling per-pod regulation.
 
 #### S2: Coordination — CNS Set Points and SLOs
 
@@ -413,7 +413,7 @@ The Magna Carta cannot be overridden by any component — not the Curator, not t
 
 In VSM, algedonic signals are the direct pain/pleasure pathway that bypasses normal hierarchical channels when urgent. In hKask, this is the `AlgedonicManager` at `crates/hkask-cns/src/algedonic.rs`. When `variety_deficit` exceeds `variety_max_deficit`, or `critical_alerts` count passes the threshold, an `EscalationAlert` is produced by `EscalationPolicy::check_conditions()` at `crates/hkask-agents/src/curator_agent/metacognition/escalation.rs:80`.
 
-Algedonic signals are **unidirectional**: the CNS signals the Curator via alerts; the Curator regulates the CNS through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `CnsRuntime::calibrate_threshold()`. This separation mirrors VSM's algedonic channel design: pain signals bypass the normal S2 coordination layer and go straight to S3 (Control) and S5 (Policy) when the system's viability is threatened.
+Algedonic signals are **unidirectional**: the CNS signals the Curator via alerts; the Curator regulates the CNS through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`. This separation mirrors VSM's algedonic channel design: pain signals bypass the normal S2 coordination layer and go straight to S3 (Control) and S5 (Policy) when the system's viability is threatened.
 
 The `EscalationSeverity` has two levels: Warning (at threshold/2) and Critical (at threshold). `MetacognitionConfig.max_concurrent_escalations` (default: 3) implements the VSM algedonic paradox — fewer signals mean higher fidelity. When escalations pile up, they are batched into `EscalationBatch` with a consolidated summary, preventing alert fatigue.
 
@@ -794,7 +794,7 @@ classDiagram
             +record_success()
             +record_failure()
         }
-        class CnsObserver {
+        class LedgerObserver {
             <<interface>>
             +on_event(event) bool
         }
@@ -821,9 +821,9 @@ classDiagram
             +linked_peers() Vec~ReplicaId~
             +link_state(peer) Option~String~
         }
-        class CnsStoragePort {
+        class LedgerStoragePort {
             <<interface>>
-            +query_algedonic(since, limit) Result~Vec~NuEvent~~
+            +query_algedonic(since, limit) Result~Vec~RegulationRecord~~
         }
         class FederationTransport {
             <<interface>>
@@ -1146,7 +1146,7 @@ status: VERIFIED
 - [x] Core foundation: every service subcrate depends on `hkask-services-core`
 - [x] Context DI: ChatService, MemoryService, BundleService take `&AgentService`
 - [x] Embedded: WalletService, ServiceDaemonHandler live in `InfraContext`
-- [x] Port interfaces (10 total): InferencePort, ToolPort, CircuitBreakerPort, CnsObserver, RegistryIndex, SkillRegistryIndex, FederationDispatch, CnsStoragePort, FederationTransport, FederationSyncPort
+- [x] Port interfaces (10 total): InferencePort, ToolPort, CircuitBreakerPort, LedgerObserver, RegistryIndex, SkillRegistryIndex, FederationDispatch, LedgerStoragePort, FederationTransport, FederationSyncPort
 
 ---
 
@@ -1195,13 +1195,13 @@ classDiagram
         +reset()
     }
 
-    class CnsObserver {
+    class LedgerObserver {
         <<trait>>
-        +emit(event: NuEvent)
+        +emit(event: RegulationRecord)
         +observe(span: ObservableSpan)
     }
 
-    class CnsStoragePort {
+    class LedgerStoragePort {
         <<trait>>
         +store_event(event: WeightedEvent) Result~(), Error~
         +query_events(filter: EventFilter) Vec~WeightedEvent~
@@ -1254,21 +1254,21 @@ classDiagram
     class InferencePort <<trait>> InferencePort
     class ToolPort <<trait>> ToolPort
     class CircuitBreakerPort <<trait>> CircuitBreakerPort
-    class CnsObserver <<trait>> CnsObserver
+    class LedgerObserver <<trait>> LedgerObserver
 
     InferencePort <|.. InferenceRouter : implements
     ToolPort <|.. McpDispatcher : implements
     ToolPort <|.. GovernedTool : decorates (OCAP)
     CircuitBreakerPort <|.. CircuitBreaker : implements
-    CnsObserver <|.. CnsRuntime : implements
+    LedgerObserver <|.. RegulationLedger : implements
     WalletBudgetPort <|.. WalletManager : implements (in hkask-wallet)
 
     GovernedTool --> ToolPort : delegates to
     GovernedTool --> CircuitBreakerPort : checks before dispatch
     InferenceRouter --> CircuitBreakerPort : checks before inference
-    CnsRuntime --> CnsStoragePort : persists events
-    ConsentPort --> CnsObserver : emits on denial
-    FederationDispatch --> CnsObserver : emits sync events
+    RegulationLedger --> LedgerStoragePort : persists events
+    ConsentPort --> LedgerObserver : emits on denial
+    FederationDispatch --> LedgerObserver : emits sync events
     CyberneticsLoop --> WalletBudgetPort : regulates via port (not concrete)
 
     note for GovernedTool "OCAP membrane:\n1. Check capability\n2. Reserve energy\n3. Emit ν-event\n4. Delegate\n5. Settle energy\n6. Emit ν-event"
@@ -1289,14 +1289,14 @@ status: VERIFIED
 | `InferencePort` | `crates/hkask-ports/src/inference_port.rs` |
 | `ToolPort` | `crates/hkask-ports/src/tool.rs` |
 | `CircuitBreakerPort` | `crates/hkask-ports/src/lib.rs` |
-| `CnsObserver` | `crates/hkask-ports/src/cns.rs` |
-| `CnsStoragePort` | `crates/hkask-ports/src/cns.rs` |
+| `LedgerObserver` | `crates/hkask-ports/src/cns.rs` |
+| `LedgerStoragePort` | `crates/hkask-ports/src/cns.rs` |
 | `ConsentPort` | `crates/hkask-ports/src/consent_port.rs` |
 | `FederationDispatch` | `crates/hkask-ports/src/federation.rs` |
 | `EmbeddingPort` | `crates/hkask-ports/src/embedding_port.rs` |
 | `WalletBudgetPort` | `crates/hkask-ports/src/wallet_budget_port.rs` |
 
-**Cardinality:** 9 port traits defined in `hkask-ports`. `InferenceRouter` (in `hkask-inference`) implements `InferencePort`. `McpDispatcher` (in `hkask-mcp`) implements `ToolPort`. `GovernedTool` (in `hkask-cns`) decorates `ToolPort` with OCAP membrane. `CircuitBreaker` (in `hkask-cns`) implements `CircuitBreakerPort`. `CnsRuntime` (in `hkask-cns`) implements `CnsObserver`. `WalletManager` (in `hkask-wallet`) implements `WalletBudgetPort` — CNS consumes the port, not the concrete type.
+**Cardinality:** 9 port traits defined in `hkask-ports`. `InferenceRouter` (in `hkask-inference`) implements `InferencePort`. `McpDispatcher` (in `hkask-mcp`) implements `ToolPort`. `GovernedTool` (in `hkask-cns`) decorates `ToolPort` with OCAP membrane. `CircuitBreaker` (in `hkask-cns`) implements `CircuitBreakerPort`. `RegulationLedger` (in `hkask-cns`) implements `LedgerObserver`. `WalletManager` (in `hkask-wallet`) implements `WalletBudgetPort` — CNS consumes the port, not the concrete type.
 
 
 ### ServiceError Hierarchy — Class Diagram
@@ -1980,7 +1980,7 @@ sequenceDiagram
     participant Disp as McpDispatcher
     participant Gov as GovernedTool
     participant Cyber as CyberneticsLoop
-    participant Sink as NuEventSink
+    participant Sink as RegulationSink
     participant Raw as RawMcpToolPort
     participant Rtm as McpRuntime
     participant Peer as MCP Server (Peer)
@@ -2244,7 +2244,7 @@ sequenceDiagram
     participant CTX as ToolContext
     participant OCAP as GovernedTool membrane
     participant TOOL as Tool implementation
-    participant CNS as CnsRuntime (span emission)
+    participant CNS as RegulationLedger (span emission)
 
     CLI->>BOOT: Start MCP server (e.g., hkask-mcp-codegraph)
     BOOT->>BOOT: Register tools via mcp_server! macro

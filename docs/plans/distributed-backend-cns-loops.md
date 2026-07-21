@@ -356,7 +356,7 @@ Every loop, autonomous or curator-mediated, must verify that its action had the 
 ```
 Act → Wait → Sense again → Compare → Record outcome
 
-If fixed → log CnsSpan::AutonomousAction { success: true }
+If fixed → log RegulationSpan::AutonomousAction { success: true }
 If not fixed → escalate (autonomous → curator, curator → higher-severity alert)
 If worse → rollback if possible, otherwise critical alert
 ```

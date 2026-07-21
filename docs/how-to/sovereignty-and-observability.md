@@ -323,7 +323,7 @@ Spans flow through two paths:
 | Path | Mechanism | Purpose |
 |------|-----------|---------|
 | **Tracing** | `tracing::info!(target: "cns", ...)` | Structured logging |
-| **ν-event** | `NuEvent` → `NuEventSink` → SQLite | Persistent cybernetic audit trail |
+| **ν-event** | `RegulationRecord` → `RegulationSink` → SQLite | Persistent cybernetic audit trail |
 
 Spans describe *what* happened; ν-events describe *who observed it, when, in what context, and what they saw*.
 
@@ -572,14 +572,14 @@ For the full span catalog, see `docs/reference/cns-spans.md` (100+ entries acros
 
 ## Programmatic Access
 
-Within Rust code, access CNS data through `CnsRuntime`:
+Within Rust code, access CNS data through `RegulationLedger`:
 
 ```rust
-use hkask_cns::CnsRuntime;
+use hkask_cns::RegulationLedger;
 
-let rt = CnsRuntime::with_threshold(100);
+let rt = RegulationLedger::with_threshold(100);
 let variety = rt.variety().await; // HashMap<SpanNamespace, u64>
-let health = rt.health().await;   // CnsHealth { healthy, overall_deficit, ... }
+let health = rt.health().await;   // LedgerHealth { healthy, overall_deficit, ... }
 let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 ```
 

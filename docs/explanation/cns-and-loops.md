@@ -22,7 +22,7 @@ The CNS (Cybernetic Nervous System) is the component of hKask that other documen
 
 ### Evidence
 
-The CNS is a closed-loop controller implemented as a cybernetic feedback loop. Its core type is `CyberneticsLoop` (`crates/hkask-cns/src/cybernetics_loop.rs`), which implements the `HkaskLoop` trait (`crates/hkask-cns/src/types/loops/loop_trait.rs`). The `HkaskLoop` trait defines a five-phase cycle:
+The CNS is a closed-loop controller implemented as a cybernetic feedback loop. Its core type is `CyberneticsLoop` (`crates/hkask-cns/src/cybernetics_loop.rs`), which implements the `RegulationLoop` trait (`crates/hkask-cns/src/types/loops/loop_trait.rs`). The `RegulationLoop` trait defines a five-phase cycle:
 
 ```
 sense → compare → compute → act → verify_impact
@@ -44,9 +44,9 @@ Each phase is a separate async method, making the regulatory pipeline explicit r
 
 #### The Sense-Act-Observe Cycle
 
-The regulation cycle begins with **sense**. `CyberneticsLoop::sense()` (`cybernetics_loop.rs:733`) collects signals from multiple sources: per-agent energy ratios from the `GasBudgetManager`, wallet balance ratios, and signals from pluggable `SensorProvider` instances (`EnergyBudgetSensor`, `VarietySensor`, `ToolReliabilitySensor`, `WalletKeyHealthSensor`). The sensor registry pattern means new signal sources can be added without modifying the loop.
+The regulation cycle begins with **sense**. `CyberneticsLoop::sense()` (`cybernetics_loop.rs:733`) collects signals from multiple sources: per-agent energy ratios from the `GasBudgetManager`, wallet balance ratios, and signals from pluggable `Sensor` instances (`EnergyBudgetSensor`, `VarietySensor`, `ToolReliabilitySensor`, `WalletKeyHealthSensor`). The sensor registry pattern means new signal sources can be added without modifying the loop.
 
-Signals are compared against set-points during `compare()` — the default implementation in the `HkaskLoop` trait filters signals through `Deviation::from_signal()`, producing a `DeviationDirection` (`AboveSetPoint` or `BelowSetPoint`) for each metric that exceeds its threshold.
+Signals are compared against set-points during `compare()` — the default implementation in the `RegulationLoop` trait filters signals through `Deviation::from_signal()`, producing a `DeviationDirection` (`AboveSetPoint` or `BelowSetPoint`) for each metric that exceeds its threshold.
 
 **Compute** (`cybernetics_loop.rs:779`) is where the regulatory logic lives. For each deviation, the loop selects an `ActionType`:
 
@@ -63,7 +63,7 @@ Signals are compared against set-points during `compare()` — the default imple
 | `SeamCoverage` | `AboveSetPoint` | `Notify` (positive health signal) |
 | `ToolReliability` | `BelowSetPoint` | `Escalate` to Curation |
 
-Each action is wrapped in a `LoopAction` struct that carries a `target` (which loop receives the action), an `action_type`, typed `LoopActionParams` with a required `reason` field, and an optional `metric_name` for impact verification.
+Each action is wrapped in a `RegulatoryAction` struct that carries a `target` (which loop receives the action), an `action_type`, typed `RegulatoryActionParams` with a required `reason` field, and an optional `metric_name` for impact verification.
 
 The **act** phase dispatches these actions to their target loops, and **verify_impact** (`cybernetics_loop.rs:1354`) re-senses the targeted metric and compares pre- and post-action values, producing an `ImpactReport` with an `ActionDecision` — `Accept`, `Stage`, or `Block`. Actions that are repeatedly `Block`ed are prevented from re-use for that metric.
 
@@ -127,7 +127,7 @@ flowchart TD
     SENSE["sense()\nCollect signals from\nsensors + energy + wallet"]
     COMPARE["compare()\nFilter through\nSetPoints thresholds"]
     COMPUTE["compute()\nSelect ActionType\nfor each deviation"]
-    ACT["act()\nDispatch LoopAction\nto target loops"]
+    ACT["act()\nDispatch RegulatoryAction\nto target loops"]
     VERIFY["verify_impact()\nRe-sense metric\n→ ImpactReport"]
 
     SENSE --> COMPARE
@@ -213,7 +213,7 @@ The `ManifestExecutor` (`crates/hkask-templates/src/executor.rs`) implements the
 
 The loop respects gas budgets: `gas_cap` is the total compute cycle allocation, and `gas_cost_per_iteration` is deducted each pass. When gas reaches the `alert_threshold`, a CNS alert fires; when exhausted under `hard_limit`, the loop terminates. Dual currency tracking extends to rJoules: `rjoule_cap` bounds inference energy, and `rjoule_alert_threshold` governs warnings. Tokens consumed by inference calls are tracked via the provider's per-token cost.
 
-#### LoopAction: The CNS Analog
+#### RegulatoryAction: The CNS Analog
 
 While skills execute PDCA at the template level, CNS loops execute PDCA at the regulatory level. The `Loop` trait (`crates/hkask-cns/src/types/loops/loop_trait.rs`) defines the same sense→compare→compute→act→verify cycle, but for system regulation rather than skill execution:
 
@@ -222,15 +222,15 @@ pub trait Loop: Send + Sync {
     fn id(&self) -> LoopId;
     async fn sense(&self) -> Vec<Signal>;
     async fn compare(&self, signals: &[Signal]) -> Vec<Deviation>;
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction>;
-    async fn act(&self, actions: &[LoopAction]);
-    async fn verify_impact(&self, previous_actions: &[LoopAction]) -> Vec<ImpactReport>;
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction>;
+    async fn act(&self, actions: &[RegulatoryAction]);
+    async fn verify_impact(&self, previous_actions: &[RegulatoryAction]) -> Vec<ImpactReport>;
 }
 ```
 
 Nine `ActionType` variants (`crates/hkask-types/src/loops/actions.rs`) define what a regulatory loop can do: `Throttle`, `Escalate`, `Calibrate`, `CircuitBreak`, `AdjustEnergyBudget`, `OverrideEnergyBudget`, `ReplenishBudget`, `Notify`, `Prune`. The distinction between `AdjustEnergyBudget` (Cybernetics can adjust within set-point bounds) and `OverrideEnergyBudget` (only Curation can exceed set-points) reflects the authority hierarchy in the CNS DAG.
 
-`LoopQuality` measures the loop's own performance — `delay_ms`, `gain` (actions per deviation), `fidelity_score` (deviations matched to actions), and `effectiveness_score` (ratio of Accepted impact reports). These telemetry metrics close the meta-feedback loop: is the regulator itself regulating effectively?
+`LoopMetrics` measures the loop's own performance — `delay_ms`, `gain` (actions per deviation), `fidelity_score` (deviations matched to actions), and `effectiveness_score` (ratio of Accepted impact reports). These telemetry metrics close the meta-feedback loop: is the regulator itself regulating effectively?
 
 #### Bundle Composition
 
@@ -296,9 +296,9 @@ The separation between `CurationLoop` (pure regulatory, no persona) and `Metacog
 
 #### The CurationLoop: Sense → Classify → Decide → Act
 
-The Curator's core cycle is the `HkaskLoop` trait implementation on `CurationLoop` at `crates/hkask-agents/src/curator/curation_loop.rs:332`. Its phases:
+The Curator's core cycle is the `RegulationLoop` trait implementation on `CurationLoop` at `crates/hkask-agents/src/curator/curation_loop.rs:332`. Its phases:
 
-1. **Sense**: Reads algedonic-significant `NuEvent`s from the persistent store using cursor-based review. `last_review_ms` tracks the cursor position; each `sense()` call advances it. Falls back to live CNS reads if no NuEvent store is configured.
+1. **Sense**: Reads algedonic-significant `RegulationRecord`s from the persistent store using cursor-based review. `last_review_ms` tracks the cursor position; each `sense()` call advances it. Falls back to live CNS reads if no RegulationRecord store is configured.
 
 2. **Compute**: Maps deviations to regulatory actions. Handles independent consolidation via `try_auto_consolidate()`, called from `act()`.
 
@@ -309,7 +309,7 @@ The `MetacognitionLoop::sense()` at `crates/hkask-agents/src/curator_agent/metac
 - `variety_counters: HashMap<SpanNamespace, u64>` — full variety state per domain
 - `variety_deficit: u64` — total deficit across all domains
 - `critical_alerts: usize` / `total_alerts: usize` — alert counts
-- `regulation_effectiveness: f64` — ratio of accepted regulatory actions (0.0–1.0), read from `CnsRuntime::regulation_health()`
+- `regulation_effectiveness: f64` — ratio of accepted regulatory actions (0.0–1.0), read from `RegulationLedger::regulation_health()`
 
 This snapshot is published on a `tokio::sync::watch` channel, making it available to other components without polling.
 
@@ -710,7 +710,7 @@ This class diagram maps the internal structure of `hkask-cns` after the StorageG
 
 Remaining responsibility clusters still in CNS:
 
-1. **Core Regulation** — `CyberneticsLoop`, `CnsRuntime`, `SetPoints`, `Dampener`, `StagnationDetector`
+1. **Core Regulation** — `CyberneticsLoop`, `RegulationLedger`, `SetPoints`, `Dampener`, `StagnationDetector`
 2. **Energy/Gas** — `GasBudgetManager`, `GasBudget`, `GasCost`, `GasReport`
 3. **Wallet Budget** — `WalletBackedBudget`, `WalletGasCalibrator` (now via `WalletBudgetPort`, not concrete)
 4. **SLO** — `SloManager`, `SloDataPoint`, `SloDataProvider` (candidate for extraction)
@@ -722,7 +722,7 @@ See also: [CNS Homeostatic Loop](#cns-homeostatic-loop--mermaid-flowchart) for t
 ```mermaid
 classDiagram
     class CyberneticsLoop {
-        +cns: Arc~RwLock~CnsRuntime~~
+        +cns: Arc~RwLock~RegulationLedger~~
         +gas_budget_manager: Arc~RwLock~GasBudgetManager~~
         +well_manager: Arc~RwLock~WellManager~~
         +wallet_manager: Option~Arc~dyn WalletBudgetPort~~
@@ -733,7 +733,7 @@ classDiagram
         +sense_compare_compute_act()
     }
 
-    class CnsRuntime {
+    class RegulationLedger {
         +variety_monitor: VarietyMonitor
         +regulation_cycle()
     }
@@ -786,7 +786,7 @@ classDiagram
     }
 
     class SensorRegistry {
-        +sensors: Vec~Box~dyn SensorProvider~~
+        +sensors: Vec~Box~dyn Sensor~~
         +read_all()
     }
 
@@ -803,7 +803,7 @@ classDiagram
     }
 
     %% Core regulation cluster
-    CyberneticsLoop --> CnsRuntime : owns
+    CyberneticsLoop --> RegulationLedger : owns
     CyberneticsLoop --> SetPoints : reads
     CyberneticsLoop --> GasBudgetManager : owns
     CyberneticsLoop --> SensorRegistry : owns
@@ -850,7 +850,7 @@ classDiagram
     }
 
     %% StorageGuard — extracted to hkask-storage-guard
-    StorageGuardLoop ..> HkaskLoop : implements (in hkask-storage-guard)
+    StorageGuardLoop ..> RegulationLoop : implements (in hkask-storage-guard)
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-CNS-006
@@ -881,13 +881,13 @@ status: VERIFIED
 
 | Step | Extract | Target | Lines | Independence |
 |------|---------|--------|-------|-------------|
-| 2b | `SloManager` + `SloDataPoint` + `SloDataProvider` | new slo crate | ~1000 | Depends only on `CnsObserver` port |
+| 2b | `SloManager` + `SloDataPoint` + `SloDataProvider` | new slo crate | ~1000 | Depends only on `LedgerObserver` port |
 | 2c | `SeamWatcher` + `SeamDrift` + `SeamSummary` + `SeamTypes` | new seam crate | ~900 | Fully independent — observability |
 | 2d | Span types (`AcpSpan`, `ClassifySpan`, `ContractSpan`, `InfraSpan`, `QaSpan`, `SloSpan`, `SeamSpan`) | new cns-spans crate | ~800 | Depends on `hkask-types::event` |
 | 2e | Energy/gas (`GasBudget`, `GasCost`, `GasBudgetManager`, `GasReport`, `DynamicGasTable`) | new energy crate | ~1800 | Depends on `hkask-types` |
 | 2f | Estimators (`CalibratedEnergyEstimator`, `CompositeEnergyEstimator`, `TableEnergyEstimator`, `InferenceEstimator`) | new energy-estimators crate | ~1300 | Depends on energy crate |
 
-After extraction, CNS core retains: `CyberneticsLoop`, `CnsRuntime`, `Algedonic`, `Dampener`, `RegulationPolicy`, `GovernedTool`, `GovernedInference`, `SensorProvider`, `SetPoints`, `StrategyEvaluator`, `SystemSimulator`, `ToolStats`, `WalletBackedBudget`, `WalletGasCalibrator` — all cohesive regulation logic.
+After extraction, CNS core retains: `CyberneticsLoop`, `RegulationLedger`, `Algedonic`, `Dampener`, `RegulationPolicy`, `GovernedTool`, `GovernedInference`, `Sensor`, `SetPoints`, `StrategyEvaluator`, `SystemSimulator`, `ToolStats`, `WalletBackedBudget`, `WalletGasCalibrator` — all cohesive regulation logic.
 
 
 ### CNS Homeostatic Loop
@@ -903,21 +903,21 @@ After extraction, CNS core retains: `CyberneticsLoop`, `CnsRuntime`, `Algedonic`
 **Verified against:** `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/runtime.rs`  
 last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
 
-> **v0.32.0 update:** Added `SetPointCalibrator` (self-tuning regulation thresholds via NuEventStore replay) and contract violation path to CurationLoop.
+> **v0.32.0 update:** Added `SetPointCalibrator` (self-tuning regulation thresholds via RegulationArchive replay) and contract violation path to CurationLoop.
 
 ```mermaid
 flowchart TD
     S[Sensors collect data\nSetPoints check thresholds\nSloManager evaluates SLOs]
     C[CyberneticsLoop::sense\nCompares actual vs target\nComputes variety deficit]
     D{Deviation detected?}
-    A[CyberneticsLoop::act\nSelects LoopAction\nApplies corrective action]
+    A[CyberneticsLoop::act\nSelects RegulatoryAction\nApplies corrective action]
     R[GovernedTool / GovernedInference\nExecutes action through\nOCAP membrane]
-    O[Observe outcome\nImpactReport generated\nLoopQuality assessed]
-    E[Emit CNS span\ncns.regulation.* NuEvent persisted\nAlgedonic alert if critical]
-    STORE[(NuEventStore)]
+    O[Observe outcome\nImpactReport generated\nLoopMetrics assessed]
+    E[Emit CNS span\ncns.regulation.* RegulationRecord persisted\nAlgedonic alert if critical]
+    STORE[(RegulationArchive)]
     CAL[SetPointCalibrator\nQueries regulation events\nAdjusts thresholds within bounds]
     CUR[CurationLoop\nReads algedonic events\nContract violations included]
-    CTV[Contract Violations\nemit_contract_violated\n→ NuEventStore]
+    CTV[Contract Violations\nemit_contract_violated\n→ RegulationArchive]
 
     S --> C
     C --> D
@@ -994,14 +994,14 @@ status: VERIFIED
 | SetPoints | `crates/hkask-cns/src/set_points.rs` |
 | SetPointCalibrator | `crates/hkask-cns/src/set_point_calibrator.rs` |
 | ObservableSpan trait | `crates/hkask-types/src/observable_span.rs` |
-| LoopAction enum | `crates/hkask-types/src/loops/actions.rs` |
+| RegulatoryAction enum | `crates/hkask-types/src/loops/actions.rs` |
 | ImpactReport | `crates/hkask-types/src/loops/core.rs` |
 | Algedonic escalation | `crates/hkask-cns/src/runtime.rs` |
 | CurationLoop | `crates/hkask-agents/src/curator/curation_loop.rs` |
 | Contract events | `crates/hkask-cns/src/contract_events.rs` |
-| NuEventStore | `crates/hkask-storage/src/nu_event_store.rs` |
+| RegulationArchive | `crates/hkask-storage/src/nu_event_store.rs` |
 
-**Cardinality:** 1 CyberneticsLoop runs per AgentService instance. N SetPoints are configured (4 shown). M Sensors feed into the loop. 5 LoopAction types exist in the current codebase (verified against `ActionType` enum).
+**Cardinality:** 1 CyberneticsLoop runs per AgentService instance. N SetPoints are configured (4 shown). M Sensors feed into the loop. 5 RegulatoryAction types exist in the current codebase (verified against `ActionType` enum).
 
 
 ### CNS Regulation Pipeline — 5-Phase Cybernetic Cycle
@@ -1113,8 +1113,8 @@ flowchart TD
     %% Phase 4: ACT
     %% ═══════════════════════════════════════════════════
     subgraph "Phase 4 — Act"
-        A1[Route LoopAction to target loop]
-        A2[Persist regulation span<br/>to NuEventStore]
+        A1[Route RegulatoryAction to target loop]
+        A2[Persist regulation span<br/>to RegulationArchive]
         A3[Emit algedonic alerts<br/>to Curation inbox]
     end
 
@@ -1137,7 +1137,7 @@ flowchart TD
             SD3[Emit RegulatoryPlateau span<br/>+ Warning alert to Curation]
         end
 
-        V6[Emit ImpactVerified span<br/>update LoopQuality]
+        V6[Emit ImpactVerified span<br/>update LoopMetrics]
         V7[Compute effectiveness_score<br/>from accept/stage/block ratio]
     end
 
@@ -1261,14 +1261,14 @@ flowchart TD
     SD2 -->|"No"| V6
     SD3 --> V6
 
-    %% Impact span + LoopQuality
+    %% Impact span + LoopMetrics
     V6 --> V7
     V7 --> S5
 
     %% ═══════════════════════════════════════════════════
     %% Data stores
     %% ═══════════════════════════════════════════════════
-    STORE[(NuEventStore)]
+    STORE[(RegulationArchive)]
     A2 -->|"persist"| STORE
     SD3 -->|"persist"| STORE
     V_BLOCK -->|"persist"| STORE
@@ -1308,7 +1308,7 @@ status: VERIFIED
 | StagnationDetector | `dampener.rs:200-289` |
 | RegulatoryPlateau alert emission | `cybernetics_loop.rs:1465-1501` |
 | ActionType enum (all 9 variants) | `crates/hkask-types/src/loops/actions.rs:195-227` |
-| LoopQuality / effectiveness_score | `crates/hkask-types/src/loops/core.rs:278-286` |
+| LoopMetrics / effectiveness_score | `crates/hkask-types/src/loops/core.rs:278-286` |
 
 **Substitution ladders (per metric):**
 
@@ -1343,9 +1343,9 @@ ladders. Default stagnation threshold: 5 consecutive ineffective cycles.
 
 ## Description
 
-The CNS (Cybernetic Nervous System) emits structured spans across four canonical namespaces — `cns.tool`, `cns.inference`, `cns.agent_pod`, and `cns.curation` — using `tracing::info!(target: "cns.X")` as the emission surface. The `CnsRuntime` subscriber layer collects these spans, constructs `NuEvent` records with `SpanParent` relationships for child spans, persists them through the `NuEventSink`, and routes algedonic signals to the `AlgedonicManager`. The `ToolSpanGuard` RAII guard ensures every tool invocation emits a span: explicit `ok()`/`error()` calls emit the appropriate status, and the `Drop` implementation catches forgotten spans with a `"dropped"` outcome.
+The CNS (Cybernetic Nervous System) emits structured spans across four canonical namespaces — `cns.tool`, `cns.inference`, `cns.agent_pod`, and `cns.curation` — using `tracing::info!(target: "cns.X")` as the emission surface. The `RegulationLedger` subscriber layer collects these spans, constructs `RegulationRecord` records with `SpanParent` relationships for child spans, persists them through the `RegulationSink`, and routes algedonic signals to the `AlgedonicManager`. The `ToolSpanGuard` RAII guard ensures every tool invocation emits a span: explicit `ok()`/`error()` calls emit the appropriate status, and the `Drop` implementation catches forgotten spans with a `"dropped"` outcome.
 
-**Key source:** `crates/hkask-mcp/src/server/tool_span.rs:18-189` (`ToolSpanGuard`), `crates/hkask-cns/src/runtime.rs:540-615` (`increment_variety`, `check_variety`), `crates/hkask-types/src/event.rs:16-93` (`NuEvent`, `parent_event`), `crates/hkask-types/src/event.rs:370-429` (`SpanKind`, namespace mappings).
+**Key source:** `crates/hkask-mcp/src/server/tool_span.rs:18-189` (`ToolSpanGuard`), `crates/hkask-cns/src/runtime.rs:540-615` (`increment_variety`, `check_variety`), `crates/hkask-types/src/event.rs:16-93` (`RegulationRecord`, `parent_event`), `crates/hkask-types/src/event.rs:370-429` (`SpanKind`, namespace mappings).
 
 ### Span Namespace Model
 
@@ -1361,8 +1361,8 @@ sequenceDiagram
     participant Code as Code Site<br/>(tool handler / inference / pod / curator)
     participant Guard as ToolSpanGuard
     participant Trace as tracing<br/>(target: "cns.X")
-    participant Rtm as CnsRuntime<br/>(subscriber)
-    participant Sink as NuEventSink
+    participant Rtm as RegulationLedger<br/>(subscriber)
+    participant Sink as RegulationSink
     participant Algd as AlgedonicManager
 
     rect rgb(245, 248, 252)
@@ -1399,22 +1399,22 @@ sequenceDiagram
     end
 
     rect rgb(245, 252, 245)
-        Note over Code,Algd: Subscriber Dispatch — CnsRuntime receives the span
+        Note over Code,Algd: Subscriber Dispatch — RegulationLedger receives the span
 
         Trace->>+Rtm: tracing layer captures span
         Rtm->>+Rtm: SpanNamespace::parse(domain)
-        Rtm->>+Rtm: construct NuEvent { span, phase, observation }
-        Rtm->>+Sink: persist(NuEvent)
+        Rtm->>+Rtm: construct RegulationRecord { span, phase, observation }
+        Rtm->>+Sink: persist(RegulationRecord)
 
         alt SpanParent relationship
-            Note over Rtm,Sink: NuEvent.with_parent(parent_id)
-            Rtm->>+Sink: persist(NuEvent { parent_event: Some(parent_id) })
+            Note over Rtm,Sink: RegulationRecord.with_parent(parent_id)
+            Rtm->>+Sink: persist(RegulationRecord { parent_event: Some(parent_id) })
             Note over Sink: child span linked to parent EventID
         end
 
         Sink-->>-Rtm: ()
 
-        loop for each CnsObserver in subscribers
+        loop for each LedgerObserver in subscribers
             Rtm->>+Rtm: observer.interest_mask() matches span_ns?
             alt interest matches
                 Rtm->>+Rtm: observer.on_event(&event)
@@ -1448,7 +1448,7 @@ sequenceDiagram
 
         Code->>+Trace: tracing::span!(target: "cns.inference")
         Trace->>+Rtm: layer captures inference span
-        Rtm->>+Sink: persist(NuEvent { span: cns.inference.* })
+        Rtm->>+Sink: persist(RegulationRecord { span: cns.inference.* })
         Sink-->>-Rtm: ()
     end
 
@@ -1458,7 +1458,7 @@ sequenceDiagram
         Code->>+Trace: info!(target: "cns.agent_pod", ...)
         Note over Trace: SpanKind::AgentPodRegistered<br/>SpanKind::AgentPodActivated<br/>SpanKind::AgentPodDeactivated
         Trace->>+Rtm: layer captures pod span
-        Rtm->>+Sink: persist(NuEvent)
+        Rtm->>+Sink: persist(RegulationRecord)
         Sink-->>-Rtm: ()
     end
 
@@ -1468,7 +1468,7 @@ sequenceDiagram
         Code->>+Trace: info!(target: "cns.curation", ...)
         Note over Trace: SpanKind::CurationDirectiveAcknowledged<br/>SpanKind::CurationEscalation
         Trace->>+Rtm: layer captures curation span
-        Rtm->>+Sink: persist(NuEvent)
+        Rtm->>+Sink: persist(RegulationRecord)
         Sink-->>-Rtm: ()
     end
 ```
@@ -1483,11 +1483,11 @@ status: VERIFIED
 
 ```mermaid
 sequenceDiagram
-    participant Parent as NuEvent<br/>(parent)
-    participant Child as NuEvent<br/>(child)
+    participant Parent as RegulationRecord<br/>(parent)
+    participant Child as RegulationRecord<br/>(child)
 
     Note over Parent,Child: Child span construction
-    Parent->>+Child: NuEvent::new(...).with_parent(parent.id)
+    Parent->>+Child: RegulationRecord::new(...).with_parent(parent.id)
     Note over Child: child.parent_event = Some(parent.id)
     Child->>+Child: persisted with parent reference
     Note over Parent,Child: Enables trace reconstruction:<br/>parent_id → child_id chain
@@ -1512,7 +1512,7 @@ The `Drop` impl enforces that a span is always emitted — even if the code path
 
 ---
 
-  crates/hkask-types/src/event.rs:16-93 (NuEvent, parent_event, with_parent builder),
+  crates/hkask-types/src/event.rs:16-93 (RegulationRecord, parent_event, with_parent builder),
   crates/hkask-types/src/event.rs:105-157 (CANONICAL_NAMESPACES),
   crates/hkask-types/src/event.rs:320-429 (Span, SpanKind, namespace_and_path),
   crates/hkask-cns/src/algedonic.rs:139-296 (AlgedonicManager, check)
@@ -1524,8 +1524,8 @@ status: VERIFIED
 | Reference | Description |
 |-----------|-------------|
 | [`ToolSpanGuard`](crates/hkask-mcp/src/server/tool_span.rs:18-189) | RAII span guard with `ok()`, `error()`, `Drop` for forgotten spans |
-| [`CnsRuntime`](crates/hkask-cns/src/runtime.rs:294-299) | CNS runtime with subscribers and algedonic manager |
-| [`NuEvent`](crates/hkask-types/src/event.rs:16-93) | CNS event with `parent_event` for span parent relationships |
+| [`RegulationLedger`](crates/hkask-cns/src/runtime.rs:294-299) | CNS runtime with subscribers and algedonic manager |
+| [`RegulationRecord`](crates/hkask-types/src/event.rs:16-93) | CNS event with `parent_event` for span parent relationships |
 | [`SpanKind`](crates/hkask-types/src/event.rs:370-429) | Typed span kind enum with canonical namespace/path mapping |
 | [`CANONICAL_NAMESPACES`](crates/hkask-types/src/event.rs:105-157) | All valid CNS span namespaces |
 | [`AlgedonicManager`](crates/hkask-cns/src/algedonic.rs:139-296) | Alert manager with variety deficit checking |
@@ -1565,7 +1565,7 @@ The Algedonic loop enforces Ashby's Law of Requisite Variety through binary thre
 sequenceDiagram
     participant VT as VarietyTracker
     participant AM as AlgedonicManager
-    participant CNS as CnsRuntime
+    participant CNS as RegulationLedger
     participant CL as CurationLoop
     participant CA as CuratorAgent
     participant Damp as Dampener
@@ -1622,7 +1622,7 @@ sequenceDiagram
             AM-->>-CNS: Some(RuntimeAlert::Critical)
 
             CNS->>+CNS: emit_critical_depletion(alert)
-            Note over CNS: NuEvent emitted with<br/>SpanKind::VarietyAlgedonicAlert<br/>(cns.variety.algedonic_alert)
+            Note over CNS: RegulationRecord emitted with<br/>SpanKind::VarietyAlgedonicAlert<br/>(cns.variety.algedonic_alert)
         end
     end
 
@@ -1727,7 +1727,7 @@ status: VERIFIED
 |-------|-------|--------|
 | 1. Measure | `VarietyTracker` | Increment counter, compute EMA, calculate deficit |
 | 2. Classify | `AlgedonicManager` | `RuntimeAlert::new()` — binary threshold → Info/Warning/Critical |
-| 3. Emit CNS | `CnsRuntime` | `emit_critical_depletion()` for Critical alerts |
+| 3. Emit CNS | `RegulationLedger` | `emit_critical_depletion()` for Critical alerts |
 | 4. Cooldown Gate | `Dampener` | Suppress duplicate alerts within cooldown window |
 | 5. Route | `CurationLoop` | Forward to `CuratorAgent` |
 | 6a. Auto-fix | `CuratorAgent` | `calibrate_threshold()` — adjust threshold |
@@ -1753,7 +1753,7 @@ status: VERIFIED
 | [`RuntimeAlert`](crates/hkask-cns/src/algedonic.rs:37-136) | Alert struct with binary threshold classification |
 | [`VarietyTracker`](crates/hkask-cns/src/runtime.rs:52-106) | Per-domain variety counter with EMA and deficit calculation |
 | [`VarietyMonitor`](crates/hkask-cns/src/runtime.rs:191-255) | Multi-domain variety registry (Ashby's Law sensor) |
-| [`CnsRuntime`](crates/hkask-cns/src/runtime.rs:294-299) | CNS runtime — entry point for variety ops and calibration |
+| [`RegulationLedger`](crates/hkask-cns/src/runtime.rs:294-299) | CNS runtime — entry point for variety ops and calibration |
 | [`SpanKind::VarietyAlgedonicAlert`](crates/hkask-types/src/event.rs:401-403) | CNS span for algedonic alert emission |
 | [`SpanKind::CurationEscalation`](crates/hkask-types/src/event.rs:389-391) | CNS span for human escalation |
 | [PRINCIPLES.md §P9](docs/architecture/core/PRINCIPLES.md) | Homeostatic Self-Regulation |
@@ -1761,16 +1761,16 @@ status: VERIFIED
 | CNS span emission sequence (inlined below) | CNS span emission flow (DIAG-TO-004) |
 
 
-### LoopAction Lifecycle — State Diagram
+### RegulatoryAction Lifecycle — State Diagram
 
 *Inlined from `docs/diagrams/state-loop-action-lifecycle.md`*
 
 
-# LoopAction Lifecycle — State Diagram
+# RegulatoryAction Lifecycle — State Diagram
 
 **Diataxis quadrant:** Reference  
 **Domain ontology tier:** Core  
-**Purpose:** State diagram for the `LoopAction` enum lifecycle — the finite state machine that governs corrective actions taken by the CNS homeostatic loop.  
+**Purpose:** State diagram for the `RegulatoryAction` enum lifecycle — the finite state machine that governs corrective actions taken by the CNS homeostatic loop.  
 **Verified against:** `crates/hkask-types/src/loops/actions.rs`, `crates/hkask-types/src/loops/core.rs`, `crates/hkask-cns/src/types/loops/loop_trait.rs`
 last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
 
@@ -1800,7 +1800,7 @@ stateDiagram-v2
 
     state Completed {
         [*] --> ImpactReported
-        ImpactReported --> QualityAssessed: LoopQuality scored
+        ImpactReported --> QualityAssessed: LoopMetrics scored
         QualityAssessed --> SpanEmitted: CNS span published
     }
 
@@ -1817,7 +1817,7 @@ stateDiagram-v2
     end note
 
     note right of Active
-        LoopActionParams carries:
+        RegulatoryActionParams carries:
         - action_type: ActionType
         - target: String
         - reason: String
@@ -1826,7 +1826,7 @@ stateDiagram-v2
 
     note right of Completed
         ImpactReport carries:
-        - action: LoopAction
+        - action: RegulatoryAction
         - outcome: ActionOutcome
         - energy_consumed: RJoule
         - duration: Duration
@@ -1843,15 +1843,15 @@ status: VERIFIED
 
 | State | Type/Enum | Source |
 |-------|-----------|--------|
-| `LoopAction` | struct | `crates/hkask-types/src/loops/actions.rs` |
-| `LoopActionParams` | struct | `crates/hkask-types/src/loops/actions.rs` |
+| `RegulatoryAction` | struct | `crates/hkask-types/src/loops/actions.rs` |
+| `RegulatoryActionParams` | struct | `crates/hkask-types/src/loops/actions.rs` |
 | `ActionType` | enum (9 variants) | `crates/hkask-types/src/loops/actions.rs` |
 | `ActionDecision` | struct | `crates/hkask-types/src/loops/core.rs` |
 | `ImpactReport` | struct | `crates/hkask-types/src/loops/core.rs` |
-| `LoopQuality` | enum | `crates/hkask-types/src/loops/core.rs` |
+| `LoopMetrics` | enum | `crates/hkask-types/src/loops/core.rs` |
 | `CyberneticsLoop` | struct | `crates/hkask-cns/src/cybernetics_loop.rs` |
 
-**Cardinality:** Exactly 5 `ActionType` variants (verified from source). `LoopAction` is created once per CNS loop iteration. Each action produces exactly 1 `ImpactReport`.
+**Cardinality:** Exactly 5 `ActionType` variants (verified from source). `RegulatoryAction` is created once per CNS loop iteration. Each action produces exactly 1 `ImpactReport`.
 
 
 ### Curator Metacognition Loop
@@ -1865,7 +1865,7 @@ flowchart TD
 
     subgraph SENSE["1. Sense"]
         CNS[Read CNS health<br/>health + variety + alerts]
-        REG[Read regulation effectiveness<br/>CnsRuntime::regulation_health]
+        REG[Read regulation effectiveness<br/>RegulationLedger::regulation_health]
         BOTS[Count bot failures<br/>escalation policy check]
         SNAPSHOT[Build HealthSnapshot<br/>store via watch channel]
     end
@@ -1887,7 +1887,7 @@ flowchart TD
         TEMPLATE{ManifestExecutor<br/>available?}
         LLM[compute_with_templates<br/>KnowAct manifest execution]
         RUST[compute_with_thresholds<br/>Rust fallback logic]
-        ACTIONS[Produce LoopActions<br/>Calibrate | Escalate | NoAction]
+        ACTIONS[Produce RegulatoryActions<br/>Calibrate | Escalate | NoAction]
     end
 
     DECIDE --> ACT
@@ -1929,7 +1929,7 @@ status: VERIFIED
 
 ### 1. Sense
 
-Reads CNS health snapshots (`CnsHealth`), variety counters per namespace, all alerts, and critical alerts. Computes total variety deficit against `expected_variety_per_domain` config. Delegates escalation condition checking to `EscalationPolicy::check_conditions`. Builds a `HealthSnapshot` struct and publishes it via `tokio::sync::watch::Sender` for downstream consumers. Produces two afferent `Signal`s: `MetacognitionVarietyDeficit` and `MetacognitionCriticalAlerts`.
+Reads CNS health snapshots (`LedgerHealth`), variety counters per namespace, all alerts, and critical alerts. Computes total variety deficit against `expected_variety_per_domain` config. Delegates escalation condition checking to `EscalationPolicy::check_conditions`. Builds a `HealthSnapshot` struct and publishes it via `tokio::sync::watch::Sender` for downstream consumers. Produces two afferent `Signal`s: `MetacognitionVarietyDeficit` and `MetacognitionCriticalAlerts`.
 
 ### 2. Classify
 
@@ -1940,11 +1940,11 @@ Reads CNS health snapshots (`CnsHealth`), variety counters per namespace, all al
 
 Two code paths gated by `ManifestExecutor` availability:
 - **Template path** (`compute_with_templates`): KnowAct manifest execution via LLM. Produces calibrated regulatory actions with confidence scores from `manifest_executor.execute_knowact`.
-- **Rust fallback** (`compute_with_thresholds`): Threshold comparison producing `LoopAction` with `Calibrate`/`Escalate`/`NoAction` types. Used in standalone CLI mode when no executor is configured.
+- **Rust fallback** (`compute_with_thresholds`): Threshold comparison producing `RegulatoryAction` with `Calibrate`/`Escalate`/`NoAction` types. Used in standalone CLI mode when no executor is configured.
 
 ### 4. Act
 
-Dispatches `LoopAction`s:
+Dispatches `RegulatoryAction`s:
 - `Calibrate` → `act_on_throttle`: generates throttle escalation entries
 - `Escalate` → `act_on_escalate`: may issue `CuratorDirective` (OverrideEnergyBudget) or direct bots via `direct_bot` (A2A restart/rebalance)
 - Template-driven bot direction: LLM-computed restart/rebalance directives sent before escalation posting
@@ -1952,16 +1952,16 @@ Dispatches `LoopAction`s:
 
 ### 5. Observe
 
-Regulation effectiveness (accepted/blocked/staged ratio from `CnsRuntime`) feeds into next cycle's snapshot. Semantic index updated via consolidation bridge if `auto_consolidation_enabled`. HealthSnapshot watch channel notifies downstream observers. Cycle repeats at configured `interval` (default: 1 hour).
+Regulation effectiveness (accepted/blocked/staged ratio from `RegulationLedger`) feeds into next cycle's snapshot. Semantic index updated via consolidation bridge if `auto_consolidation_enabled`. HealthSnapshot watch channel notifies downstream observers. Cycle repeats at configured `interval` (default: 1 hour).
 
 ## Node-to-Code Mapping
 
 | Node | Crate | Source File |
 |------|-------|-------------|
 | `MetacognitionLoop` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `HkaskLoop::sense` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
-| `HkaskLoop::compute` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
-| `HkaskLoop::act` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
+| `RegulationLoop::sense` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
+| `RegulationLoop::compute` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
+| `RegulationLoop::act` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
 | `compute_with_templates` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
 | `compute_with_thresholds` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
 | `act_on_throttle` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |

@@ -510,7 +510,7 @@ Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question 
 **Status:** Open  
 **Opened:** 2026-06-07
 
-The canonical CNS span registry (`crates/hkask-types/src/cns.rs`, `CnsSpan`) uses `cns.cybernetics.*` for some spans, while `AGENTS.md` and code use `cns.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
+The canonical CNS span registry (`crates/hkask-types/src/cns.rs`, `RegulationSpan`) uses `cns.cybernetics.*` for some spans, while `AGENTS.md` and code use `cns.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
 
 ---
 
@@ -610,7 +610,7 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 | # | Item | Category | Status | Audit Ref |
 |---|------|----------|--------|----------|
 | R4 | MDS §9.1 self-application matrix labels | Observability, Persistence, Lifecycle, Curation | **Resolved** — matrix updated with :partial and :drift labels | Audit R4 |
-| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`CnsSpan`) | Audit R6 |
+| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`) | Audit R6 |
 | R8 | TemplateType vocabulary mapping | Composition | **Resolved** — as_spec_name() method added, mapping table documented in MDS.md §7.2 §3.3 | Audit R8 |
 | R13 | SpecDriftAlert not in CNS loop | Observability | **Resolved** — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox | Audit R13 |
 
@@ -836,7 +836,7 @@ docs/                                Exemplary corpus
 **Opened:** 2026-06-14  
 **Resolved:** 2026-06-14
 
-`BackupService::run_daily_snapshot()` provides the daily snapshot capability. The daemon loop calls this on a 24-hour schedule via `BackupLoop`, which implements `HkaskLoop` and is registered in `AgentService::build()` alongside the existing `SnapshotLoop`. The `auto_snapshot` config flag controls whether the loop is active.
+`BackupService::run_daily_snapshot()` provides the daily snapshot capability. The daemon loop calls this on a 24-hour schedule via `BackupLoop`, which implements `RegulationLoop` and is registered in `AgentService::build()` alongside the existing `SnapshotLoop`. The `auto_snapshot` config flag controls whether the loop is active.
 
 **Resolution:** `BackupLoop` created in `hkask-storage/src/backup/loop.rs` (backup code absorbed into `hkask-storage`, v0.31.0). Registered in `AgentService::build()` at section 6c. Runs daily snapshots through `BackupService`, optionally followed by `verify()` and `prune()`.
 
@@ -966,7 +966,7 @@ Axolotl and Unsloth are currently local-only; cloud dispatch returns `Unavailabl
 **Status:** Open
 **Opened:** 2026-06-16
 
-CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/cns.rs` `CnsSpan` enum. They work for logging but cannot be subscribed to programmatically via CNS variety tracking. Which of these spans meet the deletion test for programmatic observability?
+CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/cns.rs` `RegulationSpan` enum. They work for logging but cannot be subscribed to programmatically via CNS variety tracking. Which of these spans meet the deletion test for programmatic observability?
 
 ### ADT-001: Adapter format normalization ✅ RESOLVED
 
@@ -1099,7 +1099,7 @@ Questions raised by the Solid Pod isomorphism that require future design work.
 
 ### POD-4 — Curator Aggregation Model
 
-**Current state:** `CnsRuntime` is server-global. Per-pod CNS means N runtimes.
+**Current state:** `RegulationLedger` is server-global. Per-pod CNS means N runtimes.
 
 | Model | Description | Pros | Cons |
 |-------|-------------|------|------|
@@ -1127,7 +1127,7 @@ Questions raised by the Solid Pod isomorphism that require future design work.
 > **MDS Category:** Composition, Curation
 > **Last Updated:** 2026-06-27
 
-The `hkask-communication` crate was originally classified as RESOLVED (stubs replaced with tests). It now has a full operational pipeline beyond tests: the 7R7 Listener polls Matrix rooms, the CNS bridge persists NuEvents, CurationLoop.sense() filters communication events from NuEventStore and pushes directly to curation context, and the CAT engagement gate gates agent activation.
+The `hkask-communication` crate was originally classified as RESOLVED (stubs replaced with tests). It now has a full operational pipeline beyond tests: the 7R7 Listener polls Matrix rooms, the CNS bridge persists RegulationRecords, CurationLoop.sense() filters communication events from RegulationArchive and pushes directly to curation context, and the CAT engagement gate gates agent activation.
 
 ### COMM-001: hKask-Communication Pipeline Operational ✅ RESOLVED
 
@@ -1135,9 +1135,9 @@ The `hkask-communication` crate was originally classified as RESOLVED (stubs rep
 
 **Current status (2026-06-27):** RESOLVED — full pipeline operational. The crate provides:
 - `MatrixTransport` (596 LOC) — matrix-sdk client lifecycle, messaging, rooms, files
-- `SevenR7Listener` (191 LOC) — passive room observer, polls on configurable interval, persists CNS NuEvents
+- `SevenR7Listener` (191 LOC) — passive room observer, polls on configurable interval, persists CNS RegulationRecords
 - `AgentRegistry` (152 LOC) — WebID↔UserId mapping, thread watchlists
-- CNS bridge — NuEvent persistence → CurationLoop.sense() filters communication events from NuEventStore and pushes directly to curation context
+- CNS bridge — RegulationRecord persistence → CurationLoop.sense() filters communication events from RegulationArchive and pushes directly to curation context
 - CAT engagement gate — `convergence_bias` scalar per agent
 - Response dispatch — agent → Matrix room via `MatrixTransport::send_message()`
 - 652 LOC of tests (Conduit-dependent integration + MXID derivation unit tests)

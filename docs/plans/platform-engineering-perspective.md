@@ -439,7 +439,7 @@ steps:
       changed_since_days: 7  # window for "recently changed" filter
     outputs:
       - dora_cluster_per_user: Map<WebID, DoraCluster>
-      - metric_spans: List<CnsSpan>
+      - metric_spans: List<RegulationSpan>
 
   - name: compute_space_dimensions
     type: KnowAct
@@ -453,7 +453,7 @@ steps:
       window_days: 30
     outputs:
       - space_scores_per_user: Map<WebID, SpaceScores>
-      - metric_spans: List<CnsSpan>
+      - metric_spans: List<RegulationSpan>
 
   - name: detect_regressions
     type: KnowAct
@@ -790,7 +790,7 @@ New CNS spans:
 | Phase | What | Status |
 |-------|------|--------|
 | **Phase 1** | SloDefinition type + 3 seed SLOs + `cns.slo.evaluated` CNS span | ✅ Done |
-| **Phase 2** | SloManager in hkask-cns + CnsRuntime integration + `evaluate_and_escalate_slos()` wired to algedonic pathway + SLO evaluation scheduled in CyberneticsLoop tick | ✅ Done |
+| **Phase 2** | SloManager in hkask-cns + RegulationLedger integration + `evaluate_and_escalate_slos()` wired to algedonic pathway + SLO evaluation scheduled in CyberneticsLoop tick | ✅ Done |
 | **Phase 3** | PaaP metric CNS spans + API | ✅ Done — 11 CNS spans added. `platform-dx-analyzer` FlowDef manifest registered. API endpoints for metric queries deferred (not in scope for platform engineering infrastructure). |
 | **Phase 4** | DORA/SPACE CNS spans + `platform-dx-analyzer` FlowDef | ✅ Done — CNS spans + FlowDef manifest + template crate + compute-dora KnowAct template. Registered in bootstrap and startup. |
 | **Phase 5** | Platform Engineer userpod agent definition | ✅ Done — `agent_persona.yaml` + `persona.j2` WordAct template. Registered in bootstrap registry. |
@@ -804,7 +804,7 @@ New CNS spans:
 
 | Crate | New files | Modified files |
 |-------|----------|---------------|
-| `hkask-types` | — | `cns.rs` (+16 CnsSpan variants, +SloDefinition, +SloSeverity, +SloEvaluation, +seed_slos) |
+| `hkask-types` | — | `cns.rs` (+16 RegulationSpan variants, +SloDefinition, +SloSeverity, +SloEvaluation, +seed_slos) |
 | `hkask-cns` | `slo_manager.rs` | `runtime.rs`, `cybernetics_loop.rs`, `lib.rs` |
 | `hkask-capability` | — | `token_types.rs` (+TokenRegistry trait, +NoOpTokenRegistry, public Caveat/caveats), `lib.rs` |
 | `hkask-storage` | `token_registry.rs` | `lib.rs` |

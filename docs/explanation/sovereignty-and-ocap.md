@@ -55,7 +55,7 @@ The `invoke()` method (line 200) enforces a strict sequence:
 
 3. **Reserve (gas)** — `CyberneticsLoop::can_proceed()` checks whether the agent's gas budget has enough remaining capacity. If `ToolStats` is wired (Layer 1), the reserve uses the 90th percentile of the fitted LogNormal cost distribution; otherwise it falls back to the `EnergyEstimator` point estimate. If insufficient, a `cns.gas.depleted` span is emitted and `ToolPortError::EnergyBudgetExceeded` is returned. Then `reserve_gas()` atomically decrements the budget. This is the hold-settle pattern: gas is reserved before invocation, then settled after with the actual cost. If actual < reserved, the difference is refunded — preventing gas leaks from over-estimation.
 
-4. **ν-event (invoked)** — A `NuEvent` with span `SpanNamespace("cns.tool")` and path `"invoked"` is persisted via `NuEventSink`. The phase is `CyclePhase::Sense`, marking this as an observation entering the CNS. The payload carries server, tool, estimated_cost, and `settled: false`.
+4. **ν-event (invoked)** — A `RegulationRecord` with span `SpanNamespace("cns.tool")` and path `"invoked"` is persisted via `RegulationSink`. The phase is `CyclePhase::Sense`, marking this as an observation entering the CNS. The payload carries server, tool, estimated_cost, and `settled: false`.
 
 5. **Delegate** — The inner `ToolPort` is called. This is the only step that does actual work. Everything before was permission; everything after is accounting.
 
@@ -79,7 +79,7 @@ flowchart TD
     TOKEN["DelegationToken\nEd25519-signed\nattenuatable"]
     GT["GovernedTool&lt;P: ToolPort&gt;\n6-step membrane"]
     INNER["Inner ToolPort\n(McpDispatcher)"]
-    SINK["NuEventSink\n(persisted)"]
+    SINK["RegulationSink\n(persisted)"]
     STATS["ToolStats\n(statistical learning)"]
     CNS["CyberneticsLoop\n(regulation)"]
 
@@ -344,7 +344,7 @@ status: VERIFIED
 
 ## Description
 
-The `ConsentManager` in `hkask-agents` enforces Magna Carta P1 (User Sovereignty) and P2 (Affirmative Consent) through explicit, scoped, revocable consent grants. Every data access check flows through `has_consent()`, which validates: (1) an active `ConsentRecord` exists for the user's `WebID`, (2) the requested `DataCategory` is in `granted_categories`, and (3) the record is not revoked (`active == true`). On denial, a `cns.consent.denied` ν-event is emitted to the CNS `NuEventSink` for observability — this is a Prohibition-gate observation, not a regulatory feedback loop. The `SovereigntyConsent` trait implementation translates storage errors into `false` (fail-closed). `grant_consent()` and `revoke_consent()` modify the in-memory cache and persist to the SQLite-backed `ConsentStore`.
+The `ConsentManager` in `hkask-agents` enforces Magna Carta P1 (User Sovereignty) and P2 (Affirmative Consent) through explicit, scoped, revocable consent grants. Every data access check flows through `has_consent()`, which validates: (1) an active `ConsentRecord` exists for the user's `WebID`, (2) the requested `DataCategory` is in `granted_categories`, and (3) the record is not revoked (`active == true`). On denial, a `cns.consent.denied` ν-event is emitted to the CNS `RegulationSink` for observability — this is a Prohibition-gate observation, not a regulatory feedback loop. The `SovereigntyConsent` trait implementation translates storage errors into `false` (fail-closed). `grant_consent()` and `revoke_consent()` modify the in-memory cache and persist to the SQLite-backed `ConsentStore`.
 
 **Key source:** `crates/hkask-agents/src/consent.rs:136-144` (`ConsentManager` struct), `consent.rs:316-338` (`has_consent`), `consent.rs:243-273` (`grant_consent`), `consent.rs:283-300` (`revoke_consent`), `consent.rs:344-366` (`emit_consent_denied`), `consent.rs:388-395` (`SovereigntyConsent` impl).
 
@@ -354,7 +354,7 @@ sequenceDiagram
     participant CM as ConsentManager
     participant Cache as In-Memory Cache<br/>(RwLock~Vec~)
     participant Store as ConsentStore<br/>(SQLite)
-    participant CNS as CNS EventSink<br/>(NuEventSink)
+    participant CNS as CNS EventSink<br/>(RegulationSink)
 
     %% ── has_consent() check flow ──
     rect rgb(245, 248, 252)
@@ -371,13 +371,13 @@ sequenceDiagram
             else inactive OR category not granted
                 CM-->>Caller: Ok(false) — consent denied
                 CM->>CNS: emit_consent_denied(webid, category)
-                CNS-->>CM: persist(NuEvent) — cns.consent.denied
+                CNS-->>CM: persist(RegulationRecord) — cns.consent.denied
                 Note over CNS: ν-event for observability<br/>Prohibition gate (P2)<br/>CyclePhase::Compare
             end
         else no record found
             CM-->>Caller: Ok(false) — consent denied (no record)
             CM->>CNS: emit_consent_denied(webid, category)
-            CNS-->>CM: persist(NuEvent)
+            CNS-->>CM: persist(RegulationRecord)
             Note over CNS: fail-closed: no record = deny
         end
     end
