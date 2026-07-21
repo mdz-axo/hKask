@@ -3,7 +3,7 @@
 //! At template registration time, capability validation checks that the registering
 //! agent holds the required OCAP tokens for the template's declared capability
 //! requirements. At runtime, OCAP enforcement is handled by `GovernedTool` in
-//! `hkask-cns::governed_tool`. This validator covers the registration-time concern:
+//! `hkask-regulation::governed_tool`. This validator covers the registration-time concern:
 //! ensuring template capability declarations are consistent with the agent's
 //! granted capabilities.
 

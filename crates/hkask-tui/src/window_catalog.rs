@@ -12,18 +12,16 @@ use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::backup::BackupWindow;
 use crate::windows::chat::ChatWindow;
-use crate::windows::reg_monitor::CnsMonitorWindow;
 use crate::windows::companies::CompaniesWindow;
 use crate::windows::configuration::ConfigurationWindow;
-use crate::windows::curator::CuratorWindow;
 use crate::windows::docproc::DocprocWindow;
 use crate::windows::editor::EditorWindow;
 use crate::windows::kanban::KanbanWindow;
-use crate::windows::logo::LogoWindow;
 use crate::windows::matrix::MatrixWindow;
 use crate::windows::media::MediaWindow;
 use crate::windows::memory::MemoryWindow;
 use crate::windows::pods::PodsWindow;
+use crate::windows::reg_monitor::CnsMonitorWindow;
 use crate::windows::registry::RegistryWindow;
 use crate::windows::replica::ReplicaWindow;
 use crate::windows::research::ResearchWindow;
@@ -89,10 +87,8 @@ pub(crate) fn create_window(
     match kind {
         WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(id, bridge)),
         WindowKind::Pods => Box::new(PodsWindow::new(id, bridge)),
-        WindowKind::Curator => Box::new(CuratorWindow::new(id, bridge)),
         WindowKind::Terminal => Box::new(TerminalWindow::new(id, bridge)),
         WindowKind::Editor => Box::new(EditorWindow::new(id, bridge)),
-        WindowKind::Logo => Box::new(LogoWindow::new(id)),
 
         WindowKind::Wallet => {
             mk_bridge!(

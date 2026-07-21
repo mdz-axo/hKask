@@ -378,7 +378,7 @@ mod tests {
             .unwrap();
         let reg_events: Vec<_> = events
             .iter()
-            .filter(|e| e.span.namespace.short_name() == "regulation")
+            .filter(|e| e.span.namespace.short_name() == "outcome")
             .collect();
         assert!(
             !reg_events.is_empty(),

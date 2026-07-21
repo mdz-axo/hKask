@@ -190,10 +190,8 @@ G6. harness_capability? (after G1-G5; depends on method/task distance)
           [Citation: KTO arXiv:2402.01306]
         - single-stage SFT + preference → trainer=`orpo`
           [Citation: ORPO arXiv:2403.07691]
-      (Phase 2 — not yet implemented in the runtime; record as `planned`.)
     - If the task requires reward modeling: harness=`trl`; trainer=`reward`.
       [Citation: TRL RewardTrainer — https://huggingface.co/docs/trl/main/en/reward_trainer]
-      (Phase 3 — not yet implemented; record as `planned`.)
     - If harness=`trl` and trainer is undetermined, list applicable trainers as
       alternatives with their data format requirements.
     - Axolotl remains the runtime default when harness=`undetermined` (preserves

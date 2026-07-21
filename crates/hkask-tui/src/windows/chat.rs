@@ -4,20 +4,31 @@
 //! and a mode-aware prompt input line. This is the TUI equivalent of
 //! the rustyline REPL, with additional visual structure.
 //!
-//! # TuiMode State Machine (from other agent's plan §2.3)
+//! # TuiMode State Machine
+//!
+//! The default mode is `Curator` — the user interacts with the Curator
+//! daemon by default (P12.1 dual-presence). The user can switch to
+//! `Chat` mode to talk to their userpod agent, or enter `Command` mode
+//! via `/` prefix for slash commands.
 //!
 //! ```text
-//! Chat ──'/'──▶ Command ──Esc/Enter──▶ Chat
-//! Chat ──'/curator chat'──▶ Curator ──Esc──▶ Chat
-//! ```rust,no_run
+//! Curator (default) ──'/repl'──▶ Chat ──'/'──▶ Command ──Esc/Enter──▶ Chat
+//! Chat ──'/curator'──▶ Curator
+//! ```
 //!
 //! Mode transitions emit `cns.tui.mode_switch { from, to }` spans.
 //!
 //! # Prompt Mode Prefixes (P12 Authenticated Host Mandate)
 //!
-//! - `REPL ▸` in cyan — normal chat mode
+//! - `CRTR ▸` in magenta — direct curator address (default mode)
+//! - `REPL ▸` in cyan — normal chat mode (userpod agent)
 //! - `CMD  ▸` in yellow — slash-command entry
-//! - `CRTR ▸` in magenta — direct curator address
+//!
+//! # Window Management Slash Commands
+//!
+//! The Chat window can request workspace actions via `drain_action()`.
+//! Supported commands: `/open <kind>`, `/close`, `/split h|v`, `/focus`,
+//! `/tab`, `/palette`, `/quit`.
 
 use std::sync::Arc;
 
@@ -32,7 +43,7 @@ use crate::repl_bridge::{
     InferenceRequestId, InferenceState, ReplBridge, SessionBridge, SettingsBridge,
 };
 use crate::text_cursor;
-use crate::window::{Window, WindowId, WindowKind};
+use crate::window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
 
 /// The interaction mode for the chat window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,7 +80,7 @@ impl TuiMode {
     pub fn transition(self, input: &str) -> (Self, bool) {
         match self {
             TuiMode::Chat => {
-                if input == "/curator chat" || input == "/curator" {
+                if input == "/curator" || input == "/curator chat" {
                     (TuiMode::Curator, true)
                 } else if input.starts_with('/') {
                     (TuiMode::Command, false)
@@ -143,6 +154,8 @@ pub struct ChatWindow {
     spinner_frame: u8,
     /// Partial streaming text shown during inference
     streaming_partial: String,
+    /// Pending workspace action (drained by Workspace::tick)
+    pending_action: Option<WorkspaceAction>,
 }
 
 impl ChatWindow {
@@ -151,7 +164,7 @@ impl ChatWindow {
         messages.push(TuiChatMessage {
             sender: MessageSender::Curator,
             content: format!(
-                "hKask v{} — Agent: {} | Model: {} | Type /help for commands",
+                "hKask v{} — Curator daemon active. Agent: {} | Model: {} | Type /help for commands",
                 env!("CARGO_PKG_VERSION"),
                 userpod_name,
                 model
@@ -162,7 +175,10 @@ impl ChatWindow {
             id,
             userpod_name: userpod_name.to_string(),
             model: model.to_string(),
-            mode: TuiMode::Chat,
+            // Default mode is Curator — the user interacts with the Curator
+            // daemon by default (P12.1 dual-presence). Use /repl to switch
+            // to userpod chat mode.
+            mode: TuiMode::Curator,
             messages,
             input: String::new(),
             cursor_pos: 0,
@@ -174,6 +190,7 @@ impl ChatWindow {
             inference_state: InferenceState::Idle,
             spinner_frame: 0,
             streaming_partial: String::new(),
+            pending_action: None,
         }
     }
 
@@ -521,14 +538,33 @@ impl ChatWindow {
         // Handle slash commands
         if input.starts_with('/') {
             self.execute_slash_command(&input);
-            self.mode = TuiMode::Chat;
+            // Return to the mode that was active before the command.
+            // If we were in Curator mode, stay in Curator mode (not Chat).
+            if self.mode == TuiMode::Command {
+                self.mode = TuiMode::Chat;
+            }
             return;
         }
 
-        // Normal chat message — use async inference
-        self.add_message(MessageSender::User, input.clone());
-        self.pending_request = Some(self.bridge.start_inference(input));
-        self.inference_state = InferenceState::Thinking;
+        // Non-slash input: route based on mode.
+        match self.mode {
+            TuiMode::Curator => {
+                // Send to Curator daemon via blocking call.
+                self.add_message(MessageSender::User, input.clone());
+                let reply = self.bridge.send_curator_message(&input);
+                self.add_message(MessageSender::Curator, reply);
+            }
+            TuiMode::Chat => {
+                // Normal chat message — use async inference
+                self.add_message(MessageSender::User, input.clone());
+                self.pending_request = Some(self.bridge.start_inference(input));
+                self.inference_state = InferenceState::Thinking;
+            }
+            TuiMode::Command => {
+                // Should not reach here — commands are handled above.
+                self.mode = TuiMode::Chat;
+            }
+        }
     }
 }
 
@@ -541,7 +577,7 @@ impl Window for ChatWindow {
         match self.mode {
             TuiMode::Chat => "Chat",
             TuiMode::Command => "Chat [CMD]",
-            TuiMode::Curator => "Chat [Curator]",
+            TuiMode::Curator => "Curator",
         }
     }
 

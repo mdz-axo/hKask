@@ -5,6 +5,7 @@
 pub mod chat;
 pub mod memory;
 
+pub use chat::improv::{ImprovMode, MATRYOSHKA_LIMIT, RiffReturn};
 pub use chat::{
     ChatService, ChatStreamEvent, ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage,
     TurnRequest, TurnResult,

@@ -7,7 +7,7 @@ pub(crate) mod auth;
 pub(crate) mod bundles;
 pub(crate) mod chat;
 pub(crate) mod chat_ws;
-pub(crate) mod regulation;
+pub(crate) mod sovereignty;
 pub(crate) mod consolidation;
 pub(crate) mod curator;
 pub(crate) mod episodic;
@@ -35,7 +35,6 @@ pub use auth::{CallbackQuery, LoginQuery};
 
 pub use bundles::bundles_router;
 pub use chat::chat_router;
-pub use cns::cns_router;
 pub use consolidation::consolidation_router;
 pub use curator::curator_router;
 pub use episodic::episodic_router;
@@ -66,7 +65,6 @@ pub use bundles::{
     ComposeBundleResponse, DeactivateBundleResponse, EvolveBundleResponse,
 };
 pub use chat::{ApiChatRequest, ApiChatResponse};
-pub use cns::{LedgerHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
 pub use curator::{
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
     EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,

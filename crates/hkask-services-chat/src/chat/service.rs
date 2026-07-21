@@ -13,8 +13,8 @@ use std::time::Duration;
 use futures_util::Stream;
 use futures_util::StreamExt;
 
-use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::DelegationAction;
+use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_ports::InferencePort;
 use hkask_types::regulation::RegulationSpan;
 
@@ -22,7 +22,7 @@ use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{DataCategory, WebID};
 
-use super::improv::improv_system_prompt;
+use super::improv::{ImprovMode, improv_system_prompt};
 use super::types::{
     ChatStreamEvent, ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage, TurnRequest,
     TurnResult,
@@ -626,7 +626,6 @@ impl ChatService {
         )
     }
 
-
     /// Execute a full single-agent turn — manifest cascade, history suffix,
     /// inference via `ChatService::chat()`, and persona filter.
     ///
@@ -652,18 +651,19 @@ impl ChatService {
         process_manifest: Option<&hkask_templates::BundleManifest>,
     ) -> Result<TurnResult, ServiceError> {
         // 1. Execute manifest cascade if the agent has a process manifest.
-        let base_input =
-            if let (Some(executor), Some(manifest)) = (manifest_executor, process_manifest) {
-                let manifest_context =
-                    Self::execute_manifest_cascade(executor, manifest, &req.input, &req.userpod_name)
-                        .await;
-                match manifest_context {
-                    Some(ctx) => Self::wrap_manifest_input(&req.input, &ctx),
-                    None => req.input.clone(),
-                }
-            } else {
-                req.input.clone()
-            };
+        let base_input = if let (Some(executor), Some(manifest)) =
+            (manifest_executor, process_manifest)
+        {
+            let manifest_context =
+                Self::execute_manifest_cascade(executor, manifest, &req.input, &req.userpod_name)
+                    .await;
+            match manifest_context {
+                Some(ctx) => Self::wrap_manifest_input(&req.input, &ctx),
+                None => req.input.clone(),
+            }
+        } else {
+            req.input.clone()
+        };
 
         // 2. Add the active thread's short-term history. Semantic and episodic
         // memory are recalled once by `prepare_chat`, after all turn context is
@@ -740,11 +740,8 @@ impl ChatService {
         };
         let chat_response = Self::chat(ctx, chat_req).await?;
 
-        // 5. Persona filter.
-        let filtered =
-
         Ok(TurnResult {
-            text: filtered,
+            text: chat_response.text,
             usage: chat_response.usage.unwrap_or(TokenUsage {
                 prompt_tokens: 0,
                 completion_tokens: 0,

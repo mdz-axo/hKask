@@ -25,13 +25,7 @@ use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
 use crate::widgets::headers;
-use crate::window::{Window, WindowId, WindowKind};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SplitDirection {
-    Horizontal,
-    Vertical,
-}
+use crate::window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
 
 pub enum SplitNode {
     Leaf(Option<Box<dyn Window>>),
@@ -445,26 +439,11 @@ impl Workspace {
         let factory_ctx = bridges.to_window_bridges(system.clone(), repl.clone());
         let chat = crate::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
 
-        // Logo window — persistent top-left anchor
-        let logo_id = WindowId(Uuid::new_v4());
-        let logo = crate::window_catalog::create_window(WindowKind::Logo, logo_id, &factory_ctx);
-
-        // Default layout: Logo + Chat (left 65%) | Curator (right 35%)
-        //   Left pane: vertical split — Logo (25%) + Chat (75%)
-        //   Right pane: Curator (100%)
-        let left = Box::new(SplitNode::Vertical {
-            top: Box::new(SplitNode::Leaf(Some(logo))),
-            bottom: Box::new(SplitNode::Leaf(Some(chat))),
-            ratio: 0.25,
-        });
-        let curator_id = WindowId(Uuid::new_v4());
-        let curator =
-            crate::window_catalog::create_window(WindowKind::Curator, curator_id, &factory_ctx);
-        let root = SplitNode::Horizontal {
-            left,
-            right: Box::new(SplitNode::Leaf(Some(curator))),
-            ratio: 0.65,
-        };
+        // Default layout: single Chat window filling the workspace.
+        // The Chat window defaults to Curator mode (P12.1 dual-presence),
+        // so the user interacts with the Curator daemon by default and
+        // opens other windows via slash commands or the command palette.
+        let root = SplitNode::Leaf(Some(chat));
         let tab = Tab::new("Chat".to_string(), root);
 
         let mut status_bar = StatusBar::new();
@@ -508,8 +487,8 @@ impl Workspace {
         scenarios_bridge, ScenariosDataBridge, with_scenarios_bridge
     );
 
-    /// Create a minimal workspace for testing — no AgentService, single Chat window.
-    /// Uses the provided bridge for all window data. No logo, no curator, no splits.
+    /// Create a minimal workspace for testing — single Chat window.
+    /// Uses the provided bridge for all window data. No splits.
     pub fn new_test(system: Arc<dyn SystemBridge>, repl: Arc<dyn ReplBridge>) -> Self {
         let model = system.model_name().to_string();
         let chat_id = WindowId(Uuid::new_v4());
@@ -869,7 +848,8 @@ impl Workspace {
         let Some(target) = self.focused_window else {
             return;
         };
-        if self.window_count() <= 1 || self.root().can_close(target) != Some(true) {
+        // Prevent closing the last remaining window in the tab.
+        if self.window_count() <= 1 {
             return;
         }
 
@@ -1104,6 +1084,7 @@ impl Workspace {
 
     pub fn tick(&mut self) {
         self.root_mut().tick();
+        self.drain_window_actions();
         self.status_bar.gas_remaining = self.system_bridge.gas_remaining();
         self.status_bar.gas_cap = self.system_bridge.gas_cap();
         let alerts = self.system_bridge.cns_alert_count();
@@ -1116,5 +1097,50 @@ impl Workspace {
         };
         self.status_bar.context_pressure = self.system_bridge.context_pressure();
         self.status_bar.model = self.system_bridge.model_name().to_string();
+    }
+
+    /// Walk the split tree and drain pending `WorkspaceAction`s from all windows.
+    /// Actions are processed in tree order (left-to-right, top-to-bottom).
+    fn drain_window_actions(&mut self) {
+        let actions = Self::collect_actions(self.root_mut());
+        for action in actions {
+            self.apply_action(action);
+        }
+    }
+
+    /// Recursively collect `WorkspaceAction`s from all windows in the tree.
+    fn collect_actions(node: &mut SplitNode) -> Vec<WorkspaceAction> {
+        let mut actions = Vec::new();
+        match node {
+            SplitNode::Leaf(Some(w)) => {
+                if let Some(action) = w.drain_action() {
+                    actions.push(action);
+                }
+            }
+            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Horizontal { left, right, .. } => {
+                actions.extend(Self::collect_actions(left));
+                actions.extend(Self::collect_actions(right));
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                actions.extend(Self::collect_actions(top));
+                actions.extend(Self::collect_actions(bottom));
+            }
+        }
+        actions
+    }
+
+    /// Apply a `WorkspaceAction` requested by a window (e.g., via slash commands).
+    fn apply_action(&mut self, action: WorkspaceAction) {
+        match action {
+            WorkspaceAction::OpenWindow(kind) => self.open_window_kind(kind),
+            WorkspaceAction::CloseFocused => self.close_focused_window(),
+            WorkspaceAction::Split(direction) => self.split_focused(direction),
+            WorkspaceAction::FocusNext => self.focus_next(),
+            WorkspaceAction::FocusPrev => self.focus_prev(),
+            WorkspaceAction::NewTab => self.new_tab(),
+            WorkspaceAction::OpenPalette => self.open_command_palette(),
+            WorkspaceAction::Quit => self.should_quit = true,
+        }
     }
 }

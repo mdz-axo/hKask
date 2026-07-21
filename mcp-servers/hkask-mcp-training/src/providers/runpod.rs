@@ -74,6 +74,14 @@ const DEFAULT_RUNPOD_TEMPLATE_ID: &str = "f4wac8wrhz";
 /// even when a template is used. This is the image the template is based on.
 const DEFAULT_RUNPOD_DOCKER_IMAGE: &str = "winglian/axolotl-cloud:main-latest";
 
+/// Default Docker image for TRL training.
+///
+/// Parallel to `DEFAULT_RUNPOD_DOCKER_IMAGE` — used when `harness=trl` is
+/// selected and the operator hasn't set `RUNPOD_DOCKER_IMAGE`. The image is
+/// built from `docker/trl-lora-trainer/` (~130MB) and pip-installs TRL at
+/// pod startup with pinned versions (Lesson 12).
+const DEFAULT_RUNPOD_TRL_DOCKER_IMAGE: &str = "docker.io/mdzaxo/trl-lora-trainer:latest";
+
 /// Bundled construction parameters for `RunpodHost::new`.
 ///
 /// Mirrors the `PodDeploySpec` pattern: keeps `RunpodHost::new` under clippy's
@@ -529,12 +537,30 @@ impl TrainingHost for RunpodHost {
         } else {
             DEFAULT_RUNPOD_TEMPLATE_ID.to_string()
         };
+
+        // Harness selection: job.params.harness takes precedence (operator-accepted
+        // from the lora-training skill's G6 gate), falling back to job.harness
+        // (server default), falling back to Axolotl (runtime default).
+        // Computed early so it can be used for both docker image selection and
+        // the HKASK_HARNESS env var below.
+        let selected_harness = job.params.harness.unwrap_or(job.harness);
+
         // RunPod's podFindAndDeployOnDemand requires imageName to be non-empty
         // even when using a template. Default to the template's base image.
+        //
+        // Harness-specific image selection: when harness=trl is selected and
+        // the operator hasn't set a custom image, use the TRL trainer image
+        // (docker.io/mdzaxo/trl-lora-trainer:latest). This image pip-installs
+        // TRL with pinned versions at pod startup (Lesson 12).
         let docker_image = if !self.docker_image.is_empty() {
             self.docker_image.clone()
         } else {
-            DEFAULT_RUNPOD_DOCKER_IMAGE.to_string()
+            match selected_harness {
+                TrainingHarnessId::Trl => DEFAULT_RUNPOD_TRL_DOCKER_IMAGE.to_string(),
+                TrainingHarnessId::Axolotl | TrainingHarnessId::Ludwig => {
+                    DEFAULT_RUNPOD_DOCKER_IMAGE.to_string()
+                }
+            }
         };
         if docker_image.is_empty() && template_id.is_empty() {
             return Err(ProviderError::InvalidConfig(
@@ -542,12 +568,6 @@ impl TrainingHost for RunpodHost {
                     .to_string(),
             ));
         }
-
-        // Harness selection: job.params.harness takes precedence (operator-accepted
-        // from the lora-training skill's G6 gate), falling back to job.harness
-        // (server default), falling back to Axolotl (runtime default).
-        // Computed early so HKASK_HARNESS can be set in the env var list below.
-        let selected_harness = job.params.harness.unwrap_or(job.harness);
 
         let mut env_entries: Vec<(&str, String)> = vec![
             ("HKASK_JOB_ID", job.id.clone()),

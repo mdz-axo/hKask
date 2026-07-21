@@ -25,7 +25,7 @@ crate:
     (arXiv:2404.02948), LoRA-GA (arXiv:2407.05000), CorDA, EVA, Razin
     et al. intruder dimensions (arXiv:2410.21228), PEFT v0.19.0 config
     surface, and TRL v1.8.0 trainer taxonomy (SFTTrainer, DPOTrainer,
-    KTOTrainer, ORPOTrainer, RewardTrainer). Consumes
+    KTOTrainer, ORPOTrainer, RewardTrainer — all implemented). Consumes
     security/regressions/ as input; proposes RR entries with surface:
     training. Emits cns.lora.* spans (P9). Decomposed into 4 phases:
     select-method → audit-config → report → convergence-check.

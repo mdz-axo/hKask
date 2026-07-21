@@ -13,6 +13,36 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct WindowId(pub Uuid);
 
+/// Actions a window can request from the workspace.
+/// Drained via `Window::drain_action()` after each tick.
+/// Used by ChatWindow's slash commands to manage windows and splits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WorkspaceAction {
+    /// Open a window of the given kind as a split from the focused window.
+    OpenWindow(WindowKind),
+    /// Close the focused window.
+    CloseFocused,
+    /// Split the focused window in the given direction.
+    Split(SplitDirection),
+    /// Cycle focus to the next window.
+    FocusNext,
+    /// Cycle focus to the previous window.
+    FocusPrev,
+    /// Create a new tab.
+    NewTab,
+    /// Open the command palette.
+    OpenPalette,
+    /// Quit the TUI.
+    Quit,
+}
+
+/// Direction for splitting a window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SplitDirection {
+    Horizontal,
+    Vertical,
+}
+
 /// The kind of window — determines icon, default title, and creation behaviour.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowKind {
@@ -24,7 +54,7 @@ pub enum WindowKind {
     Backup,
     /// Registry browser — templates, skills, styles, bundles
     Registry,
-    /// Pod status — CuratorPod, TeamPods, UserPodPods
+    /// Pod status — CuratorPod + UserPod (1:1, no TeamPods)
     Pods,
     /// Kanban board view
     Kanban,
@@ -39,8 +69,8 @@ pub enum WindowKind {
     /// Settings editor (ReplSettings)
     Configuration,
 
-    /// Curator daemon window — P12.1 dual-presence
-    Curator,
+    /// Curator daemon window — P12.1 dual-presence (removed; merged into Chat)
+    // Curator variant removed — Curator chat is now a mode in ChatWindow.
     /// Embedded terminal — run shell commands
     Terminal,
     /// Text editor — edit configs, agent YAML, etc.
@@ -57,8 +87,6 @@ pub enum WindowKind {
     Docproc,
     /// Replica — authorial style replica management
     Replica,
-    /// Logo — persistent Kask amphora logo window
-    Logo,
     /// Scenarios — event trees, forecasts, calibration tracking
     Scenarios,
 }
@@ -146,13 +174,6 @@ impl WindowKind {
             false,
         ),
         (
-            WindowKind::Curator,
-            "Curator",
-            "Curator daemon — CNS alerts, memory, and direct chat",
-            false,
-            false,
-        ),
-        (
             WindowKind::Terminal,
             "Terminal",
             "Embedded shell — run commands from within the TUI",
@@ -209,13 +230,6 @@ impl WindowKind {
             true,
         ),
         (
-            WindowKind::Logo,
-            "hKask",
-            "Kask amphora logo — workspace identity marker",
-            false,
-            false,
-        ),
-        (
             WindowKind::Scenarios,
             "Scenarios",
             "Event trees, Fermi forecasts, calibration tracking",
@@ -258,10 +272,6 @@ impl WindowKind {
             .map(|(_, _, _, _, t)| *t)
             .unwrap_or(false)
     }
-
-    pub fn is_persistent(&self) -> bool {
-        matches!(self, WindowKind::Logo)
-    }
 }
 
 /// Every sub-window implements this trait.
@@ -286,8 +296,9 @@ pub trait Window {
     fn handle_key(&mut self, key: KeyEvent) -> bool;
 
     /// Whether this window can be closed by the user.
+    /// All windows are closeable (the persistent Logo window was removed).
     fn can_close(&self) -> bool {
-        !self.kind().is_persistent()
+        true
     }
 
     /// Called when this window gains keyboard focus.
@@ -298,6 +309,12 @@ pub trait Window {
 
     /// Called periodically (every tick) for background updates.
     fn tick(&mut self) {}
+
+    /// Drain a pending workspace action (e.g., from slash commands).
+    /// Default implementation returns `None` — only ChatWindow overrides this.
+    fn drain_action(&mut self) -> Option<WorkspaceAction> {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -311,7 +328,7 @@ mod tests {
         let kinds: Vec<WindowKind> = WindowKind::META.iter().map(|(k, ..)| *k).collect();
         assert_eq!(
             kinds.len(),
-            22,
+            20,
             "META entry count changed — update this test"
         );
     }

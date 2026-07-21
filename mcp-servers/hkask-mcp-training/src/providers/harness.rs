@@ -312,42 +312,49 @@ impl HarnessAdapter for LudwigHarness {
                 serde_json::json!(lo.use_dora.to_string()),
             ),
         ]);
-        for (key, value) in [
-            (
-                "peft_init_lora_weights",
+        // Optional fields — always inserted (with empty defaults when None) so
+        // the template's `{% if field %}` guards work with minijinja Strict
+        // undefined behavior. Empty strings are falsy in minijinja, so `{% if %}`
+        // correctly skips rendering when the value is absent. This mirrors the
+        // Axolotl harness pattern (always insert, let the template decide).
+        context.insert(
+            "peft_init_lora_weights".to_string(),
+            serde_json::json!(
                 lo.init_lora_weights
                     .as_ref()
-                    .map(|init| init.as_config_value()),
+                    .map(|init| init.as_config_value())
             ),
-            ("optim", opt.optimizer.clone()),
-            ("lr_scheduler", opt.lr_scheduler.clone()),
-            (
-                "sequence_len",
-                p.sequence.sequence_len.map(|value| value.to_string()),
-            ),
-            (
-                "warmup_steps",
-                opt.warmup_steps.map(|value| value.to_string()),
-            ),
-            (
-                "max_grad_norm",
-                opt.max_grad_norm.map(|value| value.to_string()),
-            ),
-            (
-                "val_set_size",
-                p.advanced.eval_split_ratio.map(|value| value.to_string()),
-            ),
-        ] {
-            if let Some(value) = value {
-                context.insert(key.to_string(), serde_json::json!(value));
-            }
-        }
-        if opt.weight_decay > 0.0 {
-            context.insert(
-                "weight_decay".to_string(),
-                serde_json::json!(opt.weight_decay),
-            );
-        }
+        );
+        context.insert(
+            "optim".to_string(),
+            serde_json::json!(opt.optimizer.clone()),
+        );
+        context.insert(
+            "lr_scheduler".to_string(),
+            serde_json::json!(opt.lr_scheduler.clone()),
+        );
+        context.insert(
+            "sequence_len".to_string(),
+            serde_json::json!(p.sequence.sequence_len.map(|v| v.to_string())),
+        );
+        context.insert(
+            "warmup_steps".to_string(),
+            serde_json::json!(opt.warmup_steps.map(|v| v.to_string())),
+        );
+        context.insert(
+            "max_grad_norm".to_string(),
+            serde_json::json!(opt.max_grad_norm.map(|v| v.to_string())),
+        );
+        context.insert(
+            "val_set_size".to_string(),
+            serde_json::json!(p.advanced.eval_split_ratio.map(|v| v.to_string())),
+        );
+        // weight_decay is a float — always inserted so the template's
+        // `{% if weight_decay and weight_decay > 0 %}` guard works.
+        context.insert(
+            "weight_decay".to_string(),
+            serde_json::json!(opt.weight_decay),
+        );
 
         let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
             .map(PathBuf::from)

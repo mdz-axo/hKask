@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::{AuthContext, DelegationToken};
+use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_ports::{ChatToolDefinition, InferencePort, StructuredToolCall};
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
@@ -166,7 +166,7 @@ pub struct TurnRequest {
     /// Active improv mode — when set, prepends mode-specific instructions
     /// to the system prompt so the model adopts the interaction posture.
     /// None means no improv posture (default agent behavior).
-    pub improv_mode: Option<hkask_improv::ImprovMode>,
+    pub improv_mode: Option<super::improv::ImprovMode>,
 
     /// OpenAI-compatible tool definitions for native function calling.
     /// Built from MCP-discovered tools by the REPL at init time.

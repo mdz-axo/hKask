@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 
 /// Consolidated CNS context — variety sensing, cybernetic regulation,
 /// loop orchestration, event audit trail, and energy estimation.
-pub struct CnsContext {
+pub struct RegulationContext {
     pub runtime: Arc<RwLock<RegulationLedger>>,
     pub cybernetics: Arc<RwLock<CyberneticsLoop>>,
     pub loops: Arc<LoopScheduler>,
@@ -24,7 +24,7 @@ pub struct CnsContext {
     pub tool_stats: Arc<ToolStats>,
 }
 
-impl CnsContext {
+impl RegulationContext {
     pub fn new(
         runtime: Arc<RwLock<RegulationLedger>>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,

@@ -71,8 +71,8 @@ pub use repl_bridge::{
     SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
 };
 pub use splash::SplashScreen;
-pub use window::{Window, WindowId, WindowKind};
-pub use workspace::{SplitDirection, Workspace};
+pub use window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
+pub use workspace::Workspace;
 
 /// Top-level TUI session — owns the terminal, workspace, and event loop.
 ///

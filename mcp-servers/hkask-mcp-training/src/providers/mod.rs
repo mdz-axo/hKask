@@ -385,7 +385,6 @@ mod tests {
             "from peft import LoraConfig",
             "trainer = DPOTrainer(",
             "config = DPOConfig(",
-            "trainer_name = \"dpo\"",
             "trainer.train()",
             "trainer.save_model",
         ] {
@@ -404,7 +403,6 @@ mod tests {
             "from trl import KTOConfig, KTOTrainer",
             "trainer = KTOTrainer(",
             "config = KTOConfig(",
-            "trainer_name = \"kto\"",
         ] {
             assert!(
                 script.contains(expected),
@@ -421,7 +419,6 @@ mod tests {
             "from trl import ORPOConfig, ORPOTrainer",
             "trainer = ORPOTrainer(",
             "config = ORPOConfig(",
-            "trainer_name = \"orpo\"",
         ] {
             assert!(
                 script.contains(expected),
@@ -438,7 +435,6 @@ mod tests {
             "from trl import RewardConfig, RewardTrainer",
             "trainer = RewardTrainer(",
             "config = RewardConfig(",
-            "trainer_name = \"reward\"",
         ] {
             assert!(
                 script.contains(expected),

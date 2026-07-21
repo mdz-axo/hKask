@@ -7,7 +7,7 @@
 //! - `improv` — Improv mode system prompt generation
 
 mod condenser;
-mod improv;
+pub mod improv;
 pub mod service;
 #[cfg(test)]
 mod tests;

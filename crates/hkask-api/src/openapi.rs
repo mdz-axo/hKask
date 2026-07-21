@@ -21,7 +21,8 @@ use crate::routes::{
 };
 
 // Handler-local types needed in schemas
-use crate::routes::regulation::CnsSubscribeParams;
+// TODO: CNS subscribe params — regulation.rs was not committed; needs sovereignty.rs migration
+// use crate::routes::sovereignty::CnsSubscribeParams;
 
 /// API documentation
 ///

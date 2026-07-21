@@ -69,6 +69,7 @@ dataset:
   path: {{ dataset_path }}
 {% endif %}
 
+# Training
 trainer:
   type: finetune
   epochs: {{ num_epochs | default(2) }}
@@ -82,7 +83,7 @@ trainer:
 {% if lr_scheduler %}
     decay: {{ lr_scheduler }}
 {% endif %}
-{% if weight_decay %}
+{% if weight_decay and weight_decay > 0 %}
   weight_decay: {{ weight_decay }}
 {% endif %}
 {% if max_grad_norm %}

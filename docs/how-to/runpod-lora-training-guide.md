@@ -392,9 +392,12 @@ sequenceDiagram
 | `docker/axolotl-lora-trainer/Dockerfile` | Minimal image (~129MB) |
 | `docker/axolotl-lora-trainer/entrypoint.sh` | Pure bash entrypoint |
 | `mcp-servers/hkask-mcp-training/src/providers/harness.rs` | `AxolotlHarness::render_config()` — Rust config generation |
-| `mcp-servers/hkask-mcp-training/src/providers/runpod.rs` | `RunpodHost::submit()` — pod creation + env vars |
-| `mcp-servers/hkask-mcp-training/src/providers/trl_harness.rs` | `TrlHarness::render_config()` — TRL Python script generation |
+| `mcp-servers/hkask-mcp-training/src/providers/runpod.rs` | `RunpodHost::submit()` — pod creation + env vars + harness-specific image selection |
+| `mcp-servers/hkask-mcp-training/src/providers/trl_harness.rs` | `TrlHarness::render_config()` — TRL Python script generation (SFT + DPO/KTO/ORPO/Reward) |
 | `registry/templates/training/trl-sft.j2` | TRL SFTTrainer Python script template |
+| `registry/templates/training/trl-preference.j2` | TRL DPO/KTO/ORPO/Reward Python script template |
+| `docker/trl-lora-trainer/Dockerfile` | TRL trainer image (~130MB) |
+| `docker/trl-lora-trainer/entrypoint.sh` | TRL pod entrypoint (pip install + train + upload) |
 | `corpus/lora/axolotl-lora.yaml` | Canonical axolotl config (EVA, r=32) |
 | `docs/reference/lora-training-catalog.md` | LoRA method + gate catalog |
 | `.agents/skills/lora-training/SKILL.md` | lora-training skill |
@@ -425,15 +428,31 @@ entrypoint script should:
 inference environment, check the completion manifest's `trl_version` field.
 Mismatch → retrain with the pinned version.
 
-**TRL pod template**: Use a pre-built image with TRL + all deps pre-installed,
-parallel to the axolotl template (Lesson 10). The image should be based on
-`python:3.11-slim` with `pip install trl peft bitsandbytes accelerate` pre-baked.
+**TRL pod image**: The TRL image is `docker.io/mdzaxo/trl-lora-trainer:latest`
+(~130MB), built from `docker/trl-lora-trainer/`. It uses `python:3.11-slim` as
+the base and pip-installs TRL + deps at pod startup with pinned versions:
+`trl==1.8.0`, `peft==0.19.0`, `transformers==5.9.0`. The entrypoint writes
+the `HKASK_TRL_SCRIPT` env var to `/workspace/train.py` and runs
+`python /workspace/train.py`. The completion manifest records the exact
+versions used for training, enabling inference-time compatibility checks.
 
 **Harness selection**: The harness is selected per-job via `TrainingParams.harness`
 (operator-accepted from the lora-training skill's G6 gate). The RunPod host's
-`submit()` method checks `job.params.harness` and renders either axolotl YAML
-(`HKASK_AXOLOTL_CONFIG`) or TRL Python (`HKASK_TRL_SCRIPT`). The pod's entrypoint
-checks which env var is set and runs the corresponding training command.
+`submit()` method checks `job.params.harness` and:
+- Renders either axolotl YAML (`HKASK_AXOLOTL_CONFIG`) or TRL Python
+  (`HKASK_TRL_SCRIPT`) based on the selected harness.
+- Selects the Docker image: `winglian/axolotl-cloud:main-latest` for axolotl,
+  `docker.io/mdzaxo/trl-lora-trainer:latest` for TRL. The operator can override
+  with `RUNPOD_DOCKER_IMAGE`.
+- The pod's entrypoint checks which env var is set and runs the corresponding
+  training command.
+
+**TRL trainers**: Phase 1 supports SFTTrainer (SFT). Phase 2 adds DPOTrainer
+(DPO), KTOTrainer (KTO), ORPOTrainer (ORPO) — preference optimization from
+paired/unpaired preference data. Phase 3 adds RewardTrainer (reward model
+training for RLHF). All trainers use the same LoRA config (PEFT is
+trainer-agnostic) and are rendered from `registry/templates/training/trl-sft.j2`
+(SFT) or `registry/templates/training/trl-preference.j2` (DPO/KTO/ORPO/Reward).
 
 **TRL SFTTrainer config**: The TRL SFT script is rendered from
 `registry/templates/training/trl-sft.j2` by `TrlHarness::render_config()`. The

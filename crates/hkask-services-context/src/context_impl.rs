@@ -109,7 +109,7 @@ pub struct AgentService {
 
     /// CNS context — variety sensing, cybernetic regulation,
     /// loop orchestration, event audit trail, energy estimation.
-    cns: cns::CnsContext,
+    cns: regulation::RegulationContext,
 
     /// Storage context — registry, goals, agents, users,
     /// sovereignty boundaries, wallet store.
@@ -173,7 +173,7 @@ impl AgentService {
 
     /// CNS context — variety sensing, cybernetic regulation,
     /// loop orchestration, events, and energy estimation.
-    pub fn cns(&self) -> &cns::CnsContext {
+    pub fn cns(&self) -> &regulation::RegulationContext {
         &self.cns
     }
 

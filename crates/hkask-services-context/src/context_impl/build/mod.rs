@@ -102,7 +102,7 @@ impl AgentServiceWiring {
             self.foundation.curation_inbox_tx.clone(),
         );
 
-        let cns = cns::CnsContext::new(
+        let cns = regulation::RegulationContext::new(
             Arc::clone(&self.foundation.cns_runtime),
             Arc::clone(&self.loops.cybernetics_loop),
             Arc::clone(&self.loops.loop_system),
