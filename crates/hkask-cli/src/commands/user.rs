@@ -146,10 +146,7 @@ pub fn login_with_passphrase(
 
 /// pre:  store is a valid UserStore; userpod_name is non-empty
 /// post: returns the UserPod if found, or ServiceError::UserNotFound if the replicant does not exist
-pub fn get_userpod(
-    store: &Store,
-    userpod_name: &str,
-) -> Result<UserPod, ServiceError> {
+pub fn get_userpod(store: &Store, userpod_name: &str) -> Result<UserPod, ServiceError> {
     store
         .lock()
         .expect("CLI operation")
@@ -170,20 +167,18 @@ pub fn get_userpod(
 
 /// pre:  store is a valid UserStore; user_id is a valid UserID
 /// post: returns all replicant identities belonging to the given user; empty vec if none
-pub fn get_userpods(
-    store: &Store,
-    user_id: &UserID,
-) -> Result<Vec<UserPod>, ServiceError> {
-    store
+pub fn get_userpods(store: &Store, user_id: &UserID) -> Result<Vec<UserPod>, ServiceError> {
+    let userpod = store
         .lock()
         .expect("CLI operation")
-        .list_userpods(user_id)
+        .get_userpod_by_user(user_id)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
             source: None,
             message: e.to_string(),
-        })
+        })?;
+    Ok(userpod.into_iter().collect())
 }
 
 /// pre:  store is a valid UserStore; userpod_name is non-empty
@@ -358,11 +353,10 @@ pub fn show_userpod(store: &Store, userpod_name: &str) -> Result<(), ServiceErro
 /// pre:  store is a valid UserStore
 /// post: prints all replicants with name, user_id, and created_at; prints "No replicants registered." if empty
 pub fn list_userpods(store: &Store) -> Result<(), ServiceError> {
-    let user_id = hkask_types::UserID::new();
     let replicants = store
         .lock()
         .expect("CLI operation")
-        .list_userpods(&user_id)
+        .list_all_userpods()
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,

@@ -4,7 +4,6 @@
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use hkask_mcp::server::{api_get, api_put, resolve_credential};
-use hkask_storage::AgentRegistryStore;
 use serde_json::json;
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
@@ -214,62 +213,20 @@ impl ArchivalService {
 
     /// Create a registry snapshot on GitHub.
     ///
-    /// Reads the local registry database, serializes it to JSON, and
-    /// pushes it to GitHub as a snapshot commit using the Contents API.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  repo_owner, repo_name, message must be non-empty; agent_registry_store must be initialized
-    /// post: returns SnapshotResult with commit_sha; registry content pushed to GitHub; Err(Archival) on API or serialization failure
+    /// Removed: the agent registry was deleted (consolidation to one
+    /// persistent UserPod per user). Registry snapshots are no longer
+    /// produced. Returns an error directing the operator to CAS snapshot.
     pub async fn create_snapshot(
-        repo_owner: &str,
-        repo_name: &str,
-        message: &str,
-        agent_registry_store: &AgentRegistryStore,
+        _repo_owner: &str,
+        _repo_name: &str,
+        _message: &str,
     ) -> Result<SnapshotResult, ServiceError> {
-        let client = build_github_client()?;
-
-        let registry_content = read_local_registry(agent_registry_store)?;
-
-        let encoded_content = BASE64_STANDARD.encode(registry_content.as_bytes());
-
-        let file_url = format!(
-            "{GITHUB_API_BASE}/repos/{repo_owner}/{repo_name}/contents/{DEFAULT_REGISTRY_PATH}"
-        );
-
-        let current_sha = get_current_file_sha(&client, &file_url).await;
-
-        let mut payload = json!({
-            "message": message,
-            "content": encoded_content,
-        });
-
-        if let Some(sha) = current_sha {
-            payload
-                .as_object_mut()
-                .expect("json! macro always produces an object")
-                .insert("sha".to_string(), json!(sha));
-        }
-
-        let result = api_put(&client, "github", &file_url, &payload)
-            .await
-            .map_err(|e| {
-                let msg = format!("Failed to create snapshot: {}", e);
-                ServiceError::Domain {
-                    kind: ErrorKind::BadRequest,
-                    domain: DomainKind::Storage,
-                    message: msg,
-                    source: Some(Box::new(e)),
-                }
-            })?;
-
-        let commit_sha = result
-            .get("commit")
-            .and_then(|c| c.get("sha"))
-            .and_then(|s| s.as_str())
-            .unwrap_or("unknown")
-            .to_string();
-
-        Ok(SnapshotResult { commit_sha })
+        Err(ServiceError::Domain {
+            kind: ErrorKind::BadRequest,
+            domain: DomainKind::Storage,
+            source: None,
+            message: "Registry snapshots are no longer supported — the agent registry was removed. Use `kask git cas-snapshot` for content-addressed snapshots.".into(),
+        })
     }
 }
 
@@ -335,29 +292,6 @@ async fn get_current_file_sha(client: &reqwest::Client, url: &str) -> Option<Str
             .map(|s| s.to_string()),
         Err(_) => None,
     }
-}
-
-/// Read the local registry database and serialize it to JSON.
-fn read_local_registry(store: &AgentRegistryStore) -> Result<String, ServiceError> {
-    let agents = store.list().map_err(|e| {
-        let msg = format!("Failed to list agents: {}", e);
-        ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Storage,
-            message: msg,
-            source: Some(Box::new(e)),
-        }
-    })?;
-
-    serde_json::to_string_pretty(&agents).map_err(|e| {
-        let msg = format!("Failed to serialize registry: {}", e);
-        ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Storage,
-            message: msg,
-            source: Some(Box::new(e)),
-        }
-    })
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────

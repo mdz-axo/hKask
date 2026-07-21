@@ -756,47 +756,16 @@ fn matrix_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(reqwest::Client::new)
 }
 
-/// Register Matrix accounts on Conduit and join the server chat room.
+/// Matrix registration is deferred out of the onboarding flow.
 ///
-/// Delegates account registration to OnboardingService (shared with CLI path).
 /// Called as a fire-and-forget task after OAuth sign-in. Non-blocking.
-async fn onboard_matrix(userpod_name: &str, display_name: &str) {
-    let homeserver_url =
-        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
-
-    // Delegate account registration to the onboarding service
-    let result = hkask_services_onboarding::OnboardingService::register_oauth_matrix_accounts(
-        display_name,
-        userpod_name,
-        &homeserver_url,
-    )
-    .await;
-
-    let (human_id, replicant_id) = match result {
-        Ok(r) => {
-            tracing::info!(
-                target = "hkask.api.matrix",
-                human = %r.human_user_id,
-                replicant = %r.replicant_user_id,
-                "Matrix accounts registered via onboarding service"
-            );
-            (Some(r.human_user_id), Some(r.replicant_user_id))
-        }
-        Err(e) => {
-            tracing::warn!(target = "hkask.api.matrix", error = %e, "Matrix registration failed (Conduit may be offline)");
-            (None, None)
-        }
-    };
-
-    // Ensure server chat room exists and invite users
-    if human_id.is_some() || replicant_id.is_some() {
-        ensure_chat_room(
-            &homeserver_url,
-            human_id.as_deref(),
-            replicant_id.as_deref(),
-        )
-        .await;
-    }
+async fn onboard_matrix(_userpod_name: &str, _display_name: &str) {
+    // Matrix account registration is deferred out of the onboarding flow.
+    // Matrix setup will be handled separately when Conduit is available.
+    tracing::info!(
+        target: "hkask.api.matrix",
+        "Matrix registration deferred — not attempted during onboarding"
+    );
 }
 
 /// Ensure the server-wide chat room exists and invite new users to it.

@@ -162,16 +162,14 @@ fn main() {
             }
         }
 
-        Commands::Onboard => match rt.block_on(hkask_cli::onboarding::run_add_replicant()) {
-            Ok(()) => {}
-            Err(e) => {
-                if matches!(e, hkask_cli::onboarding::OnboardingError::Cancelled) {
-                    std::process::exit(0);
-                }
-                eprintln!("Onboarding failed: {}", e);
-                std::process::exit(1);
-            }
-        },
+        Commands::Onboard => {
+            // Multi-persona onboarding was removed (1:1 model: one persistent
+            // UserPod per user). `kask onboard` no longer adds replicants.
+            eprintln!("hKask now uses a single persistent UserPod per user (1:1 model).");
+            eprintln!("Multi-persona onboarding is no longer supported.");
+            eprintln!("To set up your first UserPod, run: \x1b[36mkask chat\x1b[0m");
+            std::process::exit(0);
+        }
 
         Commands::Settings { action } => commands::settings::run(action),
 

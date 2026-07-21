@@ -1,14 +1,15 @@
-//! Onboarding state machine — resumable, self-healing replicant creation.
+//! Onboarding state machine — resumable userpod creation.
 //!
-//! Converts the linear `create_first_replicant_flow` into explicit states.
+//! Simplified from the replicant-creation state machine: no agent registry,
+//! no Matrix account creation, no UserProfile. The flow is linear:
+//! derive secrets → create the userpod (SQLCipher DB) → register in A2A.
 //! Each step is independently callable and carries its own recovery logic.
-//! If any step fails, the session can be resumed from the failed state.
 
+use hkask_agents::A2ARuntime;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
-use hkask_services_onboarding::{
-    MatrixRegistrationResult, OnboardingService, RegistryHandle, ResolvedSecrets,
-};
-use hkask_types::agent_registry::UserProfile;
+use hkask_services_onboarding::{OnboardingService, ResolvedSecrets};
+use hkask_storage::user_store::UserStore;
+use std::sync::Arc;
 
 use crate::onboarding::OnboardingError;
 
@@ -16,38 +17,28 @@ use crate::onboarding::OnboardingError;
 /// Each field is populated as its corresponding step completes.
 pub struct OnboardingSession {
     // ── Collected before the state machine starts ──
-    pub user_profile: UserProfile,
     pub userpod_name: String,
-    pub display_name: String,
-    pub description: String,
+    pub email: String,
+    pub first_name: String,
+    pub last_name: String,
 
     // ── Accumulated during state machine execution ──
     selected_model: Option<String>,
     passphrase: Option<String>,
     resolved_secrets: Option<ResolvedSecrets>,
-    registry_handle: Option<RegistryHandle>,
-    matrix_result: Option<MatrixRegistrationResult>,
-
-    homeserver_url: String,
 }
 
 impl OnboardingSession {
     /// Create a new session with identity already collected.
-    pub fn new(user_profile: UserProfile, userpod_name: String, description: String) -> Self {
-        let display_name = user_profile.replicant_display_name(&userpod_name);
-        let homeserver_url = std::env::var("HKASK_MATRIX_URL")
-            .unwrap_or_else(|_| "http://localhost:8008".to_string());
+    pub fn new(userpod_name: String, email: String, first_name: String, last_name: String) -> Self {
         Self {
-            user_profile,
             userpod_name,
-            display_name,
-            description,
+            email,
+            first_name,
+            last_name,
             selected_model: None,
             passphrase: None,
             resolved_secrets: None,
-            registry_handle: None,
-            matrix_result: None,
-            homeserver_url,
         }
     }
 
@@ -59,59 +50,29 @@ impl OnboardingSession {
         get_model: impl FnOnce() -> Result<String, OnboardingError>,
         get_passphrase: impl FnOnce() -> Result<String, OnboardingError>,
     ) -> Result<CompletedSession, (Self, OnboardingError)> {
-        // Advance through provider (no callback needed).
-        if let Err(e) = self.advance_provider().await {
-            return Err((self, e));
-        }
-        // Model selection uses the injected callback.
         if let Err(e) = self.advance_model(get_model()) {
             return Err((self, e));
         }
-        // Passphrase uses the injected callback.
         if let Err(e) = self.advance_passphrase(get_passphrase()) {
             return Err((self, e));
         }
-        // Remaining steps are pure service calls.
-        if let Err(e) = self.advance_registry().await {
+        if let Err(e) = self.advance_secrets().await {
             return Err((self, e));
         }
-        if let Err(e) = self.advance_profile().await {
+        if let Err(e) = self.advance_userpod().await {
             return Err((self, e));
         }
-        if let Err(e) = self.advance_replicant().await {
-            return Err((self, e));
-        }
-        if let Err(e) = self.advance_matrix().await {
+        if let Err(e) = self.advance_a2a().await {
             return Err((self, e));
         }
         Ok(CompletedSession {
-            display_name: self.display_name,
-            description: self.description,
+            userpod_name: self.userpod_name,
             selected_model: self.selected_model.unwrap_or_default(),
             resolved_secrets: self.resolved_secrets,
-            registry_handle: self.registry_handle,
-            matrix_result: self.matrix_result,
         })
     }
 
     // ── Step implementations ─────────────────────────────────────────────
-
-    async fn advance_provider(&mut self) -> Result<(), OnboardingError> {
-        // Provider setup is idempotent — skip if already configured.
-        let config = hkask_inference::InferenceConfig::from_env();
-        if config.deepinfra_api_key.is_empty()
-            && config.together_api_key.is_empty()
-            && config.fal_api_key.is_empty()
-        {
-            return Err(OnboardingError::Service(ServiceError::Domain {
-                kind: ErrorKind::BadRequest,
-                domain: DomainKind::Infrastructure,
-                source: None,
-                message: "No inference provider configured. Set DI_API_KEY.".into(),
-            }));
-        }
-        Ok(())
-    }
 
     fn advance_model(
         &mut self,
@@ -131,17 +92,17 @@ impl OnboardingSession {
         Ok(())
     }
 
-    async fn advance_registry(&mut self) -> Result<(), OnboardingError> {
+    async fn advance_secrets(&mut self) -> Result<(), OnboardingError> {
         let passphrase = self.passphrase.as_ref().ok_or_else(|| {
             OnboardingError::Service(ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
                 domain: DomainKind::Infrastructure,
                 source: None,
-                message: "Passphrase not set before registry init".into(),
+                message: "Passphrase not set before secret derivation".into(),
             })
         })?;
 
-        // Remove orphaned DB from previous failed attempt.
+        // Remove orphaned DB from a previous failed attempt.
         if let Ok(pre_config) = ServiceConfig::from_env()
             && OnboardingService::has_orphaned_db(&pre_config)
         {
@@ -151,158 +112,144 @@ impl OnboardingSession {
             let _ = std::io::stdout().flush();
             let confirm = crate::onboarding::read_line().unwrap_or_default();
             if confirm.trim().to_lowercase().starts_with('y') {
-                // has_orphaned_db already probed the DB above; use the unchecked
-                // removal to avoid a second SQLCipher open (which would emit
-                // another round of unsuppressable `hmac check failed` errors).
                 if OnboardingService::remove_orphaned_db_unchecked(&pre_config) {
                     eprintln!("  Removed orphaned database.");
                 } else {
-                    eprintln!("  \u{26a0} Database was not removed (cleanup failed).");
+                    eprintln!("  ⚠ Database was not removed (cleanup failed).");
                 }
             } else {
                 eprintln!("  Keeping existing database. Setup will use it if compatible.");
             }
         }
 
-        // Derive secrets and store in keychain
-        let resolved = OnboardingService::derive_secrets(passphrase, true).map_err(|e| {
+        // Derive secrets (no keychain store here — the caller stores them
+        // after the userpod is created so a failed userpod step doesn't leave
+        // orphaned keychain entries).
+        let resolved = OnboardingService::derive_secrets(passphrase).map_err(|e| {
             eprintln!("  \x1b[31m✗\x1b[0m Failed to derive security keys: {}", e);
             OnboardingError::Service(e)
         })?;
+        self.resolved_secrets = Some(resolved);
+        Ok(())
+    }
 
-        // Initialize registry.
+    async fn advance_userpod(&mut self) -> Result<(), OnboardingError> {
+        let resolved = self.resolved_secrets.as_ref().ok_or_else(|| {
+            OnboardingError::Service(ServiceError::Domain {
+                kind: ErrorKind::BadRequest,
+                domain: DomainKind::Infrastructure,
+                source: None,
+                message: "Secrets not derived before userpod creation".into(),
+            })
+        })?;
+        let passphrase = self.passphrase.as_deref().unwrap_or("");
+
+        // Build a config from the resolved secrets so we can open the DB.
         let config = ServiceConfig::from_secrets(
             resolved.a2a_secret.clone(),
             resolved.db_passphrase.clone(),
-            self.display_name.clone(),
+            self.userpod_name.clone(),
         );
-        let handle = OnboardingService::init_registry(&config)
+
+        // Create the userpod in the SQLCipher DB. Idempotent: if the userpod
+        // already exists (re-onboarding after keychain clear), log and continue.
+        let store = UserStore::open(&config.db_path, &config.db_passphrase).map_err(|e| {
+            OnboardingError::Service(ServiceError::Domain {
+                kind: ErrorKind::BadRequest,
+                domain: DomainKind::Storage,
+                source: None,
+                message: format!("Failed to open user DB: {e}"),
+            })
+        })?;
+        if store
+            .get_userpod(&self.userpod_name)
+            .map_err(|e| {
+                OnboardingError::Service(ServiceError::Domain {
+                    kind: ErrorKind::BadRequest,
+                    domain: DomainKind::Storage,
+                    source: None,
+                    message: format!("Failed to look up userpod: {e}"),
+                })
+            })?
+            .is_some()
+        {
+            tracing::info!(
+                target: "hkask.onboarding",
+                userpod = %self.userpod_name,
+                "Userpod already exists in UserStore — skipping creation"
+            );
+        } else {
+            store
+                .register_userpod(
+                    self.userpod_name.clone(),
+                    self.email.clone(),
+                    None,
+                    self.first_name.clone(),
+                    self.last_name.clone(),
+                    passphrase.to_string(),
+                )
+                .map_err(|e| {
+                    eprintln!("  \x1b[31m✗\x1b[0m Failed to create userpod: {}", e);
+                    OnboardingError::Service(ServiceError::Domain {
+                        kind: ErrorKind::BadRequest,
+                        domain: DomainKind::Storage,
+                        source: None,
+                        message: format!("Failed to register userpod: {e}"),
+                    })
+                })?;
+        }
+
+        // Persist secrets to the keychain now that the userpod exists.
+        let keychain = hkask_keystore::Keychain::default();
+        let _ = keychain.store_by_key(
+            hkask_types::keychain_keys::KEY_MASTER_KEY,
+            &resolved.master_key_hex,
+        );
+        let _ = keychain.store_by_key(
+            hkask_types::keychain_keys::KEY_A2A_SECRET,
+            &resolved.a2a_secret,
+        );
+        let _ = keychain.store_by_key(hkask_types::keychain_keys::KEY_DB_PASSPHRASE, passphrase);
+
+        tracing::info!(
+            target: "hkask.onboarding",
+            userpod = %self.userpod_name,
+            "Userpod created and secrets stored in keychain"
+        );
+        Ok(())
+    }
+
+    async fn advance_a2a(&mut self) -> Result<(), OnboardingError> {
+        let resolved = self.resolved_secrets.as_ref().ok_or_else(|| {
+            OnboardingError::Service(ServiceError::Domain {
+                kind: ErrorKind::BadRequest,
+                domain: DomainKind::Infrastructure,
+                source: None,
+                message: "Secrets not derived before A2A registration".into(),
+            })
+        })?;
+        let config = ServiceConfig::from_secrets(
+            resolved.a2a_secret.clone(),
+            resolved.db_passphrase.clone(),
+            self.userpod_name.clone(),
+        );
+        let a2a = Arc::new(A2ARuntime::new(&config.a2a_secret));
+        OnboardingService::register_userpod(&a2a, &self.userpod_name)
             .await
             .map_err(|e| {
-                eprintln!("  \x1b[31m✗\x1b[0m Failed to initialize database: {}", e);
+                eprintln!(
+                    "  \x1b[31m✗\x1b[0m Failed to register userpod in A2A: {}",
+                    e
+                );
                 OnboardingError::Service(e)
             })?;
-
-        self.resolved_secrets = Some(resolved);
-        self.registry_handle = Some(handle);
-        Ok(())
-    }
-
-    async fn advance_profile(&mut self) -> Result<(), OnboardingError> {
-        let handle = self.registry_handle.as_ref().ok_or_else(|| {
-            OnboardingError::Service(ServiceError::Domain {
-                kind: ErrorKind::BadRequest,
-                domain: DomainKind::Infrastructure,
-                source: None,
-                message: "Registry not initialized before profile store".into(),
-            })
-        })?;
-        Ok(()).map_err(|e| {
-            eprintln!("  \x1b[31m✗\x1b[0m Failed to store user profile: {}", e);
-            OnboardingError::Service(e)
-        })?;
-        Ok(())
-    }
-
-    async fn advance_replicant(&mut self) -> Result<(), OnboardingError> {
-        let handle = self.registry_handle.as_ref().ok_or_else(|| {
-            OnboardingError::Service(ServiceError::Domain {
-                kind: ErrorKind::BadRequest,
-                domain: DomainKind::Infrastructure,
-                source: None,
-                message: "Registry not initialized before replicant registration".into(),
-            })
-        })?;
-        OnboardingService::register_userpod(
-            &handle.a2a,
-            &handle.store,
-            &self.userpod_name,
-            &self.description,
-            Some(&self.user_profile),
-            None,
-            None,
-        )
-        .await
-        .map_err(|e| {
-            eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
-            OnboardingError::Service(e)
-        })?;
-
-        // Also register in UserStore so the daemon's check_auth can
-        // authenticate the replicant. The AgentRegistryStore tracks the
-        // agent definition (A2A, YAML, capabilities); the UserStore tracks
-        // the human user, replicant identity, and sessions. Without this,
-        // the daemon returns authenticated:false because the replicant
-        // isn't in the userpod_identities table.
-        let passphrase = self.passphrase.as_deref().unwrap_or("");
-        if !passphrase.is_empty() {
-            let config = ServiceConfig::from_secrets(
-                self.resolved_secrets
-                    .as_ref()
-                    .map(|s| s.a2a_secret.clone())
-                    .unwrap_or_default(),
-                self.resolved_secrets
-                    .as_ref()
-                    .map(|s| s.db_passphrase.clone())
-                    .unwrap_or_default(),
-                self.display_name.clone(),
-            );
-            match crate::onboarding::register_in_user_store(
-                &config,
-                &self.display_name,
-                &self.user_profile,
-                passphrase,
-            ) {
-                Ok(()) => {
-                    tracing::info!(
-                        target: "hkask.onboarding",
-                        replicant = %self.display_name,
-                        "Replicant registered in UserStore"
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "hkask.onboarding",
-                        replicant = %self.display_name,
-                        error = %e,
-                        "Failed to register in UserStore — daemon auth may not work"
-                    );
-                }
-            }
-        }
-        Ok(())
-    }
-
-    async fn advance_matrix(&mut self) -> Result<(), OnboardingError> {
-        // Matrix registration with auto-recovery (Conduit health check + container restart).
-        let result = OnboardingService::register_matrix_accounts(
-            &self.user_profile,
-            &self.display_name,
-            self.passphrase.as_deref().unwrap_or(""),
-            &self.homeserver_url,
-        )
-        .await;
-        // Matrix is non-blocking — store result even on failure.
-        self.matrix_result = result.ok();
-        if self.matrix_result.is_none() {
-            eprintln!();
-            eprintln!("  \x1b[33m⚠\x1b[0m  Matrix chat accounts could not be registered.");
-            eprintln!("  Automatic Conduit recovery was attempted but failed.");
-            eprintln!(
-                "  Matrix registration will be retried on next \x1b[36mkask chat\x1b[0m session."
-            );
-            eprintln!();
-        }
         Ok(())
     }
 }
 
 /// The completed session, ready for post-onboarding summary.
 pub struct CompletedSession {
-    pub display_name: String,
-    pub description: String,
+    pub userpod_name: String,
     pub selected_model: String,
     pub resolved_secrets: Option<ResolvedSecrets>,
-    pub registry_handle: Option<RegistryHandle>,
-    pub matrix_result: Option<MatrixRegistrationResult>,
 }

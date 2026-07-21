@@ -70,14 +70,16 @@ pub async fn token_issue(
     })
 }
 
-/// List tokens for a replicant (or all replicants if None).
-pub fn token_list(replicant: Option<&str>) -> Result<Vec<TokenEntry>, ServiceError> {
+/// List tokens for a userpod (or all userpods if None).
+pub fn token_list(userpod: Option<&str>) -> Result<Vec<TokenEntry>, ServiceError> {
     let ctx = crate::commands::helpers::build_agent_service();
     let (_system_webid, a2a) = ctx.identity();
-    let agents = a2a.list_agents();
+    let agents = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(a2a.list_agents())
+    });
     let entries: Vec<TokenEntry> = agents
         .into_iter()
-        .filter(|a| replicant.is_none_or(|r| a.webid.to_string() == r))
+        .filter(|a| userpod.is_none_or(|r| a.webid.to_string() == r))
         .map(|a| TokenEntry {
             name: a.webid.to_string(),
             token_hash: String::new(),

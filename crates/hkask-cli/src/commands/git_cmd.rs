@@ -103,11 +103,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             repo,
             message,
         } => {
-            let ctx = super::helpers::build_agent_service();
-
             let result = block_on!(
                 rt,
-                ArchivalService::create_snapshot(&owner, &repo, &message, &ctx.storage().agents,),
+                ArchivalService::create_snapshot(&owner, &repo, &message),
                 "Snapshot failed"
             );
             println!("Snapshot created (commit {})", result.commit_sha);

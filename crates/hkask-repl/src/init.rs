@@ -6,7 +6,6 @@
 //! wiring, per-agent memory access, onboarding) are layered on top through
 //! `AgentService` accessors — no independent infrastructure construction.
 
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -16,9 +15,7 @@ use hkask_cns::{GasBudget, GasCost};
 use super::{TalkConfig, TalkMode};
 use hkask_mcp::McpRuntime;
 use hkask_ports::ToolInfo;
-use hkask_templates::ManifestExecutor;
 use hkask_types::WebID;
-use hkask_types::template::LLMParameters;
 
 use super::ReplState;
 
@@ -542,77 +539,19 @@ pub(super) fn init_repl_state(
     state.tool_definitions = discover_tools(&gov_tool, rt);
 
     // ── Phase 14: Agent Definition + Process Manifest ───────────────────────
-    let rich_def = ctx
-        .storage()
-        .agents
-        .get(&state.current_agent)
-        .ok()
-        .and_then(|agent| {
-                .map_err(|e| format!("{e}"))
-                .or_else(|_| {
-                    let disk_path =
-                        hkask_types::agent_paths::agent_definition_yaml(&state.current_agent);
-                    fs::read_to_string(&disk_path)
-                        .map_err(|e| format!("Failed to read agent YAML from disk: {e}"))
-                        .and_then(|content| {
-                                .map_err(|e| format!("{e}"))
-                        })
-                })
-                .ok()
-        });
-
-    state.persona_constraints = rich_def.as_ref().and_then(|d| d.persona.clone());
-
-    if let Some(ref def) = rich_def
-        && let Some(ref manifest_ref) = def.process_manifest
-    {
-        let manifest = hkask_templates::resolve_manifest(manifest_ref, registry);
-
-        if let Some(bundle) = manifest {
-            let a2a_secret = state
-                .resolved_secrets
-                .as_ref()
-                .map(|s| s.a2a_secret.as_bytes().to_vec())
-                .unwrap_or_default();
-
-            let inference_port = ctx.inference_port().expect("inference port");
-
-            let executor = ManifestExecutor::new(
-                inference_port.clone(),
-                ctx.infra().mcp.clone() as Arc<dyn hkask_ports::ToolPort>,
-                LLMParameters::default(),
-                a2a_secret,
-            );
-
-            tracing::info!(
-                target: "hkask.repl",
-                manifest_id = %bundle.id,
-                steps = bundle.steps.len(),
-                "Loaded process manifest for agent"
-            );
-
-            state.manifest_state = Some(super::ManifestCascade {
-                manifest: bundle,
-                executor,
-            });
-        } else {
-            tracing::warn!(
-                target: "hkask.repl",
-                manifest_ref = %manifest_ref,
-                agent = %state.current_agent,
-                "Failed to resolve process manifest — agent will run without manifest cascade"
-            );
-        }
-    }
+    // Agent definitions (persona YAML, process manifests) were removed with the
+    // agent registry. Userpods have no persona; manifests are no longer loaded
+    // from agent definitions at REPL boot. `persona_constraints` and
+    // `manifest_state` remain `None` (their init defaults).
 
     // ── Phase 15: Model Metadata ───────────────────────────────────────────
-        // `model_meta` is intentionally left `None`: the provider catalog does not
-        // expose `context_length`, so fabricating one would corrupt the
-        // context-pressure loop. The inference path falls back to
-        // `DEFAULT_CONTEXT_WINDOW` until a real metadata fetch is wired (tracked
-        // separately). See `hkask-repl::handlers::repl_settings::DEFAULT_CONTEXT_WINDOW`.
+    // `model_meta` is intentionally left `None`: the provider catalog does not
+    // expose `context_length`, so fabricating one would corrupt the
+    // context-pressure loop. The inference path falls back to
+    // `DEFAULT_CONTEXT_WINDOW` until a real metadata fetch is wired (tracked
+    // separately). See `hkask-repl::handlers::repl_settings::DEFAULT_CONTEXT_WINDOW`.
 
-        Some(state)
+    Some(state)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

@@ -1,21 +1,20 @@
 //! Session resolution for hKask CLI.
 //!
 //! Two modes:
-//! - **Operating mode**: keys configured, replicants exist — sign in, no prompts.
-//! - **Setup**: no keys or no replicants — create the user's first replicant.
+//! - **Operating mode**: keys configured, a userpod exists — sign in, no prompts.
+//! - **Setup**: no keys or no userpod — create the user's first (and only) userpod.
 //!
-//! Also exposes `run_add_replicant()` for the `kask onboard` subcommand, which
-//! creates additional replicants in an existing installation.
+//! hKask is a tool platform for users. Each user has exactly one persistent
+//! UserPod (1:1, Solid-Pod-modeled). No multi-persona, no spin-up/spin-down.
 //!
 //! After setup, derived secrets are stored in the OS keychain for future
-//! sessions and passed directly to `init_registry_with_secrets()`.
+//! sessions.
 
 use hkask_inference::InferenceConfig;
 use hkask_inference::{FusionMode, ProviderId};
 pub use hkask_repl::host::OnboardingOutcome;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
-use hkask_services_onboarding::{MatrixRegistrationResult, OnboardingService, ResolvedSecrets};
-// agent registry removed
+use hkask_services_onboarding::ResolvedSecrets;
 use thiserror::Error;
 
 use hkask_repl::display;
@@ -39,48 +38,33 @@ pub enum OnboardingError {
 
 /// Resolve the user's session.
 ///
-/// Operating mode: keys configured, replicants exist — sign in, no prompts.
-/// Setup: no keys or no replicants — create the user's first replicant.
+/// Operating mode: keys work and a userpod exists — sign in, no prompts.
+/// Setup: no keys or no userpod — create the user's first userpod.
 ///
-/// In operating mode, this also creates a UserStore session for the chosen
-/// replicant so that the daemon's `check_auth` (which queries
-/// `list_sessions(replicant)`) returns `authenticated: true`. Without this,
-/// MCP servers bootstrapping via `verify_startup_gates` would fall back to
-/// direct mode (daemon_client: None), bypassing P4 OCAP verification.
+/// In operating mode, this also creates a UserStore session for the userpod
+/// so that the daemon's `check_auth` (which queries `list_sessions`) returns
+/// `authenticated: true`. Without this, MCP servers bootstrapping via
+/// `verify_startup_gates` would fall back to direct mode (daemon_client: None),
+/// bypassing P4 OCAP verification.
 pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
-    // Operating mode: keys work and at least one replicant exists.
-    if let Ok(config) = ServiceConfig::from_env()
-        && let Ok(handle) = OnboardingService::init_a2a(&config).await
-    {
-        let replicants = list_userpods(&handle.store)?;
-        if !replicants.is_empty() {
-            let agent_name = if replicants.len() == 1 {
-                replicants[0].definition.name.clone()
-            } else {
-                select_replicant(&replicants)?
-            };
+    // Operating mode: keys work and at least one userpod exists.
+    if let Ok(config) = ServiceConfig::from_env() {
+        let userpods = list_userpods(&config);
+        if let Ok(pods) = userpods
+            && !pods.is_empty()
+        {
+            // 1:1 model — one userpod per user. Sign in with the first (only) pod.
+            let userpod_name = pods[0].userpod_name.clone();
 
-            // ── Matrix pending-recovery: if Matrix registration was deferred
-            //     (Conduit was down during onboarding), retry now. ──
-            retry_pending_matrix(&handle).await;
+            // Ensure the userpod's directory space exists on disk.
+            let _ = hkask_types::agent_paths::ensure_agent_dirs(&userpod_name);
 
-            // Ensure the agent's directory space exists on disk.
-            // This covers migration from old layouts where agent folders
-            // may not have been created yet.
-            let _ = hkask_types::agent_paths::ensure_agent_dirs(&agent_name);
-
-            // ── Create a UserStore session so the daemon authenticates the
-            //     replicant. The DB passphrase resolved by ServiceConfig is
-            //     the same credential used for UserStore::login (both derive
-            //     from the master passphrase set during `kask init`). If the
-            //     login fails (e.g., passphrase mismatch from a rotated key),
-            //     we log a warning and continue — the REPL still works in
-            //     direct mode, just without P4 gate verification.
-            match create_user_session(&config, &agent_name) {
+            // Create a UserStore session so the daemon authenticates the userpod.
+            match create_user_session(&config, &userpod_name) {
                 Ok(session_id) => {
                     tracing::info!(
                         target: "hkask.onboarding",
-                        agent = %agent_name,
+                        userpod = %userpod_name,
                         session_id = %session_id,
                         "Created UserStore session for daemon authentication"
                     );
@@ -88,22 +72,18 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
                 Err(e) => {
                     tracing::warn!(
                         target: "hkask.onboarding",
-                        agent = %agent_name,
+                        userpod = %userpod_name,
                         error = %e,
                         "UserStore login failed — MCP servers will fall back to direct mode"
                     );
                 }
             }
 
-            // ── Resolve secrets from keychain for the REPL. In operating mode,
-            //     the secrets were stored during first-run onboarding. The REPL
-            //     needs the A2A secret to sign OCAP capability tokens for tool
-            //     invocation — without it, the tool-use loop cannot invoke any
-            //     MCP tool and terminates after one inference call.
-            let resolved_secrets = resolve_secrets_from_keychain(&config, &agent_name);
+            // Resolve secrets from keychain for the REPL.
+            let resolved_secrets = resolve_secrets_from_keychain(&config);
 
             return Ok(OnboardingOutcome {
-                signed_in_agent: agent_name,
+                signed_in_agent: userpod_name,
                 resolved_secrets,
                 selected_model: None,
                 is_first_run: false,
@@ -111,265 +91,69 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
         }
     }
 
-    // Setup: create the user's first replicant.
+    // Setup: create the user's first userpod.
     display::print_onboarding_banner();
-    create_first_replicant_flow().await
-}
-
-/// Add a new replicant to an existing hKask installation.
-///
-/// Used by `kask onboard`. When secrets are already in the keychain the user
-/// only provides name + description (no passphrase re-entry needed). When
-/// secrets are absent the full passphrase flow runs, matching first-run.
-pub async fn run_add_replicant() -> Result<(), OnboardingError> {
-    display::print_onboarding_banner();
-    println!("\n  \x1b[1mAdd a new replicant\x1b[0m");
-    println!("  Each replicant is a distinct AI identity with its own memory and charter.\n");
-
-    // Require existing secrets from the keychain — `kask onboard` adds to an existing
-    // installation, it does not bootstrap one.
-    let config = ServiceConfig::from_env().map_err(|_| {
-        eprintln!("  \x1b[31m✗\x1b[0m No hKask installation found in OS keychain.");
-        eprintln!("  Run \x1b[36mkask chat\x1b[0m first to complete initial setup, then use");
-        eprintln!("  \x1b[36mkask onboard\x1b[0m to add additional replicants.");
-        OnboardingError::Service(ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Infrastructure,
-            source: None,
-            message: "No keychain secrets — run `kask chat` first".into(),
-        })
-    })?;
-
-    // Open the existing registry.
-    let handle = OnboardingService::init_a2a(&config)
-        .await
-        .map_err(|e| {
-            eprintln!("  \x1b[31m✗\x1b[0m Cannot open registry: {}", e);
-            eprintln!("  Make sure you have completed first-run setup (`kask chat`).");
-            e
-        })?;
-
-    // Load the user profile for naming protocol
-    let user_profile = Ok(None).map_err(|e| {
-        eprintln!("  \x1b[31m✗\x1b[0m Cannot read user profile: {}", e);
-        e
-    })?;
-
-    // Q1: Replicant first name
-    if let Some(ref profile) = user_profile {
-        println!(
-            "  Your replicant's full name will be \x1b[36m[chosen] r{}\x1b[0m.",
-            profile.last_name
-        );
-    }
-    let name = prompt_line("  Replicant first name:")?;
-    let name = name.trim().to_string();
-    let display_name = if let Some(ref profile) = user_profile {
-        profile.replicant_display_name(&name)
-    } else {
-        name.clone()
-    };
-
-    // Q2: Tag line
-    println!();
-    let description = prompt_line(&format!(
-        "  Tag line for \x1b[36m{}\x1b[0m: (e.g., 'research assistant'):",
-        display_name
-    ))?;
-    let description = if description.trim().is_empty() {
-        "A helpful AI assistant".to_string()
-    } else {
-        description.trim().to_string()
-    };
-
-    // Q3: Model selection
-    println!();
-    println!("  \x1b[1mChoose a model\x1b[0m for this replicant.");
-    setup_provider().await?;
-    let selected_model = select_model().await?;
-
-    OnboardingService::register_userpod(
-        &handle.a2a,
-        &handle.store,
-        &name,
-        &description,
-        user_profile.as_ref(),
-        None,
-        None,
-    )
-    .await
-    .map_err(|e| {
-        eprintln!("  \x1b[31m✗\x1b[0m Failed to register replicant: {}", e);
-        e
-    })?;
-
-    // Create the agent's directory space immediately — don't wait for first
-    // pod deployment. The agent folder is their digital sphere: sessions,
-    // memory, artifacts, and pod storage all live here.
-    if let Err(e) = hkask_types::agent_paths::ensure_agent_dirs(&display_name) {
-        eprintln!(
-            "  \x1b[33m⚠\x1b[0m  Could not create agent directory: {}",
-            e
-        );
-    }
-
-    // Matrix registration for the new replicant (human account already exists).
-    // Recovery logic lives in the service layer.
-    let homeserver_url =
-        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
-    let matrix_info =
-        match OnboardingService::register_userpod_matrix_account(&display_name, &homeserver_url)
-            .await
-        {
-            Ok(user_id) => Some(user_id),
-            Err(e) => {
-                eprintln!("  \x1b[33m⚠\x1b[0m  Matrix registration failed: {}", e);
-                None
-            }
-        };
-
-    // Summary
-    println!();
-    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
-    println!("  \x1b[1;32m  ✓  Replicant added!\x1b[0m");
-    println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
-    println!();
-    println!(
-        "  \x1b[1mReplicant:\x1b[0m  \x1b[36m{}\x1b[0m",
-        display_name
-    );
-    println!("  \x1b[1mTag line:\x1b[0m  {}", description);
-    println!(
-        "  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m",
-        selected_model
-    );
-    if let Some(ref mid) = matrix_info {
-        println!("  \x1b[1mMatrix:\x1b[0m    \x1b[36m{}\x1b[0m", mid);
-    }
-    println!();
-    println!(
-        "  Start a session: \x1b[36mkask chat {}\x1b[0m",
-        display_name
-    );
-    println!();
-
-    Ok(())
+    create_first_userpod_flow().await
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────
 
-/// Select which replicant to sign into when multiple exist.
-fn select_replicant(replicants: &[RegisteredAgent]) -> Result<String, OnboardingError> {
-    println!("\n  \x1b[1mRegistered replicants:\x1b[0m");
-    for (i, r) in replicants.iter().enumerate() {
-        let desc = r
-            .definition
-            .charter
-            .as_ref()
-            .map(|c| c.description.as_str())
-            .unwrap_or("(no description)");
-        println!(
-            "    {}. \x1b[36m{}\x1b[0m — {}",
-            i + 1,
-            r.definition.name,
-            desc
-        );
+/// pre:  user must not cancel at any interactive prompt
+/// post: returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; userpod created in SQLCipher DB; userpod registered in A2A
+/// inv:  does not modify any external state before derive_secrets; cancellation at any prompt returns OnboardingError::Cancelled with zero side effects
+/// Flow: Create the user's first (and only) userpod.
+///
+/// Prompt order per spec: username → password (confirm) → email → model.
+async fn create_first_userpod_flow() -> Result<OnboardingOutcome, OnboardingError> {
+    println!("\n  \x1b[1mWelcome to hKask!\x1b[0m");
+    println!("  Let's set up your account.\n");
+
+    // Q1: Username (becomes the userpod name)
+    let username = prompt_line("  Choose a username:")?;
+    let username = username.trim().to_string();
+    if username.is_empty() {
+        return Err(OnboardingError::Cancelled);
     }
 
-    let choice = prompt_choice(
-        "\n  Which replicant would you like to sign in to?",
-        1..=replicants.len(),
-    )?;
-    Ok(replicants[choice - 1].definition.name.clone())
-}
-
-/// pre:  user must not cancel at any interactive prompt
-/// post: returns OnboardingOutcome with signed_in_agent, resolved_secrets, selected_model, is_first_run=true; all secrets derived and stored in keychain; replicant registered in A2A; user profile stored; matrix registration attempted (non-blocking)
-/// inv:  does not modify any external state before derive_secrets; cancellation at any prompt returns OnboardingError::Cancelled with zero side effects
-/// Flow: Create the user's first replicant
-async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingError> {
-    println!("\n  \x1b[1mWelcome to hKask!\x1b[0m");
-    println!("  Let's set up your profile and your first replicant.\n");
-
-    // ── Human identity (collected first — replicant naming depends on it) ──
-
-    // Q1: Human first name
-    let human_first = prompt_line("  What is your first name?")?;
-
-    // Q2: Human last name
-    println!();
-    let human_last = prompt_line("  What is your last name?")?;
-
-    // Q3: Human email
-    println!();
-    let human_email = prompt_line("  Your email address:")?;
-    let human_email = human_email.trim().to_string();
-
-    let user_profile = UserProfile {
-        first_name: human_first.clone(),
-        last_name: human_last.clone(),
-        email: human_email,
-    };
-
-    // ── Replicant creation ──
-
-    println!();
-    let name = prompt_line("  What first name should your replicant have?")?;
-    let name = name.trim().to_string();
-    let display_name = user_profile.replicant_display_name(&name);
-
-    // Q6: Tag line
-    println!();
-    let description = prompt_line(&format!(
-        "  Tag line for \x1b[36m{}\x1b[0m: (e.g., 'finance assistant, research helper')",
-        display_name
-    ))?;
-    let description = if description.trim().is_empty() {
-        "A helpful AI assistant".to_string()
-    } else {
-        description.trim().to_string()
-    };
-
-    // ── Interactive prompts (CLI layer, not the state machine) ──
-
-    // Provider setup
-    println!();
-    setup_provider().await?;
-
-    // Model selection
-    println!();
-    println!("  \x1b[1mChoose a model\x1b[0m for your replicant to use.");
-    println!("  Models determine how your replicant thinks and responds.");
-    let selected_model = select_model().await?;
-
-    // Passphrase
+    // Q2: Password (with confirm)
     println!();
     println!("  Choose a \x1b[1mmaster passphrase\x1b[0m to encrypt your data.");
     println!("  This passphrase derives all your internal security keys.");
     println!("  \x1b[2mStore it in a password manager — it cannot be recovered if lost.\x1b[0m");
     let passphrase = prompt_passphrase_with_confirm()?;
 
+    // Q3: Email
+    println!();
+    let email = prompt_line("  Your email address:")?;
+    let email = email.trim().to_string();
+
+    // Q4: Model selection
+    println!();
+    println!("  \x1b[1mChoose a model\x1b[0m for your userpod to use.");
+    println!("  Models determine how your userpod thinks and responds.");
+    setup_provider().await?;
+    let selected_model = select_model().await?;
+
+    // Use the username as first_name, empty last_name (1:1 model — no persona).
+    let first_name = username.clone();
+    let last_name = String::new();
+
     // ── Run the state machine for all service calls ──
     use crate::onboarding_session::OnboardingSession;
-    let session = OnboardingSession::new(user_profile, name, description);
+    let session = OnboardingSession::new(username, email, first_name, last_name);
     let completed = session
         .run(|| Ok(selected_model.clone()), || Ok(passphrase.clone()))
         .await
         .map_err(|(_session, e)| e)?;
 
     // Post-creation summary
-    print_creation_summary(
-        &completed.display_name,
-        &completed.description,
-        &completed.selected_model,
-        completed.matrix_result.as_ref(),
-    );
+    print_creation_summary(&completed.userpod_name, &completed.selected_model);
 
-    // Create the agent's directory space on disk.
-    let _ = hkask_types::agent_paths::ensure_agent_dirs(&completed.display_name);
+    // Create the userpod's directory space on disk.
+    let _ = hkask_types::agent_paths::ensure_agent_dirs(&completed.userpod_name);
 
     Ok(OnboardingOutcome {
-        signed_in_agent: completed.display_name,
+        signed_in_agent: completed.userpod_name,
         resolved_secrets: completed.resolved_secrets,
         selected_model: Some(completed.selected_model),
         is_first_run: true,
@@ -558,7 +342,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
     println!("  \x1b[1mInference provider\x1b[0m");
     println!();
     println!("  hKask requires an inference provider to generate responses.");
-    println!("  Without one, your replicant cannot reply to you.");
+    println!("  Without one, your userpod cannot reply to you.");
     println!();
     println!("  An API key is like a password that lets hKask use a cloud");
     println!("  AI service. You can get a free key at:");
@@ -641,7 +425,7 @@ async fn setup_provider() -> Result<(), OnboardingError> {
             println!();
             println!("  \x1b[33m⚠\x1b[0m  Skipping cloud provider setup.");
             println!("  hKask requires a cloud inference provider to generate responses.");
-            println!("  Without one, your replicant cannot reply to you.");
+            println!("  Without one, your userpod cannot reply to you.");
             println!();
             println!("  To add a cloud provider later, add your key to .env and restart.");
         }
@@ -653,85 +437,19 @@ async fn setup_provider() -> Result<(), OnboardingError> {
 
 // ── Private helpers ────────────────────────────────────────────────────────
 
-/// Retry pending Matrix registration silently on session start.
-async fn retry_pending_matrix(handle: &hkask_services_onboarding::RegistryHandle) {
-    let keychain = hkask_keystore::Keychain::default();
-    if keychain
-        .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY)
-        .unwrap_or_default()
-        != "true"
-    {
-        return;
-    }
-    // Already registered? Clear the marker.
-    if keychain
-        .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_USERNAME)
-        .is_ok()
-    {
-        let _ = keychain.delete_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_RECOVERY);
-        return;
-    }
-    // Load what we need and delegate to the service (which handles recovery).
-    let homeserver_url = keychain
-        .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_HOMESERVER)
-        .unwrap_or_else(|_| "http://localhost:8008".to_string());
-    let user_profile =
-        match hkask_services_onboarding::Ok(None) {
-            Ok(Some(p)) => p,
-            _ => return,
-        };
-    let replicants = match list_userpods(&handle.store) {
-        Ok(r) if !r.is_empty() => r,
-        _ => return,
-    };
-    let userpod_name = replicants[0].definition.name.clone();
-    let passphrase =
-        match keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MASTER_PASSPHRASE) {
-            Ok(p) => p,
-            _ => return,
-        };
-    let _ = hkask_services_onboarding::OnboardingService::register_matrix_accounts(
-        &user_profile,
-        &userpod_name,
-        &passphrase,
-        &homeserver_url,
-    )
-    .await;
-}
-
-/// Print a summary after successful replicant creation (first-run).
-fn print_creation_summary(
-    name: &str,
-    description: &str,
-    model: &str,
-    matrix: Option<&MatrixRegistrationResult>,
-) {
+/// Print a summary after successful userpod creation (first-run).
+fn print_creation_summary(name: &str, model: &str) {
     println!();
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
-    println!("  \x1b[1;32m  ✓  Replicant created successfully!\x1b[0m");
+    println!("  \x1b[1;32m  ✓  UserPod created successfully!\x1b[0m");
     println!("  \x1b[1;32m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
     println!();
-    println!("  \x1b[1mReplicant:\x1b[0m  \x1b[36m{}\x1b[0m", name);
-    println!("  \x1b[1mTag line:\x1b[0m  {}", description);
+    println!("  \x1b[1mUserPod:\x1b[0m  \x1b[36m{}\x1b[0m", name);
     println!("  \x1b[1mModel:\x1b[0m     \x1b[36m{}\x1b[0m", model);
     println!("  \x1b[1mSecurity:\x1b[0m  Keys stored in OS keychain (encrypted DB)");
-
-    if let Some(m) = matrix {
-        println!();
-        println!("  \x1b[1mMatrix Chat:\x1b[0m");
-        println!("  Accounts registered on Conduit (localhost:8008):");
-        println!("    \x1b[36mYou:\x1b[0m      {}", m.human_user_id);
-        println!("    \x1b[36mReplicant:\x1b[0m {}", m.replicant_user_id);
-        println!();
-        println!("  Open FluffyChat (or any Matrix client) and log in with:");
-        println!("    Homeserver: http://localhost:8008");
-        println!("    Username:   {}", m.human_user_id);
-        println!("    Password:   your master passphrase");
-    }
-
     println!();
     println!("  \x1b[1mGetting started:\x1b[0m");
-    println!("  • Just type to chat with your replicant");
+    println!("  • Just type to chat with your userpod");
     println!("  • \x1b[36m/help\x1b[0m   — see all available commands");
     println!("  • \x1b[36m/model\x1b[0m  — switch models anytime");
     println!("  • \x1b[36m/tools\x1b[0m  — discover available MCP tools");
@@ -741,17 +459,22 @@ fn print_creation_summary(
     println!();
 }
 
-/// List replicants from a store
-fn list_userpods(
-    store: &hkask_storage::AgentRegistryStore,
-) -> Result<Vec<RegisteredAgent>, OnboardingError> {
-    store.list().map_err(|e| {
-        OnboardingError::Service(ServiceError::Domain {
+/// List userpods from the user store. Returns an empty vec if the DB can't be opened.
+fn list_userpods(config: &ServiceConfig) -> Result<Vec<hkask_identity::UserPod>, ServiceError> {
+    use hkask_storage::user_store::UserStore;
+    let store = UserStore::open(&config.db_path, &config.db_passphrase).map_err(|e| {
+        ServiceError::Domain {
             kind: ErrorKind::BadRequest,
-            domain: DomainKind::Agent,
+            domain: DomainKind::Storage,
             source: None,
-            message: e.to_string(),
-        })
+            message: format!("Failed to open user DB: {e}"),
+        }
+    })?;
+    store.list_all_userpods().map_err(|e| ServiceError::Domain {
+        kind: ErrorKind::BadRequest,
+        domain: DomainKind::Storage,
+        source: None,
+        message: format!("Failed to list userpods: {e}"),
     })
 }
 
@@ -760,25 +483,17 @@ fn list_userpods(
 /// In operating mode, `run_onboarding` doesn't derive secrets (the
 /// passphrase isn't available). Instead, this helper reads the previously-
 /// stored secrets from the keychain: `HKASK_MASTER_KEY`, `a2a-secret`, and
-/// `hkask-db-passphrase`. These were stored during first-run onboarding via
-/// `OnboardingService::derive_secrets(passphrase, store=true)`.
+/// `hkask-db-passphrase`.
 ///
 /// Returns `Some(ResolvedSecrets)` if all three secrets are found, or
-/// `None` if any are missing (the REPL will print the "No A2A secret"
-/// error when the user tries to invoke a tool).
-fn resolve_secrets_from_keychain(
-    config: &ServiceConfig,
-    _agent_name: &str,
-) -> Option<ResolvedSecrets> {
+/// `None` if any are missing.
+fn resolve_secrets_from_keychain(config: &ServiceConfig) -> Option<ResolvedSecrets> {
     let keychain = hkask_keystore::Keychain::default();
     let master_key_hex = keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_MASTER_KEY)
         .ok()?;
-    // Try the keychain first (fast path). If a2a-secret is missing (e.g.,
-    // keychain was partially cleared), fall back to the full resolution chain
-    // (env → keychain → HKDF-derived from master key). This handles the case
-    // where the a2a-secret keychain entry disappears but HKASK_MASTER_KEY is
-    // still present — resolve_a2a_secret will derive it on the fly.
+    // Try the keychain first (fast path). If a2a-secret is missing, fall back
+    // to deriving from the master key.
     let a2a_secret = keychain
         .retrieve_by_key(hkask_types::keychain_keys::KEY_A2A_SECRET)
         .ok()
@@ -798,80 +513,7 @@ fn resolve_secrets_from_keychain(
     })
 }
 
-/// Register a replicant in the UserStore (human_users + userpod_identities).
-///
-/// This is called after `OnboardingService::register_userpod` (which writes
-/// to AgentRegistryStore) to ensure the replicant also exists in the
-/// `userpod_identities` table. The daemon's `check_auth` queries this table
-/// via `UserStore::get_userpod` — without this registration, the daemon
-/// returns `authenticated: false` even though the replicant exists in the
-/// agent registry.
-///
-/// Idempotent: if the replicant already exists in UserStore (e.g., from a
-/// prior onboarding), the error is logged as a warning and the function
-/// returns Ok. This handles re-onboarding scenarios where the DB persists
-/// but the keychain was cleared.
-pub(crate) fn register_in_user_store(
-    config: &ServiceConfig,
-    display_name: &str,
-    user_profile: &hkask_types::agent_registry::UserProfile,
-    passphrase: &str,
-) -> Result<(), UserStoreRegistrationError> {
-    use hkask_storage::user_store::UserStore;
-
-    let store = UserStore::open(&config.db_path, &config.db_passphrase).map_err(|e| {
-        UserStoreRegistrationError::DbOpen(hkask_storage::DatabaseError::SqlCipher(e.to_string()))
-    })?;
-
-    // Check if the replicant already exists (idempotent).
-    if store
-        .get_userpod(display_name)
-        .map_err(UserStoreRegistrationError::GetReplicant)?
-        .is_some()
-    {
-        tracing::info!(
-            target: "hkask.onboarding",
-            replicant = %display_name,
-            "Replicant already in UserStore — skipping registration"
-        );
-        return Ok(());
-    }
-
-    // Register the replicant in the UserStore. This creates both the
-    // human_users and userpod_identities records.
-    store
-        .register_userpod(
-            display_name.to_string(),
-            user_profile.email.clone(),
-            None, // phone
-            user_profile.first_name.clone(),
-            user_profile.last_name.clone(),
-            passphrase.to_string(),
-        )
-        .map_err(UserStoreRegistrationError::RegisterReplicant)?;
-    Ok(())
-}
-
-/// Error type for UserStore registration during onboarding.
-///
-/// Used by `register_in_user_store` to classify failures in the
-/// DB open → pool → get_userpod → register_userpod chain. Non-fatal —
-/// the caller logs a warning and continues (daemon auth may not work).
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum UserStoreRegistrationError {
-    #[error("DB open: {0}")]
-    DbOpen(#[source] hkask_storage::DatabaseError),
-    #[error("get_userpod: {0}")]
-    GetReplicant(#[source] hkask_storage::UserStoreError),
-    #[error("register_userpod: {0}")]
-    RegisterReplicant(#[source] hkask_storage::UserStoreError),
-}
-
 /// Error type for UserStore session creation during onboarding.
-///
-/// Used by `create_user_session` to classify failures in the
-/// DB open → pool → login chain. Non-fatal — the caller logs a warning
-/// and continues in direct mode.
 #[derive(Debug, thiserror::Error)]
 enum SessionCreationError {
     #[error("DB open: {0}")]
@@ -880,28 +522,21 @@ enum SessionCreationError {
     Login(String),
 }
 
-/// Create a UserStore session for the replicant so the daemon's `check_auth`
+/// Create a UserStore session for the userpod so the daemon's `check_auth`
 /// returns `authenticated: true`.
 ///
-/// Opens the same encrypted DB that `init_registry` opens, constructs a
-/// `UserStore` from the driver, and calls `login()`. The DB passphrase from
-/// `ServiceConfig` is the user's master passphrase (set during `kask init`),
-/// which is the same credential `UserStore::login` verifies against the
-/// Argon2 hash stored in the `users` table.
-///
 /// Returns `Ok(session_id)` on success, or `Err(SessionCreationError)` on any
-/// failure (DB open, user not found, passphrase mismatch). Errors are
-/// non-fatal — the caller logs a warning and continues in direct mode.
+/// failure. Errors are non-fatal — the caller logs a warning and continues.
 fn create_user_session(
     config: &ServiceConfig,
-    agent_name: &str,
+    userpod_name: &str,
 ) -> Result<String, SessionCreationError> {
     use hkask_storage::user_store::UserStore;
 
     let store = UserStore::open(&config.db_path, &config.db_passphrase)
         .map_err(|e| SessionCreationError::DbOpen(e.to_string()))?;
     let session = store
-        .login(agent_name, &config.db_passphrase)
+        .login(userpod_name, &config.db_passphrase)
         .map_err(|e| SessionCreationError::Login(e.to_string()))?;
     Ok(session.session_id)
 }

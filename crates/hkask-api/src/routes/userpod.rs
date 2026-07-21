@@ -54,10 +54,10 @@ pub async fn list_userpods(
         .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
         .ok_or((StatusCode::NOT_FOUND, "Replicant not found".to_string()))?;
-    let replicants = store
-        .list_userpods(&session_replicant.user_id)
+    let replicant = store
+        .get_userpod_by_user(&session_replicant.user_id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
-    let list: Vec<UserPodInfo> = replicants
+    let list: Vec<UserPodInfo> = replicant
         .into_iter()
         .map(|r| UserPodInfo {
             name: r.userpod_name,
