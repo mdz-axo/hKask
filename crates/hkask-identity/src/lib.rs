@@ -69,34 +69,29 @@ impl HumanUser {
 }
 
 /// Loop: Cybernetics
-/// UserPod identity — the in-system persona users log in AS (1:1 per user; multi-persona removed).
+/// UserPod identity — the in-system persona users log in AS (1:1 per user).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPod {
     pub userpod_name: String,
     pub user_id: UserID,
     pub webid: WebID,
-    /// Wallet ID for rJoule payments. Created during replicant registration.
-    /// Each replicant gets their own wallet for deposit/withdrawal isolation.
+    /// Wallet ID for rJoule payments.
     pub wallet_id: Option<WalletId>,
     pub first_name_enc: Vec<u8>,
     pub last_name_enc: Vec<u8>,
     pub persona_yaml: Option<String>,
-    pub is_primary: bool,
     pub created_at: i64,
     pub last_login: Option<i64>,
 }
 
-/// Strangler-fig bridge alias — removed in Phase 6 once all consumers use `UserPod`.
-/// (Plain alias, not `#[deprecated]` — P5 compliant during transition.)
-
 impl UserPod {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  userpod_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
-    /// post: returns a deterministic WebID with the "replicant" namespace;
+    /// post: returns a deterministic WebID with the "userpod" namespace;
     ///       same userpod_name always produces the same WebID
     #[must_use]
     pub fn derive_webid(userpod_name: &str) -> WebID {
-        WebID::from_persona_with_namespace(userpod_name.as_bytes(), "replicant")
+        WebID::from_persona_with_namespace(userpod_name.as_bytes(), "userpod")
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
@@ -111,7 +106,6 @@ impl UserPod {
         user_id: UserID,
         first_name_enc: Vec<u8>,
         last_name_enc: Vec<u8>,
-        is_primary: bool,
     ) -> Self {
         Self {
             webid: Self::derive_webid(&userpod_name),
@@ -121,7 +115,6 @@ impl UserPod {
             first_name_enc,
             last_name_enc,
             persona_yaml: None,
-            is_primary,
             created_at: chrono::Utc::now().timestamp(),
             last_login: None,
         }

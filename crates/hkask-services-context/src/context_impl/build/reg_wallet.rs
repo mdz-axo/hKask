@@ -249,43 +249,33 @@ fn build_wallet(
         })?;
         if let Ok(Some(system_identity)) = user_guard.get_userpod(&config.agent_name) {
             let user_id = system_identity.user_id;
-            let replicants =
-                user_guard
-                    .list_userpods(&user_id)
-                    .map_err(|e| ServiceError::Domain {
-                        kind: ErrorKind::BadRequest,
-                        domain: DomainKind::Storage,
-                        source: None,
-                        message: e.to_string(),
-                    })?;
-            for identity in &replicants {
-                if identity.wallet_id.is_some() {
-                    continue;
-                }
-                let wallet_id = WalletId::from_name(&identity.userpod_name);
-                if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
-                    tracing::warn!(
-                        target: "cns.wallet",
-                        replicant = %identity.userpod_name,
-                        error = %e,
-                        "Failed to create wallet for replicant"
-                    );
-                    continue;
-                }
-                if let Err(e) = user_guard.set_wallet_id(&identity.userpod_name, wallet_id) {
-                    tracing::warn!(
-                        target: "cns.wallet",
-                        replicant = %identity.userpod_name,
-                        error = %e,
-                        "Failed to bind wallet to replicant"
-                    );
-                } else {
-                    tracing::info!(
-                        target: "cns.wallet",
-                        replicant = %identity.userpod_name,
-                        wallet_id = %wallet_id,
-                        "Wallet created and bound to replicant"
-                    );
+            if let Ok(Some(identity)) = user_guard.get_userpod_by_user(&user_id) {
+                if identity.wallet_id.is_none() {
+                    let wallet_id = WalletId::from_name(&identity.userpod_name);
+                    if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
+                        tracing::warn!(
+                            target: "cns.wallet",
+                            replicant = %identity.userpod_name,
+                            error = %e,
+                            "Failed to create wallet for replicant"
+                        );
+                    } else if let Err(e) =
+                        user_guard.set_wallet_id(&identity.userpod_name, wallet_id)
+                    {
+                        tracing::warn!(
+                            target: "cns.wallet",
+                            replicant = %identity.userpod_name,
+                            error = %e,
+                            "Failed to bind wallet to replicant"
+                        );
+                    } else {
+                        tracing::info!(
+                            target: "cns.wallet",
+                            replicant = %identity.userpod_name,
+                            wallet_id = %wallet_id,
+                            "Wallet created and bound to replicant"
+                        );
+                    }
                 }
             }
         }

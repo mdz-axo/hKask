@@ -16,7 +16,7 @@ use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
+const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, created_at, last_login";
 const SESSION_COLUMNS: &str =
     "session_id, userpod_name, webid, user_id, session_key_salt, expires_at, last_active";
 
@@ -75,9 +75,8 @@ fn replicant_from_row(
             DbValue::Null => None,
             v => Some(v.as_text()?.to_string()),
         },
-        is_primary: row.get_int(7)? != 0,
-        created_at: row.get_int(8)?,
-        last_login: match row.get(9)? {
+        created_at: row.get_int(7)?,
+        last_login: match row.get(8)? {
             DbValue::Null => None,
             v => Some(v.as_int()?),
         },
@@ -183,18 +182,17 @@ impl UserStore {
                 ],
             )?;
             let identity =
-                UserPod::new(userpod_name, user_id, first_name_enc, last_name_enc, true);
+                UserPod::new(userpod_name, user_id, first_name_enc, last_name_enc);
             conn.execute(
                 "INSERT INTO userpod_identities
-                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, is_primary, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 rusqlite::params![
                     identity.userpod_name,
                     identity.user_id,
                     identity.webid,
                     identity.first_name_enc,
                     identity.last_name_enc,
-                    1,
                     chrono::Utc::now().timestamp()
                 ],
             )?;
@@ -295,19 +293,17 @@ impl UserStore {
                 user_id,
                 first_name_enc,
                 last_name_enc,
-                true,
             );
             conn.execute(
                 "INSERT INTO userpod_identities
-                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, is_primary, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 rusqlite::params![
                     identity.userpod_name,
                     identity.user_id,
                     identity.webid,
                     identity.first_name_enc,
                     identity.last_name_enc,
-                    1,
                     now
                 ],
             )?;
@@ -345,16 +341,12 @@ impl UserStore {
                     )))
                 })?;
                 let user = self.get_user(&uid)?;
-                let replicants = self.list_userpods(&uid)?;
-                let primary = replicants
-                    .into_iter()
-                    .find(|r| r.is_primary)
-                    .ok_or_else(|| {
-                        UserStoreError::NotFound(NotFound {
-                            entity_type: "replicant".to_string(),
-                            id: "primary replicant".to_string(),
-                        })
-                    })?;
+                let primary = self.get_userpod_by_user(&uid)?.ok_or_else(|| {
+                    UserStoreError::NotFound(NotFound {
+                        entity_type: "replicant".to_string(),
+                        id: "user replicant".to_string(),
+                    })
+                })?;
                 Ok(Some((user, primary)))
             }
             None => Ok(None),
@@ -881,18 +873,16 @@ impl UserStore {
             },
         )?)
     }
-    /// List replicants for a user.
+    /// Get the userpod for a user (1:1 relationship).
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — list replicants owned by user
+    /// \[P1\] Motivating: User Sovereignty — get user's replicant
     /// pre:  user_id is valid
-    /// post: returns Vec of replicants owned by user
+    /// post: returns Some(UserPod) if found, None otherwise
     #[must_use = "result must be used"]
-    pub fn list_userpods(&self, user_id: &UserID) -> UserResult<Vec<UserPod>> {
-        let sql = format!(
-            "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC"
-        );
-        query_map(
+    pub fn get_userpod_by_user(&self, user_id: &UserID) -> UserResult<Option<UserPod>> {
+        let sql = format!("SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE user_id = ?1");
+        query_row(
             &*self.driver,
             &sql,
             &[DbValue::Text(user_id.to_string())],
@@ -912,9 +902,8 @@ impl UserStore {
     /// post: returns Vec of all replicants ordered by creation time
     #[must_use = "result must be used"]
     pub fn list_all_userpods(&self) -> UserResult<Vec<UserPod>> {
-        let sql = format!(
-            "SELECT {USERPOD_COLUMNS} FROM userpod_identities ORDER BY is_primary DESC, created_at ASC"
-        );
+        let sql =
+            format!("SELECT {USERPOD_COLUMNS} FROM userpod_identities ORDER BY created_at ASC");
         query_map(&*self.driver, &sql, &[], |row| {
             replicant_from_row(row)
                 .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
