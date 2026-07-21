@@ -15,7 +15,7 @@
 //! - Effector: emit_critical_depletion() — broadcasts DepletionSignal to observers
 
 use crate::algedonic::{
-    AlgedonicManager, DEFAULT_EXPECTED_VARIETY, RuntimeAlert, cns_health_check,
+    AlgedonicManager, DEFAULT_EXPECTED_VARIETY, RuntimeAlert, reg_health_check,
 };
 use crate::energy::{AgentGasStatus, GasBudget, GasCost};
 use crate::set_points::DEFAULT_VARIETY_MAX_DEFICIT;
@@ -414,7 +414,7 @@ impl RegulationLedger {
             .sum();
         {
             let mgr = state.algedonic.read();
-            cns_health_check(&mgr, ema_sum)
+            reg_health_check(&mgr, ema_sum)
         }
     }
 

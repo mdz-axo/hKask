@@ -26,8 +26,8 @@ impl RegulationLoop for MetacognitionLoop {
     async fn sense(&self) -> Vec<Signal> {
         info!(target: MC_TARGET, "Starting metacognition sense phase");
 
-        let cns_health = self.context.ledger().health().await;
-        let cns_health_str = format_health_status(&cns_health);
+        let reg_health = self.context.ledger().health().await;
+        let reg_health_str = format_health_status(&reg_health);
 
         let variety_counters = self.context.ledger().variety().await;
         let all_alerts = self.context.ledger().alerts().await;
@@ -84,7 +84,7 @@ impl RegulationLoop for MetacognitionLoop {
         let regulation_effectiveness = reg_health.effectiveness();
         let snapshot = HealthSnapshot {
             timestamp: chrono::Utc::now(),
-            cns_health: cns_health_str,
+            reg_health: reg_health_str,
             variety_counters: variety_counters.clone(),
             variety_deficit: total_variety_deficit,
             critical_alerts: critical_alerts.len(),

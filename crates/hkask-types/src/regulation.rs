@@ -62,7 +62,7 @@ pub enum CircuitState {
 
 /// Regulation health status
 ///
-/// Pure data struct — construction logic (`cns_health_check`) lives in
+/// Pure data struct — construction logic (`reg_health_check`) lives in
 /// hkask-regulation where it has access to `AlgedonicManager`.
 #[derive(Debug, Clone)]
 pub struct LedgerHealth {

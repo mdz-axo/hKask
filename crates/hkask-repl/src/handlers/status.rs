@@ -30,8 +30,8 @@ pub fn handle_status(
     );
     // Check Regulation health
     let ledger_runtime = state.service_context.ledger().runtime.clone();
-    let cns_health = rt.block_on(ledger_runtime.read());
-    let cns_status = match rt.block_on(async { cns_health.health().await }) {
+    let reg_health = rt.block_on(ledger_runtime.read());
+    let reg_status = match rt.block_on(async { reg_health.health().await }) {
         health if health.critical_count > 0 => {
             format!(
                 "\x1b[31m\u{26a0} CRITICAL\x1b[0m ({} critical, {} warnings)",
@@ -46,7 +46,7 @@ pub fn handle_status(
         }
         _ => "\x1b[32mHEALTHY\x1b[0m (no alerts)".to_string(),
     };
-    println!("  Regulation:        {}", cns_status);
+    println!("  Regulation:        {}", reg_status);
 
     // ── Seam Watcher status ──
     let seam_summary = rt.block_on(state.service_context.seam_summary());

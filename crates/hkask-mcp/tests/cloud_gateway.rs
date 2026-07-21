@@ -106,7 +106,7 @@ impl DaemonHandler for TestDaemon {
         (true, Some(json!({"tool": tool, "status": "ok"})), None)
     }
     async fn curator_health(&self, _r: &str) -> serde_json::Value {
-        json!({"cns_health": "healthy"})
+        json!({"reg_health": "healthy"})
     }
     async fn reg_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {
         json!({"domains": []})

@@ -17,13 +17,13 @@ pub struct StatusBar {
     pub model: String,
     pub gas_remaining: u64,
     pub gas_cap: u64,
-    pub cns_status: CnsStatus,
+    pub reg_status: RegStatus,
     pub context_pressure: f64,
     pub show_hints: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CnsStatus {
+pub enum RegStatus {
     Healthy,
     Warning(u32),
     Critical(u32),
@@ -35,7 +35,7 @@ impl StatusBar {
             model: String::new(),
             gas_remaining: 0,
             gas_cap: 10_000,
-            cns_status: CnsStatus::Healthy,
+            reg_status: RegStatus::Healthy,
             context_pressure: 0.0,
             show_hints: true,
         }
@@ -64,20 +64,20 @@ impl StatusBar {
         spans.extend(energy_gauge::render_gauge(self.gas_remaining, self.gas_cap).spans);
         spans.push(Span::raw("│"));
 
-        match self.cns_status {
-            CnsStatus::Healthy => {
+        match self.reg_status {
+            RegStatus::Healthy => {
                 spans.push(Span::styled(
                     " Regulation: ✓ ",
                     ratatui::style::Style::default().fg(Color::Green),
                 ));
             }
-            CnsStatus::Warning(n) => {
+            RegStatus::Warning(n) => {
                 spans.push(Span::styled(
                     format!(" Regulation: ⚠ {} ", n),
                     ratatui::style::Style::default().fg(Color::Yellow),
                 ));
             }
-            CnsStatus::Critical(n) => {
+            RegStatus::Critical(n) => {
                 spans.push(Span::styled(
                     format!(" Regulation: ✗ {} ", n),
                     ratatui::style::Style::default().fg(Color::Red),

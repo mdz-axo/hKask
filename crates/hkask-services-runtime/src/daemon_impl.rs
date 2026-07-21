@@ -273,7 +273,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         let Some(ref cns_lock) = self.ledger_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
-                "cns_health": "unknown",
+                "reg_health": "unknown",
                 "note": "Regulation runtime not available"
             });
         };
@@ -291,7 +291,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         };
         serde_json::json!({
             "timestamp": now_rfc3339(),
-            "cns_health": health,
+            "reg_health": health,
             "critical_alerts": critical,
             "total_alerts": total,
         })

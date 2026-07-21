@@ -333,7 +333,7 @@ impl AlgedonicManager {
 }
 
 /// Construct LedgerHealth from the algedonic manager's current state.
-pub(crate) fn cns_health_check(manager: &AlgedonicManager, variety_ema: f64) -> LedgerHealth {
+pub(crate) fn reg_health_check(manager: &AlgedonicManager, variety_ema: f64) -> LedgerHealth {
     LedgerHealth {
         overall_deficit: manager.total_deficit(),
         critical_count: manager.critical_alerts().len(),

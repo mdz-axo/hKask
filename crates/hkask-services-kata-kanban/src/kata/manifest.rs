@@ -193,7 +193,7 @@ pub struct KataAuditConfig {
     #[serde(default = "default_true")]
     pub include_gas_cost: bool,
     #[serde(default = "default_true")]
-    pub include_cns_events: bool,
+    pub include_reg_events: bool,
 }
 
 impl Default for KataAuditConfig {
@@ -204,7 +204,7 @@ impl Default for KataAuditConfig {
             include_input: true,
             include_output: true,
             include_gas_cost: true,
-            include_cns_events: true,
+            include_reg_events: true,
         }
     }
 }

@@ -338,11 +338,10 @@ impl DatasetPipeline {
 
         // Count non-empty lines (each line is one example in JSONL).
         let lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
-        profile.n_samples = Some(lines.len());
+        let n_samples = lines.len();
 
         // Heuristic: check for vision data (presence of "image" or "images" keys).
-        profile.has_vision_data =
-            Some(content.contains("\"image\"") || content.contains("\"images\""));
+        let has_vision_data = content.contains("\"image\"") || content.contains("\"images\"");
 
         // Parse each line as JSON and compute statistics.
         let mut total_chars: usize = 0;
@@ -414,41 +413,63 @@ impl DatasetPipeline {
             }
         }
 
-        let n = lines.len().max(1);
-        profile.avg_content_chars = Some(total_chars as f64 / n as f64);
-        profile.max_content_chars = Some(max_chars);
-        profile.avg_token_estimate = Some(total_chars as f64 / n as f64 / 4.0);
-        profile.max_token_estimate = Some(max_chars / 4);
+        let n = n_samples.max(1);
+        let avg_content_chars = total_chars as f64 / n as f64;
+        let avg_token_estimate = avg_content_chars / 4.0;
+        let max_token_estimate = max_chars / 4;
 
         // SFT-specific stats.
-        if total_messages > 0 {
-            profile.avg_messages_per_example = Some(total_messages as f64 / n as f64);
-            profile.has_system_messages = Some(has_system);
-            profile.has_multi_turn = Some(has_multi_turn);
-            // Build role distribution.
-            let total_roles: usize = role_counts.values().sum();
-            if total_roles > 0 {
-                let dist: serde_json::Map<String, serde_json::Value> = role_counts
-                    .iter()
-                    .map(|(k, v)| {
-                        (
-                            k.clone(),
-                            serde_json::json!((*v as f64) / (total_roles as f64)),
-                        )
-                    })
-                    .collect();
-                profile.role_distribution = Some(serde_json::Value::Object(dist));
-            }
-        }
+        let (avg_messages_per_example, has_system_messages, has_multi_turn_sft, role_distribution) =
+            if total_messages > 0 {
+                let avg_msgs = total_messages as f64 / n as f64;
+                let total_roles: usize = role_counts.values().sum();
+                let role_dist = if total_roles > 0 {
+                    let dist: serde_json::Map<String, serde_json::Value> = role_counts
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                k.clone(),
+                                serde_json::json!((*v as f64) / (total_roles as f64)),
+                            )
+                        })
+                        .collect();
+                    Some(serde_json::Value::Object(dist))
+                } else {
+                    None
+                };
+                (
+                    Some(avg_msgs),
+                    Some(has_system),
+                    Some(has_multi_turn),
+                    role_dist,
+                )
+            } else {
+                (None, None, None, None)
+            };
 
         // Preference-specific stats.
-        if !chosen_rejected_ratios.is_empty() {
+        let chosen_rejected_length_ratio = if !chosen_rejected_ratios.is_empty() {
             let avg_ratio =
                 chosen_rejected_ratios.iter().sum::<f64>() / chosen_rejected_ratios.len() as f64;
-            profile.chosen_rejected_length_ratio = Some(avg_ratio);
-        }
+            Some(avg_ratio)
+        } else {
+            None
+        };
 
-        profile
+        DatasetProfile {
+            format,
+            n_samples: Some(n_samples),
+            avg_content_chars: Some(avg_content_chars),
+            max_content_chars: Some(max_chars),
+            avg_token_estimate: Some(avg_token_estimate),
+            max_token_estimate: Some(max_token_estimate),
+            avg_messages_per_example,
+            role_distribution,
+            chosen_rejected_length_ratio,
+            has_system_messages,
+            has_multi_turn: has_multi_turn_sft,
+            has_vision_data: Some(has_vision_data),
+        }
     }
 
     /// Compute the content length of a JSON value (string or array of messages).

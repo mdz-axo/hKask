@@ -239,7 +239,7 @@ async fn oauth_github_login_redirects() {
 // ═══════════════════════════════════════════════════════════════════
 
 #[tokio::test]
-async fn cns_health_returns_json() {
+async fn reg_health_returns_json() {
     let (_handle, addr) = start_server().await;
     let resp = reqwest::get(format!("http://{addr}/api/regulation/health"))
         .await

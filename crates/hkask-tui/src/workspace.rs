@@ -1071,12 +1071,12 @@ impl Workspace {
         self.status_bar.gas_remaining = self.system_bridge.gas_remaining();
         self.status_bar.gas_cap = self.system_bridge.gas_cap();
         let alerts = self.system_bridge.cns_alert_count();
-        self.status_bar.cns_status = if alerts >= 5 {
-            crate::status_bar::CnsStatus::Critical(alerts)
+        self.status_bar.reg_status = if alerts >= 5 {
+            crate::status_bar::RegStatus::Critical(alerts)
         } else if alerts > 0 {
-            crate::status_bar::CnsStatus::Warning(alerts)
+            crate::status_bar::RegStatus::Warning(alerts)
         } else {
-            crate::status_bar::CnsStatus::Healthy
+            crate::status_bar::RegStatus::Healthy
         };
         self.status_bar.context_pressure = self.system_bridge.context_pressure();
         self.status_bar.model = self.system_bridge.model_name().to_string();

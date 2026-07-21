@@ -180,7 +180,7 @@ impl MetacognitionLoop {
             "**Timestamp:** {}",
             snapshot.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
         );
-        let _ = writeln!(s, "**Regulation Health:** {}", snapshot.cns_health);
+        let _ = writeln!(s, "**Regulation Health:** {}", snapshot.reg_health);
         let _ = writeln!(s, "**Variety Deficit:** {}", snapshot.variety_deficit);
         let _ = writeln!(s, "**Critical Alerts:** {}", snapshot.critical_alerts);
         let _ = writeln!(s, "**Total Alerts:** {}\n", snapshot.total_alerts);
@@ -392,7 +392,7 @@ impl MetacognitionLoop {
         let mut ctx = HashMap::new();
 
         if let Some(ref snap) = snapshot {
-            ctx.insert("system_health".into(), serde_json::json!(snap.cns_health));
+            ctx.insert("system_health".into(), serde_json::json!(snap.reg_health));
             ctx.insert(
                 "critical_alerts".into(),
                 serde_json::json!(snap.critical_alerts),

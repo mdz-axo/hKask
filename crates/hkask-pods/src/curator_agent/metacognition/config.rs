@@ -20,7 +20,7 @@ pub(crate) const DEFAULT_MAX_CONCURRENT_ESCALATIONS: usize = 3;
 #[derive(Debug, Clone)]
 pub struct HealthSnapshot {
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub cns_health: String,
+    pub reg_health: String,
     pub variety_counters: HashMap<SpanNamespace, u64>,
     pub variety_deficit: u64,
     pub critical_alerts: usize,

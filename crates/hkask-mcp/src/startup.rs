@@ -222,7 +222,7 @@ mod tests {
         }
 
         async fn curator_health(&self, _userpod: &str) -> serde_json::Value {
-            serde_json::json!({"cns_health": "healthy"})
+            serde_json::json!({"reg_health": "healthy"})
         }
 
         async fn reg_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {

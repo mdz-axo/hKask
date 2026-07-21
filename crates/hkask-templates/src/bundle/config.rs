@@ -206,7 +206,7 @@ pub struct BundleAuditConfig {
     pub include_input: bool,
     pub include_output: bool,
     pub include_gas_cost: bool,
-    pub include_cns_events: bool,
+    pub include_reg_events: bool,
 }
 impl Default for BundleAuditConfig {
     fn default() -> Self {
@@ -216,7 +216,7 @@ impl Default for BundleAuditConfig {
             include_input: true,
             include_output: true,
             include_gas_cost: true,
-            include_cns_events: true,
+            include_reg_events: true,
         }
     }
 }

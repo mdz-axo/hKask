@@ -71,7 +71,7 @@ pub mod alert_indicator {
     use ratatui::text::Span;
 
     /// Render a Regulation status indicator span.
-    pub fn render_cns_status(healthy: bool, alert_count: u32) -> Span<'static> {
+    pub fn render_reg_status(healthy: bool, alert_count: u32) -> Span<'static> {
         if healthy && alert_count == 0 {
             Span::styled(
                 " Regulation: ✓ ",
