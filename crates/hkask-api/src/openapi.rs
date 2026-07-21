@@ -3,7 +3,7 @@
 use utoipa::OpenApi;
 
 use crate::{
-    ApiChatRequest, ApiChatResponse, LedgerHealthResponse, LedgerVarietyResponse, CreatePodRequest,
+    ApiChatRequest, ApiChatResponse, LedgerHealthResponse, RegulationVarietyResponse, CreatePodRequest,
     CreatePodResponse, ListPodsResponse, ModelEntry, ModelListResponse, ModelSearchQuery,
     PodStatusResponse, TemplateResponse,
 };
@@ -74,7 +74,7 @@ use crate::routes::{
     components(schemas(
         TemplateResponse,
         LedgerHealthResponse,
-        LedgerVarietyResponse,
+        RegulationVarietyResponse,
         CreatePodRequest,
         CreatePodResponse,
         PodStatusResponse,

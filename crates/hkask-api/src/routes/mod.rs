@@ -83,3 +83,4 @@ pub use wallet::{
     CreateKeyRequest, WithdrawalFeeEstimateResponse,
 };
 pub use regulation::regulation_router;
+pub use regulation::{LedgerHealthResponse, RegulationVarietyResponse, VarietyCounterResponse};

@@ -18,6 +18,8 @@ contract:
     quality_vs_cost: string
     knowledge_preservation_required: boolean
     userpod_host: string
+    harness_preference: string
+    trainer_preference: string
   output:
     recommendation: object
     readiness: object
@@ -53,6 +55,8 @@ INPUT: task_distance = {{ task_distance | default("moderate") }} (light | modera
 INPUT: quality_vs_cost = {{ quality_vs_cost | default("default") }} (cost-sensitive | quality-critical | default)
 INPUT: knowledge_preservation_required = {{ knowledge_preservation_required | default(false) }} (bool)
 INPUT: userpod_host = {{ userpod_host | default("REQUIRED") }} (P12 — no anonymous training config)
+INPUT: harness_preference = {{ harness_preference | default("undetermined") }} (axolotl | trl | ludwig | undetermined)
+INPUT: trainer_preference = {{ trainer_preference | default("undetermined") }} (sft | dpo | kto | orpo | reward | grpo | undetermined)
 
 AUTHORITY CONTRACT (P1, P3, P4, P12):
 - This skill emits an advisory recommendation from declared evidence.
