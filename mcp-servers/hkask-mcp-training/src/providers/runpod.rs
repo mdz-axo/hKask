@@ -38,6 +38,7 @@
 //!
 //! `.env` is deprecated for this server — deployment settings must come from
 //! the OS keychain (`kask keystore load`) or the explicit process environment.
+use crate::providers::harness::HarnessAdapter;
 use crate::providers::types::*;
 use serde_json::json;
 use std::collections::HashMap;

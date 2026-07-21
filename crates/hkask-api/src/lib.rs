@@ -39,9 +39,9 @@ pub use error::ApiError;
 // Re-export route types for OpenAPI schema generation
 pub use routes::{A2ARegisterRequest, A2ARegisterResponse};
 pub use routes::{
-    ApiChatRequest, ApiChatResponse, LedgerHealthResponse, CnsVarietyResponse, CreatePodRequest,
+    ApiChatRequest, ApiChatResponse, CreatePodRequest,
     CreatePodResponse, ListPodsResponse, ModelEntry, ModelListResponse, ModelSearchQuery,
-    PodStatusResponse, TemplateResponse, VarietyCounterResponse, WithdrawalFeeEstimateResponse,
+    PodStatusResponse, TemplateResponse, WithdrawalFeeEstimateResponse,
 };
 
 use axum::body::Body;
@@ -227,7 +227,7 @@ pub fn create_router(state: ApiState) -> utoipa_axum::router::OpenApiRouter {
         .merge(routes::pods_router())
         .merge(routes::mcp_router())
         .merge(routes::userpod_router())
-        .merge(routes::cns_router())
+        // TODO: .merge(routes::regulation_router())  // regulation route file needs creation
         .merge(routes::sovereignty_router())
         .merge(routes::chat_router())
         .merge(routes::models_router())
@@ -260,7 +260,7 @@ pub fn create_router(state: ApiState) -> utoipa_axum::router::OpenApiRouter {
                 }
             })
         })
-        .layer(axum::middleware::from_fn(middleware::cns_middleware));
+        // TODO: .layer(axum::middleware::from_fn(middleware::regulation_middleware));  // regulation middleware needs creation
 
     // Admin role-gating middleware (runs after session + auth, before routes)
     let admin_store = state.agent_service.storage().users.clone();
@@ -307,7 +307,7 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
         )
         .route("/health", axum::routing::get(routes::health_check))
         .merge(routes::mcp_router())
-        .merge(routes::cns_router())
+        // TODO: .merge(routes::regulation_router())  // regulation route file needs creation
         .merge(routes::sovereignty_router())
         .merge(routes::chat_router())
         .merge(routes::models_router())

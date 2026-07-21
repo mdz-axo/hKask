@@ -21,6 +21,7 @@ pub(crate) mod memory;
 pub(crate) mod models;
 pub(crate) mod onboarding;
 pub(crate) mod pods;
+pub(crate) mod regulation;
 pub(crate) mod userpod;
 pub(crate) mod settings;
 pub(crate) mod templates;
@@ -81,3 +82,4 @@ pub use wallet::{
     ApiKeyCreatedResponse, ApiKeyEntry, ApiKeyListResponse, ApiKeyRevokedResponse,
     CreateKeyRequest, WithdrawalFeeEstimateResponse,
 };
+pub use regulation::regulation_router;

@@ -47,7 +47,7 @@
 //!   `training_validate_config` is the runtime enforcement point for the
 //!   `.agents/skills/lora-training/` skill's `audit-config` phase. The skill
 //!   reasons over config files and proposes regressions; this server enforces
-//!   the static subset of gates at submit time and emits the `cns.lora.*` spans
+//!   the static subset of gates at submit time and emits the `reg.lora.*` spans
 //!   the skill's convergence-check phase consumes.
 //!
 //! # Environment Variables

@@ -145,12 +145,16 @@ STATIC_CONFIG
   - harness=axolotl → config must be YAML with `adapter: lora`; axolotl
     supports SFT only. If preference config (DPO/KTO/ORPO) is present, fail.
   - harness=trl → config must be a Python script using the matching TRL
-    trainer class (SFTTrainer for sft, DPOTrainer for dpo, etc.) and the
-    matching Config class (SFTConfig, DPOConfig, etc.).
+    trainer class (SFTTrainer for sft, DPOTrainer for dpo, KTOTrainer for kto,
+    ORPOTrainer for orpo, RewardTrainer for reward) and the matching Config
+    class (SFTConfig, DPOConfig, KTOConfig, ORPOConfig, RewardConfig).
+    TRL does not support GRPO (online RL deferred — requires vLLM co-location).
   - harness=ludwig → config must be YAML with `model_type: llm` and
     `adapter: type: lora`. Ludwig supports SFT (`trainer.type: finetune`),
-    DPO/KTO/ORPO, and GRPO via `trainer.type`. If a TRL-specific `trl_trainer`
-    field is present in the canonical TrainingParams, warn (Ludwig ignores it —
+    DPO/KTO/ORPO, and GRPO via `trainer.type`. Ludwig is the only harness
+    covering GRPO and advanced PEFT initializers (PiSSA, EVA, CorDA, LoftQ)
+    that axolotl cannot render. If a TRL-specific `trl_trainer` field is
+    present in the canonical TrainingParams, warn (Ludwig ignores it —
     it uses its own `trainer.type` taxonomy).
   - harness=undetermined → `not_evaluated` (runtime defaults to axolotl).
   [Citation: TRL trainer taxonomy — https://huggingface.co/docs/trl/index;

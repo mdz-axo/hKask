@@ -76,7 +76,7 @@ templates:
       initializer; harness evidence affects readiness state rather than
       rewriting the recommendation. Apply pragmatic-cybernetics (IS/OUGHT,
       epistemic mode, provenance, grill-me self-challenge). Emit
-      cns.lora.audit spans per gate evaluated.
+      reg.lora.audit spans per gate evaluated.
 
   - id: lora-training/report
     name: "Synthesize training-config findings and propose regressions"
@@ -102,5 +102,5 @@ templates:
       converged for the current phase. Normalize weighted dimensions over
       applicable gates and distinguish preflight readiness, pending runtime
       contracts, and post-training verification. Stable metrics below the
-      threshold remain converged. Emit cns.lora.convergence span (P9 — registered in
+      threshold remain converged. Emit reg.lora.convergence span (P9 — registered in
       CANONICAL_NAMESPACES).

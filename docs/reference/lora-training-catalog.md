@@ -25,6 +25,31 @@ authoritative (P5.1); this document is a derived reference.
 New methods can be added as PEFT exposes them and literature justifies
 them (P7) — not speculatively.
 
+## Harness Capability Matrix
+
+Three harnesses are supported. Each has a distinct capability profile.
+
+| Capability | Axolotl | TRL | Ludwig |
+|---|---|---|---|
+| Config format | YAML | Python script | YAML (declarative) |
+| SFT | ✅ | ✅ (SFTTrainer) | ✅ (trainer.type: finetune) |
+| DPO | ❌ | ✅ (DPOTrainer) | ✅ (trainer.type: dpo) |
+| KTO | ❌ | ✅ (KTOTrainer) | ✅ (trainer.type: kto) |
+| ORPO | ❌ | ✅ (ORPOTrainer) | ✅ (trainer.type: orpo) |
+| Reward modeling | ❌ | ✅ (RewardTrainer) | ❌ |
+| GRPO (reward-model-free RLHF) | ❌ | ❌ (deferred — requires vLLM) | ✅ (trainer.type: grpo) |
+| Advanced PEFT initializers (PiSSA, CorDA, LoftQ) | ❌ | ✅ (via PEFT) | ✅ (native in config) |
+| EVA initializer | ✅ (via peft_init_lora_weights) | ✅ (via PEFT) | ✅ (native in config) |
+| assistant_only_loss | ❌ | ✅ | ❌ |
+| Packing strategies (bfd/bfd_split/wrapped) | ❌ | ✅ | ❌ |
+| VLM support | ❌ | ✅ | ✅ |
+| Chunked cross-entropy | ❌ | ✅ | ❌ |
+| Runtime default | ✅ (when harness=undetermined) | ❌ | ❌ |
+
+Harness selection is driven by the G6 gate (harness capability) in the
+`select-method` phase. The operator accepts, overrides, or rejects the
+recommendation. The runtime enforces harness-method compatibility via G-H1.
+
 ## Gate Catalog
 
 17 quality gates enforced by the `audit-config` phase. Each gate is a
@@ -68,11 +93,11 @@ Only apply if QLoRA mode selected (G2).
 | Intruder dimension check | G-F1 | Report intruder dimensions before/after training via `reduce_intruder_dimension`. | Razin et al. arXiv:2410.21228 |
 | Knowledge preservation (CorDA) | G-F2 | If CorDA Knowledge-Preserved mode: assert world-knowledge eval doesn't regress. | CorDA; PEFT `corda_config` docstring |
 
-### Harness Gates (v0.31.0 — TRL integration)
+### Harness Gates (v0.31.0 — three-harness integration)
 
 | Gate | ID | Assertion | Source |
 |------|----|-----------|--------|
-| Harness-method compatibility | G-H1 | Selected harness supports the selected method/trainer. axolotl=SFT only; trl=SFT (Phase 1), DPO/KTO/ORPO (Phase 2), Reward (Phase 3). | TRL trainer taxonomy — huggingface.co/docs/trl/index |
+| Harness-method compatibility | G-H1 | Selected harness supports the selected method/trainer. axolotl=SFT only; trl=SFT/DPO/KTO/ORPO/Reward; ludwig=SFT/DPO/KTO/ORPO/GRPO + advanced PEFT initializers (PiSSA, EVA, CorDA, LoftQ). | TRL trainer taxonomy — huggingface.co/docs/trl/index; Ludwig — ludwig.ai/latest/configuration/ |
 
 ## Convergence Metric Weights
 
@@ -81,11 +106,12 @@ fully converged (training-ready).
 
 | Dimension | Weight | Pass condition |
 |-----------|--------|----------------|
-| Critical + high findings resolved | 0.40 | 0 critical/high = +0.00; 1+ = +0.40 |
-| Math-contract gate coverage | 0.25 | All 5 (G-M1..G-M5) pass = +0.00; scaled by failures |
+| Critical + high findings resolved | 0.35 | 0 critical/high = +0.00; 1+ = +0.35 |
+| Math-contract gate coverage | 0.20 | All 5 (G-M1..G-M5) pass = +0.00; scaled by failures |
 | QLoRA gate coverage | 0.15 | All 6 (G-Q1..G-Q6) pass = +0.00; only if QLoRA mode |
 | Data/eval gate coverage | 0.10 | All 3 (G-D1..G-D3) pass = +0.00 |
 | Forgetting gate coverage | 0.10 | G-F1 planned = +0.00; G-F2 if CorDA mode |
+| Harness-method gate coverage | 0.10 | G-H1 pass = +0.00; fail/refuse = +0.10 |
 
 Converged: metric ≤ 0.10 AND ≥5% relative improvement from previous cycle.
 
@@ -106,4 +132,11 @@ Converged: metric ≤ 0.10 AND ≥5% relative improvement from previous cycle.
 - **ORPO:** arXiv:2403.07691 — arxiv.org/abs/2403.07691
 - **PEFT v0.19.0:** huggingface.co/docs/peft/v0.19.0/package_reference/lora
 - **TRL v1.8.0:** huggingface.co/docs/trl/index — SFTTrainer, DPOTrainer, KTOTrainer, ORPOTrainer, RewardTrainer
+- **Ludwig v0.17:** ludwig.ai/latest/ — declarative YAML deep-learning framework
+  (Linux Foundation AI & Data, Apache-2.0). Covers SFT, DPO, KTO, ORPO, GRPO
+  via trainer.type. Advanced PEFT initializers (PiSSA, EVA, CorDA, LoftQ)
+  native in config. github.com/ludwig-ai/ludwig.
+- **GRPO:** arXiv:2402.03300 — Group Relative Policy Optimization
+  (reward-model-free RLHF). Implemented in Ludwig via trainer.type: grpo;
+  TRL's online RL trainers are deferred (require vLLM co-location).
 - **Practitioner consensus:** Raschka (magazine.sebastianraschka.com), Brenndoerfer (mbrenndoerfer.com), Spheron (spheron.network/blog/peft-methods-2026-dora-galore-pissa-vera-guide), Databricks (databricks.com/blog/efficient-fine-tuning-lora-guide-llms), Gradient Flow (gradientflow.com/lora-or-full-fine-tuning/)
