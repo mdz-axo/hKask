@@ -1,0 +1,181 @@
+//! TRL harness — renders HuggingFace TRL Python training scripts from canonical
+//! `TrainingParams`.
+//!
+//! Mirrors `AxolotlHarness` but emits a Python script (using TRL's
+//! `SFTTrainer` + `SFTConfig`) instead of axolotl YAML. The script is injected
+//! into the RunPod pod as the `HKASK_TRL_SCRIPT` env var (parallel to
+//! `HKASK_AXOLOTL_CONFIG`), and the pod's entrypoint writes it to
+//! `/workspace/train.py` before running `python /workspace/train.py`.
+//!
+//! Phase 1 (v0.31.0): `SFTTrainer` only. Phase 2 will add DPO/KTO/ORPO trainers
+//! by extending `TrlTrainer` and adding corresponding `.j2` templates.
+//!
+//! TRL version pinning: the pod template must install a pinned TRL version
+//! (see `docs/how-to/runpod-lora-training-guide.md` Lesson 12). Version
+//! mismatches between training and inference cause garbage output (Lesson 6
+//! precedent: PiSSA portability). The rendered script includes a version
+//! assertion that fails fast if the installed TRL version is incompatible.
+//!
+//! References:
+//! - TRL SFTTrainer: https://huggingface.co/docs/trl/main/en/sft_trainer
+//! - TRL SFTConfig:  https://huggingface.co/docs/trl/main/en/sft_trainer#sftconfig
+//! - PEFT LoraConfig: https://huggingface.co/docs/peft/v0.19.0/package_reference/lora
+
+use crate::providers::harness::HarnessAdapter;
+use crate::providers::types::*;
+use std::path::PathBuf;
+
+/// Renders TRL Python training scripts from canonical `TrainingParams`.
+///
+/// Phase 1: `SFTTrainer` only. The trainer is selected from
+/// `job.params.trl_trainer` (defaults to `Sft` when `None`).
+pub struct TrlHarness;
+
+impl HarnessAdapter for TrlHarness {
+    fn render_config(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        let trainer = job.params.trl_trainer.unwrap_or_default();
+        match trainer {
+            TrlTrainer::Sft => self.render_sft_script(job),
+        }
+    }
+
+    fn output_dir(&self, job_id: &str) -> PathBuf {
+        // Same canonical output dir as AxolotlHarness — the RunPod pod contract
+        // is harness-agnostic (/workspace/outputs/{job_id}).
+        PathBuf::from(format!("/workspace/outputs/{}", job_id))
+    }
+
+    fn completion_marker(&self, job_id: &str) -> PathBuf {
+        // TRL + PEFT saves adapter_model.safetensors (same as axolotl).
+        self.output_dir(job_id).join("adapter_model.safetensors")
+    }
+
+    fn harness_id(&self) -> TrainingHarnessId {
+        TrainingHarnessId::Trl
+    }
+}
+
+impl TrlHarness {
+    /// Render a TRL SFTTrainer Python script from canonical `TrainingParams`.
+    ///
+    /// The script is rendered via `registry/templates/training/trl-sft.j2`
+    /// (parallel to `registry/templates/training/axolotl-lora.j2`). The template
+    /// is the single source of truth for the script structure — Rust only
+    /// assembles the context, same as `AxolotlHarness::render_config`.
+    fn render_sft_script(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        let p = &job.params;
+        let lo = &p.lora;
+        let opt = &p.optimization;
+        let (dataset_path, data_files) = job
+            .artifacts
+            .as_ref()
+            .map(|artifacts| {
+                (
+                    artifacts.dataset.repository.clone(),
+                    artifacts.dataset.path.clone(),
+                )
+            })
+            .unwrap_or_else(|| (job.dataset_path.display().to_string(), String::new()));
+
+        // Build the template context — mirrors AxolotlHarness field-for-field
+        // where the TRL SFTConfig has a direct equivalent.
+        let mut context = serde_json::Map::from_iter([
+            ("base_model".to_string(), serde_json::json!(job.base_model)),
+            (
+                "load_in_4bit".to_string(),
+                serde_json::json!(p.quantization.load_in_4bit),
+            ),
+            ("lora_r".to_string(), serde_json::json!(lo.r)),
+            ("lora_alpha".to_string(), serde_json::json!(lo.alpha)),
+            ("lora_dropout".to_string(), serde_json::json!(lo.dropout)),
+            (
+                "lora_target_modules".to_string(),
+                serde_json::json!(lo.target_modules),
+            ),
+            ("dataset_path".to_string(), serde_json::json!(dataset_path)),
+            ("data_files".to_string(), serde_json::json!(data_files)),
+            ("num_epochs".to_string(), serde_json::json!(p.num_epochs)),
+            (
+                "learning_rate".to_string(),
+                serde_json::json!(p.learning_rate),
+            ),
+            (
+                "micro_batch_size".to_string(),
+                serde_json::json!(p.batch_size),
+            ),
+            (
+                "gradient_accumulation_steps".to_string(),
+                serde_json::json!(opt.gradient_accumulation_steps),
+            ),
+            (
+                "output_dir".to_string(),
+                serde_json::json!(self.output_dir(&job.id).display().to_string()),
+            ),
+        ]);
+
+        // Optional fields — only inserted when present, same pattern as AxolotlHarness.
+        for (key, value) in [
+            (
+                "peft_init_lora_weights",
+                lo.init_lora_weights
+                    .as_ref()
+                    .map(|init| init.as_config_value()),
+            ),
+            ("optim", opt.optimizer.clone()),
+            ("lr_scheduler", opt.lr_scheduler.clone()),
+            (
+                "sequence_len",
+                p.sequence.sequence_len.map(|v| v.to_string()),
+            ),
+            ("warmup_steps", opt.warmup_steps.map(|v| v.to_string())),
+            ("max_grad_norm", opt.max_grad_norm.map(|v| v.to_string())),
+            ("use_rslora", Some(lo.use_rslora.to_string())),
+            ("use_dora", Some(lo.use_dora.to_string())),
+        ] {
+            if let Some(value) = value {
+                context.insert(key.to_string(), serde_json::json!(value));
+            }
+        }
+        if opt.weight_decay > 0.0 {
+            context.insert(
+                "weight_decay".to_string(),
+                serde_json::json!(opt.weight_decay),
+            );
+        }
+
+        // TRL-specific fields (no axolotl equivalent).
+        // packing: TRL SFTConfig.packing — enables example packing for efficiency.
+        if p.sequence.sample_packing {
+            context.insert("packing".to_string(), serde_json::json!(true));
+        }
+
+        let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                let working_directory_root = PathBuf::from("registry");
+                if working_directory_root.is_dir() {
+                    working_directory_root
+                } else {
+                    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../..")
+                        .join("registry")
+                }
+            });
+
+        let template_path = template_root.join("templates/training/trl-sft.j2");
+        let template = std::fs::read_to_string(&template_path).map_err(|error| {
+            ProviderError::InvalidConfig(format!(
+                "Read TRL SFT template {}: {error}",
+                template_path.display()
+            ))
+        })?;
+        let mut environment = minijinja::Environment::new();
+        environment.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
+        environment
+            .render_str(&template, serde_json::Value::Object(context))
+            .map(|script| script.trim().to_string() + "\n")
+            .map_err(|error| {
+                ProviderError::InvalidConfig(format!("Render TRL SFT template: {error}"))
+            })
+    }
+}

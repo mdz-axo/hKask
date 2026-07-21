@@ -543,6 +543,12 @@ impl TrainingHost for RunpodHost {
             ));
         }
 
+        // Harness selection: job.params.harness takes precedence (operator-accepted
+        // from the lora-training skill's G6 gate), falling back to job.harness
+        // (server default), falling back to Axolotl (runtime default).
+        // Computed early so HKASK_HARNESS can be set in the env var list below.
+        let selected_harness = job.params.harness.unwrap_or(job.harness);
+
         let mut env_entries: Vec<(&str, String)> = vec![
             ("HKASK_JOB_ID", job.id.clone()),
             ("HKASK_BASE_MODEL", job.base_model.clone()),
@@ -567,7 +573,10 @@ impl TrainingHost for RunpodHost {
                 "HKASK_COMPLETION_MANIFEST_PATH",
                 artifacts.completion_manifest_path.clone(),
             ),
-            ("HKASK_HARNESS", format!("{:?}", job.harness).to_lowercase()),
+            (
+                "HKASK_HARNESS",
+                format!("{:?}", selected_harness).to_lowercase(),
+            ),
             ("HKASK_NUM_EPOCHS", job.params.num_epochs.to_string()),
             ("HKASK_LORA_R", job.params.lora.r.to_string()),
             ("HKASK_LORA_ALPHA", job.params.lora.alpha.to_string()),
@@ -686,15 +695,30 @@ impl TrainingHost for RunpodHost {
             ),
         ];
 
-        // Render the axolotl YAML config from TrainingParams and pass it to
-        // the pod as an env var. The pod's startup script writes it to
-        // /workspace/config.yml and runs `axolotl train /workspace/config.yml`.
-        let axolotl_yaml = crate::providers::AxolotlHarness
-            .render_config(job)
-            .map_err(|e| {
-                ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}"))
-            })?;
-        env_entries.push(("HKASK_AXOLOTL_CONFIG", axolotl_yaml));
+        // Render the training config from TrainingParams using the appropriate
+        // harness. The config is passed to the pod as an env var — the env var
+        // name depends on the harness (axolotl → HKASK_AXOLOTL_CONFIG / YAML,
+        // trl → HKASK_TRL_SCRIPT / Python). The pod's entrypoint checks which
+        // env var is set and runs the corresponding training command.
+        let (config_env_var, config_content) = match selected_harness {
+            TrainingHarnessId::Axolotl => {
+                let yaml = crate::providers::AxolotlHarness
+                    .render_config(job)
+                    .map_err(|e| {
+                        ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}"))
+                    })?;
+                ("HKASK_AXOLOTL_CONFIG", yaml)
+            }
+            TrainingHarnessId::Trl => {
+                let script = crate::providers::TrlHarness
+                    .render_config(job)
+                    .map_err(|e| {
+                        ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}"))
+                    })?;
+                ("HKASK_TRL_SCRIPT", script)
+            }
+        };
+        env_entries.push((config_env_var, config_content));
 
         // HF_TOKEN — required for the pod to download private datasets and upload
         // adapters to private model repos. The publish step (HuggingFaceTraining::from_env)

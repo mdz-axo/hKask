@@ -35,7 +35,8 @@ use crate::set_point_calibrator::SetPointCalibrator;
 
 use crate::runtime::{CnsRuntime, RegulationCycleEntry};
 use crate::sensor_provider::{
-    EnergyBudgetSensor, SensorRegistry, ToolReliabilitySensor, VarietySensor, WalletKeyHealthSensor,
+    EnergyBudgetSensor, SensorRegistry, ToolReliabilitySensor, VarietySensor,
+    WalletBalanceRatioSensor, WalletKeyHealthSensor,
 };
 use crate::set_points::{InferenceThrottleMode, SetPoints};
 use crate::slo_manager::SloDataProvider;
@@ -171,6 +172,10 @@ impl CyberneticsLoop {
             registry.register(Arc::new(WalletKeyHealthSensor::new(Arc::clone(
                 &gas_budget_manager,
             ))));
+            registry.register(Arc::new(WalletBalanceRatioSensor::new(
+                Arc::clone(&gas_budget_manager),
+                0.1, // alert when below 10%
+            )));
             Arc::new(registry)
         };
 
@@ -857,34 +862,13 @@ impl HkaskLoop for CyberneticsLoop {
 
         let mut signals = Vec::new();
 
-        // TODO: Migrate wallet balance ratio to a WalletBalanceRatioSensor
-        // in the SensorRegistry for architectural consistency. Currently no
-        // sensor equivalent exists, so this remains inline.
+        // All sensing is now done through the SensorRegistry.
+        // Wallet balance ratio, energy remaining, variety deficit, wallet key health,
+        // and tool reliability are all sensed by registered SensorProvider implementations.
         //
-        // Wallet balance ratio: 0.0 = empty, 1.0 = full.
-        // Set-point: 0.1 (alert when below 10% of capacity).
-        // This is a simplified model — the full implementation would use
-        // a 30-day moving average as the denominator.
-        let wallet_ratios = self
-            .gas_budget_manager
-            .read()
-            .await
-            .wallet_balance_ratios()
-            .await;
-        for (ratio, _cap) in wallet_ratios {
-            signals.push(Signal::new(
-                LoopId::Cybernetics,
-                SignalMetric::WalletBalanceRatio,
-                ratio,
-                0.1, // alert when below 10%
-            ));
-        }
+        // The inline wallet ratio sensing that was here has been migrated to
+        // WalletBalanceRatioSensor (v0.32.0) — see ADR-056.
 
-        // Wallet key health is sensed via the registry (WalletKeyHealthSensor),
-        // not inline — avoids duplicate signals per tick.
-
-        // Append signals from pluggable sensor providers (Fermi Extractor pattern).
-        // EnergyRemaining → EnergyBudgetSensor, VarietyDeficit → VarietySensor
         // Append signals from pluggable sensor providers.
         let registry_signals = self.sensor_registry.sense_all(LoopId::Cybernetics).await;
         signals.extend(registry_signals);

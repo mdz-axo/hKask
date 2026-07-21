@@ -7,6 +7,7 @@ use hkask_ports::registry::RegistryEntry;
 const KNOWN_TERMS: &[&str] = &[
     "abduct",
     "accept",
+    "accommodate",
     "acknowledge",
     "act",
     "adapt",
@@ -129,6 +130,7 @@ const KNOWN_TERMS: &[&str] = &[
     "encourage",
     "endure",
     "enforce",
+    "engage",
     "enumerate",
     "escalate",
     "estimate",
@@ -272,6 +274,7 @@ const KNOWN_TERMS: &[&str] = &[
     "remind",
     "render",
     "renounce",
+    "repair",
     "report",
     "reproduce",
     "request",

@@ -27,7 +27,7 @@ pub(crate) mod regulation_policy; // Loop 6 — per-metric regulation rules
 pub mod set_point_calibrator; // Loop 6 — self-tuning regulation thresholds
 
 pub mod seam_span;
-pub(crate) mod sensor_provider; // Loop 6 — pluggable metric sensors (Fermi Extractor pattern)
+pub mod sensor_provider; // Pluggable metric sensors (Fermi Extractor pattern) — public for cross-loop registration
 pub mod slo_span;
 pub(crate) mod strategy_evaluator; // Loop 6 — multi-model strategy selection (Fermi improvement-loop pattern)
 pub(crate) mod system_simulator; // Loop 6 — predictive regulation via digital twin (Fermi dynamics pattern)
@@ -89,6 +89,10 @@ pub use runtime_policy::{DefaultPolicy, PolicyConfig, PolicyVerdict, RuntimePoli
 pub use seam_span::SeamSpan;
 pub use seam_types::{SeamCoverage, SeamInventory};
 pub use seam_watcher::{SeamDrift, SeamSummary, SeamWatcher};
+pub use sensor_provider::{
+    EnergyBudgetSensor, SensorCatalog, SensorProvider, SensorRegistry, ToolReliabilitySensor,
+    VarietySensor, WalletBalanceRatioSensor, WalletKeyHealthSensor,
+};
 pub use set_points::{
     DEFAULT_COMMUNICATION_BACKPRESSURE_THRESHOLD, DEFAULT_CONNECTOR_LATENCY_MAX_SECS,
     DEFAULT_ENERGY_MIN_REMAINING_RATIO, DEFAULT_ERROR_RATE_MAX, DEFAULT_MAX_ITERATIONS,

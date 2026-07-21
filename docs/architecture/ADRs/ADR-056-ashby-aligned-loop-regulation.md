@@ -2,7 +2,7 @@
 title: "ADR-056: Ashby-Aligned Loop Regulation Focus"
 audience: [architects, developers, agents]
 last_updated: 2026-07-21
-version: "0.31.0"
+version: "0.32.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, curation]
@@ -11,7 +11,8 @@ mds_categories: [domain, composition, trust, curation]
 # ADR-056: Ashby-Aligned Loop Regulation Focus
 
 **Date:** 2026-07-21  
-**Status:** Active
+**Status:** Active  
+**Implementation:** Phase 0 (Unified Sensor Catalog) — complete
 
 ## Context
 
@@ -153,6 +154,28 @@ grep -c "RegulationRule" crates/hkask-cns/src/regulation_policy.rs
 
 ## Implementation Phases
 
+### Phase 0: Unified Sensor Catalog — complete (v0.32.0)
+
+**Problem:** The `SensorProvider` trait and `SensorRegistry` existed but were `pub(crate)` — only `CyberneticsLoop` used them. All other loops (Inference, Episodic, Semantic, Curation, Metacognition, StorageGuard, McpServerGuard, Snapshot) had inline `sense()` methods that directly constructed `Signal` values. This created fragmentation:
+- No unified registration — sensors scattered across 8 files in 4 crates
+- No unified monitoring — no way to query "what sensors exist?"
+- No unified management — adding a sensor required editing the loop's `sense()` method
+
+**Solution:**
+1. Promoted `SensorProvider`, `SensorRegistry`, and concrete sensors (`EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`, `ToolReliabilitySensor`) from `pub(crate)` to `pub` in `hkask-cns`.
+2. Added `SensorCatalog` — a system-level singleton that registers sensors across ALL loops, not just Cybernetics. Each loop owns a `SensorRegistry` for its local sensors; the catalog tracks all of them for monitoring, health checks, and dynamic registration.
+3. Added `WalletBalanceRatioSensor` to replace the inline wallet ratio sensing in `CyberneticsLoop::sense()` — the last inline sensing in Cybernetics.
+4. Extended the `SensorProvider` trait with `metric()`, `name()`, and `loop_id()` metadata methods for catalog indexing and diagnostics.
+5. Added `SensorRegistry::len()`, `is_empty()`, and `provider_names()` for observability.
+6. Added `SensorCatalog::total_sensors()`, `sensor_inventory()`, and `loops_without_sensors()` for health checks.
+
+**Files changed:**
+- `crates/hkask-cns/src/sensor_provider.rs` — promoted visibility, added `SensorCatalog`, `WalletBalanceRatioSensor`, metadata methods, and 9 tests
+- `crates/hkask-cns/src/lib.rs` — public re-exports for sensor types
+- `crates/hkask-cns/src/cybernetics_loop.rs` — registered `WalletBalanceRatioSensor`, removed inline wallet ratio sensing
+
+**Validation:** 167 CNS tests pass (158 original + 9 new). All affected crates compile.
+
 ### Phase 1: Category A (Notify) rules — low risk, no behavior change
 Add `Notify` rules for the 6 observational metrics. These produce informational signals without regulatory action. No `verify_impact()` needed — `Notify` is non-regulatory.
 
@@ -161,6 +184,9 @@ Add `Escalate` rules for the 7 meta-regulatory metrics. These route to Curation,
 
 ### Phase 3: Category C (Calibrate/Throttle/CircuitBreak/Prune) rules — higher risk, adds domain-specific regulation
 Add domain-specific rules for the 10 domain metrics. Implement `verify_impact()` for `StorageGuard`, `McpServerGuard`, and `InferenceLoop`. Add substitution ladders.
+
+### Phase 4: Migrate inline sense() methods to SensorProvider implementations
+Migrate the remaining inline `sense()` methods in `InferenceLoop`, `CurationLoop`, `MetacognitionLoop`, `EpisodicLoop`, `SemanticLoop`, `StorageGuardLoop`, `McpServerGuardLoop`, and `SnapshotLoop` to use `SensorProvider` implementations registered with the `SensorCatalog`. This completes the unification — all sensing flows through the catalog, enabling centralized monitoring and management.
 
 Each phase is independently verifiable and can be merged separately.
 

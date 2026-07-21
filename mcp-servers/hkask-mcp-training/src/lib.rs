@@ -20,7 +20,7 @@
 //! - training_register_adapter — `training_status` auto-registers on completion; manual
 //!   registration is an `AdapterStore` API call, not an MCP tool.
 //! - training_preflight_check — replaced by `training_validate_config`, which runs the
-//!   actual lora-training skill gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4) via
+//!   actual lora-training skill gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4, G-H1) via
 //!   `lora_validation::validate_training_params` and emits `cns.lora.audit` spans.
 //! - training_retrain — merged into `training_submit` as optional `feedback_path` +
 //!   `skill_name` + `adapter_name` parameters (merge + version-bump logic moved there).
@@ -35,8 +35,10 @@
 //! Architecture:
 //!   Dataset file → DatasetPipeline → normalized ChatML → TrainingJob → TrainingHost → TrainedLoRAAdapter
 //!
-//! Host selection: Runpod is the only cloud host. Harness is fixed to Axolotl
-//! (the sole harness until data and training pipelines are validated).
+//! Host selection: Runpod is the only cloud host. Harness default is Axolotl;
+//! per-job harness selection via `TrainingParams.harness` (operator-accepted
+//! from the lora-training skill's G6 gate) is honored at submit time.
+//! Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer.
 //! Routed through the shared `hkask-services` config init. Host pluggability
 //! is via the `TrainingHost` trait, isolating the MCP surface from
 //! framework-specific details.
@@ -317,7 +319,7 @@ impl TrainingServer {
     }
 
     #[tool(
-        description = "Submit a training job for execution. Ingests, normalizes, and submits a dataset for LoRA fine-tuning via the Axolotl harness on Runpod. When `feedback_path` is provided, enters retrain mode: merges the original dataset with curated feedback, deduplicates by user question, increments the adapter version based on existing adapters with the same `skill_name`, and pre-registers adapter metadata so training_status can complete the A/B comparison on job completion."
+        description = "Submit a training job for execution. Ingests, normalizes, and submits a dataset for LoRA fine-tuning via the selected harness (Axolotl YAML or TRL Python) on Runpod. The harness is selected from params.harness (operator-accepted from the lora-training skill's G6 gate), defaulting to Axolotl. When `feedback_path` is provided, enters retrain mode: merges the original dataset with curated feedback, deduplicates by user question, increments the adapter version based on existing adapters with the same `skill_name`, and pre-registers adapter metadata so training_status can complete the A/B comparison on job completion."
     )]
     pub async fn training_submit(
         &self,
@@ -617,11 +619,15 @@ impl TrainingServer {
                 id: uuid::Uuid::new_v4().to_string(),
                 dataset_path: normalized_path.clone(),
                 base_model: base_model.clone(),
-                params: resolved_params,
+                params: resolved_params.clone(),
                 status: TrainingJobStatus::Queued,
                 created_at: chrono::Utc::now(),
                 host: self.host_id,
-                harness: self.harness_id,
+                // Harness: prefer the operator-accepted harness from TrainingParams
+                // (set via the lora-training skill's G6 gate), falling back to
+                // the server default (Axolotl). This preserves the existing
+                // default when no harness is selected — no silent migration.
+                harness: resolved_params.harness.unwrap_or(self.harness_id),
                 owner: None,
                 skill_name: resolved_skill_name.clone(),
                 estimated_cost_urj: crate::providers::types::estimate_training_cost_urj(
@@ -1373,14 +1379,14 @@ impl TrainingServer {
     /// This is the runtime enforcement point for the `.agents/skills/lora-training/`
     /// skill's `audit-config` phase. The skill reasons over config files and
     /// proposes regressions; this tool enforces the static subset of gates
-    /// (G-M1..G-M4, G-Q1, G-Q2, G-Q4) via `lora_validation::validate_training_params`
+    /// (G-M1..G-M4, G-Q1, G-Q2, G-Q4, G-H1) via `lora_validation::validate_training_params`
     /// and emits `cns.lora.audit` spans per gate evaluated.
     ///
     /// Returns the full findings list so the skill's `convergence-check` phase
     /// can compute coverage. Findings with `Refuse` severity indicate the config
     /// would silently degrade model quality or waste GPU time if submitted.
     #[tool(
-        description = "Validate training params against the lora-training skill's math-contract gates (G-M1 no-op-at-init, G-M2 merge equivalence, G-M3 scaling form, G-M4 rank budget, G-Q1 frozen base quantized, G-Q2 adapter dtype, G-Q4 no silent upcast, G-Q5 paged optimizer). Also validates dataset size (G-D1) if dataset_path is provided. Returns findings with severity (refuse/warn/info), gate ID, message, source citation, and remediation. Emits cns.lora.audit spans. This is the runtime enforcement point for the lora-training skill's audit-config phase."
+        description = "Validate training params against the lora-training skill's math-contract gates (G-M1 no-op-at-init, G-M2 merge equivalence, G-M3 scaling form, G-M4 rank budget, G-Q1 frozen base quantized, G-Q2 adapter dtype, G-Q4 no silent upcast, G-Q5 paged optimizer, G-H1 harness-method compatibility). Also validates dataset size (G-D1) if dataset_path is provided. Returns findings with severity (refuse/warn/info), gate ID, message, source citation, and remediation. Emits cns.lora.audit spans. This is the runtime enforcement point for the lora-training skill's audit-config phase."
     )]
     pub async fn training_validate_config(
         &self,
@@ -1490,7 +1496,7 @@ impl TrainingServer {
                     "gates_evaluated": [
                         "G-M1", "G-M2", "G-M3", "G-M4",
                         "G-Q1", "G-Q2", "G-Q4", "G-Q5",
-                        "G-D1",
+                        "G-D1", "G-H1",
                     ],
                 }))
             })
@@ -1506,8 +1512,11 @@ pub async fn run(
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     // Host is fixed to Runpod (cloud-only, single host).
-    // Harness is fixed to Axolotl (sole harness until data and training
-    // pipelines are validated — re-add Unsloth when there's a concrete need).
+    // Harness default is Axolotl; per-job harness selection via TrainingParams.harness
+    // (operator-accepted from the lora-training skill's G6 gate) is honored at
+    // submit time — RunpodHost::submit selects the harness for config rendering.
+    // Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer. Phase 2 will add
+    // TRL DPO/KTO/ORPO trainers.
     let host_id = TrainingHostId::Runpod;
     let harness_id = TrainingHarnessId::Axolotl;
 

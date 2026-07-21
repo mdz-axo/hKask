@@ -25,12 +25,21 @@ use thiserror::Error;
 /// Each variant represents a training framework that produces LoRA adapters.
 /// All training runs on cloud hosts — there is no local training path.
 ///
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Harness selection is driven by the `lora-training` skill's G6 gate
+/// (harness capability), which recommends a harness from declared evidence.
+/// The operator accepts, overrides, or rejects; the runtime enforces
+/// harness-method compatibility (G-H1) via `lora_validation.rs`.
+///
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TrainingHarnessId {
-    /// axolotl — YAML-based training framework, dispatched to Runpod
+    /// axolotl — YAML-based training framework, dispatched to Runpod.
+    /// Supports SFT only (no preference optimization). Mature, single-file config.
     Axolotl,
+    /// trl — HuggingFace TRL Python library, dispatched to Runpod.
+    /// Supports SFT (SFTTrainer) and preference optimization (DPO/KTO/ORPO/Reward).
+    /// Phase 1 (v0.31.0): SFTTrainer only. Phase 2 will add DPO/KTO/ORPO.
+    Trl,
 }
 
 impl TrainingHarnessId {
@@ -39,7 +48,63 @@ impl TrainingHarnessId {
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "axolotl" => Some(Self::Axolotl),
+            "trl" => Some(Self::Trl),
             _ => None,
+        }
+    }
+}
+
+// ── TRL trainer identifiers ───────────────────────────────────────────────
+
+/// TRL trainer selection — only meaningful when `harness = Trl`.
+///
+/// Mirrors the TRL trainer taxonomy (https://huggingface.co/docs/trl/index).
+/// Each variant maps to a TRL trainer class + config class pair.
+/// Add trainers as concrete needs emerge (P7 — evolutionary architecture).
+///
+/// Phase 1 (v0.31.0): `Sft` only.
+/// Phase 2 (planned): `Dpo`, `Kto`, `Orpo`.
+/// Phase 3 (planned): `Reward`.
+/// Deferred: online RL trainers (GRPO, RLOO, PPO, OnlineDPO, NashMD, XPO) —
+///   require vLLM co-location and sandboxed environments; add when a concrete
+///   RL use case emerges.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TrlTrainer {
+    /// TRL `SFTTrainer` + `SFTConfig` — supervised fine-tuning.
+    /// The canonical SFT path; parallel to Axolotl's SFT support.
+    /// Supports: packing, assistant_only_loss, completion_only_loss, VLMs.
+    #[default]
+    Sft,
+    // Phase 2 trainers (not yet implemented — add when concrete need emerges):
+    // Dpo,    // DPOTrainer + DPOConfig — paired preference data
+    // Kto,    // KTOTrainer + KTOConfig — unpaired binary preference data
+    // Orpo,   // ORPOTrainer + ORPOConfig — single-stage SFT + preference
+    // Phase 3:
+    // Reward, // RewardTrainer + RewardConfig — reward model training
+}
+
+impl TrlTrainer {
+    /// Parse from a config string (case-insensitive).
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "sft" => Some(Self::Sft),
+            _ => None,
+        }
+    }
+
+    /// The TRL trainer class name (e.g., `"SFTTrainer"`).
+    pub fn trainer_class(&self) -> &'static str {
+        match self {
+            Self::Sft => "SFTTrainer",
+        }
+    }
+
+    /// The TRL config class name (e.g., `"SFTConfig"`).
+    pub fn config_class(&self) -> &'static str {
+        match self {
+            Self::Sft => "SFTConfig",
         }
     }
 }
@@ -472,6 +537,19 @@ pub struct TrainingParams {
     /// Attention, mixed precision, and eval parameters.
     #[serde(default)]
     pub advanced: AdvancedParams,
+    /// Selected training harness (operator-accepted from the `lora-training`
+    /// skill's G6 gate recommendation). `None` defers to the runtime default
+    /// (Axolotl) — preserves existing behavior when no harness is selected.
+    ///
+    /// Authority: the skill recommends; the operator accepts, overrides, or
+    /// rejects; the runtime enforces harness-method compatibility (G-H1).
+    #[serde(default)]
+    pub harness: Option<TrainingHarnessId>,
+    /// TRL trainer selection — only meaningful when `harness = Trl`.
+    /// `None` defaults to `Sft` when `harness = Trl`.
+    /// Ignored when `harness = Axolotl` or `None`.
+    #[serde(default)]
+    pub trl_trainer: Option<TrlTrainer>,
 }
 
 impl Default for TrainingParams {
@@ -485,6 +563,8 @@ impl Default for TrainingParams {
             optimization: OptimizationParams::default(),
             sequence: SequenceParams::default(),
             advanced: AdvancedParams::default(),
+            harness: None,
+            trl_trainer: None,
         }
     }
 }

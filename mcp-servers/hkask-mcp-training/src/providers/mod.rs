@@ -14,16 +14,18 @@
 
 pub mod harness;
 pub mod runpod;
+pub mod trl_harness;
 pub mod types;
 
 // ── Re-exports for lib.rs compatibility ──────────────────────────────────
 
 pub use harness::{AxolotlHarness, HarnessAdapter};
 pub use runpod::RunpodHost;
+pub use trl_harness::TrlHarness;
 pub use types::{
     AdvancedParams, CompletionMetadata, LoraParams, OptimizationParams, ProviderError,
     QuantizationParams, SequenceParams, TrainingHarnessId, TrainingHost, TrainingHostId,
-    TrainingJob, TrainingJobStatus, TrainingParams,
+    TrainingJob, TrainingJobStatus, TrainingParams, TrlTrainer,
 };
 
 // ── Host factory ───────────────────────────────────────────────────────────
@@ -135,6 +137,10 @@ mod tests {
         assert_eq!(
             TrainingHarnessId::from_str("AXOLOTL"),
             Some(TrainingHarnessId::Axolotl)
+        );
+        assert_eq!(
+            TrainingHarnessId::from_str("trl"),
+            Some(TrainingHarnessId::Trl)
         );
         assert_eq!(TrainingHarnessId::from_str("unknown"), None);
     }

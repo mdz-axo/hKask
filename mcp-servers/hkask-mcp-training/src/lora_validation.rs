@@ -5,7 +5,7 @@
 //! catch config errors that would silently degrade model quality or waste
 //! GPU time.
 //!
-//! Gates implemented (12 of 16):
+//! Gates implemented (13 of 17):
 //! - G-M1: No-op-at-init invariant (init_lora_weights produces ΔW=0 at step 0)
 //! - G-M2: Merge equivalence (bias='none' required for must-merge inference)
 //! - G-M3: Scaling form (α/r or α/√r, never raw α or 1)
@@ -19,6 +19,7 @@
 //! - G-D2: Eval protocol (advisory in preflight — Vicuna/MMLU not trustworthy)
 //! - G-D3: Lemon-pick analysis (advisory in preflight — report failure cases)
 //! - G-F1: Intruder dimension check (advisory in preflight — requires Python PEFT)
+//! - G-H1: Harness-method compatibility (axolotl=SFT only; trl=SFT in Phase 1)
 //!
 //! Gates NOT enforced (require runtime instrumentation in Python/training loop):
 //! - G-Q3: Gradient flow (needs backward pass — A.grad and B.grad must be non-None)
@@ -27,9 +28,11 @@
 //!
 //! Anchored to: LoRA (arXiv:2106.09685), QLoRA (arXiv:2305.14314),
 //! rsLoRA (arXiv:2312.03732), DoRA (arXiv:2402.09353), PiSSA (arXiv:2404.02948),
-//! Razin et al. (arXiv:2410.21228), PEFT v0.19.0.
+//! Razin et al. (arXiv:2410.21228), PEFT v0.19.0, TRL v1.8.0.
 
-use crate::providers::types::{LoraParams, QuantizationParams, TrainingParams};
+use crate::providers::types::{
+    LoraParams, QuantizationParams, TrainingHarnessId, TrainingParams, TrlTrainer,
+};
 
 /// Severity of a validation finding.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -85,6 +88,9 @@ pub fn validate_training_params(params: &TrainingParams) -> Vec<ValidationFindin
 
     // G-Q4: No silent upcast.
     validate_no_silent_upcast(params, &mut findings);
+
+    // G-H1: Harness-method compatibility.
+    validate_harness_compatibility(params, &mut findings);
 
     findings
 }
@@ -417,6 +423,59 @@ fn validate_no_silent_upcast(params: &TrainingParams, findings: &mut Vec<Validat
     }
 }
 
+/// G-H1: Harness-method compatibility.
+///
+/// Asserts that the selected harness supports the selected method/trainer.
+/// This is the runtime enforcement point for the `lora-training` skill's
+/// G-H1 audit gate (see `registry/templates/lora-training/audit-config.j2`).
+///
+/// - harness=axolotl → SFT only (no preference optimization). If a TRL trainer
+///   is selected, refuse — axolotl cannot run TRL trainers.
+/// - harness=trl → Phase 1: SFTTrainer only. If a non-SFT trainer is selected,
+///   refuse — not yet implemented.
+/// - harness=None → not_evaluated (runtime defaults to axolotl).
+///
+/// Citation: TRL trainer taxonomy — https://huggingface.co/docs/trl/index
+fn validate_harness_compatibility(params: &TrainingParams, findings: &mut Vec<ValidationFinding>) {
+    match params.harness {
+        None => {
+            // No harness selected — runtime defaults to axolotl. If a TRL
+            // trainer was specified without selecting harness=trl, warn: the
+            // trainer will be ignored.
+            if params.trl_trainer.is_some() {
+                findings.push(ValidationFinding {
+                    gate_id: "G-H1",
+                    severity: ValidationSeverity::Warn,
+                    message: "trl_trainer specified but harness is not set to trl — the trainer will be ignored (runtime defaults to axolotl)".to_string(),
+                    source: "TRL trainer taxonomy — https://huggingface.co/docs/trl/index",
+                    remediation: "Set harness=trl to use the specified TRL trainer, or remove trl_trainer to use axolotl SFT".to_string(),
+                });
+            }
+        }
+        Some(TrainingHarnessId::Axolotl) => {
+            // Axolotl supports SFT only. If a TRL trainer is selected, refuse —
+            // axolotl cannot run TRL trainers.
+            if params.trl_trainer.is_some() {
+                findings.push(ValidationFinding {
+                    gate_id: "G-H1",
+                    severity: ValidationSeverity::Refuse,
+                    message: "harness=axolotl with trl_trainer set — axolotl cannot run TRL trainers (axolotl supports SFT only)".to_string(),
+                    source: "TRL trainer taxonomy — https://huggingface.co/docs/trl/index",
+                    remediation: "Set harness=trl to use TRL trainers, or remove trl_trainer for axolotl SFT".to_string(),
+                });
+            }
+        }
+        Some(TrainingHarnessId::Trl) => {
+            // TRL harness: Phase 1 supports SFTTrainer only.
+            match params.trl_trainer.unwrap_or_default() {
+                TrlTrainer::Sft => {
+                    // SFT is supported in Phase 1 — no finding.
+                }
+            }
+        }
+    }
+}
+
 /// Returns true if any finding has `Refuse` severity — the job must not be submitted.
 pub fn has_refusals(findings: &[ValidationFinding]) -> bool {
     findings
@@ -439,6 +498,8 @@ mod tests {
             optimization: OptimizationParams::default(),
             sequence: SequenceParams::default(),
             advanced: AdvancedParams::default(),
+            harness: None,
+            trl_trainer: None,
         }
     }
 
@@ -730,5 +791,71 @@ mod tests {
         // load_in_4bit is false by default
         let findings = validate_paged_optimizer(&params, "meta-llama/Llama-2-70b");
         assert!(findings.iter().all(|f| f.gate_id != "G-Q5"));
+    }
+
+    // ── G-H1: Harness-method compatibility tests ──
+
+    #[test]
+    fn no_harness_no_gh1_finding() {
+        // Default params: harness=None, trl_trainer=None.
+        // Runtime defaults to axolotl — no compatibility issue.
+        let params = default_params();
+        let findings = validate_training_params(&params);
+        assert!(findings.iter().all(|f| f.gate_id != "G-H1"));
+    }
+
+    #[test]
+    fn no_harness_with_trl_trainer_warns_gh1() {
+        // trl_trainer set but harness not set to trl — trainer will be ignored.
+        let mut params = default_params();
+        params.trl_trainer = Some(TrlTrainer::Sft);
+        let findings = validate_training_params(&params);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-H1" && f.severity == ValidationSeverity::Warn)
+        );
+    }
+
+    #[test]
+    fn axolotl_with_trl_trainer_refuses_gh1() {
+        // axolotl cannot run TRL trainers — must refuse.
+        let mut params = default_params();
+        params.harness = Some(TrainingHarnessId::Axolotl);
+        params.trl_trainer = Some(TrlTrainer::Sft);
+        let findings = validate_training_params(&params);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-H1" && f.severity == ValidationSeverity::Refuse)
+        );
+    }
+
+    #[test]
+    fn axolotl_without_trl_trainer_passes_gh1() {
+        // axolotl with no TRL trainer — SFT only, no compatibility issue.
+        let mut params = default_params();
+        params.harness = Some(TrainingHarnessId::Axolotl);
+        let findings = validate_training_params(&params);
+        assert!(findings.iter().all(|f| f.gate_id != "G-H1"));
+    }
+
+    #[test]
+    fn trl_with_sft_trainer_passes_gh1() {
+        // trl + SFT is the Phase 1 supported combination.
+        let mut params = default_params();
+        params.harness = Some(TrainingHarnessId::Trl);
+        params.trl_trainer = Some(TrlTrainer::Sft);
+        let findings = validate_training_params(&params);
+        assert!(findings.iter().all(|f| f.gate_id != "G-H1"));
+    }
+
+    #[test]
+    fn trl_without_trainer_defaults_to_sft_passes_gh1() {
+        // trl with no trainer specified — defaults to SFT (Phase 1).
+        let mut params = default_params();
+        params.harness = Some(TrainingHarnessId::Trl);
+        let findings = validate_training_params(&params);
+        assert!(findings.iter().all(|f| f.gate_id != "G-H1"));
     }
 }
