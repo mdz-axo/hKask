@@ -319,8 +319,7 @@ pub fn run_tui(
         a2a_secret,
         agent_name,
         model,
-        pending: std::sync::Mutex::new(None),
-        streaming_text: Arc::new(std::sync::Mutex::new(String::new())),
+        pending: std::sync::Mutex::new(std::collections::HashMap::new()),
         alert_count: std::sync::atomic::AtomicU32::new(0),
         context_window: std::sync::atomic::AtomicU32::new(128_000),
         context_used: std::sync::atomic::AtomicU32::new(0),
@@ -375,15 +374,22 @@ pub fn run_tui(
 
 /// Bridge implementation connecting the TUI to hKask's full inference engine.
 #[cfg(feature = "tui")]
+struct PendingTuiInference {
+    receiver: std::sync::mpsc::Receiver<hkask_tui::TuiTurnResult>,
+    streaming_text: Arc<std::sync::Mutex<String>>,
+}
+
+/// Bridge implementation connecting the TUI to hKask's full inference engine.
+#[cfg(feature = "tui")]
 struct TuiReplBridge {
     state: Arc<std::sync::Mutex<ReplState>>,
     rt_handle: tokio::runtime::Handle,
     a2a_secret: hkask_types::secret::ZeroizingSecret,
     agent_name: String,
     model: String,
-    pending: std::sync::Mutex<Option<std::sync::mpsc::Receiver<hkask_tui::TuiTurnResult>>>,
-    /// Streaming text buffer for chunked display during inference
-    streaming_text: Arc<std::sync::Mutex<String>>,
+    pending: std::sync::Mutex<
+        std::collections::HashMap<hkask_tui::InferenceRequestId, PendingTuiInference>,
+    >,
     alert_count: std::sync::atomic::AtomicU32,
     /// Context window size from model metadata
     context_window: std::sync::atomic::AtomicU32,
@@ -427,16 +433,23 @@ impl TuiReplBridge {
 
 #[cfg(feature = "tui")]
 impl hkask_tui::ReplBridge for TuiReplBridge {
-    fn start_inference(&self, input: String) {
+    fn start_inference(&self, input: String) -> hkask_tui::InferenceRequestId {
         let state = self.state.clone();
         let rt = self.rt_handle.clone();
         let a2a = self.a2a_secret.clone();
         let (tx, rx) = std::sync::mpsc::channel();
-        let streaming = self.streaming_text.clone();
-
-        // Clear streaming buffer
-        *streaming.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
-        *self.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
+        let streaming = Arc::new(std::sync::Mutex::new(String::new()));
+        let request = hkask_tui::InferenceRequestId::new();
+        self.pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(
+                request,
+                PendingTuiInference {
+                    receiver: rx,
+                    streaming_text: streaming.clone(),
+                },
+            );
 
         std::thread::spawn(move || {
             let mut s = state.lock().unwrap_or_else(|e| e.into_inner());
@@ -457,18 +470,31 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
 
             let _ = tx.send(result);
         });
+        request
     }
 
-    fn start_scoped_inference(&self, input: String, mcp_server: &str) {
+    fn start_scoped_inference(
+        &self,
+        input: String,
+        mcp_server: &str,
+    ) -> hkask_tui::InferenceRequestId {
         let state = self.state.clone();
         let rt = self.rt_handle.clone();
         let a2a = self.a2a_secret.clone();
         let (tx, rx) = std::sync::mpsc::channel();
-        let streaming = self.streaming_text.clone();
+        let streaming = Arc::new(std::sync::Mutex::new(String::new()));
         let scope = mcp_server.to_string();
-
-        *streaming.lock().unwrap_or_else(|e| e.into_inner()) = String::new();
-        *self.pending.lock().unwrap_or_else(|e| e.into_inner()) = Some(rx);
+        let request = hkask_tui::InferenceRequestId::new();
+        self.pending
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(
+                request,
+                PendingTuiInference {
+                    receiver: rx,
+                    streaming_text: streaming.clone(),
+                },
+            );
 
         std::thread::spawn(move || {
             let mut s = state.lock().unwrap_or_else(|e| e.into_inner());
@@ -502,31 +528,37 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
 
             let _ = tx.send(result);
         });
+        request
     }
 
-    fn poll_inference(&self) -> hkask_tui::InferenceState {
+    fn poll_inference(&self, request: hkask_tui::InferenceRequestId) -> hkask_tui::InferenceState {
         let mut pending = self.pending.lock().unwrap_or_else(|e| e.into_inner());
-        match pending.as_ref() {
-            None => hkask_tui::InferenceState::Idle,
-            Some(rx) => match rx.try_recv() {
-                Ok(result) => {
-                    *pending = None;
-                    hkask_tui::InferenceState::Done(result)
-                }
-                Err(std::sync::mpsc::TryRecvError::Empty) => hkask_tui::InferenceState::Thinking,
-                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    *pending = None;
-                    hkask_tui::InferenceState::Idle
-                }
-            },
+        let Some(operation) = pending.get(&request) else {
+            return hkask_tui::InferenceState::Idle;
+        };
+        match operation.receiver.try_recv() {
+            Ok(result) => {
+                pending.remove(&request);
+                hkask_tui::InferenceState::Done(result)
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => hkask_tui::InferenceState::Thinking,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                pending.remove(&request);
+                hkask_tui::InferenceState::Idle
+            }
         }
     }
 
-    fn streaming_text(&self) -> String {
-        self.streaming_text
+    fn streaming_text(&self, request: hkask_tui::InferenceRequestId) -> String {
+        let streaming = self
+            .pending
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .clone()
+            .get(&request)
+            .map(|operation| operation.streaming_text.clone());
+        streaming
+            .and_then(|buffer| buffer.lock().ok().map(|text| text.clone()))
+            .unwrap_or_default()
     }
 
     fn send_message_blocking(&self, input: &str) -> hkask_tui::TuiTurnResult {

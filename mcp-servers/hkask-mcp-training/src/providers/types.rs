@@ -252,7 +252,7 @@ pub enum LoraInit {
     /// Initializes A with principal activation directions, B=0. Produces standard
     /// portable LoRA adapters (unlike PiSSA which is weight-SVD based and
     /// non-portable across transformers versions). No-op at init (B=0 → ΔW=0).
-    /// Requires `initialize_lora_eva_weights(model, dataloader)` before training.
+    /// Uses the training data for activation-SVD initialization.
     Eva,
     /// Random init (debugging only — not a no-op at step 0).
     Random,

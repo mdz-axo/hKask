@@ -1,4 +1,4 @@
-{# goal: Audit training config (LoraConfig, BitsAndBytesConfig, accelerate config, training script arguments) against 16 quality gates (5 math-contract G-M1..G-M5, 6 QLoRA G-Q1..G-Q6, 3 data/eval G-D1..G-D3, 2 forgetting G-F1..G-F2) within workspace (P4). Apply pragmatic-cybernetics (IS/OUGHT, epistemic mode, provenance, grill-me). Emit cns.lora.audit spans per gate (P9). No synthetic findings; replicant_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Audit declared LoRA/QLoRA training artifacts phase-by-phase without executing training. Preserve the operator-selected method, distinguish recommendations from readiness, emit normalized evidence-backed findings and cns.lora.audit spans (P9), and require replicant_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -23,9 +23,9 @@ energy_cap: 8192
 visibility: Public
 ---
 {# Template: lora-training/audit-config.j2 #}
-{# Functional Role: KnowAct — Training config audit against 16 quality gates #}
+{# Functional Role: KnowAct — phase-aware training contract audit #}
 {# Produces: findings, gate_results, parameters_extracted #}
-{# Design: evidence-backed only (P8); 16 gates from LoRA/QLoRA/rsLoRA/Razin et al. #}
+{# Registry authoritative; evidence-backed only (P5.1, P8). #}
 
 [inference]
 temperature = 0.1
@@ -34,317 +34,243 @@ verbosity = "terse"
 max_tokens = 8192
 thinking_budget = "full"
 
-{# Reads training config files discovered/selected in select-method phase #}
-{# For each config entry, checks: math contracts, quantization contracts,
-  data/eval contracts, forgetting contracts #}
-{# Emits `cns.lora.audit` span per gate evaluated (P9) #}
-{# Applies pragmatic-cybernetics: trace scaling×rank interaction,
-  variety of init strategies, Good Regulator (init matched to goal),
-  delay (init preprocessing overhead vs convergence speedup) #}
-{# Every finding requires concrete evidence: file path, config line,
-  parameter value, source citation (arXiv paper section + PEFT docs section) #}
-{# Relationships: complements kali-audit (security surface) and tdd
-  (training-loop code) — zero overlap #}
-
-INPUT: config_paths = {{ config_paths | default([]) }} (LoraConfig, BitsAndBytesConfig, accelerate config, training script)
-INPUT: selected_method = {{ selected_method }} (from select-method phase)
+INPUT: config_paths = {{ config_paths | default([]) }}
+INPUT: selected_method = {{ selected_method }} (operator-selected; do not replace)
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous config auditing)
+INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — mandatory)
 
-AUDIT ACTIONS (concrete — must use file:read, code:search, terminal):
-1. Read each config file in `config_paths`. Quote config lines for
-   evidence (not synthetic). Record concrete line numbers.
-2. For `LoraConfig`: extract `r`, `lora_alpha`, `target_modules`,
-   `lora_dropout`, `bias`, `init_lora_weights`, `use_rslora`,
-   `use_dora`, `modules_to_save`, `layers_to_transform`,
-   `rank_pattern`, `alpha_pattern`, `lora_ga_config`, `corda_config`,
-   `loftq_config`, `eva_config`, `alora_invocation_tokens`,
-   `use_qalora`, `qalora_group_size`, `lora_bias`, `target_parameters`.
-3. For `BitsAndBytesConfig` (if QLoRA mode): extract `load_in_4bit`,
-   `bnb_4bit_quant_type` (must be `'nf4'`), `bnb_4bit_compute_dtype`
-   (must be `torch.bfloat16` or `torch.float16`),
-   `bnb_4bit_use_double_quant` (should be `True`),
-   `llm_int8_skip_modules`.
-4. For training script: extract `learning_rate`, `lr_scheduler_type`,
-   `num_train_epochs`, `per_device_train_batch_size`,
-   `gradient_accumulation_steps`, `optim` (`'paged_adamw_8bit'` if
-   QLoRA), `gradient_checkpointing`, `bf16`/`fp16`.
-5. Apply the 16 quality gates (each is a single assertion with a
-   citation):
+AUTHORITATIVE AUDIT MODEL
 
-   MATH-CONTRACT GATES (from LoRA paper, arXiv:2106.09685):
+1. Preserve operator sovereignty:
+   - `selected_method` is the method being audited. Never silently replace,
+     refuse, or relabel it because another method appears preferable.
+   - A method recommendation is advisory and belongs in
+     `recommendation`; it is not the readiness decision.
+   - `readiness_state` is derived only from established contracts and
+     available evidence for the selected method.
 
-   G-M1 Initialization invariant:
-   - Assert: `init_lora_weights=True` (default) produces ΔW=0 at step 0
-     because LoRA B is initialized to zero.
-   - Test: forward pass with adapter enabled == forward pass with
-     adapter disabled at step 0.
-   - EVA also produces a no-op adapter (B=0), but selecting
-     `init_lora_weights='eva'` is not sufficient evidence that EVA ran.
-     Require concrete harness evidence that
-     `initialize_lora_eva_weights(model, dataloader)` executes before
-     training. Refuse submission when that initializer is absent.
-   - For other non-default initializers, classify no-op behavior from
-     the cited PEFT implementation rather than assuming every
-     non-default value produces ΔW≠0. Require the initializer-specific
-     preprocessing and save contract where applicable.
-   - gate_result: pass | warn | fail | refuse.
-   - source_citation: LoRA paper §4.1; PEFT v0.19.0
-     `LoraConfig.init_lora_weights` and
-     `initialize_lora_eva_weights` documentation.
+2. Classify every gate into exactly one phase:
+   - `static_config`: values and relationships directly inspectable in
+     declared configuration files.
+   - `harness`: required integration, preprocessing, save/load, or setup
+     behavior inspectable in declared training code without executing it.
+   - `runtime`: behavior measurable only while initialization, forward,
+     backward, merge, or training is running.
+   - `post_training`: behavior measurable only from a trained adapter or
+     evaluation artifact.
 
-   G-M2 Merge equivalence:
-   - Assert: `W_merged = W + (α/r)·BA` produces identical outputs to
-     `W + adapter` within fp tolerance.
-   - Test: `‖merge(W) − forward_with_adapter(W)‖ < ε`.
-   - Broken by `bias='all'` or `bias='lora_only'` (PEFT docs explicit
-     warning).
-   - Broken by `use_dora=True` on PEFT < 0.10 (magnitude component
-     applied incorrectly — Spheron 2026 guide).
-   - gate_result: pass | fail.
-   - source_citation: LoRA paper §4.2; PEFT v0.19.0 `LoraConfig.bias`
-     docstring.
+3. Use exactly these gate states:
+   - `pass`: supplied evidence satisfies an established contract.
+   - `warn`: supplied evidence shows a non-blocking risk or a conditional
+     recommendation whose triggering condition is established.
+   - `fail`: supplied evidence contradicts an established contract.
+   - `refuse`: supplied evidence establishes a safety or validity boundary
+     that makes proceeding invalid; use only where the gate explicitly
+     defines refusal.
+   - `deferred`: an applicable runtime or post-training requirement has no
+     supplied measurement; this template did not execute it.
+   - `planned`: an applicable runtime or post-training check has concrete,
+     supplied plan evidence but no result yet.
+   - `not_evaluated`: the gate may apply, but declared artifacts do not
+     establish enough context to evaluate applicability or outcome.
+   - `not_applicable`: evidence establishes that the gate does not apply to
+     the selected method/configuration.
 
-   G-M3 Scaling form:
-   - Assert: scaling is `α/r` (or `α/√r` if `use_rslora=True`).
-   - Never `α`, never `r/α`, never `1`.
-   - Test: `scaling == lora_alpha / (math.sqrt(r) if use_rslora else r)`.
-   - If r > 64 AND not use_rslora → warn (recommend use_rslora=True).
-   - gate_result: pass | warn | fail.
-   - source_citation: LoRA paper §4.1 (`α/r`); rsLoRA paper
-     arXiv:2312.03732 (`α/√r` for high rank).
+4. Use exactly these `evidence_kind` values:
+   - `config_value`: quoted value from a declared config artifact.
+   - `code_presence`: quoted required behavior present in declared code.
+   - `code_absence`: search evidence showing required behavior absent from
+     the complete declared harness scope.
+   - `runtime_measurement`: supplied result from an actual runtime or
+     post-training measurement; never synthesize one.
+   - `operator_assertion`: explicit operator-supplied intent, plan,
+     threshold, or environmental fact.
+   - `not_available`: no supporting evidence was supplied or discoverable
+     within the declared OCAP boundary.
 
-   G-M4 Rank budget:
-   - Assert: `r < min(d_in, d_out)`.
-   - Warn if `r >= 0.5 × min(d_in, d_out)` (defeats low-rank premise).
-   - Refuse if `r >= min(d_in, d_out)` (not low-rank at all).
-   - gate_result: pass | warn | refuse.
-   - source_citation: LoRA paper §4.3 (rank sufficiency experiments).
+5. Evidence rule:
+   - Absence of evidence is not evidence of failure.
+   - Use `fail` or `refuse` only when an established, applicable contract
+     is contradicted by concrete `config_value`, `code_presence`,
+     `code_absence`, or `runtime_measurement` evidence.
+   - `code_absence` is valid only after searching the complete declared
+     harness scope for behavior that the selected method's established
+     contract requires. Otherwise use `not_evaluated`.
+   - Missing runtime/post-training evidence yields `deferred`; concrete
+     check-plan evidence may yield `planned`.
+   - Never infer a successful runtime outcome from configuration or code
+     presence alone.
 
-   G-M5 Trainable param count:
-   - Assert: `2 · r · (d_in + d_out) · n_target_layers` matches
-     `model.print_trainable_parameters()`.
-   - Test: assert computed count == reported count within 1%.
-   - gate_result: pass | fail.
-   - source_citation: LoRA paper Table 5.
+AUDIT ACTIONS
 
-   QLORA-SPECIFIC GATES (from QLoRA paper, arXiv:2305.14314 — only
-   apply if QLoRA mode selected):
+1. Read only files in `config_paths`; quote exact snippets and line numbers.
+   If no files are supplied, return empty extraction and mark potentially
+   applicable gates `not_evaluated`, not failed.
+2. Extract available `LoraConfig`, `BitsAndBytesConfig`, accelerate, data,
+   evaluation, and training arguments. Do not invent omitted defaults unless
+   a cited implementation contract establishes the exact default; label such
+   use as inference and retain the citation.
+3. Inspect declared harness code for selected-method integration contracts.
+   Treat initializer-specific preprocessing uniformly: determine the
+   selected initializer's documented contract, then inspect for its required
+   setup and persistence behavior. Do not hardcode framework/version-specific
+   refusal for EVA or any other initializer.
+4. Accept supplied runtime/post-training evidence as input evidence only when
+   it is present in declared artifacts or operator assertions. This template
+   MUST NOT execute model loading, initialization, forward/backward passes,
+   merges, training, or evaluation.
+5. Evaluate the gate catalog below using its assigned phase. A gate's
+   requirement is distinct from evidence that the requirement passed.
 
-   G-Q1 Frozen base is quantized:
-   - Assert: `base_param.dtype` is 4-bit (`torch.uint8` container with
-     `bnb_4bit_quant_type='nf4'`) when QLoRA mode is on.
-   - gate_result: pass | fail.
-   - source_citation: QLoRA paper §3 (NF4).
+PHASE-AWARE GATE CATALOG
 
-   G-Q2 Adapter dtype:
-   - Assert: LoRA `A`, `B` are bf16 or fp32, never 4-bit.
-   - Test: `lora_A.dtype in (torch.bfloat16, torch.float32)`.
-   - gate_result: pass | fail.
-   - source_citation: QLoRA paper §3 (compute in bf16 through frozen
-     base).
+STATIC_CONFIG
+- G-M3 Scaling form: require `α/r`, or `α/√r` when rsLoRA is enabled.
+  A concretely contradictory scaling implementation fails. High rank without
+  rsLoRA may warn as a recommendation; it does not change selected_method.
+- G-M4 Rank budget: compare `r` with known target dimensions. Warn at
+  `r >= 0.5 * min(d_in,d_out)` and refuse at
+  `r >= min(d_in,d_out)` only when dimensions are evidenced. Unknown
+  dimensions -> `not_evaluated`.
+- G-Q5 Paged optimizer: applicable only when evidenced peak-memory demand
+  exceeds evidenced available VRAM. Otherwise pass when condition is known
+  false, warn when known true and unmet, or `not_evaluated` when unknown.
+- G-Q6 NF4 assumption: applicable in QLoRA/NF4 mode. Warn only when supplied
+  evidence establishes materially non-normal base weights; absent weight
+  distribution evidence is `not_evaluated`, not pass or fail.
+- G-D1 Dataset size/quality: evaluate only from supplied sample count and
+  quality-audit evidence. Missing values are `not_evaluated`.
 
-   G-Q3 Gradient flow:
-   - Assert: gradients reach `A` and `B`.
-   - Test: after first backward, `A.grad is not None and
-     B.grad is not None`.
-   - gate_result: pass | fail.
-   - source_citation: QLoRA paper §3 (backprop through frozen 4-bit
-     base).
+HARNESS
+- G-M1 Initialization contract: inspect selected initializer documentation
+  and declared harness for initializer-specific preprocessing/save behavior.
+  Configuration establishes intent, not runtime no-op behavior. Required
+  behavior proven absent from complete declared harness may fail; incomplete
+  scope is `not_evaluated`. Runtime no-op equality remains a separate
+  runtime requirement.
+- G-Q1 Quantized frozen-base setup: inspect QLoRA loading configuration and
+  harness wiring. Pass/fail only for the static/harness setup contract; actual
+  runtime dtype belongs to runtime evidence.
+- G-D2 Eval protocol: classify the declared protocol. Missing protocol is
+  `not_evaluated` unless an established submission contract requires one.
+- G-D3 Failure-case analysis: `planned` only with an explicit supplied plan;
+  otherwise `not_evaluated` before training and `deferred` once applicable
+  post-training artifacts are expected but absent.
 
-   G-Q4 No silent upcast:
-   - Assert: frozen base params are not cast to fp32 by
-     `prepare_model_for_kbit_training` or accelerate config.
-   - Test: assert `base_param.dtype != torch.float32` when QLoRA mode
-     is on (silent 2× memory).
-   - gate_result: pass | fail.
-   - source_citation: QLoRA paper §3; PEFT
-     `prepare_model_for_kbit_training` docstring.
+RUNTIME — REQUIREMENTS ONLY; DO NOT EXECUTE
+- G-M1 No-op at initialization: adapter-enabled and adapter-disabled outputs
+  agree within a declared tolerance at step 0.
+- G-M2 Merge equivalence: merged and adapter-enabled outputs agree within a
+  declared tolerance. Static bias/config evidence may identify a documented
+  incompatibility, but a passing result requires `runtime_measurement`.
+- G-M5 Trainable parameter count: measured trainable count agrees with a
+  calculation appropriate to actual target modules. Formula-only analysis is
+  a requirement/estimate, not a runtime pass.
+- G-Q1 Frozen base dtype: measured base storage/quantization matches the
+  selected QLoRA contract.
+- G-Q2 Adapter dtype: measured adapter tensors use supported compute dtype and
+  are not stored as 4-bit weights.
+- G-Q3 Gradient flow: supplied first-backward measurement shows gradients for
+  required adapter parameters.
+- G-Q4 No silent upcast: supplied runtime measurement shows the frozen base was
+  not unexpectedly materialized in fp32.
+For each applicable runtime gate without `runtime_measurement`, emit
+`deferred`, or `planned` when a concrete measurement plan is supplied.
 
-   G-Q5 Paged optimizer (conditional):
-   - Assert: `optim='paged_adamw_8bit'` only required if peak memory >
-     available VRAM.
-   - Gate is conditional, not absolute.
-   - gate_result: pass | warn (if not used and memory tight).
-   - source_citation: QLoRA paper §3 (paged optimizers).
+POST_TRAINING — REQUIREMENTS ONLY; DO NOT EXECUTE
+- G-F1 Intruder dimensions: require a before/after measurement when the
+  operator's acceptance contract includes this analysis.
+- G-F2 Knowledge preservation: require evaluation against an
+  operator-declared threshold when the selected method/goal establishes a
+  preservation contract (including applicable CorDA knowledge-preserved
+  workflows).
+- Post-training G-D2/G-D3 outcomes: require supplied evaluation and
+  failure-case artifacts when those checks are part of the declared
+  acceptance contract.
+Without results, use `planned` for a concrete supplied plan, `deferred` for an
+applicable unmet measurement requirement, and `not_evaluated` when
+applicability is unknown.
 
-   G-Q6 NF4 optimality assumption:
-   - Assert: NF4 is information-theoretically optimal for normally-
-     distributed weights.
-   - Warn if base model is known to have non-normal weights (e.g.,
-     post-quantization-pruned, sparse).
-   - gate_result: pass | warn.
-   - source_citation: QLoRA paper §3 (NF4 derivation).
+NORMALIZED FINDING SCHEMA — AUTHORITATIVE
 
-   DATA/EVAL GATES (from QLoRA paper, arXiv:2305.14314):
+Emit every finding with exactly these fields; do not create alternate finding
+shapes for passes, observations, or deficiencies:
+- `finding_id`: stable identifier within this audit.
+- `gate_id`: catalog gate identifier.
+- `phase`: `static_config | harness | runtime | post_training`.
+- `state`: one of the eight states defined above.
+- `severity`: `critical | high | medium | low | informational | none`.
+- `selected_method`: unchanged operator-selected method.
+- `readiness_impact`: `blocking | conditional | non_blocking | none | unknown`.
+- `claim`: precise IS/OUGHT statement supported by evidence.
+- `requirement`: established contract or conditional requirement; null when
+  no established contract applies.
+- `evidence_kind`: one of the six values defined above.
+- `evidence`: object with `config_path`, `line`, `parameter`, `value`, and
+  `snippet`; unavailable members are null, never fabricated.
+- `provenance`: `direct | inference | assessment | operator`.
+- `epistemic_mode`: `declarative | probabilistic | subjunctive`.
+- `citation`: array of only the sources needed to support this finding's
+  claim. Use PEFT docs for API/config behavior, papers for research claims,
+  local contracts/regressions for project requirements; do not force both
+  PEFT and arXiv citations.
+- `recommendation`: advisory next action or null; never overwrites
+  `selected_method`.
+- `replicant_host`: mandatory authenticated host identity.
 
-   G-D1 Dataset size vs quality:
-   - If `n_samples < 1000`: require explicit justification.
-   - If `n_samples > 100000`: require quality audit (dedup,
-     contamination check).
-   - gate_result: pass | warn.
-   - source_citation: QLoRA paper §5 (small high-quality > large
-     noisy).
+A gate result uses the same semantics and contains:
+`gate_id`, `phase`, `state`, `readiness_impact`, `finding_ids`, and
+`requirement`. `gate_results` is a map keyed by gate_id. Do not encode a
+missing gate as failure.
 
-   G-D2 Eval protocol:
-   - Assert: chatbot benchmarks (Vicuna, MMLU alone) are not
-     trustworthy.
-   - Require held-out human eval or GPT-4 eval.
-   - gate_result: pass | warn | fail.
-   - source_citation: QLoRA paper §5 (GPT-4 eval as cheap proxy).
+READINESS
+- Compute `readiness_state` separately from recommendations.
+- `refuse` if any applicable gate is `refuse`.
+- `fail` if any applicable established contract is `fail`.
+- `warn` if no fail/refuse exists and at least one applicable finding warns.
+- `deferred` if no fail/refuse exists and required runtime/post-training gates
+  remain deferred or planned.
+- `pass` only for the audited readiness scope when all applicable required
+  gates in that scope pass or are not_applicable. Never count
+  `not_evaluated`, `deferred`, or `planned` as pass.
 
-   G-D3 Lemon-pick analysis:
-   - Assert: report failure cases, not just aggregate score.
-   - gate_result: pass | warn.
-   - source_citation: QLoRA paper §6 (lemon-picked analysis).
+EVIDENCE AND CITATION INTEGRITY (P8)
+- No synthetic snippets, line numbers, values, measurements, benchmark
+  numbers, or training outcomes.
+- Cite only sources actually consulted and appropriate to the claim.
+- Findings based solely on unavailable evidence may record the requirement
+  with `evidence_kind: not_available` and a non-failure state; they must not
+  fabricate a location.
+- Before proposing any regression, verify concrete contradictory evidence in
+  an actual declared artifact. Deferred/planned/not_evaluated checks are not
+  regressions by themselves.
 
-   FORGETTING GATES (post-QLoRA literature):
+CNS SPAN EMISSION (P9)
+Emit `cns.lora.audit` for every gate represented in `gate_results`: target
+`"cns.lora.audit"`, message `"CNS"`, operation `"audit_gate"`, gate_id,
+phase, state, readiness_impact, evidence_kind, selected_method,
+replicant_host, latency_ms. The namespace remains registered in
+`CANONICAL_NAMESPACES`. Emit no anonymous action.
 
-   G-F1 Intruder dimension check (post-training):
-   - Assert: report intruder dimensions before/after training using
-     `peft.tuners.lora.intruders.reduce_intruder_dimension`.
-   - gate_result: pass (planned) | warn (not planned).
-   - source_citation: Razin et al. arXiv:2410.21228 ("LoRA vs Full
-     Fine-tuning: An Illusion of Equivalence").
+OCAP BOUNDARY (P4)
+Read only declared workspace paths. Do not load models, execute training or
+evaluation, call remote services, or download artifacts without explicit
+consent. Runtime and post-training checks are requirements or supplied
+evidence assessments only.
 
-   G-F2 Knowledge preservation (CorDA mode):
-   - If `init_lora_weights='corda'` with
-     `corda_config.mode='knowledge_preserved'`: assert world-knowledge
-     eval doesn't regress beyond threshold.
-   - gate_result: pass | warn | fail.
-   - source_citation: CorDA paper; PEFT v0.19.0 `LoraConfig.corda_config`
-     docstring.
-
-6. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt`
-   oracle phase):
-   - IS vs OUGHT: describe config content (`IS`) vs training contract
-     (`OUGHT` — no-op init, merge equivalence, correct scaling).
-   - Epistemic mode: `Declarative` (config read), `Probabilistic`
-     (memory estimate — only when config provides explicit batch size
-     and model size), `Subjunctive` (potential training failure —
-     labeled clearly, not presented as fact).
-   - Provenance: `Direct measurement` (read config), `Inference`
-     (param count math), `Assessment` (contract violation mapping) —
-     label each finding explicitly.
-7. Apply grill-me self-challenge (like `bug-hunt`): Could this config
-   choice be intentional? Is `bias='lora_only'` a deliberate
-   extraction-from-full-finetune scenario? Would a reviewer dismiss
-   this finding? If yes, downgrade to `OBSERVATION` or omit. Only
-   propose `BUG` / `POTENTIAL_BUG` when evidence is concrete.
-8. Apply pragmatic-cybernetics feedback loop analysis: trace
-   scaling×rank interaction (does higher r need lower LR? — yes per
-   Brenndoerfer 2024), check variety (alternative init strategy
-   available?), Good Regulator (is init strategy matched to training
-   goal?), delay (init preprocessing overhead vs convergence speedup).
-9. For each config entry, produce structured finding:
-   `parameter`, `value`, `source_line`, `config_path`, `gate_id`
-   (e.g., `G-M3`), `gate_result` (pass | warn | fail | refuse),
-   `severity` (critical/high/medium/low — justified by evidence),
-   `provenance` (Direct/Inference/Assessment), `epistemic_mode`,
-   `evidence_snippet` (quoted config line + file path),
-   `source_citation` (arXiv paper section + PEFT docs section),
-   `remediation` (concrete fix), `replicant_host`.
-
-CNS SPAN EMISSION (P9 — every gate evaluated):
-- `cns.lora.audit` per gate: target `"cns.lora.audit"`, message
-  `"CNS"`, operation `"audit_gate"`, gate_id, parameter, value,
-  gate_result, replicant_host, latency_ms.
-- Namespace registered in `CANONICAL_NAMESPACES`
-  (`crates/hkask-types/src/event.rs`). Emit unconditionally.
-
-CONSTRAINT — Evidence integrity (P8 — semantic grounding):
-- No synthetic config quotes. Every `evidence_snippet` must be
-  verifiable by reading the cited config file at the cited line.
-- No synthetic benchmark numbers. Only reference paper-reported results
-  with explicit citation (paper, table/section).
-- Source citations must reference concrete URLs or documents actually
-  consulted: arXiv paper URLs (abs/2106.09685, abs/2305.14314,
-  abs/2312.03732, abs/2402.09353, abs/2404.02948, abs/2407.05000,
-  abs/2410.21228, abs/2303.10512), PEFT v0.19.0 docs
-  (huggingface.co/docs/peft/v0.19.0/package_reference/lora).
-- Every finding must include `replicant_host` identity (P12) — no
-  anonymous config auditing.
-- When referencing `security/regressions/`, read actual YAML files; do
-  not invent regression entries. Only propose new entries when concrete
-  evidence supports them.
-- This skill complements `kali-audit` (security surface) and `tdd`
-  (training-loop code) by governing training configuration and
-  contracts. State relationship explicitly in reports.
-
-RELATIONSHIP TO OTHER SKILLS (explicit — no overlap ambiguity):
-- `kali-audit`: covers security surfaces (Rust code, templates, MCP,
-  supply chain). This skill covers training configuration and
-  contracts. Zero overlap — different surface (`surface: training` vs
-  `surface: code`/`template`/`mcp`/`supply-chain`). Both consume
-  `security/regressions/` as input; both propose new entries for human
-  review.
-- `tdd`: covers training-loop code (test-driven development of Rust
-  crates). This skill governs the training *configuration* passed to
-  that code, not the code itself. Complementary: `tdd` builds the
-  training loop; `lora-training` audits the config the loop consumes.
-- `bug-hunt`: provides the `Charter → Probe → Oracle → Taxonomize →
-  Report` pipeline structure. This skill replicates that decomposed
-  pipeline (select-method ≈ charter; audit-config ≈ probe + oracle;
-  report ≈ taxonomize + report; convergence-check ≈ convergence).
-  Uses same pragmatic-cybernetics and pragmatic-semantics reasoning
-  patterns embedded in instructions.
-- `supply-chain-sentinel`: audits dependency manifests. This skill
-  audits training configs. Both are pre-flight gates (supply chain
-  before deploy; training config before training). Both emit CNS spans
-  and propose regressions.
-- `diagnose`: if a training run fails or produces a degraded model,
-  `diagnose` handles the cybernetic debugging loop (reproduce →
-  hypothesize → instrument → fix → regression-test). This skill is the
-  *pre-flight* gate; `diagnose` is the *post-failure* loop. This skill
-  proposes regressions that `diagnose` can use to anchor hypotheses.
-
-MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
-- Who: Training operator / replicant host (P12).
-- What: PEFT config / training hyperparameters / dataset
-  characteristics.
-- Where: Training script / config file / model card.
-- When: Pre-training gate (config audit) and post-training gate
-  (intruder check, merge equivalence).
-- Why: P3.1 (Generative Space requires safe container — training-
-  config errors silently degrade model quality); P1 (User Sovereignty
-  — user controls training choices); P4 (Clear Boundaries — config
-  must be explicitly declared, not ambient authority); P9
-  (Homeostatic Regulation — training risk must be observable via
-  `cns.lora.*` spans).
-- How: Read config → apply 16 gates → classify → report → propose
-  regression → emit CNS span → compute convergence.
-- If any of these 6 were missing, this skill would violate P5. All 6
-  are present.
-
-OUTPUT FORMAT:
-JSON object with fields:
-`config_paths` (list with line counts), `parameters_extracted` (list),
-`findings` (structured array — only evidence-backed), `gate_results`
-(map of gate_id → result), `replicant_host`, `source_citations`,
+OUTPUT FORMAT
+JSON object with `config_paths`, `parameters_extracted`, `selected_method`,
+`method_recommendations`, `findings` (the normalized schema unchanged),
+`gate_results`, `readiness_state`, `replicant_host`, `source_citations`, and
 `cns_span_reference`.
 
-5W1H GATE CHECK (P5): Who = training operator / replicant host; What =
-config audit findings; Where = workspace config paths; When = pre-
-training cycle; Why = P3.1 safe container / P9 observable regulation;
-How = read + apply gates + classify + emit CNS span. All 6 present —
-passes gate.
+5W1H GATE CHECK (P5): Who = operator / replicant_host; What = phase-aware
+training contract audit; Where = declared workspace paths; When = static,
+harness, runtime-evidence, and post-training-evidence phases; Why = safe,
+observable, sovereign training decisions; How = inspect declared artifacts,
+classify evidence, preserve selected method, and emit CNS spans.
 
-REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
-(`manifest.yaml` + `.j2`) conflict, registry wins. This template is
-the canonical `audit-config` phase definition.
-PUBLIC VISIBILITY: `visibility: public` — no hidden training-config
-audit controls (P3, P4).
-NO FABRICATION: Only findings with quoted config evidence are
-reported. Only regressions with concrete `pattern` (regex against
-config content, or a Rust runtime assertion at the owning training
-boundary for runtime gates) are proposed. Only gates with config
-evidence (init_lora_weights=True =
-no-op-at-init; bias='none' = merge equivalence; lora_alpha/r or
-lora_alpha/sqrt(r) = scaling form; etc.) are counted as pass.
-NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by reading
-the cited `config_path`. `parameter` and `value` must exist in that
-file. `line` must reference an actual line number.
-CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
-audit phase does not compute metric (that is `convergence-check.j2`
-responsibility). This maintains pipeline decomposition (P5 minimalism
-— each phase answers one 5W1H dimension clearly).
+REGISTRY AUTHORITATIVE (P5.1): This template is the canonical audit-config
+phase definition. PUBLIC VISIBILITY (P11): no hidden controls. REPLICANT HOST
+(P12): mandatory in every finding, gate result context, and CNS action.
+CONVERGENCE INDEPENDENT: this phase does not compute the convergence metric.

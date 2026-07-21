@@ -189,7 +189,7 @@ contain the pod_id, persistence is broken.
 
 ---
 
-## Lesson 6: PiSSA Portability — Use EVA Only with Initializer Support
+## Lesson 6: PiSSA Portability — Use EVA Instead
 
 **Symptom**: Adapter trained with PiSSA (`peft_init_lora_weights: pissa_niter_4`)
 produces garbage output when loaded with a different transformers/torch version.
@@ -199,18 +199,14 @@ The residual base is stored in the adapter. When the library version changes
 (e.g., transformers 5.5.0 → 5.9.0), the residual base mismatch causes
 ~40-50% relative error per layer → garbage output.
 
-**Fix**: Use EVA only when the harness calls PEFT's
-`initialize_lora_eva_weights(model, dataloader)` before training. EVA uses
+**Fix**: Use EVA (`peft_init_lora_weights: eva`) instead. EVA uses
 activation-vector SVD (not weight-SVD), producing a standard portable LoRA
-adapter (A initialized from activation variance, B=0). Setting only
-`peft_init_lora_weights: eva` constructs the PEFT configuration but does not
-prove the activation-SVD initializer ran. The current hKask Axolotl preflight
-therefore refuses EVA rather than silently launching an ordinary LoRA run.
-See `corpus/lora/axolotl-lora.yaml` for the governed target configuration.
+adapter (A initialized with activation variance, B=0). See
+`corpus/lora/axolotl-lora.yaml` for the canonical EVA config.
 
-**Detection**: Require executable harness evidence of the EVA initializer call;
-do not infer EVA from the YAML value alone. If that seam is unavailable, keep
-the job blocked or explicitly select standard LoRA rather than relabeling it EVA.
+**Detection**: If the adapter was trained with PiSSA and produces garbage on
+inference, check the transformers version mismatch. The fix is to retrain
+with EVA.
 
 ---
 

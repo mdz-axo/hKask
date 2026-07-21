@@ -331,9 +331,9 @@ steps:
   # raw config path or host selector: those bypass the canonical harness seam
   # and are not part of TrainSubmitRequest.
   #
-  # EVA requires activation-SVD initialization through PEFT's
-  # initialize_lora_eva_weights(model, dataloader). The training preflight
-  # refuses this billable step until the Axolotl harness proves that call.
+  # The accepted operator configuration uses EVA initialization. The registered
+  # lora-training skill recommends and audits the config; runtime validation
+  # enforces established hard contracts without rewriting operator intent.
   # ═══════════════════════════════════════════════════════════════════════
   - id: train_lora
     description: "Submit typed EVA LoRA training job to RunPod H100"
@@ -343,7 +343,7 @@ steps:
       base_model: "unsloth/Qwen3.6-27B"
       skill_name: "capabilities-researcher"
       params:
-        num_epochs: 2
+        num_epochs: 3
         batch_size: 1
         learning_rate: 0.0001
         lora:
@@ -365,5 +365,5 @@ steps:
           attn_implementation: sdpa
           gradient_checkpointing: "true"
           bf16: true
-          eval_split_ratio: 0.05
+          eval_split_ratio: 0.0012
     requires_consent: true

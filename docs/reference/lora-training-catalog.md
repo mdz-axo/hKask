@@ -16,7 +16,7 @@ authoritative (P5.1); this document is a derived reference.
 | PiSSA | G4=fast convergence | SVD of base weight | Yes (via `subtract_mutated_init`) | arXiv:2404.02948 |
 | LoRA-GA | G4=fast convergence | Gradient SVD | Yes (via `save_mutated_as_lora`) | arXiv:2407.05000 |
 | CorDA-KP | G5=knowledge preservation | Context-oriented | Yes | PEFT v0.19.0 `corda_config` |
-| EVA | G4=data-driven init | SVD of activations via `initialize_lora_eva_weights(model, dataloader)` | Yes | PEFT v0.19.0 `eva_config` and EVA initializer |
+| EVA | G4=data-driven init | SVD of activations from training data | Yes | EVA arXiv:2410.07170; PEFT v0.19.0 `eva_config` |
 | AdaLoRA | (not default) | SVD-parameterized | Yes | arXiv:2303.10512 |
 | aLoRA | G1=dynamic-switching | LoRA init | No (selective) | PEFT v0.19.0 `alora_invocation_tokens` |
 | IA³ | (extreme param budget) | Vector scaling | Yes | PEFT `IA3Config` |
@@ -34,7 +34,7 @@ single assertion with a citation.
 
 | Gate | ID | Assertion | Source |
 |------|----|-----------|--------|
-| Initialization invariant | G-M1 | Default LoRA and EVA are no-ops at step 0 because B=0. EVA passes only when the harness proves `initialize_lora_eva_weights(model, dataloader)` runs before training; configuration alone is insufficient. | LoRA §4.1; PEFT `init_lora_weights` and EVA initializer docs |
+| Initialization invariant | G-M1 | Default LoRA and EVA are no-ops at step 0 because B=0. Preserve the operator-selected initializer; evaluate configuration and runtime evidence in their applicable phases. | LoRA §4.1; EVA arXiv:2410.07170; PEFT `init_lora_weights` |
 | Merge equivalence | G-M2 | `W_merged = W + (α/r)·BA` ≡ `W + adapter` within fp tolerance. Broken by `bias='all'`/`'lora_only'`, DoRA on PEFT<0.10. | LoRA §4.2; PEFT `bias` docstring |
 | Scaling form | G-M3 | scaling = `α/r` (or `α/√r` if `use_rslora`). Never `α`, `r/α`, or `1`. | LoRA §4.1; rsLoRA arXiv:2312.03732 |
 | Rank budget | G-M4 | `r < min(d_in, d_out)`. Warn if `r ≥ 0.5×min`. Refuse if `r ≥ min`. | LoRA §4.3 |

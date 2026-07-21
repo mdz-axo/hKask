@@ -65,7 +65,9 @@ use bridges::{
     ResearchDataBridge, ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge,
     WalletDataBridge, tui_bridge_setter, with_bridges,
 };
-pub use repl_bridge::{InferenceState, ReplBridge, SystemBridge, TuiTurnResult};
+pub use repl_bridge::{
+    InferenceRequestId, InferenceState, ReplBridge, SystemBridge, TuiTurnResult,
+};
 pub use splash::SplashScreen;
 pub use window::{Window, WindowId, WindowKind};
 pub use workspace::{SplitDirection, Workspace};

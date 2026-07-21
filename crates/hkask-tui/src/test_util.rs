@@ -6,7 +6,9 @@
 
 use std::sync::Arc;
 
-use crate::repl_bridge::{InferenceState, ReplBridge, SystemBridge, TuiTurnResult};
+use crate::repl_bridge::{
+    InferenceRequestId, InferenceState, ReplBridge, SystemBridge, TuiTurnResult,
+};
 
 /// A minimal mock bridge that returns defaults for all methods.
 /// Used in rendering guard tests where only the render pipeline matters.
@@ -46,11 +48,13 @@ impl SystemBridge for MockReplBridge {
 }
 
 impl ReplBridge for MockReplBridge {
-    fn start_inference(&self, _input: String) {}
-    fn poll_inference(&self) -> InferenceState {
+    fn start_inference(&self, _input: String) -> InferenceRequestId {
+        InferenceRequestId::new()
+    }
+    fn poll_inference(&self, _request: InferenceRequestId) -> InferenceState {
         InferenceState::Idle
     }
-    fn streaming_text(&self) -> String {
+    fn streaming_text(&self, _request: InferenceRequestId) -> String {
         String::new()
     }
     fn send_message_blocking(&self, _input: &str) -> TuiTurnResult {

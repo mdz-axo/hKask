@@ -28,7 +28,7 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crate::repl_bridge::{InferenceState, ReplBridge};
+use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge};
 use crate::window::{Window, WindowId, WindowKind};
 
 /// The interaction mode for the chat window.
@@ -128,6 +128,8 @@ pub struct ChatWindow {
     scroll_offset: u16,
     /// Bridge to the inference engine
     bridge: Arc<dyn ReplBridge>,
+    /// Request owned by this window, if inference is active.
+    pending_request: Option<InferenceRequestId>,
     /// Current inference state for async polling
     inference_state: InferenceState,
     /// Spinner frame counter for "Thinking..." animation
@@ -159,6 +161,7 @@ impl ChatWindow {
             cursor_pos: 0,
             scroll_offset: 0,
             bridge,
+            pending_request: None,
             inference_state: InferenceState::Idle,
             spinner_frame: 0,
             streaming_partial: String::new(),
@@ -380,7 +383,7 @@ impl ChatWindow {
 
         // Normal chat message — use async inference
         self.add_message(MessageSender::User, input.clone());
-        self.bridge.start_inference(input);
+        self.pending_request = Some(self.bridge.start_inference(input));
         self.inference_state = InferenceState::Thinking;
     }
 }
@@ -505,8 +508,10 @@ impl Window for ChatWindow {
     }
 
     fn tick(&mut self) {
-        // Poll async inference and display results
-        let state = self.bridge.poll_inference();
+        let Some(request) = self.pending_request else {
+            return;
+        };
+        let state = self.bridge.poll_inference(request);
         match state {
             InferenceState::Done(result) => {
                 if result.budget_exhausted {
@@ -531,15 +536,17 @@ impl Window for ChatWindow {
                         );
                     }
                 }
+                self.pending_request = None;
                 self.inference_state = InferenceState::Idle;
             }
             InferenceState::Thinking => {
                 self.spinner_frame = self.spinner_frame.wrapping_add(1);
-                self.streaming_partial = self.bridge.streaming_text();
+                self.streaming_partial = self.bridge.streaming_text(request);
                 self.inference_state = InferenceState::Thinking;
             }
-            other => {
-                self.inference_state = other;
+            InferenceState::Idle => {
+                self.pending_request = None;
+                self.inference_state = InferenceState::Idle;
             }
         }
     }

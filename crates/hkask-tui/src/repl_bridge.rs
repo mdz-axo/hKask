@@ -28,6 +28,22 @@ pub struct TuiTurnResult {
     pub budget_exhausted: bool,
 }
 
+/// Opaque identity for one asynchronous inference operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct InferenceRequestId(uuid::Uuid);
+
+impl InferenceRequestId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+}
+
+impl Default for InferenceRequestId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// State of the inference engine, polled by the TUI each frame.
 #[derive(Debug, Clone)]
 pub enum InferenceState {
@@ -41,8 +57,9 @@ pub enum InferenceState {
 
 /// System monitoring bridge — read-only access to agent state.
 ///
-/// Used by the Workspace tick loop. All methods are infallible,
-/// lock-free reads of atomic/shared state.
+/// Used by the Workspace tick loop. Methods are infallible and run on the
+/// event-loop thread, so implementations must keep synchronization brief and
+/// must not perform blocking service or network I/O.
 pub trait SystemBridge: Send + Sync {
     /// Get the current agent name.
     fn agent_name(&self) -> &str;
@@ -73,18 +90,18 @@ pub trait SystemBridge: Send + Sync {
 pub trait ReplBridge: SystemBridge {
     // ── Inference ──────────────────────────────────────────────────
 
-    /// Start inference on a background task. Returns immediately.
-    fn start_inference(&self, input: String);
-    /// Poll the inference state.
-    fn poll_inference(&self) -> InferenceState;
-    /// Get current streaming text (partial response during inference).
-    fn streaming_text(&self) -> String;
+    /// Start inference on a background task and return its request identity.
+    fn start_inference(&self, input: String) -> InferenceRequestId;
+    /// Poll one inference request without consuming another request's result.
+    fn poll_inference(&self, request: InferenceRequestId) -> InferenceState;
+    /// Get current streaming text for one inference request.
+    fn streaming_text(&self, request: InferenceRequestId) -> String;
     /// Blocking send (for quick commands, not normal chat).
     fn send_message_blocking(&self, input: &str) -> TuiTurnResult;
     /// Send a message to the Curator daemon and get a response.
     fn send_curator_message(&self, input: &str) -> String;
     /// Start inference scoped to a single MCP server's tools.
-    fn start_scoped_inference(&self, input: String, _mcp_server: &str) {
-        self.start_inference(input);
+    fn start_scoped_inference(&self, input: String, _mcp_server: &str) -> InferenceRequestId {
+        self.start_inference(input)
     }
 }

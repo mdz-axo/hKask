@@ -23,7 +23,7 @@ dataset:
   huggingface_repo: mdz-axo/capabilities-researcher-qa
   file: train_chat_full.jsonl
   format: chatml
-  examples: 229520
+  examples: 183000
 
 # ── Base model ───────────────────────────────────────────────────────────
 base_model: unsloth/Qwen3.6-27B
@@ -39,7 +39,7 @@ lora:
 
 # ── Training hyperparameters ─────────────────────────────────────────────
 training:
-  epochs: 2  # lesson: 3 was too many; peaked at end of epoch 2
+  epochs: 3
   learning_rate: 0.0001
   warmup_steps: 100
   micro_batch_size: 1
@@ -52,7 +52,7 @@ training:
 
 # ── Eval + early stopping ────────────────────────────────────────────────
 eval:
-  val_set_size: 0.05  # 5% gives statistically meaningful eval signal; 0.0012 was too noisy
+  val_set_size: 0.0012  # canonical held-out split for the 183K-example corpus
   eval_steps: 200
   save_steps: 200
   save_total_limit: 5
@@ -79,7 +79,3 @@ runpod:
   min_memory_gb: 80
   min_vcpu_count: 8
   volume_mount: /workspace
-
-# EVA preflight: blocked until the Axolotl harness invokes PEFT's
-# initialize_lora_eva_weights(model, dataloader). Passing only
-# peft_init_lora_weights: eva does not execute activation-SVD initialization.

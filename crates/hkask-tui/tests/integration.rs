@@ -6,7 +6,8 @@
 use std::sync::Arc;
 
 use hkask_tui::{
-    ReplBridge, SystemBridge, TuiTurnResult, Window, WindowId, WindowKind, Workspace,
+    InferenceRequestId, ReplBridge, SystemBridge, TuiTurnResult, Window, WindowId, WindowKind,
+    Workspace,
     windows::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
         CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
@@ -85,11 +86,13 @@ impl SystemBridge for MockBridge {
 }
 
 impl ReplBridge for MockBridge {
-    fn start_inference(&self, _input: String) {}
-    fn poll_inference(&self) -> hkask_tui::InferenceState {
+    fn start_inference(&self, _input: String) -> InferenceRequestId {
+        InferenceRequestId::new()
+    }
+    fn poll_inference(&self, _request: InferenceRequestId) -> hkask_tui::InferenceState {
         hkask_tui::InferenceState::Idle
     }
-    fn streaming_text(&self) -> String {
+    fn streaming_text(&self, _request: InferenceRequestId) -> String {
         String::new()
     }
     fn send_message_blocking(&self, _input: &str) -> TuiTurnResult {

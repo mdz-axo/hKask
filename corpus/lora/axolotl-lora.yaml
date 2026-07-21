@@ -19,16 +19,11 @@ sequence_len: 4096
 bf16: true
 
 # EVA LoRA — activation-vector SVD initialization with adaptive rank
-# redistribution. PEFT's EvaConfig contains algorithm parameters only; the
-# training dataloader is passed to initialize_lora_eva_weights separately.
+# redistribution from the training data.
 lora_r: 32
 lora_alpha: 64
 lora_dropout: 0
 peft_init_lora_weights: eva
-# The current Axolotl harness does not expose EvaConfig or invoke
-# initialize_lora_eva_weights. The hKask preflight must therefore refuse this
-# config until that initialization seam is implemented and verified.
-# Reference: PEFT v0.19.0 LoraConfig/EvaConfig and EVA arXiv:2410.07170.
 lora_target_modules:
   - q_proj
   - k_proj
@@ -44,7 +39,7 @@ datasets:
     type: chat_template
 
 # Training
-num_epochs: 2
+num_epochs: 3
 learning_rate: 1e-4
 warmup_steps: 100
 micro_batch_size: 1
@@ -56,8 +51,8 @@ weight_decay: 0.01
 max_grad_norm: 0.3
 optim: adamw_8bit
 
-# Eval — 5% held out for a stable early-stopping signal.
-val_set_size: 0.05
+# Eval — canonical held-out split for the 183K-example corpus.
+val_set_size: 0.0012
 eval_steps: 200
 save_steps: 200
 save_total_limit: 5

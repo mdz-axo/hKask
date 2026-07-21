@@ -1,4 +1,4 @@
-{# goal: Compute normalized training-readiness convergence metric [0,1] from evidence counts only: unresolved critical/high findings (0.40), math-contract gate coverage (0.25), QLoRA gate coverage (0.15, only if QLoRA mode), data/eval gate coverage (0.10), forgetting gate coverage (0.10). Emit cns.lora.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute a phase-aware, normalized training-readiness convergence metric [0,1] from current evidence only. Preserve required PDCA convergence, distinguish preflight readiness from pending runtime contracts and post-training verification, emit cns.lora.convergence (P9), and require replicant_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -12,6 +12,7 @@ contract:
   input:
     unresolved_findings: array
     gate_results: object
+    current_phase: string
     qlora_mode: boolean
     corda_mode: boolean
     existing_regressions: array
@@ -21,6 +22,9 @@ contract:
   output:
     convergence_metric: number
     converged: boolean
+    preflight_ready: boolean
+    runtime_contracts_pending: boolean
+    post_training_verified: boolean
     blockers: array
     gate_results_summary: object
     cns_span_emitted: boolean
@@ -28,9 +32,9 @@ energy_cap: 4096
 visibility: Public
 ---
 {# Template: lora-training/convergence-check.j2 #}
-{# Functional Role: KnowAct — Training-readiness convergence metric #}
-{# Produces: convergence_metric, converged, blockers, gate_results_summary #}
-{# Design: evidence-based only (P8); weighted dimensions from LoRA/QLoRA contracts #}
+{# Functional Role: KnowAct — Phase-aware training-readiness convergence #}
+{# Produces: convergence metric, PDCA verdict, readiness booleans, blockers, gate summary #}
+{# Design: evidence-based only (P8); normalize over gates applicable now #}
 
 [inference]
 temperature = 0.1
@@ -39,109 +43,127 @@ verbosity = "terse"
 max_tokens = 2048
 thinking_budget = "full"
 
-{# Computes normalized metric [0, 1] where 0 = fully converged (training-ready) #}
+{# Computes normalized risk [0, 1], where 0 = current phase fully converged #}
 {# Emits `cns.lora.convergence` CNS span (P9) — namespace registered #}
 
-INPUT: unresolved_findings = {{ unresolved_findings }} (from previous cycle or current)
-INPUT: gate_results = {{ gate_results }} (map of gate_id → pass/warn/fail/refuse, from audit-config phase)
-INPUT: qlora_mode = {{ qlora_mode | default(false) }} (bool — if true, G-Q1..G-Q6 gates apply)
-INPUT: corda_mode = {{ corda_mode | default(false) }} (bool — if true, G-F2 knowledge-preservation assert applies)
-INPUT: existing_regressions = {{ existing_regressions }} (count of surface: training entries)
-INPUT: proposed_regressions = {{ proposed_regressions }} (count from current cycle)
-INPUT: previous_metric = {{ previous_metric | default(1.0) }}
-INPUT: replicant_host = {{ replicant_host }} (P12)
+INPUT: unresolved_findings = {{ unresolved_findings }} (current evidence)
+INPUT: gate_results = {{ gate_results }} (map of gate_id → {state, phase, evidence}; state is pass/warn/fail/refuse/deferred/planned/not_evaluated/not_applicable)
+INPUT: current_phase = {{ current_phase }} (one of preflight/runtime/post_training; mandatory)
+INPUT: qlora_mode = {{ qlora_mode | default(false) }} (if true, G-Q1..G-Q6 may apply)
+INPUT: corda_mode = {{ corda_mode | default(false) }} (if true, G-F2 may apply)
+INPUT: existing_regressions = {{ existing_regressions }} (actual surface: training entries)
+INPUT: proposed_regressions = {{ proposed_regressions }} (actual proposals from this cycle)
+INPUT: previous_metric = {{ previous_metric | default(none) }} (optional evidence from the immediately preceding comparable phase)
+INPUT: replicant_host = {{ replicant_host }} (mandatory, P12)
 
-COMPUTE METRIC (weighted — evidence-based only, P8, P5):
+EVIDENCE AND APPLICABILITY RULES (P8):
+- Use only supplied findings and gate results with concrete evidence. Do
+  not infer a pass, state, phase, severity, count, or history value.
+- Every gate result uses exactly one state: `pass`, `warn`, `fail`,
+  `refuse`, `deferred`, `planned`, `not_evaluated`, or
+  `not_applicable`. Reject unknown states as blockers.
+- A gate is applicable now only when its declared phase equals
+  `current_phase` and its state is not `not_applicable`. A future- or
+  past-phase gate is excluded from the current metric denominator.
+- QLoRA gates are `not_applicable` when `qlora_mode=false`; G-F2 is
+  `not_applicable` when `corda_mode=false`. Exclude them rather than
+  crediting them as passes.
+- `planned`, `deferred`, and `not_evaluated` never count as pass. When
+  applicable in the current phase they are unmet contracts and blockers.
 
-- Critical + high unresolved findings weight: 0.40
-  Score = 0.00 if zero critical/high; +0.40 if any critical/high
-  remains. Partial = (count_critical * 1.0 + count_high * 0.5) /
-  max(1, previous_critical + previous_high) — only if evidence-backed.
+COMPUTE CURRENT-PHASE METRIC (weighted risk, P5, P8):
 
-- Math-contract gate coverage weight: 0.25
-  All 5 math gates (G-M1 no-op-at-init, G-M2 merge equivalence,
-  G-M3 scaling form, G-M4 rank budget, G-M5 trainable param count)
-  pass = +0.00
-  4 pass = +0.05; 3 pass = +0.10; 2 pass = +0.15; <2 pass = +0.25
-  Each gate only counts as pass when config evidence confirms it
-  (P8 — concrete evidence only, no aspirational coverage).
+1. Critical/high findings, base weight 0.40:
+   contribution risk = 1 if any evidence-backed unresolved finding has
+   severity critical or high; otherwise 0. This is intentionally binary
+   and has no undeclared previous_critical/previous_high dependency.
 
-- QLoRA gate coverage weight: 0.15 (only if qlora_mode=true)
-  All 6 QLoRA gates (G-Q1 frozen base quantized, G-Q2 adapter dtype,
-  G-Q3 gradient flow, G-Q4 no silent upcast, G-Q5 paged optimizer,
-  G-Q6 NF4 optimality) pass = +0.00
-  5 pass = +0.03; 4 pass = +0.06; <4 pass = +0.15
-  (If qlora_mode=false, this dimension is +0.00 — LoRA mode does not
-  require QLoRA gates.)
+2. Gate families and base weights:
+   - Math contracts G-M1..G-M5: 0.25.
+   - QLoRA contracts G-Q1..G-Q6: 0.15 when `qlora_mode=true`.
+   - Data/eval contracts G-D1..G-D3: 0.10.
+   - Forgetting contracts G-F1..G-F2: 0.10, with G-F2 excluded when
+     `corda_mode=false`.
 
-- Data/eval gate coverage weight: 0.10
-  All 3 data/eval gates (G-D1 dataset size vs quality, G-D2 eval
-  protocol, G-D3 lemon-pick analysis) pass = +0.00
-  2 pass = +0.03; 1 pass = +0.06; 0 pass = +0.10
+3. For each family, include only gates applicable in `current_phase`.
+   Exclude a family with zero currently applicable gates. For each
+   included gate, map state to risk: pass=0, warn=0.5, and
+   fail/refuse/deferred/planned/not_evaluated=1. Family risk is the
+   arithmetic mean of its included gate risks.
 
-- Forgetting gate coverage weight: 0.10
-  G-F1 intruder dimension check planned = +0.00; not planned = +0.05
-  G-F2 knowledge-preservation assert planned (if corda_mode=true) =
-  +0.00; not planned = +0.05
-  (If corda_mode=false, G-F2 contributes +0.00 — not applicable.)
+4. Normalize base weights over dimensions applicable in the current
+   phase: normalized_weight = base_weight / sum(applicable base weights).
+   The critical/high dimension is always applicable. Compute
+   convergence_metric = sum(normalized_weight * dimension_risk), clamped
+   to [0, 1]. Report the applicable gates and normalized weights so the
+   result is reproducible from evidence.
 
-SUM = sum of contributions, clamp [0, 1].
+CONVERGENCE CHECK (required PDCA regulation, P9):
+- Hard blockers are unresolved critical/high findings; any applicable
+  `fail`, `refuse`, `deferred`, `planned`, or `not_evaluated` gate;
+  unknown states; and missing mandatory phase/evidence/replicant_host.
+- `converged = true` when convergence_metric ≤ 0.10 and no hard blocker
+  exists. A stable metric under the threshold remains converged; ongoing
+  5% improvement is not required.
+- If a comparable `previous_metric` is supplied, report
+  improvement_pct as diagnostic evidence only. Otherwise return null.
+  Never use improvement_pct to override the threshold verdict.
+- Blockers identify concrete finding/gate evidence and the next
+  evidence-producing PDCA experiment. Do not invent configuration paths,
+  fixes, regression proposals, or evidence.
 
-CONVERGENCE CHECK (P9 — homeostatic regulation):
-- Metric ≤ 0.10: near converged (training-ready).
-- Metric ≤ 0.10 AND relative improvement ≥ 5% from previous_metric:
-  converged.
-- If metric > 0.10 OR improvement < 5%: not converged — identify
-  blockers.
-- Blockers = specific gate failures (from `gate_results`), unresolved
-  critical/high findings (with config evidence), stagnation (no new
-  regression proposed despite finding evidence), contract gaps
-  (math/QLoRA/data/forgetting gates uncovered).
+PHASE-AWARE READINESS OUTPUTS:
+- `preflight_ready` is true only when the preflight phase is current and
+  converged from its applicable evidence.
+- `runtime_contracts_pending` is true only when preflight is ready and
+  supplied runtime-phase gates contain `planned`, `deferred`, or
+  `not_evaluated`; these future gates do not affect the preflight metric
+  and are not counted as passes.
+- `post_training_verified` is true only when post_training is current,
+  converged, and every applicable post-training gate is evidence-backed
+  `pass` or `warn`; it is false for planned, deferred, not_evaluated,
+  fail, refuse, missing, or unknown states.
+- These booleans expose lifecycle posture; they do not replace the
+  required `converged` PDCA verdict for the current phase.
 
 CNS SPAN (P9):
 - `cns.lora.convergence` is registered in `CANONICAL_NAMESPACES`
-  (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
-  (`target: "cns.lora.convergence"`, message: `"CNS"`,
-  operation: `"convergence_check"`, metric, previous_metric,
-  improvement_pct, blockers: [...], replicant_host, latency_ms).
+  (`crates/hkask-types/src/event.rs`). Emit it unconditionally with
+  target `cns.lora.convergence`, message `CNS`, operation
+  `convergence_check`, current_phase, convergence_metric,
+  previous_metric, improvement_pct, converged, readiness booleans,
+  blockers, applicable normalized weights, replicant_host, and latency_ms.
 
 OUTPUT FORMAT (JSON):
-`{convergence_metric, previous_metric, improvement_pct, converged:
-bool, blockers: [...], gate_results_summary: {math_pass_count,
-qlora_pass_count, data_pass_count, forgetting_pass_count},
+`{current_phase, convergence_metric, previous_metric, improvement_pct,
+converged, preflight_ready, runtime_contracts_pending,
+post_training_verified, blockers, gate_results_summary: {states,
+applicable_gates, excluded_gates, family_risks, normalized_weights},
 existing_regressions_count, proposed_regressions_count,
 unresolved_critical, unresolved_high, qlora_mode, corda_mode,
 replicant_host, cns_span_emitted: true}`.
 
-5W1H GATE (P5 — minimal): Who = replicant host; What = convergence
-metric; Where = audit cycle / workspace; When = pre-training cycle;
-Why = P9 observable self-correction / P7 evolutionary progress; How =
-compute metric + check improvement + emit CNS span (or note gap) +
-identify blockers. All 6 present.
+5W1H GATE (P5): Who = mandatory replicant host; What = phase-aware
+convergence; Where = current audit/training workspace; When = declared
+current phase; Why = observable PDCA regulation and lifecycle readiness;
+How = evidence-only state mapping, applicable-weight normalization,
+threshold verdict, and CNS emission. All 6 present.
 
-MINIMAL: One template (`KnowAct`); no extra computation; uses
-evidence from previous phases only; no synthetic metrics.
-EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts
-from `findings`, `gate_results` (verified by config evidence),
-`existing_regressions` (actual YAML file count),
-`proposed_regressions` (actual proposal count from current cycle).
-No fabricated numbers.
-EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "set
-`use_rslora=True` for r=128 config", "add `preprocess_loraga()`
-call before training", "plan intruder-dimension check post-
-training") based on real config evidence — not speculative.
-OCAP BOUNDARY (P4): Metric computed from workspace config evidence
-only; no actual training execution; no model download; no network
-calls to HuggingFace Hub without explicit consent (P2).
-CNS REGULATION (P9): Span emitted unconditionally — namespace
-registered in `CANONICAL_NAMESPACES`
-(`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `replicant_host` mandatory.
-VISIBILITY (P11): Metric output public; no hidden training posture.
-SAFETY FLOOR (P3.1): Training convergence protects Generative Space
-— unconverged metric indicates training-config risk.
-SEMANTIC GROUNDING (P8): Every blocker references concrete evidence
-(config path, parameter, gate ID, source citation).
+MINIMAL: One `KnowAct`; no execution, synthesis, or synthetic metrics.
+EVIDENCE-BACKED ONLY (P8): Findings, gate states/phases/evidence,
+regression counts, and optional comparable previous_metric come only
+from supplied artifacts. Absence is not a pass.
+EVOLUTIONARY (P7): A blocker requests the smallest concrete experiment
+that can produce missing evidence; stability below threshold is valid
+convergence rather than forced metric churn.
+OCAP BOUNDARY (P4): Workspace evidence only; no training execution,
+model download, or network call without explicit consent (P2).
+CNS REGULATION (P9): Emit the registered span unconditionally.
+REPLICANT HOST (P12): `replicant_host` is mandatory.
+VISIBILITY (P11): Public output; no hidden training posture.
+SAFETY FLOOR (P3.1): Unconverged current-phase risk remains visible.
+SEMANTIC GROUNDING (P8): Every blocker cites supplied evidence or the
+explicit absence that prevented evaluation.
 
 SOURCE REFERENCES (P8 — concrete):
 - LoRA: arXiv:2106.09685 (arxiv.org/abs/2106.09685) — §4.1 init,
@@ -187,10 +209,9 @@ derived from actual `findings`, `gate_results`,
 `proposed_regressions`. No synthetic config references. No synthetic
 regression counts.
 CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
-`report` phase logic. Uses `findings` and `gate_results` from
-`audit-config` (or from previous audit cycle if persistence is
-enabled by user). If no previous cycle, assumes `previous_metric =
-1.0` (initial state) — explicit assumption, not hidden.
+`report` phase logic. Uses current supplied findings and phase-tagged
+gate results. `previous_metric` is optional comparable evidence; when
+absent, improvement_pct is null and threshold convergence still applies.
 CNS SPAN EMITTED: `cns.lora.convergence` is registered, so the span
 is always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,

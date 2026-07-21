@@ -1,12 +1,11 @@
 //! MCP Two-Tab window trait — unified Chat + Data architecture.
 //!
-//! MCP-focused windows (Kanban, Training, Media, Matrix, Memory, Companies)
-//! adopt a two-tab design per TUI_SPECIFICATION.md §3:
-//! - Tab 1 (Chat): Focused chat scoped to one MCP server's tools
-//! - Tab 2 (Data): Structured UI widgets rendering MCP artifacts
-//!
-//! Toggle between tabs with the `Tab` key.
+//! MCP-focused windows share scoped Chat and structured Data behavior. Most
+//! toggle those views with `Tab`; Scenarios composes the same trait with its
+//! own section navigation. See `docs/explanation/tui-architecture.md` for the
+//! runtime boundary and current limitations.
 
+use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge};
 use crate::widgets::headers;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
@@ -49,6 +48,8 @@ pub struct McpChatState {
     pub input: String,
     /// History of chat messages (user + agent).
     pub messages: Vec<McpChatMessage>,
+    /// Scoped inference request owned by this window.
+    pending_request: Option<InferenceRequestId>,
 }
 
 impl McpChatState {
@@ -56,6 +57,7 @@ impl McpChatState {
         Self {
             input: String::new(),
             messages: Vec::new(),
+            pending_request: None,
         }
     }
 
@@ -156,6 +158,35 @@ pub trait McpTabbedWindow: Window {
                 None
             }
             _ => None,
+        }
+    }
+
+    /// Start a scoped request and bind its completion to this window.
+    fn start_chat_request(&mut self, bridge: &dyn ReplBridge, input: String) {
+        let request = bridge.start_scoped_inference(input, self.mcp_server_name());
+        self.chat_state_mut().pending_request = Some(request);
+    }
+
+    /// Poll only the request owned by this window.
+    fn poll_chat_request(&mut self, bridge: &dyn ReplBridge) {
+        let Some(request) = self.chat_state_mut().pending_request else {
+            return;
+        };
+        match bridge.poll_inference(request) {
+            InferenceState::Done(result) => {
+                let text = if result.budget_exhausted {
+                    "Gas budget exhausted — scoped turn blocked.".to_string()
+                } else {
+                    result.text
+                };
+                let state = self.chat_state_mut();
+                state.push_agent(text);
+                state.pending_request = None;
+            }
+            InferenceState::Idle => {
+                self.chat_state_mut().pending_request = None;
+            }
+            InferenceState::Thinking => {}
         }
     }
 

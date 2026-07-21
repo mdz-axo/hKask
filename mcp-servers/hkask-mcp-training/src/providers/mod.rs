@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn axolotl_harness_renders_capabilities_researcher_config() {
         let mut params = TrainingParams {
-            num_epochs: 2,
+            num_epochs: 3,
             batch_size: 1,
             learning_rate: 1e-4,
             ..TrainingParams::default()
@@ -209,6 +209,7 @@ mod tests {
         params.optimization.warmup_steps = Some(100);
         params.sequence.sequence_len = Some(4096);
         params.advanced.bf16 = true;
+        params.advanced.eval_split_ratio = Some(0.0012);
 
         let mut job = TrainingJob::new(
             std::path::PathBuf::from("/tmp/train_chat_full.jsonl"),
@@ -232,14 +233,14 @@ mod tests {
 
         for expected in [
             "peft_init_lora_weights: eva",
-            "num_epochs: 2",
+            "num_epochs: 3",
             "micro_batch_size: 1",
             "gradient_accumulation_steps: 16",
             "path: mdz-axo/capabilities-researcher-qa",
             "data_files: train_chat_full.jsonl",
             "optim: adamw_8bit",
             "eval_batch_size: 1",
-            "val_set_size: 0.05",
+            "val_set_size: 0.0012",
             "early_stopping_patience: 25",
             "liger_kernel: true",
             "flash_attention: false",

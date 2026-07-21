@@ -1,5 +1,6 @@
 # Registry manifest for lora-training skill
 # hKask v0.31.0
+# goal: Recommend a composable PEFT configuration from declared evidence while preserving operator authority; distinguish recommendation from readiness, and leave enforcement of established hard contracts to the runtime.
 
 crate:
   name: lora-training
@@ -7,10 +8,12 @@ crate:
   visibility: public
   description: >
     LoRA/QLoRA training configuration and contract enforcement skill for
-    hKask. Selects a PEFT method via a deterministic 5-gate decision
-    (inference constraint, memory budget, task distance, quality/cost
-    trade-off, knowledge preservation) — not a search (AutoPEFT-style BO
-    is infeasible per training job). Enforces the LoRA/QLoRA math
+    hKask. Produces a composable PEFT recommendation via a deterministic
+    5-gate refinement (inference constraint, memory budget, task distance,
+    quality/cost trade-off, knowledge preservation) — not a search
+    (AutoPEFT-style BO is infeasible per training job). The skill recommends;
+    the operator accepts, overrides, or rejects; the runtime enforces
+    established hard contracts. Enforces the LoRA/QLoRA math
     contracts as quality gates: no-op-at-init invariant, merge
     equivalence, scaling form (α/r or α/√r), rank budget, trainable
     param count, frozen-base quantization, adapter dtype, gradient flow,
@@ -27,22 +30,22 @@ crate:
 
 templates:
   - id: lora-training/select-method
-    name: "Select PEFT method via 5-gate decision"
+    name: "Recommend composable PEFT configuration via 5-gate refinement"
     path: select-method.j2
     type: KnowAct
     lexicon_terms: [select, decide, gate, method, config, training]
     description: >
-      Apply deterministic 5-gate decision (inference constraint, memory
-      budget vs model size, task distance from pretraining, quality/cost
-      trade-off, knowledge preservation requirement). Emit a
-      LoraConfig-shaped JSON with per-gate justification citations.
-      Refuse with cited reason when config violates a hard contract
-      (rank defeats low-rank premise, OOM-certain memory mismatch,
-      merge-equivalence break with must-merge constraint, init strategy
-      without its required initializer or preprocessing call). AutoPEFT
-      (arXiv:2301.12132)
-      is referenced as the rejected alternative — multi-objective BO
-      over hundreds of training runs is infeasible per training job.
+      Apply a deterministic 5-gate refinement without overwriting earlier
+      constraints or operator requirements. Emit a composable recommendation
+      record with base_mode, adapter_form, scaling, initializer, and
+      preservation, plus per-gate citations and explicit undetermined states.
+      Recommendation is advisory and distinct from training readiness: the
+      operator accepts, overrides, or rejects it, while the runtime enforces
+      established hard contracts from concrete config evidence. Memory pressure
+      may favor quantization but model_size_b × 2 alone does not establish OOM.
+      AutoPEFT (arXiv:2301.12132) is referenced as the rejected alternative —
+      multi-objective BO over hundreds of training runs is infeasible per
+      training job.
 
   - id: lora-training/audit-config
     name: "Audit training config against math/quant/data/forgetting gates"
@@ -59,8 +62,8 @@ templates:
       optimizer, NF4 optimality), 3 data/eval (G-D1 dataset size vs
       quality, G-D2 eval protocol, G-D3 lemon-pick analysis), 2
       forgetting (G-F1 intruder dimensions, G-F2 knowledge preservation
-      for CorDA mode). EVA passes G-M1 only when the harness proves that
-      `initialize_lora_eva_weights` runs with the training dataloader.
+      for CorDA mode). Preserve the operator-selected initializer; harness
+      evidence affects readiness state rather than rewriting the recommendation.
       Apply pragmatic-cybernetics (IS/OUGHT, epistemic
       mode, provenance, grill-me self-challenge). Emit cns.lora.audit
       spans per gate evaluated.
@@ -87,10 +90,8 @@ templates:
     lexicon_terms: [evaluate, converge, gate, coverage, training, readiness]
     description: >
       Compute normalized convergence metric [0, 1] where 0 = fully
-      converged (training-ready). Weighted dimensions: unresolved
-      critical/high findings (0.40), math-contract gate coverage
-      (0.25), QLoRA gate coverage (0.15, only if QLoRA mode), data/eval
-      gate coverage (0.10), forgetting gate coverage (0.10). Converged
-      when metric ≤ 0.10 with ≥5% relative improvement from previous
-      cycle. Emit cns.lora.convergence span (P9 — registered in
+      converged for the current phase. Normalize weighted dimensions over
+      applicable gates and distinguish preflight readiness, pending runtime
+      contracts, and post-training verification. Stable metrics below the
+      threshold remain converged. Emit cns.lora.convergence span (P9 — registered in
       CANONICAL_NAMESPACES).

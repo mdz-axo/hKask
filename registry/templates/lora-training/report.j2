@@ -1,4 +1,4 @@
-{# goal: Synthesize training-config findings with arXiv paper citations and PEFT v0.19.0 doc references (P8). Propose RR-NNNN.yaml entries (surface: training, status: pending, concrete grep patterns or Rust runtime assertions at the owning training boundary). Identify contract gaps. Emit cns.lora.report span (P9). Replicant_host mandatory (P12). No synthetic findings or benchmark claims (P8). Registry authoritative (P5.1). #}
+{# goal: Report phase-aware training findings without changing their schema or classification. Preserve the operator-selected method, separate recommendations from readiness, propose evidence-backed regressions, emit cns.lora.report (P9), and require replicant_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -24,9 +24,8 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: lora-training/report.j2 #}
-{# Functional Role: KnowAct — Synthesize findings and propose regressions #}
-{# Produces: findings_grouped, proposed_regressions, verdict, contract_gaps #}
-{# Design: proposes surface: training regressions for CI gate #}
+{# Functional Role: KnowAct — lossless finding report and regression proposal #}
+{# Registry authoritative; no finding reclassification (P5.1, P8). #}
 
 [inference]
 temperature = 0.1
@@ -35,172 +34,186 @@ verbosity = "terse"
 max_tokens = 4096
 thinking_budget = "full"
 
-{# Synthesizes audit-config findings with arXiv + PEFT doc citations #}
-{# Proposes RR-NNNN.yaml entries with surface: training #}
-{# Emits `cns.lora.report` CNS span (P9) #}
-
-INPUT: findings = {{ findings }} (structured array from audit-config phase)
-INPUT: gate_results = {{ gate_results }} (map of gate_id → result)
+INPUT: findings = {{ findings }} (normalized array from audit-config)
+INPUT: gate_results = {{ gate_results }}
 INPUT: existing_regressions = {{ existing_regressions }}
 INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
 
-SYNTHESIS ACTIONS:
-1. Group findings by severity:
-   - critical (refuse gates: `r >= min(d_in, d_out)`, OOM-certain
-     memory mismatch, merge-equivalence break with must-merge
-     constraint, init strategy without preprocessing call)
-   - high (fail gates: wrong scaling form, silent fp32 upcast, no
-     gradient flow, no-op-at-init break without justification)
-   - medium (warn gates: `r > 128`, NF4 on non-normal weights, no
-     lemon-pick analysis, no intruder check)
-   - low (informational: suboptimal LR for rank, missing
-     `modules_to_save` for embeddings)
-2. For severity >= medium findings with concrete evidence (quoted
-   config snippet + file path + parameter value), propose regression
-   entry.
-3. Each regression proposal must use exact format from
-   `security/regressions/README.md`: `id: RR-XXXX` (human assigns
-   final number — this skill proposes the entry for review), `title`,
-   `surface: training`, `gate: G-M3` (or G-Q1, G-F1, etc. — the gate
-   ID from the catalog), `discovered_in: <config_path>`,
-   `discovered_by: lora-training`, `discovered_at`, `severity`,
-   `detection` (`kind: grep` with `pattern` referencing config content
-   — concrete regex, not vague description; OR `kind: runtime-assert`
-   implemented in the owning Rust training boundary for runtime gates
-   like G-Q3 gradient flow), `mitigation` (concrete fix: set
-   `use_rslora=True`, switch to
-   `paged_adamw_8bit`, add `preprocess_loraga()` call, etc.),
-   `status: pending` (human-curated ratchet — P11 visibility),
-   `ci_gate: scripts/check-lora-training-regressions.sh` (the existing
-   CI gate for `surface: training`; `scripts/check-kali-regressions.sh`
-   covers the other security surfaces).
-4. Identify top 3 contract gaps from `gate_results` (gates that
-   failed or warned). Propose highest-priority fixes based on
-   severity.
-5. Produce verdict:
-   - Pass: zero critical/high findings, all math-contract gates
-     (G-M1..G-M5) pass, all QLoRA-specific gates (G-Q1..G-Q6) pass
-     (if QLoRA mode).
-   - Conditional: medium findings present or 1-2 gates warn.
-   - Fail: critical/high findings present or any gate refuses.
-6. Every finding entry must include `evidence_snippet` (quoted config
-   line), `config_path`, `line`, `parameter`, `value`, `gate_id`,
-   `source_citation` (arXiv paper section + PEFT docs section),
-   `remediation` (concrete fix), `replicant_host`.
+AUTHORITATIVE INPUT CONTRACT
 
-CNS SPAN (P9): Emit `cns.lora.report` with findings count by
-severity, gate results summary, proposed regression count,
-replicant_host, verdict, latency_ms.
+`findings` already contain the final audit classification. Consume every
+finding unchanged with exactly this schema:
+- `finding_id`
+- `gate_id`
+- `phase`: `static_config | harness | runtime | post_training`
+- `state`: `pass | warn | fail | refuse | deferred | planned |
+  not_evaluated | not_applicable`
+- `severity`: `critical | high | medium | low | informational | none`
+- `selected_method`
+- `readiness_impact`: `blocking | conditional | non_blocking | none | unknown`
+- `claim`
+- `requirement`
+- `evidence_kind`: `config_value | code_presence | code_absence |
+  runtime_measurement | operator_assertion | not_available`
+- `evidence`: object with `config_path`, `line`, `parameter`, `value`,
+  `snippet`
+- `provenance`
+- `epistemic_mode`
+- `citation`: array
+- `recommendation`
+- `replicant_host`
 
-CONSTRAINTS (same as audit-config — P5 minimalism, P8 evidence
-integrity, P12 host):
-- No synthetic config quotes — every snippet verifiable from
-  config_path.
-- No synthetic benchmark numbers — only reference paper-reported
-  results with explicit citation (paper, table/section).
-- Propose `status: pending` only — never `enforced` (human-curated
-  ratchet).
-- Source citations: concrete URLs or document names actually
-  referenced.
-- Do NOT propose regression for findings without concrete evidence.
-- Registry (`manifest.yaml` + `.j2`) authoritative.
+Do not add, remove, rename, reinterpret, upgrade, downgrade, or reclassify any
+finding field. In particular:
+- Do not infer severity from gate_id or state.
+- Do not convert `deferred`, `planned`, `not_evaluated`, or
+  `not_applicable` to warn/fail.
+- Do not convert missing evidence to failure.
+- Do not replace `selected_method` with a recommendation.
+- Do not manufacture evidence to make a finding regression-eligible.
 
-OUTPUT FORMAT:
-JSON object with fields:
-`findings` (grouped array with evidence, severity, gate_id, taxonomy
-mapping, fix recommendation), `gate_results_summary` (map of gate_id
-→ pass/warn/fail/refuse count), `contract_gaps` (list of failed/
-warned gates), `proposed_regressions` (YAML-format array for human
-review), `verdict` (Pass | Conditional | Fail), `replicant_host`,
-`source_citations`, `cns_span_reference`.
+REPORT ACTIONS
 
-5W1H GATE CHECK (P5): Who = training operator / replicant host; What
-= findings synthesis; Where = workspace config paths; When = pre-
-training cycle; Why = P3.1 safe container / P9 observable regulation;
-How = synthesize + classify + propose regression + emit CNS span +
-compute verdict. All 6 present — passes gate.
+1. Validate losslessly:
+   - Reject report synthesis if `replicant_host` is absent or if a finding's
+     `replicant_host` conflicts with it; preserve P12 identity.
+   - Record malformed finding inputs as `input_contract_errors` outside the
+     findings array. Do not repair or reclassify them.
+2. Present `findings` unchanged. `findings_grouped` may contain views grouped
+   by phase, state, or severity, but each item MUST be the complete original
+   finding object byte-for-byte/equivalent-value unchanged.
+3. Summarize `gate_results` using the audit states without collapsing them.
+   Produce counts for all eight states and all four phases.
+4. Preserve operator sovereignty:
+   - Report the operator's `selected_method` unchanged.
+   - Render `method_recommendations` as advisory content copied from findings;
+     they do not alter selected method or readiness.
+   - Render `readiness` separately from recommendations.
+5. Identify contract gaps without treating unevaluated outcomes as observed
+   violations:
+   - `deferred`: applicable runtime/post-training requirement awaiting
+     supplied measurement.
+   - `planned`: concrete check plan exists, result pending.
+   - `not_evaluated`: applicability or outcome lacks sufficient declared
+     evidence.
+   - `not_applicable`: exclude from gaps.
+   A contract gap describes the missing requirement/evidence and next
+   evidence needed; it is not a reclassified finding.
+6. Propose regressions only for existing `fail` or `refuse` findings (or
+   `warn` findings when the project regression policy explicitly permits the
+   evidenced anti-pattern) that include concrete contradictory evidence:
+   `config_value`, `code_presence`, `code_absence`, or
+   `runtime_measurement`.
+   - `code_absence` is eligible only when the finding states that the complete
+     declared harness scope was searched for established required behavior.
+   - Never propose a regression solely from `not_available`, an operator plan,
+     or a deferred/planned/not_evaluated state.
+   - Deduplicate against `existing_regressions` without modifying findings.
+7. Rank recommended next actions from the existing `recommendation` fields
+   and contract gaps. Ranking is report metadata, not finding mutation.
 
-RELATIONSHIP (explicit): Complements `kali-audit` (security surface
-vs training-config surface — zero overlap), `tdd` (training-loop code
-vs training config — complementary), `supply-chain-sentinel`
-(dependency manifest vs training config — both pre-flight gates),
-`diagnose` (post-failure loop vs pre-flight gate — this skill
-proposes regressions that `diagnose` can use to anchor hypotheses).
-References `security/regressions/README.md` format directly.
+READINESS VERDICT
 
-MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
-EVIDENCE-BACKED ONLY: Every proposed regression includes concrete
-`pattern` (regex against config content, or a Rust runtime assertion at
-the owning training boundary for runtime gates) and `evidence_snippet` (quoted file content).
-SEMANTIC GROUNDING (P8): Every claim has file path, line, parameter
-value, concrete snippet, gate ID, source citation (arXiv paper
-section + PEFT docs section).
-EVOLUTIONARY (P7): New contract gaps proposed only from real config
-evidence (e.g., missing `preprocess_loraga()` call observed in
-training script, not speculative).
-OCAP BOUNDARY (P4): Audit reads only declared workspace config paths;
-no actual training execution; no model download; no network calls to
-HuggingFace Hub without explicit consent (P2).
-CNS REGULATION (P9): `cns.lora.report` emitted; namespace registered
-in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
-VISIBILITY (P11): Regression proposals `status: pending` — public
-transparency, not hidden control.
-SAFETY FLOOR (P3.1): Training-config findings protect Generative
-Space container — silent quality degradation (wrong scaling, broken
-init, fp32 upcast) is destructive to the space itself.
+Derive the report verdict from `gate_results` using the same state semantics
+as audit-config; do not inspect gate names to invent policy:
+- `Refuse`: at least one applicable gate is `refuse`.
+- `Fail`: no refuse and at least one applicable gate is `fail`.
+- `Conditional`: no fail/refuse and at least one gate is `warn`.
+- `Deferred`: no fail/refuse and an applicable required runtime or
+  post-training gate is `deferred` or `planned`.
+- `Not evaluated`: no fail/refuse/warn/deferred/planned, but at least one
+  potentially applicable gate is `not_evaluated`.
+- `Pass`: all applicable required gates in the reported readiness scope are
+  `pass` or `not_applicable`.
 
-SOURCE REFERENCES (concrete — P8):
-- LoRA: arXiv:2106.09685 (arxiv.org/abs/2106.09685) — §4.1 init,
-  §4.2 merge, §4.1 α/r scaling, §4.3 rank budget, Table 5 param count.
-- QLoRA: arXiv:2305.14314 (arxiv.org/abs/2305.14314) — §3 NF4,
-  double quant, paged optim, bf16 compute; §5 data quality; §6 eval.
-- rsLoRA: arXiv:2312.03732 (arxiv.org/abs/2312.03732) — α/√r for
-  high rank.
-- DoRA: arXiv:2402.09353 (arxiv.org/abs/2402.09353) — magnitude/
-  direction decomposition.
-- PiSSA: arXiv:2404.02948 (arxiv.org/abs/2404.02948) — SVD init,
-  fast convergence.
-- LoRA-GA: arXiv:2407.05000 (arxiv.org/abs/2407.05000) — gradient
-  SVD init, 2-4× faster convergence.
-- AdaLoRA: arXiv:2303.10512 (arxiv.org/abs/2303.10512) — dynamic
-  rank (not default; overhead caveat).
-- Razin et al. (intruder dimensions): arXiv:2410.21228
-  (arxiv.org/abs/2410.21228) — LoRA ≠ full fine-tune; structured
-  forgetting.
-- PEFT v0.19.0: huggingface.co/docs/peft/v0.19.0/package_reference/lora
-  — LoraConfig field docstrings (init_lora_weights, bias, use_rslora,
-  use_dora, use_qalora, lora_ga_config, corda_config, loftq_config,
-  eva_config, alora_invocation_tokens, reduce_intruder_dimension).
-- `security/regressions/README.md` (local project standard —
-  authoritative for regression format).
-- `kali-audit` SKILL.md (complementary relationship — security
-  surface vs training-config surface).
-- `tdd` SKILL.md (complementary relationship — training-loop code vs
-  training config).
-- `bug-hunt` SKILL.md (decomposed pipeline pattern adopted:
-  Charter→Probe→Report ≈ this skill's select→audit→report).
-- `supply-chain-sentinel` SKILL.md (parallel pre-flight gate pattern).
-- `principles.md` (P1–P12 grounding — this skill explicitly
-  references P3.1 Social Generativity / P5 Essentialism / P9
-  Homeostatic Regulation / P12 Replicant Host Mandate in its design
-  and outputs).
+Precedence is Refuse > Fail > Conditional > Deferred > Not evaluated > Pass.
+A recommendation for a different method MUST NOT change this verdict. A
+runtime or post-training pass requires supplied `runtime_measurement`; this
+report never executes the check.
 
-REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
-(`manifest.yaml` + `.j2`) conflict, registry wins. This template is
-the canonical `report` phase definition.
-PUBLIC VISIBILITY: `visibility: public` — no hidden training-config
-audit controls (P3, P4).
-NO FABRICATION: Only findings with quoted config evidence are
-reported. Only regressions with concrete `pattern` (regex against
-config content, or a Rust runtime assertion at the owning training
-boundary) are proposed. Only gates with config evidence are counted as
-pass.
-NO SYNTHETIC DATA: `evidence_snippet` must be verifiable by reading
-the cited `config_path`. `parameter` and `value` must exist in that
-file. `line` must reference an actual line number.
-CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
-report phase does not compute metric (that is
-`convergence-check.j2` responsibility). This maintains pipeline
-decomposition (P5 minimalism — each phase answers one 5W1H dimension
-clearly).
+REGRESSION PROPOSAL FORMAT
+
+For each eligible finding, propose a human-reviewed entry following the
+actual `security/regressions/README.md` contract:
+- `id: RR-XXXX` (placeholder; human assigns final number)
+- `title`
+- `surface: training`
+- `gate`: copied from `finding.gate_id`
+- `discovered_in`: copied from concrete evidence path/artifact
+- `discovered_by: lora-training`
+- `discovered_at`
+- `severity`: copied unchanged from finding
+- `detection`: concrete grep pattern for stable artifact evidence, or a
+  runtime assertion specification owned by the training boundary when the
+  source finding contains an actual runtime measurement
+- `mitigation`: copied/derived directly from finding.recommendation without
+  changing selected_method
+- `status: pending`
+- `ci_gate: scripts/check-lora-training-regressions.sh`
+- `finding_id`: source finding identity
+
+Propose `status: pending` only. Do not claim a runtime assertion is currently
+implemented unless supplied code evidence proves it. A proposed future
+assertion is a requirement, not an executed result.
+
+CITATION POLICY (P8)
+- Preserve each finding's `citation` array unchanged.
+- Build top-level `source_citations` as a deduplicated union of citations
+  actually present in findings, gate requirements, and regression-format
+  references.
+- Citations must be claim-appropriate: PEFT documentation for API/config
+  behavior, an arXiv paper for research/math claims, local documentation or
+  regression YAML for project contracts, and measured artifacts for observed
+  outcomes.
+- Do not force both PEFT and arXiv citations onto every claim.
+- Do not add sources that were not consulted or do not support the claim.
+
+EVIDENCE INTEGRITY
+- No synthetic config quotes, code search results, line numbers, values,
+  runtime measurements, benchmark numbers, or post-training outcomes.
+- Null evidence members remain null. Do not fill them from assumptions.
+- Absence of evidence is not failure unless the input finding already records
+  concrete `code_absence` against an established applicable contract; even
+  then, preserve the input classification unchanged.
+- Do not introduce framework-version-specific initializer refusal policy.
+
+CNS SPAN (P9)
+Emit `cns.lora.report` with exact counts by phase, state, severity, and
+`evidence_kind`; proposed regression count; selected_method; readiness
+verdict; contract-gap count; replicant_host; latency_ms. Namespace remains
+registered in `CANONICAL_NAMESPACES`. Emit no anonymous action.
+
+OCAP BOUNDARY (P4)
+This report consumes supplied audit artifacts only. It does not read outside
+declared workspace paths, load models, execute initializers, run
+forward/backward/merge checks, train, evaluate, download artifacts, or call
+remote services without explicit consent. Runtime and post-training gates
+remain requirements, deferred/planned checks, or assessments of supplied
+measurements.
+
+OUTPUT FORMAT
+JSON object with:
+- `findings`: original normalized array unchanged
+- `findings_grouped`: lossless views containing unchanged finding objects
+- `gate_results_summary`: counts by all states and phases
+- `selected_method`: unchanged operator selection
+- `method_recommendations`: advisory, separate from readiness
+- `readiness`: `Pass | Conditional | Fail | Refuse | Deferred | Not evaluated`
+- `contract_gaps`: requirement/evidence gaps without finding reclassification
+- `proposed_regressions`: pending human-review entries
+- `input_contract_errors`
+- `replicant_host`
+- `source_citations`
+- `cns_span_reference`
+
+5W1H GATE CHECK (P5): Who = operator / replicant_host; What = lossless
+phase-aware audit report; Where = supplied audit artifacts; When = after
+configuration/harness audit and whenever runtime/post-training evidence is
+supplied; Why = transparent readiness without fabricated execution; How =
+preserve findings, summarize states, separate recommendations, propose only
+evidence-backed regressions, and emit CNS span.
+
+REGISTRY AUTHORITATIVE (P5.1): This template is the canonical report phase.
+PUBLIC VISIBILITY (P11): regression proposals remain `pending`. REPLICANT HOST
+(P12): mandatory throughout. CONVERGENCE INDEPENDENT: this report does not
+compute the convergence metric.

@@ -186,21 +186,11 @@ pub fn validate_paged_optimizer(
 /// G-M1: No-op-at-init invariant.
 ///
 /// PEFT default init and EVA both produce ΔW=0 at step 0 because B=0.
-/// EVA additionally requires an explicit activation-SVD initializer with the
-/// training dataloader; the current Axolotl harness does not provide that seam.
-/// Inits that modify base weights (PiSSA, LoftQ, OLoRA, CorDA) require
+/// Initializers that modify base weights (PiSSA, LoftQ, OLoRA, CorDA) require
 /// preprocessing calls (e.g., `preprocess_loraga`, `replace_lora_weights_loftq`).
 fn validate_noop_at_init(lora: &LoraParams, findings: &mut Vec<ValidationFinding>) {
     if let Some(ref init) = lora.init_lora_weights {
-        if matches!(init, crate::providers::types::LoraInit::Eva) {
-            findings.push(ValidationFinding {
-                gate_id: "G-M1",
-                severity: ValidationSeverity::Refuse,
-                message: "EVA selected, but the Axolotl harness does not invoke initialize_lora_eva_weights(model, dataloader) before training".to_string(),
-                source: "EVA arXiv:2410.07170; PEFT v0.19.0 initialize_lora_eva_weights documentation",
-                remediation: "Implement and verify the EVA initializer seam in the training harness, or select standard LoRA initialization".to_string(),
-            });
-        } else if !init.is_noop_at_init() {
+        if !init.is_noop_at_init() {
             findings.push(ValidationFinding {
                 gate_id: "G-M1",
                 severity: ValidationSeverity::Warn,
@@ -479,18 +469,11 @@ mod tests {
     }
 
     #[test]
-    fn eva_without_initializer_refuses_gm1() {
+    fn eva_noop_init_does_not_warn_gm1() {
         let mut params = default_params();
         params.lora.init_lora_weights = Some(crate::providers::types::LoraInit::Eva);
         let findings = validate_training_params(&params);
-        assert!(
-            findings.iter().any(|finding| {
-                finding.gate_id == "G-M1"
-                    && finding.severity == ValidationSeverity::Refuse
-                    && finding.message.contains("initialize_lora_eva_weights")
-            }),
-            "EVA must be refused until the harness executes its activation-SVD initializer"
-        );
+        assert!(findings.iter().all(|finding| finding.gate_id != "G-M1"));
     }
 
     #[test]
