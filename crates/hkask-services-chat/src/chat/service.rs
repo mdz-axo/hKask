@@ -13,8 +13,8 @@ use std::time::Duration;
 use futures_util::Stream;
 use futures_util::StreamExt;
 
-use hkask_agents::curation::persona_filter;
-use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_pods::curation::persona_filter;
+use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::DelegationAction;
 use hkask_ports::InferencePort;
 use hkask_types::PersonaConstraints;
@@ -30,7 +30,7 @@ use super::types::{
     TurnResult,
 };
 use crate::memory::MemoryService;
-use hkask_agents::curator_agent::CuratorAgent;
+use hkask_pods::curator_agent::CuratorAgent;
 use hkask_services_context::AgentService;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_services_inference::{InferenceContext, InferenceService};
@@ -53,7 +53,7 @@ impl ChatService {
         let cns_lock = &ctx.cns().runtime;
         let cns = Arc::new(cns_lock.read().await.clone());
 
-        let agents_ctx = Arc::new(hkask_agents::CuratorContext::new(
+        let agents_ctx = Arc::new(hkask_pods::CuratorContext::new(
             CuratorHandle::system(),
             cns,
             None,

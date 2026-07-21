@@ -116,8 +116,8 @@ pub async fn chat_with_agent_streaming(
     model_override: Option<&str>,
     inference_port: Option<Arc<dyn InferencePort>>,
     secrets: Option<&ResolvedSecrets>,
-    episodic_storage: Option<Arc<dyn hkask_agents::ports::EpisodicStoragePort>>,
-    semantic_storage: Option<Arc<dyn hkask_agents::ports::SemanticStoragePort>>,
+    episodic_storage: Option<Arc<dyn hkask_pods::ports::EpisodicStoragePort>>,
+    semantic_storage: Option<Arc<dyn hkask_pods::ports::SemanticStoragePort>>,
     _agent_webid: Option<hkask_types::WebID>,
     tool_section: Option<&str>,
 ) -> ChatTurnResponse {

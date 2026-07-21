@@ -64,7 +64,7 @@ impl KanbanService {
     }
 
     fn activate_pod(
-        pm: &hkask_agents::pod::ActivePods,
+        pm: &hkask_pods::pod::ActivePods,
         agent_type: &str,
         pod_name: &str,
         capabilities: &[String],
@@ -78,7 +78,7 @@ impl KanbanService {
                 pod_name,
                 webid,
                 capabilities.to_vec(),
-                hkask_agents::pod::PodKind::UserPod,
+                hkask_pods::pod::PodKind::UserPod,
             ))
             .map_err(|e| KanbanError::Internal(format!("Pod creation failed: {}", e)))?;
         rt.block_on(pm.activate_pod(&pod_id))

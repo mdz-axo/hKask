@@ -10,7 +10,7 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use hkask_agents::pod::PodManager;
+//! use hkask_pods::pod::PodManager;
 //! ```
 
 pub mod a2a; // Loop 6 (Cybernetics: A2A is access control)

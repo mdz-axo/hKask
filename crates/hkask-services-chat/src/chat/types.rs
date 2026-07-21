@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::{AuthContext, DelegationToken};
 use hkask_ports::{ChatToolDefinition, InferencePort, StructuredToolCall};
 use hkask_types::PersonaConstraints;

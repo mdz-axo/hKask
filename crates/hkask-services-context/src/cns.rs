@@ -3,7 +3,7 @@
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
-use hkask_agents::loop_system::LoopSystem;
+use hkask_pods::loop_system::LoopSystem;
 use hkask_cns::{CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, ToolStats};
 use hkask_types::cns::CnsHealth;
 use hkask_types::event::{NuEventSink, SpanNamespace};

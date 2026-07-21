@@ -722,15 +722,15 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
             let data_dir = dirs::data_local_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .join("hkask");
-            let registry = hkask_agents::PodRegistry::new(&data_dir);
+            let registry = hkask_pods::PodRegistry::new(&data_dir);
             match registry.scan_by_kind() {
                 Ok(pods) => {
                     let mut curator = 0;
                     let mut userpod = 0;
                     for (kind, _, _) in &pods {
                         match kind {
-                            hkask_agents::PodKind::Curator => curator += 1,
-                            hkask_agents::PodKind::UserPod => userpod += 1,
+                            hkask_pods::PodKind::Curator => curator += 1,
+                            hkask_pods::PodKind::UserPod => userpod += 1,
                         }
                     }
                     Some((curator, userpod))

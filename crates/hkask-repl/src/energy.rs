@@ -13,7 +13,7 @@
 //! # REQ: P9-gas-settle — EnergyGuard guarantees gas is settled or released
 //! expect: "I can access all hKask functionality through the kask CLI"
 
-use hkask_agents::InferenceLoop;
+use hkask_pods::InferenceLoop;
 use hkask_cns::{CyberneticsLoop, GasCost};
 use hkask_types::WebID;
 use std::sync::Arc;

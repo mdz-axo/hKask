@@ -12,7 +12,7 @@ hkask-services-self-heal = { path = "../hkask-services-self-heal" }
 hkask-identity = { path = "../hkask-identity" }
 hkask-services-runtime = { path = "../hkask-services-runtime" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
-hkask-agents = { path = "../hkask-agents" }
+hkask-pods = { path = "../hkask-pods" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-storage-guard = { path = "../hkask-storage-guard" }
 hkask-mcp = { path = "../hkask-mcp" }

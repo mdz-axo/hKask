@@ -1,9 +1,9 @@
 //! HuggingFace infrastructure traits — model registry, adapter registry, dataset registry.
 //!
 //! These are *infrastructure* traits, not a 4th training host. They enhance the
-//! existing hosts (Together, Runpod) transparently, providing:
+//! existing hosts (Runpod) transparently, providing:
 //! - Model resolution (provider-prefix → HF model ID)
-//! - Adapter publication/pull (Together publishes to HF, Runpod pulls from HF)
+//! - Adapter publication/pull (Runpod pulls from HF)
 //! - Dataset remote sourcing (hf://datasets/ URLs)
 //!
 //! MDS categories:
@@ -70,8 +70,7 @@ pub trait ModelRegistry: Send + Sync {
 
 /// Publishes and retrieves LoRA adapters via HuggingFace Hub.
 ///
-/// Used by: TogetherProvider (publishes adapters to mdz-axolotl/* repos)
-///          Previously Baseten adapters from HF for deployment)
+/// Used by: Runpod (pulls adapters from HF for deployment)
 ///
 /// MDS: Lifecycle entity — `AdapterPublication`.
 /// Composition: `CAN publish_adapter|pull_adapter ON Adapter VIA API`

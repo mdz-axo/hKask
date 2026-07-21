@@ -1132,7 +1132,7 @@ impl TrainingServer {
     }
 
     #[tool(
-        description = "Evaluate a trained adapter against a test dataset. Runs inference for each test example and scores accuracy using exact match, substring containment, or semantic comparison. The model must be deployed and available for inference (Together AI fine-tuned models are auto-deployed; local adapters require the inference engine to have the adapter loaded)."
+        description = "Evaluate a trained adapter against a test dataset. Runs inference for each test example and scores accuracy using exact match, substring containment, or semantic comparison. The model must be deployed and available for inference (local adapters require the inference engine to have the adapter loaded)."
     )]
     pub async fn training_evaluate(
         &self,

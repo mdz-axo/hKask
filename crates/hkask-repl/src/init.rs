@@ -9,7 +9,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use hkask_agents::InferenceLoop;
+use hkask_pods::InferenceLoop;
 use hkask_cns::{GasBudget, GasCost};
 
 use super::{TalkConfig, TalkMode};

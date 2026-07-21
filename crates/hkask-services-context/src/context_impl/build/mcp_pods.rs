@@ -77,7 +77,7 @@ pub(super) async fn build_mcp_and_pods(
     // tokens), so legitimate pod tokens verify while forged tokens are rejected.
     // Fails the build if the system OCAP key is unavailable (P4 — fail closed).
     let capability_checker = Arc::new(
-        hkask_agents::pod::system_capability_checker()
+        hkask_pods::pod::system_capability_checker()
             .map_err(|e| {
                 ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
                     "OCAP authority key unavailable: {e}"
@@ -86,12 +86,12 @@ pub(super) async fn build_mcp_and_pods(
             .trust_root(l.a2a_runtime.root_public_key()),
     );
 
-    let mut pods = hkask_agents::pod::ActivePods::new(
-        Arc::new(hkask_agents::pod::PodFactory::new(
+    let mut pods = hkask_pods::pod::ActivePods::new(
+        Arc::new(hkask_pods::pod::PodFactory::new(
             Arc::new(hkask_templates::TemplateCrateLoader::from_path(
                 std::path::PathBuf::from(&config.template_cache_path),
             )),
-            Arc::new(hkask_agents::DenyAllConsent),
+            Arc::new(hkask_pods::DenyAllConsent),
             std::path::Path::new(&config.db_path)
                 .parent()
                 .unwrap_or(std::path::Path::new("."))
@@ -105,7 +105,7 @@ pub(super) async fn build_mcp_and_pods(
     if let Some(inf) = l.inference_port.clone() {
         pods = pods.with_inference_port(inf);
     }
-    let pod_manager: Arc<hkask_agents::pod::ActivePods> = Arc::new(pods);
+    let pod_manager: Arc<hkask_pods::pod::ActivePods> = Arc::new(pods);
 
     // Thin pod backup: iterate pods, snapshot each directory via GixCasAdapter.
     {

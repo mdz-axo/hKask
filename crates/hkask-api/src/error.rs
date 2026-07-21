@@ -108,8 +108,8 @@ impl IntoResponse for ServiceErrorResponse {
 // These impls bridge domain errors that route handlers propagate with `?`.
 // They delegate to `ServiceError`'s `#[from]` wrappers.
 
-impl From<hkask_agents::a2a::A2AError> for ServiceErrorResponse {
-    fn from(e: hkask_agents::a2a::A2AError) -> Self {
+impl From<hkask_pods::a2a::A2AError> for ServiceErrorResponse {
+    fn from(e: hkask_pods::a2a::A2AError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Domain {
             kind: hkask_services_core::ErrorKind::Forbidden,
             domain: hkask_services_core::DomainKind::Agent,
@@ -140,9 +140,9 @@ impl From<uuid::Error> for ServiceErrorResponse {
     }
 }
 
-impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
-    fn from(e: hkask_agents::pod::AgentPodError) -> Self {
-        use hkask_agents::pod::AgentPodError as PE;
+impl From<hkask_pods::pod::AgentPodError> for ServiceErrorResponse {
+    fn from(e: hkask_pods::pod::AgentPodError) -> Self {
+        use hkask_pods::pod::AgentPodError as PE;
         use hkask_services_core::DomainKind;
         use hkask_services_core::ErrorKind;
         let kind = match &e {

@@ -24,15 +24,15 @@
 
 use std::sync::Arc;
 
-use hkask_agents::CuratorContext;
-use hkask_agents::InferenceLoop;
-use hkask_agents::LoopSystem;
-use hkask_agents::consent::ConsentManager;
-use hkask_agents::curation::SemanticIndex;
-use hkask_agents::curation::sync_port::SemanticIndexSyncPort;
-use hkask_agents::curator_agent::CuratorAgent;
-use hkask_agents::pod::ActivePods;
-use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_pods::CuratorContext;
+use hkask_pods::InferenceLoop;
+use hkask_pods::LoopSystem;
+use hkask_pods::consent::ConsentManager;
+use hkask_pods::curation::SemanticIndex;
+use hkask_pods::curation::sync_port::SemanticIndexSyncPort;
+use hkask_pods::curator_agent::CuratorAgent;
+use hkask_pods::pod::ActivePods;
+use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
 use hkask_cns::types::loops::CuratorHandle;
 use hkask_cns::types::loops::HkaskLoop;
@@ -204,7 +204,7 @@ impl AgentService {
     }
 
     /// System WebID + A2A runtime.
-    pub fn identity(&self) -> (&WebID, &Arc<hkask_agents::A2ARuntime>) {
+    pub fn identity(&self) -> (&WebID, &Arc<hkask_pods::A2ARuntime>) {
         (&self.system_webid, &self.governance.a2a)
     }
 
@@ -267,7 +267,7 @@ impl AgentService {
             hkask_memory::ConsolidationService::new(bridge, Arc::clone(&semantic_memory));
 
         // Storage ports via MemoryLoopForwarder — reuse configured memories
-        let adapter = Arc::new(hkask_agents::adapters::MemoryLoopForwarder::new(
+        let adapter = Arc::new(hkask_pods::adapters::MemoryLoopForwarder::new(
             Arc::clone(&episodic_memory),
             Arc::clone(&semantic_memory),
         ));

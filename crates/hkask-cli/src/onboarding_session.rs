@@ -5,7 +5,7 @@
 //! derive secrets → create the userpod (SQLCipher DB) → register in A2A.
 //! Each step is independently callable and carries its own recovery logic.
 
-use hkask_agents::A2ARuntime;
+use hkask_pods::A2ARuntime;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 use hkask_services_onboarding::{OnboardingService, ResolvedSecrets};
 use hkask_storage::user_store::UserStore;

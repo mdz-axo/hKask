@@ -3,7 +3,7 @@
 //! Calls `ActivePods` directly via the service context's infra.
 
 use crate::ReplState;
-use hkask_agents::pod::{PodID, PodKind};
+use hkask_pods::pod::{PodID, PodKind};
 
 /// Handle `/pod` REPL commands.
 pub fn handle_pod(

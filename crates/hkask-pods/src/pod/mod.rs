@@ -25,11 +25,11 @@
 //!
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! use hkask_agents::pod::{AgentPod, PodLifecycleState};
+//! use hkask_pods::pod::{AgentPod, PodLifecycleState};
 //! use hkask_templates::TemplateCrateLoader;
 //! use hkask_types::WebID;
 //! use hkask_capability::CapabilityChecker;
-//! use hkask_agents::{DenyAllConsent, SovereigntyConsent};
+//! use hkask_pods::{DenyAllConsent, SovereigntyConsent};
 //! use std::sync::Arc;
 //!
 //! // Create adapters
@@ -55,7 +55,6 @@ mod context;
 mod deployment;
 mod types;
 
-use crate::VoiceDesign;
 use hkask_capability::{
     CapabilitySpec, DelegationAction, DelegationResource, DelegationToken, SYSTEM_MAX_ATTENUATION,
     derive_signing_key,
@@ -96,23 +95,27 @@ pub struct AgentPod {
     pub state: PodLifecycleState,
     /// Pod creation timestamp (Unix epoch)
     pub created_at: i64,
-    /// Maximum attenuation level for delegation
-    pub max_attenuation: u8,
     /// Sovereignty checker for this pod
     pub(crate) sovereignty_checker: SovereigntyChecker,
     /// Current operating mode (None = not in any active mode)
     pub mode: Option<AgentMode>,
     /// MCP server roles this agent is assigned to serve (e.g., ["research", "condenser"])
     pub assigned_mcp_roles: Vec<String>,
-    /// Voice design for TTS speech generation (None = use default neutral voice)
-    pub voice_design: Option<VoiceDesign>,
 }
 
 /// Agent pod error types
 #[derive(Debug, Error)]
 pub enum AgentPodError {
-    #[error("Failed to parse pod definition: {0}")]
-    PersonaParseError(String),
+    #[error("CuratorPod already exists — only one CuratorPod per system")]
+    DuplicateCurator,
+    #[error("Deploy error: {0}")]
+    DeployError(String),
+    #[error("SemanticIndex missing after CuratorPod creation")]
+    SemanticIndexMissing,
+    #[error("Pod not found by name: {0}")]
+    PodNotFoundByName(String),
+    #[error("Mode error: {0}")]
+    ModeError(String),
 
     #[error("Failed to load template crate: {0}")]
     CrateLoadError(#[from] hkask_types::InfrastructureError),
@@ -244,11 +247,9 @@ impl AgentPod {
             capability_token,
             state: PodLifecycleState::Active,
             created_at: current_timestamp()?,
-            max_attenuation: SYSTEM_MAX_ATTENUATION,
             sovereignty_checker,
             mode: None,
             assigned_mcp_roles: Vec::new(),
-            voice_design: None,
         })
     }
 
@@ -338,7 +339,7 @@ impl AgentPod {
     /// \[P7\] Constraining: Evolutionary Architecture — attenuation limit emerged from usage
     /// pre:  `new_holder` is a valid `WebID`; `current_time` is a valid
     ///       Unix timestamp; `self.capability_token.attenuation_level`
-    ///       must be < `self.max_attenuation`.
+    ///       must be < `SYSTEM_MAX_ATTENUATION`.
     /// post: Returns `Ok(DelegationToken)` — an attenuated child token —
     ///       or `Err(AttenuationLimitExceeded)`.
     pub fn delegate(
@@ -347,7 +348,7 @@ impl AgentPod {
         current_time: i64,
     ) -> AgentPodResult<DelegationToken> {
         // Check attenuation limit
-        if self.capability_token.attenuation_level >= self.max_attenuation {
+        if self.capability_token.attenuation_level >= SYSTEM_MAX_ATTENUATION {
             return Err(AgentPodError::AttenuationLimitExceeded);
         }
 
@@ -485,48 +486,6 @@ impl AgentPod {
     }
 
     // ── Voice ──
-
-    /// Set the agent's voice design for TTS speech generation.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P3\] Motivating: Generative Space — configure voice design
-    /// pre:  `voice` is a valid `VoiceDesign`.
-    /// post: `self.voice_design` is set to `Some(voice)`; logs the change.
-    pub fn set_voice(&mut self, voice: VoiceDesign) {
-        tracing::info!(
-            target: "hkask.pod",
-            pod_id = %self.id,
-            voice_name = %voice.name,
-            "Agent voice design set"
-        );
-        self.voice_design = Some(voice);
-    }
-
-    /// Get the agent's voice design, if one has been set.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P8\] Motivating: Semantic Grounding — voice design accessor
-    /// pre:  (none — accessor).
-    /// post: Returns `Some(&VoiceDesign)` if set, `None` otherwise.
-    pub fn get_voice(&self) -> Option<&VoiceDesign> {
-        self.voice_design.as_ref()
-    }
-
-    /// Get the TTS description for this agent's voice.
-    /// Returns the default neutral voice description if no voice is set.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P8\] Motivating: Semantic Grounding — return TTS description
-    /// pre:  (none).
-    /// post: Returns the TTS description string for the configured voice,
-    ///       or the default `VoiceDesign::default()` description if none
-    ///       is set.
-    pub fn voice_description(&self) -> String {
-        self.voice_design
-            .as_ref()
-            .map(|v| v.to_tts_description())
-            .unwrap_or_else(|| VoiceDesign::default().to_tts_description())
-    }
 
     /// Consume the REPL/chat loop event reference from transcript bundle (S5 closure).
     /// Minimal surgical addition: no new framework, just event consumption.

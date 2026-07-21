@@ -59,13 +59,13 @@ async fn run_pod_inner(action: PodAction) {
     }
 }
 
-fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, CliError> {
+fn parse_pod_id(id: &str) -> Result<hkask_pods::pod::PodID, CliError> {
     uuid::Uuid::parse_str(id)
-        .map(hkask_agents::pod::PodID::from_uuid)
+        .map(hkask_pods::pod::PodID::from_uuid)
         .map_err(|_| CliError::InvalidInput(format!("Invalid pod ID '{}'", id)))
 }
 
-async fn get_pod_status(pod_id: &str) -> Result<hkask_agents::pod::PodStatusInfo, CliError> {
+async fn get_pod_status(pod_id: &str) -> Result<hkask_pods::pod::PodStatusInfo, CliError> {
     let ctx = super::helpers::build_agent_service();
     let pid = parse_pod_id(pod_id)?;
     ctx.infra()
@@ -80,7 +80,7 @@ async fn get_pod_status(pod_id: &str) -> Result<hkask_agents::pod::PodStatusInfo
 pub async fn export_container(pod_id: &str, output_dir: &std::path::Path) -> Result<(), CliError> {
     let ctx = super::helpers::build_agent_service();
     let pm = ctx.infra().pods.clone();
-    let pid = hkask_agents::pod::PodID::from_name(pod_id);
+    let pid = hkask_pods::pod::PodID::from_name(pod_id);
     pm.export_container(pid, output_dir)
         .map_err(|e| CliError::AgentService(format!("Failed to export container: {e}")))
 }

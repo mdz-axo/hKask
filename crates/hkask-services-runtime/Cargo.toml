@@ -9,7 +9,7 @@ description = "hKask runtime services — text classification, provider intellig
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-guard = { path = "../hkask-guard" }
 
-hkask-agents = { path = "../hkask-agents" }
+hkask-pods = { path = "../hkask-pods" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }

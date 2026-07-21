@@ -363,14 +363,14 @@ mod tests {
                 "{}",
                 "queued",
                 1000,
-                "together",
+                "runpod",
             )
             .expect("store");
 
         let job = store.get("job-1").expect("get").expect("found");
         assert_eq!(job.base_model, "Qwen3.5-9B");
         assert_eq!(job.status, "queued");
-        assert_eq!(job.host, "together");
+        assert_eq!(job.host, "runpod");
     }
 
     #[test]

@@ -1,5 +1,5 @@
 //! Onboarding — secret derivation, keychain, A2A registration, sign-in.
-use hkask_agents::A2ARuntime;
+use hkask_pods::A2ARuntime;
 use hkask_keystore::{Keychain, master_key::derive_all_internal_secrets};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 use hkask_types::WebID;

@@ -17,14 +17,11 @@ use utoipa::ToSchema;
 
 /// Create pod request — Pattern D agent creation.
 ///
-/// `template` is a FlowDef template ID. `persona_yaml` is the agent persona
-/// definition in YAML format (maps to a WordAct).
+/// `template` is a FlowDef template ID defining the pod's operational pattern.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CreatePodRequest {
     /// FlowDef template ID defining the agent's operational pattern
     pub template: String,
-    /// Agent persona definition in YAML (WordAct)
-    pub persona_yaml: String,
     /// Optional human-readable pod name
     pub name: Option<String>,
 }
@@ -75,8 +72,8 @@ pub fn pods_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(pod_status))
 }
 
-fn parse_pod_id(id: &str) -> Result<hkask_agents::pod::PodID, ServiceError> {
-    use hkask_agents::pod::PodID;
+fn parse_pod_id(id: &str) -> Result<hkask_pods::pod::PodID, ServiceError> {
+    use hkask_pods::pod::PodID;
     Uuid::parse_str(id).map(PodID::from_uuid).map_err(|e| {
         let msg = format!("Invalid pod ID: {e}");
         ServiceError::Domain {
@@ -158,7 +155,7 @@ async fn create_pod(
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Agent,
             source: None,
-            message: hkask_agents::a2a::A2AError::CapabilityDenied(
+            message: hkask_pods::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 "Insufficient capability to create pods".into(),
             )
@@ -180,7 +177,7 @@ async fn create_pod(
             &name,
             webid,
             capabilities,
-            hkask_agents::pod::PodKind::UserPod,
+            hkask_pods::pod::PodKind::UserPod,
         )
         .await?;
 

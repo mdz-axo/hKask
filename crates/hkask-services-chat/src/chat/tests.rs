@@ -2,9 +2,9 @@
 
 use super::types::TokenUsage;
 use crate::memory::MemoryService;
-use hkask_agents::ports::memory_storage::MemoryPortError;
-use hkask_agents::ports::memory_storage::RecalledEpisode;
-use hkask_agents::ports::{
+use hkask_pods::ports::memory_storage::MemoryPortError;
+use hkask_pods::ports::memory_storage::RecalledEpisode;
+use hkask_pods::ports::{
     EpisodicStoragePort, RecallRequest, RecalledSemantic, SemanticStoragePort, StorageRequest,
 };
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, derive_signing_key};

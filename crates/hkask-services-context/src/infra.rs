@@ -3,8 +3,8 @@
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
-use hkask_agents::pod::ActivePods;
-use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_pods::pod::ActivePods;
+use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{SeamSummary, SeamWatcher, WalletGasCalibrator};
 use hkask_communication::matrix::MatrixTransport;
 use hkask_mcp::McpRuntime;

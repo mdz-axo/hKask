@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use hkask_agents::ports::{
+use hkask_pods::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };

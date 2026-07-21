@@ -7,8 +7,8 @@
 //!
 //! Escalation CRUD lives here — the data and the behavior co-locate.
 
-use hkask_agents::a2a::A2ARuntime;
-use hkask_agents::consent::ConsentManager;
+use hkask_pods::a2a::A2ARuntime;
+use hkask_pods::consent::ConsentManager;
 use hkask_capability::CapabilityChecker;
 use hkask_cns::types::loops::{CurationInput, GoalTransitionEvent};
 

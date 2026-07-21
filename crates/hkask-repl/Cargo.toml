@@ -6,7 +6,7 @@ license.workspace = true
 description = "hKask REPL — interactive agent session with slash-command dispatch"
 
 [dependencies]
-hkask-agents = { path = "../hkask-agents" }
+hkask-pods = { path = "../hkask-pods" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-improv = { path = "../hkask-improv" }

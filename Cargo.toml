@@ -39,7 +39,7 @@ members = [
     "crates/hkask-memory",
     "crates/hkask-cns",
     "crates/hkask-templates",
-    "crates/hkask-agents",
+    "crates/hkask-pods",
     "crates/hkask-keystore",
     "crates/hkask-ledger",
     "crates/hkask-wallet",

@@ -6,7 +6,7 @@ license.workspace = true
 description = "hKask chat service — chat orchestration, memory recall, turn management"
 
 [dependencies]
-hkask-agents = { path = "../hkask-agents" }
+hkask-pods = { path = "../hkask-pods" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-services-core = { path = "../hkask-services-core" }

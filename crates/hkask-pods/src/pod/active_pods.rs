@@ -238,9 +238,7 @@ impl ActivePods {
         if pod_kind == PodKind::Curator {
             let ci = self.curator_index.read().await;
             if ci.is_some() {
-                return Err(AgentPodError::PersonaParseError(
-                    "CuratorPod already exists — only one CuratorPod per system".into(),
-                ));
+                return Err(AgentPodError::DuplicateCurator);
             }
             drop(ci);
         }
@@ -257,7 +255,7 @@ impl ActivePods {
                 self.inference_port.clone(),
             )
             .await
-            .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
+            .map_err(|e| AgentPodError::DeployError(e.to_string()))?;
         let pod_id = deployment.pod_id;
 
         // Step 5: If this is a CuratorPod, wire its SemanticIndex as the
@@ -268,9 +266,7 @@ impl ActivePods {
         {
             let mut ci = self.curator_index.write().await;
             if ci.is_some() {
-                return Err(AgentPodError::PersonaParseError(
-                    "CuratorPod already exists — only one CuratorPod per system".into(),
-                ));
+                return Err(AgentPodError::DuplicateCurator);
             }
             *ci = Some(Arc::clone(index));
         }
@@ -360,9 +356,7 @@ impl ActivePods {
         let index = {
             let ci = self.curator_index.read().await;
             ci.clone().ok_or_else(|| {
-                AgentPodError::PersonaParseError(
-                    "CuratorPod created but SemanticIndex missing".into(),
-                )
+                AgentPodError::SemanticIndexMissing
             })?
         };
 
@@ -467,7 +461,7 @@ impl ActivePods {
 
     pub async fn assign_role(&self, name: &str, role: &str) -> Result<(), AgentPodError> {
         let pod_id = self.find_by_name(name).await.ok_or_else(|| {
-            AgentPodError::PersonaParseError(format!("No pod found for userpod '{}'", name))
+            AgentPodError::PodNotFoundByName(name.to_string())
         })?;
         let mut d = self.deployments.write().await;
         let d = d
@@ -487,7 +481,7 @@ impl ActivePods {
     ) -> Result<(), super::AgentPodError> {
         self.factory
             .export_container(pod_id, output_dir)
-            .map_err(|e| super::AgentPodError::PersonaParseError(e.to_string()))
+            .map_err(|e| super::AgentPodError::DeployError(e.to_string()))
     }
 
     pub async fn set_mode(
@@ -497,7 +491,7 @@ impl ActivePods {
         role: Option<&str>,
     ) -> Result<(), AgentPodError> {
         let pod_id = self.find_by_name(name).await.ok_or_else(|| {
-            AgentPodError::PersonaParseError(format!("No pod found for userpod '{}'", name))
+            AgentPodError::PodNotFoundByName(name.to_string())
         })?;
         let mut d = self.deployments.write().await;
         let d = d
@@ -505,11 +499,11 @@ impl ActivePods {
             .ok_or(AgentPodError::PodNotFound(pod_id))?;
         match mode {
             "server" => d.pod.enter_server_mode(role.ok_or_else(|| {
-                AgentPodError::PersonaParseError("role required for server mode".to_string())
+                AgentPodError::ModeError("role required for server mode".to_string())
             })?),
             "chat" => d.pod.enter_chat_mode(),
             "exit" => d.pod.exit_mode(),
-            other => Err(AgentPodError::PersonaParseError(format!(
+            other => Err(AgentPodError::ModeError(format!(
                 "Unknown mode: {}",
                 other
             ))),

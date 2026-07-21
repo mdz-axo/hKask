@@ -266,7 +266,7 @@ pub(crate) async fn sovereignty_check_access(
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Agent,
             source: None,
-            message: hkask_agents::a2a::A2AError::CapabilityDenied(
+            message: hkask_pods::a2a::A2AError::CapabilityDenied(
                 auth.webid,
                 format!("No consent for category '{cat_name}' (class {classification})"),
             )

@@ -25,7 +25,7 @@ pub use error::{MediaError, map_media_error};
 
 use gallery::GalleryState;
 use gallery::vision::{self};
-use hkask_agents::VoiceDesign;
+use hkask_pods::VoiceDesign;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_database::value::DbValue;
 use hkask_inference::InferenceRouter;

@@ -56,9 +56,9 @@ pub(super) async fn build_registry_and_wallet(
                     message: e.to_string(),
                 })?;
         if !registered_userpods.is_empty() {
-            let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_userpods
+            let agents: Vec<hkask_pods::a2a::A2AAgent> = registered_userpods
                 .iter()
-                .map(|up| hkask_agents::a2a::A2AAgent {
+                .map(|up| hkask_pods::a2a::A2AAgent {
                     webid: up.webid,
                     capabilities: up.capabilities.clone(),
                     registered_at: up.created_at,

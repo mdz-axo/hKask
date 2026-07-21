@@ -11,7 +11,7 @@ default = []
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
-hkask-agents = { path = "../../crates/hkask-agents" }
+hkask-pods = { path = "../../crates/hkask-pods" }
 hkask-ports = { path = "../../crates/hkask-ports" }
 hkask-inference = { path = "../../crates/hkask-inference" }
 hkask-templates = { path = "../../crates/hkask-templates" }

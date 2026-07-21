@@ -20,9 +20,9 @@ pub(super) struct LoopWiring {
     pub inference_port: Option<Arc<dyn InferencePort>>,
     pub episodic_storage: Arc<dyn EpisodicStoragePort>,
     pub semantic_storage: Arc<dyn SemanticStoragePort>,
-    pub a2a_runtime: Arc<hkask_agents::A2ARuntime>,
+    pub a2a_runtime: Arc<hkask_pods::A2ARuntime>,
     /// CuratorContext — late-bound ManifestExecutor set after MCP pods built.
-    pub curator_context: Arc<hkask_agents::CuratorContext>,
+    pub curator_context: Arc<hkask_pods::CuratorContext>,
     /// Federation link manager — set when federation is enabled.
     pub federation_link_manager: Option<Arc<dyn FederationDispatch>>,
 }
@@ -82,7 +82,7 @@ pub(super) async fn build_loops(
                 system_webid,
             ),
         );
-        let inference_loop = hkask_agents::InferenceLoop::new()
+        let inference_loop = hkask_pods::InferenceLoop::new()
             .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
             .with_model(&config.default_model);
         loop_system.register_loop(Arc::new(inference_loop)).await;
@@ -139,7 +139,7 @@ pub(super) async fn build_loops(
 
     // Memory adapter — reuses configured memory instances (shared store, shared config)
     let memory_adapter = Arc::new(
-        hkask_agents::adapters::memory_loop_adapter::MemoryLoopForwarder::new(
+        hkask_pods::adapters::memory_loop_adapter::MemoryLoopForwarder::new(
             Arc::clone(&episodic_memory),
             Arc::clone(&semantic_memory),
         ),
@@ -149,7 +149,7 @@ pub(super) async fn build_loops(
 
     // Curation loop
     let cns_for_curator: Arc<CnsRuntime> = Arc::new(f.cns_runtime.read().await.clone());
-    let a2a_runtime = Arc::new(hkask_agents::A2ARuntime::new(&config.a2a_secret));
+    let a2a_runtime = Arc::new(hkask_pods::A2ARuntime::new(&config.a2a_secret));
     let curator_context = Arc::new(
         CuratorContext::with_nu_event_store(
             CuratorHandle::system(),
@@ -281,7 +281,7 @@ pub(super) async fn build_loops(
 /// One git repo per pod. The pod directory IS the unit.
 pub(super) async fn pod_backup_daemon(
     adapter: Arc<hkask_git_cas::GixCasAdapter>,
-    pod_manager: Arc<hkask_agents::pod::ActivePods>,
+    pod_manager: Arc<hkask_pods::pod::ActivePods>,
 ) {
     const INTERVAL: std::time::Duration = std::time::Duration::from_secs(86400); // 24h
 
