@@ -168,15 +168,9 @@ async fn create_pod(
         .into());
     }
 
-    let persona = hkask_agents::pod::AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
-        let msg = format!("Invalid persona YAML: {e}");
-        ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::User,
-            source: Some(Box::new(e)),
-            message: msg,
-        }
-    })?;
+    let name = req.name.unwrap_or_else(|| "userpod".to_string());
+    let webid = hkask_types::WebID::from_persona(name.as_bytes());
+    let capabilities = vec!["tool:execute".to_string()];
     let pod_id = state
         .agent_service
         .infra()
@@ -184,9 +178,10 @@ async fn create_pod(
         .clone()
         .create_pod(
             &req.template,
-            &persona,
-            req.name,
-            hkask_agents::pod::PodKind::Replicant,
+            &name,
+            webid,
+            capabilities,
+            hkask_agents::pod::PodKind::UserPod,
         )
         .await?;
 

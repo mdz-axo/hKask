@@ -726,16 +726,14 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
             match registry.scan_by_kind() {
                 Ok(pods) => {
                     let mut curator = 0;
-                    let mut replicant = 0;
-                    let mut team = 0;
+                    let mut userpod = 0;
                     for (kind, _, _) in &pods {
                         match kind {
                             hkask_agents::PodKind::Curator => curator += 1,
-                            hkask_agents::PodKind::Replicant => replicant += 1,
-                            hkask_agents::PodKind::Team => team += 1,
+                            hkask_agents::PodKind::UserPod => userpod += 1,
                         }
                     }
-                    Some((curator, replicant, team))
+                    Some((curator, userpod, 0))
                 }
                 Err(_) => None,
             }

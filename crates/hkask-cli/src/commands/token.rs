@@ -7,7 +7,7 @@
 use crate::cli::TokenAction;
 use crate::error::CliError;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_types::{AgentKind, WebID};
+use hkask_types::WebID;
 
 /// Parse a human-readable TTL string into seconds.
 /// Supports: "30s", "5m", "24h", "7d".

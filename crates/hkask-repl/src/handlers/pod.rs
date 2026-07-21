@@ -3,7 +3,7 @@
 //! Calls `ActivePods` directly via the service context's infra.
 
 use crate::ReplState;
-use hkask_agents::pod::{AgentPersona, PodID, PodKind};
+use hkask_agents::pod::{PodID, PodKind};
 
 /// Handle `/pod` REPL commands.
 pub fn handle_pod(
@@ -86,42 +86,33 @@ pub fn handle_pod(
 
         "create" => {
             let parts: Vec<&str> = rest.split_whitespace().collect();
-            if parts.len() < 2 {
-                println!("  \x1b[31mError:\x1b[0m Template and persona path required");
-                println!("  Usage: \x1b[36m/pod create <template> <persona.yaml> [name]\x1b[0m");
+            if parts.is_empty() {
+                println!("  \x1b[31mError:\x1b[0m Template and name required");
+                println!("  Usage: \x1b[36m/pod create <template> <name> [cap1,cap2,...]\x1b[0m");
                 println!();
                 return;
             }
             let template = parts[0];
-            let persona_path = parts[1];
-            let name = if parts.len() > 2 {
-                Some(parts[2].to_string())
+            let name = if parts.len() > 1 {
+                parts[1].to_string()
             } else {
-                None
+                println!("  \x1b[31mError:\x1b[0m Pod name required");
+                println!();
+                return;
             };
+            let capabilities: Vec<String> = parts
+                .get(2)
+                .map(|s| s.split(',').map(|c| c.trim().to_string()).collect())
+                .unwrap_or_else(|| vec!["tool:execute".to_string()]);
+            let webid = hkask_types::WebID::from_persona(name.as_bytes());
 
-            let yaml = match std::fs::read_to_string(persona_path) {
-                Ok(y) => y,
-                Err(e) => {
-                    eprintln!(
-                        "  \x1b[31m✗\x1b[0m Cannot read persona file '{}': {}",
-                        persona_path, e
-                    );
-                    println!();
-                    return;
-                }
-            };
-
-            let persona = match AgentPersona::from_yaml(&yaml) {
-                Ok(p) => p,
-                Err(e) => {
-                    eprintln!("  \x1b[31m✗\x1b[0m Invalid persona YAML: {}", e);
-                    println!();
-                    return;
-                }
-            };
-
-            match rt.block_on(pods.create_pod(template, &persona, name, PodKind::Replicant)) {
+            match rt.block_on(pods.create_pod(
+                template,
+                &name,
+                webid,
+                capabilities,
+                PodKind::UserPod,
+            )) {
                 Ok(pod_id) => {
                     println!("  \x1b[32m✓\x1b[0m Created pod: {}", pod_id);
                     println!();

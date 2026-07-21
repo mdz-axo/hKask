@@ -19,18 +19,15 @@ pub fn handle_agent(
 
         "register" => {
             let parts: Vec<&str> = rest.split_whitespace().collect();
-            if parts.len() < 2 {
-                println!("  \x1b[31mError:\x1b[0m WebID and agent type required");
-                println!(
-                    "  Usage: \x1b[36m/agent register <webid> <bot|replicant> [cap1,cap2,...]\x1b[0m"
-                );
+            if parts.is_empty() {
+                println!("  \x1b[31mError:\x1b[0m WebID required");
+                println!("  Usage: \x1b[36m/agent register <webid> [cap1,cap2,...]\x1b[0m");
                 println!();
                 return;
             }
             let webid_str = parts[0];
-            let agent_type_str = parts[1];
             let capabilities: Vec<String> = parts
-                .get(2)
+                .get(1)
                 .map(|s| s.split(',').map(|c| c.trim().to_string()).collect())
                 .unwrap_or_default();
 
@@ -43,23 +40,10 @@ pub fn handle_agent(
                 }
             };
 
-            let agent_type = match AgentKind::parse(agent_type_str) {
-                Some(k) => k,
-                None => {
-                    eprintln!(
-                        "  \x1b[31m✗\x1b[0m Invalid agent type: {} (use 'bot' or 'replicant')",
-                        agent_type_str
-                    );
-                    println!();
-                    return;
-                }
-            };
-
             let a2a = state.service_context.governance().a2a.clone();
             match rt.block_on(a2a.register_agent(webid, capabilities.clone())) {
                 Ok(_token) => {
                     println!("  \x1b[32m✓\x1b[0m Registered agent: {}", webid_str);
-                    println!("    Type:         {}", agent_type);
                     println!("    Capabilities: {}", capabilities.join(", "));
                     println!();
                 }
