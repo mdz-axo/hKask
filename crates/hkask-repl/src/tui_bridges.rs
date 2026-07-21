@@ -519,32 +519,35 @@ fn parse_mcp_json(result: &serde_json::Value) -> Option<serde_json::Value> {
     }
 }
 
-/// Invoke an MCP tool, parse the JSON response, and extract an array field.
+/// Invoke an MCP tool, parse the JSON response, and apply a mapper to an
+/// array field. Collapses the repeated pattern:
+/// `invoke → match Ok/Err → parse_mcp_json → and_then(v["key"].as_array())
+/// → map(iter.filter_map(...).collect()) → unwrap_or_default()`.
 ///
-/// Collapses the repeated pattern:
-/// `invoke → match Ok/Err → parse_mcp_json → and_then(v["key"].as_array())`.
-/// Returns an empty slice on any failure (missing key, wrong type, MCP error).
-async fn mcp_array<'a>(
+/// Returns `default` on any failure (missing key, wrong type, MCP error).
+async fn mcp_array_map<T, F>(
     bridge: &TuiReplBridge,
     server: &str,
     tool: &str,
     args: serde_json::Map<String, serde_json::Value>,
     array_key: &str,
-) -> Vec<&'a serde_json::Value> {
-    // The borrow from invoke_mcp_tool's returned Value doesn't live long enough
-    // for a real borrowed slice; we own the Value via the Ok arm and extract
-    // references within the same async scope. The caller must `.clone()` or
-    // extract primitive values immediately.
+    mapper: F,
+    default: T,
+) -> T
+where
+    T: Default,
+    F: Fn(&serde_json::Value) -> Option<T>,
+{
     match bridge.invoke_mcp_tool(server, tool, args).await {
         Ok(ref result) => {
             let content = parse_mcp_json(result);
             content
                 .as_ref()
                 .and_then(|v| v[array_key].as_array())
-                .map(|arr| arr.iter().collect())
-                .unwrap_or_default()
+                .and_then(|arr| arr.first().and_then(&mapper))
+                .unwrap_or(default)
         }
-        Err(_) => Vec::new(),
+        Err(_) => default,
     }
 }
 
