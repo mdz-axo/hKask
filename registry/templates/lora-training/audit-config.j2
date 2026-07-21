@@ -140,6 +140,16 @@ STATIC_CONFIG
   distribution evidence is `not_evaluated`, not pass or fail.
 - G-D1 Dataset size/quality: evaluate only from supplied sample count and
   quality-audit evidence. Missing values are `not_evaluated`.
+- G-H1 Harness-method compatibility: assert the selected harness supports
+  the selected method/trainer.
+  - harness=axolotl → config must be YAML with `adapter: lora`; axolotl
+    supports SFT only. If preference config (DPO/KTO/ORPO) is present, fail.
+  - harness=trl → config must be a Python script using the matching TRL
+    trainer class (SFTTrainer for sft, DPOTrainer for dpo, etc.) and the
+    matching Config class (SFTConfig, DPOConfig, etc.).
+  - harness=undetermined → `not_evaluated` (runtime defaults to axolotl).
+  [Citation: TRL trainer taxonomy — https://huggingface.co/docs/trl/index]
+  Runtime enforcement: `lora_validation::validate_harness_compatibility()`.
 
 HARNESS
 - G-M1 Initialization contract: inspect selected initializer documentation

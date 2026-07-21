@@ -1,14 +1,7 @@
-//! Pod value types — PodLifecycleState, PodID, persona types, template types
+//! Pod value types — PodLifecycleState, PodID, PodKind, template types
 
 pub use hkask_types::PodID;
 use serde::{Deserialize, Serialize};
-
-/// Agent operating mode — how the agent is currently interacting with the world.
-///
-/// Initially mutually exclusive: an agent can be in Chat mode OR Server mode,
-/// not both. Concurrency support planned for future release.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-
 
 /// Pod tier — determines isolation model and filename convention.
 ///

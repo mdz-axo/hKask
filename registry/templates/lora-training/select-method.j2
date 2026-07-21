@@ -73,6 +73,8 @@ RECOMMENDATION RECORD (compose fields; never replace the whole record):
 - initializer: default_no_op | eva | pissa | lora_ga | corda_kp | operator_requested | undetermined
 - preservation: standard | corda_kp | post_training_intruder_mitigation | undetermined
 - rank_range: {min: <int>, max: <int>} | undetermined
+- harness: axolotl | trl | undetermined
+- trainer: sft | dpo | kto | orpo | reward | undetermined (only meaningful when harness=trl)
 - alternatives: []
 - constraints: []
 - conflicts: []
@@ -170,7 +172,37 @@ G5. knowledge_preservation_required?
     - false → preservation=`standard`; do not reset adapter_form, base_mode,
       scaling, or initializer.
 
-SCALING REFINEMENT (after G1-G5):
+G6. harness_capability? (after G1-G5; depends on method/task distance)
+    - If the operator declared a harness preference, preserve it (P1). Record as
+      `operator_requested`; do not overwrite.
+    - If task_distance is light/moderate AND the task is SFT (no preference data
+      declared): harness=`undetermined`; list both axolotl and trl/sft as
+      alternatives with trade-offs:
+        - axolotl: YAML config, mature, single-file, SFT-only.
+        - trl/sft: Python script, HF-native, supports assistant_only_loss,
+          packing strategies (bfd/bfd_split/wrapped), VLMs, chunked cross-entropy.
+      [Citation: TRL SFTTrainer — https://huggingface.co/docs/trl/main/en/sft_trainer]
+    - If the task requires preference optimization (operator declared preference
+      data or DPO/KTO/ORPO intent): harness=`trl`; trainer based on data shape:
+        - paired preference data (chosen/rejected) → trainer=`dpo`
+          [Citation: DPO arXiv:2305.18290]
+        - unpaired binary preference data → trainer=`kto`
+          [Citation: KTO arXiv:2402.01306]
+        - single-stage SFT + preference → trainer=`orpo`
+          [Citation: ORPO arXiv:2403.07691]
+      (Phase 2 — not yet implemented in the runtime; record as `planned`.)
+    - If the task requires reward modeling: harness=`trl`; trainer=`reward`.
+      [Citation: TRL RewardTrainer — https://huggingface.co/docs/trl/main/en/reward_trainer]
+      (Phase 3 — not yet implemented; record as `planned`.)
+    - If harness=`trl` and trainer is undetermined, list applicable trainers as
+      alternatives with their data format requirements.
+    - Axolotl remains the runtime default when harness=`undetermined` (preserves
+      existing behavior — no silent migration).
+    - G6 cannot override G1-G5 constraints. If a harness selection conflicts with
+      an earlier gate (e.g., axolotl selected but preference data declared),
+      record as a conflict for operator resolution.
+
+SCALING REFINEMENT (after G1-G6):
 - If an exact accepted r > 64 is present and scaling is not operator-specified,
   recommend scaling=`rank_stabilized` (α/√r).
   [Citation: rsLoRA paper arXiv:2312.03732 — rank-stabilized scaling]
@@ -212,6 +244,8 @@ OUTPUT (JSON; emit only derivable values and explicit undetermined states):
     "initializer": "default_no_op" | "eva" | "pissa" | "lora_ga" | "corda_kp" | "operator_requested" | "undetermined",
     "preservation": "standard" | "corda_kp" | "post_training_intruder_mitigation" | "undetermined",
     "rank_range": {"min": <int>, "max": <int>} | "undetermined",
+    "harness": "axolotl" | "trl" | "undetermined",
+    "trainer": "sft" | "dpo" | "kto" | "orpo" | "reward" | "undetermined",
     "alternatives": [
       {"field": "...", "value": "...", "condition": "...", "citation": "..."}
     ],
@@ -230,6 +264,7 @@ OUTPUT (JSON; emit only derivable values and explicit undetermined states):
     "G3_task_distance": {"refinement": "...", "citation": "..."},
     "G4_quality_vs_cost": {"refinement": "...", "citation": "..."},
     "G5_knowledge_preservation": {"refinement": "...", "citation": "..."},
+    "G6_harness_capability": {"refinement": "...", "citation": "..."},
     "scaling": {"refinement": "...", "citation": "..."}
   },
   "authority": {
@@ -301,6 +336,16 @@ SOURCE REFERENCES (concrete — P8):
   per-job BO alternative.
 - PEFT v0.19.0: huggingface.co/docs/peft/v0.19.0/package_reference/lora
   — LoraConfig fields and initializer requirements.
+- TRL v1.8.0: huggingface.co/docs/trl/main/en/sft_trainer — SFTTrainer,
+  SFTConfig, packing, assistant_only_loss, completion_only_loss, VLMs.
+  huggingface.co/docs/trl/main/en/dpo_trainer — DPOTrainer, DPOConfig,
+  loss_type variants. huggingface.co/docs/trl/main/en/kto_trainer —
+  KTOTrainer (unpaired preference). huggingface.co/docs/trl/main/en/orpo_trainer
+  — ORPOTrainer (single-stage SFT + preference).
+  huggingface.co/docs/trl/main/en/reward_trainer — RewardTrainer.
+- DPO: arXiv:2305.18290 — Direct Preference Optimization.
+- KTO: arXiv:2402.01306 — Kahneman-Tversky Optimization.
+- ORPO: arXiv:2403.07691 — Odds Ratio Preference Optimization.
 - Practitioner context (2024-2026): Raschka
   (magazine.sebastianraschka.com/p/practical-tips-for-finetuning-llms),
   Brenndoerfer (mbrenndoerfer.com/writing/peft-comparison-lora-qlora-adapters-selection-guide),

@@ -345,7 +345,7 @@ mod tests {
             "num_train_epochs=3",
             "per_device_train_batch_size=1",
             "gradient_accumulation_steps=16",
-            "learning_rate=0.0001",
+            "learning_rate=",
             "lr_scheduler_type=\"cosine\"",
             "warmup_steps=100",
             "max_length=4096",

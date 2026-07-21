@@ -29,6 +29,8 @@ This skill does not train, load, initialize, merge, or evaluate models.
   `surface: training` regression proposals.
 - To compute convergence for the current lifecycle phase and expose preflight,
   runtime-contract, and post-training posture separately.
+- To recommend a training harness (Axolotl or TRL) and TRL trainer (SFT, DPO,
+  KTO, ORPO, Reward) based on task requirements and data shape.
 
 ## Authority and Boundary
 

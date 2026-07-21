@@ -124,7 +124,10 @@ impl TrlHarness {
                     .map(|init| init.as_config_value())
             ),
         );
-        context.insert("optim".to_string(), serde_json::json!(opt.optimizer.clone()));
+        context.insert(
+            "optim".to_string(),
+            serde_json::json!(opt.optimizer.clone()),
+        );
         context.insert(
             "lr_scheduler".to_string(),
             serde_json::json!(opt.lr_scheduler.clone()),
@@ -141,18 +144,25 @@ impl TrlHarness {
             "max_grad_norm".to_string(),
             serde_json::json!(opt.max_grad_norm.map(|v| v.to_string())),
         );
-        context.insert("use_rslora".to_string(), serde_json::json!(lo.use_rslora.to_string()));
-        context.insert("use_dora".to_string(), serde_json::json!(lo.use_dora.to_string()));
-        context.insert("weight_decay".to_string(), serde_json::json!(opt.weight_decay));
-            context.insert(
-                "weight_decay".to_string(),
-                serde_json::json!(opt.weight_decay),
-            );
-        }
+        context.insert(
+            "use_rslora".to_string(),
+            serde_json::json!(lo.use_rslora.to_string()),
+        );
+        context.insert(
+            "use_dora".to_string(),
+            serde_json::json!(lo.use_dora.to_string()),
+        );
+        context.insert(
+            "weight_decay".to_string(),
+            serde_json::json!(opt.weight_decay),
+        );
 
         // TRL-specific fields (no axolotl equivalent).
         // packing: TRL SFTConfig.packing — enables example packing for efficiency.
-        context.insert("packing".to_string(), serde_json::json!(p.sequence.sample_packing));
+        context.insert(
+            "packing".to_string(),
+            serde_json::json!(p.sequence.sample_packing),
+        );
 
         let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
             .map(PathBuf::from)

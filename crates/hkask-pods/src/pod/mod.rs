@@ -159,7 +159,6 @@ pub enum AgentPodError {
 
     #[error("Pod must be activated before creating context")]
     PodNotActive,
-
 }
 
 use crate::error::MemoryError;
@@ -368,32 +367,12 @@ impl AgentPod {
     }
 
     // ── Agent Mode Transitions ──
-
-
-
-
-    /// Check if the agent is currently in server mode.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P8\] Motivating: Semantic Grounding — mode accessor
-    /// pre:  (none).
-    /// post: Returns `true` iff `self.mode == Some(AgentMode::Server)`.
-    pub fn is_in_server_mode(&self) -> bool {
-        self.mode == Some(AgentMode::Server)
-    }
+    // AgentMode/role system was removed — pods are always in chat mode.
+    // The is_in_server_mode/is_in_chat_mode accessors were deleted with the
+    // mode field. If mode-based behavior is needed in the future, it should
+    // be re-introduced as a typed field on AgentPod, not a free-floating enum.
 
     // ── Voice ──
-
-
-    /// Check if the agent is currently in chat mode.
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P8\] Motivating: Semantic Grounding — mode accessor
-    /// pre:  (none).
-    /// post: Returns `true` iff `self.mode == Some(AgentMode::Chat)`.
-    pub fn is_in_chat_mode(&self) -> bool {
-        self.mode == Some(AgentMode::Chat)
-    }
 
     /// Execute action with sovereignty check
     ///
@@ -514,4 +493,3 @@ impl From<hkask_memory::MemoryPortError> for AgentPodError {
         AgentPodError::from(MemoryError::from(e))
     }
 }
-

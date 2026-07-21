@@ -149,10 +149,8 @@ impl From<hkask_pods::pod::AgentPodError> for ServiceErrorResponse {
             PE::PodNotActive | PE::PodNotFound(_) => ErrorKind::NotFound,
             PE::CapabilityDenied { .. }
             | PE::SovereigntyDenied { .. }
-            | PE::AttenuationLimitExceeded
-            | PE::RoleNotAssigned { .. } => ErrorKind::Forbidden,
-            PE::ModeConflict(_) => ErrorKind::Conflict,
-            PE::InvalidStateTransition(..) | PE::ModeRequiresActivation(_) => ErrorKind::BadRequest,
+            | PE::AttenuationLimitExceeded => ErrorKind::Forbidden,
+            PE::InvalidStateTransition(..) | PE::ModeError(_) => ErrorKind::BadRequest,
             PE::InferenceUnavailable(_) => ErrorKind::ServiceUnavailable,
             _ => ErrorKind::BadRequest,
         };

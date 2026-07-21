@@ -9,52 +9,56 @@ crate:
   description: >
     LoRA/QLoRA training configuration and contract enforcement skill for
     hKask. Produces a composable PEFT recommendation via a deterministic
-    5-gate refinement (inference constraint, memory budget, task distance,
-    quality/cost trade-off, knowledge preservation) — not a search
-    (AutoPEFT-style BO is infeasible per training job). The skill recommends;
-    the operator accepts, overrides, or rejects; the runtime enforces
-    established hard contracts. Enforces the LoRA/QLoRA math
+    6-gate refinement (inference constraint, memory budget, task distance,
+    quality/cost trade-off, knowledge preservation, harness capability)
+    — not a search (AutoPEFT-style BO is infeasible per training job).
+    The skill recommends; the operator accepts, overrides, or rejects; the
+    runtime enforces established hard contracts. Enforces the LoRA/QLoRA math
     contracts as quality gates: no-op-at-init invariant, merge
     equivalence, scaling form (α/r or α/√r), rank budget, trainable
     param count, frozen-base quantization, adapter dtype, gradient flow,
     no silent fp32 upcast, NF4 optimality, dataset size vs quality,
     eval protocol, lemon-pick analysis, intruder dimensions, knowledge
-    preservation. Anchored to LoRA (arXiv:2106.09685), QLoRA
-    (arXiv:2305.14314), rsLoRA (arXiv:2312.03732), DoRA
-    (arXiv:2402.09353), PiSSA (arXiv:2404.02948), LoRA-GA
-    (arXiv:2407.05000), CorDA, EVA, Razin et al. intruder dimensions
-    (arXiv:2410.21228), and PEFT v0.19.0 config surface. Consumes
+    preservation, harness-method compatibility. Anchored to LoRA
+    (arXiv:2106.09685), QLoRA (arXiv:2305.14314), rsLoRA
+    (arXiv:2312.03732), DoRA (arXiv:2402.09353), PiSSA
+    (arXiv:2404.02948), LoRA-GA (arXiv:2407.05000), CorDA, EVA, Razin
+    et al. intruder dimensions (arXiv:2410.21228), PEFT v0.19.0 config
+    surface, and TRL v1.8.0 trainer taxonomy (SFTTrainer, DPOTrainer,
+    KTOTrainer, ORPOTrainer, RewardTrainer). Consumes
     security/regressions/ as input; proposes RR entries with surface:
     training. Emits cns.lora.* spans (P9). Decomposed into 4 phases:
     select-method → audit-config → report → convergence-check.
 
 templates:
   - id: lora-training/select-method
-    name: "Recommend composable PEFT configuration via 5-gate refinement"
+    name: "Recommend composable PEFT configuration via 6-gate refinement"
     path: select-method.j2
     type: KnowAct
-    lexicon_terms: [select, decide, gate, method, config, training]
+    lexicon_terms: [select, decide, gate, method, config, training, harness]
     description: >
-      Apply a deterministic 5-gate refinement without overwriting earlier
+      Apply a deterministic 6-gate refinement without overwriting earlier
       constraints or operator requirements. Emit a composable recommendation
-      record with base_mode, adapter_form, scaling, initializer, and
-      preservation, plus per-gate citations and explicit undetermined states.
-      Recommendation is advisory and distinct from training readiness: the
-      operator accepts, overrides, or rejects it, while the runtime enforces
-      established hard contracts from concrete config evidence. Memory pressure
-      may favor quantization but model_size_b × 2 alone does not establish OOM.
-      AutoPEFT (arXiv:2301.12132) is referenced as the rejected alternative —
-      multi-objective BO over hundreds of training runs is infeasible per
-      training job.
+      record with base_mode, adapter_form, scaling, initializer, preservation,
+      harness, and trainer, plus per-gate citations and explicit undetermined
+      states. Recommendation is advisory and distinct from training readiness:
+      the operator accepts, overrides, or rejects it, while the runtime
+      enforces established hard contracts from concrete config evidence.
+      Memory pressure may favor quantization but model_size_b × 2 alone does
+      not establish OOM. AutoPEFT (arXiv:2301.12132) is referenced as the
+      rejected alternative — multi-objective BO over hundreds of training
+      runs is infeasible per training job. G6 (harness capability) recommends
+      axolotl or trl based on task requirements; TRL trainers (SFT, DPO, KTO,
+      ORPO, Reward) are selected based on data shape and task type.
 
   - id: lora-training/audit-config
-    name: "Audit training config against math/quant/data/forgetting gates"
+    name: "Audit training config against math/quant/data/forgetting/harness gates"
     path: audit-config.j2
     type: KnowAct
-    lexicon_terms: [audit, verify, gate, contract, evidence, config]
+    lexicon_terms: [audit, verify, gate, contract, evidence, config, harness]
     description: >
       Read training config, harness, runtime, and post-training evidence.
-      Evaluate the applicable subset of 16 quality gates without treating
+      Evaluate the applicable subset of 17 quality gates without treating
       unavailable or future-phase evidence as passed: 5 math-contract
       (G-M1 no-op-at-init, G-M2 merge
       equivalence, G-M3 scaling form, G-M4 rank budget, G-M5 trainable
@@ -63,11 +67,12 @@ templates:
       optimizer, NF4 optimality), 3 data/eval (G-D1 dataset size vs
       quality, G-D2 eval protocol, G-D3 lemon-pick analysis), 2
       forgetting (G-F1 intruder dimensions, G-F2 knowledge preservation
-      for CorDA mode). Preserve the operator-selected initializer; harness
-      evidence affects readiness state rather than rewriting the recommendation.
-      Apply pragmatic-cybernetics (IS/OUGHT, epistemic
-      mode, provenance, grill-me self-challenge). Emit cns.lora.audit
-      spans per gate evaluated.
+      for CorDA mode), 1 harness-method compatibility (G-H1: axolotl=SFT
+      only, trl=SFT/DPO/KTO/ORPO/Reward). Preserve the operator-selected
+      initializer; harness evidence affects readiness state rather than
+      rewriting the recommendation. Apply pragmatic-cybernetics (IS/OUGHT,
+      epistemic mode, provenance, grill-me self-challenge). Emit
+      cns.lora.audit spans per gate evaluated.
 
   - id: lora-training/report
     name: "Synthesize training-config findings and propose regressions"
