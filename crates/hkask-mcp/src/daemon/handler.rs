@@ -9,20 +9,20 @@
 /// assignment verification, capability checking, and dual memory encoding.
 #[async_trait::async_trait]
 pub trait DaemonHandler: Send + Sync {
-    /// Check if a replicant is authenticated. Returns (authenticated, webid).
-    async fn check_auth(&self, replicant: &str) -> (bool, Option<String>);
+    /// Check if a userpod is authenticated. Returns (authenticated, webid).
+    async fn check_auth(&self, userpod: &str) -> (bool, Option<String>);
 
-    /// Check if a replicant is assigned to a role.
-    async fn check_assignment(&self, replicant: &str, role: &str) -> bool;
+    /// Check if a userpod is assigned to a role.
+    async fn check_assignment(&self, userpod: &str, role: &str) -> bool;
 
-    /// Check if a replicant holds a capability token for a tool.
-    async fn check_capability(&self, replicant: &str, tool: &str) -> bool;
+    /// Check if a userpod holds a capability token for a tool.
+    async fn check_capability(&self, userpod: &str, tool: &str) -> bool;
 
     /// Store an experience in both episodic and semantic memory.
     /// Returns (stored, episodic_triple_id, semantic_triple_id).
     async fn store_experience(
         &self,
-        replicant: &str,
+        userpod: &str,
         entity: &str,
         attribute: &str,
         value: &serde_json::Value,
@@ -33,14 +33,14 @@ pub trait DaemonHandler: Send + Sync {
     /// Returns (ok, output, error_message).
     async fn dispatch_tool(
         &self,
-        replicant: &str,
+        userpod: &str,
         tool: &str,
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>);
 
     /// Query curator system health — returns a HealthSnapshot as JSON.
-    async fn curator_health(&self, replicant: &str) -> serde_json::Value;
+    async fn curator_health(&self, userpod: &str) -> serde_json::Value;
 
     /// Query live CNS status — variety per domain, backpressure.
-    async fn cns_status(&self, replicant: &str, domain: Option<&str>) -> serde_json::Value;
+    async fn cns_status(&self, userpod: &str, domain: Option<&str>) -> serde_json::Value;
 }

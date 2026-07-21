@@ -27,7 +27,7 @@ fn test_server_no_consent(root: PathBuf) -> FileSystemServer {
 fn test_server_with_consent(root: PathBuf, destructive_consent: bool) -> FileSystemServer {
     FileSystemServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         root,
         hkask_mcp::server::CapabilityTier::detect(&std::collections::HashMap::new()),
@@ -142,7 +142,7 @@ fn server_constructs_with_project_root() {
             .canonicalize()
             .unwrap_or_else(|_| temp.path().to_path_buf())
     );
-    assert_eq!(server.replicant, "test-replicant");
+    assert_eq!(server.userpod, "test-userpod");
 }
 
 // ── Tool-behavior contract tests ──────────────────────────────────────────

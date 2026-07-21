@@ -122,7 +122,7 @@ fn test_server() -> CodeGraphServer {
     let pipeline = IndexPipeline::new(store);
     CodeGraphServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         CapabilityTier::detect(&HashMap::new()),
         Arc::new(Mutex::new(pipeline)),

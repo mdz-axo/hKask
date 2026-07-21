@@ -13,7 +13,7 @@ pub use helpers::{init_logging, parse_template_type};
 #[command(name = "kask")]
 #[command(author = "hKask Team")]
 #[command(version)]
-#[command(about = "A Minimal Viable Container for Replicants - CLI", long_about = None)]
+#[command(about = "A Minimal Viable Container for UserPods - CLI", long_about = None)]
 pub struct Cli {
     /// Enable verbose output
     #[arg(short, long)]
@@ -98,7 +98,7 @@ pub enum Commands {
         action: TokenAction,
     },
 
-    /// Replicant identity management
+    /// UserPod identity management
     UserPod {
         #[command(subcommand)]
         action: UserPodAction,
@@ -125,7 +125,7 @@ pub enum Commands {
         bootstrap: bool,
     },
 
-    /// Add a new replicant to an existing hKask installation
+    /// Add a new userpod to an existing hKask installation
     Onboard,
 
     /// Manage REPL/CLI inference settings (same as /repl in interactive mode)

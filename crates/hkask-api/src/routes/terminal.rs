@@ -84,7 +84,7 @@ pub async fn terminal_ws(
     tracing::info!(
         target = "hkask.api.terminal",
         webid = %webid,
-        replicant = %userpod_name,
+        userpod = %userpod_name,
         "Terminal WebSocket connected"
     );
 
@@ -202,7 +202,7 @@ async fn handle_terminal(socket: WebSocket, webid: String, userpod_name: String)
 
     tracing::info!(
         target = "hkask.api.terminal",
-        replicant = %userpod_name,
+        userpod = %userpod_name,
         "Terminal WebSocket disconnected"
     );
 }

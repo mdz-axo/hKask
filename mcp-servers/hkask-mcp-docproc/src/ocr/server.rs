@@ -103,7 +103,7 @@ impl DocProcServer {
     pub async fn persist_pipeline_outcome(&self, outcome: &crate::ocr::PipelineOutcome) {
         if let Some(ref daemon) = self.daemon {
             let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
+            let userpod = self.userpod.clone();
             let data = serde_json::json!({
                 "total_pages": outcome.results.len(),
                 "error_count": outcome.errors.len(),
@@ -121,7 +121,7 @@ impl DocProcServer {
             tokio::spawn(async move {
                 match daemon_clone
                     .store_experience(
-                        &replicant,
+                        &userpod,
                         "ocr_pipeline",
                         "verification",
                         &data,

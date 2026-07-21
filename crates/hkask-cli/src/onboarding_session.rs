@@ -1,6 +1,6 @@
 //! Onboarding state machine — resumable userpod creation.
 //!
-//! Simplified from the replicant-creation state machine: no agent registry,
+//! Simplified from the userpod-creation state machine: no agent registry,
 //! no Matrix account creation, no UserProfile. The flow is linear:
 //! derive secrets → create the userpod (SQLCipher DB) → register in A2A.
 //! Each step is independently callable and carries its own recovery logic.

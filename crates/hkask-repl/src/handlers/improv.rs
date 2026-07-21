@@ -1,7 +1,7 @@
 //! REPL /improv handler — set or display the active improv mode.
 //!
 //! Improv modes (Plussing, Yes And, Yes But, Freestyling, Riffing, Cascade)
-//! set the replicant's interaction posture. Uses the `hkask_improv::ImprovMode`
+//! set the userpod's interaction posture. Uses the `hkask_improv::ImprovMode`
 //! type directly — no stringly-typed intermediation.
 
 use crate::ReplState;

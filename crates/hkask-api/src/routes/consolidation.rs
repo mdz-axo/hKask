@@ -22,7 +22,7 @@ use crate::error::ServiceErrorResponse;
 /// agent's derived WebID.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsolidateRequest {
-    /// Agent name whose episodic memory to consolidate (e.g. `curator` or a replicant name)
+    /// Agent name whose episodic memory to consolidate (e.g. `curator` or a userpod name)
     pub agent_name: String,
     /// Master passphrase for authorization. Database opening uses the service's
     /// canonical `HKASK_DB_PASSPHRASE`; authentication does not redefine it.

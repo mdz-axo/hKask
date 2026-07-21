@@ -17,7 +17,7 @@ pub fn print_onboarding_banner() {
     println!("{dim}              {body}   \\__/~~~~~~~~~~~~\\__/   {r}");
     println!("  {dim}shadow{r}       {body}    hKask v{VERSION}{r}");
     println!();
-    println!("{body}     A Minimal Viable Container for Replicants{r}");
+    println!("{body}     A Minimal Viable Container for UserPods{r}");
     println!();
 }
 
@@ -56,7 +56,7 @@ pub(super) fn print_banner(
         println!("{ghost}              {body}   \\__/~~~~~~~~~~~\\__/   {r}");
         println!("  {ghost}shadow{r}       {body}    hKask v{VERSION}{r}");
         println!();
-        println!("{body}     A Minimal Viable Container for Replicants{r}");
+        println!("{body}     A Minimal Viable Container for UserPods{r}");
         println!();
 
         std::io::Write::flush(&mut std::io::stdout()).ok();
@@ -107,7 +107,7 @@ pub(super) fn print_first_steps() {
     println!("  \x1b[1;33m━━ First Steps ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m");
     println!();
     println!("  \x1b[1mGetting started:\x1b[0m");
-    println!("  • Just type to chat — your replicant is ready");
+    println!("  • Just type to chat — your userpod is ready");
     println!("  • \x1b[36m/help\x1b[0m    — see all available commands");
     println!("  • \x1b[36m/model\x1b[0m   — switch models anytime");
     println!("  • \x1b[36m/mcp\x1b[0m     — manage MCP server connections");

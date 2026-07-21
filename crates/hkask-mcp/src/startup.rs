@@ -3,9 +3,9 @@
 //! Every MCP server binary must verify three gates at startup before accepting
 //! tool invocations:
 //!
-//! - **Gate 1 (Authentication):** Is the replicant authenticated via daemon?
-//! - **Gate 2 (Assignment):** Is the replicant assigned to this MCP role?
-//! - **Gate 3 (Capability):** Does the replicant hold OCAP tokens for the
+//! - **Gate 1 (Authentication):** Is the userpod authenticated via daemon?
+//! - **Gate 2 (Assignment):** Is the userpod assigned to this MCP role?
+//! - **Gate 3 (Capability):** Does the userpod hold OCAP tokens for the
 //!   tools this server exposes?
 //!
 //! Gate 3 capability denials are non-fatal — the server starts in degraded
@@ -17,16 +17,16 @@
 //! ```rust,ignore
 //! use hkask_mcp::startup::verify_startup_gates;
 //!
-//! async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+//! async fn try_daemon_flow(userpod: &str) -> anyhow::Result<()> {
 //!     let client = hkask_mcp::DaemonClient::new();
 //!     let result = verify_startup_gates(
 //!         &client,
-//!         replicant,
+//!         userpod,
 //!         "condenser",
 //!         &["compress", "classify", "persist", "thread_summary"],
 //!     ).await?;
 //!     tracing::info!(target: "hkask.mcp.condenser",
-//!         replicant = replicant,
+//!         userpod = userpod,
 //!         "P4 gates verified — {} tool(s) denied: {:?}",
 //!         result.denied_tools.len(),
 //!         result.denied_tools
@@ -41,9 +41,9 @@ use crate::server::McpError;
 /// Result of startup gate verification.
 #[derive(Debug, Clone)]
 pub struct StartupGateResult {
-    /// Gate 1 passed — replicant is authenticated.
+    /// Gate 1 passed — userpod is authenticated.
     pub authenticated: bool,
-    /// Gate 2 passed — replicant is assigned to the role.
+    /// Gate 2 passed — userpod is assigned to the role.
     pub assigned: bool,
     /// Tool names whose capability check was explicitly denied (Gate 3).
     /// Empty if all required tools were granted.
@@ -81,7 +81,7 @@ pub struct StartupGateResult {
 ///     &["episodic_store", "semantic_search", "memory_backup"],
 /// ).await?;
 /// tracing::info!(target: "hkask.mcp.memory",
-///     replicant = "alice",
+///     userpod = "alice",
 ///     "P4 gates verified — {} tool(s) denied: {:?}",
 ///     result.denied_tools.len(),
 ///     result.denied_tools
@@ -100,13 +100,13 @@ pub struct StartupGateResult {
 #[must_use = "startup gate verification result must be inspected"]
 pub async fn verify_startup_gates(
     client: &DaemonClient,
-    replicant: &str,
+    userpod: &str,
     role: &str,
     required_tools: &[&str],
 ) -> Result<StartupGateResult, McpError> {
     // ── Gate 1: Authentication ──────────────────────────────────────────
 
-    let auth = client.auth_query(replicant).await?;
+    let auth = client.auth_query(userpod).await?;
     match auth {
         DaemonResponse::AuthResponse {
             authenticated: true,
@@ -120,7 +120,7 @@ pub async fn verify_startup_gates(
             ..
         } if action == "prompt_user" => {
             return Err(McpError::Auth {
-                replicant: replicant.to_string(),
+                userpod: userpod.to_string(),
             });
         }
         other => {
@@ -133,14 +133,14 @@ pub async fn verify_startup_gates(
 
     // ── Gate 2: Assignment ──────────────────────────────────────────────
 
-    let assignment = client.assignment_query(replicant, role).await?;
+    let assignment = client.assignment_query(userpod, role).await?;
     match assignment {
         DaemonResponse::AssignmentResponse { assigned: true } => {
             // Assigned — proceed to Gate 3.
         }
         DaemonResponse::AssignmentResponse { assigned: false } => {
             return Err(McpError::RoleAssignment {
-                replicant: replicant.to_string(),
+                userpod: userpod.to_string(),
                 role: role.to_string(),
             });
         }
@@ -156,7 +156,7 @@ pub async fn verify_startup_gates(
 
     let mut denied_tools = Vec::new();
     for tool in required_tools {
-        let cap = client.capability_query(replicant, tool).await?;
+        let cap = client.capability_query(userpod, tool).await?;
         match cap {
             DaemonResponse::CapabilityResponse { granted: true } => {
                 // Tool capability granted.
@@ -203,29 +203,29 @@ mod tests {
 
     #[async_trait::async_trait]
     impl DaemonHandler for GateMock {
-        async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
+        async fn check_auth(&self, userpod: &str) -> (bool, Option<String>) {
             let auth = self.authenticated.load(Ordering::SeqCst);
             (
                 auth,
                 if auth {
-                    Some(format!("webid://{}", replicant))
+                    Some(format!("webid://{}", userpod))
                 } else {
                     None
                 },
             )
         }
 
-        async fn check_assignment(&self, _replicant: &str, _role: &str) -> bool {
+        async fn check_assignment(&self, _userpod: &str, _role: &str) -> bool {
             self.assigned.load(Ordering::SeqCst)
         }
 
-        async fn check_capability(&self, _replicant: &str, tool: &str) -> bool {
+        async fn check_capability(&self, _userpod: &str, tool: &str) -> bool {
             self.granted_tools.iter().any(|t| t == tool)
         }
 
         async fn store_experience(
             &self,
-            _replicant: &str,
+            _userpod: &str,
             _entity: &str,
             _attribute: &str,
             _value: &serde_json::Value,
@@ -236,18 +236,18 @@ mod tests {
 
         async fn dispatch_tool(
             &self,
-            _replicant: &str,
+            _userpod: &str,
             _tool: &str,
             _input: &serde_json::Value,
         ) -> (bool, Option<serde_json::Value>, Option<String>) {
             (true, None, None)
         }
 
-        async fn curator_health(&self, _replicant: &str) -> serde_json::Value {
+        async fn curator_health(&self, _userpod: &str) -> serde_json::Value {
             serde_json::json!({"cns_health": "healthy"})
         }
 
-        async fn cns_status(&self, _replicant: &str, _domain: Option<&str>) -> serde_json::Value {
+        async fn cns_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {
             serde_json::json!({"domains": []})
         }
     }

@@ -43,7 +43,7 @@ fn parse_webid(raw: &str) -> Result<WebID, ServiceError> {
 pub struct A2ARegisterRequest {
     /// Agent WebID (UUID string)
     pub webid: String,
-    /// Agent type: "Bot" or "Replicant"
+    /// Agent type: "Bot" or "UserPod"
     pub agent_type: String,
     /// Capabilities to grant (e.g., ["tool:execute", "template:render"])
     pub capabilities: Vec<String>,
@@ -62,7 +62,7 @@ pub struct A2ARegisterResponse {
 
 /// A2A agent response — registered agent in the ACP capability delegation system (P4 OCAP).
 ///
-/// `agent_type` is "Bot" or "Replicant" (P10).
+/// `agent_type` is "Bot" or "UserPod" (P10).
 /// `capabilities` are the granted capability verbs this agent holds.
 /// `active` indicates whether the agent is currently allowed to exercise its capabilities.
 #[derive(Serialize, Deserialize, ToSchema)]

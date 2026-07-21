@@ -3,11 +3,11 @@
 //! # expect: "The service layer exposes minimal, essential interfaces shared by all surfaces"
 //!
 //! Implements the two-zone skill model: `.agents/skills/` (private source)
-//! → `skills/` (public export surface). Handles replicant name resolution,
+//! → `skills/` (public export surface). Handles userpod name resolution,
 //! BLAKE3 content hashing, SKILL.md front matter parsing and mutation,
 //! zone-aware discovery, and publishing.
 //!
-//! ℏKask - A Minimal Viable Container for Replicants
+//! ℏKask - A Minimal Viable Container for UserPods
 
 use hkask_ports::{Skill, SkillZone};
 use hkask_templates::SkillLoader;
@@ -25,7 +25,7 @@ pub struct SkillPublishResult {
     pub name: String,
     /// Namespaced name in the public zone (`<namespace>--<name>`).
     pub namespaced_name: String,
-    /// Replicant namespace used for publishing.
+    /// UserPod namespace used for publishing.
     pub namespace: String,
     /// Path to the published skill directory.
     pub public_dir: PathBuf,
@@ -192,7 +192,7 @@ pub fn find_public_skill(root: &Path, name: &str) -> Option<PathBuf> {
 ///
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  root must be a valid skill zone root; name must exist in the private zone
-/// post: skill directory is copied to public zone with namespaced name; visibility set to public; namespace set to replicant name; Err if private skill not found
+/// post: skill directory is copied to public zone with namespaced name; visibility set to public; namespace set to userpod name; Err if private skill not found
 pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, ServiceError> {
     let private_dir = root.join(SkillZone::Private.directory()).join(name);
 
@@ -278,10 +278,10 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     })
 }
 
-/// Resolve the replicant name for skill namespacing.
+/// Resolve the userpod name for skill namespacing.
 ///
 /// Resolution order:
-/// 1. `HKASK_REPLICANT_NAME` env var (explicit override)
+/// 1. `HKASK_USERPOD_NAME` env var (explicit override)
 /// 2. Git config `user.name` (if in a git repo)
 /// 3. Fallback: "local"
 ///
@@ -289,7 +289,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
 /// pre:  none (always succeeds)
 /// post: returns a non-empty String — env var, git user.name, or "local" fallback
 pub fn resolve_userpod_name() -> String {
-    if let Ok(name) = std::env::var("HKASK_REPLICANT_NAME")
+    if let Ok(name) = std::env::var("HKASK_USERPOD_NAME")
         && !name.is_empty()
     {
         return name;

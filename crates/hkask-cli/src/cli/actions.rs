@@ -174,19 +174,19 @@ pub enum BackupAction {
 /// OCAP token issuance — admin credential provisioning for MCP gateways.
 #[derive(Debug, Subcommand)]
 pub enum TokenAction {
-    /// Issue a new DelegationToken for a replicant
+    /// Issue a new DelegationToken for a userpod
     Issue {
         #[arg(long)]
-        replicant: String,
+        userpod: String,
         #[arg(long, num_args = 1..)]
         capabilities: Vec<String>,
         #[arg(long, default_value = "24h")]
         ttl: String,
     },
-    /// List issued tokens (by replicant filter)
+    /// List issued tokens (by userpod filter)
     List {
         #[arg(long)]
-        replicant: Option<String>,
+        userpod: Option<String>,
     },
     /// Revoke a token by ID
     Revoke {
@@ -263,7 +263,7 @@ pub enum FederationAction {
     Status,
 }
 
-/// Replicant identity actions
+/// UserPod identity actions
 #[derive(Debug, Subcommand)]
 pub enum UserPodAction {
     Register {
@@ -283,7 +283,7 @@ pub enum UserPodAction {
         userpod_name: String,
     },
 
-    /// Change a replicant's passphrase
+    /// Change a userpod's passphrase
     Passphrase {
         #[arg()]
         userpod_name: String,
@@ -304,21 +304,21 @@ pub enum UserPodAction {
         #[arg()]
         userpod_name: String,
     },
-    /// Rename a replicant
+    /// Rename a userpod
     Rename {
         #[arg(long)]
         from: String,
         #[arg(long)]
         to: String,
     },
-    /// Delete a replicant and all its data
+    /// Delete a userpod and all its data
     Delete {
         #[arg()]
         name: String,
     },
     /// Create an invite code for a new member (admin only)
     Invite {
-        /// Admin replicant name issuing the invite
+        /// Admin userpod name issuing the invite
         #[arg(long)]
         by: String,
         /// Single invitee: `Name <email>` format
@@ -337,7 +337,7 @@ pub enum UserPodAction {
         /// Invite code to revoke
         #[arg()]
         code: String,
-        /// Admin replicant name
+        /// Admin userpod name
         #[arg(long)]
         by: String,
     },
@@ -572,7 +572,7 @@ pub enum MatrixAction {
     },
     /// Register a hKask agent on the Matrix homeserver
     RegisterAgent {
-        /// Replicant name (e.g., "Alice-Smith")
+        /// UserPod name (e.g., "Alice-Smith")
         agent: String,
         /// Homeserver URL (default: http://localhost:8008)
         #[arg(short, long, default_value = "http://localhost:8008")]

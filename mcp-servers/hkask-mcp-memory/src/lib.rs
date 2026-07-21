@@ -803,7 +803,7 @@ impl MemoryServer {
 
 /// Run the memory MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
@@ -819,7 +819,7 @@ pub async fn run(
                     .get("HKASK_MEMORY_DB")
                     .cloned()
                     .unwrap_or_else(|| {
-                        let relative_path = hkask_types::agent_paths::agent_memory_db(&replicant);
+                        let relative_path = hkask_types::agent_paths::userpod_memory_db(&userpod);
                         let default_path =
                             hkask_types::agent_paths::resolve_under_data_dir(&relative_path);
                         if let Some(parent) = default_path.parent() {
@@ -828,7 +828,7 @@ pub async fn run(
                         tracing::info!(
                             target: "hkask.mcp.memory",
                             path = %default_path.display(),
-                            replicant = %replicant,
+                            userpod = %userpod,
                             "Using default per-agent memory database"
                         );
                         default_path.to_string_lossy().to_string()
@@ -854,7 +854,7 @@ pub async fn run(
                 ));
                 Ok(MemoryServer::new(
                     ctx.webid,
-                    replicant.clone(),
+                    userpod.clone(),
                     daemon_client.clone(),
                     episodic,
                     semantic,
@@ -869,7 +869,7 @@ pub async fn run(
         vec![
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_MEMORY_DB",
-                "Path to per-agent memory database file (defaults to agents/{replicant}/memory.db)",
+                "Path to per-agent memory database file (defaults to agents/{userpod}/memory.db)",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",

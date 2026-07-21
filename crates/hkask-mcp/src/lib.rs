@@ -90,11 +90,11 @@ where
 
 /// Result of the standard MCP server daemon bootstrap flow.
 ///
-/// All 12 MCP server binaries use this. The replicant identity
+/// All 12 MCP server binaries use this. The userpod identity
 /// and optional daemon client are passed to the server's `run()`.
 #[must_use = "bootstrap result must be passed to the server's run() function"]
 pub struct MCPBootstrap {
-    pub replicant: String,
+    pub userpod: String,
     pub daemon_client: Option<DaemonClient>,
 }
 
@@ -105,13 +105,13 @@ pub struct MCPBootstrap {
 /// 2. Verify P4 startup gates (auth, role, tools) against the daemon
 /// 3. If daemon is unavailable, warn and fall back to direct/standalone mode
 ///
-/// After calling this, pass `replicant` and `daemon_client` to the
+/// After calling this, pass `userpod` and `daemon_client` to the
 /// server's `run()` function.
 ///
 /// # Arguments
 /// - `server_name` — short name used in `verify_startup_gates` (e.g. "communication")
 /// - `target` — tracing target for log messages (e.g. "hkask.mcp.communication")
-/// - `host_env_var` — environment variable for the replicant identity
+/// - `host_env_var` — environment variable for the userpod identity
 ///   (defaults to `"HKASK_MCP_HOST"` for most servers)
 ///
 /// expect: "Every MCP action has an authenticated host identity."
@@ -125,7 +125,7 @@ pub async fn bootstrap_mcp_server(
     target: &str,
     host_env_var: &str,
 ) -> Result<MCPBootstrap, McpError> {
-    let replicant = std::env::var(host_env_var)
+    let userpod = std::env::var(host_env_var)
         .ok()
         .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| McpError::MissingHostIdentity {
@@ -133,11 +133,11 @@ pub async fn bootstrap_mcp_server(
         })?;
 
     let client = DaemonClient::new();
-    let daemon_client = match verify_startup_gates(&client, &replicant, server_name, &[]).await {
+    let daemon_client = match verify_startup_gates(&client, &userpod, server_name, &[]).await {
         Ok(result) => {
             tracing::info!(
                 target,
-                replicant = %replicant,
+                userpod = %userpod,
                 "P4 gates verified{}",
                 if result.denied_tools.is_empty() {
                     String::new()
@@ -154,7 +154,7 @@ pub async fn bootstrap_mcp_server(
         Err(e) => {
             tracing::warn!(
                 target,
-                replicant = %replicant,
+                userpod = %userpod,
                 error = %e,
                 "Daemon unavailable — falling back to direct mode"
             );
@@ -163,7 +163,7 @@ pub async fn bootstrap_mcp_server(
     };
 
     Ok(MCPBootstrap {
-        replicant,
+        userpod,
         daemon_client,
     })
 }
@@ -192,7 +192,7 @@ macro_rules! validate_field {
 
 /// Generate a `ToolContext` impl for an MCP server struct.
 ///
-/// Assumes the struct has `webid: WebID`, `replicant: String`,
+/// Assumes the struct has `webid: WebID`, `userpod: String`,
 /// and `daemon: Option<DaemonClient>` fields — the standard
 /// pattern for all 14 hKask MCP servers.
 ///
@@ -208,7 +208,7 @@ macro_rules! impl_tool_context {
                 &self.webid
             }
             fn record_tool_outcome(&self, tool: &str, outcome: &str) {
-                $crate::record_via_daemon(&self.daemon, &self.replicant, tool, outcome);
+                $crate::record_via_daemon(&self.daemon, &self.userpod, tool, outcome);
             }
         }
     };
@@ -216,7 +216,7 @@ macro_rules! impl_tool_context {
 
 /// Define an MCP server struct with standard fields + constructor.
 ///
-/// Generates the struct with mandatory `webid`, `replicant`, `daemon`
+/// Generates the struct with mandatory `webid`, `userpod`, `daemon`
 /// fields plus any domain-specific fields, a `new()` constructor, and
 /// a `ToolContext` impl via `impl_tool_context!`.
 ///
@@ -228,7 +228,7 @@ macro_rules! impl_tool_context {
 /// });
 /// ```
 ///
-/// Expands to a struct with `webid, replicant, daemon, inference_port, skills`.
+/// Expands to a struct with `webid, userpod, daemon, inference_port, skills`.
 #[macro_export]
 macro_rules! mcp_server {
     // Variant with custom fields
@@ -245,8 +245,8 @@ macro_rules! mcp_server {
         $vis struct $name {
             /// Agent identity for capability tokens and ownership.
             pub webid: hkask_types::WebID,
-            /// Replicant identity serving this MCP server.
-            pub replicant: String,
+            /// UserPod identity serving this MCP server.
+            pub userpod: String,
             /// Daemon client for event recording.
             pub daemon: Option<hkask_mcp::DaemonClient>,
             $(
@@ -259,11 +259,11 @@ macro_rules! mcp_server {
             #[allow(clippy::too_many_arguments)]
             pub fn new(
                 webid: hkask_types::WebID,
-                replicant: String,
+                userpod: String,
                 daemon: Option<hkask_mcp::DaemonClient>,
                 $($field : $ty),*
             ) -> Self {
-                Self { webid, replicant, daemon, $($field),* }
+                Self { webid, userpod, daemon, $($field),* }
             }
         }
 
@@ -279,8 +279,8 @@ macro_rules! mcp_server {
         $vis struct $name {
             /// Agent identity for capability tokens and ownership.
             pub webid: hkask_types::WebID,
-            /// Replicant identity serving this MCP server.
-            pub replicant: String,
+            /// UserPod identity serving this MCP server.
+            pub userpod: String,
             /// Daemon client for event recording.
             pub daemon: Option<hkask_mcp::DaemonClient>,
         }
@@ -288,10 +288,10 @@ macro_rules! mcp_server {
         impl $name {
             pub fn new(
                 webid: hkask_types::WebID,
-                replicant: String,
+                userpod: String,
                 daemon: Option<hkask_mcp::DaemonClient>,
             ) -> Self {
-                Self { webid, replicant, daemon }
+                Self { webid, userpod, daemon }
             }
         }
 

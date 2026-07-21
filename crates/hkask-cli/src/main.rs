@@ -164,7 +164,7 @@ fn main() {
 
         Commands::Onboard => {
             // Multi-persona onboarding was removed (1:1 model: one persistent
-            // UserPod per user). `kask onboard` no longer adds replicants.
+            // UserPod per user). `kask onboard` no longer adds userpods.
             eprintln!("hKask now uses a single persistent UserPod per user (1:1 model).");
             eprintln!("Multi-persona onboarding is no longer supported.");
             eprintln!("To set up your first UserPod, run: \x1b[36mkask chat\x1b[0m");

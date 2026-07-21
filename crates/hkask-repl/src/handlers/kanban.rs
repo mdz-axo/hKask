@@ -41,7 +41,7 @@ pub fn handle_kanban(
                 "    \x1b[36m/kanban decompose <board> <desc>\x1b[0m  Generate decomposition prompt"
             );
             println!(
-                "    \x1b[36m/kanban spawn <task>\x1b[0m            Spawn replicant to execute"
+                "    \x1b[36m/kanban spawn <task>\x1b[0m            Spawn userpod to execute"
             );
             println!("    \x1b[36m/kanban note <task> <text>\x1b[0m      Append a comment");
             println!("    \x1b[36m/kanban notes <task>\x1b[0m           List task comments");

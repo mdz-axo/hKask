@@ -70,7 +70,7 @@ impl BundleService {
     /// - `name` — Optional bundle name (auto-generated if None).
     /// - `visibility` — Bundle visibility (Private, Shared, Public).
     /// - `inference_port` — Inference port for composition template rendering.
-    /// - `editor` — Replicant name for attribution.
+    /// - `editor` — UserPod name for attribution.
     ///
     /// # Returns
     /// `BundleComposeResult` on success.

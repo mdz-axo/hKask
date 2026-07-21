@@ -6,7 +6,7 @@
 //!   tts_list_voices — list available system TTS voices
 //!   send_message    — send a message to a Matrix room
 //!   create_thread   — create a threaded conversation
-//!   invite_agent    — invite another replicant to a room
+//!   invite_agent    — invite another userpod to a room
 //!   list_threads    — list active communication threads
 //!   monitor_thread  — assign a thread to an agent's watchlist
 //!   tag_agent       — pull an agent into a discussion
@@ -207,21 +207,21 @@ impl CommunicationServer {
         .await
     }
 
-    #[tool(description = "Invite another replicant to a Matrix room.")]
+    #[tool(description = "Invite another userpod to a Matrix room.")]
     pub async fn invite_agent(
         &self,
         Parameters(InviteAgentRequest {
             room_id,
-            replicant_id,
+            userpod_id,
         }): Parameters<InviteAgentRequest>,
     ) -> String {
         execute_tool(self, "invite_agent", async {
-            let webid = match WebID::from_str(&replicant_id) {
+            let webid = match WebID::from_str(&userpod_id) {
                 Ok(w) => w,
                 Err(_) => {
                     return Err(McpToolError::invalid_argument(format!(
-                        "Invalid replicant ID: {}",
-                        replicant_id
+                        "Invalid userpod ID: {}",
+                        userpod_id
                     )));
                 }
             };
@@ -229,8 +229,8 @@ impl CommunicationServer {
                 Some(uid) => uid,
                 None => {
                     return Err(McpToolError::permission_denied(format!(
-                        "Replicant {} not registered",
-                        replicant_id
+                        "UserPod {} not registered",
+                        userpod_id
                     )));
                 }
             };
@@ -240,7 +240,7 @@ impl CommunicationServer {
                 .await
             {
                 Ok(()) => Ok(serde_json::json!({
-                    "invited": true, "room_id": room_id, "replicant_id": replicant_id
+                    "invited": true, "room_id": room_id, "userpod_id": userpod_id
                 })),
                 Err(e) => Err(McpToolError::unavailable(format!(
                     "Failed to invite agent: {}",
@@ -284,16 +284,16 @@ impl CommunicationServer {
         &self,
         Parameters(MonitorThreadRequest {
             room_id,
-            replicant_id,
+            userpod_id,
         }): Parameters<MonitorThreadRequest>,
     ) -> String {
         execute_tool(self, "monitor_thread", async {
-            let webid = match WebID::from_str(&replicant_id) {
+            let webid = match WebID::from_str(&userpod_id) {
                 Ok(w) => w,
                 Err(_) => {
                     return Err(McpToolError::invalid_argument(format!(
-                        "Invalid replicant ID: {}",
-                        replicant_id
+                        "Invalid userpod ID: {}",
+                        userpod_id
                     )));
                 }
             };
@@ -303,7 +303,7 @@ impl CommunicationServer {
                 .await
             {
                 Ok(()) => Ok(serde_json::json!({
-                    "monitored": true, "room_id": room_id, "replicant_id": replicant_id
+                    "monitored": true, "room_id": room_id, "userpod_id": userpod_id
                 })),
                 Err(e) => Err(McpToolError::permission_denied(format!(
                     "Failed to monitor thread: {}",
@@ -319,17 +319,17 @@ impl CommunicationServer {
         &self,
         Parameters(TagAgentRequest {
             room_id,
-            replicant_id,
+            userpod_id,
             body,
         }): Parameters<TagAgentRequest>,
     ) -> String {
         execute_tool(self, "tag_agent", async {
-            let webid = match WebID::from_str(&replicant_id) {
+            let webid = match WebID::from_str(&userpod_id) {
                 Ok(w) => w,
                 Err(_) => {
                     return Err(McpToolError::invalid_argument(format!(
-                        "Invalid replicant ID: {}",
-                        replicant_id
+                        "Invalid userpod ID: {}",
+                        userpod_id
                     )));
                 }
             };
@@ -337,21 +337,21 @@ impl CommunicationServer {
                 Some(uid) => uid,
                 None => {
                     return Err(McpToolError::permission_denied(format!(
-                        "Replicant {} not registered",
-                        replicant_id
+                        "UserPod {} not registered",
+                        userpod_id
                     )));
                 }
             };
             let mention = format!("@{} {}", user_id.as_str(), body);
             let structured =
-                serde_json::json!({"tag": {"target": replicant_id, "type": "mention"}});
+                serde_json::json!({"tag": {"target": userpod_id, "type": "mention"}});
             match self
                 .matrix
                 .send_message(&RoomId::new(&room_id), &mention, Some(structured))
                 .await
             {
                 Ok(()) => Ok(serde_json::json!({
-                    "tagged": true, "room_id": room_id, "replicant_id": replicant_id
+                    "tagged": true, "room_id": room_id, "userpod_id": userpod_id
                 })),
                 Err(e) => Err(McpToolError::unavailable(format!(
                     "Failed to tag agent: {}",
@@ -421,7 +421,7 @@ impl CommunicationServer {
 
 /// Run the communication MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     let homeserver_url =
@@ -460,7 +460,7 @@ pub async fn run(
         |ctx: ServerContext| {
             Ok(CommunicationServer::new(
                 ctx.webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 Arc::clone(&matrix),
                 Arc::clone(&registry),

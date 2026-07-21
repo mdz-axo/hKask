@@ -324,7 +324,7 @@ pub async fn callback(
         }
     }
 
-    let (_user, replicant) = user_store
+    let (_user, userpod) = user_store
         .find_or_create_oauth_user(&provider, &provider_user_id, &email, &display_name)
         .map_err(|e| {
             tracing::error!(target: "hkask.api.oauth", error = %e, "Failed to find/create OAuth user");
@@ -333,7 +333,7 @@ pub async fn callback(
 
     // If this was an invite flow, accept the invite now
     if let Some(ref code) = invite_code {
-        if let Err(e) = user_store.accept_invite(code, &replicant.user_id) {
+        if let Err(e) = user_store.accept_invite(code, &userpod.user_id) {
             tracing::warn!(
                 target = "hkask.api.oauth",
                 invite_code = %code,
@@ -345,14 +345,14 @@ pub async fn callback(
                 target = "cns.deploy.invite",
                 operation = "invite_accepted",
                 code = %code,
-                webid = %replicant.webid,
+                webid = %userpod.webid,
                 "CNS"
             );
         }
     }
 
     // Create session
-    let session = user_store.create_oauth_session(&replicant).map_err(|e| {
+    let session = user_store.create_oauth_session(&userpod).map_err(|e| {
         tracing::error!(target: "hkask.api.oauth", error = %e, "Failed to create session");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -363,8 +363,8 @@ pub async fn callback(
     tracing::info!(
         target = "hkask.api.oauth",
         provider = %provider,
-        replicant = %replicant.userpod_name,
-        webid = %replicant.webid,
+        userpod = %userpod.userpod_name,
+        webid = %userpod.webid,
         "OAuth sign-in complete"
     );
 
@@ -373,15 +373,15 @@ pub async fn callback(
         target = "cns.deploy.session",
         operation = "session_open",
         provider = %provider,
-        webid = %replicant.webid,
+        webid = %userpod.webid,
         "CNS"
     );
     // CNS: member activity — emitted on every sign-in so Curator can track server population
     tracing::info!(
         target = "cns.multi_user.member_active",
         operation = "member_sign_in",
-        replicant = %replicant.userpod_name,
-        webid = %replicant.webid,
+        userpod = %userpod.userpod_name,
+        webid = %userpod.webid,
         provider = %provider,
         is_invite_flow = invite_code.is_some(),
         "CNS"
@@ -389,7 +389,7 @@ pub async fn callback(
 
     // Fire-and-forget: register Matrix accounts on Conduit and join chat room.
     // Non-blocking — if Conduit is unavailable, the user can still use the system.
-    let userpod_name = replicant.userpod_name.clone();
+    let userpod_name = userpod.userpod_name.clone();
     let display = display_name.clone();
     tokio::spawn(async move {
         onboard_matrix(&userpod_name, &display).await;
@@ -415,9 +415,9 @@ pub async fn callback(
     // Pass user info as query params so the page can personalize the welcome.
     if invite_code.is_some() {
         let onboarding_url = format!(
-            "/onboarding?name={}&replicant={}",
+            "/onboarding?name={}&userpod={}",
             urlencoding(&display_name),
-            urlencoding(&replicant.userpod_name),
+            urlencoding(&userpod.userpod_name),
         );
         builder = builder.header(header::LOCATION, onboarding_url);
     }
@@ -704,17 +704,17 @@ pub async fn accept_invite(
     if session.expires_at <= now {
         return Err((StatusCode::UNAUTHORIZED, "Session expired".into()));
     }
-    let replicant = user_store
+    let userpod = user_store
         .get_userpod_by_webid(&session.webid)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
-        .ok_or((StatusCode::UNAUTHORIZED, "Replicant not found".into()))?;
+        .ok_or((StatusCode::UNAUTHORIZED, "UserPod not found".into()))?;
     user_store
-        .accept_invite(&body.code, &replicant.user_id)
+        .accept_invite(&body.code, &userpod.user_id)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Accept failed: {e}")))?;
     let body = serde_json::json!({
         "status": "accepted",
         "code": body.code,
-        "replicant": replicant.userpod_name,
+        "userpod": userpod.userpod_name,
     });
     Response::builder()
         .status(StatusCode::OK)

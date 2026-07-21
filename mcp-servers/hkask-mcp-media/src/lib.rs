@@ -1341,7 +1341,7 @@ impl rmcp::ServerHandler for MediaServer {}
 
 /// Run the media MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     _daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
@@ -1351,10 +1351,10 @@ pub async fn run(
     let inference_config = hkask_inference::InferenceConfig::from_env();
     let inference = Arc::new(InferenceRouter::new(inference_config));
 
-    let daemon_ok = match try_daemon_flow(&replicant).await {
+    let daemon_ok = match try_daemon_flow(&userpod).await {
         Ok(()) => true,
         Err(e) => {
-            tracing::warn!(target: "hkask.mcp.media", replicant = %replicant, error = %e, "Daemon unavailable — falling back to direct mode");
+            tracing::warn!(target: "hkask.mcp.media", userpod = %userpod, error = %e, "Daemon unavailable — falling back to direct mode");
             false
         }
     };
@@ -1383,7 +1383,7 @@ pub async fn run(
         |ctx: hkask_mcp::ServerContext| {
             Ok(MediaServer::new(
                 ctx.webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 inference.clone(),
                 Arc::new(Mutex::new(None)),
@@ -1410,10 +1410,10 @@ pub async fn run(
     .await
 }
 
-async fn try_daemon_flow(replicant: &str) -> anyhow::Result<()> {
+async fn try_daemon_flow(userpod: &str) -> anyhow::Result<()> {
     let client = DaemonClient::new();
-    let result = hkask_mcp::verify_startup_gates(&client, replicant, "media", &[]).await?;
-    tracing::info!(target: "hkask.mcp.media", replicant = %replicant,
+    let result = hkask_mcp::verify_startup_gates(&client, userpod, "media", &[]).await?;
+    tracing::info!(target: "hkask.mcp.media", userpod = %userpod,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }
         else { format!(" — {} tool(s) denied: {:?}", result.denied_tools.len(), result.denied_tools) }

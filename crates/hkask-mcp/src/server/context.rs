@@ -83,7 +83,7 @@ impl CapabilityTier {
     #[must_use]
     pub fn detect(resolved_credentials: &HashMap<String, String>) -> Self {
         let embedded = resolved_credentials.contains_key("HKASK_WEBID")
-            || resolved_credentials.contains_key("HKASK_REPLICANT_PERSONA");
+            || resolved_credentials.contains_key("HKASK_USERPOD_PERSONA");
         let persistence_available = resolved_credentials.contains_key("HKASK_DB_PATH");
         let keystore_available = Self::probe_keystore();
         Self {
@@ -124,7 +124,7 @@ impl CapabilityTier {
 pub struct ServerContext {
     pub credentials: HashMap<String, String>,
 
-    /// Resolved from HKASK_WEBID → HKASK_REPLICANT_PERSONA → anonymous.
+    /// Resolved from HKASK_WEBID → HKASK_USERPOD_PERSONA → anonymous.
     pub webid: hkask_types::WebID,
 
     /// Infrastructure capabilities detected at startup.

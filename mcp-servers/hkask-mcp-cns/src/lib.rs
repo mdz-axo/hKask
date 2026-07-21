@@ -248,7 +248,7 @@ fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<NuE
 }
 
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     run_server(
@@ -258,7 +258,7 @@ pub async fn run(
             let nu_event_store = open_nu_event_store(&ctx);
             Ok(CnsServer::new(
                 ctx.webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 nu_event_store,
             ))

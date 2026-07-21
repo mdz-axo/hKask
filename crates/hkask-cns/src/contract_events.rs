@@ -8,10 +8,10 @@ use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use tracing;
 
-/// Emit a CNS event when a contract is proposed by a replicant (Phase B2–B4).
+/// Emit a CNS event when a contract is proposed by a userpod (Phase B2–B4).
 pub fn emit_contract_proposed(
     sink: &dyn NuEventSink,
-    replicant: &str,
+    userpod: &str,
     crate_name: &str,
     function: &str,
     contract_id: &str,
@@ -20,7 +20,7 @@ pub fn emit_contract_proposed(
         .expect("domain span must be canonical");
     let span = Span::new(namespace, "proposed");
     let observation = serde_json::json!({
-        "replicant": replicant,
+        "userpod": userpod,
         "crate_name": crate_name,
         "function": function,
         "contract_id": contract_id,

@@ -9,5 +9,5 @@
 async fn main() -> Result<(), hkask_mcp::McpError> {
     let boot =
         hkask_mcp::bootstrap_mcp_server("replica", "hkask.mcp.replica", "HKASK_MCP_HOST").await?;
-    hkask_mcp_replica::run(boot.replicant, boot.daemon_client).await
+    hkask_mcp_replica::run(boot.userpod, boot.daemon_client).await
 }

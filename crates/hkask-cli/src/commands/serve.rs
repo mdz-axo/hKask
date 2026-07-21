@@ -78,7 +78,7 @@ const API_EXCLUDED: &[&str] = &["filesystem", "curator", "kanban", "skill"];
 
 async fn start_api_servers(runtime: &McpRuntime, userpod_name: &str) -> usize {
     let mut started = 0;
-    let extra_env = super::helpers::replicant_env_map(userpod_name);
+    let extra_env = super::helpers::userpod_env_map(userpod_name);
 
     for (server_id, command) in BUILTIN_SERVERS {
         if API_EXCLUDED.contains(server_id) {

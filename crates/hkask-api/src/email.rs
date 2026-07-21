@@ -1,7 +1,7 @@
 //! Curator email delivery — sends invites, notifications, and alerts via MXroute HTTP API.
 //!
 //! Uses MXroute's SMTP API at smtpapi.mxroute.com — no SMTP library needed.
-//! Also provides the foundation for replicant email access (future: per-replicant credentials).
+//! Also provides the foundation for userpod email access (future: per-userpod credentials).
 //!
 //! expect: "The Curator can send email on behalf of the server"
 
@@ -112,7 +112,7 @@ pub async fn send_invite_email(
 <ol>
   <li>Click the link below to accept your invite</li>
   <li>Sign in with your GitHub account</li>
-  <li>Create your replicant — your personal AI agent</li>
+  <li>Create your userpod — your personal AI agent</li>
   <li>Join the team chat and start collaborating</li>
 </ol>
 

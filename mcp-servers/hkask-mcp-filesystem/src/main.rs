@@ -32,7 +32,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         |ctx: hkask_mcp::server::ServerContext| {
             Ok(FileSystemServer::new(
                 ctx.webid,
-                boot.replicant.clone(),
+                boot.userpod.clone(),
                 boot.daemon_client.clone(),
                 project_root.clone(),
                 ctx.capability_tier,

@@ -572,10 +572,10 @@ fn extract_constraining_principle(line: &str) -> Option<String> {
     None
 }
 
-// ── Expect: Proposal Generator (replicant contract grounding workflow) ───────
+// ── Expect: Proposal Generator (userpod contract grounding workflow) ───────
 
 /// A proposal template for a contract missing its user-facing `expect:` annotation.
-/// Replicants use this to compose and submit contract grounding proposals.
+/// UserPods use this to compose and submit contract grounding proposals.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ExpectProposal {
     pub crate_name: String,
@@ -585,14 +585,14 @@ pub struct ExpectProposal {
     pub line: usize,
     pub pre: String,
     pub post: String,
-    /// Template line: "expect: \"...\" [P{N}]" — replicant fills in the user voice.
+    /// Template line: "expect: \"...\" [P{N}]" — userpod fills in the user voice.
     pub expect_template: String,
     pub suggested_goal_principle: String,
     pub existing_constraining_principles: Vec<String>,
 }
 
 /// Scan a crate for contracts that have pre:/post: conditions but no `expect:`
-/// annotation. Returns proposal templates for replicant-driven grounding.
+/// annotation. Returns proposal templates for userpod-driven grounding.
 ///
 /// contract: HARN-056
 /// expect: "I can see which contracts need user-expectation grounding so I can fill them in"

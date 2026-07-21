@@ -34,12 +34,12 @@ pub async fn admin_middleware(
         let store = store
             .lock()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let replicant = store
+        let userpod = store
             .get_userpod_by_webid(&webid)
             .map_err(|_| StatusCode::FORBIDDEN)?
             .ok_or(StatusCode::FORBIDDEN)?;
         let user = store
-            .get_user(&replicant.user_id)
+            .get_user(&userpod.user_id)
             .map_err(|_| StatusCode::FORBIDDEN)?;
         user.role == Role::Admin
     };

@@ -93,7 +93,7 @@ fn test_server() -> CommunicationServer {
     let registry = Arc::new(AgentRegistry::new());
     CommunicationServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         matrix,
         registry,

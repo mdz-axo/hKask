@@ -1,6 +1,6 @@
 //! Pods window — displays pod deployment status.
 //!
-//! Shows CuratorPod, ReplicantPods, and TeamPods with their
+//! Shows CuratorPod, UserPodPods, and TeamPods with their
 //! deployment status, storage paths, and CNS runtime state.
 
 use std::sync::Arc;
@@ -39,7 +39,7 @@ impl Window for PodsWindow {
     }
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
-        let Some((curator, replicant, team)) = self.bridge.pod_counts() else {
+        let Some((curator, userpod, team)) = self.bridge.pod_counts() else {
             let lines = vec![
                 headers::section("Pod Deployment Status"),
                 Line::from(""),
@@ -78,12 +78,12 @@ impl Window for PodsWindow {
             Line::from("  Role:   Shared bot episodic storage"),
             Line::from(""),
             Line::from(Span::styled(
-                "Tier 3 — ReplicantPods:",
+                "Tier 3 — UserPodPods:",
                 Style::default().fg(Color::Yellow),
             )),
-            Line::from(format!("  Count:  {}", replicant)),
-            Line::from("  Storage: ~/.config/hkask/agents/replicant.{name}/pod.db"),
-            Line::from("  Role:   Human+replicant pair, private episodic"),
+            Line::from(format!("  Count:  {}", userpod)),
+            Line::from("  Storage: ~/.config/hkask/agents/userpod.{name}/pod.db"),
+            Line::from("  Role:   Human+userpod pair, private episodic"),
             Line::from(""),
             Line::from(Span::styled(
                 "  Model: Per-pod SQLCipher, no cross-pod access (P4.1, P11.1)",

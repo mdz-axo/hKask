@@ -104,8 +104,8 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
 
     let response = match request {
-        DaemonRequest::AuthQuery { replicant } => {
-            let (authenticated, webid) = handler.check_auth(&replicant).await;
+        DaemonRequest::AuthQuery { userpod } => {
+            let (authenticated, webid) = handler.check_auth(&userpod).await;
             DaemonResponse::AuthResponse {
                 authenticated,
                 webid,
@@ -116,23 +116,23 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
                 },
             }
         }
-        DaemonRequest::AssignmentQuery { replicant, role } => {
-            let assigned = handler.check_assignment(&replicant, &role).await;
+        DaemonRequest::AssignmentQuery { userpod, role } => {
+            let assigned = handler.check_assignment(&userpod, &role).await;
             DaemonResponse::AssignmentResponse { assigned }
         }
-        DaemonRequest::CapabilityQuery { replicant, tool } => {
-            let granted = handler.check_capability(&replicant, &tool).await;
+        DaemonRequest::CapabilityQuery { userpod, tool } => {
+            let granted = handler.check_capability(&userpod, &tool).await;
             DaemonResponse::CapabilityResponse { granted }
         }
         DaemonRequest::StoreExperience {
-            replicant,
+            userpod,
             entity,
             attribute,
             value,
             confidence,
         } => {
             let (stored, episodic_id, semantic_id) = handler
-                .store_experience(&replicant, &entity, &attribute, &value, confidence)
+                .store_experience(&userpod, &entity, &attribute, &value, confidence)
                 .await;
             DaemonResponse::StoreResponse {
                 stored,
@@ -141,19 +141,19 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
             }
         }
         DaemonRequest::ToolDispatch {
-            replicant,
+            userpod,
             tool,
             input,
         } => {
-            let (ok, output, error) = handler.dispatch_tool(&replicant, &tool, &input).await;
+            let (ok, output, error) = handler.dispatch_tool(&userpod, &tool, &input).await;
             DaemonResponse::ToolDispatchResponse { ok, output, error }
         }
-        DaemonRequest::CuratorHealthQuery { replicant } => {
-            let health = handler.curator_health(&replicant).await;
+        DaemonRequest::CuratorHealthQuery { userpod } => {
+            let health = handler.curator_health(&userpod).await;
             DaemonResponse::CuratorHealthResponse { health }
         }
-        DaemonRequest::CnsStatusQuery { replicant, domain } => {
-            let status = handler.cns_status(&replicant, domain.as_deref()).await;
+        DaemonRequest::CnsStatusQuery { userpod, domain } => {
+            let status = handler.cns_status(&userpod, domain.as_deref()).await;
             DaemonResponse::CnsStatusResponse { status }
         }
     };

@@ -22,7 +22,7 @@ fn test_server() -> CnsServer {
     let store = NuEventStore::from_driver(driver);
     CnsServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Some(Arc::new(store)),
     )
@@ -31,7 +31,7 @@ fn test_server() -> CnsServer {
 /// Build a CnsServer with NO store attached — simulates the
 /// `HKASK_DB_PASSPHRASE`-missing degradation path.
 fn test_server_no_store() -> CnsServer {
-    CnsServer::new(WebID::new(), "test-replicant".into(), None, None)
+    CnsServer::new(WebID::new(), "test-userpod".into(), None, None)
 }
 
 /// Insert a single ν-event into the in-memory store for the given namespace.
@@ -102,7 +102,7 @@ async fn cns_query_spans_returns_matching_events() {
 
     let server = CnsServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Some(Arc::new(store)),
     );
@@ -233,7 +233,7 @@ async fn cns_span_stats_returns_aggregated_counts() {
 
     let server = CnsServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Some(Arc::new(store)),
     );
@@ -303,7 +303,7 @@ async fn cns_query_spans_strips_cns_prefix() {
 
     let server = CnsServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Some(Arc::new(store)),
     );

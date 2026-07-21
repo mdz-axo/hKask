@@ -1,7 +1,7 @@
 //! Human identity and authentication types — Loop 6 (Cybernetics): Access Guard
 //!
 //! Cybernetics subloop 6.1 (Access Guard) governs who can access what.
-//! Human users, replicant identities, and sessions are verified at this boundary.
+//! Human users, userpod identities, and sessions are verified at this boundary.
 
 use hkask_types::WebID;
 use hkask_types::id::UserID;
@@ -200,7 +200,7 @@ pub struct Invite {
 }
 
 /// Loop: Cybernetics
-/// Registration request for new replicant identity
+/// Registration request for new userpod identity
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistrationRequest {
     pub userpod_name: String,
@@ -220,7 +220,7 @@ pub struct RegistrationRequest {
 /// - `InvalidContact` — email or phone format is wrong
 /// - `InvalidPassphrase` — passphrase doesn't meet requirements
 pub enum RegistrationError {
-    #[error("Invalid replicant name: must be 1-64 chars, alphanumeric with hyphens/underscores")]
+    #[error("Invalid userpod name: must be 1-64 chars, alphanumeric with hyphens/underscores")]
     InvalidUserPodName,
     #[error("Required name field is empty")]
     EmptyName,

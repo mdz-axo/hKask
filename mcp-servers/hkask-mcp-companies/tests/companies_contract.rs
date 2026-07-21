@@ -51,7 +51,7 @@ fn fermi_defaults_has_questions() {
 fn test_server() -> CompaniesServer {
     CompaniesServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         reqwest::Client::new(),
         String::new(), // no FMP key

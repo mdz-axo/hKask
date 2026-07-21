@@ -1,7 +1,7 @@
 //! Token issuance and management — DelegationToken lifecycle.
 //!
-//! `kask token issue` — issue an Ed25519-signed DelegationToken for a replicant
-//! `kask token list` — list tokens issued for a replicant
+//! `kask token issue` — issue an Ed25519-signed DelegationToken for a userpod
+//! `kask token list` — list tokens issued for a userpod
 //! `kask token revoke` — revoke a token by ID
 
 use crate::cli::TokenAction;
@@ -30,16 +30,16 @@ fn parse_ttl(ttl: &str) -> Result<i64, CliError> {
     Ok(value * multiplier)
 }
 
-/// Issue a new DelegationToken for a replicant.
+/// Issue a new DelegationToken for a userpod.
 ///
 /// Returns the token serialized as JSON (for use as HKASK_DELEGATION_TOKEN).
 pub async fn token_issue(
-    replicant: &str,
+    userpod: &str,
     capabilities: Vec<String>,
     ttl: &str,
 ) -> Result<String, ServiceError> {
     let ctx = crate::commands::helpers::build_agent_service();
-    let webid = WebID::from_persona(replicant.as_bytes());
+    let webid = WebID::from_persona(userpod.as_bytes());
     let ttl_secs = parse_ttl(ttl).map_err(|e| ServiceError::Domain {
         kind: ErrorKind::BadRequest,
         domain: DomainKind::Infrastructure,
@@ -111,18 +111,18 @@ pub struct TokenEntry {
 pub fn run_token(rt: &tokio::runtime::Runtime, action: TokenAction) {
     match action {
         TokenAction::Issue {
-            replicant,
+            userpod,
             capabilities,
             ttl,
-        } => match rt.block_on(token_issue(&replicant, capabilities, &ttl)) {
+        } => match rt.block_on(token_issue(&userpod, capabilities, &ttl)) {
             Ok(token_json) => {
                 println!("{}", token_json);
-                eprintln!("Token issued for {replicant} (TTL: {ttl}). Store this securely.");
+                eprintln!("Token issued for {userpod} (TTL: {ttl}). Store this securely.");
                 eprintln!("Use in IDE:  HKASK_DELEGATION_TOKEN='{token_json}'");
             }
             Err(e) => eprintln!("Token issue failed: {e}"),
         },
-        TokenAction::List { replicant } => match token_list(replicant.as_deref()) {
+        TokenAction::List { userpod } => match token_list(userpod.as_deref()) {
             Ok(entries) if entries.is_empty() => {
                 println!("No tokens found.");
             }

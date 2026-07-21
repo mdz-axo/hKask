@@ -282,7 +282,7 @@ fn replica_compose_integration_prob_contract() {
 
 /// Construct a ReplicaServer with no external dependencies.
 fn test_server() -> ReplicaServer {
-    ReplicaServer::new(WebID::new(), "test-replicant".into(), None)
+    ReplicaServer::new(WebID::new(), "test-userpod".into(), None)
 }
 
 /// Parse the success envelope `{"content": <value>}`; falls back to the raw

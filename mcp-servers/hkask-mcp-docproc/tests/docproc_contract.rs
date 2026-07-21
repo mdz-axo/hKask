@@ -39,7 +39,7 @@ fn test_server() -> DocProcServer {
     let pipeline_executor = Arc::new(PipelineExecutor::new(Arc::clone(&llm_ocr)));
     DocProcServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         None, // no OCR model
         inference_router,

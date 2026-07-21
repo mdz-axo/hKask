@@ -1,7 +1,7 @@
 //! Onboarding page — served at /onboarding after invite acceptance or first sign-in.
 //!
 //! expect: "As a new member I am guided through the onboarding process"
-//! Introduces the replicant, Matrix credentials, the energy model, and next steps.
+//! Introduces the userpod, Matrix credentials, the energy model, and next steps.
 
 use axum::{extract::Query, response::Html};
 use serde::Deserialize;
@@ -9,15 +9,15 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct OnboardingQuery {
     pub name: Option<String>,
-    pub replicant: Option<String>,
+    pub userpod: Option<String>,
 }
 
-/// GET /onboarding?name=Alice+Smith&replicant=alice-smith
+/// GET /onboarding?name=Alice+Smith&userpod=alice-smith
 ///
-/// Fills in Matrix credentials and replicant name from query params.
+/// Fills in Matrix credentials and userpod name from query params.
 /// Without query params, shows the generic version with placeholders.
 pub async fn onboarding_page(Query(q): Query<OnboardingQuery>) -> Html<String> {
-    let userpod_name = q.replicant.as_deref().unwrap_or("your-replicant");
+    let userpod_name = q.userpod.as_deref().unwrap_or("your-userpod");
     let display_name = q.name.as_deref().unwrap_or("there");
 
     // Derive Matrix domain from homeserver URL
@@ -33,15 +33,15 @@ pub async fn onboarding_page(Query(q): Query<OnboardingQuery>) -> Html<String> {
         .unwrap_or_else(|| "localhost".to_string());
 
     // Derive Matrix usernames from shared onboarding service formula
-    let (human_localpart, replicant_localpart) =
+    let (human_localpart, userpod_localpart) =
         hkask_services_onboarding::derive_matrix_localparts(display_name, userpod_name);
     let human_matrix = format!("@{human_localpart}:{matrix_domain}");
-    let replicant_matrix = format!("@{replicant_localpart}:{matrix_domain}");
+    let userpod_matrix = format!("@{userpod_localpart}:{matrix_domain}");
 
     let html = ONBOARDING_HTML
-        .replace("REPLICANT_NAME", userpod_name)
+        .replace("USERPOD_NAME", userpod_name)
         .replace("HUMAN_MATRIX_ID", &human_matrix)
-        .replace("REPLICANT_MATRIX_ID", &replicant_matrix)
+        .replace("USERPOD_MATRIX_ID", &userpod_matrix)
         .replace("MATRIX_DOMAIN", &matrix_domain);
 
     Html(html)
@@ -126,18 +126,18 @@ const ONBOARDING_HTML: &str = r###"<!DOCTYPE html>
   <!-- Identity Card -->
   <div class="card" style="text-align:center;">
     <h1><span class="emoji">&#x2130;</span> Welcome to hKask</h1>
-    <p class="subtitle">Your replicant is alive. This is your agent — a sovereign digital presence that
+    <p class="subtitle">Your userpod is alive. This is your agent — a sovereign digital presence that
     works for you, with its own identity, capabilities, and energy budget.</p>
   </div>
 
-  <!-- Your Replicant -->
+  <!-- Your UserPod -->
   <div class="card">
-    <h2>Your Replicant</h2>
+    <h2>Your UserPod</h2>
     <div class="section">
-      <h3>What is a replicant?</h3>
-      <p>A replicant is an AI agent that <span class="highlight">represents you</span> in the hKask system.
+      <h3>What is a userpod?</h3>
+      <p>A userpod is an AI agent that <span class="highlight">represents you</span> in the hKask system.
       It has its own WebID, can be delegated capabilities, runs inference, creates pods,
-      and communicates with other replicants through Matrix chat rooms.</p>
+      and communicates with other userpods through Matrix chat rooms.</p>
       <p>Think of it as your always-on assistant — it can research, analyze, generate, and
       coordinate on your behalf. You control what it can do through capability tokens and
       sovereignty boundaries.</p>
@@ -145,9 +145,9 @@ const ONBOARDING_HTML: &str = r###"<!DOCTYPE html>
     <div class="section">
       <h3>Your identity</h3>
       <div class="code-block">
-        <span class="label">Replicant: </span><span class="value">REPLICANT_NAME</span>
+        <span class="label">UserPod: </span><span class="value">USERPOD_NAME</span>
       </div>
-      <p style="font-size:0.8rem;">Your replicant name is how the system and other users will know you.</p>
+      <p style="font-size:0.8rem;">Your userpod name is how the system and other users will know you.</p>
     </div>
   </div>
 
@@ -160,10 +160,10 @@ const ONBOARDING_HTML: &str = r###"<!DOCTYPE html>
       a Conduit homeserver. Two accounts were created for you:</p>
       <div class="code-block">
         <span class="label">You:     </span><span class="value">HUMAN_MATRIX_ID</span><br>
-        <span class="label">Replicant: </span><span class="value">REPLICANT_MATRIX_ID</span>
+        <span class="label">UserPod: </span><span class="value">USERPOD_MATRIX_ID</span>
       </div>
       <p style="font-size:0.8rem;">Use any Matrix client (Element, Hydrogen, FluffyChat) and connect to <strong>MATRIX_DOMAIN</strong>.
-      Your replicant can also send and receive messages on your behalf.</p>
+      Your userpod can also send and receive messages on your behalf.</p>
     </div>
   </div>
 
@@ -171,13 +171,13 @@ const ONBOARDING_HTML: &str = r###"<!DOCTYPE html>
   <div class="card">
     <h2><span class="emoji">⚡</span> Energy Economy</h2>
     <div class="section">
-      <h3>Your replicant runs on energy</h3>
+      <h3>Your userpod runs on energy</h3>
       <p>Every inference call, every tool execution, every pod deployment consumes
       <span class="highlight">rJoules</span> — hKask's unit of computational energy.
-      Just like putting gas in a car, you load energy into your wallet to power your replicant.</p>
+      Just like putting gas in a car, you load energy into your wallet to power your userpod.</p>
       <p>Different operations cost different amounts. A quick chat response costs less than
       training a LoRA adapter or running a multi-hour research task. You set budgets and
-      limits — your replicant won't spend energy you haven't approved.</p>
+      limits — your userpod won't spend energy you haven't approved.</p>
     </div>
     <div class="section">
       <h3>Getting energy</h3>
@@ -194,7 +194,7 @@ const ONBOARDING_HTML: &str = r###"<!DOCTYPE html>
     <h2>Getting Started</h2>
     <div class="section">
       <h3>Your first steps</h3>
-      <p><strong>1.</strong> Open the terminal and say hello to your replicant.</p>
+      <p><strong>1.</strong> Open the terminal and say hello to your userpod.</p>
       <p><strong>2.</strong> Try <code>kask help</code> to see all available commands.</p>
       <p><strong>3.</strong> Create a pod: <code>kask pod create --template research</code></p>
       <p><strong>4.</strong> Load energy into your wallet to enable inference.</p>

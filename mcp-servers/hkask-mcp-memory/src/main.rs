@@ -9,5 +9,5 @@
 async fn main() -> Result<(), hkask_mcp::McpError> {
     let boot =
         hkask_mcp::bootstrap_mcp_server("memory", "hkask.mcp.memory", "HKASK_MCP_HOST").await?;
-    hkask_mcp_memory::run(boot.replicant, boot.daemon_client).await
+    hkask_mcp_memory::run(boot.userpod, boot.daemon_client).await
 }

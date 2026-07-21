@@ -48,7 +48,7 @@ impl CuratorServer {
                 "status": "ok",
                 "server": SERVER_NAME,
                 "curator_webid": self.webid.to_string(),
-                "replicant": self.replicant,
+                "userpod": self.userpod,
                 "daemon_connected": self.daemon.is_some(),
                 "stores": {
                     "escalation_queue": self.escalation_queue.is_some(),
@@ -116,7 +116,7 @@ impl CuratorServer {
                 ));
             };
             let events: Arc<dyn NuEventSink> = Arc::clone(events_store) as Arc<dyn NuEventSink>;
-            match governance::resolve_direct(queue.as_ref(), &events, &req.id, &self.replicant) {
+            match governance::resolve_direct(queue.as_ref(), &events, &req.id, &self.userpod) {
                 Ok(()) => Ok(json!({"resolved": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),
             }
@@ -141,7 +141,7 @@ impl CuratorServer {
                 ));
             };
             let events: Arc<dyn NuEventSink> = Arc::clone(events_store) as Arc<dyn NuEventSink>;
-            match governance::dismiss_direct(queue.as_ref(), &events, &req.id, &self.replicant) {
+            match governance::dismiss_direct(queue.as_ref(), &events, &req.id, &self.userpod) {
                 Ok(()) => Ok(json!({"dismissed": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),
             }
@@ -157,7 +157,7 @@ impl CuratorServer {
             let Some(ref daemon) = self.daemon else {
                 return Err(McpToolError::unavailable("Daemon not available"));
             };
-            match daemon.curator_health_query(&self.replicant).await {
+            match daemon.curator_health_query(&self.userpod).await {
                 Ok(DaemonResponse::CuratorHealthResponse { health }) => Ok(health),
                 Ok(other) => Err(McpToolError::internal(format!(
                     "Bad daemon response: {:?}",
@@ -179,7 +179,7 @@ impl CuratorServer {
                 return Err(McpToolError::unavailable("Daemon not available"));
             };
             match daemon
-                .cns_status_query(&self.replicant, req.domain.as_deref())
+                .cns_status_query(&self.userpod, req.domain.as_deref())
                 .await
             {
                 Ok(DaemonResponse::CnsStatusResponse { status }) => Ok(status),
@@ -444,7 +444,7 @@ impl CuratorServer {
 // ── Server startup ─────────────────────────────────────────────────────
 
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
@@ -455,7 +455,7 @@ pub async fn run(
                 open_curator_stores(&ctx);
             Ok(CuratorServer::new(
                 ctx.webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 escalation_queue,
                 nu_event_store,
@@ -493,7 +493,7 @@ fn open_curator_stores(
         .get("HKASK_CURATOR_DB")
         .cloned()
         .unwrap_or_else(|| {
-            let p = hkask_types::agent_paths::agent_pod_db("curator");
+            let p = hkask_types::agent_paths::userpod_pod_db("curator");
             let resolved = hkask_types::agent_paths::resolve_under_data_dir(&p);
             if let Some(parent) = resolved.parent() {
                 std::fs::create_dir_all(parent).ok();

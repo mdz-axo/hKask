@@ -1,6 +1,6 @@
 //! Agent registration and thread routing for the Matrix-based communication server.
 //!
-//! On `pod activate`, each replicant auto-registers as a Matrix user on the
+//! On `pod activate`, each userpod auto-registers as a Matrix user on the
 //! local Conduit homeserver. Threads are the unit of attention; agents can
 //! monitor threads (watchlist) or be tagged into discussions (@mentions).
 //!
@@ -19,12 +19,12 @@ use tracing;
 
 // ── Agent registry ─────────────────────────────────────────────────────────
 
-/// Maps replicant WebIDs to their Matrix user identities.
+/// Maps userpod WebIDs to their Matrix user identities.
 ///
 /// Maintained in sync across pod activation/deactivation events.
 #[derive(Debug, Default)]
 pub struct AgentRegistry {
-    /// Mapping from replicant WebID (string) to Matrix UserId.
+    /// Mapping from userpod WebID (string) to Matrix UserId.
     entries: RwLock<HashMap<String, UserId>>,
     /// Mapping from room ID to list of agents monitoring it.
     thread_watchlists: RwLock<HashMap<RoomId, Vec<String>>>,
@@ -62,7 +62,7 @@ impl AgentRegistry {
         );
     }
 
-    /// Deregister a replicant.
+    /// Deregister a userpod.
     ///
     /// expect: "Agents communicate through user-owned channels"
     /// pre:  webid is a valid WebID

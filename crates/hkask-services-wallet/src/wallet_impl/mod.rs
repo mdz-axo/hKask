@@ -101,7 +101,7 @@ impl WalletService {
     /// Encapsulates chain port assembly (Hedera, Hinkal), price feed
     /// resolution, WalletManager construction, and ApiKeyIssuer creation.
     /// This is the single entry point for production wallet construction —
-    /// `context.rs` calls this and handles only orchestration (replicant binding,
+    /// `context.rs` calls this and handles only orchestration (userpod binding,
     /// deposit monitor spawning).
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.

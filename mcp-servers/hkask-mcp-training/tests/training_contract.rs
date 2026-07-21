@@ -145,7 +145,7 @@ fn test_server() -> TrainingServer {
     let adapter_store = Arc::new(AdapterStore::from_driver(driver));
     TrainingServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         None, // no semantic memory
         Box::new(MockTrainingHost),

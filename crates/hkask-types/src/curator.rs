@@ -16,7 +16,7 @@ use crate::visibility::Visibility;
 
 // ── CuratorHandle — Loop 5 capability handle ────────────────────────────────
 
-/// The Curator's capability handle. Single replicant — the user's
+/// The Curator's capability handle. Single userpod — the user's
 /// counterpart in `kask chat`. Can read all loop state and write
 /// governance/observability policy.
 ///

@@ -26,7 +26,7 @@ pub enum UserStoreError {
     Infra(#[from] InfrastructureError),
     #[error("User not found: {0}")]
     NotFound(NotFound),
-    #[error("Replicant name already registered: {0}")]
+    #[error("UserPod name already registered: {0}")]
     UserPodNameTaken(String),
     #[error("Invalid credentials")]
     InvalidCredentials,
@@ -53,7 +53,7 @@ pub type UserResult<T> = std::result::Result<T, UserStoreError>;
 
 define_driver_store!(UserStore);
 
-fn replicant_from_row(
+fn userpod_from_row(
     row: &hkask_database::value::DbRow,
 ) -> Result<UserPod, hkask_database::types::DbError> {
     Ok(UserPod {
@@ -103,8 +103,8 @@ impl UserStore {
     /// Initialize the user store schema.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — schema for users, replicants, sessions
-    /// post: users, replicants, sessions tables created if not exists
+    /// \[P1\] Motivating: User Sovereignty — schema for users, userpods, sessions
+    /// post: users, userpods, sessions tables created if not exists
     fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(include_str!("sql/users.sql"));
     }
@@ -125,13 +125,13 @@ impl UserStore {
         let driver = std::sync::Arc::new(SqliteDriver::new(pool));
         Ok(Self::from_driver(driver))
     }
-    /// Register a new replicant.
+    /// Register a new userpod.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — register a replicant
+    /// \[P1\] Motivating: User Sovereignty — register a userpod
     /// \[P2\] Constraining: Affirmative Consent — passphrase requirements enforced
     /// pre:  userpod_name is non-empty, passphrase meets requirements
-    /// post: replicant and user records created
+    /// post: userpod and user records created
     pub fn register_userpod(
         &self,
         userpod_name: String,
@@ -203,7 +203,7 @@ impl UserStore {
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
     /// pre:  provider is a valid OAuthProvider; provider_user_id is the external ID from the provider
-    /// post: if user exists with matching provider + provider_user_id → returns existing (user, replicant)
+    /// post: if user exists with matching provider + provider_user_id → returns existing (user, userpod)
     /// post: if user does not exist → creates new HumanUser + primary UserPod + returns both
     pub fn find_or_create_oauth_user(
         &self,
@@ -213,7 +213,7 @@ impl UserStore {
         display_name: &str,
     ) -> UserResult<(HumanUser, UserPod)> {
         // Try to find existing user by OAuth identity
-        if let Some((user, replicant)) = self.find_user_by_oauth(provider, provider_user_id)? {
+        if let Some((user, userpod)) = self.find_user_by_oauth(provider, provider_user_id)? {
             // Update last_active and display_name
             let now = chrono::Utc::now().timestamp();
             self.driver.execute(
@@ -228,10 +228,10 @@ impl UserStore {
                 "UPDATE userpod_identities SET last_login = ?1 WHERE userpod_name = ?2",
                 &[
                     DbValue::Integer(now),
-                    DbValue::Text(replicant.userpod_name.clone()),
+                    DbValue::Text(userpod.userpod_name.clone()),
                 ],
             )?;
-            return Ok((user, replicant));
+            return Ok((user, userpod));
         }
         // Create new user — OAuth users get a generated passphrase (never used directly)
         let generated_passphrase = uuid::Uuid::new_v4().to_string();
@@ -247,7 +247,7 @@ impl UserStore {
         let now = chrono::Utc::now().timestamp();
 
         let identity = self.with_raw_conn(|conn| {
-            // Derive replicant name from display name, with dedup
+            // Derive userpod name from display name, with dedup
             let base_name = sanitize_userpod_name(display_name);
             let mut userpod_name = base_name.clone();
             let mut suffix: u32 = 1;
@@ -317,7 +317,7 @@ impl UserStore {
     ///
     /// expect: "The system provides durable storage for archival data"
     /// pre:  provider is a valid OAuthProvider; provider_user_id is non-empty
-    /// post: returns Some((user, primary_replicant)) if found; None if not found
+    /// post: returns Some((user, primary_userpod)) if found; None if not found
     fn find_user_by_oauth(
         &self,
         provider: &hkask_types::identity::OAuthProvider,
@@ -343,8 +343,8 @@ impl UserStore {
                 let user = self.get_user(&uid)?;
                 let primary = self.get_userpod_by_user(&uid)?.ok_or_else(|| {
                     UserStoreError::NotFound(NotFound {
-                        entity_type: "replicant".to_string(),
-                        id: "user replicant".to_string(),
+                        entity_type: "userpod".to_string(),
+                        id: "user userpod".to_string(),
                     })
                 })?;
                 Ok(Some((user, primary)))
@@ -362,7 +362,7 @@ impl UserStore {
         self.update_last_login(&identity.userpod_name)?;
         Ok(session)
     }
-    /// Rename a replicant.
+    /// Rename a userpod.
     ///
     /// expect: "The system provides durable storage for archival data"
     /// pre:  from_name exists; to_name does not exist
@@ -377,13 +377,13 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant".to_string(),
+                entity_type: "userpod".to_string(),
                 id: from_name.to_string(),
             }));
         }
         Ok(())
     }
-    /// Delete a replicant and all its associated data.
+    /// Delete a userpod and all its associated data.
     ///
     /// expect: "The system provides durable storage for archival data"
     /// pre:  userpod_name exists
@@ -395,7 +395,7 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant".to_string(),
+                entity_type: "userpod".to_string(),
                 id: userpod_name.to_string(),
             }));
         }
@@ -405,7 +405,7 @@ impl UserStore {
         )?;
         Ok(())
     }
-    /// Find a replicant by WebID.
+    /// Find a userpod by WebID.
     ///
     /// expect: "The system provides durable storage for archival data"
     /// pre:  webid is a valid WebID
@@ -416,14 +416,14 @@ impl UserStore {
             &*self.driver,
             &sql,
             &[DbValue::Text(webid.to_string())],
-            replicant_from_row,
+            userpod_from_row,
         )
         .map_err(|e| UserStoreError::Infra(InfrastructureError::from(e)))
     }
-    /// Login a replicant with passphrase.
+    /// Login a userpod with passphrase.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — authenticate replicant session
+    /// \[P1\] Motivating: User Sovereignty — authenticate userpod session
     /// pre:  userpod_name is registered, passphrase is correct
     /// post: returns UserSession on success
     /// post: returns Err if credentials invalid
@@ -431,7 +431,7 @@ impl UserStore {
         let identity = self
             .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant".to_string(),
+                entity_type: "userpod".to_string(),
                 id: userpod_name.to_string(),
             }))?;
         let human = self.get_user(&identity.user_id)?;
@@ -442,7 +442,7 @@ impl UserStore {
         // Check passphrase expiry BEFORE creating session
         if let Some(days_old) = self.check_passphrase_expiry(userpod_name, 60)? {
             tracing::warn!(
-                replicant = %userpod_name,
+                userpod = %userpod_name,
                 days_old,
                 "Passphrase expired — user must change"
             );
@@ -465,11 +465,11 @@ impl UserStore {
         )?;
         Ok(())
     }
-    /// Change a replicant's passphrase. Requires the old passphrase for verification.
-    /// Change a replicant's passphrase.
+    /// Change a userpod's passphrase. Requires the old passphrase for verification.
+    /// Change a userpod's passphrase.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — change replicant passphrase
+    /// \[P1\] Motivating: User Sovereignty — change userpod passphrase
     /// pre:  userpod_name is registered, old_passphrase is correct
     /// post: passphrase updated
     pub fn change_passphrase(
@@ -481,7 +481,7 @@ impl UserStore {
         let identity = self
             .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant".to_string(),
+                entity_type: "userpod".to_string(),
                 id: userpod_name.to_string(),
             }))?;
         let human = self.get_user(&identity.user_id)?;
@@ -500,14 +500,14 @@ impl UserStore {
                 DbValue::Text(identity.user_id.to_string()),
             ],
         )?;
-        // Invalidate all existing sessions for this replicant
+        // Invalidate all existing sessions for this userpod
         self.driver.execute(
             "DELETE FROM user_sessions WHERE userpod_name = ?1",
             &[DbValue::Text(userpod_name.to_string())],
         )?;
         Ok(())
     }
-    /// Check if a replicant's passphrase is older than `max_age_days`.
+    /// Check if a userpod's passphrase is older than `max_age_days`.
     /// Returns `Some(days_old)` if expired, `None` if still valid or no timestamp.
     /// Check if a passphrase has expired.
     ///
@@ -523,7 +523,7 @@ impl UserStore {
         let identity = self
             .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant".to_string(),
+                entity_type: "userpod".to_string(),
                 id: userpod_name.to_string(),
             }))?;
         let human = self.get_user(&identity.user_id)?;
@@ -560,7 +560,7 @@ impl UserStore {
         )
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
     }
-    /// List sessions for a replicant.
+    /// List sessions for a userpod.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
     /// \[P1\] Motivating: User Sovereignty — list active sessions
@@ -582,10 +582,10 @@ impl UserStore {
         )
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
     }
-    /// Get a replicant by name.
+    /// Get a userpod by name.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — get replicant by name
+    /// \[P1\] Motivating: User Sovereignty — get userpod by name
     /// pre:  userpod_name is non-empty
     /// post: returns Some(identity) if found, None otherwise
     #[must_use = "result must be used"]
@@ -597,7 +597,7 @@ impl UserStore {
             &sql,
             &[DbValue::Text(userpod_name.to_string())],
             |row| {
-                replicant_from_row(row)
+                userpod_from_row(row)
                     .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
             },
         )
@@ -876,7 +876,7 @@ impl UserStore {
     /// Get the userpod for a user (1:1 relationship).
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — get user's replicant
+    /// \[P1\] Motivating: User Sovereignty — get user's userpod
     /// pre:  user_id is valid
     /// post: returns Some(UserPod) if found, None otherwise
     #[must_use = "result must be used"]
@@ -887,7 +887,7 @@ impl UserStore {
             &sql,
             &[DbValue::Text(user_id.to_string())],
             |row| {
-                replicant_from_row(row)
+                userpod_from_row(row)
                     .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
             },
         )
@@ -897,42 +897,42 @@ impl UserStore {
     /// List all userpods across all users.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — list all replicants
+    /// \[P1\] Motivating: User Sovereignty — list all userpods
     /// pre:  (none)
-    /// post: returns Vec of all replicants ordered by creation time
+    /// post: returns Vec of all userpods ordered by creation time
     #[must_use = "result must be used"]
     pub fn list_userpods(&self) -> UserResult<Vec<UserPod>> {
         let sql =
             format!("SELECT {USERPOD_COLUMNS} FROM userpod_identities ORDER BY created_at ASC");
         query_map(&*self.driver, &sql, &[], |row| {
-            replicant_from_row(row)
+            userpod_from_row(row)
                 .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
         })
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
     }
-    /// Get the wallet ID for a replicant.
-    /// Get wallet ID for a replicant.
+    /// Get the wallet ID for a userpod.
+    /// Get wallet ID for a userpod.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — get wallet ID for replicant
+    /// \[P1\] Motivating: User Sovereignty — get wallet ID for userpod
     /// pre:  userpod_name is non-empty
     /// post: returns Some(WalletId) if set, None otherwise
     pub fn get_wallet_id(&self, userpod_name: &str) -> UserResult<Option<WalletId>> {
         let identity = self
             .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant".to_string(),
+                entity_type: "userpod".to_string(),
                 id: userpod_name.to_string(),
             }))?;
         Ok(identity.wallet_id)
     }
-    /// Set the wallet ID for a replicant (called during onboarding after wallet creation).
-    /// Set wallet ID for a replicant.
+    /// Set the wallet ID for a userpod (called during onboarding after wallet creation).
+    /// Set wallet ID for a userpod.
     ///
     /// expect: "My user data and sovereignty boundaries are stored under my control"
-    /// \[P1\] Motivating: User Sovereignty — set wallet ID for replicant
+    /// \[P1\] Motivating: User Sovereignty — set wallet ID for userpod
     /// pre:  userpod_name is registered, wallet_id is valid
-    /// post: wallet_id stored for replicant
+    /// post: wallet_id stored for userpod
     pub fn set_wallet_id(&self, userpod_name: &str, wallet_id: WalletId) -> UserResult<()> {
         let rows = self.driver.execute(
             "UPDATE userpod_identities SET wallet_id = ?1 WHERE userpod_name = ?2",
@@ -943,7 +943,7 @@ impl UserStore {
         )?;
         if rows == 0 {
             return Err(UserStoreError::NotFound(NotFound {
-                entity_type: "replicant".to_string(),
+                entity_type: "userpod".to_string(),
                 id: userpod_name.to_string(),
             }));
         }

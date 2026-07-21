@@ -1070,7 +1070,7 @@ impl ReplicaServer {
 
 /// Run the replica MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
@@ -1079,7 +1079,7 @@ pub async fn run(
         |ctx| {
             Ok(ReplicaServer::new(
                 ctx.webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
             ))
         },

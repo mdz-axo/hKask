@@ -111,7 +111,7 @@ pub struct SpanNamespace(String);
 const CANONICAL_NAMESPACES: &[&str] = &[
     // ── ACP (Agent Communication Protocol) ──
     "cns.acp.ide.connection_state",
-    "cns.acp.replicant.memory_size",
+    "cns.acp.userpod.memory_size",
     // ── Core infrastructure ──
     "cns.adapter",
     "cns.agent_pod",
@@ -231,8 +231,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.qa.repair_verified",
     // ── Regulation (v0.31.0 Fermi impact-gate) ──
     "cns.regulation",
-    // ── Replicant ──
-    "cns.replicant.registered",
+    // ── UserPod ──
+    "cns.userpod.registered",
     // ── Semantic ──
     "cns.semantic.published",
     // ── Kata / Skill / Keystore ──

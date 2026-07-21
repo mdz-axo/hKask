@@ -10,5 +10,5 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
     let boot =
         hkask_mcp::bootstrap_mcp_server("condenser", "hkask.mcp.condenser", "HKASK_MCP_HOST")
             .await?;
-    hkask_mcp_condenser::run(boot.replicant, boot.daemon_client).await
+    hkask_mcp_condenser::run(boot.userpod, boot.daemon_client).await
 }

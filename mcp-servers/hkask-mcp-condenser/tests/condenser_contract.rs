@@ -190,7 +190,7 @@ impl hkask_ports::InferencePort for NoopInferencePort {
 fn test_server() -> CondenserServer {
     CondenserServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Mutex::new(CondenserEngine::new()),
         None,

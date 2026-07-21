@@ -59,7 +59,7 @@ pub fn run(dry_run: bool, force: bool) {
         Ok(p) if !p.is_empty() => p,
         _ => {
             eprintln!("HKASK_DB_PASSPHRASE is not set — cannot verify databases.");
-            eprintln!("Set it to your replicant passphrase and try again.");
+            eprintln!("Set it to your userpod passphrase and try again.");
             eprintln!("  export HKASK_DB_PASSPHRASE=<your-passphrase>");
             std::process::exit(1);
         }

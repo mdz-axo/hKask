@@ -13,5 +13,5 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         "HKASK_MCP_HOST",
     )
     .await?;
-    hkask_mcp_communication::run(boot.replicant, boot.daemon_client).await
+    hkask_mcp_communication::run(boot.userpod, boot.daemon_client).await
 }

@@ -51,7 +51,7 @@ pub struct ServiceDaemonHandler {
     cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
-    /// Per-replicant counter of stored experiences (triggers narrative generation)
+    /// Per-userpod counter of stored experiences (triggers narrative generation)
     experience_counts: Mutex<HashMap<String, usize>>,
 }
 
@@ -80,9 +80,9 @@ impl ServiceDaemonHandler {
 
 #[async_trait::async_trait]
 impl DaemonHandler for ServiceDaemonHandler {
-    async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
+    async fn check_auth(&self, userpod: &str) -> (bool, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "check_auth", replicant = %replicant, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_auth", userpod = %userpod, "CNS");
 
         let has_sessions = {
             let store = match self.user_store.lock() {
@@ -92,22 +92,22 @@ impl DaemonHandler for ServiceDaemonHandler {
                     return (false, None);
                 }
             };
-            let exists = store.get_userpod(replicant).is_ok();
+            let exists = store.get_userpod(userpod).is_ok();
             if !exists {
-                tracing::warn!(target: "hkask.daemon", replicant = %replicant, "Replicant not found in user store");
+                tracing::warn!(target: "hkask.daemon", userpod = %userpod, "UserPod not found in user store");
                 return (false, None);
             }
-            let sessions = store.list_sessions(replicant).unwrap_or_default();
+            let sessions = store.list_sessions(userpod).unwrap_or_default();
             !sessions.is_empty()
         };
 
         if !has_sessions {
-            tracing::debug!(target: "hkask.daemon", replicant = %replicant, "No active sessions — needs passphrase");
+            tracing::debug!(target: "hkask.daemon", userpod = %userpod, "No active sessions — needs passphrase");
             return (false, None);
         }
 
-        tracing::debug!(target: "hkask.daemon", replicant = %replicant, "Replicant has active sessions");
-        if let Some(pod_id) = self.pod_manager.find_pod_by_name(replicant).await {
+        tracing::debug!(target: "hkask.daemon", userpod = %userpod, "UserPod has active sessions");
+        if let Some(pod_id) = self.pod_manager.find_pod_by_name(userpod).await {
             let webid = self.pod_manager.get_pod_webid(&pod_id).await;
             (true, webid.map(|w| w.to_string()))
         } else {
@@ -115,31 +115,31 @@ impl DaemonHandler for ServiceDaemonHandler {
         }
     }
 
-    async fn check_assignment(&self, replicant: &str, role: &str) -> bool {
+    async fn check_assignment(&self, userpod: &str, role: &str) -> bool {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "check_assignment", replicant = %replicant, role = %role, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_assignment", userpod = %userpod, role = %role, "CNS");
 
-        match self.pod_manager.find_pod_by_name(replicant).await {
+        match self.pod_manager.find_pod_by_name(userpod).await {
             Some(pod_id) => {
                 let assigned = self.pod_manager.is_assigned_to_role(&pod_id, role).await;
-                tracing::debug!(target: "hkask.daemon", replicant = %replicant, role = %role, assigned = assigned, "Assignment check");
+                tracing::debug!(target: "hkask.daemon", userpod = %userpod, role = %role, assigned = assigned, "Assignment check");
                 assigned
             }
             None => {
-                tracing::warn!(target: "hkask.daemon", replicant = %replicant, "Pod not found for assignment check");
+                tracing::warn!(target: "hkask.daemon", userpod = %userpod, "Pod not found for assignment check");
                 false
             }
         }
     }
 
-    async fn check_capability(&self, replicant: &str, tool: &str) -> bool {
+    async fn check_capability(&self, userpod: &str, tool: &str) -> bool {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "check_capability", replicant = %replicant, tool = %tool, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_capability", userpod = %userpod, tool = %tool, "CNS");
 
-        match self.pod_manager.find_pod_by_name(replicant).await {
+        match self.pod_manager.find_pod_by_name(userpod).await {
             Some(pod_id) => {
                 let granted = self.pod_manager.has_capability(&pod_id, tool).await;
-                tracing::debug!(target: "hkask.daemon", replicant = %replicant, tool = %tool, granted = granted, "Capability check");
+                tracing::debug!(target: "hkask.daemon", userpod = %userpod, tool = %tool, granted = granted, "Capability check");
                 granted
             }
             None => false,
@@ -148,19 +148,19 @@ impl DaemonHandler for ServiceDaemonHandler {
 
     async fn store_experience(
         &self,
-        replicant: &str,
+        userpod: &str,
         entity: &str,
         attribute: &str,
         value: &serde_json::Value,
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "store_experience", replicant = %replicant, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "store_experience", userpod = %userpod, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
 
-        let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
+        let pod_id = match self.pod_manager.find_pod_by_name(userpod).await {
             Some(id) => id,
             None => {
-                tracing::warn!(target: "hkask.daemon", replicant = %replicant, "Pod not found for store_experience");
+                tracing::warn!(target: "hkask.daemon", userpod = %userpod, "Pod not found for store_experience");
                 return (false, None, None);
             }
         };
@@ -168,7 +168,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         let ctx = match self.pod_manager.context(&pod_id).await {
             Ok(ctx) => ctx,
             Err(e) => {
-                tracing::warn!(target: "hkask.daemon", replicant = %replicant, error = %e, "Failed to create PodContext");
+                tracing::warn!(target: "hkask.daemon", userpod = %userpod, error = %e, "Failed to create PodContext");
                 return (false, None, None);
             }
         };
@@ -192,15 +192,15 @@ impl DaemonHandler for ServiceDaemonHandler {
 
         let result = match (episodic_result, semantic_result) {
             (Ok(ep_id), Ok(sem_id)) => {
-                tracing::debug!(target: "hkask.daemon", replicant = %replicant, episodic_id = %ep_id, semantic_id = %sem_id, "Dual-encoded experience");
+                tracing::debug!(target: "hkask.daemon", userpod = %userpod, episodic_id = %ep_id, semantic_id = %sem_id, "Dual-encoded experience");
                 (true, Some(ep_id), Some(sem_id))
             }
             (Ok(ep_id), Err(e)) => {
-                tracing::warn!(target: "hkask.daemon", replicant = %replicant, episodic_id = %ep_id, semantic_error = %e, "Episodic stored, semantic failed");
+                tracing::warn!(target: "hkask.daemon", userpod = %userpod, episodic_id = %ep_id, semantic_error = %e, "Episodic stored, semantic failed");
                 (true, Some(ep_id), None)
             }
             (Err(e), _) => {
-                tracing::warn!(target: "hkask.daemon", replicant = %replicant, error = %e, "Failed to store episodic experience");
+                tracing::warn!(target: "hkask.daemon", userpod = %userpod, error = %e, "Failed to store episodic experience");
                 (false, None, None)
             }
         };
@@ -214,16 +214,16 @@ impl DaemonHandler for ServiceDaemonHandler {
                     .experience_counts
                     .lock()
                     .unwrap_or_else(|e| e.into_inner());
-                let c = counts.entry(replicant.to_string()).or_insert(0);
+                let c = counts.entry(userpod.to_string()).or_insert(0);
                 *c += 1;
                 *c
             };
 
             if count % NARRATIVE_THRESHOLD == 0 {
-                tracing::info!(target: "hkask.daemon.narrative", replicant = %replicant, count = count, "Triggering narrative generation");
+                tracing::info!(target: "hkask.daemon.narrative", userpod = %userpod, count = count, "Triggering narrative generation");
                 let pod_manager = Arc::clone(&self.pod_manager);
                 let inference = Arc::clone(inference_port);
-                let userpod_name = replicant.to_string();
+                let userpod_name = userpod.to_string();
                 let handle = tokio::spawn(async move {
                     generate_narrative(&pod_manager, &*inference, &userpod_name).await;
                 });
@@ -235,11 +235,11 @@ impl DaemonHandler for ServiceDaemonHandler {
             }
         }
 
-        // Persist session transcript to agents/{replicant}/sessions/
+        // Persist session transcript to agents/{userpod}/sessions/
         // for audit and replay. Done as a fire-and-forget background write
         // to avoid blocking the daemon handler on filesystem I/O.
         if result.0 {
-            let userpod_name = replicant.to_string();
+            let userpod_name = userpod.to_string();
             let value_clone = value.clone();
             let entity_clone = entity.to_string();
             let attr_clone = attribute.to_string();
@@ -258,14 +258,14 @@ impl DaemonHandler for ServiceDaemonHandler {
 
     async fn dispatch_tool(
         &self,
-        replicant: &str,
+        userpod: &str,
         tool: &str,
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "dispatch_tool", replicant = %replicant, tool = %tool, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "dispatch_tool", userpod = %userpod, tool = %tool, "CNS");
 
-        let pod_id = match self.pod_manager.find_pod_by_name(replicant).await {
+        let pod_id = match self.pod_manager.find_pod_by_name(userpod).await {
             Some(id) => id,
             None => {
                 return (false, None, Some("Pod not found".into()));
@@ -285,7 +285,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         }
     }
 
-    async fn curator_health(&self, _replicant: &str) -> serde_json::Value {
+    async fn curator_health(&self, _userpod: &str) -> serde_json::Value {
         let Some(ref cns_lock) = self.cns_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
@@ -313,7 +313,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         })
     }
 
-    async fn cns_status(&self, _replicant: &str, domain: Option<&str>) -> serde_json::Value {
+    async fn cns_status(&self, _userpod: &str, domain: Option<&str>) -> serde_json::Value {
         let Some(ref cns_lock) = self.cns_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
@@ -342,15 +342,15 @@ impl DaemonHandler for ServiceDaemonHandler {
 async fn generate_narrative(
     pod_manager: &ActivePods,
     inference: &dyn InferencePort,
-    replicant: &str,
+    userpod: &str,
 ) {
     // P9: CNS span
-    tracing::info!(target: "hkask.daemon", operation = "generate_narrative", replicant = %replicant, "CNS");
+    tracing::info!(target: "hkask.daemon", operation = "generate_narrative", userpod = %userpod, "CNS");
 
-    let pod_id = match pod_manager.find_pod_by_name(replicant).await {
+    let pod_id = match pod_manager.find_pod_by_name(userpod).await {
         Some(id) => id,
         None => {
-            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, "Pod not found for narrative generation");
+            tracing::warn!(target: "hkask.daemon.narrative", userpod = %userpod, "Pod not found for narrative generation");
             return;
         }
     };
@@ -358,7 +358,7 @@ async fn generate_narrative(
     let ctx = match pod_manager.context(&pod_id).await {
         Ok(ctx) => ctx,
         Err(e) => {
-            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to create PodContext for narrative");
+            tracing::warn!(target: "hkask.daemon.narrative", userpod = %userpod, error = %e, "Failed to create PodContext for narrative");
             return;
         }
     };
@@ -394,8 +394,8 @@ async fn generate_narrative(
 
     let session_log = log_lines.join("\n");
     let prompt = format!(
-        "{}\n\nRecent MCP session activity for replicant '{}':\n{}",
-        NARRATIVE_SYSTEM_PROMPT, replicant, session_log
+        "{}\n\nRecent MCP session activity for userpod '{}':\n{}",
+        NARRATIVE_SYSTEM_PROMPT, userpod, session_log
     );
 
     // Call inference — daemon narrative is a background summarization task.
@@ -411,7 +411,7 @@ async fn generate_narrative(
     let inference_result = match inference.generate(&prompt, &params, None).await {
         Ok(r) => r,
         Err(e) => {
-            tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Inference failed for narrative generation");
+            tracing::warn!(target: "hkask.daemon.narrative", userpod = %userpod, error = %e, "Inference failed for narrative generation");
             return;
         }
     };
@@ -455,15 +455,15 @@ async fn generate_narrative(
             hkask_types::Confidence::new(0.7),
         ) {
             Ok(id) => {
-                tracing::debug!(target: "hkask.daemon.narrative", replicant = %replicant, triple_id = %id, observation = %obs, "Narrative observation stored");
+                tracing::debug!(target: "hkask.daemon.narrative", userpod = %userpod, triple_id = %id, observation = %obs, "Narrative observation stored");
             }
             Err(e) => {
-                tracing::warn!(target: "hkask.daemon.narrative", replicant = %replicant, error = %e, "Failed to store narrative observation");
+                tracing::warn!(target: "hkask.daemon.narrative", userpod = %userpod, error = %e, "Failed to store narrative observation");
             }
         }
     }
 
-    tracing::info!(target: "hkask.daemon.narrative", replicant = %replicant, observation_count = obs_count, "Narrative generation complete");
+    tracing::info!(target: "hkask.daemon.narrative", userpod = %userpod, observation_count = obs_count, "Narrative generation complete");
 }
 
 /// Generalize a value for semantic memory by stripping caller-specific details.
@@ -492,10 +492,10 @@ fn generalize_value(value: &serde_json::Value) -> serde_json::Value {
 ///
 /// CNS: emits `cns.session.recorded` span for variety tracking and algedonic
 /// monitoring — if sessions stop writing, the CNS detects the silence.
-fn append_session_entry(replicant: &str, entity: &str, attribute: &str, value: &serde_json::Value) {
-    let sessions_dir = hkask_types::agent_paths::userpod_sessions_dir(replicant);
+fn append_session_entry(userpod: &str, entity: &str, attribute: &str, value: &serde_json::Value) {
+    let sessions_dir = hkask_types::agent_paths::userpod_sessions_dir(userpod);
     if let Err(e) = std::fs::create_dir_all(&sessions_dir) {
-        tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, error = %e, "Failed to create sessions directory");
+        tracing::warn!(target: "hkask.daemon.session", userpod = %userpod, error = %e, "Failed to create sessions directory");
         return;
     }
 
@@ -504,7 +504,7 @@ fn append_session_entry(replicant: &str, entity: &str, attribute: &str, value: &
 
     let entry = serde_json::json!({
         "timestamp": hkask_types::time::now_rfc3339(),
-        "replicant": replicant,
+        "userpod": userpod,
         "entity": entity,
         "attribute": attribute,
         "value": value,
@@ -521,14 +521,14 @@ fn append_session_entry(replicant: &str, entity: &str, attribute: &str, value: &
         Ok(mut file) => {
             use std::io::Write;
             if let Err(e) = file.write_all(line_with_newline.as_bytes()) {
-                tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, path = %session_file.display(), error = %e, "Failed to write session entry");
+                tracing::warn!(target: "hkask.daemon.session", userpod = %userpod, path = %session_file.display(), error = %e, "Failed to write session entry");
             } else {
                 // CNS: session recorded — variety signal for algedonic monitoring
-                tracing::info!(target: "hkask.session.recorded", replicant = %replicant, entity = %entity, "CNS");
+                tracing::info!(target: "hkask.session.recorded", userpod = %userpod, entity = %entity, "CNS");
             }
         }
         Err(e) => {
-            tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, path = %session_file.display(), error = %e, "Failed to open session file");
+            tracing::warn!(target: "hkask.daemon.session", userpod = %userpod, path = %session_file.display(), error = %e, "Failed to open session file");
         }
     }
 }

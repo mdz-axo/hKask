@@ -935,12 +935,12 @@ impl CompaniesServer {
                     value["forecast_id"] = serde_json::Value::String(fid.clone());
                 }
                 let daemon_clone = daemon.clone();
-                let replicant = self.replicant.clone();
+                let userpod = self.userpod.clone();
                 let symbol = req.symbol.clone();
                 #[allow(clippy::let_underscore_future)]
                 let _ = tokio::spawn(async move {
                     let _ = daemon_clone.store_experience(
-                        &replicant, &format!("forecast_outcome:{symbol}"), "outcome_recorded",
+                        &userpod, &format!("forecast_outcome:{symbol}"), "outcome_recorded",
                         &value, Some(0.95),
                     ).await;
                 });
@@ -1020,12 +1020,12 @@ impl CompaniesServer {
                     "timestamp": now_rfc3339(),
                 });
                 let daemon_clone = daemon.clone();
-                let replicant = self.replicant.clone();
+                let userpod = self.userpod.clone();
                 let tool_for_spawn = tool.clone();
                 tokio::spawn(async move {
                     let _ = daemon_clone
                         .store_experience(
-                            &replicant,
+                            &userpod,
                             &format!("feedback:{tool_for_spawn}"),
                             "user_rated",
                             &value,

@@ -43,11 +43,11 @@ pub async fn create_invite(
             format!("Lock error: {e}"),
         )
     })?;
-    let replicant = user_store
+    let userpod = user_store
         .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
-        .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
-    let invite = user_store.create_invite(&replicant.user_id).map_err(|e| {
+        .ok_or((StatusCode::FORBIDDEN, "UserPod not found".into()))?;
+    let invite = user_store.create_invite(&userpod.user_id).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Invite creation failed: {e}"),
@@ -80,11 +80,11 @@ pub async fn list_invites(
             format!("Lock error: {e}"),
         )
     })?;
-    let replicant = user_store
+    let userpod = user_store
         .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
-        .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
-    let invites = user_store.list_invites(&replicant.user_id).map_err(|e| {
+        .ok_or((StatusCode::FORBIDDEN, "UserPod not found".into()))?;
+    let invites = user_store.list_invites(&userpod.user_id).map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("List invites failed: {e}"),
@@ -121,12 +121,12 @@ pub async fn revoke_invite(
             format!("Lock error: {e}"),
         )
     })?;
-    let replicant = user_store
+    let userpod = user_store
         .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
-        .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
+        .ok_or((StatusCode::FORBIDDEN, "UserPod not found".into()))?;
     let invite = user_store
-        .revoke_invite(&code, &replicant.user_id)
+        .revoke_invite(&code, &userpod.user_id)
         .map_err(|e| (StatusCode::NOT_FOUND, format!("Revoke failed: {e}")))?;
     tracing::info!(
         target = "cns.deploy.invite",

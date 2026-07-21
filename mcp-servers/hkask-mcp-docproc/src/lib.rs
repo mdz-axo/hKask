@@ -226,11 +226,11 @@ impl DocProcServer {
                 "detail": detail, "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
+            let userpod = self.userpod.clone();
             let tool_name = tool.to_string();
             tokio::spawn(async move {
                 match daemon_clone
-                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
                     Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
@@ -378,8 +378,8 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
 /// inline fallback prompt.
 ///
 /// Template base path is resolved relative to the workspace root. If the
-/// server is started from a different directory, set `HKASK_REPLICANT_REGISTRY_PATH`
-/// to the absolute path of the `registry/replicants` directory.
+/// server is started from a different directory, set `HKASK_USERPOD_REGISTRY_PATH`
+/// to the absolute path of the `registry/userpods` directory.
 pub(crate) fn default_owner() -> String {
     DEFAULT_OWNER.to_string()
 }
@@ -416,7 +416,7 @@ impl rmcp::ServerHandler for DocProcServer {}
 
 /// Run the docproc MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
@@ -456,7 +456,7 @@ pub async fn run(
 
                         Ok(DocProcServer::new(
                             ctx.webid,
-                            replicant.clone(),
+                            userpod.clone(),
                             daemon_client.clone(),
                             ocr_model,
                             inference_router,

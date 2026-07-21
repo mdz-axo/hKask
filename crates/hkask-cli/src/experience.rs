@@ -58,18 +58,18 @@ impl CliExperienceRecorder {
     /// Record a CLI command experience in episodic and semantic memory.
     ///
     /// Parameters follow the MCP server `record_experience` pattern:
-    /// - `replicant`: the authenticated replicant name
+    /// - `userpod`: the authenticated userpod name
     /// - `tool`: the CLI command name (e.g., "embed_corpus", "compose")
     /// - `input_summary`: short description of what was done
     /// - `outcome`: "success" or "failure"
     /// - `detail`: structured JSON with command-specific statistics
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  replicant, tool, input_summary, outcome must be non-empty; detail must be valid JSON
+    /// pre:  userpod, tool, input_summary, outcome must be non-empty; detail must be valid JSON
     /// post: experience is sent to daemon for dual encoding; silently skipped if daemon unavailable
     pub async fn record(
         &self,
-        replicant: &str,
+        userpod: &str,
         tool: &str,
         input_summary: &str,
         outcome: &str,
@@ -78,7 +78,7 @@ impl CliExperienceRecorder {
         let Some(ref daemon) = self.daemon else {
             tracing::debug!(
                 tool,
-                replicant,
+                userpod,
                 "Daemon unavailable — skipping experience recording"
             );
             return;
@@ -95,16 +95,16 @@ impl CliExperienceRecorder {
         let entity = format!("cli:{}", tool);
 
         match daemon
-            .store_experience(replicant, &entity, "executed", &value, Some(0.9))
+            .store_experience(userpod, &entity, "executed", &value, Some(0.9))
             .await
         {
             Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                tracing::info!(tool, replicant, "CLI experience recorded via daemon");
+                tracing::info!(tool, userpod, "CLI experience recorded via daemon");
             }
             Ok(other) => {
                 tracing::warn!(
                     tool,
-                    replicant,
+                    userpod,
                     response = ?other,
                     "Unexpected daemon response for CLI experience"
                 );
@@ -112,7 +112,7 @@ impl CliExperienceRecorder {
             Err(e) => {
                 tracing::warn!(
                     tool,
-                    replicant,
+                    userpod,
                     error = %e,
                     "Failed to record CLI experience via daemon"
                 );

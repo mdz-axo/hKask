@@ -12,25 +12,25 @@ struct MockHandler {
 
 #[async_trait::async_trait]
 impl DaemonHandler for MockHandler {
-    async fn check_auth(&self, replicant: &str) -> (bool, Option<String>) {
+    async fn check_auth(&self, userpod: &str) -> (bool, Option<String>) {
         if self.authenticated {
-            (true, Some(format!("webid://{replicant}")))
+            (true, Some(format!("webid://{userpod}")))
         } else {
             (false, None)
         }
     }
 
-    async fn check_assignment(&self, _replicant: &str, _role: &str) -> bool {
+    async fn check_assignment(&self, _userpod: &str, _role: &str) -> bool {
         true
     }
 
-    async fn check_capability(&self, _replicant: &str, _tool: &str) -> bool {
+    async fn check_capability(&self, _userpod: &str, _tool: &str) -> bool {
         true
     }
 
     async fn store_experience(
         &self,
-        _replicant: &str,
+        _userpod: &str,
         _entity: &str,
         _attribute: &str,
         _value: &serde_json::Value,
@@ -45,18 +45,18 @@ impl DaemonHandler for MockHandler {
 
     async fn dispatch_tool(
         &self,
-        _replicant: &str,
+        _userpod: &str,
         _tool: &str,
         _input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
         (true, Some(serde_json::json!({"result": "ok"})), None)
     }
 
-    async fn curator_health(&self, _replicant: &str) -> serde_json::Value {
+    async fn curator_health(&self, _userpod: &str) -> serde_json::Value {
         serde_json::json!({"status": "healthy"})
     }
 
-    async fn cns_status(&self, _replicant: &str, _domain: Option<&str>) -> serde_json::Value {
+    async fn cns_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {
         serde_json::json!({"variety": 0})
     }
 }
@@ -202,14 +202,14 @@ async fn daemon_store_experience_dual_encoding() {
 #[test]
 fn request_variants_serialize_to_correct_shape() {
     let auth = serde_json::to_value(DaemonRequest::AuthQuery {
-        replicant: "alice".into(),
+        userpod: "alice".into(),
     })
     .unwrap();
     assert_eq!(auth["type"], "auth_query");
-    assert_eq!(auth["replicant"], "alice");
+    assert_eq!(auth["userpod"], "alice");
 
     let assign = serde_json::to_value(DaemonRequest::AssignmentQuery {
-        replicant: "alice".into(),
+        userpod: "alice".into(),
         role: "research".into(),
     })
     .unwrap();
@@ -217,7 +217,7 @@ fn request_variants_serialize_to_correct_shape() {
     assert_eq!(assign["role"], "research");
 
     let cap = serde_json::to_value(DaemonRequest::CapabilityQuery {
-        replicant: "alice".into(),
+        userpod: "alice".into(),
         tool: "web_search".into(),
     })
     .unwrap();
@@ -225,7 +225,7 @@ fn request_variants_serialize_to_correct_shape() {
     assert_eq!(cap["tool"], "web_search");
 
     let store = serde_json::to_value(DaemonRequest::StoreExperience {
-        replicant: "alice".into(),
+        userpod: "alice".into(),
         entity: "e1".into(),
         attribute: "a1".into(),
         value: serde_json::json!("v1"),
@@ -236,7 +236,7 @@ fn request_variants_serialize_to_correct_shape() {
     assert_eq!(store["confidence"], 0.9);
 
     let dispatch = serde_json::to_value(DaemonRequest::ToolDispatch {
-        replicant: "alice".into(),
+        userpod: "alice".into(),
         tool: "t1".into(),
         input: serde_json::json!({"k": "v"}),
     })
@@ -244,13 +244,13 @@ fn request_variants_serialize_to_correct_shape() {
     assert_eq!(dispatch["type"], "tool_dispatch");
 
     let health = serde_json::to_value(DaemonRequest::CuratorHealthQuery {
-        replicant: "alice".into(),
+        userpod: "alice".into(),
     })
     .unwrap();
     assert_eq!(health["type"], "curator_health_query");
 
     let cns = serde_json::to_value(DaemonRequest::CnsStatusQuery {
-        replicant: "alice".into(),
+        userpod: "alice".into(),
         domain: Some("tool".into()),
     })
     .unwrap();
@@ -300,23 +300,23 @@ fn response_variants_serialize_to_correct_shape() {
 
 #[test]
 fn forward_compat_unknown_fields_tolerated() {
-    let json = r#"{"type":"auth_query","replicant":"bob","new_field":"ignored"}"#;
+    let json = r#"{"type":"auth_query","userpod":"bob","new_field":"ignored"}"#;
     let req: DaemonRequest = serde_json::from_str(json).unwrap();
     match req {
-        DaemonRequest::AuthQuery { replicant } => assert_eq!(replicant, "bob"),
+        DaemonRequest::AuthQuery { userpod } => assert_eq!(userpod, "bob"),
         _ => panic!("wrong variant"),
     }
 }
 
 #[test]
 fn missing_optional_fields() {
-    let json = r#"{"type":"auth_query","replicant":"alice"}"#;
+    let json = r#"{"type":"auth_query","userpod":"alice"}"#;
     let req: DaemonRequest = serde_json::from_str(json).unwrap();
     assert!(matches!(req, DaemonRequest::AuthQuery { .. }));
 
     // Confidence is optional
     let json2 =
-        r#"{"type":"store_experience","replicant":"bob","entity":"e","attribute":"a","value":"v"}"#;
+        r#"{"type":"store_experience","userpod":"bob","entity":"e","attribute":"a","value":"v"}"#;
     let req2: DaemonRequest = serde_json::from_str(json2).unwrap();
     match req2 {
         DaemonRequest::StoreExperience { confidence, .. } => assert!(confidence.is_none()),
@@ -324,7 +324,7 @@ fn missing_optional_fields() {
     }
 
     // Domain is optional
-    let json3 = r#"{"type":"cns_status_query","replicant":"bob"}"#;
+    let json3 = r#"{"type":"cns_status_query","userpod":"bob"}"#;
     let req3: DaemonRequest = serde_json::from_str(json3).unwrap();
     match req3 {
         DaemonRequest::CnsStatusQuery { domain, .. } => assert!(domain.is_none()),
@@ -334,14 +334,14 @@ fn missing_optional_fields() {
 
 #[test]
 fn failure_unknown_type_tag() {
-    let json = r#"{"type":"nonexistent","replicant":"bob"}"#;
+    let json = r#"{"type":"nonexistent","userpod":"bob"}"#;
     let result: Result<DaemonRequest, _> = serde_json::from_str(json);
     assert!(result.is_err());
 }
 
 #[test]
 fn failure_missing_required_field() {
-    let json = r#"{"type":"assignment_query","replicant":"bob"}"#;
+    let json = r#"{"type":"assignment_query","userpod":"bob"}"#;
     // Missing 'role' field
     let result: Result<DaemonRequest, _> = serde_json::from_str(json);
     assert!(result.is_err());
@@ -356,7 +356,7 @@ fn failure_malformed_json() {
 
 #[test]
 fn failure_wrong_field_type() {
-    let json = r#"{"type":"auth_query","replicant":42}"#;
+    let json = r#"{"type":"auth_query","userpod":42}"#;
     let result: Result<DaemonRequest, _> = serde_json::from_str(json);
     assert!(result.is_err());
 }

@@ -216,7 +216,7 @@ address = "0.0.0.0"
     println!("    2. cd {} && docker compose up -d", output_dir.display());
     println!("    3. Wait ~30s for Caddy to obtain Let's Encrypt certificate");
     println!("    4. kask matrix status-sidecar  (verify health)");
-    println!("    5. kask matrix register --agent <name>  (register your replicant)");
+    println!("    5. kask matrix register --agent <name>  (register your userpod)");
     println!();
 }
 
@@ -234,16 +234,16 @@ fn run_register_agent(agent: &str, homeserver: &str) {
             }
         };
 
-    // 2. Prompt for replicant credential (no AI — direct human input)
+    // 2. Prompt for userpod credential (no AI — direct human input)
     println!();
     println!("  ═══════════════════════════════════════════════════════════");
     println!("  Agent Registration — Identity Verification");
     println!("  ═══════════════════════════════════════════════════════════");
     println!();
-    println!("  Replicant: {}", agent);
+    println!("  UserPod: {}", agent);
     println!("  Homeserver: {}", homeserver);
     println!();
-    println!("  Enter the full replicant credential to authorize");
+    println!("  Enter the full userpod credential to authorize");
     println!("  Matrix registration for this agent.");
     println!();
     println!("  Format: FirstName-LastName/Passphrase");
@@ -270,7 +270,7 @@ fn run_register_agent(agent: &str, homeserver: &str) {
         println!();
     }
 
-    // 4. Derive MXID from replicant name
+    // 4. Derive MXID from userpod name
     let mxid = derive_mxid(agent, homeserver);
     let password = generate_password();
 
@@ -317,7 +317,7 @@ fn run_register_agent(agent: &str, homeserver: &str) {
     println!("  Device Verification — Share with the human user");
     println!("  ═══════════════════════════════════════════════════════════");
     println!();
-    println!("  Replicant: {}", agent);
+    println!("  UserPod: {}", agent);
     println!("  Matrix:    {}", mxid);
     println!();
     println!("  The human user should:");
@@ -462,7 +462,7 @@ fn generate_password() -> String {
     hex::encode(bytes)
 }
 
-/// Derive a Matrix MXID from a replicant name and homeserver domain.
+/// Derive a Matrix MXID from a userpod name and homeserver domain.
 ///
 /// Rules (per spec §2.3, Gap B2):
 /// 1. Lowercase the full name

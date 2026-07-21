@@ -56,13 +56,13 @@ impl hkask_ports::InferencePort for NoopInferencePort {
 fn skill_server_constructs_with_noop_port() {
     let server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),
         CapabilityTier::detect(&HashMap::new()),
     );
-    assert_eq!(server.replicant, "test-replicant");
+    assert_eq!(server.userpod, "test-userpod");
     assert!(server.skills.is_empty(), "new server should have no skills");
 }
 
@@ -70,7 +70,7 @@ fn skill_server_constructs_with_noop_port() {
 fn skill_server_loads_skills_from_registry() {
     let mut server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),
@@ -87,7 +87,7 @@ fn skill_server_stores_registry_entries_directly() {
     // After C1, the server stores RegistryEntry values (no SkillToolDef wrapper).
     let mut server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),
@@ -151,7 +151,7 @@ fn error_kind(out: &str) -> Option<String> {
 async fn skill_ping_returns_status_ok_via_parameters_seam() {
     let server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),
@@ -170,7 +170,7 @@ async fn skill_ping_returns_status_ok_via_parameters_seam() {
 async fn skill_list_returns_empty_for_fresh_server_via_parameters_seam() {
     let server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),
@@ -188,7 +188,7 @@ async fn skill_list_returns_empty_for_fresh_server_via_parameters_seam() {
 async fn skill_execute_rejects_unknown_skill_id_via_parameters_seam() {
     let server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),
@@ -214,7 +214,7 @@ async fn skill_execute_rejects_non_object_context_via_parameters_seam() {
     // the context validation branch.
     let mut server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),
@@ -250,7 +250,7 @@ async fn skill_execute_rejects_non_object_context_via_parameters_seam() {
 async fn skill_execute_internal_error_when_template_missing_via_parameters_seam() {
     let mut server = SkillServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(NoopInferencePort),
         HashMap::new(),

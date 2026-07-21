@@ -70,11 +70,11 @@ impl ResearchServer {
                 "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
+            let userpod = self.userpod.clone();
             let tool_name = tool.to_string();
             tokio::spawn(async move {
                 match daemon_clone
-                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
                     Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
@@ -814,7 +814,7 @@ impl ResearchServer {
 
 /// Run the research MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     dotenvy::dotenv().ok();
@@ -856,7 +856,7 @@ pub async fn run(
 
             Ok(ResearchServer::new(
                 ctx.webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 Arc::new(pool),
                 Arc::new(ResponseCache::new(

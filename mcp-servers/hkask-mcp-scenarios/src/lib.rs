@@ -347,11 +347,11 @@ impl ScenariosServer {
                 "ontology_anchor": Self::ontology_anchor(tool),
             });
             let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
+            let userpod = self.userpod.clone();
             let tool_name = tool.to_string();
             tokio::spawn(async move {
                 match daemon_clone
-                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
@@ -1819,7 +1819,7 @@ fn parse_scenario_type(s: Option<&str>) -> ScenarioType {
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
@@ -1828,7 +1828,7 @@ pub async fn run(
         |_ctx| {
             Ok(ScenariosServer::new(
                 hkask_types::WebID::new(),
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 std::sync::Arc::new(std::sync::Mutex::new(superforecast::ForecastStore::new(
                     std::env::var("HKASK_SCENARIOS_DATA")

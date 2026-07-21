@@ -113,7 +113,7 @@ use crate::routes::cns::CnsSubscribeParams;
         ExportRequest,
         ExportResponse,
         UploadRequest,
-        // Replicant schemas
+        // UserPod schemas
         UserPodInfo,
         UserPodListResponse,
         RenameRequest,
@@ -155,7 +155,7 @@ use crate::routes::cns::CnsSubscribeParams;
         (name = "export", description = "Export — sovereignty archive creation, upload, and download for data portability (P1)"),
         (name = "landing", description = "Landing page — static HTML welcome page with OAuth sign-in (P3)"),
         (name = "pods", description = "Pod lifecycle — create, list, activate, deactivate, and status (Pattern D)"),
-        (name = "replicants", description = "Replicant management — list, rename, and delete replicants (P1)"),
+        (name = "userpods", description = "UserPod management — list, rename, and delete userpods (P1)"),
         (name = "settings", description = "Settings — read/write REPL inference settings with P3 equal surface exposure"),
         (name = "terminal", description = "Terminal — browser-based xterm.js WebSocket terminal (P3, P12)"),
         (name = "wallet", description = "Wallet — API key management, withdrawal fee estimation (P9)"),
@@ -163,7 +163,7 @@ use crate::routes::cns::CnsSubscribeParams;
     info(
         title = "hKask API",
         version = "0.31.0",
-        description = "A Minimal Viable Container for Replicants — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2)."
+        description = "A Minimal Viable Container for UserPods — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2)."
     ),
     servers(
         (url = "/api", description = "hKask API server"),

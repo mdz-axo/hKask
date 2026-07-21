@@ -151,7 +151,7 @@ impl ChatService {
 
         // Agent kind taxonomy removed (consolidation); capability routing no longer keyed on kind.
         // Model flows from request override → config default.
-        // Agent kind no longer hardcodes model selection — use session/replicant settings.
+        // Agent kind no longer hardcodes model selection — use session/userpod settings.
         let model = req
             .model_override
             .as_deref()
@@ -174,7 +174,7 @@ impl ChatService {
             };
 
         // Derive WebID for the agent
-        let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "replicant");
+        let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "userpod");
 
         // Create capability token for memory operations.
         let capability_token = ctx.governance().checker.grant_registry(

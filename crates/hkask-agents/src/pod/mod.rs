@@ -1,6 +1,6 @@
 //! Agent Pod Lifecycle Management
 //!
-//! Agent pods are minimal runtime containers that host A2A agents (bots or replicants)
+//! Agent pods are minimal runtime containers that host A2A agents (bots or userpods)
 //! within the hKask ecosystem. Each pod provides:
 //!
 //! - **Isolation**: Independent capability tokens, no shared state

@@ -239,7 +239,7 @@ fn build_wallet(
             message: "Failed to ensure default wallet".into(),
         })?;
 
-    // Bind wallets to replicants
+    // Bind wallets to userpods
     {
         let user_guard = f.user_store.lock().map_err(|_| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
@@ -255,25 +255,25 @@ fn build_wallet(
                     if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
                         tracing::warn!(
                             target: "cns.wallet",
-                            replicant = %identity.userpod_name,
+                            userpod = %identity.userpod_name,
                             error = %e,
-                            "Failed to create wallet for replicant"
+                            "Failed to create wallet for userpod"
                         );
                     } else if let Err(e) =
                         user_guard.set_wallet_id(&identity.userpod_name, wallet_id)
                     {
                         tracing::warn!(
                             target: "cns.wallet",
-                            replicant = %identity.userpod_name,
+                            userpod = %identity.userpod_name,
                             error = %e,
-                            "Failed to bind wallet to replicant"
+                            "Failed to bind wallet to userpod"
                         );
                     } else {
                         tracing::info!(
                             target: "cns.wallet",
-                            replicant = %identity.userpod_name,
+                            userpod = %identity.userpod_name,
                             wallet_id = %wallet_id,
-                            "Wallet created and bound to replicant"
+                            "Wallet created and bound to userpod"
                         );
                     }
                 }

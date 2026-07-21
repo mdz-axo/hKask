@@ -10,18 +10,18 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "type")]
 pub enum DaemonRequest {
     #[serde(rename = "auth_query")]
-    AuthQuery { replicant: String },
+    AuthQuery { userpod: String },
     #[serde(rename = "assignment_query")]
-    AssignmentQuery { replicant: String, role: String },
+    AssignmentQuery { userpod: String, role: String },
     #[serde(rename = "capability_query")]
-    CapabilityQuery { replicant: String, tool: String },
+    CapabilityQuery { userpod: String, tool: String },
     /// Store an experience in both episodic (first-person) and semantic (third-person) memory.
     /// Each experience generates two h_mems from the same event:
     /// - Episodic: specific, time-bound, perspective-scoped, private
     /// - Semantic: generalizable, timeless, no perspective, public
     #[serde(rename = "store_experience")]
     StoreExperience {
-        replicant: String,
+        userpod: String,
         entity: String,
         attribute: String,
         value: serde_json::Value,
@@ -30,17 +30,17 @@ pub enum DaemonRequest {
     /// Dispatch a tool call through the daemon to an MCP server.
     #[serde(rename = "tool_dispatch")]
     ToolDispatch {
-        replicant: String,
+        userpod: String,
         tool: String,
         input: serde_json::Value,
     },
     /// Query curator system health — metacognition snapshot.
     #[serde(rename = "curator_health_query")]
-    CuratorHealthQuery { replicant: String },
+    CuratorHealthQuery { userpod: String },
     /// Query live CNS status — variety per domain.
     #[serde(rename = "cns_status_query")]
     CnsStatusQuery {
-        replicant: String,
+        userpod: String,
         domain: Option<String>,
     },
 }

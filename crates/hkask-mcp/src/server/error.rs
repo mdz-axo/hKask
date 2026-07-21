@@ -19,14 +19,14 @@ pub enum McpError {
     DatabasePassphrase(String),
 
     #[error(
-        "Replicant '{replicant}' is not authenticated. Enter the replicant's passphrase in the hKask terminal."
+        "UserPod '{userpod}' is not authenticated. Enter the userpod's passphrase in the hKask terminal."
     )]
-    Auth { replicant: String },
+    Auth { userpod: String },
 
     #[error(
-        "Replicant '{replicant}' is not assigned to the {role} MCP role. Use 'kask pod assign {replicant} {role}' to grant this role."
+        "UserPod '{userpod}' is not assigned to the {role} MCP role. Use 'kask pod assign {userpod} {role}' to grant this role."
     )]
-    RoleAssignment { replicant: String, role: String },
+    RoleAssignment { userpod: String, role: String },
 
     #[error("Unexpected {context} response: {detail}")]
     UnexpectedResponse { context: String, detail: String },

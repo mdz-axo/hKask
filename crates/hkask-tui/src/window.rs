@@ -24,7 +24,7 @@ pub enum WindowKind {
     Backup,
     /// Registry browser — templates, skills, styles, bundles
     Registry,
-    /// Pod status — CuratorPod, TeamPods, ReplicantPods
+    /// Pod status — CuratorPod, TeamPods, UserPodPods
     Pods,
     /// Kanban board view
     Kanban,
@@ -71,7 +71,7 @@ impl WindowKind {
         (
             WindowKind::Chat,
             "Chat",
-            "AI chat with your replicant agent",
+            "AI chat with your userpod agent",
             true,
             false,
         ),

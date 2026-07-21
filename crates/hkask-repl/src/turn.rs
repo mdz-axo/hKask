@@ -749,8 +749,8 @@ mod tests {
             default_agent: "TestAgent".into(),
             has_tools: false,
             a2a_secret: hkask_types::secret::ZeroizingSecret::new(vec![]),
-            principal_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "replicant"),
-            agent_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "replicant"),
+            principal_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "userpod"),
+            agent_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "userpod"),
         }
     }
     fn noop() {}

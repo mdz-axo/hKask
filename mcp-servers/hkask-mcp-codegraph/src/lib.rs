@@ -603,7 +603,7 @@ impl CodeGraphServer {
 }
 
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     let db_path = std::env::var("HKASK_CODEGRAPH_DB").ok();
@@ -664,7 +664,7 @@ pub async fn run(
                 .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
             Ok(CodeGraphServer::new(
                 webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 CapabilityTier::detect(&std::collections::HashMap::new()),
                 Arc::new(Mutex::new(pipeline)),

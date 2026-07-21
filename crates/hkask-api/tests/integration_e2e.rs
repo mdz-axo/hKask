@@ -186,11 +186,11 @@ async fn export_create_rejects_no_auth() {
 }
 
 #[tokio::test]
-async fn replicant_list_rejects_no_auth() {
+async fn userpod_list_rejects_no_auth() {
     let (_handle, addr) = start_server().await;
-    let resp = reqwest::get(format!("http://{addr}/api/v1/replicants"))
+    let resp = reqwest::get(format!("http://{addr}/api/v1/userpods"))
         .await
-        .expect("GET /api/v1/replicants");
+        .expect("GET /api/v1/userpods");
     let status = resp.status();
     assert!(
         status == 401 || status == 403 || status == 500,

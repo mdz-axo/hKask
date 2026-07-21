@@ -60,7 +60,7 @@ impl StorageContext {
 
     /// Find a user by WebID.
     ///
-    /// Returns `Ok(None)` if no replicant with the given WebID exists.
+    /// Returns `Ok(None)` if no userpod with the given WebID exists.
     #[must_use = "result must be used"]
     pub fn find_user_by_webid(&self, webid: &WebID) -> Result<Option<UserPod>, ServiceError> {
         let store = self.users.lock().map_err(|_| ServiceError::Domain {

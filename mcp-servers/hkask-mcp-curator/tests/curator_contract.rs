@@ -157,7 +157,7 @@ use rmcp::handler::server::wrapper::Parameters;
 fn test_server() -> CuratorServer {
     CuratorServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         None,
         None,

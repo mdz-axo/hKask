@@ -117,7 +117,7 @@ pub fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
 /// Resolve the current user's WebID.
 pub fn resolve_user_webid() -> hkask_types::WebID {
     let name = std::env::var("HKASK_USER_WEBID").unwrap_or_else(|_| "cli-user".to_string());
-    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
+    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "userpod")
 }
 
 /// Resolve an agent name from an optional argument or environment.
@@ -131,19 +131,19 @@ pub fn resolve_agent_name(agent: Option<&str>) -> String {
 /// Resolve a WebID from an optional argument or derive from agent name.
 pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
     let name = resolve_agent_name(agent);
-    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "replicant")
+    hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "userpod")
 }
 
-/// Build the standard replicant environment variable map for MCP subprocesses.
+/// Build the standard userpod environment variable map for MCP subprocesses.
 ///
-/// Sets `HKASK_MCP_HOST` (replicant identity) and `HKASK_REPLICANT_PERSONA`
+/// Sets `HKASK_MCP_HOST` (userpod identity) and `HKASK_USERPOD_PERSONA`
 /// (WebID resolution). If `HKASK_DB_PASSPHRASE` is set in the current process,
 /// it is forwarded so subprocess servers can decrypt their per-agent databases.
-pub(crate) fn replicant_env_map(userpod_name: &str) -> std::collections::HashMap<String, String> {
+pub(crate) fn userpod_env_map(userpod_name: &str) -> std::collections::HashMap<String, String> {
     let mut env = std::collections::HashMap::new();
     env.insert("HKASK_MCP_HOST".to_string(), userpod_name.to_string());
     env.insert(
-        "HKASK_REPLICANT_PERSONA".to_string(),
+        "HKASK_USERPOD_PERSONA".to_string(),
         userpod_name.to_string(),
     );
     // Pass DB passphrase to subprocess — the server resolves it from env var
@@ -164,7 +164,7 @@ pub fn start_mcp_server(
 ) -> bool {
     let mcp_runtime = ctx.infra().mcp.clone();
     let userpod_name = ctx.config().user_name.clone();
-    let env = replicant_env_map(&userpod_name);
+    let env = userpod_env_map(&userpod_name);
     match rt.block_on(
         mcp_runtime
             .as_ref()
@@ -186,7 +186,7 @@ pub fn start_mcp_servers_with_env(
     userpod_name: &str,
 ) {
     let mcp_runtime = ctx.infra().mcp.clone();
-    let env = replicant_env_map(userpod_name);
+    let env = userpod_env_map(userpod_name);
     for (server_id, binary) in servers {
         if let Err(e) = rt.block_on(mcp_runtime.as_ref().start_server_with_env(
             server_id,

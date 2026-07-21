@@ -63,24 +63,24 @@ fn propagate_onboarding_secrets_to_env(secrets: &hkask_services_onboarding::Reso
     }
 }
 
-/// Propagate the replicant identity to the environment for child MCP processes.
+/// Propagate the userpod identity to the environment for child MCP processes.
 ///
 /// Sets `HKASK_PROJECT_ROOT` (current working directory fallback),
-/// `HKASK_MCP_HOST` (replicant name for CNS spans), and
-/// `HKASK_REPLICANT_PERSONA` (WebID resolution for server-side identity).
+/// `HKASK_MCP_HOST` (userpod name for CNS spans), and
+/// `HKASK_USERPOD_PERSONA` (WebID resolution for server-side identity).
 ///
 /// # Safety
 ///
 /// Must run single-threaded before the tokio runtime starts.
 ///
 /// Used by: `init_repl_state`
-fn propagate_replicant_env(agent_name: &str) {
+fn propagate_userpod_env(agent_name: &str) {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     // SAFETY: REPL init runs single-threaded before tokio runtime starts.
     unsafe {
         std::env::set_var("HKASK_PROJECT_ROOT", cwd.to_string_lossy().as_ref());
         std::env::set_var("HKASK_MCP_HOST", agent_name);
-        std::env::set_var("HKASK_REPLICANT_PERSONA", agent_name);
+        std::env::set_var("HKASK_USERPOD_PERSONA", agent_name);
     }
 }
 
@@ -325,7 +325,7 @@ pub(super) fn init_repl_state(
                 return None;
             }
             eprintln!("Onboarding failed: {}", e);
-            eprintln!("Run `kask chat` to set up your replicant identity.");
+            eprintln!("Run `kask chat` to set up your userpod identity.");
             return None;
         }
     };
@@ -361,7 +361,7 @@ pub(super) fn init_repl_state(
     // ── Phase 5: WebID + Skills ────────────────────────────────────────────
     let agent_webid = WebID::from_persona_with_namespace(
         onboarding_outcome.signed_in_agent.as_bytes(),
-        "replicant",
+        "userpod",
     );
     load_skills_into_registry(registry);
 
@@ -391,8 +391,8 @@ pub(super) fn init_repl_state(
     rt.block_on(ctx.cns().loops.register_loop(inference_loop.clone()));
     ctx.set_inference_loop(inference_loop);
 
-    // ── Phase 7: Replicant Env ─────────────────────────────────────────────
-    propagate_replicant_env(&onboarding_outcome.signed_in_agent);
+    // ── Phase 7: UserPod Env ─────────────────────────────────────────────
+    propagate_userpod_env(&onboarding_outcome.signed_in_agent);
 
     // ── Phase 7.5: Daemon Auto-Start ──────────────────────────────────────
     // MCP servers query the daemon socket for P4 gate verification during
@@ -501,7 +501,7 @@ pub(super) fn init_repl_state(
                         500,
                     )
                     .await;
-                tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created gas wallet for replicant");
+                tracing::info!(target: "hkask.cli", agent = %agent_webid, "Created gas wallet for userpod");
             }
     });
 
@@ -648,22 +648,22 @@ mod tests {
         assert_eq!(std::env::var("HKASK_DB_PASSPHRASE").unwrap(), "test-pass");
     }
 
-    // ── propagate_replicant_env ─────────────────────────────────────────────
+    // ── propagate_userpod_env ─────────────────────────────────────────────
 
-    /// Replicant identity env vars are set correctly.
+    /// UserPod identity env vars are set correctly.
     #[test]
-    fn propagate_replicant_env_sets_host_and_persona() {
+    fn propagate_userpod_env_sets_host_and_persona() {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let _guards = env_guards(&[
             "HKASK_MCP_HOST",
-            "HKASK_REPLICANT_PERSONA",
+            "HKASK_USERPOD_PERSONA",
             "HKASK_PROJECT_ROOT",
         ]);
 
-        propagate_replicant_env("alice");
+        propagate_userpod_env("alice");
 
         assert_eq!(std::env::var("HKASK_MCP_HOST").unwrap(), "alice");
-        assert_eq!(std::env::var("HKASK_REPLICANT_PERSONA").unwrap(), "alice");
+        assert_eq!(std::env::var("HKASK_USERPOD_PERSONA").unwrap(), "alice");
         // HKASK_PROJECT_ROOT should be set to the current working directory.
         assert!(std::env::var("HKASK_PROJECT_ROOT").is_ok());
     }
@@ -849,18 +849,18 @@ mod tests {
 
     /// Empty agent name propagates empty-string env vars without panicking.
     #[test]
-    fn propagate_replicant_env_empty_agent() {
+    fn propagate_userpod_env_empty_agent() {
         let _lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let _guards = env_guards(&[
             "HKASK_MCP_HOST",
-            "HKASK_REPLICANT_PERSONA",
+            "HKASK_USERPOD_PERSONA",
             "HKASK_PROJECT_ROOT",
         ]);
 
-        propagate_replicant_env("");
+        propagate_userpod_env("");
 
         assert_eq!(std::env::var("HKASK_MCP_HOST").unwrap(), "");
-        assert_eq!(std::env::var("HKASK_REPLICANT_PERSONA").unwrap(), "");
+        assert_eq!(std::env::var("HKASK_USERPOD_PERSONA").unwrap(), "");
         // PROJECT_ROOT should still resolve to CWD.
         assert!(std::env::var("HKASK_PROJECT_ROOT").is_ok());
     }
@@ -883,7 +883,7 @@ mod tests {
             "HKASK_MASTER_KEY",
             "HKASK_A2A_SECRET",
             "HKASK_DB_PASSPHRASE",
-            "HKASK_REPLICANT_NAME",
+            "HKASK_USERPOD_NAME",
         ]);
 
         let master_key = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6";
@@ -892,7 +892,7 @@ mod tests {
             std::env::set_var("HKASK_MASTER_KEY", master_key);
             std::env::set_var("HKASK_A2A_SECRET", "test-a2a-secret-32-bytes-long!!");
             std::env::set_var("HKASK_DB_PASSPHRASE", "test-pass");
-            std::env::set_var("HKASK_REPLICANT_NAME", "test-replicant");
+            std::env::set_var("HKASK_USERPOD_NAME", "test-userpod");
         }
 
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");

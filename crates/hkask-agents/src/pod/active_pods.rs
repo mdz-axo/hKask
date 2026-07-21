@@ -78,7 +78,7 @@ impl ActivePods {
         // Create mock template directories
         let tmpl = data_dir.join("templates");
         let persona_yaml = "agent:\n  name: test\n  type: Bot\n  version: \"0.1.0\"\ncharter:\n  description: Test\n  editor: test\n";
-        for name in &["curator", "replicant", "team", "solo"] {
+        for name in &["curator", "userpod", "team", "solo"] {
             let dir = tmpl.join(name);
             let _ = std::fs::create_dir_all(&dir);
             let _ = std::fs::write(dir.join("agent_persona.yaml"), persona_yaml);
@@ -187,7 +187,7 @@ impl ActivePods {
         Ok(ctx)
     }
 
-    /// Find a pod by replicant name — matches old PodManager::find_pod_by_name.
+    /// Find a pod by userpod name — matches old PodManager::find_pod_by_name.
     pub async fn find_by_name(&self, name: &str) -> Option<PodID> {
         let deployments = self.deployments.read().await;
         for (id, d) in deployments.iter() {
@@ -544,7 +544,7 @@ impl ActivePods {
 
     pub async fn assign_role(&self, name: &str, role: &str) -> Result<(), AgentPodError> {
         let pod_id = self.find_by_name(name).await.ok_or_else(|| {
-            AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))
+            AgentPodError::PersonaParseError(format!("No pod found for userpod '{}'", name))
         })?;
         let mut d = self.deployments.write().await;
         let d = d
@@ -574,7 +574,7 @@ impl ActivePods {
         role: Option<&str>,
     ) -> Result<(), AgentPodError> {
         let pod_id = self.find_by_name(name).await.ok_or_else(|| {
-            AgentPodError::PersonaParseError(format!("No pod found for replicant '{}'", name))
+            AgentPodError::PersonaParseError(format!("No pod found for userpod '{}'", name))
         })?;
         let mut d = self.deployments.write().await;
         let d = d

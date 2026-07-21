@@ -1,7 +1,7 @@
 //! REPL /feedback handler — append a timestamped comment to feedback.md.
 //!
 //! Writes to `~/.local/share/hkask/feedback.md` (same directory as the REPL
-//! history file). Each entry records the UTC timestamp, the active replicant
+//! history file). Each entry records the UTC timestamp, the active userpod
 //! name, and the user's free-text comment.
 //!
 //! Scope: REPL-only. Not exposed via CLI or API.
@@ -62,7 +62,7 @@ fn feedback_path() -> std::path::PathBuf {
 /// Append one Markdown entry to the feedback file.
 fn append_feedback(
     path: &std::path::Path,
-    replicant: &str,
+    userpod: &str,
     comment: &str,
 ) -> Result<(), std::io::Error> {
     // Initialize the file with a header on first write.
@@ -79,7 +79,7 @@ fn append_feedback(
             "# hKask Feedback Ledger\n\
              \n\
              User-submitted onboarding and usability notes.\n\
-             Each entry: UTC timestamp — replicant — free-text comment.\n"
+             Each entry: UTC timestamp — userpod — free-text comment.\n"
         )?;
     }
 
@@ -87,7 +87,7 @@ fn append_feedback(
 
     writeln!(
         file,
-        "## {timestamp} — {replicant}\n\
+        "## {timestamp} — {userpod}\n\
          \n\
          > {comment}\n\
          \n\
@@ -143,7 +143,7 @@ mod tests {
 
     // and the verbatim comment text in Markdown blockquote form.
     #[test]
-    fn append_feedback_entry_contains_replicant_and_comment() {
+    fn append_feedback_entry_contains_userpod_and_comment() {
         let path = tmp_path("entry_content");
         let _ = std::fs::remove_file(&path);
 
@@ -152,7 +152,7 @@ mod tests {
         let contents = std::fs::read_to_string(&path).unwrap();
         assert!(
             contents.contains("Atlas"),
-            "entry must include the replicant name"
+            "entry must include the userpod name"
         );
         assert!(
             contents.contains("> model list was hard to read"),

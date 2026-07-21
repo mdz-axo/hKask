@@ -44,19 +44,19 @@ pub struct CreateThreadRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct InviteAgentRequest {
     pub room_id: String,
-    pub replicant_id: String,
+    pub userpod_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MonitorThreadRequest {
     pub room_id: String,
-    pub replicant_id: String,
+    pub userpod_id: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TagAgentRequest {
     pub room_id: String,
-    pub replicant_id: String,
+    pub userpod_id: String,
     pub body: String,
 }
 

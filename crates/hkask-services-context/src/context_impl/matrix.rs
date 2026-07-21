@@ -15,8 +15,8 @@ pub(crate) async fn build_matrix(
         {
             Some(("@hkask-curator:localhost".to_string(), password))
         } else if let (Ok(username), Ok(password)) = (
-            keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_USERNAME),
-            keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_REPLICANT_PASSWORD),
+            keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_USERPOD_USERNAME),
+            keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_USERPOD_PASSWORD),
         ) {
             Some((username, password))
         } else if let (Ok(username), Ok(password)) = (

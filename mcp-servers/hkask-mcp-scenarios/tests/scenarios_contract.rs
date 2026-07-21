@@ -34,7 +34,7 @@ fn forecast_store_starts_empty() {
 fn test_server() -> ScenariosServer {
     ScenariosServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(Mutex::new(ForecastStore::new(None))),
         reqwest::Client::new(),

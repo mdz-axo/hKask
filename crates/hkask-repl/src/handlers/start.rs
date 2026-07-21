@@ -20,7 +20,7 @@ pub fn handle_start(state: &ReplState) {
         (
             "Chat",
             &format!(
-                "  You're chatting with \x1b[36m{}\x1b[0m using model \x1b[36m{}\x1b[0m.\n  Just type anything to talk — your replicant responds with tools and knowledge.",
+                "  You're chatting with \x1b[36m{}\x1b[0m using model \x1b[36m{}\x1b[0m.\n  Just type anything to talk — your userpod responds with tools and knowledge.",
                 state.current_agent, state.current_model
             ),
         ),
@@ -38,7 +38,7 @@ pub fn handle_start(state: &ReplState) {
         ),
         (
             "Tools",
-            "  \x1b[36m/tools\x1b[0m — discover MCP tools your replicant can use:\n  • Web search, document parsing, memory storage\n  • Research, specifications, code analysis\n  • Your replicant auto-selects tools based on your query",
+            "  \x1b[36m/tools\x1b[0m — discover MCP tools your userpod can use:\n  • Web search, document parsing, memory storage\n  • Research, specifications, code analysis\n  • Your userpod auto-selects tools based on your query",
         ),
         (
             "Settings",
@@ -46,7 +46,7 @@ pub fn handle_start(state: &ReplState) {
         ),
         (
             "Memory",
-            "  Your replicant remembers conversations via episodic memory.\n  \x1b[36m/consolidate\x1b[0m — promote important knowledge to long-term memory.\n  \x1b[36m/history\x1b[0m     — review recent conversation turns.",
+            "  Your userpod remembers conversations via episodic memory.\n  \x1b[36m/consolidate\x1b[0m — promote important knowledge to long-term memory.\n  \x1b[36m/history\x1b[0m     — review recent conversation turns.",
         ),
         (
             "Done!",

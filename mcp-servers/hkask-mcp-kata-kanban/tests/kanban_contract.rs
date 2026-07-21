@@ -347,7 +347,7 @@ fn test_mcp_server() -> hkask_mcp_kata_kanban::KanbanServer {
     let service = hkask_services_kata_kanban::KanbanService::new(store);
     hkask_mcp_kata_kanban::KanbanServer::new(
         TestWebId::alice(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         service,
     )

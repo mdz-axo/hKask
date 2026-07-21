@@ -286,7 +286,7 @@ pub async fn execute_tool_semantic<C: ToolContext>(
 /// implementation.
 pub fn record_via_daemon(
     daemon: &Option<crate::daemon::DaemonClient>,
-    replicant: &str,
+    userpod: &str,
     tool: &str,
     outcome: &str,
 ) {
@@ -297,12 +297,12 @@ pub fn record_via_daemon(
             "timestamp": now_rfc3339(),
         });
         let daemon = daemon.clone();
-        let replicant = replicant.to_string();
+        let userpod = userpod.to_string();
         let tool_name = tool.to_string();
         let _outcome = outcome.to_string();
         tokio::spawn(async move {
             match daemon
-                .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                 .await
             {
                 Ok(crate::daemon::DaemonResponse::StoreResponse { stored: true, .. }) => {

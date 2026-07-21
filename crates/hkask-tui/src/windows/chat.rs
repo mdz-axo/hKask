@@ -104,7 +104,7 @@ pub struct TuiChatMessage {
 pub enum MessageSender {
     /// The human user
     User,
-    /// The AI agent/replicant
+    /// The AI agent/userpod
     Agent(String),
     /// The Curator daemon (dual-presence)
     Curator,

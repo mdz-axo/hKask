@@ -50,7 +50,7 @@
 //!
 //! # Environment Variables
 //!
-//! - `HKASK_TRAINING_DB` — Path to per-agent training database for job/adapter/QA storage (defaults to `agents/{replicant}/training.db`)
+//! - `HKASK_TRAINING_DB` — Path to per-agent training database for job/adapter/QA storage (defaults to `agents/{userpod}/training.db`)
 //! - `HKASK_DB_PASSPHRASE` — Passphrase for the database (resolved via credentials or keystore)
 //! - `HKASK_TRAINING_CACHE_DIR` — Dataset cache directory
 //! - `RUNPOD_API_KEY` — Runpod API key
@@ -1502,7 +1502,7 @@ impl TrainingServer {
 
 /// Run the training MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     // Host is fixed to Runpod (cloud-only, single host).
@@ -1513,7 +1513,7 @@ pub async fn run(
 
     let cache_dir = PathBuf::from(
         std::env::var("HKASK_TRAINING_CACHE_DIR").unwrap_or_else(|_| {
-            hkask_types::agent_paths::agent_adapters_dir(&replicant)
+            hkask_types::agent_paths::userpod_adapters_dir(&userpod)
                 .to_string_lossy()
                 .to_string()
         }),
@@ -1530,7 +1530,7 @@ pub async fn run(
                     .get("HKASK_TRAINING_DB")
                     .cloned()
                     .unwrap_or_else(|| {
-                        let relative = hkask_types::agent_paths::agent_training_db(&replicant);
+                        let relative = hkask_types::agent_paths::userpod_training_db(&userpod);
                         hkask_types::agent_paths::resolve_under_data_dir(&relative)
                             .to_string_lossy()
                             .to_string()
@@ -1633,7 +1633,7 @@ pub async fn run(
 
                 Ok(TrainingServer::new(
                     ctx.webid,
-                    replicant.clone(),
+                    userpod.clone(),
                     daemon_client.clone(),
                     semantic,
                     host,
@@ -1682,7 +1682,7 @@ pub async fn run(
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_TRAINING_DB",
-                "Path to per-agent training database for job/adapter/QA storage (defaults to agents/{replicant}/training.db)",
+                "Path to per-agent training database for job/adapter/QA storage (defaults to agents/{userpod}/training.db)",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",

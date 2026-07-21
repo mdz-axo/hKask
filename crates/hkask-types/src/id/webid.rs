@@ -1,10 +1,10 @@
-//! WebID — Unique identifier for agents (bots and replicants).
+//! WebID — Unique identifier for agents (bots and userpods).
 
 use uuid::Uuid;
 
 use super::core::BotID;
 
-/// WebID — Unique identifier for agents (bots and replicants)
+/// WebID — Unique identifier for agents (bots and userpods)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct WebID(Uuid);
 

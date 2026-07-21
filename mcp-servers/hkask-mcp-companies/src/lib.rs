@@ -294,11 +294,11 @@ impl CompaniesServer {
                 "timestamp": now_rfc3339(),
             });
             let daemon_clone = daemon.clone();
-            let replicant = self.replicant.clone();
+            let userpod = self.userpod.clone();
             let tool_name = tool.to_string();
             tokio::spawn(async move {
                 match daemon_clone
-                    .store_experience(&replicant, "mcp_session", "observed", &value, Some(0.85))
+                    .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
                     Ok(DaemonResponse::StoreResponse { stored: true, .. }) => {
@@ -337,7 +337,7 @@ impl rmcp::ServerHandler for CompaniesServer {}
 
 /// Run the companies MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
@@ -359,7 +359,7 @@ pub async fn run(
             let brave_api_key = ctx.credentials.get("HKASK_BRAVE_API_KEY").cloned();
             Ok(CompaniesServer::new(
                 ctx.webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 reqwest::Client::new(),
                 fmp_api_key,

@@ -111,7 +111,7 @@ fn test_server() -> MediaServer {
     let gallery_store = Arc::new(GalleryStore::from_driver(driver));
     MediaServer::new(
         WebID::new(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         Arc::new(InferenceRouter::new(InferenceConfig::default())),
         Arc::new(Mutex::new(None)), // no gallery state

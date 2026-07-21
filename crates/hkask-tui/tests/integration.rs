@@ -28,7 +28,7 @@ struct MockBridge {
     mcp_loaded: usize,
     mcp_total: usize,
     pod_curator: usize,
-    pod_replicant: usize,
+    pod_userpod: usize,
     pod_team: usize,
     pods_available: bool,
     cns_domains: Vec<(String, bool)>,
@@ -47,7 +47,7 @@ impl MockBridge {
             mcp_loaded: 2,
             mcp_total: 4,
             pod_curator: 1,
-            pod_replicant: 3,
+            pod_userpod: 3,
             pod_team: 2,
             pods_available: true,
             cns_domains: vec![
@@ -84,7 +84,7 @@ impl SystemBridge for MockBridge {
     }
     fn pod_counts(&self) -> Option<(usize, usize, usize)> {
         self.pods_available
-            .then_some((self.pod_curator, self.pod_replicant, self.pod_team))
+            .then_some((self.pod_curator, self.pod_userpod, self.pod_team))
     }
     fn cns_domains(&self) -> Vec<(String, bool)> {
         self.cns_domains.clone()

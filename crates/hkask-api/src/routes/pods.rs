@@ -39,7 +39,7 @@ pub struct CreatePodResponse {
 /// Pod status response — current state of an agent pod (Pattern D).
 ///
 /// `state` is one of: "active", "inactive", "error".
-/// `agent_type` is one of: "Bot", "Replicant" (P10).
+/// `agent_type` is one of: "Bot", "UserPod" (P10).
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct PodStatusResponse {
     /// Unique pod identifier

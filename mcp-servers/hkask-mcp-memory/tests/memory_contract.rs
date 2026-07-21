@@ -171,7 +171,7 @@ fn test_server() -> MemoryServer {
     ));
     MemoryServer::new(
         TestWebId::alice(),
-        "test-replicant".into(),
+        "test-userpod".into(),
         None,
         episodic,
         semantic,

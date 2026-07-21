@@ -3,14 +3,14 @@ use hkask_types::ObservableSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AcpSpan {
-    AcpReplicantMemorySize,
+    AcpUserPodMemorySize,
     AcpIdeConnectionState,
 }
 
 impl AcpSpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            AcpSpan::AcpReplicantMemorySize => "cns.acp.replicant.memory_size",
+            AcpSpan::AcpUserPodMemorySize => "cns.acp.userpod.memory_size",
             AcpSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
         }
     }
@@ -26,7 +26,7 @@ impl std::str::FromStr for AcpSpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.acp.replicant.memory_size" => Ok(AcpSpan::AcpReplicantMemorySize),
+            "cns.acp.userpod.memory_size" => Ok(AcpSpan::AcpUserPodMemorySize),
             "cns.acp.ide.connection_state" => Ok(AcpSpan::AcpIdeConnectionState),
             _ => Err(()),
         }
@@ -47,7 +47,7 @@ mod tests {
     #[test]
     fn acp_span_namespaces_are_canonical() {
         let all = vec![
-            AcpSpan::AcpReplicantMemorySize,
+            AcpSpan::AcpUserPodMemorySize,
             AcpSpan::AcpIdeConnectionState,
         ];
         for span in all {

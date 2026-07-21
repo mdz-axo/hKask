@@ -783,11 +783,11 @@ impl KanbanServer {
     ///
     /// Takes a JSON list of ExpectProposal structs (from test-harness
     /// `propose_missing_expect_annotations`) and creates a task per contract gap.
-    /// Owning replicants can claim and resolve these tasks by submitting
+    /// Owning userpods can claim and resolve these tasks by submitting
     /// `expect:` annotation PRs (P2 consent required for merge).
     ///
     /// contract: P3-svc-kanban-009
-    /// expect: "I can create kanban tasks from contract expectation gaps so replicants can ground them" \[P3\]
+    /// expect: "I can create kanban tasks from contract expectation gaps so userpods can ground them" \[P3\]
     /// \[P5\] Constraining: Essentialism — one batch operation, no individual task editing
     /// pre:  proposals is a non-empty JSON array of ExpectProposal structs
     /// pre:  board_id is a valid board ID
@@ -881,7 +881,7 @@ pub fn default_columns() -> Vec<hkask_services_kata_kanban::ColumnDef> {
 
 /// Run the kanban MCP server (used by binary target).
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     hkask_mcp::run_server(
@@ -895,7 +895,7 @@ pub async fn run(
                     .get("HKASK_KANBAN_DB")
                     .cloned()
                     .unwrap_or_else(|| {
-                        let relative_path = hkask_types::agent_paths::agent_kanban_db(&replicant);
+                        let relative_path = hkask_types::agent_paths::userpod_kanban_db(&userpod);
                         let default_path =
                             hkask_types::agent_paths::resolve_under_data_dir(&relative_path);
                         if let Some(parent) = default_path.parent() {
@@ -904,7 +904,7 @@ pub async fn run(
                         tracing::info!(
                             target: "hkask.mcp.kata_kanban",
                             path = %default_path.display(),
-                            replicant = %replicant,
+                            userpod = %userpod,
                             "Using default per-agent kanban database"
                         );
                         default_path.to_string_lossy().to_string()
@@ -917,7 +917,7 @@ pub async fn run(
                     // the computed kanban_db_path is actually used for persistence.
                     // This is NOT encrypted; users should set HKASK_DB_PASSPHRASE
                     // for production deployments.
-                    let default_key = format!("__k4nb4n__{}__d3f4ult__", replicant);
+                    let default_key = format!("__k4nb4n__{}__d3f4ult__", userpod);
                     hkask_storage::Database::open(&kanban_db_path, &default_key)
                         .map_err(|e| anyhow::anyhow!("{e}"))?
                 };
@@ -939,7 +939,7 @@ pub async fn run(
                 let service = KanbanService::new(store);
                 Ok(KanbanServer::new(
                     ctx.webid,
-                    replicant.clone(),
+                    userpod.clone(),
                     daemon_client.clone(),
                     service,
                 ))
@@ -952,7 +952,7 @@ pub async fn run(
         vec![
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_KANBAN_DB",
-                "Path to per-agent kanban database file (defaults to agents/{replicant}/kanban.db)",
+                "Path to per-agent kanban database file (defaults to agents/{userpod}/kanban.db)",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",

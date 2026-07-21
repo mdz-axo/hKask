@@ -1,7 +1,7 @@
-//! Replicant API — list, rename, and delete replicants.
+//! UserPod API — list, rename, and delete userpods.
 //!
-//! REQ: P1-deploy-replicant-manage — P1 User Sovereignty: user manages their replicants.
-//! expect: "I can manage my replicants through the API"
+//! REQ: P1-deploy-userpod-manage — P1 User Sovereignty: user manages their userpods.
+//! expect: "I can manage my userpods through the API"
 
 use axum::{Extension, Json, extract::State, http::StatusCode};
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ pub struct UserPodInfo {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct UserPodListResponse {
-    pub replicants: Vec<UserPodInfo>,
+    pub userpods: Vec<UserPodInfo>,
     pub active: String,
 }
 
@@ -30,13 +30,13 @@ pub struct RenameRequest {
     pub to: String,
 }
 
-/// GET /api/v1/replicants
+/// GET /api/v1/userpods
 #[utoipa::path(
     get,
-    path = "/api/v1/replicants",
-    tag = "replicants",
+    path = "/api/v1/userpods",
+    tag = "userpods",
     responses(
-        (status = 200, description = "List of replicants for the authenticated user", body = UserPodListResponse),
+        (status = 200, description = "List of userpods for the authenticated user", body = UserPodListResponse),
     ),
 )]
 pub async fn list_userpods(
@@ -50,14 +50,14 @@ pub async fn list_userpods(
             format!("Lock error: {e}"),
         )
     })?;
-    let session_replicant = store
+    let session_userpod = store
         .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
-        .ok_or((StatusCode::NOT_FOUND, "Replicant not found".to_string()))?;
-    let replicant = store
-        .get_userpod_by_user(&session_replicant.user_id)
+        .ok_or((StatusCode::NOT_FOUND, "UserPod not found".to_string()))?;
+    let userpod = store
+        .get_userpod_by_user(&session_userpod.user_id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
-    let list: Vec<UserPodInfo> = replicant
+    let list: Vec<UserPodInfo> = userpod
         .into_iter()
         .map(|r| UserPodInfo {
             name: r.userpod_name,
@@ -72,19 +72,19 @@ pub async fn list_userpods(
         .map(|r| r.name.clone())
         .unwrap_or_default();
     Ok(Json(UserPodListResponse {
-        replicants: list,
+        userpods: list,
         active,
     }))
 }
 
-/// POST /api/v1/replicants/rename
+/// POST /api/v1/userpods/rename
 #[utoipa::path(
     post,
-    path = "/api/v1/replicants/rename",
-    tag = "replicants",
+    path = "/api/v1/userpods/rename",
+    tag = "userpods",
     request_body = RenameRequest,
     responses(
-        (status = 200, description = "Replicant renamed"),
+        (status = 200, description = "UserPod renamed"),
         (status = 400, description = "Invalid request"),
     ),
 )]
@@ -108,16 +108,16 @@ pub async fn rename_userpod(
     ))
 }
 
-/// DELETE /api/v1/replicants/{name}
+/// DELETE /api/v1/userpods/{name}
 #[utoipa::path(
     delete,
-    path = "/api/v1/replicants/{name}",
-    tag = "replicants",
+    path = "/api/v1/userpods/{name}",
+    tag = "userpods",
     params(
-        ("name" = String, Path, description = "Replicant name"),
+        ("name" = String, Path, description = "UserPod name"),
     ),
     responses(
-        (status = 200, description = "Replicant deleted"),
+        (status = 200, description = "UserPod deleted"),
         (status = 400, description = "Invalid request"),
     ),
 )]

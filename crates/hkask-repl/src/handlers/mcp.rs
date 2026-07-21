@@ -80,7 +80,7 @@ fn print_server_list(
 
     if connected.is_empty() {
         println!();
-        println!("  \x1b[2mNo servers loaded. The replicant will run with inference only.\x1b[0m");
+        println!("  \x1b[2mNo servers loaded. The userpod will run with inference only.\x1b[0m");
         println!(
             "  \x1b[2mType \x1b[36m/mcp start all\x1b[0m\x1b[2m to load everything, or pick by number.\x1b[0m"
         );

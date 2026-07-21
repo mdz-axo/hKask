@@ -7,7 +7,7 @@
 //! 3. Builds a pipeline: template 1 output → template 2 input → ...
 //! 4. For each template (except the first), verifies that every input field
 //!    is either produced by a prior template's output OR is a standard input
-//!    (replicant_host, previous_metric, etc.)
+//!    (userpod_host, previous_metric, etc.)
 //!
 //! This catches:
 //! - Field name mismatches (template A outputs "findings" but template B
@@ -36,7 +36,7 @@ use std::path::{Path, PathBuf};
 /// templates). These are always available and don't need to come from a
 /// prior template's output.
 const STANDARD_INPUTS: &[&str] = &[
-    "replicant_host",
+    "userpod_host",
     "webid",
     "delegation_token_ref",
     "previous_metric",

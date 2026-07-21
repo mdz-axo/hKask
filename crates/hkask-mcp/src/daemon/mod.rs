@@ -8,9 +8,9 @@
 //!
 //! Request (MCP binary → daemon):
 //! ```json
-//! {"type":"auth_query","replicant":"bob"}
-//! {"type":"assignment_query","replicant":"bob","role":"research"}
-//! {"type":"capability_query","replicant":"bob","tool":"web_search"}
+//! {"type":"auth_query","userpod":"bob"}
+//! {"type":"assignment_query","userpod":"bob","role":"research"}
+//! {"type":"capability_query","userpod":"bob","tool":"web_search"}
 //! ```rust,no_run
 //!
 //! Response (daemon → MCP binary):
@@ -90,11 +90,11 @@ pub async fn ping_daemon(path: &std::path::Path) -> Result<(), DaemonPingError> 
     let (reader, mut writer) = stream.into_split();
 
     // Send a minimal auth_query. The sentinel name "__ping__" is not a real
-    // replicant; the daemon will return authenticated:false, but any valid
+    // userpod; the daemon will return authenticated:false, but any valid
     // JSON response proves the socket is live.
     let request = serde_json::json!({
         "type": "auth_query",
-        "replicant": "__ping__"
+        "userpod": "__ping__"
     });
     let mut json = serde_json::to_string(&request).map_err(DaemonPingError::Serialize)?;
     json.push('\n');

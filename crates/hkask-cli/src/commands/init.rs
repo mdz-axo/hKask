@@ -32,7 +32,7 @@ pub fn run_init() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3b. Registration mode
     println!("\nRegistration mode:");
-    println!("  open   — anyone with an OAuth account can create replicants");
+    println!("  open   — anyone with an OAuth account can create userpods");
     println!("  closed — only users with an admin invite code can join");
     let registration = prompt_default("Registration mode (open/closed)", "closed")?;
     let registration: ServerRegistration = registration

@@ -251,7 +251,7 @@ impl SkillServer {
 // ── Server runner ─────────────────────────────────────────────────────────────
 
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<hkask_mcp::DaemonClient>,
 ) -> Result<(), hkask_mcp::McpError> {
     let inference_config = InferenceConfig::from_env();
@@ -266,7 +266,7 @@ pub async fn run(
                 let webid = ctx.webid;
                 let mut server = SkillServer::new(
                     webid,
-                    replicant.clone(),
+                    userpod.clone(),
                     daemon_client.clone(),
                     inference_port.clone(),
                     HashMap::new(),

@@ -2,7 +2,7 @@
 //!
 //! Saves the split tree, window kinds, tab names, and active tab
 //! to a JSON file per-agent. Loaded on TUI startup, saved on quit.
-//! Associated with the replicant identity for privacy (P1).
+//! Associated with the userpod identity for privacy (P1).
 
 use serde::{Deserialize, Serialize};
 use std::fs;

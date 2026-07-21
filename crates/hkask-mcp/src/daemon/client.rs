@@ -55,38 +55,38 @@ impl DaemonClient {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))
     }
 
-    /// Query whether a replicant is authenticated.
+    /// Query whether a userpod is authenticated.
     #[must_use = "result must be used"]
-    pub async fn auth_query(&self, replicant: &str) -> std::io::Result<DaemonResponse> {
+    pub async fn auth_query(&self, userpod: &str) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::AuthQuery {
-            replicant: replicant.to_string(),
+            userpod: userpod.to_string(),
         })
         .await
     }
 
-    /// Query whether a replicant is assigned to a specific MCP role.
+    /// Query whether a userpod is assigned to a specific MCP role.
     #[must_use = "result must be used"]
     pub async fn assignment_query(
         &self,
-        replicant: &str,
+        userpod: &str,
         role: &str,
     ) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::AssignmentQuery {
-            replicant: replicant.to_string(),
+            userpod: userpod.to_string(),
             role: role.to_string(),
         })
         .await
     }
 
-    /// Query whether a replicant holds a capability token for a tool.
+    /// Query whether a userpod holds a capability token for a tool.
     #[must_use = "result must be used"]
     pub async fn capability_query(
         &self,
-        replicant: &str,
+        userpod: &str,
         tool: &str,
     ) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::CapabilityQuery {
-            replicant: replicant.to_string(),
+            userpod: userpod.to_string(),
             tool: tool.to_string(),
         })
         .await
@@ -96,14 +96,14 @@ impl DaemonClient {
     #[must_use = "result must be used"]
     pub async fn store_experience(
         &self,
-        replicant: &str,
+        userpod: &str,
         entity: &str,
         attribute: &str,
         value: &serde_json::Value,
         confidence: Option<f64>,
     ) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::StoreExperience {
-            replicant: replicant.to_string(),
+            userpod: userpod.to_string(),
             entity: entity.to_string(),
             attribute: attribute.to_string(),
             value: value.clone(),
@@ -116,12 +116,12 @@ impl DaemonClient {
     #[must_use = "result must be used"]
     pub async fn tool_dispatch(
         &self,
-        replicant: &str,
+        userpod: &str,
         tool: &str,
         input: &serde_json::Value,
     ) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::ToolDispatch {
-            replicant: replicant.to_string(),
+            userpod: userpod.to_string(),
             tool: tool.to_string(),
             input: input.clone(),
         })
@@ -130,9 +130,9 @@ impl DaemonClient {
 
     /// Query curator system health from the daemon.
     #[must_use = "result must be used"]
-    pub async fn curator_health_query(&self, replicant: &str) -> std::io::Result<DaemonResponse> {
+    pub async fn curator_health_query(&self, userpod: &str) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::CuratorHealthQuery {
-            replicant: replicant.to_string(),
+            userpod: userpod.to_string(),
         })
         .await
     }
@@ -141,11 +141,11 @@ impl DaemonClient {
     #[must_use = "result must be used"]
     pub async fn cns_status_query(
         &self,
-        replicant: &str,
+        userpod: &str,
         domain: Option<&str>,
     ) -> std::io::Result<DaemonResponse> {
         self.send_recv(&DaemonRequest::CnsStatusQuery {
-            replicant: replicant.to_string(),
+            userpod: userpod.to_string(),
             domain: domain.map(|d| d.to_string()),
         })
         .await

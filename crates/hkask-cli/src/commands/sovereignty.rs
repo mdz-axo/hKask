@@ -95,6 +95,6 @@ fn run_verify(principle: Option<String>, json: bool) {
             "⚠ {} assertion(s) failed and {} have gaps.",
             report.total_fail, report.total_gap
         );
-        println!("  Escalate to Curator for review with human user or replicant.");
+        println!("  Escalate to Curator for review with human user or userpod.");
     }
 }

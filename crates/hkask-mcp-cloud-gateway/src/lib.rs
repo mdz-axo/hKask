@@ -6,7 +6,7 @@
 //! # Security Model (Three Layers)
 //!
 //! 1. **Transport:** mTLS 1.3 — client and server present X.509 certificates.
-//!    The client cert's Common Name maps to the replicant WebID.
+//!    The client cert's Common Name maps to the userpod WebID.
 //! 2. **Authorization:** Ed25519-signed `DelegationToken` per request.
 //!    Token `delegated_to` must match the mTLS CN.
 //! 3. **Capability:** Per-tool gating — `token.resource_id` must match

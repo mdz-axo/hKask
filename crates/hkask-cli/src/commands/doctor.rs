@@ -21,7 +21,7 @@ pub fn run_doctor_cmd(rt: &tokio::runtime::Runtime) {
 /// 1. Daemon socket is live (not just a stale file)
 /// 2. Keychain entries exist (HKASK_MASTER_KEY, a2a-secret, hkask-db-passphrase)
 /// 3. DB passphrase resolves and opens the main DB
-/// 4. UserStore session exists for the replicant
+/// 4. UserStore session exists for the userpod
 /// 5. MCP servers connect and discover tools
 pub fn run_bootstrap_check(rt: &tokio::runtime::Runtime) {
     println!("hKask Doctor — Bootstrap Chain Check\n");
