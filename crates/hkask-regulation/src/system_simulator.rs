@@ -14,10 +14,6 @@ use crate::types::loops::SignalMetric;
 /// A predicted future state for a single metric.
 #[derive(Debug, Clone)]
 pub struct MetricPrediction {
-    /// Predicted value after `horizon_ticks` regulation cycles.
-    /// Future: wired into regulation policy for anticipatory throttling.
-    #[allow(dead_code)]
-    pub predicted: f64,
     /// Trend direction: +1 = rising, -1 = falling, 0 = flat.
     pub trend: f64,
     /// Whether the prediction is reliable (enough data for the model).
@@ -69,7 +65,6 @@ impl MovingAverageExtrapolator {
 
         if n < 3 {
             return MetricPrediction {
-                predicted: current,
                 trend: 0.0,
                 reliable: false,
                 ticks_to_threshold: None,
@@ -97,8 +92,6 @@ impl MovingAverageExtrapolator {
             0.0
         };
 
-        let predicted = current + trend * horizon_ticks as f64;
-
         let ticks_to_threshold = if trend.abs() > f64::EPSILON {
             let gap = set_point - current;
             let ticks = gap / trend;
@@ -112,7 +105,6 @@ impl MovingAverageExtrapolator {
         };
 
         MetricPrediction {
-            predicted,
             trend,
             reliable: true,
             ticks_to_threshold,

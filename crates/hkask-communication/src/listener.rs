@@ -141,7 +141,7 @@ impl SevenR7Listener {
                                         // Persist RegulationRecord so the curation loop can sense it.
                                         if let Some(ref sink) = event_sink {
                                             let span = Span::new(
-                                                hkask_types::event::SpanNamespace::new("reg.communication.message").expect("canonical namespace: cns.communication.message"),
+                                                hkask_types::event::SpanNamespace::new("reg.communication.message").expect("canonical namespace: reg.communication.message"),
                                                 "observed",
                                             );
                                         let mut event = RegulationRecord::new(

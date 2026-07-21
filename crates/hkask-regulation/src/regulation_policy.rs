@@ -20,7 +20,6 @@ use crate::types::loops::{
 /// the policy table because concrete values come from the `Deviation`
 /// at runtime.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ProposedAction {
     pub target: LoopId,
     pub action_type: ActionType,

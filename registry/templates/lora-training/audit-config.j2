@@ -1,4 +1,4 @@
-{# goal: Audit declared LoRA/QLoRA training artifacts phase-by-phase without executing training. Preserve the operator-selected method, distinguish recommendations from readiness, emit normalized evidence-backed findings and cns.lora.audit spans (P9), and require userpod_host (P12). #}
+{# goal: Audit declared LoRA/QLoRA training artifacts phase-by-phase without executing training. Preserve the operator-selected method, distinguish recommendations from readiness, emit normalized evidence-backed findings and reg.lora.audit spans (P9), and require userpod_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -262,8 +262,8 @@ EVIDENCE AND CITATION INTEGRITY (P8)
   regressions by themselves.
 
 CNS SPAN EMISSION (P9)
-Emit `cns.lora.audit` for every gate represented in `gate_results`: target
-`"cns.lora.audit"`, message `"CNS"`, operation `"audit_gate"`, gate_id,
+Emit `reg.lora.audit` for every gate represented in `gate_results`: target
+`"reg.lora.audit"`, message `"CNS"`, operation `"audit_gate"`, gate_id,
 phase, state, readiness_impact, evidence_kind, selected_method,
 userpod_host, latency_ms. The namespace remains registered in
 `CANONICAL_NAMESPACES`. Emit no anonymous action.

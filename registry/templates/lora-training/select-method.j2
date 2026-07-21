@@ -1,4 +1,4 @@
-{# goal: Recommend a composable PEFT configuration via deterministic 5-gate refinement (inference constraint, memory evidence, task distance, quality/cost trade-off, knowledge preservation) within user workspace boundaries (P4 OCAP). Preserve operator authority: the skill recommends; the operator accepts, overrides, or rejects; the runtime enforces established hard contracts. Distinguish recommendation from readiness. Emit only values derivable from declared inputs and mark the rest undetermined. Emit cns.lora.select span (P9). No actual training execution; userpod_host mandatory (P12). AutoPEFT (arXiv:2301.12132) is the rejected alternative — multi-objective BO over hundreds of training runs is infeasible per training job. #}
+{# goal: Recommend a composable PEFT configuration via deterministic 6-gate refinement (inference constraint, memory evidence, task distance, quality/cost trade-off, knowledge preservation, harness capability) within user workspace boundaries (P4 OCAP). Preserve operator authority: the skill recommends; the operator accepts, overrides, or rejects; the runtime enforces established hard contracts. Distinguish recommendation from readiness. Emit only values derivable from declared inputs and mark the rest undetermined. Emit reg.lora.select span (P9). No actual training execution; userpod_host mandatory (P12). AutoPEFT (arXiv:2301.12132) is the rejected alternative — multi-objective BO over hundreds of training runs is infeasible per training job. #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -28,7 +28,7 @@ energy_cap: 6144
 visibility: Public
 ---
 {# Template: lora-training/select-method.j2 #}
-{# Functional Role: KnowAct — composable PEFT recommendation via 5-gate refinement #}
+{# Functional Role: KnowAct — composable PEFT recommendation via 6-gate refinement #}
 {# Produces: recommendation, readiness, justification, authority #}
 {# Design: deterministic refinement (not search); gates compose rather than overwrite #}
 
@@ -40,8 +40,8 @@ max_tokens = 4096
 thinking_budget = "full"
 
 {# Reads declared training config inputs: LoraConfig, BitsAndBytesConfig, accelerate config, training script arguments #}
-{# Applies deterministic 5-gate refinement — NOT a search #}
-{# Emits `cns.lora.select` CNS span (P9) — namespace registered in CANONICAL_NAMESPACES #}
+{# Applies deterministic 6-gate refinement — NOT a search #}
+{# Emits `reg.lora.select` CNS span (P9) — namespace registered in CANONICAL_NAMESPACES #}
 {# Every recommendation includes a citation (arXiv paper section or PEFT docs section) #}
 {# Relationships: complements kali-audit (security surface) and tdd (training-loop code) — zero overlap #}
 
@@ -301,7 +301,7 @@ DO NOT EMIT WITHOUT CONCRETE INPUT EVIDENCE:
   `required_evidence` entry; never invent a conventional default.
 
 CNS SPAN EMISSION (P9 — every recommendation action):
-- `cns.lora.select` span: target `"cns.lora.select"`, message `"CNS"`,
+- `reg.lora.select` span: target `"reg.lora.select"`, message `"CNS"`,
   operation `"recommend_method"`, gate_inputs: {...}, recommendation,
   readiness_status, operator_disposition (`pending` until supplied),
   justification_citations, userpod_host, latency_ms.
@@ -331,7 +331,7 @@ CONSTRAINTS (P1-P12, P5 minimalism, P8 evidence integrity, P12 host):
 - Where: Training script / config file / model card.
 - When: Pre-training recommendation, before acceptance and readiness audit.
 - Why: P1 operator sovereignty / P3.1 safe container / P4 explicit boundary.
-- How: Read declared inputs → compose five gate refinements → derive only
+- How: Read declared inputs → compose six gate refinements → derive only
   supported fields → expose uncertainty → operator disposition → runtime
   enforcement → emit CNS span.
 All 6 present — passes gate.
@@ -388,7 +388,7 @@ NO FABRICATION: Emit only derivable fields, citations, and explicit
 `undetermined` states; no synthetic benchmarks or invented config values.
 OCAP BOUNDARY (P4): Read only declared workspace config paths; no ambient
 model download or network calls without explicit consent (P2).
-CNS REGULATION (P9): Emit `cns.lora.select` unconditionally; namespace is
+CNS REGULATION (P9): Emit `reg.lora.select` unconditionally; namespace is
 registered in `CANONICAL_NAMESPACES`.
 USERPOD HOST (P12): `userpod_host` is mandatory in every output.
 SAFETY FLOOR (P3.1): Recommendation exposes uncertainty; audit and runtime

@@ -38,7 +38,6 @@
 //!
 //! `.env` is deprecated for this server — deployment settings must come from
 //! the OS keychain (`kask keystore load`) or the explicit process environment.
-use crate::providers::harness::HarnessAdapter;
 use crate::providers::types::*;
 use serde_json::json;
 use std::collections::HashMap;
@@ -133,8 +132,6 @@ pub struct RunpodHost {
     /// `DEFAULT_RUNPOD_DOCKER_IMAGE`.
     docker_image: String,
     graphql_url: String,
-    #[allow(dead_code)]
-    harness: Box<dyn HarnessAdapter>,
     client: reqwest::Client,
     /// job_id -> pod_id mapping for status/cancel
     jobs: Arc<Mutex<HashMap<String, String>>>,
@@ -152,7 +149,7 @@ fn map_pod_status(status: &str) -> TrainingJobStatus {
 }
 
 impl RunpodHost {
-    pub fn new(init: RunpodHostInit, harness: Box<dyn HarnessAdapter>) -> Self {
+    pub fn new(init: RunpodHostInit) -> Self {
         let pods_file = PathBuf::from(
             std::env::var("HKASK_PODS_FILE")
                 .unwrap_or_else(|_| "data/training-pods.json".to_string()),
@@ -176,7 +173,6 @@ impl RunpodHost {
             min_vcpu: init.min_vcpu,
             docker_image: init.docker_image,
             graphql_url: "https://api.runpod.io/graphql".to_string(),
-            harness,
             client: reqwest::Client::new(),
             jobs: Arc::new(Mutex::new(persisted)),
             pods_file,
@@ -955,7 +951,6 @@ impl TrainingHost for RunpodHost {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::providers::harness::AxolotlHarness;
 
     #[test]
     fn terminal_pods_are_not_reported_as_successful_without_artifacts() {
@@ -998,18 +993,15 @@ mod tests {
     }
 
     fn make_host(template_id: &str) -> RunpodHost {
-        RunpodHost::new(
-            RunpodHostInit {
-                api_key: "test-key".to_string(),
-                template_id: template_id.to_string(),
-                gpu_type_id: String::new(),
-                container_disk_gb: 0,
-                min_memory_gb: 0,
-                min_vcpu: 0,
-                docker_image: String::new(),
-            },
-            Box::new(AxolotlHarness),
-        )
+        RunpodHost::new(RunpodHostInit {
+            api_key: "test-key".to_string(),
+            template_id: template_id.to_string(),
+            gpu_type_id: String::new(),
+            container_disk_gb: 0,
+            min_memory_gb: 0,
+            min_vcpu: 0,
+            docker_image: String::new(),
+        })
     }
 
     #[test]

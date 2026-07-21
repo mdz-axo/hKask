@@ -1,4 +1,4 @@
-{# goal: Compute a phase-aware, normalized training-readiness convergence metric [0,1] from current evidence only. Preserve required PDCA convergence, distinguish preflight readiness from pending runtime contracts and post-training verification, emit cns.lora.convergence (P9), and require userpod_host (P12). #}
+{# goal: Compute a phase-aware, normalized training-readiness convergence metric [0,1] from current evidence only. Preserve required PDCA convergence, distinguish preflight readiness from pending runtime contracts and post-training verification, emit reg.lora.convergence (P9), and require userpod_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -44,7 +44,7 @@ max_tokens = 2048
 thinking_budget = "full"
 
 {# Computes normalized risk [0, 1], where 0 = current phase fully converged #}
-{# Emits `cns.lora.convergence` CNS span (P9) — namespace registered #}
+{# Emits `reg.lora.convergence` CNS span (P9) — namespace registered #}
 
 INPUT: unresolved_findings = {{ unresolved_findings }} (current evidence)
 INPUT: gate_results = {{ gate_results }} (map of gate_id → {state, phase, evidence}; state is pass/warn/fail/refuse/deferred/planned/not_evaluated/not_applicable)
@@ -129,9 +129,9 @@ PHASE-AWARE READINESS OUTPUTS:
   required `converged` PDCA verdict for the current phase.
 
 CNS SPAN (P9):
-- `cns.lora.convergence` is registered in `CANONICAL_NAMESPACES`
+- `reg.lora.convergence` is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit it unconditionally with
-  target `cns.lora.convergence`, message `CNS`, operation
+  target `reg.lora.convergence`, message `CNS`, operation
   `convergence_check`, current_phase, convergence_metric,
   previous_metric, improvement_pct, converged, readiness booleans,
   blockers, applicable normalized weights, userpod_host, and latency_ms.
@@ -214,7 +214,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 `report` phase logic. Uses current supplied findings and phase-tagged
 gate results. `previous_metric` is optional comparable evidence; when
 absent, improvement_pct is null and threshold convergence still applies.
-CNS SPAN EMITTED: `cns.lora.convergence` is registered, so the span
+CNS SPAN EMITTED: `reg.lora.convergence` is registered, so the span
 is always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 and blockers — no extra synthesis (that is `report.j2`

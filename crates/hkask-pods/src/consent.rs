@@ -320,7 +320,7 @@ impl ConsentManager {
             let event = RegulationRecord::new(
                 WebID::from_persona(b"consent"),
                 Span::new(
-                    SpanNamespace::new("reg.consent").expect("canonical namespace: cns.consent"),
+                    SpanNamespace::new("reg.consent").expect("canonical namespace: reg.consent"),
                     "denied",
                 ),
                 CyclePhase::Compare,

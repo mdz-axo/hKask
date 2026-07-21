@@ -80,8 +80,8 @@ use crate::adapters::{AdapterMetrics, JobStore};
 use crate::dataset::DatasetPipeline;
 use crate::huggingface::HuggingFaceTraining;
 use crate::providers::{
-    AxolotlHarness, HarnessAdapter, TrainingHarnessId, TrainingHost, TrainingHostConfig,
-    TrainingHostId, TrainingJob, TrainingJobStatus, create_host,
+    TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
+    TrainingJobStatus, create_host,
 };
 use crate::types::*;
 use hkask_adapter::AdapterRouter;
@@ -1636,8 +1636,7 @@ pub async fn run(
                         .cloned()
                         .unwrap_or_default(),
                 };
-                let harness: Box<dyn HarnessAdapter> = Box::new(AxolotlHarness);
-                let host = create_host(&host_config, harness)
+                let host = create_host(&host_config)
                     .map_err(|e| anyhow::anyhow!("Failed to create training host: {}", e))?;
 
                 let inference_config = InferenceConfig::from_env();

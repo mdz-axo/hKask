@@ -66,13 +66,13 @@ fn cns_throttles_tool_on_budget_exceeded() {
 fn cns_tracks_variety_by_domain() {
     let ledger = MockRegulationLedger::new();
 
-    cns.record_variety("reg.tool");
-    cns.record_variety("reg.tool");
-    cns.record_variety("reg.inference");
+    ledger.record_variety("reg.tool");
+    ledger.record_variety("reg.tool");
+    ledger.record_variety("reg.inference");
 
-    assert_eq!(cns.variety_for_domain("reg.tool"), 2);
-    assert_eq!(cns.variety_for_domain("reg.inference"), 1);
-    assert_eq!(cns.variety_for_domain("reg.unknown"), 0);
+    assert_eq!(ledger.variety_for_domain("reg.tool"), 2);
+    assert_eq!(ledger.variety_for_domain("reg.inference"), 1);
+    assert_eq!(ledger.variety_for_domain("reg.unknown"), 0);
 }
 
 #[test]

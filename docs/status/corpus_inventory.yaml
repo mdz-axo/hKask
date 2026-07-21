@@ -107,7 +107,7 @@ documents:
     code_artifacts: [crates/hkask-cns, crates/hkask-keystore]
     disposition: keep
 
-  - path: docs/architecture/ADRs/ADR-035-replicant-server-mode.md
+  - path: docs/architecture/ADRs/ADR-035-userpod-server-mode.md
     category: architecture
     status: Active
     last_updated: 2026-06-30
@@ -589,10 +589,7 @@ documents:
     code_artifacts: [crates/hkask-test-harness]
     disposition: keep
 
-  - path: docs/user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md
-    category: user-guide
-    status: Draft
-    last_updated: 2026-06-18
+
     version: "0.31.0"
     mds_categories: [domain, lifecycle]
     staleness_signal: none

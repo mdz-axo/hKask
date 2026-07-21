@@ -23,7 +23,6 @@ pub(crate) mod onboarding;
 pub(crate) mod pods;
 pub(crate) mod userpod;
 pub(crate) mod settings;
-pub(crate) mod sovereignty;
 pub(crate) mod templates;
 pub(crate) mod terminal;
 pub(crate) mod wallet;

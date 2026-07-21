@@ -22,7 +22,6 @@ use crate::routes::{
 
 // Handler-local types needed in schemas
 // TODO: CNS subscribe params — regulation.rs was not committed; needs sovereignty.rs migration
-// use crate::routes::sovereignty::CnsSubscribeParams;
 
 /// API documentation
 ///
@@ -104,7 +103,7 @@ use crate::routes::{
         GoalResponse,
         GoalListResponse,
         // CNS subscribe params
-        CnsSubscribeParams,
+        // CnsSubscribeParams  // TODO: CNS route migration,
         // Auth schemas
         LoginQuery,
         CallbackQuery,

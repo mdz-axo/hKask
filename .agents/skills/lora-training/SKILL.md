@@ -4,10 +4,11 @@ visibility: public
 description: >
   LoRA/QLoRA training configuration and contract enforcement skill for hKask
   (v0.31.0). Produces an advisory, composable PEFT recommendation through a
-  deterministic 5-gate refinement; the operator accepts, overrides, or rejects
+  deterministic 6-gate refinement; the operator accepts, overrides, or rejects
   it, and the runtime enforces established hard contracts against concrete
-  accepted configuration. Audits math, quantization, data/evaluation, and
-  forgetting gates with phase-aware states and evidence. Emits cns.lora.* spans.
+  accepted configuration. Audits math, quantization, data/evaluation,
+  forgetting, and harness-method compatibility gates with phase-aware states
+  and evidence. Emits reg.lora.* spans.
 ---
 
 # LoRA Training
@@ -29,8 +30,8 @@ This skill does not train, load, initialize, merge, or evaluate models.
   `surface: training` regression proposals.
 - To compute convergence for the current lifecycle phase and expose preflight,
   runtime-contract, and post-training posture separately.
-- To recommend a training harness (Axolotl, TRL, or Ludwig) and trainer (SFT,
-  DPO, KTO, ORPO, Reward, GRPO) based on task requirements and data shape.
+- To recommend a training harness (Axolotl, TRL, or Ludwig) and trainer based
+  on task requirements and data shape.
 
 ## Authority and Boundary
 
@@ -45,7 +46,7 @@ This skill does not train, load, initialize, merge, or evaluate models.
   services without explicit consent, or execute initialization, forward,
   backward, merge, training, or evaluation.
 - Require `userpod_host` for every action and emit the corresponding registered
-  `cns.lora.*` span.
+  `reg.lora.*` span.
 
 ## Instructions
 
@@ -68,13 +69,23 @@ This skill does not train, load, initialize, merge, or evaluate models.
    `initialize_lora_eva_weights(model, dataloader)` as required evidence; do not
    hardcode a recommendation-phase refusal.
 6. G6 (harness capability) recommends axolotl, trl, or ludwig based on task
-   requirements. TRL trainers (SFT, DPO, KTO, ORPO, Reward) are selected based
-   on data shape and task type. Ludwig is the only harness covering GRPO
-   (reward-model-free RLHF) and the full advanced-PEFT initializer set (PiSSA,
-   EVA, CorDA, LoftQ) that hKask's LoraInit enum declares. Axolotl remains the
-   runtime default when harness is undetermined — no silent migration.
+   requirements. The three harnesses have distinct capability profiles:
+   - **Axolotl** (YAML, SFT-only): mature, single-file config, the runtime
+     default. Cannot render advanced PEFT initializers (PiSSA, CorDA, LoftQ)
+     or preference optimization trainers.
+   - **TRL** (Python, SFT + preference): HF-native, supports SFTTrainer,
+     DPOTrainer, KTOTrainer, ORPOTrainer, RewardTrainer. Best for
+     assistant_only_loss, packing strategies, VLMs, and preference
+     optimization from paired/unpaired data.
+   - **Ludwig** (YAML, SFT + preference + GRPO): declarative like axolotl,
+     but covers the full alignment spectrum including GRPO
+     (reward-model-free RLHF) and advanced PEFT initializers (PiSSA, EVA,
+     CorDA, LoftQ) that axolotl cannot render. Best when the operator needs
+     GRPO or an initializer axolotl doesn't support.
+   Axolotl remains the runtime default when harness is undetermined — no
+   silent migration.
 7. Return separate `recommendation`, `readiness`, `justification`, and
-   `authority` objects. Emit `cns.lora.select`.
+   `authority` objects. Emit `reg.lora.select`.
 
 ### `lora-training/audit-config`
 
@@ -92,13 +103,13 @@ This skill does not train, load, initialize, merge, or evaluate models.
    `config_value | code_presence | code_absence | runtime_measurement | operator_assertion | not_available`.
    `code_absence` requires a search of the complete declared harness scope.
 6. Apply all 17 gates phase-appropriately: G-M1..G-M5, G-Q1..G-Q6,
-   G-D1..G-D3, G-F1..G-F2, and G-H1. Runtime and post-training passes require supplied
-   measurements; this template never executes those checks.
+   G-D1..G-D3, G-F1..G-F2, and G-H1. Runtime and post-training passes require
+   supplied measurements; this template never executes those checks.
 7. Inspect initializer-specific preprocessing and persistence according to the
    selected initializer's documented contract. Do not introduce an EVA-specific
    or framework-version-specific refusal rule.
 8. Emit every result using the normalized Finding schema below, compute readiness
-   separately, and emit `cns.lora.audit` for every represented gate.
+   separately, and emit `reg.lora.audit` for every represented gate.
 
 ### Normalized Finding Schema
 
@@ -142,7 +153,7 @@ Do not create alternate finding shapes. A recommendation never overwrites
 6. Derive readiness with precedence:
    `Refuse > Fail > Conditional > Deferred > Not evaluated > Pass`.
    A different method recommendation cannot change the verdict.
-7. Preserve claim-appropriate citations and emit `cns.lora.report` with exact
+7. Preserve claim-appropriate citations and emit `reg.lora.report` with exact
    phase, state, severity, and evidence-kind counts.
 
 ### `lora-training/convergence-check`
@@ -163,13 +174,13 @@ Do not create alternate finding shapes. A recommendation never overwrites
    `runtime_contracts_pending`, and `post_training_verified`, plus blockers and
    a reproducible gate-results summary. These do not replace the current-phase
    `converged` verdict.
-6. Emit `cns.lora.convergence` unconditionally.
+6. Emit `reg.lora.convergence` unconditionally.
 
 ## Registry Templates
 
 | Template | Type | Purpose |
 |---|---|---|
-| `select-method.j2` | `KnowAct` | Produce an advisory composable recommendation via five-gate refinement, explicit uncertainty, operator authority, and runtime enforcement boundaries. |
+| `select-method.j2` | `KnowAct` | Produce an advisory composable recommendation via six-gate refinement, explicit uncertainty, operator authority, and runtime enforcement boundaries. |
 | `audit-config.j2` | `KnowAct` | Audit declared artifacts with phase-aware gates, states, evidence kinds, normalized findings, and separate readiness. |
 | `report.j2` | `KnowAct` | Preserve findings losslessly; report readiness and contract gaps; propose only evidence-backed pending regressions. |
 | `convergence-check.j2` | `KnowAct` | Compute normalized current-phase convergence and preflight/runtime/post-training posture from supplied evidence. |
@@ -211,6 +222,8 @@ Do not create alternate finding shapes. A recommendation never overwrites
   Optimization.
 - ORPO: [arXiv:2403.07691](https://arxiv.org/abs/2403.07691) — Odds Ratio
   Preference Optimization.
+- GRPO: [arXiv:2402.03300](https://arxiv.org/abs/2402.03300) — Group Relative
+  Policy Optimization (reward-model-free RLHF).
 - PEFT v0.19.0:
   [LoraConfig reference](https://huggingface.co/docs/peft/v0.19.0/package_reference/lora).
 - TRL v1.8.0:
@@ -223,7 +236,6 @@ Do not create alternate finding shapes. A recommendation never overwrites
 - Ludwig v0.17: [Ludwig docs](https://ludwig.ai/latest/),
   [Ludwig config](https://ludwig.ai/latest/configuration/),
   [GitHub](https://github.com/ludwig-ai/ludwig) — declarative YAML framework
-  (Linux Foundation AI & Data, Apache-2.0). Covers SFT, DPO, KTO, ORPO, GRPO.
-- GRPO: [arXiv:2402.03300](https://arxiv.org/abs/2402.03300) — Group Relative
-  Policy Optimization (reward-model-free RLHF). Implemented in Ludwig via
-  `trainer.type: grpo`; TRL's online RL trainers are deferred.
+  (Linux Foundation AI & Data, Apache-2.0). Covers SFT, DPO, KTO, ORPO, GRPO
+  via `trainer.type`. Advanced PEFT initializers (PiSSA, EVA, CorDA, LoftQ)
+  native in config.

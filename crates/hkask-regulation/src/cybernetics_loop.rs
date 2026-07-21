@@ -180,7 +180,7 @@ impl CyberneticsLoop {
         };
 
         Self {
-            edger,
+            ledger,
             gas_budget_manager,
             well_manager: Arc::new(RwLock::new(WellManager::new())),
             wallet_manager: None,
@@ -1522,7 +1522,7 @@ impl RegulationLoop for CyberneticsLoop {
                 let ledger = self.ledger.read().await;
                 let mut watcher = watcher.lock().await;
                 if let Some(ref sink) = self.event_sink {
-                    let drifts = watcher.check_drift(&edger, sink.as_ref()).await;
+                    let drifts = watcher.check_drift(&ledger, sink.as_ref()).await;
                     if !drifts.is_empty()
                         && let Some(ref tx) = self.alerts_tx
                     {

@@ -298,7 +298,7 @@ impl ChatService {
         params.bypass_fusion = chat_bypass;
 
         let request_span = Span::new(
-            SpanNamespace::new("reg.chat").expect("canonical namespace: cns.chat"),
+            SpanNamespace::new("reg.chat").expect("canonical namespace: reg.chat"),
             "request",
         );
         let request_event = RegulationRecord::new(
@@ -338,7 +338,7 @@ impl ChatService {
         })?;
 
         let response_span = Span::new(
-            SpanNamespace::new("reg.chat").expect("canonical namespace: cns.chat"),
+            SpanNamespace::new("reg.chat").expect("canonical namespace: reg.chat"),
             "response",
         );
         let response_event = RegulationRecord::new(

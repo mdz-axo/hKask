@@ -30,15 +30,10 @@ pub use types::{
 
 // ── Host factory ───────────────────────────────────────────────────────────
 
-/// Create a training host from configuration and a pre-built harness.
+/// Create a training host from configuration.
 ///
-/// The harness selects the tooling (Axolotl). The host is fixed to
-/// Runpod — the only cloud host. The harness is injected into the host at
-/// construction.
-pub fn create_host(
-    config: &TrainingHostConfig,
-    harness: Box<dyn HarnessAdapter>,
-) -> Result<Box<dyn TrainingHost>, ProviderError> {
+/// The host is fixed to Runpod — the only cloud host.
+pub fn create_host(config: &TrainingHostConfig) -> Result<Box<dyn TrainingHost>, ProviderError> {
     if config.runpod_api_key.is_empty() {
         return Err(ProviderError::Unavailable(
             "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
@@ -59,18 +54,15 @@ pub fn create_host(
              template and base image"
         );
     }
-    Ok(Box::new(RunpodHost::new(
-        runpod::RunpodHostInit {
-            api_key: config.runpod_api_key.clone(),
-            template_id: config.runpod_template_id.clone(),
-            gpu_type_id: config.runpod_gpu_type_id.clone(),
-            container_disk_gb: config.runpod_container_disk_gb,
-            min_memory_gb: config.runpod_min_memory_gb,
-            min_vcpu: config.runpod_min_vcpu_count,
-            docker_image: config.runpod_docker_image.clone(),
-        },
-        harness,
-    )))
+    Ok(Box::new(RunpodHost::new(runpod::RunpodHostInit {
+        api_key: config.runpod_api_key.clone(),
+        template_id: config.runpod_template_id.clone(),
+        gpu_type_id: config.runpod_gpu_type_id.clone(),
+        container_disk_gb: config.runpod_container_disk_gb,
+        min_memory_gb: config.runpod_min_memory_gb,
+        min_vcpu: config.runpod_min_vcpu_count,
+        docker_image: config.runpod_docker_image.clone(),
+    })))
 }
 
 // ── Training host config ──────────────────────────────────────────────────

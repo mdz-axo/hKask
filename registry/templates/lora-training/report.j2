@@ -1,4 +1,4 @@
-{# goal: Report phase-aware training findings without changing their schema or classification. Preserve the operator-selected method, separate recommendations from readiness, propose evidence-backed regressions, emit cns.lora.report (P9), and require userpod_host (P12). #}
+{# goal: Report phase-aware training findings without changing their schema or classification. Preserve the operator-selected method, separate recommendations from readiness, propose evidence-backed regressions, emit reg.lora.report (P9), and require userpod_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -178,7 +178,7 @@ EVIDENCE INTEGRITY
 - Do not introduce framework-version-specific initializer refusal policy.
 
 CNS SPAN (P9)
-Emit `cns.lora.report` with exact counts by phase, state, severity, and
+Emit `reg.lora.report` with exact counts by phase, state, severity, and
 `evidence_kind`; proposed regression count; selected_method; readiness
 verdict; contract-gap count; userpod_host; latency_ms. Namespace remains
 registered in `CANONICAL_NAMESPACES`. Emit no anonymous action.
