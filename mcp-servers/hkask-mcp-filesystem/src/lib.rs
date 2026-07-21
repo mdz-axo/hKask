@@ -18,7 +18,7 @@
 //!
 //! # CNS Spans
 //!
-//! All spans use `CnsSpan::Tool { subsystem: ToolSubsystem::Filesystem }`.
+//! All spans use `RegulationSpan::Tool { subsystem: ToolSubsystem::Filesystem }`.
 //! Operations: `file.read`, `file.written`, `file.deleted`,
 //! `command.completed`, `command.failed`, `path.rejected`.
 
@@ -28,7 +28,7 @@ pub mod types;
 use types::*;
 
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
-use hkask_types::cns::{CnsSpan, ToolSubsystem};
+use hkask_types::cns::{RegulationSpan, ToolSubsystem};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -50,7 +50,7 @@ hkask_mcp::mcp_server!(
 impl FileSystemServer {
     /// Emit a CNS span for a filesystem operation.
     fn emit_cns(&self, operation: &str) {
-        CnsSpan::Tool {
+        RegulationSpan::Tool {
             subsystem: ToolSubsystem::Filesystem,
         }
         .emit(operation);

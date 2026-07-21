@@ -9,7 +9,7 @@ use std::sync::Arc;
 use hkask_pods::consent::ConsentManager;
 use hkask_regulation::CyberneticsLoop;
 use hkask_storage::WalletStore;
-use hkask_types::event::NuEventSink;
+use hkask_types::event::RegulationSink;
 use hkask_wallet::{ApiKeyIssuer, WalletManager};
 use hkask_wallet::{ChainId, WalletConfig};
 use tokio::sync::RwLock;
@@ -111,7 +111,7 @@ impl WalletService {
     pub fn build(
         config: &WalletConfig,
         store: Arc<WalletStore>,
-        event_sink: Arc<dyn NuEventSink>,
+        event_sink: Arc<dyn RegulationSink>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
     ) -> Result<Arc<Self>, ServiceError> {
         // ── Build chain ports from environment ────────────────────────────

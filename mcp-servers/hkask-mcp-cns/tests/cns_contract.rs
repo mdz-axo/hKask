@@ -9,17 +9,17 @@
 
 use hkask_database::sqlite::SqliteDriver;
 use hkask_mcp_cns::CnsServer;
-use hkask_storage::NuEventStore;
+use hkask_storage::RegulationArchive;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use rmcp::handler::server::wrapper::Parameters;
 use std::sync::Arc;
 
-/// Build a CnsServer backed by an in-memory NuEventStore (no on-disk DB).
+/// Build a CnsServer backed by an in-memory RegulationArchive (no on-disk DB).
 fn test_server() -> CnsServer {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
-    let store = NuEventStore::from_driver(driver);
+    let store = RegulationArchive::from_driver(driver);
     CnsServer::new(
         WebID::new(),
         "test-userpod".into(),
@@ -35,11 +35,11 @@ fn test_server_no_store() -> CnsServer {
 }
 
 /// Insert a single ν-event into the in-memory store for the given namespace.
-fn insert_event(store: &NuEventStore, namespace: &str, local_path: &str) {
+fn insert_event(store: &RegulationArchive, namespace: &str, local_path: &str) {
     let ns = SpanNamespace::new(namespace)
         .unwrap_or_else(|| SpanNamespace::new("cns.gas").expect("cns.gas must be canonical"));
     let span = Span::new(ns, local_path);
-    let event = NuEvent::new(
+    let event = RegulationRecord::new(
         WebID::from_persona(b"observer"),
         span,
         CyclePhase::Act,
@@ -97,7 +97,7 @@ async fn cns_query_spans_returns_empty_array_when_no_events() {
 async fn cns_query_spans_returns_matching_events() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
-    let store = NuEventStore::from_driver(driver);
+    let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "cns.guard.input", "guard.input.violation");
 
     let server = CnsServer::new(
@@ -157,7 +157,7 @@ async fn cns_query_spans_rejects_whitespace_namespace() {
 }
 
 // REQ: cns_query_spans returns permission_denied when no store is attached (P5).
-// expect: when the NuEventStore is None (no DB passphrase), the tool returns
+// expect: when the RegulationArchive is None (no DB passphrase), the tool returns
 // kind=permission_denied with a clear message.
 #[tokio::test]
 async fn cns_query_spans_returns_permission_denied_without_store() {
@@ -227,7 +227,7 @@ async fn cns_span_stats_returns_empty_object_when_no_events() {
 async fn cns_span_stats_returns_aggregated_counts() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
-    let store = NuEventStore::from_driver(driver);
+    let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "cns.regulation", "regulation.action_blocked");
     insert_event(&store, "cns.regulation", "regulation.plateau_detected");
 
@@ -276,7 +276,7 @@ async fn cns_span_stats_rejects_empty_namespace() {
 }
 
 // REQ: cns_span_stats returns permission_denied when no store is attached (P5).
-// expect: when the NuEventStore is None, the tool returns kind=permission_denied.
+// expect: when the RegulationArchive is None, the tool returns kind=permission_denied.
 #[tokio::test]
 async fn cns_span_stats_returns_permission_denied_without_store() {
     let server = test_server_no_store();
@@ -298,7 +298,7 @@ async fn cns_span_stats_returns_permission_denied_without_store() {
 async fn cns_query_spans_strips_cns_prefix() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
-    let store = NuEventStore::from_driver(driver);
+    let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "cns.guard.input", "guard.input.violation");
 
     let server = CnsServer::new(

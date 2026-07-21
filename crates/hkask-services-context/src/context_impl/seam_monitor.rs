@@ -1,14 +1,14 @@
 //! Seam drift monitor — periodic public-seam drift detection.
 
-use hkask_regulation::{CnsRuntime, SeamWatcher};
-use hkask_types::event::NuEventSink;
+use hkask_regulation::{RegulationLedger, SeamWatcher};
+use hkask_types::event::RegulationSink;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub(crate) fn spawn_seam_drift_check(
     seam_watcher: &Arc<RwLock<Option<SeamWatcher>>>,
-    cns_runtime: &Arc<RwLock<CnsRuntime>>,
-    event_sink: &Arc<dyn NuEventSink>,
+    cns_runtime: &Arc<RwLock<RegulationLedger>>,
+    event_sink: &Arc<dyn RegulationSink>,
 ) {
     let watcher_lock = Arc::clone(seam_watcher);
     let cns = Arc::clone(cns_runtime);

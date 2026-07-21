@@ -9,7 +9,7 @@ use hkask_types::GoalID;
 use hkask_types::GoalState;
 use hkask_types::InfrastructureError;
 use hkask_types::NotFound;
-use hkask_types::event::NuEventSink;
+use hkask_types::event::RegulationSink;
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 use std::sync::Arc;
@@ -49,7 +49,7 @@ pub struct QuarantinedGoal {
 pub struct SqliteGoalRepository {
     driver: std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>,
     /// Optional CNS telemetry sink for observability.
-    telemetry: Option<Arc<dyn NuEventSink>>,
+    telemetry: Option<Arc<dyn RegulationSink>>,
 }
 
 impl SqliteGoalRepository {
@@ -66,7 +66,7 @@ impl SqliteGoalRepository {
     /// expect: "The system provides durable storage for goal data"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — attach CNS telemetry
     /// post: returns Self with telemetry sink configured
-    pub fn with_telemetry(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_telemetry(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.telemetry = Some(sink);
         self
     }
@@ -541,7 +541,7 @@ impl SqliteGoalRepository {
     pub fn repair_quarantined_goal(
         &self,
         goal_id: GoalID,
-        _event_sink: &dyn NuEventSink,
+        _event_sink: &dyn RegulationSink,
     ) -> Result<bool> {
         let quarantined = {
             let rows = self

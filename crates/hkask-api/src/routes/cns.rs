@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures_util::stream::Stream;
-use hkask_ports::{BackpressureSignal, CnsObserver, DepletionSignal};
-use hkask_types::event::{NuEvent, SpanNamespace};
+use hkask_ports::{BackpressureSignal, LedgerObserver, DepletionSignal};
+use hkask_types::event::{RegulationRecord, SpanNamespace};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -35,13 +35,13 @@ const SSE_CHANNEL_CAPACITY: usize = 256;
 // ── SSE Event Envelope ──
 
 /// Union type for all CNS events that can be streamed over SSE.
-/// Wraps NuEvent, DepletionSignal, and BackpressureSignal so a single
+/// Wraps RegulationRecord, DepletionSignal, and BackpressureSignal so a single
 /// broadcast channel can carry all observer callbacks.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "payload")]
 enum CnsSseEvent {
     #[serde(rename = "event")]
-    NuEvent(NuEvent),
+    RegulationRecord(RegulationRecord),
     #[serde(rename = "depletion")]
     Depletion(DepletionSignal),
     #[serde(rename = "backpressure")]
@@ -50,9 +50,9 @@ enum CnsSseEvent {
 
 // ── SSE Observer Bridge ──
 
-/// Bridge between CnsRuntime's observer pattern and tokio broadcast channel.
+/// Bridge between RegulationLedger's observer pattern and tokio broadcast channel.
 ///
-/// Implements `CnsObserver` so the CNS can deliver events via its standard
+/// Implements `LedgerObserver` so the CNS can deliver events via its standard
 /// callback interface. Each callback forwards the event into a broadcast channel
 /// whose receiver is consumed by the SSE response stream.
 struct SseObserver {
@@ -71,16 +71,16 @@ impl SseObserver {
     }
 }
 #[async_trait]
-impl CnsObserver for SseObserver {
+impl LedgerObserver for SseObserver {
     fn interest_mask(&self) -> Vec<SpanNamespace> {
         self.interest_mask.clone()
     }
 
-    async fn on_event(&self, event: &NuEvent) {
+    async fn on_event(&self, event: &RegulationRecord) {
         let interested =
             self.interest_mask.is_empty() || self.interest_mask.contains(&event.span.namespace);
         if interested {
-            let _ = self.sender.send(CnsSseEvent::NuEvent(event.clone()));
+            let _ = self.sender.send(CnsSseEvent::RegulationRecord(event.clone()));
         }
     }
 
@@ -101,14 +101,14 @@ impl CnsObserver for SseObserver {
     path = "/api/cns/health",
     tag = "cns",
     responses(
-        (status = 200, description = "CNS health status", body = CnsHealthResponse),
+        (status = 200, description = "CNS health status", body = LedgerHealthResponse),
         (status = 500, description = "Internal server error"),
     ),
 )]
-pub(crate) async fn cns_health(State(state): State<ApiState>) -> axum::Json<CnsHealthResponse> {
+pub(crate) async fn cns_health(State(state): State<ApiState>) -> axum::Json<LedgerHealthResponse> {
     let health = state.agent_service.cns().health().await;
 
-    axum::Json(CnsHealthResponse {
+    axum::Json(LedgerHealthResponse {
         overall_deficit: health.overall_deficit,
         critical_count: health.critical_count,
         warning_count: health.warning_count,
@@ -212,7 +212,7 @@ pub(crate) async fn cns_subscribe(
                 Ok(cns_event) => {
                     let data = serde_json::to_string(&cns_event).unwrap_or_default();
                     let event_type = match cns_event {
-                        CnsSseEvent::NuEvent(_) => "cns-event",
+                        CnsSseEvent::RegulationRecord(_) => "cns-event",
                         CnsSseEvent::Depletion(_) => "cns-depletion",
                         CnsSseEvent::Backpressure(_) => "cns-backpressure",
                     };
@@ -240,7 +240,7 @@ pub(crate) async fn cns_subscribe(
 /// their configured threshold). Check `critical_count` and `warning_count` for
 /// severity. `overall_deficit` is the sum of all per-domain deficits.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CnsHealthResponse {
+pub struct LedgerHealthResponse {
     /// Sum of all per-domain variety deficits
     pub overall_deficit: u64,
     /// Count of domains in critical deficit (escalation-triggered)

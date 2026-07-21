@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 
 use crate::cns_span::FederationSpan;
 use hkask_ports::federation::{FederationDispatchError, FederationMessage, FederationTransport};
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 
 use crate::ReplicaId;
 use crate::sync::invitation_policy::{InvitationPolicy, ManualInvitationPolicy};
@@ -22,7 +22,7 @@ pub struct FederationLinkManager {
     links: RwLock<HashMap<ReplicaId, FederationLink>>,
     transport: Arc<dyn FederationTransport>,
     local_replica: ReplicaId,
-    event_sink: Arc<dyn NuEventSink>,
+    event_sink: Arc<dyn RegulationSink>,
     /// Policy for evaluating incoming federation invitations (P2 consent).
     invitation_policy: Box<dyn InvitationPolicy>,
 }
@@ -31,7 +31,7 @@ impl FederationLinkManager {
     pub fn new(
         local_replica: ReplicaId,
         transport: Arc<dyn FederationTransport>,
-        event_sink: Arc<dyn NuEventSink>,
+        event_sink: Arc<dyn RegulationSink>,
     ) -> Self {
         Self {
             links: RwLock::new(HashMap::new()),
@@ -201,7 +201,7 @@ impl FederationLinkManager {
             SpanNamespace::from_observable(&span).expect("domain span must be canonical"),
             "federation",
         );
-        let event = NuEvent::new(
+        let event = RegulationRecord::new(
             hkask_types::WebID::from_persona(b"curator"),
             s,
             CyclePhase::Act,
@@ -296,11 +296,11 @@ impl hkask_ports::federation::FederationDispatch for FederationLinkManager {
 mod tests {
     use super::*;
     use crate::sync::transport::InMemoryFederationTransport;
-    use hkask_types::event::NuEventSink;
+    use hkask_types::event::RegulationSink;
 
     struct NoopSink;
-    impl NuEventSink for NoopSink {
-        fn persist(&self, _event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+    impl RegulationSink for NoopSink {
+        fn persist(&self, _event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
             Ok(())
         }
     }

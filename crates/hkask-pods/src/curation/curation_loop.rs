@@ -11,7 +11,7 @@
 //! The Curation Loop is pure regulatory code — no persona, no chat behavior,
 //! no memory. The Curator Agent (`crate::curator_agent::CuratorAgent`) is the
 //! persona layer that holds metacognition, bot orchestration, and human-facing
-//! reporting. The Curation Loop reads from the NuEvent store and produces
+//! reporting. The Curation Loop reads from the RegulationRecord store and produces
 //! `CuratorDirective`s; the Curator Agent *consumes* those directives and
 //! formats them for human operators.
 
@@ -35,7 +35,7 @@ const CUR_TARGET: &str = "curation.loop";
 
 /// Curation Loop — pure regulatory observer.
 ///
-/// Reads from the NuEvent store and produces `CuratorDirective`s through
+/// Reads from the RegulationRecord store and produces `CuratorDirective`s through
 /// Communication dispatch. All persona concerns (metacognition, bot
 /// orchestration, human-facing reporting) belong in `CuratorAgent`.
 ///
@@ -334,10 +334,10 @@ impl HkaskLoop for CurationLoop {
         LoopId::Curation
     }
 
-    /// Sense: read algedonic-significant NuEvents from the persistent store.
-    /// Falls back to live CNS reads if no NuEvent store is configured.
+    /// Sense: read algedonic-significant RegulationRecords from the persistent store.
+    /// Falls back to live CNS reads if no RegulationRecord store is configured.
     async fn sense(&self) -> Vec<Signal> {
-        // Primary: Read from NuEvent store using cursor-based algedonic review
+        // Primary: Read from RegulationRecord store using cursor-based algedonic review
         let since_ms = self.last_review_ms.load(Ordering::Relaxed);
         let since = chrono::DateTime::<Utc>::from_timestamp_millis(since_ms as i64)
             .unwrap_or(chrono::DateTime::<Utc>::UNIX_EPOCH);
@@ -375,16 +375,16 @@ impl HkaskLoop for CurationLoop {
                             tracing::warn!(target: CUR_TARGET, error = %e, "Failed to persist curation review cursor");
                         }
                     }
-                    tracing::info!(target: CUR_TARGET, since = %since.to_rfc3339(), event_count = count, "Curation read algedonic events from NuEvent store");
+                    tracing::info!(target: CUR_TARGET, since = %since.to_rfc3339(), event_count = count, "Curation read algedonic events from RegulationRecord store");
                     count
                 }
                 Err(e) => {
-                    tracing::warn!(target: CUR_TARGET, error = %e, "Failed to query NuEvent store, falling back to live CNS reads");
+                    tracing::warn!(target: CUR_TARGET, error = %e, "Failed to query RegulationRecord store, falling back to live CNS reads");
                     self.context.cns().critical_alerts().await.len() as u64
                 }
             }
         } else {
-            // No NuEvent store configured: fall back to live CNS reads
+            // No RegulationRecord store configured: fall back to live CNS reads
             self.context.cns().critical_alerts().await.len() as u64
         };
 

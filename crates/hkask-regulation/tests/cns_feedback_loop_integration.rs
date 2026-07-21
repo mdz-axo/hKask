@@ -1,20 +1,20 @@
 //! CNS feedback loop integration test — Wave 3 Task 3.4
 //!
 //! Verifies closed-loop CNS behavior: event injection → algedonic response →
-//! homeostatic restoration. Uses MockCnsRuntime from hkask-test-harness.
+//! homeostatic restoration. Uses MockRegulationLedger from hkask-test-harness.
 //!
 //! # Principle grounding
 //! - P9 (Homeostatic Self-Regulation): the CNS must detect perturbations and restore homeostasis
 //! - P8 (Semantic Grounding): every test asserts a stated behavioral property
 
-use hkask_test_harness::{MockCnsRuntime, MockCnsState, MockToolState, test_event};
+use hkask_test_harness::{MockRegulationLedger, MockCnsState, MockToolState, test_event};
 use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 
 // The CNS detects perturbations and restores homeostasis.
 
 #[test]
 fn cns_detects_perturbation() {
-    let cns = MockCnsRuntime::new();
+    let cns = MockRegulationLedger::new();
     assert!(cns.is_homeostatic(), "CNS should start homeostatic");
 
     let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
@@ -31,7 +31,7 @@ fn cns_detects_perturbation() {
 
 #[test]
 fn cns_restores_homeostasis_after_time() {
-    let cns = MockCnsRuntime::new();
+    let cns = MockRegulationLedger::new();
 
     // Perturb the system
     let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
@@ -55,7 +55,7 @@ fn cns_restores_homeostasis_after_time() {
 
 #[test]
 fn cns_throttles_tool_on_budget_exceeded() {
-    let cns = MockCnsRuntime::with_state(MockCnsState::perturbed("tool-x"));
+    let cns = MockRegulationLedger::with_state(MockCnsState::perturbed("tool-x"));
 
     assert!(!cns.is_homeostatic());
     assert_eq!(cns.tool_state("tool-x"), MockToolState::Throttled);
@@ -64,7 +64,7 @@ fn cns_throttles_tool_on_budget_exceeded() {
 
 #[test]
 fn cns_tracks_variety_by_domain() {
-    let cns = MockCnsRuntime::new();
+    let cns = MockRegulationLedger::new();
 
     cns.record_variety("cns.tool");
     cns.record_variety("cns.tool");
@@ -77,7 +77,7 @@ fn cns_tracks_variety_by_domain() {
 
 #[test]
 fn cns_multiple_perturbations_accumulate_signals() {
-    let cns = MockCnsRuntime::new();
+    let cns = MockRegulationLedger::new();
 
     let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
     cns.inject(test_event(span, CyclePhase::Sense, None));

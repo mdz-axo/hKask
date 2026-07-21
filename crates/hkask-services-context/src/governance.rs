@@ -15,8 +15,8 @@ use hkask_regulation::types::loops::{CurationInput, GoalTransitionEvent};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::{EscalationEntry, EscalationQueue};
 use hkask_types::WebID;
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::cns::RegulationSpan;
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use std::sync::Arc;
 
 // ── Escalation response type ──────────────────────────────────────────
@@ -64,7 +64,7 @@ pub struct GovernanceContext {
 
     pub a2a: Arc<A2ARuntime>,
     pub escalations: Arc<EscalationQueue>,
-    pub events: Arc<dyn NuEventSink>,
+    pub events: Arc<dyn RegulationSink>,
     pub curation_tx: tokio::sync::mpsc::UnboundedSender<CurationInput>,
 }
 
@@ -77,7 +77,7 @@ impl GovernanceContext {
 
         a2a: Arc<A2ARuntime>,
         escalations: Arc<EscalationQueue>,
-        events: Arc<dyn NuEventSink>,
+        events: Arc<dyn RegulationSink>,
         curation_tx: tokio::sync::mpsc::UnboundedSender<CurationInput>,
     ) -> Self {
         Self {
@@ -147,17 +147,17 @@ impl GovernanceContext {
 
 /// Emit a CNS ν-event for an escalation operation (resolve/dismiss).
 fn emit_escalation_event(
-    events: &Arc<dyn NuEventSink>,
+    events: &Arc<dyn RegulationSink>,
     operation: &str,
     actor_key: &str,
     escalation_id: &str,
     actor: &str,
 ) {
     let span = Span::new(
-        SpanNamespace::try_from(CnsSpan::Curation).expect("canonical span"),
+        SpanNamespace::try_from(RegulationSpan::Curation).expect("canonical span"),
         operation,
     );
-    let event = NuEvent::new(
+    let event = RegulationRecord::new(
         WebID::from_persona(b"curator"),
         span,
         CyclePhase::Act,
@@ -202,7 +202,7 @@ pub fn list_escalations_direct(
 #[must_use = "result must be used"]
 pub fn resolve_direct(
     queue: &EscalationQueue,
-    events: &Arc<dyn NuEventSink>,
+    events: &Arc<dyn RegulationSink>,
     id: &str,
     resolved_by: &str,
 ) -> Result<(), ServiceError> {
@@ -237,7 +237,7 @@ pub fn resolve_direct(
 #[must_use = "result must be used"]
 pub fn dismiss_direct(
     queue: &EscalationQueue,
-    events: &Arc<dyn NuEventSink>,
+    events: &Arc<dyn RegulationSink>,
     id: &str,
     dismissed_by: &str,
 ) -> Result<(), ServiceError> {

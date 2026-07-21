@@ -1,16 +1,16 @@
 //! Contract lifecycle CNS event emitters.
 //!
 //! Emits CNS spans for spec contract proposals, acceptances, rejections,
-//! and violations. These events flow to the NuEventSink → CurationLoop.
+//! and violations. These events flow to the RegulationSink → CurationLoop.
 
 use crate::contract_span::ContractSpan;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use tracing;
 
 /// Emit a CNS event when a contract is proposed by a userpod (Phase B2–B4).
 pub fn emit_contract_proposed(
-    sink: &dyn NuEventSink,
+    sink: &dyn RegulationSink,
     userpod: &str,
     crate_name: &str,
     function: &str,
@@ -25,7 +25,7 @@ pub fn emit_contract_proposed(
         "function": function,
         "contract_id": contract_id,
     });
-    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
+    let event = RegulationRecord::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_proposed event");
     }
@@ -33,7 +33,7 @@ pub fn emit_contract_proposed(
 
 /// Emit a CNS event when a contract proposal is accepted by a human (Phase B3).
 pub fn emit_contract_accepted(
-    sink: &dyn NuEventSink,
+    sink: &dyn RegulationSink,
     reviewer: &str,
     _crate_name: &str,
     _function: &str,
@@ -47,7 +47,7 @@ pub fn emit_contract_accepted(
         "reviewer": reviewer,
         "contract_id": contract_id,
     });
-    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
+    let event = RegulationRecord::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_accepted event");
     }
@@ -55,7 +55,7 @@ pub fn emit_contract_accepted(
 
 /// Emit a CNS event when a contract proposal is rejected by a human (Phase B3).
 pub fn emit_contract_rejected(
-    sink: &dyn NuEventSink,
+    sink: &dyn RegulationSink,
     reviewer: &str,
     _crate_name: &str,
     _function: &str,
@@ -71,7 +71,7 @@ pub fn emit_contract_rejected(
         "contract_id": contract_id,
         "reason": reason,
     });
-    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
+    let event = RegulationRecord::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_rejected event");
     }
@@ -79,7 +79,7 @@ pub fn emit_contract_rejected(
 
 /// Emit a CNS event when a contract violation is detected during testing.
 pub fn emit_contract_violated(
-    sink: &dyn NuEventSink,
+    sink: &dyn RegulationSink,
     test_name: &str,
     contract_id: &str,
     failure_reason: &str,
@@ -92,7 +92,7 @@ pub fn emit_contract_violated(
         "contract_id": contract_id,
         "failure_reason": failure_reason,
     });
-    let event = NuEvent::new(WebID::default(), span, CyclePhase::Act, observation, 0);
+    let event = RegulationRecord::new(WebID::default(), span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "hkask.contract", error = %e, "Failed to persist contract_violated event");
     }

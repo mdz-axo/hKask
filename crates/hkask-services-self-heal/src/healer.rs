@@ -173,7 +173,7 @@ impl SelfHealer {
 
     #[must_use]
     pub fn attempt(&self, error: &str, context: &HealContext) -> HealOutcome {
-        tracing::info!(target: "cns.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::cns::CnsSpan::SelfHeal);
+        tracing::info!(target: "cns.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::cns::RegulationSpan::SelfHeal);
 
         // Stage 1: KnowAct classification
         if let Some((strategy_name, confidence)) = self.classify_error(error, context)

@@ -9,11 +9,11 @@
 
 use crate::recall_dedup;
 use hkask_storage::{HMem, HMemError, HMemStore};
-use hkask_types::NuEventSink;
+use hkask_types::RegulationSink;
 use hkask_types::Visibility;
 use hkask_types::WebID;
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::cns::RegulationSpan;
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -48,7 +48,7 @@ pub(crate) const DEFAULT_MEMORY_LIFE_DAYS: f64 = crate::bayesian::DEFAULT_MEMORY
 /// - **Storage budget** (2a.4): Per-agent storage limit with consolidation
 ///   candidate identification (uses decayed confidence for prioritization).
 pub struct EpisodicMemory {
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
     h_mem_store: HMemStore,
     /// Memory life S in days — configurable, default 180 (6 months × 30).
     /// The forgetting curve is R(t) = exp(-t/S) where t is days since recall.
@@ -73,7 +73,7 @@ impl EpisodicMemory {
             event_sink: None,
         }
     }
-    pub fn with_cns(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_cns(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -91,8 +91,8 @@ impl EpisodicMemory {
         self
     }
 
-    /// Access the CNS event sink for loop-level NuEvent emission.
-    pub(crate) fn event_sink(&self) -> Option<&Arc<dyn NuEventSink>> {
+    /// Access the CNS event sink for loop-level RegulationRecord emission.
+    pub(crate) fn event_sink(&self) -> Option<&Arc<dyn RegulationSink>> {
         self.event_sink.as_ref()
     }
 
@@ -123,13 +123,13 @@ impl EpisodicMemory {
             return Err(EpisodicMemoryError::MissingPerspective);
         }
         self.h_mem_store.insert(&h_mem)?;
-        // CNS: emit NuEvent for memory write observability
+        // CNS: emit RegulationRecord for memory write observability
         if let Some(sink) = &self.event_sink {
             let span = Span::new(
-                SpanNamespace::try_from(CnsSpan::MemoryEncode).expect("canonical span"),
+                SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
                 "episodic_stored",
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 h_mem.access.owner_webid,
                 span,
                 CyclePhase::Act,

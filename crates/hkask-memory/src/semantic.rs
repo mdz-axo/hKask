@@ -11,10 +11,10 @@
 
 use crate::recall_dedup;
 use hkask_storage::{EmbeddingError, EmbeddingStore, HMem, HMemError, HMemStore, SimilarityResult};
-use hkask_types::NuEventSink;
+use hkask_types::RegulationSink;
 use hkask_types::Visibility;
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::cns::RegulationSpan;
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::visibility::Confidence;
 use std::sync::Arc;
 use thiserror::Error;
@@ -60,7 +60,7 @@ pub struct CentroidResult {
 ///   semantically related h_mems, enabling context assembly that goes
 ///   beyond exact entity matches.
 pub struct SemanticMemory {
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
     h_mem_store: HMemStore,
     embedding: Arc<EmbeddingStore>,
     /// Memory life S in days — configurable, default 180 (6 months × 30).
@@ -111,7 +111,7 @@ impl SemanticMemory {
         let embedding_store = EmbeddingStore::from_driver(driver, dim);
         Ok(Self::new(h_mem_store, embedding_store))
     }
-    pub fn with_cns(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_cns(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -137,7 +137,7 @@ impl SemanticMemory {
         self.memory_life_days
     }
 
-    pub(crate) fn event_sink(&self) -> Option<&Arc<dyn NuEventSink>> {
+    pub(crate) fn event_sink(&self) -> Option<&Arc<dyn RegulationSink>> {
         self.event_sink.as_ref()
     }
 
@@ -219,13 +219,13 @@ impl SemanticMemory {
             return Err(SemanticMemoryError::HasPerspective);
         }
         self.h_mem_store.insert(&h_mem)?;
-        // CNS: emit NuEvent for semantic write
+        // CNS: emit RegulationRecord for semantic write
         if let Some(sink) = &self.event_sink {
             let span = Span::new(
-                SpanNamespace::try_from(CnsSpan::MemoryEncode).expect("canonical span"),
+                SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
                 "semantic_stored",
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 h_mem.access.owner_webid,
                 span,
                 CyclePhase::Act,
@@ -239,13 +239,13 @@ impl SemanticMemory {
 
     pub(crate) fn store_consolidated(&self, h_mem: HMem) -> Result<(), SemanticMemoryError> {
         self.h_mem_store.insert(&h_mem)?;
-        // CNS: emit NuEvent for consolidation write
+        // CNS: emit RegulationRecord for consolidation write
         if let Some(sink) = &self.event_sink {
             let span = Span::new(
-                SpanNamespace::try_from(CnsSpan::MemoryEncode).expect("canonical span"),
+                SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
                 "consolidated",
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 h_mem.access.owner_webid,
                 span,
                 CyclePhase::Act,

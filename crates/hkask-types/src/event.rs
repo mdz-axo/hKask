@@ -13,7 +13,7 @@ use std::str::FromStr;
 
 /// ν-event — Cybernetic observation event
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NuEvent {
+pub struct RegulationRecord {
     pub id: EventID,
     pub timestamp: DateTime<Utc>,
     pub observer_webid: WebID,
@@ -27,12 +27,12 @@ pub struct NuEvent {
     pub visibility: String,
 }
 
-impl NuEvent {
-    /// Create a new NuEvent.
+impl RegulationRecord {
+    /// Create a new RegulationRecord.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  observer is valid, span is valid, phase is valid
-    /// post: returns NuEvent
+    /// post: returns RegulationRecord
     pub fn new(
         observer_webid: WebID,
         span: Span,
@@ -100,7 +100,7 @@ impl NuEvent {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpanNamespace(String);
 
-/// Canonical CNS span namespaces — mirrors `CnsSpan::as_str()` output plus namespaces
+/// Canonical CNS span namespaces — mirrors `RegulationSpan::as_str()` output plus namespaces
 /// used by `SpanKind` (e.g. `cns.variety`).
 /// Canonical CNS span namespaces — all valid namespace strings for span construction.
 ///
@@ -567,28 +567,28 @@ impl std::fmt::Display for SpanNamespace {
     }
 }
 
-// ── CnsSpan ↔ SpanNamespace bridges ──────────────────────────────────────
+// ── RegulationSpan ↔ SpanNamespace bridges ──────────────────────────────────────
 
 impl SpanNamespace {
-    /// Shared validation path — both `From<CnsSpan>` and `from_observable()` route through here.
+    /// Shared validation path — both `From<RegulationSpan>` and `from_observable()` route through here.
     fn from_str_validated(s: &str) -> Option<Self> {
         Self::new(s)
     }
 }
 
-impl TryFrom<crate::cns::CnsSpan> for SpanNamespace {
+impl TryFrom<crate::cns::RegulationSpan> for SpanNamespace {
     type Error = &'static str;
 
-    /// Convert a typed `CnsSpan` to a `SpanNamespace`, validating against
+    /// Convert a typed `RegulationSpan` to a `SpanNamespace`, validating against
     /// the canonical namespace registry.
     ///
     /// Returns `Err` if the span's namespace string is not in the canonical
-    /// registry. This should not happen if `CnsSpan::as_str()` is correct;
-    /// if it does, the `CnsSpan` variant needs to be added to
+    /// registry. This should not happen if `RegulationSpan::as_str()` is correct;
+    /// if it does, the `RegulationSpan` variant needs to be added to
     /// `CANONICAL_NAMESPACES`.
-    fn try_from(span: crate::cns::CnsSpan) -> Result<Self, Self::Error> {
+    fn try_from(span: crate::cns::RegulationSpan) -> Result<Self, Self::Error> {
         Self::from_str_validated(span.as_str())
-            .ok_or("CnsSpan namespace not registered in CANONICAL_NAMESPACES")
+            .ok_or("RegulationSpan namespace not registered in CANONICAL_NAMESPACES")
     }
 }
 
@@ -778,11 +778,11 @@ impl CyclePhase {
     }
 }
 
-/// NuEventSink — Trait for persisting CNS events
+/// RegulationSink — Trait for persisting CNS events
 ///
-/// Implemented by storage backends (e.g., NuEventStore in hkask-storage).
-pub trait NuEventSink: Send + Sync {
-    fn persist(&self, event: &NuEvent) -> Result<(), crate::InfrastructureError>;
+/// Implemented by storage backends (e.g., RegulationArchive in hkask-storage).
+pub trait RegulationSink: Send + Sync {
+    fn persist(&self, event: &RegulationRecord) -> Result<(), crate::InfrastructureError>;
 
     /// Persist an event only when its external source identity has not been observed.
     ///
@@ -790,7 +790,7 @@ pub trait NuEventSink: Send + Sync {
     fn persist_if_absent(
         &self,
         _source_event_id: &str,
-        event: &NuEvent,
+        event: &RegulationRecord,
     ) -> Result<bool, crate::InfrastructureError> {
         self.persist(event)?;
         Ok(true)
@@ -808,7 +808,7 @@ mod tests {
         let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
         let obs = serde_json::json!({"key": "value"});
 
-        let event = NuEvent::new(webid, span, CyclePhase::Sense, obs.clone(), 0);
+        let event = RegulationRecord::new(webid, span, CyclePhase::Sense, obs.clone(), 0);
 
         assert_eq!(event.observer_webid, webid);
         assert_eq!(event.phase, CyclePhase::Sense);
@@ -826,7 +826,7 @@ mod tests {
         let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
         let parent_id = crate::id::EventID::new();
 
-        let event = NuEvent::new(webid, span, CyclePhase::Act, serde_json::json!({}), 1)
+        let event = RegulationRecord::new(webid, span, CyclePhase::Act, serde_json::json!({}), 1)
             .with_outcome(serde_json::json!({"result": "ok"}))
             .with_regulation(serde_json::json!({"adj": 0.5}))
             .with_parent(parent_id)

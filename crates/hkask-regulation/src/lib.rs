@@ -83,7 +83,7 @@ pub use hkask_types::cns::QueueDepth;
 pub use hkask_types::curator::CurationThresholdConfig;
 pub use infra_span::InfraSpan;
 pub use qa_span::QaSpan;
-pub use runtime::CnsRuntime;
+pub use runtime::RegulationLedger;
 pub use runtime::NoopEventSink;
 pub use runtime_policy::{DefaultPolicy, PolicyConfig, PolicyVerdict, RuntimePolicy};
 pub use seam_span::SeamSpan;

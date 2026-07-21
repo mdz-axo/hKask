@@ -1,7 +1,7 @@
 //! Deposit monitoring — background polling for transparent and shielded deposits.
 
 use super::*;
-use hkask_types::cns::CnsSpan;
+use hkask_types::cns::RegulationSpan;
 
 fn repair_max_derivation_index() -> u64 {
     const DEFAULT_MAX_INDEX: u64 = 5;
@@ -157,9 +157,9 @@ impl WalletManager {
                         "to_address": event.to_address,
                     }),
                 );
-                CnsSpan::SelfHeal.emit("wallet_deposit_address_unresolvable");
+                RegulationSpan::SelfHeal.emit("wallet_deposit_address_unresolvable");
                 self.emit_core_span(
-                    CnsSpan::SelfHeal,
+                    RegulationSpan::SelfHeal,
                     "address_unresolvable",
                     CyclePhase::Sense,
                     serde_json::json!({
@@ -174,9 +174,9 @@ impl WalletManager {
                     &event.to_address,
                 ) {
                     Ok(Some(repaired_wallet_id)) => {
-                        CnsSpan::SelfHeal.emit("wallet_deposit_address_repaired");
+                        RegulationSpan::SelfHeal.emit("wallet_deposit_address_repaired");
                         self.emit_core_span(
-                            CnsSpan::SelfHeal,
+                            RegulationSpan::SelfHeal,
                             "address_repaired",
                             CyclePhase::Act,
                             serde_json::json!({
@@ -187,9 +187,9 @@ impl WalletManager {
                         repaired_wallet_id
                     }
                     Ok(None) => {
-                        CnsSpan::SelfHeal.emit("wallet_deposit_address_repair_deferred");
+                        RegulationSpan::SelfHeal.emit("wallet_deposit_address_repair_deferred");
                         self.emit_core_span(
-                            CnsSpan::SelfHeal,
+                            RegulationSpan::SelfHeal,
                             "address_repair_deferred",
                             CyclePhase::Act,
                             serde_json::json!({
@@ -202,9 +202,9 @@ impl WalletManager {
                         });
                     }
                     Err(err) => {
-                        CnsSpan::SelfHeal.emit("wallet_deposit_address_repair_failed");
+                        RegulationSpan::SelfHeal.emit("wallet_deposit_address_repair_failed");
                         self.emit_core_span(
-                            CnsSpan::SelfHeal,
+                            RegulationSpan::SelfHeal,
                             "address_repair_failed",
                             CyclePhase::Act,
                             serde_json::json!({

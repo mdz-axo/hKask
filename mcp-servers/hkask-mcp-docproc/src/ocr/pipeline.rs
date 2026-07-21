@@ -81,7 +81,7 @@ pub trait OcrExecutor: Send + Sync {
 /// workloads — interactive MCP tool calls should use `None` (sequential).
 ///
 /// CNS observability is handled externally by the GovernedTool membrane
-/// (gas accounting, variety tracking, NuEvent persistence). Internal
+/// (gas accounting, variety tracking, RegulationRecord persistence). Internal
 /// operational telemetry uses `tracing::info!` under `cns.pipeline` target.
 ///
 /// # Arguments

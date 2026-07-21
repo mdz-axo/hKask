@@ -20,7 +20,7 @@ impl WalletManager {
                 SpanNamespace::from_observable(&span).expect("domain span must be canonical"),
                 verb,
             );
-            let event = NuEvent::new(*actor, span_obj, phase, obs, 0);
+            let event = RegulationRecord::new(*actor, span_obj, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
                 tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist CNS span");
             }
@@ -28,18 +28,18 @@ impl WalletManager {
     }
 
     /// Emit a core CNS span through the wallet's event sink.
-    /// Use this for core CnsSpan variants (Gas, SelfHeal) that are
+    /// Use this for core RegulationSpan variants (Gas, SelfHeal) that are
     /// constructed within the wallet but are not wallet-specific.
     pub(super) fn emit_core_span(
         &self,
-        span: hkask_types::cns::CnsSpan,
+        span: hkask_types::cns::RegulationSpan,
         verb: &str,
         phase: CyclePhase,
         obs: serde_json::Value,
     ) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(SpanNamespace::try_from(span).expect("canonical span"), verb);
-            let event = NuEvent::new(Self::default_actor(), span_obj, phase, obs, 0);
+            let event = RegulationRecord::new(Self::default_actor(), span_obj, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
                 tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist CNS core span");
             }

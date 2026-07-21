@@ -33,7 +33,7 @@ use crate::energy_budget_management::GasBudgetManager;
 use crate::seam_watcher::SeamWatcher;
 use crate::set_point_calibrator::SetPointCalibrator;
 
-use crate::runtime::{CnsRuntime, RegulationCycleEntry};
+use crate::runtime::{RegulationLedger, RegulationCycleEntry};
 use crate::sensor_provider::{
     EnergyBudgetSensor, SensorRegistry, ToolReliabilitySensor, VarietySensor,
     WalletBalanceRatioSensor, WalletKeyHealthSensor,
@@ -60,7 +60,7 @@ use crate::types::loops::{BudgetOption, RegulationData};
 use hkask_ports::BackpressureSignal;
 use hkask_types::CuratorDirective;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanKind};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanKind};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -84,7 +84,7 @@ struct CalibratedThresholds {
 /// Episodic, Semantic) and may signal the Curation Loop via algedonic
 /// alerts. It may NOT regulate the Curation Loop.
 pub struct CyberneticsLoop {
-    cns: Arc<RwLock<CnsRuntime>>,
+    cns: Arc<RwLock<RegulationLedger>>,
     gas_budget_manager: Arc<RwLock<GasBudgetManager>>,
     well_manager: Arc<RwLock<WellManager>>,
     wallet_manager: Option<Arc<WalletManager>>,
@@ -92,8 +92,8 @@ pub struct CyberneticsLoop {
     /// Cascade detection — prevents unbounded sense→act cycles
     max_iterations: u32,
     dampener: Arc<Dampener>,
-    /// When present, algedonic alerts are persisted to NuEventStore for restart durability.
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    /// When present, algedonic alerts are persisted to RegulationArchive for restart durability.
+    event_sink: Option<Arc<dyn RegulationSink>>,
     /// Direct alerts channel: Cybernetics → Curation (CurationInput).
     alerts_tx: Option<mpsc::UnboundedSender<CurationInput>>,
     /// Direct tool consumption channel: GovernedTool → Cybernetics.
@@ -130,7 +130,7 @@ impl CyberneticsLoop {
     /// Create a new CyberneticsLoop with default set-points.
     ///
     /// expect: "The system provides configurable cybernetic self-regulation"
-    pub fn new(cns: Arc<RwLock<CnsRuntime>>) -> Self {
+    pub fn new(cns: Arc<RwLock<RegulationLedger>>) -> Self {
         Self::build(cns, SetPoints::default())
     }
 
@@ -138,11 +138,11 @@ impl CyberneticsLoop {
     ///
     /// expect: "The system provides configurable cybernetic self-regulation"
     /// post: returns Self with custom SetPoints applied at construction
-    pub fn with_set_points(cns: Arc<RwLock<CnsRuntime>>, set_points: SetPoints) -> Self {
+    pub fn with_set_points(cns: Arc<RwLock<RegulationLedger>>, set_points: SetPoints) -> Self {
         Self::build(cns, set_points)
     }
 
-    fn build(cns: Arc<RwLock<CnsRuntime>>, set_points: SetPoints) -> Self {
+    fn build(cns: Arc<RwLock<RegulationLedger>>, set_points: SetPoints) -> Self {
         let dampener = Arc::new(Dampener::with_windows(
             std::time::Duration::from_secs(set_points.dampen_window_secs),
             std::time::Duration::from_secs(set_points.metacognitive_window_secs),
@@ -205,12 +205,12 @@ impl CyberneticsLoop {
         }
     }
 
-    /// Algedonic alerts and directive acknowledgments persisted to NuEventStore.
+    /// Algedonic alerts and directive acknowledgments persisted to RegulationArchive.
     ///
     /// expect: "The system provides configurable cybernetic self-regulation"
     /// post: returns Self for chaining
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -378,7 +378,7 @@ impl CyberneticsLoop {
         proposed
     }
 
-    /// Emit a regulation span to the NuEventStore for CNS observability.
+    /// Emit a regulation span to the RegulationArchive for CNS observability.
     ///
     /// This is the Conant-Ashby closure: the CNS (observer-of-observers)
     /// must have a model of the regulation system itself. These spans
@@ -387,7 +387,7 @@ impl CyberneticsLoop {
     /// being blocked.
     async fn emit_regulation_span(&self, kind: SpanKind, observation: serde_json::Value) {
         if let Some(ref sink) = self.event_sink {
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 WebID::from_persona(b"cns"),
                 Span::from_kind(kind),
                 CyclePhase::Act,
@@ -447,20 +447,20 @@ impl CyberneticsLoop {
     }
 
     /// Wire the `SetPointCalibrator` — spawns a background task that periodically
-    /// evaluates regulation outcomes from the NuEventStore and adjusts the three
+    /// evaluates regulation outcomes from the RegulationArchive and adjusts the three
     /// calibratable thresholds (`stagnation_thresholds`, `block_worsening_ratio`,
     /// `substitution_after`) within bounded ranges.
     ///
     /// This closes the Conant-Ashby self-tuning loop: the regulator adapts its
     /// own set-points from observed regulation history. The calibrator requires
-    /// a `CnsStoragePort` to query algedonic/regulation events.
+    /// a `LedgerStoragePort` to query algedonic/regulation events.
     ///
     /// expect: "The system provides configurable cybernetic self-regulation"
     /// post: returns Self for chaining; background calibration task spawned
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_set_point_calibrator(
         self,
-        store: Arc<dyn hkask_ports::CnsStoragePort>,
+        store: Arc<dyn hkask_ports::LedgerStoragePort>,
         interval: std::time::Duration,
     ) -> Self {
         let calibrator = Arc::new(SetPointCalibrator::new(store, chrono::Duration::hours(1)));
@@ -587,7 +587,7 @@ impl CyberneticsLoop {
 
     /// Record a tool outcome in the CNS runtime for outcome quality tracking.
     ///
-    /// Delegates to `CnsRuntime::record_outcome`. Called by `McpRuntime`
+    /// Delegates to `RegulationLedger::record_outcome`. Called by `McpRuntime`
     /// after every governed tool invocation completes.
     ///
     /// expect: "The system provides observability into CNS regulation state"
@@ -827,7 +827,7 @@ impl CyberneticsLoop {
 
     fn persist_directive_acknowledgment(&self, directive_type: &str) {
         if let Some(ref sink) = self.event_sink {
-            let ack = NuEvent::new(
+            let ack = RegulationRecord::new(
                 WebID::from_persona(b"cns"),
                 Span::from_kind(SpanKind::CurationDirectiveAcknowledged),
                 CyclePhase::Act,
@@ -989,7 +989,7 @@ impl HkaskLoop for CyberneticsLoop {
                     tracing::warn!(target: "cns.algedonic", domain = %alert.domain, "Well exhaustion alert send failed or channel not connected");
                 }
                 if !sent && let Some(ref sink) = self.event_sink {
-                    let event = NuEvent::new(
+                    let event = RegulationRecord::new(
                         WebID::from_persona(b"cns"),
                         Span::from_kind(SpanKind::VarietyAlgedonicAlert),
                         CyclePhase::Act,
@@ -1107,7 +1107,7 @@ impl HkaskLoop for CyberneticsLoop {
             let target_id = action.target;
 
             // Send CurationInput::Alert on direct alerts channel.
-            // Fallback: persist to NuEventStore when channel is down (Curator inactive).
+            // Fallback: persist to RegulationArchive when channel is down (Curator inactive).
             // Per design decision: the algedonic system must always be connected
             // to the Curator userpod/agent — persistence is the bridge when the
             // live channel has no receiver.
@@ -1141,10 +1141,10 @@ impl HkaskLoop for CyberneticsLoop {
                     false
                 };
 
-                // Fallback: persist full alert to NuEventStore for Curator retrieval on next activation
+                // Fallback: persist full alert to RegulationArchive for Curator retrieval on next activation
                 if !sent_live {
                     if let Some(ref sink) = self.event_sink {
-                        let event = NuEvent::new(
+                        let event = RegulationRecord::new(
                             WebID::from_persona(b"cns"),
                             Span::from_kind(SpanKind::VarietyAlgedonicAlert),
                             CyclePhase::Act,
@@ -1162,7 +1162,7 @@ impl HkaskLoop for CyberneticsLoop {
                         if let Err(e) = sink.persist(&event) {
                             tracing::error!(target: "cns.algedonic", error = %e, "CRITICAL: Failed to persist algedonic alert — alert lost. Both live channel and persistence failed.");
                         } else {
-                            tracing::info!(target: "cns.algedonic", deficit = deficit, threshold = threshold, "Algedonic alert persisted to NuEventStore (Curator inbox unavailable)");
+                            tracing::info!(target: "cns.algedonic", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
                         }
                     } else {
                         tracing::error!(target: "cns.algedonic", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST — neither live channel nor event_sink connected. Feedback loop closure broken.");
@@ -1912,7 +1912,7 @@ mod tests {
 
     #[tokio::test]
     async fn new_loop_starts_with_default_quality() {
-        let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(100)));
+        let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
         let loop_instance = CyberneticsLoop::new(cns);
         let q = loop_instance.loop_quality().await;
         assert_eq!(q.delay_ms, 0);
@@ -1922,7 +1922,7 @@ mod tests {
 
     #[tokio::test]
     async fn tick_updates_loop_quality() {
-        let cns = Arc::new(RwLock::new(CnsRuntime::with_threshold(100)));
+        let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
         let loop_instance = CyberneticsLoop::new(cns);
         loop_instance.tick().await;
         let q = loop_instance.loop_quality().await;

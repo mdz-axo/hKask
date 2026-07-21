@@ -1,11 +1,11 @@
-//! Gas Report — query/aggregation layer over the NuEventStore for CNS gas consumption data.
+//! Gas Report — query/aggregation layer over the RegulationArchive for CNS gas consumption data.
 //!
 //! Provides tools for querying gas events (reserved, settled, depleted) across agents
 //! and time windows, aggregating into per-agent summaries and grand-total reports.
 //!
 //! ## Design
 //!
-//! - **Query layer**: reads raw events from the NuEventStore via `NuEventStore::query_algedonic`.
+//! - **Query layer**: reads raw events from the RegulationArchive via `RegulationArchive::query_algedonic`.
 //! - **Aggregation**: groups events by agent and tool, sums reserved/consumed/depleted metrics.
 //! - **Limitation**: GasDepleted events use `CyclePhase::Sense` and are not captured by `query_algedonic`
 //!   (which filters `phase = 'act'`). A future iteration may add a dedicated query method.
@@ -19,9 +19,9 @@
 //! ```
 
 use chrono::{DateTime, Utc};
-use hkask_ports::CnsStoragePort;
+use hkask_ports::LedgerStoragePort;
 use hkask_types::InfrastructureError;
-use hkask_types::event::NuEvent;
+use hkask_types::event::RegulationRecord;
 use hkask_types::id::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -118,19 +118,19 @@ enum GasEventKind {
 
 /// Query and aggregation layer for CNS gas consumption data.
 ///
-/// Wraps a [`CnsStoragePort`] and provides methods for querying gas events
+/// Wraps a [`LedgerStoragePort`] and provides methods for querying gas events
 /// by agent, by time window, and aggregating into reports.
 #[derive(Clone)]
 pub struct GasReport {
-    store: Arc<dyn CnsStoragePort>,
+    store: Arc<dyn LedgerStoragePort>,
 }
 
 impl GasReport {
     /// Create a new GasReport backed by the given event store.
     ///
     /// # Arguments
-    /// * `store` — An `Arc<dyn CnsStoragePort>` providing access to raw CNS events.
-    pub fn new(store: Arc<dyn CnsStoragePort>) -> Self {
+    /// * `store` — An `Arc<dyn LedgerStoragePort>` providing access to raw CNS events.
+    pub fn new(store: Arc<dyn LedgerStoragePort>) -> Self {
         Self { store }
     }
 
@@ -154,7 +154,7 @@ impl GasReport {
         until: DateTime<Utc>,
     ) -> Result<AgentGasSummary, InfrastructureError> {
         let events = self.query_gas_events(since, until)?;
-        let filtered: Vec<NuEvent> = events
+        let filtered: Vec<RegulationRecord> = events
             .into_iter()
             .filter(|ev| ev.observer_webid == *agent)
             .collect();
@@ -182,7 +182,7 @@ impl GasReport {
         let events = self.query_gas_events(since, until)?;
 
         // Group events by observer WebID
-        let mut grouped: HashMap<WebID, Vec<NuEvent>> = HashMap::new();
+        let mut grouped: HashMap<WebID, Vec<RegulationRecord>> = HashMap::new();
         for ev in events {
             grouped.entry(ev.observer_webid).or_default().push(ev);
         }
@@ -297,7 +297,7 @@ impl GasReport {
 
     /// Query gas events from the underlying store within a time window.
     ///
-    /// Uses [`CnsStoragePort::query_algedonic`] to fetch events with `span_category = 'gas'`
+    /// Uses [`LedgerStoragePort::query_algedonic`] to fetch events with `span_category = 'gas'`
     /// and `phase = 'act'`, then filters to only gas-related span kinds.
     ///
     /// **Limitation**: GasDepleted events use `CyclePhase::Sense` and will not appear in
@@ -306,7 +306,7 @@ impl GasReport {
         &self,
         since: DateTime<Utc>,
         until: DateTime<Utc>,
-    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+    ) -> Result<Vec<RegulationRecord>, InfrastructureError> {
         // Use a large limit to get all events in the window.
         // The algedonic query filters span_category IN ('gas', 'variety', 'agent_pod', ...)
         // with phase = 'act'.
@@ -314,7 +314,7 @@ impl GasReport {
         let raw_events = self.store.query_algedonic(since, LARGE_LIMIT)?;
 
         // Filter to only events within our time window and with gas span kinds
-        let gas_events: Vec<NuEvent> = raw_events
+        let gas_events: Vec<RegulationRecord> = raw_events
             .into_iter()
             .filter(|ev| ev.timestamp >= since && ev.timestamp < until && is_gas_event(ev))
             .collect();
@@ -328,7 +328,7 @@ impl GasReport {
     /// counts invocations, and computes per-tool breakdowns.
     fn aggregate_agent_events(
         agent: &WebID,
-        events: &[NuEvent],
+        events: &[RegulationRecord],
         since: DateTime<Utc>,
         until: DateTime<Utc>,
     ) -> Result<AgentGasSummary, InfrastructureError> {
@@ -386,7 +386,7 @@ impl GasReport {
         })
     }
 }
-fn classify_event_kind(event: &NuEvent) -> GasEventKind {
+fn classify_event_kind(event: &RegulationRecord) -> GasEventKind {
     match event.span.as_str() {
         "cns.gas.reserved" => GasEventKind::Reserved,
         "cns.gas.settled" => GasEventKind::Settled,
@@ -395,12 +395,12 @@ fn classify_event_kind(event: &NuEvent) -> GasEventKind {
     }
 }
 
-fn is_gas_event(event: &NuEvent) -> bool {
+fn is_gas_event(event: &RegulationRecord) -> bool {
     let s = event.span.as_str();
     s == "cns.gas.reserved" || s == "cns.gas.settled" || s == "cns.gas.depleted"
 }
 
-fn extract_server_name(event: &NuEvent) -> String {
+fn extract_server_name(event: &RegulationRecord) -> String {
     event
         .observation
         .get("server")
@@ -409,7 +409,7 @@ fn extract_server_name(event: &NuEvent) -> String {
         .to_string()
 }
 
-fn extract_tool_name(event: &NuEvent) -> String {
+fn extract_tool_name(event: &RegulationRecord) -> String {
     event
         .observation
         .get("tool")
@@ -418,7 +418,7 @@ fn extract_tool_name(event: &NuEvent) -> String {
         .to_string()
 }
 
-fn extract_cost(event: &NuEvent) -> u64 {
+fn extract_cost(event: &RegulationRecord) -> u64 {
     event
         .observation
         .get("estimated_cost")
@@ -426,7 +426,7 @@ fn extract_cost(event: &NuEvent) -> u64 {
         .unwrap_or(0)
 }
 
-fn extract_reserved(event: &NuEvent) -> u64 {
+fn extract_reserved(event: &RegulationRecord) -> u64 {
     event
         .observation
         .get("reserved")
@@ -434,7 +434,7 @@ fn extract_reserved(event: &NuEvent) -> u64 {
         .unwrap_or(0)
 }
 
-fn extract_actual(event: &NuEvent) -> u64 {
+fn extract_actual(event: &RegulationRecord) -> u64 {
     event
         .observation
         .get("actual")
@@ -458,7 +458,7 @@ mod tests {
         server: &str,
         tool: &str,
         cost: u64,
-    ) -> NuEvent {
+    ) -> RegulationRecord {
         let (obs, phase) = match kind {
             SpanKind::GasReserved => (
                 serde_json::json!({"server": server, "tool": tool, "estimated_cost": cost}),
@@ -483,7 +483,7 @@ mod tests {
             ),
             _ => unreachable!("unexpected span kind"),
         };
-        NuEvent::new(*agent, Span::from_kind(kind), phase, obs, 0)
+        RegulationRecord::new(*agent, Span::from_kind(kind), phase, obs, 0)
     }
 
     proptest! {

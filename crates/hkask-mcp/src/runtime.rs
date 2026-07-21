@@ -130,7 +130,7 @@ fn resolve_mcp_binary(server_id: &str, command: &str) -> String {
 #[derive(Clone)]
 struct ToolGovernance {
     cybernetics: Arc<RwLock<hkask_regulation::CyberneticsLoop>>,
-    event_sink: Arc<dyn hkask_types::NuEventSink>,
+    event_sink: Arc<dyn hkask_types::RegulationSink>,
     estimator: Arc<dyn hkask_regulation::EnergyEstimator>,
 }
 
@@ -169,7 +169,7 @@ impl McpRuntime {
     pub fn with_governance(
         mut self,
         cybernetics: Arc<RwLock<hkask_regulation::CyberneticsLoop>>,
-        event_sink: Arc<dyn hkask_types::NuEventSink>,
+        event_sink: Arc<dyn hkask_types::RegulationSink>,
         estimator: Arc<dyn hkask_regulation::EnergyEstimator>,
     ) -> Self {
         self.governance = Some(ToolGovernance {
@@ -502,8 +502,8 @@ impl hkask_ports::ToolPort for McpRuntime {
 
                 // CNS: emit invoked + completed spans (best-effort, non-blocking).
                 let status = if result.is_ok() { "success" } else { "failure" };
-                use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
-                let _ = sink.persist(&NuEvent::new(
+                use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanKind};
+                let _ = sink.persist(&RegulationRecord::new(
                     agent,
                     Span::from_kind(SpanKind::GasSettled),
                     CyclePhase::Act,

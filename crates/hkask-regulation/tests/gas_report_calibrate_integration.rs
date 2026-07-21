@@ -1,5 +1,5 @@
 //
-// Integration test: real NuEventStore with cns.gas.settled events is read by
+// Integration test: real RegulationArchive with cns.gas.settled events is read by
 // GasReport, which calibrates a DynamicGasTable. The calibrated table is then
 // used to build a CompositeEnergyEstimator whose per-server costs reflect the
 // observed actual/estimated ratios.
@@ -9,15 +9,15 @@ use hkask_regulation::EnergyEstimator;
 use hkask_regulation::composite_energy_estimator::CompositeEnergyEstimator;
 use hkask_regulation::dynamic_gas_table::DynamicGasTable;
 use hkask_regulation::gas_report::GasReport;
-use hkask_ports::CnsStoragePort;
-use hkask_storage::NuEventStore;
-use hkask_types::NuEventSink;
+use hkask_ports::LedgerStoragePort;
+use hkask_storage::RegulationArchive;
+use hkask_types::RegulationSink;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanKind};
 use std::sync::Arc;
 
-fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> NuEvent {
-    NuEvent::new(
+fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> RegulationRecord {
+    RegulationRecord::new(
         agent,
         Span::from_kind(SpanKind::GasSettled),
         CyclePhase::Act,
@@ -38,13 +38,13 @@ fn gas_report_calibrates_dynamic_table_from_settled_events() {
     let server = "hkask-mcp-media";
 
     let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-    let event_store: Arc<NuEventStore> = Arc::new(NuEventStore::from_driver(driver));
+    let event_store: Arc<RegulationArchive> = Arc::new(RegulationArchive::from_driver(driver));
 
     // Actual cost is double the reserved cost → ratio 2.0 → cost should double.
     let event = settled_event(agent, server, 100, 200);
     event_store.persist(&event).expect("persist settled event");
 
-    let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+    let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
     let report = GasReport::new(store);
     let mut table = DynamicGasTable::new();
 
@@ -68,13 +68,13 @@ fn calibrated_table_flows_into_composite_estimator() {
     let server = "hkask-mcp-memory";
 
     let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-    let event_store: Arc<NuEventStore> = Arc::new(NuEventStore::from_driver(driver));
+    let event_store: Arc<RegulationArchive> = Arc::new(RegulationArchive::from_driver(driver));
 
     // Actual is half of reserved → ratio 0.5 → cost should halve (5 → 2, floored at 1).
     let event = settled_event(agent, server, 10, 5);
     event_store.persist(&event).expect("persist settled event");
 
-    let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+    let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
     let report = GasReport::new(store);
     let mut table = DynamicGasTable::new();
     report

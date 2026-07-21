@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use hkask_pods::pod::ActivePods;
-use hkask_regulation::CnsRuntime;
+use hkask_regulation::RegulationLedger;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_ports::InferencePort;
 use hkask_storage::user_store::UserStore;
@@ -48,7 +48,7 @@ pub struct ServiceDaemonHandler {
     pod_manager: Arc<ActivePods>,
     user_store: Arc<std::sync::Mutex<UserStore>>,
     /// CNS runtime for health and variety queries (None if unavailable)
-    cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
+    cns_runtime: Option<Arc<RwLock<RegulationLedger>>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
     /// Per-userpod counter of stored experiences (triggers narrative generation)
@@ -63,7 +63,7 @@ impl ServiceDaemonHandler {
     pub fn new(
         pod_manager: Arc<ActivePods>,
         user_store: Arc<std::sync::Mutex<UserStore>>,
-        cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
+        cns_runtime: Option<Arc<RwLock<RegulationLedger>>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
         tracing::info!(target: "hkask.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "CNS");

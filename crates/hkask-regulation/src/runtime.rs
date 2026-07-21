@@ -1,6 +1,6 @@
 //! CNS Runtime — minimal observability
 //!
-//! CnsRuntime is the single entry point for all CNS operations:
+//! RegulationLedger is the single entry point for all CNS operations:
 //! - Variety counting (Ashby's Law)
 //! - Algedonic alerts (deficit > threshold → escalate)
 //!
@@ -22,10 +22,10 @@ use crate::set_points::DEFAULT_VARIETY_MAX_DEFICIT;
 use crate::slo_manager::{SloDataProvider, SloManager};
 use crate::tool_stats::ToolStats;
 
-use hkask_ports::{BackpressureSignal, CnsObserver, DepletionSignal};
+use hkask_ports::{BackpressureSignal, LedgerObserver, DepletionSignal};
 use hkask_types::WebID;
-use hkask_types::cns::{CnsHealth, RegulationHealth};
-use hkask_types::event::{NuEvent, NuEventSink, SpanNamespace};
+use hkask_types::cns::{LedgerHealth, RegulationHealth};
+use hkask_types::event::{RegulationRecord, RegulationSink, SpanNamespace};
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -42,7 +42,7 @@ type HealCallback = Arc<dyn Fn(&str, &str) + Send + Sync>;
 
 // ── Variety counter infrastructure ────────────────────────────────────────
 // Relocated from variety.rs (TASK 2 deletion test — VarietyMonitor only used
-// by CnsRuntime, so depth increases when co-located).
+// by RegulationLedger, so depth increases when co-located).
 
 /// Default variety counter window duration (1 minute).
 const DEFAULT_VARIETY_WINDOW_SECS: u64 = 60;
@@ -345,21 +345,21 @@ impl CnsState {
 /// reference counts. All clones share the same inner state (variety tracker,
 /// algedonic manager, subscribers).
 #[derive(Clone)]
-pub struct CnsRuntime {
+pub struct RegulationLedger {
     state: Arc<RwLock<CnsState>>,
-    subscribers: Arc<RwLock<Vec<Arc<dyn CnsObserver>>>>,
+    subscribers: Arc<RwLock<Vec<Arc<dyn LedgerObserver>>>>,
     /// Optional heal callback: (error_string, operation_name).
     heal_error_cb: Option<HealCallback>,
 }
 
-impl CnsRuntime {
+impl RegulationLedger {
     /// Create a CNS runtime with a custom threshold.
     ///
     /// expect: "I can create a CNS runtime with a configurable variety threshold"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation
     /// \[P7\] Constraining: Evolutionary Architecture — threshold config emerged from real usage
     /// pre:  threshold > 0
-    /// post: returns CnsRuntime with configured threshold
+    /// post: returns RegulationLedger with configured threshold
     pub fn with_threshold(threshold: u64) -> Self {
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
@@ -374,7 +374,7 @@ impl CnsRuntime {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — heal callback closes the recovery loop
     /// \[P4\] Constraining: Clear Boundaries — callback is user-owned, CNS does not self-modify
     /// pre:  cb is valid
-    /// post: CnsRuntime with heal callback configured
+    /// post: RegulationLedger with heal callback configured
     pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
         self.heal_error_cb = Some(cb);
         self
@@ -402,8 +402,8 @@ impl CnsRuntime {
     /// expect: "I can query the cybernetic health status of the entire CNS"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
-    /// post: returns CnsHealth with current state
-    pub async fn health(&self) -> CnsHealth {
+    /// post: returns LedgerHealth with current state
+    pub async fn health(&self) -> LedgerHealth {
         let state = self.state.read().await;
         // Compute sum of EMA variety across all tracked domains.
         let ema_sum: f64 = state
@@ -548,7 +548,7 @@ impl CnsRuntime {
         let mut results = HashMap::new();
         for domain in &domains {
             // Filter against CANONICAL_NAMESPACES — the single registry for all
-            // CNS namespace strings (core + domain). Replaces the old CnsSpan::from_str
+            // CNS namespace strings (core + domain). Replaces the old RegulationSpan::from_str
             // gate which previously only accepted core variants.
             if let Some(ns) = SpanNamespace::parse(domain) {
                 let state = self.state.read().await;
@@ -700,10 +700,10 @@ impl CnsRuntime {
         let alert = self.check_variety(domain).await;
 
         // Notify subscribers interested in this domain's span namespace.
-        // Uses SpanNamespace::parse directly (not CnsSpan::from_str) so that
+        // Uses SpanNamespace::parse directly (not RegulationSpan::from_str) so that
         // regulatory domains (cns.algedonic, cns.cybernetics, etc.) are included.
         if let Some(span_ns) = hkask_types::event::SpanNamespace::parse(domain) {
-            let event = hkask_types::event::NuEvent::new(
+            let event = hkask_types::event::RegulationRecord::new(
                 WebID::default(),
                 hkask_types::event::Span::new(span_ns.clone(), "variety_incremented"),
                 hkask_types::event::CyclePhase::Act,
@@ -802,7 +802,7 @@ impl CnsRuntime {
 
     // ── Bot Observation (CNS Observer) ──
 
-    /// Register a CnsObserver to receive events matching its interest mask.
+    /// Register a LedgerObserver to receive events matching its interest mask.
     ///
     /// Observers are notified asynchronously when:
     /// - A variety increment matches their interest mask (on_event)
@@ -817,12 +817,12 @@ impl CnsRuntime {
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
     /// post: observer added to subscribers
-    pub fn subscribe(&self, observer: Arc<dyn CnsObserver>) {
+    pub fn subscribe(&self, observer: Arc<dyn LedgerObserver>) {
         let mut subscribers = self.subscribers.blocking_write();
         subscribers.push(observer);
     }
 
-    /// Register a CnsObserver to receive events matching its interest mask.
+    /// Register a LedgerObserver to receive events matching its interest mask.
     ///
     /// This is the async version of subscribe, preferred when called from
     /// an async context (e.g., during bootstrap or from the API).
@@ -833,7 +833,7 @@ impl CnsRuntime {
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
     /// post: observer added to subscribers
-    pub async fn subscribe_async(&self, observer: Arc<dyn CnsObserver>) {
+    pub async fn subscribe_async(&self, observer: Arc<dyn LedgerObserver>) {
         let mut subscribers = self.subscribers.write().await;
         subscribers.push(observer);
     }
@@ -1017,7 +1017,7 @@ impl CnsRuntime {
     }
 }
 
-impl Default for CnsRuntime {
+impl Default for RegulationLedger {
     fn default() -> Self {
         Self::with_threshold(DEFAULT_VARIETY_MAX_DEFICIT as u64)
     }
@@ -1027,14 +1027,14 @@ impl Default for CnsRuntime {
 /// is not needed (e.g., seam watcher unit tests).
 pub struct NoopEventSink;
 
-impl NuEventSink for NoopEventSink {
-    fn persist(&self, _event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+impl RegulationSink for NoopEventSink {
+    fn persist(&self, _event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
         Ok(())
     }
 }
 
 /// Build and broadcast a `DepletionSignal` for a critical algedonic alert.
-async fn emit_critical_depletion(runtime: &CnsRuntime, alert: &crate::algedonic::RuntimeAlert) {
+async fn emit_critical_depletion(runtime: &RegulationLedger, alert: &crate::algedonic::RuntimeAlert) {
     let signal = DepletionSignal {
         agent: WebID::default(),
         remaining: alert.threshold.saturating_sub(alert.deficit),

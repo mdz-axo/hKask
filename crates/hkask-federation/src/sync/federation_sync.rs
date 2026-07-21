@@ -11,7 +11,7 @@ use crate::cns_span::FederationSpan;
 use hkask_ports::federation::{
     FederationDelta, FederationMessage, FederationSyncPort, FederationTransport,
 };
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use serde_json::json;
 use tokio::sync::RwLock;
 
@@ -30,7 +30,7 @@ pub struct FederationSync {
     /// Link manager — queried for linked peers each tick.
     link_manager: Arc<FederationLinkManager>,
     interval: Duration,
-    event_sink: Arc<dyn NuEventSink>,
+    event_sink: Arc<dyn RegulationSink>,
     health: RwLock<FederationHealthModel>,
 }
 
@@ -40,7 +40,7 @@ impl FederationSync {
         transport: Arc<dyn FederationTransport>,
         sync_port: Arc<dyn FederationSyncPort>,
         link_manager: Arc<FederationLinkManager>,
-        event_sink: Arc<dyn NuEventSink>,
+        event_sink: Arc<dyn RegulationSink>,
     ) -> Self {
         Self {
             semantic_set: RwLock::new(ORSet::new(local_replica.clone())),
@@ -178,7 +178,7 @@ impl FederationSync {
             SpanNamespace::from_observable(&span).expect("domain span must be canonical"),
             "federation",
         );
-        let event = NuEvent::new(
+        let event = RegulationRecord::new(
             hkask_types::WebID::from_persona(b"curator"),
             s,
             CyclePhase::Act,

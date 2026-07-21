@@ -100,7 +100,7 @@ pub(crate) fn analyze_threshold_drift(
 /// Emit a CNS alert for a threshold drift suggestion.
 ///
 /// Uses `tracing::warn!` under `cns.pipeline.calibration` target.
-/// The GovernedTool membrane handles NuEvent persistence for CNS learning.
+/// The GovernedTool membrane handles RegulationRecord persistence for CNS learning.
 pub(crate) fn emit_drift_alert(alert: &ThresholdDriftAlert) {
     tracing::warn!(
         target: "cns.pipeline.calibration",

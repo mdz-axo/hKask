@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 pub(crate) async fn build_matrix(
-    event_sink: Option<Arc<dyn hkask_types::event::NuEventSink>>,
+    event_sink: Option<Arc<dyn hkask_types::event::RegulationSink>>,
 ) -> Option<Arc<tokio::sync::Mutex<hkask_communication::matrix::MatrixTransport>>> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());

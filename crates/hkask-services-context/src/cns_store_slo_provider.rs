@@ -5,16 +5,16 @@
 //! Storage (infrastructure) — the service layer's role in hexagonal architecture.
 
 use hkask_regulation::slo_manager::{SloDataPoint, SloDataProvider, SloManagerError};
-use hkask_storage::{DecayConfig, NuEventStore};
+use hkask_storage::{DecayConfig, RegulationArchive};
 use std::sync::Arc;
 
-/// SLO data provider backed by the real NuEventStore.
+/// SLO data provider backed by the real RegulationArchive.
 pub struct CnsStoreSloProvider {
-    store: Arc<NuEventStore>,
+    store: Arc<RegulationArchive>,
 }
 
 impl CnsStoreSloProvider {
-    pub fn new(store: Arc<NuEventStore>) -> Self {
+    pub fn new(store: Arc<RegulationArchive>) -> Self {
         Self { store }
     }
 }

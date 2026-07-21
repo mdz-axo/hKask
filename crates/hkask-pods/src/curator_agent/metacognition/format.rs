@@ -1,8 +1,8 @@
 //! Formatting helpers for metacognition output.
 
-use hkask_types::cns::CnsHealth;
+use hkask_types::cns::LedgerHealth;
 
-pub(super) fn format_health_status(h: &CnsHealth) -> String {
+pub(super) fn format_health_status(h: &LedgerHealth) -> String {
     if h.healthy {
         format!(
             "Healthy (deficit={}, warnings={})",

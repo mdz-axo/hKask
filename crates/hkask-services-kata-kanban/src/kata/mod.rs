@@ -14,7 +14,7 @@
 //! Manifests are loaded from `registry/manifests/*.yaml`. Templates are rendered
 //! via the hKask template registry (Jinja2). Inference uses the centralized router.
 
-use hkask_regulation::CnsRuntime;
+use hkask_regulation::RegulationLedger;
 use hkask_ports::InferencePort;
 use hkask_services_core::HkaskSettings;
 use hkask_storage::KataHistoryStore;
@@ -63,7 +63,7 @@ pub use state::{KataResult, KataState};
 /// Consent-checking callback.
 pub type ConsentCheckFn = Arc<dyn Fn(&str, &str) -> Result<(), KataError> + Send + Sync>;
 /// CNS observer callback.
-pub type CnsObserverFn = Arc<dyn Fn(&str, u32, &str) + Send + Sync>;
+pub type LedgerObserverFn = Arc<dyn Fn(&str, u32, &str) + Send + Sync>;
 /// Metric collection callback.
 pub type MetricCollectorFn =
     Arc<dyn Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync>;
@@ -83,7 +83,7 @@ pub struct KataEngine {
     /// Receives (kata_type, learner_bot) and returns Ok(()) if consented.
     consent_check: Option<ConsentCheckFn>,
     /// Optional CNS observer — called after each step with (namespace, step_ordinal, action).
-    cns_observer: Option<CnsObserverFn>,
+    cns_observer: Option<LedgerObserverFn>,
     /// Kata practice history for habit tracking and automaticity scoring.
     history: Option<KataHistory>,
     /// Optional SQLite-backed kata history store for concurrent, queryable persistence.
@@ -93,7 +93,7 @@ pub struct KataEngine {
     metric_collector: Option<MetricCollectorFn>,
     /// Optional CNS runtime for variety counter increments and algedonic alert checks.
     /// When present, replaces tracing-only spans with actual CNS state mutations.
-    cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
+    cns_runtime: Option<Arc<RwLock<RegulationLedger>>>,
     /// Optional task-scoped gas accountant. When present, each inference
     /// call deducts its token cost from the bound kanban task's budget.
     task_gas_accountant: Option<TaskGasAccountantFn>,
@@ -208,10 +208,10 @@ impl KataEngine {
     /// practice and checks algedonic thresholds after cycle completion.
     ///
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  cns must be a valid `Arc<RwLock<CnsRuntime>>`
+    /// pre:  cns must be a valid `Arc<RwLock<RegulationLedger>>`
     /// post: returns self with cns_runtime set; kata cycles will increment variety and check alerts
     #[must_use]
-    pub fn with_cns_runtime(mut self, cns: Arc<RwLock<CnsRuntime>>) -> Self {
+    pub fn with_cns_runtime(mut self, cns: Arc<RwLock<RegulationLedger>>) -> Self {
         self.cns_runtime = Some(cns);
         self
     }

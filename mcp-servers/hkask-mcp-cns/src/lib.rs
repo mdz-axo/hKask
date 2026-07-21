@@ -1,7 +1,7 @@
 //! MCP server for hkask-cns — CNS span history query tools.
 //!
 //! Exposes two tools for reading CNS ν-event history from the persistent
-//! `NuEventStore`:
+//! `RegulationArchive`:
 //! - `cns_query_spans` — query events by span_category prefix within a time window
 //! - `cns_span_stats`  — aggregate counts by span_category
 //!
@@ -21,7 +21,7 @@ use hkask_database::sqlite::SqliteDriver;
 use hkask_mcp::DaemonClient;
 use hkask_mcp::run_server;
 use hkask_mcp::server::{McpToolError, execute_tool};
-use hkask_storage::NuEventStore;
+use hkask_storage::RegulationArchive;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -33,7 +33,7 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 hkask_mcp::mcp_server!(
     pub struct CnsServer {
-        nu_event_store: Option<Arc<NuEventStore>>,
+        nu_event_store: Option<Arc<RegulationArchive>>,
     }
 );
 
@@ -93,7 +93,7 @@ impl CnsServer {
             }
             let Some(ref store) = self.nu_event_store else {
                 return Err(McpToolError::permission_denied(
-                    "NuEventStore not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
+                    "RegulationArchive not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
                 ));
             };
             let since = chrono::Utc::now()
@@ -149,7 +149,7 @@ impl CnsServer {
             }
             let Some(ref store) = self.nu_event_store else {
                 return Err(McpToolError::permission_denied(
-                    "NuEventStore not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
+                    "RegulationArchive not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
                 ));
             };
             let since = chrono::Utc::now()
@@ -183,13 +183,13 @@ fn strip_cns_prefix(namespace: &str) -> &str {
 
 // ── Server startup ─────────────────────────────────────────────────────
 
-/// Open the NuEventStore from the configured database.
+/// Open the RegulationArchive from the configured database.
 ///
 /// Follows the curator pattern: read `HKASK_DB_PATH` (or fall back to the
 /// CNS pod database path) and `HKASK_DB_PASSPHRASE` from credentials/env.
 /// Returns `None` (graceful degradation) when the database cannot be opened —
 /// the tools then return `permission_denied` so callers see a clear message.
-fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<NuEventStore>> {
+fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<RegulationArchive>> {
     let db_path = ctx
         .credentials
         .get("HKASK_DB_PATH")
@@ -214,7 +214,7 @@ fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<NuE
         None => {
             tracing::warn!(
                 target: "hkask.mcp.cns",
-                "HKASK_DB_PASSPHRASE not set — NuEventStore unavailable"
+                "HKASK_DB_PASSPHRASE not set — RegulationArchive unavailable"
             );
             return None;
         }
@@ -244,7 +244,7 @@ fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<NuE
         }
     };
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
-    Some(Arc::new(NuEventStore::from_driver(driver)))
+    Some(Arc::new(RegulationArchive::from_driver(driver)))
 }
 
 pub async fn run(

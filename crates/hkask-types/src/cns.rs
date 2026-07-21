@@ -65,7 +65,7 @@ pub enum CircuitState {
 /// Pure data struct — construction logic (`cns_health_check`) lives in
 /// hkask-cns where it has access to `AlgedonicManager`.
 #[derive(Debug, Clone)]
-pub struct CnsHealth {
+pub struct LedgerHealth {
     pub overall_deficit: u64,
     pub critical_count: usize,
     pub warning_count: usize,
@@ -103,7 +103,7 @@ impl RegulationHealth {
     }
 }
 
-// ── CnsSpan — Core CNS Span Identifiers ────────────────────────────────────
+// ── RegulationSpan — Core CNS Span Identifiers ────────────────────────────────────
 
 /// Core CNS span identifiers — spans that are constructed in 2+ crates from
 /// different dependency domains (the "cross-cutting concern" test).
@@ -120,7 +120,7 @@ impl RegulationHealth {
 /// `hkask.*` tracing targets (not `cns.*`); those are observability logs, not
 /// loop variables, and `SpanNamespace::new` rejects them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum CnsSpan {
+pub enum RegulationSpan {
     /// Tool invocation span. Subsystem tracks which MCP server emitted the span.
     Tool { subsystem: ToolSubsystem },
     /// LLM inference request/response.
@@ -141,7 +141,7 @@ pub enum CnsSpan {
     MemoryEncode,
 }
 
-/// Subsystem identifier for `CnsSpan::Tool` — which MCP server emitted the span.
+/// Subsystem identifier for `RegulationSpan::Tool` — which MCP server emitted the span.
 ///
 /// Derived from the `hkask-mcp-*` server naming convention.
 /// Unknown or future servers use `Other`.
@@ -215,7 +215,7 @@ impl ToolSubsystem {
     }
 }
 
-impl CnsSpan {
+impl RegulationSpan {
     /// Emit a typed CNS span event through the `tracing` infrastructure.
     ///
     /// Enforces the canonical CNS emission convention (PRINCIPLES.md §9.2):
@@ -230,9 +230,9 @@ impl CnsSpan {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use hkask_types::cns::{CnsSpan, ToolSubsystem};
+    /// use hkask_types::cns::{RegulationSpan, ToolSubsystem};
     ///
-    /// CnsSpan::Tool { subsystem: ToolSubsystem::Media }
+    /// RegulationSpan::Tool { subsystem: ToolSubsystem::Media }
     ///     .emit("invoked");
     /// ```
     pub fn emit(&self, operation: &str) {
@@ -245,14 +245,14 @@ impl CnsSpan {
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self is a valid CnsSpan variant
+    /// pre:  self is a valid RegulationSpan variant
     /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
     /// This output must match ν-event serialization strings byte-for-byte
     /// (P8 — Semantic Grounding).
     pub fn as_str(&self) -> &'static str {
         match self {
-            CnsSpan::Tool { subsystem } => match subsystem {
+            RegulationSpan::Tool { subsystem } => match subsystem {
                 ToolSubsystem::WebSearch => "cns.tool.web_search",
                 ToolSubsystem::Condenser => "cns.tool.condenser",
                 ToolSubsystem::Training => "cns.tool.training",
@@ -270,99 +270,99 @@ impl CnsSpan {
                 ToolSubsystem::Curator => "cns.tool.curator",
                 ToolSubsystem::Other => "cns.tool",
             },
-            CnsSpan::Inference => "cns.inference",
-            CnsSpan::Fusion => "cns.fusion",
-            CnsSpan::AgentPod => "cns.agent_pod",
-            CnsSpan::Gas => "cns.gas",
-            CnsSpan::Curation => "cns.curation",
-            CnsSpan::SelfHeal => "cns.heal",
-            CnsSpan::MemoryEncode => "cns.memory.encode",
+            RegulationSpan::Inference => "cns.inference",
+            RegulationSpan::Fusion => "cns.fusion",
+            RegulationSpan::AgentPod => "cns.agent_pod",
+            RegulationSpan::Gas => "cns.gas",
+            RegulationSpan::Curation => "cns.curation",
+            RegulationSpan::SelfHeal => "cns.heal",
+            RegulationSpan::MemoryEncode => "cns.memory.encode",
         }
     }
 }
 
-impl std::fmt::Display for CnsSpan {
+impl std::fmt::Display for RegulationSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
 
-impl crate::observable_span::ObservableSpan for CnsSpan {
+impl crate::observable_span::ObservableSpan for RegulationSpan {
     fn as_str(&self) -> &'static str {
-        CnsSpan::as_str(self)
+        RegulationSpan::as_str(self)
     }
 
     fn emit(&self, operation: &str) {
-        CnsSpan::emit(self, operation);
+        RegulationSpan::emit(self, operation);
     }
 }
 
-impl std::str::FromStr for CnsSpan {
+impl std::str::FromStr for RegulationSpan {
     type Err = ();
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  s is a string matching a canonical CnsSpan namespace
-    /// post: returns Ok(CnsSpan) for canonical strings; Err(()) for unknown strings
+    /// pre:  s is a string matching a canonical RegulationSpan namespace
+    /// post: returns Ok(RegulationSpan) for canonical strings; Err(()) for unknown strings
     ///
-    /// Only strings matching canonical `CnsSpan` namespaces parse
+    /// Only strings matching canonical `RegulationSpan` namespaces parse
     /// successfully. Unknown strings return `Err(())`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.tool" => Ok(CnsSpan::Tool {
+            "cns.tool" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other,
             }),
-            "cns.tool.web_search" => Ok(CnsSpan::Tool {
+            "cns.tool.web_search" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::WebSearch,
             }),
-            "cns.tool.condenser" => Ok(CnsSpan::Tool {
+            "cns.tool.condenser" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Condenser,
             }),
-            "cns.tool.training" => Ok(CnsSpan::Tool {
+            "cns.tool.training" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Training,
             }),
-            "cns.tool.replica" => Ok(CnsSpan::Tool {
+            "cns.tool.replica" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Replica,
             }),
-            "cns.tool.research" => Ok(CnsSpan::Tool {
+            "cns.tool.research" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Research,
             }),
-            "cns.tool.communication" => Ok(CnsSpan::Tool {
+            "cns.tool.communication" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Communication,
             }),
-            "cns.tool.registry" => Ok(CnsSpan::Tool {
+            "cns.tool.registry" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Registry,
             }),
-            "cns.tool.wallet" => Ok(CnsSpan::Tool {
+            "cns.tool.wallet" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Wallet,
             }),
-            "cns.tool.media" => Ok(CnsSpan::Tool {
+            "cns.tool.media" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Media,
             }),
-            "cns.tool.kanban" => Ok(CnsSpan::Tool {
+            "cns.tool.kanban" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Kanban,
             }),
-            "cns.tool.memory" => Ok(CnsSpan::Tool {
+            "cns.tool.memory" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Memory,
             }),
-            "cns.tool.companies" => Ok(CnsSpan::Tool {
+            "cns.tool.companies" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Companies,
             }),
-            "cns.tool.docproc" => Ok(CnsSpan::Tool {
+            "cns.tool.docproc" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Docproc,
             }),
-            "cns.tool.filesystem" => Ok(CnsSpan::Tool {
+            "cns.tool.filesystem" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Filesystem,
             }),
-            "cns.tool.curator" => Ok(CnsSpan::Tool {
+            "cns.tool.curator" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Curator,
             }),
-            "cns.inference" => Ok(CnsSpan::Inference),
-            "cns.fusion" => Ok(CnsSpan::Fusion),
-            "cns.agent_pod" => Ok(CnsSpan::AgentPod),
-            "cns.gas" => Ok(CnsSpan::Gas),
-            "cns.curation" => Ok(CnsSpan::Curation),
-            "cns.heal" => Ok(CnsSpan::SelfHeal),
-            "cns.memory.encode" => Ok(CnsSpan::MemoryEncode),
+            "cns.inference" => Ok(RegulationSpan::Inference),
+            "cns.fusion" => Ok(RegulationSpan::Fusion),
+            "cns.agent_pod" => Ok(RegulationSpan::AgentPod),
+            "cns.gas" => Ok(RegulationSpan::Gas),
+            "cns.curation" => Ok(RegulationSpan::Curation),
+            "cns.heal" => Ok(RegulationSpan::SelfHeal),
+            "cns.memory.encode" => Ok(RegulationSpan::MemoryEncode),
             _ => Err(()),
         }
     }
@@ -376,26 +376,26 @@ mod cns_span_tests {
     #[test]
     fn cnsspan_display_produces_canonical_strings() {
         assert_eq!(
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other
             }
             .to_string(),
             "cns.tool"
         );
-        assert_eq!(CnsSpan::Inference.to_string(), "cns.inference");
-        assert_eq!(CnsSpan::AgentPod.to_string(), "cns.agent_pod");
-        assert_eq!(CnsSpan::Gas.to_string(), "cns.gas");
-        assert_eq!(CnsSpan::Curation.to_string(), "cns.curation");
-        assert_eq!(CnsSpan::SelfHeal.to_string(), "cns.heal");
-        assert_eq!(CnsSpan::MemoryEncode.to_string(), "cns.memory.encode");
+        assert_eq!(RegulationSpan::Inference.to_string(), "cns.inference");
+        assert_eq!(RegulationSpan::AgentPod.to_string(), "cns.agent_pod");
+        assert_eq!(RegulationSpan::Gas.to_string(), "cns.gas");
+        assert_eq!(RegulationSpan::Curation.to_string(), "cns.curation");
+        assert_eq!(RegulationSpan::SelfHeal.to_string(), "cns.heal");
+        assert_eq!(RegulationSpan::MemoryEncode.to_string(), "cns.memory.encode");
     }
 
     #[test]
     fn cnsspan_from_str_rejects_invalid() {
-        assert!(CnsSpan::from_str("cns.nonexistent").is_err());
-        assert!(CnsSpan::from_str("invalid").is_err());
-        assert!(CnsSpan::from_str("").is_err());
-        assert!(CnsSpan::from_str("tool").is_err()); // short form not supported
+        assert!(RegulationSpan::from_str("cns.nonexistent").is_err());
+        assert!(RegulationSpan::from_str("invalid").is_err());
+        assert!(RegulationSpan::from_str("").is_err());
+        assert!(RegulationSpan::from_str("tool").is_err()); // short form not supported
     }
 
     #[test]
@@ -425,7 +425,7 @@ mod cns_span_tests {
             "cns.memory.encode",
         ];
         for s in variants {
-            let span: CnsSpan = s.parse().expect("should parse");
+            let span: RegulationSpan = s.parse().expect("should parse");
             assert_eq!(span.to_string(), s, "Display should match input");
         }
     }
@@ -433,14 +433,14 @@ mod cns_span_tests {
     #[test]
     fn cnsspan_tool_subsystem_produces_correct_string() {
         assert_eq!(
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::WebSearch
             }
             .to_string(),
             "cns.tool.web_search"
         );
         assert_eq!(
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other
             }
             .to_string(),
@@ -451,61 +451,61 @@ mod cns_span_tests {
     #[test]
     fn cnsspan_exhaustive_match_covers_all_canonical() {
         let all_variants = vec![
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::WebSearch,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Condenser,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Training,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Replica,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Research,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Communication,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Registry,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Wallet,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Media,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Kanban,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Memory,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Companies,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Docproc,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Filesystem,
             },
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Curator,
             },
-            CnsSpan::Inference,
-            CnsSpan::Fusion,
-            CnsSpan::AgentPod,
-            CnsSpan::Gas,
-            CnsSpan::Curation,
-            CnsSpan::SelfHeal,
-            CnsSpan::MemoryEncode,
+            RegulationSpan::Inference,
+            RegulationSpan::Fusion,
+            RegulationSpan::AgentPod,
+            RegulationSpan::Gas,
+            RegulationSpan::Curation,
+            RegulationSpan::SelfHeal,
+            RegulationSpan::MemoryEncode,
         ];
         // Round-trip test: Display → FromStr → Display must be identity
         for variant in &all_variants {
@@ -520,7 +520,7 @@ mod cns_span_tests {
                 "{:?} should start with cns.",
                 variant
             );
-            let parsed: CnsSpan = s
+            let parsed: RegulationSpan = s
                 .parse()
                 .expect("Display output must round-trip via FromStr");
             assert_eq!(
@@ -530,10 +530,10 @@ mod cns_span_tests {
             );
         }
         // Assert count matches enum variant count (8 core + 15 specific ToolSubsystem = 23).
-        // If this fails, a new CnsSpan variant was added without updating this test.
+        // If this fails, a new RegulationSpan variant was added without updating this test.
         assert!(
             all_variants.len() == 23,
-            "CNS span exhaustive test should cover all CnsSpan variants, found {} (expected 23)",
+            "CNS span exhaustive test should cover all RegulationSpan variants, found {} (expected 23)",
             all_variants.len()
         );
     }

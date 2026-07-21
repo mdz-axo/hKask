@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use hkask_types::InfrastructureError;
 use hkask_types::cns::CircuitState;
-use hkask_types::event::{NuEvent, SpanNamespace};
+use hkask_types::event::{RegulationRecord, SpanNamespace};
 use hkask_types::id::WebID;
 use hkask_types::loops::LoopId;
 
@@ -61,10 +61,10 @@ pub struct BackpressureSignal {
 /// Subscribes to CNS events by span namespace.
 
 #[async_trait]
-pub trait CnsObserver: Send + Sync {
+pub trait LedgerObserver: Send + Sync {
     fn interest_mask(&self) -> Vec<SpanNamespace>;
 
-    async fn on_event(&self, event: &NuEvent);
+    async fn on_event(&self, event: &RegulationRecord);
 
     async fn on_depletion(&self, signal: &DepletionSignal);
 
@@ -73,17 +73,17 @@ pub trait CnsObserver: Send + Sync {
 
 /// Storage port for CNS event queries.
 ///
-/// Abstracts the NuEventStore behind a trait so the cybernetic regulation
+/// Abstracts the RegulationArchive behind a trait so the cybernetic regulation
 /// layer (GasReport, CalibratedEnergyEstimator, WalletGasCalibrator) can be
 /// tested without a real SQLite database.
 ///
-/// Concrete impl: `NuEventStore` in `hkask-storage`.
-pub trait CnsStoragePort: Send + Sync {
+/// Concrete impl: `RegulationArchive` in `hkask-storage`.
+pub trait LedgerStoragePort: Send + Sync {
     fn query_algedonic(
         &self,
         since: DateTime<Utc>,
         limit: u64,
-    ) -> Result<Vec<NuEvent>, InfrastructureError>;
+    ) -> Result<Vec<RegulationRecord>, InfrastructureError>;
 
     /// Replay events with temporal decay weighting. Events older than
     /// the lookback window or below the weight threshold are excluded.
@@ -108,14 +108,14 @@ pub trait CnsStoragePort: Send + Sync {
     ///
     /// \[P9\] Motivating: Homeostatic Self-Regulation — query CNS span history
     /// pre:  `namespace_prefix` is a non-empty short-name prefix
-    /// post: returns Vec of NuEvents with span_category starting with the prefix,
+    /// post: returns Vec of RegulationRecords with span_category starting with the prefix,
     ///       since the given timestamp, ordered by timestamp ASC, limited to `limit`
     fn query_by_namespace(
         &self,
         namespace_prefix: &str,
         since: DateTime<Utc>,
         limit: u64,
-    ) -> Result<Vec<NuEvent>, InfrastructureError>;
+    ) -> Result<Vec<RegulationRecord>, InfrastructureError>;
 
     /// Count events by span_category, grouped by exact category.
     ///
@@ -132,10 +132,10 @@ pub trait CnsStoragePort: Send + Sync {
     ) -> Result<Vec<(String, u64)>, InfrastructureError>;
 }
 
-/// A NuEvent with its computed replay weight.
+/// A RegulationRecord with its computed replay weight.
 #[derive(Debug, Clone)]
 pub struct WeightedEvent {
-    pub event: NuEvent,
+    pub event: RegulationRecord,
     pub weight: f64,
 }
 

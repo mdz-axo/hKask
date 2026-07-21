@@ -1,4 +1,4 @@
-//! NuEventStore — Persistent storage for CNS ν-events
+//! RegulationArchive — Persistent storage for CNS ν-events
 
 use crate::now_rfc3339;
 use hkask_database::driver::{query_map, query_row};
@@ -6,7 +6,7 @@ use hkask_database::value::DbValue;
 use hkask_storage_core::define_driver_store;
 use hkask_types::event::{CyclePhase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
-use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
+use hkask_types::{InfrastructureError, RegulationRecord, RegulationSink};
 
 /// Per-domain decay constants for weighted replay.
 ///
@@ -39,10 +39,10 @@ impl Default for DecayConfig {
     }
 }
 
-/// A NuEvent with its computed replay weight.
+/// A RegulationRecord with its computed replay weight.
 #[derive(Debug, Clone)]
 pub struct WeightedEvent {
-    pub event: NuEvent,
+    pub event: RegulationRecord,
     pub weight: f64,
 }
 
@@ -67,9 +67,9 @@ const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &[
     "contract.violated",
 ];
 
-define_driver_store!(NuEventStore);
+define_driver_store!(RegulationArchive);
 
-impl NuEventStore {
+impl RegulationArchive {
     /// Initialize the nu_events and loop_cursors tables (idempotent).
     ///
     /// expect: "The system provides durable storage for event data"
@@ -99,7 +99,7 @@ impl NuEventStore {
                 updated_at TEXT NOT NULL
             );"
         );
-        tracing::info!(target: "hkask.storage", "NuEventStore schema initialized");
+        tracing::info!(target: "hkask.storage", "RegulationArchive schema initialized");
     }
 
     /// Replay events with exponentially decaying weights.
@@ -120,7 +120,7 @@ impl NuEventStore {
     /// expect: "The system provides durable storage for event data"
     /// \[P3\] Motivating: Generative Space — replay events with temporal decay
     /// pre:  observer is valid, category is valid, lookback_secs > 0
-    /// post: returns `Vec<NuEvent>` within lookback window, weighted by recency
+    /// post: returns `Vec<RegulationRecord>` within lookback window, weighted by recency
     pub fn replay_weighted(
         &self,
         since: chrono::DateTime<chrono::Utc>,
@@ -167,7 +167,7 @@ impl NuEventStore {
         }
     }
 
-    pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
+    pub(crate) fn insert(&self, event: &RegulationRecord) -> Result<(), InfrastructureError> {
         self.insert_with_sql(
             "INSERT INTO nu_events (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
@@ -176,7 +176,7 @@ impl NuEventStore {
         .map(|_| ())
     }
 
-    fn insert_if_absent(&self, event: &NuEvent) -> Result<bool, InfrastructureError> {
+    fn insert_if_absent(&self, event: &RegulationRecord) -> Result<bool, InfrastructureError> {
         self.insert_with_sql(
             "INSERT OR IGNORE INTO nu_events (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
@@ -185,7 +185,7 @@ impl NuEventStore {
         .map(|rows| rows == 1)
     }
 
-    fn insert_with_sql(&self, sql: &str, event: &NuEvent) -> Result<usize, InfrastructureError> {
+    fn insert_with_sql(&self, sql: &str, event: &RegulationRecord) -> Result<usize, InfrastructureError> {
         let (span_category, span_path) = span_to_columns(&event.span);
         self.driver
             .execute(
@@ -274,14 +274,14 @@ impl NuEventStore {
     /// expect: "The system provides durable storage for event data"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — query CNS span history
     /// pre:  `namespace_prefix` is a non-empty short-name prefix (e.g., "guard", "regulation", "gas")
-    /// post: returns Vec of NuEvents with span_category starting with the prefix, since the given
+    /// post: returns Vec of RegulationRecords with span_category starting with the prefix, since the given
     ///       timestamp, ordered by timestamp ASC, limited to `limit` results
     pub fn query_by_namespace(
         &self,
         namespace_prefix: &str,
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
-    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+    ) -> Result<Vec<RegulationRecord>, InfrastructureError> {
         let since_str = since.to_rfc3339();
         let prefix_pattern = format!("{}%", namespace_prefix);
         let sql = "SELECT id, timestamp, observer_webid, span_category, span_path, phase, \
@@ -345,7 +345,7 @@ impl NuEventStore {
         &self,
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
-    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+    ) -> Result<Vec<RegulationRecord>, InfrastructureError> {
         let since_str = since.to_rfc3339();
         // Build IN clause for algedonic span categories
         let placeholders: Vec<String> = ALGEDONIC_SPAN_CATEGORIES
@@ -382,8 +382,8 @@ fn db_error(e: String) -> hkask_database::types::DbError {
     hkask_database::types::DbError::Database(e)
 }
 
-/// Reconstruct a NuEvent from a database row.
-fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<NuEvent> {
+/// Reconstruct a RegulationRecord from a database row.
+fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<RegulationRecord> {
     let id: String = row
         .get_str(0)
         .map_err(|e| anyhow::anyhow!("{e}"))?
@@ -456,7 +456,7 @@ fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<NuEvent
     let outcome = outcome_str
         .as_deref()
         .and_then(|s| serde_json::from_str(s).ok());
-    Ok(NuEvent {
+    Ok(RegulationRecord {
         id: EventID::from_uuid(uuid::Uuid::parse_str(&id).map_err(|e| anyhow::anyhow!("{e}"))?),
         timestamp,
         observer_webid: WebID::from_uuid(
@@ -478,26 +478,26 @@ fn span_to_columns(span: &Span) -> (&str, &str) {
     (span.namespace.short_name(), span.path.as_str())
 }
 
-impl NuEventSink for NuEventStore {
-    fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
+impl RegulationSink for RegulationArchive {
+    fn persist(&self, event: &RegulationRecord) -> Result<(), InfrastructureError> {
         self.insert(event)
     }
 
     fn persist_if_absent(
         &self,
         _source_event_id: &str,
-        event: &NuEvent,
+        event: &RegulationRecord,
     ) -> Result<bool, InfrastructureError> {
         self.insert_if_absent(event)
     }
 }
 
-impl hkask_ports::CnsStoragePort for NuEventStore {
+impl hkask_ports::LedgerStoragePort for RegulationArchive {
     fn query_algedonic(
         &self,
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
-    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+    ) -> Result<Vec<RegulationRecord>, InfrastructureError> {
         self.query_algedonic(since, limit)
     }
 
@@ -532,7 +532,7 @@ impl hkask_ports::CnsStoragePort for NuEventStore {
         namespace_prefix: &str,
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
-    ) -> Result<Vec<NuEvent>, InfrastructureError> {
+    ) -> Result<Vec<RegulationRecord>, InfrastructureError> {
         self.query_by_namespace(namespace_prefix, since, limit)
     }
 
@@ -589,15 +589,15 @@ mod tests {
 
     #[test]
     fn persist_if_absent_accepts_a_nu_event_only_once() {
-        use crate::NuEventStore;
+        use crate::RegulationArchive;
         use hkask_database::sqlite::SqliteDriver;
-        use hkask_types::event::{CyclePhase, NuEvent, NuEventSink};
+        use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink};
         use hkask_types::id::WebID;
         use std::sync::Arc;
 
         let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
-        let store = NuEventStore::from_driver(Arc::new(SqliteDriver::new(pool)));
-        let event = NuEvent::new(
+        let store = RegulationArchive::from_driver(Arc::new(SqliteDriver::new(pool)));
+        let event = RegulationRecord::new(
             WebID::from_persona(b"listener"),
             Span::new(
                 SpanNamespace::new("cns.communication.message").unwrap(),
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn replay_weighted_clamps_future_timestamps() {
-        use crate::{DecayConfig, NuEventStore};
+        use crate::{DecayConfig, RegulationArchive};
         use hkask_database::driver::DatabaseDriver;
         use hkask_database::sqlite::SqliteDriver;
         use std::sync::Arc;
@@ -682,7 +682,7 @@ mod tests {
             );",
             )
             .unwrap();
-        let store = NuEventStore::from_driver(Arc::new(driver));
+        let store = RegulationArchive::from_driver(Arc::new(driver));
         let config = DecayConfig::default();
 
         let future = chrono::Utc::now() + chrono::Duration::days(1);

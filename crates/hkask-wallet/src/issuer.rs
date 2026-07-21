@@ -17,7 +17,7 @@ use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use hkask_storage::WalletStore;
 use hkask_types::crypto::Ed25519PublicKey;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::{ApiKeyId, WalletId};
 use rand::Rng;
 use std::sync::Arc;
@@ -40,7 +40,7 @@ use crate::signing;
 /// - Wallet seed is held in `Zeroizing` for capability signing
 pub struct ApiKeyIssuer {
     store: Arc<WalletStore>,
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
 }
 
 impl ApiKeyIssuer {
@@ -63,7 +63,7 @@ impl ApiKeyIssuer {
 
     /// Attach a CNS event sink for span emission.
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -77,7 +77,7 @@ impl ApiKeyIssuer {
             );
             let actor =
                 hkask_types::WebID::from_persona_with_namespace(b"wallet-issuer", "wallet-surface");
-            let event = NuEvent::new(actor, event_span, phase, obs, 0);
+            let event = RegulationRecord::new(actor, event_span, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
                 tracing::warn!(target: "hkask.wallet", span = ?span, verb = verb, error = %e, "Failed to persist CNS span");
             }

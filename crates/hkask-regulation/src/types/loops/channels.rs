@@ -41,7 +41,7 @@ pub struct GoalTransitionEvent {
 
 // ── Communication channel: CommunicationWatcher → Curation ──────────────────
 
-/// Communication event forwarded from the 7R7 listener through NuEventStore.
+/// Communication event forwarded from the 7R7 listener through RegulationArchive.
 ///
 /// Sent via the curation inbox so the Curator can sense and respond to
 /// agent-to-agent or human-to-agent Matrix activity.
@@ -51,9 +51,9 @@ pub struct CommunicationEvent {
     pub span_category: String,
     /// Span path within the category (e.g., "observed", "created").
     pub span_path: String,
-    /// The observation payload from the NuEvent.
+    /// The observation payload from the RegulationRecord.
     pub observation: serde_json::Value,
-    /// ISO 8601 timestamp of the original NuEvent.
+    /// ISO 8601 timestamp of the original RegulationRecord.
     pub observed_at: String,
 }
 

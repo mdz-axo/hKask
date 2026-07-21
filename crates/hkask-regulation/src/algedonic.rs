@@ -8,7 +8,7 @@
 
 use crate::runtime::VarietyTracker;
 use chrono::{DateTime, Utc};
-use hkask_types::cns::CnsHealth;
+use hkask_types::cns::LedgerHealth;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, warn};
@@ -332,9 +332,9 @@ impl AlgedonicManager {
     }
 }
 
-/// Construct CnsHealth from the algedonic manager's current state.
-pub(crate) fn cns_health_check(manager: &AlgedonicManager, variety_ema: f64) -> CnsHealth {
-    CnsHealth {
+/// Construct LedgerHealth from the algedonic manager's current state.
+pub(crate) fn cns_health_check(manager: &AlgedonicManager, variety_ema: f64) -> LedgerHealth {
+    LedgerHealth {
         overall_deficit: manager.total_deficit(),
         critical_count: manager.critical_alerts().len(),
         warning_count: manager.alerts().iter().filter(|a| a.is_warning()).count(),

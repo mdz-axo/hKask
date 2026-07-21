@@ -72,7 +72,7 @@ use hkask_templates::TemplateCrateLoader;
 pub use active_pods::{ActivePods, PodStatusInfo};
 pub use context::{MemoryContext, PodContext};
 pub use deployment::{
-    PerPodCnsRuntime, PerPodStorage, PodDeployError, PodDeployment, PodFactory, PodRegistry,
+    PerPodLedger, PerPodStorage, PodDeployError, PodDeployment, PodFactory, PodRegistry,
 };
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
 pub use types::{CommunicationPosture, PodID, PodKind, PodLifecycleState};

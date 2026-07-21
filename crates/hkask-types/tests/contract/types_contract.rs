@@ -16,7 +16,7 @@ proptest! {
     #[test]
     fn nu_event_json_roundtrip(e in any_nu_event()) {
         let json = serde_json::to_string(&e).unwrap();
-        let back: hkask_types::event::NuEvent = serde_json::from_str(&json).unwrap();
+        let back: hkask_types::event::RegulationRecord = serde_json::from_str(&json).unwrap();
         prop_assert_eq!(e.id, back.id);
         prop_assert_eq!(e.observer_webid, back.observer_webid);
         prop_assert_eq!(e.recursion_depth, back.recursion_depth);

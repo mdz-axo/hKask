@@ -18,8 +18,8 @@ use hkask_regulation::types::loops::{
     Signal, SignalMetric,
 };
 use hkask_storage::HMem;
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::cns::RegulationSpan;
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 
 /// Default storage budget for semantic h_mem count.
 pub const DEFAULT_SEMANTIC_STORAGE_BUDGET: usize = 25_000;
@@ -180,14 +180,14 @@ impl SemanticLoop {
         self.condensation_window_days
     }
 
-    /// Emit a CNS NuEvent through the memory's event sink.
+    /// Emit a CNS RegulationRecord through the memory's event sink.
     fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
         if let Some(sink) = self.memory.event_sink() {
             let span = Span::new(
-                SpanNamespace::try_from(CnsSpan::MemoryEncode).expect("canonical span"),
+                SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
                 verb,
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 hkask_types::WebID::new(),
                 span,
                 CyclePhase::Act,

@@ -44,7 +44,7 @@ pub use curation::{
 };
 pub use curator::{CurationThresholdConfig, CuratorDirective, CuratorHandle, EscalationSeverity};
 pub use error::{CapabilityDenied, InfrastructureError, McpErrorKind, NotFound};
-pub use event::{NuEvent, NuEventSink};
+pub use event::{RegulationRecord, RegulationSink};
 pub use goal::GoalState;
 pub use id::{
     ApiKeyId, BoardId, BotID, ColumnId, CommentId, EmbeddingID, EscalationID, EventID, GoalID,

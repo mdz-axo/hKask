@@ -17,7 +17,7 @@ use chrono::{Duration, Utc};
 use hkask_keystore::keychain::resolve_wallet_seed;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::{ApiKeyId, WalletId};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -60,7 +60,7 @@ pub struct WalletManager {
     wallet_seed: Zeroizing<[u8; 32]>,
     /// Optional CNS event sink for span emission (Phase 5).
     /// When present, wallet operations emit cns.wallet.* spans.
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
     /// Price feed for native token USD rates (fee estimation).
     /// Resolved from user's `PriceFeedConfig` at build time.
     price_feed: Arc<dyn PriceFeed>,
@@ -107,7 +107,7 @@ impl WalletManager {
 
     /// Attach a CNS event sink for span emission.
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }

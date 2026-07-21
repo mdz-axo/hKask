@@ -4,7 +4,7 @@
 //! - `TestDb` — isolated temp SQLite database with full schema
 //! - `TestKeystore` — temp directory with test master key
 //! - `TestWebId` — factory for valid test WebIDs
-//! - `MockCnsRuntime` — CNS runtime with controllable state
+//! - `MockRegulationLedger` — CNS runtime with controllable state
 //! - `temp_dir()` — guarded temp directory, auto-cleans on drop
 //! - `test_event()` / `test_h_mem()` — factories for well-formed test entities
 //! - `strategies` — proptest strategy functions for core types
@@ -33,7 +33,7 @@ pub use test_runner::ExpectProposal;
 
 use chrono::Utc;
 use hkask_storage::HMem;
-use hkask_types::event::{CyclePhase, NuEvent, Span};
+use hkask_types::event::{CyclePhase, RegulationRecord, Span};
 use hkask_types::id::WebID;
 use rand::Rng;
 use rusqlite::Connection;
@@ -204,7 +204,7 @@ impl TestWebId {
     }
 }
 
-// ── MockCnsRuntime ────────────────────────────────────────────────────────────
+// ── MockRegulationLedger ────────────────────────────────────────────────────────────
 
 /// CNS state for mock runtime — controllable in tests.
 #[derive(Debug, Clone)]
@@ -277,14 +277,14 @@ impl MockAlgedonicSignal {
 /// and signal observation — sufficient for testing CNS-dependent code
 /// without a full running CNS daemon.
 #[derive(Clone)]
-pub struct MockCnsRuntime {
+pub struct MockRegulationLedger {
     state: Arc<RwLock<MockCnsState>>,
 }
 
-impl MockCnsRuntime {
+impl MockRegulationLedger {
     /// Create a new mock CNS runtime with homeostatic state.
     ///
-    /// post: returns MockCnsRuntime with homeostatic state
+    /// post: returns MockRegulationLedger with homeostatic state
     pub fn new() -> Self {
         Self {
             state: Arc::new(RwLock::new(MockCnsState::homeostatic())),
@@ -294,7 +294,7 @@ impl MockCnsRuntime {
     /// Create a mock CNS with a specific initial state.
     ///
     /// pre:  state is a valid MockCnsState
-    /// post: returns MockCnsRuntime with the given state
+    /// post: returns MockRegulationLedger with the given state
     pub fn with_state(state: MockCnsState) -> Self {
         Self {
             state: Arc::new(RwLock::new(state)),
@@ -303,9 +303,9 @@ impl MockCnsRuntime {
 
     /// Inject an event into the CNS (simulates a perturbation).
     ///
-    /// pre:  event is a valid NuEvent
+    /// pre:  event is a valid RegulationRecord
     /// post: homeostatic set to false, negative signal appended
-    pub fn inject(&self, event: NuEvent) {
+    pub fn inject(&self, event: RegulationRecord) {
         let mut state = self.state.write().unwrap();
         state.homeostatic = false;
         let signal = MockAlgedonicSignal {
@@ -389,7 +389,7 @@ impl MockCnsRuntime {
     }
 }
 
-impl Default for MockCnsRuntime {
+impl Default for MockRegulationLedger {
     fn default() -> Self {
         Self::new()
     }
@@ -421,7 +421,7 @@ pub fn temp_dir() -> TempDir {
 
 // ── test_event ────────────────────────────────────────────────────────────────
 
-/// Create a well-formed test NuEvent with required fields.
+/// Create a well-formed test RegulationRecord with required fields.
 ///
 /// Uses a random observer WebID unless `observer` is provided.
 ///
@@ -433,9 +433,9 @@ pub fn temp_dir() -> TempDir {
 /// ```
 ///
 /// pre:  span is a valid Span, phase is a valid Phase
-/// post: returns NuEvent with random observer if observer is None, depth=0, test observation
-pub fn test_event(span: Span, phase: CyclePhase, observer: Option<WebID>) -> NuEvent {
-    NuEvent::new(
+/// post: returns RegulationRecord with random observer if observer is None, depth=0, test observation
+pub fn test_event(span: Span, phase: CyclePhase, observer: Option<WebID>) -> RegulationRecord {
+    RegulationRecord::new(
         observer.unwrap_or_else(TestWebId::random),
         span,
         phase,
@@ -507,7 +507,7 @@ mod tests {
 
     #[test]
     fn mock_cns_detects_perturbation() {
-        let cns = MockCnsRuntime::new();
+        let cns = MockRegulationLedger::new();
         assert!(cns.is_homeostatic());
 
         let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
@@ -521,7 +521,7 @@ mod tests {
 
     #[test]
     fn mock_cns_restores_homeostasis() {
-        let cns = MockCnsRuntime::new();
+        let cns = MockRegulationLedger::new();
         let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
         cns.inject(test_event(span, CyclePhase::Sense, None));
         assert!(!cns.is_homeostatic());

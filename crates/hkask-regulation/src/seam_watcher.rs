@@ -17,10 +17,10 @@
 //! VarietyTracker's 60s sliding window is bypassed — check_drift() forces
 //! an immediate variety check after incrementing.
 
-use crate::runtime::CnsRuntime;
+use crate::runtime::RegulationLedger;
 use crate::seam_span::SeamSpan;
 use crate::seam_types::SeamInventory;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::WebID;
 use std::path::PathBuf;
 use tracing;
@@ -204,7 +204,7 @@ impl SeamWatcher {
     /// snapshot-based drift detection in `check_drift`.
     ///
     /// Called once at startup after load.
-    pub async fn register_domains(&self, runtime: &CnsRuntime) {
+    pub async fn register_domains(&self, runtime: &RegulationLedger) {
         for (crate_name, coverage) in &self.inventory.crates {
             let domain = format!("seam:{}", crate_name);
 
@@ -248,8 +248,8 @@ impl SeamWatcher {
     #[must_use]
     pub async fn check_drift(
         &mut self,
-        runtime: &CnsRuntime,
-        sink: &dyn NuEventSink,
+        runtime: &RegulationLedger,
+        sink: &dyn RegulationSink,
     ) -> Vec<SeamDrift> {
         let webid = WebID::default();
 
@@ -278,7 +278,7 @@ impl SeamWatcher {
                     .expect("domain span must be canonical"),
                 crate_name.as_str(),
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 webid,
                 span,
                 CyclePhase::Compare,
@@ -374,7 +374,7 @@ impl SeamWatcher {
             } else {
                 "improvement"
             };
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 webid,
                 span,
                 CyclePhase::Compare,
@@ -569,10 +569,10 @@ mod tests {
             inventory_path: None,
         };
 
-        // Use a standalone runtime for the test — check_drift needs CnsRuntime
+        // Use a standalone runtime for the test — check_drift needs RegulationLedger
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = CnsRuntime::with_threshold(100);
+            let cns = RegulationLedger::with_threshold(100);
             // Register domain first so expected_variety is set
             watcher.register_domains(&cns).await;
             // Now check drift — this increments variety and triggers algedonic check
@@ -603,7 +603,7 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = CnsRuntime::with_threshold(100);
+            let cns = RegulationLedger::with_threshold(100);
             watcher.register_domains(&cns).await;
             watcher
                 .check_drift(&cns, &crate::runtime::NoopEventSink)
@@ -631,7 +631,7 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = CnsRuntime::with_threshold(100);
+            let cns = RegulationLedger::with_threshold(100);
             watcher.register_domains(&cns).await;
             watcher
                 .check_drift(&cns, &crate::runtime::NoopEventSink)
@@ -653,7 +653,7 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = CnsRuntime::with_threshold(100);
+            let cns = RegulationLedger::with_threshold(100);
             watcher.register_domains(&cns).await;
             watcher
                 .check_drift(&cns, &crate::runtime::NoopEventSink)
@@ -683,7 +683,7 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = CnsRuntime::with_threshold(100);
+            let cns = RegulationLedger::with_threshold(100);
             watcher.register_domains(&cns).await;
             watcher
                 .check_drift(&cns, &crate::runtime::NoopEventSink)
@@ -712,7 +712,7 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = CnsRuntime::with_threshold(100);
+            let cns = RegulationLedger::with_threshold(100);
             watcher.register_domains(&cns).await;
             watcher
                 .check_drift(&cns, &crate::runtime::NoopEventSink)
@@ -787,7 +787,7 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let cns = CnsRuntime::with_threshold(100);
+            let cns = RegulationLedger::with_threshold(100);
             watcher.register_domains(&cns).await;
 
             // Before check_drift, variety for seam domain should be 0

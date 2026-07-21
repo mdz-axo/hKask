@@ -4,8 +4,8 @@ use super::WalletService;
 use hkask_services_core::{DomainKind, ServiceError};
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
-use hkask_types::cns::{CnsSpan, ToolSubsystem};
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::cns::{RegulationSpan, ToolSubsystem};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::WalletId;
 use hkask_wallet::GAS_PER_RJOULE;
 use hkask_wallet::price_feed::StaticPriceFeed;
@@ -25,11 +25,11 @@ mod test_support {
 
     #[derive(Default)]
     pub(super) struct CaptureSink {
-        pub(super) events: Mutex<Vec<NuEvent>>,
+        pub(super) events: Mutex<Vec<RegulationRecord>>,
     }
 
-    impl NuEventSink for CaptureSink {
-        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+    impl RegulationSink for CaptureSink {
+        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
             self.events.lock().expect("lock").push(event.clone());
             Ok(())
         }
@@ -58,7 +58,7 @@ mod test_support {
                 price_feed,
             )
             .expect("build manager")
-            .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+            .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
         );
         let issuer = Arc::new(ApiKeyIssuer::new(Arc::clone(&store)).expect("issuer"));
         WalletService::new(manager, issuer)
@@ -74,7 +74,7 @@ mod test_support {
     }
 
     pub(super) struct FailingActorChain {
-        pub(super) sink: Arc<dyn NuEventSink>,
+        pub(super) sink: Arc<dyn RegulationSink>,
     }
 
     pub(super) struct FailingPriceFeed;
@@ -110,10 +110,10 @@ mod test_support {
             actor: &WebID,
             _signed_tx_bytes: &[u8],
         ) -> Result<TxHash, WalletError> {
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 *actor,
                 Span::new(
-                    SpanNamespace::try_from(CnsSpan::Tool {
+                    SpanNamespace::try_from(RegulationSpan::Tool {
                         subsystem: ToolSubsystem::Wallet,
                     })
                     .unwrap(),
@@ -213,7 +213,7 @@ async fn withdraw_propagates_actor_into_adapter_chain_error_span() {
     chains.insert(
         ChainId::Hedera,
         Arc::new(FailingActorChain {
-            sink: Arc::clone(&sink) as Arc<dyn NuEventSink>,
+            sink: Arc::clone(&sink) as Arc<dyn RegulationSink>,
         }),
     );
 

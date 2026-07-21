@@ -27,7 +27,7 @@ pub struct HealthSnapshot {
     pub total_alerts: usize,
     /// Ratio of regulatory actions that were accepted (0.0–1.0).
     /// 1.0 = all actions effective, 0.0 = all actions blocked/staged.
-    /// Read from `CnsRuntime::regulation_health()`.
+    /// Read from `RegulationLedger::regulation_health()`.
     pub regulation_effectiveness: f64,
 }
 

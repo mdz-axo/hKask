@@ -14,13 +14,13 @@ pub(super) struct Foundation {
     pub goal_repo: Arc<SqliteGoalRepository>,
     pub sovereignty_boundary_store: SovereigntyBoundaryStore,
     pub user_store: Arc<std::sync::Mutex<UserStore>>,
-    pub cns_runtime: Arc<RwLock<CnsRuntime>>,
+    pub cns_runtime: Arc<RwLock<RegulationLedger>>,
     pub seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
-    pub cns_event_sink: Arc<dyn NuEventSink>,
+    pub cns_event_sink: Arc<dyn RegulationSink>,
     /// Abstracted event store for gas report queries and calibration.
-    pub gas_event_store: Arc<dyn CnsStoragePort>,
+    pub gas_event_store: Arc<dyn LedgerStoragePort>,
     /// Concrete ν-event store for SLO evaluation and CNS queries.
-    pub nu_event_store: Arc<NuEventStore>,
+    pub nu_event_store: Arc<RegulationArchive>,
 }
 
 pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
@@ -50,11 +50,11 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
     let shared_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
         Arc::new(hkask_database::sqlite::SqliteDriver::new(shared_pool));
 
-    let gas_store: Arc<NuEventStore> =
-        Arc::new(NuEventStore::from_driver(Arc::clone(&shared_driver)));
-    let gas_event_store: Arc<dyn CnsStoragePort> =
-        Arc::clone(&gas_store) as Arc<dyn CnsStoragePort>;
-    let cns_event_sink: Arc<dyn NuEventSink> = Arc::clone(&gas_store) as Arc<dyn NuEventSink>;
+    let gas_store: Arc<RegulationArchive> =
+        Arc::new(RegulationArchive::from_driver(Arc::clone(&shared_driver)));
+    let gas_event_store: Arc<dyn LedgerStoragePort> =
+        Arc::clone(&gas_store) as Arc<dyn LedgerStoragePort>;
+    let cns_event_sink: Arc<dyn RegulationSink> = Arc::clone(&gas_store) as Arc<dyn RegulationSink>;
 
     // Shared channel for CurationInput.
     let (curation_inbox_tx, curation_inbox_rx) =
@@ -79,8 +79,8 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         })?,
     );
 
-    let goal_sink: Arc<dyn NuEventSink> =
-        Arc::new(NuEventStore::from_driver(Arc::clone(&shared_driver)));
+    let goal_sink: Arc<dyn RegulationSink> =
+        Arc::new(RegulationArchive::from_driver(Arc::clone(&shared_driver)));
     let goal_repo = Arc::new(
         SqliteGoalRepository::from_driver(Arc::clone(&shared_driver)).with_telemetry(goal_sink),
     );
@@ -101,7 +101,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
     }
 
     // CNS runtime
-    let cns_runtime = Arc::new(RwLock::new(CnsRuntime::with_threshold(
+    let cns_runtime = Arc::new(RwLock::new(RegulationLedger::with_threshold(
         config.cns_threshold,
     )));
 

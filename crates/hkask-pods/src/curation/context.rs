@@ -3,9 +3,9 @@
 use crate::a2a::A2ARuntime;
 use crate::consent::ConsentManager;
 use crate::ports::EscalationPort;
-use hkask_regulation::CnsRuntime;
+use hkask_regulation::RegulationLedger;
 use hkask_regulation::types::loops::CommunicationEvent;
-use hkask_ports::CnsStoragePort;
+use hkask_ports::LedgerStoragePort;
 use hkask_templates::ManifestExecutor;
 use hkask_types::DataCategory;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};
@@ -15,15 +15,15 @@ use tokio::sync::{RwLock, mpsc};
 /// CuratorContext — aggregates the runtime references the Curator needs.
 pub struct CuratorContext {
     handle: CuratorHandle,
-    cns: Arc<CnsRuntime>,
+    cns: Arc<RegulationLedger>,
     /// Direct channel for issuing CuratorDirectives to Cybernetics.
     /// None when running standalone (e.g., CLI metacognition) where no
     /// CyberneticsLoop receiver exists.
     curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
     escalation_port: Arc<dyn EscalationPort>,
-    /// NuEvent store for algedonic review queries.
+    /// RegulationRecord store for algedonic review queries.
     /// Curation reads from the persistent log, not live CNS state.
-    nu_event_store: Option<Arc<dyn CnsStoragePort>>,
+    nu_event_store: Option<Arc<dyn LedgerStoragePort>>,
     /// A2A port for A2A messaging (e.g. directing bots).
     a2a_port: Option<Arc<A2ARuntime>>,
     /// Manifest executor for invoking KnowAct templates.
@@ -49,13 +49,13 @@ impl CuratorContext {
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — CuratorContext bundles regulatory dependencies
     /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
-    ///       `Arc<CnsRuntime>`; `curator_directive_tx` is `Some` or `None`;
+    ///       `Arc<RegulationLedger>`; `curator_directive_tx` is `Some` or `None`;
     ///       `escalation_port` is a valid `Arc<dyn EscalationPort>`.
-    /// post: Returns a `CuratorContext` with no NuEvent store, no A2A
+    /// post: Returns a `CuratorContext` with no RegulationRecord store, no A2A
     ///       port, and no manifest executor.
     pub fn new(
         handle: CuratorHandle,
-        cns: Arc<CnsRuntime>,
+        cns: Arc<RegulationLedger>,
         curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
         escalation_port: Arc<dyn EscalationPort>,
     ) -> Self {
@@ -72,20 +72,20 @@ impl CuratorContext {
         }
     }
 
-    /// Create CuratorContext with a NuEvent store for algedonic review.
+    /// Create CuratorContext with a RegulationRecord store for algedonic review.
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — NuEvent store enables algedonic review
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — RegulationRecord store enables algedonic review
     /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
-    ///       a valid `Arc<dyn CnsStoragePort>`.
+    ///       a valid `Arc<dyn LedgerStoragePort>`.
     /// post: Returns a `CuratorContext` with `nu_event_store` set, no
     ///       A2A port, and no manifest executor.
     pub fn with_nu_event_store(
         handle: CuratorHandle,
-        cns: Arc<CnsRuntime>,
+        cns: Arc<RegulationLedger>,
         curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
         escalation_port: Arc<dyn EscalationPort>,
-        nu_event_store: Arc<dyn CnsStoragePort>,
+        nu_event_store: Arc<dyn LedgerStoragePort>,
     ) -> Self {
         Self {
             handle,
@@ -149,7 +149,7 @@ impl CuratorContext {
     }
 
     /// Access the CNS runtime for health checks and variety queries.
-    pub(crate) fn cns(&self) -> &Arc<CnsRuntime> {
+    pub(crate) fn cns(&self) -> &Arc<RegulationLedger> {
         &self.cns
     }
 
@@ -159,11 +159,11 @@ impl CuratorContext {
         std::mem::take(&mut *events)
     }
 
-    /// Access the NuEvent store for algedonic review queries.
+    /// Access the RegulationRecord store for algedonic review queries.
     ///
     /// Curation reads from the persistent event log, not live CNS state.
-    /// Returns None if no NuEvent store is configured (graceful degradation).
-    pub(crate) fn nu_event_store(&self) -> Option<&Arc<dyn CnsStoragePort>> {
+    /// Returns None if no RegulationRecord store is configured (graceful degradation).
+    pub(crate) fn nu_event_store(&self) -> Option<&Arc<dyn LedgerStoragePort>> {
         self.nu_event_store.as_ref()
     }
 

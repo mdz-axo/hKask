@@ -27,7 +27,7 @@ use ed25519_dalek::SigningKey;
 use hkask_services_wallet::WalletService;
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
-use hkask_types::event::NuEventSink;
+use hkask_types::event::RegulationSink;
 use hkask_types::id::{ApiKeyId, WalletId};
 use hkask_wallet::{Encumbrance, RJoule};
 use std::sync::Arc;
@@ -51,7 +51,7 @@ pub struct ApiKeyAuthService {
     api_meter: Option<Arc<std::sync::RwLock<hkask_regulation::ApiMeter>>>,
     /// CNS event sink — when present, a `cns.api.request` span is emitted
     /// for every authenticated request after the rate limit check.
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
 }
 
 impl ApiKeyAuthService {
@@ -80,7 +80,7 @@ impl ApiKeyAuthService {
     /// Attach a CNS event sink. When set, a `cns.api.request` span is emitted
     /// for every authenticated request after the rate limit check.
     #[must_use]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }

@@ -14,7 +14,7 @@
 //!     → SpecStore ─────┼── all share ONE Arc<Mutex<Connection>>
 //!     → UserStore ─────┤
 //!     → WalletStore ───┤
-//!     → NuEventStore ──┘
+//!     → RegulationArchive ──┘
 //! ```rust,no_run
 //!
 //! # REQ tags
@@ -27,7 +27,7 @@ use hkask_services_context::AgentService;
 use hkask_services_core::ServiceConfig;
 use hkask_types::DataCategory;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanKind};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -150,7 +150,7 @@ async fn cross_store_consent_visible_to_cns_events() {
     // The CNS event sink shares the same database as the consent store.
     // Verify the event sink is functional on the shared connection.
     let event_sink = svc.cns().events.clone();
-    let test_event = hkask_types::event::NuEvent::new(
+    let test_event = hkask_types::event::RegulationRecord::new(
         webid,
         hkask_types::event::Span::new(
             hkask_types::event::SpanNamespace::new("cns.inference").unwrap(),
@@ -181,7 +181,7 @@ async fn service_energy_estimator_calibrates_from_events() {
     assert_eq!(before, 100);
 
     // Persist a settled gas event via the shared CNS event sink.
-    let event = NuEvent::new(
+    let event = RegulationRecord::new(
         agent,
         Span::from_kind(SpanKind::GasSettled),
         CyclePhase::Act,

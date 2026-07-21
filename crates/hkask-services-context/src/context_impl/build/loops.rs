@@ -6,7 +6,7 @@ use hkask_database::sqlite::SqliteDriver;
 use super::foundation::Foundation;
 use crate::cns_store_slo_provider::CnsStoreSloProvider;
 use hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
-use hkask_ports::{CnsStoragePort, escalation::EscalationPort};
+use hkask_ports::{LedgerStoragePort, escalation::EscalationPort};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use std::path::PathBuf;
 use tokio::sync::RwLock;
@@ -62,7 +62,7 @@ pub(super) async fn build_loops(
             &f.nu_event_store,
         ))))
         .with_set_point_calibrator(
-            Arc::clone(&f.nu_event_store) as Arc<dyn CnsStoragePort>,
+            Arc::clone(&f.nu_event_store) as Arc<dyn LedgerStoragePort>,
             DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
         )
         .with_seam_watcher();
@@ -148,7 +148,7 @@ pub(super) async fn build_loops(
     let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
 
     // Curation loop
-    let cns_for_curator: Arc<CnsRuntime> = Arc::new(f.cns_runtime.read().await.clone());
+    let cns_for_curator: Arc<RegulationLedger> = Arc::new(f.cns_runtime.read().await.clone());
     let a2a_runtime = Arc::new(hkask_pods::A2ARuntime::new(&config.a2a_secret));
     let curator_context = Arc::new(
         CuratorContext::with_nu_event_store(
@@ -156,7 +156,7 @@ pub(super) async fn build_loops(
             cns_for_curator,
             Some(curator_directive_tx.clone()),
             Arc::clone(&f.escalation_queue) as Arc<dyn EscalationPort>,
-            Arc::clone(&f.nu_event_store) as Arc<dyn CnsStoragePort>,
+            Arc::clone(&f.nu_event_store) as Arc<dyn LedgerStoragePort>,
         )
         .with_a2a(a2a_runtime.clone())
         .with_consent_manager(Arc::clone(&f.consent_manager)),

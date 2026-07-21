@@ -1,7 +1,7 @@
-//! SetPointCalibrator — Self-tuning regulation thresholds via NuEventStore replay.
+//! SetPointCalibrator — Self-tuning regulation thresholds via RegulationArchive replay.
 //!
 //! The Conant-Ashby closure for set-points: queries persisted regulation outcome
-//! events from the NuEventStore, counts patterns per metric, and adjusts thresholds
+//! events from the RegulationArchive, counts patterns per metric, and adjusts thresholds
 //! within bounded ranges through a caller-provided callback.
 //!
 //! # Adjustment rules
@@ -16,7 +16,7 @@
 //! Default: 30 events (configurable via `HKASK_SET_POINT_MIN_OBSERVATIONS`).
 
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_ports::CnsStoragePort;
+use hkask_ports::LedgerStoragePort;
 use hkask_types::InfrastructureError;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -68,11 +68,11 @@ pub struct SetPointAdjustment {
 
 /// Auto-tuning calibrator for CNS regulation set-points.
 ///
-/// Queries the NuEventStore for regulation events, counts outcomes per metric,
+/// Queries the RegulationArchive for regulation events, counts outcomes per metric,
 /// and applies adjustments through the provided callback. The callback receives
 /// a list of adjustments and should apply them to the active SetPoints.
 pub struct SetPointCalibrator {
-    store: Arc<dyn CnsStoragePort>,
+    store: Arc<dyn LedgerStoragePort>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
     calibration_alive: AtomicBool,
     min_total_observations: u64,
@@ -83,7 +83,7 @@ impl SetPointCalibrator {
     ///
     /// `initial_lookback` controls how far back the first calibration searches
     /// for events (e.g., 1 hour for fresh start, 24 hours for restart with history).
-    pub fn new(store: Arc<dyn CnsStoragePort>, initial_lookback: ChronoDuration) -> Self {
+    pub fn new(store: Arc<dyn LedgerStoragePort>, initial_lookback: ChronoDuration) -> Self {
         Self {
             store,
             last_calibrated_at: tokio::sync::Mutex::new(Utc::now() - initial_lookback),
@@ -323,21 +323,21 @@ impl SetPointCalibrator {
 mod tests {
     use super::*;
     use hkask_database::sqlite::SqliteDriver;
-    use hkask_storage::NuEventStore;
+    use hkask_storage::RegulationArchive;
     use hkask_types::WebID;
-    use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+    use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 
-    fn make_event_store() -> (Arc<dyn CnsStoragePort>, Arc<NuEventStore>) {
+    fn make_event_store() -> (Arc<dyn LedgerStoragePort>, Arc<RegulationArchive>) {
         let driver = SqliteDriver::in_memory_driver();
-        let store = Arc::new(NuEventStore::from_driver(driver));
-        let port = Arc::clone(&store) as Arc<dyn CnsStoragePort>;
+        let store = Arc::new(RegulationArchive::from_driver(driver));
+        let port = Arc::clone(&store) as Arc<dyn LedgerStoragePort>;
         (port, store)
     }
 
-    fn regulation_event(metric: &str, path: &str) -> NuEvent {
+    fn regulation_event(metric: &str, path: &str) -> RegulationRecord {
         let ns = SpanNamespace::new("cns.regulation").unwrap();
         let span = Span::new(ns, path);
-        NuEvent::new(
+        RegulationRecord::new(
             WebID::from_persona(b"cns"),
             span,
             CyclePhase::Act,
@@ -351,7 +351,7 @@ mod tests {
         let (store, event_store) = make_event_store();
         let calibrator = SetPointCalibrator::new(store, ChronoDuration::hours(1));
 
-        let sink: &dyn hkask_types::event::NuEventSink = &*event_store;
+        let sink: &dyn hkask_types::event::RegulationSink = &*event_store;
         let _ = sink.persist(&regulation_event("variety_deficit", "action_substituted"));
         let _ = sink.persist(&regulation_event("error_rate", "action_blocked"));
 
@@ -364,7 +364,7 @@ mod tests {
         let (store, event_store) = make_event_store();
 
         // Persist regulation events
-        let sink: &dyn hkask_types::event::NuEventSink = &*event_store;
+        let sink: &dyn hkask_types::event::RegulationSink = &*event_store;
         for _ in 0..55 {
             let _ = sink.persist(&regulation_event(
                 "variety_deficit",

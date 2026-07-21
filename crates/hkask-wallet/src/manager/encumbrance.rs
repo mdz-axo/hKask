@@ -2,7 +2,7 @@
 
 use super::*;
 
-use hkask_types::cns::CnsSpan;
+use hkask_types::cns::RegulationSpan;
 
 impl WalletManager {
     pub fn encumber(
@@ -13,7 +13,7 @@ impl WalletManager {
     ) -> Result<(), WalletError> {
         self.store.encumber_rjoules(wallet_id, key_id, amount)?;
         self.emit_core_span(
-            CnsSpan::Gas,
+            RegulationSpan::Gas,
             "encumbered",
             CyclePhase::Act,
             serde_json::json!({
@@ -28,7 +28,7 @@ impl WalletManager {
     pub fn release_encumbrance(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         self.store.release_encumbrance(key_id)?;
         self.emit_core_span(
-            CnsSpan::Gas,
+            RegulationSpan::Gas,
             "released",
             CyclePhase::Act,
             serde_json::json!({

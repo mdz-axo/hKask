@@ -14,8 +14,8 @@ use hkask_regulation::types::loops::{
 };
 use hkask_ports::ConsolidationRequest;
 use hkask_types::WebID;
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::cns::RegulationSpan;
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.
 ///
@@ -76,14 +76,14 @@ impl EpisodicLoop {
         self.storage_budget
     }
 
-    /// Emit a CNS NuEvent through the memory's event sink.
+    /// Emit a CNS RegulationRecord through the memory's event sink.
     fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
         if let Some(sink) = self.memory.event_sink() {
             let span = Span::new(
-                SpanNamespace::try_from(CnsSpan::MemoryEncode).expect("canonical span"),
+                SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
                 verb,
             );
-            let event = NuEvent::new(self.perspective, span, CyclePhase::Act, observation, 0);
+            let event = RegulationRecord::new(self.perspective, span, CyclePhase::Act, observation, 0);
             let _ = sink.persist(&event);
         }
     }

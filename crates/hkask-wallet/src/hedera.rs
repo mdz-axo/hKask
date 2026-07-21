@@ -23,7 +23,7 @@ use crate::cns_span::WalletSpan;
 use crate::types::{ChainId, TxHash, WalletError};
 use async_trait::async_trait;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use reqwest::Client;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -137,7 +137,7 @@ pub struct HederaPort {
     /// Consensus node gRPC endpoint URL.
     consensus_node_url: String,
     /// Optional CNS event sink for chain error span emission.
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
 }
 
 impl HederaPort {
@@ -173,7 +173,7 @@ impl HederaPort {
 
     /// Attach a CNS event sink for chain error span emission.
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -190,7 +190,7 @@ impl HederaPort {
                 SpanNamespace::from_observable(&WalletSpan::ChainError).expect("canonical span"),
                 "error",
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 *actor,
                 span_obj,
                 CyclePhase::Sense,
@@ -648,11 +648,11 @@ mod integration_tests {
 
     #[derive(Default)]
     struct CaptureSink {
-        last_event: Mutex<Option<NuEvent>>,
+        last_event: Mutex<Option<RegulationRecord>>,
     }
 
-    impl NuEventSink for CaptureSink {
-        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+    impl RegulationSink for CaptureSink {
+        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }

@@ -38,7 +38,7 @@ use hkask_regulation::types::loops::CuratorHandle;
 use hkask_regulation::types::loops::HkaskLoop;
 use hkask_regulation::types::loops::{CurationInput, CuratorDirective};
 use hkask_regulation::{
-    CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, SeamSummary,
+    CalibratedEnergyEstimator, RegulationLedger, CyberneticsLoop, EnergyEstimator, SeamSummary,
     SeamWatcher, load_set_points,
 };
 use hkask_database::sqlite::SqliteDriver;
@@ -51,10 +51,10 @@ use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
 use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
-use hkask_ports::{CnsStoragePort, ConsolidationOutcome, ConsolidationRequest, InferencePort};
+use hkask_ports::{LedgerStoragePort, ConsolidationOutcome, ConsolidationRequest, InferencePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
-use hkask_storage::nu_event_store::NuEventStore;
+use hkask_storage::nu_event_store::RegulationArchive;
 use hkask_storage::user_store::UserStore;
 use hkask_storage::{
     ConsentStore, Database, EmbeddingStore, HMemStore, SovereigntyBoundaryStore, WalletStore,
@@ -62,7 +62,7 @@ use hkask_storage::{
 use hkask_templates::SqliteRegistry;
 use hkask_types::DataCategory;
 use hkask_types::WebID;
-use hkask_types::event::NuEventSink;
+use hkask_types::event::RegulationSink;
 use hkask_types::id::WalletId;
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
@@ -233,7 +233,7 @@ impl AgentService {
     #[must_use]
     pub fn build_per_agent_memory(
         db: Database,
-        cns_event_sink: Option<Arc<dyn NuEventSink>>,
+        cns_event_sink: Option<Arc<dyn RegulationSink>>,
     ) -> PerAgentMemory {
         // EpisodicMemory + SemanticMemory for ConsolidationService
         let pool_for_mem = db.sqlite_pool().expect("sqlite pool error");

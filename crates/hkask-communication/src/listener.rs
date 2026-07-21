@@ -11,7 +11,7 @@
 //! The communication server is a dumb pipe. CNS observes. Agents decide.
 
 use crate::matrix::{MatrixMessage, MatrixTransport, UserId};
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span};
 use hkask_types::{EventID, WebID};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock, watch};
@@ -31,10 +31,10 @@ pub struct SevenR7Listener {
     matrix: Arc<Mutex<MatrixTransport>>,
     /// Polling interval in seconds.
     poll_interval_secs: u64,
-    /// CNS event sink for persisting observed messages as NuEvents.
+    /// CNS event sink for persisting observed messages as RegulationRecords.
     /// When set, the listener joins the CNS observability fabric;
     /// the curation loop can then sense Matrix activity.
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
     /// Whether the listener is active.
     active: RwLock<bool>,
     /// Cancellation channel — dropping the sender (via stop) signals the loop to exit.
@@ -61,9 +61,9 @@ impl SevenR7Listener {
     /// Attach a CNS event sink for persisting observed messages.
     ///
     /// Without this, the listener only emits tracing events.
-    /// With it, observed messages flow into the NuEvent store
+    /// With it, observed messages flow into the RegulationRecord store
     /// where the curation loop can sense them.
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -138,13 +138,13 @@ impl SevenR7Listener {
                                             body_len = %msg.body.len(),
                                             "7R7 observed message"
                                         );
-                                        // Persist NuEvent so the curation loop can sense it.
+                                        // Persist RegulationRecord so the curation loop can sense it.
                                         if let Some(ref sink) = event_sink {
                                             let span = Span::new(
                                                 hkask_types::event::SpanNamespace::new("cns.communication.message").expect("canonical namespace: cns.communication.message"),
                                                 "observed",
                                             );
-                                        let mut event = NuEvent::new(
+                                        let mut event = RegulationRecord::new(
                                             WebID::from_persona(b"7r7-listener"),
                                             span,
                                             CyclePhase::Act,
@@ -175,7 +175,7 @@ impl SevenR7Listener {
                                                 tracing::warn!(
                                                     target: "cns.communication.listener",
                                                     error = %e,
-                                                    "7R7 failed to persist NuEvent"
+                                                    "7R7 failed to persist RegulationRecord"
                                                 );
                                             }
                                         }

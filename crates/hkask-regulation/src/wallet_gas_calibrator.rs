@@ -11,11 +11,11 @@
 use crate::gas_report::GasReport;
 use crate::wallet_energy_estimator::WalletEnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_ports::CnsStoragePort;
+use hkask_ports::LedgerStoragePort;
 use hkask_ports::WalletBudgetPort;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{info, warn};
@@ -39,11 +39,11 @@ pub const DEFAULT_WALLET_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hour
 /// - `calibrate()` — run one calibration pass
 /// - `spawn_calibration()` — spawn a background calibration task
 pub struct WalletGasCalibrator {
-    store: Arc<dyn CnsStoragePort>,
+    store: Arc<dyn LedgerStoragePort>,
     wallet_manager: Arc<dyn WalletBudgetPort>,
     estimator: std::sync::Mutex<WalletEnergyEstimator>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
     /// Set to false if the background calibration task panics or exits.
     calibration_alive: std::sync::atomic::AtomicBool,
 }
@@ -53,11 +53,11 @@ impl WalletGasCalibrator {
     ///
     /// expect: "I can create a wallet gas calibrator that self-tunes the gas→rJoule rate from settled events"
     /// expect: "I can configure the default interval for background wallet gas calibration"
-    /// pre:  store is a valid CnsStoragePort; wallet_manager is valid
+    /// pre:  store is a valid LedgerStoragePort; wallet_manager is valid
     /// post: returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate
     /// post: first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
     /// post: no event sink attached until `with_event_sink` is called
-    pub fn new(store: Arc<dyn CnsStoragePort>, wallet_manager: Arc<dyn WalletBudgetPort>) -> Self {
+    pub fn new(store: Arc<dyn LedgerStoragePort>, wallet_manager: Arc<dyn WalletBudgetPort>) -> Self {
         let initial_rate = wallet_manager.gas_per_rjoule();
         Self {
             store,
@@ -88,10 +88,10 @@ impl WalletGasCalibrator {
     /// Attach a CNS event sink for calibration span emission.
     ///
     /// expect: "I can attach an event sink so wallet conversion rate adjustments emit CNS observability spans"
-    /// pre:  sink is a valid NuEventSink
+    /// pre:  sink is a valid RegulationSink
     /// post: subsequent successful calibrations that adjust the rate emit a span
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -104,7 +104,7 @@ impl WalletGasCalibrator {
     /// shared `WalletManager`.
     ///
     /// expect: "I can run an incremental wallet calibration pass that computes the aggregate actual/estimated ratio and updates the conversion rate"
-    /// pre:  `self.store` is a valid NuEventStore; `self.wallet_manager` is valid
+    /// pre:  `self.store` is a valid RegulationArchive; `self.wallet_manager` is valid
     /// post: if settled events exist and the aggregate ratio exceeds tolerance,
     ///       `wallet_manager.gas_per_rjoule()` is updated
     /// post: returns true if the rate was adjusted
@@ -168,7 +168,7 @@ impl WalletGasCalibrator {
                 .expect("domain span must be canonical"),
                 "calibrated",
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 Self::default_actor(),
                 span,
                 CyclePhase::Act,
@@ -230,16 +230,16 @@ impl crate::calibrator::Calibrator for WalletGasCalibrator {
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
-    use hkask_storage::NuEventStore;
-    use hkask_types::NuEventSink;
+    use hkask_storage::RegulationArchive;
+    use hkask_types::RegulationSink;
     use hkask_types::WebID;
-    use hkask_types::event::{CyclePhase, NuEvent, Span, SpanKind};
+    use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanKind};
     use hkask_wallet::GAS_PER_RJOULE;
     use std::sync::Mutex;
 
     /// A test event sink that captures the last persisted event.
     struct CaptureSink {
-        last_event: Mutex<Option<NuEvent>>,
+        last_event: Mutex<Option<RegulationRecord>>,
     }
 
     impl CaptureSink {
@@ -248,7 +248,7 @@ mod tests {
                 last_event: Mutex::new(None),
             }
         }
-        fn last_event(&self) -> Option<NuEvent> {
+        fn last_event(&self) -> Option<RegulationRecord> {
             self.last_event
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
@@ -256,8 +256,8 @@ mod tests {
         }
     }
 
-    impl NuEventSink for CaptureSink {
-        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+    impl RegulationSink for CaptureSink {
+        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }
@@ -285,8 +285,8 @@ mod tests {
         Arc::new(manager)
     }
 
-    fn settled_event(agent: WebID, reserved: u64, actual: u64) -> NuEvent {
-        NuEvent::new(
+    fn settled_event(agent: WebID, reserved: u64, actual: u64) -> RegulationRecord {
+        RegulationRecord::new(
             agent,
             Span::from_kind(SpanKind::GasSettled),
             CyclePhase::Act,
@@ -308,12 +308,12 @@ mod tests {
         assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);
 
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
         event_store
             .persist(&settled_event(agent, 100, 200))
             .expect("persist settled event");
 
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(WalletGasCalibrator::new(store, Arc::clone(&wallet_manager)));
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(adjusted, "ratio 2.0 should adjust rate");
@@ -330,16 +330,16 @@ mod tests {
         let wallet_manager = make_wallet_manager();
 
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
         event_store
             .persist(&settled_event(agent, 100, 200))
             .expect("persist settled event");
 
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(
             WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
-                .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+                .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
         );
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(adjusted, "ratio 2.0 should adjust rate");
@@ -362,13 +362,13 @@ mod tests {
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let wallet_manager = make_wallet_manager();
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(
             WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
-                .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+                .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
         );
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(!adjusted);
@@ -382,9 +382,9 @@ mod tests {
     async fn calibrate_no_events_leaves_rate_unchanged() {
         let wallet_manager = make_wallet_manager();
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
 
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(WalletGasCalibrator::new(store, Arc::clone(&wallet_manager)));
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(!adjusted);
@@ -395,9 +395,9 @@ mod tests {
     fn with_initial_lookback_changes_first_window() {
         let wallet_manager = make_wallet_manager();
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
 
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let _calibrator = WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
             .with_initial_lookback(ChronoDuration::minutes(30));
         // Construction succeeds; internal state is not directly observable.

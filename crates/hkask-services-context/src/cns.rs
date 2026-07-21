@@ -4,9 +4,9 @@
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
 use hkask_pods::loop_system::LoopSystem;
-use hkask_regulation::{CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, ToolStats};
-use hkask_types::cns::CnsHealth;
-use hkask_types::event::{NuEventSink, SpanNamespace};
+use hkask_regulation::{CalibratedEnergyEstimator, RegulationLedger, CyberneticsLoop, ToolStats};
+use hkask_types::cns::LedgerHealth;
+use hkask_types::event::{RegulationSink, SpanNamespace};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -14,10 +14,10 @@ use tokio::sync::RwLock;
 /// Consolidated CNS context — variety sensing, cybernetic regulation,
 /// loop orchestration, event audit trail, and energy estimation.
 pub struct CnsContext {
-    pub runtime: Arc<RwLock<CnsRuntime>>,
+    pub runtime: Arc<RwLock<RegulationLedger>>,
     pub cybernetics: Arc<RwLock<CyberneticsLoop>>,
     pub loops: Arc<LoopSystem>,
-    pub events: Arc<dyn NuEventSink>,
+    pub events: Arc<dyn RegulationSink>,
     pub energy: Arc<CalibratedEnergyEstimator>,
     /// Statistical learner for per-tool cost distributions and reliability.
     /// Shared with GovernedTool and CyberneticsLoop for closed-loop learning.
@@ -26,10 +26,10 @@ pub struct CnsContext {
 
 impl CnsContext {
     pub fn new(
-        runtime: Arc<RwLock<CnsRuntime>>,
+        runtime: Arc<RwLock<RegulationLedger>>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
         loops: Arc<LoopSystem>,
-        events: Arc<dyn NuEventSink>,
+        events: Arc<dyn RegulationSink>,
         energy: Arc<CalibratedEnergyEstimator>,
         tool_stats: Arc<ToolStats>,
     ) -> Self {
@@ -49,7 +49,7 @@ impl CnsContext {
     /// This is the canonical access path — replaces the pattern
     /// `cns().runtime.read().await.health().await`.
     #[must_use]
-    pub async fn health(&self) -> CnsHealth {
+    pub async fn health(&self) -> LedgerHealth {
         self.runtime.read().await.health().await
     }
 

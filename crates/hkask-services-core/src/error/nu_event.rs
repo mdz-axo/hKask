@@ -10,7 +10,7 @@ impl ServiceError {
     /// Emit a ν-event for CNS-observable errors.
     ///
     /// Returns `None` for user-input errors that don't represent system
-    /// conditions. Returns `Some(NuEvent)` for infrastructure, inference,
+    /// conditions. Returns `Some(RegulationRecord)` for infrastructure, inference,
     /// CNS, storage, and security errors the CNS can act on.
     ///
     /// The observer WebID is freshly generated per event — these are
@@ -18,10 +18,10 @@ impl ServiceError {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
-    /// post: returns Some(NuEvent) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
+    /// post: returns Some(RegulationRecord) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
     #[must_use]
-    pub fn nu_event(&self) -> Option<hkask_types::event::NuEvent> {
-        use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+    pub fn nu_event(&self) -> Option<hkask_types::event::RegulationRecord> {
+        use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
         use hkask_types::id::WebID;
 
         let (namespace, path_suffix, observation) = match self {
@@ -128,7 +128,7 @@ impl ServiceError {
             SpanNamespace::new(namespace).expect("canonical namespace"),
             path_suffix,
         );
-        Some(NuEvent::new(
+        Some(RegulationRecord::new(
             WebID::new(),
             span,
             CyclePhase::Sense,

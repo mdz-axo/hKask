@@ -15,7 +15,7 @@
 //! - \[P9\] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
 use hkask_capability::CapabilityChecker;
-use hkask_regulation::CnsRuntime;
+use hkask_regulation::RegulationLedger;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_database::types::DbProvider;
 use hkask_mcp::McpRuntime;
@@ -51,7 +51,7 @@ pub struct PodDeployment {
     /// Dedicated database. The file IS the pod. No shared store.
     pub storage: PerPodStorage,
     /// Dedicated CNS runtime. Variety counters scoped to this pod.
-    pub cns: PerPodCnsRuntime,
+    pub cns: PerPodLedger,
     /// Capability checker for OCAP verification
     pub capability_checker: Arc<CapabilityChecker>,
     /// Sovereignty checker wired to consent port
@@ -89,17 +89,17 @@ pub struct PerPodStorage {
     pub db_path: PathBuf,
 }
 
-/// PerPodCnsRuntime is a CNS runtime scoped to a single pod.
+/// PerPodLedger is a CNS runtime scoped to a single pod.
 ///
 ///Constraining: Digital Public/Private Sphere — CNS isolation
 #[derive(Clone)]
-pub struct PerPodCnsRuntime {
+pub struct PerPodLedger {
     /// The pod this CNS runtime is scoped to
     pod_id: PodID,
     /// Span namespace prefix: cns.agent_pod.{pod_id}
     span_namespace: String,
     /// The actual CNS runtime — per-pod isolate
-    inner: CnsRuntime,
+    inner: RegulationLedger,
 }
 
 // ── PodDeployError ──────────────────────────────────────────────────────────
@@ -125,12 +125,12 @@ pub enum PodDeployError {
     Io(#[from] std::io::Error),
 }
 
-// ── PerPodCnsRuntime ────────────────────────────────────────────────────────
+// ── PerPodLedger ────────────────────────────────────────────────────────
 
-impl PerPodCnsRuntime {
+impl PerPodLedger {
     pub fn scoped(pod_id: PodID) -> Self {
         let span_namespace = format!("cns.agent_pod.{}", pod_id);
-        let inner = CnsRuntime::default();
+        let inner = RegulationLedger::default();
         debug!(
             target: "cns.agent_pod",
             pod_id = %pod_id,
@@ -150,7 +150,7 @@ impl PerPodCnsRuntime {
     pub fn span_namespace(&self) -> &str {
         &self.span_namespace
     }
-    pub fn inner(&self) -> &CnsRuntime {
+    pub fn inner(&self) -> &RegulationLedger {
         &self.inner
     }
 
@@ -171,7 +171,7 @@ impl PerPodCnsRuntime {
             .await;
     }
 
-    pub async fn health(&self) -> hkask_types::cns::CnsHealth {
+    pub async fn health(&self) -> hkask_types::cns::LedgerHealth {
         self.inner.health().await
     }
 
@@ -256,7 +256,7 @@ impl PodFactory {
         let (storage, memory_adapter) = self.create_pod_storage(pod_id, name, webid, pod_kind)?;
 
         // 3. Initialize per-pod CNS runtime
-        let cns = PerPodCnsRuntime::scoped(pod_id);
+        let cns = PerPodLedger::scoped(pod_id);
 
         let sovereignty_checker = pod.sovereignty_checker.clone();
 

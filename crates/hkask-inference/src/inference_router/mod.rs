@@ -16,10 +16,10 @@ use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_regulation::{CyberneticsLoop, GasCost};
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::cns::RegulationSpan;
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
-use hkask_types::{NuEventSink, WebID};
+use hkask_types::{RegulationSink, WebID};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
@@ -36,7 +36,7 @@ type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
 #[derive(Clone)]
 struct InferenceGovernance {
     cybernetics: Arc<RwLock<CyberneticsLoop>>,
-    event_sink: Arc<dyn NuEventSink>,
+    event_sink: Arc<dyn RegulationSink>,
     agent: WebID,
 }
 
@@ -174,7 +174,7 @@ impl InferenceRouter {
     pub fn with_governance(
         mut self,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
-        event_sink: Arc<dyn NuEventSink>,
+        event_sink: Arc<dyn RegulationSink>,
         agent: WebID,
     ) -> Self {
         self.governance = Some(InferenceGovernance {
@@ -210,10 +210,10 @@ impl InferenceRouter {
             })?;
         drop(cybernetics);
 
-        let invoked = NuEvent::new(
+        let invoked = RegulationRecord::new(
             governance.agent,
             Span::new(
-                SpanNamespace::try_from(CnsSpan::Inference).expect("canonical span"),
+                SpanNamespace::try_from(RegulationSpan::Inference).expect("canonical span"),
                 "invoked",
             ),
             CyclePhase::Sense,
@@ -257,10 +257,10 @@ impl InferenceRouter {
             Ok(response) => ("success", None, Some(response.usage.total_tokens)),
             Err(error) => ("failure", Some(error.to_string()), None),
         };
-        let completed = NuEvent::new(
+        let completed = RegulationRecord::new(
             governance.agent,
             Span::new(
-                SpanNamespace::try_from(CnsSpan::Inference).expect("canonical span"),
+                SpanNamespace::try_from(RegulationSpan::Inference).expect("canonical span"),
                 "completed",
             ),
             CyclePhase::Act,

@@ -1,4 +1,4 @@
-//! ObservableSpan trait — decouples CNS observability from the monolithic CnsSpan enum.
+//! ObservableSpan trait — decouples CNS observability from the monolithic RegulationSpan enum.
 //!
 //! `SpanNamespace::from_observable()` bridges domain span enums to the
 //! validated namespace construction path. The trait is dyn-compatible —
@@ -16,7 +16,7 @@
 //!
 //! ```text
 //! ObservableSpan (trait)
-//!   ├── CnsSpan (canonical CNS spans — hkask-types)
+//!   ├── RegulationSpan (canonical CNS spans — hkask-types)
 //!   ├── FederationSpan (future: federation-specific spans — hkask-federation)
 //!   ├── WalletSpan (future: wallet-specific spans — hkask-wallet)
 //!   └── ... (per-domain span enums)
@@ -41,17 +41,17 @@
 //! ```
 
 /// Trait for typed observability spans that can be emitted through the CNS
-/// infrastructure — both as structured NuEvents (persisted + queried) and
+/// infrastructure — both as structured RegulationRecords (persisted + queried) and
 /// as tracing log events (for external consumers like OpenTelemetry exporters).
 ///
 /// A canonical dot-separated namespace string (e.g. `"cns.tool.web_search"`)
 /// identifies the span domain. Call sites choose between three emission paths:
 ///
 /// - `emit()` — log-only, no persistence. For call sites without a sink.
-/// - `emit_to(sink, ...)` — produce a NuEvent, persist through the sink, AND log.
+/// - `emit_to(sink, ...)` — produce a RegulationRecord, persist through the sink, AND log.
 ///   The primary path. CNS consumers (CurationLoop, AlgedonicManager) react to
 ///   persisted events.
-/// - `to_event(...)` — produce a NuEvent without persisting. For call sites that
+/// - `to_event(...)` — produce a RegulationRecord without persisting. For call sites that
 ///   batch events or need custom routing.
 pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 'static {
     /// Canonical dot-separated namespace string.
@@ -64,7 +64,7 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
     /// `cns_domain` set to `self.as_str()`, and `operation` as provided.
     ///
     /// This is the log-only convenience path. Prefer `emit_to()` when a
-    /// `NuEventSink` is available — it persists the event for CNS consumers.
+    /// `RegulationSink` is available — it persists the event for CNS consumers.
     fn emit(&self, operation: &str) {
         tracing::info!(
             target: "cns",
@@ -74,7 +74,7 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
         );
     }
 
-    /// Produce a structured NuEvent for this span (without persisting).
+    /// Produce a structured RegulationRecord for this span (without persisting).
     ///
     /// Returns `None` if the span's namespace string is not registered in
     /// the canonical namespace set. Callers should fall back to `emit()`
@@ -85,10 +85,10 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
         observer: &crate::WebID,
         phase: crate::event::CyclePhase,
         observation: serde_json::Value,
-    ) -> Option<crate::event::NuEvent> {
+    ) -> Option<crate::event::RegulationRecord> {
         let ns = crate::event::SpanNamespace::parse(self.as_str())?;
         let span = crate::event::Span::new(ns, operation);
-        Some(crate::event::NuEvent::new(
+        Some(crate::event::RegulationRecord::new(
             *observer,
             span,
             phase,
@@ -97,14 +97,14 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
         ))
     }
 
-    /// Emit and persist through a NuEventSink.
+    /// Emit and persist through a RegulationSink.
     ///
-    /// Attempts to produce a NuEvent via `to_event()`. If the namespace is
+    /// Attempts to produce a RegulationRecord via `to_event()`. If the namespace is
     /// canonical, persists through the sink and logs. On namespace miss or
     /// persistence failure, degrades gracefully to log-only via `emit()`.
     fn emit_to(
         &self,
-        sink: &dyn crate::event::NuEventSink,
+        sink: &dyn crate::event::RegulationSink,
         operation: &str,
         observer: &crate::WebID,
         phase: crate::event::CyclePhase,
@@ -172,8 +172,8 @@ mod tests {
 
     #[test]
     fn cns_span_implements_observable_span() {
-        use crate::cns::CnsSpan;
-        let span = CnsSpan::Inference;
+        use crate::cns::RegulationSpan;
+        let span = RegulationSpan::Inference;
         assert_eq!(span.as_str(), "cns.inference");
     }
 }

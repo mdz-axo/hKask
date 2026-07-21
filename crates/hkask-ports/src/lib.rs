@@ -24,7 +24,7 @@ pub mod tool;
 pub mod wallet_budget_port;
 
 pub use cns::{
-    BackpressureSignal, CircuitBreakerPort, CnsObserver, CnsStoragePort, ConsolidationOutcome,
+    BackpressureSignal, CircuitBreakerPort, LedgerObserver, LedgerStoragePort, ConsolidationOutcome,
     ConsolidationRequest, DecayConfig, DepletionSignal, WeightedEvent,
 };
 pub use embedding::EmbeddingGenerationError;

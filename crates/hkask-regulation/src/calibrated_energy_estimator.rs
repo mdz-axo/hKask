@@ -22,10 +22,10 @@ use crate::dynamic_gas_table::DynamicGasTable;
 use crate::energy_estimator::EnergyEstimator;
 use crate::gas_report::GasReport;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_ports::CnsStoragePort;
+use hkask_ports::LedgerStoragePort;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span};
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -53,11 +53,11 @@ pub const DEFAULT_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
 /// - `spawn_calibration()` — spawn a background calibration task
 /// - `current_table()` — diagnostic snapshot of the calibrated table
 pub struct CalibratedEnergyEstimator {
-    store: Arc<dyn CnsStoragePort>,
+    store: Arc<dyn LedgerStoragePort>,
     table: RwLock<DynamicGasTable>,
     estimator: RwLock<CompositeEnergyEstimator>,
     last_calibrated_at: tokio::sync::Mutex<DateTime<Utc>>,
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
     calibration_alive: std::sync::atomic::AtomicBool,
 }
 
@@ -65,11 +65,11 @@ impl CalibratedEnergyEstimator {
     /// Create a calibrated estimator backed by the given event store.
     ///
     /// expect: "I can configure the default interval for the background gas calibration loop"
-    /// pre:  store is a valid CnsStoragePort
+    /// pre:  store is a valid LedgerStoragePort
     /// post: returns CalibratedEnergyEstimator with default table and no observations
     /// post: first calibration will look back `DEFAULT_INITIAL_LOOKBACK`
     /// post: no event sink attached until `with_event_sink` is called
-    pub fn new(store: Arc<dyn CnsStoragePort>) -> Self {
+    pub fn new(store: Arc<dyn LedgerStoragePort>) -> Self {
         let table = DynamicGasTable::new();
         let estimator = CompositeEnergyEstimator::from_dynamic_table(&table);
         Self {
@@ -99,10 +99,10 @@ impl CalibratedEnergyEstimator {
     /// Attach a CNS event sink for calibration span emission.
     ///
     /// expect: "I can attach an event sink so calibration adjustments emit CNS observability spans"
-    /// pre:  sink is a valid NuEventSink
+    /// pre:  sink is a valid RegulationSink
     /// post: subsequent successful calibrations that adjust costs emit a span
     #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -111,7 +111,7 @@ impl CalibratedEnergyEstimator {
     ///
     /// expect: "I can override the initial calibration lookback window for bootstrapping from historical data"
     /// expect: "I can create a calibrated energy estimator backed by the event store for self-regulating cost estimation"
-    /// pre:  `self.store` is a valid NuEventStore
+    /// pre:  `self.store` is a valid RegulationArchive
     /// post: all settled gas events since the last calibration are fed into
     ///       `DynamicGasTable`; `CompositeEnergyEstimator` is rebuilt from the
     ///       updated table; returns the number of servers whose costs changed
@@ -163,12 +163,12 @@ impl CalibratedEnergyEstimator {
     ) {
         if let Some(ref sink) = self.event_sink {
             let span = Span::new(
-                hkask_types::cns::CnsSpan::Gas
+                hkask_types::cns::RegulationSpan::Gas
                     .try_into()
                     .expect("canonical span"),
                 "calibrated",
             );
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 Self::default_actor(),
                 span,
                 CyclePhase::Act,
@@ -255,14 +255,14 @@ impl crate::calibrator::Calibrator for CalibratedEnergyEstimator {
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
-    use hkask_storage::NuEventStore;
+    use hkask_storage::RegulationArchive;
     use hkask_types::WebID;
-    use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanKind};
+    use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanKind};
     use std::sync::Mutex;
 
     /// A test event sink that captures the last persisted event.
     struct CaptureSink {
-        last_event: Mutex<Option<NuEvent>>,
+        last_event: Mutex<Option<RegulationRecord>>,
     }
 
     impl CaptureSink {
@@ -271,7 +271,7 @@ mod tests {
                 last_event: Mutex::new(None),
             }
         }
-        fn last_event(&self) -> Option<NuEvent> {
+        fn last_event(&self) -> Option<RegulationRecord> {
             self.last_event
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
@@ -279,15 +279,15 @@ mod tests {
         }
     }
 
-    impl NuEventSink for CaptureSink {
-        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+    impl RegulationSink for CaptureSink {
+        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }
     }
 
-    fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> NuEvent {
-        NuEvent::new(
+    fn settled_event(agent: WebID, server: &str, reserved: u64, actual: u64) -> RegulationRecord {
+        RegulationRecord::new(
             agent,
             Span::from_kind(SpanKind::GasSettled),
             CyclePhase::Act,
@@ -308,8 +308,8 @@ mod tests {
         let server = "hkask-mcp-media";
 
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
 
         let estimator = Arc::new(CalibratedEnergyEstimator::new(store));
 
@@ -335,8 +335,8 @@ mod tests {
         let agent = WebID::new();
 
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let estimator = Arc::new(CalibratedEnergyEstimator::new(store));
 
         let server_a = "hkask-mcp-media";
@@ -371,8 +371,8 @@ mod tests {
     #[test]
     fn with_initial_lookback_changes_first_window() {
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
 
         let estimator = CalibratedEnergyEstimator::new(store)
             .with_initial_lookback(ChronoDuration::minutes(30));
@@ -392,13 +392,13 @@ mod tests {
         let server = "hkask-mcp-media";
 
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let estimator = Arc::new(
             CalibratedEnergyEstimator::new(store)
-                .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+                .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
         );
 
         event_store
@@ -425,13 +425,13 @@ mod tests {
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
-        let event_store = Arc::new(NuEventStore::from_driver(driver));
+        let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
-        let store: Arc<dyn CnsStoragePort> = Arc::clone(&event_store) as Arc<dyn CnsStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let estimator = Arc::new(
             CalibratedEnergyEstimator::new(store)
-                .with_event_sink(Arc::clone(&sink) as Arc<dyn NuEventSink>),
+                .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
         );
 
         let adjusted = estimator.calibrate().await.unwrap();

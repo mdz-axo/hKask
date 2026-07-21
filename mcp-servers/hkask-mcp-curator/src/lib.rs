@@ -17,8 +17,8 @@ use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_services_context::governance;
 
 use hkask_types::WebID;
-use hkask_types::cns::CnsSpan;
-use hkask_types::event::NuEventSink;
+use hkask_types::cns::RegulationSpan;
+use hkask_types::event::RegulationSink;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
 use std::sync::Arc;
@@ -30,7 +30,7 @@ const SERVER_NAME: &str = "hkask-mcp-curator";
 hkask_mcp::mcp_server!(
     pub struct CuratorServer {
         escalation_queue: Option<Arc<hkask_storage::EscalationQueue>>,
-        nu_event_store: Option<Arc<hkask_storage::NuEventStore>>,
+        nu_event_store: Option<Arc<hkask_storage::RegulationArchive>>,
         episodic: Option<hkask_memory::EpisodicMemory>,
         semantic: Option<Arc<hkask_memory::SemanticMemory>>,
         token_registry: Option<Arc<dyn hkask_capability::TokenRegistry>>,
@@ -112,10 +112,10 @@ impl CuratorServer {
             };
             let Some(ref events_store) = self.nu_event_store else {
                 return Err(McpToolError::permission_denied(
-                    "NuEventStore not available",
+                    "RegulationArchive not available",
                 ));
             };
-            let events: Arc<dyn NuEventSink> = Arc::clone(events_store) as Arc<dyn NuEventSink>;
+            let events: Arc<dyn RegulationSink> = Arc::clone(events_store) as Arc<dyn RegulationSink>;
             match governance::resolve_direct(queue.as_ref(), &events, &req.id, &self.userpod) {
                 Ok(()) => Ok(json!({"resolved": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),
@@ -137,10 +137,10 @@ impl CuratorServer {
             };
             let Some(ref events_store) = self.nu_event_store else {
                 return Err(McpToolError::permission_denied(
-                    "NuEventStore not available",
+                    "RegulationArchive not available",
                 ));
             };
-            let events: Arc<dyn NuEventSink> = Arc::clone(events_store) as Arc<dyn NuEventSink>;
+            let events: Arc<dyn RegulationSink> = Arc::clone(events_store) as Arc<dyn RegulationSink>;
             match governance::dismiss_direct(queue.as_ref(), &events, &req.id, &self.userpod) {
                 Ok(()) => Ok(json!({"dismissed": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),
@@ -296,7 +296,7 @@ impl CuratorServer {
         execute_tool(self, "curator_algedonic_log", async {
             let Some(ref store) = self.nu_event_store else {
                 return Err(McpToolError::permission_denied(
-                    "NuEventStore not available",
+                    "RegulationArchive not available",
                 ));
             };
             let hours = req.hours.unwrap_or(24);
@@ -333,7 +333,7 @@ impl CuratorServer {
         execute_tool(self, "cns_query", async {
             let Some(ref store) = self.nu_event_store else {
                 return Err(McpToolError::permission_denied(
-                    "NuEventStore not available",
+                    "RegulationArchive not available",
                 ));
             };
             let window_secs = req.window_seconds.unwrap_or(3600);
@@ -368,7 +368,7 @@ impl CuratorServer {
                 .collect();
 
             let namespace_info = req.namespace.as_deref().unwrap_or("all");
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: hkask_types::cns::ToolSubsystem::Curator,
             }
             .emit("cns_query");
@@ -426,7 +426,7 @@ impl CuratorServer {
                 })
                 .collect();
 
-            CnsSpan::Tool {
+            RegulationSpan::Tool {
                 subsystem: hkask_types::cns::ToolSubsystem::Curator,
             }
             .emit("list_tokens");
@@ -483,7 +483,7 @@ fn open_curator_stores(
     ctx: &hkask_mcp::server::ServerContext,
 ) -> (
     Option<Arc<hkask_storage::EscalationQueue>>,
-    Option<Arc<hkask_storage::NuEventStore>>,
+    Option<Arc<hkask_storage::RegulationArchive>>,
     Option<hkask_memory::EpisodicMemory>,
     Option<Arc<hkask_memory::SemanticMemory>>,
     Option<Arc<dyn hkask_capability::TokenRegistry>>,
@@ -536,10 +536,10 @@ fn open_curator_stores(
             None
         }
     };
-    let nu_event_store = Some(Arc::new(hkask_storage::NuEventStore::from_driver(
+    let nu_event_store = Some(Arc::new(hkask_storage::RegulationArchive::from_driver(
         Arc::clone(&driver),
     )));
-    // NuEventStore schema initialized by from_driver().
+    // RegulationArchive schema initialized by from_driver().
     let episodic = hkask_memory::EpisodicMemory::new(h_mem_store);
     let semantic = Arc::new(hkask_memory::SemanticMemory::new(
         h_mem_store2,

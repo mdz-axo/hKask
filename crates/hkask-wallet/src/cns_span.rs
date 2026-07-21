@@ -1,6 +1,6 @@
 //! Wallet-specific CNS span identifiers.
 //!
-//! Moved from `hkask_types::cns::CnsSpan` during the CNS refactoring.
+//! Moved from `hkask_types::cns::RegulationSpan` during the CNS refactoring.
 //! Implements [`ObservableSpan`] for use with
 //! `SpanNamespace::from_observable()`.
 

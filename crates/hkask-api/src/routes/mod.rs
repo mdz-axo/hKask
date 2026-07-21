@@ -66,7 +66,7 @@ pub use bundles::{
     ComposeBundleResponse, DeactivateBundleResponse, EvolveBundleResponse,
 };
 pub use chat::{ApiChatRequest, ApiChatResponse};
-pub use cns::{CnsHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
+pub use cns::{LedgerHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
 pub use curator::{
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
     EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,

@@ -28,7 +28,7 @@ use hkask_capability::{CapabilitySpec, DelegationAction, DelegationResource};
 use hkask_goal::Goal;
 use hkask_storage::HMem;
 use hkask_types::GoalState;
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::id::{GoalID, WebID};
 use hkask_types::transcript::TranscriptSegment;
 use hkask_types::visibility::Visibility;
@@ -73,15 +73,15 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 
 // ── Public strategy functions ─────────────────────────────────────────────────
 
-/// Strategy generating valid `NuEvent` instances.
+/// Strategy generating valid `RegulationRecord` instances.
 ///
 /// Produces events with random observer WebIDs, canonical CNS spans,
 /// valid phases, string observations, and recursion depth 0–7.
 ///
-/// post: returns `BoxedStrategy<NuEvent>` with valid observer, span, phase, observation, depth 0–7
+/// post: returns `BoxedStrategy<RegulationRecord>` with valid observer, span, phase, observation, depth 0–7
 /// expect: "I can generate valid ν-events with correct observer, canonical CNS spans, and valid phases for property-based testing"
 ///Constraining: one strategy per type, no duplicate generators
-pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
+pub fn any_nu_event() -> BoxedStrategy<RegulationRecord> {
     (
         webid_strategy(),
         span_strategy(),
@@ -95,7 +95,7 @@ pub fn any_nu_event() -> BoxedStrategy<NuEvent> {
         (0u8..7u8),
     )
         .prop_map(|(observer, span, phase, observation, depth)| {
-            NuEvent::new(observer, span, phase, observation, depth)
+            RegulationRecord::new(observer, span, phase, observation, depth)
         })
         .boxed()
 }

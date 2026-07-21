@@ -18,9 +18,9 @@ use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::DelegationAction;
 use hkask_ports::InferencePort;
 use hkask_types::PersonaConstraints;
-use hkask_types::cns::CnsSpan;
+use hkask_types::cns::RegulationSpan;
 
-use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{DataCategory, WebID};
 
@@ -303,7 +303,7 @@ impl ChatService {
             SpanNamespace::new("cns.chat").expect("canonical namespace: cns.chat"),
             "request",
         );
-        let request_event = NuEvent::new(
+        let request_event = RegulationRecord::new(
             prepared.agent_webid,
             request_span,
             CyclePhase::Act,
@@ -343,7 +343,7 @@ impl ChatService {
             SpanNamespace::new("cns.chat").expect("canonical namespace: cns.chat"),
             "response",
         );
-        let response_event = NuEvent::new(
+        let response_event = RegulationRecord::new(
             prepared.agent_webid,
             response_span,
             CyclePhase::Act,
@@ -360,10 +360,10 @@ impl ChatService {
 
         // Store the exchange
         let memory_span = Span::new(
-            SpanNamespace::try_from(CnsSpan::MemoryEncode).expect("canonical span"),
+            SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
             "episodic_stored",
         );
-        let memory_event = NuEvent::new(
+        let memory_event = RegulationRecord::new(
             prepared.agent_webid,
             memory_span,
             CyclePhase::Act,

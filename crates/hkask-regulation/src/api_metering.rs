@@ -11,7 +11,7 @@
 //! `key_id, endpoint, scope_matched, gas_consumed, allocation_remaining, rate_limit_status`
 
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::ApiKeyId;
 use hkask_wallet_types::Encumbrance;
 use std::collections::HashMap;
@@ -484,7 +484,7 @@ impl ApiRequestSpan {
     ///
     /// Degrades gracefully: on namespace miss or persistence failure, logs a
     /// warning and continues (the request is not blocked by observability).
-    pub fn emit_to(&self, sink: &dyn NuEventSink, observer: &WebID) {
+    pub fn emit_to(&self, sink: &dyn RegulationSink, observer: &WebID) {
         let Some(ns) = SpanNamespace::parse("cns.api.request") else {
             tracing::warn!(
                 target: "hkask.api_metering",
@@ -494,7 +494,7 @@ impl ApiRequestSpan {
         };
         let span = Span::new(ns, "request");
         let observation = serde_json::to_value(self).unwrap_or_else(|_| serde_json::json!({}));
-        let event = NuEvent::new(*observer, span, CyclePhase::Sense, observation, 0);
+        let event = RegulationRecord::new(*observer, span, CyclePhase::Sense, observation, 0);
         if let Err(e) = sink.persist(&event) {
             tracing::warn!(
                 target: "hkask.api_metering",
@@ -653,11 +653,11 @@ mod tests {
 
     /// Capture sink for testing ν-event emission.
     struct CaptureSink {
-        last_event: std::sync::Mutex<Option<NuEvent>>,
+        last_event: std::sync::Mutex<Option<RegulationRecord>>,
     }
 
-    impl NuEventSink for CaptureSink {
-        fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::InfrastructureError> {
+    impl RegulationSink for CaptureSink {
+        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }

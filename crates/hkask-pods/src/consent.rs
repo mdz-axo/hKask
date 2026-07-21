@@ -14,7 +14,7 @@ use crate::sovereignty::SovereigntyConsent;
 use hkask_ports::consent_port::StoredConsentRecord as PortStoredConsentRecord;
 use hkask_types::DataCategory;
 use hkask_types::WebID;
-use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
+use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
@@ -137,7 +137,7 @@ pub struct ConsentManager {
     /// When set, a `cns.consent.denied` ν-event is emitted every time
     /// `has_consent` returns false, closing the observability loop
     /// on the Prohibition gate (Magna Carta P2).
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn RegulationSink>>,
 }
 
 impl ConsentManager {
@@ -170,9 +170,9 @@ impl ConsentManager {
     ///
     /// expect: "Agent consent is explicitly granted, scoped, and revocable"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — CNS instrumentation for denials (observability only, no feedback)
-    /// pre:  `sink` is a valid `Arc<dyn NuEventSink>`.
+    /// pre:  `sink` is a valid `Arc<dyn RegulationSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
-    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+    pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
@@ -317,7 +317,7 @@ impl ConsentManager {
     /// The denial is terminal — the event records the fact for audit.
     fn emit_consent_denied(&self, webid: &str, category: &DataCategory) {
         if let Some(ref sink) = self.event_sink {
-            let event = NuEvent::new(
+            let event = RegulationRecord::new(
                 WebID::from_persona(b"consent"),
                 Span::new(
                     SpanNamespace::new("cns.consent").expect("canonical namespace: cns.consent"),

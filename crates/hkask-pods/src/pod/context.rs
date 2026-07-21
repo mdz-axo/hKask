@@ -20,7 +20,7 @@ use hkask_types::{Confidence, WebID};
 use std::sync::Arc;
 
 use super::AgentPodError;
-use super::deployment::{PerPodCnsRuntime, PodDeployment};
+use super::deployment::{PerPodLedger, PodDeployment};
 use super::types::PodID;
 use crate::SovereigntyChecker;
 use crate::curation::SemanticIndex;
@@ -60,8 +60,8 @@ pub struct PodContext {
     /// Sovereignty checker wired to the pod's live consent port.
     sovereignty_checker: SovereigntyChecker,
     /// Per-pod CNS runtime — used to emit `cns.semantic.published` events
-    /// on semantic writes. Cloned from PodDeployment (CnsRuntime is Arc-wrapped).
-    cns: PerPodCnsRuntime,
+    /// on semantic writes. Cloned from PodDeployment (RegulationLedger is Arc-wrapped).
+    cns: PerPodLedger,
     /// CuratorPod's SemanticIndex — available on non-Curator pods for
     /// merged-lens semantic recall. `None` if no CuratorPod is active.
     curator_index: Option<Arc<std::sync::RwLock<SemanticIndex>>>,
@@ -95,7 +95,7 @@ impl PodContext {
     ///
     /// expect: "The system provides bounded agent pod context with capability-gated resource access"
     /// post: returns a shared reference to the pod's CNS runtime
-    pub fn cns(&self) -> &PerPodCnsRuntime {
+    pub fn cns(&self) -> &PerPodLedger {
         &self.cns
     }
 

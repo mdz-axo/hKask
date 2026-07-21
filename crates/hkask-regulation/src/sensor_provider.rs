@@ -297,15 +297,15 @@ impl SensorProvider for EnergyBudgetSensor {
 
 /// Senses variety deficit from the CNS runtime.
 ///
-/// Data source: `CnsRuntime`. Produces a single aggregate signal.
+/// Data source: `RegulationLedger`. Produces a single aggregate signal.
 pub struct VarietySensor {
-    cns: Arc<tokio::sync::RwLock<super::runtime::CnsRuntime>>,
+    cns: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>,
     set_point: f64,
 }
 
 impl VarietySensor {
     /// expect: "The system provides pluggable metric sensing for the cybernetic regulation loop"
-    pub fn new(cns: Arc<tokio::sync::RwLock<super::runtime::CnsRuntime>>, set_point: f64) -> Self {
+    pub fn new(cns: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>, set_point: f64) -> Self {
         Self { cns, set_point }
     }
 }
