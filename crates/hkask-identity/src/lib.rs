@@ -69,9 +69,9 @@ impl HumanUser {
 }
 
 /// Loop: Cybernetics
-/// Replicant identity — the in-system persona users log in AS
+/// UserPod identity — the in-system persona users log in AS (1:1 per user; multi-persona removed).
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplicantIdentity {
+pub struct UserPod {
     pub replicant_name: String,
     pub user_id: UserID,
     pub replicant_webid: WebID,
@@ -86,7 +86,11 @@ pub struct ReplicantIdentity {
     pub last_login: Option<i64>,
 }
 
-impl ReplicantIdentity {
+/// Strangler-fig bridge alias — removed in Phase 6 once all consumers use `UserPod`.
+/// (Plain alias, not `#[deprecated]` — P5 compliant during transition.)
+pub type ReplicantIdentity = UserPod;
+
+impl UserPod {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  replicant_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
     /// post: returns a deterministic WebID with the "replicant" namespace;

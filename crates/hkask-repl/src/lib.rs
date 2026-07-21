@@ -650,19 +650,24 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
     }
 
     fn send_curator_message(&self, input: &str) -> String {
-        let alerts = self.cns_alert_count();
-        let gas = self.gas_remaining();
-        let cap = self.gas_cap();
-        let ctx = self.context_pressure();
-        format!(
-            "Curator received: \"{}\"\n\nSystem status: {} CNS alerts, gas {}/{}, context {:.0}%, model: {}\n\nCurator daemon routing is active. CNS alerts and memory summaries appear here as detected.",
+        // Run the turn through the real inference pipeline as the Curator
+        // agent — NOT a canned stub. The operator's message reaches a live
+        // agent (memory recall, tool dispatch, inference) and the captured
+        // response is returned for the CuratorWindow to render.
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let capture = turn::single_agent_turn_captured_with_agent(
             input,
-            alerts,
-            gas,
-            cap,
-            ctx * 100.0,
-            self.model_name()
-        )
+            &mut state,
+            &self.rt_handle,
+            self.a2a_secret.as_bytes(),
+            "Curator",
+        );
+        if capture.response_text.is_empty() {
+            "(Curator produced no response — check agent registration and provider reachability.)"
+                .to_string()
+        } else {
+            capture.response_text
+        }
     }
 }
 

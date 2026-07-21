@@ -13,18 +13,19 @@
 ## Phase 2 — UserPod runtime (focus obstacle, early)
 - [ ] **T2.0** Trace ALL `AgentPod`/`PodDeployment` consumers repo-wide (Q6) → caller table — *Acc: table file:line; checkpoint: User*
 - [ ] **T2.1** Fold `AgentPod`+`PodDeployment`→`UserPod` (deep: SQLCipher+CNS+capability); persistent (no Deactivated). Rewrite `agent_pod_integration.rs`→`userpod_integration.rs`, `pod_portability.rs` — *Acc: UserPod deploys+persists; tests green; ≤5 files; checkpoint: User*
-- [ ] **T2.2** Delete `AgentPersona`/`AgentCharter`/`AgentIdentity` (Q-PERSONA: keep A2A presentation in UserPod). Remove persona-YAML path — *Acc: no Agent* persona types; ≤4 files*
+- [ ] **T2.2** Delete persona from userpods; rename `AgentPersona`→`CuratorPersona` (curator-only). Remove persona-YAML from userpod creation; userpod presents in A2A via WebID+name+capabilities only — *Acc: no persona on userpods; curator persona intact; ≤4 files*
 
 ## Phase 3 — Curator daemon promotion
 - [ ] **T3.1** Promote curator OUT of `PodKind::Curator` to first-class systemd daemon (`kask serve` already generates unit at `init.rs:180`); `CuratorSync` polls UserPods via `curator_index`. Keep test harness — *Acc: `kask serve` runs curator; CuratorSync green vs UserPod; ≤5 files; checkpoint: User*
 
 ## Phase 4 — A2A + lifecycle
+- [ ] **T4.0 (DISCOVERY, gates T4.2)** Define pod-offline behavior (Q-LIFE-DISC): 1-page design doc with options — (a) pod sleeps (storage-at-rest, no compute, no A2A), (b) pod runs headless (A2A-reachable, no inference), (c) maintenance mode for inactive-not-cancelled. User picks one — *Acc: design doc with chosen option; checkpoint: UserFeedbackOccurrence*
 - [ ] **T4.1** A2A: keep transport; delete Bot registration path; userpods + curator register as agents (no `AgentKind`) — *Acc: no Bot path; userpod+curator A2A register; MCP tools unaffected; ≤4 files*
-- [ ] **T4.2** Collapse `PodLifecycleState`→persistent + register-on-start (≤2 states); remove `Deactivated`/teardown — *Acc: ≤2 states; tests green; ≤3 files; checkpoint: User*
+- [ ] **T4.2** Collapse `PodLifecycleState`→persistent + register-on-start, per T4.0 decision (≤2–3 states incl. offline state); remove `Deactivated`/teardown — *Acc: states match T4.0 design; tests green; ≤3 files; checkpoint: User*
 
 ## Phase 5 — Principles + docs (in scope per user)
 - [ ] **T5.1** Edit P6 "Space for Replicants & Bots"→"Space for UserPods" + P6.1 1:1 (`PRINCIPLES.md:128-131`); P5.2 "Who" drop replicant/bot (`:83`); P9 authority (`:200`) — *Acc: PRINCIPLES.md consistent; ≤1 file*
-- [ ] **T5.2** Retire P10 Bot/Replicant Taxonomy (`PRINCIPLES.md:206`) per Q-P10 — *Acc: P10 retired/replaced; ≤1 file; checkpoint: User*
+- [ ] **T5.2** Refocus P10 Bot/Replicant Taxonomy → **P10 User Agency** (`PRINCIPLES.md:206-208`); Twelve Principles stay twelve — *Acc: P10 retitled+refocused to user agency/sovereignty; ≤1 file; checkpoint: User*
 - [ ] **T5.3** Retitle P12→"Authenticated Host Mandate"; rewrite P12.1 surface-host table (drop Bot row; CLI=user+curator, Daemon=curator, API=userpods) (`PRINCIPLES.md:214-230`); rewrite `mandates/P12-replicant-host-mandate.md` — *Acc: P12 consistent; ≤2 files*
 - [ ] **T5.4** Sweep code comments: `deployment.rs:11`, `openapi.rs:59`, `identity/lib.rs:222`, `ports/registry.rs:113`, `mcp/runtime.rs:246`, `test-harness/lib.rs:17`, `tui/windows/chat.rs:16`, `FUNCTIONAL_SPECIFICATION.md` — *Acc: no "replicant/bot" in principle-cited comments; ≤5 files*
 - [ ] **T5.5** Sweep skill docs: `attack-taxonomy-mapper`, `runtime-posture-monitor`, `supply-chain-sentinel` — rename `replicant_host` span field per Q-SPAN — *Acc: skills consistent; ≤3 files; checkpoint: User*
@@ -44,13 +45,13 @@
 - [ ] `scripts/check-cns-canonical.sh` passes after span field rename (T5.5)
 - [ ] TUI compile time ≤ metric_before
 
-## Open questions (remaining)
-- [ ] Q-AK delete `AgentKind` entirely vs single `UserPod` variant? (lean delete)
-- [ ] Q-PERSONA UserPod A2A presentation — keep name+version, drop charter/identity-YAML? (lean yes)
-- [ ] Q-P10 retire P10 (Eleven Principles) vs replace with "P10 — UserPod Agency"?
-- [ ] Q-SPAN rename `replicant_host` span field → `userpod_host` or `host`?
+## Open questions (remaining after Phase 0b)
+- [x] Q-AK delete `AgentKind` entirely — **RESOLVED (delete)**
+- [x] Q-PERSONA drop persona from userpods; curator keeps (rename `CuratorPersona`) — **RESOLVED**
+- [x] Q-P10 refocus P10 to user agency (Twelve stay twelve) — **RESOLVED**
+- [x] Q-SPAN `replicant_host`→`userpod_host` — **RESOLVED**
+- [ ] Q-LIFE-DISC pod-offline behavior — **OPEN (T4.0 discovery)**: logged-out user? inactive-not-cancelled account?
 - [ ] Q6 full consumer trace (T2.0)
-- [ ] Q-LIFE-FINAL persistent pods — register-on-start only, or add "suspended" for inactive users?
 
 ## G1 verdicts (vs confirmed target)
 - [x] S-1 Delete `AgentKind` — **DELETE** (Guideline, Q-AK)
@@ -58,9 +59,9 @@
 - [x] S-3 Fold `PodDeployment`→`UserPod` — **FOLD** (Guideline)
 - [x] S-4 Delete `PodKind::Team` — **DELETE** (Guardrail)
 - [x] S-5 Rename `PodKind::Replicant`→`UserPod` — **RENAME** (Evidence)
-- [x] S-6 Delete `AgentPersona/Charter/Identity` — **DELETE** (Guideline, Q-PERSONA)
+- [x] S-6 Delete persona from userpods; curator keeps (rename `CuratorPersona`) — **DELETE+RENAME** (Guardrail)
 - [x] S-7 A2A transport kept; Bot path deleted — **KEEP+DELETE** (Evidence)
 - [x] S-8 Collapse lifecycle → persistent — **SIMPLIFY** (Guardrail)
 - [x] S-9 Curator as systemd daemon — **EXTRACT/promote** (Evidence)
 - [x] S-11 Rename `ReplicantIdentity`→`UserPod`, 1:1 — **RENAME** (Guardrail)
-- [x] S-12 Edit principles P5.2/P6/P9/P10/P12 + mandate + comments + skills — **EDIT** (Guardrail)
+- [x] S-12 Refocus P10 to user agency (not retire); edit P5.2/P6/P9/P12 + mandate + comments + skills — **EDIT/REFOCUS** (Guardrail)

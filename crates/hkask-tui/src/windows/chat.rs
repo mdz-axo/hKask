@@ -914,4 +914,53 @@ mod tests {
                         status.content
                     );
         }
+
+    #[test]
+    fn repl_show_renders_settings_via_settings_bridge() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let settings = crate::test_util::mock_settings_bridge();
+        let mut chat = ChatWindow::new(make_window_id(), "test-agent", "m", repl)
+            .with_settings_bridge(settings);
+
+        chat.execute_slash_command("/repl show");
+
+        let last = chat.messages.last().expect("a settings display was added");
+        assert!(
+            last.content.contains("(settings unavailable in test mock)"),
+            "/repl show must render the bridge's settings_display; got: {}",
+            last.content
+        );
+    }
+
+    #[test]
+    fn repl_set_applies_setting_via_settings_bridge() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let settings = crate::test_util::mock_settings_bridge();
+        let mut chat = ChatWindow::new(make_window_id(), "test-agent", "m", repl)
+            .with_settings_bridge(settings);
+
+        chat.execute_slash_command("/repl set temperature 0.5");
+
+        let last = chat.messages.last().expect("a confirmation was added");
+        assert!(
+            last.content.contains("temperature set to 0.5"),
+            "/repl set <key> <value> must apply via set_setting and confirm; got: {}",
+            last.content
+        );
+    }
+
+    #[test]
+    fn repl_set_without_settings_bridge_emits_stub() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let mut chat = ChatWindow::new(make_window_id(), "test-agent", "m", repl);
+
+        chat.execute_slash_command("/repl set temperature 0.5");
+
+        let last = chat.messages.last().expect("a stub message was added");
+        assert!(
+            last.content.contains("unavailable in this host"),
+            "/repl without a SettingsBridge must emit the stub, not crash; got: {}",
+            last.content
+        );
+    }
     }

@@ -87,10 +87,12 @@ impl SettingsBridge for MockReplBridge {
     fn settings_display(&self) -> String {
         "(settings unavailable in test mock)".to_string()
     }
-    fn set_setting(&self, _key: &str, _value: &str) -> anyhow::Result<String> {
-        Ok("(mock)".to_string())
+    fn set_setting(&self, key: &str, value: &str) -> anyhow::Result<String> {
+            // Mirror the real `apply_setting` confirmation so tests can verify the
+            // key/value were passed through the bridge wiring correctly.
+            Ok(format!("{} set to {}", key, value))
+        }
     }
-}
 
 /// Create a mock bridge for tests. Returns both system and repl Arcs
 /// backed by the same MockReplBridge instance.

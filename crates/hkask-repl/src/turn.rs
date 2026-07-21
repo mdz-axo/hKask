@@ -376,6 +376,35 @@ pub fn single_agent_turn_captured(
         budget_exhausted: outcome.budget_exhausted,
     }
 }
+/// Like `single_agent_turn_captured` but forces a specific agent (e.g. the
+/// Curator) to handle the turn. Used by the TUI's CuratorWindow so its
+/// messages run through the real inference pipeline instead of a stub.
+#[cfg(feature = "tui")]
+pub fn single_agent_turn_captured_with_agent(
+    input: &str,
+    state: &mut ReplState,
+    rt: &tokio::runtime::Handle,
+    a2a_secret: &[u8],
+    agent: &str,
+) -> TurnCapture {
+    let mut sink = CaptureSink::new();
+    let outcome = run_turn_with_state(input, state, rt, a2a_secret, Some(agent), &mut sink);
+    if let Some(ref resp) = outcome.final_response
+        && state.talk_config.mode == TalkMode::On
+    {
+        speak_response(resp, state, rt);
+    }
+    TurnCapture {
+        response_text: sink.response_text.trim().to_string(),
+        tool_output: sink.tool_output,
+        prompt_tokens: outcome.usage.prompt_tokens,
+        completion_tokens: outcome.usage.completion_tokens,
+        total_tokens: outcome.usage.total_tokens,
+        iterations: outcome.iterations,
+        budget_exhausted: outcome.budget_exhausted,
+    }
+}
+
 
 /// Build TurnDeps from ReplState and run the turn loop.
 fn run_turn_with_state(
