@@ -1,7 +1,7 @@
 //! Last-Writer-Wins Map — key-value store with timestamp-based conflict resolution.
 //!
 //! The one place wall-clock timestamps are used for cross-server conflict resolution.
-//! Acceptable because profiles are metadata, not ν-event-grounded observations.
+//! Acceptable because profiles are metadata, not regulation record-grounded observations.
 
 use std::collections::HashMap;
 use std::hash::Hash;

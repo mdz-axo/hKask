@@ -6,7 +6,7 @@
 //! Domain-specific spans have moved to their respective domain crates.
 //!
 //! `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
-//! **canonical** Regulation spans — the essential, ν-event-eligible spans that are
+//! **canonical** Regulation spans — the essential, regulation record-eligible spans that are
 //! `SpanNamespace`-validated, `SpanCategory`-categorized, and loop-connected.
 //! The `cns.*` prefix is reserved for canonical spans: every `cns.*` tracing
 //! target MUST be registered in `CANONICAL_NAMESPACES`. **Performative**
@@ -222,7 +222,7 @@ impl RegulationSpan {
     /// - `target` = `"cns"` root namespace (full domain in `reg_domain` field)
     /// - `reg_domain` = `self.as_str()` (e.g. `"reg.tool.media"`)
     /// - `operation` = the verb describing what occurred (e.g. `"invoked"`)
-    /// - message = `"REG"` (required for downstream ν-event parsing)
+    /// - message = `"REG"` (required for downstream regulation record parsing)
     ///
     /// Callers that need additional structured fields can attach them by
     /// entering a child [`mod@tracing::span`] before calling `emit()`.
@@ -248,7 +248,7 @@ impl RegulationSpan {
     /// pre:  self is a valid RegulationSpan variant
     /// post: returns the canonical namespace string (e.g. "reg.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
-    /// This output must match ν-event serialization strings byte-for-byte
+    /// This output must match regulation record serialization strings byte-for-byte
     /// (P8 — Semantic Grounding).
     pub fn as_str(&self) -> &'static str {
         match self {

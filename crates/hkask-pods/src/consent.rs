@@ -134,7 +134,7 @@ pub struct ConsentManager {
     store: Arc<dyn ConsentPort>,
     cache: Arc<RwLock<Vec<ConsentRecord>>>,
     /// Optional Regulation event sink for observability of consent denials.
-    /// When set, a `cns.consent.denied` ν-event is emitted every time
+    /// When set, a `cns.consent.denied` regulation record is emitted every time
     /// `has_consent` returns false, closing the observability loop
     /// on the Prohibition gate (Magna Carta P2).
     event_sink: Option<Arc<dyn RegulationSink>>,
@@ -164,7 +164,7 @@ impl ConsentManager {
     /// Set a Regulation event sink for consent denial observability.
     ///
     /// When set, every `has_consent` denial produces a `cns.consent.denied`
-    /// ν-event. This provides observability without opening a feedback path
+    /// regulation record. This provides observability without opening a feedback path
     /// (the denial remains terminal — this is a Prohibition, not a Guardrail).
     /// # REQ: OPEN_QUESTIONS §2.2 — consent denial Regulation instrumentation.
     ///
@@ -272,7 +272,7 @@ impl ConsentManager {
 
     /// Check if consent is granted for a data category.
     ///
-    /// Emits a `cns.consent.denied` ν-event when consent is denied,
+    /// Emits a `cns.consent.denied` regulation record when consent is denied,
     /// providing observability without opening a feedback path.
     ///
     /// expect: "Agent consent is explicitly granted, scoped, and revocable"
@@ -282,7 +282,7 @@ impl ConsentManager {
     ///       `DataCategory` variant.
     /// post: Returns `Ok(true)` if an active record for `webid` has the
     ///       category granted; `Ok(false)` otherwise (including when no
-    ///       record exists). Emits a denial ν-event on `false`.
+    ///       record exists). Emits a denial regulation record on `false`.
     #[must_use = "result must be used"]
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> Result<bool, ConsentError> {
         let cache = self
@@ -311,7 +311,7 @@ impl ConsentManager {
         Ok(granted)
     }
 
-    /// Emit a `cns.consent.denied` ν-event for observability.
+    /// Emit a `cns.consent.denied` regulation record for observability.
     ///
     /// This is a Prohibition-gate observation, not a regulatory loop signal.
     /// The denial is terminal — the event records the fact for audit.

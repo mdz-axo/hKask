@@ -424,7 +424,7 @@ impl RegulationLedger {
     /// Aggregates Accept/Stage/Block counts so the Curator can assess whether
     /// regulatory actions are actually improving system state.
     ///
-    /// expect: "The system provides homeostatic self-regulation through variety tracking, algedonic alerting, and ν-event observation"
+    /// expect: "The system provides homeostatic self-regulation through variety tracking, algedonic alerting, and regulation record observation"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — cycle recording enables metacognitive feedback
     /// \[P8\] Constraining: Semantic Grounding — Accept/Stage/Block counts are measured, not guessed
     /// pre:  entry signals and actions are non-empty
@@ -925,7 +925,7 @@ impl RegulationLedger {
     ///
     /// expect: "The system evaluates SLOs against measured data and emits Regulation spans"
     /// `[P9]` Motivating: Homeostatic Self-Regulation — SLO evaluation is the platform contract layer
-    /// `[P8]` Constraining: Semantic Grounding — evaluations are computed from ν-event data
+    /// `[P8]` Constraining: Semantic Grounding — evaluations are computed from regulation record data
     /// pre:  provider is operational
     /// post: returns SloEvaluation list with Regulation spans emitted
     pub async fn evaluate_slos(
@@ -958,7 +958,7 @@ impl RegulationLedger {
 
     /// Evaluate all SLOs and escalate breaches through the algedonic pathway.
     ///
-    /// This closes the cybernetic feedback loop: Sensor (ν-event query) →
+    /// This closes the cybernetic feedback loop: Sensor (regulation record query) →
     /// Comparator (SLO evaluation) → Regulator (algedonic escalation).
     /// Breached SLOs are emitted as RuntimeAlert with the SLO ID as domain.
     ///

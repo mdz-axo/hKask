@@ -34,7 +34,7 @@ fn test_server_no_store() -> RegulationServer {
     RegulationServer::new(WebID::new(), "test-userpod".into(), None, None)
 }
 
-/// Insert a single ν-event into the in-memory store for the given namespace.
+/// Insert a single regulation record into the in-memory store for the given namespace.
 fn insert_event(store: &RegulationArchive, namespace: &str, local_path: &str) {
     let ns = SpanNamespace::new(namespace)
         .unwrap_or_else(|| SpanNamespace::new("reg.gas").expect("reg.gas must be canonical"));

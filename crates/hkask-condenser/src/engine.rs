@@ -322,7 +322,7 @@ impl CondenserEngine {
     ///
     /// Returns health signals for systemic issues: overall compression ratio
     /// below 2:1 or throughput anomalies. Callers should emit these as
-    /// `cns.condenser.degraded` ν-events.
+    /// `cns.condenser.degraded` regulation records.
     pub fn check_global_health(&self) -> Vec<CondenserHealthSignal> {
         let mut signals = Vec::new();
         let stats = &self.stats;

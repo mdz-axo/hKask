@@ -327,7 +327,7 @@ impl CuratorServer {
     // ── Regulation Query (for platform governance transparency) ────────────────
 
     #[tool(
-        description = "Query Regulation ν-events by namespace prefix within a time window. Returns structured event data for governance transparency reporting and consent auditing."
+        description = "Query Regulation regulation records by namespace prefix within a time window. Returns structured event data for governance transparency reporting and consent auditing."
     )]
     pub async fn cns_query(&self, Parameters(req): Parameters<CnsQueryRequest>) -> String {
         execute_tool(self, "cns_query", async {

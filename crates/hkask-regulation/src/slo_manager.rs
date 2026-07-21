@@ -1,16 +1,16 @@
 //! SLO Manager — Service Level Objective evaluation for the Regulation
 //!
-//! SloManager loads SLO definitions, evaluates them against ν-event data,
+//! SloManager loads SLO definitions, evaluates them against regulation record data,
 //! computes compliance rates and error budgets, emits `cns.slo.evaluated`
 //! spans, and produces breach alerts for the algedonic pathway.
 //!
 //! # Epistemic grounding
 //! - **crt:certainty** = Probabilistic (SLO compliance is sampled, not total)
-//! - **crt:force** = Evidence (IS statement, computed from ν-event data)
+//! - **crt:force** = Evidence (IS statement, computed from regulation record data)
 //! - **mode** = IS
 //!
 //! # Cybernetic role
-//! - Sensor: queries ν-event store for operation counts
+//! - Sensor: queries regulation record store for operation counts
 //! - Comparator: compares compliance rate to SLO target
 //! - Effector: emits `cns.slo.evaluated` spans; feeds breaches to algedonic
 
@@ -19,7 +19,7 @@ use crate::slo_types::{SloDefinition, SloEvaluation};
 use hkask_types::ObservableSpan;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Result of querying the ν-event store for SLO data.
+/// Result of querying the regulation record store for SLO data.
 ///
 /// The SloManager is decoupled from the storage layer — it accepts
 /// any implementation of the SloDataProvider trait. This enables
@@ -32,9 +32,9 @@ pub struct SloDataPoint {
     pub successful_operations: u64,
 }
 
-/// Trait for providing ν-event data to the SloManager.
+/// Trait for providing regulation record data to the SloManager.
 ///
-/// Implementations query the ν-event store for operation counts
+/// Implementations query the regulation record store for operation counts
 /// within a time window for a given Regulation span namespace.
 pub trait SloDataProvider: Send + Sync {
     /// Query operation counts for the given span namespace within

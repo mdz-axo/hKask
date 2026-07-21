@@ -32,7 +32,7 @@
 //! - `mod.rs` (this file) — enum definition, `From` impls, `Display`
 //! - `retryable.rs` — `is_retryable()` logic
 //! - `message_key.rs` — i18n `message_key()` logic
-//! - `nu_event.rs` — Regulation ν-event emission logic
+//! - `regulation_record.rs` — Regulation regulation record emission logic
 
 use thiserror::Error;
 
@@ -77,7 +77,7 @@ pub enum ServiceError {
     /// Typed domain error with semantic ErrorKind + origin DomainKind.
     ///
     /// Surface layers map `(domain, kind)` to HTTP status codes, CLI
-    /// formatting, and Regulation ν-event emission.
+    /// formatting, and Regulation regulation record emission.
     #[error("{kind:?} ({domain:?}): {message}")]
     Domain {
         kind: ErrorKind,

@@ -1,6 +1,6 @@
-//! Regulation Store SLO Provider — Bridges ν-event store to SLO evaluation.
+//! Regulation Store SLO Provider — Bridges regulation record store to SLO evaluation.
 //!
-//! Implements `SloDataProvider` by querying the real ν-event store.
+//! Implements `SloDataProvider` by querying the real regulation record store.
 //! Lives in `hkask-services-context` because it bridges Regulation (domain) and
 //! Storage (infrastructure) — the service layer's role in hexagonal architecture.
 

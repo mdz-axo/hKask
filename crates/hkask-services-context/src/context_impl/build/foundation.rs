@@ -19,7 +19,7 @@ pub(super) struct Foundation {
     pub cns_event_sink: Arc<dyn RegulationSink>,
     /// Abstracted event store for gas report queries and calibration.
     pub gas_event_store: Arc<dyn LedgerStoragePort>,
-    /// Concrete ν-event store for SLO evaluation and Regulation queries.
+    /// Concrete regulation record store for SLO evaluation and Regulation queries.
     pub regulation_store: Arc<RegulationArchive>,
 }
 

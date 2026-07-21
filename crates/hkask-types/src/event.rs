@@ -1,6 +1,6 @@
-//! ν-event types — Cross-cutting infrastructure
+//! regulation record types — Cross-cutting infrastructure
 //!
-//! ν-events are the cybernetic audit trail emitted by all loops.
+//! regulation records are the cybernetic audit trail emitted by all loops.
 //! They are not owned by any single loop — they are the shared
 //! observability substrate that the Regulation (Loop 6) senses and the
 //! Curator (Loop 5) audits.
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
 
-/// ν-event — Cybernetic observation event
+/// regulation record — Cybernetic observation event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegulationRecord {
     pub id: EventID,

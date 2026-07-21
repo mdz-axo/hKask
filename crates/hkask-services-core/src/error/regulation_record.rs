@@ -1,13 +1,13 @@
-//! Regulation ν-event emission for `ServiceError`.
+//! Regulation regulation record emission for `ServiceError`.
 //!
 //! Only system-level errors (infrastructure, inference, Regulation, storage)
-//! emit ν-events. User-input errors (NotFound, InvalidInput, LoginFailed)
+//! emit regulation records. User-input errors (NotFound, InvalidInput, LoginFailed)
 //! are not system conditions — they don't need Regulation observability.
 
 use super::{DomainKind, ServiceError};
 
 impl ServiceError {
-    /// Emit a ν-event for Regulation-observable errors.
+    /// Emit a regulation record for Regulation-observable errors.
     ///
     /// Returns `None` for user-input errors that don't represent system
     /// conditions. Returns `Some(RegulationRecord)` for infrastructure, inference,

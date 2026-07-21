@@ -450,14 +450,14 @@ async fn loop_quality_reflects_regulation_activity() {
     );
 }
 
-// ── Test 6: Full cybernetic cycle — ν-event → sense → compare → compute → act → verify ──
+// ── Test 6: Full cybernetic cycle — regulation record → sense → compare → compute → act → verify ──
 
 /// End-to-end cybernetic regulation cycle with multiple signal metrics.
 ///
 /// Verifies the complete pipeline described by Regulation contracts:
 ///   1. Construct a CyberneticsLoop with known set-points
 ///   2. Register budgets for two agents — one depleted, one healthy
-///   3. Inject Regulation ν-events through a configured event sink
+///   3. Inject Regulation regulation records through a configured event sink
 ///   4. Run tick(): sense → compare → compute → act → verify
 ///   5. Verify each phase produces correct outputs
 ///   6. Assert LoopMetrics reflects the pipeline state

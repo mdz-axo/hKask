@@ -480,7 +480,7 @@ impl ApiRequestSpan {
         }
     }
 
-    /// Emit this span as a `reg.api.request` ν-event through the sink.
+    /// Emit this span as a `reg.api.request` regulation record through the sink.
     ///
     /// Degrades gracefully: on namespace miss or persistence failure, logs a
     /// warning and continues (the request is not blocked by observability).
@@ -651,7 +651,7 @@ mod tests {
         assert!(json.contains("ok"));
     }
 
-    /// Capture sink for testing ν-event emission.
+    /// Capture sink for testing regulation record emission.
     struct CaptureSink {
         last_event: std::sync::Mutex<Option<RegulationRecord>>,
     }

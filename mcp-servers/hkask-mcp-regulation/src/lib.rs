@@ -1,6 +1,6 @@
 //! MCP server for hkask-regulation — regulation span history query tools.
 //!
-//! Exposes two tools for reading regulation ν-event history from the persistent
+//! Exposes two tools for reading regulation regulation record history from the persistent
 //! `RegulationArchive`:
 //! - `reg_query_spans` — query events by span_category prefix within a time window
 //! - `reg_span_stats`  — aggregate counts by span_category
@@ -137,7 +137,7 @@ impl RegulationServer {
     }
 
     #[tool(
-        description = "Aggregate regulation ν-event counts by exact span_category within a namespace prefix and time window. Returns a JSON object mapping each span_category to its count, ordered by count DESC."
+        description = "Aggregate regulation regulation record counts by exact span_category within a namespace prefix and time window. Returns a JSON object mapping each span_category to its count, ordered by count DESC."
     )]
     pub async fn reg_span_stats(&self, Parameters(req): Parameters<SpanStatsRequest>) -> String {
         execute_tool(self, "reg_span_stats", async {

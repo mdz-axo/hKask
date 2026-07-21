@@ -64,7 +64,7 @@ pub enum TriggerOrigin {
     AlertDriven,
     /// Manually invoked via operator directive.
     Manual,
-    /// Triggered by an external event (ν-event, goal transition, etc.).
+    /// Triggered by an external event (regulation record, goal transition, etc.).
     EventDriven,
 }
 

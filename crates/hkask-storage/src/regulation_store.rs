@@ -1,4 +1,4 @@
-//! RegulationArchive — Persistent storage for Regulation ν-events
+//! RegulationArchive — Persistent storage for Regulation regulation records
 
 use crate::now_rfc3339;
 use hkask_database::driver::{query_map, query_row};

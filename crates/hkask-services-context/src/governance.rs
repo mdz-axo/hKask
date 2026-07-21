@@ -127,7 +127,7 @@ impl GovernanceContext {
     /// Resolve an escalation by ID.
     ///
     /// expect: "The system enforces affirmative consent and capability boundaries for agent operations"
-    /// post: marks the escalation as resolved; emits a Regulation ν-event; Err if not found
+    /// post: marks the escalation as resolved; emits a Regulation regulation record; Err if not found
     #[must_use = "result must be used"]
     pub fn resolve_escalation(&self, id: &str, resolved_by: &str) -> Result<(), ServiceError> {
         resolve_direct(self.escalations.as_ref(), &self.events, id, resolved_by)
@@ -136,7 +136,7 @@ impl GovernanceContext {
     /// Dismiss an escalation by ID.
     ///
     /// expect: "The system enforces affirmative consent and capability boundaries for agent operations"
-    /// post: marks the escalation as dismissed; emits a Regulation ν-event; Err if not found
+    /// post: marks the escalation as dismissed; emits a Regulation regulation record; Err if not found
     #[must_use = "result must be used"]
     pub fn dismiss_escalation(&self, id: &str, dismissed_by: &str) -> Result<(), ServiceError> {
         dismiss_direct(self.escalations.as_ref(), &self.events, id, dismissed_by)
@@ -145,7 +145,7 @@ impl GovernanceContext {
 
 // ── Escalation CRUD (free functions for MCP / granular access) ─────────
 
-/// Emit a Regulation ν-event for an escalation operation (resolve/dismiss).
+/// Emit a Regulation regulation record for an escalation operation (resolve/dismiss).
 fn emit_escalation_event(
     events: &Arc<dyn RegulationSink>,
     operation: &str,
@@ -198,7 +198,7 @@ pub fn list_escalations_direct(
 /// Resolve an escalation by ID (granular — no `GovernanceContext` required).
 ///
 /// expect: "The system enforces affirmative consent and capability boundaries for agent operations"
-/// post: marks the escalation as resolved; emits a Regulation ν-event; Err if not found
+/// post: marks the escalation as resolved; emits a Regulation regulation record; Err if not found
 #[must_use = "result must be used"]
 pub fn resolve_direct(
     queue: &EscalationQueue,
@@ -233,7 +233,7 @@ pub fn resolve_direct(
 /// Dismiss an escalation by ID (granular — no `GovernanceContext` required).
 ///
 /// expect: "The system enforces affirmative consent and capability boundaries for agent operations"
-/// post: marks the escalation as dismissed; emits a Regulation ν-event; Err if not found
+/// post: marks the escalation as dismissed; emits a Regulation regulation record; Err if not found
 #[must_use = "result must be used"]
 pub fn dismiss_direct(
     queue: &EscalationQueue,

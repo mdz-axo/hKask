@@ -79,7 +79,7 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 /// valid phases, string observations, and recursion depth 0–7.
 ///
 /// post: returns `BoxedStrategy<RegulationRecord>` with valid observer, span, phase, observation, depth 0–7
-/// expect: "I can generate valid ν-events with correct observer, canonical Regulation spans, and valid phases for property-based testing"
+/// expect: "I can generate valid regulation records with correct observer, canonical Regulation spans, and valid phases for property-based testing"
 ///Constraining: one strategy per type, no duplicate generators
 pub fn any_regulation_record() -> BoxedStrategy<RegulationRecord> {
     (
