@@ -282,14 +282,16 @@ impl From<NotFound> for RegistryError {
 }
 
 /// CRUD for skills. Read methods return owned `Skill` for HashMap/SQLite compat.
+/// Write methods return `Result` so pool exhaustion and other infrastructure
+/// failures are typed, not panics (F-06 fix — replaces `.expect()` on pool-get).
 pub trait SkillRegistryIndex {
-    fn register_skill(&mut self, skill: Skill);
+    fn register_skill(&mut self, skill: Skill) -> std::result::Result<(), RegistryError>;
     fn get_skill(&self, id: &str) -> Option<Skill>;
     fn list_skills(&self) -> Vec<Skill>;
     fn list_skills_by_visibility(&self, visibility: Visibility) -> Vec<Skill>;
     fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill>;
     fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill>;
-    fn remove_skill(&mut self, id: &str) -> Option<Skill>;
+    fn remove_skill(&mut self, id: &str) -> std::result::Result<Option<Skill>, RegistryError>;
     /// P2 (Affirmative Consent): default-deny access. Private context sees all skills. Public/Shared sees only Public or Shared.
     fn list_skills_visible_to(&self, caller_visibility: Visibility) -> Vec<Skill> {
         match caller_visibility {

@@ -6,7 +6,9 @@
 use crate::bundle::BundleManifest;
 use crate::bundle::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
-use hkask_ports::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex, SkillZone};
+use hkask_ports::{
+    RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
+};
 use hkask_types::SkillPolarity;
 use hkask_types::template_type::TemplateType;
 use hkask_types::{InfrastructureError, NotFound, Visibility};
@@ -260,10 +262,13 @@ impl SqliteRegistry {
     /// post: returns Some(entry) if existed, None otherwise
     pub fn delete_entry(&mut self, id: &str) -> Option<RegistryEntry> {
         let entry = self.get_entry(id).ok();
-        let conn = self
-            .pool
-            .get()
-            .expect("Failed to get pool connection for delete_entry");
+        let conn = match self.pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!(target: "hkask.templates", error = %e, id = %id, "delete_entry: pool connection failed");
+                return entry;
+            }
+        };
         for table in &["lexicon_terms", "template_capabilities", "provenance"] {
             if let Err(e) = conn.execute(
                 &format!("DELETE FROM {} WHERE template_id = ?1", table),
@@ -377,11 +382,11 @@ impl RegistryIndex for SqliteRegistry {
 // ── SkillRegistryIndex ─────────────────────────────────────────────────────
 
 impl SkillRegistryIndex for SqliteRegistry {
-    fn register_skill(&mut self, skill: Skill) {
+    fn register_skill(&mut self, skill: Skill) -> std::result::Result<(), RegistryError> {
         let conn = self
             .pool
             .get()
-            .expect("Failed to get pool connection for register_skill");
+            .map_err(|e| RegistryError::Other(format!("pool connection failed: {e}")))?;
         if let Err(e) = conn.execute(
             "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -391,6 +396,7 @@ impl SkillRegistryIndex for SqliteRegistry {
         ) {
             tracing::error!(target: "hkask.templates", error = %e, skill_id = %skill.id, "register_skill: INSERT failed");
         }
+        Ok(())
     }
 
     fn get_skill(&self, id: &str) -> Option<Skill> {
@@ -412,63 +418,69 @@ impl SkillRegistryIndex for SqliteRegistry {
         self.skills_referencing_template_owned(tid)
     }
 
-    fn remove_skill(&mut self, id: &str) -> Option<Skill> {
+    fn remove_skill(&mut self, id: &str) -> std::result::Result<Option<Skill>, RegistryError> {
         let skill = self.get_skill_owned(id);
-        if let Err(e) = self
+        let conn = self
             .pool
             .get()
-            .expect("Failed to get pool connection for remove_skill")
-            .execute("DELETE FROM skills WHERE id = ?1", params![id])
-        {
+            .map_err(|e| RegistryError::Other(format!("pool connection failed: {e}")))?;
+        if let Err(e) = conn.execute("DELETE FROM skills WHERE id = ?1", params![id]) {
             tracing::error!(target: "hkask.templates", error = %e, id = %id, "remove_skill: DELETE failed");
         }
-        skill
+        Ok(skill)
     }
 }
 
 // ── BundleRegistryIndex ────────────────────────────────────────────────────
 
 impl BundleRegistryIndex for SqliteRegistry {
-    fn register_bundle(&mut self, bundle: BundleManifest) {
+    fn register_bundle(
+        &mut self,
+        bundle: BundleManifest,
+    ) -> std::result::Result<(), crate::ports::TemplateError> {
         let manifest_json = match serde_json::to_string(&bundle) {
             Ok(j) => j,
             Err(e) => {
                 tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, "register_bundle: serialize failed");
-                return;
+                return Ok(());
             }
         };
-        let conn = self
-            .pool
-            .get()
-            .expect("Failed to get pool connection for register_bundle");
+        let conn = self.pool.get().map_err(|e| {
+            crate::ports::TemplateError::Database(hkask_types::InfrastructureError::Io(format!(
+                "pool connection failed: {e}"
+            )))
+        })?;
         if let Err(e) = conn.execute("INSERT OR REPLACE INTO bundles (id, name, description, version, editor, visibility, manifest_json, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)", params![bundle.id, bundle.name, bundle.description, bundle.version, bundle.editor, bundle.visibility.as_str(), manifest_json]) {
             tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, "register_bundle: INSERT failed");
-            return;
+            return Ok(());
         }
         if let Err(e) = conn.execute(
             "DELETE FROM bundle_skills WHERE bundle_id = ?1",
             params![bundle.id],
         ) {
             tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, "register_bundle: DELETE bundle_skills failed");
-            return;
+            return Ok(());
         }
         for (position, skill) in bundle.skills.iter().enumerate() {
             if let Err(e) = conn.execute("INSERT INTO bundle_skills (bundle_id, skill_id, polarity, manifest_ref, content_hash, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6)", params![bundle.id, skill.id, Some(skill.polarity.as_str()), skill.manifest_ref, skill.content_hash, position as i64]) {
                 tracing::error!(target: "hkask.templates", error = %e, bundle_id = %bundle.id, skill_id = %skill.id, "register_bundle: INSERT bundle_skills failed");
             }
         }
+        Ok(())
     }
 
     fn get_bundle(&self, id: &str) -> Option<BundleManifest> {
         self.pool
             .get()
-            .expect("Failed to get pool connection for get_bundle")
-            .query_row(
-                "SELECT manifest_json FROM bundles WHERE id = ?1",
-                params![id],
-                |row| row.get::<_, String>(0),
-            )
             .ok()
+            .and_then(|conn| {
+                conn.query_row(
+                    "SELECT manifest_json FROM bundles WHERE id = ?1",
+                    params![id],
+                    |row| row.get::<_, String>(0),
+                )
+                .ok()
+            })
             .and_then(|json| serde_json::from_str(&json).ok())
     }
 
@@ -491,12 +503,16 @@ impl BundleRegistryIndex for SqliteRegistry {
             .unwrap_or_default()
     }
 
-    fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest> {
+    fn remove_bundle(
+        &mut self,
+        id: &str,
+    ) -> std::result::Result<Option<BundleManifest>, crate::ports::TemplateError> {
         let bundle = self.get_bundle(id);
-        let conn = self
-            .pool
-            .get()
-            .expect("Failed to get pool connection for remove_bundle");
+        let conn = self.pool.get().map_err(|e| {
+            crate::ports::TemplateError::Database(hkask_types::InfrastructureError::Io(format!(
+                "pool connection failed: {e}"
+            )))
+        })?;
         if let Err(e) = conn.execute(
             "DELETE FROM bundle_skills WHERE bundle_id = ?1",
             params![id],
@@ -506,7 +522,7 @@ impl BundleRegistryIndex for SqliteRegistry {
         if let Err(e) = conn.execute("DELETE FROM bundles WHERE id = ?1", params![id]) {
             tracing::error!(target: "hkask.templates", error = %e, id = %id, "remove_bundle: DELETE bundles failed");
         }
-        bundle
+        Ok(bundle)
     }
 
     fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<BundleManifest> {
@@ -559,10 +575,8 @@ impl SqliteRegistry {
     /// pre:  id is non-empty
     /// post: returns Some(Skill) if found, None otherwise
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
-        self.pool
-            .get()
-            .expect("Failed to get pool connection for get_skill_owned")
-            .query_row(
+        let conn = self.pool.get().ok()?;
+        conn.query_row(
             "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash, visibility, zone, namespace FROM skills WHERE id = ?1", params![id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?, row.get(9)?)),
         ).ok().and_then(|(id, ds, wa, fd, ka, ps, ch, vs, zs, ns)| Self::row_to_skill(id, ds, wa, fd, ka, ps, ch, vs, zs, ns))

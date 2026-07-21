@@ -1,8 +1,8 @@
 //! hKask Agents — Agent Pod Lifecycle and A2A Integration
 //!
 //! This crate provides:
-//! - **Agent Pod**: Runtime container for A2A agents (bots and userpods)
-//! - **Lifecycle Management**: Populated → Registered → Activated → Deactivated
+//! - **Agent Pod**: Runtime container for userpods and the curator
+//! - **Lifecycle Management**: Active ↔ Sleeping
 //! - **Capability Tokens**: OCAP-based access control with attenuation
 //! - **A2A Runtime**: Agent registration, A2A messaging, capability verification
 //! - **Hexagonal Ports**: memory, consent, escalation, and registry boundaries

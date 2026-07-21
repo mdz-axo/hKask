@@ -162,16 +162,6 @@ impl ActivePods {
             .collect()
     }
 
-    /// Retry Matrix registration for a pod (delegates to `register_pod_matrix`).
-    ///
-    /// Called by the background retry loop when a pending registration is found.
-    pub async fn retry_pod_matrix_registration(
-        homeserver_url: &str,
-        pod_name: &str,
-    ) -> anyhow::Result<()> {
-        register_pod_matrix(homeserver_url, pod_name).await
-    }
-
     /// Get a PodContext for an active pod.
     /// Wires the Curator's SemanticIndex for merged-lens semantic recall (Step 5).
     pub async fn context(&self, pod_id: &PodID) -> Result<PodContext, AgentPodError> {
@@ -429,59 +419,6 @@ impl ActivePods {
         if let Some(token) = token {
             d.pod.capability_token = token;
             d.pod.state = PodLifecycleState::Active;
-
-            // Matrix registration — register pod on Conduit synchronously.
-            // Must complete before activation so the pod can authenticate
-            // immediately when it starts. Failed registrations are retried
-            // on the next activation attempt.
-            if let Some(ref homeserver_url) = self.matrix_homeserver_url {
-                let pod_name = d.pod.name.clone();
-
-                // Check for pending retry from a previous failed attempt.
-                let url = if let Ok(saved_url) = hkask_keystore::Keychain::default()
-                    .retrieve_by_key(&format!(
-                        "{}-{}",
-                        hkask_types::keychain_keys::KEY_MATRIX_POD_PENDING_PREFIX,
-                        pod_name
-                    )) {
-                    tracing::info!(
-                        target: "hkask.communication.matrix.pod_registration",
-                        pod = %pod_name,
-                        "Retrying deferred Matrix pod registration"
-                    );
-                    saved_url
-                } else {
-                    homeserver_url.clone()
-                };
-
-                match register_pod_matrix(&url, &pod_name).await {
-                    Ok(()) => {
-                        let _ = hkask_keystore::Keychain::default().delete_by_key(&format!(
-                            "{}-{}",
-                            hkask_types::keychain_keys::KEY_MATRIX_POD_PENDING_PREFIX,
-                            pod_name
-                        ));
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            target: "hkask.communication.matrix.pod_registration",
-                            pod = %pod_name,
-                            error = %e,
-                            "Failed to register pod on Matrix — storing for retry"
-                        );
-                        let _ = hkask_keystore::Keychain::default().store_by_key(
-                            &format!(
-                                "{}-{}",
-                                hkask_types::keychain_keys::KEY_MATRIX_POD_PENDING_PREFIX,
-                                pod_name
-                            ),
-                            &url,
-                        );
-                        // Continue activation — pod can operate without Matrix.
-                        // The daemon's self-healing loop will retry registration.
-                    }
-                }
-            }
         }
         d.pod.activate(&self.capability_checker)
     }
@@ -603,62 +540,4 @@ pub struct PodStatusInfo {
     pub template: String,
     pub pod_kind: PodKind,
     pub created_at: i64,
-}
-
-/// Register a pod on the Matrix homeserver (Conduit).
-///
-/// Uses m.login.dummy auth — the pod's Matrix identity is daemon-managed.
-/// Credentials are stored in the OS keychain.
-pub(crate) async fn register_pod_matrix(
-    homeserver_url: &str,
-    pod_name: &str,
-) -> anyhow::Result<()> {
-    let localpart = pod_name.to_lowercase().replace(' ', "-");
-    let username = format!("{}-bot", localpart);
-    let password = uuid::Uuid::new_v4().to_string();
-    let full_id = format!("@{username}:localhost");
-
-    let url = format!(
-        "{}/_matrix/client/v3/register",
-        homeserver_url.trim_end_matches('/')
-    );
-    let body = serde_json::json!({
-        "username": &username,
-        "password": &password,
-        "initial_device_display_name": format!("hKask Pod: {}", pod_name),
-        "auth": {"type": "m.login.dummy"}
-    });
-
-    let response = reqwest::Client::new()
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| anyhow::anyhow!("Matrix registration request failed: {e}"))?;
-
-    if !response.status().is_success() {
-        return Err(anyhow::anyhow!(
-            "Matrix registration HTTP {}",
-            response.status().as_u16()
-        ));
-    }
-
-    let keychain = hkask_keystore::Keychain::default();
-    let _ = keychain.store_by_key(
-        &format!(
-            "{}{}",
-            hkask_types::keychain_keys::KEY_MATRIX_POD_PREFIX,
-            pod_name
-        ),
-        &password,
-    );
-
-    tracing::info!(
-        target: "hkask.communication.matrix.pod_registered",
-        pod = %pod_name,
-        matrix_id = %full_id,
-        "Pod registered on Matrix"
-    );
-    Ok(())
 }

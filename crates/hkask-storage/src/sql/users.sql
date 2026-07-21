@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS userpod_identities (
     wallet_id TEXT,
     first_name_enc BLOB NOT NULL,
     last_name_enc BLOB NOT NULL,
-    persona_yaml TEXT,
     created_at INTEGER NOT NULL,
     last_login INTEGER,
     FOREIGN KEY (user_id) REFERENCES human_users(user_id)

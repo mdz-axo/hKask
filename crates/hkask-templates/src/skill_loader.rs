@@ -13,7 +13,6 @@ use hkask_ports::{Skill, SkillRegistryIndex, SkillZone};
 use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing;
@@ -148,7 +147,11 @@ impl SkillLoader {
                         if let Some(warning) = Self::check_zone_visibility(&skill, zone) {
                             result.warnings.push(warning);
                         }
-                        registry.register_skill(skill.clone());
+                        if let Err(e) = registry.register_skill(skill.clone()) {
+                            result
+                                .warnings
+                                .push(format!("Failed to register skill '{}': {}", skill.id, e));
+                        }
                         result.loaded.push(skill);
                     }
                     Err(e) => {
@@ -421,24 +424,12 @@ impl SkillLoader {
 
         let yaml_str = &rest[..end_marker];
 
-        let fm: HashMap<String, serde_yaml_neo::Value> = serde_yaml_neo::from_str(yaml_str)
-            .map_err(|e| TemplateError::Frontmatter {
+        let fm: SkillFrontMatter =
+            serde_yaml_neo::from_str(yaml_str).map_err(|e| TemplateError::Frontmatter {
                 detail: format!("YAML parse error: {e}"),
             })?;
 
-        let as_string = |key: &str| fm.get(key).and_then(|v| v.as_str()).map(|s| s.to_string());
-
-        let name = as_string("name").unwrap_or_default();
-        let visibility = as_string("visibility");
-        let namespace = as_string("namespace");
-        let description = as_string("description");
-
-        Ok(SkillFrontMatter {
-            name,
-            visibility,
-            namespace,
-            description,
-        })
+        Ok(fm)
     }
 
     /// Check zone-vs-visibility consistency.

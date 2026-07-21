@@ -72,7 +72,7 @@ impl PodContext {
     /// post: returns a PodContext wired to a validated, activated PodDeployment
     pub fn from_deployment(deployment: &PodDeployment) -> Result<Self, AgentPodError> {
         if deployment.pod.state != super::types::PodLifecycleState::Active {
-            return Err(AgentPodError::PodNotActivated);
+            return Err(AgentPodError::PodNotActive);
         }
 
         Ok(Self {

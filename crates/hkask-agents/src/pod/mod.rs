@@ -12,7 +12,7 @@
 //! # Lifecycle States
 //!
 //! ```text
-//! Populated → Registered → Activated → Deactivated
+//! Active ↔ Sleeping
 //! ```rust,no_run
 //!
 //! # Security Model
@@ -168,12 +168,12 @@ pub enum AgentPodError {
     PodNotFound(PodID),
 
     #[error("Pod must be activated before creating context")]
-    PodNotActivated,
+    PodNotActive,
 
     #[error("Agent is already in {0} mode — exit current mode first")]
     ModeConflict(AgentMode),
 
-    #[error("Agent must be Activated before entering a mode (current state: {0})")]
+    #[error("Agent must be Active before entering a mode (current state: {0})")]
     ModeRequiresActivation(PodLifecycleState),
 
     #[error("Agent is not assigned to MCP role '{0}'. Assigned roles: {1:?}")]
@@ -259,48 +259,6 @@ impl AgentPod {
             assigned_mcp_roles: Vec::new(),
             voice_design: None,
         })
-    }
-
-    /// Register the pod with the A2A runtime
-    ///
-    /// Mints A2A capability token (pod is already Active)
-    ///
-    /// # Arguments
-    /// * `acp` — A2A runtime port for agent registration
-    ///
-    /// # Returns
-    /// * `Ok(())` — Registration successful
-    /// * `Err(AgentPodError)` — A2A registration failed
-    ///
-    /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P1\] Motivating: User Sovereignty — register pod with A2A under its WebID
-    /// pre:  `self.state` must be `Populated` (or `Registered` for
-    ///       idempotent re-registration); `a2a` is a valid `A2ARuntime`.
-    /// post: On success, `self.state` is `Registered` and
-    ///       `self.capability_token` is updated with the A2A-issued token.
-    ///       On failure, state is unchanged.
-    pub async fn register(&mut self, a2a: &A2ARuntime) -> AgentPodResult<()> {
-        // A2A registration — pod is already Active; this mints the capability token.
-        let capabilities: Vec<String> = self.capabilities.clone();
-        let token = a2a
-            .register_agent(self.webid, capabilities)
-            .await
-            .map_err(|e| AgentPodError::A2ARegistrationError(e.to_string()))?;
-
-        self.capability_token = token;
-
-        tracing::debug!(
-            target: "hkask.pod",
-            span = "cns.agent_pod.registered",
-            verb = "registered",
-            pod_id = %self.id,
-            webid = %self.webid,
-            confidence = 1.0,
-            "CNS event"
-        );
-
-        info!("Agent pod {} registered with A2A", self.id);
-        Ok(())
     }
 
     /// Activate the pod for A2A communication.
@@ -414,7 +372,7 @@ impl AgentPod {
     /// Check if the pod can perform A2A operations.
     ///
     /// expect: "My agents operate within my sovereignty boundaries"
-    /// \[P8\] Motivating: Semantic Grounding — state accessor for Activated
+    /// \[P8\] Motivating: Semantic Grounding — state accessor for Active
     /// pre:  (none).
     /// post: Returns `true` iff `self.state == PodLifecycleState::Active`.
     pub fn is_active(&self) -> bool {
@@ -436,7 +394,7 @@ impl AgentPod {
     /// Enter server mode for a specific MCP role.
     ///
     /// P4 Dual Gate:
-    /// 1. \[NORMATIVE\] Agent must be Activated (lifecycle gate) (P4 — Clear Boundaries)
+    /// 1. \[NORMATIVE\] Agent must be Active (lifecycle gate) (P4 — Clear Boundaries)
     /// 2. \[NORMATIVE\] Agent must be assigned to the role (sovereignty/consent gate) (P2 — Affirmative Consent)
     /// 3. \[NORMATIVE\] Agent must not already be in another mode (mutual exclusion) (P4 — Clear Boundaries)
     ///
@@ -446,7 +404,7 @@ impl AgentPod {
     /// expect: "My agents operate within my sovereignty boundaries"
     /// \[P1\] Motivating: User Sovereignty — enter server mode to serve MCP role
     /// \[P4\] Constraining: Clear Boundaries — requires Activated + assigned role
-    /// pre:  `self.state == Activated`; `self.mode == None`; `role` is
+    /// pre:  `self.state == Active`; `self.mode == None`; `role` is
     ///       in `self.assigned_mcp_roles`.
     /// post: `self.mode` is set to `Some(AgentMode::Server)`.
     ///       Returns `Err` if any precondition fails.
@@ -477,12 +435,12 @@ impl AgentPod {
 
     /// Enter chat mode.
     ///
-    /// Requires: Activated state, not already in another mode.
+    /// Requires: Active state, not already in another mode.
     ///
     /// expect: "My agents operate within my sovereignty boundaries"
     /// \[P1\] Motivating: User Sovereignty — enter chat mode for interactive use
     /// \[P4\] Constraining: Clear Boundaries — requires Activated + no other mode
-    /// pre:  `self.state == Activated`; `self.mode == None`.
+    /// pre:  `self.state == Active`; `self.mode == None`.
     /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
     ///       Returns `Err` if any precondition fails.
     pub fn enter_chat_mode(&mut self) -> AgentPodResult<()> {

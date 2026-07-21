@@ -487,8 +487,12 @@ impl RegistryIndex for Registry {
 }
 
 impl SkillRegistryIndex for Registry {
-    fn register_skill(&mut self, skill: Skill) {
-        Registry::register_skill(self, skill)
+    fn register_skill(
+        &mut self,
+        skill: Skill,
+    ) -> std::result::Result<(), hkask_ports::RegistryError> {
+        Registry::register_skill(self, skill);
+        Ok(())
     }
 
     fn get_skill(&self, id: &str) -> Option<Skill> {
@@ -511,14 +515,18 @@ impl SkillRegistryIndex for Registry {
         Registry::skills_referencing_template(self, template_id)
     }
 
-    fn remove_skill(&mut self, id: &str) -> Option<Skill> {
-        Registry::remove_skill(self, id)
+    fn remove_skill(
+        &mut self,
+        id: &str,
+    ) -> std::result::Result<Option<Skill>, hkask_ports::RegistryError> {
+        Ok(Registry::remove_skill(self, id))
     }
 }
 
 impl BundleRegistryIndex for Registry {
-    fn register_bundle(&mut self, bundle: BundleManifest) {
-        Registry::register_bundle(self, bundle)
+    fn register_bundle(&mut self, bundle: BundleManifest) -> Result<()> {
+        Registry::register_bundle(self, bundle);
+        Ok(())
     }
 
     fn get_bundle(&self, id: &str) -> Option<BundleManifest> {
@@ -529,8 +537,8 @@ impl BundleRegistryIndex for Registry {
         Registry::list_bundles(self).into_iter().cloned().collect()
     }
 
-    fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest> {
-        Registry::remove_bundle(self, id)
+    fn remove_bundle(&mut self, id: &str) -> Result<Option<BundleManifest>> {
+        Ok(Registry::remove_bundle(self, id))
     }
 
     fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<BundleManifest> {

@@ -53,19 +53,6 @@ impl AgentService {
         // from the NuEventStore query_algedonic results — no separate watcher needed.
         // See curator/curation_loop.rs for the integrated push.
 
-        // Spawn Matrix registration retry loop — retries pending pod Matrix
-        // registrations with exponential backoff for self-healing.
-        if let Some(url) = mcp_pods
-            .pod_manager
-            .matrix_homeserver_url()
-            .map(String::from)
-        {
-            let pod_manager = Arc::clone(&mcp_pods.pod_manager);
-            tokio::spawn(async move {
-                loops::spawn_matrix_retry_loop(pod_manager, url).await;
-            });
-        }
-
         // ── MCP Server Guard (Loop 8) — proactive MCP server health ────
         let mcp_guard = Arc::new(crate::mcp_server_guard::McpServerGuardLoop::new(
             Arc::clone(&mcp_pods.mcp_runtime),

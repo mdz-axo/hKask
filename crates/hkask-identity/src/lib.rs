@@ -79,7 +79,6 @@ pub struct UserPod {
     pub wallet_id: Option<WalletId>,
     pub first_name_enc: Vec<u8>,
     pub last_name_enc: Vec<u8>,
-    pub persona_yaml: Option<String>,
     pub created_at: i64,
     pub last_login: Option<i64>,
 }
@@ -98,7 +97,7 @@ impl UserPod {
     /// pre:  userpod_name is non-empty; user_id is a valid UserID;
     ///       first_name_enc and last_name_enc are encrypted byte vectors
     /// post: returns a UserPod with derived webid, wallet_id=None,
-    ///       persona_yaml=None, created_at set to current Unix timestamp,
+    ///       created_at set to current Unix timestamp,
     ///       last_login=None
     #[must_use]
     pub fn new(
@@ -114,7 +113,6 @@ impl UserPod {
             wallet_id: None,
             first_name_enc,
             last_name_enc,
-            persona_yaml: None,
             created_at: chrono::Utc::now().timestamp(),
             last_login: None,
         }

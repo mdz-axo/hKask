@@ -17,10 +17,18 @@ pub use manifest::{BundleManifest, BundleManifestStep, BundleSkill};
 // cascade types are pub(crate) — not re-exported
 
 /// CRUD for bundle manifests. Read methods return owned values for HashMap/SQLite compat.
+/// Write methods return `Result` so pool exhaustion and other infrastructure
+/// failures are typed, not panics (F-06 fix — replaces `.expect()` on pool-get).
 pub trait BundleRegistryIndex {
-    fn register_bundle(&mut self, bundle: BundleManifest);
+    fn register_bundle(
+        &mut self,
+        bundle: BundleManifest,
+    ) -> std::result::Result<(), crate::ports::TemplateError>;
     fn get_bundle(&self, id: &str) -> Option<BundleManifest>;
     fn list_bundles(&self) -> Vec<BundleManifest>;
-    fn remove_bundle(&mut self, id: &str) -> Option<BundleManifest>;
+    fn remove_bundle(
+        &mut self,
+        id: &str,
+    ) -> std::result::Result<Option<BundleManifest>, crate::ports::TemplateError>;
     fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<BundleManifest>;
 }

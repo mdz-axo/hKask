@@ -16,7 +16,7 @@ use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, created_at, last_login";
+const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, created_at, last_login";
 const SESSION_COLUMNS: &str =
     "session_id, userpod_name, webid, user_id, session_key_salt, expires_at, last_active";
 
@@ -71,12 +71,8 @@ fn userpod_from_row(
         },
         first_name_enc: row.get_blob(4)?.to_vec(),
         last_name_enc: row.get_blob(5)?.to_vec(),
-        persona_yaml: match row.get(6)? {
-            DbValue::Null => None,
-            v => Some(v.as_text()?.to_string()),
-        },
-        created_at: row.get_int(7)?,
-        last_login: match row.get(8)? {
+        created_at: row.get_int(6)?,
+        last_login: match row.get(7)? {
             DbValue::Null => None,
             v => Some(v.as_int()?),
         },

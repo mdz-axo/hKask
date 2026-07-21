@@ -13,7 +13,6 @@ define_driver_store!(KataHistoryStore);
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KataHistoryEntry {
     pub id: i64,
-    /// UserPod name (SQL column: agent_name for backward compat).
     pub userpod_name: String,
     pub date: String,
     pub kata_type: String,
@@ -38,7 +37,7 @@ impl KataHistoryStore {
         let _ = driver.execute_batch(
             "CREATE TABLE IF NOT EXISTS kata_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                agent_name TEXT NOT NULL,
+                userpod_name TEXT NOT NULL,
                 date TEXT NOT NULL,
                 kata_type TEXT NOT NULL,
                 practice_name TEXT NOT NULL,
@@ -61,7 +60,7 @@ impl KataHistoryStore {
     ) -> Result<i64, KataHistoryError> {
         let driver = &*self.driver;
         driver.execute(
-            "INSERT INTO kata_history (agent_name, date, kata_type, practice_name, steps_completed, gas_consumed) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO kata_history (userpod_name, date, kata_type, practice_name, steps_completed, gas_consumed) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             &[
                 DbValue::Text(userpod_name.to_string()),
                 DbValue::Text(date.to_string()),
@@ -87,7 +86,7 @@ impl KataHistoryStore {
     ) -> Result<Vec<KataHistoryEntry>, KataHistoryError> {
         Ok(query_map(
             &*self.driver,
-            "SELECT id, agent_name, date, kata_type, practice_name, steps_completed, gas_consumed, created_at FROM kata_history WHERE agent_name = ?1 ORDER BY date DESC",
+            "SELECT id, userpod_name, date, kata_type, practice_name, steps_completed, gas_consumed, created_at FROM kata_history WHERE userpod_name = ?1 ORDER BY date DESC",
             &[DbValue::Text(userpod_name.to_string())],
             |row| {
                 Ok(KataHistoryEntry {
@@ -108,7 +107,7 @@ impl KataHistoryStore {
     pub fn count_entries_for_userpod(&self, userpod_name: &str) -> Result<usize, KataHistoryError> {
         let count = query_row(
             &*self.driver,
-            "SELECT COUNT(*) FROM kata_history WHERE agent_name = ?1",
+            "SELECT COUNT(*) FROM kata_history WHERE userpod_name = ?1",
             &[DbValue::Text(userpod_name.to_string())],
             |row| row.get_int(0),
         )?
@@ -124,7 +123,7 @@ impl KataHistoryStore {
     ) -> Result<usize, KataHistoryError> {
         let count = query_row(
             &*self.driver,
-            "SELECT COUNT(*) FROM kata_history WHERE agent_name = ?1 AND date = ?2",
+            "SELECT COUNT(*) FROM kata_history WHERE userpod_name = ?1 AND date = ?2",
             &[
                 DbValue::Text(userpod_name.to_string()),
                 DbValue::Text(date.to_string()),
@@ -143,7 +142,7 @@ impl KataHistoryStore {
     ) -> Result<Option<KataHistoryEntry>, KataHistoryError> {
         Ok(query_row(
             &*self.driver,
-            "SELECT id, agent_name, date, kata_type, practice_name, steps_completed, gas_consumed, created_at FROM kata_history WHERE agent_name = ?1 ORDER BY date DESC, id DESC LIMIT 1",
+            "SELECT id, userpod_name, date, kata_type, practice_name, steps_completed, gas_consumed, created_at FROM kata_history WHERE userpod_name = ?1 ORDER BY date DESC, id DESC LIMIT 1",
             &[DbValue::Text(userpod_name.to_string())],
             |row| {
                 Ok(KataHistoryEntry {
@@ -169,7 +168,7 @@ impl KataHistoryStore {
     ) -> Result<Vec<KataHistoryEntry>, KataHistoryError> {
         Ok(query_map(
             &*self.driver,
-            "SELECT id, agent_name, date, kata_type, practice_name, steps_completed, gas_consumed, created_at FROM kata_history WHERE agent_name = ?1 AND date >= ?2 AND date <= ?3 ORDER BY date DESC",
+            "SELECT id, userpod_name, date, kata_type, practice_name, steps_completed, gas_consumed, created_at FROM kata_history WHERE userpod_name = ?1 AND date >= ?2 AND date <= ?3 ORDER BY date DESC",
             &[
                 DbValue::Text(userpod_name.to_string()),
                 DbValue::Text(from_date.to_string()),

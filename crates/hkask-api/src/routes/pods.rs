@@ -222,13 +222,13 @@ async fn activate_pod(
 
 #[utoipa::path(
     post,
-    path = "/api/pods/{id}/deactivate",
+    path = "/api/pods/{id}/sleep",
     tag = "pods",
     params(
         ("id" = String, Path, description = "Pod ID"),
     ),
     responses(
-        (status = 204, description = "Pod deactivated"),
+        (status = 204, description = "Pod sleeping"),
         (status = 400, description = "Invalid pod ID"),
     ),
 )]
@@ -238,7 +238,7 @@ async fn sleep_pod(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "hkask.api", operation = "pods_deactivate", pod_id = %id, "CNS");
+    tracing::info!(target: "hkask.api", operation = "pods_sleep", pod_id = %id, "CNS");
     let pid = parse_pod_id(&id)?;
     state
         .agent_service
