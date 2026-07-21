@@ -177,8 +177,17 @@ G5. knowledge_preservation_required?
       scaling, or initializer.
 
 G6. harness_capability? (after G1-G5; depends on method/task distance)
-    - If the operator declared a harness preference, preserve it (P1). Record as
-      `operator_requested`; do not overwrite.
+    - If harness_preference is declared (not undetermined): preserve it as
+      `operator_requested`. Do not overwrite. Validate compatibility with
+      earlier gates; record conflicts if any (e.g., harness=axolotl but
+      preference data declared).
+    - If trainer_preference is declared (not undetermined): preserve it.
+      Validate that the selected harness supports it — G-H1 will enforce
+      this at audit time. If harness_preference is undetermined but
+      trainer_preference implies a harness (e.g., trainer=grpo → harness=ludwig),
+      recommend the implied harness with a citation.
+    - If both are undetermined or absent: apply the existing task-distance /
+      data-shape reasoning to recommend a harness and trainer.
     - If task_distance is light/moderate AND the task is SFT (no preference data
       declared): harness=`undetermined`; list all three harnesses as
       alternatives with trade-offs:

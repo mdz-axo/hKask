@@ -39,9 +39,9 @@ pub use error::ApiError;
 // Re-export route types for OpenAPI schema generation
 pub use routes::{A2ARegisterRequest, A2ARegisterResponse};
 pub use routes::{
-    ApiChatRequest, ApiChatResponse, CreatePodRequest,
-    CreatePodResponse, ListPodsResponse, ModelEntry, ModelListResponse, ModelSearchQuery,
-    PodStatusResponse, TemplateResponse, WithdrawalFeeEstimateResponse,
+    ApiChatRequest, ApiChatResponse, CreatePodRequest, CreatePodResponse, LedgerHealthResponse,
+    ListPodsResponse, ModelEntry, ModelListResponse, ModelSearchQuery, PodStatusResponse,
+    RegulationVarietyResponse, TemplateResponse, WithdrawalFeeEstimateResponse,
 };
 
 use axum::body::Body;
@@ -140,9 +140,9 @@ impl ApiState {
         let api_key_auth_service = match (ctx.storage().wallet.clone(), wallet_service.clone()) {
             (Some(store), Some(svc)) => {
                 let rate_limit_config = hkask_regulation::api_metering::RateLimitConfig::from_env();
-                let api_meter = Arc::new(std::sync::RwLock::new(hkask_regulation::ApiMeter::with_config(
-                    rate_limit_config,
-                )));
+                let api_meter = Arc::new(std::sync::RwLock::new(
+                    hkask_regulation::ApiMeter::with_config(rate_limit_config),
+                ));
                 hkask_regulation::ApiMeter::spawn_learning_loop(Arc::clone(&api_meter));
                 Some(Arc::new(
                     middleware::api_key_auth::ApiKeyAuthService::new(store, svc)
@@ -260,7 +260,9 @@ pub fn create_router(state: ApiState) -> utoipa_axum::router::OpenApiRouter {
                 }
             })
         })
-        // TODO: .layer(axum::middleware::from_fn(middleware::regulation_middleware));  // regulation middleware needs creation
+        // Regulation middleware — disabled until regulation_router is wired
+        // .layer(axum::middleware::from_fn(middleware::regulation_middleware))
+        ;
 
     // Admin role-gating middleware (runs after session + auth, before routes)
     let admin_store = state.agent_service.storage().users.clone();

@@ -106,7 +106,7 @@ impl LedgerObserver for SseObserver {
     ),
 )]
 pub(crate) async fn regulation_health(State(state): State<ApiState>) -> axum::Json<LedgerHealthResponse> {
-    let health = state.agent_service.regulation().health().await;
+    let health = state.agent_service.ledger().health().await;
 
     axum::Json(LedgerHealthResponse {
         overall_deficit: health.overall_deficit,
@@ -132,7 +132,7 @@ async fn regulation_alerts(State(_state): State<ApiState>) -> axum::Json<Vec<Str
     ),
 )]
 pub(crate) async fn regulation_variety(State(state): State<ApiState>) -> axum::Json<RegulationVarietyResponse> {
-    let variety_data = state.agent_service.regulation().variety().await;
+    let variety_data = state.agent_service.ledger().variety().await;
 
     let domains: Vec<String> = variety_data
         .keys()
@@ -199,7 +199,7 @@ pub(crate) async fn regulation_subscribe(
         .collect();
 
     let (observer, mut receiver) = SseObserver::new(valid_spans);
-    let regulation_runtime = &state.agent_service.regulation().runtime;
+    let regulation_runtime = &state.agent_service.ledger().runtime;
     regulation_runtime
         .read()
         .await

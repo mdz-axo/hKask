@@ -53,7 +53,10 @@ templates:
       axolotl (YAML, SFT-only, runtime default), trl (Python, SFT + DPO/KTO/
       ORPO/Reward), ludwig (YAML, SFT + DPO/KTO/ORPO/GRPO + advanced PEFT
       initializers). Ludwig is the only harness covering GRPO and the full
-      advanced-PEFT initializer set (PiSSA, EVA, CorDA, LoftQ).
+      advanced-PEFT initializer set (PiSSA, EVA, CorDA, LoftQ). G6 reads
+      optional harness_preference and trainer_preference inputs — when declared,
+      the skill preserves them as operator_requested; when absent, it applies
+      task-distance/data-shape reasoning.
 
   - id: lora-training/audit-config
     name: "Audit training config against math/quant/data/forgetting/harness gates"

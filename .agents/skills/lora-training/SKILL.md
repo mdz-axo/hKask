@@ -69,7 +69,11 @@ This skill does not train, load, initialize, merge, or evaluate models.
    `initialize_lora_eva_weights(model, dataloader)` as required evidence; do not
    hardcode a recommendation-phase refusal.
 6. G6 (harness capability) recommends axolotl, trl, or ludwig based on task
-   requirements. The three harnesses have distinct capability profiles:
+   requirements. If the operator declares `harness_preference` or
+   `trainer_preference` inputs, preserve them as `operator_requested` and
+   validate compatibility with earlier gates. If both are absent, apply
+   task-distance/data-shape reasoning. The three harnesses have distinct
+   capability profiles:
    - **Axolotl** (YAML, SFT-only): mature, single-file config, the runtime
      default. Cannot render advanced PEFT initializers (PiSSA, CorDA, LoftQ)
      or preference optimization trainers.
