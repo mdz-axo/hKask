@@ -85,17 +85,17 @@ pub fn string_to_kind(s: &str) -> WindowKind {
     window_kind_from_title(s).unwrap_or(WindowKind::Chat)
 }
 
-/// Path to the layout file for a given agent.
+/// Path to the layout file for a given userpod.
 pub fn layout_path(userpod_name: &str) -> PathBuf {
     let base = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("hkask")
-        .join("agents")
+        .join(hkask_types::agent_paths::USERPODS_DIR)
         .join(sanitize(userpod_name));
     base.join("tui_layout.json")
 }
 
-/// Sanitize an agent name for use in a directory path.
+/// Sanitize a userpod name for use in a directory path.
 fn sanitize(name: &str) -> String {
     name.chars()
         .map(|c| {

@@ -5072,6 +5072,7 @@ dependencies = [
  "chrono",
  "crossterm",
  "dirs 5.0.1",
+ "hkask-types",
  "portable-pty",
  "ratatui",
  "serde",

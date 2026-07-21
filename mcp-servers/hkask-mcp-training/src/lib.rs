@@ -38,7 +38,7 @@
 //! Host selection: Runpod is the only cloud host. Harness default is Axolotl;
 //! per-job harness selection via `TrainingParams.harness` (operator-accepted
 //! from the lora-training skill's G6 gate) is honored at submit time.
-//! Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer.
+//! Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer + Ludwig SFT.
 //! Routed through the shared `hkask-services` config init. Host pluggability
 //! is via the `TrainingHost` trait, isolating the MCP surface from
 //! framework-specific details.
@@ -319,7 +319,7 @@ impl TrainingServer {
     }
 
     #[tool(
-        description = "Submit a training job for execution. Ingests, normalizes, and submits a dataset for LoRA fine-tuning via the selected harness (Axolotl YAML or TRL Python) on Runpod. The harness is selected from params.harness (operator-accepted from the lora-training skill's G6 gate), defaulting to Axolotl. When `feedback_path` is provided, enters retrain mode: merges the original dataset with curated feedback, deduplicates by user question, increments the adapter version based on existing adapters with the same `skill_name`, and pre-registers adapter metadata so training_status can complete the A/B comparison on job completion."
+        description = "Submit a training job for execution. Ingests, normalizes, and submits a dataset for LoRA fine-tuning via the selected harness (Axolotl YAML, TRL Python, or Ludwig YAML) on Runpod. The harness is selected from params.harness (operator-accepted from the lora-training skill's G6 gate), defaulting to Axolotl. When `feedback_path` is provided, enters retrain mode: merges the original dataset with curated feedback, deduplicates by user question, increments the adapter version based on existing adapters with the same `skill_name`, and pre-registers adapter metadata so training_status can complete the A/B comparison on job completion."
     )]
     pub async fn training_submit(
         &self,
@@ -1515,8 +1515,8 @@ pub async fn run(
     // Harness default is Axolotl; per-job harness selection via TrainingParams.harness
     // (operator-accepted from the lora-training skill's G6 gate) is honored at
     // submit time — RunpodHost::submit selects the harness for config rendering.
-    // Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer. Phase 2 will add
-    // TRL DPO/KTO/ORPO trainers.
+    // Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer + Ludwig SFT. Phase 2
+    // will add TRL DPO/KTO/ORPO trainers and Ludwig DPO/KTO/ORPO/GRPO.
     let host_id = TrainingHostId::Runpod;
     let harness_id = TrainingHarnessId::Axolotl;
 

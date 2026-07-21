@@ -15,11 +15,11 @@
 //! - \[P9\] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
 use hkask_capability::CapabilityChecker;
-use hkask_regulation::RegulationLedger;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_database::types::DbProvider;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
+use hkask_regulation::RegulationLedger;
 use hkask_storage::{Database, EmbeddingStore, HMemStore};
 use hkask_types::WebID;
 use hkask_types::event::SpanNamespace;
@@ -188,7 +188,10 @@ impl PerPodLedger {
         self.inner.register_gas_budget(agent, budget).await;
     }
 
-    pub async fn agent_energy_status(&self, agent: &WebID) -> Option<hkask_regulation::AgentGasStatus> {
+    pub async fn agent_energy_status(
+        &self,
+        agent: &WebID,
+    ) -> Option<hkask_regulation::AgentGasStatus> {
         self.inner.agent_gas_status(agent).await
     }
 }
@@ -668,7 +671,7 @@ fn read_pod_kind(db_path: &std::path::Path) -> Option<PodKind> {
     let content = std::fs::read_to_string(&kind_path).ok()?;
     match content.trim() {
         "curator" => Some(PodKind::Curator),
-        "userpod" | "replicant" => Some(PodKind::UserPod),
+        "userpod" => Some(PodKind::UserPod),
         _ => None,
     }
 }

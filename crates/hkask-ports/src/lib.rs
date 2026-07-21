@@ -5,7 +5,6 @@
 //! rather than concrete implementations. Per the Authority DAG,
 //! domain crates depend on these port traits (not on each other).
 
-pub mod regulation;
 pub mod consent_port;
 pub mod embedding;
 pub mod embedding_port;
@@ -15,6 +14,7 @@ pub mod flowdef_validation;
 pub mod pipeline_manifest;
 pub mod pipeline_runner;
 pub mod pipeline_state;
+pub mod regulation;
 pub use federation::ReplicaId;
 pub mod git_cas;
 pub mod inference_port;
@@ -23,10 +23,6 @@ pub mod registry;
 pub mod tool;
 pub mod wallet_budget_port;
 
-pub use cns::{
-    BackpressureSignal, CircuitBreakerPort, LedgerObserver, LedgerStoragePort, ConsolidationOutcome,
-    ConsolidationRequest, DecayConfig, DepletionSignal, WeightedEvent,
-};
 pub use embedding::EmbeddingGenerationError;
 pub use flowdef_validation::{
     FlowDefValidationFinding, FlowDefValidationReport, validate_convergence_field,
@@ -39,6 +35,10 @@ pub use inference_types::{
 };
 pub use registry::{
     RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
+};
+pub use regulation::{
+    BackpressureSignal, CircuitBreakerPort, ConsolidationOutcome, ConsolidationRequest,
+    DecayConfig, DepletionSignal, LedgerObserver, LedgerStoragePort, WeightedEvent,
 };
 pub use tool::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
 pub use wallet_budget_port::{WalletBudgetError, WalletBudgetPort};

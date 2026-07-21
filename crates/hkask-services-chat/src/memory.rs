@@ -5,11 +5,11 @@
 
 use std::sync::Arc;
 
+use hkask_capability::DelegationToken;
 use hkask_pods::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };
-use hkask_capability::DelegationToken;
 use hkask_types::{Confidence, DataCategory, WebID};
 
 use hkask_services_context::AgentService;
@@ -169,7 +169,6 @@ impl MemoryService {
     }
 
     /// Recall raw episodes for condensation.
-    #[allow(dead_code)]
     pub(crate) fn recall_raw_episodes(
         episodic_port: &Arc<dyn EpisodicStoragePort>,
         agent_webid: &WebID,

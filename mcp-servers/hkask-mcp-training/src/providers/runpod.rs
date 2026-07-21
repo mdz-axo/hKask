@@ -698,8 +698,9 @@ impl TrainingHost for RunpodHost {
         // Render the training config from TrainingParams using the appropriate
         // harness. The config is passed to the pod as an env var — the env var
         // name depends on the harness (axolotl → HKASK_AXOLOTL_CONFIG / YAML,
-        // trl → HKASK_TRL_SCRIPT / Python). The pod's entrypoint checks which
-        // env var is set and runs the corresponding training command.
+        // trl → HKASK_TRL_SCRIPT / Python, ludwig → HKASK_LUDWIG_CONFIG / YAML).
+        // The pod's entrypoint checks which env var is set and runs the
+        // corresponding training command.
         let (config_env_var, config_content) = match selected_harness {
             TrainingHarnessId::Axolotl => {
                 let yaml = crate::providers::AxolotlHarness
@@ -716,6 +717,14 @@ impl TrainingHost for RunpodHost {
                         ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}"))
                     })?;
                 ("HKASK_TRL_SCRIPT", script)
+            }
+            TrainingHarnessId::Ludwig => {
+                let yaml = crate::providers::LudwigHarness
+                    .render_config(job)
+                    .map_err(|e| {
+                        ProviderError::InvalidConfig(format!("Failed to render Ludwig YAML: {e}"))
+                    })?;
+                ("HKASK_LUDWIG_CONFIG", yaml)
             }
         };
         env_entries.push((config_env_var, config_content));

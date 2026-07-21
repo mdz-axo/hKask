@@ -481,6 +481,26 @@ fn validate_harness_compatibility(params: &TrainingParams, findings: &mut Vec<Va
                 }
             }
         }
+        Some(TrainingHarnessId::Ludwig) => {
+            // Ludwig harness (added v0.31.0): declarative YAML framework that
+            // supports SFT, DPO, KTO, ORPO, and GRPO natively. Phase 1 renders
+            // SFT only (`trainer.type: finetune`); Phase 2 will wire Ludwig's
+            // own trainer taxonomy (separate from TRL's).
+            //
+            // If a TRL trainer was specified with harness=ludwig, warn: the
+            // `trl_trainer` field is TRL-specific and Ludwig ignores it. The
+            // operator should not mix taxonomies — Ludwig has its own trainer
+            // selection via `trainer.type` in the rendered YAML.
+            if params.trl_trainer.is_some() {
+                findings.push(ValidationFinding {
+                    gate_id: "G-H1",
+                    severity: ValidationSeverity::Warn,
+                    message: "harness=ludwig with trl_trainer set — trl_trainer is TRL-specific and Ludwig ignores it (Ludwig uses trainer.type in its own YAML)".to_string(),
+                    source: "Ludwig trainer taxonomy — https://ludwig.ai/latest/configuration/#trainer",
+                    remediation: "Remove trl_trainer when using harness=ludwig; Ludwig's trainer is selected via trainer.type in the rendered config".to_string(),
+                });
+            }
+        }
     }
 }
 
@@ -865,5 +885,33 @@ mod tests {
         params.harness = Some(TrainingHarnessId::Trl);
         let findings = validate_training_params(&params);
         assert!(findings.iter().all(|f| f.gate_id != "G-H1"));
+    }
+
+    /// expect: harness=ludwig with no trl_trainer passes G-H1 (Phase 1 SFT).
+    /// Ludwig is the third harness; it uses its own trainer taxonomy
+    /// (trainer.type in YAML), so no trl_trainer is the canonical Ludwig path.
+    #[test]
+    fn ludwig_without_trl_trainer_passes_gh1() {
+        let mut params = default_params();
+        params.harness = Some(TrainingHarnessId::Ludwig);
+        let findings = validate_training_params(&params);
+        assert!(findings.iter().all(|f| f.gate_id != "G-H1"));
+    }
+
+    /// expect: harness=ludwig with trl_trainer set warns G-H1 — trl_trainer is
+    /// TRL-specific and Ludwig ignores it (Ludwig has its own trainer.type).
+    /// This is a warning, not a refusal: Ludwig can still run SFT; the trl_trainer
+    /// field is simply dropped.
+    #[test]
+    fn ludwig_with_trl_trainer_warns_gh1() {
+        let mut params = default_params();
+        params.harness = Some(TrainingHarnessId::Ludwig);
+        params.trl_trainer = Some(TrlTrainer::Sft);
+        let findings = validate_training_params(&params);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.gate_id == "G-H1" && f.severity == ValidationSeverity::Warn)
+        );
     }
 }

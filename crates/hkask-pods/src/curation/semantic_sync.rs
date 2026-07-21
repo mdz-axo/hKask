@@ -368,11 +368,3 @@ fn open_source_db(db_path: &Path) -> Result<Database, SyncError> {
     Database::open(&path_str, &passphrase)
         .map_err(|e| SyncError::Database(format!("Failed to open pod DB: {e}")))
 }
-
-impl CuratorSync {
-    /// Open a pod's SQLCipher database.
-    #[allow(dead_code)]
-    fn open_read_only(&self, db_path: &Path) -> Result<Database, SyncError> {
-        open_source_db(db_path)
-    }
-}

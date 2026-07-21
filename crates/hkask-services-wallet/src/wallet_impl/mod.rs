@@ -16,7 +16,7 @@ use tokio::sync::RwLock;
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 
-mod gas_cns;
+mod gas_regulation;
 mod transactions;
 
 #[cfg(test)]

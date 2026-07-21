@@ -40,6 +40,13 @@ pub enum TrainingHarnessId {
     /// Supports SFT (SFTTrainer) and preference optimization (DPO/KTO/ORPO/Reward).
     /// Phase 1 (v0.31.0): SFTTrainer only. Phase 2 will add DPO/KTO/ORPO.
     Trl,
+    /// ludwig — declarative YAML deep-learning framework (Linux Foundation AI & Data),
+    /// dispatched to Runpod. Supports SFT, DPO/KTO/ORPO, and GRPO (reward-model-free
+    /// RLHF) — the only harness in the candidate set covering GRPO. Also covers
+    /// advanced PEFT initializers (PiSSA, EVA, CorDA, LoftQ) that hKask's `LoraInit`
+    /// enum declares but Axolotl cannot render. Added v0.31.0.
+    /// Source: https://ludwig.ai/latest/ · https://github.com/ludwig-ai/ludwig
+    Ludwig,
 }
 
 impl TrainingHarnessId {
@@ -49,6 +56,7 @@ impl TrainingHarnessId {
         match s.to_lowercase().as_str() {
             "axolotl" => Some(Self::Axolotl),
             "trl" => Some(Self::Trl),
+            "ludwig" => Some(Self::Ludwig),
             _ => None,
         }
     }

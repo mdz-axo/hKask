@@ -117,10 +117,10 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             let adapter = resolve_gix_adapter();
 
             let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-            let agents_dir = base.join("hkask").join("agents");
+            let agents_dir = base.join("hkask").join(hkask_types::agent_paths::USERPODS_DIR);
             if !agents_dir.exists() {
                 println!(
-                    "No agents directory found at {}. Nothing to snapshot.",
+                    "No userpods directory found at {}. Nothing to snapshot.",
                     agents_dir.display()
                 );
                 return;
@@ -156,7 +156,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
 
             let sanitized = hkask_types::agent_paths::sanitize_name(&pod);
             let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-            let pod_dir = base.join("hkask").join("agents").join(&sanitized);
+            let pod_dir = base.join("hkask").join(hkask_types::agent_paths::USERPODS_DIR).join(&sanitized);
             if !pod_dir.join("pod.db").exists() {
                 eprintln!("Pod '{}' not found at {}", pod, pod_dir.display());
                 std::process::exit(1);
@@ -208,10 +208,10 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
         BackupAction::List { limit } => {
             let adapter = resolve_gix_adapter();
             let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-            let agents_dir = base.join("hkask").join("agents");
+            let agents_dir = base.join("hkask").join(hkask_types::agent_paths::USERPODS_DIR);
 
             if !agents_dir.exists() {
-                println!("No agents directory found.");
+                println!("No userpods directory found.");
                 return;
             }
 
@@ -260,11 +260,11 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
         BackupAction::Status => {
             let adapter = resolve_gix_adapter();
             let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-            let agents_dir = base.join("hkask").join("agents");
+            let agents_dir = base.join("hkask").join(hkask_types::agent_paths::USERPODS_DIR);
 
             println!("Pod-directory backup status:");
             if !agents_dir.exists() {
-                println!("  No agents directory found at {}", agents_dir.display());
+                println!("  No userpods directory found at {}", agents_dir.display());
                 return;
             }
 

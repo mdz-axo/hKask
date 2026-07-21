@@ -1,7 +1,7 @@
 //! `kask repair` — detect and fix passphrase-mismatched databases and stranded
 //! Matrix registration markers.
 //!
-//! Scans all agent directories for:
+//! Scans all userpod directories for:
 //! 1. SQLCipher databases that can't be opened with the current passphrase
 //! 2. Stranded Matrix pod registration entries in the OS keychain
 //!
@@ -12,7 +12,7 @@ use hkask_storage::DatabaseError;
 use hkask_storage::check_passphrase;
 use std::path::PathBuf;
 
-/// Database files found under an agent directory, keyed by path.
+/// Database files found under a userpod directory, keyed by path.
 const AGENT_DB_FILES: &[&str] = &[
     "memory.db",
     "kanban.db",
@@ -22,10 +22,10 @@ const AGENT_DB_FILES: &[&str] = &[
     "style.db",
 ];
 
-/// Discover all agent directories under `agents/` in the current working directory.
+/// Discover all userpod directories under `userpods/` in the current working directory.
 fn discover_agent_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
-    let agents_dir = std::path::Path::new("agents");
+    let agents_dir = std::path::Path::new(hkask_types::agent_paths::USERPODS_DIR);
     if !agents_dir.is_dir() {
         return dirs;
     }
@@ -68,7 +68,7 @@ pub fn run(dry_run: bool, force: bool) {
     let databases = discover_databases();
 
     if databases.is_empty() {
-        println!("No agent databases found under agents/.");
+        println!("No userpod databases found under userpods/.");
         println!("Nothing to repair.");
         return;
     }
@@ -77,7 +77,7 @@ pub fn run(dry_run: bool, force: bool) {
     let mut healthy = Vec::new();
 
     println!(
-        "Checking {} database(s) under agents/...\n",
+        "Checking {} database(s) under userpods/...\n",
         databases.len()
     );
 

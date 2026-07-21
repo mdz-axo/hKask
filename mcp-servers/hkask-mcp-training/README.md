@@ -37,19 +37,29 @@ Simplified from 21 → 15 → 8 across 2026-07-19 cleanups.
 
 ## Providers
 
-Single cloud host: **Runpod**. Two harnesses: **Axolotl** (YAML, SFT) and
-**TRL** (Python, SFT + future preference optimization).
+Single cloud host: **Runpod**. Three harnesses: **Axolotl** (YAML, SFT),
+**TRL** (Python, SFT + preference optimization), and **Ludwig** (YAML, SFT +
+future GRPO/advanced PEFT).
 
 Harness selection is per-job via `TrainingParams.harness` (operator-accepted
 from the lora-training skill's G6 gate), defaulting to Axolotl. The RunPod
-host's `submit()` method renders either axolotl YAML (`HKASK_AXOLOTL_CONFIG`)
-or TRL Python (`HKASK_TRL_SCRIPT`) based on the selected harness.
+host's `submit()` method renders the harness-native config based on the
+selected harness:
+- Axolotl → `HKASK_AXOLOTL_CONFIG` (YAML via `axolotl-lora.j2`)
+- TRL → `HKASK_TRL_SCRIPT` (Python via `trl-sft.j2` / `trl-preference.j2`)
+- Ludwig → `HKASK_LUDWIG_CONFIG` (YAML via `ludwig-lora.j2`)
 
-Phase 1 (v0.31.0): TRL SFTTrainer only. Phase 2 will add DPO/KTO/ORPO.
+Phase 1 (v0.31.0): Axolotl SFT, TRL SFTTrainer, Ludwig SFT (`trainer.type: finetune`).
+Phase 2 will add TRL DPO/KTO/ORPO and Ludwig DPO/KTO/ORPO/GRPO.
+
+Ludwig (Linux Foundation AI & Data, Apache-2.0) is the only harness in the
+candidate set covering GRPO (reward-model-free RLHF) and the full advanced-PEFT
+initializer set (PiSSA, EVA, CorDA, LoftQ) that hKask's `LoraInit` enum
+declares. Source: https://ludwig.ai/latest/ · https://github.com/ludwig-ai/ludwig
 
 Deleted providers (2026-07-19): `TogetherHost` (Together AI REST API) and `TinkerHost` (Thinking Machines subprocess). The Runpod host is sufficient for all training workloads.
 
-Deleted harnesses (2026-07-19): `UnslothHarness` (Python). Re-add when there's a concrete data/training need — Axolotl + TRL are sufficient until then.
+Deleted harnesses (2026-07-19): `UnslothHarness` (Python). Re-add when there's a concrete data/training need — Axolotl + TRL + Ludwig are sufficient until then.
 
 ## Configuration
 

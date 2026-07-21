@@ -72,7 +72,7 @@ use hkask_services_wallet::WalletService;
 mod matrix;
 mod seam_monitor;
 
-use crate::cns;
+use crate::regulation;
 use crate::governance;
 use crate::infra;
 use crate::storage;

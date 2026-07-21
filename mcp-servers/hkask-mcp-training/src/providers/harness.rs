@@ -6,6 +6,8 @@
 //!
 //! Harness → Host mapping:
 //!   Axolotl → Runpod
+//!   TRL     → Runpod
+//!   Ludwig  → Runpod
 
 use crate::providers::types::*;
 use std::path::PathBuf;
@@ -219,5 +221,176 @@ impl HarnessAdapter for AxolotlHarness {
 
     fn harness_id(&self) -> TrainingHarnessId {
         TrainingHarnessId::Axolotl
+    }
+}
+
+// ── Ludwig harness ──────────────────────────────────────────────────────────
+
+/// Renders Ludwig YAML configuration from canonical `TrainingParams`.
+///
+/// Ludwig is a declarative deep-learning framework (Linux Foundation AI & Data,
+/// Apache-2.0) that, like Axolotl, takes a single YAML config. Unlike Axolotl,
+/// Ludwig covers the full alignment spectrum — SFT, DPO, KTO, ORPO, and GRPO
+/// (reward-model-free RLHF) — plus advanced PEFT initializers (PiSSA, EVA,
+/// CorDA, LoftQ) that hKask's `LoraInit` enum declares but Axolotl cannot render.
+///
+/// The rendered YAML is dispatched to the RunPod pod as `HKASK_LUDWIG_CONFIG`
+/// (parallel to `HKASK_AXOLOTL_CONFIG`). The pod's entrypoint writes it to
+/// `/workspace/model.yaml` and runs `ludwig train --config /workspace/model.yaml`.
+///
+/// Phase 1 (v0.31.0): SFT (`trainer.type: finetune`) + LoRA/QLoRA. Phase 2
+/// will add DPO/KTO/ORPO/GRPO by extending `LudwigTrainer` and adding
+/// corresponding `.j2` template branches.
+///
+/// References:
+/// - Ludwig docs: https://ludwig.ai/latest/
+/// - Ludwig LLM fine-tuning: https://ludwig.ai/latest/getting_started/llm_fine_tuning/
+/// - Ludwig config schema: https://ludwig.ai/latest/configuration/
+/// - Ludwig GitHub: https://github.com/ludwig-ai/ludwig
+pub struct LudwigHarness;
+
+impl HarnessAdapter for LudwigHarness {
+    fn render_config(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        let p = &job.params;
+        let lo = &p.lora;
+        let opt = &p.optimization;
+        let (dataset_path, data_files) = job
+            .artifacts
+            .as_ref()
+            .map(|artifacts| {
+                (
+                    artifacts.dataset.repository.clone(),
+                    artifacts.dataset.path.clone(),
+                )
+            })
+            .unwrap_or_else(|| (job.dataset_path.display().to_string(), String::new()));
+
+        // Ludwig uses a different config shape from Axolotl — `model_type: llm`,
+        // `base_model:`, `adapter:`, `quantization:`, `input_features`,
+        // `output_features`, `trainer:`. We assemble the full context the
+        // template needs; the template (ludwig-lora.j2) is the single source
+        // of truth for the YAML structure.
+        let mut context = serde_json::Map::from_iter([
+            ("base_model".to_string(), serde_json::json!(job.base_model)),
+            (
+                "load_in_4bit".to_string(),
+                serde_json::json!(p.quantization.load_in_4bit),
+            ),
+            ("lora_r".to_string(), serde_json::json!(lo.r)),
+            ("lora_alpha".to_string(), serde_json::json!(lo.alpha)),
+            ("lora_dropout".to_string(), serde_json::json!(lo.dropout)),
+            (
+                "lora_target_modules".to_string(),
+                serde_json::json!(lo.target_modules),
+            ),
+            ("dataset_path".to_string(), serde_json::json!(dataset_path)),
+            ("data_files".to_string(), serde_json::json!(data_files)),
+            ("num_epochs".to_string(), serde_json::json!(p.num_epochs)),
+            (
+                "learning_rate".to_string(),
+                serde_json::json!(p.learning_rate),
+            ),
+            (
+                "micro_batch_size".to_string(),
+                serde_json::json!(p.batch_size),
+            ),
+            (
+                "gradient_accumulation_steps".to_string(),
+                serde_json::json!(opt.gradient_accumulation_steps),
+            ),
+            (
+                "output_dir".to_string(),
+                serde_json::json!(self.output_dir(&job.id).display().to_string()),
+            ),
+            // Ludwig-specific: use_rslora / use_dora map to adapter config flags.
+            (
+                "use_rslora".to_string(),
+                serde_json::json!(lo.use_rslora.to_string()),
+            ),
+            (
+                "use_dora".to_string(),
+                serde_json::json!(lo.use_dora.to_string()),
+            ),
+        ]);
+        for (key, value) in [
+            (
+                "peft_init_lora_weights",
+                lo.init_lora_weights
+                    .as_ref()
+                    .map(|init| init.as_config_value()),
+            ),
+            ("optim", opt.optimizer.clone()),
+            ("lr_scheduler", opt.lr_scheduler.clone()),
+            (
+                "sequence_len",
+                p.sequence.sequence_len.map(|value| value.to_string()),
+            ),
+            (
+                "warmup_steps",
+                opt.warmup_steps.map(|value| value.to_string()),
+            ),
+            (
+                "max_grad_norm",
+                opt.max_grad_norm.map(|value| value.to_string()),
+            ),
+            (
+                "val_set_size",
+                p.advanced.eval_split_ratio.map(|value| value.to_string()),
+            ),
+        ] {
+            if let Some(value) = value {
+                context.insert(key.to_string(), serde_json::json!(value));
+            }
+        }
+        if opt.weight_decay > 0.0 {
+            context.insert(
+                "weight_decay".to_string(),
+                serde_json::json!(opt.weight_decay),
+            );
+        }
+
+        let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                let working_directory_root = PathBuf::from("registry");
+                if working_directory_root.is_dir() {
+                    working_directory_root
+                } else {
+                    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../..")
+                        .join("registry")
+                }
+            });
+
+        let template_path = template_root.join("templates/training/ludwig-lora.j2");
+        let template = std::fs::read_to_string(&template_path).map_err(|error| {
+            ProviderError::InvalidConfig(format!(
+                "Read Ludwig template {}: {error}",
+                template_path.display()
+            ))
+        })?;
+        let mut environment = minijinja::Environment::new();
+        environment.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
+        environment
+            .render_str(&template, serde_json::Value::Object(context))
+            .map(|yaml| yaml.trim().to_string() + "\n")
+            .map_err(|error| {
+                ProviderError::InvalidConfig(format!("Render Ludwig template: {error}"))
+            })
+    }
+
+    fn output_dir(&self, job_id: &str) -> PathBuf {
+        // Same canonical output dir as AxolotlHarness — the RunPod pod contract
+        // is harness-agnostic (/workspace/outputs/{job_id}).
+        PathBuf::from(format!("/workspace/outputs/{}", job_id))
+    }
+
+    fn completion_marker(&self, job_id: &str) -> PathBuf {
+        // Ludwig + PEFT saves adapter_model.safetensors (same as axolotl/TRL).
+        self.output_dir(job_id).join("adapter_model.safetensors")
+    }
+
+    fn harness_id(&self) -> TrainingHarnessId {
+        TrainingHarnessId::Ludwig
     }
 }

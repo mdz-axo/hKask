@@ -19,7 +19,7 @@ pub mod types;
 
 // ── Re-exports for lib.rs compatibility ──────────────────────────────────
 
-pub use harness::{AxolotlHarness, HarnessAdapter};
+pub use harness::{AxolotlHarness, HarnessAdapter, LudwigHarness};
 pub use runpod::RunpodHost;
 pub use trl_harness::TrlHarness;
 pub use types::{
@@ -141,6 +141,14 @@ mod tests {
         assert_eq!(
             TrainingHarnessId::from_str("trl"),
             Some(TrainingHarnessId::Trl)
+        );
+        assert_eq!(
+            TrainingHarnessId::from_str("ludwig"),
+            Some(TrainingHarnessId::Ludwig)
+        );
+        assert_eq!(
+            TrainingHarnessId::from_str("LUDWIG"),
+            Some(TrainingHarnessId::Ludwig)
         );
         assert_eq!(TrainingHarnessId::from_str("unknown"), None);
     }
@@ -362,5 +370,218 @@ mod tests {
                 "missing `{expected}` in:\n{script}"
             );
         }
+    }
+
+    /// expect: The TRL harness renders a valid DPOTrainer Python script from canonical TrainingParams.
+    /// [P2] Motivating: User Sovereignty — the operator can choose DPO for preference optimization.
+    /// pre: A training job contains canonical LoRA parameters with harness=Trl, trl_trainer=Dpo.
+    /// post: The rendered Python script contains DPOTrainer, DPOConfig, LoraConfig, and all params.
+    /// [P4] Constraining: Clear Boundaries — only explicit parameters cross the provider boundary.
+    #[test]
+    fn trl_harness_renders_dpo_script() {
+        let script = render_preference_script_for(types::TrlTrainer::Dpo);
+        for expected in [
+            "from trl import DPOConfig, DPOTrainer",
+            "from peft import LoraConfig",
+            "trainer = DPOTrainer(",
+            "config = DPOConfig(",
+            "trainer_name = \"dpo\"",
+            "trainer.train()",
+            "trainer.save_model",
+        ] {
+            assert!(
+                script.contains(expected),
+                "missing `{expected}` in:\n{script}"
+            );
+        }
+    }
+
+    /// expect: The TRL harness renders a valid KTOTrainer Python script.
+    #[test]
+    fn trl_harness_renders_kto_script() {
+        let script = render_preference_script_for(types::TrlTrainer::Kto);
+        for expected in [
+            "from trl import KTOConfig, KTOTrainer",
+            "trainer = KTOTrainer(",
+            "config = KTOConfig(",
+            "trainer_name = \"kto\"",
+        ] {
+            assert!(
+                script.contains(expected),
+                "missing `{expected}` in:\n{script}"
+            );
+        }
+    }
+
+    /// expect: The TRL harness renders a valid ORPOTrainer Python script.
+    #[test]
+    fn trl_harness_renders_orpo_script() {
+        let script = render_preference_script_for(types::TrlTrainer::Orpo);
+        for expected in [
+            "from trl import ORPOConfig, ORPOTrainer",
+            "trainer = ORPOTrainer(",
+            "config = ORPOConfig(",
+            "trainer_name = \"orpo\"",
+        ] {
+            assert!(
+                script.contains(expected),
+                "missing `{expected}` in:\n{script}"
+            );
+        }
+    }
+
+    /// expect: The TRL harness renders a valid RewardTrainer Python script.
+    #[test]
+    fn trl_harness_renders_reward_script() {
+        let script = render_preference_script_for(types::TrlTrainer::Reward);
+        for expected in [
+            "from trl import RewardConfig, RewardTrainer",
+            "trainer = RewardTrainer(",
+            "config = RewardConfig(",
+            "trainer_name = \"reward\"",
+        ] {
+            assert!(
+                script.contains(expected),
+                "missing `{expected}` in:\n{script}"
+            );
+        }
+    }
+
+    /// expect: The Ludwig harness renders valid Ludwig YAML from canonical TrainingParams.
+    /// [P2] Motivating: User Sovereignty — the operator can choose Ludwig as a third harness.
+    /// pre: A training job contains canonical EVA LoRA parameters with harness=Ludwig.
+    /// post: The rendered YAML contains model_type: llm, base_model, adapter: lora,
+    ///       trainer: finetune, and all canonical params without silent defaults.
+    /// [P4] Constraining: Clear Boundaries — only explicit parameters cross the provider boundary.
+    #[test]
+    fn ludwig_harness_renders_sft_yaml() {
+        let mut params = TrainingParams {
+            num_epochs: 3,
+            batch_size: 1,
+            learning_rate: 1e-4,
+            ..TrainingParams::default()
+        };
+        params.lora.r = 32;
+        params.lora.alpha = 64;
+        params.lora.init_lora_weights = Some(types::LoraInit::Eva);
+        params.optimization.gradient_accumulation_steps = 16;
+        params.optimization.lr_scheduler = Some("cosine".to_string());
+        params.optimization.warmup_steps = Some(100);
+        params.sequence.sequence_len = Some(4096);
+        params.advanced.bf16 = true;
+        params.advanced.eval_split_ratio = Some(0.0012);
+        params.quantization.load_in_4bit = true;
+        params.harness = Some(TrainingHarnessId::Ludwig);
+
+        let mut job = TrainingJob::new(
+            std::path::PathBuf::from("/tmp/train_chat_full.jsonl"),
+            "unsloth/Qwen3.6-27B".to_string(),
+            params,
+            TrainingHostId::Runpod,
+            TrainingHarnessId::Ludwig,
+        );
+        job.artifacts = Some(crate::huggingface::TrainingArtifacts {
+            dataset: crate::huggingface::TrainingArtifact {
+                repository: "mdz-axo/capabilities-researcher-qa".to_string(),
+                revision: "main".to_string(),
+                path: "train_chat_full.jsonl".to_string(),
+                sha256: String::new(),
+            },
+            model_repository: "mdz-axo/capabilities-researcher-v3-eva".to_string(),
+            completion_manifest_path: "/workspace/completion.json".to_string(),
+        });
+
+        let yaml = crate::providers::LudwigHarness
+            .render_config(&job)
+            .expect("render Ludwig SFT YAML");
+
+        for expected in [
+            "model_type: llm",
+            "base_model: unsloth/Qwen3.6-27B",
+            "adapter:",
+            "type: lora",
+            "r: 32",
+            "alpha: 64",
+            "init_weights: eva",
+            "quantization:",
+            "bits: 4",
+            "input_features:",
+            "name: prompt",
+            "output_features:",
+            "name: output",
+            "trainer:",
+            "type: finetune",
+            "epochs: 3",
+            "batch_size: 1",
+            "gradient_accumulation_steps: 16",
+            "learning_rate:",
+            "warmup_steps: 100",
+            "decay: cosine",
+            "max_sequence_length: 4096",
+            "validation_split: 0.0012",
+            "output_dir:",
+        ] {
+            assert!(yaml.contains(expected), "missing `{expected}` in:\n{yaml}");
+        }
+    }
+
+    /// expect: The Ludwig harness output_dir and completion_marker match the
+    /// harness-agnostic RunPod pod contract (/workspace/outputs/{job_id}).
+    #[test]
+    fn ludwig_harness_output_dir_and_completion_marker() {
+        let harness = crate::providers::LudwigHarness;
+        let path = harness.output_dir("job-ludwig-123");
+        assert!(path.to_string_lossy().contains("job-ludwig-123"));
+        assert!(path.to_string_lossy().contains("/workspace/outputs"));
+        let marker = harness.completion_marker("job-ludwig-123");
+        assert!(
+            marker
+                .to_string_lossy()
+                .ends_with("adapter_model.safetensors"),
+            "completion marker should be adapter_model.safetensors, got: {}",
+            marker.display()
+        );
+        assert_eq!(harness.harness_id(), TrainingHarnessId::Ludwig);
+    }
+
+    /// Helper: render a TRL preference script for the given trainer.
+    /// Builds a canonical TrainingJob with the specified trainer and renders it.
+    fn render_preference_script_for(trainer: types::TrlTrainer) -> String {
+        let mut params = TrainingParams {
+            num_epochs: 3,
+            batch_size: 1,
+            learning_rate: 5e-6, // DPO/KTO/ORPO use lower LR than SFT
+            ..TrainingParams::default()
+        };
+        params.lora.r = 32;
+        params.lora.alpha = 64;
+        params.lora.init_lora_weights = Some(types::LoraInit::Eva);
+        params.optimization.gradient_accumulation_steps = 16;
+        params.sequence.sequence_len = Some(4096);
+        params.advanced.bf16 = true;
+        params.harness = Some(TrainingHarnessId::Trl);
+        params.trl_trainer = Some(trainer);
+
+        let mut job = TrainingJob::new(
+            std::path::PathBuf::from("/tmp/preference_data.jsonl"),
+            "unsloth/Qwen3.6-27B".to_string(),
+            params,
+            TrainingHostId::Runpod,
+            TrainingHarnessId::Trl,
+        );
+        job.artifacts = Some(crate::huggingface::TrainingArtifacts {
+            dataset: crate::huggingface::TrainingArtifact {
+                repository: "mdz-axo/preference-data".to_string(),
+                revision: "main".to_string(),
+                path: "train.jsonl".to_string(),
+                sha256: String::new(),
+            },
+            model_repository: "mdz-axo/preference-adapter".to_string(),
+            completion_manifest_path: "/workspace/completion.json".to_string(),
+        });
+
+        crate::providers::TrlHarness
+            .render_config(&job)
+            .expect("render TRL preference script")
     }
 }

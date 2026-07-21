@@ -20,3 +20,18 @@ templates:
       Render the canonical TrainingParams boundary as Axolotl YAML for the
       RunPod host. Provider support and LoRA contract validation remain in the
       training MCP server and registered lora-training skill.
+  - id: training/ludwig-lora
+    name: "Render typed LoRA parameters as Ludwig YAML"
+    path: ludwig-lora.j2
+    type: RenderAct
+    lexicon_terms: [render, config, training, transform]
+    description: >
+      Render the canonical TrainingParams boundary as Ludwig YAML for the
+      RunPod host. Ludwig (Linux Foundation AI & Data, Apache-2.0) is the
+      third harness alongside Axolotl and TRL. Phase 1 (v0.31.0): SFT only
+      (`trainer.type: finetune`). Phase 2 will add DPO/KTO/ORPO/GRPO via
+      trainer.type branches. Ludwig is the only harness in the candidate set
+      covering GRPO (reward-model-free RLHF) and the full advanced-PEFT
+      initializer set (PiSSA, EVA, CorDA, LoftQ) that hKask's LoraInit enum
+      declares. Provider support and LoRA contract validation remain in the
+      training MCP server and registered lora-training skill.
