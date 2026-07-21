@@ -28,7 +28,7 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge, SettingsBridge};
+use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge, SessionBridge, SettingsBridge};
 use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -132,6 +132,7 @@ pub struct ChatWindow {
     /// Optional settings/model mutation surface. When unset, `/model` and
     /// `/repl` fall back to stub messages (tests / minimal hosts).
     settings_bridge: Option<Arc<dyn SettingsBridge>>,
+    session_bridge: Option<Arc<dyn SessionBridge>>,
     /// Request owned by this window, if inference is active.
     pending_request: Option<InferenceRequestId>,
     /// Current inference state for async polling
@@ -166,6 +167,7 @@ impl ChatWindow {
             scroll_offset: 0,
             bridge,
             settings_bridge: None,
+            session_bridge: None,
             pending_request: None,
             inference_state: InferenceState::Idle,
             spinner_frame: 0,
@@ -177,6 +179,11 @@ impl ChatWindow {
     /// and `/repl` to actually mutate state; without it they emit a stub.
     pub fn with_settings_bridge(mut self, bridge: Arc<dyn SettingsBridge>) -> Self {
         self.settings_bridge = Some(bridge);
+        self
+    }
+
+    pub fn with_session_bridge(mut self, bridge: Arc<dyn SessionBridge>) -> Self {
+        self.session_bridge = Some(bridge);
         self
     }
 
@@ -397,10 +404,48 @@ impl ChatWindow {
                 }
             }
             "agent" => {
-                self.add_message(
-                    MessageSender::CnsAlert,
-                    format!("Current agent: {}", self.agent_name),
-                );
+                let sub = parts.get(1).copied().unwrap_or("");
+                match self.session_bridge.as_ref() {
+                    Some(b) => {
+                        if sub.is_empty() {
+                            self.add_message(
+                                MessageSender::CnsAlert,
+                                format!("Current agent: {}", b.current_agent()),
+                            );
+                        } else {
+                            self.agent_name = sub.to_string();
+                            match b.set_agent(sub) {
+                                Ok(msg) => self.add_message(MessageSender::CnsAlert, msg),
+                                Err(e) => self.add_message(
+                                    MessageSender::CnsAlert,
+                                    format!("Error: {}", e),
+                                ),
+                            }
+                        }
+                    }
+                    None => self.add_message(
+                        MessageSender::CnsAlert,
+                        format!("Current agent: {} (agent switching unavailable in this host)", self.agent_name),
+                    ),
+                }
+            }
+            "agents" | "ls" => {
+                match self.session_bridge.as_ref() {
+                    Some(b) => self.add_message(MessageSender::CnsAlert, b.list_agents_display()),
+                    None => self.add_message(
+                        MessageSender::CnsAlert,
+                        "Agent listing unavailable in this host. Use `kask agents`.".into(),
+                    ),
+                }
+            }
+            "history" | "hist" => {
+                match self.session_bridge.as_ref() {
+                    Some(b) => self.add_message(MessageSender::CnsAlert, b.history_display()),
+                    None => self.add_message(
+                        MessageSender::CnsAlert,
+                        "History unavailable in this host. Use `kask history`.".into(),
+                    ),
+                }
             }
             "curator" => {
                 self.mode = TuiMode::Curator;

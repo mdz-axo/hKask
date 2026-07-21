@@ -376,6 +376,7 @@ pub fn run_tui(
             let session = session
                 .with_layout_path(layout_path)
                 .with_settings_bridge(bridge.clone())
+                .with_session_bridge(bridge.clone())
                 .with_config_bridge(bridge.clone())
                 .with_registry_bridge(bridge.clone())
                 .with_wallet_bridge(bridge.clone())

@@ -7,8 +7,8 @@
 use std::sync::Arc;
 
 use crate::repl_bridge::{
-    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SettingsBridge,
-    SystemBridge, TuiModelInfo, TuiTurnResult,
+    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SessionBridge,
+    SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
 };
 
 /// A minimal mock bridge that returns defaults for all methods.
@@ -108,6 +108,29 @@ pub(crate) fn mock_bridges() -> (Arc<dyn SystemBridge>, Arc<dyn ReplBridge>) {
 
 /// A mock `SettingsBridge` for tests that exercise `/model` or `/repl`.
 pub(crate) fn mock_settings_bridge() -> Arc<dyn SettingsBridge> {
+    Arc::new(MockReplBridge {
+        agent_name: "test-agent".to_string(),
+        model_name: "test-model".to_string(),
+    })
+}
+
+impl SessionBridge for MockReplBridge {
+    fn current_agent(&self) -> String {
+        self.agent_name.clone()
+    }
+    fn set_agent(&self, name: &str) -> anyhow::Result<String> {
+        Ok(format!("Switched to agent: {}", name))
+    }
+    fn list_agents_display(&self) -> String {
+        "(mock agents)".to_string()
+    }
+    fn history_display(&self) -> String {
+        "(mock history)".to_string()
+    }
+}
+
+/// A mock `SessionBridge` for tests that exercise `/agent`, `/agents`, `/history`.
+pub(crate) fn mock_session_bridge() -> Arc<dyn SessionBridge> {
     Arc::new(MockReplBridge {
         agent_name: "test-agent".to_string(),
         model_name: "test-model".to_string(),

@@ -111,6 +111,7 @@ impl TuiSession {
 
     with_bridges!(tui_bridge_setter;
         settings_bridge, SettingsBridge, with_settings_bridge;
+        session_bridge, SessionBridge, with_session_bridge;
         wallet_bridge, WalletDataBridge, with_wallet_bridge;
         config_bridge, ConfigDataBridge, with_config_bridge;
         backup_bridge, BackupDataBridge, with_backup_bridge;
