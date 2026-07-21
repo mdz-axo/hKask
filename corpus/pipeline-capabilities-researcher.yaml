@@ -1,12 +1,12 @@
-# Capabilities Researcher — Full Pipeline Manifest v7.0
+# Capabilities Researcher — Full Pipeline Manifest v8.0
 # Traces from raw files through trained LoRA adapter.
 #
 # Type: PipelineManifest
 # Persona: Business and Economics Researcher — Capability-Performance Gap Analysis
 # Source: 106 files (PDF + HTML) from Clones/Library/Researcher
-# Target: Bloom-balanced QAs for LoRA training via Axolotl + PiSSA
+# Target: Bloom-balanced QAs for EVA LoRA training via Axolotl
 #
-# Architecture (v7.0):
+# Architecture (v8.0):
 #   All pipeline steps run through MCP docproc tools:
 #     kask mcp invoke --server docproc --tool docproc_* --input '{...}'
 #
@@ -45,7 +45,7 @@
 #     section in system prompt via build-prompts.j2 template.
 
 id: capabilities-researcher-pipeline
-version: "7.0"
+version: "8.0"
 type: pipeline
 energy_budget:
   gas_cap: 500000
@@ -55,11 +55,11 @@ description: >
   All steps run through MCP docproc tools with Jinja2 templates.
   Separate embed, tag, and extract_triples steps (no combined classify).
   h_mem knowledge graph injected into build-prompts.
-  SemDeDup deduplication. Axolotl + PiSSA LoRA training.
+  SemDeDup deduplication. Typed EVA LoRA submission through the training MCP boundary.
 
 env:
   HKASK_EMBEDDING_DIM: "1024"
-  HKASK_DB_PASSPHRASE: "hkask-default-passphrase-2024"
+
   HKASK_DB_POOL_SIZE: "64"
   HKASK_HTTP_POOL_MAX_IDLE: "256"
   HKASK_CLASSIFIER_MODEL: "DI/Qwen/Qwen3-235B-A22B-Instruct-2507"
@@ -327,31 +327,43 @@ steps:
   # ═══════════════════════════════════════════════════════════════════════
   # Phase 9: LoRA Training (RunPod H100 via training_submit MCP tool)
   #
-  # training_submit sends the ChatML dataset to the RunPod training host
-  # which runs Axolotl + PiSSA. The training host is an external service —
-  # not a project dependency. The hKask codebase is pure Rust.
+  # training_submit accepts the typed TrainingParams contract. Do not pass a
+  # raw config path or host selector: those bypass the canonical harness seam
+  # and are not part of TrainSubmitRequest.
   #
-  # PiSSA initializes LoRA matrices from principal singular values of
-  # the weight matrices, giving better performance than standard LoRA
-  # initialization at the same rank.
-  #
-  # Lessons applied from rust-reasoning config (Axolotl-Partners/rust-adapter-scripts on HuggingFace):
-  #   - peft_init_lora_weights: pissa_niter_4 (correct Axolotl syntax)
-  #   - liger_kernel + cut_cross_entropy for fused kernel speedups
-  #   - flash_attention: false → SDPA (PyTorch native on H100)
-  #   - sample_packing disabled (requires flash-attn for cross-sample masking)
-  #   - gradient_checkpointing + grad_accum 16 for memory efficiency
-  #   - warmup_steps: 100 (not 672 — too high for 80K dataset)
-  #   - learning_rate: 1e-4 (lower works better with PiSSA init)
-  #   - strict: false, early_stopping_patience: 25
+  # EVA requires activation-SVD initialization through PEFT's
+  # initialize_lora_eva_weights(model, dataloader). The training preflight
+  # refuses this billable step until the Axolotl harness proves that call.
   # ═══════════════════════════════════════════════════════════════════════
   - id: train_lora
-    description: "Submit LoRA training job with PiSSA init to RunPod H100"
+    description: "Submit typed EVA LoRA training job to RunPod H100"
     tool: training_submit
     params:
       dataset_path: "corpus/qa_pairs/train_chat.jsonl"
       base_model: "unsloth/Qwen3.6-27B"
-      config_file: "corpus/lora/axolotl-pissa-config.yaml"
       skill_name: "capabilities-researcher"
-      host: runpod
+      params:
+        num_epochs: 2
+        batch_size: 1
+        learning_rate: 0.0001
+        lora:
+          r: 32
+          alpha: 64
+          dropout: 0
+          target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+          init_lora_weights: eva
+        optimization:
+          optimizer: adamw_8bit
+          weight_decay: 0.01
+          warmup_steps: 100
+          lr_scheduler: cosine
+          gradient_accumulation_steps: 16
+          max_grad_norm: 0.3
+        sequence:
+          sequence_len: 4096
+        advanced:
+          attn_implementation: sdpa
+          gradient_checkpointing: "true"
+          bf16: true
+          eval_split_ratio: 0.05
     requires_consent: true
