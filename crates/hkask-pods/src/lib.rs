@@ -43,6 +43,10 @@ pub use curator_agent::CuratorAgent;
 
 pub use error::{CoreError, MemoryError};
 pub use inference_loop::InferenceLoop;
+pub use inference_sensors::{
+    CircuitBreakerStateSensor, InferenceAvailableSensor, InferenceGasRemainingSensor,
+    InferenceModelAvailableSensor, InferenceSensorState,
+};
 pub use loop_system::LoopSystem;
 pub use pod::{ActivePods, PodDeployment, PodFactory, PodID, PodKind, PodRegistry};
 pub use ports::{

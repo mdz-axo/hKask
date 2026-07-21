@@ -52,20 +52,26 @@ This skill does not train, load, initialize, merge, or evaluate models.
 ### `lora-training/select-method`
 
 1. Read the declared training inputs and preserve explicit operator requirements.
-2. Refine one composable recommendation record through five gates: inference
-   constraint, memory evidence, task distance, quality/cost, and knowledge
-   preservation. Gates refine compatible fields; they do not overwrite the
-   whole recommendation or silently replace earlier constraints.
+2. Refine one composable recommendation record through six gates: inference
+   constraint, memory evidence, task distance, quality/cost, knowledge
+   preservation, and harness capability. Gates refine compatible fields; they
+   do not overwrite the whole recommendation or silently replace earlier
+   constraints.
 3. Emit only derivable values for `base_mode`, `adapter_form`, `scaling`,
-   `initializer`, `preservation`, and `rank_range`; otherwise emit
-   `undetermined`, required evidence, alternatives, constraints, or conflicts.
+   `initializer`, `preservation`, `rank_range`, `harness`, and `trainer`;
+   otherwise emit `undetermined`, required evidence, alternatives, constraints,
+   or conflicts.
 4. Treat `model_size_b × 2` only as an approximate bf16 base-weight floor.
    Memory pressure may favor QLoRA, but these two scalar inputs do not establish
    that a configuration fits or will OOM.
 5. Preserve operator-requested initializers uniformly. For EVA, report
    `initialize_lora_eva_weights(model, dataloader)` as required evidence; do not
    hardcode a recommendation-phase refusal.
-6. Return separate `recommendation`, `readiness`, `justification`, and
+6. G6 (harness capability) recommends axolotl or trl based on task requirements.
+   TRL trainers (SFT, DPO, KTO, ORPO, Reward) are selected based on data shape
+   and task type. Axolotl remains the runtime default when harness is
+   undetermined — no silent migration.
+7. Return separate `recommendation`, `readiness`, `justification`, and
    `authority` objects. Emit `cns.lora.select`.
 
 ### `lora-training/audit-config`

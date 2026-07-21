@@ -7,6 +7,7 @@
 //! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
 //! the port is passed to this loop.
 
+use hkask_cns::sensor_provider::SensorRegistry;
 use hkask_cns::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopActionParams, LoopId,
     RegulationData, Signal, SignalMetric,
@@ -15,9 +16,14 @@ use hkask_ports::CircuitBreakerPort;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::inference_sensors::{
+    CircuitBreakerStateSensor, GAS_SET_POINT as SENSOR_GAS_SET_POINT, InferenceAvailableSensor,
+    InferenceGasRemainingSensor, InferenceModelAvailableSensor, InferenceSensorState,
+};
+
 /// Gas budget set-point: when gas remaining drops below this ratio,
 /// the loop self-throttles via `AdjustEnergyBudget`.
-const GAS_SET_POINT: f64 = 0.2;
+const GAS_SET_POINT: f64 = SENSOR_GAS_SET_POINT;
 
 /// Inference Loop — owns energy budget and model selection state.
 ///
@@ -29,24 +35,38 @@ const GAS_SET_POINT: f64 = 0.2;
 /// `Throttle`/`AdjustEnergyBudget` actions targeting itself (self-throttle).
 /// When the model is unavailable, it produces `Calibrate` to signal that
 /// model selection is needed.
+///
+/// Sensing is delegated to `SensorProvider` implementations registered in
+/// the `sensor_registry`. The loop shares state with its sensors via
+/// `Arc<InferenceSensorState>`.
 pub struct InferenceLoop {
     circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
-    /// Gas remaining in this loop's own budget (simple atomic counter,
-    /// updated by external callers after each inference call).
-    gas_remaining: Arc<AtomicU64>,
-    /// Gas capacity — the budget cap set at allocation time.
-    gas_cap: u64,
+    /// Shared state between the loop and its sensors.
+    sensor_state: Arc<InferenceSensorState>,
+    /// Sensor registry — holds the SensorProvider implementations for this loop.
+    sensor_registry: SensorRegistry,
     /// Currently active inference model (None = not yet selected / unavailable).
+    /// Kept in sync with `sensor_state.model_available`.
     current_model: Option<String>,
 }
 
 impl InferenceLoop {
     /// Create a new Inference Loop.
     pub fn new() -> Self {
+        let sensor_state = Arc::new(InferenceSensorState::new());
+        let sensor_registry = SensorRegistry::new();
+        // Register sensors that don't need the circuit breaker yet —
+        // they'll be re-registered when the circuit breaker is set.
+        sensor_registry.register(Arc::new(InferenceGasRemainingSensor::new(Arc::clone(
+            &sensor_state,
+        ))));
+        sensor_registry.register(Arc::new(InferenceModelAvailableSensor::new(Arc::clone(
+            &sensor_state,
+        ))));
         Self {
             circuit_breaker: None,
-            gas_remaining: Arc::new(AtomicU64::new(0)),
-            gas_cap: 0,
+            sensor_state,
+            sensor_registry,
             current_model: None,
         }
     }
@@ -62,23 +82,24 @@ impl InferenceLoop {
     /// Set the energy budget for this loop.
     ///
     /// `cap` is the total gas allocation; `remaining` is the current balance.
-    /// Both are stored so that `sense()` can emit the gas-remaining ratio.
+    /// Both are stored in the shared sensor state so that sensors can emit
+    /// the gas-remaining ratio.
     pub fn with_energy_budget(mut self, cap: u64, remaining: u64) -> Self {
-        self.gas_cap = cap;
-        self.gas_remaining = Arc::new(AtomicU64::new(remaining));
+        self.sensor_state.sync_gas(remaining, cap);
         self
     }
 
     /// Set the active inference model.
     pub fn with_model(mut self, model: impl Into<String>) -> Self {
         self.current_model = Some(model.into());
+        self.sensor_state.set_model_available(true);
         self
     }
 
     /// Get the current gas remaining value (read-only sense signal).
     #[must_use]
     pub fn gas_remaining(&self) -> u64 {
-        self.gas_remaining.load(Ordering::Relaxed)
+        self.sensor_state.gas_remaining.load(Ordering::Relaxed)
     }
 
     /// Read-only accessor for the L1 domain metric.
@@ -88,7 +109,10 @@ impl InferenceLoop {
     /// authoritative regulator; this counter is a read-only mirror.
     #[must_use]
     pub fn token_usage(&self) -> (u64, u64) {
-        (self.gas_remaining.load(Ordering::Relaxed), self.gas_cap)
+        (
+            self.sensor_state.gas_remaining.load(Ordering::Relaxed),
+            self.sensor_state.gas_cap.load(Ordering::Relaxed),
+        )
     }
 
     /// Sync this loop's gas counter from the authoritative L6 budget.
@@ -97,17 +121,14 @@ impl InferenceLoop {
     /// to keep the L1 sense signal (`inference_gas_remaining`) in sync with
     /// the L6 regulatory budget. This is the ONLY way external code should
     /// update InferenceLoop's gas counter.
-    pub fn sync_gas_state(&self, remaining: u64, _cap: u64) {
-        self.gas_remaining.store(remaining, Ordering::Relaxed);
-        // Note: gas_cap is not atomic; it's only set at construction time
-        // and should not change during a session. If sync provides a different
-        // cap, we accept it as the loop is sharing state with CyberneticsLoop.
+    pub fn sync_gas_state(&self, remaining: u64, cap: u64) {
+        self.sensor_state.sync_gas(remaining, cap);
     }
 
     /// Get the energy budget cap.
     #[must_use]
     pub fn gas_cap(&self) -> u64 {
-        self.gas_cap
+        self.sensor_state.gas_cap.load(Ordering::Relaxed)
     }
 
     // Explicit 4-stage cycle: sense → compare → compute → act
