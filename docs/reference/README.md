@@ -21,9 +21,9 @@ Neutral, complete, descriptive-only documentation of the hKask system as it is. 
 
 - [Skill Registry Index](skills/README.md) — All 46 skills + 2 templates + 1 bundle with FlowDef parameters
 
-## CNS Span Registry
+## Regulation Span Registry
 
-- [CNS Span Registry](cns-spans.md) — Domain-specific ObservableSpan enums, emission points, algedonic thresholds
+- [Regulation Span Registry](cns-spans.md) — Domain-specific ObservableSpan enums, emission points, algedonic thresholds
 
 ## Magna Carta
 

@@ -1,5 +1,5 @@
 ---
-title: "CNS Span Registry — Reference"
+title: "Regulation Span Registry — Reference"
 audience: [developers, operators, agents]
 last_updated: 2026-07-07
 version: "0.31.0"
@@ -11,9 +11,9 @@ last-verified-against: "a5db25a0"
 
 ## 1. Purpose
 
-CNS spans are the observability substrate of hKask's Cybernetic Nervous System (Loop 6). Every operation that affects system state — tool invocations, inference calls, gas consumption, contract lifecycle events, federation sync — emits a **span** through the CNS tracing infrastructure.
+Regulation spans are the observability substrate of hKask's Cybernetic Nervous System (Loop 6). Every operation that affects system state — tool invocations, inference calls, gas consumption, contract lifecycle events, federation sync — emits a **span** through the Regulation tracing infrastructure.
 
-A **span** is a typed identifier that pins an observation to a canonical dot-separated namespace (e.g., `cns.tool.web_search`). Spans carry an **operation** verb (e.g., `invoked`, `completed`, `reserved`) and optional structured fields. They flow through two paths:
+A **span** is a typed identifier that pins an observation to a canonical dot-separated namespace (e.g., `reg.tool.web_search`). Spans carry an **operation** verb (e.g., `invoked`, `completed`, `reserved`) and optional structured fields. They flow through two paths:
 
 1. **tracing infrastructure** — `tracing::info!(target: "cns", cns_domain = …, operation = …)` — for structured logging
 2. **ν-event persistence** — `RegulationRecord::new()` → `RegulationSink::persist()` — for the cybernetic audit trail
@@ -23,7 +23,7 @@ A **span** is a typed identifier that pins an observation to a canonical dot-sep
 | Concept | Role | Contains |
 |---|---|---|
 | **ObservableSpan** (trait) | Typed span enums implement this; provides `as_str()`, `emit()`, `to_event()`, and `emit_to()` | Canonical namespace string |
-| **Span** (struct) | Pair of `SpanNamespace` + path (e.g., `cns.tool` + `invoked` → `cns.tool.invoked`) | Namespace + full path |
+| **Span** (struct) | Pair of `SpanNamespace` + path (e.g., `reg.tool` + `invoked` → `reg.tool.invoked`) | Namespace + full path |
 | **SpanNamespace** (newtype) | Validated string wrapper; construction validates against `CANONICAL_NAMESPACES` | Dot-separated namespace string |
 | **RegulationRecord** (struct) | Full cybernetic observation: who observed, what span, what phase, what was observed | Span, `WebID`, `CyclePhase`, `observation` (JSON), `regulation`, `outcome`, recursion depth |
 | **SpanKind** (enum) | Typed constructors for common span paths (eliminates string typos) | Canonical (namespace, path) pairs |
@@ -42,18 +42,18 @@ Namespaces form a tree rooted at `cns`. The namespace prefix maps to a `SpanCate
 
 | Category | Prefixes | Examples |
 |---|---|---|
-| **Cybernetics** | `cns.variety*`, `cns.gas*`, `cns.regulation*` | `cns.variety`, `cns.gas.reserved`, `cns.regulation.impact_verified` |
-| **Curation** | `cns.curation*`, `cns.spec*` | `cns.curation.directive_acknowledged` |
-| **Inference** | `cns.inference*` | `cns.inference` |
-| **Episodic** | `cns.agent_pod*`, `cns.connector*` | `cns.agent_pod.registered` |
-| **Wallet** | `cns.wallet*` | `cns.wallet.balance`, `cns.wallet.key_issued` |
-| **Unknown** | Everything else | `cns.tool.web_search`, `cns.consent`, `cns.api.request` |
+| **Cybernetics** | `reg.variety*`, `reg.gas*`, `reg.regulation*` | `reg.variety`, `reg.gas.reserved`, `reg.regulation.impact_verified` |
+| **Curation** | `reg.curation*`, `reg.spec*` | `reg.curation.directive_acknowledged` |
+| **Inference** | `reg.inference*` | `reg.inference` |
+| **Episodic** | `reg.agent_pod*`, `reg.connector*` | `reg.agent_pod.registered` |
+| **Wallet** | `reg.wallet*` | `reg.wallet.balance`, `reg.wallet.key_issued` |
+| **Unknown** | Everything else | `reg.tool.web_search`, `reg.consent`, `reg.api.request` |
 
 ---
 
 ## 3. Domain-Specific Span Enums
 
-### 3.1 RegulationSpan — Core CNS Spans
+### 3.1 RegulationSpan — Core Regulation Spans
 
 **File:** `crates/hkask-types/src/cns.rs`
 
@@ -61,13 +61,13 @@ Core spans used across 2+ crates. This is the foundational enum implementing `Ob
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `Tool { subsystem }` | `cns.tool.{subsystem}` | MCP tool invocation | Any MCP server dispatches a tool call. Subsystem identifies which server |
-| `Inference` | `cns.inference` | LLM inference request/response | GovernedInference prepares/executes/checks an inference call |
-| `AgentPod` | `cns.agent_pod` | Agent pod lifecycle events | Pod registration, activation, deactivation |
-| `Gas` | `cns.gas` | Gas (energy/budget) consumption | Gas reserved, settled, or depleted for any operation |
-| `Curation` | `cns.curation` | Curation loop operations | Registry sync, pod sync, directive issuance |
-| `SelfHeal` | `cns.heal` | Self-healing operation | The CNS runtime's heal callback fires |
-| `MemoryEncode` | `cns.memory.encode` | Memory encoding operation | Episodic or semantic memory encodes an observation |
+| `Tool { subsystem }` | `reg.tool.{subsystem}` | MCP tool invocation | Any MCP server dispatches a tool call. Subsystem identifies which server |
+| `Inference` | `reg.inference` | LLM inference request/response | GovernedInference prepares/executes/checks an inference call |
+| `AgentPod` | `reg.agent_pod` | Agent pod lifecycle events | Pod registration, activation, deactivation |
+| `Gas` | `reg.gas` | Gas (energy/budget) consumption | Gas reserved, settled, or depleted for any operation |
+| `Curation` | `reg.curation` | Curation loop operations | Registry sync, pod sync, directive issuance |
+| `SelfHeal` | `reg.heal` | Self-healing operation | The Regulation runtime's heal callback fires |
+| `MemoryEncode` | `reg.memory.encode` | Memory encoding operation | Episodic or semantic memory encodes an observation |
 
 **ToolSubsystem variants** for `RegulationSpan::Tool`:
 
@@ -75,87 +75,87 @@ Core spans used across 2+ crates. This is the foundational enum implementing `Ob
 
 ### 3.2 AcpSpan — Agent Client Protocol
 
-**File:** `crates/hkask-cns/src/acp_span.rs`
+**File:** `crates/hkask-regulation/src/acp_span.rs`
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `AcpUserPodMemorySize` | `cns.acp.userpod.memory_size` | UserPod memory size reported via ACP | [INFERRED] On userpod state sync or ACP handshake |
-| `AcpIdeConnectionState` | `cns.acp.ide.connection_state` | IDE connection state change | [INFERRED] IDE client connects or disconnects |
+| `AcpUserPodMemorySize` | `reg.acp.userpod.memory_size` | UserPod memory size reported via ACP | [INFERRED] On userpod state sync or ACP handshake |
+| `AcpIdeConnectionState` | `reg.acp.ide.connection_state` | IDE connection state change | [INFERRED] IDE client connects or disconnects |
 
 ### 3.3 ClassifySpan — Classification Operations
 
-**File:** `crates/hkask-cns/src/classify_span.rs`
+**File:** `crates/hkask-regulation/src/classify_span.rs`
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `ClassifyDualFidelity` | `cns.classify.dual_fidelity` | Dual-fidelity classification decision | [INFERRED] High-fidelity vs. low-fidelity classification mode selected |
-| `ClassifyDrift` | `cns.classify.drift` | Classification drift detected | [INFERRED] Model output distribution shifts beyond threshold |
+| `ClassifyDualFidelity` | `reg.classify.dual_fidelity` | Dual-fidelity classification decision | [INFERRED] High-fidelity vs. low-fidelity classification mode selected |
+| `ClassifyDrift` | `reg.classify.drift` | Classification drift detected | [INFERRED] Model output distribution shifts beyond threshold |
 
 ### 3.4 ContractSpan — Spec Contract Lifecycle
 
-**File:** `crates/hkask-cns/src/contract_span.rs`
+**File:** `crates/hkask-regulation/src/contract_span.rs`
 
-Emitted through `emit_contract_*()` functions in `crates/hkask-cns/src/contract_events.rs`. All events use `CyclePhase::Act` and are persisted via `RegulationSink`.
+Emitted through `emit_contract_*()` functions in `crates/hkask-regulation/src/contract_events.rs`. All events use `CyclePhase::Act` and are persisted via `RegulationSink`.
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `ContractProposed` | `cns.contract.proposed` | UserPod proposes a spec contract | Phase B2–B4: userpod submits contract for human review |
-| `ContractAccepted` | `cns.contract.accepted` | Human accepts the contract | Phase B3: reviewer approves the proposed contract |
-| `ContractRejected` | `cns.contract.rejected` | Human rejects the contract | Phase B3: reviewer rejects with a reason |
-| `ContractViolated` | `cns.contract.violated` | Contract violation during testing | Test harness detects contract non-conformance |
+| `ContractProposed` | `reg.contract.proposed` | UserPod proposes a spec contract | Phase B2–B4: userpod submits contract for human review |
+| `ContractAccepted` | `reg.contract.accepted` | Human accepts the contract | Phase B3: reviewer approves the proposed contract |
+| `ContractRejected` | `reg.contract.rejected` | Human rejects the contract | Phase B3: reviewer rejects with a reason |
+| `ContractViolated` | `reg.contract.violated` | Contract violation during testing | Test harness detects contract non-conformance |
 
 **Algedonic threshold:** Contract violations feed into contract quality metrics. No direct threshold on individual violations — aggregated into contract coverage and quality scores.
 
 ### 3.5 InfraSpan — Infrastructure Spans
 
-**File:** `crates/hkask-cns/src/infra_span.rs`
+**File:** `crates/hkask-regulation/src/infra_span.rs`
 
 Cross-subsystem spans used by curator, governance, chat, and wallet components.
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `CiInvariantViolation` | `cns.ci.invariant.violation` | CI invariant check failed | CI pipeline detects a structural invariant break |
-| `GuardViolation` | `cns.guard.violation` | Guard rule triggered | A prohibition or constraint guard fires |
-| `CuratorConsolidation` | `cns.curator.consolidation` | Curator consolidation run | Curator consolidates pod state from CNS telemetry |
-| `Chat` | `cns.chat` | Chat/messaging event | Message sent, thread created, turn completed |
-| `WalletConversion` | `cns.wallet.conversion` | Currency conversion | rJ ↔ USDC conversion executed |
+| `CiInvariantViolation` | `reg.ci.invariant.violation` | CI invariant check failed | CI pipeline detects a structural invariant break |
+| `GuardViolation` | `reg.guard.violation` | Guard rule triggered | A prohibition or constraint guard fires |
+| `CuratorConsolidation` | `reg.curator.consolidation` | Curator consolidation run | Curator consolidates pod state from Regulation telemetry |
+| `Chat` | `reg.chat` | Chat/messaging event | Message sent, thread created, turn completed |
+| `WalletConversion` | `reg.wallet.conversion` | Currency conversion | rJ ↔ USDC conversion executed |
 
 ### 3.6 QaSpan — QA Repair Lifecycle
 
-**File:** `crates/hkask-cns/src/qa_span.rs`
+**File:** `crates/hkask-regulation/src/qa_span.rs`
 
 Emitted by the QA test harness (`crates/hkask-test-harness/src/qa_script.rs`) and qa-script-builder.
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `QaRepairAttempted` | `cns.qa.repair_attempted` | Repair step attempted | QA script executes a repair action after a failure |
-| `QaRepairVerified` | `cns.qa.repair_verified` | Repair outcome verified | Post-repair verification confirms fix or detects residual failure |
-| `QaRepairExhausted` | `cns.qa.repair_exhausted` | Repair attempts exhausted | All repair strategies tried; none succeeded |
+| `QaRepairAttempted` | `reg.qa.repair_attempted` | Repair step attempted | QA script executes a repair action after a failure |
+| `QaRepairVerified` | `reg.qa.repair_verified` | Repair outcome verified | Post-repair verification confirms fix or detects residual failure |
+| `QaRepairExhausted` | `reg.qa.repair_exhausted` | Repair attempts exhausted | All repair strategies tried; none succeeded |
 
 **Algedonic threshold:** `QaRepairExhausted` is a strong signal of quality degradation. [INFERRED] Accumulated exhausted repairs escalate to Curator.
 
 ### 3.7 SeamSpan — Architecture Seams
 
-**File:** `crates/hkask-cns/src/seam_span.rs`
+**File:** `crates/hkask-regulation/src/seam_span.rs`
 
 Monitors architectural seam health — the boundaries where Strangler Fig migration patterns occur.
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `ArchitectureSeamCoverage` | `cns.architecture.seam.coverage` | Seam coverage measurement | Seam watcher (`seam_watcher.rs`) evaluates coverage of a seam boundary |
-| `ArchitectureSeamDrift` | `cns.architecture.seam.drift` | Seam drift detected | Implementation diverges from the seam definition |
+| `ArchitectureSeamCoverage` | `reg.architecture.seam.coverage` | Seam coverage measurement | Seam watcher (`seam_watcher.rs`) evaluates coverage of a seam boundary |
+| `ArchitectureSeamDrift` | `reg.architecture.seam.drift` | Seam drift detected | Implementation diverges from the seam definition |
 
 **Algedonic threshold:** Seam drift triggers warnings. Coverage below a configurable `seam_coverage_min` set-point triggers critical alerts.
 
 ### 3.8 SloSpan — SLO Evaluation
 
-**File:** `crates/hkask-cns/src/slo_span.rs`
+**File:** `crates/hkask-regulation/src/slo_span.rs`
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `SloEvaluated` | `cns.slo.evaluated` | SLO metric evaluated | SloManager evaluates a service-level objective against its window |
+| `SloEvaluated` | `reg.slo.evaluated` | SLO metric evaluated | SloManager evaluates a service-level objective against its window |
 
-**Algedonic threshold:** SLO breach escalations are handled by `RegulationLedger` via `cns.slo.breach_escalated` (emitted as a tracing event, not a typed span variant). Severity is `Critical` if the SLO's `Severity` field is `Critical`.
+**Algedonic threshold:** SLO breach escalations are handled by `RegulationLedger` via `reg.slo.breach_escalated` (emitted as a tracing event, not a typed span variant). Severity is `Critical` if the SLO's `Severity` field is `Critical`.
 
 ### 3.9 FederationSpan — Federation Operations
 
@@ -163,7 +163,7 @@ Monitors architectural seam health — the boundaries where Strangler Fig migrat
 
 19 variants covering the full federation lifecycle: `CrdtMerge`, `LinkEstablished`, `LinkLost`, `LinkDegraded`, `MemberLeft`, `InviteSent`, `InviteReceived`, `InviteAccepted`, `InviteRejected`, `InviteExpired`, `LinkPaused`, `LinkResumed`, `MemberRevoked`, `Dissolved`, `RegistrySync`, `ArtifactSync`, `ConduitRoute`, `ConduitRouteLost`, `CrdtConflict`.
 
-All namespaced under `cns.federation.*`. Federation span strings must match `CANONICAL_NAMESPACES` (validated in tests).
+All namespaced under `reg.federation.*`. Federation span strings must match `CANONICAL_NAMESPACES` (validated in tests).
 
 ### 3.10 WalletSpan — Wallet Operations
 
@@ -171,13 +171,13 @@ All namespaced under `cns.federation.*`. Federation span strings must match `CAN
 
 14 variants covering wallet lifecycle: `Balance`, `Deposit`, `DepositShielded`, `Withdrawal`, `Conversion`, `KeyIssued`, `KeyRevoked`, `KeyExpired`, `KeyExhausted`, `ChainError`, `Created`, `Draw`, `Spend`, `Exhausted`.
 
-All namespaced under `cns.wallet.*`. Emitted through `crates/hkask-wallet/src/manager/cns.rs` which bridges wallet operations to the CNS event sink.
+All namespaced under `reg.wallet.*`. Emitted through `crates/hkask-wallet/src/manager/cns.rs` which bridges wallet operations to the Regulation event sink.
 
 ### 3.11 ApiRequestSpan — API Metering
 
-**File:** `crates/hkask-cns/src/api_metering.rs`
+**File:** `crates/hkask-regulation/src/api_metering.rs`
 
-A single-variant span (`cns.api.request`) emitted for every authenticated API request after the rate limit check passes. Captures:
+A single-variant span (`reg.api.request`) emitted for every authenticated API request after the rate limit check passes. Captures:
 
 | Field | Description |
 |-------|-------------|
@@ -188,7 +188,7 @@ A single-variant span (`cns.api.request`) emitted for every authenticated API re
 | `allocation_remaining` | Remaining rJoules in the key's encumbrance |
 | `rate_limit_status` | `ok`, `rate_exceeded`, or `tokens_exceeded` |
 
-Emitted through `ApiRequestSpan::emit_to()` in the API key auth middleware (`crates/hkask-api/src/middleware/api_key_auth.rs`). The span is an **admission observation** (CyclePhase::Sense) — it records that a request entered the system, not its completion. Gas consumption is settled later by `GovernedTool`/`GovernedInference` and tracked via `cns.gas.*` spans.
+Emitted through `ApiRequestSpan::emit_to()` in the API key auth middleware (`crates/hkask-api/src/middleware/api_key_auth.rs`). The span is an **admission observation** (CyclePhase::Sense) — it records that a request entered the system, not its completion. Gas consumption is settled later by `GovernedTool`/`GovernedInference` and tracked via `reg.gas.*` spans.
 
 **Configuration:** `RateLimitConfig::from_env()` reads `HKASK_API_RATE_LIMIT_*` environment variables. Per-key limits adapt over time via `ApiMeter::learn()` (LogNormal cost distribution learning).
 
@@ -212,9 +212,9 @@ RegulationRecord::new()                              AlgedonicManager
 
 Spans are emitted through two mechanisms:
 
-1. **Tracing path** (`ObservableSpan::emit()` / `RegulationSpan::emit()`): writes `tracing::info!(target: "cns", cns_domain = …, operation = …, "CNS")`. Used by `RegulationSpan` variants and by domain-span enums that delegate to `ObservableSpan`.
+1. **Tracing path** (`ObservableSpan::emit()` / `RegulationSpan::emit()`): writes `tracing::info!(target: "cns", cns_domain = …, operation = …, "Regulation")`. Used by `RegulationSpan` variants and by domain-span enums that delegate to `ObservableSpan`.
 
-2. **ν-event path**: constructs `RegulationRecord` with a `Span` (namespace + path), `CyclePhase`, observation JSON, and optional regulation/outcome metadata; persists via `RegulationSink::persist()`. Used by contract events, seam watcher, wallet CNS manager, governed inference/tool, cybernetics loop, and consent manager.
+2. **ν-event path**: constructs `RegulationRecord` with a `Span` (namespace + path), `CyclePhase`, observation JSON, and optional regulation/outcome metadata; persists via `RegulationSink::persist()`. Used by contract events, seam watcher, wallet Regulation manager, governed inference/tool, cybernetics loop, and consent manager.
 
 ### 4.2 Storage
 
@@ -262,7 +262,7 @@ The default threshold is `DEFAULT_VARIETY_MAX_DEFICIT`. Per-domain expected vari
 ### CLI
 
 ```sh
-# Overall CNS health with span count summary
+# Overall Regulation health with span count summary
 kask cns health
 
 # Active algedonic alerts
@@ -272,13 +272,13 @@ kask cns alerts
 kask cns variety
 
 # Subscribe to live events for specific spans
-kask cns subscribe --agent curator --spans cns.tool.web_search,cns.inference
+kask cns subscribe --agent curator --spans reg.tool.web_search,cns.inference
 ```
 
 ### Programmatic
 
 ```rust
-use hkask_cns::RegulationLedger;
+use hkask_regulation::RegulationLedger;
 
 let rt = RegulationLedger::with_threshold(100);
 let variety = rt.variety().await; // HashMap<SpanNamespace, u64>

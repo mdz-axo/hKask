@@ -43,7 +43,7 @@ The `attenuate()` method (line 355) creates a child token with `attenuation_leve
 
 #### The GovernedTool Membrane
 
-The `GovernedTool<P: ToolPort>` at `crates/hkask-cns/src/governed_tool.rs` is the singular membrane through which all MCP tool invocations pass. It implements `ToolPort` itself — this is Miller's membrane object pattern: the wrapper IS a tool port, indistinguishable to callers, but it adds governance.
+The `GovernedTool<P: ToolPort>` at `crates/hkask-regulation/src/governed_tool.rs` is the singular membrane through which all MCP tool invocations pass. It implements `ToolPort` itself — this is Miller's membrane object pattern: the wrapper IS a tool port, indistinguishable to callers, but it adds governance.
 
 #### The 6-Step Dispatch
 
@@ -53,13 +53,13 @@ The `invoke()` method (line 200) enforces a strict sequence:
 
 2. **Check (OCAP authority)** — Two-path verification. Path 1 (exact): `verify_capability_exact()` checks `token.is_valid_for(DelegationResource::Tool, tool_name, DelegationAction::Execute)`. This handles ad-hoc invocation tokens minted with the exact tool name. Path 2 (domain): `verify_capability_domain_fallback()` looks up the tool's `required_capability` metadata and uses `capabilities_match()` to test whether the token's domain covers the required domain. For example, an agent token for `tool:cns:execute` grants access to any tool whose `required_capability` is `tool:cns:execute` (via `capabilities_match` at `crates/hkask-capability/src/resources.rs:122`). The action hierarchy is Execute ≥ Write ≥ Read.
 
-3. **Reserve (gas)** — `CyberneticsLoop::can_proceed()` checks whether the agent's gas budget has enough remaining capacity. If `ToolStats` is wired (Layer 1), the reserve uses the 90th percentile of the fitted LogNormal cost distribution; otherwise it falls back to the `EnergyEstimator` point estimate. If insufficient, a `cns.gas.depleted` span is emitted and `ToolPortError::EnergyBudgetExceeded` is returned. Then `reserve_gas()` atomically decrements the budget. This is the hold-settle pattern: gas is reserved before invocation, then settled after with the actual cost. If actual < reserved, the difference is refunded — preventing gas leaks from over-estimation.
+3. **Reserve (gas)** — `CyberneticsLoop::can_proceed()` checks whether the agent's gas budget has enough remaining capacity. If `ToolStats` is wired (Layer 1), the reserve uses the 90th percentile of the fitted LogNormal cost distribution; otherwise it falls back to the `EnergyEstimator` point estimate. If insufficient, a `reg.gas.depleted` span is emitted and `ToolPortError::EnergyBudgetExceeded` is returned. Then `reserve_gas()` atomically decrements the budget. This is the hold-settle pattern: gas is reserved before invocation, then settled after with the actual cost. If actual < reserved, the difference is refunded — preventing gas leaks from over-estimation.
 
-4. **ν-event (invoked)** — A `RegulationRecord` with span `SpanNamespace("cns.tool")` and path `"invoked"` is persisted via `RegulationSink`. The phase is `CyclePhase::Sense`, marking this as an observation entering the CNS. The payload carries server, tool, estimated_cost, and `settled: false`.
+4. **ν-event (invoked)** — A `RegulationRecord` with span `SpanNamespace("reg.tool")` and path `"invoked"` is persisted via `RegulationSink`. The phase is `CyclePhase::Sense`, marking this as an observation entering the Regulation. The payload carries server, tool, estimated_cost, and `settled: false`.
 
 5. **Delegate** — The inner `ToolPort` is called. This is the only step that does actual work. Everything before was permission; everything after is accounting.
 
-6. **Settle + ν-event (completed)** — `settle_gas()` refunds the difference between reserved and actual cost. A `cns.gas.settled` span is emitted. Then a `cns.tool.completed` span is emitted with the parent set to the invoked event's ID, creating a causal chain. Additionally, `ToolStats::record()` logs the outcome for statistical learning, and `ToolConsumptionEvent` is sent on a direct `mpsc` channel to CyberneticsLoop.
+6. **Settle + ν-event (completed)** — `settle_gas()` refunds the difference between reserved and actual cost. A `reg.gas.settled` span is emitted. Then a `reg.tool.completed` span is emitted with the parent set to the invoked event's ID, creating a causal chain. Additionally, `ToolStats::record()` logs the outcome for statistical learning, and `ToolConsumptionEvent` is sent on a direct `mpsc` channel to CyberneticsLoop.
 
 #### Fail-Closed Semantics
 
@@ -81,7 +81,7 @@ flowchart TD
     INNER["Inner ToolPort\n(McpDispatcher)"]
     SINK["RegulationSink\n(persisted)"]
     STATS["ToolStats\n(statistical learning)"]
-    CNS["CyberneticsLoop\n(regulation)"]
+    Regulation["CyberneticsLoop\n(regulation)"]
 
     CALLER -->|"invoke(tool, args, token)"| GT
     TOKEN --> GT
@@ -92,19 +92,19 @@ flowchart TD
     CHECK2 -->|"No"| DENY
     CHECK2 -->|"Yes"| RESERVE{"Step 3: gas available?"}
     RESERVE -->|"No"| EXHAUST["ToolPortError::EnergyBudgetExceeded"]
-    RESERVE -->|"Yes"| EMIT1["Step 4: emit cns.tool.invoked"]
+    RESERVE -->|"Yes"| EMIT1["Step 4: emit reg.tool.invoked"]
     EMIT1 --> SINK
     EMIT1 --> DELEGATE["Step 5: delegate to inner ToolPort"]
     DELEGATE --> INNER
-    INNER --> SETTLE["Step 6: settle gas + emit cns.tool.completed"]
+    INNER --> SETTLE["Step 6: settle gas + emit reg.tool.completed"]
     SETTLE --> SINK
     SETTLE --> STATS
-    SETTLE --> CNS
+    SETTLE --> Regulation
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SOV-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-regulation/src/governed_tool.rs
 status: VERIFIED
 -->
 
@@ -151,7 +151,7 @@ The review evaluated four diagrams against Diataxis quality gates:
 |---|---|
 | **Dual Flowchart** | Clear top-down flow: source → guard → models → integrate → store. The parallel model subgraph and epistemic integration subgraph correctly separate concerns. Readable without knowing Rust. |
 | **Guard Flowchart** | First-hit pipeline on input, all-hits on output — the subgraph division makes this explicit. The distinction between "Input Pipeline" and "Output Pipeline" is visually clear. |
-| **Sequence Diagram** | Shows temporal ordering that the flowchart cannot: parallel model calls, sequential guard checks, CNS emission interleaved with processing. The alt blocks precisely capture the decision points. |
+| **Sequence Diagram** | Shows temporal ordering that the flowchart cannot: parallel model calls, sequential guard checks, Regulation emission interleaved with processing. The alt blocks precisely capture the decision points. |
 | **State Diagram** | The composite state `Scanning` with nested transitions correctly models the guard as a state machine. Notes connect each violation to its OWASP category. |
 
 #### Diataxis Quadrant Fit
@@ -196,13 +196,13 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SOV-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-regulation/src/governed_tool.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The Diataxis review is itself a feedback loop — the same sense→compare→compute→act→verify cycle that governs the CNS. The functional gates are the sense phase (does the diagram match the code?); the deep quality gates are the compare phase (does it fit the reader's need?); the quadrant fit is the compute phase (is it in the right Diataxis quadrant?); the gap analysis and closure are the act phase. The review is not a one-time audit — it is a recurring process that catches drift between documentation and code, just as the `SeamWatcher` catches drift between specification and implementation. A diagram that was accurate when drawn may become inaccurate when the code changes; the Diataxis review is the mechanism that detects and corrects this drift.
+The Diataxis review is itself a feedback loop — the same sense→compare→compute→act→verify cycle that governs the Regulation. The functional gates are the sense phase (does the diagram match the code?); the deep quality gates are the compare phase (does it fit the reader's need?); the quadrant fit is the compute phase (is it in the right Diataxis quadrant?); the gap analysis and closure are the act phase. The review is not a one-time audit — it is a recurring process that catches drift between documentation and code, just as the `SeamWatcher` catches drift between specification and implementation. A diagram that was accurate when drawn may become inaccurate when the code changes; the Diataxis review is the mechanism that detects and corrects this drift.
 
 The OWASP anchoring of the guard and state diagrams is deliberate — security-relevant diagrams must connect to established threat taxonomies, not invent their own. This is the same principle as the dual-axis ontology: hKask does not invent ontologies, it bridges to existing ones. The guard diagrams bridge to OWASP LLM Top 10; the state diagram maps violation types to specific OWASP risk numbers.
 
@@ -304,7 +304,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SOV-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-regulation/src/governed_tool.rs
 status: VERIFIED
 -->
 
@@ -344,7 +344,7 @@ status: VERIFIED
 
 ## Description
 
-The `ConsentManager` in `hkask-agents` enforces Magna Carta P1 (User Sovereignty) and P2 (Affirmative Consent) through explicit, scoped, revocable consent grants. Every data access check flows through `has_consent()`, which validates: (1) an active `ConsentRecord` exists for the user's `WebID`, (2) the requested `DataCategory` is in `granted_categories`, and (3) the record is not revoked (`active == true`). On denial, a `cns.consent.denied` ν-event is emitted to the CNS `RegulationSink` for observability — this is a Prohibition-gate observation, not a regulatory feedback loop. The `SovereigntyConsent` trait implementation translates storage errors into `false` (fail-closed). `grant_consent()` and `revoke_consent()` modify the in-memory cache and persist to the SQLite-backed `ConsentStore`.
+The `ConsentManager` in `hkask-agents` enforces Magna Carta P1 (User Sovereignty) and P2 (Affirmative Consent) through explicit, scoped, revocable consent grants. Every data access check flows through `has_consent()`, which validates: (1) an active `ConsentRecord` exists for the user's `WebID`, (2) the requested `DataCategory` is in `granted_categories`, and (3) the record is not revoked (`active == true`). On denial, a `reg.consent.denied` ν-event is emitted to the Regulation `RegulationSink` for observability — this is a Prohibition-gate observation, not a regulatory feedback loop. The `SovereigntyConsent` trait implementation translates storage errors into `false` (fail-closed). `grant_consent()` and `revoke_consent()` modify the in-memory cache and persist to the SQLite-backed `ConsentStore`.
 
 **Key source:** `crates/hkask-agents/src/consent.rs:136-144` (`ConsentManager` struct), `consent.rs:316-338` (`has_consent`), `consent.rs:243-273` (`grant_consent`), `consent.rs:283-300` (`revoke_consent`), `consent.rs:344-366` (`emit_consent_denied`), `consent.rs:388-395` (`SovereigntyConsent` impl).
 
@@ -354,11 +354,11 @@ sequenceDiagram
     participant CM as ConsentManager
     participant Cache as In-Memory Cache<br/>(RwLock~Vec~)
     participant Store as ConsentStore<br/>(SQLite)
-    participant CNS as CNS EventSink<br/>(RegulationSink)
+    participant Regulation as Regulation EventSink<br/>(RegulationSink)
 
     %% ── has_consent() check flow ──
     rect rgb(245, 248, 252)
-        Note over Caller,CNS: has_consent(webid, category) — check flow
+        Note over Caller,Regulation: has_consent(webid, category) — check flow
 
         Caller->>CM: has_consent(webid, DataCategory)
         CM->>Cache: read_rwlock() — acquire read lock
@@ -370,21 +370,21 @@ sequenceDiagram
                 CM-->>Caller: Ok(true) — consent granted
             else inactive OR category not granted
                 CM-->>Caller: Ok(false) — consent denied
-                CM->>CNS: emit_consent_denied(webid, category)
-                CNS-->>CM: persist(RegulationRecord) — cns.consent.denied
-                Note over CNS: ν-event for observability<br/>Prohibition gate (P2)<br/>CyclePhase::Compare
+                CM->>Regulation: emit_consent_denied(webid, category)
+                Regulation-->>CM: persist(RegulationRecord) — reg.consent.denied
+                Note over Regulation: ν-event for observability<br/>Prohibition gate (P2)<br/>CyclePhase::Compare
             end
         else no record found
             CM-->>Caller: Ok(false) — consent denied (no record)
-            CM->>CNS: emit_consent_denied(webid, category)
-            CNS-->>CM: persist(RegulationRecord)
-            Note over CNS: fail-closed: no record = deny
+            CM->>Regulation: emit_consent_denied(webid, category)
+            Regulation-->>CM: persist(RegulationRecord)
+            Note over Regulation: fail-closed: no record = deny
         end
     end
 
     %% ── grant_consent() flow ──
     rect rgb(240, 255, 240)
-        Note over Caller,CNS: grant_consent(webid, category) — grant flow
+        Note over Caller,Regulation: grant_consent(webid, category) — grant flow
 
         Caller->>CM: grant_consent(webid, DataCategory)
         CM->>Cache: write_rwlock() — acquire write lock
@@ -402,12 +402,12 @@ sequenceDiagram
 
         Store-->>CM: Ok(())
         CM-->>Caller: Ok(()) — consent granted
-        Note over CM: CNS log:<br/>cns.sovereignty<br/>operation=consent_granted
+        Note over CM: Regulation log:<br/>cns.sovereignty<br/>operation=consent_granted
     end
 
     %% ── revoke_consent() flow ──
     rect rgb(255, 240, 240)
-        Note over Caller,CNS: revoke_consent(webid) — revoke flow
+        Note over Caller,Regulation: revoke_consent(webid) — revoke flow
 
         Caller->>CM: revoke_consent(webid)
         CM->>Cache: write_rwlock() — acquire write lock
@@ -418,7 +418,7 @@ sequenceDiagram
             CM->>Store: persist(record)
             Store-->>CM: Ok(())
             CM-->>Caller: Ok(()) — consent revoked
-            Note over CM: CNS log:<br/>cns.sovereignty<br/>operation=consent_revoked
+            Note over CM: Regulation log:<br/>cns.sovereignty<br/>operation=consent_revoked
         else record not found
             CM-->>Caller: Err(ConsentError::ConsentNotFound)
         end
@@ -427,7 +427,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SOV-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-regulation/src/governed_tool.rs
 status: VERIFIED
 -->
 
@@ -440,11 +440,11 @@ status: VERIFIED
 | `revoke()` | `false` | Unchanged | `Some(now)` | Yes |
 | `has_category(cat)` | Must be `true` | Must contain `cat` | N/A | Read-only |
 
-## Denial Observability (CNS)
+## Denial Observability (Regulation)
 
-When `has_consent()` returns `false`, the `emit_consent_denied()` method fires a `cns.consent.denied` ν-event if an `event_sink` is configured. This is a **Prohibition-gate observation** — the denial is terminal; the event records the fact for audit. The event carries:
+When `has_consent()` returns `false`, the `emit_consent_denied()` method fires a `reg.consent.denied` ν-event if an `event_sink` is configured. This is a **Prohibition-gate observation** — the denial is terminal; the event records the fact for audit. The event carries:
 
-- **Span namespace**: `cns.consent`
+- **Span namespace**: `reg.consent`
 - **Span name**: `denied`
 - **CyclePhase**: `Compare`
 - **Payload**: `{ "webid": "...", "category": "..." }`
@@ -498,13 +498,13 @@ stateDiagram-v2
     CNSLog --> [*]
 
     note left of InputRefused
-        CNS: cns.guard.violation
+        Regulation: reg.guard.violation
         OWASP LLM01 (Prompt Injection)
         OWASP LLM04 (Model DoS)
     end note
 
     note right of SecretStripped
-        CNS: cns.guard.violation
+        Regulation: reg.guard.violation
         Secrets redacted before storage
         OWASP LLM02 (Insecure Output)
         OWASP LLM06 (Info Disclosure)
@@ -521,7 +521,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SOV-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-regulation/src/governed_tool.rs
 status: VERIFIED
 -->
 
@@ -545,7 +545,7 @@ flowchart TD
     TL{Token Limit Gate\n32K tokens}
     RO{Role Override\nDetection}
     DO{Deobfuscated\nInjection Check}
-    CR[CNS: guard.violation\nInput Refused]
+    CR[Regulation: guard.violation\nInput Refused]
     CL([Model API Call])
     OR([Model Output])
     SL{Secret Leakage\nDetection}
@@ -579,7 +579,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SOV-006
 verified_date: 2026-07-12
-verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-cns/src/governed_tool.rs
+verified_against: crates/hkask-capability/src/lib.rs, crates/hkask-regulation/src/governed_tool.rs
 status: VERIFIED
 -->
 

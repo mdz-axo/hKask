@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle]
 
 **Date:** 2026-06-28
 **Project:** hKask v0.31.0
-**Status:** Phases 1–8 complete ✅ — Full wallet subsystem (types, storage, keystore, wallet crate, CNS, services, CLI, API) built and tested
+**Status:** Phases 1–8 complete ✅ — Full wallet subsystem (types, storage, keystore, wallet crate, Regulation, services, CLI, API) built and tested
 **Skills applied:** idiomatic-rust, essentialist, pragmatic-semantics, pragmatic-cybernetics, coding-guidelines
 
 ---
@@ -322,7 +322,7 @@ This section is intentionally minimal until privacy ports are introduced.
 
 ---
 
-## 6. CNS Integration (Phase 5 — Built ✅)
+## 6. Regulation Integration (Phase 5 — Built ✅)
 
 ### 6.1 Span Emission Checklist
 
@@ -336,37 +336,37 @@ bounded by `HKASK_DEPOSIT_REPAIR_MAX_INDEX` (default: 5, max: 100).
 
 | Operation | Module | Span Namespace | Verb | Phase | Status |
 |-----------|--------|---------------|------|-------|--------|
-| Deposit address derived | `manager.rs` | `cns.wallet.deposit` | `derived` | Act | ✅ |
-| Deposit detected (transparent) | `chain.rs` → `manager.rs` | `cns.wallet.deposit` | `detected` | Sense | ✅ |
+| Deposit address derived | `manager.rs` | `reg.wallet.deposit` | `derived` | Act | ✅ |
+| Deposit detected (transparent) | `chain.rs` → `manager.rs` | `reg.wallet.deposit` | `detected` | Sense | ✅ |
 
-| Deposit credited | `manager.rs` | `cns.wallet.balance` | `credited` | Act | ✅ |
-| Deposit address unresolvable | `manager.rs` | `cns.heal` | `wallet_deposit_address_unresolvable` | Sense | ✅ |
-| Deposit address repair (single-wallet) | `manager.rs` | `cns.heal` | `wallet_deposit_address_repaired` | Act | ✅ |
-| Withdrawal built | `chain.rs` | `cns.wallet.withdrawal` | `built` | Act | ✅ |
-| Withdrawal signed | `signing.rs` | `cns.wallet.withdrawal` | `signed` | Act | ✅ |
-| Withdrawal submitted | `chain.rs` | `cns.wallet.withdrawal` | `submitted` | Act | ✅ |
-| USDC ↔ rJoule conversion | `manager.rs` | `cns.wallet.conversion` | `converted` | Act | ✅ |
-| API key issued | `issuer.rs` | `cns.wallet.key_issued` | `issued` | Act | ✅ |
-| API key revoked | `issuer.rs` | `cns.wallet.key_revoked` | `revoked` | Act | ✅ |
-| API key expired | `issuer.rs` | `cns.wallet.key_expired` | `expired` | Sense | 🔶 CNS algedonic |
-| API key exhausted | `issuer.rs` | `cns.wallet.key_exhausted` | `exhausted` | Sense | 🔶 CNS algedonic |
-| Treasury key loaded | `signing.rs` | `cns.wallet.treasury` | `loaded` | Act | 🔶 Covered by withdrawal.signed |
-| Chain error | `chain.rs` | `cns.wallet.chain_error` | `error` | Sense | ⬜ Deferred (needs chain ports) |
+| Deposit credited | `manager.rs` | `reg.wallet.balance` | `credited` | Act | ✅ |
+| Deposit address unresolvable | `manager.rs` | `reg.heal` | `wallet_deposit_address_unresolvable` | Sense | ✅ |
+| Deposit address repair (single-wallet) | `manager.rs` | `reg.heal` | `wallet_deposit_address_repaired` | Act | ✅ |
+| Withdrawal built | `chain.rs` | `reg.wallet.withdrawal` | `built` | Act | ✅ |
+| Withdrawal signed | `signing.rs` | `reg.wallet.withdrawal` | `signed` | Act | ✅ |
+| Withdrawal submitted | `chain.rs` | `reg.wallet.withdrawal` | `submitted` | Act | ✅ |
+| USDC ↔ rJoule conversion | `manager.rs` | `reg.wallet.conversion` | `converted` | Act | ✅ |
+| API key issued | `issuer.rs` | `reg.wallet.key_issued` | `issued` | Act | ✅ |
+| API key revoked | `issuer.rs` | `reg.wallet.key_revoked` | `revoked` | Act | ✅ |
+| API key expired | `issuer.rs` | `reg.wallet.key_expired` | `expired` | Sense | 🔶 Regulation algedonic |
+| API key exhausted | `issuer.rs` | `reg.wallet.key_exhausted` | `exhausted` | Sense | 🔶 Regulation algedonic |
+| Treasury key loaded | `signing.rs` | `reg.wallet.treasury` | `loaded` | Act | 🔶 Covered by withdrawal.signed |
+| Chain error | `chain.rs` | `reg.wallet.chain_error` | `error` | Sense | ⬜ Deferred (needs chain ports) |
 
 
-### 6.2 CNS Error Threshold Mapping
+### 6.2 Regulation Error Threshold Mapping
 
-| Error Variant | CNS Alert | Threshold |
+| Error Variant | Regulation Alert | Threshold |
 |---------------|-----------|-----------|
-| `InsufficientBalance` | `cns.wallet.balance` — depleted | Warning |
-| `SpendingLimitExceeded` | `cns.wallet.key_exhausted` | Warning |
-| `KeyExpired` | `cns.wallet.key_expired` | Info |
-| `KeyRevoked` | `cns.wallet.key_revoked` | Info |
-| `ChainNotEnabled` | `cns.wallet.chain_error` | Warning |
-| `DepositReferenceInvalid` | `cns.wallet.deposit` — invalid_ref | Warning |
-| `DepositAddressUnresolvable` | `cns.wallet.deposit` — unresolvable_address | Warning |
-| `ChainError` | `cns.wallet.chain_error` | Critical (chain RPC down) |
-| `Infra` | `cns.wallet.*` (context-dependent) | Critical |
+| `InsufficientBalance` | `reg.wallet.balance` — depleted | Warning |
+| `SpendingLimitExceeded` | `reg.wallet.key_exhausted` | Warning |
+| `KeyExpired` | `reg.wallet.key_expired` | Info |
+| `KeyRevoked` | `reg.wallet.key_revoked` | Info |
+| `ChainNotEnabled` | `reg.wallet.chain_error` | Warning |
+| `DepositReferenceInvalid` | `reg.wallet.deposit` — invalid_ref | Warning |
+| `DepositAddressUnresolvable` | `reg.wallet.deposit` — unresolvable_address | Warning |
+| `ChainError` | `reg.wallet.chain_error` | Critical (chain RPC down) |
+| `Infra` | `reg.wallet.*` (context-dependent) | Critical |
 
 ---
 
@@ -386,7 +386,7 @@ graph TD
     end
 
     subgraph "Shared"
-        CNS["CyberneticsLoop<br/>Arc<WalletStore> (read-only)"]
+        Regulation["CyberneticsLoop<br/>Arc<WalletStore> (read-only)"]
     end
 
     subgraph "Surfaces (borrow)"
@@ -398,7 +398,7 @@ graph TD
     WM --> PP
     WM --> WS
     ISS --> WS
-    CNS --> WS
+    Regulation --> WS
     CLI --> WM
     API --> WM
     WM --> SIGN
@@ -417,7 +417,7 @@ status: VERIFIED
 
 **Key decisions `[OUGHT-DECL]`:**
 - `WalletManager` sole-owns `ChainPort` implementations
-- `WalletStore` is `Arc<>` — shared with CNS for algedonic monitoring (justified)
+- `WalletStore` is `Arc<>` — shared with Regulation for algedonic monitoring (justified)
 - `signing.rs` is stateless — no owned data, no long-lived keys
 - Treasury keys NEVER held long-term — loaded per signing operation, zeroized on drop
 - Surfaces borrow `&WalletService`, never own wallet components
@@ -431,12 +431,12 @@ status: VERIFIED
 
 | Phase | Crate | Status | Tests | Key Deliverables |
 |-------|-------|--------|-------|-----------------|
-| 1 | `hkask-wallet-types` | ✅ | 11 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 CNS spans, 3 wallet SignalMetrics |
+| 1 | `hkask-wallet-types` | ✅ | 11 | `RJoule`, `ChainId`, `PrivacyMode`, `ApiKeyCapability`, `WalletError` (15 variants), `TxHash`, 14 Regulation spans, 3 wallet SignalMetrics |
 | 2 | `hkask-storage` | ✅ | 34 | `WalletStore` — 5 tables, 16 methods, deposit addresses keyed by (wallet, chain, privacy) with unique (chain, privacy, address), anti-replay deposit references, MUST-10 property test |
 | 3 | `hkask-keystore` | ✅ | 6 | `resolve_treasury_key(chain)`, `resolve_wallet_seed()`, `sign_api_key_capability()` |
-| 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + CNS span emission), `ApiKeyIssuer` (CNS span emission) |
-| 5 | `hkask-cns` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `GasBudgetManager` dual-map, algedonic alerts (balance + key health), CNS span emission wired |
-| 6 | `hkask-services-wallet` | ✅ | 35 | `WalletService` — 13 methods composing WalletManager + ApiKeyIssuer + CNS budget registration |
+| 4 | `hkask-wallet` | ✅ | 13 | `ChainPort`, `signing.rs` (LoadedKey + redacted Debug), `WalletManager` (13 methods + Regulation span emission), `ApiKeyIssuer` (Regulation span emission) |
+| 5 | `hkask-regulation` | ✅ | 11 | `WalletBackedBudget`, `WalletEnergyEstimator`, `GasBudgetManager` dual-map, algedonic alerts (balance + key health), Regulation span emission wired |
+| 6 | `hkask-services-wallet` | ✅ | 35 | `WalletService` — 13 methods composing WalletManager + ApiKeyIssuer + Regulation budget registration |
 | 7 | `hkask-cli` | ✅ | 25 | `kask wallet` — 8 subcommands (balance, deposit-address, deposit-reference, history, key create/list/revoke, withdraw) |
 | 8 | `hkask-api` | ✅ | 2 | 8 wallet REST endpoints + `ApiKeyAuthService` middleware (Ed25519 Bearer token verification) |
 
@@ -454,7 +454,7 @@ status: VERIFIED
 | `hkask-storage` | 34 (11 wallet_store) | `P2-wallet-store`, `MUST-10` |
 | `hkask-keystore` | 6 (6 wallet) | `P3-keystore` |
 | `hkask-wallet` | 13 | `P4-signing`, `P4-manager`, `P4-issuer` |
-| `hkask-cns` | 11 (1 wallet_budget) | `P5-cns-wallet` |
+| `hkask-regulation` | 11 (1 wallet_budget) | `P5-cns-wallet` |
 | `hkask-services-wallet` | 35 (6 wallet) | `svc-wallet-001`–`006` |
 | `hkask-cli` | 25 (0 wallet-specific) | (existing CLI tests) |
 | `hkask-api` | 2 (0 wallet-specific) | (existing API tests) |

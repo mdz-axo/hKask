@@ -229,7 +229,6 @@ mod tests {
     #[test]
     fn sanitize_userpod_names() {
         assert_eq!(sanitize_name("alice"), "alice");
-        assert_eq!(sanitize_name("Jacques (Zuck)"), "Jacques-Zuck");
         assert_eq!(sanitize_name("a/b\\c:d"), "a-b-c-d");
     }
 

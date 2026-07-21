@@ -42,7 +42,7 @@ The REPL adopts behavioral patterns from leading AI REPL systems so the interact
 - **Fuzzy matching** on unknown commands (suggests "did you mean /model?") — pattern from Claude CLI.
 - **Streaming output** on first inference iteration, with tokens rendered incrementally — pattern from Zed, Aider, GPT CLI.
 - **History persistence** in `$XDG_DATA_HOME/hkask/kask_history.txt` — standard readline behavior.
-- **Color-coded output** with ANSI escape codes for agent names, model info, CNS alerts, gas budget, and tool results.
+- **Color-coded output** with ANSI escape codes for agent names, model info, Regulation alerts, gas budget, and tool results.
 
 ### 2.3 Self-Documenting
 
@@ -62,10 +62,10 @@ crates/hkask-repl/src/
 ├── commands.rs         # Slash command registry (SLASH_COMMANDS table)
 ├── display.rs          # Banner, help, command help
 ├── helper.rs           # KaskHelper (Completer, Highlighter, Hinter, Validator)
-├── init.rs             # Dependency injection — wires CNS, loops, memory, tools
+├── init.rs             # Dependency injection — wires Regulation, loops, memory, tools
 ├── turn.rs             # run_turn_loop() + TurnSink trait (CLI/TUI unified), single_agent_turn() wrapper
 ├── energy.rs           # EnergyGuard (hold-settle gas pattern, settle/release/Drop)
-├── cns_display.rs      # CNS algedonic alert display, loop system tick (read-only)
+├── cns_display.rs      # Regulation algedonic alert display, loop system tick (read-only)
 ├── tool_augmented.rs   # Tool call parsing (extract_tool_calls), invocation, result formatting
 ├── builtin_servers.rs  # MCP server startup at REPL boot
 └── handlers/
@@ -79,7 +79,7 @@ crates/hkask-repl/src/
     ├── invoke.rs       # /invoke (OCAP-gated tool invocation)
     ├── model.rs        # /model (list, switch, fuzzy search)
     ├── repl_settings.rs # /repl (ReplSettings, to_llm_params)
-    └── status.rs       # /status (agent, model, gas, CNS, loops)
+    └── status.rs       # /status (agent, model, gas, Regulation, loops)
 ```
 
 ### 3.2 ReplState — Central State Object
@@ -122,7 +122,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 2. **Phase 2 — Settings + Condensation Env:** Load persisted `ReplSettings` from per-user config. Propagate `condense_pressure_threshold` and `condense_saliency_window` to env vars (`HKASK_CONDENSE_*`) so both condensation paths (auto-condense in `ChatService` and agent-initiated condenser tools) share the same thresholds.
 3. **Phase 4 — Service Config:** Build `ServiceConfig` from onboarding secrets (propagating `HKASK_MASTER_KEY` and `HKASK_DB_PASSPHRASE` to env) or fall back to `from_env()` / `in_memory()`.
 4. **Phase 5 — WebID + Skills:** Derive `agent_webid` from the onboarding persona via `WebID::from_persona_with_namespace`. Load skills from `.agents/skills/` and `skills/` into the registry.
-5. **Phase 6 — Shared Infrastructure:** `AgentService::build(service_config)` — creates CNS, loop system, governed tool, pod manager, MCP runtime, storage. Wait for CuratorPod readiness (non-fatal on failure).
+5. **Phase 6 — Shared Infrastructure:** `AgentService::build(service_config)` — creates Regulation, loop system, governed tool, pod manager, MCP runtime, storage. Wait for CuratorPod readiness (non-fatal on failure).
 6. **Phase 6 (cont.) — InferenceLoop:** Build `InferenceLoop` with energy budget and model. Register on loop system. Wire into `AgentService` via `set_inference_loop`.
 7. **Phase 7 — UserPod Env:** Propagate `HKASK_PROJECT_ROOT`, `HKASK_MCP_HOST`, `HKASK_USERPOD_PERSONA` to env for child MCP processes.
 8. **Phase 7.5 — Daemon Auto-Start:** Probe the daemon socket; spawn `kask daemon start` as a detached child if no live listener. Non-fatal on failure — MCP servers fall back to direct mode.
@@ -236,7 +236,7 @@ Ensemble multi-agent commands are deferred. The dual-presence pattern (§7) is t
 
 | Command | Aliases | Args | Description |
 |---------|---------|------|-------------|
-| `/status` | `/st` | | System status: agent, model, template, gas, CNS health, loop count, turns |
+| `/status` | `/st` | | System status: agent, model, template, gas, Regulation health, loop count, turns |
 | `/tools` | | | List MCP tools with descriptions (discovered via GovernedTool) |
 | `/templates` | `/tpl` | | List registered templates (ID + type) |
 | `/sovereignty` | `/sov` | | Show sovereignty status (Magna Carta compliance) |
@@ -279,7 +279,7 @@ The turn pipeline is now split between the service layer and the CLI:
   history suffix, inference via `ChatService::chat()`, and persona filter.
 - **CLI (`turn::run_turn_loop()` via `TurnSink`)** handles: gas guard reservation/settlement,
   response display (stdout for CLI, capture buffer for TUI), tool execution through `GovernedTool`,
-  token usage display, gas budget warnings, and CNS updates. `single_agent_turn()` and
+  token usage display, gas budget warnings, and Regulation updates. `single_agent_turn()` and
   `single_agent_turn_captured()` are thin wrappers that select the sink implementation.
 
 ### 6.1 Pipeline Overview
@@ -318,7 +318,7 @@ The turn pipeline is now split between the service layer and the CLI:
 │ 8. Gas Budget Warning                                                │
 │    └─ If < 20%: yellow warning. If 0: red exhausted warning.          │
 │                                                                      │
-│ 9. CNS Update (read-only)                                            │
+│ 9. Regulation Update (read-only)                                            │
 │    └─ Algedonic alert check, LoopScheduler tick                           │
 │                                                                      │
 │ 10. Episodic Storage (handled by ChatService::chat() automatically)    │
@@ -353,7 +353,7 @@ All tool calls route through `GovernedTool`, which provides:
 
 1. **OCAP Authorization:** A `DelegationToken` is minted from the session's ACP secret
 2. **Energy Budget:** Gas is charged for tool execution
-3. **CNS Observability:** Tool invocations emit `cns.tool.*` spans
+3. **Regulation Observability:** Tool invocations emit `reg.tool.*` spans
 
 The invocation chain: `ReplToolInvoker::invoke()` → `GovernedTool::invoke_with_secret()` → `RawMcpToolPort` (implements `ToolPort` for `McpRuntime`) → `McpRuntime::call_tool()` → MCP server (JSON-RPC). The `GovernedTool::invoke_with_secret` method mints the `DelegationToken` internally from the A2A secret — the previous `tool_augmented::invoke_tool_call` free function was inlined to collapse the chain.
 
@@ -534,7 +534,7 @@ Each agent gets an gas budget registered with the `CyberneticsLoop` at REPL init
 ```
 Budget:    gas_cap (default 10,000)
 Replenish: gas_cap / 10 per replenishment cycle
-Alert:     80% usage → yellow CNS alert
+Alert:     80% usage → yellow Regulation alert
 Hard limit: true (blocks operations when exhausted)
 ```
 
@@ -614,7 +614,7 @@ The canonical registry is `hkask_mcp::BUILTIN_SERVERS` — 16 servers total. 12 
 | `filesystem` | `hkask-mcp-filesystem` | yes | Filesystem read/write/search + shell command execution |
 | `codegraph` | `hkask-mcp-codegraph` | yes | Code graph query, traverse, impact analysis |
 | `scenarios` | `hkask-mcp-scenarios` | yes | Scenario planning and forecasting |
-| `cns` | `hkask-mcp-cns` | yes | CNS observability and alerting |
+| `cns` | `hkask-mcp-cns` | yes | Regulation observability and alerting |
 | `companies` | `hkask-mcp-companies` | **no** | Company financial data (FMP + EODHD dual-provider) |
 | `communication` | `hkask-mcp-communication` | **no** | Thin MCP wrapper over core communication crate |
 | `training` | `hkask-mcp-training` | **no** | Model training data ingestion |
@@ -640,16 +640,16 @@ Users can bypass agent-mediated tool calls and invoke tools directly:
 /invoke memory_store
 ```
 
-All invocations route through `GovernedTool` with OCAP token minting and CNS observability.
+All invocations route through `GovernedTool` with OCAP token minting and Regulation observability.
 
-## 14. CNS Integration
+## 14. Regulation Integration
 
 After each turn, `cns_display::update_cns_and_display()` executes:
 
 1. **Prompt Variety Sensing:**
-   - Depth bucket (shallow/medium/deep) → `cns.inference.prompt_depth`
-   - Structure (question/imperative/declarative/conditional) → `cns.inference.prompt_structure`
-   - Topic keywords → `cns.inference.prompt_domain`
+   - Depth bucket (shallow/medium/deep) → `reg.inference.prompt_depth`
+   - Structure (question/imperative/declarative/conditional) → `reg.inference.prompt_structure`
+   - Topic keywords → `reg.inference.prompt_domain`
 
 2. **Algedonic Alert Check:**
    - Queries `RegulationLedger::critical_alerts()`
@@ -659,7 +659,7 @@ After each turn, `cns_display::update_cns_and_display()` executes:
 
 3. **LoopScheduler Tick:**
    - Runs `LoopScheduler::tick()` — sense→compare→compute→act cycle
-   - `CyberneticsLoop` reads CNS variety + gas budgets → produces regulatory actions
+   - `CyberneticsLoop` reads Regulation variety + gas budgets → produces regulatory actions
    - Regulatory actions are logged via tracing (visible with `RUST_LOG=cns.cybernetics=debug`)
 
 ## 15. Welcome Banner
@@ -765,11 +765,11 @@ The `InferencePort` is created once at REPL init, not per-turn. This enables con
 
 ### 19.3 Shared Infrastructure via AgentService
 
-The REPL routes all infrastructure through `AgentService::build()`, which creates CNS, loop system, governed tool, pod manager, and MCP runtime as a single assembly. The REPL adds surface-specific concerns (inference port, per-agent memory, onboarding) on top.
+The REPL routes all infrastructure through `AgentService::build()`, which creates Regulation, loop system, governed tool, pod manager, and MCP runtime as a single assembly. The REPL adds surface-specific concerns (inference port, per-agent memory, onboarding) on top.
 
 ### 19.4 GovernedTool as Singular Boundary
 
-Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, or auto-condense — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, gas budgets, and CNS observability are enforced at a single choke point with no bypass paths.
+Every tool invocation — whether from agent tool-use loops, direct `/invoke` commands, or auto-condense — routes through a single `GovernedTool` instance. This is intentional: it means OCAP authorization, gas budgets, and Regulation observability are enforced at a single choke point with no bypass paths.
 
 ### 19.5 Per-Agent Memory Isolation
 
@@ -790,7 +790,7 @@ Jupyter kernel integration enables agents to write code, execute it, inspect res
 - Multi-source kernel discovery (Jupyter kernelspec, Python venv/conda/poetry/uv/pyenv)
 - 3-socket concurrent message loop (iopub, shell, stdin)
 - Energy-budget metering per kernel execution
-- CNS spans: `cns.repl.kernel.{started,busy,idle,dead,errored}`
+- Regulation spans: `reg.repl.kernel.{started,busy,idle,dead,errored}`
 
 ### 20.2 Code Cell Detection (`runnable_ranges()`)
 
@@ -868,7 +868,7 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 | No external MCP deps (P1.2) | ✓ All 10 servers are `hkask-mcp-*` crates |
 | No `todo!()`, `unimplemented!()` (P7) | ✓ No stubs in REPL code |
 | No deprecated code (P7) | ✓ No `#[deprecated]` annotations |
-| No monitoring stacks (P6) | ✓ CNS provides programmatic observability; no Prometheus/Grafana |
+| No monitoring stacks (P6) | ✓ Regulation provides programmatic observability; no Prometheus/Grafana |
 | Test depth matches module depth (C8) | ✓ Handlers are shallow (integration-tested via CLI); turn.rs is deep (gas, tool-loop) |
 | User sovereignty (P1) | ✓ OCAP tokens, SQLCipher per-agent DBs, `/sovereignty` verification |
 | Generative Space (P3) | ✓ `/repl` exposes all parameters; no hidden settings |

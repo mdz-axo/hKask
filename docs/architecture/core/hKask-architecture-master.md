@@ -102,12 +102,12 @@ Every Jinja2 template and YAML manifest carries a header identifying its functio
 | **FlowDef** | flow-definition | Does it define a sequence of steps or stages? |
 | **KnowAct** | knowledge-action | Does it produce a decision, judgment, or assessment? |
 
-### Pattern B: The CNS Feedback Loop — Cybernetic Self-Regulation
+### Pattern B: The Regulation Feedback Loop — Cybernetic Self-Regulation
 
 **What it is:** The autonomic nervous system of hKask — a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active *regulation*.
 
 ```
-Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasBudget)
+Sensor (MCP dispatch, Regulation spans) → Model (VarietyTracker, ν-event store, GasBudget)
     → Comparator (AlgedonicManager, SetPoints, Dampener)
     → Regulator (CurationLoop, CuratorAgent, BackpressureSignal)
     → Actuator (GovernedTool, OCAP dual gate, CircuitBreaker)
@@ -119,22 +119,22 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`.
-- **94 canonical CNS span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
-- **Good Regulator contract enforced.** CNS variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
+- **94 canonical Regulation span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
+- **Good Regulator contract enforced.** Regulation variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 - **Regulation is policy-driven.** `RegulationPolicy` consolidates `(metric, deviation) → (actions, thresholds)` into a pure-data type. Each `RegulationRule` defines a substitution ladder, stage/block thresholds, and stagnation detection — replacing the former scattered `classify_decision` and `default_substitution_ladder` free functions.
 - **Sensor providers are pluggable (Fermi Extractor pattern).** `Sensor` trait decouples metric sensing from the regulation loop. `SensorRegistry` holds providers; `CyberneticsLoop::sense()` walks them. Current providers: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`.
 - **Regulation history tracked.** `RegulationLedger` maintains a `regulation_history` ring buffer (100 entries) of `RegulationCycleEntry` records, exposed via `regulation_history(n)` for Curator queries.
 - **Metacognition sees regulation effectiveness.** `HealthSnapshot.regulation_effectiveness` (0.0–1.0 ratio of accepted actions) is read from `RegulationLedger::regulation_health()` during metacognition sense.
 - **Five-phase loop closure.** The cybernetic cycle is now `sense → compare → compute → act → verify`, with `verify_impact()` producing `ImpactReport` with `ActionDecision::Accept | Stage | Block`. `StagnationDetector` tracks repeated ineffectiveness; `RegulatoryPlateau` escalates when all substitution alternatives are exhausted.
-- **CNS spans: `cns.regulation.*`.** Four new span kinds emitted during regulation: `ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`. Stored in `cns.regulation` namespace, visible to algedonic queries.
+- **Regulation spans: `reg.regulation.*`.** Four new span kinds emitted during regulation: `ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`. Stored in `reg.regulation` namespace, visible to algedonic queries.
 - **Statistical tool learning.** `ToolStats` records per-tool gas costs and success/failure outcomes at settle time. Fits LogNormal cost distributions (reserve at p90 instead of point estimate) and tracks Beta reliability (pre-escalate when P(success) < 0.80). Wired into `GovernedTool` for distribution-based reserving; `ToolReliabilitySensor` feeds reliability into the regulation pipeline.
-- **Set-point auto-calibration (v0.32.0).** `SetPointCalibrator` closes the Conant-Ashby loop: the CNS observes its own regulation effectiveness via `RegulationArchive` replay and self-tunes `SetPoints` within bounded ranges. Plateau detection widens stagnation thresholds; action blocks tighten worsening ratios; repeated substitutions decrease the substitution delay. Spawns as a background task alongside `CalibratedEnergyEstimator`; defaults to 1-hour interval with a 50-event minimum before any adjustment. Configure via `HKASK_SET_POINT_MIN_OBSERVATIONS`.
+- **Set-point auto-calibration (v0.32.0).** `SetPointCalibrator` closes the Conant-Ashby loop: the Regulation observes its own regulation effectiveness via `RegulationArchive` replay and self-tunes `SetPoints` within bounded ranges. Plateau detection widens stagnation thresholds; action blocks tighten worsening ratios; repeated substitutions decrease the substitution delay. Spawns as a background task alongside `CalibratedEnergyEstimator`; defaults to 1-hour interval with a 50-event minimum before any adjustment. Configure via `HKASK_SET_POINT_MIN_OBSERVATIONS`.
 - **Contract violations feed CurationLoop (v0.32.0).** `contract.violated` span category added to `ALGEDONIC_SPAN_CATEGORIES` — contract violations emitted by `emit_contract_violated()` now flow through `query_algedonic()` into the `CurationLoop`'s sense phase for curator review.
 - **ObservableSpan trait extended (v0.32.0).** `to_event()` produces a `RegulationRecord` from any typed span; `emit_to(sink, observer, phase, observation)` persists through the RegulationSink and falls back to log-only on failure. The trait bridges typed spans (`RegulationSpan`, `WalletSpan`, `InfraSpan`, etc.) to durable RegulationRecord persistence.
 
-**Crates:** `hkask-cns`, `hkask-types` (CNS types, SpanNamespace)
+**Crates:** `hkask-regulation`, `hkask-types` (Regulation types, SpanNamespace)
 
-**If removed:** System becomes a runaway agent platform — agents act without regulation, resources deplete without backpressure, failures accumulate without detection. P9 violated entirely. P5 loses CNS sensors.
+**If removed:** System becomes a runaway agent platform — agents act without regulation, resources deplete without backpressure, failures accumulate without detection. P9 violated entirely. P5 loses Regulation sensors.
 
 ### Pattern C: Agentic AI Mediation — Curator + 7R7
 
@@ -142,14 +142,14 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 
 | Component | Role | Authority |
 |-----------|------|-----------|
-| **7R7 Listener** | Passive observer — polls Matrix rooms, emits CNS spans | **Zero.** Does not classify, escalate, moderate, or judge. |
-| **R7.3 Seam Watcher** | Public API contract observer — loads seam inventory, tracks per-crate test coverage as CNS variety dimensions, detects drift, emits algedonic alerts on degradation | **Zero.** Observes and reports. Does not write tests, modify code, or block builds. |
+| **7R7 Listener** | Passive observer — polls Matrix rooms, emits Regulation spans | **Zero.** Does not classify, escalate, moderate, or judge. |
+| **R7.3 Seam Watcher** | Public API contract observer — loads seam inventory, tracks per-crate test coverage as Regulation variety dimensions, detects drift, emits algedonic alerts on degradation | **Zero.** Observes and reports. Does not write tests, modify code, or block builds. |
 | **CurationLoop** | Pure regulatory — sense/compute/act cycle | **Regulatory.** Compares variety, emits directives. |
 | **CuratorAgent** | Persona layer — template-driven metacognition (KnowAct templates via `execute_knowact()`), spec curation, human-facing reporting, bot orchestration, Matrix standing-session posting | **Decisional.** Invokes LLM for calibrated decisions; formats directives; pursues goals; escalates to human. |
 
 **Key properties:**
 - **Singleton invariant.** Exactly one `CuratorAgent` per system (VSM S4 — Intelligence). Multiple Curators would produce conflicting assessments.
-- **Dual-presence in CLI/REPL.** Human userpod + Curator daemon co-present in the interaction loop. User speaks; Curator observes, surfaces CNS alerts, provides memory summaries.
+- **Dual-presence in CLI/REPL.** Human userpod + Curator daemon co-present in the interaction loop. User speaks; Curator observes, surfaces Regulation alerts, provides memory summaries.
 - **Curator never bypasses OCAP.** Can recommend actions, cannot execute without capability tokens. No `sudo`.
 - **Template-driven metacognition (P3).** `MetacognitionLoop::compute_with_templates()` invokes `curator/metacognition-diagnose.j2` via `ManifestExecutor::execute_knowact()`. The LLM produces a `diagnosis` + `remediation_plan` with calibrated actions (`adjust_budget`, `restart`, `rebalance`, `calibrate`, `escalate`). Falls back to Rust threshold logic (`compute_with_thresholds()`) when no `ManifestExecutor` is configured (standalone CLI). Circuit breaker: 3 consecutive failures → skip template for 5 cycles.
 - **CAT communication posture.** `MetacognitionLoop` evaluates Matrix messages through `cat::evaluate()` — a pure-function engagement gate based on Communication Accommodation Theory. Before the gate, `condenser/condenser_score_saliency` scores message relevance via ontology graph proximity (P5.4): persona (charter-anchored), episodic memory (PKO process domain), or semantic memory (DC+BIBO document domain). The score modulates `convergence_bias` — domain-relevant messages pull the agent toward stronger engagement.
@@ -158,11 +158,11 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 - **Matrix standing session.** `CuratorService::metacognition()` posts the generated summary to the Curator's Matrix room via `MatrixTransport::send_message()` when `HKASK_CURATOR_ROOM_ID` is configured.
 - **Spec drift is a cybernetic signal.** `DefaultSpecCurator` detects when specs diverge from implementation → `SpecDriftAlert` → Conant-Ashby violation → revise spec, not suppress alert.
 - **7R7 is a dumb pipe by design.** Transport moves messages; agents decide what they mean. Authority resides in agent layer, not transport layer.
-- **R7.3 watches the public seam.** `SeamWatcher` loads the machine-readable public seam inventory (embedded JSON at compile time, file path override for development), registers per-crate coverage as CNS variety domains (`seam:{crate_name}`), runs periodic drift checks (default: 30 min), and emits algedonic alerts when coverage degrades. Coverage improvements emit positive `Notify` signals. The watcher is non-fatal — if no inventory is available, seam watching is silently disabled.
+- **R7.3 watches the public seam.** `SeamWatcher` loads the machine-readable public seam inventory (embedded JSON at compile time, file path override for development), registers per-crate coverage as Regulation variety domains (`seam:{crate_name}`), runs periodic drift checks (default: 30 min), and emits algedonic alerts when coverage degrades. Coverage improvements emit positive `Notify` signals. The watcher is non-fatal — if no inventory is available, seam watching is silently disabled.
 
-**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (Matrix transport, agent registry, 7R7 listener, CNS bridge, response dispatch), `hkask-cns` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
+**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (Matrix transport, agent registry, 7R7 listener, Regulation bridge, response dispatch), `hkask-regulation` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
 
-**If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. CNS fires alerts into a void. P12 partially violated.
+**If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. Regulation fires alerts into a void. P12 partially violated.
 
 ##### Curator Persona & Behavioral Specification
 
@@ -244,7 +244,7 @@ _:webid a foaf:Agent ;
 | 2 | Self-contained storage (LDP) | `PerPodStorage` with per-pod SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db` | ✓ |
 | 3 | Capability-based access (WAC/ACP) | `DelegationToken` + `CapabilityChecker` + OCAP dual gate | ✓ |
 | 4 | Interoperable linked-data triples | `hMem` struct with entity/attribute/value/confidence/visibility | ✓ |
-| 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, CNS, and tools directly. `PodDeployment` includes `pod_kind`, `semantic_index`, and per-pod CNS runtime. `PodManager` deleted. `PodFactory` is stateless. | ✓ |
+| 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, Regulation, and tools directly. `PodDeployment` includes `pod_kind`, `semantic_index`, and per-pod Regulation runtime. `PodManager` deleted. `PodFactory` is stateless. | ✓ |
 
 #### Two-Pod Architecture (v0.31.0)
 
@@ -253,12 +253,12 @@ hKask extends the Solid Pod isomorphism into two pod kinds, mapped to cybernetic
 | Kind | `PodKind` | Filename | Owner | Cybernetic Role | Semantic Behavior |
 |------|-----------|----------|-------|-----------------|-------------------|
 | **CuratorPod** | `Curator` | `agents/curator/pod.db` | System (singleton) | VSM S4 Intelligence — sole decisional agent; observes, assesses, intervenes, escalates | `SemanticIndex` owner — aggregates Public hMems from all pods |
-| **UserPod** | `UserPod` | `agents/{sanitized_name}/pod.db` | Human+agent pair (1:1) | VSM S1 Implementation — regulated actor; produces CNS spans; governed by OCAP + Cybernetics | Episodic private; semantic published to Curator |
+| **UserPod** | `UserPod` | `agents/{sanitized_name}/pod.db` | Human+agent pair (1:1) | VSM S1 Implementation — regulated actor; produces Regulation spans; governed by OCAP + Cybernetics | Episodic private; semantic published to Curator |
 
 **Authority DAG:** Curator → Cybernetics → {Inference, Episodic, Semantic}. The Curator is the only decisional agent; UserPods are regulated actors. The former `TeamPod` and `UserPodPod` tiers were collapsed in v0.31.0 — the distinction was taxonomic (what kind of agent) rather than cybernetic (what role does the agent play in the regulation loop). The two-kind model maps directly to VSM S4 (Intelligence) and S1 (Implementation).
 
 **Startup order:** CuratorPod → UserPods (on demand).
-**Data flow:** `store_semantic()` writes locally → CNS event `cns.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public hMems into `SemanticIndex` with cursor tracking.
+**Data flow:** `store_semantic()` writes locally → Regulation event `reg.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public hMems into `SemanticIndex` with cursor tracking.
 **Semantic recall:** `PodContext::recall_semantic()` routes through Curator's `SemanticIndex` for merged-lens view when Curator is active; falls back to local storage.
 
 **Backwards compatibility:** The `pod.kind` sidecar file accepts `"userpod"` as an alias for `"userpod"` (see `read_pod_kind()` in `crates/hkask-agents/src/pod/deployment.rs`). Pre-v0.31.0 pods with `kind: userpod` in the sidecar continue to load as `PodKind::UserPod` without migration.
@@ -273,7 +273,7 @@ pub struct PodDeployment {
     pub pod_id: PodID,
     pub pod: AgentPod,
     pub storage: PerPodStorage,  // Per-pod SQLCipher file at {data_dir}/agents/{sanitized_name}/pod.db
-    pub cns: PerPodRegulationLedger,    // Per-pod variety counters at cns.agent_pod.{pod_id}.*
+    pub cns: PerPodRegulationLedger,    // Per-pod variety counters at reg.agent_pod.{pod_id}.*
     pub tools: PerPodToolBinding, // Per-pod MCP server bindings
 }
 ```
@@ -348,7 +348,7 @@ graph TD
         SK["WordAct / FlowDef / KnowAct<br/>select → populate → execute"]
     end
 
-    subgraph CNS["Pattern B: CNS Feedback Loop"]
+    subgraph Regulation["Pattern B: Regulation Feedback Loop"]
         CN["Variety → Algedonic → Backpressure\n28 canonical span namespaces"]
     end
 
@@ -365,29 +365,29 @@ graph TD
     CN -->|"algedonic signals"| CU
     CU -->|"CalibrateThreshold directive"| CN
     CU -->|"curates"| SK
-    AG -->|"produces CNS spans"| CN
+    AG -->|"produces Regulation spans"| CN
     SK -->|"renders Curator persona"| CU
 
     style Skills fill:#e1f5ff
-    style CNS fill:#ffe1e1
+    style Regulation fill:#ffe1e1
     style Curator fill:#f3e1ff
     style Agents fill:#fff3e1
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
 **The composition chain:**
 1. **Skills drive Agents.** Pods created from FlowDef templates. Personas are WordAct. Cognitive strategies are KnowAct. Templates are the loom; agents are the fabric.
-2. **CNS monitors Agents.** Every tool call, inference, memory operation emits CNS span. Variety counter tracks behavioral diversity. Algedonic alerts fire on deficit.
-3. **CNS signals Curator.** AlgedonicManager → RuntimeAlert → RegulationArchive → CurationLoop reads via cursor → CuratorAgent assesses via metacognition. Contract violations flow through the same path.
-4. **CNS self-tunes.** SetPointCalibrator queries regulation outcome events from RegulationArchive, detects patterns (plateaus, blocks, substitutions), and adjusts SetPoints within bounded ranges — closing the Conant-Ashby loop.
-5. **Curator regulates CNS.** `CuratorDirective::CalibrateThreshold` on direct `mpsc` channel → `CyberneticsLoop` → `RegulationLedger::calibrate_threshold()`. Brain regulates autonomic nervous system.
+2. **Regulation monitors Agents.** Every tool call, inference, memory operation emits Regulation span. Variety counter tracks behavioral diversity. Algedonic alerts fire on deficit.
+3. **Regulation signals Curator.** AlgedonicManager → RuntimeAlert → RegulationArchive → CurationLoop reads via cursor → CuratorAgent assesses via metacognition. Contract violations flow through the same path.
+4. **Regulation self-tunes.** SetPointCalibrator queries regulation outcome events from RegulationArchive, detects patterns (plateaus, blocks, substitutions), and adjusts SetPoints within bounded ranges — closing the Conant-Ashby loop.
+5. **Curator regulates Regulation.** `CuratorDirective::CalibrateThreshold` on direct `mpsc` channel → `CyberneticsLoop` → `RegulationLedger::calibrate_threshold()`. Brain regulates autonomic nervous system.
 6. **Curator curates Skills.** `DefaultSpecCurator` evaluates coherence, detects drift, recommends revisions. Ensures template DNA stays aligned with implemented system.
-6. **Agents produce CNS data.** Agency produces observability; observability enables regulation; regulation ensures healthy agency. Virtuous cycle.
+6. **Agents produce Regulation data.** Agency produces observability; observability enables regulation; regulation ensures healthy agency. Virtuous cycle.
 
 
 ## Deployment Model
@@ -405,7 +405,7 @@ CLOUD SERVER (single binary, all crates compiled)
   hkask-services-runtime - daemon orchestration
   hkask-mcp - MCP server runtime
   hkask-agents - bot/userpod lifecycle
-  hkask-cns - cybernetic nervous system
+  hkask-regulation - cybernetic nervous system
   hkask-codegraph - code understanding engine (tree-sitter, FTS5, recursive CTE, context assembly)
   hkask-wallet + hkask-memory - wallet and memory subsystems
   Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, three-tier (Curator/Team/UserPod)
@@ -447,7 +447,7 @@ Access (all via HTTPS/Caddy):
 - **Role stored in `HumanUser.role`** (enum `Admin` | `Member`). Enforced by API middleware.
 - **Admin-only endpoints:** `GET /api/v1/admin/config`, `POST /api/v1/admin/invite`, `GET /api/v1/admin/sessions`.
 
-**CNS spans:** `RoleAssigned`, `InviteSent`, `InviteAccepted`.
+**Regulation spans:** `RoleAssigned`, `InviteSent`, `InviteAccepted`.
 
 ### Identified Gaps (2026-06-17)
 
@@ -455,7 +455,7 @@ All gaps from 2026-06-15 are now closed. Current open gaps:
 
 | Gap | Severity | Status | Description |
 |-----|----------|--------|-------------|
-| **Kata documentation narrative** | Low | **Open** | CNS narrative companion for kata coaching has not been commissioned. Decision deferred per Task 9. |
+| **Kata documentation narrative** | Low | **Open** | Regulation narrative companion for kata coaching has not been commissioned. Decision deferred per Task 9. |
 | **Skill ↔ MCP server documentation boundary** | Low | **Open** | Skills live in `.agents/skills/` (Zed agent layer) and `registry/templates/` (hKask runtime layer). MCP servers live in `mcp-servers/`. No unified "capability documentation" showing how a skill, its templates, and its MCP surface compose. Deferred per Task 9. |
 | **utoipa annotation completeness** | Medium | **Open** | No `#[utoipa::path]` annotations found in `crates/`. The OpenAPI spec (`docs/generated/openapi.json`, 4454 lines) may be manually maintained. Unannotated endpoints are invisible to auto-generation. Task 6 audits this. |
 | **Versioned documentation** | Low | **Open** | No versioning strategy for docs. As codebase evolves (kanban v2, kata refinements, additional MCP servers), documentation will drift again. Deferred per Task 9. |
@@ -485,9 +485,9 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
 | [`core/PRINCIPLES.md`](PRINCIPLES.md) | 12 architecture principles (P1-P12), 5 anchors, anti-patterns |
 | [`core/MDS.md`](MDS.md) | Minimal Domain Specification — 5 categories, 12 tools, completeness predicate |
 | [`core/FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
-| [`core/TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) | Testing discipline — property-based testing, CNS verification, proptest framework |
+| [`core/TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) | Testing discipline — property-based testing, Regulation verification, proptest framework |
 | [`SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
-| [`CNS Domain Specification`](FUNCTIONAL_SPECIFICATION.md#cns-domain-specification) | CNS Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
+| [`Regulation Domain Specification`](FUNCTIONAL_SPECIFICATION.md#cns-domain-specification) | Regulation Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
 | [`hkask-ledger.md`](../../reference/api-reference.md) | Ledger specification — triple-entry accounting, three-domain schema |
 
 **TUI specification** — 22 windows with 15 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation. Diagrams: [class hierarchy](../../reference/api-reference.md#tui-window-trait-hierarchy), [event dispatch](../../reference/api-reference.md#tui-event-dispatch-pipeline), [workspace lifecycle](../../reference/api-reference.md#tui-workspace-state-lifecycle), [bridge wiring](../../reference/api-reference.md#tui-bridge-wiring-architecture).
@@ -495,7 +495,7 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
 **Curator persona** — The Curator is the canonical system daemon. Defined in Pattern C above (§Curator Persona & Behavioral Specification).
 
 | [`../plans/k8s-admin-guide.md`](../../plans/k8s-admin-guide.md) | Kubernetes deployment and backup guide |
-| [`hkask-codegraph`](../../../crates/hkask-codegraph/) (plan absorbed into implementation) | CodeGraph crate — two-crate pattern, 10-tool MCP server, CNS integration |
+| [`hkask-codegraph`](../../../crates/hkask-codegraph/) (plan absorbed into implementation) | CodeGraph crate — two-crate pattern, 10-tool MCP server, Regulation integration |
 
 ### Supplementary Architecture Patterns
 
@@ -508,9 +508,9 @@ hKask decomposes into six authority loops organized as a **two-layer model** wit
 | **Inference (1)** | Domain | Model dispatch, provider selection, rJoule accounting | Varies model to minimize action per task | `hkask-inference`, `hkask-agents` (inference loop) |
 | **Episodic Memory (2a)** | Domain | Private experience encoding, temporal attention, confidence decay | Selects most salient memories (fewest bits for most prediction) | `hkask-memory` |
 | **Semantic Memory (2b)** | Domain | Shared h_mem publishing, triple storage, consolidation from episodic | Public knowledge with entropy-gated recall | `hkask-memory`, `hkask-storage` |
-| **Curation (5)** | Meta | Spec drift detection, memory consolidation, catalog maintenance, metacognition | Observes system, recommends minimal interventions | `hkask-agents` (curator), `hkask-cns` (curation) |
-| **Cybernetics (6)** | Meta | CNS homeostatic control, algedonic escalation, variety engineering, regulation policy | Maintains Ashby-requisite variety with minimal energy | `hkask-cns`, `hkask-types` |
-| **Snapshot (6b)** | Meta | Scheduled CAS repository snapshots, retention policy enforcement | Periodic state capture for disaster recovery | `hkask-cns` (snapshot_loop) |
+| **Curation (5)** | Meta | Spec drift detection, memory consolidation, catalog maintenance, metacognition | Observes system, recommends minimal interventions | `hkask-agents` (curator), `hkask-regulation` (curation) |
+| **Cybernetics (6)** | Meta | Regulation homeostatic control, algedonic escalation, variety engineering, regulation policy | Maintains Ashby-requisite variety with minimal energy | `hkask-regulation`, `hkask-types` |
+| **Snapshot (6b)** | Meta | Scheduled CAS repository snapshots, retention policy enforcement | Periodic state capture for disaster recovery | `hkask-regulation` (snapshot_loop) |
 
 **Communication is demoted to transport.** The Communication loop is not a conceptual loop — it's a `tokio::mpsc` channel connecting Curation to Cybernetics. Transport moves messages; agents decide what they mean.
 
@@ -541,13 +541,13 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 | `hkask-mcp-memory` | Memory | Memory search/consolidation |
 | `hkask-agents` (curator) | Curation | CuratorAgent, CurationLoop |
 | `hkask-condenser` | Curation | Context window condensation |
-| `hkask-cns` (seam_watcher) | Curation | Spec drift, contract coverage |
+| `hkask-regulation` (seam_watcher) | Curation | Spec drift, contract coverage |
 | `hkask-test-harness` | Curation | QA runs, fuzzing infrastructure |
-| `hkask-cns` (algedonic, runtime) | Cybernetics | Alerts, variety tracking |
+| `hkask-regulation` (algedonic, runtime) | Cybernetics | Alerts, variety tracking |
 | `hkask-capability` | Cybernetics | OCAP enforcement, membranes |
 | `hkask-mcp-cloud-gateway` | Cybernetics | Transport regulation |
 | `hkask-templates` | Curation | Skill registry, FlowDef execution |
-| `hkask-communication` | Transport | Matrix transport, 7R7 listener, CNS bridge, response dispatch |
+| `hkask-communication` | Transport | Matrix transport, 7R7 listener, Regulation bridge, response dispatch |
 
 **Shared substrate (no loop ownership):** `hkask-storage` (storage backend — v0.31.0: modularized into 9 sub-crates: `-core`, `-gallery`, `-kata`, `-hmem`, `-archive`, `-token_registry`, `-consent_store`, `-sovereignty`, `-escalation` behind a facade; 8 modules remain in facade), `hkask-types` (shared types), `hkask-codegraph` (code understanding engine — tree-sitter parsing, FTS5 keyword search, recursive CTE traversal, token-budgeted context assembly for LLM prompts). Every loop imports them; neither loop owns them.
 
@@ -565,13 +565,13 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 - **G1**: Per-file SHA-256 hash-on-read — incremental indexing skips unchanged files
 - **G2**: "Parse parallel, write serial" — rayon for CST parsing, serialized SQLite writes
 - **G12**: Context feedback loop — `codegraph_feedback` records symbol usage ratio, tunes future assembly
-- **X6**: Index staleness — `IndexPipeline::staleness_seconds()` feeds CNS for algedonic alerts
+- **X6**: Index staleness — `IndexPipeline::staleness_seconds()` feeds Regulation for algedonic alerts
 
 **SQLite-native graph (no external DB):** 3 base tables (`code_files`, `symbols`, `edges`), 2 virtual tables (`symbols_fts` for FTS5 keyword search, `symbols_vec` for sqlite-vec semantic search), 9 indexes, 3 FTS5 sync triggers. All graph traversal is recursive CTE in SQL — no in-memory graph, no external graph database. WAL mode for concurrent readers during writes.
 
 **11 MCP tools:**
 
-| Tool | Query | CNS Span |
+| Tool | Query | Regulation Span |
 |------|-------|----------|
 | `codegraph_query` | FTS5 BM25 search | — |
 | `codegraph_traverse` | Recursive CTE (forward/reverse, depth-bounded) | — |
@@ -581,11 +581,11 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 | `codegraph_context` | FTS5 → PageRank sort → budget cap (512/2048/4096/8192 tokens) | — |
 | `codegraph_structure` | Top symbols by PageRank | — |
 | `codegraph_stats` | File/symbol/edge count + connectivity health | — |
-| `codegraph_reindex` | Full workspace re-index (SHA-256 incremental) | `cns.codegraph.file_indexed`, `cns.codegraph.index_health` |
-| `codegraph_feedback` | Context efficiency ratio (used/provided symbols) | `cns.codegraph.context_efficiency` |
-| `codegraph_index_embeddings` | Jinja2 template → embedding API → sqlite-vec store | `cns.codegraph.embeddings` |
+| `codegraph_reindex` | Full workspace re-index (SHA-256 incremental) | `reg.codegraph.file_indexed`, `reg.codegraph.index_health` |
+| `codegraph_feedback` | Context efficiency ratio (used/provided symbols) | `reg.codegraph.context_efficiency` |
+| `codegraph_index_embeddings` | Jinja2 template → embedding API → sqlite-vec store | `reg.codegraph.embeddings` |
 
-**CNS integration:** Two spans for cybernetic observability — `cns.codegraph.index_staleness` (seconds since last full index, drives algedonic alerts when stale) and `cns.codegraph.context_efficiency` (signal-to-noise ratio, enables self-tuning context assembly).
+**Regulation integration:** Two spans for cybernetic observability — `reg.codegraph.index_staleness` (seconds since last full index, drives algedonic alerts when stale) and `reg.codegraph.context_efficiency` (signal-to-noise ratio, enables self-tuning context assembly).
 
 **OCAP governance:** All 11 tools are OCAP-gated through the standard MCP `CapabilityTier` mechanism. 8 tools call `ensure_indexed()` (lazy initialization) before executing; 3 tools (`stats`, `reindex`, `index_embeddings`) skip this guard.
 
@@ -593,7 +593,7 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **Current implementation diagrams:** [CodeGraph Type System](../../reference/api-reference.md#codegraph-type-system-class-diagram), [CodeGraph Schema ERD](../../reference/api-reference.md#codegraph-database-schema-erd), [CodeGraph Pipeline](../../reference/api-reference.md#codegraph-indexing-pipeline-flowchart), [CodeGraph Agent Workflow](../../reference/api-reference.md#codegraph-agent-workflow-sequence). The [CodeGraph Pipeline Lifecycle](../../reference/api-reference.md#codegraph-indexpipeline-lifecycle-state) document is a proposed lifecycle model, not current implementation behavior.
 
-**Plan:** Original plan absorbed into the [`hkask-codegraph`](../../../crates/hkask-codegraph/) crate (Complete — 22 tests, 11 tools, CNS integration)
+**Plan:** Original plan absorbed into the [`hkask-codegraph`](../../../crates/hkask-codegraph/) crate (Complete — 22 tests, 11 tools, Regulation integration)
 
 **If removed:** Agents lose the ability to understand the codebase they operate on — all codebase context must be provided manually in prompts. Reduces agent autonomy from code-aware to text-only. P3 (Generative Space) partially degraded.
 
@@ -614,10 +614,10 @@ Every loop-to-loop interaction is governed by a capability membrane with explici
 | Memory → Curation | Memory → Curation | Read | `RegulationArchive` cursor-based query |
 | Curation → Cybernetics | Curation → Cybernetics | Signal | `CuratorDirective` on `mpsc` channel |
 | Cybernetics → Curation | Cybernetics → Curation | Signal | `RuntimeAlert` → `RegulationArchive` |
-| Inference → Cybernetics | Inference → Cybernetics | Signal | CNS span per inference call |
+| Inference → Cybernetics | Inference → Cybernetics | Signal | Regulation span per inference call |
 | Cybernetics → Inference | Cybernetics → Inference | Signal | `BackpressureSignal`, `CircuitBreaker` |
 
-**Cross-loop authority rules:** (1) No struct passes a membrane by value — all crossings are typed message types. (2) Every crossing is OCAP-gated via `GovernedTool` or `GovernedInference`. (3) Every crossing is energy-accounted via `GasBudget.try_consume()`. (4) Every crossing is CNS-observable — a span is emitted for every membrane crossing.
+**Cross-loop authority rules:** (1) No struct passes a membrane by value — all crossings are typed message types. (2) Every crossing is OCAP-gated via `GovernedTool` or `GovernedInference`. (3) Every crossing is energy-accounted via `GasBudget.try_consume()`. (4) Every crossing is Regulation-observable — a span is emitted for every membrane crossing.
 
 **Cycle-freedom guarantee:** The membrane graph is a DAG. Cybernetics ↔ Curation appears bidirectional but is directionally typed — signals differ (`CuratorDirective` vs `RuntimeAlert`), preventing infinite loops.
 
@@ -629,21 +629,21 @@ Every fallible operation passes through a `SelfHealer`. Errors are signals that 
 Error occurs → SelfHealer::attempt(error, context)
   → HealRegistry.find_strategy(error) → HealStrategy
     → HealAction: RunCommand | SetEnv | LoadDotEnv | CreateDefaultFile | RetryWithBackoff | ProposeCodeChange | Sequence
-  → HealOutcome: Healed (retry) | Degraded (fallback) | Unhealable (escalate to Curator via CNS)
+  → HealOutcome: Healed (retry) | Degraded (fallback) | Unhealable (escalate to Curator via Regulation)
 ```
 
-| What Self-Healing Can Modify | Runtime? | CNS Path |
+| What Self-Healing Can Modify | Runtime? | Regulation Path |
 |------------------------------|----------|----------|
-| `.env` files | ✅ | `cns.heal.dotenv` |
-| YAML manifests | ✅ | `cns.heal.file_created` |
-| Jinja2 templates | ✅ | `cns.heal.file_created` |
-| Environment variables | ✅ | `cns.heal.set_env` |
-| Rust source code | ❌ (compiled) | `cns.heal.code_change_proposed` |
-| File permissions | ⚠️ Advisory | `cns.heal.code_change_proposed` |
+| `.env` files | ✅ | `reg.heal.dotenv` |
+| YAML manifests | ✅ | `reg.heal.file_created` |
+| Jinja2 templates | ✅ | `reg.heal.file_created` |
+| Environment variables | ✅ | `reg.heal.set_env` |
+| Rust source code | ❌ (compiled) | `reg.heal.code_change_proposed` |
+| File permissions | ⚠️ Advisory | `reg.heal.code_change_proposed` |
 
 **Built-in strategies:** `missing-api-key` (load .env), `permission-denied` (chmod), `command-not-found` (install), `config-file-not-found` (create default), `network-error` (retry with backoff), `transient-retry` (exponential delay).
 
-**Design constraints:** No runtime code modification; idempotent file operations; process-scoped env changes; full audit trail via CNS; never silently ignore errors.
+**Design constraints:** No runtime code modification; idempotent file operations; process-scoped env changes; full audit trail via Regulation; never silently ignore errors.
 
 <!-- Content provenance: absorbed from docs/architecture/energy-gas-payments-api-keys.md, specs/rjoule-cost-system.md, specs/hkask-ledger.md, specs/provider-intelligence.md during 2026-06-24 consolidation -->
 
@@ -674,7 +674,7 @@ Two distinct cost tracks merge into a single rJoule total:
 
 ##### API Key Lifecycle
 
-Six-gate issuance: authentication → CNS history check → scope validation → purpose statement → rate limit feasibility → wallet balance check. Non-empty scope enforces URI path prefix match; mismatch returns `403 ScopeViolation`. Revocation triggers: 3 abuse alerts, >5 IPs in 1 hour, scope violation, or manual Curator directive.
+Six-gate issuance: authentication → Regulation history check → scope validation → purpose statement → rate limit feasibility → wallet balance check. Non-empty scope enforces URI path prefix match; mismatch returns `403 ScopeViolation`. Revocation triggers: 3 abuse alerts, >5 IPs in 1 hour, scope violation, or manual Curator directive.
 
 ##### Ledger — hMem-Entry Accounting
 
@@ -897,7 +897,7 @@ When the `fusion:` block is present, all `select` steps in that manifest use thi
 
 ## Service Layer
 
-**Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 specialized subcrates providing shared business logic for CLI and API surfaces. The service decomposition follows **Conway's Law** (Conway, 1968): each subcrate maps to a bounded context with its own CNS span domain, mirroring the separation of concerns between the Curator daemon, kata coaching loop, and domain services.[^conway]
+**Crates:** `hkask-services-core` through `hkask-services-wallet` — 11 specialized subcrates providing shared business logic for CLI and API surfaces. The service decomposition follows **Conway's Law** (Conway, 1968): each subcrate maps to a bounded context with its own Regulation span domain, mirroring the separation of concerns between the Curator daemon, kata coaching loop, and domain services.[^conway]
 
 **Canonical specification:** [`MDS-agent-service.md`](FUNCTIONAL_SPECIFICATION.md#15-service-layer-architecture) — full domain spec, accessor methods, depth test results, and service boundary definitions.
 
@@ -919,7 +919,7 @@ graph TD
     CLI --> SVC
     API --> SVC
     SVC --> AGENTS[hkask-agents]
-    SVC --> CNS[hkask-cns]
+    SVC --> Regulation[hkask-regulation]
     SVC --> MEM[hkask-memory]
     SVC --> TEMPLATES[hkask-templates]
     SVC --> TYPES[hkask-types]
@@ -928,7 +928,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -946,7 +946,7 @@ Domain crates **never** depend on service layer subcrates. MCP servers **never**
 
 **Crates:** `hkask-mcp::GixCasAdapter` (pod-directory git operations), `hkask-services-context` (daemon loop)
 
-**Tri-surface pattern:** CLI (`kask backup`), API, CNS daemon loop
+**Tri-surface pattern:** CLI (`kask backup`), API, Regulation daemon loop
 
 ### Summary
 
@@ -995,7 +995,7 @@ kask backup prune                       # retention cleanup
 2. `pod.db` is SQLCipher-encrypted — encryption at rest is handled by the database layer, not the backup layer.
 3. Restore writes `pod.db` directly via `restore_file_from_commit`; the pod must be restarted to apply the change.
 4. Date-based restore via `resolve_date`: walks commit log, finds nearest commit with timestamp ≤ target date.
-5. The daemon loop (`pod_backup_daemon`) snapshots all pods every 24 hours, logging CNS spans per pod.
+5. The daemon loop (`pod_backup_daemon`) snapshots all pods every 24 hours, logging Regulation spans per pod.
 
 ---
 
@@ -1018,7 +1018,7 @@ Kanban provides headless task coordination for agents and userpods. Boards conta
 ### Key Features
 
 - **WIP limits** per column (Anderson §4: "limit WIP to expose problems")
-- **CNS behavioral contracts**: task assignment uses `expect:` + `[P{N}]` with pre/post conditions
+- **Regulation behavioral contracts**: task assignment uses `expect:` + `[P{N}]` with pre/post conditions
 - **Kata integration**: coaching, improvement, and starter katas available as task primitives
 - **Capability packages**: reusable delegation metadata exists, but the Kanban MCP does not verify its `capability_token` fields
 - **Board templates**: `software-project`, `writing-project`, `scientific-research`, `investment-research`
@@ -1039,7 +1039,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1053,7 +1053,7 @@ See also: [`docs/how-to/skills-and-composition.md`](../../how-to/skills-and-comp
 
 ## Kata — Cybernetic Capability Development
 
-**Crates:** `hkask-services-kata-kanban` (KataEngine, KanbanService, PDCA→task mapping), `hkask-cns` (variety counters, algedonic alerts), `hkask-storage` (KataHistoryStore)
+**Crates:** `hkask-services-kata-kanban` (KataEngine, KanbanService, PDCA→task mapping), `hkask-regulation` (variety counters, algedonic alerts), `hkask-storage` (KataHistoryStore)
 
 **Skills:** `.agents/skills/kata-starter/`, `.agents/skills/kata-improvement/`, `.agents/skills/kata-coaching/`, `.agents/skills/kata/` (bundle)
 
@@ -1063,7 +1063,7 @@ See also: [`docs/how-to/skills-and-composition.md`](../../how-to/skills-and-comp
 
 ### Summary
 
-Kata implements the Toyota Kata methodology (Rother, 2009) as a cybernetic capability development system. Three independently usable skills compose through a bundle orchestrator, with CNS observing every practice, PDCA iteration, and coaching session. The kanban MCP surface provides task-based execution for kata experiments.
+Kata implements the Toyota Kata methodology (Rother, 2009) as a cybernetic capability development system. Three independently usable skills compose through a bundle orchestrator, with Regulation observing every practice, PDCA iteration, and coaching session. The kanban MCP surface provides task-based execution for kata experiments.
 
 | Skill | Purpose | Steps | Templates | Manifest |
 |-------|---------|-------|-----------|----------|
@@ -1073,15 +1073,15 @@ Kata implements the Toyota Kata methodology (Rother, 2009) as a cybernetic capab
 
 ### Key Features
 
-- **PDCA cycle with before/after metrics:** The `KataEngine` captures `metric_before` from CNS counters, executes the 4-step PDCA pattern, captures `metric_after`, and computes an `ImprovementSignal` (Positive/Negative/Stalled/NotMeasured)
+- **PDCA cycle with before/after metrics:** The `KataEngine` captures `metric_before` from Regulation counters, executes the 4-step PDCA pattern, captures `metric_after`, and computes an `ImprovementSignal` (Positive/Negative/Stalled/NotMeasured)
 - **Automaticity tracking:** Practice history stored in `data/kata-history.json` + SQLite (`KataHistoryStore`). Automaticity linearly approaches 1.0 over 21 consecutive practice days. 3+ day gaps trigger habit decay alerts
-- **CNS variety counters:** `kata.practices.completed`, `kata.automaticity.score`, `kata.habit.formation` — baseline 5/week, +0.05/week, 1 per 21 days
+- **Regulation variety counters:** `kata.practices.completed`, `kata.automaticity.score`, `kata.habit.formation` — baseline 5/week, +0.05/week, 1 per 21 days
 - **Algedonic alerts:** Variety deficits exceeding threshold (default 100) emit `kata.algedonic` warnings
 - **OCAP consent gates:** kata-starter (self-consent), kata-improvement (Curator), kata-coaching (Learner) — per P2 Affirmative Consent
 - **Memory integration:** Every step produces a `StepExperience` recorded to episodic memory via dual-encoding pipeline
 - **Kanban integration:** PDCA experiments map to kanban tasks; coaching 5 questions map to task fields; improvement cycles tracked as task state transitions
 
-### Kata-Kanban-CNS Integration
+### Kata-Kanban-Regulation Integration
 
 <!-- Content provenance: absorbed from docs/architecture/kata-kanban-integration.md during 2026-06-24 consolidation -->
 
@@ -1092,16 +1092,16 @@ sequenceDiagram
     participant Coach
     participant KataEngine
     participant KanbanService
-    participant CNS
+    participant Regulation
 
     Coach->>KataEngine: Q1: What is the target condition?
     KataEngine->>KanbanService: Read task title, description, criteria
     KanbanService-->>KataEngine: Task { title, description, criteria }
-    KataEngine->>CNS: Emit cns.kata.coaching.q1
+    KataEngine->>Regulation: Emit reg.kata.coaching.q1
 
     Coach->>KataEngine: Q4: What is your next step? What do you expect?
     KataEngine->>KanbanService: Update task specification, transition → InProgress
-    KanbanService->>CNS: Emit cns.tool.kanban (task moved)
+    KanbanService->>Regulation: Emit reg.tool.kanban (task moved)
 
     Coach->>KataEngine: Q5: How quickly can we go and see?
     KataEngine->>KanbanService: Transition → Review, task_verify()
@@ -1111,19 +1111,19 @@ sequenceDiagram
         KanbanService->>KanbanService: Task → Done
     else failed
         KanbanService->>KanbanService: Task → InProgress (rework)
-        KataEngine->>CNS: cns.kata.improv.effectiveness (degradation)
+        KataEngine->>Regulation: reg.kata.improv.effectiveness (degradation)
     end
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
 #### PDCA → Kanban State Mapping
 
-| PDCA Phase | Kanban Status | CNS Event |
+| PDCA Phase | Kanban Status | Regulation Event |
 |------------|---------------|-----------|
 | **Plan** | `Backlog` | task created |
 | **Do** | `InProgress` | task moved |
@@ -1132,15 +1132,15 @@ status: VERIFIED
 
 Transitions: `Backlog → InProgress` (Q4), `InProgress → Review` (Q5), `Review → Done` (pass), `Review → InProgress` (fail).
 
-#### CNS Span Trace
+#### Regulation Span Trace
 
 ```
-cns.kata.coaching.q1 → cns.tool.kanban (task created)
-cns.kata.coaching.q4 → cns.tool.kanban (Backlog → InProgress)
-cns.kata.coaching.q5 → cns.tool.kanban (InProgress → Review)
-                   → cns.tool.kanban (TaskVerified)
-                   → cns.tool.kanban (Review → Done or InProgress)
-cns.kata.improv.effectiveness → variety_feedback → CNS homeostatic loop
+cns.kata.coaching.q1 → reg.tool.kanban (task created)
+cns.kata.coaching.q4 → reg.tool.kanban (Backlog → InProgress)
+cns.kata.coaching.q5 → reg.tool.kanban (InProgress → Review)
+                   → reg.tool.kanban (TaskVerified)
+                   → reg.tool.kanban (Review → Done or InProgress)
+cns.kata.improv.effectiveness → variety_feedback → Regulation homeostatic loop
 ```
 
 #### Error Recovery
@@ -1148,15 +1148,15 @@ cns.kata.improv.effectiveness → variety_feedback → CNS homeostatic loop
 | Failure | Recovery |
 |---------|----------|
 | Verification failure | Task re-enters Q4-Q5 loop; after 3 consecutive failures, `kanban unjam` escalates |
-| Task stall (>24h) | `kanban unjam` scans, CNS variety-deficit alert fires |
+| Task stall (>24h) | `kanban unjam` scans, Regulation variety-deficit alert fires |
 | Improv degradation | Switch improv mode, reduce scope, or return to Starter Kata drills |
-| CNS span loss | Buffered in `CyberneticsLoop::process_inbox()`, retried, buffer overflow drops oldest |
+| Regulation span loss | Buffered in `CyberneticsLoop::process_inbox()`, retried, buffer overflow drops oldest |
 
 ---
 
 ## LoRA Adapter Lifecycle & Inference Composition
 
-**Crates:** `hkask-adapter` (lifecycle, routing, store), `hkask-types` (CNS spans), `hkask-services-runtime` (orchestration)
+**Crates:** `hkask-adapter` (lifecycle, routing, store), `hkask-types` (Regulation spans), `hkask-services-runtime` (orchestration)
 
 **MCP surface:** Training via `hkask-mcp-training` (17 tools, 5 providers)
 
@@ -1164,7 +1164,7 @@ cns.kata.improv.effectiveness → variety_feedback → CNS homeostatic loop
 
 ### Summary
 
-`hkask-adapter` manages the full lifecycle of trained LoRA adapters — from training provenance through cloud deployment to cost-tracked inference and teardown. Every operation is OCAP-gated (P4). Every state transition emits a CNS span (P9). Every adapter has an owner WebID (P12).
+`hkask-adapter` manages the full lifecycle of trained LoRA adapters — from training provenance through cloud deployment to cost-tracked inference and teardown. Every operation is OCAP-gated (P4). Every state transition emits a Regulation span (P9). Every adapter has an owner WebID (P12).
 
 | Component | Type | Purpose |
 |-----------|------|---------|
@@ -1192,20 +1192,20 @@ stateDiagram-v2
     note right of Active
         Cost accrual (P9)
         Budget enforcement
-        CNS: Inference
-        CNS: Gas
+        Regulation: Inference
+        Regulation: Gas
     end note
 
     note right of Draining
         No new requests accepted
         In-flight requests complete
-        CNS: Inference
+        Regulation: Inference
     end note
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1214,7 +1214,7 @@ status: VERIFIED
 - **Content-addressed storage:** Adapters identified by content hash + owner WebID — no anonymous artifacts (P12)
 - **Provider abstraction:** `AdapterSource` enum supports HuggingFace repos (extensible); providers: Together AI (real HTTP upload + inference), Runpod (vLLM skeleton), Baseten (vLLM skeleton)
 - **Transparent pricing:** `CostModel` per provider — user sees cost before deployment (P2)
-- **Budget enforcement:** `EndpointLifecycle` checks cost accrual against budget; `EndpointCostBudgetWarning` CNS span on threshold breach (P9)
+- **Budget enforcement:** `EndpointLifecycle` checks cost accrual against budget; `EndpointCostBudgetWarning` Regulation span on threshold breach (P9)
 - **OCAP-gated composition:** `AdapterPort` trait exposes 6 methods, each requiring a capability token (P4)
 - **RAII teardown:** `EndpointGuard` ensures endpoints are terminated even on panic (P5)
 
@@ -1223,14 +1223,14 @@ status: VERIFIED
 ```mermaid
 graph TD
     TRAIN["hkask-mcp-training"] --> ADAPTER["hkask-adapter"]
-    ADAPTER --> TYPES["hkask-types (CNS spans, WebID)"]
+    ADAPTER --> TYPES["hkask-types (Regulation spans, WebID)"]
     ADAPTER --> STORAGE["hkask-storage (define_store!)"]
     ADAPTER --> INFERENCE["hkask-inference (provider routing)"]
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-006
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1291,7 +1291,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-007
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1368,7 +1368,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-008
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1403,7 +1403,7 @@ The userpod streams inference output as `session/update` notifications while the
 | Capability tokens | `verify_startup_gates()` → `A2ARuntime` (P4 Gate 2/3) |
 | Memory | `DaemonClient::store_experience()` → dual episodic/semantic encoding |
 | Inference | `InferenceRouter` (same provider dispatch as REPL) |
-| Observability | CNS spans: `cns.acp.bridge.latency`, `cns.acp.userpod.memory_size`, `cns.acp.ide.connection_state` |
+| Observability | Regulation spans: `reg.acp.bridge.latency`, `reg.acp.userpod.memory_size`, `reg.acp.ide.connection_state` |
 | Accountability | Every memory hMem carries the userpod's `WebID` as `owner` (P12) |
 
 ### Key Constraints
@@ -1486,11 +1486,11 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 
 | Crate | Pub Items | Key Concerns | Justification |
 |-------|-----------|-------------|---------------|
-| `hkask-types` | 50 | CNS span registry (100+ variants), WebID, RDF types | Canonical type crate. CNS spans alone justify the surface. |
+| `hkask-types` | 50 | Regulation span registry (100+ variants), WebID, RDF types | Canonical type crate. Regulation spans alone justify the surface. |
 | `hkask-test-harness` | 42 | Contract verification, proptest strategies | Testing infrastructure. Each strategy is test-only. |
 | `hkask-storage` | 39 | `define_store!` macro, hMemStore, vector store | Persistence orchestration. Each store follows same deep pattern. |
 | `hkask-agents` | 26 | ActivePods, AgentRegistry, capability delegation | Multi-concern crate. Each concern independently testable. |
-| `hkask-cns` | 25 | CyberneticsLoop, VarietyTracker, AlgedonicManager | Regulatory surface. Each component is a distinct feedback loop. |
+| `hkask-regulation` | 25 | CyberneticsLoop, VarietyTracker, AlgedonicManager | Regulatory surface. Each component is a distinct feedback loop. |
 | `hkask-improv` | 19 | 5 improv modes, kata improv, ensemble coordination | Each mode is a distinct interaction grammar. |
 | `hkask-templates` | 22 | Jinja2 rendering, registry, template types | Template engine. Registry, rendering, classification are distinct concerns. |
 | `hkask-wallet` | 22 | WalletManager, rJoule, multi-chain bridges | Domain boundary. Keys, balances, deposits are distinct operations. |
@@ -1520,7 +1520,7 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 
 API documentation is auto-generated at build time from type annotations via utoipa. Dependencies: `utoipa 5.5` (with `axum_extras`, `uuid`, `chrono` features), `utoipa-axum 0.2`. All request/response types derive `ToSchema`; endpoints are registered via `OpenApiRouter::new().route()` with utoipa-axum auto-discovery from handler signatures and `ToSchema` derives. Generated artifacts: `docs/generated/openapi.json` (OpenAPI 3.1), `docs/generated/cli-reference.md`. CLI: `kask docs openapi`, `kask docs cli`, `kask docs all`.
 
-**60 registered endpoints** across templates, bots, pods, MCP, CNS, chat, models, curator, ACP, bundles, specs, episodic, sovereignty, consolidation, git, goals, settings, wallet. All endpoints are registered via `OpenApiRouter::new().route()` and appear in the generated spec via utoipa-axum auto-discovery. MCP tools are discovered dynamically at runtime and are not part of the OpenAPI spec.
+**60 registered endpoints** across templates, bots, pods, MCP, Regulation, chat, models, curator, ACP, bundles, specs, episodic, sovereignty, consolidation, git, goals, settings, wallet. All endpoints are registered via `OpenApiRouter::new().route()` and appear in the generated spec via utoipa-axum auto-discovery. MCP tools are discovered dynamically at runtime and are not part of the OpenAPI spec.
 
 Spec CRUD routes (`GET/POST /api/specs`) call `SpecStore` directly through `AgentService::spec_store()` — no intermediate service layer. Spec validation and quality checks run through `kask qa spec-check`.
 
@@ -1546,12 +1546,12 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADRs/ADR-037-blake3-content-addressing.md`](../ADRs/ADR-037-blake3-content-addressing.md) | blake3 content addressing for agent artifacts |
 | [`ADRs/ADR-041-dynamic-model-discovery.md`](../ADRs/ADR-041-dynamic-model-discovery.md) | Dynamic model discovery via inference provider catalog |
 | [`ADRs/ADR-042-port-promotion-rule.md`](../ADRs/ADR-042-port-promotion-rule.md) | Port trait location — promotion rule (1 consumer = local, 2+ = promote to domain or shared crate) |
-| [`ADRs/ADR-043-eliminate-nested-runtime-panics.md`](../ADRs/ADR-043-eliminate-nested-runtime-panics.md) | Eliminate nested runtime panics in CNS loop executor |
+| [`ADRs/ADR-043-eliminate-nested-runtime-panics.md`](../ADRs/ADR-043-eliminate-nested-runtime-panics.md) | Eliminate nested runtime panics in Regulation loop executor |
 | [`ADRs/ADR-044-ledger-wallet-separation.md`](../ADRs/ADR-044-ledger-wallet-separation.md) | Separation of ledger accounting from wallet operations |
 | [`ADRs/ADR-045-cli-bootstrap-strategy.md`](../ADRs/ADR-045-cli-bootstrap-strategy.md) | CLI bootstrap strategy — database initialization and first-run experience |
 | [`ADRs/ADR-046-repl-extraction-path.md`](../ADRs/ADR-046-repl-extraction-path.md) | REPL extraction into standalone crate with ReplHost trait |
 | [`ADRs/ADR-047-storage-modularization.md`](../ADRs/ADR-047-storage-modularization.md) | Storage crate modularization — 9 sub-crates behind facade |
-| [`ADRs/ADR-048-cns-type-decomposition.md`](../ADRs/ADR-048-cns-type-decomposition.md) | CNS type system decomposition — RegulationSpan reduced to 7 variants, domain enums per crate |
+| [`ADRs/ADR-048-cns-type-decomposition.md`](../ADRs/ADR-048-cns-type-decomposition.md) | Regulation type system decomposition — RegulationSpan reduced to 7 variants, domain enums per crate |
 
 **Also present:** [`ADRs/ADR-043-database-driver.md`](../ADRs/ADR-043-database-driver.md) — Database driver abstraction.
 
@@ -1588,7 +1588,7 @@ docs/architecture/
 │   ├── PRINCIPLES.md                           # P1-P12 incl. dual-axis framework
 │   ├── MDS.md                                  # 5 categories, 12 tools
 │   ├── TESTING_DISCIPLINE.md                   # Testing + QA operations
-│   ├── FUNCTIONAL_SPECIFICATION.md             # AgentService functional spec (absorbed CNS-DOMAIN-SPECIFICATION)
+│   ├── FUNCTIONAL_SPECIFICATION.md             # AgentService functional spec (absorbed Regulation-DOMAIN-SPECIFICATION)
 │   ├── CROSS_REFERENCE_QA.md                   # Cross-reference quality assurance
 │   └── TEMPLATE_AUTHORSHIP.md                  # Template authorship conventions
 ├── ADRs/
@@ -1690,7 +1690,7 @@ The former `mcp-servers/hkask-mcp-communication/src/matrix.rs` (303 lines of zer
 | Module | Lines | Purpose |
 |--------|-------|---------|
 | `matrix.rs` | 596 | `MatrixTransport` — matrix-sdk wrapper: login, send/receive messages, create rooms, invite users, list rooms, upload/send files |
-| `listener.rs` | 191 | `SevenR7Listener` — passive room observer, polls rooms on configurable interval, persists CNS RegulationRecords for curation awareness |
+| `listener.rs` | 191 | `SevenR7Listener` — passive room observer, polls rooms on configurable interval, persists Regulation RegulationRecords for curation awareness |
 | `agent_registration.rs` | 152 | `AgentRegistry` — WebID↔UserId mapping, thread watchlists, deregistration |
 | `lib.rs` | 13 | Crate root — public module declarations |
 | `tests/` | 652 | Integration tests (marked `#[ignore]`, require running Conduit) + unit tests for MXID derivation |
@@ -1710,9 +1710,9 @@ The original stub design declared intent to embed Conduit as a library dependenc
 | `MatrixTransport::get_messages()` | ✅ Implemented | On-demand room poll with `/sync` |
 | `MatrixTransport::create_room()` / `invite_user()` / `list_rooms()` | ✅ Implemented | Room lifecycle operations |
 | `MatrixTransport::upload_file()` / `send_file()` | ✅ Implemented | File attachment support (deferred in original spec) |
-| `SevenR7Listener` (passive room observer) | ✅ Implemented | Configurable poll interval, self-message filtering, and idempotent CNS ν-event persistence keyed by Matrix event ID |
+| `SevenR7Listener` (passive room observer) | ✅ Implemented | Configurable poll interval, self-message filtering, and idempotent Regulation ν-event persistence keyed by Matrix event ID |
 | `AgentRegistry` (WebID↔UserId mapping, watchlists) | ✅ Implemented | record, deregister, resolve, watchlist operations |
-| CNS bridge (RegulationRecord persistence) | ✅ Implemented | Messages flow once from listener → RegulationArchive → curation inbox; repeated timeline polls are ignored |
+| Regulation bridge (RegulationRecord persistence) | ✅ Implemented | Messages flow once from listener → RegulationArchive → curation inbox; repeated timeline polls are ignored |
 | CAT engagement gate | ✅ Implemented | `convergence_bias` scalar in agent config |
 | Response dispatch (agent → Matrix room) | ✅ Implemented | `MatrixTransport::send_message()` via daemon |
 | `kask matrix deploy-sidecar` | ✅ Implemented | Docker Compose + Caddyfile + conduit.toml generation |
@@ -1721,7 +1721,7 @@ The original stub design declared intent to embed Conduit as a library dependenc
 | `kask matrix listen` | ✅ Implemented | Starts 7R7 listener for an agent |
 | `kask matrix status-sidecar` | ✅ Implemented | Docker health + HTTP poll + SQLite integrity |
 | `kask matrix verify-device` | ⬜ Deferred | SAS/QR verification for human onboarding |
-| Daemon periodic sidecar health task | ⬜ Deferred | 60s container poll → CNS span emission |
+| Daemon periodic sidecar health task | ⬜ Deferred | 60s container poll → Regulation span emission |
 | E2EE (end-to-end encryption) | ⬜ Deferred | Blocked on SQLCipher/SQLite linking conflict |
 | Continuous sync (event-driven listener) | ⬜ Deferred | v1 uses on-demand polling; continuous sync deferred until VOIP/real-time use case |
 | Integration tests (Conduit-dependent) | ✅ Written (ignored) | 652 LOC in `tests/`; require running Conduit sidecar |
@@ -1922,7 +1922,7 @@ hKask's daemon runs a **periodic health check task** (every 60s) that:
 4. **Caddy health:** `GET http://localhost:80` and `GET https://localhost:443` (with TLS verification disabled for localhost) — verifies Caddy is proxying.
 5. **Hydrogen health:** `GET http://localhost:80` — verifies the web server responds (only if Hydrogen profile is active; shares port 80 with Caddy's internal routing).
 
-Each check emits a `cns.communication.matrix.sidecar.health` ν-event with payload:
+Each check emits a `reg.communication.matrix.sidecar.health` ν-event with payload:
 
 ```json
 {
@@ -1948,8 +1948,8 @@ Each check emits a `cns.communication.matrix.sidecar.health` ν-event with paylo
 
 The `matrix-rust-sdk` `SyncService` running in `hkask-mcp-communication` provides **continuous transport-level monitoring**. This is not a periodic poll — it's the live sync connection itself.
 
-- `cns.communication.matrix.sync.health`: Emitted on each sync cycle. Payload: `{ connected: bool, latency_ms, last_sync_token }`.
-- `cns.communication.matrix.sync.stalled`: Emitted when the sync connection fails. Payload: `{ stall_duration_s, last_error }`.
+- `reg.communication.matrix.sync.health`: Emitted on each sync cycle. Payload: `{ connected: bool, latency_ms, last_sync_token }`.
+- `reg.communication.matrix.sync.stalled`: Emitted when the sync connection fails. Payload: `{ stall_duration_s, last_error }`.
 
 **Algedonic thresholds:**
 - `sync.stalled` for 60s → Warning (transient network blip)
@@ -1971,7 +1971,7 @@ graph TD
     subgraph hKask["hKask Core"]
         DAEMON[Daemon<br/>periodic health task<br/>every 60s]
         MCP[hkask-mcp-communication<br/>SyncService]
-        CNS[Cybernetics Loop<br/>cns.communication.matrix.*]
+        Regulation[Cybernetics Loop<br/>cns.communication.matrix.*]
         CURATOR[Curator]
     end
     
@@ -1987,11 +1987,11 @@ graph TD
     DAEMON -->|HTTP poll| CADDY
     DAEMON -->|HTTP poll + SQLite check| CONDUIT
     DAEMON -->|HTTP poll| HYDROGEN
-    DAEMON -->|emit ν-event| CNS
+    DAEMON -->|emit ν-event| Regulation
     
-    MCP -->|sync health| CNS
+    MCP -->|sync health| Regulation
     
-    CNS -->|algedonic alert| CURATOR
+    Regulation -->|algedonic alert| CURATOR
     CURATOR -->|escalate| Human
     
     CLI -->|docker compose ps + HTTP + SQLite| CADDY
@@ -2010,7 +2010,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-009
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -2315,7 +2315,7 @@ sequenceDiagram
     Note over M: MatrixTransport translates<br/>Matrix event → TurnRequest
     
     M->>D: route_turn(agent_id, TurnRequest { input: "What's my schedule today?" })
-    M->>M: emit cns.communication.message.received ν-event
+    M->>M: emit reg.communication.message.received ν-event
     
     D->>Cu: Agent inbox has pending turn
     
@@ -2341,7 +2341,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-010
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -2379,7 +2379,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-011
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -2436,7 +2436,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-012
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -2476,7 +2476,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-013
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -2500,7 +2500,7 @@ graph TD
             AGENTS[Agent Pods<br/>Bots + UserPods]
             KEYSTORE[hkask-keystore<br/>AES-256-GCM + OS keychain]
             EPISODIC[Episodic Memory<br/>SQLCipher]
-            CNS[Cybernetics Loop<br/>cns.communication.matrix.* spans]
+            Regulation[Cybernetics Loop<br/>cns.communication.matrix.* spans]
         end
     end
     
@@ -2522,14 +2522,14 @@ graph TD
     CURATOR --> AGENTS
     AGENTS --> EPISODIC
     MCP_COMM --> KEYSTORE
-    MCP_COMM --> CNS
+    MCP_COMM --> Regulation
     
     CONDUIT -.->|Federation<br/>optional| OTHER[Other Matrix<br/>Homeservers]
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-014
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -2564,7 +2564,7 @@ The answer is: `start_sync(agent_service, agent_name)` — begin translating Mat
 | `start_sync(agent_service, agent_name)` | Begin translating Matrix events → TurnRequests |
 | `send_response(room_id, text)` | Send agent response back to Matrix room |
 | `bootstrap(config)` | One-time setup: register user, create rooms, verify devices |
-| `health()` | Check sync connection status (for CNS observability) |
+| `health()` | Check sync connection status (for Regulation observability) |
 
 **Verdict:** 12 public items → collapse to 4. Setup concerns are separate from runtime concerns.
 
@@ -2615,7 +2615,7 @@ Per the loop architecture (§3.4), `hkask-mcp-communication` is assigned to the 
 
 1. Human sends message in Matrix room → Conduit receives it
 2. `hkask-mcp-communication`'s sync loop (matrix-rust-sdk `SyncService`) receives the event
-3. Server emits `cns.communication.message.received` ν-event with sender, room, content
+3. Server emits `reg.communication.message.received` ν-event with sender, room, content
 4. Server translates Matrix event → `TurnRequest` → routes to agent via daemon socket
 5. Curator (in Curation Loop) reads pending turn on next curation cycle
 6. Curator invokes agent with `TurnRequest`
@@ -2624,9 +2624,9 @@ Per the loop architecture (§3.4), `hkask-mcp-communication` is assigned to the 
 
 **Q4:** What regulates the sync loop? What prevents it from consuming unbounded energy?
 
-The sync loop is a long-poll HTTP connection maintained by the SDK. It's not a busy-wait. Energy consumption is: TLS keepalive + periodic `/sync` requests (every ~30s when idle, immediate when events arrive). The Cybernetics Loop meters this through `cns.communication.*` spans. If sync traffic exceeds a threshold, the algedonic pathway fires. The Curator can throttle by reducing sync timeout or pausing non-critical rooms.
+The sync loop is a long-poll HTTP connection maintained by the SDK. It's not a busy-wait. Energy consumption is: TLS keepalive + periodic `/sync` requests (every ~30s when idle, immediate when events arrive). The Cybernetics Loop meters this through `reg.communication.*` spans. If sync traffic exceeds a threshold, the algedonic pathway fires. The Curator can throttle by reducing sync timeout or pausing non-critical rooms.
 
-⚠️ Partial — correctly identifies the mechanism but doesn't address what happens when the sync connection itself fails (network partition). The SDK handles reconnection internally, but hKask needs a `cns.communication.matrix.sync.stalled` span for observability.
+⚠️ Partial — correctly identifies the mechanism but doesn't address what happens when the sync connection itself fails (network partition). The SDK handles reconnection internally, but hKask needs a `reg.communication.matrix.sync.stalled` span for observability.
 
 ### Round 3: Rationale & Tradeoffs
 
@@ -2656,7 +2656,7 @@ All of this is complexity hKask doesn't need to own. The sidecar approach keeps 
 
 **Q7:** What happens when the Matrix homeserver is unreachable but agents need to communicate?
 
-Agents fall back to the daemon socket for local communication. Cross-installation messages queue in the MCP server's outbox (persisted to SQLCipher) and are delivered when the homeserver returns. The Curator receives a `cns.communication.matrix.unavailable` alert and can inform the user. This is graceful degradation, not catastrophic failure.
+Agents fall back to the daemon socket for local communication. Cross-installation messages queue in the MCP server's outbox (persisted to SQLCipher) and are delivered when the homeserver returns. The Curator receives a `reg.communication.matrix.unavailable` alert and can inform the user. This is graceful degradation, not catastrophic failure.
 
 **Q8:** P12 (Authenticated Host Mandate) is a Prohibition: "every action has an author." How does a Matrix message from an external human map to a host userpod?
 
@@ -2739,7 +2739,7 @@ The Curation Loop doesn't need to know about rooms, Matrix user IDs, or sync tok
 
 | Claim | Basis | Confidence |
 |-------|-------|------------|
-| Matrix integration would add `cns.communication.matrix.*` spans | Pattern match against existing CNS span registry | Low-Medium |
+| Matrix integration would add `reg.communication.matrix.*` spans | Pattern match against existing Regulation span registry | Low-Medium |
 | Cross-installation agent communication is the primary A2A use case | Inference from cloud deployment model | Low |
 | Humans will accept SAS verification as part of agent onboarding | UX assumption — needs validation | Low |
 
@@ -2754,10 +2754,10 @@ Mapping the "always listening" requirement to the five cybernetic components:
 | Component | Implementation | What It Does |
 |-----------|---------------|-------------|
 | **Sensor** | `matrix-rust-sdk` `SyncService` in `hkask-mcp-communication` | Receives Matrix events (messages, invites, room changes) |
-| **Model** | ν-event store + `cns.communication.matrix.*` spans | Records: messages received, sync health, delivery latency |
+| **Model** | ν-event store + `reg.communication.matrix.*` spans | Records: messages received, sync health, delivery latency |
 | **Regulator** | Cybernetics Loop variety counter + algedonic thresholds | Compares message volume, sync health against baselines |
 | **Actuator** | MCP tool dispatch → daemon → Curator → agent → `ChatService::execute_turn()` | Routes messages to agents, sends responses |
-| **Observer-of-observer** | `cns.communication.matrix.sync.stalled` span | "Is the Matrix sensor itself healthy?" |
+| **Observer-of-observer** | `reg.communication.matrix.sync.stalled` span | "Is the Matrix sensor itself healthy?" |
 
 ### Feedback Loop Properties
 
@@ -2766,8 +2766,8 @@ Mapping the "always listening" requirement to the five cybernetic components:
 | **Polarity** | Negative (stabilizing). If message volume spikes, backpressure throttles processing. If sync stalls, alert fires. |
 | **Delay** | Matrix `/sync` latency (~30s idle, sub-second active) + Curator cycle time. Total: seconds to minutes. Acceptable for async messaging. |
 | **Gain** | Algedonic threshold sensitivity. Too high = missed sync failures. Too low = alert fatigue on transient network blips. Needs tuning. |
-| **Closure** | Critical: `cns.communication.matrix.sync.stalled` → algedonic alert → Curator reads → Curator intervenes. If the Curator doesn't consume the alert, the loop is broken. |
-| **Fidelity** | The sync health span only measures Matrix transport. It does NOT measure: message semantic coherence, agent response quality, or human satisfaction. Those are separate CNS spans. |
+| **Closure** | Critical: `reg.communication.matrix.sync.stalled` → algedonic alert → Curator reads → Curator intervenes. If the Curator doesn't consume the alert, the loop is broken. |
+| **Fidelity** | The sync health span only measures Matrix transport. It does NOT measure: message semantic coherence, agent response quality, or human satisfaction. Those are separate Regulation spans. |
 
 ### Variety Analysis (Ashby's Law)
 
@@ -2783,21 +2783,21 @@ Mapping the "always listening" requirement to the five cybernetic components:
 9. Token expiry
 10. Conduit database corruption
 
-**Regulator variety (what CNS can detect):**
-- `cns.communication.matrix.sync.health` — sync connection status
-- `cns.communication.matrix.message.received` — message volume
-- `cns.communication.matrix.sync.stalled` — sync failure
-- `cns.communication.matrix.e2ee.error` — encryption failures
-- `cns.communication.matrix.sender.unverified` — unknown senders
-- `cns.communication.matrix.sidecar.health` — Conduit container health (via Docker healthcheck)
+**Regulator variety (what Regulation can detect):**
+- `reg.communication.matrix.sync.health` — sync connection status
+- `reg.communication.matrix.message.received` — message volume
+- `reg.communication.matrix.sync.stalled` — sync failure
+- `reg.communication.matrix.e2ee.error` — encryption failures
+- `reg.communication.matrix.sender.unverified` — unknown senders
+- `reg.communication.matrix.sidecar.health` — Conduit container health (via Docker healthcheck)
 
-**Gap:** 10 failure modes, ~6 CNS spans. Variety deficit of ~4. Items 6–8 (room state, federation, SDK errors) are partially observable indirectly (SDK errors surface as sync stalls; federation breakage surfaces as message delivery failures). Room state corruption and Conduit database corruption are the main blind spots. The sidecar health span covers container liveness but not database integrity.
+**Gap:** 10 failure modes, ~6 Regulation spans. Variety deficit of ~4. Items 6–8 (room state, federation, SDK errors) are partially observable indirectly (SDK errors surface as sync stalls; federation breakage surfaces as message delivery failures). Room state corruption and Conduit database corruption are the main blind spots. The sidecar health span covers container liveness but not database integrity.
 
-**Recommendation:** Add `cns.communication.matrix.sidecar.db_integrity` as a periodic check (Conduit exposes a health endpoint). Document that full sidecar monitoring is the user's responsibility — hKask monitors the transport channel, not the homeserver internals.
+**Recommendation:** Add `reg.communication.matrix.sidecar.db_integrity` as a periodic check (Conduit exposes a health endpoint). Document that full sidecar monitoring is the user's responsibility — hKask monitors the transport channel, not the homeserver internals.
 
 ### The Good Regulator Check
 
-**Q:** Is the CNS variety counter a good model of Matrix communication health?
+**Q:** Is the Regulation variety counter a good model of Matrix communication health?
 
 **A:** Partially. It models transport-level health (sync status, message flow, encryption errors, sidecar liveness). It does NOT model semantic-level health (are agents understanding messages? are humans satisfied?). This is correct — the Cybernetics Loop regulates transport, the Curation Loop regulates semantics. The model matches its regulatory scope.
 
@@ -2849,7 +2849,7 @@ Agents do NOT poll. The `matrix-rust-sdk` `SyncService` maintains a long-lived `
 
 1. **SyncService** receives event → fires callback
 2. **MatrixTransport** translates Matrix event → `TurnRequest` (same struct `ChatService` already uses)
-3. **MatrixTransport** emits `cns.communication.message.received` ν-event
+3. **MatrixTransport** emits `reg.communication.message.received` ν-event
 4. **MatrixTransport** routes `TurnRequest` to agent via daemon socket
 5. **Curator** reads pending turn on next curation cycle
 6. **Curator** invokes agent with `TurnRequest`
@@ -2865,14 +2865,14 @@ This is event-driven, not polling. The sync loop is the SDK's responsibility, no
 | `MatrixTransport` struct | ~150 | Wraps `matrix_sdk::Client`, exposes `start_sync` + `send_response` |
 | `CryptoStore` impl | ~100 | Redirects SDK key storage to `hkask-keystore` |
 | `Bootstrap` flow | ~100 | Registration, login, device verification, room setup |
-| CNS spans | ~40 | `cns.communication.matrix.*` span definitions |
+| Regulation spans | ~40 | `reg.communication.matrix.*` span definitions |
 | CLI: `kask matrix deploy-sidecar` | ~120 | Generate docker-compose.yml (with healthchecks) + config files |
 | CLI: `kask matrix register --agent` | ~50 | Agent registration on Conduit, outputs QR code |
 | CLI: `kask matrix register --user` | ~40 | Create human Matrix account on Conduit (if open registration disabled) |
 | CLI: `kask matrix listen` | ~30 | Start Matrix sync listener for an agent |
 | CLI: `kask matrix status-sidecar` | ~50 | Health check: docker ps + HTTP poll + SQLite integrity |
 | CLI: `kask matrix verify-device` | ~60 | SAS/QR device verification for human onboarding |
-| Daemon: periodic sidecar health task | ~40 | Every 60s: poll containers, emit cns.communication.matrix.sidecar.health |
+| Daemon: periodic sidecar health task | ~40 | Every 60s: poll containers, emit reg.communication.matrix.sidecar.health |
 | **Total** | **~750** | Replaces 303 lines of stubs with behavior-encoding code |
 
 ### 8.6 What hKask Does NOT Build
@@ -2908,7 +2908,7 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 | **P6 — Space for UserPods & Bots** | ✅ | Matrix enables userpods to communicate with humans on mobile (H2A) and bots to communicate across installs (A2A) |
 | **P7 — Evolutionary Architecture** | ✅ | Docker sidecar + SDK integration allows Matrix integration to evolve independently of hKask core; Conduit upgrades are `docker pull`, not `cargo update` |
 | **P8 — Semantic Grounding** | ✅ | Every Matrix message produces a ν-event with provenance (sender WebID, timestamp, room context); ν-events are canonical |
-| **P9 — Homeostatic Self-Regulation** | ✅ | `cns.communication.matrix.*` spans feed into Cybernetics Loop; sync health monitored; backpressure on message volume; sidecar health checked |
+| **P9 — Homeostatic Self-Regulation** | ✅ | `reg.communication.matrix.*` spans feed into Cybernetics Loop; sync health monitored; backpressure on message volume; sidecar health checked |
 | **P10 — Bot/UserPod Taxonomy** | ✅ | Bots use Matrix for A2A (machine-speed); UserPods use Matrix for H2A (human-speed); distinct interaction patterns |
 | **P11 — Digital Public/Private Sphere** | ✅ | Matrix rooms map to visibility: private rooms = private sphere, public rooms = public sphere; OCAP-enforced |
 | **P12 — Authenticated Host Mandate** | ✅ | Every Matrix message carries sender WebID in structured payload; unverified senders flagged; no anonymous messages; SAS verification establishes identity binding |
@@ -2941,7 +2941,7 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 3. Stores E2EE keys in `hkask-keystore` via a custom `CryptoStore` impl
 4. Maintains an event-driven sync connection in the MCP server process (agents don't poll)
 5. Routes incoming Matrix messages as `TurnRequest`s to `ChatService::execute_turn()` — the same pipeline as `kask chat`
-6. Emits `cns.communication.matrix.*` spans for observability
+6. Emits `reg.communication.matrix.*` spans for observability
 7. Provides `kask matrix deploy-sidecar` — generates docker-compose.yml for Conduit + optional Hydrogen
 8. Provides `kask matrix register --agent` — registers agent on Conduit using full credential (FirstName-LastName/Passphrase), outputs labeled QR code for human SAS verification. No AI involvement in credential check.
 9. Provides `kask matrix register --user` — creates human Matrix account (if open registration disabled)
@@ -3007,7 +3007,7 @@ Conduit's admin API requires an admin token (configured in `conduit.toml` as `ad
 
 **Q2: What happens when Conduit's SQLite database corrupts?**
 
-The spec mentions `cns.communication.matrix.sidecar.db_integrity` as a proposed span but doesn't define it. Conduit stores all room state, user accounts, and message history in a single SQLite file. Corruption means total loss of Matrix service.
+The spec mentions `reg.communication.matrix.sidecar.db_integrity` as a proposed span but doesn't define it. Conduit stores all room state, user accounts, and message history in a single SQLite file. Corruption means total loss of Matrix service.
 
 **Force: Guardrail.** Database corruption is a real failure mode for single-file databases. The spec must address it or explicitly declare it out of scope (user's responsibility).
 
@@ -3074,9 +3074,9 @@ The spec defines WHAT to build but not how to verify it. No acceptance criteria.
 
 **Recommendation:** Add a §13 (Verification) with:
 1. **Integration test:** `kask matrix register --agent Test-Agent` → agent appears in Conduit user list → FluffyChat can discover and DM → SAS verification completes → message round-trip < 5s.
-2. **CNS span test:** Send a Matrix message → `cns.communication.message.received` ν-event appears in event store within 30s.
-3. **Failure mode test:** Stop Conduit container → `cns.communication.matrix.sync.stalled` alert fires within 60s → `kask matrix status-sidecar` reports DOWN.
-4. **Credential gate test:** `kask matrix register --agent Alice-Smith` with wrong passphrase → rejected. Confirm no Curator invocation in CNS spans during the attempt.
+2. **Regulation span test:** Send a Matrix message → `reg.communication.message.received` ν-event appears in event store within 30s.
+3. **Failure mode test:** Stop Conduit container → `reg.communication.matrix.sync.stalled` alert fires within 60s → `kask matrix status-sidecar` reports DOWN.
+4. **Credential gate test:** `kask matrix register --agent Alice-Smith` with wrong passphrase → rejected. Confirm no Curator invocation in Regulation spans during the attempt.
 
 ---
 
@@ -3090,7 +3090,7 @@ The spec defines WHAT to build but not how to verify it. No acceptance criteria.
 | "Conduit ~50 MB idle" | Presented as Declarative in §1.4 comparison table | No source cited. Is this measured? From Conduit docs? | Guideline | Add citation: "Per Conduit documentation (https://conduit.rs), observed idle memory ~50 MB." |
 | "Hydrogen ~5 MB compressed" | Presented as Declarative in §2.1 | No source cited. | Guideline | Add citation or mark as estimate: "~5 MB compressed (approximate, per Hydrogen project README)." |
 | "matrix-rust-sdk is the most audited Matrix client library available" | Presented as Declarative in §8.7 | "Most audited" is a comparative claim. Audited by whom? When? | Guideline | Rephrase: "matrix-rust-sdk is the official Rust Matrix SDK, used by Element X (the flagship Matrix client). Its crypto implementation benefits from Element's commercial security review process." |
-| `cns.communication.matrix.*` span names | Presented as if they exist in §7 and §8.4 | These spans are **proposed**, not implemented. They don't exist in the CNS span registry. | Guardrail | Mark all proposed spans with "(proposed)" suffix. Add a §7 subsection: "Proposed CNS Spans" listing each with its proposed threshold and algedonic level. |
+| `reg.communication.matrix.*` span names | Presented as if they exist in §7 and §8.4 | These spans are **proposed**, not implemented. They don't exist in the Regulation span registry. | Guardrail | Mark all proposed spans with "(proposed)" suffix. Add a §7 subsection: "Proposed Regulation Spans" listing each with its proposed threshold and algedonic level. |
 | "FluffyChat is the right primary mobile client" | Classified as Probabilistic in §6 | This is a **Guideline** (OUGHT + Probabilistic), not an Evidence (IS + Probabilistic). It's a recommendation, not an inference. | Guideline | Reclassify as Guideline in §6. Move to §2.1 where recommendations belong. |
 
 #### Missing Provenance Chains
@@ -3114,7 +3114,7 @@ Several claims in §6 ("What We Know") cite file paths and line numbers — good
 **Loop 1: Conduit Health → Admin Action**
 
 ```
-Sensor: cns.communication.matrix.sidecar.health (detects Conduit down)
+Sensor: reg.communication.matrix.sidecar.health (detects Conduit down)
 Model: ν-event store records the outage
 Regulator: Algedonic alert fires
 Actuator: ??? (MISSING)
@@ -3124,7 +3124,7 @@ Actuator: ??? (MISSING)
 
 **Force: Prohibition.** Per P9 (Homeostatic Self-Regulation), every feedback loop must be closed. An open loop is a cybernetic failure.
 
-**Recommendation:** Specify the notification path: algedonic alert → Curator reads → Curator cannot restart Docker (OCAP boundary) → Curator escalates to human via `cns.curation.escalation` → human receives notification (how? See below). Add an open question: how does the Curator notify a human who is only reachable via Matrix when Matrix is down? Options: (a) email (requires SMTP config — out of scope?), (b) push notification via a separate channel, (c) the human notices FluffyChat is disconnected and checks independently.
+**Recommendation:** Specify the notification path: algedonic alert → Curator reads → Curator cannot restart Docker (OCAP boundary) → Curator escalates to human via `reg.curation.escalation` → human receives notification (how? See below). Add an open question: how does the Curator notify a human who is only reachable via Matrix when Matrix is down? Options: (a) email (requires SMTP config — out of scope?), (b) push notification via a separate channel, (c) the human notices FluffyChat is disconnected and checks independently.
 
 **Loop 2: Credential Verification Enforcement**
 
@@ -3137,9 +3137,9 @@ Actuator: The "no AI" prohibition is stated but not cybernetically enforced
 
 **Problem:** The spec declares "no AI involvement in credential check" as a Prohibition but provides no mechanism to verify compliance. How do we know the Curator wasn't invoked? This is a **regulatory blind spot** — the prohibition exists on paper but not in the control system.
 
-**Force: Prohibition.** Per P9, every Prohibition must be observable through CNS spans. An unobservable prohibition is unenforceable.
+**Force: Prohibition.** Per P9, every Prohibition must be observable through Regulation spans. An unobservable prohibition is unenforceable.
 
-**Recommendation:** Add a `cns.sovereignty.credential_check` span that fires on every `kask matrix register` invocation. The span records: `{ operation: "matrix_register", method: "direct_string_compare", ai_invoked: false }`. The `ai_invoked: false` field is a static assertion — if any code path invokes the Curator during credential check, this span would not be emitted (or would show `ai_invoked: true`). The Cybernetics Loop monitors this span and fires a Critical algedonic alert if `ai_invoked: true` is ever observed.
+**Recommendation:** Add a `reg.sovereignty.credential_check` span that fires on every `kask matrix register` invocation. The span records: `{ operation: "matrix_register", method: "direct_string_compare", ai_invoked: false }`. The `ai_invoked: false` field is a static assertion — if any code path invokes the Curator during credential check, this span would not be emitted (or would show `ai_invoked: true`). The Cybernetics Loop monitors this span and fires a Critical algedonic alert if `ai_invoked: true` is ever observed.
 
 **Loop 3: Human Satisfaction (Known Blind Spot)**
 
@@ -3151,14 +3151,14 @@ The spec mentions algedonic alerts repeatedly but never specifies thresholds:
 
 | Span | Warning Threshold | Critical Threshold | Current Status |
 |------|------------------|-------------------|----------------|
-| `cns.communication.matrix.sync.health` | ? | ? | **UNSPECIFIED** |
-| `cns.communication.matrix.sync.stalled` | ? | ? | **UNSPECIFIED** |
-| `cns.communication.matrix.message.received` (volume) | ? | ? | **UNSPECIFIED** |
-| `cns.communication.matrix.e2ee.error` | ? | ? | **UNSPECIFIED** |
-| `cns.communication.matrix.sender.unverified` | ? | ? | **UNSPECIFIED** |
-| `cns.communication.matrix.sidecar.health` | ? | ? | **UNSPECIFIED** |
+| `reg.communication.matrix.sync.health` | ? | ? | **UNSPECIFIED** |
+| `reg.communication.matrix.sync.stalled` | ? | ? | **UNSPECIFIED** |
+| `reg.communication.matrix.message.received` (volume) | ? | ? | **UNSPECIFIED** |
+| `reg.communication.matrix.e2ee.error` | ? | ? | **UNSPECIFIED** |
+| `reg.communication.matrix.sender.unverified` | ? | ? | **UNSPECIFIED** |
+| `reg.communication.matrix.sidecar.health` | ? | ? | **UNSPECIFIED** |
 
-**Force: Guardrail.** CNS spans without thresholds are sensors without setpoints — they observe but don't regulate.
+**Force: Guardrail.** Regulation spans without thresholds are sensors without setpoints — they observe but don't regulate.
 
 **Recommendation:** Specify initial thresholds (tunable via `kask settings`):
 
@@ -3170,28 +3170,28 @@ The spec mentions algedonic alerts repeatedly but never specifies thresholds:
 | `sender.unverified` | 1/activation | 5/activation | One unverified sender = new contact. Five = possible spam campaign. |
 | `sidecar.health` | 1 failure | 3 consecutive failures | Transient Docker restart = normal. 3 consecutive = crash loop. |
 
-#### Missing CNS Span Definitions
+#### Missing Regulation Span Definitions
 
-The spec references `cns.communication.matrix.*` spans throughout but never defines them concretely. Each span needs:
-- Exact namespace (e.g., `cns.communication.matrix.sync.stalled`)
+The spec references `reg.communication.matrix.*` spans throughout but never defines them concretely. Each span needs:
+- Exact namespace (e.g., `reg.communication.matrix.sync.stalled`)
 - What ν-event payload it carries
 - What phase it fires in (Act, Observe, Regulate)
 - Parent span (if any)
 
-**Force: Guardrail.** CNS spans are the observability substrate. Undefined spans are unimplementable.
+**Force: Guardrail.** Regulation spans are the observability substrate. Undefined spans are unimplementable.
 
-**Recommendation:** Add a §7.1 (CNS Span Specification) with a table:
+**Recommendation:** Add a §7.1 (Regulation Span Specification) with a table:
 
 | Span | Phase | Payload | Parent |
 |------|-------|---------|--------|
-| `cns.communication.matrix.message.received` | Observe | `{ sender_mxid, room_id, body_len, timestamp }` | — |
-| `cns.communication.matrix.message.sent` | Act | `{ room_id, body_len, timestamp }` | — |
-| `cns.communication.matrix.sync.health` | Observe | `{ connected: bool, latency_ms, last_sync_token }` | — |
-| `cns.communication.matrix.sync.stalled` | Observe | `{ stall_duration_s, last_error }` | `sync.health` |
-| `cns.communication.matrix.e2ee.error` | Observe | `{ error_type, room_id, sender_mxid }` | — |
-| `cns.communication.matrix.sender.unverified` | Observe | `{ sender_mxid, room_id }` | `message.received` |
-| `cns.communication.matrix.sidecar.health` | Observe | `{ conduit_up: bool, hydrogen_up: bool, db_integrity: bool }` | — |
-| `cns.sovereignty.credential_check` | Act | `{ operation, method: "direct_string_compare", ai_invoked: false }` | — |
+| `reg.communication.matrix.message.received` | Observe | `{ sender_mxid, room_id, body_len, timestamp }` | — |
+| `reg.communication.matrix.message.sent` | Act | `{ room_id, body_len, timestamp }` | — |
+| `reg.communication.matrix.sync.health` | Observe | `{ connected: bool, latency_ms, last_sync_token }` | — |
+| `reg.communication.matrix.sync.stalled` | Observe | `{ stall_duration_s, last_error }` | `sync.health` |
+| `reg.communication.matrix.e2ee.error` | Observe | `{ error_type, room_id, sender_mxid }` | — |
+| `reg.communication.matrix.sender.unverified` | Observe | `{ sender_mxid, room_id }` | `message.received` |
+| `reg.communication.matrix.sidecar.health` | Observe | `{ conduit_up: bool, hydrogen_up: bool, db_integrity: bool }` | — |
+| `reg.sovereignty.credential_check` | Act | `{ operation, method: "direct_string_compare", ai_invoked: false }` | — |
 
 ---
 
@@ -3204,7 +3204,7 @@ The spec references `cns.communication.matrix.*` spans throughout but never defi
 | P1 | Conduit admin API authentication unspecified | 12.2 Q1 |
 | P2 | Matrix room → human identity mapping unspecified (`TurnRequest` lacks source field) | 12.2 Q3 |
 | P3 | Conduit health → admin notification loop is open (no actuator) | 12.5 Loop 1 |
-| P4 | Credential verification enforcement has no CNS observability | 12.5 Loop 2 |
+| P4 | Credential verification enforcement has no Regulation observability | 12.5 Loop 2 |
 
 #### Guardrails (Must Fix or Explicitly Defer)
 
@@ -3217,9 +3217,9 @@ The spec references `cns.communication.matrix.*` spans throughout but never defi
 | G5 | Multi-agent sync architecture unspecified | 12.2 Q6 |
 | G6 | Conduit version pinning and compatibility unspecified | 12.2 Q7 |
 | G7 | Missing acceptance criteria / verification tests | 12.3 |
-| G8 | Proposed CNS spans not marked as proposed | 12.4 |
-| G9 | CNS span definitions missing (namespaces, payloads, phases) | 12.5 — **partially resolved for sidecar.health in §1.5; sync spans still need definition** |
-| G10 | Algedonic thresholds unspecified for all Matrix CNS spans | 12.5 — **partially resolved for sidecar.health and sync.stalled in §1.5; message/e2ee/sender spans still need thresholds** |
+| G8 | Proposed Regulation spans not marked as proposed | 12.4 |
+| G9 | Regulation span definitions missing (namespaces, payloads, phases) | 12.5 — **partially resolved for sidecar.health in §1.5; sync spans still need definition** |
+| G10 | Algedonic thresholds unspecified for all Matrix Regulation spans | 12.5 — **partially resolved for sidecar.health and sync.stalled in §1.5; message/e2ee/sender spans still need thresholds** |
 
 #### Guidelines (Should Fix)
 
@@ -3244,7 +3244,7 @@ The spec references `cns.communication.matrix.*` spans throughout but never defi
 3. **Defer G5, G6, G8** — these can be resolved during implementation with explicit "TBD" markers in the spec.
 4. **Apply Guidelines during next editing pass** — they improve quality but don't block progress.
 5. **Add §13 (Verification)** with concrete acceptance criteria per G7.
-6. **Add §7.1 (CNS Span Specification)** with the table from §12.5.
+6. **Add §7.1 (Regulation Span Specification)** with the table from §12.5.
 7. **Extend `TurnRequest`** with `source: MessageSource` per P2.
 8. **Specify Conduit admin token flow** per P1.
 
@@ -3329,9 +3329,9 @@ Caddy auto-handles TLS, `/.well-known` delegation, and reverse proxying in a sin
 
 **Recommendation:** Yes. `kask matrix register --agent` creates the agent's Matrix session with `m.room.encryption` enabled by default. All rooms the agent participates in are encrypted (Megolm). The agent rejects unencrypted messages in rooms where encryption is enabled. This is the standard Matrix E2EE behavior — the SDK handles it.
 
-**I5 — Error Taxonomy for Sync Loop.** The spec says "emit `cns.communication.matrix.e2ee.error`" but doesn't define error types. The SDK can encounter: decryption failures, key mismatch, room state conflicts, rate limiting, federation errors.
+**I5 — Error Taxonomy for Sync Loop.** The spec says "emit `reg.communication.matrix.e2ee.error`" but doesn't define error types. The SDK can encounter: decryption failures, key mismatch, room state conflicts, rate limiting, federation errors.
 
-**Recommendation:** Define error categories for the CNS span payload:
+**Recommendation:** Define error categories for the Regulation span payload:
 
 | Error Type | Meaning | Severity |
 |-----------|---------|----------|
@@ -3349,7 +3349,7 @@ All are Warning level — E2EE errors are operational noise, not Critical unless
 **Recommendation:** Resolve now with a simple model:
 - Receiving a Matrix message: **1 hJoule** (fixed — covers sync processing, not inference)
 - Sending a Matrix message: **0 hJoules** (the inference gas for the response is already accounted in `ChatService::execute_turn()`)
-- Spam protection: if an agent receives > 50 messages/minute, the Curator throttles activation to 1 activation/minute for that agent. The throttled state is recorded in `cns.communication.matrix.throttled`.
+- Spam protection: if an agent receives > 50 messages/minute, the Curator throttles activation to 1 activation/minute for that agent. The throttled state is recorded in `reg.communication.matrix.throttled`.
 
 #### Deferrable (Can Resolve During or After Implementation)
 
@@ -3369,9 +3369,9 @@ All are Warning level — E2EE errors are operational noise, not Critical unless
 
 **Recommendation:** Defer. `kask matrix unregister --agent Alice-Smith` deactivates the Matrix account (password reset to random, display name changed to "deactivated"). Rooms remain but agent no longer syncs. Add when needed.
 
-**D5 — Code-Level Enforcement of "No AI" Prohibition.** The CNS span `cns.sovereignty.credential_check` observes compliance, but how is it enforced at the code level?
+**D5 — Code-Level Enforcement of "No AI" Prohibition.** The Regulation span `reg.sovereignty.credential_check` observes compliance, but how is it enforced at the code level?
 
-**Recommendation:** Defer the enforcement mechanism, specify the design intent: `kask matrix register` is implemented as a direct function in `hkask-cli` that calls `hkask-keystore` for credential verification and `hkask-mcp-communication` for Conduit API calls. It does NOT route through `AgentService`, `ChatService`, or any Curator code path. The CNS span is emitted by the CLI command itself, not by the Curator. If this is violated during implementation, the span won't fire — that's the detection mechanism. Compile-time enforcement (separate binary, feature flags) is future work.
+**Recommendation:** Defer the enforcement mechanism, specify the design intent: `kask matrix register` is implemented as a direct function in `hkask-cli` that calls `hkask-keystore` for credential verification and `hkask-mcp-communication` for Conduit API calls. It does NOT route through `AgentService`, `ChatService`, or any Curator code path. The Regulation span is emitted by the CLI command itself, not by the Curator. If this is violated during implementation, the span won't fire — that's the detection mechanism. Compile-time enforcement (separate binary, feature flags) is future work.
 
 ---
 
@@ -3379,11 +3379,11 @@ All are Warning level — E2EE errors are operational noise, not Critical unless
 
 1. **Resolve B1–B4 (Blocking)** — ✅ DONE. Caddy added, MXID format specified, `.well-known` delegated to Caddy, Conduit config defaults defined.
 2. **Resolve I1–I6 (Important)** — ✅ DONE. Recovery key, device name, message format, room encryption, error taxonomy, gas accounting all specified.
-3. **Resolve the 4 Prohibitions** — P1 ✅ (admin token in B4), P2 ✅ (TurnRequest.source implemented), P3 deferred (human notification when Matrix down), P4 deferred (credential CNS span).
+3. **Resolve the 4 Prohibitions** — P1 ✅ (admin token in B4), P2 ✅ (TurnRequest.source implemented), P3 deferred (human notification when Matrix down), P4 deferred (credential Regulation span).
 4. **Resolve G1–G4, G7, G9, G10** — G1–G4 ✅, G7 ✅ (see §13), G9 ✅ (see §7.1), G10 ✅ (thresholds in §1.5 and §7.1).
 5. **Defer D1–D5** — ✅ Marked TBD.
 6. **Add §13 (Verification)** — ✅ See below.
-7. **Add §7.1 (CNS Span Specification)** — ✅ See below.
+7. **Add §7.1 (Regulation Span Specification)** — ✅ See below.
 8. **Extend `TurnRequest`** — ✅ `source: MessageSource` field added.
 9. **Add Caddy to docker-compose** — ✅ Done.
 
@@ -3430,7 +3430,7 @@ HKASK_MATRIX_AGENT_PASSWORD=<password> \
 kask mcp start communication
 # Call send_message tool:
 # Verify: message appears in Matrix room
-# Verify: cns.communication.matrix.message.sent tracing span emitted
+# Verify: reg.communication.matrix.message.sent tracing span emitted
 ```
 
 **T5 — Message Poll (via MCP tool):**
@@ -3438,7 +3438,7 @@ kask mcp start communication
 # Human sends message to agent via FluffyChat
 # Agent calls get_messages(room_id, limit=20):
 # Verify: human's message appears in returned Vec<MatrixMessage>
-# Verify: cns.communication.matrix.messages.polled tracing span emitted
+# Verify: reg.communication.matrix.messages.polled tracing span emitted
 ```
 
 **T6 — Status Check:**
@@ -3448,16 +3448,16 @@ kask matrix status-sidecar
 # Verify: when containers are down, reports DOWN with appropriate messaging
 ```
 
-### 13.2 CNS Span Verification
+### 13.2 Regulation Span Verification
 
 **T7 — Span Emission:**
 ```bash
 # After running T4 and T5, verify the following spans were emitted:
-# - cns.communication.matrix.health (on health_check)
-# - cns.communication.matrix.login (on login)
-# - cns.communication.matrix.message.sent (on send_message)
-# - cns.communication.matrix.messages.polled (on get_messages)
-# - cns.communication.server.started (on server start)
+# - reg.communication.matrix.health (on health_check)
+# - reg.communication.matrix.login (on login)
+# - reg.communication.matrix.message.sent (on send_message)
+# - reg.communication.matrix.messages.polled (on get_messages)
+# - reg.communication.server.started (on server start)
 ```
 
 ### 13.3 Failure Mode Tests
@@ -3493,26 +3493,26 @@ kask matrix register --agent Alice-Smith
 
 ---
 
-## 7.1 CNS Span Specification
+## 7.1 Regulation Span Specification
 
-**Purpose:** Define every `cns.communication.matrix.*` span emitted by the Matrix integration. Each span specifies its namespace, phase, payload schema, and algedonic thresholds.
+**Purpose:** Define every `reg.communication.matrix.*` span emitted by the Matrix integration. Each span specifies its namespace, phase, payload schema, and algedonic thresholds.
 
-**Status: Implemented.** Spans are emitted via `tracing` macros in the current implementation. Additionally, the 7R7 Listener persists observed messages as `RegulationRecord` records into the `RegulationArchive` via the CNS bridge, making communication events visible to the Curation Loop. Formal CNS registry registration (`RegulationSpan` enum variants) is deferred.
+**Status: Implemented.** Spans are emitted via `tracing` macros in the current implementation. Additionally, the 7R7 Listener persists observed messages as `RegulationRecord` records into the `RegulationArchive` via the Regulation bridge, making communication events visible to the Curation Loop. Formal Regulation registry registration (`RegulationSpan` enum variants) is deferred.
 
 ### Implemented Spans (v1 — Operational)
 
 | Span | Phase | Payload | Emitted By |
 |------|-------|---------|------------|
-| `cns.communication.matrix.health` | Observe | `{ url }` | `MatrixTransport::health_check()` |
-| `cns.communication.matrix.login` | Act | `{ username, homeserver }` | `MatrixTransport::login()` |
-| `cns.communication.matrix.message.sent` | Act | `{ room_id, body_len }` | `MatrixTransport::send_message()` |
-| `cns.communication.matrix.messages.polled` | Observe | `{ room_id, count }` | `MatrixTransport::get_messages()` |
-| `cns.communication.thread.created` | Act | `{ room_id, name }` | `MatrixTransport::create_room()` |
-| `cns.communication.agent.invited` | Act | `{ room_id, user }` | `MatrixTransport::invite_user()` |
-| `cns.communication.agent.registered` | Act | `{ webid, matrix_user }` | `AgentRegistry::record_mapping()` |
-| `cns.communication.server.started` | Act | `{ url, agent? }` | `main.rs` entry point |
+| `reg.communication.matrix.health` | Observe | `{ url }` | `MatrixTransport::health_check()` |
+| `reg.communication.matrix.login` | Act | `{ username, homeserver }` | `MatrixTransport::login()` |
+| `reg.communication.matrix.message.sent` | Act | `{ room_id, body_len }` | `MatrixTransport::send_message()` |
+| `reg.communication.matrix.messages.polled` | Observe | `{ room_id, count }` | `MatrixTransport::get_messages()` |
+| `reg.communication.thread.created` | Act | `{ room_id, name }` | `MatrixTransport::create_room()` |
+| `reg.communication.agent.invited` | Act | `{ room_id, user }` | `MatrixTransport::invite_user()` |
+| `reg.communication.agent.registered` | Act | `{ webid, matrix_user }` | `AgentRegistry::record_mapping()` |
+| `reg.communication.server.started` | Act | `{ url, agent? }` | `main.rs` entry point |
 
-| `cns.communication.message.observed` | Observe | `{ source_event_id, room_id, sender, body, timestamp }` | `SevenR7Listener::poll()` — self messages and replayed event IDs are ignored before Curation |
+| `reg.communication.message.observed` | Observe | `{ source_event_id, room_id, sender, body, timestamp }` | `SevenR7Listener::poll()` — self messages and replayed event IDs are ignored before Curation |
 
 ### Deferred Spans (v2 — requires continuous sync)
 
@@ -3520,18 +3520,18 @@ These spans are specified but not implemented. They require the continuous sync 
 
 | Span | Phase | Payload | Threshold (Warning/Critical) |
 |------|-------|---------|------------------------------|
-| `cns.communication.matrix.message.received` | Observe | `{ sender_mxid, room_id, body_len, timestamp }` | — |
-| `cns.communication.matrix.sync.health` | Observe | `{ connected, latency_ms, last_sync_token }` | — |
-| `cns.communication.matrix.sync.stalled` | Observe | `{ stall_duration_s, last_error }` | 60s / 300s |
-| `cns.communication.matrix.e2ee.error` | Observe | `{ error_type, room_id, sender_mxid }` | 5/hr / 20/hr |
-| `cns.communication.matrix.sender.unverified` | Observe | `{ sender_mxid, room_id }` | 1/activation / 5/activation |
-| `cns.communication.matrix.sidecar.health` | Observe | `{ caddy_up, conduit_up, conduit_api_ok, conduit_db_ok, hydrogen_up }` | 1 failure / 3 consecutive |
-| `cns.communication.matrix.throttled` | Observe | `{ agent, reason, message_rate }` | — |
-| `cns.sovereignty.credential_check` | Act | `{ operation, method, ai_invoked }` | — |
+| `reg.communication.matrix.message.received` | Observe | `{ sender_mxid, room_id, body_len, timestamp }` | — |
+| `reg.communication.matrix.sync.health` | Observe | `{ connected, latency_ms, last_sync_token }` | — |
+| `reg.communication.matrix.sync.stalled` | Observe | `{ stall_duration_s, last_error }` | 60s / 300s |
+| `reg.communication.matrix.e2ee.error` | Observe | `{ error_type, room_id, sender_mxid }` | 5/hr / 20/hr |
+| `reg.communication.matrix.sender.unverified` | Observe | `{ sender_mxid, room_id }` | 1/activation / 5/activation |
+| `reg.communication.matrix.sidecar.health` | Observe | `{ caddy_up, conduit_up, conduit_api_ok, conduit_db_ok, hydrogen_up }` | 1 failure / 3 consecutive |
+| `reg.communication.matrix.throttled` | Observe | `{ agent, reason, message_rate }` | — |
+| `reg.sovereignty.credential_check` | Act | `{ operation, method, ai_invoked }` | — |
 
 ### Algedonic Thresholds (v1 — sidecar health + message observation)
 
-The 7R7 Listener emits `cns.communication.message.observed` spans for every message, persisting them as RegulationRecords. CurationLoop.sense() filters communication.* events from its own query_algedonic() call and pushes them to the curation context. Sidecar health is checked on-demand via `kask matrix status-sidecar`. The daemon periodic health task is deferred. When implemented, thresholds are:
+The 7R7 Listener emits `reg.communication.message.observed` spans for every message, persisting them as RegulationRecords. CurationLoop.sense() filters communication.* events from its own query_algedonic() call and pushes them to the curation context. Sidecar health is checked on-demand via `kask matrix status-sidecar`. The daemon periodic health task is deferred. When implemented, thresholds are:
 
 | Condition | Warning | Critical |
 |-----------|---------|----------|
@@ -3600,19 +3600,19 @@ struct WellConfig {
 
 ```rust
 impl WellManager {
-    /// Admin creates a Well. CNS span: cns.well.created
+    /// Admin creates a Well. Regulation span: reg.well.created
     async fn create_well(config: WellConfig) -> Result<WellID>;
 
     /// Replenish the Well (called on schedule by CyberneticsLoop).
-    /// CNS span: cns.well.replenished
+    /// Regulation span: reg.well.replenished
     async fn replenish(&self);
 
     /// Agent draws from the Well. Returns amount drawn.
-    /// CNS span: cns.well.draw
+    /// Regulation span: reg.well.draw
     async fn draw(&self, agent: WebID, amount_gas: GasCost, amount_rjoule: u64)
         -> Result<(GasCost, u64)>;
 
-    /// Check if Well is exhausted. CNS span: cns.well.exhausted when true.
+    /// Check if Well is exhausted. Regulation span: reg.well.exhausted when true.
     async fn is_exhausted(&self) -> bool;
 }
 ```
@@ -3620,7 +3620,7 @@ impl WellManager {
 ### 2.4 Well Exhaustion — Regulatory Path
 
 When `is_exhausted()` returns true during a replenishment cycle:
-1. CNS span: `cns.well.exhausted` fires
+1. Regulation span: `reg.well.exhausted` fires
 2. CyberneticsLoop sends `CurationInput::Alert` via algedonic pathway
 3. Curator notifies admin: "Well X is exhausted — agents may be blocked"
 4. Admin increases `gas_rate` or `rjoule_rate` via `kask well update`
@@ -3646,13 +3646,13 @@ CREATE TABLE agent_wallets (
 #[async_trait]
 trait WalletManager {
     /// Create wallet for new userpod. Called by Curator daemon.
-    /// CNS span: cns.wallet.created
+    /// Regulation span: reg.wallet.created
     #[must_use]
     async fn create_wallet(&self, agent: WebID, initial_gas: GasCost, initial_rjoule: u64)
         -> Result<WalletID, WalletError>;
 
     /// Draw from Well into agent's wallet. Called by auto-draw or manual CLI.
-    /// CNS span: cns.wallet.draw
+    /// Regulation span: reg.wallet.draw
     #[must_use]
     async fn draw_from_well(&self, agent: WebID, amount_gas: GasCost)
         -> Result<GasCost, WalletError>;
@@ -3681,11 +3681,11 @@ This replaces the current silent block with a closed cybernetic loop: exhaustion
 
 ```
 1. AgentService registers new userpod
-2. CNS span fires: cns.userpod.registered  [NEW — must be added to CNS registry]
+2. Regulation span fires: reg.userpod.registered  [NEW — must be added to Regulation registry]
 3. Curator daemon receives span
 4. Curator calls: WalletManager::create_wallet(agent, initial_gas, initial_rjoule)
 5. GasBudgetManager registers WalletBackedBudget for the agent
-6. CNS span: cns.wallet.created
+6. Regulation span: reg.wallet.created
 ```
 
 ## 4. Curator Budget Policy (G11 Resolution)
@@ -3699,33 +3699,33 @@ struct CuratorBudgetPolicy {
     /// Max tool invocations per cycle
     max_tool_calls_per_cycle: u32,
     /// When true, skip remaining tool calls this cycle when exceeded.
-    /// When false, log CNS span and continue.
+    /// When false, log Regulation span and continue.
     throttle_on_exceeded: bool,
 }
 ```
 
-When limits are exceeded, CNS span `cns.curator.efficiency.exceeded` fires. The Human Administrator reviews efficiency reports and adjusts limits. The admin is the S5* observer — the logical backstop.
+When limits are exceeded, Regulation span `reg.curator.efficiency.exceeded` fires. The Human Administrator reviews efficiency reports and adjusts limits. The admin is the S5* observer — the logical backstop.
 
-## 5. CNS Span Registry Additions
+## 5. Regulation Span Registry Additions
 
 ```rust
 // Well
-WellCreated,         // cns.well.created
-WellReplenished,     // cns.well.replenished
-WellDraw,            // cns.well.draw
-WellExhausted,       // cns.well.exhausted → algedonic alert
+WellCreated,         // reg.well.created
+WellReplenished,     // reg.well.replenished
+WellDraw,            // reg.well.draw
+WellExhausted,       // reg.well.exhausted → algedonic alert
 
 // Wallet
-WalletCreated,       // cns.wallet.created
-WalletDraw,          // cns.wallet.draw
-WalletSpend,         // cns.wallet.spend
-WalletExhausted,     // cns.wallet.exhausted → algedonic alert
+WalletCreated,       // reg.wallet.created
+WalletDraw,          // reg.wallet.draw
+WalletSpend,         // reg.wallet.spend
+WalletExhausted,     // reg.wallet.exhausted → algedonic alert
 
 // UserPod lifecycle (must exist for wallet creation flow)
-UserPodRegistered, // cns.userpod.registered → triggers wallet creation
+UserPodRegistered, // reg.userpod.registered → triggers wallet creation
 
 // Curator efficiency
-CuratorEfficiencyExceeded,  // cns.curator.efficiency.exceeded
+CuratorEfficiencyExceeded,  // reg.curator.efficiency.exceeded
 ```
 
 ## 6. Implementation — ✅ Complete
@@ -3742,7 +3742,7 @@ All 12 steps implemented. See `docs/status/gas-budget-system-status.md` for full
 
 ```bash
 cargo build --workspace                    # 0 errors
-cargo test -p hkask-cns                    # CNS tests pass
+cargo test -p hkask-regulation                    # Regulation tests pass
 cargo test -p hkask-storage -- wallet      # Wallet persistence tests
 cargo test -p hkask-agents -- curator      # Curator wallet creation test
 ```
@@ -3916,7 +3916,7 @@ The federation extends the existing three-tier pod architecture **horizontally**
 | Skill registries (`manifest.yaml` + `*.j2`) | Single source of truth per server | P5.1 |
 | Episodic memory (private hMems) | Sovereignty boundary — never leaves home SQLCipher | P1, P11.1 |
 | Agent personas, capabilities, OCAP tokens | WebID-grounded to home server | P12 |
-| CNS runtimes (variety counters, gas budgets) | Per-pod regulation | P9 |
+| Regulation runtimes (variety counters, gas budgets) | Per-pod regulation | P9 |
 | Wallet, keystore, ledger | Financial infrastructure scope | P4 |
 
 ---
@@ -4065,7 +4065,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-015
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -4084,7 +4084,7 @@ pub enum LinkState {
 }
 ```
 
-CNS span: `cns.federation.link_degraded` with `{failed_attempts, last_success_age_secs}`.
+Regulation span: `reg.federation.link_degraded` with `{failed_attempts, last_success_age_secs}`.
 
 ---
 
@@ -4099,11 +4099,11 @@ Curator A                          Curator B
    │   --peer beta                    │
    │                                  │
    │ state: Isolated → Invited        │
-   │ CNS: invite_sent                 │
+   │ Regulation: invite_sent                 │
    │                                  │
    │─── FEDERATION_INVITE ───────────►│
    │    {inviter, tls, config}        │
-   │                                  │ CNS: invite_received
+   │                                  │ Regulation: invite_received
    │                                  │
    │                                  │── Admin reviews (manual default, P2)
    │                                  │   or auto_accept policy
@@ -4111,7 +4111,7 @@ Curator A                          Curator B
    │◄── FEDERATION_ACCEPT ────────────│
    │                                  │
    │ state: Invited → Linked          │ state: Isolated → Linked
-   │ CNS: link_established            │ CNS: link_established
+   │ Regulation: link_established            │ Regulation: link_established
    │                                  │
    │── Matrix conduit federation ────►│
    │── CRDT bootstrap ───────────────►│
@@ -4137,7 +4137,7 @@ Default implementations: `ManualInvitationPolicy` (always `DeferToAdmin`), `Allo
 
 ### 4.3 Three Revocation Operations
 
-| Operation | Scope | CNS Span | Gossip |
+| Operation | Scope | Regulation Span | Gossip |
 |-----------|-------|----------|--------|
 | **Revoke member** | Single peer | `federation.member_revoked` | Yes — other members notified |
 | **Leave federation** | Self | `federation.member_left` | Yes — voluntary departure |
@@ -4164,11 +4164,11 @@ pub enum CuratorDirective {
 
 ---
 
-## 5. CNS Observability
+## 5. Regulation Observability
 
-### 5.1 Federation CNS Spans (Phased)
+### 5.1 Federation Regulation Spans (Phased)
 
-| Phase | CNS Span Variants |
+| Phase | Regulation Span Variants |
 |-------|------------------|
 | **Phase 1 (MVP)** | `FederationCrdtMerge`, `FederationLinkEstablished`, `FederationLinkLost`, `FederationLinkDegraded`, `FederationMemberLeft` |
 | **Phase 2** | `FederationInviteSent`, `FederationInviteReceived`, `FederationInviteAccepted`, `FederationInviteRejected`, `FederationInviteExpired`, `FederationLinkPaused`, `FederationLinkResumed` |
@@ -4176,7 +4176,7 @@ pub enum CuratorDirective {
 
 ### 5.2 Federation Algedonic Thresholds (PC-1 Resolution)
 
-| Threshold | Metric | Warning | Critical | CNS Span |
+| Threshold | Metric | Warning | Critical | Regulation Span |
 |-----------|--------|---------|----------|----------|
 | `fed_sync_latency` | CRDT sync round-trip (ms) | > 5000 | > 30000 | `FederationCrdtMerge` |
 | `fed_crdt_divergence` | Delta size / baseline | > 2× | > 10× | `FederationCrdtMerge` |
@@ -4210,7 +4210,7 @@ CLI/API/MCP → hkask-services-core → hkask-agents → hkask-federation
                                    ↓                  ↓
                               hkask-agents     hkask-ports (traits)
                                    ↓                  ↓
-                              hkask-cns         hkask-types
+                              hkask-regulation         hkask-types
 ```
 
 ### 6.2 `hkask-federation` Crate Structure (Consolidated — DM-1 Resolution)
@@ -4281,7 +4281,7 @@ pub struct FederationLinkManager { /* 6 public methods */ }
 | All operations OCAP-gated | `OcapTokenKind::Federation` | P4 | Prohibition |
 | Skill registries never shared | Each server's `SqliteRegistry` is local | P5.1, P3 | Prohibition |
 | ν-event primacy preserved | CRDT merged state is derived — rebuildable from ν-events | P8 | Guardrail |
-| CNS observes everything | 18 federation CNS spans + 6 algedonic thresholds | P9 | Guardrail |
+| Regulation observes everything | 18 federation Regulation spans + 6 algedonic thresholds | P9 | Guardrail |
 | No second-class hMems | All hMems use same insert path; provenance in `access.perspective` | P3 | Prohibition |
 
 ---
@@ -4293,13 +4293,13 @@ pub struct FederationLinkManager { /* 6 public methods */ }
 ///
 /// expect: "Federated Curators converge on public memory"
 /// [P3] Motivating: Generative Space — cross-server knowledge sharing
-/// [P9] Constraining: Homeostatic Self-Regulation — CNS-observed sync
+/// [P9] Constraining: Homeostatic Self-Regulation — Regulation-observed sync
 /// pre:  CRDT state initialized with local SemanticIndex data.
 /// pre:  At least one peer configured and Linked.
 /// post: On each sync interval, local deltas sent to all Linked peers.
 /// post: Received deltas merged into local CRDT state via OR-Set merge.
-/// post: CNS span `FederationCrdtMerge` emitted for each successful merge.
-/// post: CNS span `FederationLinkDegraded` emitted for consecutive failures > threshold.
+/// post: Regulation span `FederationCrdtMerge` emitted for each successful merge.
+/// post: Regulation span `FederationLinkDegraded` emitted for consecutive failures > threshold.
 /// test: InMemoryFederationTransport, two replicas, insert hMem on A,
 ///       verify hMem appears on B within sync_interval * 2.
 /// test: Simulate partition, verify Degraded state, heal partition, verify recovery.
@@ -4372,7 +4372,7 @@ kask federation revoke --peer beta --reason "Security breach"
 kask federation leave --reason "Decommissioned"
 kask federation dissolve --reason "Project concluded"
 
-# CNS
+# Regulation
 kask cns federation health
 kask cns federation links
 kask cns federation thresholds
@@ -4386,8 +4386,8 @@ kask cns federation thresholds
 - [ ] `hkask-federation` crate with `crdt` module (OR-Set with EAV hashing, LWW-Map, G-Set)
 - [ ] `FederationTransport` trait + `InMemoryFederationTransport` test adapter
 - [ ] `FederationSyncPort` + `FederationRegistryPort` traits in `hkask-ports`
-- [ ] `FederationSync` (run loop, CRDT merge, CNS emission)
-- [ ] 5 CNS spans (`CrdtMerge`, `LinkEstablished`, `LinkLost`, `LinkDegraded`, `MemberLeft`)
+- [ ] `FederationSync` (run loop, CRDT merge, Regulation emission)
+- [ ] 5 Regulation spans (`CrdtMerge`, `LinkEstablished`, `LinkLost`, `LinkDegraded`, `MemberLeft`)
 - [ ] `Degraded` state and sync timeout detection
 - [ ] Property-based tests for CRDT commutativity, associativity, idempotence
 - [ ] Integration test: two replicas, insert → converge
@@ -4396,7 +4396,7 @@ kask cns federation thresholds
 - [ ] `FederationLinkManager` (invite, accept, pause, resume, revoke, leave)
 - [ ] `InvitationPolicy` trait + `ManualInvitationPolicy`
 - [ ] Matrix transport for invitation messages
-- [ ] 6 invitation CNS spans
+- [ ] 6 invitation Regulation spans
 - [ ] Pause protocol with notification
 - [ ] Invitation expiry
 
@@ -4405,7 +4405,7 @@ kask cns federation thresholds
 - [ ] `FederationHealthModel` for Curator metacognition
 - [ ] Registry merge (LWW-Map for users, G-Set for agents)
 - [ ] Artifact sync (OR-Set with content hash)
-- [ ] 7 remaining CNS spans
+- [ ] 7 remaining Regulation spans
 - [ ] `MatrixFederationTransport` (production adapter)
 - [ ] `ChaosFederationTransport` (robustness testing)
 - [ ] `OcapTokenKind::Federation` in `hkask-types`
@@ -4424,8 +4424,8 @@ kask cns federation thresholds
 | `FederationTransport` trait + test adapter | Unit-testable without running Matrix; chaos testing | IA-4 (D) |
 | `InvitationPolicy` trait + P2 default | Seam for custom acceptance policies; default deny | IA-2 (D) |
 | 5 modules consolidated to 3 | Depth score; 7-function rule; link+conduit merged into sync | DM-1, DM-3 (D) |
-| 18 CNS spans → phased delivery | Simplicity first; 5 for MVP, 6 for Phase 2, 7 for Phase 3 | CG-2 (D) |
-| Curator types canonical in `hkask-types` | Authority DAG; Curator (Loop 5) types not owned by CNS (Loop 6) | M1, M2 (A) |
+| 18 Regulation spans → phased delivery | Simplicity first; 5 for MVP, 6 for Phase 2, 7 for Phase 3 | CG-2 (D) |
+| Curator types canonical in `hkask-types` | Authority DAG; Curator (Loop 5) types not owned by Regulation (Loop 6) | M1, M2 (A) |
 | `LoopId` has 6 variants | `Episodic`, `Semantic`, `Snapshot` now typed; VSM grounding | M3 (A) |
 | LWW reserved for user profiles only | Metadata, not ν-event-grounded; Guideline constraint force | PS-3 (D) |
 
@@ -4438,7 +4438,7 @@ kask cns federation thresholds
 | `PRINCIPLES.md` | P1–P12 grounding for all security properties |
 | `hKask-architecture-master.md` | Four essential patterns, pod architecture |
 | `MDS.md` | Domain ontology, five MDS categories |
-| `FUNCTIONAL_SPECIFICATION.md` | Contract anchoring (§5), CNS span registry (§9.1) |
+| `FUNCTIONAL_SPECIFICATION.md` | Contract anchoring (§5), Regulation span registry (§9.1) |
 | `crates/hkask-types/src/curator.rs` | `CuratorHandle`, `CuratorDirective`, `CurationThresholdConfig` |
 | `crates/hkask-types/src/curation.rs` | `OcapTokenKind` (extend with `Federation`) |
 | `crates/hkask-types/src/cns.rs` | `RegulationSpan` (extend with 18 federation spans) |
@@ -4466,7 +4466,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 # Storage Schema ERD
 
-Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/CNS** (nu_events, cns_alerts, cns_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
+Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/Regulation** (reg_records, cns_alerts, cns_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
 
 ```mermaid
 erDiagram
@@ -4686,7 +4686,7 @@ erDiagram
         TEXT created_at
     }
 
-    nu_events {
+    reg_records {
         TEXT id PK
         TEXT timestamp
         TEXT observer_webid
@@ -4871,8 +4871,8 @@ erDiagram
 | `contacts` | `idx_contacts_agent` | `agent_name` | Agent contact lookup |
 | `scheduled_tasks` | `idx_scheduled_agent` | `agent_name` | Agent task lookup |
 | `embeddings` | `idx_embeddings_entity_ref` | `entity_ref` | Embedding lookup by entity |
-| `nu_events` | `idx_nu_events_timestamp_category` | `timestamp, span_category` | CNS event range scan |
-| `nu_events` | `idx_nu_events_category_phase` | `span_category, phase` | CNS phase filtering |
+| `reg_records` | `idx_reg_records_timestamp_category` | `timestamp, span_category` | Regulation event range scan |
+| `reg_records` | `idx_reg_records_category_phase` | `span_category, phase` | Regulation phase filtering |
 | `audit_log` | `idx_audit_log_timestamp` | `timestamp` | Audit time-range scan |
 | `audit_log` | `idx_audit_log_actor` | `actor_webid` | Audit by actor |
 | `consent_records` | `idx_consent_active` | `active` | Active consent lookup |
@@ -4904,10 +4904,10 @@ This diagram models the storage layer for all [MDS Core Entities](MDS.md#11-core
 - **`Wallet`** → `wallet_balances`, `wallet_transactions`, `encumbrances`, `deposit_addresses`, `deposit_references`
 - **`ApiKey`** → `api_keys` table
 - **`hMem`** → `triples` table
-- **`RegulationLedger`** → `nu_events`, `cns_variety_checkpoint`, `cns_alerts` tables
+- **`RegulationLedger`** → `reg_records`, `cns_variety_checkpoint`, `cns_alerts` tables
 - **`GasBudget`** → `loop_cursors` table (cursor-based gas tracking)
 
-All FK relationships align with the ownership chains defined in [PRINCIPLES.md](PRINCIPLES.md) P1 (User Sovereignty) and P9 (Economic Layer). The `webid` columns in `triples`, `goals`, `consent_records`, `sovereignty_boundaries`, and `nu_events` implement the multi-tenant data isolation required by P1 and P4 (Clear Boundaries).
+All FK relationships align with the ownership chains defined in [PRINCIPLES.md](PRINCIPLES.md) P1 (User Sovereignty) and P9 (Economic Layer). The `webid` columns in `triples`, `goals`, `consent_records`, `sovereignty_boundaries`, and `reg_records` implement the multi-tenant data isolation required by P1 and P4 (Clear Boundaries).
 
 
 ### SQLCipher Schema — ERD
@@ -4967,7 +4967,7 @@ erDiagram
         TEXT accepted_user_id FK
     }
 
-    nu_events {
+    reg_records {
         TEXT id PK
         TEXT timestamp
         TEXT observer_webid
@@ -5195,7 +5195,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-017
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -5206,7 +5206,7 @@ status: VERIFIED
 | `hmems` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `embeddings` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `vec_embeddings` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `nu_events` | `hkask-storage-core` | `src/sql/schema.sql` |
+| `reg_records` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `audit_log` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `cns_variety_checkpoint` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `cns_alerts` | `hkask-storage-core` | `src/sql/schema.sql` |
@@ -5318,7 +5318,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-018
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -5462,7 +5462,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-019
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -5510,7 +5510,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-020
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 

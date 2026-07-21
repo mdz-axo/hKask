@@ -15,7 +15,7 @@ is retained as as-built documentation. The skill is implemented at
 `registry/templates/attack-taxonomy-mapper/` (manifest.yaml + 4 .j2
 templates) + `.agents/skills/attack-taxonomy-mapper/SKILL.md`.
 
-The `cns.taxonomy.*` namespaces are registered in `CANONICAL_NAMESPACES`
+The `reg.taxonomy.*` namespaces are registered in `CANONICAL_NAMESPACES`
 (`crates/hkask-types/src/event.rs` L309-315). The OSC&R taxonomy was
 verified against `github.com/pbom-dev/OSCAR` `matrix.json` (2026-07-18).
 The skill passed `skill-logic-audit` with all material flaws resolved.
@@ -30,7 +30,7 @@ The skill passed `skill-logic-audit` with all material flaws resolved.
 | Type | Skill (PDCA FlowDef with convergence threshold + energy budget) |
 | Surface parameter | `taxonomy` (single surface — distinct from `supply-chain-sentinel`'s manifest surface) |
 | Decomposition | 4 templates: `select-evidence` → `map-taxonomy` → `taxonomize` → `convergence-check` |
-| CNS spans | `cns.taxonomy.select`, `cns.taxonomy.map`, `cns.taxonomy.report`, `cns.taxonomy.convergence` (proposed — NOT yet registered in `CANONICAL_NAMESPACES`) |
+| Regulation spans | `reg.taxonomy.select`, `reg.taxonomy.map`, `reg.taxonomy.report`, `reg.taxonomy.convergence` (proposed — NOT yet registered in `CANONICAL_NAMESPACES`) |
 
 ## 2. 5W1H Gate (P5 Essentialism)
 
@@ -78,40 +78,40 @@ Passes deletion test — skill earns its existence.
 | `adversarial-red-team` | Parallel — `adversarial-red-team` uses MITRE ATLAS for LLM adversarial; `attack-taxonomy-mapper` uses OSC&R for supply chain adversarial. Same taxonomy discipline, different domain. | Zero (LLM vs supply chain) |
 | `bug-hunt` | Structural — `bug-hunt`'s `taxonomize` phase provides the pattern (classify findings into taxonomy, assign severity). This skill replicates that pattern for OSC&R. | Pattern reuse, no surface overlap |
 
-## 5. CNS Namespace Proposal
+## 5. Regulation Namespace Proposal
 
 **Proposed namespaces (NOT yet registered):**
 
 ```rust
 // crates/hkask-types/src/event.rs — CANONICAL_NAMESPACES
 // ── Attack taxonomy (security audit — attack-taxonomy-mapper skill) ──
-"cns.taxonomy",
-"cns.taxonomy.select",
-"cns.taxonomy.map",
-"cns.taxonomy.report",
-"cns.taxonomy.convergence",
+"reg.taxonomy",
+"reg.taxonomy.select",
+"reg.taxonomy.map",
+"reg.taxonomy.report",
+"reg.taxonomy.convergence",
 ```
 
-**Registration discipline (per `docs/plans/security-skills.md` CNS Namespace
+**Registration discipline (per `docs/plans/security-skills.md` Regulation Namespace
 Architecture):** Direct registration in the flat `CANONICAL_NAMESPACES` array
-(like `cns.supply_chain.*`, `cns.runtime.*`). NOT under a subgroup.
+(like `reg.supply_chain.*`, `reg.runtime.*`). NOT under a subgroup.
 
-**Note:** `cns.taxonomy` does NOT conflict with `cns.classify.*` (which is
+**Note:** `reg.taxonomy` does NOT conflict with `reg.classify.*` (which is
 for classification drift / dual-fidelity spans in the inference domain).
-`cns.taxonomy.*` is for security taxonomy mapping (OSC&R, OWASP, MITRE).
+`reg.taxonomy.*` is for security taxonomy mapping (OSC&R, OWASP, MITRE).
 Distinct namespace, distinct purpose.
 
-**Registration gate:** The `cns.taxonomy.*` namespaces MUST be registered in
+**Registration gate:** The `reg.taxonomy.*` namespaces MUST be registered in
 `CANONICAL_NAMESPACES` before this skill is committed to the registry.
 
 ## 6. Proposed Templates (Design — Not Implemented)
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `select-evidence.j2` | KnowAct | Discover evidence sources: `supply-chain-sentinel` findings (CWE-mapped), `kali-audit` findings (OWASP/ATLAS-mapped), CI logs, manifest evidence. Read `security/regressions/` for existing taxonomy mappings. Emit `cns.taxonomy.select` span. |
-| `map-taxonomy.j2` | KnowAct | For each finding, map to OSC&R taxonomy entry (dependency confusion, typosquatting, malicious commit injection, build pipeline compromise, etc.). Apply pragmatic-cybernetics (feedback loop: does the attack pattern have a defense layer? variety: are there alternative attack vectors in the same OSC&R category?). Emit `cns.taxonomy.map` span per mapping. |
-| `taxonomize.j2` | KnowAct | Classify mapped findings into OSC&R categories + OWASP Supply Chain dual taxonomy. Produce pattern signatures for detecting similar attack patterns. Propose `taxonomy_mapping` field additions to existing `surface: supply-chain` regression entries. Emit `cns.taxonomy.report` span. |
-| `convergence-check.j2` | KnowAct | Compute normalized convergence metric: unmapped findings (0.40), OSC&R category coverage (0.25), OWASP Supply Chain coverage (0.15), regression taxonomy_mapping field growth (0.10), residual unmapped risk (0.10). Emit `cns.taxonomy.convergence` span. |
+| `select-evidence.j2` | KnowAct | Discover evidence sources: `supply-chain-sentinel` findings (CWE-mapped), `kali-audit` findings (OWASP/ATLAS-mapped), CI logs, manifest evidence. Read `security/regressions/` for existing taxonomy mappings. Emit `reg.taxonomy.select` span. |
+| `map-taxonomy.j2` | KnowAct | For each finding, map to OSC&R taxonomy entry (dependency confusion, typosquatting, malicious commit injection, build pipeline compromise, etc.). Apply pragmatic-cybernetics (feedback loop: does the attack pattern have a defense layer? variety: are there alternative attack vectors in the same OSC&R category?). Emit `reg.taxonomy.map` span per mapping. |
+| `taxonomize.j2` | KnowAct | Classify mapped findings into OSC&R categories + OWASP Supply Chain dual taxonomy. Produce pattern signatures for detecting similar attack patterns. Propose `taxonomy_mapping` field additions to existing `surface: supply-chain` regression entries. Emit `reg.taxonomy.report` span. |
+| `convergence-check.j2` | KnowAct | Compute normalized convergence metric: unmapped findings (0.40), OSC&R category coverage (0.25), OWASP Supply Chain coverage (0.15), regression taxonomy_mapping field growth (0.10), residual unmapped risk (0.10). Emit `reg.taxonomy.convergence` span. |
 
 ## 7. OSC&R Taxonomy Reference (Proposed Mappings)
 
@@ -154,7 +154,7 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
   `kali-audit` as input; does not generate new findings.
 - Every output includes `userpod_host` identity (P12).
 - Registry (`manifest.yaml` + `.j2`) is authoritative over SKILL.md (P5.1).
-- `cns.taxonomy.*` namespaces MUST be registered before skill commit (P9
+- `reg.taxonomy.*` namespaces MUST be registered before skill commit (P9
   integrity — same discipline as `supply-chain-sentinel`).
 - The `taxonomy_mapping` field added to regression YAML must be backward-
   compatible (optional field — existing regressions without it remain valid).
@@ -180,9 +180,9 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
 
 ## 11. Open Questions (Resolved)
 
-1. **`cns.taxonomy.*` namespace registration:** RESOLVED — all 5 namespaces
+1. **`reg.taxonomy.*` namespace registration:** RESOLVED — all 5 namespaces
    registered in `CANONICAL_NAMESPACES` (`event.rs` L309-315). No conflict
-   with `cns.classify.*` (distinct purpose).
+   with `reg.classify.*` (distinct purpose).
 2. **OSC&R taxonomy verification:** RESOLVED — verified against
    `github.com/pbom-dev/OSCAR` `matrix.json` (2026-07-18). OSC&R uses
    tactic + technique names, NOT numeric IDs. All 12 tactics and all
@@ -205,7 +205,7 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
 
 All steps completed (2026-07-18):
 1. ✅ Resolved open questions in §11 (4 resolved, 1 partially open — see §13).
-2. ✅ Registered `cns.taxonomy.*` namespaces in `CANONICAL_NAMESPACES`.
+2. ✅ Registered `reg.taxonomy.*` namespaces in `CANONICAL_NAMESPACES`.
 3. ✅ Verified OSC&R taxonomy IDs against live `github.com/pbom-dev/OSCAR`.
 4. ✅ Created `registry/templates/attack-taxonomy-mapper/manifest.yaml`.
 5. ✅ Created 4 `.j2` template files with `{# goal: ... #}` annotations.
@@ -225,7 +225,7 @@ fully invocable for real-time incident investigation:
    consume fresh findings from a current `supply-chain-sentinel` or
    `kali-audit` audit cycle in real-time. For post-audit taxonomy mapping
    (the primary use case), this is sufficient. For real-time incident
-   investigation, a finding-passing mechanism (e.g., CNS span history or an
+   investigation, a finding-passing mechanism (e.g., Regulation span history or an
    inter-skill data flow API) would be needed.
 
 This is an infrastructure task, not a skill design task. The skill itself

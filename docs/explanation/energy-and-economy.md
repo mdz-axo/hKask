@@ -10,7 +10,7 @@ mds_categories: [domain, composition, lifecycle, trust]
 
 # Energy and Economy
 
-This document consolidates three infrastructure themes that share a single concern: resource governance. The gas system makes computational resource consumption visible and governable. The database driver abstraction makes storage provider selection a deployment-time decision, not a code-level one. The LoRA adapter store makes model lifecycle — from training through deployment to teardown — an OCAP-gated, cost-tracked, CNS-observable pipeline. Together, they form the economic and storage backbone that enables hKask's autonomous agents to operate within bounded resources.
+This document consolidates three infrastructure themes that share a single concern: resource governance. The gas system makes computational resource consumption visible and governable. The database driver abstraction makes storage provider selection a deployment-time decision, not a code-level one. The LoRA adapter store makes model lifecycle — from training through deployment to teardown — an OCAP-gated, cost-tracked, Regulation-observable pipeline. Together, they form the economic and storage backbone that enables hKask's autonomous agents to operate within bounded resources.
 
 ---
 
@@ -24,7 +24,7 @@ Agent platforms face a fundamental problem: autonomous loops can consume resourc
 
 #### GasBudget: The Entry Point
 
-The `GasBudget` struct (`crates/hkask-cns/src/energy.rs`) is the primary enforcement mechanism. Every skill and agent carries a budget with a `cap`, a `remaining` balance, a `reserved` hold, and a `replenish_rate`. Fields are private; invariants like `remaining + reserved ≤ cap` are enforced structurally — one cannot construct a `GasBudget` that violates them.
+The `GasBudget` struct (`crates/hkask-regulation/src/energy.rs`) is the primary enforcement mechanism. Every skill and agent carries a budget with a `cap`, a `remaining` balance, a `reserved` hold, and a `replenish_rate`. Fields are private; invariants like `remaining + reserved ≤ cap` are enforced structurally — one cannot construct a `GasBudget` that violates them.
 
 ```rust
 pub struct GasBudget {
@@ -49,7 +49,7 @@ Stale reservations older than 300 seconds (`RESERVATION_TIMEOUT_SECS`) are auto-
 
 #### The Well: Source of All Gas
 
-Gas does not materialize from nowhere. A `Well` (`crates/hkask-cns/src/well.rs`) is the sole source of new gas and rJoules entering the system. One default Well per installation. Wells produce gas and rJoules on a replenishment schedule — `gas_rate` and `rjoule_rate` — and agents draw from Wells to fill their wallets.
+Gas does not materialize from nowhere. A `Well` (`crates/hkask-regulation/src/well.rs`) is the sole source of new gas and rJoules entering the system. One default Well per installation. Wells produce gas and rJoules on a replenishment schedule — `gas_rate` and `rjoule_rate` — and agents draw from Wells to fill their wallets.
 
 ```rust
 pub struct Well {
@@ -63,13 +63,13 @@ pub struct Well {
 
 #### Wallets: Per-Agent Balances
 
-Where the Well is the source, the `WalletManager` (`crates/hkask-cns/src/wallet_manager.rs`) is distribution. Backed by SQLite via `WalletStore`, it creates per-agent wallets on userpod registration, manages deposits and spending, and auto-draws from the Well when balances run low.
+Where the Well is the source, the `WalletManager` (`crates/hkask-regulation/src/wallet_manager.rs`) is distribution. Backed by SQLite via `WalletStore`, it creates per-agent wallets on userpod registration, manages deposits and spending, and auto-draws from the Well when balances run low.
 
-The `WalletBackedBudget` (`crates/hkask-cns/src/wallet_budget.rs`) extends this for paid agents. Unlike standard `GasBudget` which replenishes from a dimensionless pool, `WalletBackedBudget` converts gas costs to rJoules and debits a real wallet. It always has `hard_limit = true` — rJoules represent real value. When an API key is attached, it checks encumbrance (allocated rJoule reservation) rather than raw wallet balance.
+The `WalletBackedBudget` (`crates/hkask-regulation/src/wallet_budget.rs`) extends this for paid agents. Unlike standard `GasBudget` which replenishes from a dimensionless pool, `WalletBackedBudget` converts gas costs to rJoules and debits a real wallet. It always has `hard_limit = true` — rJoules represent real value. When an API key is attached, it checks encumbrance (allocated rJoule reservation) rather than raw wallet balance.
 
 #### RJoule: The Currency of Inference
 
-rJoule is defined in `hkask-wallet-types`. The conversion rate is configured via `GAS_PER_RJOULE` — 250,000 gas cycles = 1 rJoule, reflecting the cost differential between cheap local compute and expensive LLM inference. This rate is runtime-adjustable; the CNS calibration loop in `CalibratedEnergyEstimator` updates it based on observed settlement data.
+rJoule is defined in `hkask-wallet-types`. The conversion rate is configured via `GAS_PER_RJOULE` — 250,000 gas cycles = 1 rJoule, reflecting the cost differential between cheap local compute and expensive LLM inference. This rate is runtime-adjustable; the Regulation calibration loop in `CalibratedEnergyEstimator` updates it based on observed settlement data.
 
 The `hkask-wallet` crate (`crates/hkask-wallet/src/lib.rs`) provides the full wallet infrastructure: multi-chain support via `ChainPort` trait (Hedera port is feature-gated), self-custody via HKDF-derived keys, API key issuance, price feeds for fee estimation, and zeroizing wrappers on all secret key material.
 
@@ -88,15 +88,15 @@ pub struct Posting {
 
 Three invariants are structurally enforced: idempotency (same reference, identical postings → no-op; different postings → `IdempotencyConflict`), double-entry (postings must sum to zero), and immutability (committed transactions are never modified or deleted).
 
-#### CNS Feedback Loop
+#### Regulation Feedback Loop
 
-The economic layer feeds directly into CNS regulation. `cns.gas` spans emit on every reserve, settle, consume, and reset operation. `GasReport` (`crates/hkask-cns/src/gas_report.rs`) queries these events and produces per-agent `AgentGasSummary` reports with per-tool breakdowns (`ToolGasBreakdown`: reserved, consumed, depleted, invocations).
+The economic layer feeds directly into Regulation regulation. `reg.gas` spans emit on every reserve, settle, consume, and reset operation. `GasReport` (`crates/hkask-regulation/src/gas_report.rs`) queries these events and produces per-agent `AgentGasSummary` reports with per-tool breakdowns (`ToolGasBreakdown`: reserved, consumed, depleted, invocations).
 
-`CalibratedEnergyEstimator` (`crates/hkask-cns/src/calibrated_energy_estimator.rs`) closes the Good Regulator feedback loop. It wraps `CompositeEnergyEstimator` and keeps its per-server table in sync with observed `cns.gas.settled` events via `DynamicGasTable`. A background calibration task refreshes estimates every 5 minutes, adjusting by exponential moving average. This is P9 (Homeostatic Self-Regulation) at work: estimates are continuously validated against reality and adjusted to minimize prediction error.
+`CalibratedEnergyEstimator` (`crates/hkask-regulation/src/calibrated_energy_estimator.rs`) closes the Good Regulator feedback loop. It wraps `CompositeEnergyEstimator` and keeps its per-server table in sync with observed `reg.gas.settled` events via `DynamicGasTable`. A background calibration task refreshes estimates every 5 minutes, adjusting by exponential moving average. This is P9 (Homeostatic Self-Regulation) at work: estimates are continuously validated against reality and adjusted to minimize prediction error.
 
 #### Provider Intelligence
 
-`EnergyEstimator` (`crates/hkask-cns/src/governed_tool.rs`) is the trait that enables cost-aware routing. Different tool categories have different cost models: `InferenceEnergyEstimator` estimates by token count; `TableEnergyEstimator` uses flat per-server costs. The `GovernedTool` membrane — which wraps every tool invocation — checks OCAP authority, reserves gas, invokes the tool, settles actual cost, and emits CNS spans. This is where the economic layer becomes the enforcement layer.
+`EnergyEstimator` (`crates/hkask-regulation/src/governed_tool.rs`) is the trait that enables cost-aware routing. Different tool categories have different cost models: `InferenceEnergyEstimator` estimates by token count; `TableEnergyEstimator` uses flat per-server costs. The `GovernedTool` membrane — which wraps every tool invocation — checks OCAP authority, reserves gas, invokes the tool, settles actual cost, and emits Regulation spans. This is where the economic layer becomes the enforcement layer.
 
 ### Diagram
 
@@ -108,27 +108,27 @@ flowchart TD
     WBB["WalletBackedBudget\n(hard_limit = true)"]
     LEDGER["hkask-ledger\ndouble-entry accounting"]
     GT["GovernedTool\n(hold-settle membrane)"]
-    CNS["CNS\ngas spans + calibration"]
+    Regulation["Regulation\ngas spans + calibration"]
 
     WELL -->|"replenish"| WM
     WM -->|"fill"| GB
     WM -->|"fill (paid agents)"| WBB
     GB -->|"reserve → execute → settle"| GT
     WBB -->|"reserve → execute → settle"| GT
-    GT -->|"cns.gas.settled"| CNS
+    GT -->|"reg.gas.settled"| Regulation
     GT -->|"postings"| LEDGER
-    CNS -->|"CalibratedEnergyEstimator\nadjusts estimates"| GT
+    Regulation -->|"CalibratedEnergyEstimator\nadjusts estimates"| GT
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ENG-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/energy.rs, crates/hkask-ledger/src/lib.rs
+verified_against: crates/hkask-regulation/src/energy.rs, crates/hkask-ledger/src/lib.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The dual-currency system (gas for compute, rJoules for inference) means that hKask can regulate two distinct resource dimensions independently. A skill that does heavy local compute (parsing, sorting, embedding) consumes gas; a skill that calls expensive LLM APIs consumes rJoules. The CNS can throttle one without throttling the other — an agent with plenty of gas but depleted rJoules can still do local work but cannot call inference. The hold-settle pattern prevents over-estimation waste: if a tool is estimated to cost 1000 gas but actually costs 400, the 600 difference is refunded. The `CalibratedEnergyEstimator` closes the loop by adjusting future estimates based on observed actuals — the system learns the true cost of each tool and tightens reserves over time. This is the Good Regulator theorem applied to economics: the regulator's model of tool costs converges toward reality through continuous feedback.
+The dual-currency system (gas for compute, rJoules for inference) means that hKask can regulate two distinct resource dimensions independently. A skill that does heavy local compute (parsing, sorting, embedding) consumes gas; a skill that calls expensive LLM APIs consumes rJoules. The Regulation can throttle one without throttling the other — an agent with plenty of gas but depleted rJoules can still do local work but cannot call inference. The hold-settle pattern prevents over-estimation waste: if a tool is estimated to cost 1000 gas but actually costs 400, the 600 difference is refunded. The `CalibratedEnergyEstimator` closes the loop by adjusting future estimates based on observed actuals — the system learns the true cost of each tool and tightens reserves over time. This is the Good Regulator theorem applied to economics: the regulator's model of tool costs converges toward reality through continuous feedback.
 
 ---
 
@@ -232,7 +232,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ENG-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/energy.rs, crates/hkask-ledger/src/lib.rs
+verified_against: crates/hkask-regulation/src/energy.rs, crates/hkask-ledger/src/lib.rs
 status: VERIFIED
 -->
 
@@ -246,7 +246,7 @@ The `DatabaseDriver` abstraction means that storage is a deployment-time decisio
 
 ### Statement
 
-The LoRA adapter store governs the full lifecycle of trained LoRA adapters in hKask: from training provenance through storage, composition with base models, cloud deployment, cost-tracked inference, and teardown. Every operation is OCAP-gated via `DelegationToken`. Every state transition emits a CNS span. Every adapter has an owner WebID (P12 — no anonymous artifacts). This is the energy-and-economy theme applied to model lifecycle: adapters are resources that must be stored, provisioned, metered, and cleaned up — just like gas and rJoules.
+The LoRA adapter store governs the full lifecycle of trained LoRA adapters in hKask: from training provenance through storage, composition with base models, cloud deployment, cost-tracked inference, and teardown. Every operation is OCAP-gated via `DelegationToken`. Every state transition emits a Regulation span. Every adapter has an owner WebID (P12 — no anonymous artifacts). This is the energy-and-economy theme applied to model lifecycle: adapters are resources that must be stored, provisioned, metered, and cleaned up — just like gas and rJoules.
 
 ### Evidence
 
@@ -254,7 +254,7 @@ The LoRA adapter store governs the full lifecycle of trained LoRA adapters in hK
 
 An adapter moves through five macro-stages:
 
-| Stage | What Happens | Key Type | CNS Span |
+| Stage | What Happens | Key Type | Regulation Span |
 |-------|-------------|----------|----------|
 | Train | LoRA fine-tuning via `hkask-mcp-training` | `TrainedLoRAAdapter` | — |
 | Store | Persist metadata + weights in `AdapterStore` | `TrainedLoRAAdapter` | `AdapterStored` |
@@ -331,7 +331,7 @@ The guard's `Drop` implementation calls `teardown_endpoint()` automatically — 
 
 Every inference endpoint is governed by a validated state machine (`crates/hkask-adapter/src/endpoint_lifecycle.rs`):
 
-| From | To | Allowed? | CNS Span |
+| From | To | Allowed? | Regulation Span |
 |------|----|----------|----------|
 | `Provisioning` | `Ready` | Yes | `EndpointCreateConfirmed` |
 | `Ready` | `Active` | Yes | `EndpointInference` |
@@ -350,7 +350,7 @@ Three phases are billable: `Provisioning`, `Ready`, and `Active`. Cost accrues a
 
 ```rust
 if lc.is_over_budget(50.0) {
-    // Emits: cns.endpoint.cost.budget_warning
+    // Emits: reg.endpoint.cost.budget_warning
     // Trigger teardown
 }
 let remaining = lc.time_until_budget_exceeded(50.0);
@@ -359,7 +359,7 @@ let remaining = lc.time_until_budget_exceeded(50.0);
 
 #### Ownership Model (P12)
 
-Every adapter has an owner. The `TrainedLoRAAdapter.owner` field is a `WebID` — a sovereign identity URI. This is P12 (Authenticated Host Mandate): no anonymous artifacts, no anonymous agency. The `list_owner(webid)` method returns only adapters owned by that WebID. Every `EndpointInference` CNS span carries the owning WebID. No root. No `sudo`. No shared "admin" adapter pool. Every adapter is sovereign-scoped.
+Every adapter has an owner. The `TrainedLoRAAdapter.owner` field is a `WebID` — a sovereign identity URI. This is P12 (Authenticated Host Mandate): no anonymous artifacts, no anonymous agency. The `list_owner(webid)` method returns only adapters owned by that WebID. Every `EndpointInference` Regulation span carries the owning WebID. No root. No `sudo`. No shared "admin" adapter pool. Every adapter is sovereign-scoped.
 
 #### Provider Support
 
@@ -404,25 +404,25 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ENG-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/energy.rs, crates/hkask-ledger/src/lib.rs
+verified_against: crates/hkask-regulation/src/energy.rs, crates/hkask-ledger/src/lib.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The LoRA adapter store is the model-lifecycle analog of the gas system. Just as gas budgets bound computational work and rJoules bound inference energy, the `EndpointLifecycle` state machine bounds cloud GPU spending. The `is_over_budget()` and `time_until_budget_exceeded()` methods provide the same homeostatic regulation that the CNS provides for gas — the system knows when it is approaching a budget cap and can take action (teardown) before the cap is breached. The `EndpointGuard` RAII pattern is the same principle as the `TransactionHandle` in the database layer: resources are released automatically on scope exit, preventing leaks from panics or early returns.
+The LoRA adapter store is the model-lifecycle analog of the gas system. Just as gas budgets bound computational work and rJoules bound inference energy, the `EndpointLifecycle` state machine bounds cloud GPU spending. The `is_over_budget()` and `time_until_budget_exceeded()` methods provide the same homeostatic regulation that the Regulation provides for gas — the system knows when it is approaching a budget cap and can take action (teardown) before the cap is breached. The `EndpointGuard` RAII pattern is the same principle as the `TransactionHandle` in the database layer: resources are released automatically on scope exit, preventing leaks from panics or early returns.
 
-The P2 (Affirmative Consent) enforcement on provider selection is noteworthy — the system never silently selects a provider, even when only one is compatible. This means that a user always knows which cloud provider they are paying and what the rate is before any GPU is provisioned. The `CostModel` struct makes pricing transparent and machine-readable, enabling the CNS to reason about endpoint costs alongside gas and rJoule costs. This is the energy-and-economy theme unified: all resources — local compute, inference, and cloud GPU — are governed by the same principles of budgeting, observability, and consent.
+The P2 (Affirmative Consent) enforcement on provider selection is noteworthy — the system never silently selects a provider, even when only one is compatible. This means that a user always knows which cloud provider they are paying and what the rate is before any GPU is provisioned. The `CostModel` struct makes pricing transparent and machine-readable, enabling the Regulation to reason about endpoint costs alongside gas and rJoule costs. This is the energy-and-economy theme unified: all resources — local compute, inference, and cloud GPU — are governed by the same principles of budgeting, observability, and consent.
 
 ---
 
 ## References
 
-- `crates/hkask-cns/src/energy.rs` — GasBudget struct and hold-settle pattern
-- `crates/hkask-cns/src/well.rs` — Well and WellManager
-- `crates/hkask-cns/src/wallet_manager.rs` — WalletManager
-- `crates/hkask-cns/src/wallet_budget.rs` — WalletBackedBudget
-- `crates/hkask-cns/src/calibrated_energy_estimator.rs` — CalibratedEnergyEstimator
+- `crates/hkask-regulation/src/energy.rs` — GasBudget struct and hold-settle pattern
+- `crates/hkask-regulation/src/well.rs` — Well and WellManager
+- `crates/hkask-regulation/src/wallet_manager.rs` — WalletManager
+- `crates/hkask-regulation/src/wallet_budget.rs` — WalletBackedBudget
+- `crates/hkask-regulation/src/calibrated_energy_estimator.rs` — CalibratedEnergyEstimator
 - `crates/hkask-ledger/src/lib.rs` — Double-entry ledger
 - `crates/hkask-database/src/driver.rs` — DatabaseDriver trait
 - `crates/hkask-database/src/sqlite.rs` — SqliteDriver

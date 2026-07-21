@@ -58,6 +58,6 @@
 ## Remaining work
 
 - Semantic-graph-audit on the 21-tool MCP surface → cut to 14 tools (delete 7 speculative/inference/dup tools)
-- Add CNS spans (`cns.training.provider.{runpod,tinker,together}.*`) for observability
+- Add Regulation spans (`reg.training.provider.{runpod,tinker,together}.*`) for observability
 - Write contract tests for the 14 surviving tools (starting with `submit`, `status`, `deploy`, `teardown`)
 - Update `mcp-servers/hkask-mcp-training/README.md` after tool simplification

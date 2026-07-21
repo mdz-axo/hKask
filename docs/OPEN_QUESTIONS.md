@@ -160,7 +160,7 @@ Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FE
 
 **What transfers:** SQLCipher database file, deterministic passphrase (ADR-027), `.webid` sidecar, pod persona and capabilities.
 
-**What does NOT transfer:** CNS variety counters (temporal state), Curator cursor state, MCP server API keys, active A2A sessions.
+**What does NOT transfer:** Regulation variety counters (temporal state), Curator cursor state, MCP server API keys, active A2A sessions.
 
 **Import procedure:** `kask pod export <pod_id>` → `kask pod import <pod_id> {pod}.db {pod}.webid`.
 
@@ -178,11 +178,11 @@ Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FE
 
 ### ζ.4 — Curator Aggregation Model
 
-**Question:** Polling vs push for per-pod CNS aggregation?
+**Question:** Polling vs push for per-pod Regulation aggregation?
 
 **Status:** **Resolved** — polling model implemented in `CuratorSync` (1-second interval).
 
-**Decision:** Polling handles restarts naturally via cursor-based catch-up. Push requires Curator to be alive and reachable at write time — fragile. CNS events serve as observability signals, not the sync trigger.
+**Decision:** Polling handles restarts naturally via cursor-based catch-up. Push requires Curator to be alive and reachable at write time — fragile. Regulation events serve as observability signals, not the sync trigger.
 
 ---
 
@@ -324,13 +324,13 @@ Loop inboxes and variety counters are in-memory. On crash, all pending messages 
 
 Memory (Episodic + Semantic, Loop 2) has no direct MCP server — queries go through `hkask-mcp-memory`. This is intentional — semantic queries are lower-level than what MCP tools expose. The Memory server provides higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
 
-### P3-h: CNS Set-point Configuration ⚠️ DEFERRED
+### P3-h: Regulation Set-point Configuration ⚠️ DEFERRED
 
 **MDS Category:** Interface  
 **Status:** Deferred (hardcoded defaults sufficient for v0.27.0)  
 **Raised:** 2026-05-29 (Loop Distillation)
 
-CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YAML/env configuration for deploy-time tuning. Low priority for v0.27.0 — defaults work for development. Add `SetPointsConfig` YAML parsing when deployment scenarios require tuning.
+Regulation thresholds, gas budgets, variety set-points are currently hardcoded. Need YAML/env configuration for deploy-time tuning. Low priority for v0.27.0 — defaults work for development. Add `SetPointsConfig` YAML parsing when deployment scenarios require tuning.
 
 ### 8g: WebSearchPort Extraction ⚠️ DEFERRED
 
@@ -400,13 +400,13 @@ MCP server tests require `rmcp` transport. Should integration tests use the exis
 
 ---
 
-### TQ-6: CNS Variety Counters for Test Diversity
+### TQ-6: Regulation Variety Counters for Test Diversity
 
 **MDS Category:** Observability  
 **Status:** Open  
 **Opened:** 2026-06-06
 
-Should `cns.test.*` spans track test diversity (number of distinct seams tested per MDS category) and emit algedonic alerts when test variety drops below threshold? This would make test coverage a homeostatic concern — cybernetically coherent, but requires defining thresholds per MDS category.
+Should `reg.test.*` spans track test diversity (number of distinct seams tested per MDS category) and emit algedonic alerts when test variety drops below threshold? This would make test coverage a homeostatic concern — cybernetically coherent, but requires defining thresholds per MDS category.
 
 ---
 
@@ -504,13 +504,13 @@ Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question 
 
 ---
 
-### FUT-009: Span namespace `cns.cli.*` vs `cns.cybernetics.*` — ADR needed
+### FUT-009: Span namespace `reg.cli.*` vs `reg.cybernetics.*` — ADR needed
 
 **MDS Category:** Observability  
 **Status:** Open  
 **Opened:** 2026-06-07
 
-The canonical CNS span registry (`crates/hkask-types/src/cns.rs`, `RegulationSpan`) uses `cns.cybernetics.*` for some spans, while `AGENTS.md` and code use `cns.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
+The canonical Regulation span registry (`crates/hkask-types/src/cns.rs`, `RegulationSpan`) uses `reg.cybernetics.*` for some spans, while `AGENTS.md` and code use `reg.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
 
 ---
 
@@ -598,8 +598,8 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 | R3.9 | Coherence threshold calibration (0.7) | Curation | ⚠️ Deferred (uncalibrated) | MDS §11 #7 |
 | R3.10 | Spec version replacement (post version_sha removal) | Lifecycle | **Resolved** — Spec.version: Option<String> added | Audit R15 |
 | R3.11 | `SpecStore` needs `Send + Sync` bounds on the trait itself | Trust | ⚠️ Deferred — breaking change to trait signature; bounds currently on field type only | MDS §11 #1 |
-| R3.12 | `SpecObserver` → CNS span integration depth | Observability | ⚠️ Deferred — currently emits `tracing::info!`; needs SpanEmitter variety counters and algedonic alert triggers | MDS §11 #5 |
-| R3.13 | Spec drift detection (`cns.spec.drift` span) | Observability | ⚠️ Deferred — drift magnitude metric specified but not implemented; requires comparing `Spec` goals against implementation state | MDS §11 #10 |
+| R3.12 | `SpecObserver` → Regulation span integration depth | Observability | ⚠️ Deferred — currently emits `tracing::info!`; needs SpanEmitter variety counters and algedonic alert triggers | MDS §11 #5 |
+| R3.13 | Spec drift detection (`reg.spec.drift` span) | Observability | ⚠️ Deferred — drift magnitude metric specified but not implemented; requires comparing `Spec` goals against implementation state | MDS §11 #10 |
 
 ---
 
@@ -610,9 +610,9 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 | # | Item | Category | Status | Audit Ref |
 |---|------|----------|--------|----------|
 | R4 | MDS §9.1 self-application matrix labels | Observability, Persistence, Lifecycle, Curation | **Resolved** — matrix updated with :partial and :drift labels | Audit R4 |
-| R6 | CNS span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`) | Audit R6 |
+| R6 | Regulation span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference canonical Regulation span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`) | Audit R6 |
 | R8 | TemplateType vocabulary mapping | Composition | **Resolved** — as_spec_name() method added, mapping table documented in MDS.md §7.2 §3.3 | Audit R8 |
-| R13 | SpecDriftAlert not in CNS loop | Observability | **Resolved** — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox | Audit R13 |
+| R13 | SpecDriftAlert not in Regulation loop | Observability | **Resolved** — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox | Audit R13 |
 
 ---
 
@@ -879,7 +879,7 @@ The dual-presence pattern — where two entities (a sovereign host userpod and a
 
 ### DP-1: Presence Model
 **What does "being present" actually mean?**
-- **Continuous:** Curator observes every message (enables proactive CNS regulation but raises P2 consent concerns)
+- **Continuous:** Curator observes every message (enables proactive Regulation regulation but raises P2 consent concerns)
 - **Invoked:** Curator only engages when addressed (simpler but makes Curator reactive, not regulatory)
 - Can presence be toggled? If user disables Curator, who regulates gas budgets?
 
@@ -891,7 +891,7 @@ The dual-presence pattern — where two entities (a sovereign host userpod and a
 ### DP-3: Authority Model
 **Who has final say when user and Curator disagree?**
 - P1 (User Sovereignty) vs P9 (System Self-Regulation) tension
-- Escalation path: Curator warns → user overrides → CNS records override → pattern detection
+- Escalation path: Curator warns → user overrides → Regulation records override → pattern detection
 
 ### DP-4: Addressing Model
 **How does the user address the Curator vs. other agents?**
@@ -942,7 +942,7 @@ The architecture doc mentions adapters can be composed. How should two skill ada
 **Status:** Open
 **Opened:** 2026-06-16
 
-When a SKILL.md is updated, the adapter trained on the old version may produce incorrect decompositions. Should the system detect skill-document drift and flag adapters as stale? This is a CNS drift-detection problem already solved for specs (`DefaultSpecCurator`). Can the same mechanism apply to skill→adapter drift?
+When a SKILL.md is updated, the adapter trained on the old version may produce incorrect decompositions. Should the system detect skill-document drift and flag adapters as stale? This is a Regulation drift-detection problem already solved for specs (`DefaultSpecCurator`). Can the same mechanism apply to skill→adapter drift?
 
 ### TRN-004: HuggingFace dataset versioning
 
@@ -960,13 +960,13 @@ The `DatasetPipeline` uses local JSONL files. Should it also support loading dat
 
 Axolotl and Unsloth are currently local-only; cloud dispatch returns `Unavailable`. For cloud hosts (Together, Runpod, Baseten), the harness field is tracked in `TrainingJob` but the actual axolotl YAML or unsloth Python script is not embedded in the dispatch payload. Should cloud hosts generate and include harness-specific config, or is the cloud host native training API sufficient?
 
-### TRN-006: Training CNS span registration
+### TRN-006: Training Regulation span registration
 
 **MDS Category:** Observability
 **Status:** Open
 **Opened:** 2026-06-16
 
-CNS spans like `cns.training.sweep.iteration` and `cns.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/cns.rs` `RegulationSpan` enum. They work for logging but cannot be subscribed to programmatically via CNS variety tracking. Which of these spans meet the deletion test for programmatic observability?
+Regulation spans like `reg.training.sweep.iteration` and `reg.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/cns.rs` `RegulationSpan` enum. They work for logging but cannot be subscribed to programmatically via Regulation variety tracking. Which of these spans meet the deletion test for programmatic observability?
 
 ### ADT-001: Adapter format normalization ✅ RESOLVED
 
@@ -1069,7 +1069,7 @@ Questions raised by the Solid Pod isomorphism that require future design work.
 |-----------|------|------|
 | **Matrix (Conduit)** | Already in deployment model. Built-in federation. | Adds Conduit as hard dependency. |
 | **gRPC** | High performance. Bidirectional streaming. | New infrastructure. No federation. |
-| **mpsc over TCP** | Simple. Matches CNS channel pattern. | No authentication, discovery, routing. |
+| **mpsc over TCP** | Simple. Matches Regulation channel pattern. | No authentication, discovery, routing. |
 | **WebSocket + JSON** | Browser-compatible. | No built-in federation. |
 
 **Key constraint:** Cross-pod A2A must preserve OCAP gating. Capability tokens must extend across pod boundaries.
@@ -1081,7 +1081,7 @@ Questions raised by the Solid Pod isomorphism that require future design work.
 **Current state:** Backup exports the SQLCipher file. All SQLCipher databases use the canonical installation passphrase resolved from `HKASK_DB_PASSPHRASE` or its keychain fallback.
 
 **Open sub-questions:**
-- **CNS state:** Reset variety counters on migration (60-second window).
+- **Regulation state:** Reset variety counters on migration (60-second window).
 - **API keys:** Travel with the pod (user-scoped, not server-scoped).
 - **Addressable identity:** The pod's WebID is the identity; any server can host any pod.
 
@@ -1099,14 +1099,14 @@ Questions raised by the Solid Pod isomorphism that require future design work.
 
 ### POD-4 — Curator Aggregation Model
 
-**Current state:** `RegulationLedger` is server-global. Per-pod CNS means N runtimes.
+**Current state:** `RegulationLedger` is server-global. Per-pod Regulation means N runtimes.
 
 | Model | Description | Pros | Cons |
 |-------|-------------|------|------|
-| **Poll (Curator pulls)** | Curator queries each pod's CNS | Simple, Curator controls sampling | Polling overhead, delayed alerts |
+| **Poll (Curator pulls)** | Curator queries each pod's Regulation | Simple, Curator controls sampling | Polling overhead, delayed alerts |
 | **Push (Pods emit)** | Pods push to shared Curator channel | Real-time, matches existing pattern | Weaker per-pod isolation |
 
-**Constraint:** Algedonic pathway is unidirectional (CNS → Curator). Per-pod boundary means no cross-pod CNS observation.
+**Constraint:** Algedonic pathway is unidirectional (Regulation → Curator). Per-pod boundary means no cross-pod Regulation observation.
 
 **Question:** Poll (stronger isolation) or push (stronger real-time)?
 
@@ -1127,7 +1127,7 @@ Questions raised by the Solid Pod isomorphism that require future design work.
 > **MDS Category:** Composition, Curation
 > **Last Updated:** 2026-06-27
 
-The `hkask-communication` crate was originally classified as RESOLVED (stubs replaced with tests). It now has a full operational pipeline beyond tests: the 7R7 Listener polls Matrix rooms, the CNS bridge persists RegulationRecords, CurationLoop.sense() filters communication events from RegulationArchive and pushes directly to curation context, and the CAT engagement gate gates agent activation.
+The `hkask-communication` crate was originally classified as RESOLVED (stubs replaced with tests). It now has a full operational pipeline beyond tests: the 7R7 Listener polls Matrix rooms, the Regulation bridge persists RegulationRecords, CurationLoop.sense() filters communication events from RegulationArchive and pushes directly to curation context, and the CAT engagement gate gates agent activation.
 
 ### COMM-001: hKask-Communication Pipeline Operational ✅ RESOLVED
 
@@ -1135,9 +1135,9 @@ The `hkask-communication` crate was originally classified as RESOLVED (stubs rep
 
 **Current status (2026-06-27):** RESOLVED — full pipeline operational. The crate provides:
 - `MatrixTransport` (596 LOC) — matrix-sdk client lifecycle, messaging, rooms, files
-- `SevenR7Listener` (191 LOC) — passive room observer, polls on configurable interval, persists CNS RegulationRecords
+- `SevenR7Listener` (191 LOC) — passive room observer, polls on configurable interval, persists Regulation RegulationRecords
 - `AgentRegistry` (152 LOC) — WebID↔UserId mapping, thread watchlists
-- CNS bridge — RegulationRecord persistence → CurationLoop.sense() filters communication events from RegulationArchive and pushes directly to curation context
+- Regulation bridge — RegulationRecord persistence → CurationLoop.sense() filters communication events from RegulationArchive and pushes directly to curation context
 - CAT engagement gate — `convergence_bias` scalar per agent
 - Response dispatch — agent → Matrix room via `MatrixTransport::send_message()`
 - 652 LOC of tests (Conduit-dependent integration + MXID derivation unit tests)
@@ -1183,7 +1183,7 @@ Items deferred from the fusion-mode design study, implementation (T1–T4 + Prop
 
 **Instrument:** The harness in `fusion_orchestrator::tests::best_of_n_bias_harness_*` proves the measurement mechanism with two mock judges — `FixedPick` (bias-free, swap-revote agrees) and `FirstDisplayed` (position-biased, swap-revote disagrees). The protocol is documented in `docs/how-to/fusion-mode.md` under `best-of-n` → "Measuring whether swap-revote is justified".
 
-**Decision (pending live measurement):** Run the harness with a real judge on a fixed panel-output fixture in 2 display orderings. If the pick changes → bias is present, keep swap-revote. If the pick is stable across orderings → simplify to order-randomization (1 judge call, permuted display order) to halve token cost. Re-measure when the judge model or panel composition changes. The ongoing `agree`/`disagree` verdicts logged at `cns.fusion` provide observational data: a sustained ~100% `agree` rate is evidence the second call is not earning its cost.
+**Decision (pending live measurement):** Run the harness with a real judge on a fixed panel-output fixture in 2 display orderings. If the pick changes → bias is present, keep swap-revote. If the pick is stable across orderings → simplify to order-randomization (1 judge call, permuted display order) to halve token cost. Re-measure when the judge model or panel composition changes. The ongoing `agree`/`disagree` verdicts logged at `reg.fusion` provide observational data: a sustained ~100% `agree` rate is evidence the second call is not earning its cost.
 
 ### FUS-002: Fusion Study Falsification Hypotheses (H1–H5)
 
@@ -1238,11 +1238,11 @@ Generated by TASK 0–TASK 7 documentation alignment and completion initiative. 
 
 ### DA-FUT-002 — Documentation Maintenance: Periodic vs. Continuous
 
-**Context:** The MDS §4 defines a cybernetic feedback loop for system regulation. Documentation drift detection currently relies on manual `verify-docs.sh` + `check-links.sh` runs. The CNS infrastructure (`cns.documentation.drift` spans) could be wired for continuous monitoring.
+**Context:** The MDS §4 defines a cybernetic feedback loop for system regulation. Documentation drift detection currently relies on manual `verify-docs.sh` + `check-links.sh` runs. The Regulation infrastructure (`reg.documentation.drift` spans) could be wired for continuous monitoring.
 
 **Epistemic mode:** Subjunctive | **Constraint force:** Hypothesis
 
-**Meta-question:** What is the target steady-state for documentation maintenance — is it a periodic audit cycle (per-release `verify-docs.sh`), or a continuous CNS-monitored feedback loop (SeamWatcher detecting stale `verified-against` paths + algedonic alerts)?
+**Meta-question:** What is the target steady-state for documentation maintenance — is it a periodic audit cycle (per-release `verify-docs.sh`), or a continuous Regulation-monitored feedback loop (SeamWatcher detecting stale `verified-against` paths + algedonic alerts)?
 
 **Resolution needed:** Governance decision — architecture team preference on documentation maintenance model.
 
@@ -1317,7 +1317,7 @@ Generated by TASK 0–TASK 7 documentation alignment and completion initiative. 
 | DA-ISSUE-003 | Regenerate `corpus_inventory.yaml` against current disk state | P3 |
 | DA-ISSUE-004 | Fix DOCUMENTATION_STANDARDS.md self-application (broken internal refs) | P3 |
 | DA-ISSUE-005 | Archive resolved OPEN_QUESTIONS.md items | P3 |
-| DA-ISSUE-006 | Register `cns.documentation.drift` span type in CNS registry | P3 |
+| DA-ISSUE-006 | Register `reg.documentation.drift` span type in Regulation registry | P3 |
 | DA-ISSUE-007 | Remove "Incorporated from:" annotations or convert to provenance block | P3 |
 
 ---

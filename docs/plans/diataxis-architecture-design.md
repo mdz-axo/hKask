@@ -39,7 +39,7 @@ Single end-to-end walkthrough: new developer → working `kask` session. Reader 
 4. Onboarding: creating a user profile with `kask init`
 5. Running a chat: `kask chat`
 6. Invoking a skill: installing and running `caveman`
-7. Reading CNS health: `kask cns status`
+7. Reading Regulation health: `kask cns status`
 8. Next steps → How-To quadrant
 
 ### Sub-pages:
@@ -61,7 +61,7 @@ Index of operational procedures. 20 how-to documents:
 | 1 | `install-and-run.md` | Compile, install binary, configure env vars | Operator |
 | 2 | `configure-feature-gates.md` | Enable/disable `matrix`, `communication`, `tui`, `api`, `hedera` | Developer |
 | 3 | `bootstrap-mcp-server.md` | Create MCP server with `mcp_server!` macro + `impl_tool_context!` | Developer |
-| 4 | `read-cns-alerts.md` | Interpret `cns.*` spans, variety counters, algedonic alerts | Operator |
+| 4 | `read-cns-alerts.md` | Interpret `reg.*` spans, variety counters, algedonic alerts | Operator |
 | 5 | `run-qa-pipeline.md` | QA fuzz triage, mutation analysis, autonomous scripts | QA Engineer |
 | 6 | `invoke-a-skill.md` | Install, activate, invoke a skill from CLI/API | User |
 | 7 | `audit-sovereignty.md` | Inspect OCAP delegation tokens, verify consent records | Security Auditor |
@@ -91,7 +91,7 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 
 `docs/reference/api/hkask-types.md` — ID types, RegulationRecord, ObservableSpan, visibility, error types
 `docs/reference/api/hkask-ports.md` — Hexagonal port traits: InferencePort, ToolPort, LedgerObserver, FederationDispatch
-`docs/reference/api/hkask-cns.md` — RegulationLedger, CyberneticsLoop, GovernedTool, SetPoints, GasBudget
+`docs/reference/api/hkask-regulation.md` — RegulationLedger, CyberneticsLoop, GovernedTool, SetPoints, GasBudget
 `docs/reference/api/hkask-mcp.md` — MCP runtime, dispatch, DaemonClient, `bootstrap_mcp_server`, `mcp_server!`
 `docs/reference/api/hkask-codegraph.md` — Symbol, Edge, IndexPipeline, AssembledContext (10 MCP tools)
 `docs/reference/api/hkask-agents.md` — PodManager, CuratorAgent, ConsentManager, A2ARuntime, PodDeployment
@@ -117,7 +117,7 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 
 `docs/reference/skills/README.md` — Index of all 38 skills + 2 templates + 1 bundle, with FlowDef type, convergence threshold, gas budget, and canonical manifest path.
 
-### 4.3 CNS Span Registry
+### 4.3 Regulation Span Registry
 
 `docs/reference/cns-spans.md` — Complete listing of all domain-specific ObservableSpan enums: AcpSpan, ClassifySpan, ContractSpan, InfraSpan, QaSpan, SeamSpan, SloSpan. Emission points, interpretation, algedonic thresholds.
 
@@ -148,10 +148,10 @@ Background, context, design decisions. "This design exists because…"
 |----------|-------|-------------|
 | `docs/explanation/hexagonal-ports.md` | Ports/adapter layout — why hexagonal, trait contracts, dependency inversion | Core |
 | `docs/explanation/ocap-mcp-dispatch.md` | OCAP-governed MCP dispatch — capability membrane, PerPodToolBinding, GovernedTool | Core |
-| `docs/explanation/cns-homeostatic-loop.md` | CNS homeostatic loop — variety engineering, algedonic alerts, set points, cybernetic feedback | Core |
+| `docs/explanation/cns-homeostatic-loop.md` | Regulation homeostatic loop — variety engineering, algedonic alerts, set points, cybernetic feedback | Core |
 | `docs/explanation/vsm-mapping.md` | Viable System Model mapping — System 1-5 mapping onto hKask subsystems | Core |
 | `docs/explanation/nu-event-semantics.md` | ν-event semantics — thin domain events, observability contract, emission points | Core |
-| `docs/explanation/good-regulator.md` | The Good Regulator contract — Conant-Ashby theorem applied to CNS self-regulation | Core |
+| `docs/explanation/good-regulator.md` | The Good Regulator contract — Conant-Ashby theorem applied to Regulation self-regulation | Core |
 | `docs/explanation/curator-metacognition.md` | Curator metacognition — escalation, semantic indexing, curation loop | Core |
 | `docs/explanation/dual-axis-ontology.md` | P5.4 dual-axis anchoring — PKO + DC/BIBO, 5W1H core, bridge crates | Core |
 | `docs/explanation/energy-gas-system.md` | Energy, gas, and rJoule system — Wallet, Ledger, API key lifecycle | Core |
@@ -201,7 +201,7 @@ docs/
 │   ├── api/
 │   │   ├── hkask-types.md
 │   │   ├── hkask-ports.md
-│   │   ├── hkask-cns.md
+│   │   ├── hkask-regulation.md
 │   │   ├── hkask-mcp.md
 │   │   ├── hkask-codegraph.md
 │   │   ├── hkask-agents.md

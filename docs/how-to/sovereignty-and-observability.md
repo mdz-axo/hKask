@@ -10,7 +10,7 @@ mds_categories: [domain, trust, lifecycle]
 
 # Sovereignty and Observability
 
-Inspect and verify hKask's Magna Carta principles (P1–P4), manage delegation tokens and consent records, audit pod boundaries, and read CNS (Cybernetic Nervous System) spans, variety counters, and algedonic alerts to understand system health. Sovereignty is the foundational guarantee; the CNS is the observability substrate that verifies enforcement.
+Inspect and verify hKask's Magna Carta principles (P1–P4), manage delegation tokens and consent records, audit pod boundaries, and read Regulation (Cybernetic Nervous System) spans, variety counters, and algedonic alerts to understand system health. Sovereignty is the foundational guarantee; the Regulation is the observability substrate that verifies enforcement.
 
 ---
 
@@ -217,7 +217,7 @@ Caller → GovernedTool.invoke(server, tool, args, token)
            ├─ Step 0: token.verify() — cryptographic authenticity
            ├─ Step 1: verify_capability_exact(token, tool) || verify_capability_domain_fallback(token, tool)
            ├─ Step 2: cybernetics.can_proceed(agent, estimated_cost) — gas budget check
-           ├─ Step 3: emit cns.tool.invoked span
+           ├─ Step 3: emit reg.tool.invoked span
            ├─ Step 4: inner.invoke(server, tool, args, token) → delegate
            └─ Step 5: settle_gas(agent, reserved, actual) → refund if over-estimated
 ```
@@ -279,9 +279,9 @@ curl -H "Authorization: Bearer $HKASK_API_KEY" \
 
 ## Understanding Denial Events
 
-When access is denied, CNS emits spans that help trace the root cause.
+When access is denied, Regulation emits spans that help trace the root cause.
 
-### `cns.tool` (ToolError)
+### `reg.tool` (ToolError)
 
 Emitted when a tool invocation fails, including OCAP denials. Look for error messages containing "CapabilityDenied" or "EnergyBudgetExceeded":
 
@@ -290,7 +290,7 @@ Emitted when a tool invocation fails, including OCAP denials. Look for error mes
 - **Gas budget exceeded** → `ToolPortError::EnergyBudgetExceeded(...)` — increase the energy cap or reduce consumption
 - **No CapabilityChecker configured** → `AgentPodError::CapabilityDenied` (fail-closed)
 
-### `cns.sovereignty` (consent_checked)
+### `reg.sovereignty` (consent_checked)
 
 Emitted when a consent check is performed. The observation field contains the result (`granted` or `denied`):
 
@@ -308,15 +308,15 @@ Emitted when a consent check is performed. The observation field contains the re
 | No `ConsentManager` wired | `DenyAllConsent` returns `false` | Wired automatically by `AgentService` |
 | Storage error in consent check | Consent denied | Check `HKASK_DB_PATH` and `HKASK_DB_PASSPHRASE` |
 | Token expired | `CapabilityChecker::verify_with_time()` returns `false` | Re-issue token with a longer TTL |
-| API key without budget | `cns.gas.depleted` span emitted | Increase energy budget |
+| API key without budget | `reg.gas.depleted` span emitted | Increase energy budget |
 
 ---
 
-## CNS Health Monitoring
+## Regulation Health Monitoring
 
-The CNS is Loop 6 of hKask's cybernetic architecture — an observability substrate that emits typed spans for every operation affecting system state. When variety drops or errors spike, the CNS emits **algedonic alerts** (pleasure/pain signals) to the operator.
+The Regulation is Loop 6 of hKask's cybernetic architecture — an observability substrate that emits typed spans for every operation affecting system state. When variety drops or errors spike, the Regulation emits **algedonic alerts** (pleasure/pain signals) to the operator.
 
-CNS spans are typed identifiers in a dot-separated namespace (e.g., `cns.tool.web_search`, `cns.inference`, `cns.gas.reserved`). Every tool invocation, inference call, gas consumption, contract lifecycle event, and sovereignty check emits a span.
+Regulation spans are typed identifiers in a dot-separated namespace (e.g., `reg.tool.web_search`, `reg.inference`, `reg.gas.reserved`). Every tool invocation, inference call, gas consumption, contract lifecycle event, and sovereignty check emits a span.
 
 Spans flow through two paths:
 
@@ -336,7 +336,7 @@ kask cns health
 Output breakdown:
 
 ```
-CNS Health Status
+Regulation Health Status
 =================
 
 Runtime Status:
@@ -346,14 +346,14 @@ Runtime Status:
   • Warning alerts: <N>              ← Warning threshold breaches
 
 Variety Counter Summary:
-  • cns.tool.web_search: 12 states    ← Per-namespace variety counts
-  • cns.inference: 8 states
-  • cns.tool.condenser: 3 states
+  • reg.tool.web_search: 12 states    ← Per-namespace variety counts
+  • reg.inference: 8 states
+  • reg.tool.condenser: 3 states
   ...
 
 Active Algedonic Alerts:
-  • [Critical] cns.tool: Tool variety critically low
-  • [Warning] cns.inference: Inference error rate elevated
+  • [Critical] reg.tool: Tool variety critically low
+  • [Warning] reg.inference: Inference error rate elevated
   ...
 
 Energy Budget Status:
@@ -368,7 +368,7 @@ Key indicators to watch:
 
 ---
 
-## CNS Alerts
+## Regulation Alerts
 
 ### Viewing Active Alerts
 
@@ -380,8 +380,8 @@ Output:
 
 ```
 Algedonic alerts:
-  • [Critical] cns.tool: Tool call failures exceeded threshold
-  • [Warning] cns.gas: Energy budget running low
+  • [Critical] reg.tool: Tool call failures exceeded threshold
+  • [Warning] reg.gas: Energy budget running low
 ```
 
 If no alerts are active:
@@ -401,7 +401,7 @@ Algedonic alerts escalate through severity levels based on Ashby's Law of Requis
 | deficit > threshold/2, ≤ threshold | **Warning** | `warn!` log emitted |
 | deficit > threshold | **Critical** | `error!` log + `DepletionSignal` broadcast |
 
-The default variety threshold is `DEFAULT_VARIETY_MAX_DEFICIT` (from `hkask_cns`). Per-domain expected variety can be configured via `AlgedonicManager::set_expected_variety()`.
+The default variety threshold is `DEFAULT_VARIETY_MAX_DEFICIT` (from `hkask_regulation`). Per-domain expected variety can be configured via `AlgedonicManager::set_expected_variety()`.
 
 | Severity | Meaning | Response |
 |----------|---------|----------|
@@ -424,10 +424,10 @@ Output:
 
 ```
 Variety counters:
-  • cns.tool.web_search: 12 states
-  • cns.inference: 8 states
-  • cns.gas: 5 states
-  • cns.curation: 3 states
+  • reg.tool.web_search: 12 states
+  • reg.inference: 8 states
+  • reg.gas: 5 states
+  • reg.curation: 3 states
 ```
 
 Low variety in a namespace signals the system is stuck in a narrow operational band — it is not exploring, adapting, or handling diverse inputs.
@@ -436,7 +436,7 @@ Low variety in a namespace signals the system is stuck in a narrow operational b
 
 ## Set Points
 
-Set points define the CNS's expected operating parameters. View current set points:
+Set points define the Regulation's expected operating parameters. View current set points:
 
 ```bash
 kask cns set-points
@@ -445,7 +445,7 @@ kask cns set-points
 Output:
 
 ```
-CNS Set-Points
+Regulation Set-Points
 ==============
   gas_min_remaining:       100
   variety_max_deficit:        50
@@ -475,45 +475,45 @@ kask cns set-points \
 
 ## Filtering Spans by Namespace
 
-Query CNS spans by namespace to focus on specific subsystems:
+Query Regulation spans by namespace to focus on specific subsystems:
 
 ```bash
 # Sovereignty-related spans (P1–P2 enforcement)
-kask cns subscribe --agent curator --spans cns.sovereignty
+kask cns subscribe --agent curator --spans reg.sovereignty
 
 # Tool invocation spans (P4 OCAP enforcement)
-kask cns subscribe --agent curator --spans cns.tool
+kask cns subscribe --agent curator --spans reg.tool
 
 # MCP startup gate spans
-kask cns subscribe --agent curator --spans cns.mcp
+kask cns subscribe --agent curator --spans reg.mcp
 
 # Federation spans
-kask cns subscribe --agent curator --spans cns.federation
+kask cns subscribe --agent curator --spans reg.federation
 
 # Communication spans
-kask cns subscribe --agent curator --spans cns.communication
+kask cns subscribe --agent curator --spans reg.communication
 
 # Guard violation spans
-kask cns subscribe --agent curator --spans cns.guard.input,cns.guard.output
+kask cns subscribe --agent curator --spans reg.guard.input,cns.guard.output
 ```
 
 ### Live Event Subscription
 
-Subscribe to live CNS events for specific span namespaces:
+Subscribe to live Regulation events for specific span namespaces:
 
 ```bash
-kask cns subscribe --agent curator --spans cns.tool.web_search,cns.inference
+kask cns subscribe --agent curator --spans reg.tool.web_search,cns.inference
 ```
 
 Output:
 
 ```
-CNS Event Subscription
+Regulation Event Subscription
 =====================
   Agent: curator
   Span namespaces:
-    • cns.tool.web_search
-    • cns.inference
+    • reg.tool.web_search
+    • reg.inference
 
   Note: Subscription is active for the lifetime of this process.
   Events matching the specified namespaces will be delivered.
@@ -521,21 +521,21 @@ CNS Event Subscription
 
 ---
 
-## Common CNS Span Namespaces
+## Common Regulation Span Namespaces
 
 | Namespace | What It Tracks | Algedonic? |
 |-----------|---------------|------------|
-| `cns.tool.*` | MCP tool invocations (web_search, condenser, etc.) | Yes — variety |
-| `cns.inference` | LLM inference calls | Yes — variety |
-| `cns.gas` | Gas (energy budget) consumption | Yes — depletion |
-| `cns.sovereignty` | Consent grants, revocations, checks | No (audit only) |
-| `cns.curation` | Curator consolidation and directive operations | No (audit only) |
-| `cns.contract.*` | Spec contract lifecycle (proposed, accepted, violated) | Aggregated into quality scores |
-| `cns.guard.violation` | Guard rule triggered | Event-based |
-| `cns.qa.repair_exhausted` | QA repair attempts exhausted | Strong signal — escalate to Curator |
-| `cns.architecture.seam.drift` | Architecture seam divergence | Triggers warnings |
-| `cns.slo.evaluated` | SLO metric evaluation | SLO breach → Critical if SLO severity is Critical |
-| `cns.federation.*` | Federation link lifecycle | Yes — link degradation |
+| `reg.tool.*` | MCP tool invocations (web_search, condenser, etc.) | Yes — variety |
+| `reg.inference` | LLM inference calls | Yes — variety |
+| `reg.gas` | Gas (energy budget) consumption | Yes — depletion |
+| `reg.sovereignty` | Consent grants, revocations, checks | No (audit only) |
+| `reg.curation` | Curator consolidation and directive operations | No (audit only) |
+| `reg.contract.*` | Spec contract lifecycle (proposed, accepted, violated) | Aggregated into quality scores |
+| `reg.guard.violation` | Guard rule triggered | Event-based |
+| `reg.qa.repair_exhausted` | QA repair attempts exhausted | Strong signal — escalate to Curator |
+| `reg.architecture.seam.drift` | Architecture seam divergence | Triggers warnings |
+| `reg.slo.evaluated` | SLO metric evaluation | SLO breach → Critical if SLO severity is Critical |
+| `reg.federation.*` | Federation link lifecycle | Yes — link degradation |
 
 For the full span catalog, see `docs/reference/cns-spans.md` (100+ entries across 11 domain enum types).
 
@@ -543,7 +543,7 @@ For the full span catalog, see `docs/reference/cns-spans.md` (100+ entries acros
 
 ## Responding to Critical Alerts
 
-1. **Identify the domain** — The alert message names the affected namespace (e.g., `cns.tool`)
+1. **Identify the domain** — The alert message names the affected namespace (e.g., `reg.tool`)
 
 2. **Check variety counters** — `kask cns variety` to see which namespace is deficient
 
@@ -558,7 +558,7 @@ For the full span catalog, see `docs/reference/cns-spans.md` (100+ entries acros
 7. **Address the root cause**:
    - **Variety deficit**: The system is seeing too few distinct inputs — check connectivity, tool availability, or inference model health
    - **Gas depletion**: Increase the energy cap or reduce consumption
-   - **Error rate spike**: Check `cns.tool.*` for tool failures, `cns.inference` for model errors
+   - **Error rate spike**: Check `reg.tool.*` for tool failures, `reg.inference` for model errors
    - **SLO breach**: Review the breached service-level objective and its time window
 
 8. **Escalate if unresolved** — Persistent critical alerts should be escalated to the Curator daemon for metacognitive review:
@@ -572,10 +572,10 @@ For the full span catalog, see `docs/reference/cns-spans.md` (100+ entries acros
 
 ## Programmatic Access
 
-Within Rust code, access CNS data through `RegulationLedger`:
+Within Rust code, access Regulation data through `RegulationLedger`:
 
 ```rust
-use hkask_cns::RegulationLedger;
+use hkask_regulation::RegulationLedger;
 
 let rt = RegulationLedger::with_threshold(100);
 let variety = rt.variety().await; // HashMap<SpanNamespace, u64>
@@ -588,6 +588,6 @@ let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 ## Related
 
 - [Magna Carta Reference](../reference/magna-carta.md) — Full principle text, enforcement traces, failure modes
-- [CNS Span Registry](../reference/cns-spans.md) — Full span taxonomy (100+ entries)
-- [Install and Configure hKask](install-and-configure.md) — Content guard configuration and `cns.guard.*` spans
+- [Regulation Span Registry](../reference/cns-spans.md) — Full span taxonomy (100+ entries)
+- [Install and Configure hKask](install-and-configure.md) — Content guard configuration and `reg.guard.*` spans
 - [Agents and Pods](agents-and-pods.md) — Pod status and capability inspection

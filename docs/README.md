@@ -39,7 +39,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | [`deployment-and-transport.md`](how-to/deployment-and-transport.md) | Deploy on Kubernetes, configure Matrix transport, OAuth/invite flow (includes 6 deployment diagrams) |
 | [`skills-and-composition.md`](how-to/skills-and-composition.md) | Install, invoke, compose skills; run Kata cycles (includes 2 kata/skills diagrams) |
 | [`training-and-adapters.md`](how-to/training-and-adapters.md) | Train Qwen3.6-27B on RunPod with Unsloth; LoRA adapter training (includes 6 training diagrams + Qwen3.6 hyperparameter reference) |
-| [`sovereignty-and-observability.md`](how-to/sovereignty-and-observability.md) | Audit sovereignty compliance, read CNS alerts |
+| [`sovereignty-and-observability.md`](how-to/sovereignty-and-observability.md) | Audit sovereignty compliance, read Regulation alerts |
 
 ---
 
@@ -48,7 +48,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | Document | Description |
 |----------|-------------|
 | [`api-reference.md`](reference/api-reference.md) | API reference for hKask crates (includes 9 inlined CodeGraph + TUI diagrams) |
-| [`cns-spans.md`](reference/cns-spans.md) | CNS span catalog and namespaces |
+| [`cns-spans.md`](reference/cns-spans.md) | Regulation span catalog and namespaces |
 | [`magna-carta.md`](reference/magna-carta.md) | Magna Carta — 4 inviolable sovereignty principles |
 | [`mcp-servers/README.md`](reference/mcp-servers/README.md) | MCP server reference — 15 built-in servers (includes Companies MCP server) |
 | [`skills/README.md`](reference/skills/README.md) | Skills registry — manifests and metadata |
@@ -60,7 +60,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | Document | Topic |
 |----------|-------|
 | [`architecture-patterns.md`](explanation/architecture-patterns.md) | Hexagonal ports, service layer, template cascade, MCP dispatch patterns (includes 7 inlined diagrams + template authorship) |
-| [`cns-and-loops.md`](explanation/cns-and-loops.md) | CNS homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
+| [`cns-and-loops.md`](explanation/cns-and-loops.md) | Regulation homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
 | [`cognition-and-replica.md`](explanation/cognition-and-replica.md) | Memory pipeline, classification, embedding architecture (includes 4 inlined diagrams) |
 | [`sovereignty-and-ocap.md`](explanation/sovereignty-and-ocap.md) | OCAP attenuation, consent flow, guard pipeline (includes 4 inlined diagrams) |
 | [`federation-and-transport.md`](explanation/federation-and-transport.md) | Federation dispatch model, adapter lifecycle (includes 1 inlined diagram) |
@@ -87,7 +87,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 
 ### ADRs (`architecture/ADRs/`)
 
-17 ADRs covering consolidation authorization, userpod server mode, gix migration, BLAKE3 content addressing, dynamic model discovery, port promotion, database driver, nested runtime panics, ledger-wallet separation, CLI bootstrap, REPL extraction, storage modularization, CNS type decomposition, ledger database driver compliance, Qwen3.6 chat template and training gap analysis. See directory for full index.
+17 ADRs covering consolidation authorization, userpod server mode, gix migration, BLAKE3 content addressing, dynamic model discovery, port promotion, database driver, nested runtime panics, ledger-wallet separation, CLI bootstrap, REPL extraction, storage modularization, Regulation type decomposition, ledger database driver compliance, Qwen3.6 chat template and training gap analysis. See directory for full index.
 
 ---
 

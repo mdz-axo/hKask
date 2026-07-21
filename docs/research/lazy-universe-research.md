@@ -34,7 +34,7 @@ mds_categories: [domain, composition, curation]
 
 **We do not yet know** how to measure action minimization directly in software systems. The configuration space of a software architecture is not a continuous manifold with a well-defined action integral. Our sensors (compression ratio, module depth, energy delta) detect echoes of the governing dynamic — they are not the dynamic itself. But pragmatics gives us the measurement framework for communication, and the energy system gives us the measurement framework for computation. Action in communication is the information that must be explicitly transmitted. Action in computation is the gas that must be expended. These are not proxies for action — they *are* action, measured in domain-specific terms.
 
-**The research program** is therefore not "does action minimization exist in software?" (it does — it governs all physical processes, and computation is physical). The program is: *how do we refine the sensors we already have?* The energy system already tracks action. The condenser already performs pragmatic compression. The deletion test already evaluates architectural action. The CNS spans already sense the governing dynamic. The work is to make these measurements more precise, more integrated, and more actionable.
+**The research program** is therefore not "does action minimization exist in software?" (it does — it governs all physical processes, and computation is physical). The program is: *how do we refine the sensors we already have?* The energy system already tracks action. The condenser already performs pragmatic compression. The deletion test already evaluates architectural action. The Regulation spans already sense the governing dynamic. The work is to make these measurements more precise, more integrated, and more actionable.
 
 ### 1.1 Core Assertions as RDF Triples
 
@@ -48,7 +48,7 @@ Extracted from the least action principle and Coopersmith's treatment, classifie
 | 4 | `⟨HamiltonPrinciple⟩ ⟨selects⟩ ⟨StationaryActionPath⟩` | IS | Declarative | Directly Stated (δS = 0) |
 | 5 | `⟨LeastAction⟩ ⟨grounds⟩ ⟨Essentialism⟩` | OUGHT | Subjunctive | Inherited (architecture) |
 | 6 | `⟨Compression⟩ ⟨echoes⟩ ⟨LeastAction⟩` | IS | Subjunctive | Implicit (condenser design) |
-| 7 | `⟨Homeostasis⟩ ⟨echoes⟩ ⟨LeastAction⟩` | IS | Subjunctive | Implicit (CNS design) |
+| 7 | `⟨Homeostasis⟩ ⟨echoes⟩ ⟨LeastAction⟩` | IS | Subjunctive | Implicit (Regulation design) |
 | 8 | `⟨DeletionTest⟩ ⟨echoes⟩ ⟨LeastAction⟩` | OUGHT | Subjunctive | Inherited (deep-module skill) |
 | 9 | `⟨GradientDescent⟩ ⟨echoes⟩ ⟨LeastAction⟩` | IS | Subjunctive | Implicit (evolutionary architecture) |
 | 10 | `⟨EnergyDelta⟩ ⟨senses⟩ ⟨ActionChange⟩` | IS | Declarative | Directly Stated (code) |
@@ -80,7 +80,7 @@ Extracted from the least action principle and Coopersmith's treatment, classifie
 | `prune` | FlowDef | "Remove an artifact from the corpus" | Deletion as action minimization |
 | `regulate` | KnowAct | "Adjust behavior" | Cybernetic equilibrium seeking |
 | `calibrate` | KnowAct | "Tune accuracy" | Finding stationary point in parameter space |
-| `monitor` | KnowAct | "Track performance" | CNS sensing of energy landscape |
+| `monitor` | KnowAct | "Track performance" | Regulation sensing of energy landscape |
 | `contextualise` | KnowAct | "Situate an artifact within its meaningful environment" | Pragmatic grounding — shared context reduces action cost |
 | `compact` | KnowAct | "Distill and compress context into essential facts" | Pragmatic compression — preserve relevance, discard redundancy |
 
@@ -129,17 +129,17 @@ erDiagram
         string sensor "module_depth"
     }
     CNS_SPAN {
-        string namespace "cns.condenser.compression_ratio"
+        string namespace "reg.condenser.compression_ratio"
         float threshold "1.0"
         string alert_level "Warning after 3 cycles"
     }
     CNS_SPAN2 {
-        string namespace "cns.evolution.energy_delta"
+        string namespace "reg.evolution.energy_delta"
         float threshold "0.0"
         string alert_level "Critical after 5 cycles"
     }
     CNS_SPAN3 {
-        string namespace "cns.architecture.module_depth"
+        string namespace "reg.architecture.module_depth"
         float threshold "0.5"
         string alert_level "Warning when ratio > 0.5"
     }
@@ -160,7 +160,7 @@ erDiagram
 Every hMem carries provenance per P8:
 
 - **Directly Stated:** Coopersmith text, Hamilton's principle, code-level measurements (compression_ratio, energy_delta)
-- **Implicit:** Compression as computational analog of least action (inferred from condenser design), homeostasis as cybernetic analog (inferred from CNS design)
+- **Implicit:** Compression as computational analog of least action (inferred from condenser design), homeostasis as cybernetic analog (inferred from Regulation design)
 - **Inherited:** Implications for hKask design (from PRINCIPLES.md, loop-architecture.md, deep-module skill)
 
 ---
@@ -183,9 +183,9 @@ Using the `pragmatic-semantics` constraint hierarchy, but with the governing-dyn
 |---------------|------------|-----------|
 | **Prohibition** | ❌ Not applicable | The least action principle governs what happens, but it does not define hKask's core identity. Violating it doesn't compromise what hKask *is* — it means fighting the governing dynamics, which is possible but costly. |
 | **Guideline** | ⚠️ Weaker than warranted | "Aspirational, relaxable with reason" understates the case. You can't "relax" gravity — you can choose to walk uphill, but the dynamics resist. The lazy universe is not a preference you can opt out of; it's the selection mechanism that governs all physical processes, including computation. |
-| **Guardrail** | ✅ Best fit (revised) | Measured boundary backed by CNS thresholds. The governing dynamic is real — our sensors (compression_ratio, energy_delta, module_depth) detect its echoes. When sensors report anti-lazy drift (positive energy_delta for 5+ cycles, compression_ratio < 1.0 for 3+ cycles), the system is fighting its own governing dynamics. This warrants an alert — not because a rule was broken, but because the system is working against the physics that selects which path it takes. |
+| **Guardrail** | ✅ Best fit (revised) | Measured boundary backed by Regulation thresholds. The governing dynamic is real — our sensors (compression_ratio, energy_delta, module_depth) detect its echoes. When sensors report anti-lazy drift (positive energy_delta for 5+ cycles, compression_ratio < 1.0 for 3+ cycles), the system is fighting its own governing dynamics. This warrants an alert — not because a rule was broken, but because the system is working against the physics that selects which path it takes. |
 
-**Revised classification: Guardrail** — absorbed into P5 as physical grounding, with CNS spans serving as *sensors* for the governing dynamic. Alerts fire when the system fights its own selection mechanism, not when a user exercises sovereignty (see §2.4).
+**Revised classification: Guardrail** — absorbed into P5 as physical grounding, with Regulation spans serving as *sensors* for the governing dynamic. Alerts fire when the system fights its own selection mechanism, not when a user exercises sovereignty (see §2.4).
 
 ### 2.3 Traceability Impact
 
@@ -194,9 +194,9 @@ The lazy universe grounding cross-cuts existing principles:
 | Principle | Cross-Cut | Mechanism |
 |-----------|-----------|-----------|
 | **P5 — Essentialism & Minimalism** | Primary grounding | Least action explains *why* minimalism works: the universe itself minimizes action. Compression = computational least action. |
-| **P7 — Evolutionary Architecture** | Secondary grounding | Systems evolve toward lower-energy configurations. Gradient descent in architecture space. `cns.evolution.energy_delta` monitors this. |
+| **P7 — Evolutionary Architecture** | Secondary grounding | Systems evolve toward lower-energy configurations. Gradient descent in architecture space. `reg.evolution.energy_delta` monitors this. |
 | **P9 — Homeostatic Self-Regulation** | Secondary grounding | Cybernetic equilibrium is least action in control space. Homeostasis = system finding its stationary action path in variety-space. |
-| **Condenser** | Direct mechanism | Compression profiles map to action thresholds. Heavy = aggressive minimization, Light = permissive (user sovereignty). `cns.condenser.compression_ratio` monitors. |
+| **Condenser** | Direct mechanism | Compression profiles map to action thresholds. Heavy = aggressive minimization, Light = permissive (user sovereignty). `reg.condenser.compression_ratio` monitors. |
 | **P3 — Generative Space** | Tension/resolution | The user controls how "lazy" their system is via condenser profile selection. Lazy universe is tendency, not constraint — user sovereignty (P1) always wins. |
 
 ### 2.4 Magna Carta Alignment
@@ -211,7 +211,7 @@ The least action principle is the physics of the system, not a rule the system i
 - Setting temperature to 1.0 = choosing higher entropy = **sovereign choice**. The inference outputs will be less deterministic, but the system's gas budget (P9) will still seek equilibrium.
 - Keeping a shallow module = choosing architectural inefficiency = **sovereign choice**. The deletion test will flag it; evolutionary pressure (P7) will tend toward deepening or deletion.
 
-The user can choose to walk uphill. The governing dynamics don't prevent the choice — they make it costly. CNS spans for lazy-universe metrics should distinguish between:
+The user can choose to walk uphill. The governing dynamics don't prevent the choice — they make it costly. Regulation spans for lazy-universe metrics should distinguish between:
 1. **Sovereign choice** (user set profile to "light") → observation, no alert
 2. **Unintended drift** (condenser anti-compressing due to algorithm bug) → alert
 
@@ -242,7 +242,7 @@ in energy landscapes, cybernetic equilibrium as action minimization in control
 space. Compression is the computational echo of least action — the condenser
 seeks minimal representation. The deletion test is the architectural echo —
 modules earn existence by demonstrating that their removal would increase
-system action. CNS spans (cns.condenser.compression_ratio, cns.evolution.energy_delta,
+system action. Regulation spans (reg.condenser.compression_ratio, reg.evolution.energy_delta,
 cns.architecture.module_depth) serve as sensors for the governing dynamic.
 
 Enforces: P3 (Generative Space — stubs limit generativity). Cross-cuts P7
@@ -270,7 +270,7 @@ C: condenser_compress(R, profile=heavy)
 ```
 
 **Measurement:** `compression_ratio = bytes_out / bytes_in`
-**CNS span:** `cns.condenser.compression_ratio`
+**Regulation span:** `reg.condenser.compression_ratio`
 **Condenser profile hook:** `Profile::action_threshold()` — lower threshold = more aggressive minimization
 
 #### Rule 2: GRADIENT_FOLLOWING
@@ -282,7 +282,7 @@ C: apply_evolutionary_pressure()
 ```
 
 **Measurement:** `energy_delta = energy(S_t) - energy(S_{t+1})`
-**CNS span:** `cns.evolution.energy_delta`
+**Regulation span:** `reg.evolution.energy_delta`
 **Alert:** Positive delta for 5+ consecutive cycles → "Anti-lazy drift detected"
 
 #### Rule 3: DELETE_DEFAULT
@@ -294,7 +294,7 @@ C: apply_deletion_test(M)
 ```
 
 **Measurement:** `module_depth = public_fn_count / total_fn_count`
-**CNS span:** `cns.architecture.module_depth`
+**Regulation span:** `reg.architecture.module_depth`
 **Alert:** Ratio > 0.5 → "Shallow module detected — candidate for deepening or deletion"
 
 #### Rule 4: PRAGMATIC_COMPRESSION
@@ -306,7 +306,7 @@ C: condenser_compress(M, preserving pragmatic relevance)
 ```
 
 **Measurement:** `pragmatic_retention = |pragmatic_content(M')| / |pragmatic_content(M)|`
-**CNS span:** `cns.condenser.compression_ratio` (same sensor, pragmatic interpretation)
+**Regulation span:** `reg.condenser.compression_ratio` (same sensor, pragmatic interpretation)
 **Principle:** Pragmatics is the logical shim that accommodates least action in communication. The condenser is not merely a byte-compressor — it is a pragmatic compressor. It preserves what is pragmatically relevant (the "point" of the communication) and discards what is pragmatically redundant (information already carried by shared context). This is why compression ratio is not just a proxy for action — it *is* action, measured in information-theoretic terms, when interpreted through the pragmatic lens.
 
 #### Rule 5: ENERGY_BUDGET_AS_ACTION_TRACKING
@@ -318,17 +318,17 @@ C: execute operation with energy cost E
 ```
 
 **Measurement:** `action_consumed = Σ(GasCost per operation)`, `action_remaining = GasBudget.remaining`
-**CNS span:** `cns.gas.*` (existing), `cns.evolution.energy_delta` (direction of action change)
+**Regulation span:** `reg.gas.*` (existing), `reg.evolution.energy_delta` (direction of action change)
 **Principle:** The energy system IS the least action tracking system. Every `GasCost` is an action cost — the "distance" the system moves in configuration space per operation. The `GasBudget` cap is the maximum action the system allows per session — the boundary beyond which the governing dynamics assert backpressure. The replenishment rate is the cybernetic analog of a system returning toward its stationary action path — capacity restores because the governing dynamics select lower-action configurations over time. `EnergyDelta` measures whether the system is moving toward or away from stationary action. This is not a metaphor — the energy system was already tracking action before we named it. The `EnergyDelta` type simply makes the measurement explicit.
 
-### 3.2 CNS Span Mappings
+### 3.2 Regulation Span Mappings
 
-| Rule | CNS Span | Counter | Alert Threshold |
+| Rule | Regulation Span | Counter | Alert Threshold |
 |------|----------|---------|-----------------|
-| MINIMAL_REPRESENTATION | `cns.condenser.compression_ratio` | bytes_in / bytes_out | ratio < 1.0 for 3 consecutive cycles → Warning |
-| GRADIENT_FOLLOWING | `cns.evolution.energy_delta` | energy(S_t) - energy(S_{t+1}) | positive delta for 5+ cycles → Critical |
-| DELETE_DEFAULT | `cns.architecture.module_depth` | public_fn_count / total_fn_count | ratio > 0.5 → Warning (shallow module) |
-| PRAGMATIC_COMPRESSION | `cns.condenser.compression_ratio` | pragmatic_content(M') / pragmatic_content(M) | retention < action_threshold for 3+ cycles → Warning (over-compression) |
+| MINIMAL_REPRESENTATION | `reg.condenser.compression_ratio` | bytes_in / bytes_out | ratio < 1.0 for 3 consecutive cycles → Warning |
+| GRADIENT_FOLLOWING | `reg.evolution.energy_delta` | energy(S_t) - energy(S_{t+1}) | positive delta for 5+ cycles → Critical |
+| DELETE_DEFAULT | `reg.architecture.module_depth` | public_fn_count / total_fn_count | ratio > 0.5 → Warning (shallow module) |
+| PRAGMATIC_COMPRESSION | `reg.condenser.compression_ratio` | pragmatic_content(M') / pragmatic_content(M) | retention < action_threshold for 3+ cycles → Warning (over-compression) |
 
 ### 3.3 Condenser Profile → Action Threshold Mapping
 
@@ -345,7 +345,7 @@ The action threshold is the lazy universe *tuning knob* (P3 — Generative Space
 
 ## 4. Code Implementation Summary (Task 4)
 
-### 4.1 `EnergyDelta` type (`hkask-cns::energy`)
+### 4.1 `EnergyDelta` type (`hkask-regulation::energy`)
 
 ```rust
 pub struct EnergyDelta(pub f64);
@@ -355,15 +355,15 @@ pub struct EnergyDelta(pub f64);
 - **`is_descending()`:** Returns `true` for delta ≤ 0 (stationary point included)
 - **`is_ascending()`:** Returns `true` for delta > 0 (anti-lazy — alert candidate)
 - **`ALERT_THRESHOLD`:** 5 consecutive positive deltas before algedonic alert
-- **CNS span:** `cns.evolution.energy_delta`
+- **Regulation span:** `reg.evolution.energy_delta`
 
-### 4.2 New CNS Spans (`hkask-types::event::CANONICAL_NAMESPACES`)
+### 4.2 New Regulation Spans (`hkask-types::event::CANONICAL_NAMESPACES`)
 
 | Span | Purpose |
 |------|---------|
-| `cns.condenser.compression_ratio` | Tracks bytes_out / bytes_in per compression cycle |
-| `cns.evolution.energy_delta` | Tracks energy(S_t) - energy(S_{t+1}) per evolutionary step |
-| `cns.architecture.module_depth` | Tracks public_fn_count / total_fn_count per module |
+| `reg.condenser.compression_ratio` | Tracks bytes_out / bytes_in per compression cycle |
+| `reg.evolution.energy_delta` | Tracks energy(S_t) - energy(S_{t+1}) per evolutionary step |
+| `reg.architecture.module_depth` | Tracks public_fn_count / total_fn_count per module |
 
 ### 4.3 `DeletionTest` trait (`hkask-services-core::deletion_test`)
 
@@ -397,7 +397,7 @@ pub fn action_threshold(&self) -> f64 {
 ### 4.5 Test Results
 
 ```
-cargo test -p hkask-cns -p hkask-services-core -p hkask-mcp-condenser
+cargo test -p hkask-regulation -p hkask-services-core -p hkask-mcp-condenser
 → 96 passed, 0 failed, 2 ignored (doc-tests)
 ```
 
@@ -408,7 +408,7 @@ New tests:
 - `shallow_module_has_negative_deletion_energy` — Shallow module deletion decreases energy
 - `energy_delta_zero_is_descending` — Stationary point = lazy universe satisfied
 - `energy_delta_display_shows_direction` — ↓ for descending, ↑ for ascending
-- `alert_threshold_is_five_consecutive_ascending` — Matches CNS pattern
+- `alert_threshold_is_five_consecutive_ascending` — Matches Regulation pattern
 
 ---
 
@@ -421,15 +421,15 @@ New tests:
 | P1 — User Sovereignty | User may choose higher-action path (light profile, high temperature) | ✅ No conflict — lazy universe is tendency, not constraint |
 | P2 — Affirmative Consent | Compression profile selection is a consent decision | ✅ User consents to compression level |
 | P3 — Generative Space | Action threshold is user-tunable via profile selection | ✅ Lazy universe is a tuning knob, not a restriction |
-| P4 — Clear Boundaries (OCAP) | CNS spans for lazy universe metrics are OCAP-gated | ✅ Observability, not enforcement |
+| P4 — Clear Boundaries (OCAP) | Regulation spans for lazy universe metrics are OCAP-gated | ✅ Observability, not enforcement |
 
 ### 5.2 Vocabulary Consistency
 
 All new terms (`stationary_action`, `variational_principle`, `gradient_descent`, `energy_landscape`, `minimize`, `equilibrium`, `homeostasis`, `converge`) are registered in the KnowAct domain with definitions consistent with their usage in PRINCIPLES.md and code documentation.
 
-### 5.3 CNS Span Validity
+### 5.3 Regulation Span Validity
 
-All three new spans (`cns.condenser.compression_ratio`, `cns.evolution.energy_delta`, `cns.architecture.module_depth`) are registered in `CANONICAL_NAMESPACES` and follow the hierarchical naming convention established by existing spans.
+All three new spans (`reg.condenser.compression_ratio`, `reg.evolution.energy_delta`, `reg.architecture.module_depth`) are registered in `CANONICAL_NAMESPACES` and follow the hierarchical naming convention established by existing spans.
 
 ### 5.4 Document Cross-References
 
@@ -480,9 +480,9 @@ The user cannot override the least action principle any more than they can overr
 - Setting temperature to 1.0 = choosing higher entropy. The inference outputs will be less deterministic, but the gas budget (P9) will still seek equilibrium. This is not a violation — it's adding noise to a signal that the system will filter.
 - Keeping a shallow module = choosing architectural inefficiency. The deletion test will flag it; evolutionary pressure will tend toward deepening. This is not a violation — it's maintaining a local maximum that the landscape will erode.
 
-**CNS alert semantics (revised):**
+**Regulation alert semantics (revised):**
 
-| Scenario | CNS Response | Rationale |
+| Scenario | Regulation Response | Rationale |
 |----------|-------------|-----------|
 | User sets profile to "light" | Observation logged, no alert | Sovereign choice — user knows they're walking uphill |
 | Condenser anti-compresses (ratio > 1.0) for 3+ cycles with profile="heavy" | Warning alert | System fighting its own governing dynamics unintentionally |
@@ -538,9 +538,9 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 
 **Candidate answer:** When `DeletionTest::deletion_energy()` returns positive for all remaining modules, the system has reached its stationary action configuration. Further decomposition would scatter complexity (increase energy) rather than reduce it.
 
-**Resolution path:** Implement `DeletionTest` on 3-5 hKask modules (e.g., `hkask-cns::energy`, `hkask-services-core`, `hkask-condenser::types`). Measure deletion_energy(). If all return positive, the system is at equilibrium. If any return negative, those modules are candidates for deletion or deepening.
+**Resolution path:** Implement `DeletionTest` on 3-5 hKask modules (e.g., `hkask-regulation::energy`, `hkask-services-core`, `hkask-condenser::types`). Measure deletion_energy(). If all return positive, the system is at equilibrium. If any return negative, those modules are candidates for deletion or deepening.
 
-[Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates. The original reference to the old service crate `::cns` was a proposed path that never existed — CNS lives in `hkask-cns` and `hkask-types::cns`.]
+[Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates. The original reference to the old service crate `::cns` was a proposed path that never existed — Regulation lives in `hkask-regulation` and `hkask-types::cns`.]
 
 ### 6.5 Empirical Validation
 
@@ -550,7 +550,7 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 
 **Proposed experiment:**
 
-1. Measure `public_fn_count / total_fn_count` for every module in `hkask-cns`, `hkask-services-core`, and `hkask-condenser` [Note: as of v0.31.0, the old monolithic service crate decomposed into 11 subcrates; `hkask-services-core` is the closest analogue for proposed module-level metrics.]
+1. Measure `public_fn_count / total_fn_count` for every module in `hkask-regulation`, `hkask-services-core`, and `hkask-condenser` [Note: as of v0.31.0, the old monolithic service crate decomposed into 11 subcrates; `hkask-services-core` is the closest analogue for proposed module-level metrics.]
 2. Classify each module as "deep" (ratio < 0.3) or "shallow" (ratio > 0.5) by expert judgment
 3. Measure compression ratios across condenser profiles for representative inputs
 4. Correlate: do modules classified as "deep" have lower public/total ratios? Does heavy compression produce lower compression ratios than light?
@@ -576,9 +576,9 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 
 | File | Change | Task |
 |------|--------|------|
-| `crates/hkask-types/src/event.rs` | +3 CNS span namespaces | 4.2 |
-| `crates/hkask-cns/src/energy.rs` | +EnergyDelta newtype (~70 lines) | 4.1 |
-| `crates/hkask-cns/src/lib.rs` | +EnergyDelta export | 4.1 |
+| `crates/hkask-types/src/event.rs` | +3 Regulation span namespaces | 4.2 |
+| `crates/hkask-regulation/src/energy.rs` | +EnergyDelta newtype (~70 lines) | 4.1 |
+| `crates/hkask-regulation/src/lib.rs` | +EnergyDelta export | 4.1 |
 | `crates/hkask-services-core/src/deletion_test.rs` | New file (~207 lines) [Note: path updated for services decomposition] | 4.3 |
 | `crates/hkask-services-core/src/lib.rs` | +deletion_test module + DeletionTest export [Note: path updated for services decomposition] | 4.3 |
 | `mcp-servers/hkask-mcp-condenser/src/types.rs` | +action_threshold() + 2 tests | 4.4 |
@@ -589,8 +589,8 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 
 | Test | Crate | REQ Tag | Status |
 |------|-------|---------|--------|
-| `action_threshold_ordering` | condenser | CNS-CONDENSER-LAZY-UNIVERSE | ✅ |
-| `light_profile_is_most_permissive` | condenser | CNS-CONDENSER-LAZY-UNIVERSE | ✅ |
+| `action_threshold_ordering` | condenser | Regulation-CONDENSER-LAZY-UNIVERSE | ✅ |
+| `light_profile_is_most_permissive` | condenser | Regulation-CONDENSER-LAZY-UNIVERSE | ✅ |
 | `deep_module_has_positive_deletion_energy` | services-core | svc-deletion-test-001 | ✅ |
 | `shallow_module_has_negative_deletion_energy` | services-core | svc-deletion-test-002 | ✅ |
 | `energy_delta_zero_is_descending` | services-core | svc-deletion-test-003 | ✅ |

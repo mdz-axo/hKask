@@ -107,7 +107,7 @@ HKASK_FUSION_JUDGE_MODEL=DI/deepseek-v4-pro
 HKASK_FUSION_PANEL_MODELS=OR/auto,KC/anthropic/claude-sonnet-4.5,DI/qwen/qwen3
 ```
 
-If a panel model fails to resolve or generate, the orchestrator logs a warning at `cns.inference` and drops it from the round. If **all** panel models fail, the orchestrator returns `InferenceError::Generation("All panel models failed")`.
+If a panel model fails to resolve or generate, the orchestrator logs a warning at `reg.inference` and drops it from the round. If **all** panel models fail, the orchestrator returns `InferenceError::Generation("All panel models failed")`.
 
 ---
 
@@ -127,7 +127,7 @@ The judge composes a unified response incorporating the strongest elements from 
 
 #### `best-of-n` — 1 round
 
-The judge evaluates all panel responses and outputs **only the chosen response verbatim** — no commentary, no synthesis, no justification. Use this when you want one panelist's answer, not a merge. With **two or more panelists**, the judge votes twice — once with candidates in dispatch order, once reversed — and the two picks are compared by matching the verbatim output back to its source response. Agreement yields high confidence; disagreement flags position bias and is logged at `cns.fusion` (Zheng et al. 2024, arXiv:2406.07791). A single panelist skips the swap (one judge call). The two judge calls run concurrently (`futures_util::join!`), so swap-revote costs 2× tokens but only ~1× latency over a single call.
+The judge evaluates all panel responses and outputs **only the chosen response verbatim** — no commentary, no synthesis, no justification. Use this when you want one panelist's answer, not a merge. With **two or more panelists**, the judge votes twice — once with candidates in dispatch order, once reversed — and the two picks are compared by matching the verbatim output back to its source response. Agreement yields high confidence; disagreement flags position bias and is logged at `reg.fusion` (Zheng et al. 2024, arXiv:2406.07791). A single panelist skips the swap (one judge call). The two judge calls run concurrently (`futures_util::join!`), so swap-revote costs 2× tokens but only ~1× latency over a single call.
 
 ##### Measuring whether swap-revote is justified
 
@@ -138,7 +138,7 @@ Swap-revote doubles the judge token cost of `best-of-n`. Before relying on it, m
 3. **If the pick changes** between orderings → position bias is present, swap-revote is justified — keep it.
 4. **If the pick is stable** across orderings → the judge is order-invariant for this workload; simplify to **order-randomization** (1 judge call, permuted display order) to halve the cost.
 
-The decision is per-judge and per-workload — re-measure when you change the judge model or the panel composition. The swap-revote `agree`/`disagree` verdicts logged at `cns.fusion` provide ongoing observational data: a sustained `agree` rate near 100% is evidence the second call is not earning its cost.
+The decision is per-judge and per-workload — re-measure when you change the judge model or the panel composition. The swap-revote `agree`/`disagree` verdicts logged at `reg.fusion` provide ongoing observational data: a sustained `agree` rate near 100% is evidence the second call is not earning its cost.
 
 #### `critique` — 2 rounds
 
@@ -418,7 +418,7 @@ If the judge is unreachable, doctor reports `❌ Fusion judge NOT reachable` or 
 
 ### Diagnostics
 
-Fusion emits tracing spans at `target: "cns.inference"`:
+Fusion emits tracing spans at `target: "reg.inference"`:
 
 - `Fusion orchestration starting` — mode, judge, panel count, skill count
 - `Algo judge merge complete` — algo / no-judge path, panel count

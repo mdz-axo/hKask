@@ -620,7 +620,7 @@ uniqueness constraint (`UNIQUE(feed_id, entry_id)`). Use
 
 ```rust
 if let Err(e) = self.rate_limiter.check("web_ping") {
-    tracing::warn!(target: "cns.web", message = %e.message, "web_ping rate limited");
+    tracing::warn!(target: "reg.web", message = %e.message, "web_ping rate limited");
     return Err(McpToolError::rate_limited("web_ping rate limited"));
 }
 ```

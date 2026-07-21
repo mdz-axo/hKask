@@ -11,7 +11,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 # hKask Testing Discipline
 
 **First principles:** Tests are the system’s regulator model (P9). They must (1) enforce boundaries (P4), (2) ground claims in observable invariants (P8), and (3) minimize action by preferring deep seams over shallow ones (P5).  
-**Method (default):** Property-Based Testing (QuickCheck, Claessen & Hughes, 2000) verified through CNS observability.  
+**Method (default):** Property-Based Testing (QuickCheck, Claessen & Hughes, 2000) verified through Regulation observability.  
 **Internal bridge:** TDD skill (`.agents/skills/tdd/SKILL.md`) — the process for writing verified tests.  
 **Governing principles:** P4 (Clear Boundaries), P5 (Essentialism), P8 (Semantic Grounding), P9 (Homeostatic Self-Regulation).
 
@@ -71,8 +71,8 @@ proptest! {
 | Layer | What | Verification |
 |-------|------|-------------|
 | **Unit** | Single function's behavior | Proptest on the function directly |
-| **Integration** | Cross-function chains | Proptest on the entry point; CNS spans verify called functions' behavior |
-| **State machine** | Invariants across operation sequences | Proptest on operation sequences; CNS `cns.gas` spans track budget invariants |
+| **Integration** | Cross-function chains | Proptest on the entry point; Regulation spans verify called functions' behavior |
+| **State machine** | Invariants across operation sequences | Proptest on operation sequences; Regulation `reg.gas` spans track budget invariants |
 | **Fuzz** | Input surface robustness | `catch_unwind` + arbitrary input; verifies no panic |
 | **System** | End-to-end workflows | Integration tracer bullet (TDD skill); verifies full vertical slice |
 
@@ -186,7 +186,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | Strategy | Details |
 |----------|---------|
 | **Primary seam** | `RegulationLedger`, `AlgedonicManager`, `RegulationSink` |
-| **Test type** | Unit: span emission, variety counter thresholds; Integration: CNS feedback loop closure |
+| **Test type** | Unit: span emission, variety counter thresholds; Integration: Regulation feedback loop closure |
 | **Key invariant** | Algedonic alerts fire at threshold; homeostasis restores after perturbation |
 | **Anti-pattern** | Testing `tracing::info!` output format rather than the observer's behavior |
 
@@ -232,18 +232,18 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 
 ### 6.1 P4 — Clear Boundaries (OCAP)
 
-Invariants at crate boundaries detect **semantic drift** — when a type changes in a way that's type-compatible but behaviorally different. The compiler can't catch this. Property-based tests can. CNS spans (`cns.gas`, `cns.tool.*`) provide runtime verification at every boundary.
+Invariants at crate boundaries detect **semantic drift** — when a type changes in a way that's type-compatible but behaviorally different. The compiler can't catch this. Property-based tests can. Regulation spans (`reg.gas`, `reg.tool.*`) provide runtime verification at every boundary.
 
 ### 6.2 P8 — Semantic Grounding
 
-Every test verifies an IS claim about system behavior. The CNS span registry (`RegulationSpan` in `crates/hkask-types/src/cns.rs`) defines the canonical observability namespace. Test output is traceable to span types.
+Every test verifies an IS claim about system behavior. The Regulation span registry (`RegulationSpan` in `crates/hkask-types/src/cns.rs`) defines the canonical observability namespace. Test output is traceable to span types.
 
 ### 6.3 P9 — Homeostatic Self-Regulation
 
 **The test suite is a feedback loop.** Under the Good Regulator Theorem (Conant & Ashby, 1970), every good regulator must be a model of the system it regulates. The test suite IS that model.
 
-- **CNS spans provide runtime observability.** `cns.gas` spans on `reserve`/`settle`/`consume`/`reset_to` track budget invariants in production. Type-enforced invariants (private fields on `GasBudget`) prevent violations structurally.
-- **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert.
+- **Regulation spans provide runtime observability.** `reg.gas` spans on `reserve`/`settle`/`consume`/`reset_to` track budget invariants in production. Type-enforced invariants (private fields on `GasBudget`) prevent violations structurally.
+- **Test coverage is variety.** The Regulation tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 
 ### 5.4 P6 — Space for UserPods
@@ -303,7 +303,7 @@ Tests accumulate the scar tissue of every production incident. They become the r
 | Rule | Description |
 |------|-------------|
 | **Q1** | Mutation testing runs periodically; target ≥70% mutant detection |
-| **Q2** | CNS monitors test coverage as variety per domain; drops trigger algedonic alerts |
+| **Q2** | Regulation monitors test coverage as variety per domain; drops trigger algedonic alerts |
 | **Q3** | Type-enforced invariants (private fields, constructor validation) preferred over runtime assertions |
 
 ---
@@ -320,7 +320,7 @@ Tests accumulate the scar tissue of every production incident. They become the r
 | Format | `cargo fmt --check` | No diffs |
 | Prohibitions | `grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/ --include="*.rs"` | Zero |
 | Headless | `grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"` | Zero |
-| CNS daemon | `kask daemon start` (smoke test) | Binds socket, loops active |
+| Regulation daemon | `kask daemon start` (smoke test) | Binds socket, loops active |
 | Deployment smoke | `kask init --profile server && kask daemon` | Server starts, health endpoint responds |
 | Deployment sidecar | `kask matrix deploy-sidecar --domain localhost` | Valid docker-compose.yml generated |
 
@@ -366,7 +366,7 @@ are run via standard `cargo test`. No external fuzzing frameworks are used.
 cargo test --workspace
 
 # Fast property tests (CI on every push)
-cargo test -p hkask-cns -p hkask-types -p hkask-storage
+cargo test -p hkask-regulation -p hkask-types -p hkask-storage
 ```
 
 ### 8.2 Fuzz Seed Corpora
@@ -410,21 +410,21 @@ The QA system runs YAML-defined test manifests through `hkask_test_harness::qa_s
 Each manifest executes `cargo test` commands, optionally classifies failures via Gemma 4 26B,
 and routes to terminal states (PASS/FAIL/WARN) based on branch conditions.
 
-| Confidence | Route | CNS Span |
+| Confidence | Route | Regulation Span |
 |-----------|-------|----------|
-| ≥ 0.95 | High confidence branch | `cns.qa.repair_verified` |
-| 0.70–0.94 | Medium confidence branch | `cns.qa.repair_exhausted` |
-| < 0.70 | Low confidence branch | `cns.qa.repair_exhausted` |
-| Classifier unavailable | `classifier_unavailable` branch | `cns.qa.repair_exhausted` |
+| ≥ 0.95 | High confidence branch | `reg.qa.repair_verified` |
+| 0.70–0.94 | Medium confidence branch | `reg.qa.repair_exhausted` |
+| < 0.70 | Low confidence branch | `reg.qa.repair_exhausted` |
+| Classifier unavailable | `classifier_unavailable` branch | `reg.qa.repair_exhausted` |
 
-### 10.2 CNS QA Spans
+### 10.2 Regulation QA Spans
 
 | Span | Meaning | Emitted |
 |------|---------|---------|
-| `cns.qa.repair_attempted` | QA script started | ✅ On every `run_script()` call |
-| `cns.qa.repair_verified` | Script completed successfully | ✅ On PASS terminal |
-| `cns.qa.repair_exhausted` | Script failed or errored | ✅ On FAIL/WARN/error |
-| `cns.qa.mutant_survived` | Test suite has a gap | 🔜 Planned |
+| `reg.qa.repair_attempted` | QA script started | ✅ On every `run_script()` call |
+| `reg.qa.repair_verified` | Script completed successfully | ✅ On PASS terminal |
+| `reg.qa.repair_exhausted` | Script failed or errored | ✅ On FAIL/WARN/error |
+| `reg.qa.mutant_survived` | Test suite has a gap | 🔜 Planned |
 
 ### 10.3 Architecture
 
@@ -440,7 +440,7 @@ hkask-test-harness/src/qa_script.rs
 ├── execute loop steps (retry with max_iterations guard)
 ├── execute mcp_tool steps (stub — routes to failure)
 ├── enforce gas budget (hard_limit)
-└── emit CNS spans (start/complete/error)
+└── emit Regulation spans (start/complete/error)
 ```
 
 ### 10.4 Executable Manifests
@@ -460,9 +460,9 @@ Without `DI_API_KEY`, classify steps gracefully degrade through `classifier_unav
 
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
-| QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, step execution, gas, CNS |
+| QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, step execution, gas, Regulation |
 | CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa run --script`, `kask qa list` |
-| CNS QA spans | `crates/hkask-types/src/cns.rs` | 4 `RegulationSpan` variants |
+| Regulation QA spans | `crates/hkask-types/src/cns.rs` | 4 `RegulationSpan` variants |
 | Classifier config | `registry/classify/qa-triage.yaml` | Canonical classifier triage prompt (HKASK_CLASSIFIER_MODEL) |
 | QA manifests | `registry/manifests/qa-*.yaml` | 9 manifests (4 executable, 5 planned) |
 
@@ -479,7 +479,7 @@ Without `DI_API_KEY`, classify steps gracefully degrade through `classifier_unav
 | No pre/post/invariant DSL | Same reason as above |
 | No new model deployment | Uses existing Gemma 4 26B via DeepInfra API |
 | No new binary | `kask qa run` is a CLI subcommand |
-| No visual QA dashboard | P3 Prohibition #1 — CNS spans + CLI only |
+| No visual QA dashboard | P3 Prohibition #1 — Regulation spans + CLI only |
 | No auto-merge to main | P1 User Sovereignty — human always reviews the PR |
 
 ## 11. Updated Test Pyramid
@@ -487,8 +487,8 @@ Without `DI_API_KEY`, classify steps gracefully degrade through `classifier_unav
 | Layer | What | Verification |
 |-------|------|-------------|
 | **Unit** | Single function's behavior | Proptest on the function directly |
-| **Integration** | Cross-function chains | Proptest on the entry point; CNS spans verify called functions' behavior |
-| **State machine** | Invariants across operation sequences | Proptest on operation sequences; CNS `cns.gas` spans track budget invariants |
+| **Integration** | Cross-function chains | Proptest on the entry point; Regulation spans verify called functions' behavior |
+| **State machine** | Invariants across operation sequences | Proptest on operation sequences; Regulation `reg.gas` spans track budget invariants |
 | **Fuzz** | Input surface robustness | Fuzz seed corpora (cli_fuzz_seeds, json_fuzz_seeds); verifies no panic |
 | **Triage** | Failure diagnosis | LLM classifier (Gemma 4 26B); routes by confidence via QA manifests |
 | **System** | End-to-end workflows | Integration tracer bullet (TDD skill); verifies full vertical slice |

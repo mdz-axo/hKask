@@ -194,7 +194,7 @@ The Dokkodo surfaces: attachment to code you wrote (Precept 14), preference for 
 ### Resilience Chain: Error → Stabilize → Diagnose
 
 ```
-CNS alert / error state → Dokkodo (stabilize perception) → Diagnose → Fix
+Regulation alert / error state → Dokkodo (stabilize perception) → Diagnose → Fix
 ```
 
 This is the **American Ronin** pattern (see §7.3). When the agent encounters a constraint violation, adversarial input, or unexpected failure, the Dokkodo prevents panic, resentment, or outcome-attachment from distorting diagnosis. Accept things exactly as they are — the error happened. Now perceive clearly what must be done.
@@ -294,7 +294,7 @@ The Dokkodo introduces a **perceptual layer** that sits before hKask's existing 
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Relationship to hKask's four essential patterns** (Patterns A–D in [`hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md)): The perceptual layer is an extension of Pattern A (the Skills Model) — it adds a new composition position (pre-regulative) to the existing KnowAct/FlowDef/WordAct type system. It does not modify Patterns B (CNS), C (OCAP), or D (Pods).
+**Relationship to hKask's four essential patterns** (Patterns A–D in [`hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md)): The perceptual layer is an extension of Pattern A (the Skills Model) — it adds a new composition position (pre-regulative) to the existing KnowAct/FlowDef/WordAct type system. It does not modify Patterns B (Regulation), C (OCAP), or D (Pods).
 
 ### 6.2 Why Perception Precedes Analysis
 
@@ -392,15 +392,15 @@ The Dokkodo could be an **always-on persona** — a perpetual perceptual filter 
 **Arguments for skill:** Established composability mechanism. Respects Precept 16 (don't apply weapons where not useful).
 **Stance:** Skill for v0.30.0. Revisit if usage patterns show consistent demand for always-on mode.
 
-### 9.2 CNS Integration
+### 9.2 Regulation Integration
 
-Should perceptual calibration emit CNS spans? A `RegulationSpan::PerceptualCalibration` could track precept alignment scores over time, shift magnitude trends, and activation frequency. Precept 4 ("think seriously of the world") suggests the CNS should take perceptual calibration seriously.
+Should perceptual calibration emit Regulation spans? A `RegulationSpan::PerceptualCalibration` could track precept alignment scores over time, shift magnitude trends, and activation frequency. Precept 4 ("think seriously of the world") suggests the Regulation should take perceptual calibration seriously.
 
-**Stance:** Deferred. Requires CNS span registry extension (v0.31+).
+**Stance:** Deferred. Requires Regulation span registry extension (v0.31+).
 
 ### 9.3 Error-State Auto-Activation
 
-The American Ronin pattern suggests automatic Dokkodo activation on CNS error escalation. This requires changes to the manifest executor and CNS rule engine.
+The American Ronin pattern suggests automatic Dokkodo activation on Regulation error escalation. This requires changes to the manifest executor and Regulation rule engine.
 
 **Stance:** Manual invocation for v0.30.0. Auto-activation is v0.31+.
 
@@ -412,7 +412,7 @@ When precepts appear to conflict, the current template flags the conflict. A res
 
 ### 9.5 Refined Perceptual Action Measurement
 
-The current `shift_magnitude` scalar is coarse. A refined measurement could decompose it by cluster (`shift_magnitude.perceptual_reset`, `.desire_management`, `.emotional_resilience`, `.existential_posture`), enabling targeted invocation and better CNS tracking.
+The current `shift_magnitude` scalar is coarse. A refined measurement could decompose it by cluster (`shift_magnitude.perceptual_reset`, `.desire_management`, `.emotional_resilience`, `.existential_posture`), enabling targeted invocation and better Regulation tracking.
 
 **Stance:** Single scalar is sufficient for v0.30.0. Decomposition deferred.
 

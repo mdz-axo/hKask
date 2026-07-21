@@ -23,23 +23,23 @@ All four security skills are registry-committed and pass `kask skill audit`
 |-------|----------|--------|-----------|
 | `kali-audit` | `registry/templates/kali-audit/` | Enforced | ✅ Yes — uses `file:read`, `code:search`, `terminal` MCP tools |
 | `supply-chain-sentinel` | `registry/templates/supply-chain-sentinel/` | Active | ✅ Yes — uses `file:read`, `code:search`, `terminal` MCP tools |
-| `runtime-posture-monitor` | `registry/templates/runtime-posture-monitor/` | Active | ⚠️ Partial — needs CNS span history reader (see §1) |
+| `runtime-posture-monitor` | `registry/templates/runtime-posture-monitor/` | Active | ⚠️ Partial — needs Regulation span history reader (see §1) |
 | `attack-taxonomy-mapper` | `registry/templates/attack-taxonomy-mapper/` | Active | ✅ Yes for post-audit mapping; ⚠️ Limited for real-time (see §2) |
 
-## 1. CNS Span History Reader (for `runtime-posture-monitor`)
+## 1. Regulation Span History Reader (for `runtime-posture-monitor`)
 
 ### Problem
 
 The `runtime-posture-monitor` skill instructs the agent to observe `hkask.*`
-performative spans and `cns.*` canonical spans. However, there is no MCP
-tool for querying CNS span history. The existing infrastructure has:
+performative spans and `reg.*` canonical spans. However, there is no MCP
+tool for querying Regulation span history. The existing infrastructure has:
 
-- `RegulationArchive` (`crates/hkask-storage/src/nu_event_store.rs`) — stores
+- `RegulationArchive` (`crates/hkask-storage/src/regulation_store.rs`) — stores
   events in SQLite, has `query_algedonic()` but NO general-purpose
   `query_by_target()` or `query_by_namespace()`.
 - `LedgerStoragePort` trait (`crates/hkask-ports/src/cns.rs`) — defines
   `query_algedonic()` and `replay_weighted()` but NO general query method.
-- No MCP server for CNS span queries (existing MCP servers: codegraph,
+- No MCP server for Regulation span queries (existing MCP servers: codegraph,
   communication, companies, condenser, curator, docproc, filesystem,
   kata-kanban, media, memory, replica, research, scenarios, skill, training).
 
@@ -49,7 +49,7 @@ tool for querying CNS span history. The existing infrastructure has:
 
 Minimal, surgical change:
 1. Add `query_by_namespace(namespace: &str, since: DateTime<Utc>, limit: u64)`
-   to `RegulationArchive` — queries `nu_events` table by `span_category` prefix.
+   to `RegulationArchive` — queries `reg_records` table by `span_category` prefix.
 2. Add the method to the `LedgerStoragePort` trait.
 3. Create `mcp-servers/hkask-mcp-cns/` MCP server with a `cns_query_spans`
    tool that calls `LedgerStoragePort::query_by_namespace`.
@@ -59,7 +59,7 @@ Minimal, surgical change:
 **Effort:** Medium (1 new MCP server + 1 trait method + 1 store method).
 **Risk:** Low — follows existing patterns (codegraph MCP server is the model).
 **Value:** High — enables `runtime-posture-monitor` and any future skill
-that needs to query CNS telemetry.
+that needs to query Regulation telemetry.
 
 **Option B: Extend existing `curator` MCP server**
 
@@ -67,17 +67,17 @@ Add a `cns_query_spans` tool to `mcp-servers/hkask-mcp-curator/` (which
 already has access to the CuratorContext and RegulationArchive).
 
 **Effort:** Low (1 new tool in existing server).
-**Risk:** Low — but conflates curator concerns with CNS query concerns.
+**Risk:** Low — but conflates curator concerns with Regulation query concerns.
 **Value:** Medium — works but violates separation of concerns.
 
 **Recommendation:** Option A. Create a dedicated `hkask-mcp-cns` MCP server.
 This follows the hKask pattern of one MCP server per domain (codegraph for
-code understanding, curator for curation, etc.) and keeps CNS query
+code understanding, curator for curation, etc.) and keeps Regulation query
 concerns separate from curator concerns.
 
 ### Implementation Steps (Option A)
 
-1. Add `query_by_namespace()` to `RegulationArchive` (query `nu_events` by
+1. Add `query_by_namespace()` to `RegulationArchive` (query `reg_records` by
    `span_category` LIKE prefix).
 2. Add `query_by_namespace()` to `LedgerStoragePort` trait.
 3. Implement `LedgerStoragePort::query_by_namespace` in `RegulationArchive`.
@@ -110,7 +110,7 @@ case documented in the SKILL.md.
 require an inter-skill data flow mechanism — either:
 - A shared findings store (e.g., `security/findings/` for pending findings
   not yet merged into `security/regressions/`).
-- A CNS-based finding passing mechanism (findings emitted as `cns.taxonomy.*`
+- A Regulation-based finding passing mechanism (findings emitted as `reg.taxonomy.*`
   spans that the mapper can query).
 
 **Recommendation:** Do NOT implement the real-time path now. The primary
@@ -133,12 +133,12 @@ cannot be detected by source-file grep.
 
 **Option A: Runtime CI check (deferred)**
 
-Add a separate CI step that queries the CNS span history (using the
+Add a separate CI step that queries the Regulation span history (using the
 `hkask-mcp-cns` server from §1) to check for span patterns that should
 NOT be present. This would be a new script: `scripts/check-runtime-regressions.sh`.
 
 **Effort:** Medium (depends on §1 being completed first).
-**Risk:** Medium — requires a running hKask instance with CNS telemetry
+**Risk:** Medium — requires a running hKask instance with Regulation telemetry
 in CI, which may not be feasible in the current CI setup.
 **Value:** Medium — only needed when the first `surface: runtime`
 regression is flipped to `status: enforced`.
@@ -244,7 +244,7 @@ unverified claims they document belong to the removed skill.
    Can be done immediately.
 3. **§2: Finding consumption API** — No action needed (post-audit mapping
    is the primary use case and is functional).
-4. **§1: CNS span history reader** — Medium effort, enables
+4. **§1: Regulation span history reader** — Medium effort, enables
    `runtime-posture-monitor`. Implement when the skill is needed for
    production use.
 5. **§3: `kind: cns-span` CI enforcement** — Depends on §1. Implement when
@@ -254,7 +254,7 @@ unverified claims they document belong to the removed skill.
 ## Summary
 
 The security skills are complete and pass all CI gates. The remaining work
-is infrastructure — primarily the CNS span history reader (§1) that would
+is infrastructure — primarily the Regulation span history reader (§1) that would
 make `runtime-posture-monitor` fully invocable. The other items (§2–§5) are
 either no-ops (§2), low-effort cleanups (§4, §5), or deferred until needed
 (§3). None of the remaining work blocks the skills from being used for

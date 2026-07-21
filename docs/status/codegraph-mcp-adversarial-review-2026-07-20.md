@@ -127,7 +127,7 @@ status: VERIFIED
 ### Tool dispatch flow
 
 Every tool funnels through `execute_tool(self, name, async { ... })`, which wraps the
-inner block with a `ToolSpanGuard` (CNS span emission + daemon outcome recording).
+inner block with a `ToolSpanGuard` (Regulation span emission + daemon outcome recording).
 `ensure_indexed()` is called at the top of every read tool — it checks the
 `indexed_once` flag first; on the first call it locks the pipeline, walks
 `std::env::current_dir()`, hashes every `.rs` file with BLAKE3, parses changed files
@@ -137,7 +137,7 @@ reset). Subsequent calls skip the walk entirely.
 ```mermaid
 flowchart TD
     Call["MCP tool call<br/>Parameters T"]
-    Exec["execute_tool name async<br/>ToolSpanGuard CNS span"]
+    Exec["execute_tool name async<br/>ToolSpanGuard Regulation span"]
     Ensure{"ensure_indexed"}
     Flag{"indexed_once?"}
     Skip["skip walk<br/>return immediately"]

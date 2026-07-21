@@ -15,7 +15,7 @@ last-verified-against: "fae4d94"
 **Status:** Current (v0.31.0)
 **Source:** `mcp-servers/hkask-mcp-companies/src/lib.rs:499-509` (combined_router), `src/lib.rs:368-495` (fetch, forecast store, record_experience), `src/tools/mod.rs`, `src/providers.rs:111-198` (companies_get), `src/portfolio.rs:290-340` (PortfolioManager)
 
-This diagram traces the dispatch seam shared by all 41 companies tools. `run()` bootstraps a `CompaniesServer` whose `combined_router` sums seven domain sub-routers. Every tool funnels through `execute_tool` (CNS span + outcome recording), then branches into one of three downstream sinks: provider-routed financial data, valuation engines that persist `StoredForecast` snapshots, or `PortfolioManager` ledger operations offloaded to `spawn_blocking`.
+This diagram traces the dispatch seam shared by all 41 companies tools. `run()` bootstraps a `CompaniesServer` whose `combined_router` sums seven domain sub-routers. Every tool funnels through `execute_tool` (Regulation span + outcome recording), then branches into one of three downstream sinks: provider-routed financial data, valuation engines that persist `StoredForecast` snapshots, or `PortfolioManager` ledger operations offloaded to `spawn_blocking`.
 
 ```mermaid
 flowchart TD
@@ -29,7 +29,7 @@ flowchart TD
     Comb --> R5["analytics_router<br/>5 tools"]
     Comb --> R6["economic_profit_router<br/>1 tool"]
     Comb --> R7["expectations_router<br/>1 tool"]
-    R1 --> Seam["execute_tool name async<br/>CNS span outcome record"]
+    R1 --> Seam["execute_tool name async<br/>Regulation span outcome record"]
     R2 --> Seam
     R3 --> Seam
     R4 --> Seam

@@ -32,9 +32,9 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 | `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
 | `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
 | `hMem` | `hkask-storage` | Entity-Attribute-Value knowledge representation, bitemporal | P3 |
-| `RegulationLedger` | `hkask-cns` | Cybernetic nervous system — variety monitoring, alerts, gas budgets | P9 |
-| `GasBudget` | `hkask-cns` | Per-agent gas budget with cap, replenish rate, hold-settle pattern | P9 |
-| `CircuitBreaker` | `hkask-cns` | Failure-gating state machine for external service calls | P9 |
+| `RegulationLedger` | `hkask-regulation` | Cybernetic nervous system — variety monitoring, alerts, gas budgets | P9 |
+| `GasBudget` | `hkask-regulation` | Per-agent gas budget with cap, replenish rate, hold-settle pattern | P9 |
+| `CircuitBreaker` | `hkask-regulation` | Failure-gating state machine for external service calls | P9 |
 
 ### 1.2 Kata-Kanban Domain
 
@@ -55,7 +55,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 
 **5 coaching kata questions:** (1) Target condition? (2) Actual condition now? (3) What obstacles? Which ONE? (4) Next step? What do you expect? (5) How quickly can we go and see?
 
-**CNS spans:** `cns.kata` — KataImprovEffectiveness, coaching loop events; `cns.kanban` — TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated
+**Regulation spans:** `reg.kata` — KataImprovEffectiveness, coaching loop events; `reg.kanban` — TaskCreated, TaskMoved, TaskAssigned, TaskVerified, BoardCreated
 
 **Key contracts:** 34 `KAN-SVC-*` IDs (migration in progress), 27 `P{N}-svc-kata-*` IDs
 
@@ -76,7 +76,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 | `CompositionEstimate` | Cost/time estimate for adapter composition | `estimated_cost_rj: f64`, `estimated_latency_ms: u64` |
 | `ProviderSelection` | Selected inference provider for an adapter endpoint | `provider: String`, `model: String`, `cost_per_token_rj: f64` |
 
-**CNS spans:** `cns.adapter` — AdapterStored, AdapterRetrieved, AdapterDeleted, endpoint lifecycle transitions
+**Regulation spans:** `reg.adapter` — AdapterStored, AdapterRetrieved, AdapterDeleted, endpoint lifecycle transitions
 
 **Key contracts:** 44 pub fns with `expect:` + `[P{N}]` annotations
 
@@ -108,7 +108,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 | 1 | **Domain** | Every entity has a named term and a bounded-context map | Domain ontology sketch | → Composition (verbs), → Lifecycle (persistence) |
 | 2 | **Composition** | Every domain verb has a granted composition, registered interface, and composable path | Capability grant table, interface equivalence matrix, registry schema | → Domain (ontology), → Trust (tokens) |
 | 3 | **Trust** | Every capability operation has a threat-model entry and an OCAP-bound mitigation | Threat model, keystore config, capability attenuation policy | → Composition (capabilities), → Lifecycle (audit) |
-| 4 | **Lifecycle** | Bootstrap, evolution, deprecation, lifecycle, and persistence are expressible as spec transitions | Bootstrap manifest, evolution rules, deprecation policy, CNS span registry | → Domain (entities), → Trust (audit) |
+| 4 | **Lifecycle** | Bootstrap, evolution, deprecation, lifecycle, and persistence are expressible as spec transitions | Bootstrap manifest, evolution rules, deprecation policy, Regulation span registry | → Domain (entities), → Trust (audit) |
 | 5 | **Curation** | Every spec artifact has been evaluated for coherence by a curator with documented rationale | Curation decision log, coherence score | → Domain (grounding), → Lifecycle (health) |
 
 [^evans-ddd]: Evans, Eric. *Domain-Driven Design: Tackling Complexity in the Heart of Software.* Addison-Wesley, 2003. — Bounded contexts, ubiquitous language, and the domain model that MDS categories extend.
@@ -386,9 +386,9 @@ deprecation:
 
 observability:
   cns_spans:
-    - namespace: cns.tool
+    - namespace: reg.tool
       covers: "Tool invocation governance"
-    - namespace: cns.inference
+    - namespace: reg.inference
       covers: "Inference budget tracking"
   variety_counters:
     - counter: tool_diversity
@@ -452,7 +452,7 @@ coherence_metric:
 | Domain | Entity definition + term validation |
 | Composition | Capability composition + interface equivalence verification |
 | Trust | OCAP boundary enforcement + threat model audit |
-| Lifecycle | Bootstrap + evolution + deprecation + CNS span emission |
+| Lifecycle | Bootstrap + evolution + deprecation + Regulation span emission |
 | Curation | Coherence scoring + decision rationale documentation |
 
 [^principles-p8]: hKask Team. (2026). *Architecture Principles — P8.* `docs/architecture/core/PRINCIPLES.md` (P8) — Every `#[test]` verifies a stated behavioral property of a public seam.
@@ -549,14 +549,14 @@ All 9 fields are **private** and exposed through **20 public methods** grouped b
 | `config()` | `&ServiceConfig` | Identity |
 | `webid()` | `&WebID` | Identity |
 | `identity()` | `(&WebID, &Arc<A2ARuntime>)` | Identity |
-| `seam_summary()` | `Option<SeamSummary>` (async) | CNS / Infra |
-| `curator_ready()` | `Result<(), String>` (async, `&mut self`) | CNS / Infra |
-| `governed_tool(webid)` | `Arc<GovernedTool<RawMcpToolPort>>` | CNS / Infra |
-| `inference_loop()` | `Option<&Arc<InferenceLoop>>` | CNS / Infra |
-| `set_inference_loop(il)` | `()` (`&mut self`) | CNS / Infra |
-| `inference_port()` | `Option<Arc<dyn InferencePort>>` | CNS / Infra |
-| `gas_remaining()` | `Option<u64>` | CNS / Infra |
-| `gas_cap()` | `Option<u64>` | CNS / Infra |
+| `seam_summary()` | `Option<SeamSummary>` (async) | Regulation / Infra |
+| `curator_ready()` | `Result<(), String>` (async, `&mut self`) | Regulation / Infra |
+| `governed_tool(webid)` | `Arc<GovernedTool<RawMcpToolPort>>` | Regulation / Infra |
+| `inference_loop()` | `Option<&Arc<InferenceLoop>>` | Regulation / Infra |
+| `set_inference_loop(il)` | `()` (`&mut self`) | Regulation / Infra |
+| `inference_port()` | `Option<Arc<dyn InferencePort>>` | Regulation / Infra |
+| `gas_remaining()` | `Option<u64>` | Regulation / Infra |
+| `gas_cap()` | `Option<u64>` | Regulation / Infra |
 | `build_per_agent_memory(db, sink)` | `PerAgentMemory` (assoc. fn) | Memory |
 | `per_agent_memory(agent_name)` | `Result<PerAgentMemory, ServiceError>` | Memory |
 | `consolidate_agent_memory(agent_name, request)` | `Result<ConsolidationOutcome, ServiceError>` | Memory |
@@ -620,7 +620,7 @@ graph TD
     CLI --> SERVICES
     API --> SERVICES
     SERVICES --> AGENTS[hkask-agents]
-    SERVICES --> CNS[hkask-cns]
+    SERVICES --> Regulation[hkask-regulation]
     SERVICES --> MEM[hkask-memory]
     SERVICES --> TEMPLATES[hkask-templates]
     SERVICES --> TYPES[hkask-types]

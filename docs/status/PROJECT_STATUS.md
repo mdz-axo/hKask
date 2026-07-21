@@ -43,7 +43,7 @@ Single source of truth for build, test, and CI health. Updated per session.
 - Well system: WellManager with auto-create, replenish, exhaustion alert dampening.
 - Wallet system: SQLite-backed WalletStore + WalletManager, integrated into spend path.
 - Auto-draw: synchronous Well→Wallet draw on low balance during spend.
-- 10 new CNS spans for Well/Wallet/Curator lifecycle.
+- 10 new Regulation spans for Well/Wallet/Curator lifecycle.
 - Build: clean. Tests: 109/109 pass.
 
 **Note:** `hkask-cli` build is clean (pre-existing compile errors resolved).
@@ -66,7 +66,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 
 ## Test
 
-`cargo test --workspace` result: ✅ Pass — ~1,500 tests across workspace, 0 failures. Contracts use `expect:` + `[P{N}]` annotations with CNS span observation for runtime enforcement. (Test count updated from 1,460 to reflect v0.31.0 additions.)
+`cargo test --workspace` result: ✅ Pass — ~1,500 tests across workspace, 0 failures. Contracts use `expect:` + `[P{N}]` annotations with Regulation span observation for runtime enforcement. (Test count updated from 1,460 to reflect v0.31.0 additions.)
 
 ### Test Distribution
 
@@ -76,7 +76,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | hkask-inference | 23 |
 | hkask-storage | 59 |
 | hkask-memory | 16 |
-| hkask-cns | 42 |
+| hkask-regulation | 42 |
 | hkask-agents | 31 |
 | hkask-keystore | 13 |
 | hkask-services-core | 19 |
@@ -121,9 +121,9 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | Check | Result | Date |
 |-------|--------|------|
 | `todo!()`, `unimplemented!()`, `#[deprecated]` | 0 violations | 2026-07-01 |
-| Multi-user access control | ✅ Implemented: Role enum, admin middleware, invite CRUD, CNS spans | 2026-06-18 |
+| Multi-user access control | ✅ Implemented: Role enum, admin middleware, invite CRUD, Regulation spans | 2026-06-18 |
 | OAuth providers | ✅ GitHub + Google (Google OAuth implemented 2026-06-18) | 2026-06-18 |
-| Contract annotations | ✅ CNS 100%, Wallet 100%, Memory 100% — `expect:` + `[P{N}]` format | 2026-06-21 |
+| Contract annotations | ✅ Regulation 100%, Wallet 100%, Memory 100% — `expect:` + `[P{N}]` format | 2026-06-21 |
 | Unsafe blocks | ✅ All documented with SAFETY: comments | 2026-07-01 |
 | Rc<RefCell> patterns | ✅ Zero across all crates | 2026-07-01 |
 
@@ -145,7 +145,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | CLI subcommands | 37 |
 | API route groups | 21 |
 | ACP userpod | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
-| CNS spans | 100+ |
+| Regulation spans | 100+ |
 
 ---
 
@@ -187,7 +187,7 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 | Check | Result |
 |-------|--------|
 | Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services-core::verification`. No single SovereigntyService — this is correct, not a gap. |
-| Magna Carta P2 (Affirmative Consent) | CNS consent denial events emitted. Prohibition gate — denial is terminal. |
+| Magna Carta P2 (Affirmative Consent) | Regulation consent denial events emitted. Prohibition gate — denial is terminal. |
 | Magna Carta P3 (Generative Space) | 15 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
 | Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with Ed25519 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
 
@@ -212,28 +212,28 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 - Plan: `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` — 5-wave implementation plan with adversarial pragmatics+grill-me review. 5 gaps found and resolved (afferent signal, deployment path, surface count, temporal mismatch, asymmetric observability).
 - JSON inventory: `scripts/public-seam-inventory.sh` extended with `build_json_inventory()` — generates machine-readable `docs/status/public-seam-inventory.json` alongside markdown. Both CI-enforced for drift.
-- Types: `SeamCoverage`, `SeamInventory` in `hkask-types::cns`. `SignalMetric::SeamCoverage` + `ActionType::Notify` in `hkask-types::loops`. 2 new canonical CNS spans: `cns.architecture.seam.coverage`, `cns.architecture.seam.drift` (30→32 total).
-- Core module: `hkask-cns/src/seam_watcher.rs` — `SeamWatcher` (load, register_domains, check_drift, refresh, summary), `SeamDrift`, `SeamSummary`. Embedded JSON via `include_str!()` for deployment safety. File path override via `HKASK_SEAM_INVENTORY_PATH` for development. 9 REQ-tagged tests.
+- Types: `SeamCoverage`, `SeamInventory` in `hkask-types::cns`. `SignalMetric::SeamCoverage` + `ActionType::Notify` in `hkask-types::loops`. 2 new canonical Regulation spans: `reg.architecture.seam.coverage`, `reg.architecture.seam.drift` (30→32 total).
+- Core module: `hkask-regulation/src/seam_watcher.rs` — `SeamWatcher` (load, register_domains, check_drift, refresh, summary), `SeamDrift`, `SeamSummary`. Embedded JSON via `include_str!()` for deployment safety. File path override via `HKASK_SEAM_INVENTORY_PATH` for development. 9 REQ-tagged tests.
 - Algedonic integration: `CyberneticsLoop::compute()` handles `SeamCoverage` — `BelowSetPoint`→`Escalate(Curation)` with severity grading (>5pp critical, 1–5pp warning), `AboveSetPoint`→`Notify(Curation)` for improvements. `seam_coverage_min` set-point (default: 0.0 = alert on any regression).
 - Bootstrap: `AgentService::build()` loads seam watcher, registers 25 per-crate variety domains (`seam:{crate_name}`), spawns periodic background task (30-min interval, configurable via `HKASK_SEAM_CHECK_INTERVAL_SECS`). Watcher stored as `Arc<RwLock<Option<SeamWatcher>>>`.
 - Curator surface: `/status` command displays R7.3 seam coverage — color-coded bar (green ≥60%, yellow 30–60%, red <30%), crate count, covered/total items, coverage %, REQ test count.
 - R7.3 identity: domains updated to `["cns", "seam"]`, description updated.
-- Build: all 18 workspace members compile. 35/35 CNS tests pass (9 new + 26 existing). CI inventory gate passes (markdown + JSON).
-- Docs updated: `hKask-architecture-master.md` (Pattern C table, key properties, crates, identified gaps, CNS span count, mermaid), `PROJECT_STATUS.md` (this update), `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` (implementation summary).
+- Build: all 18 workspace members compile. 35/35 Regulation tests pass (9 new + 26 existing). CI inventory gate passes (markdown + JSON).
+- Docs updated: `hKask-architecture-master.md` (Pattern C table, key properties, crates, identified gaps, Regulation span count, mermaid), `PROJECT_STATUS.md` (this update), `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` (implementation summary).
 
 **Pragmatics Codebase Audit + Test Coverage + MCP Server Tool Audit + Communication Tests:**
 
 - Pragmatics audit: 7-task principle-grounded review across all 16 crates. All 7 tasks converge at δ=0. Zero P1–P12 violations.
-- Key findings: CNS feedback loop fully closed (sense→compute→act with live-channel + persistence fallback), OCAP tokens cryptographically unforgeable (HMAC-SHA256, constant-time verification), zero unsafe blocks, zero Rc<RefCell>, all domain concepts have strong types (WebID, SpanNamespace, DelegationToken, AttenuationLevel, DataCategory, etc.), condenser complete (7/7 tools), services extraction ~70%+ with no premature deletions.
+- Key findings: Regulation feedback loop fully closed (sense→compute→act with live-channel + persistence fallback), OCAP tokens cryptographically unforgeable (HMAC-SHA256, constant-time verification), zero unsafe blocks, zero Rc<RefCell>, all domain concepts have strong types (WebID, SpanNamespace, DelegationToken, AttenuationLevel, DataCategory, etc.), condenser complete (7/7 tools), services extraction ~70%+ with no premature deletions.
 - Build: 15/16 crates check clean (`hkask-mcp` has pre-existing tracing macro issue). All tests pass.
 
 ## Session (2026-06-14)
 
 **Matrix Integration — Architecture, Specification, and Implementation:**
 
-- Architecture research report: `docs/architecture/matrix-integration-architecture.md` (~1,800 lines). Full deployment model, client orchestration, identity binding, agent interaction patterns, essentialist/grill-me/pragmatic-semantics/pragmatic-cybernetics reviews, gap analysis, verification spec, CNS span specification.
+- Architecture research report: `docs/architecture/matrix-integration-architecture.md` (~1,800 lines). Full deployment model, client orchestration, identity binding, agent interaction patterns, essentialist/grill-me/pragmatic-semantics/pragmatic-cybernetics reviews, gap analysis, verification spec, Regulation span specification.
 - Spec resolved 4 Blocking gaps (B1–B4: Caddy TLS automation, MXID format, `.well-known` delegation, Conduit config defaults), 6 Important gaps (I1–I6: recovery keys, device names, message format, room encryption, error taxonomy, gas accounting), 4 Prohibitions (P1–P4), 10 Guardrails (G1–G10).
-- Implementation: `matrix.rs` — 303 lines of stubs replaced with ~380 lines of real `MatrixTransport` using `matrix-sdk` 0.16. Login, send_message, get_messages (on-demand polling), create_room, invite_user, list_rooms. CNS tracing on all operations.
+- Implementation: `matrix.rs` — 303 lines of stubs replaced with ~380 lines of real `MatrixTransport` using `matrix-sdk` 0.16. Login, send_message, get_messages (on-demand polling), create_room, invite_user, list_rooms. Regulation tracing on all operations.
 - CLI: `kask matrix deploy-sidecar` (generates Caddy + Conduit + Hydrogen docker-compose), `kask matrix register --agent` (credential prompt, MXID derivation, Conduit admin API), `kask matrix register --user` (human account creation), `kask matrix status-sidecar` (Docker health check).
 - `TurnRequest.source` field: `MessageSource` enum (Matrix, Daemon, Cli, Api) for P12 compliance.
 - Overengineering removed: continuous sync loop, message inbox, `register_user` on MatrixTransport, `Encryption` error variant, `MatrixAction::Listen` CLI command, `AgentRegistry::register` (Matrix SDK registration). Net reduction: ~180 lines removed.
@@ -302,7 +302,7 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 | Priority | Task |
 |----------|------|
-| MEDIUM | Integration tests for multi-pod sync: CNS span emission, CuratorSync polling |
+| MEDIUM | Integration tests for multi-pod sync: Regulation span emission, CuratorSync polling |
 | LOW | Citation compliance: 23 files have fewer footnotes than `##` sections. Methodology: `docs/status/citation-audit-methodology.md`. Script: `docs/ci/check-citations.sh`. |
 | LOW | End-to-end onboarding smoke test (needs live Okapi) |
 | DEFERRED | Pod container export (`kask pod export-container`) |
@@ -315,8 +315,8 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 |----------|------|--------|
 | MEDIUM | `kask matrix register --agent` credential verification against stored keystore hash | TODO — currently accepts any credential with format warning |
 | MEDIUM | SAS QR code generation for device verification | Deferred to v2 (requires matrix-sdk-crypto, blocked by SQLCipher/SQLite conflict) |
-| LOW | Daemon periodic sidecar health task (every 60s: poll containers, emit CNS spans) | Deferred — `kask matrix status-sidecar` provides on-demand checks |
-| LOW | CNS span formal registration in CNS registry | Deferred — spans emit via tracing, functional but not registered |
+| LOW | Daemon periodic sidecar health task (every 60s: poll containers, emit Regulation spans) | Deferred — `kask matrix status-sidecar` provides on-demand checks |
+| LOW | Regulation span formal registration in Regulation registry | Deferred — spans emit via tracing, functional but not registered |
 | LOW | `kask matrix listen` (continuous sync for VOIP/real-time) | Deferred until use case exists |
 | v2 | E2EE integration (Olm/Megolm, CryptoStore against hkask-keystore) | Blocked by SQLCipher/SQLite linking conflict |
 | v2 | Cross-installation agent-to-agent communication via federation | Requires E2EE + continuous sync |
@@ -350,9 +350,9 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 |-----|----------|--------|-------------|
 | **Real `provision_endpoint` API integration** | Medium | ✅ Complete (P1-12) | Runpod: GraphQL `saveEndpoint` mutation. Baseten: REST `POST /v1/models`. Both use real HTTP calls with API keys. Verified 2026-06-15. |
 | **Manual contract review** | High | ⬜ TODO | Contracts use `expect:` + `[P{N}]` annotations. Ongoing curation: verify annotations match functional requirements in FUNCTIONAL_SPECIFICATION.md. Run contract-generator for any gaps. |
-| **`expect:` field coverage** | Medium | ⬜ Pattern Only | `expect:` syntax demonstrated in CNS crate and wallet. Remaining crates need annotation. Run contract-generator per domain. |
+| **`expect:` field coverage** | Medium | ⬜ Pattern Only | `expect:` syntax demonstrated in Regulation crate and wallet. Remaining crates need annotation. Run contract-generator per domain. |
 | **Deployment domain ER diagram ↔ code sync** | Low | ⬜ TODO | ER diagram in `FUNCTIONAL_SPECIFICATION.md` §3.18 aligned with deployment plan but not verified against actual type definitions in `hkask-api` and `kask` CLI. |
-| **Domain ER diagrams for non-CNS domains** | Low | ⬜ Partial | ER diagrams added for 8 CNS domains (§2) and deployment (§3.18). Remaining 18 non-CNS domains (§3) have entity models described in tables but not yet diagrammed. |
+| **Domain ER diagrams for non-Regulation domains** | Low | ⬜ Partial | ER diagrams added for 8 Regulation domains (§2) and deployment (§3.18). Remaining 18 non-Regulation domains (§3) have entity models described in tables but not yet diagrammed. |
 
 ---
 

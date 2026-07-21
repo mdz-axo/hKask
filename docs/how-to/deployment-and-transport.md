@@ -56,7 +56,7 @@ Namespace: hkask       Namespace: conduit
 Conduit is a lightweight Matrix homeserver deployed as a separate Pod in the `conduit` namespace. It provides:
 
 - **Agent-to-agent (A2A) communication**: UserPods register as Matrix users and communicate through rooms.
-- **7R7 listener integration**: The `SevenR7Listener` polls Matrix rooms and emits CNS observation spans.
+- **7R7 listener integration**: The `SevenR7Listener` polls Matrix rooms and emits Regulation observation spans.
 - **Thread-based attention**: Agents monitor threads via watchlists; the Curator decides escalation.
 
 Conduit runs as its own Deployment because it has a different lifecycle from kask — a Conduit crash does not restart the main application.
@@ -223,10 +223,10 @@ See [Agents and Pods](agents-and-pods.md) for the full `/matrix` and `/msg` slas
 
 ### Step 7: Monitor Message Flow
 
-Matrix transport events emit CNS spans. Subscribe to the communication namespace:
+Matrix transport events emit Regulation spans. Subscribe to the communication namespace:
 
 ```bash
-kask cns subscribe --agent curator --spans cns.communication
+kask cns subscribe --agent curator --spans reg.communication
 ```
 
 ### Troubleshooting
@@ -329,7 +329,7 @@ The Litestream init container (`litestream restore`) in the K8s deployment runs 
 
 - [Install and Configure hKask](install-and-configure.md) — Build and initial setup
 - [Agents and Pods](agents-and-pods.md) — Pod export to K8s manifests
-- [Sovereignty and Observability](sovereignty-and-observability.md) — CNS monitoring for deployment health
+- [Sovereignty and Observability](sovereignty-and-observability.md) — Regulation monitoring for deployment health
 ---
 
 ## Inlined Diagrams
@@ -777,11 +777,11 @@ status: VERIFIED
 - Example: `a1b2c3d4e5f6` (12 alphanumeric chars)
 - Delivered via `hkask_invite_code` HttpOnly cookie (10-minute TTL) during redirect from `/api/v1/auth/accept-invite`
 
-## CNS Observability
+## Regulation Observability
 
 | Span | When Emitted | Status |
 |------|-------------|--------|
-| `cns.deploy.invite` (invite_accepted) | After `accept_invite()` succeeds in callback | ✅ Implemented |
+| `reg.deploy.invite` (invite_accepted) | After `accept_invite()` succeeds in callback | ✅ Implemented |
 | `InviteSent` | When admin creates invite | ❌ Not yet implemented |
 | `InviteExpired` | When expired invite is looked up | ❌ Not yet implemented |
 

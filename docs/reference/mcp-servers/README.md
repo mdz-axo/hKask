@@ -32,7 +32,7 @@ All servers follow these patterns:
 
 1. **Bootstrap:** `hkask_mcp::bootstrap_mcp_server(name, target, host_env_var)` → returns `MCPBootstrap { userpod, daemon_client }`
 2. **Struct:** `hkask_mcp::mcp_server!` macro generates the struct with `webid`, `userpod`, `daemon` fields plus domain fields
-3. **Tool dispatch:** `execute_tool_semantic(self, tool_name, ontology, async { ... })` wraps each tool with CNS span + daemon outcome recording
+3. **Tool dispatch:** `execute_tool_semantic(self, tool_name, ontology, async { ... })` wraps each tool with Regulation span + daemon outcome recording
 4. **Tool router:** `#[tool_handler(router = Self::...router())]` on the `ServerHandler` impl
 5. **Error type:** `McpToolError` for tool-level errors, domain `Error` enums (via `thiserror`) for computation errors
 6. **Governance:** OCAP is enforced at the dispatcher `GovernedTool` membrane (`DelegationToken` per call), not at the server. The server is the transport pipe; `shell_exec`-style tools are reachable only by agents holding the relevant capability token. See [`dispatch.rs`](../../../crates/hkask-mcp/src/dispatch.rs).
@@ -47,7 +47,7 @@ Every MCP server MUST include **tool-behavior contract tests** that invoke tools
 - [Research MCP Adversarial Review](../../status/research-mcp-adversarial-review-2026-07-17.md) — code smell inventory for the research server
 - [Research MCP Adversarial Review (Follow-Up 2026-07-20)](../../status/research-mcp-adversarial-review-2026-07-20.md) — 11 new findings: dead CapabilityContext, edit_tags feed-relabeling bug, missing transactions, stored SSRF, stub health checks; 7 follow-up items including panic-safe transactions, permissive SSRF for RSS, and circuit-breaker ADR
 - [ADR-055: Per-Provider Circuit Breaker (Deferred)](../../architecture/ADRs/ADR-055-per-provider-circuit-breaker.md) — defers the circuit-breaker enhancement with rationale
-- [Filesystem Server Reference](filesystem.md) — sandbox model, 7 tools, CNS spans, current behavior and known limitations (DIAG-RF-003)
+- [Filesystem Server Reference](filesystem.md) — sandbox model, 7 tools, Regulation spans, current behavior and known limitations (DIAG-RF-003)
 - [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code smell inventory for the scenarios server
 - [Companies MCP Server Reference](companies.md) — 41 tools, dual-provider routing, forecast store, portfolio ledger (DIAG-RF-004)
 - [Companies MCP Code Review](../../status/companies-mcp-code-review-2026-07-15.md) — adversarial code review of the companies server

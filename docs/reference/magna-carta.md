@@ -57,7 +57,7 @@ it cannot be violated because the type system prevents it.
 | `DataSovereigntyBoundary` | `hkask-types::curation` | Defines sovereign / shared / public category sets |
 | `SovereigntyChecker` | `hkask-agents::sovereignty` | Runtime gate: `can_access(category, requester)` with consent lookup |
 | `SovereigntyConsent` trait | `hkask-agents::sovereignty` | Pluggable consent port; `DenyAllConsent` is the default |
-| `ConsentManager` | `hkask-agents::consent` | Production implementation: SQLite-backed, CNS-span-emitting |
+| `ConsentManager` | `hkask-agents::consent` | Production implementation: SQLite-backed, Regulation-span-emitting |
 | `PodContext::require_sovereignty()` | `hkask-agents::pod::context` | Called before every data access; fail-closed on missing checker |
 | `SovereigntyBoundaryStore` | `hkask-storage::sovereignty` | SQL persistence of user boundaries |
 | `sovereignty_router()` | `hkask-api::routes::sovereignty` | `GET/POST /sovereignty` endpoints |
@@ -116,7 +116,7 @@ kask sovereignty check --category episodic_memory --requester webid://alice
 | `DenyAllConsent` | `hkask-agents::sovereignty` | Default port; used until a real `ConsentManager` is wired |
 | `ConsentRecord` | `hkask-agents::consent` | Per-WebID, active/revoked, time-stamped |
 | `SovereigntyBoundaryEntry::requires_affirmative_consent` | `hkask-storage::sovereignty` | Stored as `"required"` / `"open"` in SQL |
-| CNS spans | `cns.sovereignty` | `consent_granted`, `consent_revoked`, `consent_checked` |
+| Regulation spans | `reg.sovereignty` | `consent_granted`, `consent_revoked`, `consent_checked` |
 
 ### Consent Properties
 
@@ -134,7 +134,7 @@ kask sovereignty check --category episodic_memory --requester webid://alice
 1. `SovereigntyConsent::has_consent()` is called for a `(webid, category)` pair.
 2. If no grant exists → `false`. If grant exists but is revoked → `false`. If storage fails → `false` (fail-closed).
 3. `SovereigntyChecker::can_access()` returns `false`, and `require_sovereignty()` returns `SovereigntyDenied`.
-4. CNS emits `cns.sovereignty consent_checked result=denied`.
+4. Regulation emits `reg.sovereignty consent_checked result=denied`.
 
 ### How to Audit
 
@@ -219,8 +219,8 @@ No code path can access resources without going through both gates.
 |----------|-------------|------|
 | `DelegationToken` | `hkask-capability::token_types` | Ed25519-signed, unforgeable, attenuating capability token |
 | `CapabilityChecker` | `hkask-capability::verification::checker` | Verifies signature + trusted-root membership; fail-closed (empty roots reject all) |
-| `GovernedTool<P>` | `hkask-cns::governed_tool` | Membrane wrapping `ToolPort`: OCAP check → gas reserve → CNS span → delegate → settle |
-| `GovernedTool::invoke()` | `hkask-cns::governed_tool` | Step 0: verify token signature; Step 1: exact-match or domain-match capability; Step 2: gas budget; Step 3–5: execute, settle, emit |
+| `GovernedTool<P>` | `hkask-regulation::governed_tool` | Membrane wrapping `ToolPort`: OCAP check → gas reserve → Regulation span → delegate → settle |
+| `GovernedTool::invoke()` | `hkask-regulation::governed_tool` | Step 0: verify token signature; Step 1: exact-match or domain-match capability; Step 2: gas budget; Step 3–5: execute, settle, emit |
 | `PodContext::require_capability()` | `hkask-agents::pod::context` | Verifies token signature + delegated_to match; fail-closed on missing checker |
 | `DaemonClient::capability_query()` | `hkask-mcp::daemon` | Server-side capability check at startup (Gate 3) |
 | `verify_startup_gates()` | `hkask-mcp::startup` | Gate 1 (auth) → Gate 2 (assignment) → Gate 3 (capability per tool) |
@@ -247,7 +247,7 @@ Caller → GovernedTool.invoke(server, tool, args, token)
            │           → OCAP authority (exact-match or domain-based)
            ├─ Step 2: cybernetics.can_proceed(agent, estimated_cost)
            │           → gas budget check (hold-settle pattern)
-           ├─ Step 3: emit cns.tool.invoked span
+           ├─ Step 3: emit reg.tool.invoked span
            ├─ Step 4: inner.invoke(server, tool, args, token) → delegate
            └─ Step 5: settle_gas(agent, reserved, actual) → refund if over-estimated
 ```
@@ -290,7 +290,7 @@ kask pod status <pod_id> --verbose
 | `PerPodToolBinding` | `hkask-agents::pod::deployment` | Scoped MCP runtime + GovernedTool per pod |
 | `PerPodRegulationLedger` | `hkask-agents::pod::deployment` | Per-pod variety counters |
 | `PerPodStorage` | `hkask-agents::pod::deployment` | Dedicated SQLCipher file per pod at `{data_dir}/agents/{sanitized_name}/pod.db` |
-| `PodDeployment` | `hkask-agents::pod::deployment` | Complete pod: identity, storage, CNS, tools, capability checker |
+| `PodDeployment` | `hkask-agents::pod::deployment` | Complete pod: identity, storage, Regulation, tools, capability checker |
 | `ActivePods` | `hkask-agents::pod::active_pods` | Registry of all pods; no shared state between entries |
 
 ### What Happens When Violated
@@ -311,8 +311,8 @@ kask pod list
 # Inspect a pod's tool bindings
 kask pod status <pod_id>
 
-# Verify CNS isolation (per-pod variety counters)
-# Check cns.* spans for pod_id prefix
+# Verify Regulation isolation (per-pod variety counters)
+# Check reg.* spans for pod_id prefix
 ```
 
 ---
@@ -338,9 +338,9 @@ kask sovereignty verify --principle clear_boundaries
 kask sovereignty verify --json
 ```
 
-### CNS Span Audit
+### Regulation Span Audit
 
-P1–P4 enforcement is observable through CNS spans:
+P1–P4 enforcement is observable through Regulation spans:
 
 ```bash
 # View sovereignty-related spans
@@ -370,12 +370,12 @@ kask sovereignty status
 
 ## Enforcement Trace Summary
 
-| Principle | Prohibition Level | Primary Enforcement | Fail-Closed? | CNS Spans |
+| Principle | Prohibition Level | Primary Enforcement | Fail-Closed? | Regulation Spans |
 |-----------|------------------|--------------------|--------------|-----------|
-| P1 (Sovereignty) | Prohibition | `SovereigntyChecker::can_access()` + `require_sovereignty()` | Yes | `cns.sovereignty` |
-| P2 (Consent) | Prohibition | `ConsentManager::has_consent()` (`unwrap_or(false)`) | Yes | `cns.sovereignty` |
-| P3 (Generative) | Guardrail | `hkask-guard` (floor); no admin bypass (ceiling) | N/A (guardrail) | `cns.guard` |
-| P4 (OCAP) | Prohibition | `CapabilityChecker::verify()` + `GovernedTool::invoke()` | Yes (empty roots) | `cns.tool` |
+| P1 (Sovereignty) | Prohibition | `SovereigntyChecker::can_access()` + `require_sovereignty()` | Yes | `reg.sovereignty` |
+| P2 (Consent) | Prohibition | `ConsentManager::has_consent()` (`unwrap_or(false)`) | Yes | `reg.sovereignty` |
+| P3 (Generative) | Guardrail | `hkask-guard` (floor); no admin bypass (ceiling) | N/A (guardrail) | `reg.guard` |
+| P4 (OCAP) | Prohibition | `CapabilityChecker::verify()` + `GovernedTool::invoke()` | Yes (empty roots) | `reg.tool` |
 | P4.1 (Pod Boundary) | Prohibition (structural) | `PerPodToolBinding` type isolation | Always (type system) | Per-pod `pod_id` in spans |
 
 ### Failure Modes
@@ -389,7 +389,7 @@ kask sovereignty status
 | Token signature invalid | Tool call rejected | `ToolPortError::CapabilityDenied` |
 | Token expired | Tool call rejected | `CapabilityChecker::verify_with_time()` returns `false` |
 | Gas budget exhausted | Tool call rejected | `ToolPortError::EnergyBudgetExceeded` |
-| API key without budget | Request rejected | `cns.gas.depleted` span emitted |
+| API key without budget | Request rejected | `reg.gas.depleted` span emitted |
 | Gate 1 (auth) fails | MCP server refuses to start | `McpError::Auth` |
 | Gate 2 (assignment) fails | MCP server refuses to start | `McpError::RoleAssignment` |
 | Gate 3 (capability denied) | Server starts, denied tools unavailable | `StartupGateResult::denied_tools` non-empty |

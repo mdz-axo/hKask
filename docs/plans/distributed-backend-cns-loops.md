@@ -1,18 +1,18 @@
 ---
-title: "hKask Distributed Backend & CNS Loop Architecture Plan"
+title: "hKask Distributed Backend & Regulation Loop Architecture Plan"
 audience: [architects, developers]
 last_updated: 2026-07-01
 version: "0.31.0"
 status: "Draft — Reviewed via essentialist, grill-me, pragmatic-semantics, pragmatic-cybernetics"
-domain: "Cross-cutting (Storage, CNS, Deployment)"
+domain: "Cross-cutting (Storage, Regulation, Deployment)"
 mds_categories: [composition, trust, lifecycle]
 anchored_on: [PRINCIPLES.md P1, P2, P4, P5, P9, P12]
 reviewed_via: [essentialist, grill-me, pragmatic-semantics, pragmatic-cybernetics, improve-codebase-architecture]
 ---
 
-# hKask Distributed Backend & CNS Loop Architecture Plan
+# hKask Distributed Backend & Regulation Loop Architecture Plan
 
-**Purpose:** Define the path from single-writer SQLite to a per-store sync architecture (HMem via CRDT; registries via event log), the autonomous and curator-mediated CNS loop closure architecture, and the monitoring surface for a multi-pod agent deployment.
+**Purpose:** Define the path from single-writer SQLite to a per-store sync architecture (HMem via CRDT; registries via event log), the autonomous and curator-mediated Regulation loop closure architecture, and the monitoring surface for a multi-pod agent deployment.
 
 **Open questions that shape this plan:** See §7. The plan assumes eventual consistency for HMem, strong consistency for user/sovereignty data, and single-writer for wallet operations.
 
@@ -173,12 +173,12 @@ Phase 3 — Distributed Agents + Federation (beyond)
 
 ---
 
-## 2. CNS Loop Architecture — Autonomous & Curator-Mediated
+## 2. Regulation Loop Architecture — Autonomous & Curator-Mediated
 
 ### 2.1 The Problem
 
-The CNS today has variety counters and algedonic thresholds but the loops don't fully close:
-- **Sense** works: CNS spans are collected
+The Regulation today has variety counters and algedonic thresholds but the loops don't fully close:
+- **Sense** works: Regulation spans are collected
 - **Compare** works: variety counters, threshold checks
 - **Compute** works: algedonic alerts fire
 - **Act** is missing: alerts are informational, no automated corrective action
@@ -190,7 +190,7 @@ Additionally, all alerts follow the same path (human notification). There's no d
 
 ```
 ┌──────────────────────────────────────────────────┐
-│                  CNS Model                        │
+│                  Regulation Model                        │
 │                                                  │
 │  Sense ──→ Compare ──→ Compute ──→ Act ──→ Verify│
 │    │                                   │    │    │
@@ -226,8 +226,8 @@ Additionally, all alerts follow the same path (human notification). There's no d
 
 | Loop | Sense Signal | Threshold | Action | Verify |
 |------|-------------|-----------|--------|--------|
-| **Storage Guard** | `/health` disk_usage_pct | >80% warn, >95% critical | warn: log CNS span; critical: prune exports older than 7d | Re-check after 5min |
-| **Litestream Guard** | litestream sidecar liveness | Liveness probe failure × 3 | Restart pod (k8s does this; CNS records the event) | Confirm sidecar healthy after restart |
+| **Storage Guard** | `/health` disk_usage_pct | >80% warn, >95% critical | warn: log Regulation span; critical: prune exports older than 7d | Re-check after 5min |
+| **Litestream Guard** | litestream sidecar liveness | Liveness probe failure × 3 | Restart pod (k8s does this; Regulation records the event) | Confirm sidecar healthy after restart |
 | **MCP Server Guard** | Child process health check | Process dead or unresponsive > 30s | Restart MCP subprocess via McpRuntime | Verify process responds to health ping |
 | **Inference Throttle** | Gas consumption rate | Projected exhaustion < 15min at current rate | Reduce max_tokens, switch to classifier model (`DI/Qwen/Qwen3-235B-A22B-Instruct-2507`), notify Curator | Re-check consumption rate after 5min |
 
@@ -236,7 +236,7 @@ Additionally, all alerts follow the same path (human notification). There's no d
 | Loop | Sense Signal | Threshold | Curator Assessment | User Decision |
 |------|-------------|-----------|-------------------|---------------|
 | **Budget Guard** | rJoule balance, consumption rate | Balance < 50 rJ or projected exhaustion < 1hr | "You have ~30min of inference at current rate. Options: [1] Add funds, [2] Switch to classifier model (cheaper, lower reasoning depth), [3] Continue at current rate" | User picks option |
-| **Variety Deficit** | CNS variety counter | Deficit > 100 (critical) | "Your agent used 3 of 15 tools this session. Underused: [list]. Consider: [suggestions]" | User decides to explore or dismiss |
+| **Variety Deficit** | Regulation variety counter | Deficit > 100 (critical) | "Your agent used 3 of 15 tools this session. Underused: [list]. Consider: [suggestions]" | User decides to explore or dismiss |
 | **Pod Health Escalation** | `/health` shows degraded (DB or Conduit) | Any non-OK status | "Matrix connectivity lost — chat works but agent communication is offline. Conduit pod restarting (~30s)." | User waits or takes manual action |
 | **Sovereignty Export** | Scheduled export completes | Export ready | "Your sovereignty archive is ready (1,247 triples, 4.2 MB). Download available for 7 days." | User downloads or defers |
 
@@ -246,20 +246,20 @@ Autonomous actions are not "the machine decides on its own." They are **pre-auth
 
 ```bash
 # User authorizes autonomous guardrails
-kask config set cns.autonomous.prune_exports true
-kask config set cns.autonomous.restart_mcp true
-kask config set cns.autonomous.throttle_inference true
+kask config set reg.autonomous.prune_exports true
+kask config set reg.autonomous.restart_mcp true
+kask config set reg.autonomous.throttle_inference true
 
 # User sets thresholds
-kask config set cns.autonomous.prune_threshold_pct 80
-kask config set cns.autonomous.throttle_budget_minutes 15
+kask config set reg.autonomous.prune_threshold_pct 80
+kask config set reg.autonomous.throttle_budget_minutes 15
 ```
 
 The Magna Carta principle **P2 (Affirmative Consent)** applies here: autonomous actions require prior consent. The user explicitly opts in, with clear documentation of what each guardrail does and doesn't do.
 
-### 2.5 CNS Signal Registry — New Signals
+### 2.5 Regulation Signal Registry — New Signals
 
-The following signals are proposed additions to the CNS span registry. They are design targets, not committed API — implementation in Phase B will determine the final shape.
+The following signals are proposed additions to the Regulation span registry. They are design targets, not committed API — implementation in Phase B will determine the final shape.
 
 | Signal | Fields | Purpose |
 |--------|--------|---------|
@@ -270,7 +270,7 @@ The following signals are proposed additions to the CNS span registry. They are 
 | **AutonomousAction** | `loop_name`, `action`, `reason`, `pre_state`, `post_state`, `success` | Loop closure record — was the autonomous action effective? |
 | **CuratorEscalation** | `escalation_id`, `loop_name`, `severity`, `assessment`, `options`, `user_decision`, `time_to_decision_secs` | Curator-mediated loop record |
 
-**Naming migration:** The existing `SignalMetric::TripleCount` variant (doc: "Semantic h_mem count") should be renamed to `HMemCount` as part of Phase B, aligning the CNS signal registry with the `HMem` data model. The string form `"triple_count"` is visible in the CNS health API — the rename is a breaking change to be coordinated with the API surface.
+**Naming migration:** The existing `SignalMetric::TripleCount` variant (doc: "Semantic h_mem count") should be renamed to `HMemCount` as part of Phase B, aligning the Regulation signal registry with the `HMem` data model. The string form `"triple_count"` is visible in the Regulation health API — the rename is a breaking change to be coordinated with the API surface.
 
 **Deployment note:** The `HMemCount` signal is distinct from the monitoring signals above. `HMemCount` measures agent activity (how many memories are stored). The monitoring signals above measure infrastructure health (is the disk full, is Litestream alive). Different consumers, different retention, different urgency.
 
@@ -297,12 +297,12 @@ The following signals are proposed additions to the CNS span registry. They are 
 |-------------|------------|-------------------|--------|
 | DB unreachable | `/health` DB query | 10s (readiness probe) | Pod marked Not Ready |
 | Conduit unreachable | `/health` HTTP check | 10s (readiness probe) | Pod marked Not Ready |
-| Disk > 80% | `/health` disk check | 10s (readiness probe) | CNS autonomous prune |
+| Disk > 80% | `/health` disk check | 10s (readiness probe) | Regulation autonomous prune |
 | Litestream sidecar dead | K8s liveness probe (litestream container) | 30s | Pod restart |
-| S3 unreachable | CNS LitestreamHealth span (to be implemented) | Depends on Litestream retry interval | CNS alert → Curator |
+| S3 unreachable | Regulation LitestreamHealth span (to be implemented) | Depends on Litestream retry interval | Regulation alert → Curator |
 | OAuth misconfigured | Login attempt fails | User-visible | User reports |
-| Inference provider down | Inference API error | Per-request | CNS InferenceBudget span |
-| MCP server dead | Child process exit (to be implemented) | Process exit signal | CNS autonomous restart |
+| Inference provider down | Inference API error | Per-request | Regulation InferenceBudget span |
+| MCP server dead | Child process exit (to be implemented) | Process exit signal | Regulation autonomous restart |
 | Agent pod deadlock | No health signal improvement (to be implemented) | ~5min stall | Curator escalation |
 
 ### 3.3 Future Monitoring Additions
@@ -312,7 +312,7 @@ The following signals are proposed additions to the CNS span registry. They are 
 | Litestream replication lag | Check `/data/kask.db-wal` age vs S3 last sync | After Phase 1 CRDT work |
 | Inference provider status | Periodic health ping to configured providers | After autonomous inference throttle |
 | MCP server responsiveness | Health ping to each child MCP process | After MCP server guard loop |
-| Agent pod heartbeat | Per-pod liveness signal to CNS | Phase 3 with distributed agents |
+| Agent pod heartbeat | Per-pod liveness signal to Regulation | Phase 3 with distributed agents |
 
 ---
 
@@ -329,7 +329,7 @@ When the pod restarts (voluntary or crash):
 **Lost on restart:**
 - In-flight LLM calls (gas budget may be partially debited)
 - Active terminal sessions (WebSocket disconnects)
-- CNS short-term memory (variety counters reset)
+- Regulation short-term memory (variety counters reset)
 
 ### 4.2 Phase 2 Resilience (CRDT)
 
@@ -361,7 +361,7 @@ If not fixed → escalate (autonomous → curator, curator → higher-severity a
 If worse → rollback if possible, otherwise critical alert
 ```
 
-The **dampener pattern** from the existing CNS applies: each loop has a minimum interval between actions to prevent thrashing. The `Dampener` type in `hkask-cns` already implements this — each loop definition specifies its cooldown.
+The **dampener pattern** from the existing Regulation applies: each loop has a minimum interval between actions to prevent thrashing. The `Dampener` type in `hkask-regulation` already implements this — each loop definition specifies its cooldown.
 
 ---
 
@@ -369,8 +369,8 @@ The **dampener pattern** from the existing CNS applies: each loop has a minimum 
 
 | Phase | Work | Depends On | Estimated Effort |
 |-------|------|-----------|-----------------|
-| **A — Monitoring Surface** | Extend `/health` with disk space, define CNS spans for new signals | Phase 5 | ✅ Done (disk space in `/health`; CNS spans defined in §2.5) |
-| **B — Autonomous Guardrails** | Implement Storage Guard, Litestream Guard, MCP Server Guard loops in `hkask-cns` | Phase A | 2–3 weeks |
+| **A — Monitoring Surface** | Extend `/health` with disk space, define Regulation spans for new signals | Phase 5 | ✅ Done (disk space in `/health`; Regulation spans defined in §2.5) |
+| **B — Autonomous Guardrails** | Implement Storage Guard, Litestream Guard, MCP Server Guard loops in `hkask-regulation` | Phase A | 2–3 weeks |
 | **C — Curator-Mediated Loops** | Wire Curator assessment pipeline for Budget Guard, Variety Deficit, Pod Health Escalation | Phase B | 2–3 weeks |
 | **D — CRDT Prototype** | Custom OR-Set triple store, Matrix sync transport, dual-write with SQLite fallback | Phase C | 4–6 weeks |
 | **E — CRDT Migration** | Replace Litestream with CRDT replication, enable multi-replica K8s deployment | Phase D | 2–3 weeks |
@@ -394,7 +394,7 @@ The **dampener pattern** from the existing CNS applies: each loop has a minimum 
 
 7. **Session recovery contract.** What's the minimum acceptable behavior on terminal disconnect? "Reconnect and start fresh" vs "Reconnect and resume where you left off"? The latter requires session state serialization to the HMem store.
 
-8. **Curator liveness.** In Phase 3 (distributed agents), if the Curator pod crashes, who assesses CNS signals? The plan assumes a Curator is always available. A distributed system needs Curator failover or degraded-mode operation.
+8. **Curator liveness.** In Phase 3 (distributed agents), if the Curator pod crashes, who assesses Regulation signals? The plan assumes a Curator is always available. A distributed system needs Curator failover or degraded-mode operation.
 
 9. **Phase parallelization.** The Implementation Sequence (§6) is strictly sequential. But the monitoring surface (Phase A) and CRDT prototype (Phase D) have no dependency on each other — they could be developed in parallel. Should the sequence reflect this?
 
@@ -408,7 +408,7 @@ The **dampener pattern** from the existing CNS applies: each loop has a minimum 
 - `docs/diagrams/flowchart-pod-startup.md` — Pod startup sequence with init containers and probes
 - `docs/plans/deployment-and-backup.md` — Deployment plan with Phase 1–6 implementation status
 - `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` §3.18 — Deployment domain production contracts (FR-DP1–FR-DP17)
-- `crates/hkask-cns/src/cybernetics_loop.rs` — Existing CNS loop implementation (sense→compare→compute→act)
-- `crates/hkask-cns/src/dampener.rs` — Dampener for loop cooldown/thrashing prevention
-- `crates/hkask-cns/src/algedonic.rs` — Algedonic alert severity and threshold definitions
+- `crates/hkask-regulation/src/cybernetics_loop.rs` — Existing Regulation loop implementation (sense→compare→compute→act)
+- `crates/hkask-regulation/src/dampener.rs` — Dampener for loop cooldown/thrashing prevention
+- `crates/hkask-regulation/src/algedonic.rs` — Algedonic alert severity and threshold definitions
 - `crates/hkask-api/src/routes/health.rs` — Health check endpoint with DB + Conduit + disk monitoring

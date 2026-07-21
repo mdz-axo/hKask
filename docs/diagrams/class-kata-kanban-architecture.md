@@ -89,11 +89,11 @@ classDiagram
         +inference: Arc~dyn InferencePort~
         +registry: SqliteRegistry
         +consent_check: Option~ConsentCheckFn~
-        +cns_observer: Option~LedgerObserverFn~
+        +ledger_observer: Option~LedgerObserverFn~
         +history: Option~KataHistory~
         +history_store: Option~Arc~KataHistoryStore~~
         +metric_collector: Option~MetricCollectorFn~
-        +cns_runtime: Option~Arc~RwLock~RegulationLedger~~
+        +ledger_runtime: Option~Arc~RwLock~RegulationLedger~~
         +task_gas_accountant: Option~Arc~dyn TaskGasAccountant~~
         +new() KataEngine
         +from_env() KataEngine

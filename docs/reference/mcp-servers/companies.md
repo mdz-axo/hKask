@@ -21,13 +21,13 @@ Company-finance MCP server for provider-routed market data, fundamental analysis
 |-----------|------|
 | `CompaniesServer` | Server struct: `webid`, `userpod`, `daemon`, `client`, FMP/EODHD keys, optional research keys, `PortfolioManager`, `LearningState` (Arc<Mutex>), `FermiDefaults` |
 | `combined_router` | Sums seven domain sub-routers: `financial_data_router` + `analysis_router` + `portfolio_router` + `analytics_router` + `valuation_router` + `economic_profit_router` + `expectations_router` |
-| `execute_tool` | Framework wrapper: CNS tool span (`cns.tool.companies.*`) + daemon outcome recording |
+| `execute_tool` | Framework wrapper: Regulation tool span (`reg.tool.companies.*`) + daemon outcome recording |
 | `fetch` | Provider-agnostic data access; clones `LearningState` and delegates to `providers::companies_get` |
 | `LearningState` | `src/learning.rs` — Beta(α+1, β+1) conjugate prior per (symbol, provider); temporal price snapshots for staleness detection; `preferred_provider` override when a provider is flaky. Chronic-staleness threshold configurable via `with_staleness_days` or `HKASK_CHRONIC_STALENESS_DAYS` |
 | `PortfolioManager` | SQLite-backed ledger, notes, file attachments, and durable forecast store; owner-scoped by `webid` |
 | `record_experience` | Fire-and-forget daemon `store_experience` for every tool outcome (narrative memory, salience 0.85) |
 
-Two CNS emission paths run per tool call: the framework-level `execute_tool` span (tool name + outcome) and the server-level experience recording (daemon narrative). Provider routing additionally emits `cns.tool.companies.provider.*` spans via `providers::emit_provider_cns`.
+Two Regulation emission paths run per tool call: the framework-level `execute_tool` span (tool name + outcome) and the server-level experience recording (daemon narrative). Provider routing additionally emits `reg.tool.companies.provider.*` spans via `providers::emit_provider_cns`.
 
 ## Tool routing and dispatch flow
 
@@ -45,7 +45,7 @@ flowchart TD
     Comb --> R5["analytics_router<br/>5 tools"]
     Comb --> R6["economic_profit_router<br/>1 tool"]
     Comb --> R7["expectations_router<br/>1 tool"]
-    R1 --> Seam["execute_tool name async<br/>CNS span outcome record"]
+    R1 --> Seam["execute_tool name async<br/>Regulation span outcome record"]
     R2 --> Seam
     R3 --> Seam
     R4 --> Seam
@@ -185,13 +185,13 @@ export HKASK_FERMI_DEFAULTS='{"growth":[{"estimate":0.70,"confidence":0.8}],"mar
 - **Governance is at the dispatcher membrane.** OCAP is enforced by the `GovernedTool` membrane in `crates/hkask-mcp/src/dispatch.rs`, which verifies a `DelegationToken` per call before the request reaches this server. The companies server is the transport pipe; it does not re-check capabilities per call.
 - **Experience recording is fire-and-forget.** `record_experience` spawns a tokio task that calls `daemon.store_experience` at salience 0.85. A daemon failure is logged at `warn` and does not fail the tool call.
 
-## CNS observability
+## Regulation observability
 
 | Span | When emitted |
 |------|--------------|
-| `cns.tool.companies.<tool>` | Every tool call via `execute_tool` (success and error paths) |
-| `cns.tool.companies.provider.<provider>` | Provider selection and outcome via `providers::emit_provider_cns` |
-| `cns.mcp.companies.memory` | Daemon experience store result (`debug` on success, `warn` on failure) |
+| `reg.tool.companies.<tool>` | Every tool call via `execute_tool` (success and error paths) |
+| `reg.tool.companies.provider.<provider>` | Provider selection and outcome via `providers::emit_provider_cns` |
+| `reg.mcp.companies.memory` | Daemon experience store result (`debug` on success, `warn` on failure) |
 
 ## Quick start
 

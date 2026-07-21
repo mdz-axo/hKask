@@ -8,7 +8,7 @@ LLM access — they are NOT CI gates.
 
 1. hKask installed and initialized (`kask init` completed)
 2. LLM inference configured (`HKASK_INFERENCE_*` env vars or keystore)
-3. CNS MCP server running (`kask mcp start cns` or auto-started)
+3. Regulation MCP server running (`kask mcp start cns` or auto-started)
 4. Working directory: hKask project root
 
 ## Test Fixtures
@@ -35,16 +35,16 @@ kask skill run supply-chain-sentinel --surface cargo --userpod-host test-auditor
 2. `manifest_paths` includes `Cargo.toml` and `Cargo.lock`
 3. `defense_layers_present` includes at least `dependency_pinning` and `sbom_presence`
 4. `userpod_host` is present in all outputs
-5. `cns.supply_chain.*` spans are emitted (check via `cns_query_spans` MCP tool)
+5. `reg.supply_chain.*` spans are emitted (check via `cns_query_spans` MCP tool)
 6. No synthetic findings — every finding references a real `Cargo.toml` line
 
 ### Fixture 2: Runtime Posture Monitor (runtime-posture-monitor)
 
-**Setup:** Requires a running hKask instance with CNS telemetry.
+**Setup:** Requires a running hKask instance with Regulation telemetry.
 
 **Procedure:**
 ```bash
-# 1. Generate some CNS telemetry (run any kask command that emits spans)
+# 1. Generate some Regulation telemetry (run any kask command that emits spans)
 kask skill audit  # emits hkask.* performative spans
 
 # 2. Run the runtime-posture-monitor skill
@@ -52,16 +52,16 @@ kask skill run runtime-posture-monitor --signal all --userpod-host test-monitor
 ```
 
 **Expected output:**
-- `select-signal` phase: discovers `hkask.*` and `cns.*` span sources
+- `select-signal` phase: discovers `hkask.*` and `reg.*` span sources
 - `classify-threat` phase: classifies observed signals (may find zero threats if baseline is clean)
 - `emit-regulation` phase: proposes `surface: runtime` regression entries (if any threats)
 - `convergence-check` phase: computes convergence metric
 
 **Validation:**
 1. The skill produces JSON output (not an error)
-2. `signal_sources` includes at least one `cns.*` or `hkask.*` target
+2. `signal_sources` includes at least one `reg.*` or `hkask.*` target
 3. `userpod_host` is present in all outputs
-4. `cns.runtime.*` spans are emitted (check via `cns_query_spans` MCP tool)
+4. `reg.runtime.*` spans are emitted (check via `cns_query_spans` MCP tool)
 5. No synthetic signals — every finding references a real span target + timestamp
 
 ### Fixture 3: Attack Taxonomy Mapper (attack-taxonomy-mapper)
@@ -87,7 +87,7 @@ kask skill run attack-taxonomy-mapper --source all --userpod-host test-mapper
 3. Each mapping includes `osc_r_tactic` and `osc_r_technique` (verified names)
 4. No invented OSC&R categories — all mapped to existing entries in `github.com/pbom-dev/OSCAR`
 5. `userpod_host` is present in all outputs
-6. `cns.taxonomy.*` spans are emitted (check via `cns_query_spans` MCP tool)
+6. `reg.taxonomy.*` spans are emitted (check via `cns_query_spans` MCP tool)
 
 ### Fixture 4: Kali Audit (kali-audit)
 
@@ -142,12 +142,12 @@ kask skill run attack-taxonomy-mapper --source all --userpod-host smoke-test
 kask skill run kali-audit --surface code --userpod-host smoke-test
 ```
 
-Check CNS span emissions:
+Check Regulation span emissions:
 ```bash
-# Query CNS spans emitted by the smoke tests
-kask mcp call cns cns_query_spans '{"namespace": "cns.supply_chain", "since_hours": 1.0, "limit": 50}'
-kask mcp call cns cns_query_spans '{"namespace": "cns.runtime", "since_hours": 1.0, "limit": 50}'
-kask mcp call cns cns_query_spans '{"namespace": "cns.taxonomy", "since_hours": 1.0, "limit": 50}'
+# Query Regulation spans emitted by the smoke tests
+kask mcp call cns cns_query_spans '{"namespace": "reg.supply_chain", "since_hours": 1.0, "limit": 50}'
+kask mcp call cns cns_query_spans '{"namespace": "reg.runtime", "since_hours": 1.0, "limit": 50}'
+kask mcp call cns cns_query_spans '{"namespace": "reg.taxonomy", "since_hours": 1.0, "limit": 50}'
 ```
 
 ## What the Smoke Tests Catch
@@ -161,7 +161,7 @@ cannot:
    or hallucinate findings
 3. **Pipeline data flow** — the agent might not correctly pass outputs from
    one phase to the next
-4. **CNS span emission** — the agent might not emit the expected spans
+4. **Regulation span emission** — the agent might not emit the expected spans
 5. **MCP tool integration** — the skill might not correctly use MCP tools
    (e.g., `cns_query_spans` for runtime-posture-monitor)
 

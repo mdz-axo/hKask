@@ -77,7 +77,7 @@ The MCP server binary (e.g. `hkask-mcp-filesystem`) does **not** re-check capabi
 
 The command string is not confined to `project_root`; only `cwd` is. This is **consistent with OCAP, not a violation of it**: a capability token grants the *authority* to run a shell; the holder of that capability is the trusted actor who exercises it. The safeguard is not command-string filtering at the tool — it is **consent-gated capability granting** (Magna Carta P2, Affirmative Consent). The right follow-up is therefore a *policy* question (when is `shell_exec` capability granted, and to whom), not a code change to `shell_exec`. The filesystem reference page is updated to state this precisely so the "OCAP-governed" label is not mistaken for "command-string-confined."
 
-## 3. Q3 — Are operation-level CNS spans consumed, or dead signal?
+## 3. Q3 — Are operation-level Regulation spans consumed, or dead signal?
 
 **Verdict: tracing-only; not dead, but not a regulation input. Keep, and document accurately.**
 
@@ -90,10 +90,10 @@ No code path reads the operation verb for regulation. The two emission paths are
 
 | Path | Mechanism | Consumed by |
 |------|-----------|-------------|
-| Framework `execute_tool` | `ToolSpanGuard` → `tracing::info!(target:"cns.tool", …)` **+** `record_via_daemon` (semantic memory) | tracing logs **and** the daemon (regulation/memory) |
+| Framework `execute_tool` | `ToolSpanGuard` → `tracing::info!(target:"reg.tool", …)` **+** `record_via_daemon` (semantic memory) | tracing logs **and** the daemon (regulation/memory) |
 | Server `emit_cns` | `RegulationSpan::Tool{Filesystem}.emit(verb)` → `tracing::info!` | tracing logs only |
 
-So `emit_cns` adds operation-verb granularity to the **tracing substrate** (humans, log aggregators) but does not feed programmatic CNS regulation. The framework span already records outcome (`ok`/`error`) and feeds the daemon. Conclusion: the dual emission is intentional tracing granularity, not cruft — but it is *not* a regulation signal. This validates the earlier essentialist call ("do not delete `emit_cns` without evidence of disuse") and sharpens the documentation: the filesystem reference page now states operation spans are success-path tracing events, while the framework span is the regulation/memory path.
+So `emit_cns` adds operation-verb granularity to the **tracing substrate** (humans, log aggregators) but does not feed programmatic Regulation regulation. The framework span already records outcome (`ok`/`error`) and feeds the daemon. Conclusion: the dual emission is intentional tracing granularity, not cruft — but it is *not* a regulation signal. This validates the earlier essentialist call ("do not delete `emit_cns` without evidence of disuse") and sharpens the documentation: the filesystem reference page now states operation spans are success-path tracing events, while the framework span is the regulation/memory path.
 
 ## 4. Q4 — Does the TOCTOU in `sandbox_path` matter under multi-agent use?
 
@@ -119,7 +119,7 @@ No in-repo consumer breaks. External agent clients read these fields flexibly. R
 |-----------|------------|----------|
 | Q1 fleet audit | Finding recorded + testing standard added | this doc; [`reference/mcp-servers/README.md`](../reference/mcp-servers/README.md) §Common Patterns |
 | Q2 OCAP threat model | Sharpened: membrane-gated, local-stdio-only, command trusted to capability holder | [`reference/mcp-servers/filesystem.md`](../reference/mcp-servers/filesystem.md) §Security model |
-| Q3 CNS consumption | Sharpened: operation spans are tracing-only; framework span is the regulation path | [`reference/mcp-servers/filesystem.md`](../reference/mcp-servers/filesystem.md) §Security model notes |
+| Q3 Regulation consumption | Sharpened: operation spans are tracing-only; framework span is the regulation path | [`reference/mcp-servers/filesystem.md`](../reference/mcp-servers/filesystem.md) §Security model notes |
 | Q4 TOCTOU | Sharpened to "single trusting workspace" framing | [`reference/mcp-servers/filesystem.md`](../reference/mcp-servers/filesystem.md) §Security model notes |
 | Q5 wire shape | No in-repo consumers; recorded here | this doc |
 
@@ -133,4 +133,4 @@ No in-repo consumer breaks. External agent clients read these fields flexibly. R
 
 - [Filesystem Server Reference](../reference/mcp-servers/filesystem.md) — sandbox model, security model notes, DIAG-RF-003
 - [MCP Server Registry](../reference/mcp-servers/README.md) — 15 servers, common patterns, testing standard
-- [CNS Span Registry](../reference/cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`
+- [Regulation Span Registry](../reference/cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`

@@ -11,7 +11,7 @@ last-verified-against: "3d1a876f"
 
 # Getting Started with hKask
 
-**Purpose:** Take a new developer from zero to a working `kask` session in under 15 minutes. By the end, you will have compiled hKask, created a user profile, run a chat session, invoked a skill, and inspected CNS health.
+**Purpose:** Take a new developer from zero to a working `kask` session in under 15 minutes. By the end, you will have compiled hKask, created a user profile, run a chat session, invoked a skill, and inspected Regulation health.
 
 **Prerequisites:** Rust toolchain (stable, edition 2024), git, a terminal.
 
@@ -43,7 +43,7 @@ Expected: `kask 0.31.0`
 ./target/release/kask health
 ```
 
-This checks: database backend (SQLite/SQLCipher by default), keystore availability, CNS runtime health, and MCP server registrations (15 built-in servers).
+This checks: database backend (SQLite/SQLCipher by default), keystore availability, Regulation runtime health, and MCP server registrations (15 built-in servers).
 
 ---
 
@@ -160,7 +160,7 @@ The skill plans compression, compresses, checks against its convergence threshol
 
 ---
 
-## 8. Read CNS Health
+## 8. Read Regulation Health
 
 ```bash
 ./target/release/kask cns status
@@ -170,13 +170,13 @@ Displays: set points (target thresholds), current values, algedonic alerts (crit
 
 ---
 
-## 9. View CNS Spans
+## 9. View Regulation Spans
 
 ```bash
 ./target/release/kask cns alerts
 ```
 
-Each span has a namespace (`cns.tool.reserved`, `cns.inference.completed`, `cns.guard.violation`), timestamp, and domain-specific payload.
+Each span has a namespace (`reg.tool.reserved`, `reg.inference.completed`, `reg.guard.violation`), timestamp, and domain-specific payload.
 
 ---
 
@@ -189,7 +189,7 @@ Each span has a namespace (`cns.tool.reserved`, `cns.inference.completed`, `cns.
 | `/skills` | List available skills |
 | `/skill <name>` | Invoke a skill |
 | `/memory recall <query>` | Search episodic memory |
-| `/cns` | Show CNS health in-chat |
+| `/cns` | Show Regulation health in-chat |
 | `/model <name>` | Switch inference model |
 | `/condense` | Compress conversation context |
 | `/clear` | Clear conversation history |
@@ -199,8 +199,8 @@ Each span has a namespace (`cns.tool.reserved`, `cns.inference.completed`, `cns.
 ## 11. Next Steps
 
 - **How-To Guides:** [Create an agent pod](../how-to/agents-and-pods.md), [Design a skill](../how-to/skills-and-composition.md), [Bootstrap an MCP server](../how-to/skills-and-composition.md)
-- **Reference:** [Crate API reference](../reference/api-reference.md), [Skill registry](../reference/skills/README.md), [CNS span registry](../reference/cns-spans.md)
-- **Explanation:** [CNS homeostatic loop](../explanation/cns-and-loops.md), [Hexagonal ports](../explanation/architecture-patterns.md), [OCAP dispatch](../explanation/sovereignty-and-ocap.md)
+- **Reference:** [Crate API reference](../reference/api-reference.md), [Skill registry](../reference/skills/README.md), [Regulation span registry](../reference/cns-spans.md)
+- **Explanation:** [Regulation homeostatic loop](../explanation/cns-and-loops.md), [Hexagonal ports](../explanation/architecture-patterns.md), [OCAP dispatch](../explanation/sovereignty-and-ocap.md)
 
 ---
 

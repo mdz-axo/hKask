@@ -1,5 +1,5 @@
 ---
-title: "CNS and Loops — Homeostatic Regulation, PDCA Skills, Curator Metacognition, Bug Hunting, QA"
+title: "Regulation and Loops — Homeostatic Regulation, PDCA Skills, Curator Metacognition, Bug Hunting, QA"
 audience: [architects, developers, operators]
 last_updated: 2026-07-12
 version: "0.31.0"
@@ -8,21 +8,21 @@ domain: "Core"
 mds_categories: [domain, composition, lifecycle, curation]
 ---
 
-# CNS and Loops
+# Regulation and Loops
 
-This document consolidates the cybernetic regulation architecture of hKask: the CNS homeostatic loop, the skill PDCA model, the Curator metacognition layer, the bug-hunting observability methodology, and the QA system that operationalizes observability for automated testing. These five topics share a single theme — feedback loops that sense, compare, compute, act, and verify — and are documented together because they form a single regulatory stack from template-level PDCA to system-level cybernetic control.
+This document consolidates the cybernetic regulation architecture of hKask: the Regulation homeostatic loop, the skill PDCA model, the Curator metacognition layer, the bug-hunting observability methodology, and the QA system that operationalizes observability for automated testing. These five topics share a single theme — feedback loops that sense, compare, compute, act, and verify — and are documented together because they form a single regulatory stack from template-level PDCA to system-level cybernetic control.
 
 ---
 
-## 1. CNS Homeostatic Loop
+## 1. Regulation Homeostatic Loop
 
 ### Statement
 
-The CNS (Cybernetic Nervous System) is the component of hKask that other documentation calls "the monitoring system." That label is wrong, and the misconception matters. The CNS is not a monitoring system — it is a **regulatory system**. A monitoring system observes and alerts. A regulatory system senses, compares, computes, acts, and verifies. The CNS does all five.
+The Regulation (Cybernetic Nervous System) is the component of hKask that other documentation calls "the monitoring system." That label is wrong, and the misconception matters. The Regulation is not a monitoring system — it is a **regulatory system**. A monitoring system observes and alerts. A regulatory system senses, compares, computes, acts, and verifies. The Regulation does all five.
 
 ### Evidence
 
-The CNS is a closed-loop controller implemented as a cybernetic feedback loop. Its core type is `CyberneticsLoop` (`crates/hkask-cns/src/cybernetics_loop.rs`), which implements the `RegulationLoop` trait (`crates/hkask-cns/src/types/loops/loop_trait.rs`). The `RegulationLoop` trait defines a five-phase cycle:
+The Regulation is a closed-loop controller implemented as a cybernetic feedback loop. Its core type is `CyberneticsLoop` (`crates/hkask-regulation/src/cybernetics_loop.rs`), which implements the `RegulationLoop` trait (`crates/hkask-regulation/src/types/loops/loop_trait.rs`). The `RegulationLoop` trait defines a five-phase cycle:
 
 ```
 sense → compare → compute → act → verify_impact
@@ -40,7 +40,7 @@ async fn tick(&self) {
 }
 ```
 
-Each phase is a separate async method, making the regulatory pipeline explicit rather than buried in reactive callbacks. The cycle is triggered by `Scheduled` ticks, `AlertDriven` events, `Manual` directives, or `EventDriven` ν-events — provenance is tracked via `TriggerOrigin` so the CNS can correlate trigger type with regulatory effectiveness.
+Each phase is a separate async method, making the regulatory pipeline explicit rather than buried in reactive callbacks. The cycle is triggered by `Scheduled` ticks, `AlertDriven` events, `Manual` directives, or `EventDriven` ν-events — provenance is tracked via `TriggerOrigin` so the Regulation can correlate trigger type with regulatory effectiveness.
 
 #### The Sense-Act-Observe Cycle
 
@@ -69,27 +69,27 @@ The **act** phase dispatches these actions to their target loops, and **verify_i
 
 #### Set Points as Homeostatic Targets
 
-`SetPoints` (`crates/hkask-cns/src/set_points.rs:139`) is the homeostatic reference model. It defines 25 configurable thresholds across four categories:
+`SetPoints` (`crates/hkask-regulation/src/set_points.rs:139`) is the homeostatic reference model. It defines 25 configurable thresholds across four categories:
 
 **Resource set-points:** `gas_min_remaining` (default 0.2), `variety_max_deficit` (100), `error_rate_max` (0.3), `connector_latency_max_secs` (30.0), `communication_backpressure_threshold`.
 
-**Outcome set-points:** `outcome_warning_threshold` (0.50), `outcome_critical_threshold` (0.25) — when the success rate of regulatory actions drops below these thresholds, the CNS escalates.
+**Outcome set-points:** `outcome_warning_threshold` (0.50), `outcome_critical_threshold` (0.25) — when the success rate of regulatory actions drops below these thresholds, the Regulation escalates.
 
 **Regulation set-points:** `max_iterations` (100) prevents unbounded cascading, `stagnation_thresholds` detect regulatory plateaus (Fermi-inspired early-stopping pattern), `stage_worsening_ratio` (0.05) and `block_worsening_ratio` (0.20) control the three-tier decision gate.
 
-**Consent and guard set-points:** `inference_throttle_mode` controls how throttling decisions are made — `Off` (user manages manually), `Autonomous` (CNS throttles directly, pre-authorized by P2 consent), or `CuratorMediated` (escalate to Curator with fallback timeout). `guard_violation_rate_max` (0.20) triggers when >20% of requests are blocked by content safety.
+**Consent and guard set-points:** `inference_throttle_mode` controls how throttling decisions are made — `Off` (user manages manually), `Autonomous` (Regulation throttles directly, pre-authorized by P2 consent), or `CuratorMediated` (escalate to Curator with fallback timeout). `guard_violation_rate_max` (0.20) triggers when >20% of requests are blocked by content safety.
 
 Set points are loaded from YAML via `SetPointsConfig::load_from_file()` and merged with defaults in `SetPoints::from_config()`. The `validate()` method (`set_points.rs:398`) enforces invariants: `gas_min_remaining` must be in [0, 1], outcome thresholds must not be inverted (warning > critical), `variety_max_deficit` must be positive.
 
-#### Variety Engineering — Why the CNS Exists
+#### Variety Engineering — Why the Regulation Exists
 
-The CNS exists because of Ashby's Law of Requisite Variety: a controller must have at least as much variety as the system it regulates. An unsupervised agent system generates unbounded variety — different models, different prompts, different tools, different error modes, different resource states. Without a controller with matching variety, the system drifts toward entropy.
+The Regulation exists because of Ashby's Law of Requisite Variety: a controller must have at least as much variety as the system it regulates. An unsupervised agent system generates unbounded variety — different models, different prompts, different tools, different error modes, different resource states. Without a controller with matching variety, the system drifts toward entropy.
 
-The CNS maintains a `VarietyMonitor` (`crates/hkask-cns/src/runtime.rs:219`) that counts distinct agent states across domains using an exponential moving average (EMA) with a 60-second window. Each domain (Cybernetics, Curation, Inference, Episodic) has its own `VarietyTracker` with a configurable window. The `variety_deficit` is computed as the gap between expected variety and observed variety — when it exceeds `variety_max_deficit` (default 100), the CNS escalates.
+The Regulation maintains a `VarietyMonitor` (`crates/hkask-regulation/src/runtime.rs:219`) that counts distinct agent states across domains using an exponential moving average (EMA) with a 60-second window. Each domain (Cybernetics, Curation, Inference, Episodic) has its own `VarietyTracker` with a configurable window. The `variety_deficit` is computed as the gap between expected variety and observed variety — when it exceeds `variety_max_deficit` (default 100), the Regulation escalates.
 
 #### Action Types and When Each Fires
 
-The `ActionType` enum (`crates/hkask-types/src/loops/actions.rs:195`, re-exported by `hkask-cns`) defines nine action categories:
+The `ActionType` enum (`crates/hkask-types/src/loops/actions.rs:195`, re-exported by `hkask-regulation`) defines nine action categories:
 
 | ActionType | When it fires | Target |
 |-----------|---------------|--------|
@@ -103,22 +103,22 @@ The `ActionType` enum (`crates/hkask-types/src/loops/actions.rs:195`, re-exporte
 | `Notify` | Positive health signals (seam coverage improved, predictive approach warning) | `Curation` |
 | `Prune` | Disk space management (StorageGuard Loop 7) | Storage |
 
-The capability hierarchy is deliberate: `AdjustEnergyBudget` and `OverrideEnergyBudget` are distinct because Cybernetics can adjust within its set-point range, but only Curation can override set-points themselves. `ReplenishBudget` is exclusively a Curator capability — the CNS cannot create energy, only redistribute it.
+The capability hierarchy is deliberate: `AdjustEnergyBudget` and `OverrideEnergyBudget` are distinct because Cybernetics can adjust within its set-point range, but only Curation can override set-points themselves. `ReplenishBudget` is exclusively a Curator capability — the Regulation cannot create energy, only redistribute it.
 
 #### Algedonic Escalation
 
-"Algedonic" (from Greek *algos*, pain, and *hedone*, pleasure) describes the mechanism by which the CNS communicates threat levels to the Curator. The `AlgedonicManager` (`crates/hkask-cns/src/algedonic.rs`) classifies alerts by severity:
+"Algedonic" (from Greek *algos*, pain, and *hedone*, pleasure) describes the mechanism by which the Regulation communicates threat levels to the Curator. The `AlgedonicManager` (`crates/hkask-regulation/src/algedonic.rs`) classifies alerts by severity:
 
 - **Info:** Positive signals (`Notify` actions, seam coverage improvements)
 - **Warning:** Deviations that are correctable autonomously (energy below 20% but above 0%, variety deficit elevated but below critical, tool reliability degraded)
 - **Critical:** Deviations requiring Curator intervention (energy at 0%, error rate catastrophic, key completely exhausted, seam coverage drops >5pp)
-- **Fatal:** System-level failures requiring human intervention (the CNS itself is unstable)
+- **Fatal:** System-level failures requiring human intervention (the Regulation itself is unstable)
 
 The escalation pathway is not just a log line. `Critical` alerts flow through `alerts_tx` (`cybernetics_loop.rs:79`) as `CurationInput` messages to the `CurationLoop`. The Curator's metacognition layer (`crates/hkask-agents/src/curator_agent/metacognition.rs`) receives these as structured problem statements — not raw metrics, but curated alerts with context, options, and fallback behaviors.
 
-When the CNS cannot self-correct — when `verify_impact` returns `Block` decisions for repeated actions, or when the `StagnationDetector` (`cybernetics_loop.rs:93`) detects a regulatory plateau — the escalation moves upward: from Cybernetic self-regulation to Curator metacognitive override, and from Curator to human operator if the Curator cannot resolve the issue within its authority bounds.
+When the Regulation cannot self-correct — when `verify_impact` returns `Block` decisions for repeated actions, or when the `StagnationDetector` (`cybernetics_loop.rs:93`) detects a regulatory plateau — the escalation moves upward: from Cybernetic self-regulation to Curator metacognitive override, and from Curator to human operator if the Curator cannot resolve the issue within its authority bounds.
 
-This is the two-level meta-loop stability guarantee: the CNS stabilizes the domain loops (Inference, Episodic, Semantic); the Curation loop stabilizes the CNS. The CNS may NOT regulate the Curation loop — the authority DAG flows downward, never upward.
+This is the two-level meta-loop stability guarantee: the Regulation stabilizes the domain loops (Inference, Episodic, Semantic); the Curation loop stabilizes the Regulation. The Regulation may NOT regulate the Curation loop — the authority DAG flows downward, never upward.
 
 ### Diagram
 
@@ -141,15 +141,15 @@ flowchart TD
     VERIFY -->|"Block / Stagnation"| ALG
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-001
+id: DIAG-Regulation-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The CNS is not a log aggregator or a metrics dashboard. It is a closed-loop controller with the authority to change system behavior — throttling inference, opening circuit breakers, adjusting energy budgets, and escalating to the Curator. The `verify_impact` phase is the meta-feedback loop that prevents the CNS from repeating ineffective actions: when an action is `Block`ed, the substitution ladder tries alternatives, and when all alternatives are exhausted, the plateau escalates to Curation. This is cybernetic regulation in the Conant-Ashby sense — the regulator contains a model of the system (SetPoints, SLOs, ToolStats), compares observations against that model, and acts to close the gap.
+The Regulation is not a log aggregator or a metrics dashboard. It is a closed-loop controller with the authority to change system behavior — throttling inference, opening circuit breakers, adjusting energy budgets, and escalating to the Curator. The `verify_impact` phase is the meta-feedback loop that prevents the Regulation from repeating ineffective actions: when an action is `Block`ed, the substitution ladder tries alternatives, and when all alternatives are exhausted, the plateau escalates to Curation. This is cybernetic regulation in the Conant-Ashby sense — the regulator contains a model of the system (SetPoints, SLOs, ToolStats), compares observations against that model, and acts to close the gap.
 
 ---
 
@@ -211,11 +211,11 @@ The `ManifestExecutor` (`crates/hkask-templates/src/executor.rs`) implements the
 3. **Check** — after each iteration, `check_convergence()` reads the quality field from context (resolving dot-paths like `"_convergence.quality_at_exit"`), checks against threshold and improvement ratio, and determines whether all convergence conditions are met. For compound skills with multiple sources, `compute_compound_quality()` aggregates across sources using the configured aggregation method.
 4. **Act** — if converged, exits with success via `finalize_convergence_report()`. If max iterations reached without convergence, acts per `on_not_reached` — either `abort` (exit with available result) or `escalate` (exit with error for Curator review).
 
-The loop respects gas budgets: `gas_cap` is the total compute cycle allocation, and `gas_cost_per_iteration` is deducted each pass. When gas reaches the `alert_threshold`, a CNS alert fires; when exhausted under `hard_limit`, the loop terminates. Dual currency tracking extends to rJoules: `rjoule_cap` bounds inference energy, and `rjoule_alert_threshold` governs warnings. Tokens consumed by inference calls are tracked via the provider's per-token cost.
+The loop respects gas budgets: `gas_cap` is the total compute cycle allocation, and `gas_cost_per_iteration` is deducted each pass. When gas reaches the `alert_threshold`, a Regulation alert fires; when exhausted under `hard_limit`, the loop terminates. Dual currency tracking extends to rJoules: `rjoule_cap` bounds inference energy, and `rjoule_alert_threshold` governs warnings. Tokens consumed by inference calls are tracked via the provider's per-token cost.
 
-#### RegulatoryAction: The CNS Analog
+#### RegulatoryAction: The Regulation Analog
 
-While skills execute PDCA at the template level, CNS loops execute PDCA at the regulatory level. The `Loop` trait (`crates/hkask-cns/src/types/loops/loop_trait.rs`) defines the same sense→compare→compute→act→verify cycle, but for system regulation rather than skill execution:
+While skills execute PDCA at the template level, Regulation loops execute PDCA at the regulatory level. The `Loop` trait (`crates/hkask-regulation/src/types/loops/loop_trait.rs`) defines the same sense→compare→compute→act→verify cycle, but for system regulation rather than skill execution:
 
 ```rust
 pub trait Loop: Send + Sync {
@@ -228,7 +228,7 @@ pub trait Loop: Send + Sync {
 }
 ```
 
-Nine `ActionType` variants (`crates/hkask-types/src/loops/actions.rs`) define what a regulatory loop can do: `Throttle`, `Escalate`, `Calibrate`, `CircuitBreak`, `AdjustEnergyBudget`, `OverrideEnergyBudget`, `ReplenishBudget`, `Notify`, `Prune`. The distinction between `AdjustEnergyBudget` (Cybernetics can adjust within set-point bounds) and `OverrideEnergyBudget` (only Curation can exceed set-points) reflects the authority hierarchy in the CNS DAG.
+Nine `ActionType` variants (`crates/hkask-types/src/loops/actions.rs`) define what a regulatory loop can do: `Throttle`, `Escalate`, `Calibrate`, `CircuitBreak`, `AdjustEnergyBudget`, `OverrideEnergyBudget`, `ReplenishBudget`, `Notify`, `Prune`. The distinction between `AdjustEnergyBudget` (Cybernetics can adjust within set-point bounds) and `OverrideEnergyBudget` (only Curation can exceed set-points) reflects the authority hierarchy in the Regulation DAG.
 
 `LoopMetrics` measures the loop's own performance — `delay_ms`, `gain` (actions per deviation), `fidelity_score` (deviations matched to actions), and `effectiveness_score` (ratio of Accepted impact reports). These telemetry metrics close the meta-feedback loop: is the regulator itself regulating effectively?
 
@@ -250,7 +250,7 @@ flowchart TD
         C -->|"converged or\nmax iterations"| A
     end
 
-    subgraph CNSLevel["CNS PDCA (regulatory level)"]
+    subgraph CNSLevel["Regulation PDCA (regulatory level)"]
         S2["sense"]
         C2["compare"]
         CO2["compute"]
@@ -263,15 +263,15 @@ flowchart TD
     A -->|"escalate"| S2
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-002
+id: DIAG-Regulation-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The two-layer PDCA structure means that hKask has regulation at every scale. At the template level, skills iterate toward convergence with gas-bounded autonomy. At the system level, the CNS regulates the conditions under which skills run. A skill that cannot converge escalates to the Curator; the Curator's regulation of the CNS ensures that skills have the resources (gas, working tools, stable inference) to converge. This is the cybernetic stack: the skill loop is embedded in the CNS loop, and the CNS loop is embedded in the Curation loop. Each level has its own convergence criteria, its own gas budget, and its own escalation pathway.
+The two-layer PDCA structure means that hKask has regulation at every scale. At the template level, skills iterate toward convergence with gas-bounded autonomy. At the system level, the Regulation regulates the conditions under which skills run. A skill that cannot converge escalates to the Curator; the Curator's regulation of the Regulation ensures that skills have the resources (gas, working tools, stable inference) to converge. This is the cybernetic stack: the skill loop is embedded in the Regulation loop, and the Regulation loop is embedded in the Curation loop. Each level has its own convergence criteria, its own gas budget, and its own escalation pathway.
 
 ---
 
@@ -279,7 +279,7 @@ The two-layer PDCA structure means that hKask has regulation at every scale. At 
 
 ### Statement
 
-The Curator is hKask's metacognitive layer — "thinking about thinking." Where the CNS (`CyberneticsLoop`) is the autonomic nervous system — fast, reactive, homeostatic — the Curator is the deliberative cortex. It observes the CNS observing the system, evaluates whether regulation is effective, and intervenes when autonomic responses are not enough. This design exists because cybernetic regulation has a fundamental limitation: a purely reactive system can correct deviations but cannot learn from them. It cannot ask "is our regulation strategy working?" or "should we change how we regulate?" The Curator provides that second-order capability.
+The Curator is hKask's metacognitive layer — "thinking about thinking." Where the Regulation (`CyberneticsLoop`) is the autonomic nervous system — fast, reactive, homeostatic — the Curator is the deliberative cortex. It observes the Regulation observing the system, evaluates whether regulation is effective, and intervenes when autonomic responses are not enough. This design exists because cybernetic regulation has a fundamental limitation: a purely reactive system can correct deviations but cannot learn from them. It cannot ask "is our regulation strategy working?" or "should we change how we regulate?" The Curator provides that second-order capability.
 
 ### Evidence
 
@@ -298,13 +298,13 @@ The separation between `CurationLoop` (pure regulatory, no persona) and `Metacog
 
 The Curator's core cycle is the `RegulationLoop` trait implementation on `CurationLoop` at `crates/hkask-agents/src/curator/curation_loop.rs:332`. Its phases:
 
-1. **Sense**: Reads algedonic-significant `RegulationRecord`s from the persistent store using cursor-based review. `last_review_ms` tracks the cursor position; each `sense()` call advances it. Falls back to live CNS reads if no RegulationRecord store is configured.
+1. **Sense**: Reads algedonic-significant `RegulationRecord`s from the persistent store using cursor-based review. `last_review_ms` tracks the cursor position; each `sense()` call advances it. Falls back to live Regulation reads if no RegulationRecord store is configured.
 
 2. **Compute**: Maps deviations to regulatory actions. Handles independent consolidation via `try_auto_consolidate()`, called from `act()`.
 
 3. **Act**: Issues directives through `CuratorContext` with DAMPEN filtering — repeated identical directives within `dampen_window_secs` (default 60s) are suppressed, preventing directive storms.
 
-The `MetacognitionLoop::sense()` at `crates/hkask-agents/src/curator_agent/metacognition/hloop_impl.rs:27` reads CNS health, variety counters, alerts, and regulation effectiveness. It builds a `HealthSnapshot` (defined in `config.rs:21`) with:
+The `MetacognitionLoop::sense()` at `crates/hkask-agents/src/curator_agent/metacognition/hloop_impl.rs:27` reads Regulation health, variety counters, alerts, and regulation effectiveness. It builds a `HealthSnapshot` (defined in `config.rs:21`) with:
 
 - `variety_counters: HashMap<SpanNamespace, u64>` — full variety state per domain
 - `variety_deficit: u64` — total deficit across all domains
@@ -321,7 +321,7 @@ The `CuratorSync` polling loop opens source pods read-only, inserts Public hMems
 
 #### Escalation Handling
 
-When the CNS cannot self-correct, the Curator steps in. `EscalationPolicy::check_conditions()` at `crates/hkask-agents/src/curator_agent/metacognition/escalation.rs:80` evaluates three triggers:
+When the Regulation cannot self-correct, the Curator steps in. `EscalationPolicy::check_conditions()` at `crates/hkask-agents/src/curator_agent/metacognition/escalation.rs:80` evaluates three triggers:
 
 - **VarietyDeficit**: Critical if deficit > threshold, Warning if > threshold/2
 - **CriticalAlerts**: Critical if alert count ≥ threshold
@@ -335,7 +335,7 @@ The Curator never bypasses OCAP. Every directive is issued through `CuratorConte
 
 The `verify_impact` phase of the `CyberneticsLoop` produces `ImpactReport` with `ActionDecision::Accept | Stage | Block`. `HealthSnapshot.regulation_effectiveness` at `config.rs:31` tracks the ratio of accepted actions — 1.0 means all regulatory actions were effective, 0.0 means all were blocked or staged.
 
-`StagnationDetector` at `crates/hkask-cns/src/cybernetics_loop.rs:93` tracks repeated ineffectiveness: when the same (metric, action_type) pair fails for `stagnation_threshold` cycles (default 5), it triggers `RegulatoryPlateauDetected` — an escalation to the Curator. Before plateau, substitution ladders are tried: `substitution_after` (default 2 cycles) activates the next action in the ladder. If all alternatives are exhausted, the plateau escalates to Curation.
+`StagnationDetector` at `crates/hkask-regulation/src/cybernetics_loop.rs:93` tracks repeated ineffectiveness: when the same (metric, action_type) pair fails for `stagnation_threshold` cycles (default 5), it triggers `RegulatoryPlateauDetected` — an escalation to the Curator. Before plateau, substitution ladders are tried: `substitution_after` (default 2 cycles) activates the next action in the ladder. If all alternatives are exhausted, the plateau escalates to Curation.
 
 #### The CAT Communication Posture
 
@@ -347,13 +347,13 @@ Before the CAT gate, `condenser/condenser_score_saliency` scores message relevan
 
 The Curator cannot override P1–P4. This is a first-order architectural invariant. `CuratorContext::issue_directive()` verifies capability before every directive. The Curator operates within `SovereigntyChecker` boundaries — it can only access data categories with explicit consent. It is bound by the same OCAP membranes as every other agent.
 
-The Curator's role is enforcer, not sovereign. It detects Magna Carta violations (`consent_anomaly`, `governance_report` spans), alerts the user, and recommends remediation — but the user decides. The `cns.sovereignty.consent_audited` span records consent audits; the Curator can verify that consent is in place but cannot grant, revoke, or override it.
+The Curator's role is enforcer, not sovereign. It detects Magna Carta violations (`consent_anomaly`, `governance_report` spans), alerts the user, and recommends remediation — but the user decides. The `reg.sovereignty.consent_audited` span records consent audits; the Curator can verify that consent is in place but cannot grant, revoke, or override it.
 
 ### Diagram
 
 ```mermaid
 flowchart TD
-    CNS["CyberneticsLoop\n(autonomic, fast)"]
+    Regulation["CyberneticsLoop\n(autonomic, fast)"]
     ALG["AlgedonicManager\nalerts"]
     CL["CurationLoop\n(pure regulatory)"]
     ML["MetacognitionLoop\n(persona, template-driven)"]
@@ -361,25 +361,25 @@ flowchart TD
     DIR["CuratorDirective\nOverrideEnergyBudget\nCalibrateThreshold"]
     CTX["CuratorContext\nOCAP-gated"]
 
-    CNS -->|"critical alerts"| ALG
+    Regulation -->|"critical alerts"| ALG
     ALG --> CL
     CL --> ML
     ML -->|"builds"| HS
     ML -->|"issues"| DIR
     DIR --> CTX
-    CTX -->|"CalibrateThreshold"| CNS
-    CTX -->|"OverrideEnergyBudget"| CNS
+    CTX -->|"CalibrateThreshold"| Regulation
+    CTX -->|"OverrideEnergyBudget"| Regulation
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-003
+id: DIAG-Regulation-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The Curator's two-loop architecture (CurationLoop + MetacognitionLoop) means that regulation and reasoning are separable. The CurationLoop can run without the MetacognitionLoop — it still processes algedonic signals and issues directives. The MetacognitionLoop adds the persona layer: LLM-driven assessment of whether the CNS's regulation strategy is working, and calibrated recommendations for changing it. This separation means that the Curator can be tested in two modes: pure regulatory (CurationLoop only) and full metacognitive (both loops). The `regulation_effectiveness` metric closes the meta-feedback loop — the Curator observes whether its directives are actually improving regulation, not just whether they are being issued.
+The Curator's two-loop architecture (CurationLoop + MetacognitionLoop) means that regulation and reasoning are separable. The CurationLoop can run without the MetacognitionLoop — it still processes algedonic signals and issues directives. The MetacognitionLoop adds the persona layer: LLM-driven assessment of whether the Regulation's regulation strategy is working, and calibrated recommendations for changing it. This separation means that the Curator can be tested in two modes: pure regulatory (CurationLoop only) and full metacognitive (both loops). The `regulation_effectiveness` metric closes the meta-feedback loop — the Curator observes whether its directives are actually improving regulation, not just whether they are being issued.
 
 ---
 
@@ -387,7 +387,7 @@ The Curator's two-loop architecture (CurationLoop + MetacognitionLoop) means tha
 
 ### Statement
 
-Bug hunting in hKask is not ad-hoc debugging. It is a structured expedition methodology grounded in Weinberg's quality definition ("value to some person who matters"), Beizer's bug taxonomy, Bach/Bolton's heuristic test strategy model, and Hendrickson's exploratory testing charters.[^weinberg] The methodology was validated in two real expeditions against `hkask-wallet` (7 findings) and `hkask-cns` (6 findings). Each pattern listed below found actual bugs.
+Bug hunting in hKask is not ad-hoc debugging. It is a structured expedition methodology grounded in Weinberg's quality definition ("value to some person who matters"), Beizer's bug taxonomy, Bach/Bolton's heuristic test strategy model, and Hendrickson's exploratory testing charters.[^weinberg] The methodology was validated in two real expeditions against `hkask-wallet` (7 findings) and `hkask-regulation` (6 findings). Each pattern listed below found actual bugs.
 
 ### Evidence
 
@@ -396,13 +396,13 @@ Bug hunting in hKask is not ad-hoc debugging. It is a structured expedition meth
 Before starting an expedition, the quality criteria must be stated explicitly — whose values are at stake. A bug is not an objective property of code. It is a mismatch between behavior and someone's values. Example quality criteria from real expeditions:
 
 - Wallet expedition: "All wallet operations preserve financial invariants — no double-spend, no negative balances, all deposits credited, all withdrawals debited correctly, encumbrance conservation."
-- CNS expedition: "No silent budget overruns, no undetected alert failures, correct hold-settle enforcement."
+- Regulation expedition: "No silent budget overruns, no undetected alert failures, correct hold-settle enforcement."
 
 #### Beizer's Taxonomy
 
 Every bug fits into one of eight categories. This guides where to look:
 
-| Category | What to hunt for | Wallet example | CNS example |
+| Category | What to hunt for | Wallet example | Regulation example |
 |----------|-----------------|---------------|-------------|
 | **requirements** | Missing or wrong specification | — | — |
 | **structural** | Control flow, data flow, ownership errors | — | — |
@@ -509,15 +509,15 @@ flowchart LR
     CHARTER --> PROBE --> ORACLE --> TAX --> REPORT
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-004
+id: DIAG-Regulation-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The bug-hunting methodology is itself a feedback loop — the same sense→compare→compute→act→verify cycle as the CNS, applied to code quality. The charter defines the set-points (quality criteria); the probe is the sense phase; the oracle is compare; the taxonomize+report is compute+act. The methodology is designed to compose with hKask's skill ecosystem: `pragmatic-semantics` classifies findings (IS vs OUGHT), `grill-me` challenges HIGH-confidence verdicts, `diagnose` reproduces POTENTIAL_BUG findings, `essentialist` prunes ineffective probe strategies after the expedition. This is not just a testing checklist — it is a cybernetic testing methodology that treats the codebase as a system to be regulated, not a puzzle to be solved.
+The bug-hunting methodology is itself a feedback loop — the same sense→compare→compute→act→verify cycle as the Regulation, applied to code quality. The charter defines the set-points (quality criteria); the probe is the sense phase; the oracle is compare; the taxonomize+report is compute+act. The methodology is designed to compose with hKask's skill ecosystem: `pragmatic-semantics` classifies findings (IS vs OUGHT), `grill-me` challenges HIGH-confidence verdicts, `diagnose` reproduces POTENTIAL_BUG findings, `essentialist` prunes ineffective probe strategies after the expedition. This is not just a testing checklist — it is a cybernetic testing methodology that treats the codebase as a system to be regulated, not a puzzle to be solved.
 
 ---
 
@@ -525,7 +525,7 @@ The bug-hunting methodology is itself a feedback loop — the same sense→compa
 
 ### Statement
 
-The hKask QA system operationalizes the feedback-loop methodology of bug hunting into automated, YAML-defined test manifests. Each manifest executes `cargo test` commands, optionally classifies failures via an LLM, and routes to terminal states based on branch conditions. The QA system is the CNS's testing analog: it senses test outcomes, compares against expected results, computes a classification, and acts by branching to repair or escalation.
+The hKask QA system operationalizes the feedback-loop methodology of bug hunting into automated, YAML-defined test manifests. Each manifest executes `cargo test` commands, optionally classifies failures via an LLM, and routes to terminal states based on branch conditions. The QA system is the Regulation's testing analog: it senses test outcomes, compares against expected results, computes a classification, and acts by branching to repair or escalation.
 
 ### Evidence
 
@@ -555,7 +555,7 @@ steps:
       medium_confidence: 4
       low_confidence: 5
     default_next: 2
-    cns_span: cns.qa.my_script.classify_step
+    cns_span: reg.qa.my_script.classify_step
 
   - ordinal: 2
     action: run_command
@@ -608,17 +608,17 @@ The `ClassifyResponse` struct expected from the LLM:
 }
 ```
 
-#### CNS Integration
+#### Regulation Integration
 
-QA runs emit CNS spans automatically:
+QA runs emit Regulation spans automatically:
 
 | Span | When Emitted |
 |------|-------------|
-| `cns.qa.repair_attempted` | Script start |
-| `cns.qa.repair_verified` | Successful completion (PASS terminal) |
-| `cns.qa.repair_exhausted` | Failure or error (FAIL/WARN/error) |
+| `reg.qa.repair_attempted` | Script start |
+| `reg.qa.repair_verified` | Successful completion (PASS terminal) |
+| `reg.qa.repair_exhausted` | Failure or error (FAIL/WARN/error) |
 
-Spans include `manifest`, `terminal`, `steps`, `gas` fields. This means QA runs are observable through the same CNS infrastructure as all other system operations — the QA system is not a separate observability stack.
+Spans include `manifest`, `terminal`, `steps`, `gas` fields. This means QA runs are observable through the same Regulation infrastructure as all other system operations — the QA system is not a separate observability stack.
 
 #### Executable Manifests
 
@@ -639,7 +639,7 @@ Classify steps gracefully degrade through `classifier_unavailable` when `DI_API_
 |-----------|-------------------------------|
 | **P4** Clear Boundaries | Gas budgets cap LLM costs; `classifier_unavailable` graceful degradation |
 | **P5** Essentialism | One module (`qa_script.rs`), one public function (`run_script`) |
-| **P8** Semantic Grounding | CNS spans emitted on start/complete/error; classify results carry confidence |
+| **P8** Semantic Grounding | Regulation spans emitted on start/complete/error; classify results carry confidence |
 | **P9** Homeostatic Self-Regulation | Branching adapts to test outcomes; gas enforcement prevents runaway |
 
 ### Diagram
@@ -666,15 +666,15 @@ flowchart TD
     BRANCH -->|"terminal"| REPORT
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-005
+id: DIAG-Regulation-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The QA system is the testing-layer expression of the same PDCA pattern that governs skills and the CNS. A QA manifest is a skill for testing: it has steps, branching, gas budgets, and convergence (terminal states). The LLM classifier adds a cognitive layer — the system does not just detect failures, it diagnoses them, proposes fixes, and routes to repair or escalation based on confidence. The CNS span integration means that QA runs are first-class observability events, visible to the Curator and subject to the same regulation as any other system operation. This closes the testing feedback loop: QA runs produce CNS spans, the CNS observes them, and the Curator can escalate if QA failures indicate systemic quality degradation.
+The QA system is the testing-layer expression of the same PDCA pattern that governs skills and the Regulation. A QA manifest is a skill for testing: it has steps, branching, gas budgets, and convergence (terminal states). The LLM classifier adds a cognitive layer — the system does not just detect failures, it diagnoses them, proposes fixes, and routes to repair or escalation based on confidence. The Regulation span integration means that QA runs are first-class observability events, visible to the Curator and subject to the same regulation as any other system operation. This closes the testing feedback loop: QA runs produce Regulation spans, the Regulation observes them, and the Curator can escalate if QA failures indicate systemic quality degradation.
 
 ---
 
@@ -696,19 +696,19 @@ The QA system is the testing-layer expression of the same PDCA pattern that gove
 
 The following Mermaid diagrams were inlined from the former `docs/diagrams/` directory per DOCUMENTATION_STANDARDS §1.
 
-### CNS Architecture — Responsibility Clusters
+### Regulation Architecture — Responsibility Clusters
 
 *Inlined from `docs/diagrams/class-cns-architecture.md`*
 
 
-# CNS Architecture — Responsibility Clusters and Coupling
+# Regulation Architecture — Responsibility Clusters and Coupling
 
-This class diagram maps the internal structure of `hkask-cns` after the StorageGuard extraction and WalletBudgetPort introduction. The CNS crate previously conflated seven distinct responsibilities; two have been addressed:
+This class diagram maps the internal structure of `hkask-regulation` after the StorageGuard extraction and WalletBudgetPort introduction. The Regulation crate previously conflated seven distinct responsibilities; two have been addressed:
 
 - **StorageGuard** — extracted to `hkask-storage-guard` crate (2026-07-11)
-- **Wallet coupling** — resolved via `WalletBudgetPort` trait in `hkask-ports` (2026-07-11). CNS no longer depends on `hkask-wallet`; it depends on the abstract port.
+- **Wallet coupling** — resolved via `WalletBudgetPort` trait in `hkask-ports` (2026-07-11). Regulation no longer depends on `hkask-wallet`; it depends on the abstract port.
 
-Remaining responsibility clusters still in CNS:
+Remaining responsibility clusters still in Regulation:
 
 1. **Core Regulation** — `CyberneticsLoop`, `RegulationLedger`, `SetPoints`, `Dampener`, `StagnationDetector`
 2. **Energy/Gas** — `GasBudgetManager`, `GasBudget`, `GasCost`, `GasReport`
@@ -717,7 +717,7 @@ Remaining responsibility clusters still in CNS:
 5. **Seam Watching** — `SeamWatcher`, `SeamDrift`, `SeamSummary` (candidate for extraction)
 6. **Spans** — `AcpSpan`, `ClassifySpan`, `ContractSpan`, `InfraSpan`, `QaSpan`, `SloSpan`, `SeamSpan` (candidate for extraction)
 
-See also: [CNS Homeostatic Loop](#cns-homeostatic-loop--mermaid-flowchart) for the sense→compare→compute→act cycle, and [CNS Regulation Pipeline](#cns-regulation-pipeline--5-phase-cybernetic-cycle) for regulation policy dispatch.
+See also: [Regulation Homeostatic Loop](#cns-homeostatic-loop--mermaid-flowchart) for the sense→compare→compute→act cycle, and [Regulation Regulation Pipeline](#cns-regulation-pipeline--5-phase-cybernetic-cycle) for regulation policy dispatch.
 
 ```mermaid
 classDiagram
@@ -828,7 +828,7 @@ classDiagram
     GovernedTool --> ToolStats : reads
     GovernedTool --> CircuitBreaker : uses
 
-    %% Port trait — implemented by hkask-wallet, consumed by CNS
+    %% Port trait — implemented by hkask-wallet, consumed by Regulation
     class WalletBudgetPort {
         <<interface>>
         +gas_to_rjoules(gas) RJoule
@@ -853,9 +853,9 @@ classDiagram
     StorageGuardLoop ..> RegulationLoop : implements (in hkask-storage-guard)
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-006
+id: DIAG-Regulation-006
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -863,12 +863,12 @@ status: VERIFIED
 
 | Edge | Type | Status |
 |------|------|--------|
-| `CyberneticsLoop → WalletBudgetPort` | Port trait (hexagonal) | ✅ Resolved — CNS depends on abstract port, not concrete `WalletManager` |
+| `CyberneticsLoop → WalletBudgetPort` | Port trait (hexagonal) | ✅ Resolved — Regulation depends on abstract port, not concrete `WalletManager` |
 | `WalletBackedBudget → WalletBudgetPort` | Port trait | ✅ Resolved — uses `Arc<dyn WalletBudgetPort>` |
 | `WalletGasCalibrator → WalletBudgetPort` | Port trait | ✅ Resolved — uses `Arc<dyn WalletBudgetPort>` |
 | `StorageGuardLoop` | Extracted | ✅ Resolved — now in `hkask-storage-guard` crate |
-| `SeamWatcher` in CNS | Wrong crate | ⬜ Candidate for extraction — seam observability is not regulation |
-| `SloManager` in CNS | Wrong crate | ⬜ Candidate for extraction — SLO evaluation is independent of the cybernetic loop |
+| `SeamWatcher` in Regulation | Wrong crate | ⬜ Candidate for extraction — seam observability is not regulation |
+| `SloManager` in Regulation | Wrong crate | ⬜ Candidate for extraction — SLO evaluation is independent of the cybernetic loop |
 
 ## Completed Extractions
 
@@ -887,20 +887,20 @@ status: VERIFIED
 | 2e | Energy/gas (`GasBudget`, `GasCost`, `GasBudgetManager`, `GasReport`, `DynamicGasTable`) | new energy crate | ~1800 | Depends on `hkask-types` |
 | 2f | Estimators (`CalibratedEnergyEstimator`, `CompositeEnergyEstimator`, `TableEnergyEstimator`, `InferenceEstimator`) | new energy-estimators crate | ~1300 | Depends on energy crate |
 
-After extraction, CNS core retains: `CyberneticsLoop`, `RegulationLedger`, `Algedonic`, `Dampener`, `RegulationPolicy`, `GovernedTool`, `GovernedInference`, `Sensor`, `SetPoints`, `StrategyEvaluator`, `SystemSimulator`, `ToolStats`, `WalletBackedBudget`, `WalletGasCalibrator` — all cohesive regulation logic.
+After extraction, Regulation core retains: `CyberneticsLoop`, `RegulationLedger`, `Algedonic`, `Dampener`, `RegulationPolicy`, `GovernedTool`, `GovernedInference`, `Sensor`, `SetPoints`, `StrategyEvaluator`, `SystemSimulator`, `ToolStats`, `WalletBackedBudget`, `WalletGasCalibrator` — all cohesive regulation logic.
 
 
-### CNS Homeostatic Loop
+### Regulation Homeostatic Loop
 
 *Inlined from `docs/diagrams/flowchart-cns-homeostatic-loop.md`*
 
 
-# CNS Homeostatic Loop — Mermaid Flowchart
+# Regulation Homeostatic Loop — Mermaid Flowchart
 
 **Diataxis quadrant:** Explanation  
 **Domain ontology tier:** Core  
-**Purpose:** Visualize the CNS (Cybernetic Nervous System) homeostatic self-regulation loop — the feedback mechanism by which hKask monitors its own health and takes corrective action.  
-**Verified against:** `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/runtime.rs`  
+**Purpose:** Visualize the Regulation (Cybernetic Nervous System) homeostatic self-regulation loop — the feedback mechanism by which hKask monitors its own health and takes corrective action.  
+**Verified against:** `crates/hkask-regulation/src/cybernetics_loop.rs`, `crates/hkask-regulation/src/runtime.rs`  
 last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
 
 > **v0.32.0 update:** Added `SetPointCalibrator` (self-tuning regulation thresholds via RegulationArchive replay) and contract violation path to CurationLoop.
@@ -913,7 +913,7 @@ flowchart TD
     A[CyberneticsLoop::act\nSelects RegulatoryAction\nApplies corrective action]
     R[GovernedTool / GovernedInference\nExecutes action through\nOCAP membrane]
     O[Observe outcome\nImpactReport generated\nLoopMetrics assessed]
-    E[Emit CNS span\ncns.regulation.* RegulationRecord persisted\nAlgedonic alert if critical]
+    E[Emit Regulation span\ncns.regulation.* RegulationRecord persisted\nAlgedonic alert if critical]
     STORE[(RegulationArchive)]
     CAL[SetPointCalibrator\nQueries regulation events\nAdjusts thresholds within bounds]
     CUR[CurationLoop\nReads algedonic events\nContract violations included]
@@ -975,9 +975,9 @@ flowchart TD
     style E fill:#533483,stroke:#e94560,color:#fff
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-007
+id: DIAG-Regulation-007
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -985,35 +985,35 @@ status: VERIFIED
 
 | Diagram Node | Source Location |
 |-------------|----------------|
-| CyberneticsLoop::sense | `crates/hkask-cns/src/cybernetics_loop.rs` |
-| CyberneticsLoop::act | `crates/hkask-cns/src/cybernetics_loop.rs` |
-| GovernedTool membrane | `crates/hkask-cns/src/governed_tool.rs` |
-| SloManager::evaluate | `crates/hkask-cns/src/slo_manager.rs` |
-| SeamWatcher | `crates/hkask-cns/src/seam_watcher.rs` |
+| CyberneticsLoop::sense | `crates/hkask-regulation/src/cybernetics_loop.rs` |
+| CyberneticsLoop::act | `crates/hkask-regulation/src/cybernetics_loop.rs` |
+| GovernedTool membrane | `crates/hkask-regulation/src/governed_tool.rs` |
+| SloManager::evaluate | `crates/hkask-regulation/src/slo_manager.rs` |
+| SeamWatcher | `crates/hkask-regulation/src/seam_watcher.rs` |
 | StorageGuardLoop | `crates/hkask-storage-guard/src/lib.rs` |
-| SetPoints | `crates/hkask-cns/src/set_points.rs` |
-| SetPointCalibrator | `crates/hkask-cns/src/set_point_calibrator.rs` |
+| SetPoints | `crates/hkask-regulation/src/set_points.rs` |
+| SetPointCalibrator | `crates/hkask-regulation/src/set_point_calibrator.rs` |
 | ObservableSpan trait | `crates/hkask-types/src/observable_span.rs` |
 | RegulatoryAction enum | `crates/hkask-types/src/loops/actions.rs` |
 | ImpactReport | `crates/hkask-types/src/loops/core.rs` |
-| Algedonic escalation | `crates/hkask-cns/src/runtime.rs` |
+| Algedonic escalation | `crates/hkask-regulation/src/runtime.rs` |
 | CurationLoop | `crates/hkask-agents/src/curator/curation_loop.rs` |
-| Contract events | `crates/hkask-cns/src/contract_events.rs` |
-| RegulationArchive | `crates/hkask-storage/src/nu_event_store.rs` |
+| Contract events | `crates/hkask-regulation/src/contract_events.rs` |
+| RegulationArchive | `crates/hkask-storage/src/regulation_store.rs` |
 
 **Cardinality:** 1 CyberneticsLoop runs per AgentService instance. N SetPoints are configured (4 shown). M Sensors feed into the loop. 5 RegulatoryAction types exist in the current codebase (verified against `ActionType` enum).
 
 
-### CNS Regulation Pipeline — 5-Phase Cybernetic Cycle
+### Regulation Regulation Pipeline — 5-Phase Cybernetic Cycle
 
 *Inlined from `docs/diagrams/flowchart-cns-regulation.md`*
 
 
-# CNS Regulation Pipeline — 5-Phase Cybernetic Cycle
+# Regulation Regulation Pipeline — 5-Phase Cybernetic Cycle
 
 **Diataxis quadrant:** Reference
 **Domain ontology tier:** Core
-**Purpose:** Visualize the closed-loop regulation pipeline of the CNS Cybernetics
+**Purpose:** Visualize the closed-loop regulation pipeline of the Regulation Cybernetics
 Loop: Sense → Compare → Compute → Act → Verify. Covers all 9 signal-metric
 decision paths in `compute()`, the substitution ladder for repeatedly
 ineffective actions, the 3-tier ActionDecision gate, and stagnation detection
@@ -1275,9 +1275,9 @@ flowchart TD
     A3 -->|"live channel"| CUR[(Curation inbox)]
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-008
+id: DIAG-Regulation-008
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1334,39 +1334,39 @@ explicit decision paths in `compute()`. 5 metrics have non-empty substitution
 ladders. Default stagnation threshold: 5 consecutive ineffective cycles.
 
 
-### CNS Span Emission — 4-Namespace Sequence
+### Regulation Span Emission — 4-Namespace Sequence
 
 *Inlined from `docs/diagrams/sequence-cns-span-emission.md`*
 
 
-# CNS Span Emission — 4-Namespace Sequence
+# Regulation Span Emission — 4-Namespace Sequence
 
 ## Description
 
-The CNS (Cybernetic Nervous System) emits structured spans across four canonical namespaces — `cns.tool`, `cns.inference`, `cns.agent_pod`, and `cns.curation` — using `tracing::info!(target: "cns.X")` as the emission surface. The `RegulationLedger` subscriber layer collects these spans, constructs `RegulationRecord` records with `SpanParent` relationships for child spans, persists them through the `RegulationSink`, and routes algedonic signals to the `AlgedonicManager`. The `ToolSpanGuard` RAII guard ensures every tool invocation emits a span: explicit `ok()`/`error()` calls emit the appropriate status, and the `Drop` implementation catches forgotten spans with a `"dropped"` outcome.
+The Regulation (Cybernetic Nervous System) emits structured spans across four canonical namespaces — `reg.tool`, `reg.inference`, `reg.agent_pod`, and `reg.curation` — using `tracing::info!(target: "reg.X")` as the emission surface. The `RegulationLedger` subscriber layer collects these spans, constructs `RegulationRecord` records with `SpanParent` relationships for child spans, persists them through the `RegulationSink`, and routes algedonic signals to the `AlgedonicManager`. The `ToolSpanGuard` RAII guard ensures every tool invocation emits a span: explicit `ok()`/`error()` calls emit the appropriate status, and the `Drop` implementation catches forgotten spans with a `"dropped"` outcome.
 
-**Key source:** `crates/hkask-mcp/src/server/tool_span.rs:18-189` (`ToolSpanGuard`), `crates/hkask-cns/src/runtime.rs:540-615` (`increment_variety`, `check_variety`), `crates/hkask-types/src/event.rs:16-93` (`RegulationRecord`, `parent_event`), `crates/hkask-types/src/event.rs:370-429` (`SpanKind`, namespace mappings).
+**Key source:** `crates/hkask-mcp/src/server/tool_span.rs:18-189` (`ToolSpanGuard`), `crates/hkask-regulation/src/runtime.rs:540-615` (`increment_variety`, `check_variety`), `crates/hkask-types/src/event.rs:16-93` (`RegulationRecord`, `parent_event`), `crates/hkask-types/src/event.rs:370-429` (`SpanKind`, namespace mappings).
 
 ### Span Namespace Model
 
 | Namespace | SpanKinds | Subscriber Interest |
 |-----------|-----------|---------------------|
-| `cns.tool` | `Invoked`, `Completed`, `Error`, `dropped` | GovernedTool, CyberneticsLoop |
-| `cns.inference` | inference spans (via `tracing::span!`) | InferenceAdapter |
-| `cns.agent_pod` | `Registered`, `Activated`, `Deactivated` | PodManager |
-| `cns.curation` | `DirectiveAcknowledged`, `Escalation` | CuratorAgent |
+| `reg.tool` | `Invoked`, `Completed`, `Error`, `dropped` | GovernedTool, CyberneticsLoop |
+| `reg.inference` | inference spans (via `tracing::span!`) | InferenceAdapter |
+| `reg.agent_pod` | `Registered`, `Activated`, `Deactivated` | PodManager |
+| `reg.curation` | `DirectiveAcknowledged`, `Escalation` | CuratorAgent |
 
 ```mermaid
 sequenceDiagram
     participant Code as Code Site<br/>(tool handler / inference / pod / curator)
     participant Guard as ToolSpanGuard
-    participant Trace as tracing<br/>(target: "cns.X")
+    participant Trace as tracing<br/>(target: "reg.X")
     participant Rtm as RegulationLedger<br/>(subscriber)
     participant Sink as RegulationSink
     participant Algd as AlgedonicManager
 
     rect rgb(245, 248, 252)
-        Note over Code,Algd: cns.tool — Tool Invocation Span Emission
+        Note over Code,Algd: reg.tool — Tool Invocation Span Emission
 
         Code->>+Guard: ToolSpanGuard::new(tool_name, caller)
         Note over Guard: emitted = false<br/>start = Instant::now()
@@ -1374,13 +1374,13 @@ sequenceDiagram
 
         alt explicit ok()
             Code->>+Guard: guard.ok(output)
-            Guard->>+Trace: info!(target: "cns.tool", outcome="ok", duration_ms, caller)
+            Guard->>+Trace: info!(target: "reg.tool", outcome="ok", duration_ms, caller)
             Trace-->>-Guard: ()
             Guard->>+Guard: emitted = true
             Guard-->>-Code: output
         else explicit error()
             Code->>+Guard: guard.error(kind, output)
-            Guard->>+Trace: info!(target: "cns.tool", outcome="error", error_kind, caller)
+            Guard->>+Trace: info!(target: "reg.tool", outcome="error", error_kind, caller)
             Trace-->>-Guard: ()
             opt heal callback set
                 Guard->>+Guard: heal_error_cb(output, tool_name)
@@ -1392,7 +1392,7 @@ sequenceDiagram
         Note over Guard,Trace: RAII — Drop impl for abandoned guards
         rect rgb(255, 245, 240)
             Note over Guard: Drop: if !emitted
-            Guard->>+Trace: info!(target: "cns.tool", outcome="dropped", duration_ms, caller)
+            Guard->>+Trace: info!(target: "reg.tool", outcome="dropped", duration_ms, caller)
             Trace-->>-Guard: ()
             Note over Guard: "dropped" status — forgotten span caught
         end
@@ -1432,11 +1432,11 @@ sequenceDiagram
 
         alt deficit > threshold
             Algd-->>Rtm: Some(RuntimeAlert::Critical)
-            Algd->>+Algd: error!(target: "cns.algedonic", "ALGEDONIC ALERT")
+            Algd->>+Algd: error!(target: "reg.algedonic", "ALGEDONIC ALERT")
             Rtm->>+Rtm: emit_critical_depletion(alert)
         else deficit > threshold/2
             Algd-->>Rtm: Some(RuntimeAlert::Warning)
-            Algd->>+Algd: warn!(target: "cns.algedonic", "Variety deficit approaching threshold")
+            Algd->>+Algd: warn!(target: "reg.algedonic", "Variety deficit approaching threshold")
         else healthy
             Algd-->>Rtm: None
         end
@@ -1444,18 +1444,18 @@ sequenceDiagram
     end
 
     rect rgb(248, 245, 255)
-        Note over Code,Algd: cns.inference — Inference Span
+        Note over Code,Algd: reg.inference — Inference Span
 
-        Code->>+Trace: tracing::span!(target: "cns.inference")
+        Code->>+Trace: tracing::span!(target: "reg.inference")
         Trace->>+Rtm: layer captures inference span
-        Rtm->>+Sink: persist(RegulationRecord { span: cns.inference.* })
+        Rtm->>+Sink: persist(RegulationRecord { span: reg.inference.* })
         Sink-->>-Rtm: ()
     end
 
     rect rgb(248, 245, 255)
-        Note over Code,Algd: cns.agent_pod — Agent Pod Lifecycle Span
+        Note over Code,Algd: reg.agent_pod — Agent Pod Lifecycle Span
 
-        Code->>+Trace: info!(target: "cns.agent_pod", ...)
+        Code->>+Trace: info!(target: "reg.agent_pod", ...)
         Note over Trace: SpanKind::AgentPodRegistered<br/>SpanKind::AgentPodActivated<br/>SpanKind::AgentPodDeactivated
         Trace->>+Rtm: layer captures pod span
         Rtm->>+Sink: persist(RegulationRecord)
@@ -1463,9 +1463,9 @@ sequenceDiagram
     end
 
     rect rgb(248, 245, 255)
-        Note over Code,Algd: cns.curation — Curation Span
+        Note over Code,Algd: reg.curation — Curation Span
 
-        Code->>+Trace: info!(target: "cns.curation", ...)
+        Code->>+Trace: info!(target: "reg.curation", ...)
         Note over Trace: SpanKind::CurationDirectiveAcknowledged<br/>SpanKind::CurationEscalation
         Trace->>+Rtm: layer captures curation span
         Rtm->>+Sink: persist(RegulationRecord)
@@ -1473,9 +1473,9 @@ sequenceDiagram
     end
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-009
+id: DIAG-Regulation-009
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1493,9 +1493,9 @@ sequenceDiagram
     Note over Parent,Child: Enables trace reconstruction:<br/>parent_id → child_id chain
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-010
+id: DIAG-Regulation-010
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1508,14 +1508,14 @@ status: VERIFIED
 | `guard.finish(Result)` | `true` | `"ok"` / `"error"` | Context-dependent |
 | **No explicit call → `Drop`** | `false` | `"dropped"` | None |
 
-The `Drop` impl enforces that a span is always emitted — even if the code path panics, returns early, or the developer forgets to call `ok()`/`error()`. The `"dropped"` outcome is an observability signal: it tells the CNS that a tool execution began but never reached a terminal state.
+The `Drop` impl enforces that a span is always emitted — even if the code path panics, returns early, or the developer forgets to call `ok()`/`error()`. The `"dropped"` outcome is an observability signal: it tells the Regulation that a tool execution began but never reached a terminal state.
 
 ---
 
   crates/hkask-types/src/event.rs:16-93 (RegulationRecord, parent_event, with_parent builder),
   crates/hkask-types/src/event.rs:105-157 (CANONICAL_NAMESPACES),
   crates/hkask-types/src/event.rs:320-429 (Span, SpanKind, namespace_and_path),
-  crates/hkask-cns/src/algedonic.rs:139-296 (AlgedonicManager, check)
+  crates/hkask-regulation/src/algedonic.rs:139-296 (AlgedonicManager, check)
 status: VERIFIED
 -->
 
@@ -1524,11 +1524,11 @@ status: VERIFIED
 | Reference | Description |
 |-----------|-------------|
 | [`ToolSpanGuard`](crates/hkask-mcp/src/server/tool_span.rs:18-189) | RAII span guard with `ok()`, `error()`, `Drop` for forgotten spans |
-| [`RegulationLedger`](crates/hkask-cns/src/runtime.rs:294-299) | CNS runtime with subscribers and algedonic manager |
-| [`RegulationRecord`](crates/hkask-types/src/event.rs:16-93) | CNS event with `parent_event` for span parent relationships |
+| [`RegulationLedger`](crates/hkask-regulation/src/runtime.rs:294-299) | Regulation runtime with subscribers and algedonic manager |
+| [`RegulationRecord`](crates/hkask-types/src/event.rs:16-93) | Regulation event with `parent_event` for span parent relationships |
 | [`SpanKind`](crates/hkask-types/src/event.rs:370-429) | Typed span kind enum with canonical namespace/path mapping |
-| [`CANONICAL_NAMESPACES`](crates/hkask-types/src/event.rs:105-157) | All valid CNS span namespaces |
-| [`AlgedonicManager`](crates/hkask-cns/src/algedonic.rs:139-296) | Alert manager with variety deficit checking |
+| [`CANONICAL_NAMESPACES`](crates/hkask-types/src/event.rs:105-157) | All valid Regulation span namespaces |
+| [`AlgedonicManager`](crates/hkask-regulation/src/algedonic.rs:139-296) | Alert manager with variety deficit checking |
 | [PRINCIPLES.md §P9](docs/architecture/core/PRINCIPLES.md) | Homeostatic Self-Regulation |
 | Algedonic escalation sequence (inlined below) | Algedonic escalation flow (DIAG-TO-005) |
 
@@ -1544,15 +1544,15 @@ status: VERIFIED
 
 The Algedonic loop enforces Ashby's Law of Requisite Variety through binary threshold monitoring. The `VarietyTracker` measures state diversity per domain via an exponential moving average (EMA). When the `AlgedonicManager.check()` method detects a deficit exceeding the configured threshold, it generates a `RuntimeAlert` with one of three severities — Info, Warning, or Critical. Critical alerts are automatically escalated (`escalated = true`) and flow through the `CurationLoop` to the `CuratorAgent`, which decides between automatic recalibration (adjusting the threshold via `calibrate_threshold()`) or human escalation. A cooldown `Dampener` prevents alert storms. The `CircuitBreaker` integrates with the algedonic manager for external service failure handling via `check_outcome()`.
 
-**Key source:** `crates/hkask-cns/src/algedonic.rs:26-307` (`AlertSeverity`, `RuntimeAlert`, `AlgedonicManager`), `crates/hkask-cns/src/runtime.rs:52-106` (`VarietyTracker`), `crates/hkask-cns/src/runtime.rs:191-255` (`VarietyMonitor`), `crates/hkask-cns/src/runtime.rs:822-858` (`evaluate_and_escalate_slos`).
+**Key source:** `crates/hkask-regulation/src/algedonic.rs:26-307` (`AlertSeverity`, `RuntimeAlert`, `AlgedonicManager`), `crates/hkask-regulation/src/runtime.rs:52-106` (`VarietyTracker`), `crates/hkask-regulation/src/runtime.rs:191-255` (`VarietyMonitor`), `crates/hkask-regulation/src/runtime.rs:822-858` (`evaluate_and_escalate_slos`).
 
 ### Alert Severity Thresholds
 
 | Severity | Condition | `escalated` Flag | Action |
 |----------|-----------|-----------------|--------|
 | `Info` | `deficit ≤ threshold / 2` | `false` | No action — logged only |
-| `Warning` | `deficit > threshold / 2 && deficit ≤ threshold` | `false` | `warn!()` CNS log — Curator notified |
-| `Critical` | `deficit > threshold` | `true` | `error!()` CNS log → CurationLoop escalation |
+| `Warning` | `deficit > threshold / 2 && deficit ≤ threshold` | `false` | `warn!()` Regulation log — Curator notified |
+| `Critical` | `deficit > threshold` | `true` | `error!()` Regulation log → CurationLoop escalation |
 
 ### Outcome Quality Thresholds
 
@@ -1565,7 +1565,7 @@ The Algedonic loop enforces Ashby's Law of Requisite Variety through binary thre
 sequenceDiagram
     participant VT as VarietyTracker
     participant AM as AlgedonicManager
-    participant CNS as RegulationLedger
+    participant Regulation as RegulationLedger
     participant CL as CurationLoop
     participant CA as CuratorAgent
     participant Damp as Dampener
@@ -1573,7 +1573,7 @@ sequenceDiagram
     participant Ext as External Service
 
     rect rgb(245, 248, 252)
-        Note over VT,CNS: Variety Monitoring — diversity deficit detection
+        Note over VT,Regulation: Variety Monitoring — diversity deficit detection
 
         loop each tool call / agent activation
             VT->>+VT: increment(state_name)
@@ -1605,9 +1605,9 @@ sequenceDiagram
         alt deficit > threshold/2 AND deficit ≤ threshold
             AM->>+AM: severity = AlertSeverity::Warning
             Note over AM: escalated = false
-            AM->>+AM: warn!(target: "cns.algedonic", "Variety deficit approaching threshold")
+            AM->>+AM: warn!(target: "reg.algedonic", "Variety deficit approaching threshold")
             AM->>+AM: alerts.push(alert)
-            AM-->>-CNS: Some(RuntimeAlert::Warning)
+            AM-->>-Regulation: Some(RuntimeAlert::Warning)
         end
     end
 
@@ -1617,12 +1617,12 @@ sequenceDiagram
         alt deficit > threshold
             AM->>+AM: severity = AlertSeverity::Critical
             AM->>+AM: escalated = true
-            AM->>+AM: error!(target: "cns.algedonic", "ALGEDONIC ALERT - Escalation required")
+            AM->>+AM: error!(target: "reg.algedonic", "ALGEDONIC ALERT - Escalation required")
             AM->>+AM: alerts.push(alert)
-            AM-->>-CNS: Some(RuntimeAlert::Critical)
+            AM-->>-Regulation: Some(RuntimeAlert::Critical)
 
-            CNS->>+CNS: emit_critical_depletion(alert)
-            Note over CNS: RegulationRecord emitted with<br/>SpanKind::VarietyAlgedonicAlert<br/>(cns.variety.algedonic_alert)
+            Regulation->>+Regulation: emit_critical_depletion(alert)
+            Note over Regulation: RegulationRecord emitted with<br/>SpanKind::VarietyAlgedonicAlert<br/>(reg.variety.algedonic_alert)
         end
     end
 
@@ -1632,21 +1632,21 @@ sequenceDiagram
         CB->>+CB: record_failure(error_kind)
         CB->>+CB: record_success()
 
-        CNS->>+AM: check_outcome(domain, success_rate, total_ops)
+        Regulation->>+AM: check_outcome(domain, success_rate, total_ops)
 
         alt success_rate < outcome_critical_threshold
             AM->>+AM: severity = Critical
-            AM->>+AM: error!(target: "cns.outcome", "OUTCOME ALERT - Critical failure rate")
+            AM->>+AM: error!(target: "reg.outcome", "OUTCOME ALERT - Critical failure rate")
             AM->>+AM: alerts.push(alert)
             CB->>+CB: circuit OPEN — stop all calls to External Service
             Note over Ext: External service calls blocked
         else success_rate < outcome_warning_threshold
             AM->>+AM: severity = Warning
-            AM->>+AM: warn!(target: "cns.outcome", "Outcome success rate degraded")
+            AM->>+AM: warn!(target: "reg.outcome", "Outcome success rate degraded")
             AM->>+AM: alerts.push(alert)
             Note over CB: circuit HALF-OPEN — throttle
         else success_rate ≥ outcome_warning_threshold
-            AM-->>-CNS: None (healthy)
+            AM-->>-Regulation: None (healthy)
             CB->>+CB: circuit CLOSED — normal operation
         end
     end
@@ -1654,7 +1654,7 @@ sequenceDiagram
     rect rgb(248, 245, 255)
         Note over AM,CA: Dampener — Alert Cooldown Override
 
-        CNS->>+CL: runtime_alert propagated
+        Regulation->>+CL: runtime_alert propagated
         CL->>+Damp: check_cooldown(domain)
 
         alt within cooldown window
@@ -1674,22 +1674,22 @@ sequenceDiagram
 
         alt Automatic Recalibration
             Note over CA: Curator decides threshold<br/>was too aggressive
-            CA->>+CNS: calibrate_threshold(domain, new_threshold)
-            CNS->>+AM: set_expected_variety(domain, new_threshold)
-            AM-->>-CNS: threshold updated
+            CA->>+Regulation: calibrate_threshold(domain, new_threshold)
+            Regulation->>+AM: set_expected_variety(domain, new_threshold)
+            AM-->>-Regulation: threshold updated
             Note over AM: expected_variety[domain] = new_threshold<br/>Alert resolved via homeostatic adjustment
         else Human Escalation
             Note over CA: Curator decides situation<br/>requires human judgment
             CA->>+CA: emit CurationEscalation span
-            Note over CA: cns.curation.escalation<br/>SpanKind::CurationEscalation
+            Note over CA: reg.curation.escalation<br/>SpanKind::CurationEscalation
             CA->>+CA: notify human curator
         end
     end
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-011
+id: DIAG-Regulation-011
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1715,9 +1715,9 @@ sequenceDiagram
     Note over AM: alerts accumulate — no flush
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-012
+id: DIAG-Regulation-012
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1727,20 +1727,20 @@ status: VERIFIED
 |-------|-------|--------|
 | 1. Measure | `VarietyTracker` | Increment counter, compute EMA, calculate deficit |
 | 2. Classify | `AlgedonicManager` | `RuntimeAlert::new()` — binary threshold → Info/Warning/Critical |
-| 3. Emit CNS | `RegulationLedger` | `emit_critical_depletion()` for Critical alerts |
+| 3. Emit Regulation | `RegulationLedger` | `emit_critical_depletion()` for Critical alerts |
 | 4. Cooldown Gate | `Dampener` | Suppress duplicate alerts within cooldown window |
 | 5. Route | `CurationLoop` | Forward to `CuratorAgent` |
 | 6a. Auto-fix | `CuratorAgent` | `calibrate_threshold()` — adjust threshold |
-| 6b. Escalate | `CuratorAgent` | Human notification via `cns.curation.escalation` |
+| 6b. Escalate | `CuratorAgent` | Human notification via `reg.curation.escalation` |
 
 ---
 
-  crates/hkask-cns/src/algedonic.rs:299-307 (cns_health_check),
-  crates/hkask-cns/src/runtime.rs:52-106 (VarietyTracker, EMA, deficit),
-  crates/hkask-cns/src/runtime.rs:191-255 (VarietyMonitor, counter, domains),
-  crates/hkask-cns/src/runtime.rs:540-615 (increment_variety, check_variety, emit_critical_depletion),
-  crates/hkask-cns/src/runtime.rs:624-653 (calibrate_threshold, calibrate_threshold_blocking),
-  crates/hkask-cns/src/runtime.rs:822-858 (evaluate_and_escalate_slos),
+  crates/hkask-regulation/src/algedonic.rs:299-307 (cns_health_check),
+  crates/hkask-regulation/src/runtime.rs:52-106 (VarietyTracker, EMA, deficit),
+  crates/hkask-regulation/src/runtime.rs:191-255 (VarietyMonitor, counter, domains),
+  crates/hkask-regulation/src/runtime.rs:540-615 (increment_variety, check_variety, emit_critical_depletion),
+  crates/hkask-regulation/src/runtime.rs:624-653 (calibrate_threshold, calibrate_threshold_blocking),
+  crates/hkask-regulation/src/runtime.rs:822-858 (evaluate_and_escalate_slos),
   crates/hkask-types/src/event.rs:401-403 (VarietyAlgedonicAlert)
 status: VERIFIED
 -->
@@ -1749,16 +1749,16 @@ status: VERIFIED
 
 | Reference | Description |
 |-----------|-------------|
-| [`AlgedonicManager`](crates/hkask-cns/src/algedonic.rs:139-296) | Alert manager with variety and outcome quality checking |
-| [`RuntimeAlert`](crates/hkask-cns/src/algedonic.rs:37-136) | Alert struct with binary threshold classification |
-| [`VarietyTracker`](crates/hkask-cns/src/runtime.rs:52-106) | Per-domain variety counter with EMA and deficit calculation |
-| [`VarietyMonitor`](crates/hkask-cns/src/runtime.rs:191-255) | Multi-domain variety registry (Ashby's Law sensor) |
-| [`RegulationLedger`](crates/hkask-cns/src/runtime.rs:294-299) | CNS runtime — entry point for variety ops and calibration |
-| [`SpanKind::VarietyAlgedonicAlert`](crates/hkask-types/src/event.rs:401-403) | CNS span for algedonic alert emission |
-| [`SpanKind::CurationEscalation`](crates/hkask-types/src/event.rs:389-391) | CNS span for human escalation |
+| [`AlgedonicManager`](crates/hkask-regulation/src/algedonic.rs:139-296) | Alert manager with variety and outcome quality checking |
+| [`RuntimeAlert`](crates/hkask-regulation/src/algedonic.rs:37-136) | Alert struct with binary threshold classification |
+| [`VarietyTracker`](crates/hkask-regulation/src/runtime.rs:52-106) | Per-domain variety counter with EMA and deficit calculation |
+| [`VarietyMonitor`](crates/hkask-regulation/src/runtime.rs:191-255) | Multi-domain variety registry (Ashby's Law sensor) |
+| [`RegulationLedger`](crates/hkask-regulation/src/runtime.rs:294-299) | Regulation runtime — entry point for variety ops and calibration |
+| [`SpanKind::VarietyAlgedonicAlert`](crates/hkask-types/src/event.rs:401-403) | Regulation span for algedonic alert emission |
+| [`SpanKind::CurationEscalation`](crates/hkask-types/src/event.rs:389-391) | Regulation span for human escalation |
 | [PRINCIPLES.md §P9](docs/architecture/core/PRINCIPLES.md) | Homeostatic Self-Regulation |
 | [Ashby's Law](https://en.wikipedia.org/wiki/Variety_(cybernetics)) | Law of Requisite Variety — regulatory foundation |
-| CNS span emission sequence (inlined below) | CNS span emission flow (DIAG-TO-004) |
+| Regulation span emission sequence (inlined below) | Regulation span emission flow (DIAG-TO-004) |
 
 
 ### RegulatoryAction Lifecycle — State Diagram
@@ -1770,8 +1770,8 @@ status: VERIFIED
 
 **Diataxis quadrant:** Reference  
 **Domain ontology tier:** Core  
-**Purpose:** State diagram for the `RegulatoryAction` enum lifecycle — the finite state machine that governs corrective actions taken by the CNS homeostatic loop.  
-**Verified against:** `crates/hkask-types/src/loops/actions.rs`, `crates/hkask-types/src/loops/core.rs`, `crates/hkask-cns/src/types/loops/loop_trait.rs`
+**Purpose:** State diagram for the `RegulatoryAction` enum lifecycle — the finite state machine that governs corrective actions taken by the Regulation homeostatic loop.  
+**Verified against:** `crates/hkask-types/src/loops/actions.rs`, `crates/hkask-types/src/loops/core.rs`, `crates/hkask-regulation/src/types/loops/loop_trait.rs`
 last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
 
 ```mermaid
@@ -1801,7 +1801,7 @@ stateDiagram-v2
     state Completed {
         [*] --> ImpactReported
         ImpactReported --> QualityAssessed: LoopMetrics scored
-        QualityAssessed --> SpanEmitted: CNS span published
+        QualityAssessed --> SpanEmitted: Regulation span published
     }
 
     Completed --> [*]: Loop iteration complete
@@ -1833,9 +1833,9 @@ stateDiagram-v2
     end note
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-013
+id: DIAG-Regulation-013
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1849,9 +1849,9 @@ status: VERIFIED
 | `ActionDecision` | struct | `crates/hkask-types/src/loops/core.rs` |
 | `ImpactReport` | struct | `crates/hkask-types/src/loops/core.rs` |
 | `LoopMetrics` | enum | `crates/hkask-types/src/loops/core.rs` |
-| `CyberneticsLoop` | struct | `crates/hkask-cns/src/cybernetics_loop.rs` |
+| `CyberneticsLoop` | struct | `crates/hkask-regulation/src/cybernetics_loop.rs` |
 
-**Cardinality:** Exactly 5 `ActionType` variants (verified from source). `RegulatoryAction` is created once per CNS loop iteration. Each action produces exactly 1 `ImpactReport`.
+**Cardinality:** Exactly 5 `ActionType` variants (verified from source). `RegulatoryAction` is created once per Regulation loop iteration. Each action produces exactly 1 `ImpactReport`.
 
 
 ### Curator Metacognition Loop
@@ -1864,7 +1864,7 @@ flowchart TD
     START([MetacognitionCycle.begin]) --> SENSE
 
     subgraph SENSE["1. Sense"]
-        CNS[Read CNS health<br/>health + variety + alerts]
+        Regulation[Read Regulation health<br/>health + variety + alerts]
         REG[Read regulation effectiveness<br/>RegulationLedger::regulation_health]
         BOTS[Count bot failures<br/>escalation policy check]
         SNAPSHOT[Build HealthSnapshot<br/>store via watch channel]
@@ -1919,9 +1919,9 @@ flowchart TD
     style OBSERVE fill:#2a6,stroke:#333,color:#fff
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-CNS-014
+id: DIAG-Regulation-014
 verified_date: 2026-07-12
-verified_against: crates/hkask-cns/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1929,7 +1929,7 @@ status: VERIFIED
 
 ### 1. Sense
 
-Reads CNS health snapshots (`LedgerHealth`), variety counters per namespace, all alerts, and critical alerts. Computes total variety deficit against `expected_variety_per_domain` config. Delegates escalation condition checking to `EscalationPolicy::check_conditions`. Builds a `HealthSnapshot` struct and publishes it via `tokio::sync::watch::Sender` for downstream consumers. Produces two afferent `Signal`s: `MetacognitionVarietyDeficit` and `MetacognitionCriticalAlerts`.
+Reads Regulation health snapshots (`LedgerHealth`), variety counters per namespace, all alerts, and critical alerts. Computes total variety deficit against `expected_variety_per_domain` config. Delegates escalation condition checking to `EscalationPolicy::check_conditions`. Builds a `HealthSnapshot` struct and publishes it via `tokio::sync::watch::Sender` for downstream consumers. Produces two afferent `Signal`s: `MetacognitionVarietyDeficit` and `MetacognitionCriticalAlerts`.
 
 ### 2. Classify
 

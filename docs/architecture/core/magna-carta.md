@@ -27,7 +27,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | [Principle 4: Clear Boundaries](#principle-4-clear-boundaries-ocap) | OCAP enforcement of principles 1–3 |
 | [Catch and Release](#catch-and-release) | Data sovereignty catch-and-release model |
 | [The Curator as Enforcer](#the-curator-as-enforcer) | Curator role in enforcing the Magna Carta |
-| [CNS Integration](#cns-integration) | Algedonic alerts and sovereignty monitoring |
+| [Regulation Integration](#cns-integration) | Algedonic alerts and sovereignty monitoring |
 | [Magna Carta Verifier](#magna-carta-verifier) | Verification skill, triggers, and resolution |
 | [Implementation](#implementation) | Code-level enforcement mechanisms |
 | [The Promise](#the-promise) | The pledge to users |
@@ -232,7 +232,7 @@ The Curator is not just a quality gate. The Curator is the Magna Carta enforcer,
 1. **OCAP Verification** — Verify capability tokens before any action
 2. **Sovereignty Checking** — Ensure user sovereignty is not compromised
 3. **Consent Verification** — Verify that affirmative consent is granted and current
-4. **Variety Tracking** — Monitor CNS variety counter
+4. **Variety Tracking** — Monitor Regulation variety counter
 5. **Algedonic Alerts** — Trigger alerts when:
    - Variety deficit > 100
    - Sovereignty compromised
@@ -250,7 +250,7 @@ The Curator is not just a quality gate. The Curator is the Magna Carta enforcer,
 
 ---
 
-## CNS Integration
+## Regulation Integration
 
 The Cybernetic Nervous System monitors, providing algedonic signaling from the Viable System Model:[^beer-vsm]
 
@@ -374,7 +374,7 @@ pub struct UserSovereigntyState {
 ### Curator Pipeline Integration
 
 The `DefaultSpecCurator` is the curator that enforces the Magna Carta. It
-records sovereignty checks as `cns.sovereignty.checked` `RegulationRecord`s when an
+records sovereignty checks as `reg.sovereignty.checked` `RegulationRecord`s when an
 event sink is wired. The agent-pod `SovereigntyChecker` enforces the
 sovereignty policy on every memory access.
 
@@ -382,7 +382,7 @@ sovereignty policy on every memory access.
 // In hkask-agents::curator_agent::DefaultSpecCurator
 impl DefaultSpecCurator {
     /// Record a sovereignty check for a spec evaluation.
-    /// Emits a `cns.sovereignty.checked` RegulationRecord (CyclePhase::Compare).
+    /// Emits a `reg.sovereignty.checked` RegulationRecord (CyclePhase::Compare).
     pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) { /* ... */ }
 }
 
@@ -417,7 +417,7 @@ The Magna Carta is not aspirational. It is enforced:
 1. **OCAP Boundaries** — Capability tokens verify authority[^miller-ocap]
 2. **Sovereignty Checks** — Every invocation checked
 3. **Consent Verification** — Scoped, versioned, expiring consent
-4. **CNS Alerts** — Violations trigger immediate alerts
+4. **Regulation Alerts** — Violations trigger immediate alerts
 5. **Magna Carta Verifier** — YAML manifests and Jinja2 templates verify each principle. Invoked via `kask sovereignty verify` (CLI) or `cns_verify_magna_carta` (MCP tool)
 6. **Audit Trail** — All decisions recorded
 

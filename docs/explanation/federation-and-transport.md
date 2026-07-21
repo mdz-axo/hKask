@@ -170,7 +170,7 @@ Federation links follow a four-phase lifecycle: Discover, Connect, Sync, Maintai
 
 3. **Sync** — Once linked, the instances exchange CRDT state. The first sync is a full state transfer; subsequent syncs are incremental (delta-based). The sync protocol ensures eventual consistency via version vectors.
 
-4. **Maintain** — Periodic heartbeat syncs keep state current. Link health is monitored: if a peer is unreachable for a configurable threshold, the link is marked degraded and a CNS span is emitted.
+4. **Maintain** — Periodic heartbeat syncs keep state current. Link health is monitored: if a peer is unreachable for a configurable threshold, the link is marked degraded and a Regulation span is emitted.
 
 ---
 
@@ -190,11 +190,11 @@ The namespace-aware merge means that federation never creates identity collision
 
 ---
 
-## 5. CNS Integration
+## 5. Regulation Integration
 
 ### Statement
 
-Federation events emit CNS spans for observability. If federation links degrade across the board, the CNS can escalate to the Curator for investigation.
+Federation events emit Regulation spans for observability. If federation links degrade across the board, the Regulation can escalate to the Curator for investigation.
 
 ### Evidence
 
@@ -202,17 +202,17 @@ Federation spans:
 
 | Span | When Emitted |
 |------|-------------|
-| `cns.federation.link.established` | New federation link created |
-| `cns.federation.link.degraded` | Peer unreachable, link health degraded |
-| `cns.federation.link.terminated` | Link explicitly terminated |
-| `cns.federation.sync.completed` | CRDT sync finished successfully |
-| `cns.federation.sync.failed` | Sync error (will retry) |
+| `reg.federation.link.established` | New federation link created |
+| `reg.federation.link.degraded` | Peer unreachable, link health degraded |
+| `reg.federation.link.terminated` | Link explicitly terminated |
+| `reg.federation.sync.completed` | CRDT sync finished successfully |
+| `reg.federation.sync.failed` | Sync error (will retry) |
 
-These spans feed the CNS homeostatic loop. The `SetPoints` struct includes 8 federation health fields: sync latency (warning 5s, critical 30s), CRDT divergence (2× baseline), link downtime (warning 1h, critical 24h), pause duration (24h), invitation rate (5/hr), and registry divergence (10 entries/sync). When any of these thresholds are breached, the CNS escalates to the Curator.
+These spans feed the Regulation homeostatic loop. The `SetPoints` struct includes 8 federation health fields: sync latency (warning 5s, critical 30s), CRDT divergence (2× baseline), link downtime (warning 1h, critical 24h), pause duration (24h), invitation rate (5/hr), and registry divergence (10 entries/sync). When any of these thresholds are breached, the Regulation escalates to the Curator.
 
 ### Implications
 
-Federation is not a separate observability stack — it is integrated into the same CNS that monitors all other system operations. This means the Curator's metacognition layer can reason about federation health alongside energy health, variety health, and seam health. A federation degradation event is treated the same as any other algedonic signal: it flows through the `AlgedonicManager`, produces an `EscalationAlert`, and reaches the `MetacognitionLoop` for assessment and potential directive issuance.
+Federation is not a separate observability stack — it is integrated into the same Regulation that monitors all other system operations. This means the Curator's metacognition layer can reason about federation health alongside energy health, variety health, and seam health. A federation degradation event is treated the same as any other algedonic signal: it flows through the `AlgedonicManager`, produces an `EscalationAlert`, and reaches the `MetacognitionLoop` for assessment and potential directive issuance.
 
 ---
 
@@ -266,7 +266,7 @@ status: VERIFIED
 
 ### Implications
 
-Federation is the mechanism by which hKask scales beyond a single instance while preserving sovereignty. The design is explicitly opt-in at every level: an instance chooses to register a peer, chooses to invite, chooses to accept, and can revoke at any time. The CRDT-based sync means that no instance is dependent on another for correctness — each instance's state is independently valid, and convergence is eventual, not required. The CNS integration means that federation health is monitored with the same rigor as all other system health dimensions. This is P1 (User Sovereignty) and P2 (Affirmative Consent) applied to the federation layer: the system never federates without explicit consent, and it never surrenders local autonomy to a federated peer.
+Federation is the mechanism by which hKask scales beyond a single instance while preserving sovereignty. The design is explicitly opt-in at every level: an instance chooses to register a peer, chooses to invite, chooses to accept, and can revoke at any time. The CRDT-based sync means that no instance is dependent on another for correctness — each instance's state is independently valid, and convergence is eventual, not required. The Regulation integration means that federation health is monitored with the same rigor as all other system health dimensions. This is P1 (User Sovereignty) and P2 (Affirmative Consent) applied to the federation layer: the system never federates without explicit consent, and it never surrenders local autonomy to a federated peer.
 
 ---
 
@@ -274,7 +274,7 @@ Federation is the mechanism by which hKask scales beyond a single instance while
 
 | Subsystem | Federation Role |
 |-----------|----------------|
-| **CNS** | Monitors link health, emits federation spans, escalates degraded links to Curator |
+| **Regulation** | Monitors link health, emits federation spans, escalates degraded links to Curator |
 | **Registry** | Merged agent registries via CRDT sync — namespace-aware to prevent identity collisions |
 | **Curator** | Receives federation escalations (degraded links, sync failures), can issue directives to adjust federation set-points |
 | **A2A** | Agent-to-agent messages route through federation when agents are on different instances — the `FederationTransport` carries the message, the OCAP membrane enforces authorization |
@@ -303,7 +303,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 ## Description
 
-The `EndpointLifecycle` in `hkask-adapter` governs every inference endpoint through five strictly-validated phases. Construction enters `Provisioning`. The `create_endpoint()` flow in `AdapterRouter` uploads the adapter and transitions to `Ready`. First inference triggers `Ready → Active`. Teardown (explicit or via RAII `EndpointGuard` drop) moves through `Draining` to `Terminated`. Cost accrues only in billable phases (`Provisioning`, `Ready`, `Active`). Every transition is validated by `valid_next()` and emits a CNS span.
+The `EndpointLifecycle` in `hkask-adapter` governs every inference endpoint through five strictly-validated phases. Construction enters `Provisioning`. The `create_endpoint()` flow in `AdapterRouter` uploads the adapter and transitions to `Ready`. First inference triggers `Ready → Active`. Teardown (explicit or via RAII `EndpointGuard` drop) moves through `Draining` to `Terminated`. Cost accrues only in billable phases (`Provisioning`, `Ready`, `Active`). Every transition is validated by `valid_next()` and emits a Regulation span.
 
 **Key source:** `crates/hkask-adapter/src/endpoint_lifecycle.rs:14-45` (enum + `valid_next`), `crates/hkask-adapter/src/adapter_router/mod.rs:464-649` (transition triggers).
 
@@ -341,7 +341,7 @@ stateDiagram-v2
         note left of serving
             billable, cost accruing
             budget enforcement active
-            CNS: Inference emits spans
+            Regulation: Inference emits spans
         end note
     }
 

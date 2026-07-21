@@ -348,7 +348,7 @@ All architecture documents MUST map to at least one of the 5 MDS categories defi
 1. **Domain** — Bounded context, ν-events, entities
 2. **Composition** — Registry, cascade rules, template types, MCP/CLI/API surfaces, equivalence matrix
 3. **Trust** — Threat model, OCAP boundaries, keystore, capability tokens, attenuation policy
-4. **Lifecycle** — Bootstrap, evolution, deprecation, CNS spans, variety counters, storage schema, memory pipelines, encryption
+4. **Lifecycle** — Bootstrap, evolution, deprecation, Regulation spans, variety counters, storage schema, memory pipelines, encryption
 5. **Curation** — Evaluation gradient, coherence metric, curator authority, writing quality
 
 These 5 categories consolidate the previous 9-category DDMVSS taxonomy. The mapping is: `capability`→`trust`, `interface`→`composition`, `observability`→`lifecycle`, `persistence`→`lifecycle`. Documents that used the 9-category taxonomy have been migrated.
@@ -384,7 +384,7 @@ The verification checklist (§10) is extended with MDS alignment checks:
 | **Domain** | Bounded context, ν-event types, entity definitions | Terms allocated |
 | **Composition** | Registry schema, cascade rules, template types, surface definitions, equivalence matrix | Template types documented; MCP ≡ CLI ≡ API verified for core operations |
 | **Trust** | Threat model, mitigations, keystore config, OCAP policy, attenuation rules | STRIDE-lite analysis complete; capability grant table present |
-| **Lifecycle** | Bootstrap sequence, evolution rules, deprecation policy, CNS span registry, storage schema, encryption config | All operations emit spans; bitemporal semantics documented |
+| **Lifecycle** | Bootstrap sequence, evolution rules, deprecation policy, Regulation span registry, storage schema, encryption config | All operations emit spans; bitemporal semantics documented |
 | **Curation** | Decision gradient, coherence metric, writing quality assessment | Curator authority bounded; ≥3/4 writing dimensions passing |
 
 ### 11.4 Self-Application

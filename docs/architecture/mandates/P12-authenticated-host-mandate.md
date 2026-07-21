@@ -33,14 +33,14 @@ hKask has three actor classes, each with an accountable host identity (WebID):
 ## Dual-presence pattern
 
 The CLI/REPL surface hosts both the user's userpod AND the Curator daemon in a single
-loop. The user speaks; the Curator observes, surfaces CNS alerts, provides memory
+loop. The user speaks; the Curator observes, surfaces Regulation alerts, provides memory
 summaries, and can be addressed directly via `kask curator chat`. This is not two
 separate sessions — it is one conversation with two participants. The user's userpod is
 the sovereign host; the Curator daemon is the system's presence.
 
-## CNS span authority
+## Regulation span authority
 
-Every `cns.*` span carries a `userpod` (or `owner`) WebID as its authority field. No
+Every `reg.*` span carries a `userpod` (or `owner`) WebID as its authority field. No
 span is emitted without an accountable host. This is the observability expression of
 P12: every regulated variable is attributed.
 

@@ -1,6 +1,6 @@
 ---
 title: "Gas Budget System — Status"
-audience: [architects, CNS developers, curator]
+audience: [architects, Regulation developers, curator]
 last_updated: 2026-07-01
 version: "0.31.0"
 status: "Active"
@@ -32,7 +32,7 @@ mds_categories: [trust, lifecycle, domain]
 - Integrated into spend path: `can_proceed` → `reserve_gas` → `settle_gas` check wallet first
 - Priority chain: WalletManager → WalletBackedBudget → GasBudget
 
-### CNS Spans (10 new)
+### Regulation Spans (10 new)
 `UserPodRegistered`, `WellCreated`, `WellReplenished`, `WellDraw`, `WellExhausted`, `WalletCreated`, `WalletDraw`, `WalletSpend`, `WalletExhausted`, `CuratorEfficiencyExceeded`
 
 ## Deferred / Future
@@ -45,5 +45,5 @@ mds_categories: [trust, lifecycle, domain]
 ## Verification
 ```bash
 cargo build --workspace     # 0 errors, 0 warnings
-cargo test -p hkask-cns     # 109 passed, 0 failed
+cargo test -p hkask-regulation     # 109 passed, 0 failed
 ```

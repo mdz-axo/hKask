@@ -13,9 +13,9 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 **Version:** v0.31.0
 **Created:** 2026-06-16
-**Status:** Active — anchor for the Testing Discipline. Contracts use `expect:` + `[P{N}]` annotations with CNS-observed behavioral contracts.
+**Status:** Active — anchor for the Testing Discipline. Contracts use `expect:` + `[P{N}]` annotations with Regulation-observed behavioral contracts.
 **Last Updated:** 2026-07-12
-**Decision:** 2026-06-21 — Contract system simplified. REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. Enforcement is through CNS span observation and property-based testing.
+**Decision:** 2026-06-21 — Contract system simplified. REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. Enforcement is through Regulation span observation and property-based testing.
 
 > This document maps the complete system to its motivating principles and enumerates functional requirements per domain. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
 
@@ -27,15 +27,15 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 | # | Domain | Short Tag | Crate | Contracts | User Expectation | Goal Principle |
 |---|---------|-----------|-------|-----------|-----------------|----------------------|
-| 1 | Energy Budgeting | `energy` | hkask-cns | 20 | System prevents runaway agent resource consumption | P9 (Homeostatic Self-Regulation) |
-| 2 | Algedonic Signalling | `algedonic` | hkask-cns | 4 | System alerts when regulation thresholds are breached | P9 (Homeostatic Self-Regulation) |
-| 3 | Runtime Observability | `runtime` | hkask-cns | 24 | System provides unified CNS observability and regulation feedback | P9 (Homeostatic Self-Regulation) |
-| 4 | Tool Governance | `gov-tool` | hkask-cns | 3 | System gates tool execution behind OCAP capability checks | P9 (Homeostatic Self-Regulation) |
-| 5 | Inference Governance | `gov-inf` | hkask-cns | 2 | System gates inference calls behind gas budget checks | P9 (Homeostatic Self-Regulation) |
-| 6 | Circuit Breaking | `circuit` | hkask-cns | 3 | System prevents cascading failures in external service calls | P9 (Homeostatic Self-Regulation) |
-| 7 | API Metering | `api` | hkask-cns | 8 | System enforces per-key rate limits and gas tracking | P9 (Homeostatic Self-Regulation) |
-| 8 | Energy Estimation | `est` | hkask-cns | 2 | System estimates energy costs for regulated operations | P9 (Homeostatic Self-Regulation) |
-| 9 | Cybernetics Loop | `loop` | hkask-cns | 1 | System maintains homeostatic regulation via feedback loops | P9 (Homeostatic Self-Regulation) |
+| 1 | Energy Budgeting | `energy` | hkask-regulation | 20 | System prevents runaway agent resource consumption | P9 (Homeostatic Self-Regulation) |
+| 2 | Algedonic Signalling | `algedonic` | hkask-regulation | 4 | System alerts when regulation thresholds are breached | P9 (Homeostatic Self-Regulation) |
+| 3 | Runtime Observability | `runtime` | hkask-regulation | 24 | System provides unified Regulation observability and regulation feedback | P9 (Homeostatic Self-Regulation) |
+| 4 | Tool Governance | `gov-tool` | hkask-regulation | 3 | System gates tool execution behind OCAP capability checks | P9 (Homeostatic Self-Regulation) |
+| 5 | Inference Governance | `gov-inf` | hkask-regulation | 2 | System gates inference calls behind gas budget checks | P9 (Homeostatic Self-Regulation) |
+| 6 | Circuit Breaking | `circuit` | hkask-regulation | 3 | System prevents cascading failures in external service calls | P9 (Homeostatic Self-Regulation) |
+| 7 | API Metering | `api` | hkask-regulation | 8 | System enforces per-key rate limits and gas tracking | P9 (Homeostatic Self-Regulation) |
+| 8 | Energy Estimation | `est` | hkask-regulation | 2 | System estimates energy costs for regulated operations | P9 (Homeostatic Self-Regulation) |
+| 9 | Cybernetics Loop | `loop` | hkask-regulation | 1 | System maintains homeostatic regulation via feedback loops | P9 (Homeostatic Self-Regulation) |
 | 10 | Wallet | `wallet` | hkask-wallet | 23 | System manages rJoule balances and energy-based payments | P9 (Homeostatic Self-Regulation) |
 | 11 | Storage | `storage` | hkask-storage | 168 | System provides durable hMem storage across all domains | P3 (Generative Space) |
 | 12 | Memory | `memory` | hkask-memory | 68 | System stores and retrieves episodic and semantic knowledge | P3 (Generative Space) |
@@ -62,8 +62,8 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 
 Each domain's contracts trace upward through constraining principles to a single goal principle, which itself traces to a Magna Carta principle (P1–P4). The user expectation column above captures the OUGHT that drives principle selection per domain. Key anchoring rules:
 
-1. **P9 (Homeostatic Self-Regulation)** owns all CNS regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation, tool governance, inference governance
-2. **P4 (Clear Boundaries)** is the primary constraining principle on CNS governance contracts — the OCAP membrane that enforces boundaries. It does not serve as a goal principle in CNS.
+1. **P9 (Homeostatic Self-Regulation)** owns all Regulation regulation-loop contracts: energy, algedonic, runtime, circuit breaker, API metering, energy estimation, tool governance, inference governance
+2. **P4 (Clear Boundaries)** is the primary constraining principle on Regulation governance contracts — the OCAP membrane that enforces boundaries. It does not serve as a goal principle in Regulation.
 3. **P8 (Semantic Grounding)** owns all type-level identity contracts: `GasCost`, `EnergyDelta` newtypes
 4. **P12 (Subscriber Consent)** owns all subscriber/consent contracts: `subscribe`, `subscribe_async`
 5. **P3 (Generative Space)** owns all sync/blocking variants and content-domain contracts: blocking accessors, storage, memory, CLI
@@ -107,14 +107,14 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 | `config()` | `&ServiceConfig` | Identity |
 | `webid()` | `&WebID` | Identity |
 | `identity()` | `(&WebID, &Arc<A2ARuntime>)` | Identity |
-| `seam_summary()` | `Option<SeamSummary>` (async) | CNS / Infra |
-| `curator_ready()` | `Result<(), String>` (async, `&mut self`) | CNS / Infra |
-| `governed_tool(webid)` | `Arc<GovernedTool<RawMcpToolPort>>` | CNS / Infra |
-| `inference_loop()` | `Option<&Arc<InferenceLoop>>` | CNS / Infra |
-| `set_inference_loop(il)` | `()` (`&mut self`) | CNS / Infra |
-| `inference_port()` | `Option<Arc<dyn InferencePort>>` | CNS / Infra |
-| `gas_remaining()` | `Option<u64>` | CNS / Infra |
-| `gas_cap()` | `Option<u64>` | CNS / Infra |
+| `seam_summary()` | `Option<SeamSummary>` (async) | Regulation / Infra |
+| `curator_ready()` | `Result<(), String>` (async, `&mut self`) | Regulation / Infra |
+| `governed_tool(webid)` | `Arc<GovernedTool<RawMcpToolPort>>` | Regulation / Infra |
+| `inference_loop()` | `Option<&Arc<InferenceLoop>>` | Regulation / Infra |
+| `set_inference_loop(il)` | `()` (`&mut self`) | Regulation / Infra |
+| `inference_port()` | `Option<Arc<dyn InferencePort>>` | Regulation / Infra |
+| `gas_remaining()` | `Option<u64>` | Regulation / Infra |
+| `gas_cap()` | `Option<u64>` | Regulation / Infra |
 | `build_per_agent_memory(db, sink)` | `PerAgentMemory` (assoc. fn) | Memory |
 | `per_agent_memory(agent_name)` | `Result<PerAgentMemory, ServiceError>` | Memory |
 | `consolidate_agent_memory(agent_name, request)` | `Result<ConsolidationOutcome, ServiceError>` | Memory |
@@ -137,7 +137,7 @@ graph TD
     CLI --> SVC
     API --> SVC
     SVC --> AGENTS[hkask-agents]
-    SVC --> CNS[hkask-cns]
+    SVC --> Regulation[hkask-regulation]
     SVC --> MEM[hkask-memory]
     SVC --> TEMPLATES[hkask-templates]
     SVC --> TYPES[hkask-types]
@@ -146,7 +146,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -185,7 +185,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -213,23 +213,23 @@ The CLI provides two pod export paths for cloud deployment. Both are implemented
 
 **Canonical deployment manifests** live in `deploy/k8s/` -- single source of truth. The directory contains a complete K8s deployment: single-container pod (kask + Conduit + Litestream via supervisord), ConfigMap, Secret, PVC, Service, Ingress with cert-manager TLS, Kustomization, entrypoint script, and templated config files. See `deploy/k8s/README.md` for the full deployment guide.
 
-**CNS spans:** `RegulationSpan::SessionOpen`, `RegulationSpan::SessionClose`, `RegulationSpan::BackupExport`, `RegulationSpan::BackupAutoExport`, `RegulationSpan::BackupUpload` — deployment lifecycle observability.
+**Regulation spans:** `RegulationSpan::SessionOpen`, `RegulationSpan::SessionClose`, `RegulationSpan::BackupExport`, `RegulationSpan::BackupAutoExport`, `RegulationSpan::BackupUpload` — deployment lifecycle observability.
 
 **Curator init flow:** `kask curator init` calls `export_k8s(&curator_dir)` → `kubectl apply -f <manifests_dir>`. The `PodService` abstraction was removed in v0.31.0 per P5 (Essentialism) — pod management is now direct calls to `ActivePods` + `PodFactory`.
 
 
-## CNS Domain Specification
+## Regulation Domain Specification
 
-> **Incorporated from:** docs/architecture/core/CNS-DOMAIN-SPECIFICATION.md
+> **Incorporated from:** docs/architecture/core/Regulation-DOMAIN-SPECIFICATION.md
 
-**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-cns`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md). 76 `expect:`-annotated contracts encode user functional expectations.
+**Purpose:** A formal specification of the 8 cybernetic sub-domains implementing hKask's autonomous nervous system in `hkask-regulation`. Each sub-domain maps to an authoritative principle from [`PRINCIPLES.md`](PRINCIPLES.md). 76 `expect:`-annotated contracts encode user functional expectations.
 
 ### Sub-Domain Architecture
 
-The CNS is structured into 8 sub-domains, each implementing a specific cybernetic function. Each sub-domain is implemented in a single Rust file (or a tight cluster of files), following deep-module discipline (Ousterhout). The public surface is ≤ 7 items per module; internal plumbing is `pub(crate)`.
+The Regulation is structured into 8 sub-domains, each implementing a specific cybernetic function. Each sub-domain is implemented in a single Rust file (or a tight cluster of files), following deep-module discipline (Ousterhout). The public surface is ≤ 7 items per module; internal plumbing is `pub(crate)`.
 
 ```
-hkask-cns/src/
+hkask-regulation/src/
 ├── algedonic.rs                  ← 4 contracts   — P9: Alert creation, escalation, severity classification
 ├── runtime.rs                    ← 24 contracts  — P9: Variety monitoring, outcome tracking, gas budgets
 ├── governed_tool.rs              ← 3 contracts   — P4: Tool membrane, OCAP gate, consumption channels
@@ -237,7 +237,7 @@ hkask-cns/src/
 ├── circuit_breaker.rs            ← 3 contracts   — P4: Failure gating, state transitions
 ├── api_metering.rs               ← 8 contracts   — P9: Rate limiting, span creation, alert classification
 ├── energy.rs                     ← 16 contracts  — P9/P8: Gas budget types, delta, reserve, settle, repl
-├── dynamic_gas_table.rs          ← P9: Per-server gas cost calibration from CNS settled events
+├── dynamic_gas_table.rs          ← P9: Per-server gas cost calibration from Regulation settled events
 ├── gas_report.rs                 ← P9: Aggregate gas queries across agents and time windows
 ├── calibrated_energy_estimator.rs ← P9: Self-regulating per-server gas cost estimator
 ├── composite_energy_estimator.rs ← P9: Routes inference to token estimator, others to table
@@ -259,29 +259,29 @@ hkask-cns/src/
 | 7. Gas Cost Calibration | P9 | `dynamic_gas_table.rs` + `gas_report.rs` + `calibrated_energy_estimator.rs` | 4 | Per-server gas cost calibration via EMA |
 | 8. Wallet-Backed Energy | P9 + P4 | `wallet_budget.rs` + `wallet_energy_estimator.rs` + `wallet_gas_calibrator.rs` | 3 | Wallet-backed gas budget with gas→rJoule conversion |
 
-**Codebase Reference:** `crates/hkask-cns/src/` — 76 `expect:`-annotated contracts across 8 sub-domains.
+**Codebase Reference:** `crates/hkask-regulation/src/` — 76 `expect:`-annotated contracts across 8 sub-domains.
 
-### CNS Spans
+### Regulation Spans
 
-The `RegulationSpan` enum (`crates/hkask-types/src/cns.rs`) defines the canonical CNS span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
+The `RegulationSpan` enum (`crates/hkask-types/src/cns.rs`) defines the canonical Regulation span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
 
 Key deployment-related spans added in v0.31.0:
 
 | Span | Sub-Domain | Trigger |
 |------|-----------|---------|
-| `cns.gas.calibrated` | Gas Cost Calibration | `CalibratedEnergyEstimator` adjusts per-server costs |
-| `cns.wallet.conversion.calibrated` | Wallet-Backed Energy | `WalletGasCalibrator` adjusts gas→rJoule rate |
-| `cns.deploy.session_open` | Deployment | User OAuth sign-in session created |
-| `cns.deploy.session_close` | Deployment | User session closed (logout or expiry) |
-| `cns.deploy.backup_export` | Backup | Sovereignty backup export created |
-| `cns.deploy.backup_auto_export` | Backup | Scheduled auto-export triggered |
-| `cns.deploy.backup_upload` | Backup | Sovereignty backup uploaded to server |
+| `reg.gas.calibrated` | Gas Cost Calibration | `CalibratedEnergyEstimator` adjusts per-server costs |
+| `reg.wallet.conversion.calibrated` | Wallet-Backed Energy | `WalletGasCalibrator` adjusts gas→rJoule rate |
+| `reg.deploy.session_open` | Deployment | User OAuth sign-in session created |
+| `reg.deploy.session_close` | Deployment | User session closed (logout or expiry) |
+| `reg.deploy.backup_export` | Backup | Sovereignty backup export created |
+| `reg.deploy.backup_auto_export` | Backup | Scheduled auto-export triggered |
+| `reg.deploy.backup_upload` | Backup | Sovereignty backup uploaded to server |
 
 ### Memory Verb Contracts
 
 > **Incorporated from:** `docs/architecture/core/CNS_MEMORY_VERB_CONTRACTS.md`
 
-13 CNS `MemoryEncode` RegulationRecords emitted by autonomous memory operations:
+13 Regulation `MemoryEncode` RegulationRecords emitted by autonomous memory operations:
 
 | # | Verb | Source | Trigger |
 |---|------|--------|---------|
@@ -299,13 +299,13 @@ Key deployment-related spans added in v0.31.0:
 | 12 | `consolidation_completed` | `consolidation.rs` | Bridge finishes |
 | 13 | `consolidation_service_completed` | `consolidation_service.rs` | Service finishes all 3 phases |
 
-The Episodic Loop emits `cns.memory.life` carrying memory life S in days (Wozniak-Gorzelanczyk, 1995). Default 180 days. Configurable via `HKASK_MEMORY_LIFE_DAYS` env var or `ServiceConfig.memory_life_days`.
+The Episodic Loop emits `reg.memory.life` carrying memory life S in days (Wozniak-Gorzelanczyk, 1995). Default 180 days. Configurable via `HKASK_MEMORY_LIFE_DAYS` env var or `ServiceConfig.memory_life_days`.
 
 ### Verification
 
 ```bash
-cargo check -p hkask-cns
-cargo test -p hkask-cns
+cargo check -p hkask-regulation
+cargo test -p hkask-regulation
 kask cns health
 ```
 
@@ -317,7 +317,7 @@ kask cns health
 
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — gas budget enforcement prevents runaway agents
 **Constraining Principle:** P8 (Semantic Grounding) — type-level identity for energy cost types
-**Crate:** `hkask-cns` | **Source:** `src/energy.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/energy.rs`
 
 ```mermaid
 erDiagram
@@ -334,7 +334,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -376,7 +376,7 @@ status: VERIFIED
 
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — algedonic feedback loop for variety deficit escalation
 **Constraining Principle:** P4 (Clear Boundaries) — cap enforcement through binary classification
-**Crate:** `hkask-cns` | **Source:** `src/algedonic.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/algedonic.rs`
 
 ```mermaid
 erDiagram
@@ -393,7 +393,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -419,9 +419,9 @@ status: VERIFIED
 
 ### 2.3 Runtime Observability (`runtime`)
 
-**Goal Principle:** P9 (Homeostatic Self-Regulation) — single entry point for CNS observability and regulation
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — single entry point for Regulation observability and regulation
 **Constraining Principles:** P3 (Generative Space — sync variants), P7 (Evolutionary Architecture — calibrate), P12 (Affirmative Consent — subscribe)
-**Crate:** `hkask-cns` | **Source:** `src/runtime.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/runtime.rs`
 
 ```mermaid
 erDiagram
@@ -435,13 +435,13 @@ erDiagram
     RegulationLedger }o--|| P3_Generative : "constrained by"
     RegulationLedger }o--|| P12_Consent : "constrained by"
     RegulationLedger {
-        string userExpectation "User expects unified CNS observability and regulation feedback"
+        string userExpectation "User expects unified Regulation observability and regulation feedback"
     }
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -506,7 +506,7 @@ status: VERIFIED
 
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — tool execution gated by gas budget and OCAP checks
 **Constraining Principles:** P4 (Clear Boundaries — OCAP membrane enforcement), P12 (Affirmative Consent — agent identity is the consent anchor)
-**Crate:** `hkask-cns` | **Source:** `src/governed_tool.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/governed_tool.rs`
 
 ```mermaid
 erDiagram
@@ -524,7 +524,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-006
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -550,7 +550,7 @@ status: VERIFIED
 
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — inference calls gated by gas budget and provider membrane
 **Constraining Principles:** P4 (Clear Boundaries — provider membrane), P12 (Affirmative Consent — agent identity is required for attribution)
-**Crate:** `hkask-cns` | **Source:** `src/governed_inference.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/governed_inference.rs`
 
 ```mermaid
 erDiagram
@@ -567,7 +567,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-007
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -588,9 +588,9 @@ status: VERIFIED
 
 ### 2.6 Circuit Breaker (`circuit`)
 
-**Goal Principle:** P9 (Homeostatic Self-Regulation) — CNS regulation loop enforces homeostasis over external service calls
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — Regulation regulation loop enforces homeostasis over external service calls
 **Constraining Principle:** P4 (Clear Boundaries) — circuit state transitions are boundary conditions
-**Crate:** `hkask-cns` | **Source:** `src/circuit_breaker.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/circuit_breaker.rs`
 
 ```mermaid
 erDiagram
@@ -606,7 +606,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-008
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -614,16 +614,16 @@ status: VERIFIED
 
 | FR# | Function | Principle Annotations |
 |-----|----------|---------------------|
-| FR-CB1 | `CircuitBreaker::default_for_inference(name) -> Self` | [P9] Goal: Homeostatic Self-Regulation — CNS regulation loop enforces boundary; [P4] Constraining: Clear Boundaries — default thresholds establish failure boundary |
+| FR-CB1 | `CircuitBreaker::default_for_inference(name) -> Self` | [P9] Goal: Homeostatic Self-Regulation — Regulation regulation loop enforces boundary; [P4] Constraining: Clear Boundaries — default thresholds establish failure boundary |
 | FR-CB2 | `CircuitBreaker::allow_request() -> bool` | [P9] Goal: Homeostatic Self-Regulation — check-before-execute gateway; [P4] Constraining: Clear Boundaries — state-driven gating enforces the boundary |
 | FR-CB3 | `CircuitBreaker::record_success()` | [P9] Goal: Homeostatic Self-Regulation — success count drives loop closure; [P4] Constraining: Clear Boundaries — threshold-based state transition enforces boundary |
 
 
 ### 2.7 API Metering (`api`)
 
-**Goal Principle:** P9 (Homeostatic Self-Regulation) — per-key rate limiting, gas tracking, and CNS spans
+**Goal Principle:** P9 (Homeostatic Self-Regulation) — per-key rate limiting, gas tracking, and Regulation spans
 **Constraining Principles:** P7 (Evolutionary Architecture — hardcoded endpoint weight table, configurable later), P4 (Clear Boundaries — rate limit thresholds are boundary conditions)
-**Crate:** `hkask-cns` | **Source:** `src/api_metering.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/api_metering.rs`
 
 ```mermaid
 erDiagram
@@ -640,7 +640,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-009
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -649,12 +649,12 @@ status: VERIFIED
 | FR# | Function | Principle Annotations |
 |-----|----------|---------------------|
 | FR-AM1 | `endpoint_weight(path) -> EndpointWeight` | [P9] Goal: Homeostatic Self-Regulation — per-request rate limiting for API stability; [P7] Constraining: Evolutionary Architecture — hardcoded table to be configurable later |
-| FR-AM2 | `RateLimitStatus::as_str() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — rate limit status feedback for CNS; [P8] Constraining: Semantic Grounding — string representation must be stable across versions |
+| FR-AM2 | `RateLimitStatus::as_str() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — rate limit status feedback for Regulation; [P8] Constraining: Semantic Grounding — string representation must be stable across versions |
 | FR-AM3 | `ApiMeter::new() -> Self` | [P9] Goal: Homeostatic Self-Regulation — empty meter ready for per-key tracking; [P5] Constraining: Essentialism — minimal constructor with empty buckets map |
-| FR-AM4 | `ApiMeter::check_and_record(key_id, max_rpm, max_tokens, tokens) -> RateLimitStatus` | [P9] Goal: Homeostatic Self-Regulation — rate limit enforcement is the CNS check; [P4] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions |
+| FR-AM4 | `ApiMeter::check_and_record(key_id, max_rpm, max_tokens, tokens) -> RateLimitStatus` | [P9] Goal: Homeostatic Self-Regulation — rate limit enforcement is the Regulation check; [P4] Constraining: Clear Boundaries — rate limit thresholds are boundary conditions |
 | FR-AM5 | `ApiMeter::current_rpm(key_id) -> u32` | [P9] Goal: Homeostatic Self-Regulation — current rate is the cybernetic state; [P8] Constraining: Semantic Grounding — RPM count must be stable and accurate |
-| FR-AM6 | `ApiRequestSpan::new(key_id, endpoint, matched, gas, enc, status) -> Self` | [P9] Goal: Homeostatic Self-Regulation — span creation is the CNS observation layer; [P8] Constraining: Semantic Grounding — span fields must be traceable to source |
-| FR-AM7 | `ApiMeteringAlert::alert_type() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — alert type is the CNS classification; [P8] Constraining: Semantic Grounding — alert type labels must be stable across versions |
+| FR-AM6 | `ApiRequestSpan::new(key_id, endpoint, matched, gas, enc, status) -> Self` | [P9] Goal: Homeostatic Self-Regulation — span creation is the Regulation observation layer; [P8] Constraining: Semantic Grounding — span fields must be traceable to source |
+| FR-AM7 | `ApiMeteringAlert::alert_type() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — alert type is the Regulation classification; [P8] Constraining: Semantic Grounding — alert type labels must be stable across versions |
 | FR-AM8 | `ApiMeteringAlert::severity() -> &'static str` | [P9] Goal: Homeostatic Self-Regulation — severity is the algedonic signal; [P8] Constraining: Semantic Grounding — severity labels must be stable across versions |
 
 #### Test Contracts (8)
@@ -674,7 +674,7 @@ status: VERIFIED
 ### 2.8 Energy Estimation (`est`)
 
 **Goal Principle:** P9 (Homeostatic Self-Regulation) — composite estimator routes inference and table estimation
-**Crate:** `hkask-cns` | **Source:** `src/composite_energy_estimator.rs`, `src/wallet_energy_estimator.rs`
+**Crate:** `hkask-regulation` | **Source:** `src/composite_energy_estimator.rs`, `src/wallet_energy_estimator.rs`
 
 ```mermaid
 erDiagram
@@ -690,7 +690,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-010
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -713,7 +713,7 @@ status: VERIFIED
 
 ---
 
-## 3. Non-CNS Domain Stubs
+## 3. Non-Regulation Domain Stubs
 
 These domains are documented here for completeness. The canonical contract format uses `expect:` + `[P{N}]` annotations. The service layer (`the service layer subcrates` subcrates) has the largest remaining annotation surface.
 
@@ -732,7 +732,7 @@ These domains are documented here for completeness. The canonical contract forma
 | FR-W2 | `WalletManager::build(...)` | [P9] Goal: Homeostatic Self-Regulation — wallet construction; [P1] Constraining: User Sovereignty — wallet_seed resolved and zeroized |
 | FR-W3 | `WalletManager::get_balance(wallet_id)` | [P9] Goal: Homeostatic Self-Regulation — balance is the cybernetic state; [P8] Constraining: Semantic Grounding — gas/USDC equivalents derive deterministically |
 | FR-W4 | `WalletManager::get_api_key(key_id)` | [P9] Goal: Homeostatic Self-Regulation — API key health state for feedback loops; [P4] Constraining: Clear Boundaries — revoked keys are excluded |
-| FR-W5 | `WalletManager::emit_chain_error_for_actor` | [P9] Goal: Homeostatic Self-Regulation — chain errors feed the CNS sense loop; [P12] Constraining: Subscriber Consent — actor identity is recorded |
+| FR-W5 | `WalletManager::emit_chain_error_for_actor` | [P9] Goal: Homeostatic Self-Regulation — chain errors feed the Regulation sense loop; [P12] Constraining: Subscriber Consent — actor identity is recorded |
 | FR-W6 | `WalletManager::can_afford(wallet_id, cost_rj)` | [P9] Goal: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
 | FR-W7 | `WalletManager::reserve_rjoules(wallet_id, amount)` | [P9] Goal: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
 | FR-W8 | `WalletManager::settle_rjoules(wallet_id, reserved, actual)` | [P9] Goal: Homeostatic Self-Regulation — optimistic hold-settle prevents overspend; [P4] Constraining: Clear Boundaries — cannot reserve beyond balance |
@@ -868,7 +868,7 @@ responsibilities:
   - monitor: system_health_via_cns
   - synthesize: bot_reports_into_system_state
   - perform: metacognition_on_system_performance
-  - emit: cns.prompt.metacognition
+  - emit: reg.prompt.metacognition
 
 persona:
   tone: Direct and to the point
@@ -1189,7 +1189,7 @@ The crate uses `expect:` + `[P{N}]` annotations across its surface. This is the 
 
 Representative domains:
 - `AgentLifecycleService` — agent creation, monitoring, teardown
-- `CnsService` — CNS health, alerts, variety, budget queries
+- `CnsService` — Regulation health, alerts, variety, budget queries
 - `KeystoreService` — key management and signing operations
 - `WalletService` — wallet operation orchestration
 - `BackupService`, `BundleService`, `ChatService`, `ComposeService`, `CuratorService`, `DiscoverService`, `EmbedService`, `KataEngine`, `OnboardingService`, `SkillService`, `SovereigntyService`, `VerificationService`
@@ -1235,7 +1235,7 @@ Representative domains:
 **25 contracts** — P1 (User Sovereignty)
 - `Channel` — message passing between agents (P1)
 - `Broadcast` — pub/sub event distribution (P1)
-- `MatrixTransport` — Matrix/Conduit messaging, 7R7 listener, CNS bridge
+- `MatrixTransport` — Matrix/Conduit messaging, 7R7 listener, Regulation bridge
 - `CommunicationEvent` → `CurationInput::Communication` → `MetacognitionLoop`
 - **CAT engagement gate**: `cat::evaluate()` pure-function speak/silent decision driven by `convergence_bias` modulated by `condenser/condenser_score_saliency` (ontology graph proximity, P5.4)
 - Message serialization, delivery guarantees
@@ -1280,7 +1280,7 @@ Representative domains:
 ### 3.15 Web Interface (`hkask-api`)
 
 **Goal Principles:** P1 (User Sovereignty) + P4 (Clear Boundaries) — browser-based terminal and streaming chat access via OAuth sessions scoped to user WebID
-**Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal and chat sessions emit CNS observability
+**Constraining Principles:** P2 (Affirmative Consent) — OAuth flow requires explicit user authorization; P12 (Subscriber Consent) — terminal and chat sessions emit Regulation observability
 **Crates:** `hkask-api` | **Reference:** `docs/plans/deployment-and-backup.md`, `docs/plans/wss-chat-endpoint.md`
 
 The web interface provides two browser-based surfaces: (1) an xterm.js terminal connected via WebSocket to a server-spawned `kask repl` PTY, and (2) a persistent WSS chat endpoint (`GET /api/v1/chat/ws`) for bidirectional streaming agent conversation with MCP tool auto-discovery. There is no client binary — the browser is the client.
@@ -1295,11 +1295,11 @@ The web interface provides two browser-based surfaces: (1) an xterm.js terminal 
 | FR-WEB4 | `GET /api/v1/auth/callback?provider={github\|google}&code=...` | [P1] Goal: User Sovereignty — OAuth callback creates/loads HumanUser, provisions WebID + default userpod + wallet on first sign-in; [P2] Constraining: Affirmative Consent — session cookie set only after verified callback |
 | FR-WEB5 | Session cookie set after OAuth callback | [P1] Goal: User Sovereignty — cookie scoped to user's WebID; [P4] Constraining: Clear Boundaries — `HttpOnly`, `Secure`, `SameSite=Strict` |
 | FR-WEB6 | `GET /api/v1/auth/session` | [P1] Goal: User Sovereignty — returns current session info (WebID, provider, session expiry) |
-| FR-WEB7 | `POST /api/v1/auth/logout` | [P1] Goal: User Sovereignty — destroys session; [P12] Constraining: Subscriber Consent — emits `SessionClose` CNS span |
+| FR-WEB7 | `POST /api/v1/auth/logout` | [P1] Goal: User Sovereignty — destroys session; [P12] Constraining: Subscriber Consent — emits `SessionClose` Regulation span |
 | FR-WEB8 | `GET /api/v1/terminal/ws` (WebSocket upgrade) | [P1] Goal: User Sovereignty — verifies session cookie, extracts WebID, spawns PTY; [P4] Constraining: Clear Boundaries — WebSocket scoped to authenticated WebID |
 | FR-WEB9 | PTY spawn: `kask repl --webid <webid>` | [P1] Goal: User Sovereignty — each user gets a process scoped to their WebID; [P4] Constraining: Clear Boundaries — PTY I/O piped over WebSocket, no filesystem access beyond user scope |
 | FR-WEB10 | Static `/terminal` page serving xterm.js | [P4] Goal: Clear Boundaries — single static HTML file (~50 lines), no JavaScript framework; [P5] Constraining: Essentialism — xterm.js loaded from CDN or bundled as static asset |
-| FR-WEB11 | `RegulationSpan::SessionOpen { user_id, provider }` | [P1] Goal: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if CNS sink subscribed |
+| FR-WEB11 | `RegulationSpan::SessionOpen { user_id, provider }` | [P1] Goal: User Sovereignty — every session open is observable; [P12] Constraining: Subscriber Consent — emitted only if Regulation sink subscribed |
 | FR-WEB12 | All hMemStore queries scoped `WHERE owner_webid = ?` | [P1] Goal: User Sovereignty — users only access own hMems, pods, wallet; [P4] Constraining: Clear Boundaries — per-user resource isolation |
 | FR-WEB13 | Tiled/tabbed terminal layout: 1/2/4 tiles, up to 6 tabs per tile, max 24 terminals | [P1] User Sovereignty — user controls workspace; [P5] Essentialism — client-side DOM, no server multiplexing |
 | FR-WEB14 | Each new tab opens WebSocket to `/api/v1/terminal/ws` with existing session cookie | [P1] User Sovereignty — auto-authenticated; [P4] Clear Boundaries — each tab is independent PTY process |
@@ -1317,7 +1317,7 @@ The web interface provides two browser-based surfaces: (1) an xterm.js terminal 
 ### 3.16 Multi-User (`hkask-api` + `hkask-storage`)
 
 **Goal Principles:** P1 (User Sovereignty) + P2 (Affirmative Consent) — two-role authorization model with admin-managed membership
-**Constraining Principles:** P4 (Clear Boundaries) — admin endpoints gated by role check; P12 (Subscriber Consent) — invitation lifecycle emits CNS observability
+**Constraining Principles:** P4 (Clear Boundaries) — admin endpoints gated by role check; P12 (Subscriber Consent) — invitation lifecycle emits Regulation observability
 **Crates:** `hkask-api`, `hkask-storage` | **Reference:** `docs/plans/deployment-and-backup.md`
 
 hKask supports exactly two roles: **Admin** and **Member**. Admin is the user who runs `kask init --profile server`. All subsequent users are Members. Admins can view/modify server config (including toggling between open and closed registration), invite new members, and view all active sessions. Members can only view/modify their own settings.
@@ -1329,20 +1329,20 @@ The server registration mode (`open` or `closed`, default: `closed`) is set duri
 | FR# | Function | Principle Annotations |
 |-----|----------|--------------------|
 | FR-MU1 | `HumanUser.role` field (`Admin` \| `Member`) | [P1] Goal: User Sovereignty — role is an identity attribute; [P4] Constraining: Clear Boundaries — role stored in HumanUser record |
-| FR-MU2 | Role assigned at `kask init --profile server` (Admin) / first OAuth sign-in (Member) | [P1] Goal: User Sovereignty — role determined by provisioning path; [P12] Constraining: Subscriber Consent — emits `RoleAssigned` CNS span |
+| FR-MU2 | Role assigned at `kask init --profile server` (Admin) / first OAuth sign-in (Member) | [P1] Goal: User Sovereignty — role determined by provisioning path; [P12] Constraining: Subscriber Consent — emits `RoleAssigned` Regulation span |
 | FR-MU3 | `GET /api/v1/admin/config` (Admin-only) | [P1] Goal: User Sovereignty — admin can view server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
 | FR-MU4 | `PATCH /api/v1/admin/config` (Admin-only) — toggle registration mode | [P1] Goal: User Sovereignty — admin can modify server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
-| FR-MU5 | `POST /api/v1/admin/invite` + `kask userpod invite --by <name>` (Admin-only) | [P2] Goal: Affirmative Consent — admin explicitly invites new members; [P12] Constraining: Subscriber Consent — emits `InviteSent` CNS span |
-| FR-MU6 | `GET /api/v1/auth/accept-invite?code=` — invitee clicks link, OAuth flow, account linked | [P2] Goal: Affirmative Consent — invitee explicitly accepts; [P12] Constraining: Subscriber Consent — emits `InviteAccepted` CNS span |
+| FR-MU5 | `POST /api/v1/admin/invite` + `kask userpod invite --by <name>` (Admin-only) | [P2] Goal: Affirmative Consent — admin explicitly invites new members; [P12] Constraining: Subscriber Consent — emits `InviteSent` Regulation span |
+| FR-MU6 | `GET /api/v1/auth/accept-invite?code=` — invitee clicks link, OAuth flow, account linked | [P2] Goal: Affirmative Consent — invitee explicitly accepts; [P12] Constraining: Subscriber Consent — emits `InviteAccepted` Regulation span |
 | FR-MU7 | `GET /api/v1/admin/sessions` (Admin-only) | [P1] Goal: User Sovereignty — admin can view all active sessions; [P4] Constraining: Clear Boundaries — Member cannot access this endpoint |
 | FR-MU8 | `GET/PATCH /api/v1/user/settings` (Member: own settings only) | [P1] Goal: User Sovereignty — user controls own settings; [P4] Constraining: Clear Boundaries — WebID-scoped, cannot modify other users |
 | FR-MU9 | `RegulationSpan::RoleAssigned { webid, role }` | [P1] Goal: User Sovereignty — role assignment is observable; [P12] Constraining: Subscriber Consent — emitted at provisioning time |
-| FR-MU10 | `RegulationSpan::InviteSent { email, invited_by }`, `RegulationSpan::InviteAccepted { email, webid }` | [P1] Goal: User Sovereignty — invitation lifecycle is observable; [P12] Constraining: Subscriber Consent — both spans emitted only if CNS sink subscribed |
+| FR-MU10 | `RegulationSpan::InviteSent { email, invited_by }`, `RegulationSpan::InviteAccepted { email, webid }` | [P1] Goal: User Sovereignty — invitation lifecycle is observable; [P12] Constraining: Subscriber Consent — both spans emitted only if Regulation sink subscribed |
 | FR-MU11 | `ServerConfig.registration` field (`open` \| `closed`) — controls self-registration | [P1] Goal: User Sovereignty — admin chooses membership model; [P4] Constraining: Clear Boundaries — stored in `~/.config/hkask/config.json` |
 | FR-MU12 | Open registration: OAuth callback auto-provisions user without invite check | [P3] Goal: Generative Space — frictionless onboarding for open communities; [P1] Constraining: User Sovereignty — user still authenticates via OAuth |
 | FR-MU13 | Closed registration: OAuth callback requires valid invite cookie or returns 403 | [P2] Goal: Affirmative Consent — admin controls membership; [P4] Constraining: Clear Boundaries — gate enforced before user creation |
 | FR-MU14 | Invite cookie flow: `hkask_invite_code` HttpOnly cookie with 10-min TTL carries code through OAuth roundtrip | [P2] Goal: Affirmative Consent — invite persists across OAuth redirect; [P4] Constraining: Clear Boundaries — cookie cleared after callback |
-| FR-MU15 | Matrix account registration (fire-and-forget): after OAuth sign-in, `tokio::spawn` registers human + userpod on Conduit | [P5] Goal: Essentialism — non-blocking; user can sign in even if Conduit is offline; [P12] Constraining: Subscriber Consent — CNS span pending |
+| FR-MU15 | Matrix account registration (fire-and-forget): after OAuth sign-in, `tokio::spawn` registers human + userpod on Conduit | [P5] Goal: Essentialism — non-blocking; user can sign in even if Conduit is offline; [P12] Constraining: Subscriber Consent — Regulation span pending |
 | FR-MU16 | Server chat room: curator creates "hKask Server Chat" room on first sign-in, stores `conduit_room_id` in ServerConfig, auto-invites new members | [P3] Goal: Generative Space — team chat available immediately; [P4] Constraining: Clear Boundaries — room managed by curator's Matrix credentials |
 | FR-MU17 | `PATCH /api/v1/admin/members/{user_id}` — promote/demote member (Admin-only, refuses to demote last admin) | [P1] Goal: User Sovereignty — admin succession is explicit; [P4] Constraining: Clear Boundaries — prevents zero-admin state |
 
@@ -1379,7 +1379,7 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 | FR-BK10 | `kask replicate delete <name>` / `DELETE /api/v1/userpods/{name}` | [P3] Goal: Generative Space — user removes userpod and all its hMems; [P1] Constraining: User Sovereignty — only own userpods |
 | FR-BK11 | Auto-rename on userpod collision: `"ada" → "ada-migrated-20260617"` | [P3] Goal: Generative Space — prevents data loss on migration; [P1] Constraining: User Sovereignty — returns `MigrationReceipt { renamed_userpods }` |
 
-#### CNS Span Contracts (4)
+#### Regulation Span Contracts (4)
 
 | FR# | Span | Fields |
 |-----|------|--------|
@@ -1400,7 +1400,7 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 
 The operational backup system tracks pod directories via `GixCasAdapter`. One git repo per pod — the pod directory IS the unit. `snapshot_pod_dir()` walks the directory tree recursively, creates git blobs and trees, and commits. `restore_file_from_commit()` checks out individual files (e.g. `pod.db`) from prior commits. Date-based restore via `resolve_date()` finds the nearest commit to a target date. A 24h daemon loop (`pod_backup_daemon`) in `hkask-services-context` snapshots all pods automatically.
 
-This is distinct from the sovereignty export (SQLCipher archive) described in §3.17: the sovereignty export handles user-mediated portability of the full hMem set, while the git backup provides continuous automated operational snapshots of pod directories with git-commit changelogs and CNS-monitored health. See [`docs/architecture/core/hKask-architecture-master.md`](hKask-architecture-master.md) §Backup Subsystem for full details.
+This is distinct from the sovereignty export (SQLCipher archive) described in §3.17: the sovereignty export handles user-mediated portability of the full hMem set, while the git backup provides continuous automated operational snapshots of pod directories with git-commit changelogs and Regulation-monitored health. See [`docs/architecture/core/hKask-architecture-master.md`](hKask-architecture-master.md) §Backup Subsystem for full details.
 
 ---
 
@@ -1457,7 +1457,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-011
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1475,7 +1475,7 @@ status: VERIFIED
 | FR-DP8 | Multi-stage Docker build: `rust:1.91-slim` builder → `debian:bookworm-slim` runtime | [P5] Goal: Essentialism — single Dockerfile for reproducible builds; [P4] Constraining: Clear Boundaries — non-root user, minimal attack surface |
 | FR-DP9 | OAuth config (GitHub + Google client ID/secret) stored in OS keychain | [P1] Goal: User Sovereignty — OAuth credentials user-owned, not in config files; [P4] Constraining: Clear Boundaries — secrets gated by OS keychain |
 | FR-DP10 | OAuth callback provisions `HumanUser` record, default userpod, wallet on first sign-in | [P1] Goal: User Sovereignty — auto-provisioning from verified identity; [P2] Constraining: Affirmative Consent — user explicitly clicks "Sign in with GitHub" |
-| FR-DP11 | `GET /api/cns/health` returns `{ overall_deficit, critical_count, warning_count, healthy }` | [P4] Goal: Clear Boundaries — health check is the deployment liveness probe; [P9] Constraining: Homeostatic Self-Regulation — CNS drives health signal |
+| FR-DP11 | `GET /api/regulation/health` returns `{ overall_deficit, critical_count, warning_count, healthy }` | [P4] Goal: Clear Boundaries — health check is the deployment liveness probe; [P9] Constraining: Homeostatic Self-Regulation — Regulation drives health signal |
 | FR-DP12 | Zero client-side install: browser terminal via xterm.js + WebSocket | [P5] Goal: Essentialism — no client binary, no SSH setup required; [P3] Constraining: Generative Space — user gets full `kask repl` via browser |
 | FR-DP13 | `GET /health` returns `{ healthy, db, conduit }` — DB query + Matrix/Conduit reachability check | [P4] Goal: Clear Boundaries — readiness probe gates traffic until all dependencies are reachable; [P9] Constraining: Homeostatic Self-Regulation — fail closed when dependencies degraded |
 | FR-DP14 | K8s Deployment with Litestream sidecar + init container: WAL replication to S3, restore on restart | [P5] Goal: Essentialism — one PVC, one SQLite, one backup stream; [P1] Constraining: User Sovereignty — database survives node loss |
@@ -1492,11 +1492,11 @@ status: VERIFIED
 | FR-DP-T2 | `deploy_sidecar_generates_valid_docker_compose` |
 | FR-DP-T3 | `oauth_callback_provisions_human_user_and_session` |
 | FR-DP-T4 | `health_endpoint_returns_cns_status` |
-| FR-DP-T5 | `integration_e2e` — 9 HTTP tests against in-memory server (landing, terminal, health, auth-gating, CNS) |
+| FR-DP-T5 | `integration_e2e` — 9 HTTP tests against in-memory server (landing, terminal, health, auth-gating, Regulation) |
 
 ### 3.18 CodeGraph (`hkask-codegraph`)
 
-**Goal Principle:** P3 (Generative Space) — agents query, traverse, and analyze the codebase through a semantic code graph to generate informed responses; P9 (Homeostatic Self-Regulation) — index staleness tracked via CNS spans, stale indices trigger algedonic alerts
+**Goal Principle:** P3 (Generative Space) — agents query, traverse, and analyze the codebase through a semantic code graph to generate informed responses; P9 (Homeostatic Self-Regulation) — index staleness tracked via Regulation spans, stale indices trigger algedonic alerts
 **Constraining Principles:** P5 (Essentialism) — two-crate pattern (domain + thin MCP wrapper), no service layer, no external graph database; P4 (Clear Boundaries) — OCAP-gated MCP tools, capability tier enforcement per userpod
 **Crate:** `hkask-codegraph` (domain), `hkask-mcp-codegraph` (MCP server)
 **Sources:** `crates/hkask-codegraph/src/graph/schema.rs`, `crates/hkask-codegraph/src/indexer/pipeline.rs`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs`, `crates/hkask-codegraph/src/graph/context.rs`, `crates/hkask-codegraph/src/graph/analysis.rs`, `mcp-servers/hkask-mcp-codegraph/src/lib.rs`
@@ -1510,9 +1510,9 @@ status: VERIFIED
 | FR-CG3 | `codegraph_impact` — reverse traversal with risk classification (Critical/High/Medium/Low) based on symbol kind + visibility | [P3] Goal: Generative Space — agents assess blast radius before suggesting code changes; [P4] Constraining: Clear Boundaries — risk is classification, not authorization |
 | FR-CG4 | `codegraph_analysis` — dead code detection (zero inbound non-test edges) and complexity hotspots (cyclomatic > 10, cognitive > 5) | [P5] Goal: Essentialism — identify code that can be deleted; [P9] Constraining: Homeostatic Self-Regulation — test code excluded, visibility-gated |
 | FR-CG5 | `codegraph_context` — token-budgeted context assembly: FTS5 search → PageRank sort → budget cap (Minimal 512 / Focused 2048 / Standard 4096 / Full 8192 tokens) | [P3] Goal: Generative Space — agents receive code-anchored context for LLM prompts without exceeding context windows; [P9] Constraining: Homeostatic Self-Regulation — budget tiers prevent runaway token consumption |
-| FR-CG6 | `codegraph_feedback` — records context_id → symbols_used ratio, emits CNS span for signal-to-noise tracking | [P9] Goal: Homeostatic Self-Regulation — feedback loop tunes future context assembly; [P12] Constraining: Subscriber Consent — spans only emitted if CNS sink subscribed |
-| FR-CG7 | `IndexPipeline::index_file` — SHA-256 content hash, skip unchanged files, tree-sitter parse + extract, batch insert, emit CNS span per file | [P5] Goal: Essentialism — incremental indexing avoids re-parsing unchanged code; [P9] Constraining: Homeostatic Self-Regulation — per-file CNS span for index health monitoring |
-| FR-CG8 | `IndexPipeline::finalize` — compute PageRank, rebuild FTS5, reset staleness timestamp, emit index_health CNS event | [P9] Goal: Homeostatic Self-Regulation — staleness and health are observable; [P3] Constraining: Generative Space — PageRank enables importance-weighted context assembly |
+| FR-CG6 | `codegraph_feedback` — records context_id → symbols_used ratio, emits Regulation span for signal-to-noise tracking | [P9] Goal: Homeostatic Self-Regulation — feedback loop tunes future context assembly; [P12] Constraining: Subscriber Consent — spans only emitted if Regulation sink subscribed |
+| FR-CG7 | `IndexPipeline::index_file` — SHA-256 content hash, skip unchanged files, tree-sitter parse + extract, batch insert, emit Regulation span per file | [P5] Goal: Essentialism — incremental indexing avoids re-parsing unchanged code; [P9] Constraining: Homeostatic Self-Regulation — per-file Regulation span for index health monitoring |
+| FR-CG8 | `IndexPipeline::finalize` — compute PageRank, rebuild FTS5, reset staleness timestamp, emit index_health Regulation event | [P9] Goal: Homeostatic Self-Regulation — staleness and health are observable; [P3] Constraining: Generative Space — PageRank enables importance-weighted context assembly |
 | FR-CG9 | `GraphStore::initialize_schema` — idempotent schema creation: 3 tables, 2 virtual tables (FTS5 + sqlite-vec), 9 indexes, 3 FTS5 sync triggers, WAL mode | [P5] Goal: Essentialism — single SQLite file, no external graph database; [P4] Constraining: Clear Boundaries — foreign keys enforced, ON DELETE CASCADE |
 | FR-CG10 | `codegraph_index_embeddings` — Jinja2 template rendering per symbol → embedding API → sqlite-vec storage, phased lock/release for non-blocking embedding generation | [P3] Goal: Generative Space — semantic vector search enables similarity-based code discovery; [P9] Constraining: Homeostatic Self-Regulation — embedding batch size bounded, embedding router requires API key |
 
@@ -1692,7 +1692,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-012
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1742,7 +1742,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-013
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1775,15 +1775,15 @@ erDiagram
     }
     Function ||--o{ RegulationSpan : "emits"
     RegulationSpan {
-        string span_name "cns.{domain}.{operation}"
+        string span_name "reg.{domain}.{operation}"
         string target
-        string message "CNS"
+        string message "Regulation"
     }
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FS-014
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-cns/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-regulation/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1806,9 +1806,9 @@ Domain 26 (Deployment) is implemented through Phase 5 (end-to-end HTTP integrati
 
 When constraining principles conflict (e.g., P1 sovereignty vs P4 OCAP boundary), the resolution rules are implicit in the existing codebase (higher-ranked principle dominates per Optimality Theory ranking). Formalizing this as a decision procedure in `PRINCIPLES.md` is future work — the current "Goal Principle Anchoring" rule (`PRINCIPLES.md` §1.6) covers the uncontested case.
 
-### 6. Domain ER Diagrams — Non-CNS Domains
+### 6. Domain ER Diagrams — Non-Regulation Domains
 
-ER diagrams have been added for all 8 CNS domains (§2) and the deployment domain (§3.18). The remaining 18 non-CNS domains (§3) have entity models described in contract tables but not yet diagrammed. Adding compact ER diagrams for these domains is a deferred documentation task.
+ER diagrams have been added for all 8 Regulation domains (§2) and the deployment domain (§3.18). The remaining 18 non-Regulation domains (§3) have entity models described in contract tables but not yet diagrammed. Adding compact ER diagrams for these domains is a deferred documentation task.
 
 ---
 
@@ -1820,25 +1820,25 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 | Created | 2026-06-16 |
 | Status | Active — anchor for contract vocabulary and the Testing Discipline |
 | Last Updated | 2026-07-05 |
-| Contract Count | 99 CNS + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + deployment (17 production, 5 test) + codegraph (10 production, 3 test) + classify (algo merge, no separate test) + guard (6 production, 6 test) + memory-remember (3 production) |
+| Contract Count | 99 Regulation + wallet/agents/storage/memory/inference(cloud-only)/templates (complete) + deployment (17 production, 5 test) + codegraph (10 production, 3 test) + classify (algo merge, no separate test) + guard (6 production, 6 test) + memory-remember (3 production) |
 | Build Status | `cargo check` workspace — PASS |
 | Governance | PRINCIPLES.md §0–§1.4 |
 | Deployment Reference | §3.18 deployment domain, `docs/plans/deployment-and-backup.md`, `deploy/k8s/README.md`, `docs/diagrams/` |
-| ERDs | §2 — 8 CNS domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model; `docs/diagrams/erd-codegraph-schema.md` — codegraph schema ERD |
+| ERDs | §2 — 8 Regulation domain ER diagrams; §3.18 — deployment domain ER diagram; §4 — Core domain model, deployment model, contract-anchoring model; `docs/diagrams/erd-codegraph-schema.md` — codegraph schema ERD |
 
 
 ## Appendix B: Validation Checklist
 
-- [x] All 99 CNS contracts carry principle annotations
+- [x] All 99 Regulation contracts carry principle annotations
 - [x] Build passes clean: `cargo check --workspace`
 - [x] All test IDs updated to new format
 - [x] Domain map complete (27 domains — 22 existing + 5 new: web, multi-user, backup, deployment, codegraph)
-- [x] FR tables complete (all 8 CNS domains + 11 non-CNS domains)
+- [x] FR tables complete (all 8 Regulation domains + 11 non-Regulation domains)
 - [x] Realignment status table complete
-- [x] Non-CNS domain contracts (wallet, storage, memory, inference, templates) — realigned and verified
+- [x] Non-Regulation domain contracts (wallet, storage, memory, inference, templates) — realigned and verified
 - [x] User Expectation column added to domain map (§1)
 - [x] Service Layer Architecture section added (§1.5) — AgentService structure, dependency direction, loop membrane, strangler fig log
-- [x] Domain ER diagrams added for 8 CNS domains (§2) + deployment (§3.18)
+- [x] Domain ER diagrams added for 8 Regulation domains (§2) + deployment (§3.18)
 - [x] `expect:` syntax documented in TESTING_DISCIPLINE.md §1.2
 - [x] Goal Principle Anchoring rule added to PRINCIPLES.md §1.6
 - [x] All document metadata updated (version, status, cross-references) across 8 documents

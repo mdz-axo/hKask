@@ -28,7 +28,7 @@ Consolidated public API surface for all 45 hKask crates, organized by category. 
 
 ## Foundation Crates
 
-Foundation crates provide the type system, storage, database, memory, CNS, templates, agents, keystore, MCP, CLI, API, capability, and port abstractions that all downstream crates depend on. Per the Authority DAG, domain crates depend on port traits (hkask-ports) rather than on each other.
+Foundation crates provide the type system, storage, database, memory, Regulation, templates, agents, keystore, MCP, CLI, API, capability, and port abstractions that all downstream crates depend on. Per the Authority DAG, domain crates depend on port traits (hkask-ports) rather than on each other.
 
 ### hkask-types
 
@@ -40,7 +40,7 @@ ID types, nu-event, and visibility types for hKask.
 |--------|-------------|
 | `agent` | Agent kind and persona constraint types |
 | `agent_paths` | Filesystem path conventions for userpod storage |
-| `cns` | CNS span types (`RegulationSpan`) and circuit state (`CircuitState`) |
+| `cns` | Regulation span types (`RegulationSpan`) and circuit state (`CircuitState`) |
 | `crypto` | Cryptographic primitives including `Ed25519PublicKey` |
 | `curation` | Sovereignty boundary types: `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState` |
 | `curator` | Curation configuration: `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity` |
@@ -53,7 +53,7 @@ ID types, nu-event, and visibility types for hKask.
 | `keychain_keys` | Keychain key storage |
 | `loops` | Loop type system: `LoopId`, `RegulatoryAction`, `RegulatoryActionParams`, `ActionType`, `ActionDecision`, `ImpactReport`, `LoopMetrics`, `Signal`, `SignalMetric`, `Deviation`, `DeviationDirection`, `BudgetOption`, `RegulationData`, `TriggerOrigin`, `ExperienceClassification` (15 types) |
 | `macros` | Shared macros: `enum_str_ops!` |
-| `observable_span` | `ObservableSpan` trait for decoupled CNS observability |
+| `observable_span` | `ObservableSpan` trait for decoupled Regulation observability |
 | `retry` | Retry policy types |
 | `secret` | Secret reference handling |
 | `server_config` | Server configuration types |
@@ -108,9 +108,9 @@ ID types, nu-event, and visibility types for hKask.
 | `to_event` | `(&self, operation, observer, phase, observation) -> Option<RegulationRecord>` | Produces a RegulationRecord without persisting. Returns `None` on namespace miss. Default impl. |
 | `emit_to` | `(&self, sink, operation, observer, phase, observation)` | Produces a RegulationRecord via `to_event()`, persists through sink, and logs. Degrades to `emit()` on failure. Default impl. |
 
-`SpanKind` — Enum of CNS span kinds: `ToolInvoked`, `ToolCompleted`, `ToolError`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `AgentPodDeactivated`, `VarietyAlgedonicAlert`, `DepositCredited`, `ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopMetricsTelemetry`.
+`SpanKind` — Enum of Regulation span kinds: `ToolInvoked`, `ToolCompleted`, `ToolError`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `AgentPodDeactivated`, `VarietyAlgedonicAlert`, `DepositCredited`, `ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopMetricsTelemetry`.
 
-`SpanNamespace` — Validated string wrapper for canonical CNS span namespaces. Constructed via `new()` (fallible) or `parse()`.
+`SpanNamespace` — Validated string wrapper for canonical Regulation span namespaces. Constructed via `new()` (fallible) or `parse()`.
 
 `CyclePhase` — Loop cycle phase enum: `Sense`, `Compute`, `Compare`, `Act`, `Verify`.
 
@@ -144,7 +144,7 @@ SQLite + SQLCipher storage for hKask.
 |--------|---------|
 | `embeddings` | `EmbeddingStore` — vector embeddings with similarity search |
 | `goals` | `SqliteGoalRepository` — OCAP-gated goal records with quarantine |
-| `nu_event_store` | `RegulationArchive` — weighted event log with `DecayConfig` |
+| `regulation_store` | `RegulationArchive` — weighted event log with `DecayConfig` |
 | `user_store` | User identity, authentication, and userpod records |
 | `wallet` | `WalletStore` — wallet data persistence |
 
@@ -268,7 +268,7 @@ Semantic and episodic memory pipelines for hKask.
 
 ---
 
-### hkask-cns
+### hkask-regulation
 
 Cybernetic Nervous System for hKask.
 
@@ -311,7 +311,7 @@ Cybernetic Nervous System for hKask.
 
 **Key Public Types:**
 
-`RegulationLedger` — Single entry point for all CNS operations. Provides variety counting (Ashby's Law) and algedonic alerting. Internally composes `AlgedonicManager`, `VarietyTracker`, and `SloManager`.
+`RegulationLedger` — Single entry point for all Regulation operations. Provides variety counting (Ashby's Law) and algedonic alerting. Internally composes `AlgedonicManager`, `VarietyTracker`, and `SloManager`.
 
 `CyberneticsLoop` — Closed-loop homeostatic controller (Loop 6). Functional contract: Sense → Compare → Compute → Act. Key internals: `Dampener`, `StagnationDetector`, `SensorRegistry`, `SystemSimulator`, `StrategyEvaluator`.
 
@@ -558,7 +558,7 @@ HTTP API with utoipa OpenAPI for hKask.
 | Module | Purpose |
 |--------|---------|
 | `error` | `ApiError` — API error type |
-| `middleware` | Auth, session, CNS, admin, and API key auth middleware |
+| `middleware` | Auth, session, Regulation, admin, and API key auth middleware |
 | `openapi` | `ApiDoc` — OpenAPI schema definition |
 | `routes` | All route modules comprising the API surface |
 | `git_cas` | Git CAS initialization (`init_git_cas`, `GitCasBundle`) |
@@ -580,7 +580,7 @@ Constructors: `with_defaults()`, `from_service_context(ctx)`, `with_wallet_servi
 
 **Route Groups (21+):** `auth_router`, `landing_page`, `health_check`, `templates_router`, `terminal_router`, `pods_router`, `mcp_router`, `userpod_router`, `cns_router`, `sovereignty_router`, `chat_router`, `models_router`, `a2a_router`, `bundles_router`, `curator_router`, `episodic_router`, `export_router`, `consolidation_router`, `git_router`, `goal_router`, `settings_router`, `wallet_router`, `admin`.
 
-**Middleware Stack (applied in order):** CNS span middleware → Session cookie middleware → Capability token middleware → Admin role-gating middleware → API key auth middleware.
+**Middleware Stack (applied in order):** Regulation span middleware → Session cookie middleware → Capability token middleware → Admin role-gating middleware → API key auth middleware.
 
 **Feature Flags:** None on this crate. Pulled in by `hkask-cli` `api` feature.
 
@@ -626,7 +626,7 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 
 | Module | Description |
 |--------|-------------|
-| `cns` | CNS port traits: `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort` + types (`ConsolidationRequest`, `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `WeightedEvent`, `DecayConfig`) |
+| `cns` | Regulation port traits: `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort` + types (`ConsolidationRequest`, `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `WeightedEvent`, `DecayConfig`) |
 | `consent_port` | `ConsentPort`, `StoredConsentRecord` |
 | `embedding` | `EmbeddingGenerationError` |
 | `embedding_port` | `EmbeddingPort`, `StoredEmbedding` |
@@ -648,8 +648,8 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 | # | Trait | Module | Purpose |
 |---|-------|--------|---------|
 | 1 | `CircuitBreakerPort` | `cns` | Circuit breaker boundary: `allow_request()`, `record_success()`, `record_failure()`, `state()` |
-| 2 | `LedgerObserver` | `cns` | CNS event subscription: `interest_mask()`, `on_event()`, `on_depletion()`, `on_backpressure()` |
-| 3 | `LedgerStoragePort` | `cns` | CNS event queries: `query_algedonic()`, `replay_weighted()`, `persist_cursor()`, `load_cursor()` |
+| 2 | `LedgerObserver` | `cns` | Regulation event subscription: `interest_mask()`, `on_event()`, `on_depletion()`, `on_backpressure()` |
+| 3 | `LedgerStoragePort` | `cns` | Regulation event queries: `query_algedonic()`, `replay_weighted()`, `persist_cursor()`, `load_cursor()` |
 | 4 | `ConsentPort` | `consent_port` | Consent record persistence: `initialize_schema()`, `store()`, `list_active()` |
 | 5 | `EmbeddingPort` | `embedding_port` | Embedding storage: `store()`, `get()`, `search()`, `delete()` |
 | 6 | `EscalationPort` | `escalation` | Escalation lifecycle: `list_pending()`, `get()`, `resolve()`, `dismiss()`, `persist_batch()` |
@@ -873,7 +873,7 @@ Trained adapter lifecycle — adapter store, expertise, endpoint lifecycle, prov
 
 ### hkask-test-harness
 
-Shared test fixtures and harness for hKask — temp DBs, keystores, WebID factories, CNS mocks.
+Shared test fixtures and harness for hKask — temp DBs, keystores, WebID factories, Regulation mocks.
 
 **Public Modules:**
 
@@ -1022,7 +1022,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 
 | Module | Purpose |
 |--------|---------|
-| `cns` | `CnsContext` — CNS context (runtime, cybernetics, loops, events, energy, tool_stats) |
+| `cns` | `CnsContext` — Regulation context (runtime, cybernetics, loops, events, energy, tool_stats) |
 | `cns_store_slo_provider` | `CnsStoreSloProvider` — SLO data provider backed by `RegulationArchive` |
 | `governance` | `GovernanceContext` — OCAP, consent, dispatch, A2A, escalations, curation signals |
 | `infra` | `InfraContext` — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas calibration, federation |
@@ -1037,7 +1037,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 |-------|------|---------|
 | `infra` | `InfraContext` | Infrastructure — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation |
 | `governance` | `GovernanceContext` | Governance — OCAP, consent, dispatch, A2A, escalations |
-| `cns` | `CnsContext` | CNS — variety sensing, regulation, loops, events, energy estimation |
+| `cns` | `CnsContext` | Regulation — variety sensing, regulation, loops, events, energy estimation |
 | `storage` | `StorageContext` | Storage — registry, goals, agents, users, sovereignty, wallet store |
 | `system_webid` | `WebID` | System WebID for signing capabilities |
 | `curator_ready` | `Option<oneshot::Receiver<()>>` | Signals CuratorPod activation |
@@ -1052,7 +1052,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 | `build` | `async (config: ServiceConfig) -> Result<Self, ServiceError>` | Canonical construction from ServiceConfig |
 | `config` | `(&self) -> &ServiceConfig` | Access configuration |
 | `webid` | `(&self) -> &WebID` | System WebID |
-| `cns` | `(&self) -> &CnsContext` | CNS context |
+| `cns` | `(&self) -> &CnsContext` | Regulation context |
 | `storage` | `(&self) -> &StorageContext` | Storage context |
 | `seam_summary` | `async (&self) -> Option<SeamSummary>` | Public seam watcher |
 | `governance` | `(&self) -> &GovernanceContext` | Governance context |
@@ -1072,7 +1072,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 
 `PerAgentMemory` — Per-agent memory infrastructure. Fields: `episodic_storage: Arc<dyn EpisodicStoragePort>`, `semantic_storage: Arc<dyn SemanticStoragePort>`, `consolidation_service` (all sharing the same DB).
 
-`CnsContext` — CNS context. Methods: `new()`, `health()`, `variety()`.
+`CnsContext` — Regulation context. Methods: `new()`, `health()`, `variety()`.
 
 **Re-exports at Crate Root:** `AgentService`, `PerAgentMemory`.
 
@@ -1182,7 +1182,7 @@ hKask skill service — skill discovery, publishing, hashing.
 
 ### hkask-services-wallet
 
-hKask wallet service — gas budgeting, price feeds, CNS integration.
+hKask wallet service — gas budgeting, price feeds, Regulation integration.
 
 **Re-exports at Crate Root:** `WalletService`.
 
@@ -1202,11 +1202,11 @@ rJoule wallet — self-custody multi-chain deposits, API key issuance, Hinkal pr
 |--------|---------|
 | `chain` | Multi-chain port abstraction (`ChainPort` trait) |
 | `issuer` | API key issuance and lifecycle management |
-| `manager` | Wallet lifecycle, balance tracking, CNS integration |
+| `manager` | Wallet lifecycle, balance tracking, Regulation integration |
 | `price_feed` | Exchange rate feeds (CoinGecko, EODHD, composite, static) |
 | `signing` | Transaction signing (Ed25519) |
 | `types` | Wallet-specific types re-exported from `hkask-wallet-types` |
-| `cns_span` | CNS span emission for wallet events |
+| `cns_span` | Regulation span emission for wallet events |
 | `hedera` | Hedera chain integration (behind `hedera` feature) |
 
 **Key Public Types:** `WalletManager` (central wallet coordinator), `ChainPort` (trait for chain-specific operations), `DepositEvent`, `ApiKeyIssuer`, `PriceFeed` (trait: `CoinGeckoPriceFeed`, `EodhdPriceFeed`, `CompositePriceFeed`, `StaticPriceFeed`), `ExchangeRate`, `WithdrawalFee`.
@@ -1280,7 +1280,7 @@ Federation CRDT sync, link lifecycle, and merged registries for hKask.
 | `crdt` | CRDT implementation for agent state sync |
 | `service` | Federation service — orchestrates link lifecycle and sync operations |
 | `sync` | Sync protocol — message exchange and state reconciliation |
-| `cns_span` | CNS span emission for federation events |
+| `cns_span` | Regulation span emission for federation events |
 
 **Key Public Types:** `FederationDispatch` (trait from `hkask-ports`), `FederationMessage`, `FederationResponse`, `FederationDispatchError`, `FederationLink`, `LinkResolution`, `CrdtSyncResult`, `ReplicaId` (re-exported).
 
@@ -1313,7 +1313,7 @@ Terminal UI workspace for hKask — multi-window agent interface.
 
 ## Cross-References
 
-- [CNS Span Registry](cns-spans.md) — Domain-specific `ObservableSpan` enums, emission points, algedonic thresholds
+- [Regulation Span Registry](cns-spans.md) — Domain-specific `ObservableSpan` enums, emission points, algedonic thresholds
 - [Magna Carta Reference](magna-carta.md) — P1-P4 with prohibition levels and enforcement traces
 - [MCP Server Reference](mcp-servers/README.md) — All 15 MCP servers with tool tables and capability tiers
 - [Skill Registry Index](skills/README.md) — All 46 skills + 2 templates + 1 bundle with FlowDef parameters
@@ -1650,13 +1650,13 @@ status: VERIFIED
 | **Extract** | `extractor.rs` | Walk CST, produce `Vec<Symbol>` + `Vec<Edge>` with qualified names |
 | **Insert** | `store.rs` | Batch insert symbols (ID assigned), resolve edge targets by name lookup |
 | **Rank** | `pagerank` | Compute PageRank across all nodes for importance weighting |
-| **Health** | tracing | Emit `cns.codegraph.index_health` after `finalize()` |
+| **Health** | tracing | Emit `reg.codegraph.index_health` after `finalize()` |
 
-### CNS Spans
+### Regulation Spans
 
 The pipeline emits tracing events for cybernetic observability:
-- `cns.codegraph.file_indexed` — symbols, edges, and elapsed time for a changed file
-- `cns.codegraph.index_health` — total files, symbols, edges, and zero staleness after `finalize()`
+- `reg.codegraph.file_indexed` — symbols, edges, and elapsed time for a changed file
+- `reg.codegraph.index_health` — total files, symbols, edges, and zero staleness after `finalize()`
 
 `staleness_seconds()` exposes elapsed time since `finalize()` for a caller that needs to monitor index freshness.
 
@@ -1786,9 +1786,9 @@ sequenceDiagram
     participant Pipeline as IndexPipeline (Mutex)
     participant Store as GraphStore (SQLite)
     participant FTS as symbols_fts (FTS5)
-    participant CNS as CNS (tracing)
+    participant Regulation as Regulation (tracing)
 
-    Note over Agent,CNS: ── Pattern 1: Search & Traverse ──
+    Note over Agent,Regulation: ── Pattern 1: Search & Traverse ──
 
     Agent->>+Server: codegraph_query(query="McpRuntime", limit=10)
     Server->>Server: ensure_indexed()
@@ -1807,7 +1807,7 @@ sequenceDiagram
     Store-->>-Server: [{deep_callee(d=2), calls}, ...]
     Server-->>-Agent: [TraversalNode{callee: fn deep_callee(), depth: 2, edge: calls}]
 
-    Note over Agent,CNS: ── Pattern 2: Impact Analysis ──
+    Note over Agent,Regulation: ── Pattern 2: Impact Analysis ──
 
     Agent->>+Server: codegraph_impact(symbol="McpRuntime", max_depth=5)
     Server->>+Store: traverse(symbol_id, Reverse, 5)
@@ -1816,7 +1816,7 @@ sequenceDiagram
     Note right of Server: Critical: public traits<br/>High: public types<br/>Medium: impls, crate-visible<br/>Low: private/test
     Server-->>-Agent: {symbol, total_affected: 12, affected: [{risk: critical}, ...]}
 
-    Note over Agent,CNS: ── Pattern 3: Context Assembly + Feedback ──
+    Note over Agent,Regulation: ── Pattern 3: Context Assembly + Feedback ──
 
     Agent->>+Server: codegraph_context(query="authentication", budget="focused")
     Server->>+FTS: search("authentication", max=20, BM25)
@@ -1828,11 +1828,11 @@ sequenceDiagram
     Note over Agent: Agent uses context in LLM prompt,<br/>observes which symbols were actually referenced
 
     Agent->>+Server: codegraph_feedback(context_id, symbols_provided, symbols_used)
-    Server->>+CNS: tracing::info!("cns.codegraph.context_efficiency", ratio=0.65)
-    CNS-->>-Server: span emitted
+    Server->>+Regulation: tracing::info!("reg.codegraph.context_efficiency", ratio=0.65)
+    Regulation-->>-Server: span emitted
     Server-->>-Agent: {recorded: true, ratio: 0.65}
 
-    Note over Agent,CNS: ── Pattern 4: Re-index ──
+    Note over Agent,Regulation: ── Pattern 4: Re-index ──
 
     Agent->>+Server: codegraph_reindex()
     Server->>+Pipeline: index_directory(workspace_root)
@@ -1842,16 +1842,16 @@ sequenceDiagram
             Pipeline->>Pipeline: tree-sitter parse → extract symbols/edges
             Pipeline->>+Store: batch insert symbols, resolve edges
             Store-->>-Pipeline: name→id mapping
-            Pipeline->>+CNS: cns.codegraph.file_indexed
-            CNS-->>-Pipeline: span emitted
+            Pipeline->>+Regulation: reg.codegraph.file_indexed
+            Regulation-->>-Pipeline: span emitted
         else hash matches
             Pipeline->>Pipeline: skip (returned in results as skipped:true)
         end
     end
     Pipeline->>Store: compute PageRank
 
-    Pipeline->>+CNS: cns.codegraph.index_health (staleness_seconds=0)
-    CNS-->>-Pipeline: span emitted
+    Pipeline->>+Regulation: reg.codegraph.index_health (staleness_seconds=0)
+    Regulation-->>-Pipeline: span emitted
     Pipeline-->>-Server: IndexStats {files, symbols, edges}
     Server-->>-Agent: {files_indexed, symbols_added, total_symbols, total_edges}
 ```
@@ -1871,16 +1871,16 @@ status: VERIFIED
 | `codegraph_impact` | Reverse traversal + risk classification | Same CTE + `classify_risk(symbol)` per result |
 | `codegraph_analysis` | Dead code detection or complexity hotspots | `symbols WHERE id NOT IN (SELECT to_id FROM edges)` |
 | `codegraph_context` | Token-budgeted context assembly for LLM prompts | FTS5 search → PageRank sort → budget cap |
-| `codegraph_feedback` | Signal-to-noise tracking (G12 feedback loop) | CNS span: `cns.codegraph.context_efficiency` |
+| `codegraph_feedback` | Signal-to-noise tracking (G12 feedback loop) | Regulation span: `reg.codegraph.context_efficiency` |
 
-### CNS Spans Emitted
+### Regulation Spans Emitted
 
 | Span | Trigger | Target |
 |------|---------|--------|
-| `cns.codegraph.file_indexed` | Per-file index complete | G7: file-level observability |
-| `cns.codegraph.index_health` | After full re-index | X6: staleness reset to 0 |
-| `cns.codegraph.context_efficiency` | After `codegraph_feedback` | G12: ratio of used/provided symbols |
-| `cns.codegraph.embeddings` | After `codegraph_index_embeddings` batch | G13: embedding batch complete |
+| `reg.codegraph.file_indexed` | Per-file index complete | G7: file-level observability |
+| `reg.codegraph.index_health` | After full re-index | X6: staleness reset to 0 |
+| `reg.codegraph.context_efficiency` | After `codegraph_feedback` | G12: ratio of used/provided symbols |
+| `reg.codegraph.embeddings` | After `codegraph_index_embeddings` batch | G13: embedding batch complete |
 
 ### Related Documentation
 
@@ -1925,13 +1925,13 @@ stateDiagram-v2
         [*] --> Serving : staleness_seconds < threshold
         Serving --> Serving : query/traverse/impact/context
         --
-        note right of Serving : CNS span: cns.codegraph.index_health
+        note right of Serving : Regulation span: reg.codegraph.index_health
     }
 
     Ready --> Stale : staleness_seconds > threshold OR file changed on disk
 
     state Stale {
-        [*] --> AwaitingTrigger : CNS alert emitted
+        [*] --> AwaitingTrigger : Regulation alert emitted
         AwaitingTrigger --> AwaitingTrigger : queries still served from last snapshot
     }
 
@@ -1944,7 +1944,7 @@ stateDiagram-v2
     note left of Uninitialized : Store opened (file or in-memory)<br/>schema initialized (idempotent)
     note right of Indexing : Proposed controller behavior<br/>Current implementation indexes sequentially<br/>and uses BLAKE3 incremental skip
     note right of Ready : Proposed serving state
-    note left of Stale : Proposed CNS-driven re-index trigger
+    note left of Stale : Proposed Regulation-driven re-index trigger
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REF-005
@@ -1958,18 +1958,18 @@ status: VERIFIED
 The following behavior is shown only as a future design target and requires a lifecycle controller to implement it:
 
 - Explicit `Uninitialized`, `Indexing`, `Ready`, and `Stale` states.
-- A staleness threshold and CNS-driven re-index trigger.
+- A staleness threshold and Regulation-driven re-index trigger.
 - A stable snapshot-serving contract while indexing.
 - A documented controller boundary that owns state transitions and synchronization.
 
-Current behavior is limited to call-driven indexing. `finalize()` resets the staleness clock, computes PageRank, and emits `cns.codegraph.index_health`; `staleness_seconds()` merely reports the elapsed time for an external caller.
+Current behavior is limited to call-driven indexing. `finalize()` resets the staleness clock, computes PageRank, and emits `reg.codegraph.index_health`; `staleness_seconds()` merely reports the elapsed time for an external caller.
 
 ### Related Documentation
 
 - [CodeGraph Database Schema](#codegraph-database-schema) — Database schema ERD
 - [CodeGraph Indexing Pipeline](#codegraph-indexing-pipeline) — Indexing pipeline detail
 - [CodeGraph Agent Workflow](#codegraph-agent-workflow) — Agent interaction workflow
-- [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (CNS feedback loop)
+- [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (Regulation feedback loop)
 
 
 ### TUI Window Trait Hierarchy
@@ -2199,7 +2199,7 @@ Each of the 15 domain bridge traits exposes ≤7 methods, following deep-module 
 
 **Type:** flowchart | **Target:** `TuiSession::run` + key event routing | **Diataxis quadrant:** Reference
 
-Describes how keyboard input flows from crossterm event polling through the TUI session, global keybindings, command palette, and focused window dispatch. The workspace tick loop handles background state updates (CNS polling, gas tracking).
+Describes how keyboard input flows from crossterm event polling through the TUI session, global keybindings, command palette, and focused window dispatch. The workspace tick loop handles background state updates (Regulation polling, gas tracking).
 
 ```mermaid
 flowchart TD
@@ -2281,7 +2281,7 @@ status: VERIFIED
 | Property | Value | Notes |
 |----------|-------|-------|
 | Event poll interval | 16ms (~60 FPS) | `tick_rate` from `TuiSession` |
-| Tick frequency | Every frame | Background updates: CNS, gas, pressure |
+| Tick frequency | Every frame | Background updates: Regulation, gas, pressure |
 | Splash duration | Configurable | Dismissed by key press or timeout |
 | Layout save | On quit | JSON serialized per-agent in `~/.config/hkask/agents/{name}/` |
 

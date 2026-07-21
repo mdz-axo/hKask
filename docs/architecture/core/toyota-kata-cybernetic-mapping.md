@@ -78,18 +78,18 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 **Interaction loops:**
 - **PDCA convergence loop:** `convergence.threshold` → execute steps → measure metric → if metric > threshold, loop → if ≤ threshold, converged
 - **Gas budget loop:** `gas` (compute cycles) + `rjoule` (inference energy) → if exhausted, escalate
-- **Skill health loop:** `cns.skill.lifecycle.*` spans → `DefaultSpecCurator` detects drift → recommend revision
+- **Skill health loop:** `reg.skill.lifecycle.*` spans → `DefaultSpecCurator` detects drift → recommend revision
 
 **Kata alignment:**
 - Step 1 (Understand Direction) = `FlowDef` manifest's `goal` field
 - Step 3 (Establish Target Condition) = `convergence.threshold` + `max_iterations`
 - Step 4 (Experiment) = each `FlowDef` step is a PDCA experiment with prediction (the `condition` expression) and verification (the convergence metric)
 
-### 2.2 Control Plane B — The CNS Feedback Plane (Pattern B: Cybernetic Self-Regulation)
+### 2.2 Control Plane B — The Regulation Feedback Plane (Pattern B: Cybernetic Self-Regulation)
 
 **What it is:** The autonomic nervous system — variety sensing, algedonic alerts, energy budgets, OCAP governance, sovereignty enforcement. This is the **regulatory surface** that detects deviation and produces regulatory action.
 
-**Kata correspondence:** The CNS Feedback Plane is the **sensing and regulation surface**. It implements Steps 2 (Grasp Current Condition) and 4 (Experiment/Act) of the Improvement Kata, plus Q2 (Actual Condition) and Q4 (Next Step) of the Coaching Kata.
+**Kata correspondence:** The Regulation Feedback Plane is the **sensing and regulation surface**. It implements Steps 2 (Grasp Current Condition) and 4 (Experiment/Act) of the Improvement Kata, plus Q2 (Actual Condition) and Q4 (Next Step) of the Coaching Kata.
 
 **Nodes:**
 - `RegulationLedger` — the central nervous system (variety counters, algedonic manager, regulation history)
@@ -146,7 +146,7 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 - `MetacognitionLoop → InferencePort` — template-driven diagnosis (KnowAct)
 - `CuratorAgent → A2ARuntime` — bot orchestration (direct_bot)
 - `CuratorAgent → MatrixTransport` — standing session posting
-- `CuratorContext → RegulationLedger` — capability-disciplined CNS access
+- `CuratorContext → RegulationLedger` — capability-disciplined Regulation access
 - `SeamWatcher → RegulationLedger` — seam coverage as variety dimension
 
 **Interaction loops:**
@@ -168,18 +168,18 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 **Kata correspondence:** The Agent Pod Plane is the **implementation surface** — the place where the Kata is practiced. Each UserPod is a learner practicing the Kata; the Curator is the coach.
 
 **Nodes:**
-- `PodDeployment` — the canonical pod type (per-pod SQLCipher, CNS, MCP)
+- `PodDeployment` — the canonical pod type (per-pod SQLCipher, Regulation, MCP)
 - `PodFactory` — the stateless constructor
 - `PodRegistry` — filesystem-based discovery
 - `ActivePods` — the runtime registry
-- `PerPodRegulationLedger` — per-pod CNS isolation (`cns.agent_pod.{pod_id}.*`)
+- `PerPodRegulationLedger` — per-pod Regulation isolation (`reg.agent_pod.{pod_id}.*`)
 - `PerPodStorage` — per-pod SQLCipher boundary
 - `AgentPod` — identity, lifecycle, persona, capability token
 - `A2ARuntime` — agent-to-agent messaging (TemplateDispatch, TemplateResponse, MemoryArtifact)
 
 **Edges:**
 - `PodFactory::deploy() → PodDeployment` — pod creation
-- `PodDeployment → PerPodRegulationLedger` — per-pod CNS scoping
+- `PodDeployment → PerPodRegulationLedger` — per-pod Regulation scoping
 - `PodDeployment → McpRuntime` — per-pod MCP bindings
 - `A2ARuntime → A2AMessage` — inter-agent communication
 - `CuratorSync → SemanticIndex` — cross-pod semantic aggregation
@@ -188,11 +188,11 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 - **Pod lifecycle loop:** Creation → Populated → Registered → Activated → Deactivated
 - **Dual memory encoding loop:** tool call → `record_experience()` → episodic (private) + semantic (public) → every 10 experiences → `generate_narrative()`
 - **Consent loop:** `ConsentManager` requires explicit affirmative consent for visibility transitions → sovereignty fails closed
-- **CuratorSync loop:** `store_semantic()` writes locally → `cns.semantic.published` → `CuratorSync` polling → `SemanticIndex` aggregation
+- **CuratorSync loop:** `store_semantic()` writes locally → `reg.semantic.published` → `CuratorSync` polling → `SemanticIndex` aggregation
 
 **Kata alignment:**
 - The learner (UserPod) practices the Kata on this plane
-- The coach (Curator) observes via CNS spans emitted from this plane
+- The coach (Curator) observes via Regulation spans emitted from this plane
 - Each pod's `PerPodRegulationLedger` is the learner's local sensorium — the coach cannot see inside the learner's head, only the behaviors the learner emits
 
 ---
@@ -209,7 +209,7 @@ graph TD
         WA["WordAct templates"]
     end
 
-    subgraph PlaneB["Plane B: CNS Feedback (Sensing & Regulation)"]
+    subgraph PlaneB["Plane B: Regulation Feedback (Sensing & Regulation)"]
         CR["RegulationLedger"]
         CL["CyberneticsLoop"]
         SC["SensorRegistry"]
@@ -258,7 +258,7 @@ graph TD
     DSC -->|"spec drift"| CUL
 
     PD -->|"spawns"| PCNS
-    PCNS -->|"cns.agent_pod.*"| CR
+    PCNS -->|"reg.agent_pod.*"| CR
     PD -->|"emits spans"| CR
     CS -->|"aggregates"| SR
 
@@ -288,7 +288,7 @@ sequenceDiagram
     RP-->>CL: proposed_actions
     CL->>CL: act(actions)
     CL->>CL: verify_impact(actions)
-    CL->>CR: emit cns.regulation.* spans
+    CL->>CR: emit reg.regulation.* spans
     CR->>SPC: regulation_history (async)
     SPC->>SPC: detect patterns
     SPC->>CL: calibrate_thresholds (bounded)
@@ -374,7 +374,7 @@ sequenceDiagram
     participant CUL as CurationLoop
 
     ME->>FD: execute cascade
-    FD->>CR: emit cns.skill.cascade.* spans
+    FD->>CR: emit reg.skill.cascade.* spans
     CR->>DSC: spec drift detection
     DSC->>CUL: SpecDriftAlert
     CUL->>CUL: sense (spec drift as cybernetic signal)
@@ -384,7 +384,7 @@ sequenceDiagram
 
 **Kata mapping:** This is the Improvement Kata's full 4-step cycle applied to the skills themselves:
 - Step 1 (Direction): The skill's `goal` field
-- Step 2 (Current): `cns.skill.cascade.*` spans show actual execution behavior
+- Step 2 (Current): `reg.skill.cascade.*` spans show actual execution behavior
 - Step 3 (Target): The `convergence.threshold` — the desired outcome
 - Step 4 (Experiment): Each cascade step is a PDCA experiment; the `DefaultSpecCurator` detects when the spec (target) diverges from implementation (actual)
 
@@ -405,7 +405,7 @@ sequenceDiagram
     participant CUL as CurationLoop
 
     PD->>PCNS: tool invocation
-    PCNS->>PCNS: increment_variety(cns.agent_pod.{pod_id}.tool.{name})
+    PCNS->>PCNS: increment_variety(reg.agent_pod.{pod_id}.tool.{name})
     PCNS->>CR: variety counter (per-pod)
     CR->>CL: sense (aggregate variety deficit)
     CL->>CL: compare (deficit > threshold?)
@@ -414,7 +414,7 @@ sequenceDiagram
     CUL->>CUL: compute (assess pod health)
 ```
 
-**Kata mapping:** This is the Coaching Kata's Q2 (Actual Condition) applied at the pod level. The Curator asks "what is the actual condition of this pod?" — the answer comes from the per-pod CNS variety counters. The pod's behavioral diversity (variety) is the measure of its health.
+**Kata mapping:** This is the Coaching Kata's Q2 (Actual Condition) applied at the pod level. The Curator asks "what is the actual condition of this pod?" — the answer comes from the per-pod Regulation variety counters. The pod's behavioral diversity (variety) is the measure of its health.
 
 **Cybernetic properties:**
 - **Polarity:** Negative feedback (low variety → escalation)
@@ -433,7 +433,7 @@ sequenceDiagram
 | **Improvement Kata Step 3: Establish Target Condition** | `convergence.threshold`; `SetPoints`; `SetPointCalibrator` self-tuning | A + B | Set-point adjustment |
 | **Improvement Kata Step 4: Experiment (PDCA)** | `CyberneticsLoop::compute() + act() + verify_impact()`; `FlowDef` cascade steps | B + A | Regulatory action with prediction and verification |
 | **Coaching Kata Q1: Target Condition?** | `CuratorDirective::CalibrateThreshold`; `MetacognitionLoop` target | C | Set-point validation |
-| **Coaching Kata Q2: Actual Condition?** | `verify_impact()` re-sensing; `HealthSnapshot`; per-pod CNS variety | B + C + D | Sensing fidelity check |
+| **Coaching Kata Q2: Actual Condition?** | `verify_impact()` re-sensing; `HealthSnapshot`; per-pod Regulation variety | B + C + D | Sensing fidelity check |
 | **Coaching Kata Q3: Obstacles? Which ONE?** | `MetacognitionLoop` obstacle prioritization; `RegulationPolicy` substitution ladder (one metric at a time) | C + B | Variety attenuation |
 | **Coaching Kata Q4: Next Step? What do you expect?** | `RegulationPolicy::decide()` → proposed action with `reason`; `FlowDef` step with `condition` expression | B + A | Hypothesis-driven action |
 | **Coaching Kata Q5: How quickly can we go and see?** | `verify_impact()` in same tick (delay = 0); `LoopScheduler` tick intervals | B | Delay minimization |
@@ -441,7 +441,7 @@ sequenceDiagram
 | **The Learner (regulated actor)** | `UserPod` + `PodDeployment` + `PerPodRegulationLedger` | D | VSM S1 Implementation |
 | **The Kata Storyboard** | `RegulationArchive` (ν-events) + `KataHistory` + `regulation_history` ring buffer | B + C | Cybernetic audit trail |
 | **The Obstacles Parking Lot** | `EscalationEntry` queue; `StagnationDetector` stagnation keys | B + C | Disturbance inventory |
-| **Practice Frequency / Streaks** | `KataHistory::PracticeEntry`; `cns.kata` spans | C | Habit formation tracking |
+| **Practice Frequency / Streaks** | `KataHistory::PracticeEntry`; `reg.kata` spans | C | Habit formation tracking |
 | **Automaticity Score** | `KataHistory` graduation criteria; skill health score | A + C | Skill maturity signal |
 | **The "One Obstacle" Rule** | `RegulationPolicy` processes one `(metric, direction)` at a time; `StagnationDetector` tracks one `(metric, action_type)` pair | B | Ashby's Law: variety attenuation |
 | **The Prediction** | `FlowDef` step's `condition` expression; `SystemSimulator` trend prediction | A + B | Hypothesis before action |
@@ -489,7 +489,7 @@ sequenceDiagram
 
 **Impact:** The system cannot detect whether its regulation loops are "practicing" effectively — e.g., whether the `verify_impact()` step is being called, whether `SetPointCalibrator` is tuning thresholds, whether `StagnationDetector` is detecting plateaus.
 
-**Recommendation:** Add `cns.kata.regulation.*` spans for regulation loop practice: `cns.kata.regulation.cycle_completed`, `cns.kata.regulation.plateau_detected`, `cns.kata.regulation.threshold_calibrated`. These feed into the existing `KataHistory` infrastructure.
+**Recommendation:** Add `reg.kata.regulation.*` spans for regulation loop practice: `reg.kata.regulation.cycle_completed`, `reg.kata.regulation.plateau_detected`, `reg.kata.regulation.threshold_calibrated`. These feed into the existing `KataHistory` infrastructure.
 
 ### 6.5 The Knowledge Threshold Gap
 
@@ -516,7 +516,7 @@ The sensor flattening (Phase 0 of ADR-056) established the `SensorRegistry` as t
 | **Target condition sensors** | Measure progress toward the target | `SetPointCalibrator` (senses regulation effectiveness) | `ActionIneffective`, `RegulatoryPlateau`, `ActionDecisionBlocked` |
 | **Experiment sensors** | Sense the action's effect — Step 4 verify | `verify_impact()` implementations | (re-senses the targeted metric) |
 | **Obstacle sensors** | Detect what prevents convergence | `StagnationDetector`, `Dampener` | `StagnationThreshold`, `ActionIneffective` |
-| **Practice sensors** | Track habit formation and automaticity | `KataHistory`, `cns.kata.*` spans | (kata-specific metrics) |
+| **Practice sensors** | Track habit formation and automaticity | `KataHistory`, `reg.kata.*` spans | (kata-specific metrics) |
 
 ### 7.2 The Missing Sensor Category: Direction Sensors
 
@@ -537,18 +537,18 @@ hKask's observability maps onto the three pillars defined in Sridharan, C. (2018
 | Pillar | hKask Implementation | Kata Correspondence |
 |--------|---------------------|---------------------|
 | **Metrics** | `LoopMetrics` (delay_ms, gain, fidelity_score, effectiveness_score); `LedgerHealth` (variety, deficit); `GasReport` | Kata Step 2 (Grasp Current Condition) — the measured data |
-| **Logs** | `tracing` spans with `target: "cns.*"` and `target: "hkask.*"` | Kata storyboard — the audit trail of what happened |
+| **Logs** | `tracing` spans with `target: "reg.*"` and `target: "hkask.*"` | Kata storyboard — the audit trail of what happened |
 | **Traces** | `RegulationRecord` (ν-events) with `Span`, `CyclePhase`, `parent_event` — distributed tracing across loops | Kata practice history — the sequence of experiments and outcomes |
 
 ### 8.2 DORA Metrics (Forsgren)
 
-hKask already emits DORA spans (`cns.platform.metric.dora.*`): deploy frequency, lead time, MTTR, change fail rate. These are the industry-standard metrics for DevOps performance.
+hKask already emits DORA spans (`reg.platform.metric.dora.*`): deploy frequency, lead time, MTTR, change fail rate. These are the industry-standard metrics for DevOps performance.
 
 **Kata alignment:** DORA metrics are the "current condition" (Step 2) for the deployment pipeline. The `SetPointCalibrator` can tune deployment thresholds based on DORA trends — this is the Kata's Step 3 (Establish Target Condition) applied to DevOps.
 
 ### 8.3 SPACE Framework (GitHub)
 
-hKask emits SPACE spans (`cns.platform.metric.space.*`): satisfaction, performance, activity, communication, efficiency. These are the developer productivity metrics from GitHub's SPACE framework.
+hKask emits SPACE spans (`reg.platform.metric.space.*`): satisfaction, performance, activity, communication, efficiency. These are the developer productivity metrics from GitHub's SPACE framework.
 
 **Kata alignment:** SPACE metrics are the "current condition" for developer experience. The Curator can use SPACE trends to identify obstacles (Step 3) and design experiments (Step 4) to improve developer productivity.
 
@@ -595,7 +595,7 @@ Harold Bloom's method (used in the `metacognition` skill) distinguishes between:
 ### 9.4 Long-term (Coaching dialogue)
 
 10. **Compose `improv` with `MetacognitionLoop`** — enable iterative coaching dialogue (closes the coaching dialogue gap, §6.3)
-11. **Add `cns.kata.regulation.*` spans** — track regulation loop practice frequency (closes the practice frequency gap, §6.4)
+11. **Add `reg.kata.regulation.*` spans** — track regulation loop practice frequency (closes the practice frequency gap, §6.4)
 
 ---
 

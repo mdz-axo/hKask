@@ -46,7 +46,7 @@ Every descriptive claim must be verifiable against the codebase or runtime behav
 | "Version: v0.31.0" | IS-DEC | ✅ DIRECT: matches `Cargo.toml` | PASS |
 | "16 built-in servers" (in `BUILTIN_SERVERS`) | IS-DEC | ✅ DIRECT: verified in `hkask-mcp/src/lib.rs` | PASS |
 | "Creates `~/.hkask/db.sqlcipher`" | IS-DEC | ⚠️ INFERRED: path is the documented default; actual path depends on `kask init` behavior at runtime | **LOW RISK** — needs runtime verification |
-| "Skills are PDCA loops that compose templates" | IS-DEC | ✅ DIRECT: verified in `hkask-cns::types::loops` | PASS |
+| "Skills are PDCA loops that compose templates" | IS-DEC | ✅ DIRECT: verified in `hkask-regulation::types::loops` | PASS |
 | "Each span has a namespace... timestamp... payload" | IS-DEC | ✅ DIRECT: matches `RegulationRecord` and `ObservableSpan` types | PASS |
 
 **Calibration:** 5/6 claims verified directly. 1 claim (file paths from `kask init`) needs runtime verification.
@@ -136,7 +136,7 @@ Per P5.4, every major claim should have both a process-identity (PKO) and a stat
 
 | Claim | Process Axis | State Axis | Complete? |
 |-------|-------------|-----------|-----------|
-| "CNS homeostatic loop — sense → act → observe" (flowchart diagram) | ✅ PKO: feedback loop steps | ✅ DC: SetPoints, RegulatoryAction, ImpactReport types | ✅ |
+| "Regulation homeostatic loop — sense → act → observe" (flowchart diagram) | ✅ PKO: feedback loop steps | ✅ DC: SetPoints, RegulatoryAction, ImpactReport types | ✅ |
 | "MCP bootstrap sequence" (sequence diagram) | ✅ PKO: startup → gate check → tool dispatch | ✅ DC: ToolContext, StartupGateResult types | ✅ |
 | "RegulatoryAction lifecycle" (state diagram) | ✅ PKO: Pending → Active → Completed transitions | ✅ DC: ActionType enum, RegulatoryActionParams struct | ✅ |
 | "Ports trait hierarchy" (class diagram) | ⚠️ Partial: shows relationships but not creation process | ✅ DC: trait signatures, implementor relationships | **Partial GAP** |

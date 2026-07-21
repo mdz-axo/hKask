@@ -83,7 +83,7 @@ Confirm the binary works and reports the correct version:
 # Expected: kask 0.31.0
 ```
 
-Run the CNS health check (standalone CNS runtime; no agent service needed):
+Run the Regulation health check (standalone Regulation runtime; no agent service needed):
 
 ```bash
 ./target/release/kask cns health
@@ -92,7 +92,7 @@ Run the CNS health check (standalone CNS runtime; no agent service needed):
 Expected output:
 
 ```
-CNS Health Status
+Regulation Health Status
 =================
 
 Runtime Status:
@@ -464,12 +464,12 @@ Type a prompt injection attempt. The guard blocks it before the model sees it. T
 3. **Clean input:** "What is the weather today?" (passes)
 4. **Long input:** A 100K-character input (blocked by token limit)
 
-### CNS Span Verification
+### Regulation Span Verification
 
-Guard violations emit CNS spans. Subscribe to guard spans:
+Guard violations emit Regulation spans. Subscribe to guard spans:
 
 ```bash
-kask cns subscribe --agent curator --spans cns.guard.input,cns.guard.output
+kask cns subscribe --agent curator --spans reg.guard.input,cns.guard.output
 ```
 
 Expected span output:
@@ -479,7 +479,7 @@ cns.guard.input: content_guard_input_refused — violation_count=1, scanners=["b
 cns.guard.output: content_guard_output_violation — violation_count=1, scanners=["secrets"]
 ```
 
-Guard violations are logged at `warn!` level. They do not trigger algedonic alerts by default. To monitor guard violations, watch CNS spans or include `cns.guard.*` spans in your monitoring dashboard.
+Guard violations are logged at `warn!` level. They do not trigger algedonic alerts by default. To monitor guard violations, watch Regulation spans or include `reg.guard.*` spans in your monitoring dashboard.
 
 ### Reference Standards
 
@@ -552,7 +552,7 @@ cargo clean
 - Launch the TUI: `kask tui`
 - Start the server: `kask serve`
 - Verify the build: `kask cns health`
-- Read CNS alerts: [Sovereignty and Observability](sovereignty-and-observability.md)
+- Read Regulation alerts: [Sovereignty and Observability](sovereignty-and-observability.md)
 - Manage agent pods: [Agents and Pods](agents-and-pods.md)
 ---
 
@@ -582,11 +582,11 @@ The binary entry point (`crates/hkask-cli/src/main.rs`) is a thin dispatcher. On
 3. Creates a Tokio multi-threaded runtime.
 4. Checks fusion model configuration (P9: proactive cost-safety).
 5. Initializes a lightweight `SqliteRegistry` for CLI subcommand use.
-6. Emits a CNS span (`command_dispatched`) and routes to the matching command handler.
+6. Emits a Regulation span (`command_dispatched`) and routes to the matching command handler.
 
 `kask serve` calls `AgentService::build(config)`, which assembles shared infrastructure in dependency order. Other commands dispatch directly to their command handlers; `chat` and `curator` create an `McpRuntime` only when needed.
 
-- **Phase A — Foundation:** Opens SQLCipher databases, creates all persistent stores (Consent, Escalation, Goal, Sovereignty, Spec, User, CNS events), initializes the CNS runtime with the variety threshold, and loads the seam watcher.
+- **Phase A — Foundation:** Opens SQLCipher databases, creates all persistent stores (Consent, Escalation, Goal, Sovereignty, Spec, User, Regulation events), initializes the Regulation runtime with the variety threshold, and loads the seam watcher.
 - **Phase B — Loops:** Creates the loop system, cybernetics loop with set points, inference router (wrapped behind a governed inference membrane), episodic/semantic memory databases with their loops, the CuratorAgent with curation loop, and an optional federation sync loop.
 - **Phase C — MCP + Pods:** Creates the MCP runtime, wraps the raw tool port behind a governed tool membrane (OCAP enforcement), builds the capability checker (system OCAP + A2A trust root), assembles ActivePods with PodFactory and FullMcpAdapter, activates the CuratorPod with CuratorSync, and starts the Unix daemon listener.
 - **Phase D — Registry + Wallet:** Creates the shared SqliteRegistry on the primary DB connection, restores A2A agent state from persistent storage, builds the per-agent wallet service with deposit monitoring and gas calibration.
@@ -595,7 +595,7 @@ The resulting `AgentService` struct is wrapped by surface-specific types:
 - **CLI:** `ReplState = AgentService + REPL fields`
 - **API:** `ApiState = Arc<AgentService> + HTTP fields` (Git CAS, wallet, API key auth)
 
-The API server path additionally starts built-in MCP servers (excluding filesystem/curator/kanban), builds the axum router with middleware layers (CNS, session cookies, auth tokens, admin role gating, API key auth), and binds the TCP listener.
+The API server path additionally starts built-in MCP servers (excluding filesystem/curator/kanban), builds the axum router with middleware layers (Regulation, session cookies, auth tokens, admin role gating, API key auth), and binds the TCP listener.
 
 ---
 
@@ -608,14 +608,14 @@ flowchart TD
     InitLog --> CreateRt[Create Tokio runtime]
     CreateRt --> ChkFusion[Check fusion model config]
     ChkFusion --> InitReg[Init SqliteRegistry]
-    InitReg --> CnsOpen[Open CNS span: command_dispatched]
+    InitReg --> CnsOpen[Open Regulation span: command_dispatched]
     CnsOpen --> Cmd{Command type?}
 
     Cmd -->|Serve| SvCfg[ServiceConfig::from_env]
     Cmd -->|Chat/Curator| Lightweight[Create McpRuntime if needed]
     Cmd -->|Other| Dispatch[Route to handler]
     Lightweight --> Dispatch
-    Dispatch --> CnsClose[Close CNS span]
+    Dispatch --> CnsClose[Close Regulation span]
     CnsClose --> End([Process exit])
 
     SvCfg --> ResolveSecrets[Resolve secrets from keystore]
@@ -623,7 +623,7 @@ flowchart TD
 
     subgraph PhaseA["Phase A: Foundation"]
         BuildAgent --> OpenDb[Database::open SQLCipher]
-        OpenDb --> NuEvt[RegulationArchive CNS event sink]
+        OpenDb --> NuEvt[RegulationArchive Regulation event sink]
         NuEvt --> Stores[Create 7 stores]
         Stores --> CnsRt[RegulationLedger with threshold]
         CnsRt --> SeamW[SeamWatcher load + drift check]
@@ -693,19 +693,19 @@ flowchart TD
 
 ### Verification notes
 
-- `crates/hkask-cli/src/main.rs:32–252` — Binary entry point, CLI parsing, CNS spans, command routing
+- `crates/hkask-cli/src/main.rs:32–252` — Binary entry point, CLI parsing, Regulation spans, command routing
 - `crates/hkask-cli/src/cli/helpers.rs:26–42` — Logging initialization
 - `crates/hkask-cli/src/commands/serve.rs:20–69` — API serve command → `ServiceConfig::from_env` → `AgentService::build` → `ApiState::from_service_context` → `create_router` → `axum::serve`
 - `crates/hkask-services-core/src/config.rs:140–204` — `ServiceConfig::from_env()` — env vars + keystore secret resolution
 - `crates/hkask-services-context/src/context_impl/build/mod.rs:30–76` — `AgentService::build()` — 4-phase canonical assembly
-- `crates/hkask-services-context/src/context_impl/build/foundation.rs:168–292` — `build_foundation()` — DB open, 7 stores, CNS runtime, seam watcher
+- `crates/hkask-services-context/src/context_impl/build/foundation.rs:168–292` — `build_foundation()` — DB open, 7 stores, Regulation runtime, seam watcher
 - `crates/hkask-services-context/src/context_impl/build/loops.rs:324–530` — `build_loops()` — LoopScheduler, CyberneticsLoop, Inference, Memory, Curator, Federation
 - `crates/hkask-services-context/src/context_impl/build/mcp_pods.rs:547–712` — `build_mcp_and_pods()` — GovernedTool, McpDispatcher, CapabilityChecker, ActivePods, CuratorPod, DaemonListener
 - `crates/hkask-services-context/src/context_impl/build/reg_wallet.rs:744–820` — `build_registry_and_wallet()` — SqliteRegistry, A2A restore, WalletService
 - `crates/hkask-services-context/src/context_impl/build/mod.rs:95–146` — `into_service()` — AgentServiceWiring → AgentService
 - `crates/hkask-api/src/lib.rs:102–155` — `ApiState::with_defaults()` + `from_service_context()`
 - `crates/hkask-api/src/lib.rs:201–279` — `create_router()` — axum router + middleware layers
-- `crates/hkask-cns/src/runtime.rs:290–310` — `RegulationLedger` struct and initialization
+- `crates/hkask-regulation/src/runtime.rs:290–310` — `RegulationLedger` struct and initialization
 - `crates/hkask-mcp/src/runtime.rs:124–145` — `McpRuntime` struct and `new()`
 - `docs/architecture/core/MDS.md:631–638` — MDS Bootstrap Sequence reference
 - `docs/DIAGRAMS_INDEX.md:61` — DIAG-PL-004 predecessor (now superseded by this DIAG-PL-006)

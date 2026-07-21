@@ -27,9 +27,9 @@ hkask-mcp-scenarios ──→ hkask-mcp-memory
   record_experience          →    store_experience (daemon)
   ontology_anchor                  episodic (PKO) / semantic (DC)
 
-hkask-mcp-scenarios ──→ CNS (tracing subscriber)
-  execute_tool_semantic      →    cns.mcp.scenarios.* spans
-  check_sequence                  cns.mcp.scenarios.sequence
+hkask-mcp-scenarios ──→ Regulation (tracing subscriber)
+  execute_tool_semantic      →    reg.mcp.scenarios.* spans
+  check_sequence                  reg.mcp.scenarios.sequence
 ```
 
 ### Skills → Server Tools
@@ -89,7 +89,7 @@ scenario_from_companies ←── bridge (independent)
 
 | Edge | Force | Reason |
 |------|-------|--------|
-| Server → CNS spans | Guardrail | CNS must receive spans for regulation |
+| Server → Regulation spans | Guardrail | Regulation must receive spans for regulation |
 | Server → Memory (daemon) | Guardrail | Episodic encoding must uphold consent (P1) |
 | Cross-validate → grill-me | Guideline | Agent should interrogate, not required to |
 | Companies → Scenarios bridge | Guideline | One-way works; bidirectional needs MCP client |

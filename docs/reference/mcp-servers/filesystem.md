@@ -23,13 +23,13 @@ behavior of the shipping code and the standing properties of its sandbox design.
 |-----------|------|
 | `FileSystemServer` | Server struct (`mcp_server!` macro): `webid`, `userpod`, `daemon`, `project_root`, `capability_tier` |
 | `sandbox_path` | Security boundary: resolve → canonicalize → containment check |
-| `execute_tool` | Framework wrapper: CNS tool span (`cns.tool.filesystem.*`) + daemon outcome recording |
+| `execute_tool` | Framework wrapper: Regulation tool span (`reg.tool.filesystem.*`) + daemon outcome recording |
 | `emit_cns` | Operation-level span emission (`file.read`, `file.written`, …) |
 
-Two distinct CNS emission paths run per tool call: the framework-level
+Two distinct Regulation emission paths run per tool call: the framework-level
 `execute_tool` span (tool name + outcome, via `ToolSpanGuard`) and the
 server-level `emit_cns` span (operation verb, via `RegulationSpan::Tool`). Both target
-`cns.tool.filesystem.*`; the operation span carries the verb.
+`reg.tool.filesystem.*`; the operation span carries the verb.
 
 ## Sandbox path resolution and tool dispatch
 
@@ -70,7 +70,7 @@ status: VERIFIED
 
 ## Tools (7)
 
-| Tool | Description | CNS operation span |
+| Tool | Description | Regulation operation span |
 |------|-------------|--------------------|
 | `fs_read` | Read file contents with 1-based line ranges + stats; start-only and end-only ranges honored; zero and inverted ranges rejected. Full reads preserve the file's bytes; partial reads normalize line endings to LF | `file.read` |
 | `fs_write` | Create or overwrite a file; creates parent dirs if needed (new files supported) — **destructive: consent-gated** | `file.written` |
@@ -80,16 +80,16 @@ status: VERIFIED
 | `fs_delete` | Delete a file or empty directory; returns the real OS error on failure — **destructive: consent-gated** | `file.deleted` |
 | `shell_exec` | `sh -c` command with timeout + output guard; stdout/stderr truncated at a UTF-8 char boundary (capped at 10 MiB); timed-out commands are killed (`kill_on_drop`) — **destructive: consent-gated** | `command.completed` / `command.failed` |
 
-## CNS observability
+## Regulation observability
 
 | Span | When emitted |
 |------|--------------|
-| `cns.tool.filesystem.file.read` | `fs_read`, `fs_list`, `fs_search` (success path) |
-| `cns.tool.filesystem.file.written` | `fs_write` (success path); `fs_edit` only when at least one edit matched |
-| `cns.tool.filesystem.file.deleted` | `fs_delete` (success path) |
-| `cns.tool.filesystem.command.completed` | `shell_exec` exit code 0 |
-| `cns.tool.filesystem.command.failed` | `shell_exec` non-zero exit or timeout |
-| `cns.tool.filesystem.path.rejected` | Path traversal / out-of-root blocked |
+| `reg.tool.filesystem.file.read` | `fs_read`, `fs_list`, `fs_search` (success path) |
+| `reg.tool.filesystem.file.written` | `fs_write` (success path); `fs_edit` only when at least one edit matched |
+| `reg.tool.filesystem.file.deleted` | `fs_delete` (success path) |
+| `reg.tool.filesystem.command.completed` | `shell_exec` exit code 0 |
+| `reg.tool.filesystem.command.failed` | `shell_exec` non-zero exit or timeout |
+| `reg.tool.filesystem.path.rejected` | Path traversal / out-of-root blocked |
 
 
 ## Security model
@@ -100,7 +100,7 @@ status: VERIFIED
   `HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT=1` (truthy: `1` or `true`). Read tools
   (`fs_read`, `fs_list`, `fs_search`) are **ungated** — reading your own
   workspace is sovereign by default (P1). Consent is an opt-in flag at launch,
-  revocable by relaunching without the flag; denials are auditable via CNS.
+  revocable by relaunching without the flag; denials are auditable via Regulation.
   This is the **filesystem-scoped (i)** enforcement. Spawned subagents are
   separate processes; they do **not** inherit destructive authority **provided
   the launcher does not propagate the flag to them — this is a launcher
@@ -180,6 +180,6 @@ kask mcp start filesystem
 ## Cross-links
 
 - [MCP Server Registry](README.md) — catalog of all 15 built-in servers
-- [CNS Span Registry](../cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`
+- [Regulation Span Registry](../cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence
 - [Diagram Index](../../DIAGRAMS_INDEX.md) — DIAG-RF-003 registration

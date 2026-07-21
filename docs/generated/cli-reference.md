@@ -48,7 +48,7 @@ Options:
 
 Slash commands (inside chat):
 - `/help` — Show categorized help, `/help <cmd>` for details
-- `/status` — System status (CNS, agent, model, pods)
+- `/status` — System status (Regulation, agent, model, pods)
 - `/agent [NAME]` — Show or switch agent
 - `/agents` — List registered agents
 - `/model` — Show current model
@@ -120,18 +120,18 @@ Subcommands:
 - `list-tools` — List available tools
 - `get-tool <NAME>` — Get tool definition
 
-### `kask cns` — CNS monitoring
+### `kask cns` — Regulation monitoring
 
 ```bash
 kask cns <SUBCOMMAND>
 ```
 
 Subcommands:
-- `health` — Get CNS health status
+- `health` — Get Regulation health status
 - `alerts` — Get algedonic alerts
 - `variety` — Get variety counters
 
-### `kask goal` — Goal coordination substrate (OCAP-gated, CNS-observed)
+### `kask goal` — Goal coordination substrate (OCAP-gated, Regulation-observed)
 
 ```bash
 kask goal <SUBCOMMAND>

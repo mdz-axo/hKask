@@ -73,7 +73,7 @@ Documents that answer "how do I achieve X?" with goal-focused procedures.
 | `docs/plans/k8s-admin-guide.md` | Plan | Plan | UNVERIFIED | 2026-07-04 | Active |
 | `docs/research/dokkodo-mindset-research-report.md` | Research | Explanation | UNVERIFIED | 2026-07-01 | Active |
 
-**Gap:** How-to procedures for: running `kask` binary from zero, configuring feature gates, bootstrapping an MCP server from scratch, reading CNS alerts (`cns.*` spans), invoking a skill programmatically, auditing sovereignty (OCAP inspection). The MCP bootstrap procedure exists only in code (`hkask-mcp/src/lib.rs`), not in documentation.
+**Gap:** How-to procedures for: running `kask` binary from zero, configuring feature gates, bootstrapping an MCP server from scratch, reading Regulation alerts (`reg.*` spans), invoking a skill programmatically, auditing sovereignty (OCAP inspection). The MCP bootstrap procedure exists only in code (`hkask-mcp/src/lib.rs`), not in documentation.
 
 ### 2.3 Reference Quadrant (32 documents)
 
@@ -96,7 +96,7 @@ Documents that describe the system neutrally and completely.
 | `docs/status/documentation-alignment-2026-07-01.md` | Status | Status | UNVERIFIED | 2026-07-01 | Archived-like |
 | 32 diagram files in `docs/diagrams/` | Reference | Reference | UNVERIFIED (most are Mermaid, not validated against code) | 2026-07-04 | Active |
 
-**Gap:** No crate-by-crate API reference mirroring the public surface. No registry listing of all 39 skills with their manifests. No reference listing of Magna Carta principles with prohibition levels. No complete CNS span registry reference. All of these exist in source but not as documentation.
+**Gap:** No crate-by-crate API reference mirroring the public surface. No registry listing of all 39 skills with their manifests. No reference listing of Magna Carta principles with prohibition levels. No complete Regulation span registry reference. All of these exist in source but not as documentation.
 
 ### 2.4 Explanation Quadrant (30 documents)
 
@@ -123,7 +123,7 @@ Documents that provide background, context, and discuss design decisions.
 | 8 `docs/plans/` documents | Plan | Plan/Explanation | UNVERIFIED | 2026-07-04 | Active |
 | 3 remaining `docs/status/` documents | Status | Explanation | UNVERIFIED | Various | Active |
 
-**Gap:** No dedicated explanation of: hexagonal ports/adapter layout, OCAP-governed MCP dispatch mechanism, CNS homeostatic loop theory, VSM (Viable System Model) mapping, ν-event (nu-event) semantics, the Good Regulator contract. Architecture master covers some of this but is described as "under reconstruction."
+**Gap:** No dedicated explanation of: hexagonal ports/adapter layout, OCAP-governed MCP dispatch mechanism, Regulation homeostatic loop theory, VSM (Viable System Model) mapping, ν-event (nu-event) semantics, the Good Regulator contract. Architecture master covers some of this but is described as "under reconstruction."
 
 ---
 

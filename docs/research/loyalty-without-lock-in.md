@@ -93,7 +93,7 @@ Reichheld emphasizes that the best companies are ruthless about *which* customer
 
 | Prohibition | What It Filters For | What It Filters Out |
 |---|---|---|
-| No visual UI, dashboards, Grafana, Prometheus | Users comfortable with CLI/REPL, programmatic observability via CNS | Users who want managed experiences, graphical interfaces |
+| No visual UI, dashboards, Grafana, Prometheus | Users comfortable with CLI/REPL, programmatic observability via Regulation | Users who want managed experiences, graphical interfaces |
 | No `todo!()`, `unimplemented!()`, stubs, feature flags | Users who value completeness and integrity | Users who tolerate half-finished features |
 | No anonymous agency — every action has an authenticated author | Users who value accountability and provenance | Users who want convenience over transparency |
 | No hidden parameters or admin-gated settings | Users who want visibility and control | Users who prefer managed/curated experiences |
@@ -128,7 +128,7 @@ The Curator daemon (P12.1) already exists as a per-system regulatory loop. Its c
 
 | Curator Template | Current Scope | Federated Scope |
 |---|---|---|
-| `system_state_gather` | Local pod health, CNS spans, bot success rates | Cross-pod 5W1H consistency, federation health, peer pod state |
+| `system_state_gather` | Local pod health, Regulation spans, bot success rates | Cross-pod 5W1H consistency, federation health, peer pod state |
 | `metacognition-diagnose` | Local alert cascades, resource exhaustion | Ontological conflicts between pods, skill composition failures, trust degradation |
 | `metacognition-calibrate` | Local threshold tuning, gas budget adjustment | Federation trust thresholds, convergence window sizing, sync interval tuning |
 | `metacognition-escalate` | Administrator alerts for local issues | Cross-pod conflict escalation, federation integrity violations, sovereignty breaches |

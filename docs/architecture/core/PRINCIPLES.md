@@ -128,7 +128,7 @@ Every artifact in hKask has both a state identity and a process identity — it 
 #### P6 — Space for UserPods
 hKask exists as a generative container for **human user agency** (each user via their own userpod) and **AI tools** (skills + MCP servers), coordinated by the curator daemon, under sovereignty and capability constraints.
 
-**P6.1 — Per-UserPod Deployment Model (v0.29.0):** Each user inhabits exactly one persistent userpod (1:1; multi-persona removed). The userpod IS the deployment unit — not a cache entry in a shared manager — and persists for the life of the account. A userpod owns its SQLCipher file (`{data_dir}/agents/{sanitized_name}/pod.db`), its CNS runtime (per-pod variety counters), and its MCP server bindings (no cross-pod dispatch). The userpod makes shared state structurally impossible. See Pattern D.1 — UserPod as Solid Pod Isomorphism.
+**P6.1 — Per-UserPod Deployment Model (v0.29.0):** Each user inhabits exactly one persistent userpod (1:1; multi-persona removed). The userpod IS the deployment unit — not a cache entry in a shared manager — and persists for the life of the account. A userpod owns its SQLCipher file (`{data_dir}/agents/{sanitized_name}/pod.db`), its Regulation runtime (per-pod variety counters), and its MCP server bindings (no cross-pod dispatch). The userpod makes shared state structurally impossible. See Pattern D.1 — UserPod as Solid Pod Isomorphism.
 
 #### P7 — Evolutionary Architecture
 Types and seams should emerge from real usage, not speculative abstraction.
@@ -162,40 +162,40 @@ The architectural invariant: **hKask never requires knowledge of a full domain o
 #### P9 — Homeostatic Self-Regulation
 The system must remain observable and self-correcting through cybernetic feedback loops.
 
-**§9.1 — CNS Span Coverage (v0.31.0)**
+**§9.1 — Regulation Span Coverage (v0.31.0)**
 
-CNS (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `cns.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `RegulationSpan` enum variants (P8 — Semantic Grounding), are registered in `CANONICAL_NAMESPACES`, mapped to a `SpanCategory`, and connected to a cybernetic loop via ν-events. The `cns.*` prefix is reserved for these canonical spans — every `cns.*` tracing target MUST be registered. Performative telemetry (CLI, API middleware, and other observability logs) uses `hkask.*` tracing targets, NOT `cns.*`; those are deliberately NOT registered, NOT categorized, and NOT loop-connected — they are observability logs, not regulated variables. The two are distinguished by registry presence: `SpanNamespace::new` accepts only canonical spans.
+Regulation (Cybernetic Nervous System) spans are the primary observability primitive. Every subsystem must emit canonical `reg.*` spans for every security-sensitive, resource-sensitive, and correctness-sensitive operation. Essential domains carry typed `RegulationSpan` enum variants (P8 — Semantic Grounding), are registered in `CANONICAL_NAMESPACES`, mapped to a `SpanCategory`, and connected to a cybernetic loop via ν-events. The `reg.*` prefix is reserved for these canonical spans — every `reg.*` tracing target MUST be registered. Performative telemetry (CLI, API middleware, and other observability logs) uses `hkask.*` tracing targets, NOT `reg.*`; those are deliberately NOT registered, NOT categorized, and NOT loop-connected — they are observability logs, not regulated variables. The two are distinguished by registry presence: `SpanNamespace::new` accepts only canonical spans.
 
 | Domain | Target | Spans | Status | RegulationSpan Variant |
 |--------|--------|-------|--------|-----------------|
-| Tool dispatch (all MCP servers) | `cns.tool.*` | ~170 | ✅ `ToolSpanGuard` per-tool | `Tool { subsystem }` |
-| Inference (8 providers: DeepInfra, fal.ai, Together, OpenRouter, KiloCode, Ollama, Cline, RunPod) | `cns.inference` | 53 | ✅ generate/generate_vision — 7 chat backends + RunPod (vision/OCR only) | `Inference` |
-| Fusion (multi-model deliberation) | `cns.fusion` | 9 | ✅ orchestrate + per-round/mode events (convergence verdict, swap-revote, algo method) | `Fusion` |
-| Keystore | `cns.keystore` | 25 | ✅ resolve, store, derive, sign | `Keystore` |
-| Adapter (LoRA) | `cns.adapter` | 23 | ✅ store/get_by_id/delete + router | `Adapter` |
-| Backup | `cns.backup` | 22 | ✅ snapshot/restore/verify/prune/delete_blob | `Backup` |
-| Condenser | `cns.condenser` | 3 | ✅ compression ratio + health | `Condenser` |
-| Skill lifecycle | `cns.skill` | 5 | ✅ activate/load/discover/publish/validate | `Skill` |
-| MCP server infra | `cns.mcp.*` | 47 | ✅ startup gates + daemon flow | *(stringly-typed)* |
-| CLI command dispatch | `cns.cli` | 2 | ✅ command_invoked/completed | *(performative)* |
-| API middleware | `cns.api` | 2 | ✅ per-request CNS span | *(performative)* |
-| Kata coaching | `cns.kata` | 20 | ✅ PDCA cycles, automaticity | `Kata` |
-| Agent pod | `cns.agent_pod` | — | ✅ revert, spawn_agent (via PodBackupOps) | `AgentPod` |
-| Wallet | `cns.wallet.*` | — | ✅ pre-existing | `WalletBalance` etc. |
-| Memory | `cns.memory.*` | — | ✅ pre-existing | `MemoryEncode` |
-| Curation | `cns.curation` | — | ✅ pre-existing | `Curation` |
-| Deployment sessions | `cns.deploy` | 2 | ✅ session_open/close | `SessionOpen`, `SessionClose` |
-| Backup export lifecycle | `cns.deploy` | 3 | ✅ backup_export/auto_export/upload | `BackupExport`, `BackupAutoExport`, `BackupUpload` |
+| Tool dispatch (all MCP servers) | `reg.tool.*` | ~170 | ✅ `ToolSpanGuard` per-tool | `Tool { subsystem }` |
+| Inference (8 providers: DeepInfra, fal.ai, Together, OpenRouter, KiloCode, Ollama, Cline, RunPod) | `reg.inference` | 53 | ✅ generate/generate_vision — 7 chat backends + RunPod (vision/OCR only) | `Inference` |
+| Fusion (multi-model deliberation) | `reg.fusion` | 9 | ✅ orchestrate + per-round/mode events (convergence verdict, swap-revote, algo method) | `Fusion` |
+| Keystore | `reg.keystore` | 25 | ✅ resolve, store, derive, sign | `Keystore` |
+| Adapter (LoRA) | `reg.adapter` | 23 | ✅ store/get_by_id/delete + router | `Adapter` |
+| Backup | `reg.backup` | 22 | ✅ snapshot/restore/verify/prune/delete_blob | `Backup` |
+| Condenser | `reg.condenser` | 3 | ✅ compression ratio + health | `Condenser` |
+| Skill lifecycle | `reg.skill` | 5 | ✅ activate/load/discover/publish/validate | `Skill` |
+| MCP server infra | `reg.mcp.*` | 47 | ✅ startup gates + daemon flow | *(stringly-typed)* |
+| CLI command dispatch | `reg.cli` | 2 | ✅ command_invoked/completed | *(performative)* |
+| API middleware | `reg.api` | 2 | ✅ per-request Regulation span | *(performative)* |
+| Kata coaching | `reg.kata` | 20 | ✅ PDCA cycles, automaticity | `Kata` |
+| Agent pod | `reg.agent_pod` | — | ✅ revert, spawn_agent (via PodBackupOps) | `AgentPod` |
+| Wallet | `reg.wallet.*` | — | ✅ pre-existing | `WalletBalance` etc. |
+| Memory | `reg.memory.*` | — | ✅ pre-existing | `MemoryEncode` |
+| Curation | `reg.curation` | — | ✅ pre-existing | `Curation` |
+| Deployment sessions | `reg.deploy` | 2 | ✅ session_open/close | `SessionOpen`, `SessionClose` |
+| Backup export lifecycle | `reg.deploy` | 3 | ✅ backup_export/auto_export/upload | `BackupExport`, `BackupAutoExport`, `BackupUpload` |
 
 **§9.2 — Span Emission Pattern**
 
 ```rust
-// CNS span emission — pre: {precondition}, post: cns.{domain} span emitted
-tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, ..., "CNS");
+// Regulation span emission — pre: {precondition}, post: reg.{domain} span emitted
+tracing::info!(target: "reg.{domain}", operation = "{verb}", {key} = %{value}, ..., "Regulation");
 ```
 
-- Target: `"cns.{canonical_domain}"` — uses the `cns.*` namespace convention. Essential domains map to `RegulationSpan` variants in `hkask-types::cns`; performative spans (CLI, API) use stringly-typed tracing targets.
-- Message: Must be `"CNS"` — enables ν-event filtering
+- Target: `"reg.{canonical_domain}"` — uses the `reg.*` namespace convention. Essential domains map to `RegulationSpan` variants in `hkask-types::cns`; performative spans (CLI, API) use stringly-typed tracing targets.
+- Message: Must be `"Regulation"` — enables ν-event filtering
 - Latency: Use `std::time::Instant`, emit as `latency_ms`
 - Authority: Every span carries a `userpod` or `owner` WebID
 
@@ -226,7 +226,7 @@ Every interaction with hKask carries a userpod (or curator) host identity. Three
 | **Daemon / System** | Curator daemon | `Curator` — system daemon | `~/.config/hkask/agents/curator.db` | System keychain |
 | **API** | Userpods | Userpod-managed capability tokens | Per-userpod DB | Userpod-attested HKDF keys |
 
-**Dual-presence pattern:** The CLI/REPL surface hosts both the user's userpod AND the Curator daemon in a single loop. The user speaks; the Curator observes, surfaces CNS alerts, provides memory summaries, and can be addressed directly via `kask curator chat`. This is not two separate sessions — it is one conversation with two participants. The user's userpod is the sovereign host; the Curator daemon is the system's presence.
+**Dual-presence pattern:** The CLI/REPL surface hosts both the user's userpod AND the Curator daemon in a single loop. The user speaks; the Curator observes, surfaces Regulation alerts, provides memory summaries, and can be addressed directly via `kask curator chat`. This is not two separate sessions — it is one conversation with two participants. The user's userpod is the sovereign host; the Curator daemon is the system's presence.
 
 [^dublin-core]: Dublin Core Metadata Initiative. *DCMI Metadata Terms*. ISO 15836. <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/>.
 [^bibo]: D'Arcus, B. & Giasson, F. *Bibliographic Ontology (BIBO)*. <https://bibliontology.com/>.

@@ -20,7 +20,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 | Diagram ID | Description | Now Inline In | Verified Against | Status |
 |-----------|-------------|---------------|-----------------|--------|
-| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §1.5.2 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-capability/src/lib.rs`, `Cargo.toml` workspace members | ✅ VERIFIED 2026-07-01 |
+| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → Regulation) + delegated dependencies | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §1.5.2 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-capability/src/lib.rs`, `Cargo.toml` workspace members | ✅ VERIFIED 2026-07-01 |
 | DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §4.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED 2026-07-01 |
 | DIAG-DC-003 | Agent Taxonomy (Bot/UserPod branching) | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §4.1 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/types/agent/definition.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | `explanation/sovereignty-and-ocap.md` | `crates/hkask-capability/src/lib.rs` | ✅ VERIFIED 2026-07-01 |
@@ -49,7 +49,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-009 | CodeGraph Agent Workflow — search, traverse, impact, context assembly, feedback loop | `reference/api-reference.md` | `mcp-servers/hkask-mcp-codegraph/src/lib.rs:243-632`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs` | ✅ VERIFIED 2026-07-04 |
 | DIAG-IC-010 | Companies provider routing — symbol selection, learning override, fallback, EODHD normalization | `architecture/core/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/providers.rs:84-247`, `mcp-servers/hkask-mcp-companies/src/lib.rs:340-361` | ✅ VERIFIED 2026-07-10 |
 | DIAG-IC-011 | Companies forecast feedback — durable snapshot, revision, outcome, and daemon experience flow | `architecture/core/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/tools/analytics.rs:438-457`, `mcp-servers/hkask-mcp-companies/src/tools/valuation.rs:634-659,774-915`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:303-400` | ✅ VERIFIED 2026-07-10 |
-| DIAG-IC-012 | CNS Architecture — responsibility clusters, wallet port, extraction status | `explanation/cns-and-loops.md` | `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/runtime.rs`, `crates/hkask-cns/src/wallet_budget.rs`, `crates/hkask-cns/src/slo_manager.rs`, `crates/hkask-storage-guard/src/lib.rs`, `crates/hkask-cns/src/seam_watcher.rs`, `crates/hkask-ports/src/wallet_budget_port.rs` | ✅ VERIFIED 2026-07-11 |
+| DIAG-IC-012 | Regulation Architecture — responsibility clusters, wallet port, extraction status | `explanation/cns-and-loops.md` | `crates/hkask-regulation/src/cybernetics_loop.rs`, `crates/hkask-regulation/src/runtime.rs`, `crates/hkask-regulation/src/wallet_budget.rs`, `crates/hkask-regulation/src/slo_manager.rs`, `crates/hkask-storage-guard/src/lib.rs`, `crates/hkask-regulation/src/seam_watcher.rs`, `crates/hkask-ports/src/wallet_budget_port.rs` | ✅ VERIFIED 2026-07-11 |
 | DIAG-IC-013 | Research MCP Server Architecture — ResearchServer, ProviderPool, WebSearchPort, cache, rate limiter, RSS DB | `status/research-mcp-adversarial-review-2026-07-17.md` | `mcp-servers/hkask-mcp-research/src/lib.rs:41-48`, `crates/hkask-services-research/src/providers/mod.rs:130-135,494-620` | ✅ VERIFIED 2026-07-17 |
 | DIAG-IC-014 | Research Provider Trait Hierarchy — WebSearchPort, WebSearchProvider, WebExtractProvider, WebBrowseProvider, 9 concrete providers | `status/research-mcp-adversarial-review-2026-07-17.md` | `crates/hkask-services-research/src/providers/mod.rs:50-135`, `crates/hkask-services-research/src/providers/brave.rs:18`, `crates/hkask-services-research/src/providers/firecrawl.rs:28,100,181` | ✅ VERIFIED 2026-07-17 |
 | DIAG-IC-015 | Skill MCP Server Architecture — SkillServer stores RegistryEntry (lazy read), templates-vs-skills distinction, InferencePort | `reference/mcp-servers/skill-server.md` | `mcp-servers/hkask-mcp-skill/src/lib.rs:49`, `crates/hkask-templates/src/registry.rs:400` | ✅ VERIFIED 2026-07-17 |
@@ -63,9 +63,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-TO-001 | STRIDE-lite Threat Model (4 adversaries) | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §2.4 | `crates/hkask-mcp/src/security.rs`, `crates/hkask-keystore/src/` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-002 | OCAP Boundary Enforcement Flow | `explanation/sovereignty-and-ocap.md` | `crates/hkask-mcp/src/security.rs` (SecurityGateway) | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-003 | Encryption Stack — Argon2id → AES-256-GCM → SQLCipher | `architecture/core/hKask-architecture-master.md` | `crates/hkask-keystore/src/`, `crates/hkask-storage/src/database.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-TO-004 | CNS Span Emission Flow (4 namespaces → Sink) | `explanation/cns-and-loops.md` | `crates/hkask-cns/src/runtime.rs`, `crates/hkask-types/src/event.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-TO-005 | Algedonic Alert Escalation (variety deficit > threshold → Curator/Human) | `explanation/cns-and-loops.md` | `crates/hkask-cns/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-TO-006 | CNS Span Emission and Algedonic Alert End-to-End Flow | `explanation/cns-and-loops.md` | `crates/hkask-agents/src/curator_agent/spec_curator.rs`, `crates/hkask-cns/src/cybernetics_loop.rs`, `crates/hkask-cns/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-TO-004 | Regulation Span Emission Flow (4 namespaces → Sink) | `explanation/cns-and-loops.md` | `crates/hkask-regulation/src/runtime.rs`, `crates/hkask-types/src/event.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-TO-005 | Algedonic Alert Escalation (variety deficit > threshold → Curator/Human) | `explanation/cns-and-loops.md` | `crates/hkask-regulation/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-TO-006 | Regulation Span Emission and Algedonic Alert End-to-End Flow | `explanation/cns-and-loops.md` | `crates/hkask-agents/src/curator_agent/spec_curator.rs`, `crates/hkask-regulation/src/cybernetics_loop.rs`, `crates/hkask-regulation/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-006-CM | ConsentManager Authorization Flow | `explanation/sovereignty-and-ocap.md` | `crates/hkask-agents/src/consent.rs`, `crates/hkask-agents/src/sovereignty.rs`, `crates/hkask-storage/src/consent_store.rs` | ✅ VERIFIED 2026-07-01 |
 
 ## 4. Persistence & Lifecycle Diagrams
@@ -106,7 +106,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-RF-004 | Companies tool routing and dispatch flow — combined_router (7 sub-routers) → execute_tool seam → three sinks (provider fetch, valuation engines → StoredForecast, PortfolioManager spawn_blocking) | `reference/mcp-servers/companies.md`, `diagrams/flowchart-companies-tool-routing.md` | `mcp-servers/hkask-mcp-companies/src/lib.rs:499-509,368-495`, `mcp-servers/hkask-mcp-companies/src/tools/mod.rs:1-8`, `mcp-servers/hkask-mcp-companies/src/providers.rs:111-198`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:290-340` | ✅ VERIFIED 2026-07-17 |
 | DIAG-REPL-001 | REPL Turn Pipeline — control flow of `run_turn_loop()` (gas reserve → execute → extract tools → invoke → feed back) | `diagrams/flowchart-repl-turn-pipeline.md` | `crates/hkask-repl/src/turn.rs:130-307` | ✅ VERIFIED 2026-07-20 |
 | DIAG-REPL-002 | ReplState Decomposition — type hierarchy of `ReplState` and sub-structs (`ToolPrompt`, `ManifestCascade`, `TalkConfig`, `TalkMode`, `ThreadRegistry`, `ReplHost`) | `diagrams/class-repl-state-decomposition.md` | `crates/hkask-repl/src/lib.rs:100-159`, `crates/hkask-services-context/src/context_impl.rs:103-474` | ✅ VERIFIED 2026-07-20 |
-| DIAG-REPL-003 | REPL Tool Invocation — sequence diagram of OCAP boundary (DelegationToken → GovernedTool → RawMcpToolPort → McpRuntime → MCP server) | `diagrams/sequence-repl-tool-invocation.md` | `crates/hkask-repl/src/tool_augmented.rs:238-258`, `crates/hkask-repl/src/deps.rs:262-293`, `crates/hkask-cns/src/governed_tool.rs` | ✅ VERIFIED 2026-07-20 |
+| DIAG-REPL-003 | REPL Tool Invocation — sequence diagram of OCAP boundary (DelegationToken → GovernedTool → RawMcpToolPort → McpRuntime → MCP server) | `diagrams/sequence-repl-tool-invocation.md` | `crates/hkask-repl/src/tool_augmented.rs:238-258`, `crates/hkask-repl/src/deps.rs:262-293`, `crates/hkask-regulation/src/governed_tool.rs` | ✅ VERIFIED 2026-07-20 |
 
 ## 7. Undocumented Interaction Patterns (V1.1+ Candidates)
 
@@ -182,8 +182,8 @@ The following diagrams were standalone files not individually tracked in the ori
 | `erd-sqlcipher-schema.md` | ERD | `architecture/core/hKask-architecture-master.md` | SQLCipher Schema |
 | `flowchart-architecture-overview.md` | flowchart | `explanation/architecture-patterns.md` | Classification + Guard Architecture Overview |
 | `flowchart-connection-lifecycle.md` | flowchart | `architecture/core/hKask-architecture-master.md` | Database Connection Lifecycle |
-| `flowchart-cns-homeostatic-loop.md` | flowchart | `explanation/cns-and-loops.md` | CNS Homeostatic Loop |
-| `flowchart-cns-regulation.md` | flowchart | `explanation/cns-and-loops.md` | CNS Regulation Pipeline — 5-Phase Cybernetic Cycle |
+| `flowchart-cns-homeostatic-loop.md` | flowchart | `explanation/cns-and-loops.md` | Regulation Homeostatic Loop |
+| `flowchart-cns-regulation.md` | flowchart | `explanation/cns-and-loops.md` | Regulation Regulation Pipeline — 5-Phase Cybernetic Cycle |
 | `flowchart-curator-metacognition.md` | flowchart | `explanation/cns-and-loops.md` | Curator Metacognition Loop |
 | `flowchart-deployment-architecture.md` | flowchart | `how-to/deployment-and-transport.md` | K8s Deployment Architecture |
 | `flowchart-algo-classification.md` | flowchart | `explanation/cognition-and-replica.md` | Algo / No-Judge Classification Flow |

@@ -101,7 +101,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Agents can detect dead code (symbols with zero inbound non-test edges, non-public, not in test modules) (`codegraph_analysis`)
   - [x] Agents can assemble token-budgeted context for LLM prompts at four tiers: Minimal (512), Focused (2048), Standard (4096), Full (8192) tokens (`codegraph_context`)
   - [x] Indexing is incremental — SHA-256 content hash comparison skips unchanged files on re-index
-  - [x] Index staleness is CNS-observable — drives algedonic alerts when the index is stale
+  - [x] Index staleness is Regulation-observable — drives algedonic alerts when the index is stale
   - [x] Context feedback loop tracks symbol usage ratio to improve future assembly (`codegraph_feedback`)
 - **Implementation:** `hkask-codegraph` (domain crate: types, graph store, indexer, search, traversal, analysis, context assembly), `hkask-mcp-codegraph` (MCP server: 11 tools)
 - **Tests:** `component1_parser.rs`, `component3_pipeline.rs`, `component7_impact.rs` (22 tests total)
@@ -151,8 +151,8 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `McpRuntime` manages server lifecycle
   - [x] `GovernedTool` enforces OCAP before dispatch (`SecurityGateway` described in spec; see TODO.md P2-06)
   - [x] Stdio transport via rmcp (in-process and HTTP transports deferred)
-  - [x] Former MCP servers (inference, CNS, OCAP, keystore, registry, git, goals) now use direct crate calls
-- **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-cns::governed_tool::GovernedTool`
+  - [x] Former MCP servers (inference, Regulation, OCAP, keystore, registry, git, goals) now use direct crate calls
+- **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-regulation::governed_tool::GovernedTool`
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge — implemented
@@ -285,15 +285,15 @@ Curation: Merge | Revise | Defer | Discard
 
 ## 7. Lifecycle Requirements
 
-### REQ-OBS-001: CNS Span Emission
+### REQ-OBS-001: Regulation Span Emission
 
 - **Category:** Lifecycle
-- **Text:** When a capability is invoked, I want a CNS span emitted, so I can monitor system behavior.
+- **Text:** When a capability is invoked, I want a Regulation span emitted, so I can monitor system behavior.
 - **Criteria:**
-  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see canonical CNS span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`))
+  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see canonical Regulation span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`))
   - [x] `RegulationRecord` with phase (Sense/Compute/Compare/Act; legacy aliases: Observe\u2192Sense, Regulate\u2192Compute, Outcome\u2192Act)
   - [x] `RegulationSink` trait for emission
-- **Implementation:** `hkask-types::event::Span`, `hkask-cns::runtime::RegulationLedger`
+- **Implementation:** `hkask-types::event::Span`, `hkask-regulation::runtime::RegulationLedger`
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -305,7 +305,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `AlgedonicManager` with severity levels (Info, Warning, Critical)
   - [x] `VarietyCounter` tracking per category
   - [x] Escalation to Curator/Human
-- **Implementation:** `hkask-cns::algedonic::AlgedonicManager`, `hkask-types::cns::AlgedonicAlert`
+- **Implementation:** `hkask-regulation::algedonic::AlgedonicManager`, `hkask-types::cns::AlgedonicAlert`
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -436,13 +436,13 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-COM-004: Matrix Communication Transport
 
 - **Category:** Curation, Composition
-- **Text:** When agents need to communicate with humans or other agents, I want Matrix-based transport with CNS-observable message flow, so I can interact with my agents from mobile devices and federate across hKask instances.
+- **Text:** When agents need to communicate with humans or other agents, I want Matrix-based transport with Regulation-observable message flow, so I can interact with my agents from mobile devices and federate across hKask instances.
 - **Criteria:**
   - [x] `hkask-communication` core infrastructure crate (952 LOC)
   - [x] `MatrixTransport` — matrix-sdk wrapper: login, send/receive, rooms, files
-  - [x] `SevenR7Listener` — passive room observer, polls Matrix rooms, persists CNS RegulationRecords
+  - [x] `SevenR7Listener` — passive room observer, polls Matrix rooms, persists Regulation RegulationRecords
   - [x] `AgentRegistry` — WebID↔Matrix UserId mapping, thread watchlists
-  - [x] CNS bridge — communication events flow to `RegulationArchive` → curation inbox
+  - [x] Regulation bridge — communication events flow to `RegulationArchive` → curation inbox
   - [x] CAT engagement gate — `convergence_bias` scalar per agent
   - [x] Response dispatch — agent responses routed back via Matrix rooms
   - [x] CLI: `kask matrix deploy-sidecar`, `register`, `listen`, `status-sidecar`

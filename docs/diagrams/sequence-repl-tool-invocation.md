@@ -10,7 +10,7 @@ mds_categories: [composition, trust]
 
 # REPL Tool Invocation — Sequence
 
-Sequence diagram of the tool invocation chain from the REPL turn loop through `GovernedTool` to the MCP runtime. This is the OCAP (Object Capabilities) boundary: `GovernedTool::invoke_with_secret` mints the `DelegationToken` internally from the A2A secret, then verifies OCAP authority, reserves gas, emits CNS spans, and delegates to the inner tool port.
+Sequence diagram of the tool invocation chain from the REPL turn loop through `GovernedTool` to the MCP runtime. This is the OCAP (Object Capabilities) boundary: `GovernedTool::invoke_with_secret` mints the `DelegationToken` internally from the A2A secret, then verifies OCAP authority, reserves gas, emits Regulation spans, and delegates to the inner tool port.
 
 ```mermaid
 sequenceDiagram
@@ -31,13 +31,13 @@ sequenceDiagram
         Gov->>Gov: Verify token signature
         Gov->>Gov: Verify OCAP authority (exact or domain)
         Gov->>Gov: Reserve gas via CyberneticsLoop
-        Gov->>Gov: Emit cns.tool.invoke span
+        Gov->>Gov: Emit reg.tool.invoke span
         Gov->>Runtime: call_tool(server, tool, args)
         Runtime->>Server: JSON-RPC: tools/call
         Server-->>Runtime: tool result
         Runtime-->>Gov: serde_json::Value
         Gov->>Gov: Settle gas (actual vs reserved)
-        Gov->>Gov: Emit cns.tool.result span
+        Gov->>Gov: Emit reg.tool.result span
         Gov-->>Invoker: Result<Value>
         Invoker-->>Turn: Result<Value>
         Turn->>Turn: sink.tool_log(formatted result)
@@ -48,7 +48,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REPL-003
 verified_date: 2026-07-20
-verified_against: crates/hkask-repl/src/deps.rs:262-293, crates/hkask-cns/src/governed_tool.rs:199-230, crates/hkask-mcp/src/dispatch.rs:52-107
+verified_against: crates/hkask-repl/src/deps.rs:262-293, crates/hkask-regulation/src/governed_tool.rs:199-230, crates/hkask-mcp/src/dispatch.rs:52-107
 status: VERIFIED
 -->
 
@@ -61,7 +61,7 @@ The previous invocation chain had 6 Rust-side layers: `ReplToolInvoker` → `too
 - **OCAP Authorization:** `GovernedTool::invoke_with_secret` mints the `DelegationToken` internally from the A2A secret. The token binds the resource (`DelegationResource::Tool`), the tool name, the action (`DelegationAction::Execute`), the principal WebID (user), and the delegate WebID (agent). The token is signed with `derive_signing_key(a2a_secret)`.
 - **A2A Secret Handling:** The secret is stored as `ZeroizingSecret` in `ReplToolInvoker` and passed as `&[u8]` to `invoke_with_secret` — no secret bytes are copied into the token-minting path.
 - **Gas Charging:** `GovernedTool` reserves gas before invocation and settles with the actual cost after. This is separate from the inference gas reservation — tool calls have their own energy accounting.
-- **CNS Observability:** Every tool invocation emits `cns.tool.invoke` and `cns.tool.result` spans.
+- **Regulation Observability:** Every tool invocation emits `reg.tool.invoke` and `reg.tool.result` spans.
 - **Two Parse Paths:** `extract_tool_calls` checks structured native function calls first, then falls back to `<<tool:...>>` text directives.
 
 ## Cross-References

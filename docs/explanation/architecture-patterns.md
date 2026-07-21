@@ -18,13 +18,13 @@ This document consolidates five architectural patterns that define hKask's struc
 
 ### Statement
 
-The hexagonal architecture in hKask is not a pattern adopted for aesthetics. It exists because the system's core regulatory logic — the CNS, the Curator, the Inference loop — must function identically whether it runs against a local SQLite database on a developer's laptop or against a federated cluster of PostgreSQL-backed replicas. More importantly, it must be testable without any of those backends at all.
+The hexagonal architecture in hKask is not a pattern adopted for aesthetics. It exists because the system's core regulatory logic — the Regulation, the Curator, the Inference loop — must function identically whether it runs against a local SQLite database on a developer's laptop or against a federated cluster of PostgreSQL-backed replicas. More importantly, it must be testable without any of those backends at all.
 
 ### Evidence
 
 In standard hexagonal architecture, the domain core is surrounded by ports (interfaces the core defines) and adapters (implementations that satisfy those interfaces). In Rust, ports are **traits**, and adapters are **structs that implement those traits**. The rule is simple: domain crates define the traits; infrastructure crates provide the implementations.
 
-This design exists because hKask's dependency graph imposes a strict Authority DAG. Domain crates (`hkask-cns`, `hkask-agents`, `hkask-inference`) must not depend on infrastructure crates (`hkask-storage`, `hkask-mcp`, `hkask-federation`). The port traits in `hkask-ports` are the only shared dependency — every domain crate imports from `hkask-ports`, and every infrastructure crate implements against it. There is no other coupling path.
+This design exists because hKask's dependency graph imposes a strict Authority DAG. Domain crates (`hkask-regulation`, `hkask-agents`, `hkask-inference`) must not depend on infrastructure crates (`hkask-storage`, `hkask-mcp`, `hkask-federation`). The port traits in `hkask-ports` are the only shared dependency — every domain crate imports from `hkask-ports`, and every infrastructure crate implements against it. There is no other coupling path.
 
 As the crate-level documentation in `crates/hkask-ports/src/lib.rs` states: "Port traits that enable crates to depend on abstractions rather than concrete implementations. Per the Authority DAG, domain crates depend on these port traits (not on each other)."
 
@@ -34,7 +34,7 @@ The `hkask-ports` crate defines **17 trait contracts**, each guarding a distinct
 
 | Concern | Traits |
 |---------|--------|
-| CNS regulation | `CircuitBreakerPort`, `LedgerStoragePort`, `LedgerObserver` |
+| Regulation regulation | `CircuitBreakerPort`, `LedgerStoragePort`, `LedgerObserver` |
 | Federation | `FederationTransport`, `FederationSyncPort`, `FederationDispatch` |
 | Inference and tools | `InferencePort`, `ToolPort` |
 | Governance and pipelines | `ConsentPort`, `EscalationPort`, `WalletBudgetPort`, `StepExecutor` |
@@ -45,11 +45,11 @@ The eight primary infrastructure boundaries are documented in detail below. The 
 
 **`ToolPort`** (`crates/hkask-ports/src/tool.rs`) — The governance membrane for MCP tool invocation. Unlike `InferencePort`, this port has an authentication asymmetry: `discover_tools()` and `get_tool_info()` are intentionally unauthenticated — tool schemas are public metadata — but `invoke()` requires a `DelegationToken`. OCAP enforcement applies at the actuator boundary, not the sensor boundary. The concrete implementor is `McpDispatcher` in `hkask-mcp`. The error type, `ToolPortError`, encodes the governance envelope directly: `CapabilityDenied` (OCAP rejection), `EnergyBudgetExceeded` (gas depletion), `NotFound`, and `InvocationFailed`.
 
-**`CircuitBreakerPort`** (`crates/hkask-ports/src/cns.rs`) — The circuit breaker boundary for the Cybernetics membrane. A minimal trait — `allow_request()`, `record_success()`, `record_failure()`, `state()` — that allows the Inference loop to use circuit breaking without depending on `hkask-cns`. The concrete implementor is `CircuitBreaker` in `hkask-cns`. When the CNS detects elevated error rates above the `error_rate_max` set-point (default: 30%), it opens the circuit and the inference loop stops sending requests.
+**`CircuitBreakerPort`** (`crates/hkask-ports/src/cns.rs`) — The circuit breaker boundary for the Cybernetics membrane. A minimal trait — `allow_request()`, `record_success()`, `record_failure()`, `state()` — that allows the Inference loop to use circuit breaking without depending on `hkask-regulation`. The concrete implementor is `CircuitBreaker` in `hkask-regulation`. When the Regulation detects elevated error rates above the `error_rate_max` set-point (default: 30%), it opens the circuit and the inference loop stops sending requests.
 
-**`LedgerStoragePort`** (`crates/hkask-ports/src/cns.rs`) — Storage abstraction for CNS event queries. While `CircuitBreakerPort` is the actuator boundary, `LedgerStoragePort` is the memory boundary — it abstracts the `RegulationArchive` behind a trait so the cybernetic regulation layer (`GasReport`, `CalibratedEnergyEstimator`, `WalletGasCalibrator`) can be tested without a real SQLite database. It provides `query_algedonic()` for alert retrospectives, `replay_weighted()` for temporal decay-weighted event replay, and `persist_cursor()`/`load_cursor()` for crash recovery.
+**`LedgerStoragePort`** (`crates/hkask-ports/src/cns.rs`) — Storage abstraction for Regulation event queries. While `CircuitBreakerPort` is the actuator boundary, `LedgerStoragePort` is the memory boundary — it abstracts the `RegulationArchive` behind a trait so the cybernetic regulation layer (`GasReport`, `CalibratedEnergyEstimator`, `WalletGasCalibrator`) can be tested without a real SQLite database. It provides `query_algedonic()` for alert retrospectives, `replay_weighted()` for temporal decay-weighted event replay, and `persist_cursor()`/`load_cursor()` for crash recovery.
 
-**`LedgerObserver`** (`crates/hkask-ports/src/cns.rs`) — The subscriber interface for CNS events. Observers declare an `interest_mask()` of `SpanNamespace` values they care about, then receive `on_event()`, `on_depletion()`, and `on_backpressure()` callbacks. The concrete implementor in `hkask-inference` uses this to react to throttle and circuit-break signals.
+**`LedgerObserver`** (`crates/hkask-ports/src/cns.rs`) — The subscriber interface for Regulation events. Observers declare an `interest_mask()` of `SpanNamespace` values they care about, then receive `on_event()`, `on_depletion()`, and `on_backpressure()` callbacks. The concrete implementor in `hkask-inference` uses this to react to throttle and circuit-break signals.
 
 **`ConsentPort`** (`crates/hkask-ports/src/consent_port.rs`) — Decouples agent pods from the concrete `ConsentStore` in `hkask-storage`. A CRUD trait for consent records — `initialize_schema()`, `store()`, `list_active()` — that ensures the Affirmative Consent (P2) verification layer can be tested independently of the database schema.
 
@@ -62,7 +62,7 @@ The eight primary infrastructure boundaries are documented in detail below. The 
 ```mermaid
 flowchart TD
     subgraph "Domain Crates"
-        CNS["hkask-cns"]
+        Regulation["hkask-regulation"]
         AGENTS["hkask-agents"]
         INFER["hkask-inference"]
     end
@@ -85,9 +85,9 @@ flowchart TD
         WALLET["hkask-wallet"]
     end
 
-    CNS --> CBP
-    CNS --> CSP
-    CNS --> CNO
+    Regulation --> CBP
+    Regulation --> CSP
+    Regulation --> CNO
     AGENTS --> CP
     AGENTS --> FD
     INFER --> IP
@@ -103,7 +103,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -111,7 +111,7 @@ status: VERIFIED
 
 The hexagonal pattern in hKask serves three purposes, each grounded in a specific project constraint:
 
-**Testability.** The CNS must be testable without external dependencies. `LedgerStoragePort` means the `CyberneticsLoop` test suite runs against in-memory data. `ToolPort` means the OCAP enforcement tests do not need running MCP servers. `InferencePort` means the prompt assembly tests do not burn API credits.
+**Testability.** The Regulation must be testable without external dependencies. `LedgerStoragePort` means the `CyberneticsLoop` test suite runs against in-memory data. `ToolPort` means the OCAP enforcement tests do not need running MCP servers. `InferencePort` means the prompt assembly tests do not burn API credits.
 
 **Provider independence.** The `InferencePort` abstraction means the system can route to any LLM provider without changing agent logic. The `CircuitBreakerPort` means the circuit breaker implementation can be swapped without touching the inference loop.
 
@@ -136,13 +136,13 @@ InferenceLoop
 
 The `CircuitBreakerPort` gates the `InferencePort`: if the circuit is open (too many recent failures), the inference loop skips the LLM call entirely and returns an error. The `ToolPort` governs tool execution: even if the LLM produces a tool call, the OCAP membrane checks whether the agent's delegation token authorizes that specific tool before dispatching.
 
-This composition is not wired by magic — it is wired by the `InferenceLoop` in `hkask-inference`, which holds references to all three ports and sequences them explicitly. The CNS observes the results (`LedgerObserver::on_event()`) and may decide to open the circuit or escalate based on the outcome.
+This composition is not wired by magic — it is wired by the `InferenceLoop` in `hkask-inference`, which holds references to all three ports and sequences them explicitly. The Regulation observes the results (`LedgerObserver::on_event()`) and may decide to open the circuit or escalate based on the outcome.
 
 #### The GovernedTool Decorator Pattern
 
 `ToolPort` on its own would be a simple dispatch interface: "call this tool with these arguments." But hKask's P4 (Object Capability) principle requires that every tool invocation be capability-gated. Rather than polluting every call site with authorization logic, the system uses a **decorator pattern**: `GovernedTool` wraps `ToolPort` with OCAP checking, energy reservation, span emission, and cost accounting.
 
-The decorator's `invoke()` method: (1) checks the `DelegationToken` against the tool's `required_capability`, (2) reserves gas from the agent's `GasBudget`, (3) emits a `cns.tool.pre` span, (4) delegates to the inner `ToolPort::invoke()`, (5) accounts for the actual cost against the budget, (6) emits a `cns.tool.post` span with outcome.
+The decorator's `invoke()` method: (1) checks the `DelegationToken` against the tool's `required_capability`, (2) reserves gas from the agent's `GasBudget`, (3) emits a `reg.tool.pre` span, (4) delegates to the inner `ToolPort::invoke()`, (5) accounts for the actual cost against the budget, (6) emits a `reg.tool.post` span with outcome.
 
 From the caller's perspective, it still calls `invoke()` on a `ToolPort` — the decorator makes the governance membrane invisible to the consumer while enforcing it at every invocation. This is the cybernetic equivalent of a capability-secure dispatch: the agent can only call tools it holds tokens for, and every call is metered. The full OCAP dispatch contract is documented in the [Sovereignty and OCAP](sovereignty-and-ocap.md) guide.
 
@@ -154,11 +154,11 @@ The following nine traits are defined in `hkask-ports` but are not given full se
 |-------|------|---------|
 | `FederationDispatch` | `federation.rs` | High-level federation orchestration: `register_peer`, `invite`, `accept`, `reject`, `pause`, `resume`, `revoke`, `leave`, `dissolve`. The primary federation trait referenced in AGENTS.md Key Docs. |
 | `GitCASPort` | `git_cas/port.rs` | Content-addressed storage boundary: `store_blob`, `get_blob`, `hash_exists`. Guards the Git object store abstraction. |
-| `WalletBudgetPort` | `wallet_budget_port.rs` | Wallet-backed gas budgeting: `get_balance`, `reserve_gas`, `release_gas`. Enables CNS energy management to query wallet state. |
+| `WalletBudgetPort` | `wallet_budget_port.rs` | Wallet-backed gas budgeting: `get_balance`, `reserve_gas`, `release_gas`. Enables Regulation energy management to query wallet state. |
 | `StepExecutor` | `pipeline_runner.rs` | Pipeline step execution boundary for multi-step agent workflows. |
 | `SkillRegistryIndex` | `registry.rs` | Read-only skill registry access: `list_skills`, `get_skill_metadata`. Used by `SkillAuditor` and bundle composition. |
 | `RegistryIndex` | `registry.rs` | Read-only template registry access: `list_templates`, `get_template`. Used by the cascade resolver. |
-| `EscalationPort` | `escalation.rs` | Escalation queue access: `push_escalation`, `list_escalations`, `resolve_escalation`. Bridges CNS algedonic alerts to Curator action. |
+| `EscalationPort` | `escalation.rs` | Escalation queue access: `push_escalation`, `list_escalations`, `resolve_escalation`. Bridges Regulation algedonic alerts to Curator action. |
 | `ConsentPort` | `consent_port.rs` | Consent store access: `check_consent`, `grant_consent`, `revoke_consent`. Enforces P1 sovereignty at the data-access boundary. |
 
 For a visual reference, see the Ports Trait Hierarchy Class Diagram (inlined below in "Inlined Diagrams" section) (DIAG-IC-002 in the Diagram Index), which renders the complete trait hierarchy with method signatures and implementor relationships.
@@ -177,7 +177,7 @@ hKask's README opens with a design philosophy: "Austere and efficient recombinat
 
 The loom is everything compiled. It is the `kask` binary — 45 core crates, 15 MCP servers, ~192,700 lines of Rust. It is:
 
-- **The CNS** (`hkask-cns`). The cybernetic loop: sense, compare, compute, act, verify. This loop does not change based on configuration. It is structural — a `Loop` trait with fixed semantics, `RegulatoryAction` types with fixed authority hierarchy.
+- **The Regulation** (`hkask-regulation`). The cybernetic loop: sense, compare, compute, act, verify. This loop does not change based on configuration. It is structural — a `Loop` trait with fixed semantics, `RegulatoryAction` types with fixed authority hierarchy.
 
 - **The Energy Layer** (`GasBudget`, `Well`, `WalletManager`). The hold-settle pattern, stale reservation detection, hard limits, invariance enforcement (`remaining + reserved ≤ cap`). These invariants are compile-time guarantees via private fields and constructor assertions.
 
@@ -209,7 +209,7 @@ The thread is mutable. An author can create a new skill by writing a `manifest.y
 flowchart LR
     subgraph Loom["Loom (Rust — compiled, invariant)"]
         EXE["ManifestExecutor"]
-        CNS["CyberneticsLoop"]
+        Regulation["CyberneticsLoop"]
         GOV["GovernedTool"]
         GAS["GasBudget"]
     end
@@ -224,13 +224,13 @@ flowchart LR
     J2 -->|"rendered via\nminijinja"| EXE
     SKILL -->|"parsed by\nSkillLoader"| EXE
     EXE -->|"enforces gas"| GAS
-    EXE -->|"emits spans"| CNS
+    EXE -->|"emits spans"| Regulation
     EXE -->|"invokes tools"| GOV
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -257,15 +257,15 @@ The AGENTS.md tooling policy reinforces this separation: "hKask is a Rust projec
 
 ### Statement
 
-The Conant-Ashby theorem (1970) states: "Every good regulator of a system must be a model of that system."[^conant_ashby] The regulator can only control what it can represent. If the regulator's internal model diverges from the system's actual behavior — if it does not know what "healthy" looks like, or cannot detect when "healthy" becomes "unhealthy" — regulation fails. This design exists because hKask's CNS is not a passive observer. It is an active cybernetic regulator. It must have a model of the system it regulates, and that model must stay synchronized with reality.
+The Conant-Ashby theorem (1970) states: "Every good regulator of a system must be a model of that system."[^conant_ashby] The regulator can only control what it can represent. If the regulator's internal model diverges from the system's actual behavior — if it does not know what "healthy" looks like, or cannot detect when "healthy" becomes "unhealthy" — regulation fails. This design exists because hKask's Regulation is not a passive observer. It is an active cybernetic regulator. It must have a model of the system it regulates, and that model must stay synchronized with reality.
 
 ### Evidence
 
-The four components that comprise the CNS's internal model — `SetPoints`, `SloManager`, `SeamWatcher`, and `ToolStats` — each model a different dimension of system health, and together they satisfy the Conant-Ashby requirement.
+The four components that comprise the Regulation's internal model — `SetPoints`, `SloManager`, `SeamWatcher`, and `ToolStats` — each model a different dimension of system health, and together they satisfy the Conant-Ashby requirement.
 
 #### SetPoints: The Regulator's Internal Model
 
-`SetPoints` at `crates/hkask-cns/src/set_points.rs:139` is the regulator's reference model. It defines 25 configurable fields that establish "what healthy looks like" for every observable dimension:
+`SetPoints` at `crates/hkask-regulation/src/set_points.rs:139` is the regulator's reference model. It defines 25 configurable fields that establish "what healthy looks like" for every observable dimension:
 
 - **Energy health**: `gas_min_remaining` (default 0.2 — alert when less than 20% of budget remains)
 - **Variety health**: `variety_max_deficit` (default 100 — alert when observed variety falls short of expected by more than 100)
@@ -285,25 +285,25 @@ The regulator's model is validated on load: `validate()` at line 398 enforces 13
 
 #### SloManager: Service Level Objectives vs Actual Performance
 
-`SloManager` at `crates/hkask-cns/src/slo_manager.rs:82` models the system's service level contracts. It holds `Vec<SloDefinition>` — explicit, measurable service level objectives — and evaluates them against ν-event data via the `SloDataProvider` trait.
+`SloManager` at `crates/hkask-regulation/src/slo_manager.rs:82` models the system's service level contracts. It holds `Vec<SloDefinition>` — explicit, measurable service level objectives — and evaluates them against ν-event data via the `SloDataProvider` trait.
 
-Each SLO has a target compliance rate and a time window. `SloDataProvider::query()` retrieves `SloDataPoint { total_operations, successful_operations }` for a given span namespace within the window. The manager computes `SloEvaluation` — compliance rate, error budget remaining, and breach status. Breaches emit `cns.slo.evaluated` spans and feed the algedonic pathway.
+Each SLO has a target compliance rate and a time window. `SloDataProvider::query()` retrieves `SloDataPoint { total_operations, successful_operations }` for a given span namespace within the window. The manager computes `SloEvaluation` — compliance rate, error budget remaining, and breach status. Breaches emit `reg.slo.evaluated` spans and feed the algedonic pathway.
 
 This is the regulator modeling the system's contractual obligations. An SLO breach is not just "things are slow" — it is "the system promised 99% availability on this span and is delivering 94%." The gap between SLO target and actual performance is a Conant-Ashby deviation: the model says "should be X," reality says "is Y," and the regulator must close that gap.
 
 #### SeamWatcher: Detecting Model-Reality Drift
 
-`SeamWatcher` at `crates/hkask-cns/src/seam_watcher.rs:94` models the system's API contracts. It loads the public seam inventory — a machine-readable JSON catalog of every public type, function, and trait, each tagged with its REQ test coverage status — and compares snapshots over time.
+`SeamWatcher` at `crates/hkask-regulation/src/seam_watcher.rs:94` models the system's API contracts. It loads the public seam inventory — a machine-readable JSON catalog of every public type, function, and trait, each tagged with its REQ test coverage status — and compares snapshots over time.
 
 The inventory is embedded at compile time via `include_str!("../../../docs/status/public-seam-inventory.json")` (line 34), ensuring seam watching works in deployed binaries. The `HKASK_SEAM_INVENTORY_PATH` env var provides a development override.
 
-When `SeamWatcher` detects drift between snapshots — coverage degradation, new items without tests, or removed coverage — it produces `SeamDrift` records with per-crate `delta_pct`. These drift signals are registered as CNS variety dimensions (`seam:{crate_name}`) with `SEAM_EXPECTED_VARIETY` set to 10. When coverage degrades, the variety deficit triggers algedonic alerts.
+When `SeamWatcher` detects drift between snapshots — coverage degradation, new items without tests, or removed coverage — it produces `SeamDrift` records with per-crate `delta_pct`. These drift signals are registered as Regulation variety dimensions (`seam:{crate_name}`) with `SEAM_EXPECTED_VARIETY` set to 10. When coverage degrades, the variety deficit triggers algedonic alerts.
 
 This is the regulator detecting model-reality divergence. The seam inventory IS the model of "what APIs exist and are tested." When that model drifts — when a developer adds a public function without a REQ test — the regulator knows. Conant-Ashby is satisfied: the regulator's model of the codebase is kept synchronized through continuous observation.
 
 #### ToolStats: Statistical Learning
 
-`ToolStats` at `crates/hkask-cns/src/tool_stats.rs:71` is the regulator's statistical model of tool behavior. It implements a three-layer learning architecture:
+`ToolStats` at `crates/hkask-regulation/src/tool_stats.rs:71` is the regulator's statistical model of tool behavior. It implements a three-layer learning architecture:
 
 **Layer 1 (cost distribution)**: Each tool accumulates up to 200 cost observations (`MAX_COST_OBSERVATIONS`) in a `VecDeque<f64>`. At `reserve_estimate()` time (line 109), if ≥10 observations exist (`MIN_OBSERVATIONS_FOR_FIT`), a LogNormal distribution is fitted via method of moments on log-transformed observations. The reserve estimate is the 90th percentile (`p90`), tightening with more data. If fewer observations exist, the raw mean is used. If none exist, the caller falls back to the `EnergyEstimator` point estimate.
 
@@ -313,7 +313,7 @@ This is the regulator detecting model-reality divergence. The seam inventory IS 
 
 The LogNormal choice for cost is deliberate — tool costs are positive and right-skewed (most invocations are cheap, a few are expensive). The Beta choice for reliability is the standard Bayesian conjugate prior for Bernoulli trials, enabling probabilistic reasoning about tool health without storing raw success/failure streams.
 
-`ToolStats` is wired into `GovernedTool` at construction time via `with_tool_stats()`. At settle time, `stats.record(tool, actual_cost, success)` updates the model. The `ToolReliabilitySensor` feeds reliability alerts into the `SensorRegistry`, making tool degradation visible to the CNS regulation pipeline. This completes the Conant-Ashby contract: the regulator models tool behavior statistically, detects degradation probabilistically, and intervenes before the user experiences a failure.
+`ToolStats` is wired into `GovernedTool` at construction time via `with_tool_stats()`. At settle time, `stats.record(tool, actual_cost, success)` updates the model. The `ToolReliabilitySensor` feeds reliability alerts into the `SensorRegistry`, making tool degradation visible to the Regulation regulation pipeline. This completes the Conant-Ashby contract: the regulator models tool behavior statistically, detects degradation probabilistically, and intervenes before the user experiences a failure.
 
 ### Diagram
 
@@ -326,7 +326,7 @@ flowchart TD
         FEDERATION["Federation Links"]
     end
 
-    subgraph Model["CNS Internal Model (Conant-Ashby)"]
+    subgraph Model["Regulation Internal Model (Conant-Ashby)"]
         SP["SetPoints\n25 reference fields"]
         SLO["SloManager\nservice contracts"]
         SW["SeamWatcher\nAPI coverage drift"]
@@ -348,13 +348,13 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
 ### Implications
 
-The Good Regulator theorem is not an aspirational goal in hKask — it is a structural requirement. The CNS does not regulate by reacting to raw metrics; it regulates by comparing observations against an explicit model and closing the gap. The four model components are maintained through continuous observation, not configured once and forgotten. When the model drifts from reality — when a tool's cost distribution shifts, when an SLO breaches, when seam coverage degrades — the regulator detects the drift and acts before the user experiences degradation. The `SystemSimulator` in `CyberneticsLoop` (line 101) provides an additional layer: `MovingAverageExtrapolator` predicts metric trajectories, enabling predictive regulation — if a metric is approaching its set-point within 3 ticks, the CNS emits a `Notify` action before the threshold is breached. This is anticipatory regulation, not reactive monitoring.
+The Good Regulator theorem is not an aspirational goal in hKask — it is a structural requirement. The Regulation does not regulate by reacting to raw metrics; it regulates by comparing observations against an explicit model and closing the gap. The four model components are maintained through continuous observation, not configured once and forgotten. When the model drifts from reality — when a tool's cost distribution shifts, when an SLO breaches, when seam coverage degrades — the regulator detects the drift and acts before the user experiences degradation. The `SystemSimulator` in `CyberneticsLoop` (line 101) provides an additional layer: `MovingAverageExtrapolator` predicts metric trajectories, enabling predictive regulation — if a metric is approaching its set-point within 3 ticks, the Regulation emits a `Notify` action before the threshold is breached. This is anticipatory regulation, not reactive monitoring.
 
 ---
 
@@ -362,19 +362,19 @@ The Good Regulator theorem is not an aspirational goal in hKask — it is a stru
 
 ### Statement
 
-The Viable System Model (VSM), developed by Stafford Beer, is a cybernetic framework for understanding how any system — biological, organizational, or computational — maintains viability in a changing environment.[^beer] Beer's core insight: a viable system must have the internal variety to match the variety of its environment (Ashby's Law of Requisite Variety), and it organizes this variety through five recursive system levels (S1–S5). This design exists because hKask is not a passive monitoring system. It is a cybernetic regulator. Per the architecture master at `docs/architecture/core/hKask-architecture-master.md`, the CNS is described as "a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active regulation." Every structural decision in the CNS maps onto VSM levels.
+The Viable System Model (VSM), developed by Stafford Beer, is a cybernetic framework for understanding how any system — biological, organizational, or computational — maintains viability in a changing environment.[^beer] Beer's core insight: a viable system must have the internal variety to match the variety of its environment (Ashby's Law of Requisite Variety), and it organizes this variety through five recursive system levels (S1–S5). This design exists because hKask is not a passive monitoring system. It is a cybernetic regulator. Per the architecture master at `docs/architecture/core/hKask-architecture-master.md`, the Regulation is described as "a complete cybernetic system per Beer's Viable System Model (S1–S5). Not passive monitoring; active regulation." Every structural decision in the Regulation maps onto VSM levels.
 
 ### Evidence
 
 #### S1: Operations — Pods and MCP Servers
 
-System 1 in VSM is the collection of autonomous operational units that do the actual work. In hKask, these are the agent pods — each a `PodDeployment` at `crates/hkask-agents/src/pod/deployment.rs:47` — and their bound MCP servers, held in `PerPodToolBinding`. Each pod is autonomous: it owns its storage (`PerPodStorage` — a dedicated SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`), its CNS runtime (`PerPodRegulationLedger` — variety counters scoped to the pod), and its tool bindings.
+System 1 in VSM is the collection of autonomous operational units that do the actual work. In hKask, these are the agent pods — each a `PodDeployment` at `crates/hkask-agents/src/pod/deployment.rs:47` — and their bound MCP servers, held in `PerPodToolBinding`. Each pod is autonomous: it owns its storage (`PerPodStorage` — a dedicated SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`), its Regulation runtime (`PerPodRegulationLedger` — variety counters scoped to the pod), and its tool bindings.
 
 MCP servers provide the operational capabilities: web search, condenser, media, memory, wallet, codegraph, and others — 15 tool subsystems tracked in `RegulationSpan::Tool { subsystem }` at `crates/hkask-types/src/cns.rs:111`. Each pod's variety is measured independently via `PerPodRegulationLedger`, enabling per-pod regulation.
 
-#### S2: Coordination — CNS Set Points and SLOs
+#### S2: Coordination — Regulation Set Points and SLOs
 
-System 2 is the anti-oscillation layer — it prevents autonomous units from conflicting with each other through coordination signals. In hKask, this is the `SetPoints` struct at `crates/hkask-cns/src/set_points.rs:139` and the `SloManager` at `crates/hkask-cns/src/slo_manager.rs:82`.
+System 2 is the anti-oscillation layer — it prevents autonomous units from conflicting with each other through coordination signals. In hKask, this is the `SetPoints` struct at `crates/hkask-regulation/src/set_points.rs:139` and the `SloManager` at `crates/hkask-regulation/src/slo_manager.rs:82`.
 
 `SetPoints` defines 25 configurable reference values. These are loaded from YAML via `HKASK_CNS_CONFIG` or fall back to defaults validated by `SetPoints::validate()`. `SloManager` defines service level objectives that are evaluated against ν-event data. Each `SloDefinition` has compliance targets; `SloEvaluation` reports whether an SLO is in breach. Breached SLOs feed the algedonic pathway — the pain channel that surfaces S2 coordination failures to higher VSM levels. These set points prevent oscillation by establishing explicit coordination contracts: when a pod's variety deficit exceeds the threshold, the system does not just oscillate — it escalates.
 
@@ -382,7 +382,7 @@ System 2 is the anti-oscillation layer — it prevents autonomous units from con
 
 System 3 is the internal control function — resource allocation, monitoring, and auditing of the operational units. In hKask, this is the `CuratorAgent` at `crates/hkask-agents/src/curator_agent/mod.rs:44`. It composes the pure regulatory `CurationLoop` with the persona-layer `MetacognitionLoop`.
 
-The Curator's control responsibilities include: issuing `CuratorDirective::OverrideEnergyBudget` to reallocate gas between agents, `CuratorDirective::CalibrateThreshold` to adjust CNS set points (sent on the direct `mpsc` channel to `CyberneticsLoop`), monitoring regulation effectiveness via `HealthSnapshot.regulation_effectiveness`, and triggering escalations when `MetacognitionLoop::act()` detects that the CNS cannot self-correct.
+The Curator's control responsibilities include: issuing `CuratorDirective::OverrideEnergyBudget` to reallocate gas between agents, `CuratorDirective::CalibrateThreshold` to adjust Regulation set points (sent on the direct `mpsc` channel to `CyberneticsLoop`), monitoring regulation effectiveness via `HealthSnapshot.regulation_effectiveness`, and triggering escalations when `MetacognitionLoop::act()` detects that the Regulation cannot self-correct.
 
 The Curator is not an operator — it is a daemon. It responds in <3s latency target, is always running, and never bypasses OCAP. It can recommend actions but cannot execute without capability tokens. Per the Magna Carta, the Curator is the enforcer, not the sovereign.
 
@@ -390,7 +390,7 @@ The Curator is not an operator — it is a daemon. It responds in <3s latency ta
 
 System 4 is the external-facing intelligence function — scanning the environment, detecting threats and opportunities, and feeding strategic information inward. In hKask, this is implemented by several components:
 
-- **SeamWatcher** (`crates/hkask-cns/src/seam_watcher.rs:94`): Loads the machine-readable public seam inventory (embedded at compile time via `include_str!`, overridable at runtime via `HKASK_SEAM_INVENTORY_PATH`), tracks per-crate test coverage as CNS variety dimensions (`seam:{crate_name}`), and detects drift from previous snapshots. When coverage degrades, it emits algedonic alerts. This is the system's external contract monitor — it watches the boundary between implementation and specification.
+- **SeamWatcher** (`crates/hkask-regulation/src/seam_watcher.rs:94`): Loads the machine-readable public seam inventory (embedded at compile time via `include_str!`, overridable at runtime via `HKASK_SEAM_INVENTORY_PATH`), tracks per-crate test coverage as Regulation variety dimensions (`seam:{crate_name}`), and detects drift from previous snapshots. When coverage degrades, it emits algedonic alerts. This is the system's external contract monitor — it watches the boundary between implementation and specification.
 
 - **Provider intelligence**: The capability domain system allows new MCP servers to register with the system. `capability_from_server_id()` at `crates/hkask-capability/src/resources.rs:117` derives capability shorthand from MCP server IDs (`hkask-mcp-<domain>` → `tool:<domain>:execute`), enabling dynamic provider discovery.
 
@@ -407,13 +407,13 @@ System 5 is the identity and purpose layer — the fundamental policies that def
 - **P3 (Generative Space)**: Settings exposure, user curation, open-source commitment
 - **P4 (Clear Boundaries)**: OCAP enforcement of P1–P3 through `GovernedTool` and `DelegationToken`
 
-The Magna Carta cannot be overridden by any component — not the Curator, not the CNS, not any agent. The `magna-carta-verifier` skill periodically audits that P1–P4 assertions hold. The Curator can recommend policy changes but cannot enact them — only a human user with Admin role can modify Magna Carta configuration.
+The Magna Carta cannot be overridden by any component — not the Curator, not the Regulation, not any agent. The `magna-carta-verifier` skill periodically audits that P1–P4 assertions hold. The Curator can recommend policy changes but cannot enact them — only a human user with Admin role can modify Magna Carta configuration.
 
 #### Algedonic Signals as the VSM Pain/Pleasure Channel
 
-In VSM, algedonic signals are the direct pain/pleasure pathway that bypasses normal hierarchical channels when urgent. In hKask, this is the `AlgedonicManager` at `crates/hkask-cns/src/algedonic.rs`. When `variety_deficit` exceeds `variety_max_deficit`, or `critical_alerts` count passes the threshold, an `EscalationAlert` is produced by `EscalationPolicy::check_conditions()` at `crates/hkask-agents/src/curator_agent/metacognition/escalation.rs:80`.
+In VSM, algedonic signals are the direct pain/pleasure pathway that bypasses normal hierarchical channels when urgent. In hKask, this is the `AlgedonicManager` at `crates/hkask-regulation/src/algedonic.rs`. When `variety_deficit` exceeds `variety_max_deficit`, or `critical_alerts` count passes the threshold, an `EscalationAlert` is produced by `EscalationPolicy::check_conditions()` at `crates/hkask-agents/src/curator_agent/metacognition/escalation.rs:80`.
 
-Algedonic signals are **unidirectional**: the CNS signals the Curator via alerts; the Curator regulates the CNS through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`. This separation mirrors VSM's algedonic channel design: pain signals bypass the normal S2 coordination layer and go straight to S3 (Control) and S5 (Policy) when the system's viability is threatened.
+Algedonic signals are **unidirectional**: the Regulation signals the Curator via alerts; the Curator regulates the Regulation through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`. This separation mirrors VSM's algedonic channel design: pain signals bypass the normal S2 coordination layer and go straight to S3 (Control) and S5 (Policy) when the system's viability is threatened.
 
 The `EscalationSeverity` has two levels: Warning (at threshold/2) and Critical (at threshold). `MetacognitionConfig.max_concurrent_escalations` (default: 3) implements the VSM algedonic paradox — fewer signals mean higher fidelity. When escalations pile up, they are batched into `EscalationBatch` with a consolidated summary, preventing alert fatigue.
 
@@ -443,7 +443,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -533,7 +533,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -559,7 +559,7 @@ The API server is bootstrapped via `create_router()` in `crates/hkask-api/src/li
 |---------|-----------|----------------|----------------|
 | Chat | `POST /api/v1/chat`, `GET /api/v1/chat/ws` | `kask chat` | communication MCP |
 | Agent Management | `GET /api/v1/agents`, `POST /api/v1/pods`, etc. | `kask agent` / `kask pod` | registry MCP |
-| CNS | `GET /api/v1/cns/health`, `GET /api/v1/cns/variety`, `GET /api/v1/cns/subscribe` | `kask cns health` | cns MCP tools |
+| Regulation | `GET /api/v1/cns/health`, `GET /api/v1/cns/variety`, `GET /api/v1/cns/subscribe` | `kask cns health` | cns MCP tools |
 | Memory | `POST /api/v1/episodic`, `POST /api/v1/consolidation` | `kask memory` | memory MCP |
 | Models | `GET /api/v1/models`, `GET /api/v1/models/search` | `kask model` | inference MCP |
 | Templates & Bundles | `GET /api/v1/templates`, `POST /api/v1/bundles/compose` | `kask template` / `kask bundle` | registry MCP |
@@ -568,7 +568,7 @@ The API server is bootstrapped via `create_router()` in `crates/hkask-api/src/li
 | Export | `POST /api/v1/export`, `GET /api/v1/export/{id}` | `kask export` | — |
 | Specs | `POST /api/v1/specs`, `POST /api/v1/specs/{id}/assess` | `kask spec` | — |
 
-All endpoints are OCAP-gated (P4): a `DelegationToken` Bearer token is required. The `Bearer` security scheme is declared in the OpenAPI spec. All requests are CNS-observed (P9): every request is traced via CNS spans. The storage layer (`hkask-storage`) re-exports from 9 sub-crates (`-core`, `-gallery`, `-kata`, `-hmem`, `-archive`, `-token_registry`, `-consent_store`, `-sovereignty`, `-escalation`); API code imports from the facade, not sub-crates.
+All endpoints are OCAP-gated (P4): a `DelegationToken` Bearer token is required. The `Bearer` security scheme is declared in the OpenAPI spec. All requests are Regulation-observed (P9): every request is traced via Regulation spans. The storage layer (`hkask-storage`) re-exports from 9 sub-crates (`-core`, `-gallery`, `-kata`, `-hmem`, `-archive`, `-token_registry`, `-consent_store`, `-sovereignty`, `-escalation`); API code imports from the facade, not sub-crates.
 
 ### Diagram
 
@@ -590,7 +590,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-006
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -713,16 +713,16 @@ grep -c "rjoule:" registry/manifests/<name>.yaml
 ## rJoule/Gas Budget Calibration
 
 All manifest budgets are currently **uncalibrated** — they are placeholder values set during
-authorship without runtime measurement. The `WalletGasCalibrator` in `hkask-cns` provides
+authorship without runtime measurement. The `WalletGasCalibrator` in `hkask-regulation` provides
 the infrastructure for calibration.
 
 ### Calibration Procedure
 
 ```bash
-# 1. Run a representative execution of the skill with CNS span logging enabled
+# 1. Run a representative execution of the skill with Regulation span logging enabled
 kask run <skill-name> --cns-spans
 
-# 2. Extract the actual gas and rjoule consumption from CNS spans
+# 2. Extract the actual gas and rjoule consumption from Regulation spans
 kask cns alerts
 
 # 3. Compare against the manifest's declared budget
@@ -753,7 +753,7 @@ All skill manifests currently use uncalibrated placeholder values:
 | `rjoule.cap` for superforecasting | 5 | No — justified by complexity but unmeasured |
 | `rjoule.cap` for coding-guidelines, tdd | 3 | No — placeholder |
 
-Calibration should be run as part of the v0.32.0 release cycle after the CNS
+Calibration should be run as part of the v0.32.0 release cycle after the Regulation
 `WalletGasCalibrator` has been validated against production inference workloads.
 
 ---
@@ -769,7 +769,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 # Service Layer Class Diagram
 
-The hKask service layer comprises **10 subcrates** decomposed from the original monolithic `hkask-services-core` crate, following the Strangler Fig pattern (archived ADR-040). Every subcrate depends on `hkask-services-core` as its universal foundation. `hkask-services-context` provides `AgentService`, the canonical DI container that assembles all shared infrastructure (CNS, governance, storage, infra). Domain services (chat, compose, skill, kata-kanban, corpus, wallet, onboarding, runtime) are thin orchestrators that delegate to domain crates via `AgentService` or port traits. Curator metacognition and escalation handling were merged into `ChatService` and `services-context::governance` respectively.
+The hKask service layer comprises **10 subcrates** decomposed from the original monolithic `hkask-services-core` crate, following the Strangler Fig pattern (archived ADR-040). Every subcrate depends on `hkask-services-core` as its universal foundation. `hkask-services-context` provides `AgentService`, the canonical DI container that assembles all shared infrastructure (Regulation, governance, storage, infra). Domain services (chat, compose, skill, kata-kanban, corpus, wallet, onboarding, runtime) are thin orchestrators that delegate to domain crates via `AgentService` or port traits. Curator metacognition and escalation handling were merged into `ChatService` and `services-context::governance` respectively.
 
 ```mermaid
 classDiagram
@@ -1121,7 +1121,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-007
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -1278,7 +1278,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-008
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -1296,7 +1296,7 @@ status: VERIFIED
 | `EmbeddingPort` | `crates/hkask-ports/src/embedding_port.rs` |
 | `WalletBudgetPort` | `crates/hkask-ports/src/wallet_budget_port.rs` |
 
-**Cardinality:** 9 port traits defined in `hkask-ports`. `InferenceRouter` (in `hkask-inference`) implements `InferencePort`. `McpDispatcher` (in `hkask-mcp`) implements `ToolPort`. `GovernedTool` (in `hkask-cns`) decorates `ToolPort` with OCAP membrane. `CircuitBreaker` (in `hkask-cns`) implements `CircuitBreakerPort`. `RegulationLedger` (in `hkask-cns`) implements `LedgerObserver`. `WalletManager` (in `hkask-wallet`) implements `WalletBudgetPort` — CNS consumes the port, not the concrete type.
+**Cardinality:** 9 port traits defined in `hkask-ports`. `InferenceRouter` (in `hkask-inference`) implements `InferencePort`. `McpDispatcher` (in `hkask-mcp`) implements `ToolPort`. `GovernedTool` (in `hkask-regulation`) decorates `ToolPort` with OCAP membrane. `CircuitBreaker` (in `hkask-regulation`) implements `CircuitBreakerPort`. `RegulationLedger` (in `hkask-regulation`) implements `LedgerObserver`. `WalletManager` (in `hkask-wallet`) implements `WalletBudgetPort` — Regulation consumes the port, not the concrete type.
 
 
 ### ServiceError Hierarchy — Class Diagram
@@ -1667,7 +1667,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-009
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -1829,7 +1829,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-010
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -1850,7 +1850,7 @@ Every select and execute step deducts from two parent-allocated budgets:
 | **Gas** | `u64` cycles | `gas_cost_per_iter` per step + per-token inference cost | `gas_hard_limit`: cascade aborts if `gas_used ≥ gas_cap` |
 | **rJoule** | `f64` energy | Per-token cost from inference provider/model config | `rjoule_hard_limit`: cascade aborts if `rjoule_used ≥ rjoule_cap` |
 
-Alert thresholds (`gas_alert_threshold`, `rjoule_alert_threshold`) fire CNS warnings once per cascade when usage exceeds the threshold fraction.
+Alert thresholds (`gas_alert_threshold`, `rjoule_alert_threshold`) fire Regulation warnings once per cascade when usage exceeds the threshold fraction.
 
 ## Matryoshka Depth Limit
 
@@ -1900,7 +1900,7 @@ flowchart TD
     end
 
     IN([Source Text]) --> G
-    G -->|"cns.guard.violation\n(refuse)"| RJ([Refused])
+    G -->|"reg.guard.violation\n(refuse)"| RJ([Refused])
     G -->|pass| P1
     G -->|pass| P2
     P1 --> AM
@@ -1922,7 +1922,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-011
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -1942,7 +1942,7 @@ status: VERIFIED
 
 # MCP Tool Dispatch Sequence
 
-**Purpose:** Trace the full MCP tool invocation path from `McpDispatcher::invoke()` through the `GovernedTool` OCAP membrane, to the `RawMcpToolPort` transport layer, with all CNS span emission points, gas budget checks, and error-rejection paths.
+**Purpose:** Trace the full MCP tool invocation path from `McpDispatcher::invoke()` through the `GovernedTool` OCAP membrane, to the `RawMcpToolPort` transport layer, with all Regulation span emission points, gas budget checks, and error-rejection paths.
 
 **Related:** [PRINCIPLES.md](../architecture/core/PRINCIPLES.md) §P4 — Clear Boundaries (OCAP), [MDS.md](../architecture/core/MDS.md) §6
 
@@ -1958,15 +1958,15 @@ When a caller requests tool execution through the `McpPort` trait, the dispatch 
    - **Step 0:** Cryptographic token signature verification (`token.verify()`)
    - **Step 1:** OCAP authority check — two paths: exact-match (ad-hoc invocation tokens) or domain-based matching via `capabilities_match()` (agent capability tokens)
    - **Step 2:** Gas budget check — `can_proceed()` + `reserve_gas()` hold; emits `GasDepleted` span on rejection, `GasReserved` on success
-   - **Step 3:** CNS observability — emits `cns.tool.invoked` span
+   - **Step 3:** Regulation observability — emits `reg.tool.invoked` span
    - **Step 4:** Delegate to inner `ToolPort` (the raw MCP transport)
    - **Step 5:** Settle gas — `settle_gas()` with refund for over-estimation; emits `GasSettled` + `ToolConsumptionEvent` on direct channel
-   - **Step 6:** CNS outcome — emits `cns.tool.completed` span (parented to invoked span)
+   - **Step 6:** Regulation outcome — emits `reg.tool.completed` span (parented to invoked span)
    - **Step 7:** Record outcome for quality tracking via `CyberneticsLoop::record_outcome()`
 
 3. **Transport (`RawMcpToolPort::invoke`)** — Checks for live Peer connection, calls `McpRuntime::call_tool()` over rmcp stdio, parses `CallToolResult` into `serde_json::Value`.
 
-Per-tool CNS span emission at the server level uses `ToolSpanGuard` (via `execute_tool()`), which emits via `tracing::info!(target: "cns.tool")`. The `Drop` implementation ensures forgotten spans still emit a "dropped" status.
+Per-tool Regulation span emission at the server level uses `ToolSpanGuard` (via `execute_tool()`), which emits via `tracing::info!(target: "reg.tool")`. The `Drop` implementation ensures forgotten spans still emit a "dropped" status.
 
 Startup-time P4 enforcement uses `verify_startup_gates()`: Gate 1 (authentication), Gate 2 (role assignment), Gate 3 (per-tool capability query). Gate 3 denials are non-fatal — the server starts in degraded mode.
 
@@ -2031,7 +2031,7 @@ sequenceDiagram
     Sink-->>-Gov: ()
 
     %% Step 3: Invoked span
-    Gov->>+Sink: persist(cns.tool.invoked)
+    Gov->>+Sink: persist(reg.tool.invoked)
     Sink-->>-Gov: ()
 
     %% Step 4: Delegate to inner tool
@@ -2072,7 +2072,7 @@ sequenceDiagram
     end
 
     %% Step 6: Completed span
-    Gov->>+Sink: persist(cns.tool.completed, parent=invoked)
+    Gov->>+Sink: persist(reg.tool.completed, parent=invoked)
     Sink-->>-Gov: ()
 
     %% Step 7: Quality tracking
@@ -2085,19 +2085,19 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-012
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
 ---
 
-## Per-Tool CNS Span (Server Side)
+## Per-Tool Regulation Span (Server Side)
 
 ```mermaid
 sequenceDiagram
     participant Tool as MCP Tool Handler
     participant Guard as ToolSpanGuard
-    participant Log as tracing (cns.tool)
+    participant Log as tracing (reg.tool)
 
     Tool->>+Guard: new(tool_name, caller)
     Tool->>+Guard: with_ontology(concept) [optional]
@@ -2127,7 +2127,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-013
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -2175,7 +2175,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-014
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -2187,7 +2187,7 @@ status: VERIFIED
 |-------|-------|
 | **id** | `DIAG-IC-007` |
 | **verified_date** | `2026-06-30` |
-| **verified_against** | `crates/hkask-mcp/src/`, `crates/hkask-cns/src/governed_tool.rs`, `crates/hkask-capability/src/verification/checker.rs` |
+| **verified_against** | `crates/hkask-mcp/src/`, `crates/hkask-regulation/src/governed_tool.rs`, `crates/hkask-capability/src/verification/checker.rs` |
 | **status** | `VERIFIED` |
 
 ### Verification notes
@@ -2195,19 +2195,19 @@ status: VERIFIED
 - `crates/hkask-mcp/src/dispatch.rs:176–282` — `McpDispatcher` struct, `McpPort` impl, `with_governed_tool()`, invocation routing through membrane
 - `crates/hkask-mcp/src/dispatch.rs:36–114` — `RawMcpToolPort` struct and `ToolPort` impl — live peer check, `call_tool()`, error flag handling, result parsing
 - `crates/hkask-mcp/src/dispatch.rs:218–261` — `McpPort::invoke()` — server_id lookup → GovernedTool delegation → ToolPortError → TemplateError mapping
-- `crates/hkask-cns/src/governed_tool.rs:79–87` — `GovernedTool` struct with inner port, cybernetics loop, event sink, energy estimator, agent WebID
-- `crates/hkask-cns/src/governed_tool.rs:199–474` — `ToolPort` impl — 7-step OCAP membrane: token verify → authority check (exact + domain fallback) → gas budget hold → CNS invoked span → inner delegation → gas settle + consumption event → CNS completed span → quality tracking
-- `crates/hkask-cns/src/governed_tool.rs:162–168` — `verify_capability_exact()` — exact tool-name match via `is_valid_for()`
-- `crates/hkask-cns/src/governed_tool.rs:175–178` — `verify_capability_domain()` — domain-based match via `capabilities_match()`
-- `crates/hkask-cns/src/governed_tool.rs:184–196` — `verify_capability_domain_fallback()` — async tool metadata lookup + domain match
+- `crates/hkask-regulation/src/governed_tool.rs:79–87` — `GovernedTool` struct with inner port, cybernetics loop, event sink, energy estimator, agent WebID
+- `crates/hkask-regulation/src/governed_tool.rs:199–474` — `ToolPort` impl — 7-step OCAP membrane: token verify → authority check (exact + domain fallback) → gas budget hold → Regulation invoked span → inner delegation → gas settle + consumption event → Regulation completed span → quality tracking
+- `crates/hkask-regulation/src/governed_tool.rs:162–168` — `verify_capability_exact()` — exact tool-name match via `is_valid_for()`
+- `crates/hkask-regulation/src/governed_tool.rs:175–178` — `verify_capability_domain()` — domain-based match via `capabilities_match()`
+- `crates/hkask-regulation/src/governed_tool.rs:184–196` — `verify_capability_domain_fallback()` — async tool metadata lookup + domain match
 - `crates/hkask-capability/src/verification/checker.rs:20–33` — `CapabilityChecker` struct — signing key, trusted roots, root enforcement flag
 - `crates/hkask-capability/src/verification/checker.rs:112–120` — `verify()` — signature verification with optional root anchoring (fail-closed on empty roots)
 - `crates/hkask-mcp/src/runtime.rs:124–367` — `McpRuntime` — server registry, tool registry, live connections, `start_server()`, `call_tool()`, `get_tool_info()`
 - `crates/hkask-mcp/src/runtime.rs:290–307` — `McpRuntime::call_tool()` — direct Peer invocation via rmcp `CallToolRequestParams`
-- `crates/hkask-mcp/src/server.rs:241–403` — `ToolSpanGuard` — per-tool CNS span with `ok()`, `error()`, `finish()`, `Drop` guard for forgotten spans
+- `crates/hkask-mcp/src/server.rs:241–403` — `ToolSpanGuard` — per-tool Regulation span with `ok()`, `error()`, `finish()`, `Drop` guard for forgotten spans
 - `crates/hkask-mcp/src/server.rs:446–458` — `execute_tool()` — automatic span emission + outcome recording
 - `crates/hkask-mcp/src/server.rs:462–478` — `execute_tool_semantic()` — span with ontology concept tagging
-- `crates/hkask-mcp/src/server.rs:852–861` — `emit_tool_span_with_caller()` — `tracing::info!(target: "cns.tool")` with caller WebID
+- `crates/hkask-mcp/src/server.rs:852–861` — `emit_tool_span_with_caller()` — `tracing::info!(target: "reg.tool")` with caller WebID
 - `crates/hkask-mcp/src/startup.rs:101–190` — `verify_startup_gates()` — Gate 1 (auth), Gate 2 (assignment), Gate 3 (capability per tool, non-fatal denial)
 - `crates/hkask-mcp/src/startup.rs:44–52` — `StartupGateResult` — authenticated, assigned, denied_tools fields
 - `docs/architecture/core/PRINCIPLES.md:52–56` — P4 Clear Boundaries (OCAP) — pod boundary as enforcement perimeter
@@ -2233,7 +2233,7 @@ status: VERIFIED
 **Diataxis quadrant:** How-To / Explanation  
 **Domain ontology tier:** Core  
 **Purpose:** Show the startup sequence for an MCP server and the tool dispatch path through the OCAP membrane. Used as reference for bootstrapping new MCP servers.  
-**Verified against:** `crates/hkask-mcp/src/lib.rs`, `crates/hkask-mcp/src/dispatch.rs`, `crates/hkask-cns/src/governed_tool.rs`  
+**Verified against:** `crates/hkask-mcp/src/lib.rs`, `crates/hkask-mcp/src/dispatch.rs`, `crates/hkask-regulation/src/governed_tool.rs`  
 last-verified-against: "3d1a876f45e3ce64864c3453f1e71d75b2f14376"
 
 ```mermaid
@@ -2244,7 +2244,7 @@ sequenceDiagram
     participant CTX as ToolContext
     participant OCAP as GovernedTool membrane
     participant TOOL as Tool implementation
-    participant CNS as RegulationLedger (span emission)
+    participant Regulation as RegulationLedger (span emission)
 
     CLI->>BOOT: Start MCP server (e.g., hkask-mcp-codegraph)
     BOOT->>BOOT: Register tools via mcp_server! macro
@@ -2266,21 +2266,21 @@ sequenceDiagram
     
     alt OCAP check passes
         OCAP->>OCAP: Reserve energy from gas budget
-        OCAP->>CNS: Emit cns.tool.reserved ν-event
+        OCAP->>Regulation: Emit reg.tool.reserved ν-event
         OCAP->>TOOL: Delegate to tool implementation
         TOOL-->>OCAP: Tool result
         OCAP->>OCAP: Settle energy consumption
-        OCAP->>CNS: Emit cns.tool.completed ν-event
+        OCAP->>Regulation: Emit reg.tool.completed ν-event
         OCAP-->>CLI: Tool result (with energy cost)
     else OCAP check fails
-        OCAP->>CNS: Emit cns.tool ToolError ν-event
+        OCAP->>Regulation: Emit reg.tool ToolError ν-event
         OCAP-->>CLI: Error: capability denied (P4 violation)
     end
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-ARCH-015
 verified_date: 2026-07-12
-verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-cns/src/cybernetics_loop.rs
+verified_against: crates/hkask-ports/src/lib.rs, crates/hkask-regulation/src/cybernetics_loop.rs
 status: VERIFIED
 -->
 
@@ -2292,9 +2292,9 @@ status: VERIFIED
 | `mcp_server!` macro | `crates/hkask-mcp/src/lib.rs` |
 | `verify_startup_gates` | `crates/hkask-mcp/src/startup.rs` |
 | `ToolContext` + `impl_tool_context!` | `crates/hkask-mcp/src/lib.rs` |
-| GovernedTool OCAP membrane | `crates/hkask-cns/src/governed_tool.rs` |
-| Energy reserve/settle | `crates/hkask-cns/src/energy.rs` |
-| CNS span emission | `crates/hkask-cns/src/runtime.rs` |
+| GovernedTool OCAP membrane | `crates/hkask-regulation/src/governed_tool.rs` |
+| Energy reserve/settle | `crates/hkask-regulation/src/energy.rs` |
+| Regulation span emission | `crates/hkask-regulation/src/runtime.rs` |
 | `BUILTIN_SERVERS` (16 registrations) | `crates/hkask-mcp/src/lib.rs` |
 
 **Cardinality:** 15 MCP servers registered in `BUILTIN_SERVERS` constant. Each follows this bootstrap sequence. Tool dispatch flows through a single `GovernedTool` instance per invocation. 6 OCAP membrane steps per invocation: OCAP check → energy reserve → ν-event → delegate → settle → ν-event.

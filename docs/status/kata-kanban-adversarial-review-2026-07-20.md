@@ -96,7 +96,7 @@ What breaks? Nothing — the contract's 10 fields are never read after `check_co
 
 **Essentialist challenge (G3 — Contract):** The `ContractState` enum (`Pending`/`Completed`/`Violated`) has 3 variants but only 2 are reachable (`Pending` → `Completed` or `Violated`). The `Completed` vs `Violated` distinction is never queried. This is a single-use abstraction.
 
-**Grill-me challenge:** "If `TaskContract` is supposed to model an rSolidity contract, where is the `require!`/`assert!`/`emit!` macro mapping? Where is the OCAP token validation? Where is the gas enforcement?" Answer: nowhere. The doc comment claims "Maps to rSolidity's require!/assert!/emit! macros for CNS-observable contract execution" but no such mapping exists. The abstraction is aspirational documentation, not implemented behavior.
+**Grill-me challenge:** "If `TaskContract` is supposed to model an rSolidity contract, where is the `require!`/`assert!`/`emit!` macro mapping? Where is the OCAP token validation? Where is the gas enforcement?" Answer: nowhere. The doc comment claims "Maps to rSolidity's require!/assert!/emit! macros for Regulation-observable contract execution" but no such mapping exists. The abstraction is aspirational documentation, not implemented behavior.
 
 **Recommendation:** Either (a) delete `TaskContract` and inline the non-empty evidence check, or (b) if the contract is intended for future OCAP enforcement, mark it `#[allow(dead_code)]` with a TODO and a tracking issue. Option (a) is preferred per Essentialism.
 
@@ -246,7 +246,7 @@ This means:
 ```rust
 task.status = target;
 task.updated_at = chrono::Utc::now();
-let _ = actor;  // ← dead code, actor is already used in require_task_actor and the CNS span
+let _ = actor;  // ← dead code, actor is already used in require_task_actor and the Regulation span
 ```
 
 **Evidence:** `actor` is used at line 548 (`require_task_actor(&task, actor)`) and at line 602 (`actor = %actor` in the tracing span). The `let _ = actor;` at line 577 is a no-op — it was likely left over from a refactor where `actor` was temporarily unused.
@@ -393,15 +393,15 @@ Running the 3-gate protocol on the kata-kanban crate:
 
 **Remediation:** Wire `task_consume_gas` into the subagent inference execution path. The loop is: sense (gas_remaining) → decide (gas > 0?) → act (continue or auto-complete). Currently only the auto-complete path exists, and it never triggers because gas never decrements.
 
-### 4.2 Feedback loop: kata execution → CNS variety → algedonic alert
+### 4.2 Feedback loop: kata execution → Regulation variety → algedonic alert
 
 | Property | Rating | Evidence |
 |----------|--------|---------|
 | Closure | **DEGRADED** | `run_*_kata` methods exist but are never called in production — the loop is wired but unreachable |
 | Polarity | Correct | Positive variety → no alert; deficit → alert |
-| Delay | Low | CNS runtime checks are synchronous |
+| Delay | Low | Regulation runtime checks are synchronous |
 | Gain | Correct | Variety counter increments per practice |
-| Fidelity | Correct | CNS spans carry namespace + step ordinal |
+| Fidelity | Correct | Regulation spans carry namespace + step ordinal |
 
 **Remediation:** Wire `run_*_kata` into a CLI command or MCP tool to close the loop.
 

@@ -340,7 +340,7 @@ Decomposing the 15 issues into the smallest possible independent action items, o
 | Loop | Sensing | Decision | Action | Return Path | Health |
 |------|---------|----------|--------|-------------|--------|
 | Calibration feedback | `compute_calibration_curve` reads resolved forecasts | Compare hit rate vs forecast probability | `apply_calibration_adjustment` in `scenario_calibrate` | `scenario_score` stores outcomes → curve updates | **Healthy** (when persistence works) |
-| Pipeline sequence | `check_sequence` tracks called tools | Compare against `expected_predecessor` | `tracing::warn!` only | Warning logged to CNS | **Degraded** (warn-only, no remediation) |
+| Pipeline sequence | `check_sequence` tracks called tools | Compare against `expected_predecessor` | `tracing::warn!` only | Warning logged to Regulation | **Degraded** (warn-only, no remediation) |
 | Persistence | `ForecastStore::save_entry` writes journal | Threshold check for compaction | `fs::write` / `fs::OpenOptions` | `let _ = ...` — error discarded | **Broken** (closure property violated) |
 | Experience recording | `record_experience` captures tool I/O | Serialize to JSON | `daemon.store_experience` | `tracing::warn!` on error | **Degraded** (fire-and-forget, errors logged) |
 | Cross-validation | `cross_validate` compares two estimates | Compare divergence vs threshold | Generate grill-me questions | Agent activates grill-me skill | **Healthy** (closes learning loop) |

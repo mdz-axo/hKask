@@ -374,7 +374,7 @@ The REPL routes this through the `hkask-mcp-skill` MCP server:
 2. **Template rendering** — Jinja2 templates rendered with context variables
 3. **System prompt prepended** — Tool-awareness preamble added automatically
 4. **Inference** — Rendered template sent to inference port (`temperature: 0.3`, `max_tokens: 2048`)
-5. **CNS span** — `cns.tool.skill_execute` emitted
+5. **Regulation span** — `reg.tool.skill_execute` emitted
 
 ---
 
@@ -390,7 +390,7 @@ This:
 1. Copies the skill directory from `.agents/skills/<name>/` to `skills/<namespace>--<name>/`
 2. Sets `visibility: public` in the published copy's SKILL.md
 3. Sets `namespace` to the current userpod name (from `HKASK_USERPOD_NAME`, git `user.name`, or `"local"`)
-4. Emits a `cns.skill` span (`skill_published`)
+4. Emits a `reg.skill` span (`skill_published`)
 
 Output:
 
@@ -489,7 +489,7 @@ When `skill_execute` is called:
    ```
 
 4. **Inference** — The rendered template is sent to the inference port with `temperature: 0.3`, `max_tokens: 2048`.
-5. **CNS span** — `cns.tool.skill_execute` is emitted with the skill ID and result.
+5. **Regulation span** — `reg.tool.skill_execute` is emitted with the skill ID and result.
 
 ### Convergence (FlowDef Skills Only)
 
@@ -509,7 +509,7 @@ Every skill execution consumes **gas** from the agent's energy budget:
 2. Gas is **reserved** before invocation (hold-settle pattern)
 3. After invocation, actual gas is **settled** — if actual < reserved, the difference is refunded
 
-Gas consumption is observable via CNS spans. Run `kask cns alerts` and look for `cns.tool.invoked` (pre-invocation) and `cns.tool.completed` (post-invocation with settled cost).
+Gas consumption is observable via Regulation spans. Run `kask cns alerts` and look for `reg.tool.invoked` (pre-invocation) and `reg.tool.completed` (post-invocation with settled cost).
 
 ### Error Handling
 
@@ -685,7 +685,7 @@ mcp_server! {
 
 ### Step 2: Define Tool Methods
 
-Annotate methods with `#[tool(description = "...")]` and use `execute_tool` for CNS span emission:
+Annotate methods with `#[tool(description = "...")]` and use `execute_tool` for Regulation span emission:
 
 ```rust
 use hkask_mcp::server::execute_tool;
@@ -702,7 +702,7 @@ async fn example_ping(&self) -> String {
 }
 ```
 
-`execute_tool` wraps your logic with CNS span emission (`cns.tool.{tool_name}`) and error mapping. Always use it for tool methods — never return raw `Result` from a `#[tool]` function.
+`execute_tool` wraps your logic with Regulation span emission (`reg.tool.{tool_name}`) and error mapping. Always use it for tool methods — never return raw `Result` from a `#[tool]` function.
 
 For request types, derive `serde::Deserialize` and `rmcp::schemars::JsonSchema`:
 
@@ -847,7 +847,7 @@ HKASK_MCP_HOST=alice cargo run -p <your-mcp-package>
 |---------|-----|
 | Missing `#[tool]` attribute | Every public async method that should be an MCP tool must have `#[tool(description = "...")]` |
 | Duplicate `ToolContext` impl | `mcp_server!` already calls `impl_tool_context!` — do not duplicate it |
-| No CNS spans emitted | Always wrap tool logic in `execute_tool(self, "tool_name", async { ... }).await` |
+| No Regulation spans emitted | Always wrap tool logic in `execute_tool(self, "tool_name", async { ... }).await` |
 | Server starts as `"anonymous"` | Set `HKASK_MCP_HOST` (or your `host_env_var`) before starting |
 | `kask mcp start example` says "unknown server" | Add your `(server_id, binary_name)` to `BUILTIN_SERVERS` |
 | Tool name conflicts | Tool names are global across all MCP servers. Use a prefix convention (e.g., `example_ping`) |
@@ -891,7 +891,7 @@ HKASK_MCP_HOST=alice cargo run -p <your-mcp-package>
 ## Related
 
 - [Agents and Pods](agents-and-pods.md) — Pod management and REPL/TUI usage
-- [Sovereignty and Observability](sovereignty-and-observability.md) — CNS spans emitted by skill execution
+- [Sovereignty and Observability](sovereignty-and-observability.md) — Regulation spans emitted by skill execution
 - [Magna Carta Reference](../reference/magna-carta.md) — P5.1 registry canonical source rule
 ---
 
@@ -908,7 +908,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 ## Description
 
-The Improvement Kata PDCA cycle in `hkask-services-kata-kanban` executes as a 5-step **single-pass** sequential pipeline within the `KataEngine` that maps to four conceptual PDCA phases. Each step runs an LLM inference via the registered template (e.g., `kata-improvement/improvement-step1-direction`), validates output against the step's `output_schema`, records a `StepExperience`, and emits CNS spans. The `KataEngine::run_improvement_from()` iterates through steps **exactly once** (`for step in &manifest.steps` — no re-entry loop). The cycle is bounded by `gas.cap` (default 15,000). Metric capture flanks the execution: `metric_before` is captured pre-cycle and `metric_after` post-cycle, yielding an `ImprovementSignal` (Positive/Negative/Stalled/NotMeasured). CNS algedonic alerts fire if variety deficit exceeds threshold.
+The Improvement Kata PDCA cycle in `hkask-services-kata-kanban` executes as a 5-step **single-pass** sequential pipeline within the `KataEngine` that maps to four conceptual PDCA phases. Each step runs an LLM inference via the registered template (e.g., `kata-improvement/improvement-step1-direction`), validates output against the step's `output_schema`, records a `StepExperience`, and emits Regulation spans. The `KataEngine::run_improvement_from()` iterates through steps **exactly once** (`for step in &manifest.steps` — no re-entry loop). The cycle is bounded by `gas.cap` (default 15,000). Metric capture flanks the execution: `metric_before` is captured pre-cycle and `metric_after` post-cycle, yielding an `ImprovementSignal` (Positive/Negative/Stalled/NotMeasured). Regulation algedonic alerts fire if variety deficit exceeds threshold.
 
 **Convergence iteration lives elsewhere:** The convergence loop (`max_iterations`, threshold, re-entry with updated data) is implemented in `ManifestExecutor::execute_manifest()` in `crates/hkask-templates/src/executor.rs` — the Pattern A Skills Model execution engine. The kata engine is a *step executor* called within that loop; it does not drive convergence itself. The CLI `kask kata start` command constructs `KataEngine` directly and calls `execute()`; the kanban service exposes only prompt generation for MCP/REPL surfaces.
 
@@ -932,19 +932,19 @@ stateDiagram-v2
             Step 1: understand
             direction/challenge
             template_ref: step1-direction
-            CNS: improv.direction
+            Regulation: improv.direction
         end note
         note left of Step2_Current
             Step 2: grasp current
             condition with data
             template_ref: step2-current
-            CNS: improv.current_condition
+            Regulation: improv.current_condition
         end note
         note left of Step3_Target
             Step 3: establish target
             condition
             template_ref: step3-target
-            CNS: improv.target_set
+            Regulation: improv.target_set
         end note
     }
 
@@ -958,7 +958,7 @@ stateDiagram-v2
             Step 4: define next
             experiment
             template_ref: step4-experiment
-            CNS: improv.experiment_run
+            Regulation: improv.experiment_run
             improv posture: Yes But
         end note
     }
@@ -989,10 +989,10 @@ stateDiagram-v2
         note left of ComputeSignal
             Signal: Positive/Negative
             /Stalled/NotMeasured
-            CNS: has_signal emitted
+            Regulation: has_signal emitted
         end note
         note left of CNS_Alerts
-            CNS algedonic check
+            Regulation algedonic check
             threshold: 100 variety
             escalation: Curator
         end note
@@ -1029,32 +1029,32 @@ stateDiagram-v2
 | `Init` | `Plan` | `consent_check("improvement", learner_bot)` passes | `kata/mod.rs:360-361` |
 | `Step1_Direction` | `Step2_Current` | `execute_step()` returns, `gas + step_gas <= cap`, `check_step_output()` | `improvement.rs:54` |
 | `Step2_Current` | `Step3_Target` | Same gas + output validation gates | `improvement.rs:54` |
-| `Plan` | `Do` | `capture_before_metrics()` records CNS counters | `kata/mod.rs:364` |
+| `Plan` | `Do` | `capture_before_metrics()` records Regulation counters | `kata/mod.rs:364` |
 | `Do` | `Check` | `execute_step()` returns step 4 output | `improvement.rs:54` |
-| `Check` | `Act` | `capture_after_metrics()` records post-cycle CNS counters | `kata/mod.rs:379` |
+| `Check` | `Act` | `capture_after_metrics()` records post-cycle Regulation counters | `kata/mod.rs:379` |
 | `Act` | `Done` | `improvement_signal` computed, `KataResult` returned (single pass complete) | `kata/mod.rs:380-398` |
 | Any phase | `GasExceeded` | `gas_consumed + step_gas > gas.cap` | `improvement.rs:47-48` |
 | *(Convergence iteration)* | — | Loop handled by `ManifestExecutor::execute_manifest()` (`crates/hkask-templates/src/executor.rs:267-679`), **not** in kata engine | `executor.rs:267` |
 
 ## PDCA → Kanban State Mapping
 
-| PDCA Phase | Kanban `TaskStatus` | CNS Event | Trigger |
+| PDCA Phase | Kanban `TaskStatus` | Regulation Event | Trigger |
 |------------|---------------------|-----------|---------|
-| **Plan** | `Backlog` | `cns.tool.kanban` (task created) | `kask kata start` (CLI constructs KataEngine directly) |
-| **Do** | `InProgress` | `cns.tool.kanban` (task moved) | Coaching Q4: "What is your next step?" |
-| **Check** | `Review` | `cns.tool.kanban` (task verified) | Coaching Q5: task transitions to Review |
-| **Act** | `Done` | `cns.tool.kanban` (task completed) | Verification passes |
-| **Act** (fail) | `InProgress` | `cns.kata.improv.effectiveness` (degradation) | Verification fails → rework |
+| **Plan** | `Backlog` | `reg.tool.kanban` (task created) | `kask kata start` (CLI constructs KataEngine directly) |
+| **Do** | `InProgress` | `reg.tool.kanban` (task moved) | Coaching Q4: "What is your next step?" |
+| **Check** | `Review` | `reg.tool.kanban` (task verified) | Coaching Q5: task transitions to Review |
+| **Act** | `Done` | `reg.tool.kanban` (task completed) | Verification passes |
+| **Act** (fail) | `InProgress` | `reg.kata.improv.effectiveness` (degradation) | Verification fails → rework |
 
 ## Guard Conditions
 
 - **Init → Plan:** Curator consent required for Improvement Kata; `consent_check` must return `Ok(())`. Self-consent suffices for Starter; Learner consent for Coaching.
 - **Gas gate (any step):** `state.gas_consumed + step_gas > manifest.gas.cap` → `Err(KataError::GasExceeded)`. No soft continue; hard abort per `error_handling.on_gas_exceeded: abort`.
-- **Output schema check:** If step has `output_schema`, all `properties` keys must exist in the inference output JSON. Missing keys → CNS `debug!` log, check returns `false`.
+- **Output schema check:** If step has `output_schema`, all `properties` keys must exist in the inference output JSON. Missing keys → Regulation `debug!` log, check returns `false`.
 - **Convergence threshold:** Default 0.15; `improvement_gate: threshold_only`. On `not_reached: escalate`, Curator is notified. **Note:** Convergence checking and re-iteration (`max_iterations: 3`, `min_iterations: 1`) are performed by `ManifestExecutor::execute_manifest()` in `crates/hkask-templates`, **not** by the kata engine. The kata engine is a single-pass executor consumed within that outer loop.
-- **CNS algedonic: `algedonic_threshold: 100` variety deficit → warning emitted to `cns.kata` target with `escalation_target: Curator`.
+- **Regulation algedonic: `algedonic_threshold: 100` variety deficit → warning emitted to `reg.kata` target with `escalation_target: Curator`.
 
-## CNS Span Diagram
+## Regulation Span Diagram
 
 ```
 cns.prompt.kata.improvement
@@ -1071,7 +1071,7 @@ cns.prompt.kata.improvement
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-FW-005
 verified_date: 2026-07-01
-verified_against: crates/hkask-services-kata-kanban/src/kata/mod.rs (execute:333-486), crates/hkask-services-kata-kanban/src/kata/improvement.rs (run_improvement_from:20-121 — single-pass for loop, no re-entry), crates/hkask-services-kata-kanban/src/kata/metrics.rs (capture_before/after:6-105, compute_improvement_signal:76-105), crates/hkask-services-kata-kanban/src/kata/manifest.rs (KataStep, KataManifest, convergence config), crates/hkask-services-kata-kanban/src/kanban/types/status.rs (TaskStatus transitions), registry/manifests/kata-improvement.yaml (step definitions, convergence parameters, CNS spans:150-160), crates/hkask-templates/src/executor.rs (execute_manifest:209-686 — convergence loop, check_convergence:746-799), crates/hkask-cli/src/commands/kata.rs (start_kata — CLI constructs KataEngine directly)
+verified_against: crates/hkask-services-kata-kanban/src/kata/mod.rs (execute:333-486), crates/hkask-services-kata-kanban/src/kata/improvement.rs (run_improvement_from:20-121 — single-pass for loop, no re-entry), crates/hkask-services-kata-kanban/src/kata/metrics.rs (capture_before/after:6-105, compute_improvement_signal:76-105), crates/hkask-services-kata-kanban/src/kata/manifest.rs (KataStep, KataManifest, convergence config), crates/hkask-services-kata-kanban/src/kanban/types/status.rs (TaskStatus transitions), registry/manifests/kata-improvement.yaml (step definitions, convergence parameters, Regulation spans:150-160), crates/hkask-templates/src/executor.rs (execute_manifest:209-686 — convergence loop, check_convergence:746-799), crates/hkask-cli/src/commands/kata.rs (start_kata — CLI constructs KataEngine directly)
 status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop is ManifestExecutor concern)
 -->
 
@@ -1084,7 +1084,7 @@ status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop
 - [`executor.rs`](crates/hkask-templates/src/executor.rs) — `ManifestExecutor::execute_manifest()` convergence loop (L209-686), `check_convergence()` (L746-799)
 - [`kata/metrics.rs`](crates/hkask-services-kata-kanban/src/kata/metrics.rs) — before/after capture, signal computation (L6-133)
 - [`kanban/types/status.rs`](crates/hkask-services-kata-kanban/src/kanban/types/status.rs) — `TaskStatus` column-ordered transitions
-- [`registry/manifests/kata-improvement.yaml`](registry/manifests/kata-improvement.yaml) — canonical step definitions, convergence params, CNS spans
+- [`registry/manifests/kata-improvement.yaml`](registry/manifests/kata-improvement.yaml) — canonical step definitions, convergence params, Regulation spans
 
 
 ### Kata-Kanban Execution Boundary

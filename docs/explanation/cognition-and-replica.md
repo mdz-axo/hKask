@@ -10,7 +10,7 @@ mds_categories: [domain, composition, lifecycle, curation]
 
 # Cognition and Replica
 
-This document consolidates four topics that share a single theme: how hKask represents, processes, and forecasts cognitive artifacts. The fusion system design recommendations govern multi-model deliberation quality. The scenario forecasting pipeline integrates three research frameworks to build, forecast, and evaluate futures. The ν-event semantics define the atomic unit of observability that feeds the CNS. The Companies MCP server provides the investment research tooling that operationalizes forecasting and valuation. Together, they form the cognition layer — the mechanisms by which hKask agents perceive, reason about, and predict the world.
+This document consolidates four topics that share a single theme: how hKask represents, processes, and forecasts cognitive artifacts. The fusion system design recommendations govern multi-model deliberation quality. The scenario forecasting pipeline integrates three research frameworks to build, forecast, and evaluate futures. The ν-event semantics define the atomic unit of observability that feeds the Regulation. The Companies MCP server provides the investment research tooling that operationalizes forecasting and valuation. Together, they form the cognition layer — the mechanisms by which hKask agents perceive, reason about, and predict the world.
 
 ---
 
@@ -193,7 +193,7 @@ status: VERIFIED
 
 ### Implications
 
-The scenario forecasting pipeline is the cognitive-forecasting analog of the CNS homeostatic loop. Where the CNS senses → compares → computes → acts → verifies on system metrics, the scenario pipeline frames → brainstorms → quantifies → synthesizes → tracks → assesses on future events. Both are PDCA cycles; both have convergence criteria (the scenario pipeline's convergence is the Brier score and calibration curve); both escalate when they cannot self-correct (the scenario pipeline's `on_not_reached: escalate` is the same mechanism as the CNS's `Escalate` action). The integration of three frameworks (Schwartz, Tetlock, Chermack) is itself a dragonfly-eye synthesis — each framework provides a different perspective, and the pipeline integrates them into a unified process that is stronger than any alone.
+The scenario forecasting pipeline is the cognitive-forecasting analog of the Regulation homeostatic loop. Where the Regulation senses → compares → computes → acts → verifies on system metrics, the scenario pipeline frames → brainstorms → quantifies → synthesizes → tracks → assesses on future events. Both are PDCA cycles; both have convergence criteria (the scenario pipeline's convergence is the Brier score and calibration curve); both escalate when they cannot self-correct (the scenario pipeline's `on_not_reached: escalate` is the same mechanism as the Regulation's `Escalate` action). The integration of three frameworks (Schwartz, Tetlock, Chermack) is itself a dragonfly-eye synthesis — each framework provides a different perspective, and the pipeline integrates them into a unified process that is stronger than any alone.
 
 The conversational design of `scenario_frame` is noteworthy — it applies hKask's own improv and kata-coaching skills to the problem of eliciting decision-relevant information from users. This is the system consuming its own thread: the improv postures (Plussing, Yes And, Yes But) and the kata coaching posture (coach, not interviewer) are skills defined in `.agents/skills/`, and the `scenario_frame` tool operationalizes them in its 7-turn protocol. The behavioral psychology layer (foot-in-the-door, curiosity gap, loss aversion, social proof, peak-end, IKEA effect) grounds the conversational design in established cognitive science rather than ad-hoc intuition.
 
@@ -203,7 +203,7 @@ The conversational design of `scenario_frame` is noteworthy — it applies hKask
 
 ### Statement
 
-A ν-event (nu-event) is a thin domain event — a timestamped, attributed, namespaced observation that enters the cybernetic nervous system. It is the atomic unit of observability in hKask. A ν-event is an **assertion**, not a trace. It says "at time T, observer O witnessed fact F in domain D during phase P." It is persisted, queryable, and replayable. It feeds the CNS homeostatic loop. This design exists because the CNS needs structured observations, not raw log lines — the event carries who, when, what, which phase, and what was the regulatory outcome, all in a typed, queryable format.
+A ν-event (nu-event) is a thin domain event — a timestamped, attributed, namespaced observation that enters the cybernetic nervous system. It is the atomic unit of observability in hKask. A ν-event is an **assertion**, not a trace. It says "at time T, observer O witnessed fact F in domain D during phase P." It is persisted, queryable, and replayable. It feeds the Regulation homeostatic loop. This design exists because the Regulation needs structured observations, not raw log lines — the event carries who, when, what, which phase, and what was the regulatory outcome, all in a typed, queryable format.
 
 ### Evidence
 
@@ -223,7 +223,7 @@ The `RegulationRecord` struct at `crates/hkask-types/src/event.rs:16` carries:
 
 #### ObservableSpan vs RegulationRecord
 
-This distinction is crucial. `ObservableSpan` (at `crates/hkask-types/src/observable_span.rs:56`) is a trait that typed span enums implement — it produces a canonical dot-separated namespace string like `"cns.tool.web_search"`. `RegulationSpan` is the primary implementor, but the trait is designed to be domain-extensible: `FederationSpan`, `WalletSpan`, and other domain span enums can implement it. A span is a **trace** — it marks where in the system something happened.
+This distinction is crucial. `ObservableSpan` (at `crates/hkask-types/src/observable_span.rs:56`) is a trait that typed span enums implement — it produces a canonical dot-separated namespace string like `"reg.tool.web_search"`. `RegulationSpan` is the primary implementor, but the trait is designed to be domain-extensible: `FederationSpan`, `WalletSpan`, and other domain span enums can implement it. A span is a **trace** — it marks where in the system something happened.
 
 A `RegulationRecord` contains a `Span`, but it adds: who, when, what, which phase, and what was the regulatory outcome. A span says "tool invoked"; a ν-event says "Agent A invoked the web_search tool in the Sense phase, observing {server, tool, estimated_cost}, with no regulation applied, at recursion depth 0."
 
@@ -235,41 +235,41 @@ The emission contract has three participants:
 
 - **Emitter** — Any system component that creates a `RegulationRecord`. `GovernedTool::invoke()` is the canonical emitter for tool invocations; `CyberneticsLoop` emits regulation spans; the Curator emits curation spans. The emitter constructs the event with `RegulationRecord::new(observer_webid, span, phase, observation, recursion_depth)`, optionally chaining `.with_outcome()`, `.with_regulation()`, `.with_parent()`, and `.with_visibility()`.
 
-- **Sink** — `RegulationSink` (line 640) is the persistence trait. It has a single method: `fn persist(&self, event: &RegulationRecord) -> Result<(), InfrastructureError>`. The production implementation is `RegulationArchive` in `hkask-storage`. The sink is the durable boundary — once persisted, the event is available for CNS sensing, Curator review, and forensic audit.
+- **Sink** — `RegulationSink` (line 640) is the persistence trait. It has a single method: `fn persist(&self, event: &RegulationRecord) -> Result<(), InfrastructureError>`. The production implementation is `RegulationArchive` in `hkask-storage`. The sink is the durable boundary — once persisted, the event is available for Regulation sensing, Curator review, and forensic audit.
 
-- **Observer** — The CNS itself. `CurationLoop::sense()` reads algedonic-significant events from the store using cursor-based review. `CyberneticsLoop::sense()` reads via sensor providers (`Sensor` trait). Events are also replayed with decay weighting via `LedgerStoragePort::replay_weighted()`.
+- **Observer** — The Regulation itself. `CurationLoop::sense()` reads algedonic-significant events from the store using cursor-based review. `CyberneticsLoop::sense()` reads via sensor providers (`Sensor` trait). Events are also replayed with decay weighting via `LedgerStoragePort::replay_weighted()`.
 
-#### CNS Span Namespaces
+#### Regulation Span Namespaces
 
 The `RegulationSpan` enum at `crates/hkask-types/src/cns.rs:111` defines the core span identifiers:
 
 | Variant | Namespace | Purpose |
 |---------|-----------|---------|
-| `Tool { subsystem }` | `cns.tool.{subsystem}` | 15 MCP subsystems: web_search, condenser, training, replica, research, communication, registry, wallet, media, kanban, memory, companies, docproc, filesystem, curator |
-| `Inference` | `cns.inference` | LLM request/response |
-| `AgentPod` | `cns.agent_pod` | Pod lifecycle events |
-| `Gas` | `cns.gas` | Energy consumption tracking |
-| `Curation` | `cns.curation` | Registry sync, pod sync, directive issuance |
-| `SelfHeal` | `cns.heal` | Self-healing operations |
-| `MemoryEncode` | `cns.memory.encode` | Memory encoding events |
+| `Tool { subsystem }` | `reg.tool.{subsystem}` | 15 MCP subsystems: web_search, condenser, training, replica, research, communication, registry, wallet, media, kanban, memory, companies, docproc, filesystem, curator |
+| `Inference` | `reg.inference` | LLM request/response |
+| `AgentPod` | `reg.agent_pod` | Pod lifecycle events |
+| `Gas` | `reg.gas` | Energy consumption tracking |
+| `Curation` | `reg.curation` | Registry sync, pod sync, directive issuance |
+| `SelfHeal` | `reg.heal` | Self-healing operations |
+| `MemoryEncode` | `reg.memory.encode` | Memory encoding events |
 
 The `SpanKind` enum at `event.rs:523` provides typed construction for common spans, eliminating string typos: `ToolInvoked`, `ToolCompleted`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `VarietyAlgedonicAlert`, and the v0.31.0 regulation spans (`ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopMetricsTelemetry`).
 
 Beyond `RegulationSpan`, the `CANONICAL_NAMESPACES` array registers 139 namespace strings spanning architecture seams, chat, CI, classification, condenser, consent, consolidation, contracts, curation, cybernetics, deploy, federation (14 spans), gas, guard, healing, inference, kata, MCP media, memory, multi-agent, platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), QA (4 spans), regulation, userpod, semantic, skills, SLOs, sovereignty (5 spans), specs, storage, tools, variety, and wallet (10 sub-spans).
 
-#### How ν-Events Feed the CNS Homeostatic Loop
+#### How ν-Events Feed the Regulation Homeostatic Loop
 
-The CNS loop is sense → compare → compute → act → verify. ν-events enter at sense — they are the afferent signals. `CyberneticsLoop::sense()` (at `cybernetics_loop.rs:733`) reads via pluggable `Sensor` implementations: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`. Each sensor queries the ν-event store for relevant events and produces `Signal` values with metrics and set-points.
+The Regulation loop is sense → compare → compute → act → verify. ν-events enter at sense — they are the afferent signals. `CyberneticsLoop::sense()` (at `cybernetics_loop.rs:733`) reads via pluggable `Sensor` implementations: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`. Each sensor queries the ν-event store for relevant events and produces `Signal` values with metrics and set-points.
 
 In the compare phase, signals are measured against set-points to produce `Deviation` values with direction (`AboveSetPoint` / `BelowSetPoint`). In compute, deviations map to `RegulatoryAction` with action types like `Calibrate`, `Escalate`, `Throttle`, `Notify`. In act, actions are executed. In verify_impact, the `ImpactReport` records whether actions were effective.
 
-The `parent_event` field creates causal chains: the `cns.tool.completed` event has `parent_event` set to the `cns.tool.invoked` event's ID. This enables causality tracing through the event graph.
+The `parent_event` field creates causal chains: the `reg.tool.completed` event has `parent_event` set to the `reg.tool.invoked` event's ID. This enables causality tracing through the event graph.
 
 #### WeightedEvent and Decay
 
-Events do not persist at full weight forever. `WeightedEvent` at `crates/hkask-ports/src/cns.rs:106` pairs a `RegulationRecord` with a `weight: f64`. `DecayConfig` (line 116) defines per-category exponential decay constants: cybernetics has a 5-minute half-life, curation 15 minutes, inference 2 minutes, episodic 10 minutes. Events below `weight_threshold` (default 0.001) are not replayed. This implements episodic memory — recent events matter more than ancient ones — and prevents the CNS from drowning in historical noise.
+Events do not persist at full weight forever. `WeightedEvent` at `crates/hkask-ports/src/cns.rs:106` pairs a `RegulationRecord` with a `weight: f64`. `DecayConfig` (line 116) defines per-category exponential decay constants: cybernetics has a 5-minute half-life, curation 15 minutes, inference 2 minutes, episodic 10 minutes. Events below `weight_threshold` (default 0.001) are not replayed. This implements episodic memory — recent events matter more than ancient ones — and prevents the Regulation from drowning in historical noise.
 
-The `LedgerStoragePort::replay_weighted()` method provides time-decayed event replay, enabling the CNS to reconstruct system state from recent history without loading the entire event store. This is the computational expression of the least-action principle applied to observability: only the computationally cheapest (most recent, most salient) events factor into regulation decisions.
+The `LedgerStoragePort::replay_weighted()` method provides time-decayed event replay, enabling the Regulation to reconstruct system state from recent history without loading the entire event store. This is the computational expression of the least-action principle applied to observability: only the computationally cheapest (most recent, most salient) events factor into regulation decisions.
 
 ### Diagram
 
@@ -280,16 +280,16 @@ flowchart TD
     SINK["RegulationSink\npersist() trait"]
     STORE["RegulationArchive\n(hkask-storage)"]
     SENSORS["Sensor\n(EnergyBudget, Variety,\nToolReliability, WalletKeyHealth)"]
-    CNS["CyberneticsLoop\nsense → compare → compute → act → verify"]
+    Regulation["CyberneticsLoop\nsense → compare → compute → act → verify"]
     CURATOR["CurationLoop\ncursor-based review"]
 
     EMITTER -->|"RegulationRecord::new()"| EVENT
     EVENT --> SINK
     SINK --> STORE
     STORE -->|"query"| SENSORS
-    SENSORS --> CNS
+    SENSORS --> Regulation
     STORE -->|"algedonic events"| CURATOR
-    STORE -->|"replay_weighted()"| CNS
+    STORE -->|"replay_weighted()"| Regulation
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-COG-003
@@ -300,7 +300,7 @@ status: VERIFIED
 
 ### Implications
 
-The ν-event design is the Good Regulator theorem applied to observability: the CNS's internal model of the system is built from ν-events, and the model's fidelity depends on the events' structure. A raw log line ("tool invoked at 14:32") is a poor model — it lacks who, what phase, what outcome, and what regulation was applied. A ν-event is a rich model — it carries all of these in a typed, queryable, replayable format. The 139-entry `CANONICAL_NAMESPACES` registry ensures that every namespace is validated against a known set — a typo in a span namespace is caught at construction time, not discovered during debugging. The decay-weighted replay is the least-action principle in action: the CNS does not need to load the entire event store to regulate the system; it needs only the recent, salient events. This is what makes cybernetic regulation computationally feasible — the regulator's model is bounded by decay, not by the full history of the system.
+The ν-event design is the Good Regulator theorem applied to observability: the Regulation's internal model of the system is built from ν-events, and the model's fidelity depends on the events' structure. A raw log line ("tool invoked at 14:32") is a poor model — it lacks who, what phase, what outcome, and what regulation was applied. A ν-event is a rich model — it carries all of these in a typed, queryable, replayable format. The 139-entry `CANONICAL_NAMESPACES` registry ensures that every namespace is validated against a known set — a typo in a span namespace is caught at construction time, not discovered during debugging. The decay-weighted replay is the least-action principle in action: the Regulation does not need to load the entire event store to regulate the system; it needs only the recent, salient events. This is what makes cybernetic regulation computationally feasible — the regulator's model is bounded by decay, not by the full history of the system.
 
 ---
 
@@ -421,7 +421,7 @@ status: VERIFIED
 
 ### Implications
 
-The companies server is the bridge between the scenario forecasting pipeline and real market data. The forecasting pipeline produces probabilities for future events; the companies server provides the financial data (company profiles, income statements, valuations) that grounds those events in observable reality. The `forecast_record` tool closes the feedback loop: a forecast made today can be scored against actual outcomes tomorrow, and the Brier score from `scenario_score` can be computed using the actual multiples and price changes that `forecast_record` captures. This is the same PDCA cycle as the CNS — Plan (forecast), Do (invest), Check (score the forecast against reality), Act (calibrate future forecasts based on Brier score feedback).
+The companies server is the bridge between the scenario forecasting pipeline and real market data. The forecasting pipeline produces probabilities for future events; the companies server provides the financial data (company profiles, income statements, valuations) that grounds those events in observable reality. The `forecast_record` tool closes the feedback loop: a forecast made today can be scored against actual outcomes tomorrow, and the Brier score from `scenario_score` can be computed using the actual multiples and price changes that `forecast_record` captures. This is the same PDCA cycle as the Regulation — Plan (forecast), Do (invest), Check (score the forecast against reality), Act (calibrate future forecasts based on Brier score feedback).
 
 The owner-scoped portfolio storage is P1 (User Sovereignty) and P12 (Authenticated Host Mandate) applied to financial data: each user's portfolio is stored under their own WebID namespace, not in a shared database. The import limits (5 MiB, 10,000 transactions) are resource governance — the same principle as gas budgets, applied to data ingestion. The FIBO ontology annotations are the dual-axis ontology's domain supplement layer — FIBO provides financial-specific vocabulary where DC+BIBO is not precise enough, following the same thin-bridge pattern as the core ontology crates.
 
@@ -544,7 +544,7 @@ sequenceDiagram
     participant Bridge as ConsolidationBridge
     participant Svc as ConsolidationService
     participant Sq as SQLCipher<br/>(per-agent isolation)
-    participant CNS as CNS RegulationSink
+    participant Regulation as Regulation RegulationSink
 
     rect rgb(245, 248, 252)
         Note over Tool,Epi: Phase 1 — Tool Call Experience → Episodic Store
@@ -562,8 +562,8 @@ sequenceDiagram
         else valid Private + perspective
             Epi->>+Sq: h_mem_store.insert(&triple)
             Sq-->>-Epi: Ok(())
-            Epi->>+CNS: persist(RegulationRecord { span: cns.memory.encode.episodic_stored })
-            CNS-->>-Epi: ()
+            Epi->>+Regulation: persist(RegulationRecord { span: reg.memory.encode.episodic_stored })
+            Regulation-->>-Epi: ()
 
             Epi->>+Epi: storage_usage(perspective)
             opt usage > 80% of budget
@@ -625,7 +625,7 @@ sequenceDiagram
         end
 
         Bridge-->>-Svc: ConsolidationOutcome { consolidated_count, deleted_count, failed_count }
-        Note over Bridge: tracing::info!(target: "cns.consolidation")
+        Note over Bridge: tracing::info!(target: "reg.consolidation")
     end
 
     rect rgb(248, 245, 255)
@@ -754,7 +754,7 @@ status: VERIFIED
 | [`ToolSpanGuard` experience callback](crates/hkask-mcp/src/server/tool_span.rs:78-84) | Experience callback wiring for tool span guards |
 | [Magna Carta P1](../reference/magna-carta.md#p1-user-sovereignty) | User Sovereignty — episodic memory as sovereign first-person |
 | Consent flow sequence (inlined in `sovereignty-and-ocap.md`) | Consent flow for visibility gating (DIAG-TO-006-CM) |
-| CNS span emission sequence (inlined in `cns-and-loops.md`) | CNS span emission for memory encode spans (DIAG-TO-004) |
+| Regulation span emission sequence (inlined in `cns-and-loops.md`) | Regulation span emission for memory encode spans (DIAG-TO-004) |
 
 
 ### Memory Remember — Algo / No-Judge Template Cascade
@@ -849,12 +849,12 @@ sequenceDiagram
     participant MA as Panel Model 1 (Qwen3-235B)
     participant MB as Panel Model 2 (Gemma 4)
     participant I as Merge Integrator
-    participant CNS as CNS Spans
+    participant Regulation as Regulation Spans
     participant M as Shared Memory
 
     S->>G: scan_input(text)
     alt blocked
-        G-->>CNS: cns.guard.violation (input_refused)
+        G-->>Regulation: reg.guard.violation (input_refused)
         G-->>S: Refuse
     else passed
         par Parallel Classification
@@ -870,7 +870,7 @@ sequenceDiagram
 
         I->>G: scan_output(merged)
         alt secrets detected
-            G-->>CNS: cns.guard.violation (output)
+            G-->>Regulation: reg.guard.violation (output)
             G-->>I: Sanitized output
         else clean
             G-->>I: Pass
@@ -905,14 +905,14 @@ Related: `crates/hkask-inference/src/fusion_orchestrator.rs` (algo_merge), `crat
 flowchart TD
     S([Source Text])
     G{Guard Input Scan}
-    R[Refuse + CNS Alert]
+    R[Refuse + Regulation Alert]
     P1[Panel Model 1\nKC/qwen3-235b]
     P2[Panel Model 2\nDI/gemma-4]
     R1[Response 1 (JSON)]
     R2[Response 2 (JSON)]
     I[algo_merge]
     GO{Guard Output Scan}
-    RS[Strip Secrets\n+ CNS Alert]
+    RS[Strip Secrets\n+ Regulation Alert]
     ST[Store in Shared Memory]
     M[Memory]
 
