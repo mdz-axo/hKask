@@ -1,9 +1,9 @@
 # Training Manifest — Capabilities Researcher LoRA
 #
-# Declarative training recipe. The training server reads this manifest,
-# selects the host + harness, renders the appropriate template, and submits.
-# The skills framework (gpa-evolution, skill-maintenance) can audit and
-# evolve this manifest without recompiling Rust.
+# Declarative operator recipe. Agents map this intent into the typed
+# training_submit parameters; AxolotlHarness renders the runtime YAML from
+# that typed boundary. The skills framework can audit and evolve this recipe
+# without creating a second Rust configuration loader.
 #
 # Lesson propagation (2026-07-19): PiSSA (pissa_niter_4) is non-portable across
 # transformers/torch library versions — the residual base mismatch produces
@@ -12,7 +12,7 @@
 # LoRA adapters. Previous results block was corrupt and has been deleted.
 
 name: capabilities-researcher
-version: 2
+version: 3
 description: >
   EVA-initialized LoRA adapter for the Capabilities Researcher persona
   (John Brooks). Trained on ChatML QA pairs generated from curated
@@ -67,25 +67,19 @@ optimizations:
   bf16: true
 
 # ── Host selection ───────────────────────────────────────────────────────
-# Options: runpod (GPU pod + axolotl), together (REST API), tinker (subprocess)
 host: runpod
-harness: axolotl  # axolotl, unsloth, tinker
+harness: axolotl
 
-# ── Provider-specific overrides ──────────────────────────────────────────
-hosts:
-  runpod:
-    gpu_type: NVIDIA H100 80GB HBM3
-    container_disk_gb: 60
-    volume_gb: 200
-    volume_mount: /workspace
-    image: runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
-    torch_version: 2.10.0+cu128  # must match driver 580
-    axolotl_version: 0.17.0
-  together:
-    model: Qwen/Qwen3.6-27B  # Together AI official namespace
-    # Together AI handles infra — no GPU/pod config needed
-    # Supports LoRA fine-tuning, early stopping, eval during training
-  tinker:
-    model: Qwen/Qwen3.6-27B  # Tinker official namespace
-    # Tinker handles GPU distribution — runs as local Python subprocess
-    # Note: EVA not supported by Tinker SDK; uses standard LoRA init
+# ── RunPod deployment contract ───────────────────────────────────────────
+runpod:
+  template_id: f4wac8wrhz
+  image: winglian/axolotl-cloud:main-latest
+  gpu_type: NVIDIA H100 80GB HBM3
+  container_disk_gb: 200
+  min_memory_gb: 80
+  min_vcpu_count: 8
+  volume_mount: /workspace
+
+# EVA preflight: blocked until the Axolotl harness invokes PEFT's
+# initialize_lora_eva_weights(model, dataloader). Passing only
+# peft_init_lora_weights: eva does not execute activation-SVD initialization.

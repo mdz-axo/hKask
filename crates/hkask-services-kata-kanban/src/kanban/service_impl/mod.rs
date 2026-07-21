@@ -27,7 +27,6 @@ use crate::kanban::{
 use hkask_types::NotFound;
 use hkask_types::WebID;
 use hkask_types::id::{BoardId, PhaseId, TaskId};
-use std::sync::Arc;
 
 pub(crate) mod comments;
 pub(crate) mod decompose;

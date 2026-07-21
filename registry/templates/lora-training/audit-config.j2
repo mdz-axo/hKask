@@ -74,19 +74,24 @@ AUDIT ACTIONS (concrete — must use file:read, code:search, terminal):
 
    MATH-CONTRACT GATES (from LoRA paper, arXiv:2106.09685):
 
-   G-M1 No-op-at-init invariant:
+   G-M1 Initialization invariant:
    - Assert: `init_lora_weights=True` (default) produces ΔW=0 at step 0
-     (B initialized to zero).
+     because LoRA B is initialized to zero.
    - Test: forward pass with adapter enabled == forward pass with
      adapter disabled at step 0.
-   - If `init_lora_weights` is `'gaussian'`, `'eva'`, `'olora'`,
-     `'pissa'`, `'pissa_niter_*'`, `'corda'`, `'orthogonal'`, or
-     `False`: adapter is NOT a no-op at init → flag and require
-     explicit justification.
-   - gate_result: pass | warn (with justification) | fail (without
-     justification).
+   - EVA also produces a no-op adapter (B=0), but selecting
+     `init_lora_weights='eva'` is not sufficient evidence that EVA ran.
+     Require concrete harness evidence that
+     `initialize_lora_eva_weights(model, dataloader)` executes before
+     training. Refuse submission when that initializer is absent.
+   - For other non-default initializers, classify no-op behavior from
+     the cited PEFT implementation rather than assuming every
+     non-default value produces ΔW≠0. Require the initializer-specific
+     preprocessing and save contract where applicable.
+   - gate_result: pass | warn | fail | refuse.
    - source_citation: LoRA paper §4.1; PEFT v0.19.0
-     `LoraConfig.init_lora_weights` docstring.
+     `LoraConfig.init_lora_weights` and
+     `initialize_lora_eva_weights` documentation.
 
    G-M2 Merge equivalence:
    - Assert: `W_merged = W + (α/r)·BA` produces identical outputs to

@@ -19,7 +19,7 @@ use hkask_types::id::{BoardId, TaskId};
 use serde_json::Value;
 
 use super::types::KanbanError;
-use crate::kanban::service_impl::dejam::KanbanTaskGasAccountant;
+
 use crate::kanban::{
     Board, ColumnDef, GasEntry, Priority, Task, TaskFilter, TaskSpec, TaskStatus, Verification,
 };
@@ -72,15 +72,19 @@ impl KanbanService {
     /// `with_task_gas_accountant` to close the per-task gas feedback loop.
     ///
     /// pre:  task_id refers to an existing task with a gas budget set
-    /// post: returns an `Arc<dyn TaskGasAccountant>` that deducts from the task
+    /// post: returns a callback that deducts from the task
     #[must_use]
     pub fn gas_accountant_for(
         self: &Arc<Self>,
         task_id: TaskId,
-    ) -> Arc<dyn crate::kata::TaskGasAccountant> {
-        Arc::new(KanbanTaskGasAccountant {
-            service: Arc::clone(self),
-            task_id,
+    ) -> crate::kata::TaskGasAccountantFn {
+        let service = Arc::clone(self);
+        Arc::new(move |cost, reason| {
+            service
+                .task_consume_gas(task_id, cost, reason)
+                .map_err(|e| {
+                    crate::kata::KataError::InferenceFailed(format!("task gas deduction: {e}"))
+                })
         })
     }
 

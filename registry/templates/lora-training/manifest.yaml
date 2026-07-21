@@ -39,7 +39,8 @@ templates:
       Refuse with cited reason when config violates a hard contract
       (rank defeats low-rank premise, OOM-certain memory mismatch,
       merge-equivalence break with must-merge constraint, init strategy
-      without required preprocessing call). AutoPEFT (arXiv:2301.12132)
+      without its required initializer or preprocessing call). AutoPEFT
+      (arXiv:2301.12132)
       is referenced as the rejected alternative — multi-objective BO
       over hundreds of training runs is infeasible per training job.
 
@@ -58,7 +59,9 @@ templates:
       optimizer, NF4 optimality), 3 data/eval (G-D1 dataset size vs
       quality, G-D2 eval protocol, G-D3 lemon-pick analysis), 2
       forgetting (G-F1 intruder dimensions, G-F2 knowledge preservation
-      for CorDA mode). Apply pragmatic-cybernetics (IS/OUGHT, epistemic
+      for CorDA mode). EVA passes G-M1 only when the harness proves that
+      `initialize_lora_eva_weights` runs with the training dataloader.
+      Apply pragmatic-cybernetics (IS/OUGHT, epistemic
       mode, provenance, grill-me self-challenge). Emit cns.lora.audit
       spans per gate evaluated.
 

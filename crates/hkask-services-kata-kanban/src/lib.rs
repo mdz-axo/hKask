@@ -28,5 +28,5 @@ pub use kanban::{
 };
 pub use kata::{
     ImprovementDirection, ImprovementSignal, KataEngine, KataError, KataHistory, KataManifest,
-    KataResult, KataState, KataStep, PracticeEntry, StepExperience, TaskGasAccountant,
+    KataResult, KataState, KataStep, PracticeEntry, StepExperience, TaskGasAccountantFn,
 };

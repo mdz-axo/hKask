@@ -125,14 +125,12 @@ impl CuratorAgent {
     ///       valid `MetacognitionConfig`; `consolidation` is a valid
     ///       `Arc<ConsolidationBridge>`; `auto_consolidation_enabled` controls
     ///       whether the Curator daemon may auto-run consolidation.
-    /// post: Returns a `CuratorAgent` with consolidation wired; if
-    ///       `inbox_rx` is `Some`, the curation loop's inbox is set.
+    /// post: Returns a `CuratorAgent` with consolidation and its curation inbox wired.
     pub fn with_consolidation(
         context: Arc<CuratorContext>,
         config: metacognition::MetacognitionConfig,
         consolidation: Arc<ConsolidationBridge>,
-        inbox_rx: Option<tokio::sync::mpsc::UnboundedReceiver<CurationInput>>,
-        _inbox_tx: Option<tokio::sync::mpsc::UnboundedSender<CurationInput>>,
+        inbox_rx: tokio::sync::mpsc::UnboundedReceiver<CurationInput>,
         auto_consolidation_enabled: bool,
     ) -> Self {
         let agent_name = context.handle().curator_id().to_string();
@@ -141,13 +139,11 @@ impl CuratorAgent {
                 .with_agent_name(agent_name),
         );
         let curator_handle = context.handle().clone();
-        let mut curation_loop =
+        let curation_loop = Arc::new(
             CurationLoop::with_consolidation(curator_handle, Arc::clone(&context), consolidation)
-                .with_auto_consolidation_enabled(auto_consolidation_enabled);
-        if let Some(rx) = inbox_rx {
-            curation_loop = curation_loop.with_inbox(rx);
-        }
-        let curation_loop = Arc::new(curation_loop);
+                .with_auto_consolidation_enabled(auto_consolidation_enabled)
+                .with_inbox(inbox_rx),
+        );
 
         Self {
             curation_loop,

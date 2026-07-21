@@ -155,7 +155,7 @@ impl KataEngine {
             "inference: {} ({} tokens) [{}]",
             result.model, cost, step_label
         );
-        match accountant.consume(cost, &reason) {
+        match accountant(cost, &reason) {
             Ok(remaining) => {
                 tracing::debug!(
                     target: "cns.kata",

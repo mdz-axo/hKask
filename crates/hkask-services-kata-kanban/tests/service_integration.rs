@@ -8,7 +8,7 @@ mod tests {
         ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
     };
     use hkask_services_kata_kanban::kanban::{ColumnDef, KanbanService, TaskSpec};
-    use hkask_services_kata_kanban::{KataEngine, KataManifest, TaskGasAccountant};
+    use hkask_services_kata_kanban::{KataEngine, KataManifest, TaskGasAccountantFn};
     use hkask_storage::HMemStore;
     use hkask_templates::SqliteRegistry;
     use hkask_types::template::LLMParameters;
@@ -193,7 +193,7 @@ cns:
             response_text: "Target condition: ship the feature.".into(),
             tokens_per_call: 100,
         });
-        let accountant: Arc<dyn TaskGasAccountant> = svc.gas_accountant_for(task.id);
+        let accountant: TaskGasAccountantFn = svc.gas_accountant_for(task.id);
         let engine = KataEngine::new(mock_inference, registry).with_task_gas_accountant(accountant);
 
         // Execute a coaching kata cycle (1 question = 1 inference call)
@@ -245,7 +245,7 @@ cns:
             response_text: "Direction: improve the system.".into(),
             tokens_per_call: 100,
         });
-        let accountant: Arc<dyn TaskGasAccountant> = svc.gas_accountant_for(task.id);
+        let accountant: TaskGasAccountantFn = svc.gas_accountant_for(task.id);
         let engine = KataEngine::new(mock_inference, registry).with_task_gas_accountant(accountant);
 
         // Execute an improvement kata cycle (1 step = 1 inference call)
@@ -331,7 +331,7 @@ cns:
             response_text: "Answer.".into(),
             tokens_per_call: 100,
         });
-        let accountant: Arc<dyn TaskGasAccountant> = svc.gas_accountant_for(task.id);
+        let accountant: TaskGasAccountantFn = svc.gas_accountant_for(task.id);
         let engine = KataEngine::new(mock_inference, registry).with_task_gas_accountant(accountant);
 
         let manifest = parse_manifest(COACHING_MANIFEST_3Q);

@@ -66,14 +66,14 @@ SYNTHESIS ACTIONS:
    `discovered_by: lora-training`, `discovered_at`, `severity`,
    `detection` (`kind: grep` with `pattern` referencing config content
    — concrete regex, not vague description; OR `kind: runtime-assert`
-   with Python assertion code for runtime gates like G-Q3 gradient
-   flow), `mitigation` (concrete fix: set `use_rslora=True`, switch to
+   implemented in the owning Rust training boundary for runtime gates
+   like G-Q3 gradient flow), `mitigation` (concrete fix: set
+   `use_rslora=True`, switch to
    `paged_adamw_8bit`, add `preprocess_loraga()` call, etc.),
    `status: pending` (human-curated ratchet — P11 visibility),
-   `ci_gate: scripts/check-lora-training-regressions.sh` (new CI gate
-   — this skill proposes its creation; existing
-   `scripts/check-kali-regressions.sh` covers `surface: code`/
-   `template`/`mcp`/`supply-chain`, not `surface: training`).
+   `ci_gate: scripts/check-lora-training-regressions.sh` (the existing
+   CI gate for `surface: training`; `scripts/check-kali-regressions.sh`
+   covers the other security surfaces).
 4. Identify top 3 contract gaps from `gate_results` (gates that
    failed or warned). Propose highest-priority fixes based on
    severity.
@@ -130,8 +130,8 @@ References `security/regressions/README.md` format directly.
 
 MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
 EVIDENCE-BACKED ONLY: Every proposed regression includes concrete
-`pattern` (regex against config content, or Python assertion code for
-runtime gates) and `evidence_snippet` (quoted file content).
+`pattern` (regex against config content, or a Rust runtime assertion at
+the owning training boundary for runtime gates) and `evidence_snippet` (quoted file content).
 SEMANTIC GROUNDING (P8): Every claim has file path, line, parameter
 value, concrete snippet, gate ID, source citation (arXiv paper
 section + PEFT docs section).

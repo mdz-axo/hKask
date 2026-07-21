@@ -267,26 +267,3 @@ impl KanbanService {
         Ok(new_remaining)
     }
 }
-
-/// Kanban-backed `TaskGasAccountant` — deducts inference token cost from
-/// a bound kanban task's `gas_remaining` budget.
-///
-/// Created via `KanbanService::gas_accountant_for(task_id)`. Attached to a
-/// `KataEngine` via `with_task_gas_accountant` to close the per-task gas
-/// feedback loop: each inference call's actual token usage is recorded
-/// against the task's budget, and when it hits 0 the `unjam_fix` auto-
-/// completion path can detect the exhausted task.
-pub(crate) struct KanbanTaskGasAccountant {
-    pub(crate) service: Arc<KanbanService>,
-    pub(crate) task_id: TaskId,
-}
-
-impl crate::kata::TaskGasAccountant for KanbanTaskGasAccountant {
-    fn consume(&self, cost: u64, reason: &str) -> Result<u64, crate::kata::KataError> {
-        self.service
-            .task_consume_gas(self.task_id, cost, reason)
-            .map_err(|e| {
-                crate::kata::KataError::InferenceFailed(format!("task gas deduction: {e}"))
-            })
-    }
-}

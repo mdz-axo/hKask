@@ -172,12 +172,9 @@ pub(super) async fn build_loops(
         curator_context,
         Default::default(),
         Arc::clone(&consolidation_bridge),
-        Some(
-            f.curation_inbox_rx
-                .take()
-                .expect("curation_inbox_rx consumed once"),
-        ),
-        Some(f.curation_inbox_tx.clone()),
+        f.curation_inbox_rx
+            .take()
+            .expect("curation_inbox_rx consumed once"),
         config.curator_auto_consolidation_enabled,
     );
     curator_agent.curation_loop().restore_cursor();
@@ -234,11 +231,10 @@ pub(super) async fn build_loops(
             link_manager,
             Arc::clone(&f.cns_event_sink),
         ));
-        // Spawn background sync loop
-        let (fed_cancel_tx, fed_cancel_rx) = tokio::sync::watch::channel(false);
+        // Spawn background sync loop. The task is owned by the runtime and
+        // stops when runtime shutdown aborts spawned tasks.
         let fed_sync_clone: Arc<FederationSync> = Arc::clone(&fed_sync);
-        tokio::spawn(async move { fed_sync_clone.run(fed_cancel_rx).await });
-        drop(fed_cancel_tx);
+        tokio::spawn(async move { fed_sync_clone.run().await });
         tracing::info!(target: "cns.federation.sync", replica = %local_replica, "Federation sync loop started");
         Some(dispatch)
     } else {

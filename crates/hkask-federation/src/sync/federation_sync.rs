@@ -13,7 +13,7 @@ use hkask_ports::federation::{
 };
 use hkask_types::event::{CyclePhase, NuEvent, NuEventSink, Span, SpanNamespace};
 use serde_json::json;
-use tokio::sync::{RwLock, watch};
+use tokio::sync::RwLock;
 
 use crate::ReplicaId;
 use crate::crdt::{FederationHMemKey, ORSet};
@@ -55,23 +55,16 @@ impl FederationSync {
         }
     }
 
-    pub async fn run(&self, mut cancel: watch::Receiver<bool>) {
+    pub async fn run(&self) {
         tracing::info!(
             target: "cns.federation.sync",
             replica = %self.local_replica,
             "FederationSync started"
         );
         loop {
-            tokio::select! {
-                _ = tokio::time::sleep(self.interval) => {
-                    if let Err(e) = self.tick().await {
-                        tracing::warn!(target: "cns.federation.sync", error = %e, "tick failed");
-                    }
-                }
-                _ = cancel.changed() => {
-                    tracing::info!(target: "cns.federation.sync", "stopped");
-                    return;
-                }
+            tokio::time::sleep(self.interval).await;
+            if let Err(e) = self.tick().await {
+                tracing::warn!(target: "cns.federation.sync", error = %e, "tick failed");
             }
         }
     }

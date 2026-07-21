@@ -68,25 +68,8 @@ pub type CnsObserverFn = Arc<dyn Fn(&str, u32, &str) + Send + Sync>;
 pub type MetricCollectorFn =
     Arc<dyn Fn(&str, &str) -> Result<serde_json::Value, KataError> + Send + Sync>;
 
-/// Task-scoped gas accountant — decrements a kanban task's gas budget
-/// after each inference call, closing the per-task feedback loop.
-///
-/// When attached to a `KataEngine`, every inference call (coaching question,
-/// improvement step, starter practice) deducts its actual token cost from
-/// the bound task's `gas_remaining` field via `KanbanService::task_consume_gas`.
-/// This is the Option C wiring from the kata-kanban gas feedback design:
-/// the kata engine is the only inference caller in the task-scoped path,
-/// so it is the natural place to close the loop.
-///
-/// The accountant is a trait object so the kata module does not import
-/// from the kanban module (preserving module boundaries). The kanban
-/// service provides a concrete impl via `KanbanService::gas_accountant_for(task_id)`.
-pub trait TaskGasAccountant: Send + Sync {
-    /// Deduct `cost` gas units from the bound task, recording `reason` in
-    /// the task's `gas_spend` audit trail. Returns the new remaining gas
-    /// (0 means exhausted — the next call should be rejected by the caller).
-    fn consume(&self, cost: u64, reason: &str) -> Result<u64, KataError>;
-}
+/// Task-scoped gas callback — deducts inference cost from a bound task.
+pub type TaskGasAccountantFn = Arc<dyn Fn(u64, &str) -> Result<u64, KataError> + Send + Sync>;
 
 /// Execution engine for kata manifests.
 ///
@@ -113,7 +96,7 @@ pub struct KataEngine {
     cns_runtime: Option<Arc<RwLock<CnsRuntime>>>,
     /// Optional task-scoped gas accountant. When present, each inference
     /// call deducts its token cost from the bound kanban task's budget.
-    task_gas_accountant: Option<Arc<dyn TaskGasAccountant>>,
+    task_gas_accountant: Option<TaskGasAccountantFn>,
 }
 
 impl KataEngine {
@@ -244,10 +227,10 @@ impl KataEngine {
     /// and complete it.
     ///
     /// `[P9]` Motivating: Homeostatic Self-Regulation — closes the gas consumption loop.
-    /// pre:  accountant must be a valid `Arc<dyn TaskGasAccountant>` bound to a task
+    /// pre:  accountant must be bound to a task
     /// post: returns self with task_gas_accountant set; each inference call will deduct cost
     #[must_use]
-    pub fn with_task_gas_accountant(mut self, accountant: Arc<dyn TaskGasAccountant>) -> Self {
+    pub fn with_task_gas_accountant(mut self, accountant: TaskGasAccountantFn) -> Self {
         self.task_gas_accountant = Some(accountant);
         self
     }

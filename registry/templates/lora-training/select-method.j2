@@ -147,6 +147,13 @@ REFUSAL CONDITIONS (hard contract violations — emit refusal with citation):
   weights, requires explicit save handling)
   [Citation: PEFT v0.19.0 LoraConfig.init_lora_weights docstring;
    PiSSA paper arXiv:2404.02948; LoRA-GA paper arXiv:2407.05000]
+- init_lora_weights='eva' AND the harness does not call
+  `initialize_lora_eva_weights(model, dataloader)` before training →
+  refuse. Constructing `LoraConfig(init_lora_weights='eva')` creates
+  the adapter configuration but does not perform EVA's activation-SVD
+  initialization.
+  [Citation: PEFT v0.19.0 `initialize_lora_eva_weights` documentation;
+   EVA paper arXiv:2410.07170]
 
 OUTPUT (LoraConfig-shaped JSON with justification):
 {

@@ -5,10 +5,10 @@
 // observed actual/estimated ratios.
 
 use chrono::{Duration, Utc};
+use hkask_cns::EnergyEstimator;
 use hkask_cns::composite_energy_estimator::CompositeEnergyEstimator;
 use hkask_cns::dynamic_gas_table::DynamicGasTable;
 use hkask_cns::gas_report::GasReport;
-use hkask_cns::governed_tool::EnergyEstimator;
 use hkask_ports::CnsStoragePort;
 use hkask_storage::NuEventStore;
 use hkask_types::NuEventSink;

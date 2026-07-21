@@ -40,7 +40,7 @@ use crate::sensor_provider::{
 use crate::set_points::{InferenceThrottleMode, SetPoints};
 use crate::slo_manager::SloDataProvider;
 use crate::strategy_evaluator::StrategyEvaluator;
-use crate::system_simulator::{MovingAverageExtrapolator, SystemSimulator};
+use crate::system_simulator::MovingAverageExtrapolator;
 use crate::tool_stats::ToolStats;
 use crate::wallet_budget::WalletBackedBudget;
 use crate::wallet_manager::WalletManager;
@@ -53,8 +53,7 @@ use crate::regulation_policy::{
 };
 use crate::types::loops::{
     ActionDecision, ActionType, CurationInput, Deviation, HkaskLoop, ImpactReport, LoopAction,
-    LoopActionParams, LoopId, LoopQuality, Signal, SignalMetric,
-    TriggerOrigin,
+    LoopActionParams, LoopId, LoopQuality, Signal, SignalMetric, TriggerOrigin,
 };
 use crate::types::loops::{BudgetOption, RegulationData};
 use hkask_ports::BackpressureSignal;
@@ -116,7 +115,7 @@ pub struct CyberneticsLoop {
     /// Multi-model strategy evaluator (Fermi improvement-loop pattern).
     strategy_evaluator: Mutex<StrategyEvaluator>,
     /// Predictive simulator for anticipatory regulation (Fermi dynamics pattern).
-    simulator: Box<dyn SystemSimulator>,
+    simulator: MovingAverageExtrapolator,
     /// Runtime-calibratable thresholds — updated by `SetPointCalibrator` background task.
     calibrated_thresholds: Arc<RwLock<CalibratedThresholds>>,
     /// Architectural seam watcher — monitors boundary coverage drift.
@@ -194,7 +193,7 @@ impl CyberneticsLoop {
 
             tool_stats: None,
             strategy_evaluator: Mutex::new(StrategyEvaluator::new()),
-            simulator: Box::new(MovingAverageExtrapolator::new(10)),
+            simulator: MovingAverageExtrapolator::new(10),
             calibrated_thresholds,
             seam_watcher: None,
             last_seam_check: tokio::sync::Mutex::new(std::time::Instant::now()),
@@ -220,12 +219,6 @@ impl CyberneticsLoop {
         self.alerts_tx = Some(tx);
         self
     }
-
-    /// Wire the direct tool consumption channel: GovernedTool → Cybernetics.
-    ///
-    /// expect: "The system provides configurable cybernetic self-regulation"
-    /// post: returns Self for chaining
-    #[must_use = "builder methods must be chained or assigned"]
 
     /// Wire the direct curator directive channel: Curation → Cybernetics.
     ///
@@ -589,8 +582,8 @@ impl CyberneticsLoop {
 
     /// Record a tool outcome in the CNS runtime for outcome quality tracking.
     ///
-    /// Delegates to `CnsRuntime::record_outcome`. Called by `GovernedTool`
-    /// after every tool invocation completes.
+    /// Delegates to `CnsRuntime::record_outcome`. Called by `McpRuntime`
+    /// after every governed tool invocation completes.
     ///
     /// expect: "The system provides observability into CNS regulation state"
     pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
@@ -723,7 +716,6 @@ impl CyberneticsLoop {
                 tracing::info!(target: "cns.cybernetics", processed = cd_processed, "Processed direct curator directives");
             }
         }
-
 
         self.gas_budget_manager
             .read()
