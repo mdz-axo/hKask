@@ -493,7 +493,7 @@ fn generalize_value(value: &serde_json::Value) -> serde_json::Value {
 /// CNS: emits `cns.session.recorded` span for variety tracking and algedonic
 /// monitoring — if sessions stop writing, the CNS detects the silence.
 fn append_session_entry(replicant: &str, entity: &str, attribute: &str, value: &serde_json::Value) {
-    let sessions_dir = hkask_types::agent_paths::agent_sessions_dir(replicant);
+    let sessions_dir = hkask_types::agent_paths::userpod_sessions_dir(replicant);
     if let Err(e) = std::fs::create_dir_all(&sessions_dir) {
         tracing::warn!(target: "hkask.daemon.session", replicant = %replicant, error = %e, "Failed to create sessions directory");
         return;

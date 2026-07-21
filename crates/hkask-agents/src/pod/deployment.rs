@@ -328,7 +328,7 @@ impl PodFactory {
         let agent_name = name;
         let agent_dir = self
             .data_dir
-            .join(hkask_types::agent_paths::AGENTS_DIR)
+            .join(hkask_types::agent_paths::USERPODS_DIR)
             .join(hkask_types::agent_paths::sanitize_name(agent_name));
         std::fs::create_dir_all(&agent_dir).map_err(|e| PodDeployError::StorageInitFailed {
             path: agent_dir.clone(),
@@ -560,7 +560,7 @@ pub struct PodRegistry {
 impl PodRegistry {
     pub fn new(data_dir: &Path) -> Self {
         Self {
-            agents_dir: data_dir.join(hkask_types::agent_paths::AGENTS_DIR),
+            agents_dir: data_dir.join(hkask_types::agent_paths::USERPODS_DIR),
         }
     }
 

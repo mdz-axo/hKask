@@ -57,7 +57,7 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
             let userpod_name = pods[0].userpod_name.clone();
 
             // Ensure the userpod's directory space exists on disk.
-            let _ = hkask_types::agent_paths::ensure_agent_dirs(&userpod_name);
+            let _ = hkask_types::agent_paths::ensure_userpod_dirs(&userpod_name);
 
             // Create a UserStore session so the daemon authenticates the userpod.
             match create_user_session(&config, &userpod_name) {
@@ -150,7 +150,7 @@ async fn create_first_userpod_flow() -> Result<OnboardingOutcome, OnboardingErro
     print_creation_summary(&completed.userpod_name, &completed.selected_model);
 
     // Create the userpod's directory space on disk.
-    let _ = hkask_types::agent_paths::ensure_agent_dirs(&completed.userpod_name);
+    let _ = hkask_types::agent_paths::ensure_userpod_dirs(&completed.userpod_name);
 
     Ok(OnboardingOutcome {
         signed_in_agent: completed.userpod_name,
@@ -470,7 +470,7 @@ fn list_userpods(config: &ServiceConfig) -> Result<Vec<hkask_identity::UserPod>,
             message: format!("Failed to open user DB: {e}"),
         }
     })?;
-    store.list_all_userpods().map_err(|e| ServiceError::Domain {
+    store.list_userpods().map_err(|e| ServiceError::Domain {
         kind: ErrorKind::BadRequest,
         domain: DomainKind::Storage,
         source: None,

@@ -163,7 +163,7 @@ pub fn start_mcp_server(
     binary: &str,
 ) -> bool {
     let mcp_runtime = ctx.infra().mcp.clone();
-    let userpod_name = ctx.config().agent_name.clone();
+    let userpod_name = ctx.config().user_name.clone();
     let env = replicant_env_map(&userpod_name);
     match rt.block_on(
         mcp_runtime

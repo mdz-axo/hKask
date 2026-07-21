@@ -747,14 +747,7 @@ pub struct AcceptInviteQuery {
     code: String,
 }
 
-// ── Matrix onboarding (fire-and-forget, non-blocking) ────────────────────
-
-/// Shared HTTP client for Matrix API calls (connection pooling).
-fn matrix_client() -> &'static reqwest::Client {
-    use std::sync::OnceLock;
-    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT.get_or_init(reqwest::Client::new)
-}
+// ── Matrix onboarding (deferred) ──────────────────────────────────────────
 
 /// Matrix registration is deferred out of the onboarding flow.
 ///
@@ -767,7 +760,6 @@ async fn onboard_matrix(_userpod_name: &str, _display_name: &str) {
         "Matrix registration deferred — not attempted during onboarding"
     );
 }
-
 
 /// URL-encode a string (basic implementation — only encodes special chars).
 fn urlencoding(s: &str) -> String {

@@ -90,7 +90,7 @@ impl StorageContext {
             source: None,
             message: "User store lock poisoned".into(),
         })?;
-        store.list_all_userpods().map_err(|e| ServiceError::Domain {
+        store.list_userpods().map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
             source: Some(Box::new(e)),

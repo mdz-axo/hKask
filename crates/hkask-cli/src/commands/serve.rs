@@ -39,7 +39,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
 
     // Start API MCP servers on the AgentService's runtime.
     // Derived from hkask_mcp::BUILTIN_SERVERS (canonical registry).
-    let userpod_name = ctx.config().agent_name.clone();
+    let userpod_name = ctx.config().user_name.clone();
     let server_count = start_api_servers(&ctx.infra().mcp, &userpod_name).await;
     if server_count > 0 {
         tracing::info!(target: "hkask.serve", servers = server_count, "MCP servers started");

@@ -22,8 +22,8 @@ const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
 const DEFAULT_CNS_THRESHOLD: u64 = 100;
 const DEFAULT_TEMPLATE_CACHE_PATH: &str = "/tmp/hkask-templates";
-const DEFAULT_AGENT_NAME: &str = "curator";
-const TEST_AGENT_NAME: &str = "test-agent";
+const DEFAULT_USER_NAME: &str = "curator";
+const TEST_USER_NAME: &str = "test-user";
 
 /// Default path for the primary database file.
 /// Resolved relative to `resolve_data_dir()` unless overridden via `HKASK_DB_PATH`.
@@ -102,8 +102,8 @@ pub struct ServiceConfig {
     /// Default inference model name.
     pub default_model: String,
 
-    /// Agent name (from onboarding or config).
-    pub agent_name: String,
+    /// User name (from onboarding or config). The 1:1 userpod name.
+    pub user_name: String,
 
     /// Path for the template cache (Git CAS storage).
     pub template_cache_path: String,
@@ -114,11 +114,6 @@ pub struct ServiceConfig {
     /// Defaults to `{db_path}-memory.db` (e.g., `hkask.db` → `hkask-memory.db`)
     /// when not explicitly set. Ignored when `in_memory: true`.
     pub memory_db_path: Option<String>,
-
-    /// Path to YAML agent definition directory.
-    ///
-    /// Defaults to `registry/bots` when not set.
-    pub registry_yaml_path: std::path::PathBuf,
 
     /// Wallet configuration for rJoule payments and multi-chain deposits.
     pub wallet_config: WalletConfig,
@@ -162,10 +157,6 @@ impl ServiceConfig {
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
-        let registry_yaml_path = std::path::PathBuf::from(
-            std::env::var("HKASK_REPLICANT_REGISTRY_PATH")
-                .unwrap_or_else(|_| "registry/replicants".to_string()),
-        );
 
         // Resolve secrets from keystore. If keystore resolution fails,
         // fall back to empty secrets (in-memory mode will be used).
@@ -206,10 +197,9 @@ impl ServiceConfig {
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
-            agent_name: DEFAULT_AGENT_NAME.to_string(),
+            user_name: DEFAULT_USER_NAME.to_string(),
             template_cache_path,
             memory_db_path,
-            registry_yaml_path,
             wallet_config: WalletConfig::default(),
             memory_life_days,
             curator_auto_consolidation_enabled,
@@ -222,10 +212,10 @@ impl ServiceConfig {
     /// for the REPL's interactive onboarding flow.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  a2a_secret, db_passphrase, and agent_name must be non-empty
+    /// pre:  a2a_secret, db_passphrase, and user_name must be non-empty
     /// post: returns ServiceConfig with provided secrets and env-derived or default values
     #[must_use]
-    pub fn from_secrets(a2a_secret: String, db_passphrase: String, agent_name: String) -> Self {
+    pub fn from_secrets(a2a_secret: String, db_passphrase: String, user_name: String) -> Self {
         let data_dir = resolve_data_dir();
         let db_path = std::env::var("HKASK_DB_PATH")
             .unwrap_or_else(|_| data_dir.join(DEFAULT_DB_PATH).to_string_lossy().to_string());
@@ -233,10 +223,6 @@ impl ServiceConfig {
         let template_cache_path = std::env::var("HKASK_TEMPLATE_CACHE_PATH")
             .unwrap_or_else(|_| DEFAULT_TEMPLATE_CACHE_PATH.to_string());
         let memory_db_path = std::env::var("HKASK_MEMORY_DB_PATH").ok();
-        let registry_yaml_path = std::path::PathBuf::from(
-            std::env::var("HKASK_REPLICANT_REGISTRY_PATH")
-                .unwrap_or_else(|_| "registry/replicants".to_string()),
-        );
         let memory_life_days = std::env::var("HKASK_MEMORY_LIFE_DAYS")
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
@@ -254,10 +240,9 @@ impl ServiceConfig {
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
             default_model: inference_config.default_model.clone(),
-            agent_name,
+            user_name,
             template_cache_path,
             memory_db_path,
-            registry_yaml_path,
             wallet_config: WalletConfig::default(),
             memory_life_days,
             curator_auto_consolidation_enabled,
@@ -285,10 +270,9 @@ impl ServiceConfig {
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: true,
             default_model: inference_config.default_model.clone(),
-            agent_name: TEST_AGENT_NAME.to_string(),
+            user_name: TEST_USER_NAME.to_string(),
             template_cache_path: DEFAULT_TEMPLATE_CACHE_PATH.to_string(),
             memory_db_path: None,
-            registry_yaml_path: std::path::PathBuf::from("registry/bots"),
             wallet_config: WalletConfig::default(),
             memory_life_days: 180.0,
             curator_auto_consolidation_enabled: false,
@@ -325,7 +309,7 @@ fn parse_db_provider(raw: &str) -> DbProvider {
 impl ServiceConfig {
     /// Returns the effective memory DB path when `in_memory: false`.
     ///
-    /// Uses the standard agent directory layout: `agents/{agent_name}/memory.db`.
+    /// Uses the standard userpod directory layout: `userpods/{user_name}/memory.db`.
     /// This puts the agent's memory database alongside its pod database in the
     /// same directory, so all of an agent's data is self-contained in one folder.
     ///
@@ -339,7 +323,7 @@ impl ServiceConfig {
             return None;
         }
         Some(
-            hkask_types::agent_paths::agent_memory_db(&self.agent_name)
+            hkask_types::agent_paths::userpod_memory_db(&self.user_name)
                 .to_string_lossy()
                 .to_string(),
         )

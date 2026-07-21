@@ -196,7 +196,7 @@ fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<NuE
         .cloned()
         .or_else(|| std::env::var("HKASK_DB_PATH").ok())
         .unwrap_or_else(|| {
-            let p = hkask_types::agent_paths::agent_pod_db("cns");
+            let p = hkask_types::agent_paths::userpod_pod_db("cns");
             let resolved = hkask_types::agent_paths::resolve_under_data_dir(&p);
             if let Some(parent) = resolved.parent() {
                 std::fs::create_dir_all(parent).ok();

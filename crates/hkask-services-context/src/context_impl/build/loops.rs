@@ -324,7 +324,7 @@ pub(super) async fn build_loops(
 fn cleanup_stranded_matrix_entries() {
     use std::path::Path;
 
-    let agents_dir = Path::new(hkask_types::agent_paths::AGENTS_DIR);
+    let agents_dir = Path::new(hkask_types::agent_paths::USERPODS_DIR);
     if !agents_dir.exists() || !agents_dir.is_dir() {
         return;
     }

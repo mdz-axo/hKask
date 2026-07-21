@@ -901,7 +901,7 @@ impl UserStore {
     /// pre:  (none)
     /// post: returns Vec of all replicants ordered by creation time
     #[must_use = "result must be used"]
-    pub fn list_all_userpods(&self) -> UserResult<Vec<UserPod>> {
+    pub fn list_userpods(&self) -> UserResult<Vec<UserPod>> {
         let sql =
             format!("SELECT {USERPOD_COLUMNS} FROM userpod_identities ORDER BY created_at ASC");
         query_map(&*self.driver, &sql, &[], |row| {

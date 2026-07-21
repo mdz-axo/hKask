@@ -236,7 +236,7 @@ impl CuratorSync {
     /// Scan agent directories for manifest.json files and rebuild the
     /// cross-agent artifact index. Called at the end of each sync tick.
     fn sync_artifacts(&self) {
-        let agents_dir = std::path::Path::new(hkask_types::agent_paths::AGENTS_DIR);
+        let agents_dir = std::path::Path::new(hkask_types::agent_paths::USERPODS_DIR);
         if !agents_dir.exists() {
             return;
         }

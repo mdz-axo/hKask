@@ -310,7 +310,7 @@ impl ThreadRegistry {
 // ── Free I/O functions (no borrow on registry) ──────────────────────────
 
 fn threads_dir(agent_name: &str) -> PathBuf {
-    hkask_types::agent_paths::agent_dir(agent_name).join("threads")
+    hkask_types::agent_paths::userpod_dir(agent_name).join("threads")
 }
 
 fn write_thread_file(agent_name: &str, thread: &ChatThread) {

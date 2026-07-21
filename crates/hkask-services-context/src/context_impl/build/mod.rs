@@ -28,7 +28,7 @@ impl AgentService {
     /// 7. Inference port (optional, based on config)
     /// 8. Memory adapters (episodic + semantic)
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError> {
-        let system_webid = WebID::from_persona(config.agent_name.as_bytes());
+        let system_webid = WebID::from_persona(config.user_name.as_bytes());
 
         // ── Foundation: database, stores, CNS, seam watcher ──────────────
         let mut foundation = foundation::build_foundation(&config).await?;

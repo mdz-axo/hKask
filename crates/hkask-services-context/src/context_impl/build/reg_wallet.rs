@@ -48,7 +48,7 @@ pub(super) async fn build_registry_and_wallet(
         })?;
         let registered_userpods =
             user_guard
-                .list_all_userpods()
+                .list_userpods()
                 .map_err(|e| ServiceError::Domain {
                     kind: ErrorKind::BadRequest,
                     domain: DomainKind::Agent,
@@ -112,7 +112,7 @@ fn build_wallet(
     let wallet_db_path = if config.in_memory {
         None
     } else {
-        let path = hkask_types::agent_paths::agent_wallet_db(&config.agent_name);
+        let path = hkask_types::agent_paths::userpod_wallet_db(&config.user_name);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).ok();
         }
@@ -127,7 +127,7 @@ fn build_wallet(
                     tracing::info!(
                         target: "cns.wallet",
                         path = %path_str,
-                        agent = %config.agent_name,
+                        agent = %config.user_name,
                         "Per-agent wallet database opened"
                     );
                     let pool = db.sqlite_pool().map_err(|e| ServiceError::Domain {
@@ -247,7 +247,7 @@ fn build_wallet(
             source: None,
             message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
-        if let Ok(Some(system_identity)) = user_guard.get_userpod(&config.agent_name) {
+        if let Ok(Some(system_identity)) = user_guard.get_userpod(&config.user_name) {
             let user_id = system_identity.user_id;
             if let Ok(Some(identity)) = user_guard.get_userpod_by_user(&user_id) {
                 if identity.wallet_id.is_none() {

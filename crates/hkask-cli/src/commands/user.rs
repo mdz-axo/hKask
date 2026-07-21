@@ -356,7 +356,7 @@ pub fn list_userpods(store: &Store) -> Result<(), ServiceError> {
     let replicants = store
         .lock()
         .expect("CLI operation")
-        .list_all_userpods()
+        .list_userpods()
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,

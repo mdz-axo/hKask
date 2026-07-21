@@ -9,7 +9,7 @@ use hkask_mcp::BUILTIN_SERVERS;
 
 fn build_agent_service(rt: &tokio::runtime::Runtime) -> hkask_services_context::AgentService {
     let ctx = super::helpers::build_agent_service();
-    let userpod_name = ctx.config().agent_name.clone();
+    let userpod_name = ctx.config().user_name.clone();
     super::helpers::start_mcp_servers_with_env(rt, &ctx, BUILTIN_SERVERS, &userpod_name);
     ctx
 }

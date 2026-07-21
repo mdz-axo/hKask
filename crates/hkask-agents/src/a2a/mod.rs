@@ -523,16 +523,6 @@ impl A2ARuntime {
         state.revoked_tokens.insert(token_id.to_string());
     }
 
-    /// Get all delegation tokens for agent
-    pub(crate) async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
-        let state = self.state.read().await;
-        state
-            .capability_tokens
-            .get(webid)
-            .cloned()
-            .unwrap_or_default()
-    }
-
     /// List all registered agents.
     ///
     /// expect: "Agent interactions are gated by OCAP boundaries"

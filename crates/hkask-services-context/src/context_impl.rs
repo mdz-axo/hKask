@@ -336,7 +336,7 @@ impl AgentService {
             });
         }
 
-        let db_path = hkask_types::agent_paths::agent_memory_db(agent_name);
+        let db_path = hkask_types::agent_paths::userpod_memory_db(agent_name);
         let db = Database::open(&db_path.to_string_lossy(), &self.config.db_passphrase).map_err(
             |e| ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
@@ -375,7 +375,7 @@ impl AgentService {
     ) -> Result<(usize, usize, usize), ServiceError> {
         let target_webid = WebID::for_agent_name(agent_name);
 
-        let db_path = hkask_types::agent_paths::agent_memory_db(agent_name);
+        let db_path = hkask_types::agent_paths::userpod_memory_db(agent_name);
         let db = Database::open(&db_path.to_string_lossy(), &self.config.db_passphrase).map_err(
             |e| ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
@@ -434,7 +434,7 @@ impl AgentService {
     /// one component.
     #[must_use = "result must be used"]
     pub fn per_agent_memory(&self, agent_name: &str) -> Result<PerAgentMemory, ServiceError> {
-        let db_path = hkask_types::agent_paths::agent_memory_db(agent_name);
+        let db_path = hkask_types::agent_paths::userpod_memory_db(agent_name);
         let db = Database::open(&db_path.to_string_lossy(), &self.config.db_passphrase).map_err(
             |e| ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
