@@ -96,7 +96,7 @@ pub(crate) fn render_settings(state: &ReplState) -> String {
         }
     } else {
         out.push_str(
-            "  \x1b[36m─ model info ─\x1b[0m  (not fetched yet — switch models to populate)\n",
+            "  \x1b[36m─ model info ─\x1b[0m  (not available — provider catalog does not expose context_length; using DEFAULT_CONTEXT_WINDOW)\n",
         );
     }
     out.push_str("  \x1b[36m─ model defaults ─\x1b[0m\n");
@@ -272,6 +272,17 @@ pub struct ModelMeta {
     pub supports_thinking: bool,
     pub capabilities: Vec<String>,
 }
+
+/// Fallback context-window size (tokens) used when `model_meta` is `None`.
+///
+/// Provenance: this is a conservative default, NOT a measured value. The
+/// inference router's model catalog (`RouterModelEntry`) does not expose
+/// `context_length`, so until a provider metadata fetch is wired (REPL spec
+/// Phase 15), the system uses this named default rather than a bare magic
+/// number. Real `model_meta.context_length` always takes precedence when
+/// present. 128K matches the context window of the default fallback model
+/// family (`DEFAULT_FALLBACK_MODEL` in `hkask-inference::model_constants`).
+pub const DEFAULT_CONTEXT_WINDOW: u32 = 128_000;
 
 fn default_emb_model() -> String {
     hkask_inference::model_constants::embedding_model()

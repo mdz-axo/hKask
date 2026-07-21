@@ -360,10 +360,41 @@ impl ChatWindow {
                 );
             }
             "repl" => {
-                self.add_message(
-                    MessageSender::CnsAlert,
-                    "REPL settings: /repl show | /repl set <key> <value>".into(),
-                );
+                let sub = parts.get(1).copied().unwrap_or("");
+                match self.settings_bridge.as_ref() {
+                    Some(b) => match sub {
+                        "" | "show" | "status" => {
+                            self.add_message(MessageSender::CnsAlert, b.settings_display());
+                        }
+                        "set" => {
+                            // parts: ["/repl", "set", <key>, <value...>]
+                            let key = parts.get(2).copied().unwrap_or("");
+                            let value = parts[3..].join(" ");
+                            if key.is_empty() {
+                                self.add_message(
+                                    MessageSender::CnsAlert,
+                                    "Usage: /repl set <key> <value>".into(),
+                                );
+                            } else {
+                                match b.set_setting(key, &value) {
+                                    Ok(msg) => self.add_message(MessageSender::CnsAlert, msg),
+                                    Err(e) => self.add_message(
+                                        MessageSender::CnsAlert,
+                                        format!("Error: {}", e),
+                                    ),
+                                }
+                            }
+                        }
+                        _ => self.add_message(
+                            MessageSender::CnsAlert,
+                            "REPL settings: /repl show | /repl set <key> <value>".into(),
+                        ),
+                    },
+                    None => self.add_message(
+                        MessageSender::CnsAlert,
+                        "REPL settings unavailable in this host. Use `kask repl` to manage settings.".into(),
+                    ),
+                }
             }
             "agent" => {
                 self.add_message(
@@ -833,9 +864,7 @@ mod tests {
     }
 
     #[test]
-    :    #[test]
         fn prompt_colors_are_visible() {
-            // All mode colors should be different
             let chat_color = TuiMode::Chat.prompt_color();
             let cmd_color = TuiMode::Command.prompt_color();
             let curator_color = TuiMode::Curator.prompt_color();
@@ -852,9 +881,8 @@ mod tests {
         fn model_command_switches_model_via_settings_bridge() {
             let (_sys, repl) = crate::test_util::mock_bridges();
             let settings = crate::test_util::mock_settings_bridge();
-            let mut chat =
-                ChatWindow::new(make_window_id(), "test-agent", "old-model", repl)
-                    .with_settings_bridge(settings);
+            let mut chat = ChatWindow::new(make_window_id(), "test-agent", "old-model", repl)
+                .with_settings_bridge(settings);
             assert_eq!(chat.model, "old-model");
 
             chat.execute_slash_command("/model new-model");
@@ -875,16 +903,15 @@ mod tests {
 
             chat.execute_slash_command("/model");
 
-            let last = chat.messages.last().expect("a status message was added");
-            assert!(
-                last.content.contains("Current model: m"),
-                "got: {}",
-                last.content
-            );
-            assert!(
-                last.content.contains("% used"),
-                "/model must show real context pressure %, not a fake token count; got: {}",
-                last.content
-            );
+                    let status = chat
+                        .messages
+                        .iter()
+                        .find(|m| m.content.contains("Current model: m"))
+                        .expect("a status message with the current model was added");
+                    assert!(
+                        status.content.contains("% used"),
+                        "/model must show real context pressure %, not a fake token count; got: {}",
+                        status.content
+                    );
         }
     }

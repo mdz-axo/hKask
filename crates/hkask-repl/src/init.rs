@@ -608,9 +608,13 @@ pub(super) fn init_repl_state(
     }
 
     // ── Phase 15: Model Metadata ───────────────────────────────────────────
-    super::handlers::model::populate_model_meta(&mut state, rt);
+        // `model_meta` is intentionally left `None`: the provider catalog does not
+        // expose `context_length`, so fabricating one would corrupt the
+        // context-pressure loop. The inference path falls back to
+        // `DEFAULT_CONTEXT_WINDOW` until a real metadata fetch is wired (tracked
+        // separately). See `hkask-repl::handlers::repl_settings::DEFAULT_CONTEXT_WINDOW`.
 
-    Some(state)
+        Some(state)
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────

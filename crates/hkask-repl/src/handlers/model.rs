@@ -1,15 +1,6 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
-use crate::handlers::repl_settings::ModelMeta;
 use hkask_services_inference::{InferenceContext, InferenceService};
-
-pub fn populate_model_meta(state: &mut super::super::ReplState, _rt: &tokio::runtime::Handle) {
-    state.repl_settings.model_meta = Some(ModelMeta {
-        context_length: 16384,
-        supports_thinking: false,
-        capabilities: Vec::new(),
-    });
-}
 
 /// Resolved model switch — resolved name + rendered detail.
 ///
@@ -23,11 +14,13 @@ pub(crate) struct ResolvedModel {
 }
 
 /// Resolve `name` against the model catalog and apply it to `state`.
-/// Single match => switch + populate metadata. Zero/err => store verbatim.
+/// Single match => switch the active model. Zero/err => store verbatim.
 /// Multiple => leave model unchanged, return candidate list as detail.
 ///
-/// Shared by the REPL `/model` handler and the TUI `SettingsBridge` so both
-/// surfaces use one resolver (no parallel logic).
+/// `model_meta` is intentionally left untouched: the catalog does not expose
+/// `context_length`, so fabricating one (the old `16384` magic number) would
+/// corrupt the context-pressure loop. Real metadata population awaits a
+/// provider fetch (REPL spec Phase 15) and is tracked separately.
 pub(crate) fn resolve_and_set_model(
     state: &mut super::super::ReplState,
     rt: &tokio::runtime::Handle,
@@ -48,7 +41,6 @@ pub(crate) fn resolve_and_set_model(
             if let Some(ref quant) = m.quantization_level {
                 detail.push_str(&format!("Quantization: {}\n", quant));
             }
-            populate_model_meta(state, rt);
             ResolvedModel {
                 resolved_name: state.current_model.clone(),
                 detail,

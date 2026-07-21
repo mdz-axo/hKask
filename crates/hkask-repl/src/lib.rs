@@ -43,6 +43,7 @@ use hkask_memory as _;
 
 use commands::handle_slash_command;
 use handlers::ReplSettings;
+use handlers::repl_settings::DEFAULT_CONTEXT_WINDOW;
 use helper::KaskHelper;
 
 /// Talk configuration — paired voice design and enabled state.
@@ -362,7 +363,7 @@ pub fn run_tui(
         model,
         pending: std::sync::Mutex::new(std::collections::HashMap::new()),
         alert_count: std::sync::atomic::AtomicU32::new(0),
-        context_window: std::sync::atomic::AtomicU32::new(128_000),
+        context_window: std::sync::atomic::AtomicU32::new(DEFAULT_CONTEXT_WINDOW),
         context_used: std::sync::atomic::AtomicU32::new(0),
         last_companies_search: std::sync::Mutex::new(None),
         last_research_search: std::sync::Mutex::new(None),
@@ -630,7 +631,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 .model_meta
                 .as_ref()
                 .map(|m| m.context_length)
-                .unwrap_or(128_000);
+                .unwrap_or(DEFAULT_CONTEXT_WINDOW);
             (Self::build_result(&capture), ctx_len)
         };
         let input_tokens = (input.len() as u32 / 4).max(1);
