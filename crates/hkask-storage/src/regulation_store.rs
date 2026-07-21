@@ -70,14 +70,14 @@ const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &[
 define_driver_store!(RegulationArchive);
 
 impl RegulationArchive {
-    /// Initialize the nu_events and loop_cursors tables (idempotent).
+    /// Initialize the reg_records and reg_cursors tables (idempotent).
     ///
     /// expect: "The system provides durable storage for event data"
-    /// \[P3\] Motivating: Generative Space — nu_events schema
-    /// post: nu_events and loop_cursors tables exist
+    /// \[P3\] Motivating: Generative Space — reg_records schema
+    /// post: reg_records and reg_cursors tables exist
     fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
-            "CREATE TABLE IF NOT EXISTS nu_events (
+            "CREATE TABLE IF NOT EXISTS reg_records (
                 id TEXT PRIMARY KEY,
                 timestamp TEXT NOT NULL,
                 observer_webid TEXT NOT NULL,
@@ -91,9 +91,9 @@ impl RegulationArchive {
                 parent_event TEXT,
                 visibility TEXT NOT NULL DEFAULT 'internal'
             );
-            CREATE INDEX IF NOT EXISTS idx_nu_events_timestamp ON nu_events(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_nu_events_span_category_phase ON nu_events(span_category, phase);
-            CREATE TABLE IF NOT EXISTS loop_cursors (
+            CREATE INDEX IF NOT EXISTS idx_reg_records_timestamp ON reg_records(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_reg_records_span_category_phase ON reg_records(span_category, phase);
+            CREATE TABLE IF NOT EXISTS reg_cursors (
                 key TEXT PRIMARY KEY,
                 value INTEGER NOT NULL,
                 updated_at TEXT NOT NULL
@@ -169,7 +169,7 @@ impl RegulationArchive {
 
     pub(crate) fn insert(&self, event: &RegulationRecord) -> Result<(), InfrastructureError> {
         self.insert_with_sql(
-            "INSERT INTO nu_events (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
+            "INSERT INTO reg_records (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             event,
         )
@@ -178,7 +178,7 @@ impl RegulationArchive {
 
     fn insert_if_absent(&self, event: &RegulationRecord) -> Result<bool, InfrastructureError> {
         self.insert_with_sql(
-            "INSERT OR IGNORE INTO nu_events (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
+            "INSERT OR IGNORE INTO reg_records (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             event,
         )
@@ -238,7 +238,7 @@ impl RegulationArchive {
     pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), InfrastructureError> {
         self.driver
             .execute(
-                "INSERT OR REPLACE INTO loop_cursors (key, value, updated_at) VALUES (?1, ?2, ?3)",
+                "INSERT OR REPLACE INTO reg_cursors (key, value, updated_at) VALUES (?1, ?2, ?3)",
                 &[
                     DbValue::Text(key.to_string()),
                     DbValue::Integer(value),
@@ -261,7 +261,7 @@ impl RegulationArchive {
     pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, InfrastructureError> {
         query_row(
             &*self.driver,
-            "SELECT value FROM loop_cursors WHERE key = ?1",
+            "SELECT value FROM reg_cursors WHERE key = ?1",
             &[DbValue::Text(key.to_string())],
             |row| row.get_int(0),
         )
@@ -290,7 +290,7 @@ impl RegulationArchive {
         let prefix_pattern = format!("{}%", namespace_prefix);
         let sql = "SELECT id, timestamp, observer_webid, span_category, span_path, phase, \
                    observation, regulation, outcome, recursion_depth, parent_event, visibility \
-                   FROM nu_events \
+                   FROM reg_records \
                    WHERE timestamp > ?1 AND span_category LIKE ?2 \
                    ORDER BY timestamp ASC \
                    LIMIT ?3";
@@ -300,7 +300,7 @@ impl RegulationArchive {
             DbValue::Integer(limit as i64),
         ];
         query_map(&*self.driver, sql, &params, |row| {
-            row_to_nu_event(row).map_err(|e| db_error(e.to_string()))
+            row_to_regulation_record(row).map_err(|e| db_error(e.to_string()))
         })
         .map_err(|e| InfrastructureError::database(e.to_string()))
     }
@@ -322,7 +322,7 @@ impl RegulationArchive {
         let since_str = since.to_rfc3339();
         let prefix_pattern = format!("{}%", namespace_prefix);
         let sql = "SELECT span_category, COUNT(*) as cnt \
-                   FROM nu_events \
+                   FROM reg_records \
                    WHERE timestamp > ?1 AND span_category LIKE ?2 \
                    GROUP BY span_category \
                    ORDER BY cnt DESC";
@@ -360,7 +360,7 @@ impl RegulationArchive {
         let sql = format!(
             "SELECT id, timestamp, observer_webid, span_category, span_path, phase, \
              observation, regulation, outcome, recursion_depth, parent_event, visibility \
-             FROM nu_events \
+             FROM reg_records \
              WHERE timestamp > ?1 AND span_category IN ({}) AND phase = 'act' \
              ORDER BY timestamp ASC \
              LIMIT ?{}",
@@ -375,7 +375,7 @@ impl RegulationArchive {
         }
         params.push(DbValue::Integer(limit as i64));
         query_map(&*self.driver, &sql, &params, |row| {
-            row_to_nu_event(row).map_err(|e| db_error(e.to_string()))
+            row_to_regulation_record(row).map_err(|e| db_error(e.to_string()))
         })
         .map_err(|e| InfrastructureError::database(e.to_string()))
     }
@@ -387,7 +387,7 @@ fn db_error(e: String) -> hkask_database::types::DbError {
 }
 
 /// Reconstruct a RegulationRecord from a database row.
-fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<RegulationRecord> {
+fn row_to_regulation_record(row: &hkask_database::value::DbRow) -> anyhow::Result<RegulationRecord> {
     let id: String = row
         .get_str(0)
         .map_err(|e| anyhow::anyhow!("{e}"))?
@@ -592,7 +592,7 @@ mod tests {
     }
 
     #[test]
-    fn persist_if_absent_accepts_a_nu_event_only_once() {
+    fn persist_if_absent_accepts_a_regulation_record_only_once() {
         use crate::RegulationArchive;
         use hkask_database::sqlite::SqliteDriver;
         use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink};
@@ -665,7 +665,7 @@ mod tests {
         let driver = SqliteDriver::new(pool);
         driver
             .execute_batch(
-                "CREATE TABLE IF NOT EXISTS nu_events (
+                "CREATE TABLE IF NOT EXISTS reg_records (
                 id TEXT PRIMARY KEY,
                 timestamp TEXT NOT NULL,
                 observer_webid TEXT NOT NULL,
@@ -679,7 +679,7 @@ mod tests {
                 parent_event TEXT,
                 visibility TEXT NOT NULL DEFAULT 'internal'
             );
-            CREATE TABLE IF NOT EXISTS loop_cursors (
+            CREATE TABLE IF NOT EXISTS reg_cursors (
                 key TEXT PRIMARY KEY,
                 value INTEGER NOT NULL,
                 updated_at TEXT NOT NULL

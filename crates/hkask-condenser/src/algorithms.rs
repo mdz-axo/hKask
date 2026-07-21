@@ -415,7 +415,7 @@ pub fn persona_to_anchor(description: &str, capabilities: &[String]) -> Option<O
             || *w == "spec"
             || *w == "skill"
             || *w == "pipeline"
-            || *w == "cns"
+            || *w == "cns" /* legacy stopword */
     }) {
         return Some(OntologyAnchor::DualAxis {
             axis: OntologyAxis::Pko,

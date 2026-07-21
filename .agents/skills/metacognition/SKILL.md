@@ -1,12 +1,12 @@
 ---
 name: metacognition
 visibility: public
-description: "Master self-reflection skill. Reflects on a context and sees it from different perspectives — decomposes goals, self-assesses progress, detects ellipses (what is missing) via Bloom's method, rotates perspectives via the Falstaffian engine, and calibrates strategy. Improves itself through GEPA evolutionary optimization (gpa-evolution). Composes sequential-inquiry, pragmatic-laziness, and hypothesis-framer. Any replicant may invoke this skill."
+description: "Master self-reflection skill. Reflects on a context and sees it from different perspectives — decomposes goals, self-assesses progress, detects ellipses (what is missing) via Bloom's method, rotates perspectives via the Falstaffian engine, and calibrates strategy. Improves itself through GEPA evolutionary optimization (gpa-evolution). Composes sequential-inquiry, pragmatic-laziness, and hypothesis-framer. Any userpod may invoke this skill."
 ---
 
 # Metacognition
 
-Master self-reflection skill. Any replicant — curator, bot, agent, or ensemble member — can invoke metacognition to reflect on a context and see it from different perspectives. The skill decomposes a goal into sub-goals, self-assesses progress from multiple angles, detects ellipses (what is missing) via Harold Bloom's method, rotates perspectives via the Falstaffian engine, calibrates strategy based on prior outcomes, and produces a concrete next experiment. The skill improves itself through GEPA (Genetic-Pareto) evolutionary optimization via the `gpa-evolution` skill.
+Master self-reflection skill. Any userpod — curator, bot, agent, or ensemble member — can invoke metacognition to reflect on a context and see it from different perspectives. The skill decomposes a goal into sub-goals, self-assesses progress from multiple angles, detects ellipses (what is missing) via Harold Bloom's method, rotates perspectives via the Falstaffian engine, calibrates strategy based on prior outcomes, and produces a concrete next experiment. The skill improves itself through GEPA (Genetic-Pareto) evolutionary optimization via the `gpa-evolution` skill.
 
 ## When to Use
 
@@ -40,7 +40,7 @@ Act:    Step 7 — Loop          → If not converged, re-enter at Step 1 with r
 
 **Field**: `step_5_result.convergence_metric`
 
-The convergence metric measures whether the replicant's self-assessment and calibration are sufficiently stable to act on. Computed by the `meta-convergence-check.j2` template:
+The convergence metric measures whether the userpod's self-assessment and calibration are sufficiently stable to act on. Computed by the `meta-convergence-check.j2` template:
 
 | Score | Meaning |
 |-------|---------|
@@ -272,6 +272,6 @@ evaluation uses single-model inference.
 - Effort estimates must sum to ~1.0 (±0.1). Dependency graph must be acyclic.
 - The next experiment must be small and testable, not a large commitment.
 - Falstaffian shape selection must match the context — don't force a shape that doesn't fit.
-- GEPA self-improvement is optional — it costs gas and should be invoked when the replicant wants to improve, not on every cycle.
+- GEPA self-improvement is optional — it costs gas and should be invoked when the userpod wants to improve, not on every cycle.
 - Jinja2 sandboxed execution: no arbitrary Python code when safety mode is enabled.
 - Registry is authoritative — when this SKILL.md disagrees with registry templates, the registry wins.

@@ -6,7 +6,7 @@ crate:
   version: "0.31.0"
   description: >
     Voice profile mapping template. Maps a TTS profile preset (Rachel, Aria,
-    Charlie, or custom) to a replicant, replica, or system agent (curator)
+    Charlie, or custom) to a userpod, replica, or system agent (curator)
     via the VoiceDesign contract (types/voice.rs). Verifies that the profile
     maps to VoiceDesign.to_elevenlabs_voice() without loss of gender, age, or
     timbre (non-pass-through). Referenced by registry/manifests/voice-models.yaml
@@ -20,7 +20,7 @@ templates:
     lexicon_terms: [voice, profile, map, agent, preset, tts, mapping]
     description: >
       Build a registered voice profile that binds a profile preset to an
-      agent mapping (replicant, replica, or system_agent). Returns the
+      agent mapping (userpod, replica, or system_agent). Returns the
       profile_preset, model_reference, agent_mapping, agent_reference_text,
       voice_contract (with fidelity_check), simplification_mode, and
       gap_declarations. Enforces no anonymous profiles: every profile must

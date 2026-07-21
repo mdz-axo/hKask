@@ -6,6 +6,6 @@
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
-    let boot = hkask_mcp::bootstrap_mcp_server("cns", "hkask.mcp.cns", "HKASK_MCP_HOST").await?;
+    let boot = hkask_mcp::bootstrap_mcp_server("regulation", "hkask.mcp.regulation", "HKASK_MCP_HOST").await?;
     hkask_mcp_regulation::run(boot.userpod, boot.daemon_client).await
 }

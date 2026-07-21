@@ -410,7 +410,7 @@ impl MetacognitionLoop {
             .map(|d| {
                 serde_json::json!({
                     "id": d.signal.metric.as_str(),
-                    "source_bot": "cns",
+                    "source_bot": "regulation",
                     "type": d.signal.metric.as_str(),
                     "severity": if d.magnitude > 2.0 { "critical" } else { "warning" },
                     "first_observed": d.signal.timestamp.to_rfc3339(),

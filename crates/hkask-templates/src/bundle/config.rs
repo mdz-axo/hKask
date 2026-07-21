@@ -178,14 +178,14 @@ impl Default for OcapConfig {
 /// CNS monitoring configuration. Loaded from manifest YAML, spans handled by GovernedTool at runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
-pub struct BundleCnsConfig {
+pub struct BundleLedgerConfig {
     pub emit_spans: bool,
     pub span_namespace: String,
     pub variety_monitoring: bool,
     pub algedonic_threshold: u32,
     pub escalation_target: String,
 }
-impl Default for BundleCnsConfig {
+impl Default for BundleLedgerConfig {
     fn default() -> Self {
         Self {
             emit_spans: true,

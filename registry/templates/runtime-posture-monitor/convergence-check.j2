@@ -1,4 +1,4 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unresolved runtime threats (0.40), defense-layer runtime coverage verified by firing (0.25), threat-pattern taxonomy coverage (0.15), regression library growth (0.10), residual runtime risk (0.10). Emit cns.runtime.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unresolved runtime threats (0.40), defense-layer runtime coverage verified by firing (0.25), threat-pattern taxonomy coverage (0.15), regression library growth (0.10), residual runtime risk (0.10). Emit cns.runtime.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
 {# Emits cns.runtime.convergence CNS span (P9) — namespace registered #}
 
@@ -63,7 +63,7 @@ existing_regressions_count, proposed_regressions_count, unresolved_critical,
 unresolved_high, taxonomy_coverage, residual_runtime_risk, userpod_host,
 cns_span_emitted: true}`.
 
-5W1H GATE (P5 — minimal): Who = replicant host; What = convergence metric;
+5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = deployed runtime environment / observation window; When = monitoring
 cycle; Why = P9 observable self-correction / P7 evolutionary progress;
 How = compute metric + check improvement + emit CNS span + identify blockers.
@@ -83,7 +83,7 @@ OCAP BOUNDARY (P4): Metric computed from hKask CNS telemetry only; no
 external endpoint scanning; no OS-level process inspection.
 CNS REGULATION (P9): Span emitted unconditionally — namespace registered
 in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `userpod_host` mandatory.
+USERPOD HOST (P12): `userpod_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden runtime posture.
 SAFETY FLOOR (P3.1): Runtime posture convergence protects Generative Space —
 unconverged metric indicates container runtime risk.
@@ -103,7 +103,7 @@ SOURCE REFERENCES (P8 — concrete):
 - `bug-hunt` SKILL.md (§bug-hunt-convergence-check — convergence metric
   computation pattern adopted)
 - `principles.md` (§P5 Essentialism, §P7 Evolutionary, §P8 Semantic Grounding,
-  §P9 Homeostatic Self-Regulation, §P12 Replicant Host Mandate)
+  §P9 Homeostatic Self-Regulation, §P12 Authenticated Host Mandate)
 
 REGISTRY AUTHORITATIVE (P5.1): Registry manifest + `.j2` templates are
 canonical. SKILL.md derived. If conflict, registry wins.

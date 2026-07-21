@@ -142,7 +142,7 @@ impl CyberneticsLoop {
         Self::build(ledger, set_points)
     }
 
-    fn build(cns: Arc<RwLock<RegulationLedger>>, set_points: SetPoints) -> Self {
+    fn build(ledger: Arc<RwLock<RegulationLedger>>, set_points: SetPoints) -> Self {
         let dampener = Arc::new(Dampener::with_windows(
             std::time::Duration::from_secs(set_points.dampen_window_secs),
             std::time::Duration::from_secs(set_points.metacognitive_window_secs),
@@ -166,7 +166,7 @@ impl CyberneticsLoop {
                 set_points.gas_min_remaining,
             )));
             registry.register(Arc::new(VarietySensor::new(
-                Arc::clone(&cns),
+                Arc::clone(&ledger),
                 set_points.variety_max_deficit,
             )));
             registry.register(Arc::new(WalletKeyHealthSensor::new(Arc::clone(
@@ -180,7 +180,7 @@ impl CyberneticsLoop {
         };
 
         Self {
-            cns,
+            edger,
             gas_budget_manager,
             well_manager: Arc::new(RwLock::new(WellManager::new())),
             wallet_manager: None,
@@ -388,7 +388,7 @@ impl CyberneticsLoop {
     async fn emit_regulation_span(&self, kind: SpanKind, observation: serde_json::Value) {
         if let Some(ref sink) = self.event_sink {
             let event = RegulationRecord::new(
-                WebID::from_persona(b"cns"),
+                WebID::from_persona(b"regulation"),
                 Span::from_kind(kind),
                 CyclePhase::Act,
                 observation,
@@ -788,8 +788,8 @@ impl CyberneticsLoop {
 
     async fn apply_calibrate_threshold(&self, domain: &str, new_threshold: u64) {
         let ledger = self.ledger.read().await;
-        cns.calibrate_threshold(domain, new_threshold).await;
-        drop(cns);
+        ledger.calibrate_threshold(domain, new_threshold).await;
+        drop(ledger);
         tracing::info!(
             target: "reg.cybernetics",
             domain = domain,
@@ -828,7 +828,7 @@ impl CyberneticsLoop {
     fn persist_directive_acknowledgment(&self, directive_type: &str) {
         if let Some(ref sink) = self.event_sink {
             let ack = RegulationRecord::new(
-                WebID::from_persona(b"cns"),
+                WebID::from_persona(b"regulation"),
                 Span::from_kind(SpanKind::CurationDirectiveAcknowledged),
                 CyclePhase::Act,
                 serde_json::json!({
@@ -990,7 +990,7 @@ impl RegulationLoop for CyberneticsLoop {
                 }
                 if !sent && let Some(ref sink) = self.event_sink {
                     let event = RegulationRecord::new(
-                        WebID::from_persona(b"cns"),
+                        WebID::from_persona(b"regulation"),
                         Span::from_kind(SpanKind::VarietyAlgedonicAlert),
                         CyclePhase::Act,
                         serde_json::json!({
@@ -1092,7 +1092,7 @@ impl RegulationLoop for CyberneticsLoop {
                 .iter()
                 .filter_map(|a| a.parameters.data.remaining_ratio())
                 .fold(1.0, f64::min);
-            cns.emit_backpressure(BackpressureSignal {
+            ledger.emit_backpressure(BackpressureSignal {
                 source: LoopId::Cybernetics,
                 reason: "energy_budget_depletion".into(),
                 severity: 1.0 - worst_ratio,
@@ -1145,7 +1145,7 @@ impl RegulationLoop for CyberneticsLoop {
                 if !sent_live {
                     if let Some(ref sink) = self.event_sink {
                         let event = RegulationRecord::new(
-                            WebID::from_persona(b"cns"),
+                            WebID::from_persona(b"regulation"),
                             Span::from_kind(SpanKind::VarietyAlgedonicAlert),
                             CyclePhase::Act,
                             serde_json::json!({
@@ -1191,9 +1191,9 @@ impl RegulationLoop for CyberneticsLoop {
             .all_agent_statuses()
             .await;
         let ledger = self.ledger.read().await;
-        let health = cns.health().await;
+        let health = ledger.health().await;
         let current_deficit = health.overall_deficit as f64;
-        drop(cns);
+        drop(ledger);
 
         for action in previous_actions {
             // Determine metric and pre-action value from the typed RegulationData.
@@ -1372,8 +1372,8 @@ impl RegulationLoop for CyberneticsLoop {
         // SLO evaluation — runs every tick when provider is wired.
         if let Some(ref provider) = self.slo_provider {
             let ledger = self.ledger.read().await;
-            let _ = cns.evaluate_and_escalate_slos(provider.as_ref()).await;
-            drop(cns);
+            let _ = ledger.evaluate_and_escalate_slos(provider.as_ref()).await;
+            drop(ledger);
         }
 
         let signals = self.sense().await;
@@ -1450,8 +1450,8 @@ impl RegulationLoop for CyberneticsLoop {
                 .filter(|r| r.decision == ActionDecision::Block)
                 .count() as u64;
             let ledger = self.ledger.read().await;
-            let cumulative = cns.regulation_health().await.effectiveness();
-            cns.record_regulation_cycle(RegulationCycleEntry {
+            let cumulative = ledger.regulation_health().await.effectiveness();
+            ledger.record_regulation_cycle(RegulationCycleEntry {
                 timestamp: chrono::Utc::now(),
                 signals: signals.len() as u64,
                 deviations: deviations.len() as u64,
@@ -1522,7 +1522,7 @@ impl RegulationLoop for CyberneticsLoop {
                 let ledger = self.ledger.read().await;
                 let mut watcher = watcher.lock().await;
                 if let Some(ref sink) = self.event_sink {
-                    let drifts = watcher.check_drift(&cns, sink.as_ref()).await;
+                    let drifts = watcher.check_drift(&edger, sink.as_ref()).await;
                     if !drifts.is_empty()
                         && let Some(ref tx) = self.alerts_tx
                     {
@@ -1913,7 +1913,7 @@ mod tests {
     #[tokio::test]
     async fn new_loop_starts_with_default_quality() {
         let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
-        let loop_instance = CyberneticsLoop::new(cns);
+        let loop_instance = CyberneticsLoop::new(ledger);
         let q = loop_instance.loop_quality().await;
         assert_eq!(q.delay_ms, 0);
         assert!((q.gain - 0.0).abs() < f64::EPSILON);
@@ -1923,7 +1923,7 @@ mod tests {
     #[tokio::test]
     async fn tick_updates_loop_quality() {
         let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
-        let loop_instance = CyberneticsLoop::new(cns);
+        let loop_instance = CyberneticsLoop::new(ledger);
         loop_instance.tick().await;
         let q = loop_instance.loop_quality().await;
         // After a tick, gain and fidelity should be computed (even if delay_ms is 0)

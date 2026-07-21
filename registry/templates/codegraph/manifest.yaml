@@ -22,12 +22,12 @@ templates:
       and entry symbols for further traversal.
 
   - id: codegraph/codegraph-query
-    name: "Query the code graph for symbols relevant to the replicant's goal"
+    name: "Query the code graph for symbols relevant to the userpod's goal"
     path: codegraph-query.j2
     type: KnowAct
     lexicon_terms: [query, search, find, locate, identify]
     description: >
-      Query the code graph for symbols relevant to the replicant's goal.
+      Query the code graph for symbols relevant to the userpod's goal.
       Scores results by relevance, identifies traversal targets, and flags
       gaps for further exploration.
 

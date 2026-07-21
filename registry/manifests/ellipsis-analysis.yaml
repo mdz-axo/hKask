@@ -1,6 +1,6 @@
 # File: registry/manifests/ellipsis-analysis.yaml
 # Ellipsis Analysis Process Manifest
-# ℏKask v0.21.0 - A Minimal Viable Container for Replicants
+# ℏKask v0.21.0 - A Minimal Viable Container for UserPods
 
 manifest:
   id: ellipsis-analysis

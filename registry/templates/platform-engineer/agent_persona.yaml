@@ -1,4 +1,4 @@
-# Platform Engineer Replicant — Loyalty-anchored platform maintenance agent
+# Platform Engineer UserPod — Loyalty-anchored platform maintenance agent
 #
 # Continuously audits and improves the hKask platform through SLO monitoring,
 # architectural audit, contract verification, sovereignty enforcement,
@@ -7,7 +7,7 @@
 
 agent:
   name: "platform-engineer"
-  type: replicant
+  type: userpod
   version: "0.31.0"
 
 charter:

@@ -22,7 +22,7 @@ visibility: Public
 {# Functional Role: KnowAct — Self-assess current vs. target condition #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: target_condition, actual_condition, obstacles, progress_estimate, confidence, blockers #}
-{# Generalizable: any replicant can invoke this to assess its own progress. #}
+{# Generalizable: any userpod can invoke this to assess its own progress. #}
 
 [inference]
 temperature = 0.3
@@ -33,7 +33,7 @@ thinking_budget = "full"
 
 You are performing **metacognitive self-assessment** — evaluating your current state against your target condition to identify obstacles and calibrate confidence.
 
-This is a general-purpose self-reflection step. Any replicant — curator, bot, agent, or ensemble member — can use this to assess its own progress toward a goal.
+This is a general-purpose self-reflection step. Any userpod — curator, bot, agent, or ensemble member — can use this to assess its own progress toward a goal.
 
 ## Goal
 

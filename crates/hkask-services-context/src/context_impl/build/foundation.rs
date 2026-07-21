@@ -20,7 +20,7 @@ pub(super) struct Foundation {
     /// Abstracted event store for gas report queries and calibration.
     pub gas_event_store: Arc<dyn LedgerStoragePort>,
     /// Concrete ν-event store for SLO evaluation and CNS queries.
-    pub nu_event_store: Arc<RegulationArchive>,
+    pub regulation_store: Arc<RegulationArchive>,
 }
 
 pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
@@ -109,14 +109,14 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
     // values from prior sessions from triggering false algedonic alerts.
     {
         let ledger = ledger_runtime.read().await;
-        cns.reset_variety().await;
+        ledger.reset_variety().await;
     }
 
     // Seam watcher — non-fatal if inventory unavailable.
     let seam_watcher: Arc<RwLock<Option<SeamWatcher>>> = {
         let ledger = ledger_runtime.read().await;
         if let Some(watcher) = SeamWatcher::load() {
-            watcher.register_domains(&cns).await;
+            watcher.register_domains(&ledger).await;
             let summary = watcher.summary();
             tracing::info!(
                 target: "bootstrap",
@@ -151,6 +151,6 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         seam_watcher,
         cns_event_sink: cns_event_sink.clone(),
         gas_event_store,
-        nu_event_store: gas_store,
+        regulation_store: gas_store,
     })
 }

@@ -22,7 +22,7 @@ use std::sync::{Arc, RwLock};
 
 /// Routes that bypass authentication (health checks, model listing).
 const PUBLIC_PATHS: &[&str] = &[
-    "/api/cns/health",
+    "/api/regulation/health",
     "/api/models",
     "/api/models/search",
     "/api/v1/auth",

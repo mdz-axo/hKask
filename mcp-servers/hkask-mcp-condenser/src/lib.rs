@@ -144,7 +144,7 @@ impl CondenserServer {
                     "semantic_memory": self.semantic.is_some(),
                     "inference": true,
                     "keystore": self.capability_tier.keystore_available,
-                    "cns": self.capability_tier.cns_available(),
+                    "reg": self.capability_tier.reg_available(),
                 },
                 "profile": engine.stats.current_profile,
                 "suggested_profile": engine.suggest_profile().to_string(),

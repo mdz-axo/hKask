@@ -1,4 +1,4 @@
-{# goal: Synthesize classified runtime threats with MITRE CWE (CWE-1357/CWE-829/CWE-200), OWASP LLM (LLM06/LLM07), MITRE ATLAS (AML.TA0010) taxonomy (P8). For each threat: emit cns.regulation event and trigger cns.guard.violation if blocking warranted. Propose RR-NNNN.yaml entries (surface: runtime, status: pending, concrete pattern against span target). Identify defense-layer firing gaps. Emit cns.runtime.regulate span (P9 — namespace registered). Replicant_host mandatory (P12). No synthetic findings (P8). Registry authoritative (P5.1). #}
+{# goal: Synthesize classified runtime threats with MITRE CWE (CWE-1357/CWE-829/CWE-200), OWASP LLM (LLM06/LLM07), MITRE ATLAS (AML.TA0010) taxonomy (P8). For each threat: emit cns.regulation event and trigger cns.guard.violation if blocking warranted. Propose RR-NNNN.yaml entries (surface: runtime, status: pending, concrete pattern against span target). Identify defense-layer firing gaps. Emit cns.runtime.regulate span (P9 — namespace registered). UserPod_host mandatory (P12). No synthetic findings (P8). Registry authoritative (P5.1). #}
 {# Synthesizes classify-threat findings with CWE/OWASP/ATLAS taxonomy #}
 {# Proposes RR-NNNN.yaml entries with surface: runtime #}
 {# Emits cns.runtime.regulate CNS span (P9) #}
@@ -74,7 +74,7 @@ recommendation, regulation/guard span emission status), `defense_layers_firing`,
 review), `regulation_events_emitted` (count), `guard_violations_emitted`
 (count), `verdict`, `userpod_host`, `source_citations`, `cns_span_reference`.
 
-5W1H GATE CHECK (P5): Who = running application / replicant host; What =
+5W1H GATE CHECK (P5): Who = running application / userpod host; What =
 threat synthesis + regulation action; Where = deployed runtime environment;
 When = observation window; Why = P3.1 safe container / P9 observable
 regulation; How = synthesize + classify + regulate + propose regression +
@@ -100,7 +100,7 @@ external endpoint scanning; no OS-level process inspection.
 CNS REGULATION (P9): `cns.runtime.regulate` emitted unconditionally
 (namespace registered). `cns.regulation` and `cns.guard.violation` emitted
 for downstream consumption (both registered).
-REPLICANT HOST (P12): `userpod_host` mandatory in all outputs.
+USERPOD HOST (P12): `userpod_host` mandatory in all outputs.
 VISIBILITY (P11): Regression proposals `status: pending` — public
 transparency, not hidden control.
 SAFETY FLOOR (P3.1): Runtime threat detection protects the Generative Space

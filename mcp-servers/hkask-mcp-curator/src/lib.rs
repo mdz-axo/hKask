@@ -30,7 +30,7 @@ const SERVER_NAME: &str = "hkask-mcp-curator";
 hkask_mcp::mcp_server!(
     pub struct CuratorServer {
         escalation_queue: Option<Arc<hkask_storage::EscalationQueue>>,
-        nu_event_store: Option<Arc<hkask_storage::RegulationArchive>>,
+        regulation_store: Option<Arc<hkask_storage::RegulationArchive>>,
         episodic: Option<hkask_memory::EpisodicMemory>,
         semantic: Option<Arc<hkask_memory::SemanticMemory>>,
         token_registry: Option<Arc<dyn hkask_capability::TokenRegistry>>,
@@ -52,7 +52,7 @@ impl CuratorServer {
                 "daemon_connected": self.daemon.is_some(),
                 "stores": {
                     "escalation_queue": self.escalation_queue.is_some(),
-                    "nu_event_store": self.nu_event_store.is_some(),
+                    "regulation_store": self.regulation_store.is_some(),
                     "episodic": self.episodic.is_some(),
                     "semantic": self.semantic.is_some(),
                 }
@@ -110,7 +110,7 @@ impl CuratorServer {
                     "EscalationQueue not available",
                 ));
             };
-            let Some(ref events_store) = self.nu_event_store else {
+            let Some(ref events_store) = self.regulation_store else {
                 return Err(McpToolError::permission_denied(
                     "RegulationArchive not available",
                 ));
@@ -135,7 +135,7 @@ impl CuratorServer {
                     "EscalationQueue not available",
                 ));
             };
-            let Some(ref events_store) = self.nu_event_store else {
+            let Some(ref events_store) = self.regulation_store else {
                 return Err(McpToolError::permission_denied(
                     "RegulationArchive not available",
                 ));
@@ -294,7 +294,7 @@ impl CuratorServer {
         Parameters(req): Parameters<AlgedonicLogRequest>,
     ) -> String {
         execute_tool(self, "curator_algedonic_log", async {
-            let Some(ref store) = self.nu_event_store else {
+            let Some(ref store) = self.regulation_store else {
                 return Err(McpToolError::permission_denied(
                     "RegulationArchive not available",
                 ));
@@ -331,7 +331,7 @@ impl CuratorServer {
     )]
     pub async fn cns_query(&self, Parameters(req): Parameters<CnsQueryRequest>) -> String {
         execute_tool(self, "cns_query", async {
-            let Some(ref store) = self.nu_event_store else {
+            let Some(ref store) = self.regulation_store else {
                 return Err(McpToolError::permission_denied(
                     "RegulationArchive not available",
                 ));
@@ -451,14 +451,14 @@ pub async fn run(
         SERVER_NAME,
         env!("CARGO_PKG_VERSION"),
         |ctx: hkask_mcp::server::ServerContext| {
-            let (escalation_queue, nu_event_store, episodic, semantic, token_registry) =
+            let (escalation_queue, regulation_store, episodic, semantic, token_registry) =
                 open_curator_stores(&ctx);
             Ok(CuratorServer::new(
                 ctx.webid,
                 userpod.clone(),
                 daemon_client.clone(),
                 escalation_queue,
-                nu_event_store,
+                regulation_store,
                 episodic,
                 semantic,
                 token_registry,
@@ -536,7 +536,7 @@ fn open_curator_stores(
             None
         }
     };
-    let nu_event_store = Some(Arc::new(hkask_storage::RegulationArchive::from_driver(
+    let regulation_store = Some(Arc::new(hkask_storage::RegulationArchive::from_driver(
         Arc::clone(&driver),
     )));
     // RegulationArchive schema initialized by from_driver().
@@ -555,7 +555,7 @@ fn open_curator_stores(
 
     (
         escalation_queue,
-        nu_event_store,
+        regulation_store,
         Some(episodic),
         Some(semantic),
         token_registry,

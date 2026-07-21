@@ -65,7 +65,7 @@ async fn service_builds_with_in_memory_config() {
     // CNS runtime should be accessible
     let ledger = svc.ledger().runtime.read().await;
     // Domains may be empty at startup — that's valid
-    drop(cns);
+    drop(ledger);
 
     // All store accessors should return valid references
     let _goal_repo = svc.storage().goals.clone();

@@ -40,7 +40,7 @@ unpinned versions, missing lockfile tracking).
 
 ## Design Constraints (Grounded in Project Principles)
 
-- **P5 Essentialism (5W1H gate):** Who = dependency maintainer / replicant
+- **P5 Essentialism (5W1H gate):** Who = dependency maintainer / userpod
   host (P12); What = manifest entry / dependency graph; Where = workspace
   file / registry URL; When = scan cycle / manifest version; Why = P3.1
   safe container / P1 user sovereignty over dependencies / P4 explicit
@@ -63,10 +63,10 @@ unpinned versions, missing lockfile tracking).
   `cns.supply_chain.report`, `cns.supply_chain.convergence` spans. All four
   are registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
   and emitted unconditionally.
-- **P10 Bot/replicant taxonomy:** `visibility: public` — transparent audit.
+- **P10 Bot/userpod taxonomy:** `visibility: public` — transparent audit.
 - **P11 Visibility:** Regression proposals default `status: pending`
   (human-curated ratchet, per `security/regressions/README.md`).
-- **P12 Replicant host mandate:** Every action includes `userpod_host`.
+- **P12 Authenticated host mandate:** Every action includes `userpod_host`.
 - **P3.1 Safety floor:** Supply chain integrity protects the Generative
   Space container.
 - **P4 OCAP boundaries:** Reads only declared workspace manifest paths;
@@ -209,7 +209,7 @@ CONSTRAINT — Evidence integrity (P8):
    - Fail: critical/high findings present or < 2 defense layers present.
 6. Emit `cns.supply_chain.report` CNS span with findings count by
    severity, defense layers present/missing, proposed regression count,
-   replicant host, verdict, latency metric.
+   userpod host, verdict, latency metric.
 
 ### supply-chain-sentinel/convergence-check
 
@@ -292,7 +292,7 @@ not speculatively.
   (`surface: supply-chain`), CNS span emission (`cns.supply_chain.*`),
   and convergence tracking — all within user sovereignty (P1), consent
   (P2), generative space (P3), OCAP boundaries (P4), essentialism (P5),
-  replicant space (P6), evolutionary architecture (P7), semantic grounding
+  userpod space (P6), evolutionary architecture (P7), semantic grounding
   (P8), homeostatic regulation (P9), explicit taxonomy (P10), visibility
   governance (P11), and host mandate (P12).
 

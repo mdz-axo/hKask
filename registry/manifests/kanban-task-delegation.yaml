@@ -1,7 +1,7 @@
 # Kanban Task Delegation Skill
 # ℏKask v0.27.0 — Agent coordination via kanban boards
 #
-# Handles the initial handoff of kanban tasks to sub-replicants:
+# Handles the initial handoff of kanban tasks to sub-userpods:
 # configure spawn parameters and execute the task. Ongoing
 # coordination (verification, feedback, board management) is
 # handled by the kanban-task-management skill.
@@ -17,7 +17,7 @@ manifest:
   name: Kanban Task Delegation
   version: "0.2.0"
   description: >
-    Delegate kanban tasks to sub-replicants. Configure spawn
+    Delegate kanban tasks to sub-userpods. Configure spawn
     parameters (delegation level, skills, memory scope, tool
     servers, gas budget, timeout) and execute the task. The
     spawned agent works on the task, producing deliverables
@@ -43,7 +43,7 @@ steps:
     description: >
       Configure spawn for a task. Determine delegation level (minimal,
       standard, maximal), skills to delegate, memory scope, tool servers,
-      gas budget, and timeout. The replicant chooses what to delegate
+      gas budget, and timeout. The userpod chooses what to delegate
       — spawning is consent-mediated (P1).
     renderer: minijinja
     template_ref: kanban-task-delegation/configure-spawn
@@ -74,7 +74,7 @@ steps:
   - ordinal: 2
     action: populate
     description: >
-      Execute the spawned task. The replicant works on the task,
+      Execute the spawned task. The userpod works on the task,
       producing deliverables and appending progress notes to the
       task's comment thread. The coordinator monitors progress
       through the kanban-task-management skill.
@@ -92,7 +92,7 @@ cns:
 # outcomes: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   - name: task_spawned
 #     condition: "spawn configured successfully"
-#     action: "Replicant spawned for task execution"
+#     action: "UserPod spawned for task execution"
 #   - name: task_executing
 #     condition: "agent working on task"
 #     action: "Task execution in progress"

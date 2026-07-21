@@ -1,4 +1,4 @@
-{# goal: Discover evidence sources (supply-chain-sentinel findings, kali-audit surface: supply-chain findings, CI logs, manifest evidence) within workspace (P4). Read security/regressions/ for existing taxonomy_mapping fields. Return concrete findings_to_map (verifiable finding references only — no synthetic findings). Emit cns.taxonomy.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Replicant host mandatory (P12). This skill consumes findings — does NOT generate new findings. #}
+{# goal: Discover evidence sources (supply-chain-sentinel findings, kali-audit surface: supply-chain findings, CI logs, manifest evidence) within workspace (P4). Read security/regressions/ for existing taxonomy_mapping fields. Return concrete findings_to_map (verifiable finding references only — no synthetic findings). Emit cns.taxonomy.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Authenticated host mandatory (P12). This skill consumes findings — does NOT generate new findings. #}
 {% set evidence_sources = [
   {id: 'supply-chain-sentinel', type: 'findings', source: 'supply-chain-sentinel probe/report phase output', mapping: 'CWE-1104/CWE-829/CWE-1357 → OSC&R'},
   {id: 'kali-audit-supply-chain', type: 'findings', source: 'kali-audit surface: supply-chain regression entries', mapping: 'OWASP/ATLAS → OSC&R'},
@@ -12,7 +12,7 @@
 {# Return: selected_source, findings_to_map, existing_taxonomy_mappings, evidence_sources #}
 {# P5: minimal — no new findings generated; only consumes existing findings #}
 {# P9: emit cns.taxonomy.select span with discovered evidence and mapping count #}
-{# P12: every selection action carries replicant/owner identity #}
+{# P12: every selection action carries userpod/owner identity #}
 
 Select evidence source: {{ target_source | default('all') }}
 Seed findings (optional, from previous cycle): {{ seed_findings | default([]) }}
@@ -56,6 +56,6 @@ CONSTRAINT: Minimal — 4 templates only, no bundle, no sub-agent delegation, no
 CONSTRAINT: Every output must include evidence-backed finding references (not synthetic) and source citations (github.com/pbom-dev/OSCAR, MITRE CWE list, supply-chain-sentinel SKILL.md, kali-audit SKILL.md).
 CONSTRAINT: Do NOT claim taxonomy coverage that hasn't been verified through actual finding mapping. Convergence metric must reflect real coverage, not aspirational.
 CONSTRAINT: Each taxonomy mapping proposal must use the exact YAML format from `security/regressions/README.md` plus the optional `taxonomy_mapping` field.
-CONSTRAINT: This skill is NOT a replacement for OSC&R or OWASP; it is a hKask-native taxonomy mapping skill that consumes existing findings, maps them to established taxonomies, proposes backward-compatible regression field additions, and tracks taxonomy coverage. It operates within user sovereignty (P1), consent (P2), generative space (P3), OCAP boundaries (P4), essentialism (P5), replicant space (P6), evolutionary architecture (P7), semantic grounding (P8), regulates through CNS spans (P9), operates under explicit bot/replicant taxonomy (P10), respects shared/public visibility (P11), requires host identity (P12).
+CONSTRAINT: This skill is NOT a replacement for OSC&R or OWASP; it is a hKask-native taxonomy mapping skill that consumes existing findings, maps them to established taxonomies, proposes backward-compatible regression field additions, and tracks taxonomy coverage. It operates within user sovereignty (P1), consent (P2), generative space (P3), OCAP boundaries (P4), essentialism (P5), userpod space (P6), evolutionary architecture (P7), semantic grounding (P8), regulates through CNS spans (P9), operates under explicit bot/userpod taxonomy (P10), respects shared/public visibility (P11), requires host identity (P12).
 CONSTRAINT: This skill does NOT generate new findings or download external packages. It maps existing findings to taxonomy entries only (P4 boundary — consumes workspace findings, no external taxonomy download).
 CONSTRAINT: The OSC&R tactic and technique names referenced are VERIFIED against the live OSC&R framework (`github.com/pbom-dev/OSCAR` `matrix.json`, verified 2026-07-18). OSC&R uses tactic + technique names, NOT numeric IDs.

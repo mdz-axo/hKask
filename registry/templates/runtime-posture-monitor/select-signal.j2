@@ -1,4 +1,4 @@
-{# goal: Discover runtime signal sources (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within the deployed replicant host (P4 runtime boundary — distinct from supply-chain-sentinel's manifest boundary). Read security/regressions/ for existing surface: runtime checks. Return concrete signal_sources (verifiable span targets only — no synthetic signals). Emit cns.runtime.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Replicant host mandatory (P12). Signal parameter: guard | regulation | tool | inference | all. #}
+{# goal: Discover runtime signal sources (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within the deployed userpod host (P4 runtime boundary — distinct from supply-chain-sentinel's manifest boundary). Read security/regressions/ for existing surface: runtime checks. Return concrete signal_sources (verifiable span targets only — no synthetic signals). Emit cns.runtime.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Authenticated host mandatory (P12). Signal parameter: guard | regulation | tool | inference | all. #}
 {% set signal_types = [
   {id: 'guard', targets: ['cns.guard.input', 'cns.guard.output', 'cns.guard.canary', 'cns.guard.runtime_policy'], source: 'hkask-guard pipeline + hkask-templates executor'},
   {id: 'regulation', targets: ['cns.regulation', 'cns.regulation.impact_verified', 'cns.regulation.action_blocked', 'cns.regulation.action_substituted', 'cns.regulation.plateau_detected'], source: 'hkask-cns cybernetics loop'},
@@ -7,12 +7,12 @@
   {id: 'all', targets: [], discover: true, source: 'auto-discover all hkask.* and cns.* performative spans actually emitted by the running system'}
 ] %}
 
-{# Discover runtime signal sources in the deployed replicant host #}
+{# Discover runtime signal sources in the deployed userpod host #}
 {# Read security/regressions/ to find existing surface: runtime entries (ratcheted) #}
 {# Return: selected_signal, signal_sources, signal_types, existing_regressions, defense_layers #}
 {# P5: minimal — no synthetic signals; only observe spans actually emitted by the running system #}
 {# P9: emit cns.runtime.select span with discovered signal sources and regression count #}
-{# P12: every selection action carries replicant/owner identity #}
+{# P12: every selection action carries userpod/owner identity #}
 
 Select signal: {{ target_signal | default('all') }}
 Discovered signal sources: {{ discovered_signals | default([]) }}
@@ -22,7 +22,7 @@ Convergence baseline: {{ convergence_metric | default(1.0) }}
 
 {# Evidence: concrete span targets only — no fabricated signal findings #}
 {# Source citations: hkask-guard pipeline (cns.guard.*), hkask-cns cybernetics loop (cns.regulation.*) #}
-{# 5W1H gate: Who = running application / replicant host (P12); What = runtime signal / span target; Where = deployed runtime environment; Why = P3.1 safe container requires runtime blocking; How = observe + classify + regulate + report #}
+{# 5W1H gate: Who = running application / userpod host (P12); What = runtime signal / span target; Where = deployed runtime environment; Why = P3.1 safe container requires runtime blocking; How = observe + classify + regulate + report #}
 
 ACTION: Emit `cns.runtime.select` span (P9, P12) with discovered signal sources, selected signal type, and regression count.
 ACTION: Read `security/regressions/` for entries with `surface: runtime` and `status: enforced`.
@@ -45,11 +45,11 @@ CONSTRAINT: If `security/regressions/` contains `surface: runtime` entries, read
 CONSTRAINT: Propose `surface: runtime` regression format: `id: RR-XXXX`, `surface: runtime`, `cwe: CWE-XXX`, `owasp_llm: LLMXX`, `atlas_tactic: AML.TAXXXX`, `discovered_in: <span_target>`, `status: pending` (human must flip to `enforced`).
 CONSTRAINT: Do NOT invent CVE numbers or vulnerability descriptions. Only propose regressions for patterns actually discovered in runtime telemetry: repeated guard violations, regulation plateaus, tool invocation anomalies, inference rate spikes.
 CONSTRAINT: If signal discovery finds zero runtime signals, return empty signal_sources and recommend `signal: guard` or `signal: regulation` based on deployed components — do not invent signals.
-CONSTRAINT: The 5W1H gate applies: Who (running application / replicant host), What (runtime signal / span target), When (observation window / timestamp), Where (deployed runtime environment / production workload), Why (P3.1 safe container requires runtime blocking / P1 sovereignty over runtime behavior / P4 clear boundary — runtime behavior must be explicitly observed), How (discover + observe + classify + regulate + report + propose regression).
+CONSTRAINT: The 5W1H gate applies: Who (running application / userpod host), What (runtime signal / span target), When (observation window / timestamp), Where (deployed runtime environment / production workload), Why (P3.1 safe container requires runtime blocking / P1 sovereignty over runtime behavior / P4 clear boundary — runtime behavior must be explicitly observed), How (discover + observe + classify + regulate + report + propose regression).
 CONSTRAINT: When referencing security taxonomy: use MITRE CWE (not invented), OWASP LLM 2025 (existing categories), and MITRE ATLAS (existing tactics) — not generic descriptions.
 CONSTRAINT: Minimal — 4 templates only, no bundle, no sub-agent delegation, no extra abstraction layer. Each template answers a specific 5W1H question (select: Where; classify: What + How; regulate: Why + What; convergence-check: When + Why).
 CONSTRAINT: Every output must include evidence-backed span references (not synthetic) and source citations (hkask-guard docs, hkask-cns docs, MITRE CWE list, OWASP LLM 2025 reference, MITRE ATLAS reference).
 CONSTRAINT: Do NOT claim runtime coverage that hasn't been verified through actual signal observation. Convergence metric must reflect real runtime coverage, not aspirational.
 CONSTRAINT: Each runtime threat finding proposal must use the exact YAML format from `security/regressions/README.md`: `id`, `title`, `surface: runtime`, `cwe`, `owasp_llm_2025`, `atlas_tactic`, `discovered_in`, `discovered_by`, `discovered_at`, `severity`, `detection`, `mitigation`, `ci_gate`, `status`.
-CONSTRAINT: This skill is NOT an EDR/MDR replacement for Huntress; it is a hKask-native runtime posture skill that observes CNS telemetry, applies security taxonomy, proposes CI-enforced regressions, and tracks defense-layer firing coverage. It operates within user sovereignty (P1) — reads only local CNS telemetry, makes no external network calls unless user grants consent (P2), produces transparent regression proposals (P3), respects runtime boundaries (P4), minimizes to essential checks (P5), provides generative space for replicant agents (P6), evolves from real runtime evidence (P7), grounds findings in semantic taxonomy (P8), regulates through CNS spans (P9), operates under explicit bot/replicant taxonomy (P10), respects shared/public visibility (P11), requires host identity (P12).
+CONSTRAINT: This skill is NOT an EDR/MDR replacement for Huntress; it is a hKask-native runtime posture skill that observes CNS telemetry, applies security taxonomy, proposes CI-enforced regressions, and tracks defense-layer firing coverage. It operates within user sovereignty (P1) — reads only local CNS telemetry, makes no external network calls unless user grants consent (P2), produces transparent regression proposals (P3), respects runtime boundaries (P4), minimizes to essential checks (P5), provides generative space for userpod agents (P6), evolves from real runtime evidence (P7), grounds findings in semantic taxonomy (P8), regulates through CNS spans (P9), operates under explicit bot/userpod taxonomy (P10), respects shared/public visibility (P11), requires host identity (P12).
 CONSTRAINT: This skill does NOT download external packages or scan OS-level endpoints. It observes hKask's own CNS telemetry only (P4 boundary — runtime CNS boundary, not OS endpoint boundary).

@@ -7,14 +7,14 @@
 //! - P4 (Clear Boundaries): serialization format drift breaks all downstream consumers
 //! - P8 (Semantic Grounding): each contract asserts a stated behavioral property
 
-use hkask_test_harness::strategies::{any_capability_spec, any_goal, any_nu_event};
+use hkask_test_harness::strategies::{any_capability_spec, any_goal, any_regulation_record};
 use proptest::prelude::*;
 
 // All shared types survive JSON serialization round-trips.
 
 proptest! {
     #[test]
-    fn nu_event_json_roundtrip(e in any_nu_event()) {
+    fn regulation_record_json_roundtrip(e in any_regulation_record()) {
         let json = serde_json::to_string(&e).unwrap();
         let back: hkask_types::event::RegulationRecord = serde_json::from_str(&json).unwrap();
         prop_assert_eq!(e.id, back.id);

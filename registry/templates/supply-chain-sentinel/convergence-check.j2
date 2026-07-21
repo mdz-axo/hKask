@@ -1,4 +1,4 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: critical/high findings (0.40), defense-layer coverage verified by manifest (0.25), CWE/taxonomy coverage (0.15), regression library growth (0.10), residual dependency risk (0.10). Emit cns.supply_chain.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). Replicant_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: critical/high findings (0.40), defense-layer coverage verified by manifest (0.25), CWE/taxonomy coverage (0.15), regression library growth (0.10), residual dependency risk (0.10). Emit cns.supply_chain.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
 {# Emits cns.supply_chain.convergence CNS span (P9) — namespace registered #}
 
@@ -54,7 +54,7 @@ existing_regressions_count, proposed_regressions_count, unresolved_critical,
 unresolved_high, taxonomy_coverage, residual_dependency_risk, userpod_host,
 cns_span_emitted: true}`.
 
-5W1H GATE (P5 — minimal): Who = replicant host; What = convergence metric;
+5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = audit cycle / workspace; When = scan cycle; Why = P9 observable
 self-correction / P7 evolutionary progress; How = compute metric + check
 improvement + emit CNS span (or note gap) + identify blockers.
@@ -73,7 +73,7 @@ OCAP BOUNDARY (P4): Metric computed from workspace manifest evidence only;
 no external dependency download; no ambient dependency scanning.
 CNS REGULATION (P9): Span emitted unconditionally — namespace registered
 in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `userpod_host` mandatory.
+USERPOD HOST (P12): `userpod_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden security posture.
 SAFETY FLOOR (P3.1): Supply chain convergence protects Generative Space —
 unconverged metric indicates container risk.
@@ -91,7 +91,7 @@ SOURCE REFERENCES (P8 — concrete):
 - `bug-hunt` SKILL.md (§bug-hunt-convergence-check — convergence metric
   computation pattern adopted)
 - `principles.md` (§P5 Essentialism, §P7 Evolutionary, §P8 Semantic Grounding,
-  §P9 Homeostatic Self-Regulation, §P12 Replicant Host Mandate)
+  §P9 Homeostatic Self-Regulation, §P12 Authenticated Host Mandate)
 - OSC&R framework (`github.com/pbom-dev/OSCAR`) — supply chain attack taxonomy reference
 - OWASP Supply Chain reference (taxonomy for supply chain findings)
 - Snyk Supply Chain docs (`docs.snyk.io/`) — context reference for dependency

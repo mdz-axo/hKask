@@ -31,7 +31,7 @@ model TEXT NOT NULL, \
 created_at TEXT DEFAULT (datetime('now'))\
 );\n\
 CREATE INDEX IF NOT EXISTS idx_embeddings_entity_ref ON embeddings(entity_ref);\n\
-CREATE TABLE IF NOT EXISTS nu_events (\
+CREATE TABLE IF NOT EXISTS reg_records (\
 id TEXT PRIMARY KEY, \
 timestamp TEXT NOT NULL, \
 observer_webid TEXT NOT NULL, \
@@ -45,8 +45,8 @@ recursion_depth INTEGER NOT NULL, \
 parent_event TEXT, \
 visibility TEXT NOT NULL DEFAULT 'private'\
 );\n\
-CREATE INDEX IF NOT EXISTS idx_nu_events_timestamp_category ON nu_events(timestamp, span_category);\n\
-CREATE INDEX IF NOT EXISTS idx_nu_events_category_phase ON nu_events(span_category, phase);\n\
+CREATE INDEX IF NOT EXISTS idx_reg_records_timestamp_category ON reg_records(timestamp, span_category);\n\
+CREATE INDEX IF NOT EXISTS idx_reg_records_category_phase ON reg_records(span_category, phase);\n\
 CREATE TABLE IF NOT EXISTS audit_log (\
 id TEXT PRIMARY KEY, \
 timestamp TEXT NOT NULL, \
@@ -119,7 +119,7 @@ quarantined_at TEXT NOT NULL, \
 repair_attempts INTEGER NOT NULL DEFAULT 0, \
 repaired INTEGER NOT NULL DEFAULT 0\
 );\n\
-CREATE TABLE IF NOT EXISTS loop_cursors (\
+CREATE TABLE IF NOT EXISTS reg_cursors (\
 key TEXT PRIMARY KEY, \
 value INTEGER NOT NULL, \
 updated_at TEXT NOT NULL\

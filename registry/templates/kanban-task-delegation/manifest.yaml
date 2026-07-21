@@ -11,12 +11,12 @@ crate:
 
 templates:
   - id: kanban-task-delegation/configure-spawn
-    name: "Propose the minimum capable, consent-mediated sub-replicant…"
+    name: "Propose the minimum capable, consent-mediated sub-userpod…"
     path: configure-spawn.j2
     type: KnowAct
     lexicon_terms: [delegate, configure, assess]
     description: >
-      Propose the minimum capable, consent-mediated sub-replicant configuration
+      Propose the minimum capable, consent-mediated sub-userpod configuration
       for one kanban task: delegation level, skills, memory scope, tool servers,
       gas budget, and timeout.
 

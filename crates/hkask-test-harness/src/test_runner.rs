@@ -26,7 +26,7 @@ pub struct ContractTestResult {
 pub struct ContractViolation {
     /// The test function name (e.g., "tests::proptest_tests::budget_never_exceeds_cap")
     pub test_name: String,
-    /// The REQ tag from the source (e.g., "P9-cns-energy-budget-test")
+    /// The REQ tag from the source (e.g., "P9-reg-energy-budget-test")
     pub contract_id: String,
     /// Human-readable failure reason extracted from test output
     pub failure_reason: String,
@@ -206,7 +206,7 @@ fn resolve_req_tag(
     (None, None)
 }
 
-/// Extract REQ tag from a comment line. Returns the tag value (e.g., "P9-cns-energy-budget-test").
+/// Extract REQ tag from a comment line. Returns the tag value (e.g., "P9-reg-energy-budget-test").
 fn extract_req_tag(line: &str) -> Option<String> {
     let trimmed = line.trim();
 
@@ -639,8 +639,8 @@ mod tests {
 
     #[test]
     fn extract_req_tag_from_line_comment() {
-        let tag = extract_req_tag("    // REQ: P9-cns-energy-budget-test");
-        assert_eq!(tag, Some("P9-cns-energy-budget-test".to_string()));
+        let tag = extract_req_tag("    // REQ: P9-reg-energy-budget-test");
+        assert_eq!(tag, Some("P9-reg-energy-budget-test".to_string()));
     }
 
     #[test]

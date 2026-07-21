@@ -1,5 +1,5 @@
 # Bootstrap Sequence — hKask System Initialization
-# ℏKask v0.21.0 - A Minimal Viable Container for Replicants
+# ℏKask v0.21.0 - A Minimal Viable Container for UserPods
 
 manifest:
   id: bootstrap-sequence
@@ -122,7 +122,7 @@ manifest:
 
 #   - ordinal: 12
 #     component: Curator
-#     type: replicant
+#     type: userpod
 #     manifest: registry/bots/Curator.yaml
 #     readiness_probe: bot_ping
 #     timeout_seconds: 60

@@ -44,7 +44,7 @@ use hkask_wallet_types::WalletError;
 // ── Helper implementation modules ─────────────────────────────────────
 
 mod message_key;
-mod nu_event;
+mod regulation_record;
 mod retryable;
 
 /// Discriminates error semantics for HTTP status code mapping.

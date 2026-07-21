@@ -1,7 +1,7 @@
 # Metacognition Process Manifest
 # ℏKask v0.31.0 — Self-reflective reasoning as convergent PDCA with GEPA improvement
 #
-# Generalizable: any replicant — curator, bot, agent, or ensemble member — can
+# Generalizable: any userpod — curator, bot, agent, or ensemble member — can
 # invoke this skill to perform metacognitive reasoning. Unlike the curator-
 # specific `curator-metacognition` manifest, this skill is domain-agnostic: it
 # decomposes a goal, self-assesses progress, calibrates strategy based on
@@ -24,7 +24,7 @@ manifest:
     through GEPA evolutionary optimization (gpa-evolution skill). Composes
     sequential-inquiry for chain-of-thought, pragmatic-laziness for least-
     action paths, and hypothesis-framer for testable hypotheses. Any
-    replicant may invoke this skill.
+    userpod may invoke this skill.
   functional_role: flowdef
   version: 0.31.0
   editor: curator-or-human-admin
@@ -54,12 +54,12 @@ inputs:
     type: string
     required: true
     description: >
-      The high-level goal the replicant wants to decompose and assess.
+      The high-level goal the userpod wants to decompose and assess.
   - name: session_history
     type: string
     required: false
     description: >
-      Textual history of the current session — what the replicant has done
+      Textual history of the current session — what the userpod has done
       so far, what tools it has called, what results it has seen.
   - name: prior_outcomes
     type: array
@@ -112,7 +112,7 @@ inputs:
     description: >
       When true, the decomposition template enforces strict sandbox
       constraints: no file system access, no network calls, no environment
-      variable access. Used when the replicant is in a restricted context.
+      variable access. Used when the userpod is in a restricted context.
   - name: run_gepa_improvement
     type: boolean
     required: false
@@ -121,7 +121,7 @@ inputs:
       When true, the GEPA self-improvement step (step 6) runs after
       convergence to evolve the metacognition templates through
       Genetic-Pareto evolutionary optimization. Defaults to false to avoid
-      gas overhead on routine cycles. Set to true when the replicant wants
+      gas overhead on routine cycles. Set to true when the userpod wants
       to improve its own metacognitive process.
 
 fusion:

@@ -1,13 +1,13 @@
 # Chat Template Crate — Ephemeral chat-session agent
 #
 # This is the minimal template crate for pod-mediated chat sessions.
-# It defines an ephemeral replicant with inference capability and
+# It defines an ephemeral userpod with inference capability and
 # private episodic memory. Pods created from this template are
 # transient — created per session, deactivated on exit.
 
 agent:
   name: "{{ agent_name }}"
-  type: Replicant
+  type: UserPod
   version: "0.1.0"
 
 charter:

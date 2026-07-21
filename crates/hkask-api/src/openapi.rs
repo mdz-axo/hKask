@@ -38,7 +38,7 @@ use crate::routes::{
 ///   Endpoints: `/api/templates`, `/api/v1/bundles`, `/api/v1/git/archive`.
 /// - **Pattern B — CNS Feedback Loop:** Cybernetic self-regulation via variety
 ///   counters, algedonic alerts, and homeostatic backpressure (P9).
-///   Endpoints: `/api/cns/health`, `/api/cns/variety`, `/api/cns/subscribe`.
+///   Endpoints: `/api/regulation/health`, `/api/regulation/variety`, `/api/regulation/subscribe`.
 /// - **Pattern C — Agentic AI Mediation:** Curator agent + escalation queue +
 ///   metacognition (Pattern C). Endpoints: `/api/chat`, `/api/v1/curator/*`.
 /// - **Pattern D — Agent Creation:** Pod lifecycle with sovereign memory, per-agent
@@ -139,7 +139,7 @@ use crate::routes::{
     tags(
         (name = "templates", description = "Template registry — WordAct / FlowDef / KnowAct skills (Pattern A)"),
         (name = "mcp", description = "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"),
-        (name = "cns", description = "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"),
+        (name = "regulation", description = "Regulation Ledger — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"),
         (name = "chat", description = "Curator chat interface — inference with model switching and streaming (Pattern C)"),
                 (name = "chat-ws", description = "Chat WebSocket — persistent bidirectional streaming agent chat with MCP tool support (P3)"),
         (name = "models", description = "Multi-provider model catalog (DeepInfra, fal.ai, Together AI, OpenRouter, KiloCode) — discover and search available LLMs"),

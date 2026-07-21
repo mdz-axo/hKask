@@ -1,6 +1,6 @@
 agent:
   name: Curator
-  type: Replicant
+  type: UserPod
   binding_contract: true
   editor: hKask-Administrator
 

@@ -59,10 +59,10 @@ pub(super) async fn build_loops(
         .with_alerts_channel(f.curation_inbox_tx.clone())
         .with_curator_directive_channel(curator_directive_rx)
         .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
-            &f.nu_event_store,
+            &f.regulation_store,
         ))))
         .with_set_point_calibrator(
-            Arc::clone(&f.nu_event_store) as Arc<dyn LedgerStoragePort>,
+            Arc::clone(&f.regulation_store) as Arc<dyn LedgerStoragePort>,
             DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
         )
         .with_seam_watcher();
@@ -151,12 +151,12 @@ pub(super) async fn build_loops(
     let cns_for_curator: Arc<RegulationLedger> = Arc::new(f.ledger_runtime.read().await.clone());
     let a2a_runtime = Arc::new(hkask_pods::A2ARuntime::new(&config.a2a_secret));
     let curator_context = Arc::new(
-        CuratorContext::with_nu_event_store(
+        CuratorContext::with_regulation_store(
             CuratorHandle::system(),
             cns_for_curator,
             Some(curator_directive_tx.clone()),
             Arc::clone(&f.escalation_queue) as Arc<dyn EscalationPort>,
-            Arc::clone(&f.nu_event_store) as Arc<dyn LedgerStoragePort>,
+            Arc::clone(&f.regulation_store) as Arc<dyn LedgerStoragePort>,
         )
         .with_a2a(a2a_runtime.clone())
         .with_consent_manager(Arc::clone(&f.consent_manager)),

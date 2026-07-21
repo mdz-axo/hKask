@@ -41,7 +41,7 @@ pub use history::{
     ImprovementDirection, ImprovementSignal, KataHistory, PracticeEntry, StepExperience,
 };
 pub use manifest::{
-    CoachQuestion, ErrorHandling, KataAuditConfig, KataCnsConfig, KataGasConfig, KataManifest,
+    CoachQuestion, ErrorHandling, KataAuditConfig, KataLedgerConfig, KataGasConfig, KataManifest,
     KataStep, ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,
 };
 pub use state::{KataResult, KataState};

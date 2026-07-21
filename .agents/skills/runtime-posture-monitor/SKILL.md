@@ -21,7 +21,7 @@ description: >
 
 # Runtime Posture Monitor
 
-{# goal: Observe runtime telemetry (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed replicant host (P4 runtime boundary). Classify runtime threats (endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly). Map to MITRE CWE-1357/CWE-829/CWE-200, OWASP LLM06/LLM07, ATLAS AML.TA0010. Emit cns.regulation and cns.guard.violation for downstream action. Propose concrete RR-NNNN.yaml entries (surface: runtime, status: pending, concrete grep pattern against span target). Emit cns.runtime.* spans (P9). Compute convergence metric from real runtime evidence only. No synthetic signals; no external endpoint scanning; userpod_host mandatory (P12). #}
+{# goal: Observe runtime telemetry (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed userpod host (P4 runtime boundary). Classify runtime threats (endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly). Map to MITRE CWE-1357/CWE-829/CWE-200, OWASP LLM06/LLM07, ATLAS AML.TA0010. Emit cns.regulation and cns.guard.violation for downstream action. Propose concrete RR-NNNN.yaml entries (surface: runtime, status: pending, concrete grep pattern against span target). Emit cns.runtime.* spans (P9). Compute convergence metric from real runtime evidence only. No synthetic signals; no external endpoint scanning; userpod_host mandatory (P12). #}
 
 Runtime security posture monitoring. Observes hKask's own CNS telemetry
 (`hkask.*` performative spans, `cns.guard.*` violations, `cns.regulation`
@@ -34,7 +34,7 @@ posture convergence metric.
 
 ## When to Use
 
-- Monitoring a deployed replicant host for runtime security anomalies.
+- Monitoring a deployed userpod host for runtime security anomalies.
 - Investigating runtime defense-layer firing patterns (`cns.guard.*`
   violations increasing? `cns.regulation.action_blocked` not keeping
   pace?).
@@ -46,7 +46,7 @@ posture convergence metric.
 
 ## Design Constraints (Grounded in Project Principles)
 
-- **P5 Essentialism (5W1H gate):** Who = running application / replicant
+- **P5 Essentialism (5W1H gate):** Who = running application / userpod
   host (P12); What = runtime signal / span target / threat pattern;
   Where = deployed runtime environment / production workload; When =
   observation window / continuous monitoring (not audit cycle); Why =
@@ -72,11 +72,11 @@ posture convergence metric.
   registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
   and emitted unconditionally. Also emits `cns.regulation` and
   `cns.guard.violation` for downstream consumption (both registered).
-- **P10 Bot/replicant taxonomy:** `visibility: public` — transparent
+- **P10 Bot/userpod taxonomy:** `visibility: public` — transparent
   runtime monitoring.
 - **P11 Visibility:** Regression proposals default `status: pending`
   (human-curated ratchet, per `security/regressions/README.md`).
-- **P12 Replicant host mandate:** Every action includes `userpod_host`.
+- **P12 Authenticated host mandate:** Every action includes `userpod_host`.
 - **P3.1 Safety floor:** Runtime threat detection protects the Generative
   Space container — runtime compromise is destructive to the space itself.
 - **P4 OCAP boundaries:** Observes only hKask's own CNS telemetry; no
@@ -97,7 +97,7 @@ posture convergence metric.
 
 ### runtime-posture-monitor/select-signal
 
-1. Discover runtime signal sources in the deployed replicant host:
+1. Discover runtime signal sources in the deployed userpod host:
    `hkask.*` performative spans, `cns.guard.*` violation spans
    (`cns.guard.input`, `cns.guard.output`, `cns.guard.canary`,
    `cns.guard.runtime_policy`), `cns.regulation` events
@@ -221,7 +221,7 @@ CONSTRAINT — Evidence integrity (P8):
    - Fail: critical/high threats present or < 3 defense layers firing.
 7. Emit `cns.runtime.regulate` CNS span with threats count by severity,
    defense layers firing/silent, proposed regression count, regulation
-   events emitted, guard violations emitted, verdict, replicant host,
+   events emitted, guard violations emitted, verdict, userpod host,
    latency metric.
 
 ### runtime-posture-monitor/convergence-check
@@ -348,7 +348,7 @@ catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
   emitted and evidence snippet can be quoted from CNS span history.
 - This skill does NOT scan OS-level endpoints or download external
   packages. It observes hKask's own CNS telemetry within the deployed
-  replicant host (P4 OCAP enforcement perimeter — runtime CNS boundary).
+  userpod host (P4 OCAP enforcement perimeter — runtime CNS boundary).
 - Propose `surface: runtime` regression entries only; do NOT reuse
   `surface: code`, `surface: template`, `surface: mcp`, `surface: config`,
   or `surface: supply-chain` — runtime threats have distinct defense-layer

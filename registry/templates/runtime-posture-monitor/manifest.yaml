@@ -27,7 +27,7 @@ templates:
     type: KnowAct
     lexicon_terms: [select, discover, signal, runtime, telemetry, monitor]
     description: >
-      Discover runtime signal sources within the deployed replicant host:
+      Discover runtime signal sources within the deployed userpod host:
       hkask.* performative spans (tool invocations, inference calls,
       communication events), cns.guard.* violation spans (input/output
       filter firings, canary detections, runtime policy enforcements),

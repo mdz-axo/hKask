@@ -20,7 +20,7 @@ impl ServiceError {
     /// pre:  self must be a valid ServiceError variant
     /// post: returns Some(RegulationRecord) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
     #[must_use]
-    pub fn nu_event(&self) -> Option<hkask_types::event::RegulationRecord> {
+    pub fn regulation_record(&self) -> Option<hkask_types::event::RegulationRecord> {
         use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
         use hkask_types::id::WebID;
 

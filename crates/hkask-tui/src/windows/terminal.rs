@@ -58,7 +58,6 @@ impl TerminalWindow {
         };
         Self {
             id,
-            bridge,
             input: String::new(),
             cursor_pos: 0,
             output,

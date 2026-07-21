@@ -517,7 +517,7 @@ mod reg_span_tests {
             );
             assert!(
                 s.starts_with("reg."),
-                "{:?} should start with cns.",
+                "{:?} should start with reg.",
                 variant
             );
             let parsed: RegulationSpan = s

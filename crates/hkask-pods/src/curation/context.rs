@@ -23,7 +23,7 @@ pub struct CuratorContext {
     escalation_port: Arc<dyn EscalationPort>,
     /// RegulationRecord store for algedonic review queries.
     /// Curation reads from the persistent log, not live CNS state.
-    nu_event_store: Option<Arc<dyn LedgerStoragePort>>,
+    regulation_store: Option<Arc<dyn LedgerStoragePort>>,
     /// A2A port for A2A messaging (e.g. directing bots).
     a2a_port: Option<Arc<A2ARuntime>>,
     /// Manifest executor for invoking KnowAct templates.
@@ -61,10 +61,10 @@ impl CuratorContext {
     ) -> Self {
         Self {
             handle,
-            cns,
+            ledger,
             curator_directive_tx,
             escalation_port,
-            nu_event_store: None,
+            regulation_store: None,
             a2a_port: None,
             manifest_executor: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
@@ -76,23 +76,23 @@ impl CuratorContext {
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — RegulationRecord store enables algedonic review
-    /// pre:  All arguments are valid (same as `new`); `nu_event_store` is
+    /// pre:  All arguments are valid (same as `new`); `regulation_store` is
     ///       a valid `Arc<dyn LedgerStoragePort>`.
-    /// post: Returns a `CuratorContext` with `nu_event_store` set, no
+    /// post: Returns a `CuratorContext` with `regulation_store` set, no
     ///       A2A port, and no manifest executor.
-    pub fn with_nu_event_store(
+    pub fn with_regulation_store(
         handle: CuratorHandle,
         ledger: Arc<RegulationLedger>,
         curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
         escalation_port: Arc<dyn EscalationPort>,
-        nu_event_store: Arc<dyn LedgerStoragePort>,
+        regulation_store: Arc<dyn LedgerStoragePort>,
     ) -> Self {
         Self {
             handle,
-            cns,
+            ledger,
             curator_directive_tx,
             escalation_port,
-            nu_event_store: Some(nu_event_store),
+            regulation_store: Some(regulation_store),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
@@ -163,8 +163,8 @@ impl CuratorContext {
     ///
     /// Curation reads from the persistent event log, not live CNS state.
     /// Returns None if no RegulationRecord store is configured (graceful degradation).
-    pub(crate) fn nu_event_store(&self) -> Option<&Arc<dyn LedgerStoragePort>> {
-        self.nu_event_store.as_ref()
+    pub(crate) fn regulation_store(&self) -> Option<&Arc<dyn LedgerStoragePort>> {
+        self.regulation_store.as_ref()
     }
 
     /// Access the escalation port for posting human review items.

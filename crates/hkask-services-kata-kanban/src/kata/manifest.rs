@@ -18,7 +18,7 @@ pub struct KataManifest {
     pub practices: Vec<PracticeRoutine>,
     #[serde(default)]
     pub error_handling: ErrorHandling,
-    pub ledger: KataCnsConfig,
+    pub ledger: KataLedgerConfig,
     #[serde(default)]
     pub outcomes: Vec<Outcome>,
     #[serde(default)]
@@ -142,7 +142,7 @@ impl Default for ErrorHandling {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct KataCnsConfig {
+pub struct KataLedgerConfig {
     #[serde(default = "default_true")]
     pub emit_spans: bool,
     pub span_namespace: String,

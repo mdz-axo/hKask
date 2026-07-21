@@ -165,7 +165,7 @@ steps:
                     description: "When to use /kanban improve for PDCA experiments"
                   coaching_guidance:
                     type: string
-                    description: "For the replicant: how to coach this task effectively"
+                    description: "For the userpod: how to coach this task effectively"
               description: "How to verify the fully reassembled deliverable"
 
   - ordinal: 3

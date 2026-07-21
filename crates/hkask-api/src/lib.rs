@@ -8,9 +8,9 @@
 //! - `GET /api/mcp/tools` — List tools
 //! - `GET /api/mcp/tools/:name` — Get tool definition
 //! - `POST /api/mcp/invoke` — Invoke an MCP tool
-//! - `GET /api/cns/health` — CNS health status
-//! - `GET /api/cns/alerts` — Algedonic alerts
-//! - `GET /api/cns/variety` — CNS variety counters
+//! - `GET /api/regulation/health` — CNS health status
+//! - `GET /api/regulation/alerts` — Algedonic alerts
+//! - `GET /api/regulation/variety` — CNS variety counters
 //! - `GET /api/pods` — List pods
 //! - `POST /api/pods` — Create pod
 //! - `POST /api/pods/:id/activate` — Activate pod

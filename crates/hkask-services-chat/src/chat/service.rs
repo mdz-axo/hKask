@@ -53,7 +53,7 @@ impl ChatService {
 
         let agents_ctx = Arc::new(hkask_pods::CuratorContext::new(
             CuratorHandle::system(),
-            cns,
+            ledger,
             None,
             queue,
         ));

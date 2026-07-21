@@ -5,13 +5,13 @@ crate:
   name: platform-engineer
   version: "0.31.0"
   description: >
-    Platform Engineer replicant persona template. Defines the identity,
+    Platform Engineer userpod persona template. Defines the identity,
     voice, principles, and mission of the Platform Engineer agent.
 
 templates:
   - id: platform-engineer/persona
-    name: "Platform Engineer replicant persona — identity, voice, and mission"
+    name: "Platform Engineer userpod persona — identity, voice, and mission"
     path: persona.j2
     type: WordAct
     lexicon_terms: [persona, identity, voice, principles]
-    description: Platform Engineer replicant persona — identity, voice, and mission.
+    description: Platform Engineer userpod persona — identity, voice, and mission.

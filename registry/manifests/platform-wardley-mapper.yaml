@@ -74,7 +74,7 @@ steps:
     action: select
     description: >
       Classify each component on the Wardley evolution axis:
-      - Genesis: novel, uncertain, rapidly changing (e.g., Platform Engineer replicant)
+      - Genesis: novel, uncertain, rapidly changing (e.g., Platform Engineer userpod)
       - Custom: built for specific need, differentiated (e.g., CNS algedonic pathway)
       - Product: stable, well-understood, rentable (e.g., skill FlowDef manifests)
       - Commodity: utility, undifferentiated, should be bought not built (e.g., SQLite, MCP protocol)
@@ -102,7 +102,7 @@ steps:
       - Protocol (middle): MCP → Product/Commodity
       - Platform core (middle): CNS, OCAP → Product
       - User-facing (top): REPL, skills → Product/Custom
-      - Future (far right): Platform Engineer replicant → Genesis
+      - Future (far right): Platform Engineer userpod → Genesis
 
     renderer: minijinja
     template_ref: platform-wardley-mapper/map-value-chain

@@ -225,7 +225,7 @@ mod tests {
             "GET /api/templates",
             "GET /api/mcp/tools",
             "POST /api/chat",
-            "GET /api/cns/health",
+            "GET /api/regulation/health",
             "GET /api/sovereignty/status",
         ] {
             assert!(

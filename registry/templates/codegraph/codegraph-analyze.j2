@@ -103,14 +103,14 @@ Synthesize the traversal and analysis results into:
 2. **Caller map** — Who calls/depends on the key symbols (reverse traversal). Organized by entry symbol.
 3. **Impact analysis** — Blast radius assessment for the most critical symbols. How far do changes propagate?
 4. **Quality findings** — Dead code, high complexity, and structural issues. Each finding should include a suggested fix.
-5. **Synthesis** — A concise narrative tying the analysis together for the replicant's goal.
+5. **Synthesis** — A concise narrative tying the analysis together for the userpod's goal.
 
 ## Constraints
 
 - Only report findings that are relevant to the goal — don't list every symbol in the graph.
 - Impact analysis should identify the riskiest change points.
 - Quality findings should be actionable, not just descriptive.
-- Synthesis should directly address the replicant's goal.
+- Synthesis should directly address the userpod's goal.
 
 ## Output
 
@@ -154,6 +154,6 @@ Return JSON only:
       "fix_suggestion": "Specific recommended fix"
     }
   ],
-  "synthesis": "Concise narrative tying analysis to the replicant's goal"
+  "synthesis": "Concise narrative tying analysis to the userpod's goal"
 }
 ```

@@ -508,14 +508,14 @@ mod tests {
     #[test]
     fn mock_cns_detects_perturbation() {
         let ledger = MockRegulationLedger::new();
-        assert!(cns.is_homeostatic());
+        assert!(ledger.is_homeostatic());
 
         let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
         let event = test_event(span, CyclePhase::Sense, None);
-        cns.inject(event);
+        ledger.inject(event);
 
-        assert!(!cns.is_homeostatic());
-        let signals = cns.recent_signals();
+        assert!(!ledger.is_homeostatic());
+        let signals = ledger.recent_signals();
         assert!(signals.iter().any(|s| s.is_negative_valence()));
     }
 
@@ -523,12 +523,12 @@ mod tests {
     fn mock_cns_restores_homeostasis() {
         let ledger = MockRegulationLedger::new();
         let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
-        cns.inject(test_event(span, CyclePhase::Sense, None));
-        assert!(!cns.is_homeostatic());
+        ledger.inject(test_event(span, CyclePhase::Sense, None));
+        assert!(!ledger.is_homeostatic());
 
-        cns.advance_time(std::time::Duration::from_secs(10));
-        assert!(cns.is_homeostatic());
-        let signals = cns.recent_signals();
+        ledger.advance_time(std::time::Duration::from_secs(10));
+        assert!(ledger.is_homeostatic());
+        let signals = ledger.recent_signals();
         assert!(signals.iter().any(|s| s.is_positive_valence()));
     }
 

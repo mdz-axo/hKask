@@ -278,7 +278,7 @@ impl DaemonHandler for ServiceDaemonHandler {
             });
         };
         let ledger = cns_lock.read().await;
-        let alerts = cns.alerts().await;
+        let alerts = ledger.alerts().await;
         let critical = alerts.iter().filter(|a| a.is_critical()).count();
         let total = alerts.len();
         // Determine overall health from alerts
@@ -305,7 +305,7 @@ impl DaemonHandler for ServiceDaemonHandler {
             });
         };
         let ledger = cns_lock.read().await;
-        let variety = cns.variety().await;
+        let variety = ledger.variety().await;
         let domains: Vec<serde_json::Value> = variety
             .iter()
             .filter(|(ns, _)| domain.is_none_or(|d| ns.as_str().contains(d)))

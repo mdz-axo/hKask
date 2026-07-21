@@ -69,7 +69,7 @@ bots:
     name: "R7.5"
     primary_crate: hkask-agents
     description: >
-      Holds the agents. Bots are public. Replicants are private
+      Holds the agents. Bots are public. UserPods are private
       (episodic) or public (semantic). Curator is single.
       Does not customize Curator. Does not build swarms.
       Builds pods.

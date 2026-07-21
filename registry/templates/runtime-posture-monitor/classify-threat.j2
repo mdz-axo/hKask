@@ -1,4 +1,4 @@
-{# goal: Read runtime signal evidence (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed replicant host (P4 runtime boundary). Classify signals into threat patterns: endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.runtime.classify spans (P9 — namespace registered). No synthetic signals; userpod_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Read runtime signal evidence (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed userpod host (P4 runtime boundary). Classify signals into threat patterns: endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.runtime.classify spans (P9 — namespace registered). No synthetic signals; userpod_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads runtime signals discovered in select-signal phase #}
 {# For each signal, checks: frequency vs baseline, pattern signatures,
   defense-layer firing, regulation action triggered, action distribution shift #}
@@ -104,7 +104,7 @@ RELATIONSHIP TO OTHER SKILLS (explicit — no overlap ambiguity):
   emit-regulation ≈ taxonomize + report; convergence-check ≈ convergence).
 
 MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
-- Who: Running application / replicant host (P12).
+- Who: Running application / userpod host (P12).
 - What: Runtime signal / span target / threat pattern.
 - Where: Deployed runtime environment / production workload.
 - When: Observation window / continuous monitoring (not audit cycle).

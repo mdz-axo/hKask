@@ -163,12 +163,12 @@ impl CurationLoop {
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — cursor restore avoids re-processing history
-    /// pre:  `self.context.nu_event_store()` may be `Some` or `None`.
+    /// pre:  `self.context.regulation_store()` may be `Some` or `None`.
     /// post: If a persisted cursor exists, `last_review_ms` is updated;
     ///       otherwise it remains at 0. Logs the outcome at info/warn level.
     ///       Does not panic on storage errors.
     pub fn restore_cursor(&self) {
-        if let Some(store) = self.context.nu_event_store() {
+        if let Some(store) = self.context.regulation_store() {
             match store.load_cursor("curation_last_review_ms") {
                 Ok(Some(cursor_ms)) => {
                     self.last_review_ms
@@ -342,7 +342,7 @@ impl RegulationLoop for CurationLoop {
         let since = chrono::DateTime::<Utc>::from_timestamp_millis(since_ms as i64)
             .unwrap_or(chrono::DateTime::<Utc>::UNIX_EPOCH);
 
-        let algedonic_count = if let Some(store) = self.context.nu_event_store() {
+        let algedonic_count = if let Some(store) = self.context.regulation_store() {
             // Read algedonic-significant events since last review cursor
             match store.query_algedonic(since, 1000) {
                 Ok(events) => {

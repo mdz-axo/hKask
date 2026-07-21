@@ -33,7 +33,7 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 hkask_mcp::mcp_server!(
     pub struct CnsServer {
-        nu_event_store: Option<Arc<RegulationArchive>>,
+        regulation_store: Option<Arc<RegulationArchive>>,
     }
 );
 
@@ -81,7 +81,7 @@ pub struct SpanStatsRequest {
 #[tool_router(server_handler)]
 impl CnsServer {
     #[tool(
-        description = "Query CNS ν-event history by namespace prefix within a time window. Returns events ordered by timestamp ASC. Use 'cns.guard' for guard violations, 'cns.regulation' for regulation events, 'hkask' for performative telemetry."
+        description = "Query regulation record history by namespace prefix within a time window. Returns events ordered by timestamp ASC. Use 'reg.guard' for guard violations, 'reg.outcome' for regulation events, 'hkask' for performative telemetry."
     )]
     pub async fn cns_query_spans(&self, Parameters(req): Parameters<QuerySpansRequest>) -> String {
         execute_tool(self, "cns_query_spans", async {
@@ -91,7 +91,7 @@ impl CnsServer {
                     "namespace must be a non-empty string (e.g. \"reg.guard\", \"reg.outcome\", \"hkask\")",
                 ));
             }
-            let Some(ref store) = self.nu_event_store else {
+            let Some(ref store) = self.regulation_store else {
                 return Err(McpToolError::permission_denied(
                     "RegulationArchive not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
                 ));
@@ -147,7 +147,7 @@ impl CnsServer {
                     "namespace must be a non-empty string (e.g. \"reg.guard\", \"reg.outcome\", \"hkask\")",
                 ));
             }
-            let Some(ref store) = self.nu_event_store else {
+            let Some(ref store) = self.regulation_store else {
                 return Err(McpToolError::permission_denied(
                     "RegulationArchive not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
                 ));
@@ -189,14 +189,14 @@ fn strip_cns_prefix(namespace: &str) -> &str {
 /// CNS pod database path) and `HKASK_DB_PASSPHRASE` from credentials/env.
 /// Returns `None` (graceful degradation) when the database cannot be opened —
 /// the tools then return `permission_denied` so callers see a clear message.
-fn open_nu_event_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<RegulationArchive>> {
+fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<RegulationArchive>> {
     let db_path = ctx
         .credentials
         .get("HKASK_DB_PATH")
         .cloned()
         .or_else(|| std::env::var("HKASK_DB_PATH").ok())
         .unwrap_or_else(|| {
-            let p = hkask_types::agent_paths::userpod_pod_db("cns");
+            let p = hkask_types::agent_paths::userpod_pod_db("regulation");
             let resolved = hkask_types::agent_paths::resolve_under_data_dir(&p);
             if let Some(parent) = resolved.parent() {
                 std::fs::create_dir_all(parent).ok();
@@ -255,18 +255,18 @@ pub async fn run(
         SERVER_NAME,
         SERVER_VERSION,
         |ctx: hkask_mcp::server::ServerContext| {
-            let nu_event_store = open_nu_event_store(&ctx);
+            let regulation_store = open_regulation_store(&ctx);
             Ok(CnsServer::new(
                 ctx.webid,
                 userpod.clone(),
                 daemon_client.clone(),
-                nu_event_store,
+                regulation_store,
             ))
         },
         vec![
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PATH",
-                "Path to the SQLCipher database holding the nu_events table",
+                "Path to the SQLCipher database holding the reg_records table",
             ),
             hkask_mcp::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",

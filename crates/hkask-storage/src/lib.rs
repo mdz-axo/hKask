@@ -23,7 +23,7 @@ pub mod gallery;
 pub mod goals;
 pub mod hmem;
 pub mod kata;
-pub mod nu_event_store;
+pub mod regulation_store;
 pub mod sovereignty;
 pub mod token_registry;
 pub mod user_store;
@@ -46,7 +46,7 @@ pub use hkask_types::HMemId;
 pub use hmem::archive::{ArchiveError, BackupArchive, BackupMeta, MigrationReceipt};
 pub use hmem::{HMem, HMemError, HMemStore};
 pub use kata::{KataHistoryEntry, KataHistoryError, KataHistoryStore};
-pub use nu_event_store::{DecayConfig, RegulationArchive, WeightedEvent};
+pub use regulation_store::{DecayConfig, RegulationArchive, WeightedEvent};
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
 pub use token_registry::TokenRegistryStore;
 

@@ -17,7 +17,7 @@ visibility: Public
 {# Functional Role: KnowAct — Compute normalized convergence metric for metacognition cycles #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: convergence_metric, convergence_method, metric_decomposition, rationale, blockers #}
-{# Generalizable: any replicant can use this to check if its metacognitive process has converged. #}
+{# Generalizable: any userpod can use this to check if its metacognitive process has converged. #}
 
 [inference]
 temperature = 0.1
@@ -26,7 +26,7 @@ verbosity = "terse"
 max_tokens = 1200
 thinking_budget = "off"
 
-You are a convergence evaluator for metacognition. Measure whether the replicant's self-assessment and calibration are sufficiently stable to act on.
+You are a convergence evaluator for metacognition. Measure whether the userpod's self-assessment and calibration are sufficiently stable to act on.
 
 ## Context
 - Convergence threshold: {{ _convergence.threshold | default(0.25) }}

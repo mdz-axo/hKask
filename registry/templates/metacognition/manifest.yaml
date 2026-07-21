@@ -10,7 +10,7 @@ crate:
     outcomes and ellipsis findings, computes convergence, detects ellipses
     (what is missing) via Bloom's method, applies Falstaffian perspective
     rotation, and improves itself through GEPA evolutionary optimization.
-    Any replicant can use these templates for self-reflection.
+    Any userpod can use these templates for self-reflection.
 
 templates:
   # ── Skill flow templates (PDCA step-level prompts) ──

@@ -15,17 +15,17 @@ use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 #[test]
 fn cns_detects_perturbation() {
     let ledger = MockRegulationLedger::new();
-    assert!(cns.is_homeostatic(), "CNS should start homeostatic");
+    assert!(ledger.is_homeostatic(), "Ledger should start homeostatic");
 
     let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
     let event = test_event(span, CyclePhase::Sense, None);
-    cns.inject(event);
+    ledger.inject(event);
 
-    assert!(!cns.is_homeostatic(), "CNS should detect perturbation");
-    let signals = cns.recent_signals();
+    assert!(!ledger.is_homeostatic(), "Ledger should detect perturbation");
+    let signals = ledger.recent_signals();
     assert!(
         signals.iter().any(|s| s.is_negative_valence()),
-        "CNS should emit negative valence signal on perturbation"
+        "Ledger should emit negative valence signal on perturbation"
     );
 }
 
@@ -35,21 +35,21 @@ fn cns_restores_homeostasis_after_time() {
 
     // Perturb the system
     let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
-    cns.inject(test_event(span, CyclePhase::Sense, None));
-    assert!(!cns.is_homeostatic());
+    ledger.inject(test_event(span, CyclePhase::Sense, None));
+    assert!(!ledger.is_homeostatic());
 
     // Advance time to allow feedback processing
-    cns.advance_time(std::time::Duration::from_secs(10));
+    ledger.advance_time(std::time::Duration::from_secs(10));
 
     // System should return to homeostasis
     assert!(
-        cns.is_homeostatic(),
-        "CNS should restore homeostasis after sufficient time"
+        ledger.is_homeostatic(),
+        "Ledger should restore homeostasis after sufficient time"
     );
-    let signals = cns.recent_signals();
+    let signals = ledger.recent_signals();
     assert!(
         signals.iter().any(|s| s.is_positive_valence()),
-        "CNS should emit positive valence signal on homeostasis restoration"
+        "Ledger should emit positive valence signal on homeostasis restoration"
     );
 }
 
@@ -57,9 +57,9 @@ fn cns_restores_homeostasis_after_time() {
 fn cns_throttles_tool_on_budget_exceeded() {
     let ledger = MockRegulationLedger::with_state(MockCnsState::perturbed("tool-x"));
 
-    assert!(!cns.is_homeostatic());
-    assert_eq!(cns.tool_state("tool-x"), MockToolState::Throttled);
-    assert_eq!(cns.tool_state("tool-y"), MockToolState::Active);
+    assert!(!ledger.is_homeostatic());
+    assert_eq!(ledger.tool_state("tool-x"), MockToolState::Throttled);
+    assert_eq!(ledger.tool_state("tool-y"), MockToolState::Active);
 }
 
 #[test]
@@ -80,14 +80,14 @@ fn cns_multiple_perturbations_accumulate_signals() {
     let ledger = MockRegulationLedger::new();
 
     let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
-    cns.inject(test_event(span, CyclePhase::Sense, None));
-    cns.inject(test_event(
+    ledger.inject(test_event(span, CyclePhase::Sense, None));
+    ledger.inject(test_event(
         Span::new(SpanNamespace::new("reg.inference").unwrap(), "error"),
         CyclePhase::Compute,
         None,
     ));
 
-    let signals = cns.recent_signals();
+    let signals = ledger.recent_signals();
     assert!(
         signals.len() >= 2,
         "multiple perturbations should produce multiple signals"

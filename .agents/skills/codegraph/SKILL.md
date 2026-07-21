@@ -1,12 +1,12 @@
 ---
 name: codegraph
 visibility: public
-description: "Code understanding: query, traverse, analyze, and assemble context from the code graph. Any replicant that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the hkask-mcp-codegraph MCP tools through a convergent PDCA cycle."
+description: "Code understanding: query, traverse, analyze, and assemble context from the code graph. Any userpod that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the hkask-mcp-codegraph MCP tools through a convergent PDCA cycle."
 ---
 
 # Codegraph
 
-Code understanding engine skill. Any replicant that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the `hkask-mcp-codegraph` MCP server's 11 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) through a convergent PDCA cycle that iterates until the replicant has sufficient code understanding to act.
+Code understanding engine skill. Any userpod that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the `hkask-mcp-codegraph` MCP server's 11 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) through a convergent PDCA cycle that iterates until the userpod has sufficient code understanding to act.
 
 ## When to Use
 
@@ -93,7 +93,7 @@ The convergence metric measures whether the code understanding gathered is suffi
 
 ### 5. Check Convergence
 
-1. Evaluate whether discovery, query, traversal, analysis, and context assembly are sufficiently complete for the replicant's goal.
+1. Evaluate whether discovery, query, traversal, analysis, and context assembly are sufficiently complete for the userpod's goal.
 2. The convergence check receives all prior step results (discovery, query, analysis, context) to score all 6 dimensions.
 3. Compute the convergence metric using the scoring guidance above.
 4. If converged (≤ 0.25), proceed to act on the gathered understanding.

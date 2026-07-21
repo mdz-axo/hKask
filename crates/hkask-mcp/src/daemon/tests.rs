@@ -230,7 +230,7 @@ fn request_variants_serialize_to_correct_shape() {
         domain: Some("tool".into()),
     })
     .unwrap();
-    assert_eq!(cns["type"], "cns_status_query");
+    assert_eq!(ledger["type"], "ledger_status_query");
 }
 
 #[test]
@@ -298,7 +298,7 @@ fn missing_optional_fields() {
     }
 
     // Domain is optional
-    let json3 = r#"{"type":"cns_status_query","userpod":"bob"}"#;
+    let json3 = r#"{"type":"ledger_status_query","userpod":"bob"}"#;
     let req3: DaemonRequest = serde_json::from_str(json3).unwrap();
     match req3 {
         DaemonRequest::CnsStatusQuery { domain, .. } => assert!(domain.is_none()),

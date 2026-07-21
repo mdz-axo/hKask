@@ -155,11 +155,6 @@ impl HederaPort {
         self
     }
 
-    #[allow(dead_code)]
-    fn default_actor(&self) -> WebID {
-        WebID::from_persona_with_namespace(self.treasury_account.as_bytes(), "wallet-hedera")
-    }
-
     /// Emit a CNS chain_error span if an event sink is configured.
     fn emit_chain_error_for_actor(&self, actor: &WebID, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
@@ -183,12 +178,6 @@ impl HederaPort {
                 tracing::warn!(target: "hkask.wallet.hedera", error = %e, "Failed to persist CNS chain_error span");
             }
         }
-    }
-
-    #[allow(dead_code)]
-    fn emit_chain_error(&self, operation: &str, error_msg: &str) {
-        let actor = self.default_actor();
-        self.emit_chain_error_for_actor(&actor, operation, error_msg);
     }
 
     /// Create a HederaPort for testnet.

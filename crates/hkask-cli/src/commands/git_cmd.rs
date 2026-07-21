@@ -30,7 +30,7 @@ fn parse_repo_id(repo: &str) -> RepoId {
     match repo {
         "registry" | "" => RepoId::Registry,
         "memory" => RepoId::Memory,
-        "cns-audit" => RepoId::CnsAudit,
+        "reg-audit" => RepoId::RegAudit,
         "sovereignty" => RepoId::Sovereignty,
         "goals-specs" => RepoId::GoalsSpecs,
         "sessions" => RepoId::Sessions,

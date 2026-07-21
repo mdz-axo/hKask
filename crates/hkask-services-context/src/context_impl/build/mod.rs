@@ -136,7 +136,7 @@ impl AgentServiceWiring {
         AgentService {
             infra,
             governance,
-            cns,
+            ledger,
             storage,
             system_webid: self.system_webid,
             curator_ready: Some(self.mcp_pods.curator_ready),

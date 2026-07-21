@@ -21,7 +21,7 @@
 //!   registration is an `AdapterStore` API call, not an MCP tool.
 //! - training_preflight_check — replaced by `training_validate_config`, which runs the
 //!   actual lora-training skill gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4, G-H1) via
-//!   `lora_validation::validate_training_params` and emits `cns.lora.audit` spans.
+//!   `lora_validation::validate_training_params` and emits `reg.lora.audit` spans.
 //! - training_retrain — merged into `training_submit` as optional `feedback_path` +
 //!   `skill_name` + `adapter_name` parameters (merge + version-bump logic moved there).
 //!
@@ -546,7 +546,7 @@ impl TrainingServer {
             // Validate training params against LoRA/QLoRA math-contract gates
             // (lora-training skill: G-M1..G-M5, G-Q1..G-Q6). Static subset only —
             // runtime gates (gradient flow, param count) are checked post-training.
-            // Emits cns.lora.audit spans (consumed by the skill's convergence-check phase).
+            // Emits reg.lora.audit spans (consumed by the skill's convergence-check phase).
             let validation_findings = lora_validation::validate_training_params(&resolved_params);
             if lora_validation::has_refusals(&validation_findings) {
                 let refusals: Vec<_> = validation_findings
@@ -557,7 +557,7 @@ impl TrainingServer {
                     .iter()
                     .map(|f| format!("{}: {}", f.gate_id, f.message))
                     .collect();
-                // Emit cns.lora.audit refuse spans
+                // Emit reg.lora.audit refuse spans
                 for f in &refusals {
                     tracing::error!(
                         target: "reg.lora.audit",
@@ -580,7 +580,7 @@ impl TrainingServer {
                 )));
             }
             // Log warnings and info findings — do not block submission.
-            // Also emit cns.lora.audit spans for the convergence-check phase.
+            // Also emit reg.lora.audit spans for the convergence-check phase.
             for finding in &validation_findings {
                 let severity_str = match finding.severity {
                     lora_validation::ValidationSeverity::Warn => "warn",
@@ -1382,13 +1382,13 @@ impl TrainingServer {
     /// skill's `audit-config` phase. The skill reasons over config files and
     /// proposes regressions; this tool enforces the static subset of gates
     /// (G-M1..G-M4, G-Q1, G-Q2, G-Q4, G-H1) via `lora_validation::validate_training_params`
-    /// and emits `cns.lora.audit` spans per gate evaluated.
+    /// and emits `reg.lora.audit` spans per gate evaluated.
     ///
     /// Returns the full findings list so the skill's `convergence-check` phase
     /// can compute coverage. Findings with `Refuse` severity indicate the config
     /// would silently degrade model quality or waste GPU time if submitted.
     #[tool(
-        description = "Validate training params against the lora-training skill's math-contract gates (G-M1 no-op-at-init, G-M2 merge equivalence, G-M3 scaling form, G-M4 rank budget, G-Q1 frozen base quantized, G-Q2 adapter dtype, G-Q4 no silent upcast, G-Q5 paged optimizer, G-H1 harness-method compatibility). Also validates dataset size (G-D1) if dataset_path is provided. Returns findings with severity (refuse/warn/info), gate ID, message, source citation, and remediation. Emits cns.lora.audit spans. This is the runtime enforcement point for the lora-training skill's audit-config phase."
+        description = "Validate training params against the lora-training skill's math-contract gates (G-M1 no-op-at-init, G-M2 merge equivalence, G-M3 scaling form, G-M4 rank budget, G-Q1 frozen base quantized, G-Q2 adapter dtype, G-Q4 no silent upcast, G-Q5 paged optimizer, G-H1 harness-method compatibility). Also validates dataset size (G-D1) if dataset_path is provided. Returns findings with severity (refuse/warn/info), gate ID, message, source citation, and remediation. Emits reg.lora.audit spans. This is the runtime enforcement point for the lora-training skill's audit-config phase."
     )]
     pub async fn training_validate_config(
         &self,
@@ -1411,7 +1411,7 @@ impl TrainingServer {
                     findings.extend(lora_validation::validate_paged_optimizer(&params, model));
                 }
 
-                // Emit cns.lora.audit spans per gate evaluated.
+                // Emit reg.lora.audit spans per gate evaluated.
                 // The lora-training skill's convergence-check phase consumes these
                 // to compute coverage metrics.
                 for finding in &findings {

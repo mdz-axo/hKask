@@ -326,7 +326,7 @@ CONSTRAINTS (P1-P12, P5 minimalism, P8 evidence integrity, P12 host):
   consumed by that loop.
 
 5W1H GATE (P5 — minimal):
-- Who: Authenticated training operator / replicant host (P12).
+- Who: Authenticated training operator / userpod host (P12).
 - What: Composable PEFT recommendation and unresolved evidence.
 - Where: Training script / config file / model card.
 - When: Pre-training recommendation, before acceptance and readiness audit.
@@ -390,6 +390,6 @@ OCAP BOUNDARY (P4): Read only declared workspace config paths; no ambient
 model download or network calls without explicit consent (P2).
 CNS REGULATION (P9): Emit `cns.lora.select` unconditionally; namespace is
 registered in `CANONICAL_NAMESPACES`.
-REPLICANT HOST (P12): `userpod_host` is mandatory in every output.
+USERPOD HOST (P12): `userpod_host` is mandatory in every output.
 SAFETY FLOOR (P3.1): Recommendation exposes uncertainty; audit and runtime
 establish readiness and enforce hard contracts.

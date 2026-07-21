@@ -241,9 +241,9 @@ async fn oauth_github_login_redirects() {
 #[tokio::test]
 async fn cns_health_returns_json() {
     let (_handle, addr) = start_server().await;
-    let resp = reqwest::get(format!("http://{addr}/api/cns/health"))
+    let resp = reqwest::get(format!("http://{addr}/api/regulation/health"))
         .await
-        .expect("GET /api/cns/health");
+        .expect("GET /api/regulation/health");
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
     assert!(body.get("overall_deficit").is_some());

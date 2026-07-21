@@ -27,7 +27,7 @@ pub(crate) fn spawn_seam_drift_check(
             interval_secs
         );
         {
-            let cns_rt = cns.read().await;
+            let cns_rt = ledger.read().await;
             let mut guard = watcher_lock.write().await;
             if let Some(ref mut watcher) = *guard {
                 let drifts = watcher.check_drift(&cns_rt, &*sink).await;
@@ -43,7 +43,7 @@ pub(crate) fn spawn_seam_drift_check(
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
         loop {
             interval.tick().await;
-            let cns_rt = cns.read().await;
+            let cns_rt = ledger.read().await;
             let mut guard = watcher_lock.write().await;
             if let Some(ref mut watcher) = *guard {
                 let _ = watcher.refresh();

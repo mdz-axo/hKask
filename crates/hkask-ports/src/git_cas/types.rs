@@ -161,7 +161,7 @@ pub enum RepoId {
     /// Semantic memory (h_mems, knowledge graph)
     Memory,
     /// CNS audit trail (ν-events, variety counters, algedonic alerts)
-    CnsAudit,
+    RegAudit,
     /// User sovereignty (consent records, OCAP tokens)
     Sovereignty,
     /// Goals and specifications
@@ -185,7 +185,7 @@ impl RepoId {
         match self {
             Self::Registry => "registry",
             Self::Memory => "memory",
-            Self::CnsAudit => "cns-audit",
+            Self::RegAudit => "reg-audit",
             Self::Sovereignty => "sovereignty",
             Self::GoalsSpecs => "goals-specs",
             Self::Sessions => "sessions",
@@ -204,7 +204,7 @@ impl RepoId {
         &[
             RepoId::Registry,
             RepoId::Memory,
-            RepoId::CnsAudit,
+            RepoId::RegAudit,
             RepoId::Sovereignty,
             RepoId::GoalsSpecs,
             RepoId::Sessions,

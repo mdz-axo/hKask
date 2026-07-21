@@ -51,7 +51,7 @@ NOT numeric IDs.
 ## Design Constraints (Grounded in Project Principles)
 
 - **P5 Essentialism (5W1H gate):** Who = supply chain attacker / threat
-  actor taxonomy (the subject — the agent is the replicant host, P12);
+  actor taxonomy (the subject — the agent is the userpod host, P12);
   What = finding to map / OSC&R taxonomy entry; Where = workspace /
   regression library / CI logs; When = audit cycle / incident
   investigation; Why = P3.1 requires structured taxonomy for supply
@@ -78,11 +78,11 @@ NOT numeric IDs.
   `cns.taxonomy.report`, `cns.taxonomy.convergence` spans. All four are
   registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
   and emitted unconditionally.
-- **P10 Bot/replicant taxonomy:** `visibility: public` — transparent
+- **P10 Bot/userpod taxonomy:** `visibility: public` — transparent
   taxonomy mapping.
 - **P11 Visibility:** `taxonomy_mapping` field proposals default `status:
   pending` (human-curated ratchet, per `security/regressions/README.md`).
-- **P12 Replicant host mandate:** Every action includes `userpod_host`.
+- **P12 Authenticated host mandate:** Every action includes `userpod_host`.
 - **P3.1 Safety floor:** Structured supply chain taxonomy protects the
   Generative Space container — unstructured findings leave attack patterns
   ambiguous.

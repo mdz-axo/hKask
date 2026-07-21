@@ -45,7 +45,7 @@ fn regulation_test_set_points() -> SetPoints {
 async fn loop_with_depleted_budget() -> (Arc<RwLock<RegulationLedger>>, CyberneticsLoop, WebID) {
     let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let sp = regulation_test_set_points();
-    let loop_instance = CyberneticsLoop::with_set_points(Arc::clone(&cns), sp);
+    let loop_instance = CyberneticsLoop::with_set_points(Arc::clone(&ledger), sp);
 
     let agent = WebID::new();
     // Budget: cap 100 gas, consume down to 10 (ratio 0.1 < default set-point 0.2),
@@ -61,7 +61,7 @@ async fn loop_with_depleted_budget() -> (Arc<RwLock<RegulationLedger>>, Cybernet
     assert_eq!(budget.remaining(), GasCost(10));
 
     loop_instance.register_gas_budget(agent, budget).await;
-    (cns, loop_instance, agent)
+    (ledger, loop_instance, agent)
 }
 
 // ── Test 1: try_substitute fires after sustained ineffective cycles ────────
@@ -222,7 +222,7 @@ async fn regulatory_plateau_fires_after_ineffective_cycles() {
 async fn action_decision_block_fires_on_severe_worsening() {
     let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let loop_instance =
-        CyberneticsLoop::with_set_points(Arc::clone(&cns), regulation_test_set_points());
+        CyberneticsLoop::with_set_points(Arc::clone(&ledger), regulation_test_set_points());
 
     let agent = WebID::new();
     // Budget: cap 100, start with remaining=25 (ratio 0.25, above set-point 0.2 —
@@ -332,7 +332,7 @@ async fn action_decision_block_fires_on_severe_worsening() {
 async fn full_pipeline_produces_meaningful_quality_after_ticks() {
     let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let loop_instance = CyberneticsLoop::with_set_points(
-        Arc::clone(&cns),
+        Arc::clone(&ledger),
         SetPoints {
             inference_throttle_mode: InferenceThrottleMode::Autonomous,
             ..SetPoints::default()
@@ -473,7 +473,7 @@ async fn full_cybernetic_cycle_exercises_all_phases() {
     // ── Phase 0: Setup ──────────────────────────────────────────────────
     let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let loop_instance = CyberneticsLoop::with_set_points(
-        Arc::clone(&cns),
+        Arc::clone(&ledger),
         SetPoints {
             inference_throttle_mode: InferenceThrottleMode::Autonomous,
             ..SetPoints::default()
@@ -593,7 +593,7 @@ async fn full_cybernetic_cycle_exercises_all_phases() {
     // but after our explicit verify_impact + tick, it reflects actual reports.
 
     // ── Phase 7: Regulation history — audit trail ────────────────────────
-    let history = cns.read().await.regulation_history(10).await;
+    let history = ledger.read().await.regulation_history(10).await;
     assert!(
         !history.is_empty(),
         "regulation history should record cycles after tick()"

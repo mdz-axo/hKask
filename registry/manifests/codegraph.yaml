@@ -1,7 +1,7 @@
 # Codegraph Process Manifest
 # ℏKask v0.31.0 — Code understanding as convergent PDCA
 #
-# Generalizable: any replicant that needs to understand code structure — for
+# Generalizable: any userpod that needs to understand code structure — for
 # debugging, refactoring, impact analysis, onboarding, or context assembly —
 # can invoke this skill. The skill orchestrates the hkask-codegraph MCP tools
 # (query, traverse, impact, analysis, context, structure, stats, reindex,
@@ -16,9 +16,9 @@ manifest:
     codebase area, queries for goal-relevant symbols, traverses the dependency
     graph, runs quality analysis (complexity, dead code, impact), assembles
     token-budgeted context, computes convergence, and iterates until the
-    replicant has sufficient code understanding to act. Delegates to the
+    userpod has sufficient code understanding to act. Delegates to the
     hkask-mcp-codegraph MCP server for graph construction, traversal, and
-    analysis. Any replicant may invoke this skill.
+    analysis. Any userpod may invoke this skill.
   functional_role: flowdef
   version: 0.31.0
   editor: curator-or-human-admin
@@ -54,7 +54,7 @@ inputs:
     type: string
     required: true
     description: >
-      What the replicant wants to understand. Examples: "impact of changing
+      What the userpod wants to understand. Examples: "impact of changing
       the inference router", "find dead code in hkask-mcp", "understand the
       CNS loop system".
   - name: depth
@@ -83,14 +83,14 @@ inputs:
     default: true
     description: >
       Whether to assemble token-budgeted context in step 4. Set to false when
-      the replicant only needs analysis (not context for an LLM prompt).
+      the userpod only needs analysis (not context for an LLM prompt).
 
 steps:
   - ordinal: 1
     action: select
     description: >
       DISCOVER: Index the target codebase (if not already indexed) and get
-      a project structure overview. The replicant invokes codegraph_reindex
+      a project structure overview. The userpod invokes codegraph_reindex
       (if needed), codegraph_stats, and codegraph_structure to build an
       initial map. The template synthesizes these into a discovery summary
       with relevant crates and entry symbols.
@@ -108,7 +108,7 @@ steps:
     action: select
     description: >
       QUERY: Search the code graph for symbols relevant to the goal. The
-      replicant invokes codegraph_query with keyword/name/semantic queries
+      userpod invokes codegraph_query with keyword/name/semantic queries
       derived from the goal. The template scores results by relevance and
       identifies traversal targets. Gaps are flagged for the next phase.
     renderer: minijinja
@@ -125,7 +125,7 @@ steps:
     description: >
       ANALYZE: Traverse the dependency graph (forward and reverse) for the
       matched symbols, run quality analysis (complexity, dead code, impact),
-      and synthesize findings. The replicant invokes codegraph_traverse,
+      and synthesize findings. The userpod invokes codegraph_traverse,
       codegraph_analysis, and codegraph_impact between this template and
       the convergence check. The template organizes results into dependency
       maps, caller maps, impact analysis, and quality findings.
@@ -145,7 +145,7 @@ steps:
     condition: "{{ requires_context | default(true) }}"
     description: >
       CONTEXT: Assemble token-budgeted context from the gathered analysis
-      for downstream use. The replicant invokes codegraph_context with the
+      for downstream use. The userpod invokes codegraph_context with the
       budget from the context_budget input. This step is conditional — it
       runs only when requires_context is true (default). When skipped, the
       flow proceeds directly to convergence.
@@ -164,7 +164,7 @@ steps:
     description: >
       Compute normalized convergence metric via coverage saturation detection.
       Assesses whether discovery, query, traversal, analysis, and context
-      assembly are sufficiently complete for the replicant's goal. Receives
+      assembly are sufficiently complete for the userpod's goal. Receives
       all prior step results to score all 6 dimensions.
     renderer: minijinja
     template_ref: codegraph/codegraph-convergence-check

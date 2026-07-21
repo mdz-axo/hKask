@@ -54,7 +54,7 @@ use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
 use hkask_ports::{LedgerStoragePort, ConsolidationOutcome, ConsolidationRequest, InferencePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
-use hkask_storage::nu_event_store::RegulationArchive;
+use hkask_storage::regulation_store::RegulationArchive;
 use hkask_storage::user_store::UserStore;
 use hkask_storage::{
     ConsentStore, Database, EmbeddingStore, HMemStore, SovereigntyBoundaryStore, WalletStore,

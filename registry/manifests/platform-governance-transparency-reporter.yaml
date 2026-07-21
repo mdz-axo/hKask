@@ -82,7 +82,7 @@ steps:
     description: >
       Classify each governance event by type and explain it in plain language.
       For each CNS span: identify the decision type, who made it (Curator,
-      human admin, replicant), what changed, why (if traceable), and frame
+      human admin, userpod), what changed, why (if traceable), and frame
       the explanation for a non-technical audience. Flags decisions that
       require additional context or appear anomalous.
 

@@ -96,5 +96,5 @@ Goal specification and verification. Extracts structured goals from user intent,
 - Criteria are designed for LLM-judged semantic verification, not deterministic checks — this avoids Goodhart's law.
 - Low confidence (< 0.7) escalates to human regardless of verdict.
 - Convergence threshold defaults to 0.25; max iterations default to 3; improvement target defaults to 0.05.
-- Goals coordinate across human, replicant, and bot agents.
+- Goals coordinate across human, userpod, and bot agents.
 - Registry is authoritative — when this SKILL.md disagrees with registry templates, the registry wins.

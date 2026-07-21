@@ -1,6 +1,6 @@
 # File: registry/manifests/woolf-style-synthesizer.yaml
 # Virginia Woolf Style Synthesizer Process Manifest
-# hKask v0.27.0 - A Minimal Viable Container for Replicants
+# hKask v0.27.0 - A Minimal Viable Container for UserPods
 
 manifest:
   id: woolf-style-synthesizer

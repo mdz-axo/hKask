@@ -7,7 +7,7 @@
 //! into the canonical `BundleManifest` type.
 
 use crate::bundle::{
-    BundleAuditConfig, BundleCnsConfig, BundleComplementarity, BundleConflict, BundleGasConfig,
+    BundleAuditConfig, BundleLedgerConfig, BundleComplementarity, BundleConflict, BundleGasConfig,
     BundleManifest, BundleManifestStep, BundleSkill, ConvergenceConfig, ErrorHandlingConfig,
     OcapConfig, RjouleConfig,
 };
@@ -59,7 +59,7 @@ struct ManifestFile {
     #[serde(default)]
     ocap: Option<OcapConfig>,
     #[serde(default)]
-    ledger: Option<BundleCnsConfig>,
+    ledger: Option<BundleLedgerConfig>,
     #[serde(default)]
     audit: Option<BundleAuditConfig>,
     #[serde(default)]
@@ -155,7 +155,7 @@ pub fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, ManifestLoa
         rjoule: file.rjoule.unwrap_or_default(),
         error_handling: file.error_handling.unwrap_or_default(),
         ocap: file.ocap.unwrap_or_default(),
-        ledger: file.cns.unwrap_or_default(),
+        ledger: file.ledger.unwrap_or_default(),
         audit: file.audit.unwrap_or_default(),
         functional_role: file.manifest.functional_role,
         category: file.manifest.category,

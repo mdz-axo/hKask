@@ -34,7 +34,7 @@ classifier:
     an explicit, attenuating, unforgeable token."
     {"category":"Statement"}
 
-    Passage: "For instance, a replicant calling version_info does not need
+    Passage: "For instance, a userpod calling version_info does not need
     access to the wallet — the capability grant is scoped to read-only
     visibility via the CNS span registry."
     {"category":"Evidence"}

@@ -7,7 +7,7 @@
 //! ```ignore
 //! proptest! {
 //!     #[test]
-//!     fn my_test(e in strategies::any_nu_event()) { ... }
+//!     fn my_test(e in strategies::any_regulation_record()) { ... }
 //! }
 //! ```
 //!
@@ -81,7 +81,7 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 /// post: returns `BoxedStrategy<RegulationRecord>` with valid observer, span, phase, observation, depth 0–7
 /// expect: "I can generate valid ν-events with correct observer, canonical CNS spans, and valid phases for property-based testing"
 ///Constraining: one strategy per type, no duplicate generators
-pub fn any_nu_event() -> BoxedStrategy<RegulationRecord> {
+pub fn any_regulation_record() -> BoxedStrategy<RegulationRecord> {
     (
         webid_strategy(),
         span_strategy(),
@@ -241,7 +241,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn nu_event_strategy_is_valid(e in any_nu_event()) {
+        fn regulation_record_strategy_is_valid(e in any_regulation_record()) {
             prop_assert!(!e.id.as_uuid().is_nil());
             prop_assert!(!e.observer_webid.as_uuid().is_nil());
             prop_assert!(e.recursion_depth <= 7);

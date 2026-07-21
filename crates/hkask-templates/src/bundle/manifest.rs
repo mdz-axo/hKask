@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::cascade::CascadePhase;
 use super::composition::{BundleComplementarity, BundleConflict};
 use super::config::{
-    BundleAuditConfig, BundleCnsConfig, BundleGasConfig, ConvergenceConfig, ErrorHandlingConfig,
+    BundleAuditConfig, BundleLedgerConfig, BundleGasConfig, ConvergenceConfig, ErrorHandlingConfig,
     OcapConfig, RjouleConfig,
 };
 use hkask_types::SkillPolarity;
@@ -104,7 +104,7 @@ pub struct BundleManifest {
     pub rjoule: RjouleConfig,
     pub error_handling: ErrorHandlingConfig,
     pub ocap: OcapConfig,
-    pub ledger: BundleCnsConfig,
+    pub ledger: BundleLedgerConfig,
     pub audit: BundleAuditConfig,
     #[serde(default)]
     pub functional_role: Option<String>,

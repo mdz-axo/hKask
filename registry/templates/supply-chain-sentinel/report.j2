@@ -1,4 +1,4 @@
-{# goal: Synthesize findings with MITRE CWE (CWE-1104/CWE-829/CWE-1357), OWASP Supply Chain, OSC&R taxonomy (P8). Propose RR-NNNN.yaml entries (surface: supply-chain, status: pending, concrete grep pattern against manifest content). Identify defense-layer gaps. Emit cns.supply_chain.report span (P9). Replicant_host mandatory (P12). No synthetic findings or CVE claims (P8). Registry authoritative (P5.1). #}
+{# goal: Synthesize findings with MITRE CWE (CWE-1104/CWE-829/CWE-1357), OWASP Supply Chain, OSC&R taxonomy (P8). Propose RR-NNNN.yaml entries (surface: supply-chain, status: pending, concrete grep pattern against manifest content). Identify defense-layer gaps. Emit cns.supply_chain.report span (P9). UserPod_host mandatory (P12). No synthetic findings or CVE claims (P8). Registry authoritative (P5.1). #}
 {# Synthesizes probe findings with COW taxonomy (CWE / OWASP / OSC&R) #}
 {# Proposes RR-NNNN.yaml entries with surface: supply-chain #}
 {# Emits cns.supply_chain.report CNS span (P9) #}
@@ -50,7 +50,7 @@ recommendation), `defense_layers_present`, `defense_layers_missing`,
 `proposed_regressions` (YAML-format array for human review), `verdict`,
 `userpod_host`, `source_citations`, `cns_span_reference`.
 
-5W1H GATE CHECK (P5): Who = dependency maintainer / replicant host; What =
+5W1H GATE CHECK (P5): Who = dependency maintainer / userpod host; What =
 findings synthesis; Where = workspace manifest paths; When = scan cycle;
 Why = P3.1 safe container integrity / P9 observable regulation; How =
 synthesize + classify + propose regression + emit CNS span + compute verdict.
@@ -71,7 +71,7 @@ OCAP BOUNDARY (P4): Audit reads only declared workspace manifest paths;
 no external dependency download; dependency must be explicitly declared.
 CNS REGULATION (P9): `cns.supply_chain.report` emitted; notes gap if not
 registered in `CANONICAL_NAMESPACES`.
-REPLICANT HOST (P12): `userpod_host` mandatory in all outputs.
+USERPOD HOST (P12): `userpod_host` mandatory in all outputs.
 VISIBILITY (P11): Regression proposals `status: pending` — public
 transparency, not hidden control.
 SAFETY FLOOR (P3.1): Supply chain findings protect Generative Space
@@ -94,7 +94,7 @@ SOURCE REFERENCES (concrete — P8):
   Report ≈ this skill's select→probe→report)
 - `principles.md` (P1–P12 grounding — this skill explicitly references
   P3.1 Social Generativity / P5 Essentialism / P9 Homeostatic Regulation /
-  P12 Replicant Host Mandate in its design and outputs)
+  P12 Authenticated Host Mandate in its design and outputs)
 
 REGISTRY AUTHORITATIVE (P5.1): When SKILL.md and registry templates
 (`manifest.yaml` + `.j2`) conflict, registry wins. This template is the

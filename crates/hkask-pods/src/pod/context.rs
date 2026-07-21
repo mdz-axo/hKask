@@ -86,7 +86,7 @@ impl PodContext {
 
             capability_checker: Arc::clone(&deployment.capability_checker),
             sovereignty_checker: deployment.sovereignty_checker.clone(),
-            ledger: deployment.cns.clone(),
+            ledger: deployment.ledger.clone(),
             curator_index: None,
         })
     }

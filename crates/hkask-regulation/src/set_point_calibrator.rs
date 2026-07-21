@@ -338,7 +338,7 @@ mod tests {
         let ns = SpanNamespace::new("reg.outcome").unwrap();
         let span = Span::new(ns, path);
         RegulationRecord::new(
-            WebID::from_persona(b"cns"),
+            WebID::from_persona(b"regulation"),
             span,
             CyclePhase::Act,
             serde_json::json!({"metric": metric}),
