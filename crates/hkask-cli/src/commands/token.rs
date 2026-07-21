@@ -50,7 +50,7 @@ pub async fn token_issue(
 
     let (_system_webid, a2a) = ctx.identity();
     let mut token = a2a
-        .register_agent(webid, AgentKind::Replicant, capabilities.clone())
+        .register_agent(webid, capabilities.clone())
         .await
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,

@@ -151,11 +151,7 @@ impl AgentRegistryLoader {
 
         let token = match self
             .a2a_runtime
-            .register_agent(
-                webid,
-                definition.agent_kind,
-                definition.capabilities.clone(),
-            )
+            .register_agent(webid, definition.capabilities.clone())
             .await
         {
             Ok(token) => token,

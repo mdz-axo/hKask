@@ -164,7 +164,6 @@ impl OnboardingService {
                         ra.definition.name.as_bytes(),
                         "replicant",
                     ),
-                    agent_type: ra.definition.agent_kind,
                     capabilities: ra.definition.capabilities.clone(),
                     registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
                         .map(|dt| dt.timestamp())
@@ -248,7 +247,7 @@ impl OnboardingService {
         ];
 
         let token = a2a
-            .register_agent(webid, AgentKind::Replicant, default_capabilities.clone())
+            .register_agent(webid, default_capabilities.clone())
             .await
             .map_err(|e| ServiceError::Domain {
                 domain: DomainKind::Agent,

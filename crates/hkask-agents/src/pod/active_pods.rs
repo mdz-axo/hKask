@@ -407,20 +407,16 @@ impl ActivePods {
             let d = self.deployments.read().await;
             let d = d.get(pod_id).ok_or(AgentPodError::PodNotFound(*pod_id))?;
             if d.pod.state == PodLifecycleState::Populated {
-                Some((
-                    d.pod.webid,
-                    d.pod.agent_type,
-                    d.pod.persona.capabilities.clone(),
-                ))
+                Some((d.pod.webid, d.pod.persona.capabilities.clone()))
             } else {
                 None
             }
         };
 
         // Perform A2A registration outside the write lock
-        let token = if let Some((webid, agent_type, capabilities)) = registration_data {
+        let token = if let Some((webid, capabilities)) = registration_data {
             Some(
-                a2a.register_agent(webid, agent_type, capabilities)
+                a2a.register_agent(webid, capabilities)
                     .await
                     .map_err(|e| AgentPodError::A2ARegistrationError(e.to_string()))?,
             )
@@ -511,7 +507,6 @@ impl ActivePods {
             name: Some(d.pod.persona.agent.name.clone()),
             state: d.pod.state,
             webid: d.pod.webid.to_string(),
-            agent_type: d.pod.agent_type,
             template: d.pod.template_crate.name.clone(),
             pod_kind: d.pod_kind,
             created_at: d.pod.created_at,
@@ -530,7 +525,6 @@ impl ActivePods {
                     name: Some(d.pod.persona.agent.name.clone()),
                     state: d.pod.state,
                     webid: d.pod.webid.to_string(),
-                    agent_type: d.pod.agent_type,
                     template: d.pod.template_crate.name.clone(),
                     pod_kind: d.pod_kind,
                     created_at: d.pod.created_at,
@@ -609,7 +603,6 @@ pub struct PodStatusInfo {
     pub name: Option<String>,
     pub state: PodLifecycleState,
     pub webid: String,
-    pub agent_type: AgentKind,
     pub template: String,
     pub pod_kind: PodKind,
     pub created_at: i64,

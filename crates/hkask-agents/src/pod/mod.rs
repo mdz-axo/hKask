@@ -95,8 +95,6 @@ pub struct AgentPod {
     pub id: PodID,
     /// Agent's WebID
     pub webid: WebID,
-    /// Agent type (Bot or Replicant)
-    pub agent_type: AgentKind,
     /// Agent persona
     pub persona: AgentPersona,
     /// Template crate reference
@@ -248,7 +246,6 @@ impl AgentPod {
         Ok(Self {
             id: PodID::new(),
             webid: persona.webid(),
-            agent_type: persona.agent.agent_type,
             persona: persona.clone(),
             template_crate,
             capability_token,
@@ -290,7 +287,7 @@ impl AgentPod {
 
         let capabilities: Vec<String> = self.persona.capabilities.clone();
         let token = a2a
-            .register_agent(self.webid, self.agent_type, capabilities)
+            .register_agent(self.webid, capabilities)
             .await
             .map_err(|e| AgentPodError::A2ARegistrationError(e.to_string()))?;
 
@@ -303,7 +300,6 @@ impl AgentPod {
             verb = "registered",
             pod_id = %self.id,
             webid = %self.webid,
-            agent_type = %self.agent_type,
             confidence = 1.0,
             "CNS event"
         );

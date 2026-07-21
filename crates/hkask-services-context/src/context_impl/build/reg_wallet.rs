@@ -67,7 +67,6 @@ pub(super) async fn build_registry_and_wallet(
                 webid: hkask_types::WebID::from_str(&ra.definition.name).unwrap_or_else(|_| {
                     hkask_types::WebID::from_persona(ra.definition.name.as_bytes())
                 }),
-                agent_type: ra.definition.agent_kind,
                 capabilities: ra.definition.capabilities.clone(),
                 registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
                     .map(|dt| dt.timestamp())

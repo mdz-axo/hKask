@@ -35,7 +35,7 @@ use crate::types::audit::AuditOutcome;
 use hkask_capability::{
     CapabilitySpec, DelegationAction, DelegationResource, DelegationToken, derive_signing_key,
 };
-use hkask_types::{AgentKind, WebID};
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -89,7 +89,6 @@ pub enum A2AError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct A2AAgent {
     pub webid: WebID,
-    pub agent_type: AgentKind,
     /// Explicit capabilities — no wildcards
     pub capabilities: Vec<String>,
     pub registered_at: i64,
@@ -341,9 +340,8 @@ impl A2ARuntime {
     /// expect: "Agent interactions are gated by OCAP boundaries"
     /// \[P4\] Motivating: Clear Boundaries — DelegationToken attenuates capabilities
     /// \[P1\] Constraining: User Sovereignty — tokens are issued to named agents
-    /// pre:  `webid` is a valid `WebID`; `agent_type` is a valid
-    ///       `AgentKind`; `capabilities` is a list of capability strings
-    ///       (no wildcards allowed).
+    /// pre:  `webid` is a valid `WebID`; `capabilities` is a list of
+    ///       capability strings (no wildcards allowed).
     /// post: On success, returns `Ok(DelegationToken)` — the primary token
     ///       for the agent. On failure, returns `Err(A2AError)`:
     ///       `WildcardCapabilityNotAllowed` if any capability is `"*"`;
@@ -351,7 +349,6 @@ impl A2ARuntime {
     pub async fn register_agent(
         &self,
         webid: WebID,
-        agent_type: AgentKind,
         capabilities: Vec<String>,
     ) -> Result<DelegationToken, A2AError> {
         // Validate capabilities - reject wildcards
@@ -363,7 +360,6 @@ impl A2ARuntime {
 
         let agent = A2AAgent {
             webid,
-            agent_type,
             capabilities: capabilities.clone(),
             registered_at: current_timestamp()?,
             active: true,
@@ -406,7 +402,6 @@ impl A2ARuntime {
         info!(
             target: "hkask.a2a",
             webid = %webid,
-            agent_type = %agent_type.as_str(),
             capabilities = ?capabilities,
             "Agent registered with A2A runtime"
         );
@@ -582,7 +577,7 @@ impl Default for A2ARuntime {
 mod tests {
     use super::*;
     use hkask_capability::DelegationResource;
-    use hkask_types::{AgentKind, WebID};
+    use hkask_types::WebID;
 
     const TEST_SECRET: &[u8] = b"test-a2a-secret-32-bytes-min!";
 
@@ -598,9 +593,7 @@ mod tests {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        let result = a2a
-            .register_agent(webid, AgentKind::Bot, vec!["*".to_string()])
-            .await;
+        let result = a2a.register_agent(webid, vec!["*".to_string()]).await;
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -616,11 +609,7 @@ mod tests {
         let webid = test_webid("test-agent");
 
         let result = a2a
-            .register_agent(
-                webid,
-                AgentKind::Bot,
-                vec!["tool:execute".to_string(), "*".to_string()],
-            )
+            .register_agent(webid, vec!["tool:execute".to_string(), "*".to_string()])
             .await;
 
         assert!(result.is_err());
@@ -639,7 +628,7 @@ mod tests {
         let webid = test_webid("test-agent");
 
         let token = a2a
-            .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .register_agent(webid, vec!["tool:execute".to_string()])
             .await
             .expect("Registration should succeed");
 
@@ -655,12 +644,12 @@ mod tests {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        a2a.register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+        a2a.register_agent(webid, vec!["tool:execute".to_string()])
             .await
             .expect("First registration should succeed");
 
         let result = a2a
-            .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .register_agent(webid, vec!["tool:execute".to_string()])
             .await;
 
         assert!(result.is_err());
@@ -683,7 +672,7 @@ mod tests {
         ];
 
         let _token = a2a
-            .register_agent(webid, AgentKind::Bot, capabilities.clone())
+            .register_agent(webid, capabilities.clone())
             .await
             .expect("Registration should succeed");
 
@@ -708,7 +697,7 @@ mod tests {
         let a2a = A2ARuntime::new(TEST_SECRET);
         let webid = test_webid("test-agent");
 
-        a2a.register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+        a2a.register_agent(webid, vec!["tool:execute".to_string()])
             .await
             .expect("Registration should succeed");
 
@@ -746,7 +735,7 @@ mod tests {
         let webid = test_webid("test-agent");
 
         let token = a2a
-            .register_agent(webid, AgentKind::Bot, vec!["tool:execute".to_string()])
+            .register_agent(webid, vec!["tool:execute".to_string()])
             .await
             .expect("Registration should succeed");
 
@@ -768,7 +757,6 @@ mod tests {
         let token = a2a
             .register_agent(
                 webid,
-                AgentKind::Bot,
                 vec!["tool:execute".to_string(), "memory:read".to_string()],
             )
             .await
@@ -776,7 +764,6 @@ mod tests {
 
         let agent = A2AAgent {
             webid,
-            agent_type: AgentKind::Bot,
             capabilities: vec!["tool:execute".to_string(), "memory:read".to_string()],
             registered_at: 1000,
             active: true,
@@ -809,11 +796,11 @@ mod tests {
         let alice = test_webid("alice");
         let bob = test_webid("bob");
 
-        a2a.register_agent(alice, AgentKind::Bot, vec!["tool:execute".to_string()])
+        a2a.register_agent(alice, vec!["tool:execute".to_string()])
             .await
             .expect("Alice registration should succeed");
 
-        a2a.register_agent(bob, AgentKind::Replicant, vec!["memory:read".to_string()])
+        a2a.register_agent(bob, vec!["memory:read".to_string()])
             .await
             .expect("Bob registration should succeed");
 
