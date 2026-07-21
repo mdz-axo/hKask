@@ -10,7 +10,7 @@
 use hkask_pods::a2a::A2ARuntime;
 use hkask_pods::consent::ConsentManager;
 use hkask_capability::CapabilityChecker;
-use hkask_cns::types::loops::{CurationInput, GoalTransitionEvent};
+use hkask_regulation::types::loops::{CurationInput, GoalTransitionEvent};
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::{EscalationEntry, EscalationQueue};

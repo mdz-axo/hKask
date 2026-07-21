@@ -39,7 +39,7 @@ impl WalletService {
                 source: None,
                 message: "CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into(),
             })?;
-        let budget = hkask_cns::WalletBackedBudget::new(
+        let budget = hkask_regulation::WalletBackedBudget::new(
             wallet_id,
             Arc::clone(&self.manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
         );
@@ -78,7 +78,7 @@ impl WalletService {
                 source: None,
                 message: "CyberneticsLoop not attached to WalletService — call with_cybernetics() during construction".into(),
             })?;
-        let budget = hkask_cns::WalletBackedBudget::new(
+        let budget = hkask_regulation::WalletBackedBudget::new(
             wallet_id,
             Arc::clone(&self.manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
         )

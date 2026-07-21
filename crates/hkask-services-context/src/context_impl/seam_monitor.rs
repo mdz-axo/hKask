@@ -1,6 +1,6 @@
 //! Seam drift monitor — periodic public-seam drift detection.
 
-use hkask_cns::{CnsRuntime, SeamWatcher};
+use hkask_regulation::{CnsRuntime, SeamWatcher};
 use hkask_types::event::NuEventSink;
 use std::sync::Arc;
 use tokio::sync::RwLock;

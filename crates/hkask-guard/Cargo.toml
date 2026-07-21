@@ -6,7 +6,7 @@ license.workspace = true
 description = "hKask content safety guard — mandatory input/output scanning for all LLM boundaries, OWASP LLM Top 10 aligned"
 
 [dependencies]
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 hkask-types = { path = "../hkask-types" }
 llm-guard = "0.2"
 tracing.workspace = true

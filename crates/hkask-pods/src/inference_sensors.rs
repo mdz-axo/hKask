@@ -8,8 +8,8 @@
 //! flows through `SensorProvider` implementations registered with the
 //! `SensorCatalog`, enabling centralized monitoring and management.
 
-use hkask_cns::sensor_provider::SensorProvider;
-use hkask_cns::types::loops::{LoopId, Signal, SignalMetric};
+use hkask_regulation::sensor_provider::SensorProvider;
+use hkask_regulation::types::loops::{LoopId, Signal, SignalMetric};
 use hkask_ports::CircuitBreakerPort;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

@@ -190,7 +190,7 @@ impl TurnExecutor for ReplTurnExecutor {
 
 /// Wraps `EnergyGuard` + gas status.
 pub struct ReplGasGovernor {
-    cybernetics_loop: Arc<tokio::sync::RwLock<hkask_cns::CyberneticsLoop>>,
+    cybernetics_loop: Arc<tokio::sync::RwLock<hkask_regulation::CyberneticsLoop>>,
     inference_loop: Arc<hkask_pods::InferenceLoop>,
     webid: WebID,
     rt: tokio::runtime::Handle,

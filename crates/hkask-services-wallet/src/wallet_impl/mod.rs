@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use hkask_pods::consent::ConsentManager;
-use hkask_cns::CyberneticsLoop;
+use hkask_regulation::CyberneticsLoop;
 use hkask_storage::WalletStore;
 use hkask_types::event::NuEventSink;
 use hkask_wallet::{ApiKeyIssuer, WalletManager};

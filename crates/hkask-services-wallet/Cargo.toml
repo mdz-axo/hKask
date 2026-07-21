@@ -11,7 +11,7 @@ hedera = []
 [dependencies]
 hkask-services-core = { path = "../hkask-services-core" }
 hkask-pods = { path = "../hkask-pods" }
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hkask-wallet = { path = "../hkask-wallet" }

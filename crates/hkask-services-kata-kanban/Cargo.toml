@@ -19,7 +19,7 @@ tracing.workspace = true
 tokio.workspace = true
 
 # Kata-specific
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-inference = { path = "../hkask-inference" }

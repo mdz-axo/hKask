@@ -5,7 +5,7 @@ use hkask_database::sqlite::SqliteDriver;
 
 use super::foundation::Foundation;
 use crate::cns_store_slo_provider::CnsStoreSloProvider;
-use hkask_cns::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
+use hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
 use hkask_ports::{CnsStoragePort, escalation::EscalationPort};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use std::path::PathBuf;

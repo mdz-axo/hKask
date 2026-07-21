@@ -4,7 +4,7 @@
 //! dependency — it needs both `McpRuntime` from `hkask-mcp` and the `HkaskLoop`
 //! trait from `hkask-cns`. Both are available here.
 
-use hkask_cns::types::loops::{
+use hkask_regulation::types::loops::{
     ActionType, Deviation, HkaskLoop, LoopAction, LoopActionParams, LoopId, Signal, SignalMetric,
 };
 use hkask_mcp::McpRuntime;

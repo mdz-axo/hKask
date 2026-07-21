@@ -3,7 +3,7 @@
 use super::super::*;
 use super::foundation::Foundation;
 use super::loops::LoopWiring;
-use hkask_cns::set_point_calibrator::SetPointCalibrator;
+use hkask_regulation::set_point_calibrator::SetPointCalibrator;
 use hkask_services_core::ServiceError;
 
 /// MCP + pods: governed tool, dispatcher, pod manager, daemon handler.
@@ -13,9 +13,9 @@ pub(super) struct McpPods {
     pub pod_manager: Arc<ActivePods>,
     pub capability_checker: Arc<CapabilityChecker>,
     pub daemon_handler: Arc<hkask_services_runtime::ServiceDaemonHandler>,
-    pub energy_estimator: Arc<hkask_cns::CalibratedEnergyEstimator>,
+    pub energy_estimator: Arc<hkask_regulation::CalibratedEnergyEstimator>,
     /// Statistical learner shared between GovernedTool and CyberneticsLoop.
-    pub tool_stats: Arc<hkask_cns::ToolStats>,
+    pub tool_stats: Arc<hkask_regulation::ToolStats>,
 
     pub curator_ready: tokio::sync::oneshot::Receiver<()>,
 }
@@ -32,21 +32,21 @@ pub(super) async fn build_mcp_and_pods(
     );
     energy_estimator
         .clone()
-        .spawn_calibration(hkask_cns::DEFAULT_CALIBRATION_INTERVAL);
+        .spawn_calibration(hkask_regulation::DEFAULT_CALIBRATION_INTERVAL);
 
     // Set-point auto-tuning calibrator
     let set_point_calibrator: Arc<SetPointCalibrator> = Arc::new(SetPointCalibrator::new(
         Arc::clone(&f.gas_event_store),
-        hkask_cns::DEFAULT_INITIAL_LOOKBACK,
+        hkask_regulation::DEFAULT_INITIAL_LOOKBACK,
     ));
     {
         let loop_ref = Arc::clone(&l.cybernetics_loop);
         set_point_calibrator.clone().spawn_calibration(
-            hkask_cns::DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
+            hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
             move |adjustments| {
                 if let Ok(mut guard) = loop_ref.try_write() {
                     let sp = guard.set_points_mut();
-                    hkask_cns::set_point_calibrator::SetPointCalibrator::apply_adjustments(
+                    hkask_regulation::set_point_calibrator::SetPointCalibrator::apply_adjustments(
                         &adjustments,
                         &mut sp.stagnation_thresholds,
                         &mut sp.block_worsening_ratio,

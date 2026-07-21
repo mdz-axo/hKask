@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use hkask_pods::pod::ActivePods;
-use hkask_cns::CnsRuntime;
+use hkask_regulation::CnsRuntime;
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_ports::InferencePort;
 use hkask_storage::user_store::UserStore;

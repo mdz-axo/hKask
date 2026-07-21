@@ -11,7 +11,7 @@ hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 # Runtime needs client (to talk to child MCP servers) and
 # transport-child-process (to spawn/manage them).
 rmcp = { workspace = true, features = ["server", "macros", "transport-io", "client", "transport-child-process"] }

@@ -393,10 +393,54 @@ sequenceDiagram
 | `docker/axolotl-lora-trainer/entrypoint.sh` | Pure bash entrypoint |
 | `mcp-servers/hkask-mcp-training/src/providers/harness.rs` | `AxolotlHarness::render_config()` — Rust config generation |
 | `mcp-servers/hkask-mcp-training/src/providers/runpod.rs` | `RunpodHost::submit()` — pod creation + env vars |
+| `mcp-servers/hkask-mcp-training/src/providers/trl_harness.rs` | `TrlHarness::render_config()` — TRL Python script generation |
+| `registry/templates/training/trl-sft.j2` | TRL SFTTrainer Python script template |
 | `corpus/lora/axolotl-lora.yaml` | Canonical axolotl config (EVA, r=32) |
 | `docs/reference/lora-training-catalog.md` | LoRA method + gate catalog |
 | `.agents/skills/lora-training/SKILL.md` | lora-training skill |
 | `docs/post-mortem/2026-07-19-training-providers.md` | Post-mortem from $600 billing leak |
+
+---
+
+## Lesson 12: TRL Harness — Pin TRL Version in the Pod Template
+
+**Symptom**: Adapter trained with TRL produces garbage output when loaded with
+a different TRL/transformers version at inference time.
+
+**Root cause**: TRL is under active development (v1.0 released March 2026, v1.8.0
+current). API changes between versions (e.g., SFTConfig parameter renames,
+loss_type defaults, packing strategy changes) can produce adapters that don't
+behave the same at inference. This is the same class of bug as Lesson 6 (PiSSA
+portability) — version mismatch between training and inference environments.
+
+**Fix**: Pin TRL to a specific version in the pod template. The pod's
+entrypoint script should:
+1. `pip install trl==1.8.0 peft==0.19.0 transformers==5.9.0` (pinned versions)
+2. Assert the installed version matches the expected version before training
+   (the rendered TRL script includes a version assertion that fails fast)
+3. Record the TRL version in the completion manifest for inference-time
+   compatibility checks
+
+**Detection**: If the adapter was trained with a different TRL version than the
+inference environment, check the completion manifest's `trl_version` field.
+Mismatch → retrain with the pinned version.
+
+**TRL pod template**: Use a pre-built image with TRL + all deps pre-installed,
+parallel to the axolotl template (Lesson 10). The image should be based on
+`python:3.11-slim` with `pip install trl peft bitsandbytes accelerate` pre-baked.
+
+**Harness selection**: The harness is selected per-job via `TrainingParams.harness`
+(operator-accepted from the lora-training skill's G6 gate). The RunPod host's
+`submit()` method checks `job.params.harness` and renders either axolotl YAML
+(`HKASK_AXOLOTL_CONFIG`) or TRL Python (`HKASK_TRL_SCRIPT`). The pod's entrypoint
+checks which env var is set and runs the corresponding training command.
+
+**TRL SFTTrainer config**: The TRL SFT script is rendered from
+`registry/templates/training/trl-sft.j2` by `TrlHarness::render_config()`. The
+script uses the same canonical `TrainingParams` as axolotl — same LoRA config,
+same optimizer, same learning rate. The only difference is the output format
+(Python script vs YAML) and the TRL-specific features (assistant_only_loss,
+packing strategies, VLM support) that axolotl doesn't support.
 
 ---
 
@@ -407,3 +451,4 @@ sequenceDiagram
 | 2026-07-19 | mdz-axo | Initial PiSSA guide (deleted; superseded by this guide) |
 | 2026-07-19 | mdz-axo | Post-mortem: $600 billing leak, PiSSA→EVA, pod persistence |
 | 2026-07-20 | agent | Consolidated guide: Lessons 1-11 from this session's debugging |
+| 2026-07-21 | agent | Lesson 12: TRL harness integration, version pinning, harness selection |

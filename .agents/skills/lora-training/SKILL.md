@@ -89,8 +89,8 @@ This skill does not train, load, initialize, merge, or evaluate models.
 5. Use exactly one evidence kind:
    `config_value | code_presence | code_absence | runtime_measurement | operator_assertion | not_available`.
    `code_absence` requires a search of the complete declared harness scope.
-6. Apply all 16 gates phase-appropriately: G-M1..G-M5, G-Q1..G-Q6,
-   G-D1..G-D3, and G-F1..G-F2. Runtime and post-training passes require supplied
+6. Apply all 17 gates phase-appropriately: G-M1..G-M5, G-Q1..G-Q6,
+   G-D1..G-D3, G-F1..G-F2, and G-H1. Runtime and post-training passes require supplied
    measurements; this template never executes those checks.
 7. Inspect initializer-specific preprocessing and persistence according to the
    selected initializer's documented contract. Do not introduce an EVA-specific
@@ -203,5 +203,18 @@ Do not create alternate finding shapes. A recommendation never overwrites
   dimensions and structured forgetting.
 - AutoPEFT: [arXiv:2301.12132](https://arxiv.org/abs/2301.12132) — rejected
   per-job multi-objective search alternative.
+- DPO: [arXiv:2305.18290](https://arxiv.org/abs/2305.18290) — Direct Preference
+  Optimization.
+- KTO: [arXiv:2402.01306](https://arxiv.org/abs/2402.01306) — Kahneman-Tversky
+  Optimization.
+- ORPO: [arXiv:2403.07691](https://arxiv.org/abs/2403.07691) — Odds Ratio
+  Preference Optimization.
 - PEFT v0.19.0:
   [LoraConfig reference](https://huggingface.co/docs/peft/v0.19.0/package_reference/lora).
+- TRL v1.8.0:
+  [SFTTrainer](https://huggingface.co/docs/trl/main/en/sft_trainer),
+  [DPOTrainer](https://huggingface.co/docs/trl/main/en/dpo_trainer),
+  [KTOTrainer](https://huggingface.co/docs/trl/main/en/kto_trainer),
+  [ORPOTrainer](https://huggingface.co/docs/trl/main/en/orpo_trainer),
+  [RewardTrainer](https://huggingface.co/docs/trl/main/en/reward_trainer),
+  [TRL index](https://huggingface.co/docs/trl/index).

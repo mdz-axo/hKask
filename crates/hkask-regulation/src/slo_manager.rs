@@ -61,7 +61,7 @@ pub enum SloManagerError {
 /// ## Example
 ///
 /// ```rust,ignore
-/// use hkask_cns::slo_manager::SloManager;
+/// use hkask_regulation::slo_manager::SloManager;
 /// use hkask_types::cns::seed_slos;
 ///
 /// let mut manager = SloManager::new();

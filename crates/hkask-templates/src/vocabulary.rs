@@ -168,6 +168,7 @@ const KNOWN_TERMS: &[&str] = &[
     "guide",
     "habit",
     "handoff",
+    "harness",
     "heal",
     "hunt",
     "hypothesise",

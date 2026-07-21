@@ -15,7 +15,7 @@
 //! - \[P9\] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
 use hkask_capability::CapabilityChecker;
-use hkask_cns::CnsRuntime;
+use hkask_regulation::CnsRuntime;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_database::types::DbProvider;
 use hkask_mcp::McpRuntime;
@@ -184,11 +184,11 @@ impl PerPodCnsRuntime {
         self.inner.variety_for_domain(&domain).await
     }
 
-    pub async fn register_gas_budget(&self, agent: WebID, budget: hkask_cns::GasBudget) {
+    pub async fn register_gas_budget(&self, agent: WebID, budget: hkask_regulation::GasBudget) {
         self.inner.register_gas_budget(agent, budget).await;
     }
 
-    pub async fn agent_energy_status(&self, agent: &WebID) -> Option<hkask_cns::AgentGasStatus> {
+    pub async fn agent_energy_status(&self, agent: &WebID) -> Option<hkask_regulation::AgentGasStatus> {
         self.inner.agent_gas_status(agent).await
     }
 }

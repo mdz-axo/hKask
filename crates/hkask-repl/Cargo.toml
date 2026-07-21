@@ -8,7 +8,7 @@ description = "hKask REPL — interactive agent session with slash-command dispa
 [dependencies]
 hkask-pods = { path = "../hkask-pods" }
 hkask-capability = { path = "../hkask-capability" }
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 hkask-improv = { path = "../hkask-improv" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-memory = { path = "../hkask-memory" }

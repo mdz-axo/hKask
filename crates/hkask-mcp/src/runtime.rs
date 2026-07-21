@@ -129,9 +129,9 @@ fn resolve_mcp_binary(server_id: &str, command: &str) -> String {
 /// one tool, one path.
 #[derive(Clone)]
 struct ToolGovernance {
-    cybernetics: Arc<RwLock<hkask_cns::CyberneticsLoop>>,
+    cybernetics: Arc<RwLock<hkask_regulation::CyberneticsLoop>>,
     event_sink: Arc<dyn hkask_types::NuEventSink>,
-    estimator: Arc<dyn hkask_cns::EnergyEstimator>,
+    estimator: Arc<dyn hkask_regulation::EnergyEstimator>,
 }
 
 #[derive(Clone)]
@@ -168,9 +168,9 @@ impl McpRuntime {
     #[must_use]
     pub fn with_governance(
         mut self,
-        cybernetics: Arc<RwLock<hkask_cns::CyberneticsLoop>>,
+        cybernetics: Arc<RwLock<hkask_regulation::CyberneticsLoop>>,
         event_sink: Arc<dyn hkask_types::NuEventSink>,
-        estimator: Arc<dyn hkask_cns::EnergyEstimator>,
+        estimator: Arc<dyn hkask_regulation::EnergyEstimator>,
     ) -> Self {
         self.governance = Some(ToolGovernance {
             cybernetics,
@@ -473,7 +473,7 @@ impl hkask_ports::ToolPort for McpRuntime {
                 }
 
                 // Gas: reserve estimated cost (hold-settle pattern).
-                let estimated = hkask_cns::GasCost(est.estimate_cost(server, tool, &args));
+                let estimated = hkask_regulation::GasCost(est.estimate_cost(server, tool, &args));
                 let cyber_lock = cyber.read().await;
                 if !cyber_lock.can_proceed(&agent, estimated).await {
                     return Err(hkask_ports::ToolPortError::EnergyBudgetExceeded(format!(
@@ -496,7 +496,7 @@ impl hkask_ports::ToolPort for McpRuntime {
                 cyber
                     .read()
                     .await
-                    .settle_gas(&agent, estimated, hkask_cns::GasCost(actual))
+                    .settle_gas(&agent, estimated, hkask_regulation::GasCost(actual))
                     .await
                     .ok();
 

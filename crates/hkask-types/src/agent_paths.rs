@@ -197,14 +197,29 @@ pub fn sanitize_name(name: &str) -> String {
             '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' | '(' | ')' | ' ' => '-',
             other => other,
         })
-        .collect::<String>()
-        .trim_matches('-')
-        .to_string();
-    // Guard against path traversal: `.` and `..` resolve to current/parent dir.
-    if sanitized == "." || sanitized == ".." {
-        return "unnamed".to_string();
+        .collect::<String>();
+    // Collapse consecutive dashes into one (e.g. "Jacques (Zuck)" → "Jacques-Zuck",
+    // not "Jacques--Zuck").
+    let mut collapsed = String::with_capacity(sanitized.len());
+    let mut prev_dash = false;
+    for c in sanitized.chars() {
+        if c == '-' {
+            if !prev_dash {
+                collapsed.push(c);
+            }
+            prev_dash = true;
+        } else {
+            collapsed.push(c);
+            prev_dash = false;
+        }
     }
-    sanitized
+    let result = collapsed.trim_matches('-').to_string();
+    // Guard against path traversal: `.` and `..` resolve to current/parent dir.
+    if result == "." || result == ".." {
+        "unnamed".to_string()
+    } else {
+        result
+    }
 }
 
 #[cfg(test)]

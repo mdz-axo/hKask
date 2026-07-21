@@ -12,11 +12,11 @@
 //! - P9 (Homeostatic Self-Regulation): CNS must detect and respond to energy depletion
 //! - P8 (Semantic Grounding): every assertion ties to a stated behavioral property
 
-use hkask_cns::cybernetics_loop::CyberneticsLoop;
-use hkask_cns::energy::{GasBudget, GasCost};
-use hkask_cns::runtime::CnsRuntime;
-use hkask_cns::set_points::{InferenceThrottleMode, SetPoints};
-use hkask_cns::types::loops::{ActionDecision, ActionType, HkaskLoop, LoopId, SignalMetric};
+use hkask_regulation::cybernetics_loop::CyberneticsLoop;
+use hkask_regulation::energy::{GasBudget, GasCost};
+use hkask_regulation::runtime::CnsRuntime;
+use hkask_regulation::set_points::{InferenceThrottleMode, SetPoints};
+use hkask_regulation::types::loops::{ActionDecision, ActionType, HkaskLoop, LoopId, SignalMetric};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -264,7 +264,7 @@ async fn action_decision_block_fires_on_severe_worsening() {
     // worsening=0.25 ≥ block_ratio=0.20 → Block.
 
     // Produce a mock action as compute would, carrying the pre-action ratio.
-    use hkask_cns::types::loops::{LoopAction, LoopActionParams, RegulationData};
+    use hkask_regulation::types::loops::{LoopAction, LoopActionParams, RegulationData};
     let mock_action = LoopAction::new(
         LoopId::Inference,
         ActionType::Throttle,

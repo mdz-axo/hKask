@@ -22,7 +22,7 @@
 //! Each test carries a `// REQ:` tag linking it to the contract-first
 //! migration plan.
 
-use hkask_cns::EnergyEstimator;
+use hkask_regulation::EnergyEstimator;
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceConfig;
 use hkask_types::DataCategory;

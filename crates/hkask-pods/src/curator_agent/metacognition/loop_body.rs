@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::ports::EscalationEntry;
-use hkask_cns::types::loops::{
+use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, Loop, LoopAction, LoopActionParams, LoopId,
     SignalMetric,
 };

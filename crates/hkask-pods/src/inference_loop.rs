@@ -7,23 +7,18 @@
 //! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
 //! the port is passed to this loop.
 
-use hkask_cns::sensor_provider::SensorRegistry;
-use hkask_cns::types::loops::{
+use hkask_regulation::sensor_provider::SensorRegistry;
+use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopActionParams, LoopId,
     RegulationData, Signal, SignalMetric,
 };
-use hkask_ports::CircuitBreakerPort;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 
 use crate::inference_sensors::{
-    CircuitBreakerStateSensor, GAS_SET_POINT as SENSOR_GAS_SET_POINT, InferenceAvailableSensor,
-    InferenceGasRemainingSensor, InferenceModelAvailableSensor, InferenceSensorState,
+    CircuitBreakerStateSensor, InferenceAvailableSensor, InferenceGasRemainingSensor,
+    InferenceModelAvailableSensor, InferenceSensorState,
 };
-
-/// Gas budget set-point: when gas remaining drops below this ratio,
-/// the loop self-throttles via `AdjustEnergyBudget`.
-const GAS_SET_POINT: f64 = SENSOR_GAS_SET_POINT;
 
 /// Inference Loop — owns energy budget and model selection state.
 ///
@@ -40,7 +35,6 @@ const GAS_SET_POINT: f64 = SENSOR_GAS_SET_POINT;
 /// the `sensor_registry`. The loop shares state with its sensors via
 /// `Arc<InferenceSensorState>`.
 pub struct InferenceLoop {
-    circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
     /// Shared state between the loop and its sensors.
     sensor_state: Arc<InferenceSensorState>,
     /// Sensor registry — holds the SensorProvider implementations for this loop.
@@ -55,8 +49,11 @@ impl InferenceLoop {
     pub fn new() -> Self {
         let sensor_state = Arc::new(InferenceSensorState::new());
         let sensor_registry = SensorRegistry::new();
-        // Register sensors that don't need the circuit breaker yet —
-        // they'll be re-registered when the circuit breaker is set.
+        // Register all four inference sensors. The circuit breaker sensors
+        // receive None (always closed / always available) — they can be
+        // re-registered with a real circuit breaker via `with_circuit_breaker()`.
+        sensor_registry.register(Arc::new(CircuitBreakerStateSensor::new(None)));
+        sensor_registry.register(Arc::new(InferenceAvailableSensor::new(None)));
         sensor_registry.register(Arc::new(InferenceGasRemainingSensor::new(Arc::clone(
             &sensor_state,
         ))));
@@ -64,7 +61,6 @@ impl InferenceLoop {
             &sensor_state,
         ))));
         Self {
-            circuit_breaker: None,
             sensor_state,
             sensor_registry,
             current_model: None,
@@ -84,7 +80,7 @@ impl InferenceLoop {
     /// `cap` is the total gas allocation; `remaining` is the current balance.
     /// Both are stored in the shared sensor state so that sensors can emit
     /// the gas-remaining ratio.
-    pub fn with_energy_budget(mut self, cap: u64, remaining: u64) -> Self {
+    pub fn with_energy_budget(self, cap: u64, remaining: u64) -> Self {
         self.sensor_state.sync_gas(remaining, cap);
         self
     }
@@ -176,69 +172,15 @@ impl HkaskLoop for InferenceLoop {
         LoopId::Inference
     }
 
-    /// Sense: read circuit breaker state, inference availability, energy budget, and model state.
+    /// Sense: delegate to the SensorRegistry.
     ///
-    /// Produces signals for:
-    /// - `circuit_breaker_state` — 0.0=closed, 1.0=open, 0.5=half-open (set_point 0.0)
-    /// - `inference_available` — 1.0 if circuit breaker allows, 0.0 if not (set_point 1.0)
-    /// - `inference_gas_remaining` — ratio of gas remaining in loop's own budget (set_point 0.2)
-    /// - `inference_model_available` — 1.0 if model is set, 0.0 if not (set_point 1.0)
+    /// All sensing is now done through SensorProvider implementations:
+    /// - `CircuitBreakerStateSensor` — 0.0=closed, 1.0=open, 0.5=half-open
+    /// - `InferenceAvailableSensor` — 1.0 if circuit breaker allows, 0.0 if not
+    /// - `InferenceGasRemainingSensor` — ratio of gas remaining in loop's budget
+    /// - `InferenceModelAvailableSensor` — 1.0 if model is set, 0.0 if not
     async fn sense(&self) -> Vec<Signal> {
-        let (cb_state, available) = match &self.circuit_breaker {
-            Some(cb) => {
-                let state_value = match cb.state() {
-                    hkask_types::CircuitState::Closed => 0.0,
-                    hkask_types::CircuitState::Open => 1.0,
-                    hkask_types::CircuitState::HalfOpen => 0.5,
-                };
-                let available = if cb.allow_request() { 1.0 } else { 0.0 };
-                (state_value, available)
-            }
-            None => {
-                // No circuit breaker means inference is always available
-                (0.0, 1.0)
-            }
-        };
-
-        let gas_ratio = if self.gas_cap > 0 {
-            self.gas_remaining.load(Ordering::Relaxed) as f64 / self.gas_cap as f64
-        } else {
-            // No budget allocated — report full to avoid spurious throttling
-            1.0
-        };
-
-        let model_available = if self.current_model.is_some() {
-            1.0
-        } else {
-            0.0
-        };
-
-        vec![
-            Signal::new(
-                LoopId::Inference,
-                SignalMetric::CircuitBreakerState,
-                cb_state,
-                0.0,
-            ),
-            Signal::new(
-                LoopId::Inference,
-                SignalMetric::InferenceAvailable,
-                available,
-                1.0,
-            ),
-            Signal::new(
-                LoopId::Inference,
-                SignalMetric::InferenceGasRemaining,
-                gas_ratio,
-                GAS_SET_POINT,
-            ),
-            Signal::new(
-                LoopId::Inference,
-                SignalMetric::InferenceModelAvailable,
-                model_available,
-                1.0,
-            ),
-        ]
+        self.sensor_registry.sense_all(LoopId::Inference).await
     }
 
     /// Compute: produce regulatory actions for detected deviations.

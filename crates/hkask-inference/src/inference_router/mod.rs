@@ -14,7 +14,7 @@ use crate::ollama_backend::OllamaBackend;
 use crate::openrouter_backend::OpenRouterBackend;
 use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
-use hkask_cns::{CyberneticsLoop, GasCost};
+use hkask_regulation::{CyberneticsLoop, GasCost};
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::cns::CnsSpan;
 use hkask_types::event::{CyclePhase, NuEvent, Span, SpanNamespace};

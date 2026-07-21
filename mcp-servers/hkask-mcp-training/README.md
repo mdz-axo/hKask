@@ -37,11 +37,19 @@ Simplified from 21 → 15 → 8 across 2026-07-19 cleanups.
 
 ## Providers
 
-Single cloud host: **Runpod**. Single harness: **Axolotl** (YAML).
+Single cloud host: **Runpod**. Two harnesses: **Axolotl** (YAML, SFT) and
+**TRL** (Python, SFT + future preference optimization).
+
+Harness selection is per-job via `TrainingParams.harness` (operator-accepted
+from the lora-training skill's G6 gate), defaulting to Axolotl. The RunPod
+host's `submit()` method renders either axolotl YAML (`HKASK_AXOLOTL_CONFIG`)
+or TRL Python (`HKASK_TRL_SCRIPT`) based on the selected harness.
+
+Phase 1 (v0.31.0): TRL SFTTrainer only. Phase 2 will add DPO/KTO/ORPO.
 
 Deleted providers (2026-07-19): `TogetherHost` (Together AI REST API) and `TinkerHost` (Thinking Machines subprocess). The Runpod host is sufficient for all training workloads.
 
-Deleted harnesses (2026-07-19): `UnslothHarness` (Python). Re-add when there's a concrete data/training need — Axolotl is sufficient until then.
+Deleted harnesses (2026-07-19): `UnslothHarness` (Python). Re-add when there's a concrete data/training need — Axolotl + TRL are sufficient until then.
 
 ## Configuration
 

@@ -5,7 +5,7 @@
 
 use hkask_pods::pod::ActivePods;
 use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::{SeamSummary, SeamWatcher, WalletGasCalibrator};
+use hkask_regulation::{SeamSummary, SeamWatcher, WalletGasCalibrator};
 use hkask_communication::matrix::MatrixTransport;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;

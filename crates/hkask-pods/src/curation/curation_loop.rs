@@ -16,7 +16,7 @@
 //! formats them for human operators.
 
 use chrono::Utc;
-use hkask_cns::types::loops::{
+use hkask_regulation::types::loops::{
     CommunicationEvent, CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal,
     SignalMetric,
 };
@@ -236,7 +236,7 @@ impl CurationLoop {
                 );
                 tracing::info!(
                     target: "cns",
-                    cns_domain = %hkask_cns::infra_span::InfraSpan::CuratorConsolidation.as_str(),
+                    cns_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
                     operation = "skipped",
                     reason = "missing_consent",
                     missing_categories = ?missing,
@@ -273,7 +273,7 @@ impl CurationLoop {
                         );
                         tracing::info!(
                             target: "cns",
-                            cns_domain = %hkask_cns::infra_span::InfraSpan::CuratorConsolidation.as_str(),
+                            cns_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
                                 operation = "completed",
                                 consolidated = outcome.consolidated_count,
                             deleted = outcome.deleted_count,
@@ -306,7 +306,7 @@ impl CurationLoop {
                         );
                         tracing::info!(
                             target: "cns",
-                            cns_domain = %hkask_cns::infra_span::InfraSpan::CuratorConsolidation.as_str(),
+                            cns_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
                                 operation = "failed",
                                 error = %e,
                             "CNS"
@@ -465,8 +465,8 @@ impl HkaskLoop for CurationLoop {
                 SignalMetric::AlgedonicEvents if dev.signal.value > 0.0 => {
                     actions.push(LoopAction::new(
                         LoopId::Cybernetics,
-                        hkask_cns::types::loops::ActionType::Escalate,
-                        hkask_cns::types::loops::LoopActionParams::reason(
+                        hkask_regulation::types::loops::ActionType::Escalate,
+                        hkask_regulation::types::loops::LoopActionParams::reason(
                             "algedonic_events_exceeded",
                         ),
                     ));
@@ -474,8 +474,8 @@ impl HkaskLoop for CurationLoop {
                 SignalMetric::PendingEscalations if dev.signal.value > 0.0 => {
                     actions.push(LoopAction::new(
                         LoopId::Curation,
-                        hkask_cns::types::loops::ActionType::Escalate,
-                        hkask_cns::types::loops::LoopActionParams::reason(
+                        hkask_regulation::types::loops::ActionType::Escalate,
+                        hkask_regulation::types::loops::LoopActionParams::reason(
                             "pending_escalations_exist",
                         ),
                     ));
@@ -484,8 +484,8 @@ impl HkaskLoop for CurationLoop {
                     // Episodic budget pressure — fire consolidation bridge in act()
                     actions.push(LoopAction::new(
                         LoopId::Curation,
-                        hkask_cns::types::loops::ActionType::Escalate,
-                        hkask_cns::types::loops::LoopActionParams::reason(
+                        hkask_regulation::types::loops::ActionType::Escalate,
+                        hkask_regulation::types::loops::LoopActionParams::reason(
                             "consolidation_candidates_exist",
                         ),
                     ));
@@ -493,22 +493,22 @@ impl HkaskLoop for CurationLoop {
                 SignalMetric::GoalStaleCount if dev.signal.value > 0.0 => {
                     actions.push(LoopAction::new(
                         LoopId::Curation,
-                        hkask_cns::types::loops::ActionType::Escalate,
-                        hkask_cns::types::loops::LoopActionParams::reason("goals_stale"),
+                        hkask_regulation::types::loops::ActionType::Escalate,
+                        hkask_regulation::types::loops::LoopActionParams::reason("goals_stale"),
                     ));
                 }
                 SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
                     actions.push(LoopAction::new(
                         LoopId::Curation,
-                        hkask_cns::types::loops::ActionType::Escalate,
-                        hkask_cns::types::loops::LoopActionParams::reason("goals_expired"),
+                        hkask_regulation::types::loops::ActionType::Escalate,
+                        hkask_regulation::types::loops::LoopActionParams::reason("goals_expired"),
                     ));
                 }
                 SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
                     actions.push(LoopAction::new(
                         LoopId::Curation,
-                        hkask_cns::types::loops::ActionType::Escalate,
-                        hkask_cns::types::loops::LoopActionParams::reason("goals_expired"),
+                        hkask_regulation::types::loops::ActionType::Escalate,
+                        hkask_regulation::types::loops::LoopActionParams::reason("goals_expired"),
                     ));
                 }
                 _ => {}
@@ -523,13 +523,13 @@ impl HkaskLoop for CurationLoop {
         for action in actions {
             tracing::info!(target: CUR_TARGET, action_type = ?action.action_type, target_loop = %action.target, "Curation Loop regulatory action");
             let directive = match action.action_type {
-                hkask_cns::types::loops::ActionType::Escalate
+                hkask_regulation::types::loops::ActionType::Escalate
                     if action.parameters.reason == "algedonic_events_exceeded" =>
                 {
                     tracing::warn!(target: CUR_TARGET, "Algedonic events exceeded threshold — Curation reviewing");
                     None
                 }
-                hkask_cns::types::loops::ActionType::Escalate
+                hkask_regulation::types::loops::ActionType::Escalate
                     if action.parameters.reason == "consolidation_candidates_exist" =>
                 {
                     tracing::info!(
@@ -539,7 +539,7 @@ impl HkaskLoop for CurationLoop {
                     self.try_auto_consolidate().await;
                     continue;
                 }
-                hkask_cns::types::loops::ActionType::Escalate
+                hkask_regulation::types::loops::ActionType::Escalate
                     if action.parameters.reason == "pending_escalations_exist" =>
                 {
                     // Process pending escalations from the queue
@@ -581,7 +581,7 @@ impl HkaskLoop for CurationLoop {
                     }
                     continue;
                 }
-                hkask_cns::types::loops::ActionType::Escalate => {
+                hkask_regulation::types::loops::ActionType::Escalate => {
                     // Other escalations go through the escalation queue
                     // (handled by CuratorContext internally)
                     None

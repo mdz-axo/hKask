@@ -22,7 +22,7 @@
 //! Exports are sovereignty artifacts. Pruning without consent would violate P1.
 //! The loop checks `prune_exports_enabled` before acting.
 
-use hkask_cns::HkaskLoop;
+use hkask_regulation::HkaskLoop;
 use hkask_types::loops::{
     ActionType, Deviation, LoopAction, LoopActionParams, LoopId, Signal, SignalMetric,
 };

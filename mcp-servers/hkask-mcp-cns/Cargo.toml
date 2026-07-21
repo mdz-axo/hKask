@@ -11,7 +11,7 @@ hkask-types = { path = "../../crates/hkask-types" }
 hkask-ports = { path = "../../crates/hkask-ports" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-database = { path = "../../crates/hkask-database" }
-hkask-cns = { path = "../../crates/hkask-cns" }
+hkask-regulation = { path = "../../crates/hkask-regulation" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio = { workspace = true }
 serde = { workspace = true }

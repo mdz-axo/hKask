@@ -13,7 +13,7 @@ hkask-identity = { path = "../hkask-identity" }
 hkask-services-runtime = { path = "../hkask-services-runtime" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-pods = { path = "../hkask-pods" }
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 hkask-storage-guard = { path = "../hkask-storage-guard" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-git-cas = { path = "../hkask-git-cas" }

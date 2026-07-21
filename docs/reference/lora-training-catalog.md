@@ -27,7 +27,7 @@ them (P7) — not speculatively.
 
 ## Gate Catalog
 
-16 quality gates enforced by the `audit-config` phase. Each gate is a
+17 quality gates enforced by the `audit-config` phase. Each gate is a
 single assertion with a citation.
 
 ### Math-Contract Gates (from LoRA paper, arXiv:2106.09685)
@@ -68,6 +68,12 @@ Only apply if QLoRA mode selected (G2).
 | Intruder dimension check | G-F1 | Report intruder dimensions before/after training via `reduce_intruder_dimension`. | Razin et al. arXiv:2410.21228 |
 | Knowledge preservation (CorDA) | G-F2 | If CorDA Knowledge-Preserved mode: assert world-knowledge eval doesn't regress. | CorDA; PEFT `corda_config` docstring |
 
+### Harness Gates (v0.31.0 — TRL integration)
+
+| Gate | ID | Assertion | Source |
+|------|----|-----------|--------|
+| Harness-method compatibility | G-H1 | Selected harness supports the selected method/trainer. axolotl=SFT only; trl=SFT (Phase 1), DPO/KTO/ORPO (Phase 2), Reward (Phase 3). | TRL trainer taxonomy — huggingface.co/docs/trl/index |
+
 ## Convergence Metric Weights
 
 Computed by the `convergence-check` phase. Metric ∈ [0, 1] where 0 =
@@ -95,5 +101,9 @@ Converged: metric ≤ 0.10 AND ≥5% relative improvement from previous cycle.
 - **Razin et al. (intruder dimensions):** arXiv:2410.21228 — arxiv.org/abs/2410.21228
 - **AutoPEFT (rejected alternative):** arXiv:2301.12132 — arxiv.org/abs/2301.12132
 - **EVA:** arXiv:2410.07170 — arxiv.org/abs/2410.07170
+- **DPO:** arXiv:2305.18290 — arxiv.org/abs/2305.18290
+- **KTO:** arXiv:2402.01306 — arxiv.org/abs/2402.01306
+- **ORPO:** arXiv:2403.07691 — arxiv.org/abs/2403.07691
 - **PEFT v0.19.0:** huggingface.co/docs/peft/v0.19.0/package_reference/lora
+- **TRL v1.8.0:** huggingface.co/docs/trl/index — SFTTrainer, DPOTrainer, KTOTrainer, ORPOTrainer, RewardTrainer
 - **Practitioner consensus:** Raschka (magazine.sebastianraschka.com), Brenndoerfer (mbrenndoerfer.com), Spheron (spheron.network/blog/peft-methods-2026-dora-galore-pissa-vera-guide), Databricks (databricks.com/blog/efficient-fine-tuning-lora-guide-llms), Gradient Flow (gradientflow.com/lora-or-full-fine-tuning/)

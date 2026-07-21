@@ -3,8 +3,8 @@
 use crate::a2a::A2ARuntime;
 use crate::consent::ConsentManager;
 use crate::ports::EscalationPort;
-use hkask_cns::CnsRuntime;
-use hkask_cns::types::loops::CommunicationEvent;
+use hkask_regulation::CnsRuntime;
+use hkask_regulation::types::loops::CommunicationEvent;
 use hkask_ports::CnsStoragePort;
 use hkask_templates::ManifestExecutor;
 use hkask_types::DataCategory;

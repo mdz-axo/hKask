@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use hkask_pods::InferenceLoop;
-use hkask_cns::{GasBudget, GasCost};
+use hkask_regulation::{GasBudget, GasCost};
 
 use super::{TalkConfig, TalkMode};
 use hkask_mcp::McpRuntime;
@@ -483,7 +483,7 @@ pub(super) fn init_repl_state(
         {
             let mut wells = cyber.well_manager().write().await;
             if wells.default_well_id().is_none() {
-                let (well_id, _) = wells.create_well(hkask_cns::well::WellConfig {
+                let (well_id, _) = wells.create_well(hkask_regulation::well::WellConfig {
                     well_id: "default".into(),
                     gas_rate: GasCost(repl_settings.gas_cap * 10),
                     rjoule_rate: 1000,

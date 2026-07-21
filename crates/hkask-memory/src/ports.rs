@@ -21,7 +21,7 @@
 
 use crate::error::MemoryPortError;
 use hkask_capability::DelegationToken;
-use hkask_cns::ExperienceClassification;
+use hkask_regulation::ExperienceClassification;
 use hkask_types::visibility::AccessControl;
 use hkask_types::{Confidence, Dimension, Visibility, WebID};
 use serde_json::Value;

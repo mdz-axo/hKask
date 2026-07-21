@@ -874,7 +874,7 @@ pub async fn run_script(
 
     tracing::info!(
         target: "cns",
-        cns_domain = %hkask_cns::qa_span::QaSpan::QaRepairAttempted.as_str(),
+        cns_domain = %hkask_regulation::qa_span::QaSpan::QaRepairAttempted.as_str(),
         operation = "started",
         manifest = %manifest_id,
         step_count = step_count,
@@ -946,9 +946,9 @@ pub async fn run_script(
         Ok(o) => {
             let passed = o.status == QaStatus::Pass;
             let span = if passed {
-                hkask_cns::qa_span::QaSpan::QaRepairVerified
+                hkask_regulation::qa_span::QaSpan::QaRepairVerified
             } else {
-                hkask_cns::qa_span::QaSpan::QaRepairExhausted
+                hkask_regulation::qa_span::QaSpan::QaRepairExhausted
             };
             tracing::info!(
                 target: "cns",
@@ -964,7 +964,7 @@ pub async fn run_script(
         Err(e) => {
             tracing::info!(
                 target: "cns",
-                cns_domain = %hkask_cns::qa_span::QaSpan::QaRepairExhausted.as_str(),
+                cns_domain = %hkask_regulation::qa_span::QaSpan::QaRepairExhausted.as_str(),
                 operation = "error",
                 manifest = %manifest_id,
                 error = %e,

@@ -1,5 +1,5 @@
 [package]
-name = "hkask-cns"
+name = "hkask-regulation"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

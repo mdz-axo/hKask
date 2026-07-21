@@ -4,7 +4,7 @@
 //! Lives in `hkask-services-context` because it bridges CNS (domain) and
 //! Storage (infrastructure) — the service layer's role in hexagonal architecture.
 
-use hkask_cns::slo_manager::{SloDataPoint, SloDataProvider, SloManagerError};
+use hkask_regulation::slo_manager::{SloDataPoint, SloDataProvider, SloManagerError};
 use hkask_storage::{DecayConfig, NuEventStore};
 use std::sync::Arc;
 

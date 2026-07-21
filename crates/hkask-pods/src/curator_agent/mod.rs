@@ -24,7 +24,7 @@ pub mod metacognition;
 use crate::curation::context::CuratorContext;
 use crate::curation::curation_loop::CurationLoop;
 use crate::pod::CommunicationPosture;
-use hkask_cns::types::loops::CurationInput;
+use hkask_regulation::types::loops::CurationInput;
 use hkask_memory::ConsolidationBridge;
 use std::sync::Arc;
 

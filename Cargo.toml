@@ -37,7 +37,7 @@ members = [
     "crates/hkask-storage-core",
     "crates/hkask-storage",
     "crates/hkask-memory",
-    "crates/hkask-cns",
+    "crates/hkask-regulation",
     "crates/hkask-templates",
     "crates/hkask-pods",
     "crates/hkask-keystore",

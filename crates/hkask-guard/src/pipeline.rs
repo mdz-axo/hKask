@@ -3,7 +3,7 @@
 //! Core scanners are ALWAYS active — not configurable off. This is the floor,
 //! not the ceiling.
 
-use hkask_cns::infra_span::InfraSpan;
+use hkask_regulation::infra_span::InfraSpan;
 use hkask_types::observable_span::ObservableSpan;
 use llm_guard::{
     BanSubstrings, Deobfuscate, Pipeline, PipelineMode, RoleOverride, Secrets, Severity,

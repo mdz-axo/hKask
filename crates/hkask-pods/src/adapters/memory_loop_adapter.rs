@@ -10,7 +10,7 @@ use crate::ports::{
     StorageRequest,
 };
 use hkask_capability::{DelegationToken, require_read_access, require_write_access};
-use hkask_cns::ExperienceClassification;
+use hkask_regulation::ExperienceClassification;
 use hkask_memory::MemoryPortError;
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{EmbeddingStore, HMem, HMemStore};

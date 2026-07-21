@@ -115,7 +115,7 @@ pub struct ManifestExecutor {
     /// Optional runtime policy for pre-execution checks (Layer 6 defense).
     /// When present, checked before every MCP tool invocation.
     /// Source: VeriGuard pattern + AgentGuard arXiv:2509.23864
-    runtime_policy: Option<Arc<dyn hkask_cns::RuntimePolicy>>,
+    runtime_policy: Option<Arc<dyn hkask_regulation::RuntimePolicy>>,
     /// FIDES taint labels for context entries (Layer 5 defense).
     /// Maps `step_N_result` keys to their ToolTaint label.
     /// Source: Microsoft Research FIDES (arXiv:2505.23643)
@@ -169,7 +169,7 @@ impl ManifestExecutor {
     /// expect: "The system checks every proposed tool invocation before execution"
     /// post: runtime_policy is set to Some(policy)
     #[must_use]
-    pub fn with_runtime_policy(mut self, policy: Arc<dyn hkask_cns::RuntimePolicy>) -> Self {
+    pub fn with_runtime_policy(mut self, policy: Arc<dyn hkask_regulation::RuntimePolicy>) -> Self {
         self.runtime_policy = Some(policy);
         self
     }
@@ -311,7 +311,7 @@ impl ManifestExecutor {
         })?;
 
         if let Some(policy) = &self.runtime_policy {
-            use hkask_cns::PolicyVerdict;
+            use hkask_regulation::PolicyVerdict;
 
             match policy.check(
                 tool_name,

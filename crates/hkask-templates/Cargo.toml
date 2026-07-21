@@ -11,7 +11,7 @@ hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-forecast = { path = "../hkask-forecast" }
 hkask-guard = { path = "../hkask-guard" }
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 minijinja.workspace = true
 serde.workspace = true
 serde_json.workspace = true

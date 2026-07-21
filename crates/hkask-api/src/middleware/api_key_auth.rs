@@ -48,7 +48,7 @@ pub struct ApiKeyAuthService {
     wallet_store: Arc<WalletStore>,
     wallet_service: Arc<WalletService>,
     /// API rate limiter — when present, per-key rate limits are enforced.
-    api_meter: Option<Arc<std::sync::RwLock<hkask_cns::ApiMeter>>>,
+    api_meter: Option<Arc<std::sync::RwLock<hkask_regulation::ApiMeter>>>,
     /// CNS event sink — when present, a `cns.api.request` span is emitted
     /// for every authenticated request after the rate limit check.
     event_sink: Option<Arc<dyn NuEventSink>>,
@@ -72,7 +72,7 @@ impl ApiKeyAuthService {
     /// Attach an API rate limiter. When set, per-key rate limits are enforced
     /// in the middleware after authentication succeeds.
     #[must_use]
-    pub fn with_api_meter(mut self, meter: Arc<std::sync::RwLock<hkask_cns::ApiMeter>>) -> Self {
+    pub fn with_api_meter(mut self, meter: Arc<std::sync::RwLock<hkask_regulation::ApiMeter>>) -> Self {
         self.api_meter = Some(meter);
         self
     }
@@ -332,13 +332,13 @@ pub async fn api_key_auth_middleware(
     // ── Rate limit check (if API meter is configured) ──
     let rate_limit_status = if let Some(ref meter) = auth.api_meter {
         let path = request.uri().path();
-        let weight = hkask_cns::api_metering::endpoint_weight(path).0 as u64;
+        let weight = hkask_regulation::api_metering::endpoint_weight(path).0 as u64;
         let estimated_tokens = weight * 100;
         let status = meter
             .write()
             .map(|mut m| m.check_and_record(ctx.key_id, estimated_tokens))
-            .unwrap_or(hkask_cns::api_metering::RateLimitStatus::Ok);
-        if status != hkask_cns::api_metering::RateLimitStatus::Ok {
+            .unwrap_or(hkask_regulation::api_metering::RateLimitStatus::Ok);
+        if status != hkask_regulation::api_metering::RateLimitStatus::Ok {
             return Err(ApiKeyAuthError::RateLimited(format!(
                 "{} — retry later",
                 status.as_str()
@@ -346,12 +346,12 @@ pub async fn api_key_auth_middleware(
         }
         status
     } else {
-        hkask_cns::api_metering::RateLimitStatus::Ok
+        hkask_regulation::api_metering::RateLimitStatus::Ok
     };
 
     // ── Emit cns.api.request span (if event sink is configured) ──
     if let Some(ref sink) = auth.event_sink {
-        let span = hkask_cns::api_metering::ApiRequestSpan::new(
+        let span = hkask_regulation::api_metering::ApiRequestSpan::new(
             &ctx.key_id.to_string(),
             request.uri().path(),
             true, // scope was verified by authenticate() above

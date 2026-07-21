@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::semantic::SemanticMemory;
-use hkask_cns::types::loops::{
+use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopActionParams, LoopId,
     Signal, SignalMetric,
 };

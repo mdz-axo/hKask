@@ -11,7 +11,7 @@ hkask-inference = { path = "../hkask-inference" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-storage = { path = "../hkask-storage" }
-hkask-cns = { path = "../hkask-cns" }
+hkask-regulation = { path = "../hkask-regulation" }
 hkask-services-self-heal = { path = "../hkask-services-self-heal" }
 hkask-goal = { path = "../hkask-goal" }
 rusqlite.workspace = true

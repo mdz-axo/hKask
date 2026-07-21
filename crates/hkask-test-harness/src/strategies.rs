@@ -212,8 +212,8 @@ pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
 ///
 /// post: returns Boxed`Strategy<GasCost>` with values in 1..10000
 /// expect: "I can generate valid energy costs within bounded ranges for gas-budget property-based testing"
-pub fn any_energy_cost() -> BoxedStrategy<hkask_cns::GasCost> {
-    (1u64..10000u64).prop_map(hkask_cns::GasCost).boxed()
+pub fn any_energy_cost() -> BoxedStrategy<hkask_regulation::GasCost> {
+    (1u64..10000u64).prop_map(hkask_regulation::GasCost).boxed()
 }
 
 /// Strategy generating valid `GasBudget` instances with hard limit.
@@ -221,12 +221,12 @@ pub fn any_energy_cost() -> BoxedStrategy<hkask_cns::GasCost> {
 /// post: returns Boxed`Strategy<GasBudget>` with cap 100..10000, replenish_rate 1..cap
 /// expect: "I can generate valid energy budgets with caps that bound resource consumption for gas-guard property-based testing"
 ///Constraining: budget caps enforce OCAP boundaries on resource consumption
-pub fn any_energy_budget() -> BoxedStrategy<hkask_cns::GasBudget> {
+pub fn any_energy_budget() -> BoxedStrategy<hkask_regulation::GasBudget> {
     (100u64..10000u64)
         .prop_flat_map(|cap| {
             (1u64..cap).prop_map(move |rate| {
-                hkask_cns::GasBudget::new(hkask_cns::GasCost(cap))
-                    .with_replenish_rate(hkask_cns::GasCost(rate))
+                hkask_regulation::GasBudget::new(hkask_regulation::GasCost(cap))
+                    .with_replenish_rate(hkask_regulation::GasCost(rate))
             })
         })
         .boxed()

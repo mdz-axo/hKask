@@ -7,10 +7,10 @@
 // 2. WalletEnergyEstimator calibration propagates into WalletBackedBudget costs.
 // 3. GasBudget replenishment after partial settlement refunds.
 
-use hkask_cns::WalletEnergyEstimator;
-use hkask_cns::energy::{GasBudget, GasCost};
-use hkask_cns::energy_budget_management::GasBudgetManager;
-use hkask_cns::wallet_budget::WalletBackedBudget;
+use hkask_regulation::WalletEnergyEstimator;
+use hkask_regulation::energy::{GasBudget, GasCost};
+use hkask_regulation::energy_budget_management::GasBudgetManager;
+use hkask_regulation::wallet_budget::WalletBackedBudget;
 use hkask_storage::WalletStore;
 use hkask_types::crypto::Ed25519PublicKey;
 use hkask_types::id::{ApiKeyId, WalletId};

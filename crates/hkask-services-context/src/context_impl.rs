@@ -34,10 +34,10 @@ use hkask_pods::curator_agent::CuratorAgent;
 use hkask_pods::pod::ActivePods;
 use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
-use hkask_cns::types::loops::CuratorHandle;
-use hkask_cns::types::loops::HkaskLoop;
-use hkask_cns::types::loops::{CurationInput, CuratorDirective};
-use hkask_cns::{
+use hkask_regulation::types::loops::CuratorHandle;
+use hkask_regulation::types::loops::HkaskLoop;
+use hkask_regulation::types::loops::{CurationInput, CuratorDirective};
+use hkask_regulation::{
     CalibratedEnergyEstimator, CnsRuntime, CyberneticsLoop, EnergyEstimator, SeamSummary,
     SeamWatcher, load_set_points,
 };

@@ -14,7 +14,7 @@
 //! expect: "I can access all hKask functionality through the kask CLI"
 
 use hkask_pods::InferenceLoop;
-use hkask_cns::{CyberneticsLoop, GasCost};
+use hkask_regulation::{CyberneticsLoop, GasCost};
 use hkask_types::WebID;
 use std::sync::Arc;
 use tokio::sync::RwLock;

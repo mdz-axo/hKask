@@ -14,7 +14,7 @@ pub(super) struct RegWallet {
     pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
     pub wallet_service: Option<Arc<WalletService>>,
     pub wallet_store: Option<Arc<WalletStore>>,
-    pub wallet_gas_calibrator: Option<Arc<hkask_cns::WalletGasCalibrator>>,
+    pub wallet_gas_calibrator: Option<Arc<hkask_regulation::WalletGasCalibrator>>,
 }
 
 pub(super) async fn build_registry_and_wallet(
@@ -105,7 +105,7 @@ fn build_wallet(
     (
         Option<Arc<WalletService>>,
         Option<Arc<WalletStore>>,
-        Option<Arc<hkask_cns::WalletGasCalibrator>>,
+        Option<Arc<hkask_regulation::WalletGasCalibrator>>,
     ),
     ServiceError,
 > {
@@ -306,7 +306,7 @@ fn build_wallet(
     // Spawn wallet gas calibrator (P9 feedback loop for gas→rJoule rate).
     let wallet_gas_calibrator = {
         let calibrator = Arc::new(
-            hkask_cns::WalletGasCalibrator::new(
+            hkask_regulation::WalletGasCalibrator::new(
                 Arc::clone(&f.gas_event_store),
                 Arc::clone(wallet_manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
             )
@@ -314,7 +314,7 @@ fn build_wallet(
         );
         calibrator
             .clone()
-            .spawn_calibration(hkask_cns::DEFAULT_WALLET_CALIBRATION_INTERVAL);
+            .spawn_calibration(hkask_regulation::DEFAULT_WALLET_CALIBRATION_INTERVAL);
         Some(calibrator)
     };
 

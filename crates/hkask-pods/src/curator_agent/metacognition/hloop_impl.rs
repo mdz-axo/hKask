@@ -1,7 +1,7 @@
 //! `HkaskLoop` trait implementation for `MetacognitionLoop`.
 
 use crate::ports::{EscalationBatch, EscalationEntry};
-use hkask_cns::types::loops::{
+use hkask_regulation::types::loops::{
     ActionType, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
 };
 use hkask_types::BotID;

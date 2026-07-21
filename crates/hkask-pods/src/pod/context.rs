@@ -11,7 +11,7 @@
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
-use hkask_cns::ExperienceClassification;
+use hkask_regulation::ExperienceClassification;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
 use hkask_ports::ToolPort;
