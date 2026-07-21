@@ -190,7 +190,7 @@ async fn extract_auth_webid(
         return Err((StatusCode::UNAUTHORIZED, "Session expired".to_string()));
     }
 
-    Ok(session.replicant_webid.to_string())
+    Ok(session.webid.to_string())
 }
 
 // ── WebSocket handler ───────────────────────────────────────────────────

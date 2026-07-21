@@ -3,7 +3,7 @@
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
-use hkask_identity::ReplicantIdentity;
+use hkask_identity::UserPod;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::user_store::UserStore;
@@ -67,7 +67,7 @@ impl StorageContext {
     pub fn find_user_by_webid(
         &self,
         webid: &WebID,
-    ) -> Result<Option<ReplicantIdentity>, ServiceError> {
+    ) -> Result<Option<UserPod>, ServiceError> {
         let store = self.users.lock().map_err(|_| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,

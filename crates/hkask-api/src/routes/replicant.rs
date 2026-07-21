@@ -60,8 +60,8 @@ pub async fn list_replicants(
     let list: Vec<ReplicantInfo> = replicants
         .into_iter()
         .map(|r| ReplicantInfo {
-            name: r.replicant_name,
-            webid: r.replicant_webid.to_string(),
+            name: r.userpod_name,
+            webid: r.webid.to_string(),
             created_at: r.created_at,
             last_login: r.last_login,
         })

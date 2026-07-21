@@ -224,7 +224,7 @@ pub(crate) async fn compose_bundle(
 
     let vis = Visibility::parse_str(&request.visibility).unwrap_or(Visibility::Private);
     let inference_port = resolve_api_composition_port(&state)?;
-    let editor = hkask_services_skill::resolve_replicant_name();
+    let editor = hkask_services_skill::resolve_userpod_name();
 
     let result = BundleService::compose(
         &state.agent_service,
@@ -301,7 +301,7 @@ pub(crate) async fn evolve_bundle(
     Path(id): Path<String>,
 ) -> Result<Json<EvolveBundleResponse>, ServiceErrorResponse> {
     let inference_port = resolve_api_composition_port(&state)?;
-    let editor = hkask_services_skill::resolve_replicant_name();
+    let editor = hkask_services_skill::resolve_userpod_name();
 
     let result = BundleService::evolve(&state.agent_service, &id, inference_port, &editor)
         .await

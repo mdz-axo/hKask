@@ -21,7 +21,7 @@ pub struct MatrixRegistrationResult {
 ///
 /// Uses the same formula as OnboardingService::register_oauth_matrix_accounts.
 /// Returns (human_localpart, replicant_localpart) for use in Matrix APIs.
-pub fn derive_matrix_localparts(display_name: &str, replicant_name: &str) -> (String, String) {
+pub fn derive_matrix_localparts(display_name: &str, userpod_name: &str) -> (String, String) {
     let sanitize = |s: &str| -> String {
         s.to_lowercase()
             .chars()
@@ -41,7 +41,7 @@ pub fn derive_matrix_localparts(display_name: &str, replicant_name: &str) -> (St
         (f, l)
     };
     let human_localpart = format!("{}-{}", first, last);
-    let replicant_localpart = format!("{}-bot", sanitize(replicant_name).replace(' ', "-"));
+    let replicant_localpart = format!("{}-bot", sanitize(userpod_name).replace(' ', "-"));
     (human_localpart, replicant_localpart)
 }
 
@@ -496,11 +496,11 @@ impl OnboardingService {
     /// Returns the Matrix user IDs for both accounts.
     ///
     /// \[P5\] Motivating: Essentialism — single call from auth module, no raw Matrix logic leaked.
-    /// pre:  display_name is non-empty; replicant_name is non-empty; homeserver_url is valid
+    /// pre:  display_name is non-empty; userpod_name is non-empty; homeserver_url is valid
     /// post: returns MatrixRegistrationResult with human and replicant user IDs; credentials stored in keychain
     pub async fn register_oauth_matrix_accounts(
         display_name: &str,
-        replicant_name: &str,
+        userpod_name: &str,
         homeserver_url: &str,
     ) -> Result<MatrixRegistrationResult, ServiceError> {
         // Split display name into first/last for Matrix username derivation
@@ -512,7 +512,7 @@ impl OnboardingService {
         };
         let human_localpart = format!("{}-{}", first_name.to_lowercase(), last_name.to_lowercase());
         let replicant_localpart =
-            format!("{}-bot", replicant_name.to_lowercase().replace(' ', "-"));
+            format!("{}-bot", userpod_name.to_lowercase().replace(' ', "-"));
 
         let passphrase = uuid::Uuid::new_v4().to_string();
 

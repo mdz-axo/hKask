@@ -37,7 +37,7 @@ use std::path::{Path, PathBuf};
 /// prior template's output.
 const STANDARD_INPUTS: &[&str] = &[
     "replicant_host",
-    "replicant_webid",
+    "webid",
     "delegation_token_ref",
     "previous_metric",
     "previous_cycle_result",

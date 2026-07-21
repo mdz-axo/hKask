@@ -271,27 +271,27 @@ fn build_wallet(
                 if identity.wallet_id.is_some() {
                     continue;
                 }
-                let wallet_id = WalletId::from_name(&identity.replicant_name);
+                let wallet_id = WalletId::from_name(&identity.userpod_name);
                 if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
                     tracing::warn!(
                         target: "cns.wallet",
-                        replicant = %identity.replicant_name,
+                        replicant = %identity.userpod_name,
                         error = %e,
                         "Failed to create wallet for replicant"
                     );
                     continue;
                 }
-                if let Err(e) = user_guard.set_wallet_id(&identity.replicant_name, wallet_id) {
+                if let Err(e) = user_guard.set_wallet_id(&identity.userpod_name, wallet_id) {
                     tracing::warn!(
                         target: "cns.wallet",
-                        replicant = %identity.replicant_name,
+                        replicant = %identity.userpod_name,
                         error = %e,
                         "Failed to bind wallet to replicant"
                     );
                 } else {
                     tracing::info!(
                         target: "cns.wallet",
-                        replicant = %identity.replicant_name,
+                        replicant = %identity.userpod_name,
                         wallet_id = %wallet_id,
                         "Wallet created and bound to replicant"
                     );

@@ -205,8 +205,8 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
         });
     }
 
-    let replicant_name = resolve_replicant_name();
-    let namespaced_name = format!("{}--{}", replicant_name, name);
+    let userpod_name = resolve_userpod_name();
+    let namespaced_name = format!("{}--{}", userpod_name, name);
     let public_dir = root
         .join(SkillZone::Public.directory())
         .join(&namespaced_name);
@@ -258,7 +258,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     // Update the SKILL.md visibility and namespace in the exported copy
     let public_skill_md = public_dir.join("SKILL.md");
     update_visibility_in_skill_md(&public_skill_md, "public")?;
-    update_namespace_in_skill_md(&public_skill_md, &replicant_name)?;
+    update_namespace_in_skill_md(&public_skill_md, &userpod_name)?;
 
     // P9: CNS span
     tracing::info!(
@@ -266,14 +266,14 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
         operation = "skill_published",
         name = %name,
         namespaced_name = %namespaced_name,
-        namespace = %replicant_name,
+        namespace = %userpod_name,
         "CNS"
     );
 
     Ok(SkillPublishResult {
         name: name.to_string(),
         namespaced_name,
-        namespace: replicant_name,
+        namespace: userpod_name,
         public_dir,
     })
 }
@@ -288,7 +288,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 /// pre:  none (always succeeds)
 /// post: returns a non-empty String — env var, git user.name, or "local" fallback
-pub fn resolve_replicant_name() -> String {
+pub fn resolve_userpod_name() -> String {
     if let Ok(name) = std::env::var("HKASK_REPLICANT_NAME")
         && !name.is_empty()
     {

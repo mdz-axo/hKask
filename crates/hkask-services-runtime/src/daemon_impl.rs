@@ -223,9 +223,9 @@ impl DaemonHandler for ServiceDaemonHandler {
                 tracing::info!(target: "hkask.daemon.narrative", replicant = %replicant, count = count, "Triggering narrative generation");
                 let pod_manager = Arc::clone(&self.pod_manager);
                 let inference = Arc::clone(inference_port);
-                let replicant_name = replicant.to_string();
+                let userpod_name = replicant.to_string();
                 let handle = tokio::spawn(async move {
-                    generate_narrative(&pod_manager, &*inference, &replicant_name).await;
+                    generate_narrative(&pod_manager, &*inference, &userpod_name).await;
                 });
                 tokio::spawn(async move {
                     if let Err(e) = handle.await {
@@ -239,12 +239,12 @@ impl DaemonHandler for ServiceDaemonHandler {
         // for audit and replay. Done as a fire-and-forget background write
         // to avoid blocking the daemon handler on filesystem I/O.
         if result.0 {
-            let replicant_name = replicant.to_string();
+            let userpod_name = replicant.to_string();
             let value_clone = value.clone();
             let entity_clone = entity.to_string();
             let attr_clone = attribute.to_string();
             let handle = tokio::task::spawn_blocking(move || {
-                append_session_entry(&replicant_name, &entity_clone, &attr_clone, &value_clone);
+                append_session_entry(&userpod_name, &entity_clone, &attr_clone, &value_clone);
             });
             tokio::spawn(async move {
                 if let Err(e) = handle.await {

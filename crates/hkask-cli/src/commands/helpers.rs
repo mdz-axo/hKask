@@ -139,12 +139,12 @@ pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
 /// Sets `HKASK_MCP_HOST` (replicant identity) and `HKASK_REPLICANT_PERSONA`
 /// (WebID resolution). If `HKASK_DB_PASSPHRASE` is set in the current process,
 /// it is forwarded so subprocess servers can decrypt their per-agent databases.
-pub(crate) fn replicant_env_map(replicant_name: &str) -> std::collections::HashMap<String, String> {
+pub(crate) fn replicant_env_map(userpod_name: &str) -> std::collections::HashMap<String, String> {
     let mut env = std::collections::HashMap::new();
-    env.insert("HKASK_MCP_HOST".to_string(), replicant_name.to_string());
+    env.insert("HKASK_MCP_HOST".to_string(), userpod_name.to_string());
     env.insert(
         "HKASK_REPLICANT_PERSONA".to_string(),
-        replicant_name.to_string(),
+        userpod_name.to_string(),
     );
     // Pass DB passphrase to subprocess — the server resolves it from env var
     // via resolve_db_passphrase_string(), which checks std::env::var first.
@@ -163,8 +163,8 @@ pub fn start_mcp_server(
     binary: &str,
 ) -> bool {
     let mcp_runtime = ctx.infra().mcp.clone();
-    let replicant_name = ctx.config().agent_name.clone();
-    let env = replicant_env_map(&replicant_name);
+    let userpod_name = ctx.config().agent_name.clone();
+    let env = replicant_env_map(&userpod_name);
     match rt.block_on(
         mcp_runtime
             .as_ref()
@@ -183,10 +183,10 @@ pub fn start_mcp_servers_with_env(
     rt: &tokio::runtime::Runtime,
     ctx: &AgentService,
     servers: &[(&str, &str)],
-    replicant_name: &str,
+    userpod_name: &str,
 ) {
     let mcp_runtime = ctx.infra().mcp.clone();
-    let env = replicant_env_map(replicant_name);
+    let env = replicant_env_map(userpod_name);
     for (server_id, binary) in servers {
         if let Err(e) = rt.block_on(mcp_runtime.as_ref().start_server_with_env(
             server_id,

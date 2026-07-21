@@ -684,7 +684,7 @@ async fn retry_pending_matrix(handle: &hkask_services_onboarding::RegistryHandle
         Ok(r) if !r.is_empty() => r,
         _ => return,
     };
-    let replicant_name = replicants[0].definition.name.clone();
+    let userpod_name = replicants[0].definition.name.clone();
     let passphrase =
         match keychain.retrieve_by_key(hkask_types::keychain_keys::KEY_MASTER_PASSPHRASE) {
             Ok(p) => p,
@@ -692,7 +692,7 @@ async fn retry_pending_matrix(handle: &hkask_services_onboarding::RegistryHandle
         };
     let _ = hkask_services_onboarding::OnboardingService::register_matrix_accounts(
         &user_profile,
-        &replicant_name,
+        &userpod_name,
         &passphrase,
         &homeserver_url,
     )

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::cli::ReplicantAction;
 use crate::error::CliError;
-use hkask_identity::{RegistrationRequest, ReplicantIdentity, UserSession};
+use hkask_identity::{RegistrationRequest, UserPod, UserSession};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::user_store::UserStore;
 use hkask_types::UserID;
@@ -47,7 +47,7 @@ fn validate_passphrase(passphrase: &str) -> Result<(), ServiceError> {
 }
 
 fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceError> {
-    if request.replicant_name.is_empty() || request.replicant_name.len() > 64 {
+    if request.userpod_name.is_empty() || request.userpod_name.len() > 64 {
         return Err(ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::User,
@@ -85,20 +85,20 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceErr
     Ok(())
 }
 
-/// pre:  store is a valid UserStore; replicant_name, first_name, last_name, email are non-empty; passphrase meets validation (8+ alphanumeric, mixed case)
-/// post: registers a new replicant identity in the store; returns ReplicantIdentity on success or ServiceError on validation/store failure
+/// pre:  store is a valid UserStore; userpod_name, first_name, last_name, email are non-empty; passphrase meets validation (8+ alphanumeric, mixed case)
+/// post: registers a new replicant identity in the store; returns UserPod on success or ServiceError on validation/store failure
 pub fn register_replicant_with_passphrase(
     store: &Store,
-    replicant_name: &str,
+    userpod_name: &str,
     first_name: &str,
     last_name: &str,
     email: &str,
     phone: Option<&str>,
     passphrase: Zeroizing<String>,
-) -> Result<ReplicantIdentity, ServiceError> {
+) -> Result<UserPod, ServiceError> {
     validate_passphrase(&passphrase)?;
     let request = RegistrationRequest {
-        replicant_name: replicant_name.to_string(),
+        userpod_name: userpod_name.to_string(),
         first_name: first_name.to_string(),
         last_name: last_name.to_string(),
         email: email.to_string(),
@@ -110,7 +110,7 @@ pub fn register_replicant_with_passphrase(
         .lock()
         .expect("CLI operation")
         .register_replicant(
-            request.replicant_name,
+            request.userpod_name,
             request.email,
             request.phone,
             request.first_name,
@@ -125,17 +125,17 @@ pub fn register_replicant_with_passphrase(
         })
 }
 
-/// pre:  store is a valid UserStore; replicant_name is non-empty; passphrase is the correct credential
+/// pre:  store is a valid UserStore; userpod_name is non-empty; passphrase is the correct credential
 /// post: returns a UserSession on successful authentication or ServiceError::LoginFailed on invalid credentials
 pub fn login_with_passphrase(
     store: &Store,
-    replicant_name: &str,
+    userpod_name: &str,
     passphrase: Zeroizing<String>,
 ) -> Result<UserSession, ServiceError> {
     store
         .lock()
         .expect("CLI operation")
-        .login(replicant_name, &passphrase)
+        .login(userpod_name, &passphrase)
         .map_err(|_| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::User,
@@ -144,16 +144,16 @@ pub fn login_with_passphrase(
         })
 }
 
-/// pre:  store is a valid UserStore; replicant_name is non-empty
-/// post: returns the ReplicantIdentity if found, or ServiceError::UserNotFound if the replicant does not exist
+/// pre:  store is a valid UserStore; userpod_name is non-empty
+/// post: returns the UserPod if found, or ServiceError::UserNotFound if the replicant does not exist
 pub fn get_replicant(
     store: &Store,
-    replicant_name: &str,
-) -> Result<ReplicantIdentity, ServiceError> {
+    userpod_name: &str,
+) -> Result<UserPod, ServiceError> {
     store
         .lock()
         .expect("CLI operation")
-        .get_replicant(replicant_name)
+        .get_replicant(userpod_name)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -164,7 +164,7 @@ pub fn get_replicant(
             kind: ErrorKind::NotFound,
             domain: DomainKind::User,
             source: None,
-            message: format!("Replicant '{}'", replicant_name),
+            message: format!("Replicant '{}'", userpod_name),
         })
 }
 
@@ -173,7 +173,7 @@ pub fn get_replicant(
 pub fn get_replicants(
     store: &Store,
     user_id: &UserID,
-) -> Result<Vec<ReplicantIdentity>, ServiceError> {
+) -> Result<Vec<UserPod>, ServiceError> {
     store
         .lock()
         .expect("CLI operation")
@@ -186,13 +186,13 @@ pub fn get_replicants(
         })
 }
 
-/// pre:  store is a valid UserStore; replicant_name is non-empty
+/// pre:  store is a valid UserStore; userpod_name is non-empty
 /// post: returns all active sessions for the replicant; empty vec if none
-pub fn get_sessions(store: &Store, replicant_name: &str) -> Result<Vec<UserSession>, ServiceError> {
+pub fn get_sessions(store: &Store, userpod_name: &str) -> Result<Vec<UserSession>, ServiceError> {
     store
         .lock()
         .expect("CLI operation")
-        .list_sessions(replicant_name)
+        .list_sessions(userpod_name)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -285,7 +285,7 @@ pub fn register_replicant() {
             Zeroizing::new(passphrase),
         ) {
             Ok(identity) => {
-                println!("  ✓ Replicant registered: {}", identity.replicant_name);
+                println!("  ✓ Replicant registered: {}", identity.userpod_name);
                 return;
             }
             Err(e) => {
@@ -320,7 +320,7 @@ pub fn login_replicant() {
             .login(name.trim(), passphrase.trim())
         {
             Ok(session) => {
-                println!("  ✓ Logged in as {}", identity.replicant_name);
+                println!("  ✓ Logged in as {}", identity.userpod_name);
                 println!("  Session: {}", session.session_id);
             }
             Err(_) => eprintln!("  ✗ Login failed"),
@@ -330,13 +330,13 @@ pub fn login_replicant() {
     }
 }
 
-/// pre:  store is a valid UserStore; replicant_name is non-empty and exists
+/// pre:  store is a valid UserStore; userpod_name is non-empty and exists
 /// post: prints replicant details (name, user_id, created_at) to stdout; ServiceError if not found
-pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
+pub fn show_replicant(store: &Store, userpod_name: &str) -> Result<(), ServiceError> {
     let identity = store
         .lock()
         .expect("CLI operation")
-        .get_replicant(replicant_name)
+        .get_replicant(userpod_name)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -347,9 +347,9 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
             kind: ErrorKind::NotFound,
             domain: DomainKind::User,
             source: None,
-            message: format!("Replicant '{}'", replicant_name),
+            message: format!("Replicant '{}'", userpod_name),
         })?;
-    println!("Replicant: {}", identity.replicant_name);
+    println!("Replicant: {}", identity.userpod_name);
     println!("  User ID: {}", identity.user_id);
     println!("  Created: {}", identity.created_at);
     Ok(())
@@ -375,7 +375,7 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     }
     println!("Replicants ({}):", replicants.len());
     for r in replicants {
-        println!("  {}", r.replicant_name);
+        println!("  {}", r.userpod_name);
         println!("    User ID: {}", r.user_id);
         println!("    Created: {}", r.created_at);
     }
@@ -415,13 +415,13 @@ pub fn logout(store: &Store, session_id: &str) -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// pre:  store is a valid UserStore; replicant_name is non-empty
+/// pre:  store is a valid UserStore; userpod_name is non-empty
 /// post: prints all active sessions with session_id and last_active timestamp; prints "No active sessions." if none
-pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
+pub fn list_sessions(store: &Store, userpod_name: &str) -> Result<(), ServiceError> {
     let sessions = store
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .list_sessions(replicant_name)
+        .list_sessions(userpod_name)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -432,7 +432,7 @@ pub fn list_sessions(store: &Store, replicant_name: &str) -> Result<(), ServiceE
         println!("No active sessions.");
         return Ok(());
     }
-    println!("Active sessions for {}: {}", replicant_name, sessions.len());
+    println!("Active sessions for {}: {}", userpod_name, sessions.len());
     for s in sessions {
         let last_active = chrono::DateTime::from_timestamp(s.last_active, 0)
             .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
@@ -600,24 +600,24 @@ pub fn run_replicant(rt: &tokio::runtime::Runtime, action: crate::cli::Replicant
     match action {
         ReplicantAction::Register { .. } => register_replicant(),
         ReplicantAction::Login { .. } => login_replicant(),
-        ReplicantAction::Show { replicant_name } => {
+        ReplicantAction::Show { userpod_name } => {
             let store = build_store();
-            super::helpers::or_exit(show_replicant(&store, &replicant_name), "Show failed");
+            super::helpers::or_exit(show_replicant(&store, &userpod_name), "Show failed");
         }
         ReplicantAction::List { .. } => {
             let store = build_store();
             super::helpers::or_exit(list_replicants(&store), "List failed");
         }
-        ReplicantAction::Sessions { replicant_name } => {
+        ReplicantAction::Sessions { userpod_name } => {
             let store = build_store();
-            super::helpers::or_exit(list_sessions(&store, &replicant_name), "Sessions failed");
+            super::helpers::or_exit(list_sessions(&store, &userpod_name), "Sessions failed");
         }
         ReplicantAction::Logout { session_id } => {
             let store = build_store();
             super::helpers::or_exit(logout(&store, &session_id), "Logout failed");
         }
-        ReplicantAction::Passphrase { replicant_name } => {
-            change_passphrase(&replicant_name);
+        ReplicantAction::Passphrase { userpod_name } => {
+            change_passphrase(&userpod_name);
         }
         ReplicantAction::Rename { from, to } => {
             replicant_rename(rt, &from, &to);
@@ -741,10 +741,10 @@ fn replicant_delete(rt: &tokio::runtime::Runtime, name: &str) {
     });
 }
 
-/// pre:  replicant_name exists in store; stdin is available for interactive input
+/// pre:  userpod_name exists in store; stdin is available for interactive input
 /// post: prompts for old and new passphrase; validates match; updates passphrase and invalidates existing sessions on success
 /// Interactive passphrase change for a replicant.
-pub fn change_passphrase(replicant_name: &str) {
+pub fn change_passphrase(userpod_name: &str) {
     use std::io::{self, Write};
     let store = build_store();
 
@@ -752,11 +752,11 @@ pub fn change_passphrase(replicant_name: &str) {
     if store
         .lock()
         .expect("CLI operation")
-        .get_replicant(replicant_name)
+        .get_replicant(userpod_name)
         .unwrap_or(None)
         .is_none()
     {
-        eprintln!("  ✗ Replicant not found: {}", replicant_name);
+        eprintln!("  ✗ Replicant not found: {}", userpod_name);
         return;
     }
 
@@ -789,10 +789,10 @@ pub fn change_passphrase(replicant_name: &str) {
     match store
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .change_passphrase(replicant_name, old_passphrase.trim(), new_passphrase.trim())
+        .change_passphrase(userpod_name, old_passphrase.trim(), new_passphrase.trim())
     {
         Ok(()) => {
-            println!("  ✓ Passphrase changed for {}", replicant_name);
+            println!("  ✓ Passphrase changed for {}", userpod_name);
             println!("  All existing sessions invalidated — login again.");
         }
         Err(e) => eprintln!("  ✗ {}", e),

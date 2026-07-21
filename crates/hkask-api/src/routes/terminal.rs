@@ -78,21 +78,21 @@ pub async fn terminal_ws(
         return Err((StatusCode::UNAUTHORIZED, "Session expired".to_string()));
     }
 
-    let webid = session.replicant_webid.to_string();
-    let replicant_name = session.replicant_name.clone();
+    let webid = session.webid.to_string();
+    let userpod_name = session.userpod_name.clone();
 
     tracing::info!(
         target = "hkask.api.terminal",
         webid = %webid,
-        replicant = %replicant_name,
+        replicant = %userpod_name,
         "Terminal WebSocket connected"
     );
 
-    Ok(ws.on_upgrade(move |socket| handle_terminal(socket, webid, replicant_name)))
+    Ok(ws.on_upgrade(move |socket| handle_terminal(socket, webid, userpod_name)))
 }
 
 /// Handle an upgraded WebSocket connection — spawn `kask repl` and relay I/O.
-async fn handle_terminal(socket: WebSocket, webid: String, replicant_name: String) {
+async fn handle_terminal(socket: WebSocket, webid: String, userpod_name: String) {
     // Spawn kask repl with the user's WebID
     let mut child = match Command::new("kask")
         .arg("repl")
@@ -202,7 +202,7 @@ async fn handle_terminal(socket: WebSocket, webid: String, replicant_name: Strin
 
     tracing::info!(
         target = "hkask.api.terminal",
-        replicant = %replicant_name,
+        replicant = %userpod_name,
         "Terminal WebSocket disconnected"
     );
 }

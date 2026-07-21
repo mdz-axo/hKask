@@ -268,7 +268,7 @@ pub enum FederationAction {
 pub enum ReplicantAction {
     Register {
         #[arg()]
-        replicant_name: String,
+        userpod_name: String,
         #[arg(long)]
         first_name: String,
         #[arg(long)]
@@ -280,13 +280,13 @@ pub enum ReplicantAction {
     },
     Login {
         #[arg()]
-        replicant_name: String,
+        userpod_name: String,
     },
 
     /// Change a replicant's passphrase
     Passphrase {
         #[arg()]
-        replicant_name: String,
+        userpod_name: String,
     },
     Logout {
         #[arg()]
@@ -294,7 +294,7 @@ pub enum ReplicantAction {
     },
     Sessions {
         #[arg()]
-        replicant_name: String,
+        userpod_name: String,
     },
     List {
         #[arg(long)]
@@ -302,7 +302,7 @@ pub enum ReplicantAction {
     },
     Show {
         #[arg()]
-        replicant_name: String,
+        userpod_name: String,
     },
     /// Rename a replicant
     Rename {

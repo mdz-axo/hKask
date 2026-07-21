@@ -72,9 +72,9 @@ impl HumanUser {
 /// UserPod identity — the in-system persona users log in AS (1:1 per user; multi-persona removed).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserPod {
-    pub replicant_name: String,
+    pub userpod_name: String,
     pub user_id: UserID,
-    pub replicant_webid: WebID,
+    pub webid: WebID,
     /// Wallet ID for rJoule payments. Created during replicant registration.
     /// Each replicant gets their own wallet for deposit/withdrawal isolation.
     pub wallet_id: Option<WalletId>,
@@ -88,35 +88,35 @@ pub struct UserPod {
 
 /// Strangler-fig bridge alias — removed in Phase 6 once all consumers use `UserPod`.
 /// (Plain alias, not `#[deprecated]` — P5 compliant during transition.)
-pub type ReplicantIdentity = UserPod;
+pub type UserPod = UserPod;
 
 impl UserPod {
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  replicant_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
+    /// pre:  userpod_name is a non-empty string (1–64 alphanumeric/hyphen/underscore chars)
     /// post: returns a deterministic WebID with the "replicant" namespace;
-    ///       same replicant_name always produces the same WebID
+    ///       same userpod_name always produces the same WebID
     #[must_use]
-    pub fn derive_webid(replicant_name: &str) -> WebID {
-        WebID::from_persona_with_namespace(replicant_name.as_bytes(), "replicant")
+    pub fn derive_webid(userpod_name: &str) -> WebID {
+        WebID::from_persona_with_namespace(userpod_name.as_bytes(), "replicant")
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  replicant_name is non-empty; user_id is a valid UserID;
+    /// pre:  userpod_name is non-empty; user_id is a valid UserID;
     ///       first_name_enc and last_name_enc are encrypted byte vectors
-    /// post: returns a ReplicantIdentity with derived webid, wallet_id=None,
+    /// post: returns a UserPod with derived webid, wallet_id=None,
     ///       persona_yaml=None, created_at set to current Unix timestamp,
     ///       last_login=None
     #[must_use]
     pub fn new(
-        replicant_name: String,
+        userpod_name: String,
         user_id: UserID,
         first_name_enc: Vec<u8>,
         last_name_enc: Vec<u8>,
         is_primary: bool,
     ) -> Self {
         Self {
-            replicant_webid: Self::derive_webid(&replicant_name),
-            replicant_name,
+            webid: Self::derive_webid(&userpod_name),
+            userpod_name,
             user_id,
             wallet_id: None,
             first_name_enc,
@@ -134,8 +134,8 @@ impl UserPod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSession {
     pub session_id: String,
-    pub replicant_name: String,
-    pub replicant_webid: WebID,
+    pub userpod_name: String,
+    pub webid: WebID,
     pub user_id: UserID,
     pub session_key_salt: String,
     pub expires_at: i64,
@@ -211,7 +211,7 @@ pub struct Invite {
 /// Registration request for new replicant identity
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistrationRequest {
-    pub replicant_name: String,
+    pub userpod_name: String,
     pub first_name: String,
     pub last_name: String,
     pub email: String,

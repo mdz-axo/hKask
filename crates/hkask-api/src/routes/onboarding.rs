@@ -17,7 +17,7 @@ pub struct OnboardingQuery {
 /// Fills in Matrix credentials and replicant name from query params.
 /// Without query params, shows the generic version with placeholders.
 pub async fn onboarding_page(Query(q): Query<OnboardingQuery>) -> Html<String> {
-    let replicant_name = q.replicant.as_deref().unwrap_or("your-replicant");
+    let userpod_name = q.replicant.as_deref().unwrap_or("your-replicant");
     let display_name = q.name.as_deref().unwrap_or("there");
 
     // Derive Matrix domain from homeserver URL
@@ -34,12 +34,12 @@ pub async fn onboarding_page(Query(q): Query<OnboardingQuery>) -> Html<String> {
 
     // Derive Matrix usernames from shared onboarding service formula
     let (human_localpart, replicant_localpart) =
-        hkask_services_onboarding::derive_matrix_localparts(display_name, replicant_name);
+        hkask_services_onboarding::derive_matrix_localparts(display_name, userpod_name);
     let human_matrix = format!("@{human_localpart}:{matrix_domain}");
     let replicant_matrix = format!("@{replicant_localpart}:{matrix_domain}");
 
     let html = ONBOARDING_HTML
-        .replace("REPLICANT_NAME", replicant_name)
+        .replace("REPLICANT_NAME", userpod_name)
         .replace("HUMAN_MATRIX_ID", &human_matrix)
         .replace("REPLICANT_MATRIX_ID", &replicant_matrix)
         .replace("MATRIX_DOMAIN", &matrix_domain);

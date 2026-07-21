@@ -88,7 +88,7 @@ pub async fn session_middleware_impl(
     }
 
     // Inject AuthContext
-    let webid = session.replicant_webid;
+    let webid = session.webid;
     req.extensions_mut()
         .insert(AuthContext::from_session(webid));
 

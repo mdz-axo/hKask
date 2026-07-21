@@ -17,7 +17,7 @@ use crate::onboarding::OnboardingError;
 pub struct OnboardingSession {
     // ── Collected before the state machine starts ──
     pub user_profile: UserProfile,
-    pub replicant_name: String,
+    pub userpod_name: String,
     pub display_name: String,
     pub description: String,
 
@@ -33,13 +33,13 @@ pub struct OnboardingSession {
 
 impl OnboardingSession {
     /// Create a new session with identity already collected.
-    pub fn new(user_profile: UserProfile, replicant_name: String, description: String) -> Self {
-        let display_name = user_profile.replicant_display_name(&replicant_name);
+    pub fn new(user_profile: UserProfile, userpod_name: String, description: String) -> Self {
+        let display_name = user_profile.replicant_display_name(&userpod_name);
         let homeserver_url = std::env::var("HKASK_MATRIX_URL")
             .unwrap_or_else(|_| "http://localhost:8008".to_string());
         Self {
             user_profile,
-            replicant_name,
+            userpod_name,
             display_name,
             description,
             selected_model: None,
@@ -216,7 +216,7 @@ impl OnboardingSession {
         OnboardingService::register_replicant(
             &handle.a2a,
             &handle.store,
-            &self.replicant_name,
+            &self.userpod_name,
             &self.description,
             Some(&self.user_profile),
             None,

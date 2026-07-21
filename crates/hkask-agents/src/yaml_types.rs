@@ -16,8 +16,6 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub(crate) struct YamlAgentHeader {
     pub(crate) name: String,
-    #[serde(rename = "type")]
-    pub(crate) agent_type: String,
     #[serde(default)]
     pub(crate) voice_description: Option<String>,
     #[serde(default)]

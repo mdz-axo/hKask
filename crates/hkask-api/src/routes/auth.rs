@@ -210,7 +210,7 @@ pub async fn login(
 /// expect: "My API access is scoped to my sovereignty boundaries"
 /// pre:  code is a valid OAuth authorization code; state matches cookie
 /// post: session created, session cookie set, redirected to /terminal
-/// post: new HumanUser + ReplicantIdentity created on first sign-in
+/// post: new HumanUser + UserPod created on first sign-in
 #[utoipa::path(
     get,
     path = "/api/v1/auth/callback",
@@ -345,7 +345,7 @@ pub async fn callback(
                 target = "cns.deploy.invite",
                 operation = "invite_accepted",
                 code = %code,
-                webid = %replicant.replicant_webid,
+                webid = %replicant.webid,
                 "CNS"
             );
         }
@@ -363,8 +363,8 @@ pub async fn callback(
     tracing::info!(
         target = "hkask.api.oauth",
         provider = %provider,
-        replicant = %replicant.replicant_name,
-        webid = %replicant.replicant_webid,
+        replicant = %replicant.userpod_name,
+        webid = %replicant.webid,
         "OAuth sign-in complete"
     );
 
@@ -373,15 +373,15 @@ pub async fn callback(
         target = "cns.deploy.session",
         operation = "session_open",
         provider = %provider,
-        webid = %replicant.replicant_webid,
+        webid = %replicant.webid,
         "CNS"
     );
     // CNS: member activity — emitted on every sign-in so Curator can track server population
     tracing::info!(
         target = "cns.multi_user.member_active",
         operation = "member_sign_in",
-        replicant = %replicant.replicant_name,
-        webid = %replicant.replicant_webid,
+        replicant = %replicant.userpod_name,
+        webid = %replicant.webid,
         provider = %provider,
         is_invite_flow = invite_code.is_some(),
         "CNS"
@@ -389,10 +389,10 @@ pub async fn callback(
 
     // Fire-and-forget: register Matrix accounts on Conduit and join chat room.
     // Non-blocking — if Conduit is unavailable, the user can still use the system.
-    let replicant_name = replicant.replicant_name.clone();
+    let userpod_name = replicant.userpod_name.clone();
     let display = display_name.clone();
     tokio::spawn(async move {
-        onboard_matrix(&replicant_name, &display).await;
+        onboard_matrix(&userpod_name, &display).await;
     });
 
     // Clear state cookie and set session cookie
@@ -417,7 +417,7 @@ pub async fn callback(
         let onboarding_url = format!(
             "/onboarding?name={}&replicant={}",
             urlencoding(&display_name),
-            urlencoding(&replicant.replicant_name),
+            urlencoding(&replicant.userpod_name),
         );
         builder = builder.header(header::LOCATION, onboarding_url);
     }
@@ -601,7 +601,7 @@ pub async fn logout(
             tracing::info!(
                 target = "cns.deploy.session",
                 operation = "session_close",
-                webid = %session.replicant_webid,
+                webid = %session.webid,
                 "CNS"
             );
         }
@@ -643,8 +643,8 @@ pub async fn session_info(
         return Err((StatusCode::UNAUTHORIZED, "Session expired".to_string()));
     }
     Ok(Json(serde_json::json!({
-        "replicant_name": session.replicant_name,
-        "webid": session.replicant_webid.to_string(),
+        "userpod_name": session.userpod_name,
+        "webid": session.webid.to_string(),
         "expires_at": session.expires_at,
         "last_active": session.last_active
     })))
@@ -705,7 +705,7 @@ pub async fn accept_invite(
         return Err((StatusCode::UNAUTHORIZED, "Session expired".into()));
     }
     let replicant = user_store
-        .get_replicant_by_webid(&session.replicant_webid)
+        .get_replicant_by_webid(&session.webid)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
         .ok_or((StatusCode::UNAUTHORIZED, "Replicant not found".into()))?;
     user_store
@@ -714,7 +714,7 @@ pub async fn accept_invite(
     let body = serde_json::json!({
         "status": "accepted",
         "code": body.code,
-        "replicant": replicant.replicant_name,
+        "replicant": replicant.userpod_name,
     });
     Response::builder()
         .status(StatusCode::OK)
@@ -760,14 +760,14 @@ fn matrix_client() -> &'static reqwest::Client {
 ///
 /// Delegates account registration to OnboardingService (shared with CLI path).
 /// Called as a fire-and-forget task after OAuth sign-in. Non-blocking.
-async fn onboard_matrix(replicant_name: &str, display_name: &str) {
+async fn onboard_matrix(userpod_name: &str, display_name: &str) {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
     // Delegate account registration to the onboarding service
     let result = hkask_services_onboarding::OnboardingService::register_oauth_matrix_accounts(
         display_name,
-        replicant_name,
+        userpod_name,
         &homeserver_url,
     )
     .await;
