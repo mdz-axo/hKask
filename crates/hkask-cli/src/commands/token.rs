@@ -73,25 +73,16 @@ pub async fn token_issue(
 /// List tokens for a replicant (or all replicants if None).
 pub fn token_list(replicant: Option<&str>) -> Result<Vec<TokenEntry>, ServiceError> {
     let ctx = crate::commands::helpers::build_agent_service();
-    let agents = ctx
-        .storage()
-        .agents
-        .clone()
-        .list()
-        .map_err(|e| ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Agent,
-            source: None,
-            message: e.to_string(),
-        })?;
+    let (_system_webid, a2a) = ctx.identity();
+    let agents = a2a.list_agents();
     let entries: Vec<TokenEntry> = agents
         .into_iter()
-        .filter(|a| replicant.is_none_or(|r| a.definition.name == r))
+        .filter(|a| replicant.is_none_or(|r| a.webid.to_string() == r))
         .map(|a| TokenEntry {
-            name: a.definition.name,
-            token_hash: a.token_hash,
-            capabilities: a.definition.capabilities,
-            registered_at: a.registered_at,
+            name: a.webid.to_string(),
+            token_hash: String::new(),
+            capabilities: a.capabilities,
+            registered_at: a.registered_at.to_string(),
         })
         .collect();
     Ok(entries)

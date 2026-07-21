@@ -20,8 +20,6 @@ pub use hkask_ports::consent_port::ConsentPort;
 pub use hkask_ports::escalation::{
     EscalationBatch, EscalationEntry, EscalationPort, EscalationStatus,
 };
-pub use hkask_ports::registry_port::RegistryPort;
-
 pub use memory_storage::{
     EpisodicStoragePort, MemoryPortError, RecallRequest, RecalledEpisode, RecalledSemantic,
     SemanticStoragePort, StorageRequest,

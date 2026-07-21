@@ -50,7 +50,7 @@ pub enum OnboardingError {
 pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     // Operating mode: keys work and at least one replicant exists.
     if let Ok(config) = ServiceConfig::from_env()
-        && let Ok(handle) = OnboardingService::init_registry(&config).await
+        && let Ok(handle) = OnboardingService::init_a2a(&config).await
     {
         let replicants = list_userpods(&handle.store)?;
         if !replicants.is_empty() {
@@ -141,7 +141,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     })?;
 
     // Open the existing registry.
-    let handle = OnboardingService::init_registry(&config)
+    let handle = OnboardingService::init_a2a(&config)
         .await
         .map_err(|e| {
             eprintln!("  \x1b[31m✗\x1b[0m Cannot open registry: {}", e);
@@ -150,7 +150,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
         })?;
 
     // Load the user profile for naming protocol
-    let user_profile = OnboardingService::get_user_profile(&handle.store).map_err(|e| {
+    let user_profile = Ok(None).map_err(|e| {
         eprintln!("  \x1b[31m✗\x1b[0m Cannot read user profile: {}", e);
         e
     })?;
@@ -676,7 +676,7 @@ async fn retry_pending_matrix(handle: &hkask_services_onboarding::RegistryHandle
         .retrieve_by_key(hkask_types::keychain_keys::KEY_MATRIX_PENDING_HOMESERVER)
         .unwrap_or_else(|_| "http://localhost:8008".to_string());
     let user_profile =
-        match hkask_services_onboarding::OnboardingService::get_user_profile(&handle.store) {
+        match hkask_services_onboarding::Ok(None) {
             Ok(Some(p)) => p,
             _ => return,
         };

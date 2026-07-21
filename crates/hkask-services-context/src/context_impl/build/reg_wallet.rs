@@ -12,7 +12,6 @@ use std::sync::Arc;
 /// Registry + wallet: agent records, A2A restore, rJoule payments.
 pub(super) struct RegWallet {
     pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
-    pub agent_registry_store: hkask_storage::AgentRegistryStore,
     pub wallet_service: Option<Arc<WalletService>>,
     pub wallet_store: Option<Arc<WalletStore>>,
     pub wallet_gas_calibrator: Option<Arc<hkask_cns::WalletGasCalibrator>>,
@@ -39,51 +38,44 @@ pub(super) async fn build_registry_and_wallet(
         })?,
     ));
 
-    // Agent registry store
-    let pool = f.db.sqlite_pool().map_err(|e| ServiceError::Domain {
-        kind: ErrorKind::BadRequest,
-        domain: DomainKind::Storage,
-        source: None,
-        message: format!("SQLite pool: {e}"),
-    })?;
-    let agent_registry_driver = Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
-    let agent_registry_store =
-        hkask_storage::AgentRegistryStore::from_driver(agent_registry_driver);
-
-    // Restore A2A state from persistent storage
-    let registered_agents = agent_registry_store
-        .list()
-        .map_err(|e| ServiceError::Domain {
+    // Restore A2A state from persistent storage (UserStore)
+    {
+        let user_guard = f.user_store.lock().map_err(|_| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
-            domain: DomainKind::Agent,
+            domain: DomainKind::Storage,
             source: None,
-            message: e.to_string(),
+            message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
-    if !registered_agents.is_empty() {
-        use std::str::FromStr;
-        let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_agents
-            .iter()
-            .map(|ra| hkask_agents::a2a::A2AAgent {
-                webid: hkask_types::WebID::from_str(&ra.definition.name).unwrap_or_else(|_| {
-                    hkask_types::WebID::from_persona(ra.definition.name.as_bytes())
-                }),
-                capabilities: ra.definition.capabilities.clone(),
-                registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
-                    .map(|dt| dt.timestamp())
-                    .unwrap_or(0),
-                active: true,
-            })
-            .collect();
-        let tokens = std::collections::HashMap::new();
-        l.a2a_runtime
-            .restore_from_storage(agents, tokens)
-            .await
-            .map_err(|e| ServiceError::Domain {
-                kind: ErrorKind::BadRequest,
-                domain: DomainKind::Agent,
-                source: None,
-                message: e.to_string(),
-            })?;
+        let registered_userpods =
+            user_guard
+                .list_all_userpods()
+                .map_err(|e| ServiceError::Domain {
+                    kind: ErrorKind::BadRequest,
+                    domain: DomainKind::Agent,
+                    source: None,
+                    message: e.to_string(),
+                })?;
+        if !registered_userpods.is_empty() {
+            let agents: Vec<hkask_agents::a2a::A2AAgent> = registered_userpods
+                .iter()
+                .map(|up| hkask_agents::a2a::A2AAgent {
+                    webid: up.webid,
+                    capabilities: vec![],
+                    registered_at: up.created_at,
+                    active: true,
+                })
+                .collect();
+            let tokens = std::collections::HashMap::new();
+            l.a2a_runtime
+                .restore_from_storage(agents, tokens)
+                .await
+                .map_err(|e| ServiceError::Domain {
+                    kind: ErrorKind::BadRequest,
+                    domain: DomainKind::Agent,
+                    source: None,
+                    message: e.to_string(),
+                })?;
+        }
     }
 
     // Wallet — non-fatal if config or build fails (daemon can run without wallet)
@@ -97,7 +89,6 @@ pub(super) async fn build_registry_and_wallet(
 
     Ok(RegWallet {
         registry,
-        agent_registry_store,
         wallet_service,
         wallet_store,
         wallet_gas_calibrator,

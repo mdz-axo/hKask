@@ -17,7 +17,8 @@ use thiserror::Error;
 use zeroize::Zeroizing;
 
 const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
-const SESSION_COLUMNS: &str = "session_id, userpod_name, webid, user_id, session_key_salt, expires_at, last_active";
+const SESSION_COLUMNS: &str =
+    "session_id, userpod_name, webid, user_id, session_key_salt, expires_at, last_active";
 
 #[derive(Error, Debug)]
 pub enum UserStoreError {
@@ -417,13 +418,8 @@ impl UserStore {
     /// expect: "The system provides durable storage for archival data"
     /// pre:  webid is a valid WebID
     /// post: returns Some(UserPod) if found, None otherwise
-    pub fn get_userpod_by_webid(
-        &self,
-        webid: &hkask_types::WebID,
-    ) -> UserResult<Option<UserPod>> {
-        let sql = format!(
-            "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE webid = ?1"
-        );
+    pub fn get_userpod_by_webid(&self, webid: &hkask_types::WebID) -> UserResult<Option<UserPod>> {
+        let sql = format!("SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE webid = ?1");
         query_row(
             &*self.driver,
             &sql,
@@ -602,9 +598,8 @@ impl UserStore {
     /// post: returns Some(identity) if found, None otherwise
     #[must_use = "result must be used"]
     pub fn get_userpod(&self, userpod_name: &str) -> UserResult<Option<UserPod>> {
-        let sql = format!(
-            "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE userpod_name = ?1"
-        );
+        let sql =
+            format!("SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE userpod_name = ?1");
         query_row(
             &*self.driver,
             &sql,
@@ -906,6 +901,24 @@ impl UserStore {
                     .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
             },
         )
+        .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
+    }
+
+    /// List all userpods across all users.
+    ///
+    /// expect: "My user data and sovereignty boundaries are stored under my control"
+    /// \[P1\] Motivating: User Sovereignty — list all replicants
+    /// pre:  (none)
+    /// post: returns Vec of all replicants ordered by creation time
+    #[must_use = "result must be used"]
+    pub fn list_all_userpods(&self) -> UserResult<Vec<UserPod>> {
+        let sql = format!(
+            "SELECT {USERPOD_COLUMNS} FROM userpod_identities ORDER BY is_primary DESC, created_at ASC"
+        );
+        query_map(&*self.driver, &sql, &[], |row| {
+            replicant_from_row(row)
+                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+        })
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
     }
     /// Get the wallet ID for a replicant.

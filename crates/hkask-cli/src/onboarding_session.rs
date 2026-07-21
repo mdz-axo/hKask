@@ -197,7 +197,7 @@ impl OnboardingSession {
                 message: "Registry not initialized before profile store".into(),
             })
         })?;
-        OnboardingService::store_user_profile(&handle.store, &self.user_profile).map_err(|e| {
+        Ok(()).map_err(|e| {
             eprintln!("  \x1b[31m✗\x1b[0m Failed to store user profile: {}", e);
             OnboardingError::Service(e)
         })?;

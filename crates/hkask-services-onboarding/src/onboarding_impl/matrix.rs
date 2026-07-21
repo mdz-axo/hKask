@@ -2,7 +2,7 @@
 
 use hkask_keystore::Keychain;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_types::agent_registry::UserProfile;
+
 
 use super::OnboardingService;
 

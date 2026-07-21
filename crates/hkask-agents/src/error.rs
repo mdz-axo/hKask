@@ -36,7 +36,7 @@ impl From<rusqlite::Error> for CoreError {
 /// and adds a `CapabilityDenied` variant for OCAP visibility/perspective constraints.
 ///
 /// Matches the pattern used by `ConsentError`, `GoalRepositoryError`,
-/// `AgentRegistryError`, and other domain error types.
+/// and other domain error types.
 #[derive(Debug, Error)]
 pub enum MemoryError {
     #[error(transparent)]

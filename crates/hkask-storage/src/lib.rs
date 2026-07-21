@@ -16,7 +16,6 @@ pub use hkask_types::time::now_rfc3339;
 
 // ── Domain storage modules ───────────────────────────────────────────
 
-pub mod agent_registry;
 pub mod consent_store;
 pub mod embeddings;
 pub mod escalation;
@@ -32,7 +31,6 @@ pub mod wallet;
 
 // ── Domain re-exports ────────────────────────────────────────────────
 
-pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
 pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};
 pub use escalation::{

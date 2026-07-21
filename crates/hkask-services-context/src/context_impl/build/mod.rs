@@ -125,13 +125,13 @@ impl AgentServiceWiring {
         );
 
         let storage = storage::StorageContext::new(
-            self.reg_wallet.registry,
-            self.foundation.goal_repo,
-            self.reg_wallet.agent_registry_store,
-            self.foundation.user_store,
-            self.foundation.sovereignty_boundary_store,
-            self.reg_wallet.wallet_store,
-        );
+            :new(
+                        self.reg_wallet.registry,
+                        self.foundation.goal_repo,
+                        self.foundation.user_store,
+                        self.foundation.sovereignty_boundary_store,
+                        self.reg_wallet.wallet_store,
+                    );
 
         let infra = infra::InfraContext::new(
             self.loops.inference_port,
