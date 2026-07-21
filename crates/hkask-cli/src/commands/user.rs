@@ -596,7 +596,7 @@ pub fn revoke_invite(store: &Store, admin_replicant: &str, code: &str) -> Result
 
 /// pre:  action is a valid UserPodAction variant
 /// post: dispatches to the appropriate handler (register, login, show, list, sessions, logout, passphrase); prints results or errors
-pub fn run_replicant(rt: &tokio::runtime::Runtime, action: crate::cli::UserPodAction) {
+pub fn run_userpod(rt: &tokio::runtime::Runtime, action: crate::cli::UserPodAction) {
     match action {
         UserPodAction::Register { .. } => register_userpod(),
         UserPodAction::Login { .. } => login_userpod(),

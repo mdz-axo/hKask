@@ -131,30 +131,8 @@ impl ChatService {
     ) -> Result<PreparedChat, ServiceError> {
         let name = req.agent_name.as_deref().unwrap_or("Curator");
 
-        // Load agent registry to find the agent definition
-        let loader = hkask_agents::registry_loader::AgentRegistryLoader::new(
-            ctx.config().registry_yaml_path.clone(),
-            ctx.governance().a2a.clone(),
-            Arc::new(ctx.storage().agents.clone())
-                as Arc<dyn hkask_ports::registry_port::RegistryPort>,
-            Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
-        );
-        let agents = loader.boot().await.map_err(|e| ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Agent,
-            source: None,
-            message: e.to_string(),
-        })?;
-        let agent = agents.iter().find(|a| a.definition.name == name);
-
-        // Compose system prompt from agent definition
-        let mut system_prompt = match agent {
-            Some(registered) => format!(
-                "You are {} in the hKask system.\n\n",
-                registered.definition.name
-            ),
-            None => format!("You are {}, an assistant in the hKask system.\n\n", name),
-        };
+        // Agent registry removed (consolidation): compose a direct system prompt.
+        let mut system_prompt = format!("You are {} in the hKask system.\n\n", name);
 
         // Append tool-call format instructions
         if let Some(ref section) = req.tool_section

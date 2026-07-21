@@ -148,7 +148,7 @@ fn main() {
 
         Commands::Token { action } => commands::token::run_token(&rt, action),
 
-        Commands::Replicant { action } => commands::user::run_replicant(&rt, action),
+        Commands::UserPod { action } => commands::user::run_userpod(&rt, action),
 
         Commands::Keystore { action } => commands::keystore::run(action),
 

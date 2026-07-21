@@ -1,11 +1,8 @@
 //! Pod value types — PodLifecycleState, PodID, persona types, template types
 
-use hkask_capability::{CapabilitySpec, DelegationResource};
 pub use hkask_types::PodID;
-use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 
-use super::AgentPodError;
 
 /// Agent operating mode — how the agent is currently interacting with the world.
 ///

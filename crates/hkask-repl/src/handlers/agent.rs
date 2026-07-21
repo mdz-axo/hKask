@@ -82,14 +82,12 @@ pub(crate) fn switch_agent(state: &mut super::super::ReplState, name: &str) -> S
         .get(name)
         .ok()
         .and_then(|agent| {
-            hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)
                 .map_err(|e| format!("{e}"))
                 .or_else(|_| {
                     let disk_path = hkask_types::agent_paths::agent_definition_yaml(name);
                     std::fs::read_to_string(&disk_path)
                         .map_err(|e| format!("Failed to read agent YAML from disk: {e}"))
                         .and_then(|content| {
-                            hkask_agents::yaml_parser::parse_agent_from_yaml(&content)
                                 .map_err(|e| format!("{e}"))
                         })
                 })

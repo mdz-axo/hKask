@@ -99,7 +99,7 @@ pub enum Commands {
     },
 
     /// Replicant identity management
-    Replicant {
+    UserPod {
         #[command(subcommand)]
         action: UserPodAction,
     },
@@ -203,7 +203,7 @@ impl Commands {
             Commands::Backup { .. } => "backup",
             Commands::Federation { .. } => "federation",
             Commands::Token { .. } => "token",
-            Commands::Replicant { .. } => "replicant",
+            Commands::UserPod { .. } => "userpod",
             Commands::Keystore { .. } => "keystore",
             Commands::Skill { .. } => "skill",
             Commands::Doctor { .. } => "doctor",

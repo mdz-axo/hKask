@@ -548,7 +548,6 @@ pub(super) fn init_repl_state(
         .get(&state.current_agent)
         .ok()
         .and_then(|agent| {
-            hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)
                 .map_err(|e| format!("{e}"))
                 .or_else(|_| {
                     let disk_path =
@@ -556,7 +555,6 @@ pub(super) fn init_repl_state(
                     fs::read_to_string(&disk_path)
                         .map_err(|e| format!("Failed to read agent YAML from disk: {e}"))
                         .and_then(|content| {
-                            hkask_agents::yaml_parser::parse_agent_from_yaml(&content)
                                 .map_err(|e| format!("{e}"))
                         })
                 })
