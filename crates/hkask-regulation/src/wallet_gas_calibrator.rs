@@ -1,6 +1,6 @@
 //! WalletGasCalibrator — Runtime calibration of the wallet gas→rJoule rate.
 //!
-//! Observes aggregate `cns.gas.settled` events via `GasReport`, computes the
+//! Observes aggregate `reg.gas.settled` events via `GasReport`, computes the
 //! global actual/estimated gas ratio, and feeds it to `WalletEnergyEstimator`.
 //! The resulting `gas_per_rjoule` is pushed into `WalletManager` so that
 //! `WalletBackedBudget` uses a live, calibrated conversion rate.

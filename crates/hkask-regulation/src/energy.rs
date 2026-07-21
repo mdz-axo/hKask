@@ -1,7 +1,7 @@
 //! Gas budget enforcement with hold-settle pattern and Regulation observability.
 //!
 //! Fields are private — invariants (`remaining + reserved ≤ cap`) are enforced
-//! structurally. Regulation `cns.gas` spans emit on every reserve/settle/consume/reset_to.
+//! structurally. Regulation `reg.gas` spans emit on every reserve/settle/consume/reset_to.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

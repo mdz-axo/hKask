@@ -215,7 +215,7 @@ impl ContentGuard {
     /// Check whether the canary token has been leaked into the given text.
     ///
     /// If the canary appears in model output, the system prompt has been
-    /// exfiltrated (OWASP LLM07:2025). Emits `cns.guard.canary` on detection.
+    /// exfiltrated (OWASP LLM07:2025). Emits `reg.guard.canary` on detection.
     ///
     /// expect: "The system detects system prompt exfiltration via canary"
     /// pre:  text is the model output to check
@@ -238,10 +238,10 @@ impl ContentGuard {
     /// expect: "The system refuses prompt injection, role override, and deobfuscated attacks"
     /// pre:  text is the raw user/system input to be scanned
     /// post: returns GuardResult.passed=true if clean, false with violations if blocked;
-    ///       emits cns.guard.input Regulation span on violation
+    ///       emits reg.guard.input Regulation span on violation
     ///
     /// Refuses immediately on first prompt injection, role override,
-    /// or deobfuscated injection pattern. Emits `cns.guard.input` on violation.
+    /// or deobfuscated injection pattern. Emits `reg.guard.input` on violation.
     pub fn scan_input(&self, text: &str) -> GuardResult {
         let result = self.input_pipeline.scan(text);
 
@@ -290,10 +290,10 @@ impl ContentGuard {
     /// expect: "The system strips detected secrets from model output before storage"
     /// pre:  text is the raw model response to be scanned
     /// post: returns GuardResult.passed=true if clean; false with violations and
-    ///       redacted content if secrets found; emits cns.guard.output Regulation span on violation
+    ///       redacted content if secrets found; emits reg.guard.output Regulation span on violation
     ///
     /// Collects all secret leakage violations and strips detected secrets.
-    /// Emits `cns.guard.output` on violation.
+    /// Emits `reg.guard.output` on violation.
     pub fn scan_output(&self, text: &str) -> GuardResult {
         // Check for canary token leakage (OWASP LLM07:2025).
         // If the canary appears in model output, the system prompt was exfiltrated.

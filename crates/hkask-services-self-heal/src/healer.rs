@@ -16,16 +16,16 @@
 //!
 //! | Target | When |
 //! |--------|------|
-//! | `cns.heal.attempt` | Healing starts |
-//! | `cns.heal.strategy` | Strategy selected |
-//! | `cns.heal.dotenv` | .env loaded |
-//! | `cns.heal.set_env` | Env var set |
-//! | `cns.heal.file_created` | File created |
-//! | `cns.heal.code_change_proposed` | Code change proposed |
-//! | `cns.heal.llm_assisted` | LLM template rendered |
-//! | `cns.heal.retry_loop` | Each retry iteration |
-//! | `cns.heal.unmatched` | No strategy found |
-//! | `cns.heal.escalated` | Exhausted, escalating to Curator |
+//! | `reg.heal.attempt` | Healing starts |
+//! | `reg.heal.strategy` | Strategy selected |
+//! | `reg.heal.dotenv` | .env loaded |
+//! | `reg.heal.set_env` | Env var set |
+//! | `reg.heal.file_created` | File created |
+//! | `reg.heal.code_change_proposed` | Code change proposed |
+//! | `reg.heal.llm_assisted` | LLM template rendered |
+//! | `reg.heal.retry_loop` | Each retry iteration |
+//! | `reg.heal.unmatched` | No strategy found |
+//! | `reg.heal.escalated` | Exhausted, escalating to Curator |
 
 use std::collections::HashMap;
 use std::fmt;

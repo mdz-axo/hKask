@@ -150,7 +150,7 @@ impl EpisodicMemory {
     /// `Confidence::decay()`, then deduplicates by EAV hash.
     /// `valid_from` is the creation timestamp — never modified.
     ///
-    /// Emits `cns.memory.decay` span for each h_mem that undergoes decay.
+    /// Emits `reg.memory.decay` span for each h_mem that undergoes decay.
     ///
     /// expect: "I can recall deduplicated episodic h_mems with confidence decay"
     /// \[P3\] Motivating: Generative Space — recalls deduplicated episodic h_mems for an entity

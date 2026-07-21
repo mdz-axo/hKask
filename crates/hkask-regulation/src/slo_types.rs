@@ -1,6 +1,6 @@
 //! SLO (Service Level Objective) types.
 //!
-//! Extracted from hkask-types/src/cns.rs during Regulation refactoring.
+//! Extracted from hkask-types/src/reg.rs during Regulation refactoring.
 
 use serde::{Deserialize, Serialize};
 

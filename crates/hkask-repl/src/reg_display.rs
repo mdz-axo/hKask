@@ -2,7 +2,7 @@
 //!
 //! After each inference turn, the Regulation is checked for critical alerts
 //! and the LoopScheduler is ticked. Regulation variety counters are updated by
-//! the service layer via Regulation spans (cns.chat.request, cns.chat.response) —
+//! the service layer via Regulation spans (reg.chat.request, reg.chat.response) —
 //! the REPL only reads alerts, never mutates Regulation state directly.
 //!
 //! # REQ: P4-cns-access — REPL only reads Regulation alerts (read-only), never mutates Regulation state
@@ -30,7 +30,7 @@ pub(super) fn update_cns_and_display(ctx: &AgentService, rt: &tokio::runtime::Ha
     // CyberneticsLoop and InferenceLoop. The CyberneticsLoop reads
     // Regulation variety and energy budgets, producing regulatory actions
     // (Throttle, AdjustEnergyBudget, Escalate, Calibrate) visible
-    // through tracing output (cns.cybernetics target).
+    // through tracing output (reg.cybernetics target).
     rt.block_on(async {
         ctx.ledger().loops.tick().await;
     });

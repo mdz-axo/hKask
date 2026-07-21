@@ -5,7 +5,7 @@
 //! monitor threads (watchlist) or be tagged into discussions (@mentions).
 //!
 //! Regulation spans route algedonic signals for thread lifecycle events:
-//!   `cns.communication.thread.{created,escalated,resolved}`
+//!   `reg.communication.thread.{created,escalated,resolved}`
 //!
 //! The 7R7 listener polls Matrix rooms and emits Regulation observation spans.
 //! The agent layer (Curator + skills + templates) decides what action to take.

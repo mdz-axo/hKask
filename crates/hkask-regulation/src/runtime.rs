@@ -701,7 +701,7 @@ impl RegulationLedger {
 
         // Notify subscribers interested in this domain's span namespace.
         // Uses SpanNamespace::parse directly (not RegulationSpan::from_str) so that
-        // regulatory domains (cns.algedonic, cns.cybernetics, etc.) are included.
+        // regulatory domains (reg.algedonic, reg.cybernetics, etc.) are included.
         if let Some(span_ns) = hkask_types::event::SpanNamespace::parse(domain) {
             let event = hkask_types::event::RegulationRecord::new(
                 WebID::default(),

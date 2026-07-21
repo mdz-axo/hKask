@@ -82,7 +82,7 @@ pub trait OcrExecutor: Send + Sync {
 ///
 /// Regulation observability is handled externally by the GovernedTool membrane
 /// (gas accounting, variety tracking, RegulationRecord persistence). Internal
-/// operational telemetry uses `tracing::info!` under `cns.pipeline` target.
+/// operational telemetry uses `tracing::info!` under `reg.pipeline` target.
 ///
 /// # Arguments
 /// * `pages` — Decimated page images in document order.

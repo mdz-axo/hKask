@@ -1,17 +1,17 @@
 //! Core Regulation (Cybernetic Nervous System) types for hKask
 //!
-//! Core spans: cns.tool.*, cns.inference.*, cns.fusion.*, cns.agent_pod.*,
-//! cns.gas.*, cns.curation.*, cns.heal.*, cns.memory.encode.*
+//! Core spans: reg.tool.*, reg.inference.*, reg.fusion.*, reg.agent_pod.*,
+//! reg.gas.*, reg.curation.*, reg.heal.*, reg.memory.encode.*
 //!
 //! Domain-specific spans have moved to their respective domain crates.
 //!
 //! `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
 //! **canonical** Regulation spans — the essential, regulation record-eligible spans that are
 //! `SpanNamespace`-validated, `SpanCategory`-categorized, and loop-connected.
-//! The `cns.*` prefix is reserved for canonical spans: every `cns.*` tracing
+//! The `reg.*` prefix is reserved for canonical spans: every `reg.*` tracing
 //! target MUST be registered in `CANONICAL_NAMESPACES`. **Performative**
 //! telemetry (per PRINCIPLES §9.1) uses `hkask.*` tracing targets (e.g.
-//! `hkask.cli`, `hkask.training.job.submit`), NOT `cns.*`; those are observability
+//! `hkask.cli`, `hkask.training.job.submit`), NOT `reg.*`; those are observability
 //! logs, not loop variables, and `SpanNamespace::new` rejects them.
 
 use serde::{Deserialize, Serialize};
@@ -114,10 +114,10 @@ impl RegulationHealth {
 ///
 /// `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
 /// **canonical** Regulation spans — essential spans that are `SpanNamespace`-validated,
-/// `SpanCategory`-categorized, and connected to a cybernetic loop. The `cns.*`
-/// prefix is reserved for these canonical spans: every `cns.*` tracing target
+/// `SpanCategory`-categorized, and connected to a cybernetic loop. The `reg.*`
+/// prefix is reserved for these canonical spans: every `reg.*` tracing target
 /// MUST be registered. Per PRINCIPLES §9.1, performative telemetry uses
-/// `hkask.*` tracing targets (not `cns.*`); those are observability logs, not
+/// `hkask.*` tracing targets (not `reg.*`); those are observability logs, not
 /// loop variables, and `SpanNamespace::new` rejects them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RegulationSpan {

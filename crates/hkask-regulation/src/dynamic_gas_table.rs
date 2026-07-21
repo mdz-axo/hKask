@@ -1,6 +1,6 @@
 //! DynamicGasTable — Per-server gas cost calibration from Regulation event observations.
 //!
-//! Closes the Good Regulator feedback loop (P9): observes `cns.gas.settled`
+//! Closes the Good Regulator feedback loop (P9): observes `reg.gas.settled`
 //! spans via `GasReport`, compares actual vs estimated gas costs per server, and
 //! adjusts hardcoded `TableEnergyEstimator` costs via exponential moving average (EMA).
 //!

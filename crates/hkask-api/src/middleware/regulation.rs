@@ -11,7 +11,7 @@ use std::time::Instant;
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  req is an incoming HTTP request
 /// post: reg.api.request span emitted with method + path
-/// post: cns.api response span emitted with status + latency_ms
+/// post: reg.api response span emitted with status + latency_ms
 pub async fn regulation_middleware(req: Request<Body>, next: Next) -> Response {
     let method = req.method().to_string();
     let path = req.uri().path().to_string();

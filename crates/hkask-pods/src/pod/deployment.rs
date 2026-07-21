@@ -39,7 +39,7 @@ use hkask_templates::TemplateCrateLoader;
 
 /// A pod IS the deployment unit. Constructing a PodDeployment
 /// means: a SQLCipher database file exists at {data_dir}/pods/{pod_id}.db,
-/// a Regulation runtime is initialized with namespace cns.agent_pod.{pod_id}.*,
+/// a Regulation runtime is initialized with namespace reg.agent_pod.{pod_id}.*,
 /// and MCP servers are bound. No shared state. No service collision surface.
 ///
 ///Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
@@ -96,7 +96,7 @@ pub struct PerPodStorage {
 pub struct PerPodLedger {
     /// The pod this Regulation runtime is scoped to
     pod_id: PodID,
-    /// Span namespace prefix: cns.agent_pod.{pod_id}
+    /// Span namespace prefix: reg.agent_pod.{pod_id}
     span_namespace: String,
     /// The actual Regulation runtime — per-pod isolate
     inner: RegulationLedger,

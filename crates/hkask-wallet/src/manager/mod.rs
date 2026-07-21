@@ -59,7 +59,7 @@ pub struct WalletManager {
     chains: HashMap<ChainId, Arc<dyn ChainPort>>,
     wallet_seed: Zeroizing<[u8; 32]>,
     /// Optional Regulation event sink for span emission (Phase 5).
-    /// When present, wallet operations emit cns.wallet.* spans.
+    /// When present, wallet operations emit reg.wallet.* spans.
     event_sink: Option<Arc<dyn RegulationSink>>,
     /// Price feed for native token USD rates (fee estimation).
     /// Resolved from user's `PriceFeedConfig` at build time.
@@ -140,7 +140,7 @@ impl WalletManager {
         &self.price_feed
     }
 
-    // Regulation event emission moved to cns.rs. All methods are available via impl blocks
+    // Regulation event emission moved to reg.rs. All methods are available via impl blocks
     // in that module, loaded through `use super::*`.
 
     // ── Balance ──────────────────────────────────────────────────────────────

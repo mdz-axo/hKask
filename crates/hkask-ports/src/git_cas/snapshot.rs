@@ -76,7 +76,7 @@ impl Default for CasRetentionPolicy {
 /// Per-repo snapshot policy — customizes frequency and retention per repo.
 ///
 /// Each repo can override the global policy. Repos that change frequently
-/// (CnsAudit, Registry) snapshot more often; stable repos (Vault) less often.
+/// (RegAudit, Registry) snapshot more often; stable repos (Vault) less often.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoSnapshotPolicy {
     /// Which repo this policy applies to.

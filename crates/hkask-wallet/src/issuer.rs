@@ -95,7 +95,7 @@ impl ApiKeyIssuer {
     /// post: returns Ok(ApiKeyMaterial) with fresh Ed25519 keypair
     /// post: private_key_hex returned once, never stored by hKask
     /// post: public key + capability metadata persisted in store
-    /// post: emits cns.wallet.key_issued span
+    /// post: emits reg.wallet.key_issued span
     /// Generates a fresh Ed25519 keypair, creates a signed capability token
     /// with the specified limits, scope, and purpose, stores the public key,
     /// and returns the private key to the user (shown exactly once).
@@ -178,7 +178,7 @@ impl ApiKeyIssuer {
     /// post: key marked as revoked in store
     /// post: unspent rJoules returned to wallet
     /// post: idempotent — revoking already-revoked key is no-op
-    /// post: emits cns.wallet.key_revoked span
+    /// post: emits reg.wallet.key_revoked span
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         self.store.revoke_api_key(key_id)?;
 

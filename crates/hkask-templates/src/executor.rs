@@ -16,8 +16,8 @@
 //! - **choice**: Evaluate a condition against context, branch by setting `_next_ordinal`.
 //! - **loop**: Re-enter the cascade from `loop_target` ordinal (defaults to 0),
 //!   incrementing the iteration counter. Respects matryoshka depth limit (7).
-//! - **abort**: Exit the cascade with a convergence status. Emits `cns.skill.converged`.
-//! - **escalate**: Exit the cascade with an escalation error. Emits `cns.skill.escalated`.
+//! - **abort**: Exit the cascade with a convergence status. Emits `reg.skill.converged`.
+//! - **escalate**: Exit the cascade with an escalation error. Emits `reg.skill.escalated`.
 //!
 //! The executor respects iterative convergence (`manifest.convergence`),
 //! gas budgets (`manifest.gas.cap` — hard parent allocation with

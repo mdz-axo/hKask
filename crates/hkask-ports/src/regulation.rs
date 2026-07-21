@@ -104,7 +104,7 @@ pub trait LedgerStoragePort: Send + Sync {
     ///
     /// The `namespace_prefix` is the short-name prefix stored in the `span_category`
     /// column (e.g., "guard" matches "guard.input", "guard.output", etc.).
-    /// Pass the short name — NOT the full `cns.*` namespace.
+    /// Pass the short name — NOT the full `reg.*` namespace.
     ///
     /// \[P9\] Motivating: Homeostatic Self-Regulation — query Regulation span history
     /// pre:  `namespace_prefix` is a non-empty short-name prefix

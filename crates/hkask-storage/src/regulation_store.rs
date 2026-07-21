@@ -273,7 +273,7 @@ impl RegulationArchive {
     ///
     /// The stored `span_category` column holds the short name (e.g., "guard.input",
     /// "regulation", "gas"). Callers pass the short-name prefix (e.g., "guard",
-    /// "regulation", "gas") — NOT the full `cns.*` namespace.
+    /// "regulation", "gas") — NOT the full `reg.*` namespace.
     ///
     /// expect: "The system provides durable storage for event data"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — query Regulation span history

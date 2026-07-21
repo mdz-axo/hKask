@@ -213,7 +213,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
     ) -> Result<usize, MemoryPortError> {
         let count = self.episodic.storage_usage(perspective)?;
 
-        // F-SYN-013: `cns.memory.budget` is observed by the
+        // F-SYN-013: `reg.memory.budget` is observed by the
         // cybernetics loop's `CyberneticsLoop` (consumes via
         // `tracing-subscriber` layer). The expected consumer is
         // the `hkask-regulation` crate's Regulation runtime, not any in-source

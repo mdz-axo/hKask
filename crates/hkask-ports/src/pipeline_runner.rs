@@ -4,7 +4,7 @@
 //! and delegates step execution to a caller-provided StepExecutor.
 //!
 //! Platform-level — usable from CLI, replica server, or any runtime.
-//! Each step emits cns.pipeline.{step_id} Regulation spans.
+//! Each step emits reg.pipeline.{step_id} Regulation spans.
 
 use crate::pipeline_manifest::{PipelineManifest, PipelineStep};
 use crate::pipeline_state::PipelineState;

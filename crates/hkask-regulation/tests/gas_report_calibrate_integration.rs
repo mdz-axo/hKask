@@ -1,5 +1,5 @@
 //
-// Integration test: real RegulationArchive with cns.gas.settled events is read by
+// Integration test: real RegulationArchive with reg.gas.settled events is read by
 // GasReport, which calibrates a DynamicGasTable. The calibrated table is then
 // used to build a CompositeEnergyEstimator whose per-server costs reflect the
 // observed actual/estimated ratios.

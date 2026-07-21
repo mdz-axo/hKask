@@ -16,7 +16,7 @@
 //! Chat ──'/curator'──▶ Curator
 //! ```
 //!
-//! Mode transitions emit `cns.tui.mode_switch { from, to }` spans.
+//! Mode transitions emit `reg.tui.mode_switch { from, to }` spans.
 //!
 //! # Prompt Mode Prefixes (P12 Authenticated Host Mandate)
 //!

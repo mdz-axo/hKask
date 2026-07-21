@@ -101,7 +101,7 @@ impl RegulationRecord {
 pub struct SpanNamespace(String);
 
 /// Canonical Regulation span namespaces — mirrors `RegulationSpan::as_str()` output plus namespaces
-/// used by `SpanKind` (e.g. `cns.variety`).
+/// used by `SpanKind` (e.g. `reg.variety`).
 /// Canonical Regulation span namespaces — all valid namespace strings for span construction.
 ///
 /// This is the single source of truth for what Regulation spans exist. All domain span
@@ -412,7 +412,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
 ];
 
 /// Hierarchical namespace validation — a sub-namespace like
-/// `cns.pipeline.decimation.binarize` is valid if any prefix
+/// `reg.pipeline.decimation.binarize` is valid if any prefix
 /// segment (including the full string) is registered.
 fn is_canonical(namespace: &str) -> bool {
     // MIRRORED in scripts/check-cns-canonical.sh::is_canonical — update both together.
@@ -489,7 +489,7 @@ impl SpanNamespace {
     /// typed dispatch (e.g. by `DecayConfig::lambda_for`).
     ///
     /// Hierarchical matches by `short_name()` prefix are preserved
-    /// (e.g. `cns.variety.sensor` → `Variety`). Unknown namespaces
+    /// (e.g. `reg.variety.sensor` → `Variety`). Unknown namespaces
     /// return `SpanCategory::Unknown` so the caller can decide the
     /// fallback policy explicitly (the historical behaviour was
     /// `cybernetics_lambda`).
@@ -665,54 +665,54 @@ impl Span {
 /// reducing the risk of typos in span paths at construction sites.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SpanKind {
-    // ── Tool spans (cns.tool.*) ──
-    /// Tool invocation started: `cns.tool.invoked`
+    // ── Tool spans (reg.tool.*) ──
+    /// Tool invocation started: `reg.tool.invoked`
     ToolInvoked,
-    /// Tool invocation completed: `cns.tool.completed`
+    /// Tool invocation completed: `reg.tool.completed`
     ToolCompleted,
-    /// Tool invocation errored: `cns.tool.error`
+    /// Tool invocation errored: `reg.tool.error`
     ToolError,
 
-    // ── Gas/energy spans (cns.gas.*) ──
-    /// Gas reserved for an operation: `cns.gas.reserved`
+    // ── Gas/energy spans (reg.gas.*) ──
+    /// Gas reserved for an operation: `reg.gas.reserved`
     GasReserved,
-    /// Gas settled after an operation: `cns.gas.settled`
+    /// Gas settled after an operation: `reg.gas.settled`
     GasSettled,
-    /// Gas budget depleted: `cns.gas.depleted`
+    /// Gas budget depleted: `reg.gas.depleted`
     GasDepleted,
 
-    // ── Curation spans (cns.curation.*) ──
-    /// Curation directive acknowledged: `cns.curation.directive_acknowledged`
+    // ── Curation spans (reg.curation.*) ──
+    /// Curation directive acknowledged: `reg.curation.directive_acknowledged`
     CurationDirectiveAcknowledged,
-    /// Curation escalation received: `cns.curation.escalation`
+    /// Curation escalation received: `reg.curation.escalation`
     CurationEscalation,
 
-    // ── Agent pod spans (cns.agent_pod.*) ──
-    /// Agent pod registered: `cns.agent_pod.registered`
+    // ── Agent pod spans (reg.agent_pod.*) ──
+    /// Agent pod registered: `reg.agent_pod.registered`
     AgentPodRegistered,
-    /// Agent pod activated: `cns.agent_pod.activated`
+    /// Agent pod activated: `reg.agent_pod.activated`
     AgentPodActivated,
-    /// Agent pod deactivated: `cns.agent_pod.deactivated`
+    /// Agent pod deactivated: `reg.agent_pod.deactivated`
     AgentPodDeactivated,
 
-    // ── Variety spans (cns.variety.*) ──
-    /// Algedonic alert emitted: `cns.variety.algedonic_alert`
+    // ── Variety spans (reg.variety.*) ──
+    /// Algedonic alert emitted: `reg.variety.algedonic_alert`
     VarietyAlgedonicAlert,
 
-    // ── Wallet spans (cns.wallet.*) ──
-    /// Deposit credited to wallet: `cns.wallet.deposit_credited`
+    // ── Wallet spans (reg.wallet.*) ──
+    /// Deposit credited to wallet: `reg.wallet.deposit_credited`
     DepositCredited,
 
-    // ── Regulation spans (cns.regulation.*) — v0.31.0 Fermi impact-gate ──
-    /// Impact verification completed: `cns.regulation.impact_verified`
+    // ── Regulation spans (reg.regulation.*) — v0.31.0 Fermi impact-gate ──
+    /// Impact verification completed: `reg.regulation.impact_verified`
     ImpactVerified,
-    /// Action substituted due to repeated ineffectiveness: `cns.regulation.action_substituted`
+    /// Action substituted due to repeated ineffectiveness: `reg.regulation.action_substituted`
     ActionSubstituted,
-    /// Action blocked due to severe counterproductivity: `cns.regulation.action_blocked`
+    /// Action blocked due to severe counterproductivity: `reg.regulation.action_blocked`
     ActionBlocked,
-    /// Regulatory plateau detected — escalation triggered: `cns.regulation.plateau_detected`
+    /// Regulatory plateau detected — escalation triggered: `reg.regulation.plateau_detected`
     RegulatoryPlateauDetected,
-    /// Loop-quality telemetry recorded: `cns.regulation.loop_quality`
+    /// Loop-quality telemetry recorded: `reg.regulation.loop_quality`
     LoopMetricsTelemetry,
 }
 

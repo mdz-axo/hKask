@@ -167,7 +167,7 @@ async fn cross_store_consent_visible_to_cns_events() {
 
 /// \[P7\] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
 ///
-/// The shared CalibratedEnergyEstimator observes cns.gas.settled events persisted
+/// The shared CalibratedEnergyEstimator observes reg.gas.settled events persisted
 /// through the Regulation event sink and updates per-server cost estimates.
 #[tokio::test]
 async fn service_energy_estimator_calibrates_from_events() {

@@ -474,7 +474,7 @@ fn generalize_value(value: &serde_json::Value) -> serde_json::Value {
 /// file under `agents/{name}/sessions/{date}.jsonl`. One JSON object per line
 /// for easy streaming/parsing by downstream tools.
 ///
-/// Regulation: emits `cns.session.recorded` span for variety tracking and algedonic
+/// Regulation: emits `reg.session.recorded` span for variety tracking and algedonic
 /// monitoring — if sessions stop writing, the Regulation detects the silence.
 fn append_session_entry(userpod: &str, entity: &str, attribute: &str, value: &serde_json::Value) {
     let sessions_dir = hkask_types::agent_paths::userpod_sessions_dir(userpod);

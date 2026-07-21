@@ -3,7 +3,7 @@
 //! The Cybernetics Loop is a closed-loop controller, not a passive observer.
 //! Its functional contract:
 //!
-//! 1. **Sense** — receive `cns.*` spans from all loops (tool invocations,
+//! 1. **Sense** — receive `reg.*` spans from all loops (tool invocations,
 //!    prompt outcomes, agent pod lifecycle, connector I/O).
 //! 2. **Compare** — evaluate each signal against homeostatic set-points:
 //!    gas budget remaining, variety counter balance, error rate threshold,

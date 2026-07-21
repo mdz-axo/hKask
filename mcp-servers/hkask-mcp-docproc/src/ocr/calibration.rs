@@ -99,7 +99,7 @@ pub(crate) fn analyze_threshold_drift(
 
 /// Emit a Regulation alert for a threshold drift suggestion.
 ///
-/// Uses `tracing::warn!` under `cns.pipeline.calibration` target.
+/// Uses `tracing::warn!` under `reg.pipeline.calibration` target.
 /// The GovernedTool membrane handles RegulationRecord persistence for Regulation learning.
 pub(crate) fn emit_drift_alert(alert: &ThresholdDriftAlert) {
     tracing::warn!(

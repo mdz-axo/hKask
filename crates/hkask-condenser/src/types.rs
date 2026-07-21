@@ -356,7 +356,7 @@ pub struct CompressedOutput {
 }
 
 /// Signal emitted when a condenser algorithm exhibits unexpected behavior.
-/// These are Regulation `cns.condenser.*` regulation record candidates — they indicate that
+/// These are Regulation `reg.condenser.*` ν-event candidates — they indicate that
 /// the algorithmic performance deviated from expected bounds, not that the
 /// compression failed (content is still returned).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

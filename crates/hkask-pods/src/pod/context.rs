@@ -59,7 +59,7 @@ pub struct PodContext {
     capability_checker: Arc<CapabilityChecker>,
     /// Sovereignty checker wired to the pod's live consent port.
     sovereignty_checker: SovereigntyChecker,
-    /// Per-pod Regulation runtime — used to emit `cns.semantic.published` events
+    /// Per-pod Regulation runtime — used to emit `reg.semantic.published` events
     /// on semantic writes. Cloned from PodDeployment (RegulationLedger is Arc-wrapped).
     ledger: PerPodLedger,
     /// CuratorPod's SemanticIndex — available on non-Curator pods for
@@ -276,7 +276,7 @@ impl PodContext {
     ///
     /// This is the enhanced store method that accepts an experience
     /// classification. The classification determines the default confidence
-    /// if `confidence_override` is `None`. Emits a `cns.memory.encode` span.
+    /// if `confidence_override` is `None`. Emits a `reg.memory.encode` span.
     ///
     /// Experience classifications and their default confidences:
     /// - `Success` → 0.9
@@ -326,7 +326,7 @@ impl PodContext {
     /// OCAP: Agents with consolidation capability can store semantic h_mems.
     /// Semantic h_mems have no perspective (consolidated from episodic).
     ///
-    /// On success, fires `cns.semantic.published` to trigger the Curator's
+    /// On success, fires `reg.semantic.published` to trigger the Curator's
     /// sense loop — this is the push-then-pull lazy sync protocol.
     ///
     /// expect: "The system provides bounded agent pod context with capability-gated resource access"

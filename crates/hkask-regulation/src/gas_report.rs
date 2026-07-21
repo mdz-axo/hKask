@@ -258,10 +258,10 @@ impl GasReport {
     ///
     /// expect: "I can feed settled gas events from the event store into a dynamic gas table and calibrate it"
     /// pre:  `table` is a valid DynamicGasTable
-    /// post: every `cns.gas.settled` event in [since, until) with a server field
+    /// post: every `reg.gas.settled` event in [since, until) with a server field
     ///       is recorded in `table`; returns the number of servers adjusted
     ///
-    /// Iterates over `cns.gas.settled` events in the window and calls
+    /// Iterates over `reg.gas.settled` events in the window and calls
     /// `DynamicGasTable::record_observation(server, reserved, actual)` for each.
     /// After all observations are recorded, `DynamicGasTable::calibrate()` is invoked
     /// and the number of adjusted servers is returned.

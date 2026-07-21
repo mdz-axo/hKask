@@ -1,7 +1,7 @@
 //! CalibratedEnergyEstimator — Self-regulating per-server gas cost estimator.
 //!
 //! Wraps [`CompositeEnergyEstimator`] and keeps its per-server table in sync with
-//! observed `cns.gas.settled` events via [`DynamicGasTable`] and [`GasReport`].
+//! observed `reg.gas.settled` events via [`DynamicGasTable`] and [`GasReport`].
 //! A background calibration task can be spawned with ``Self::spawn_calibration``.
 //!
 //! This closes the Good Regulator feedback loop (P9): estimates are continuously

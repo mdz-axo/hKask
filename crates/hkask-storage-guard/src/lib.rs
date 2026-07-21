@@ -17,7 +17,7 @@
 //! ## P2 Affirmative Consent
 //!
 //! Pruning is pre-authorized by the user via configuration:
-//! `kask config set cns.autonomous.prune_exports true`
+//! `kask config set reg.autonomous.prune_exports true`
 //!
 //! Exports are sovereignty artifacts. Pruning without consent would violate P1.
 //! The loop checks `prune_exports_enabled` before acting.
