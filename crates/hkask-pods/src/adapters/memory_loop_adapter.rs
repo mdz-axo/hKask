@@ -10,9 +10,9 @@ use crate::ports::{
     StorageRequest,
 };
 use hkask_capability::{DelegationToken, require_read_access, require_write_access};
-use hkask_regulation::ExperienceClassification;
 use hkask_memory::MemoryPortError;
 use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_regulation::ExperienceClassification;
 use hkask_storage::{EmbeddingStore, HMem, HMemStore};
 use hkask_types::Confidence;
 use std::sync::Arc;
@@ -149,14 +149,19 @@ impl MemoryLoopForwarder {
     }
 
     /// Create from a single DatabaseDriver — unified provider for all stores.
+    ///
+    /// Both `episodic_store` and `semantic_store` wrap the same backing driver
+    /// (cloned `Arc`); they are two Rust-side handles to one logical h_mem store,
+    /// not two separate stores. Two bindings are required because each is moved
+    /// into its respective memory constructor.
     pub fn from_driver(
         driver: Arc<dyn hkask_database::driver::DatabaseDriver>,
     ) -> Result<Self, MemoryError> {
-        let h_mem_store = HMemStore::from_driver(Arc::clone(&driver));
-        let episodic = Arc::new(EpisodicMemory::new(h_mem_store));
-        let h_mem_store2 = HMemStore::from_driver(Arc::clone(&driver));
+        let episodic_store = HMemStore::from_driver(Arc::clone(&driver));
+        let episodic = Arc::new(EpisodicMemory::new(episodic_store));
+        let semantic_store = HMemStore::from_driver(Arc::clone(&driver));
         let embedding_store = EmbeddingStore::from_driver(driver, 1024);
-        let semantic = Arc::new(SemanticMemory::new(h_mem_store2, embedding_store));
+        let semantic = Arc::new(SemanticMemory::new(semantic_store, embedding_store));
         Ok(Self::new(episodic, semantic))
     }
 }

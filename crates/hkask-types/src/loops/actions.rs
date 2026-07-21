@@ -116,6 +116,15 @@ impl RegulationData {
 /// new action is added — coupling the type system to runtime heuristics.
 /// The current design keeps the heuristic flexible while ensuring the
 /// field is always present (no `Option`, no JSON key lookup).
+///
+/// # Toyota Kata alignment (ADR-056 §6.1)
+///
+/// The `prediction` field carries the expected metric value after the
+/// action. This closes the Kata's prediction gap: `verify_impact()` can
+/// compare `after` vs. `prediction` (model validation) in addition to
+/// `after` vs. `before` (effectiveness). Without a prediction, the
+/// regulator learns whether its actions are effective, but not whether
+/// its *model* is correct.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RegulatoryActionParams {
     /// Human-readable reason for the action (required for observability).
@@ -123,6 +132,12 @@ pub struct RegulatoryActionParams {
     /// Typed regulation data (non-regulation actions use `RegulationData::NoData`).
     #[serde(default)]
     pub data: RegulationData,
+    /// Expected metric value after the action (Toyota Kata prediction).
+    /// When set, `verify_impact()` compares the actual post-action value
+    /// against this prediction to validate the regulator's model.
+    /// When `None`, only effectiveness (before vs. after) is checked.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prediction: Option<f64>,
 }
 
 impl RegulatoryActionParams {
@@ -165,7 +180,11 @@ pub struct RegulatoryAction {
 }
 
 impl RegulatoryAction {
-    pub fn new(target: LoopId, action_type: ActionType, parameters: RegulatoryActionParams) -> Self {
+    pub fn new(
+        target: LoopId,
+        action_type: ActionType,
+        parameters: RegulatoryActionParams,
+    ) -> Self {
         Self {
             target,
             action_type,

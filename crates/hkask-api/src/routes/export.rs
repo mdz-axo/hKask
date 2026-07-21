@@ -19,6 +19,27 @@ use crate::ApiState;
 use crate::middleware::AuthContext;
 use hkask_storage::{BackupArchive, HMemStore, MigrationReceipt};
 
+/// Acquire a short-lived `HMemStore` bound to the shared user-store driver.
+///
+/// Both export handlers need an `HMemStore` to read/write h_mems. The canonical
+/// store is the `UserStore` held under `state.agent_service.storage().users`.
+/// Each handler takes a brief lock, clones the `Arc<dyn DatabaseDriver>`, and
+/// constructs a transient `HMemStore` that is dropped at handler exit. The
+/// underlying driver (and its connection pool) persists because it is `Arc`-shared.
+///
+/// pre:  `state.agent_service.storage().users` is initialized
+/// post: returns an `HMemStore` bound to the same driver as the user store
+fn h_mem_store_from_state(state: &ApiState) -> Result<HMemStore, (StatusCode, String)> {
+    let user_store = state.agent_service.storage().users.clone();
+    let store = user_store.lock().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Lock error: {e}"),
+        )
+    })?;
+    Ok(HMemStore::from_driver(Arc::clone(store.driver())))
+}
+
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ExportRequest {
     pub passphrase: String,
@@ -66,16 +87,7 @@ pub async fn export_create(
     })?;
     let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
     let archive_path = export_dir.join(format!("{timestamp}.db"));
-    let user_store = state.agent_service.storage().users.clone();
-    let h_mem_store = {
-        let store = user_store.lock().map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Lock error: {e}"),
-            )
-        })?;
-        HMemStore::from_driver(Arc::clone(store.driver()))
-    };
+    let h_mem_store = h_mem_store_from_state(&state)?;
     let domain = std::env::var("HKASK_DOMAIN").unwrap_or_else(|_| "localhost".to_string());
     let archive = BackupArchive::create(
         archive_path.clone(),
@@ -166,16 +178,7 @@ pub async fn export_upload(
         };
         (StatusCode::BAD_REQUEST, msg)
     })?;
-    let user_store = state.agent_service.storage().users.clone();
-    let h_mem_store = {
-        let store = user_store.lock().map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Lock error: {e}"),
-            )
-        })?;
-        HMemStore::from_driver(Arc::clone(store.driver()))
-    };
+    let h_mem_store = h_mem_store_from_state(&state)?;
     let webid = auth.webid;
     let receipt = archive.restore_into(&h_mem_store, &webid).map_err(|e| {
         let _ = std::fs::remove_file(&tmp_path);
