@@ -105,9 +105,6 @@ pub(super) async fn build_mcp_and_pods(
     if let Some(inf) = l.inference_port.clone() {
         pods = pods.with_inference_port(inf);
     }
-    pods = pods.with_matrix_homeserver(
-        std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string()),
-    );
     let pod_manager: Arc<hkask_agents::pod::ActivePods> = Arc::new(pods);
 
     // Thin pod backup: iterate pods, snapshot each directory via GixCasAdapter.

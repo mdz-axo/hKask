@@ -128,6 +128,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.api.request",
     // ── Chat / Communication ──
     "cns.chat",
+    "cns.chat.condense",
     // ── CI / QA ──
     "cns.ci.invariant.violation",
     // ── Classification ──
@@ -135,9 +136,18 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.classify.dual_fidelity",
     // ── Chat / Communication ──
     "cns.communication.agent",
+    "cns.communication.agent.deregistered",
+    "cns.communication.agent.invited",
+    "cns.communication.agent.registered",
     "cns.communication.listener",
+    "cns.communication.listener.started",
+    "cns.communication.listener.stopped",
     "cns.communication.message",
+    "cns.communication.message.ignored",
+    "cns.communication.message.observed",
     "cns.communication.thread",
+    "cns.communication.thread.created",
+    "cns.communication.thread.monitored",
     // ── Condenser ──
     "cns.condenser",
     // ── Consent ──
@@ -152,11 +162,15 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.contract.violated",
     // ── Curation / Curator ──
     "cns.curation",
+    "cns.curation.escalation",
+    "cns.curation.escalation.critical",
+    "cns.curation.matrix",
     "cns.curator.consolidation",
     "cns.curator.efficiency.exceeded",
     // ── Cybernetics ──
     "cns.cybernetics",
     "cns.cybernetics.backpressure",
+    "cns.cybernetics.substitution",
     // ── Deploy / Sessions ──
     "cns.deploy.backup_auto_export",
     "cns.deploy.backup_export",
@@ -184,15 +198,31 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.federation.member_left",
     "cns.federation.member_revoked",
     "cns.federation.registry_sync",
+    "cns.federation.sync",
     // ── Gas / Energy ──
     "cns.gas",
+    "cns.gas.calibration",
     // ── Goal ──
     "cns.goal",
     // ── Guard ──
     "cns.guard",
+    "cns.guard.canary",
+    "cns.guard.input",
+    "cns.guard.output",
+    "cns.guard.runtime_policy",
     "cns.guard.violation",
     // ── Healing ──
     "cns.heal",
+    "cns.heal.attempt",
+    "cns.heal.code_change_proposed",
+    "cns.heal.dotenv",
+    "cns.heal.escalated",
+    "cns.heal.file_created",
+    "cns.heal.llm_assisted",
+    "cns.heal.retry_loop",
+    "cns.heal.set_env",
+    "cns.heal.strategy",
+    "cns.heal.unmatched",
     // ── Inference ──
     "cns.inference",
     // ── Fusion (multi-model deliberation) ──
@@ -205,7 +235,10 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     // ── Media / Memory ──
     "cns.media",
     "cns.memory",
+    "cns.memory.budget",
+    "cns.memory.decay",
     "cns.memory.encode",
+    "cns.memory.episodic",
     // ── Multi-agent ──
     "cns.multi.invite.accepted",
     "cns.multi.invite.sent",
@@ -231,6 +264,9 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.qa.repair_verified",
     // ── Regulation (v0.31.0 Fermi impact-gate) ──
     "cns.regulation",
+    "cns.regulation.calibration",
+    "cns.regulation.coherence",
+    "cns.regulation.predictive",
     // ── UserPod ──
     "cns.userpod.registered",
     // ── Semantic ──
@@ -278,8 +314,10 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.sovereignty.portability_verified",
     // ── Spec ──
     "cns.spec",
+    "cns.spec.executor",
     // ── Storage ──
     "cns.storage",
+    "cns.storage.corruption",
     // ── Tool subsystems ──
     "cns.tool",
     "cns.tool.communication",
@@ -302,6 +340,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     // ── Wallet ──
     "cns.wallet",
     "cns.wallet.balance",
+    "cns.wallet.calibration",
+    "cns.wallet.chain",
     "cns.wallet.chain_error",
     "cns.wallet.conversion",
     "cns.wallet.created",
@@ -322,6 +362,17 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.well.replenished",
     // ── Pipeline (docproc) ──
     "cns.pipeline",
+    "cns.pipeline.calibration",
+    "cns.pipeline.decimation",
+    "cns.pipeline.decimation.binarize",
+    "cns.pipeline.ocr",
+    "cns.pipeline.ocr.circuit_breaker",
+    "cns.pipeline.ocr.collusion",
+    "cns.pipeline.ocr.low_confidence",
+    "cns.pipeline.ocr.rate_limit",
+    "cns.pipeline.ocr.silent_failure",
+    "cns.pipeline.ocr.trust_invert",
+    "cns.pipeline.pdf_extract",
     // ── Supply chain (security audit — supply-chain-sentinel skill) ──
     "cns.supply_chain",
     "cns.supply_chain.select",
@@ -350,6 +401,18 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.template",
     // ── Training providers (provider HTTP call observability — post-mortem 2026-07-19) ──
     "cns.training.provider",
+    "cns.training.provider.runpod.cancel",
+    "cns.training.provider.runpod.drain",
+    "cns.training.provider.runpod.graphql",
+    "cns.training.provider.runpod.provision",
+    "cns.training.provider.runpod.status",
+    "cns.training.provider.runpod.submit",
+    "cns.training.provider.runpod.teardown",
+    "cns.training.provider.runpod.upload",
+    "cns.training.provider.together.poll",
+    "cns.training.provider.together.provision",
+    "cns.training.provider.together.teardown",
+    "cns.training.provider.together.upload",
 ];
 
 /// Hierarchical namespace validation — a sub-namespace like

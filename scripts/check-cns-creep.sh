@@ -14,8 +14,10 @@ set -euo pipefail
 
 # Extract all cns.* tracing targets from Rust source files.
 # Matches: target: "cns.foo.bar" (with optional whitespace)
+# Filters out false positives like cns.config() (method calls, not namespaces).
 targets=$(grep -roh 'target: "cns\.[^"]*"' crates/ mcp-servers/ \
     | sed 's/target: "//;s/"//' \
+    | grep -v '()' \
     | sort -u)
 
 if [ -z "$targets" ]; then

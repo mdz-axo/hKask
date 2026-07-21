@@ -3,17 +3,19 @@
 //! The AdapterRouter implements `AdapterPort`. It holds an `AdapterStore` for adapter CRUD
 //! and a registry of provider backends for endpoint provisioning and inference.
 //!
-//! Two provider backends (Together, Runpod) have real HTTP integration
-//! for adapter upload, endpoint provisioning, and inference.
+//! One provider backend (Runpod) has real HTTP integration for adapter upload,
+//! endpoint provisioning, and inference.
+//! Together AI was removed as an adapter inference backend — it is deprecated as a
+//! training/adapter provider. Together remains available as a chat/vision inference
+//! provider via `hkask-inference` (non-adapter inference).
 //! Tinker was removed as an inference backend — it used a fabricated API URL
 //! (api.tinker.ai/v1/openai/ — does not exist) and had no AdapterSource::Tinker
 //! variant to carry the tinker:// checkpoint path. Tinker remains a training
 //! host; inference of Tinker-trained adapters goes through download → HuggingFace
-//! upload → Together/Runpod inference.
+//! upload → Runpod inference.
 
 mod openai;
 mod runpod;
-mod together;
 
 use crate::AdapterStore;
 use crate::adapter_config::AdapterConfig;

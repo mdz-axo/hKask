@@ -27,8 +27,6 @@ pub struct ActivePods {
     /// CuratorPod's SemanticIndex — shared with all pod contexts for
     /// merged-lens semantic recall (Step 5).
     curator_index: RwLock<Option<Arc<std::sync::RwLock<SemanticIndex>>>>,
-    /// Matrix homeserver URL for automatic pod Matrix registration.
-    matrix_homeserver_url: Option<String>,
 }
 
 impl ActivePods {
@@ -46,19 +44,7 @@ impl ActivePods {
             capability_checker,
             inference_port: None,
             curator_index: RwLock::new(None),
-            matrix_homeserver_url: None,
         }
-    }
-
-    /// Set the Matrix homeserver URL for automatic pod Matrix registration.
-    pub fn with_matrix_homeserver(mut self, url: String) -> Self {
-        self.matrix_homeserver_url = Some(url);
-        self
-    }
-
-    /// Access the Matrix homeserver URL (for daemon retry loop).
-    pub fn matrix_homeserver_url(&self) -> Option<&str> {
-        self.matrix_homeserver_url.as_deref()
     }
 
     /// Create a mock ActivePods for testing — matches old PodManager::new_mock().

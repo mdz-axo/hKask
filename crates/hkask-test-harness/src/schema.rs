@@ -76,15 +76,6 @@ message TEXT NOT NULL, \
 resolved INTEGER NOT NULL DEFAULT 0, \
 resolved_at TEXT\
 );\n\
-CREATE TABLE IF NOT EXISTS agent_registry (\
-name TEXT PRIMARY KEY, \
-agent_kind TEXT, \
-definition_json TEXT NOT NULL, \
-token_hash TEXT NOT NULL, \
-registered_at TEXT NOT NULL, \
-source_yaml TEXT NOT NULL\
-);\n\
-CREATE INDEX IF NOT EXISTS idx_agent_registry_kind ON agent_registry(agent_kind);\n\
 CREATE TABLE IF NOT EXISTS goals (\
 id TEXT PRIMARY KEY, \
 webid TEXT NOT NULL, \

@@ -25,9 +25,8 @@
 //!
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
+//! use hkask_agents::pod::{AgentPod, PodLifecycleState};
 //! use hkask_templates::TemplateCrateLoader;
-//! use hkask_agents::a2a::A2ARuntime;
 //! use hkask_types::WebID;
 //! use hkask_capability::CapabilityChecker;
 //! use hkask_agents::{DenyAllConsent, SovereigntyConsent};
@@ -35,25 +34,18 @@
 //!
 //! // Create adapters
 //! let loader = TemplateCrateLoader::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
-//! let a2a_runtime = Arc::new(A2ARuntime::default());
 //! let checker = Arc::new(CapabilityChecker::new());
-
-//! // Create a simple persona YAML
-//! let yaml_str = r#"
-//! name: test-bot
-//! type: bot
-//! persona: A test bot
-//! "#;
+//! let webid = "did:hkask:test".parse::<hkask_types::WebID>()?;
 //!
-//! let persona = AgentPersona::from_yaml(yaml_str)?;
-//! let mut pod = AgentPod::new(
-//!     "test-bot",
-//!     &persona,
+//! // Pod starts Active. Capabilities are granted at creation.
+//! let pod = AgentPod::new(
+//!     "my-userpod",
+//!     &webid,
+//!     &["tool:inference:call".to_string()],
 //!     &loader,
 //!     Arc::new(DenyAllConsent) as Arc<dyn SovereigntyConsent>,
 //! )?;
-//! pod.register(a2a_runtime.as_ref()).await?;
-//! pod.activate(&mcp_runtime)?;
+//! assert_eq!(pod.state(), PodLifecycleState::Active);
 //! # Ok(())
 //! # }
 //! ```
@@ -119,7 +111,7 @@ pub struct AgentPod {
 /// Agent pod error types
 #[derive(Debug, Error)]
 pub enum AgentPodError {
-    #[error("Failed to parse agent persona: {0}")]
+    #[error("Failed to parse pod definition: {0}")]
     PersonaParseError(String),
 
     #[error("Failed to load template crate: {0}")]
@@ -196,8 +188,8 @@ impl AgentPod {
     /// expect: "My agents operate within my sovereignty boundaries"
     /// \[P1\] Motivating: User Sovereignty — AgentPod is the user's agent container
     /// \[P4\] Constraining: Clear Boundaries — OCAP secret + capability token on creation
-    /// pre:  `crate_name` is a non-empty string; `persona` is a valid
-    ///       `AgentPersona`; `loader` is a valid `TemplateCrateLoader`; `consent`
+    /// pre:  `crate_name` is a non-empty string; `name` is a non-empty string;
+    ///       `capabilities` is a valid capability list; `loader` is a valid `TemplateCrateLoader`; `consent`
     ///       is a valid `Arc<dyn SovereigntyConsent>`.
     /// post: Returns `Ok(AgentPod)` in `Populated` state with a derived
     ///       OCAP secret, capability token, and sovereignty checker.
