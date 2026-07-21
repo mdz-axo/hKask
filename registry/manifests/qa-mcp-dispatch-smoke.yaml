@@ -96,6 +96,6 @@ steps:
     retries: 0
     terminal: true
 
-cns:
+ledger:
   emit_spans: true
   alert: qa.mcp.dispatch

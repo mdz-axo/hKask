@@ -9,7 +9,7 @@ HTTP API with utoipa OpenAPI for hKask.
 | Group | Description |
 |-------|-------------|
 | `chat` | Chat session management |
-| `agent`, `bots`, `pods`, `replicant` | Agent lifecycle |
+| `agent`, `bots`, `pods`, `userpod` | Agent lifecycle |
 | `templates`, `bundles` | Template and bundle management |
 | `mcp` | MCP server management |
 | `cns`, `consolidation` | CNS and memory |

@@ -33,7 +33,7 @@ mds_categories: [trust, lifecycle, domain]
 - Priority chain: WalletManager → WalletBackedBudget → GasBudget
 
 ### CNS Spans (10 new)
-`ReplicantRegistered`, `WellCreated`, `WellReplenished`, `WellDraw`, `WellExhausted`, `WalletCreated`, `WalletDraw`, `WalletSpend`, `WalletExhausted`, `CuratorEfficiencyExceeded`
+`UserPodRegistered`, `WellCreated`, `WellReplenished`, `WellDraw`, `WellExhausted`, `WalletCreated`, `WalletDraw`, `WalletSpend`, `WalletExhausted`, `CuratorEfficiencyExceeded`
 
 ## Deferred / Future
 - Two wallet systems coexist: `WalletBackedBudget` (rJoule/Hedera) and `WalletManager` (gas/SQLite). Gas wallets bridge to rJoule later.

@@ -1,5 +1,5 @@
 ---
-title: "ADR-035: Replicant Server Mode — AgentMode, Daemon Transport, Dual Memory Encoding"
+title: "ADR-035: UserPod Server Mode — AgentMode, Daemon Transport, Dual Memory Encoding"
 audience: [architects, developers]
 last_updated: 2026-06-30
 version: "0.31.0"
@@ -8,7 +8,7 @@ domain: "Technology"
 mds_categories: [composition, trust, lifecycle]
 ---
 
-# ADR-035: Replicant Server Mode
+# ADR-035: UserPod Server Mode
 
 **Date:** 2026-06-12
 **Status:** Active
@@ -159,4 +159,4 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon/ --incl
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — ADR-035 — v0.28.0*
+*ℏKask - A Minimal Viable Container for UserPods — ADR-035 — v0.28.0*

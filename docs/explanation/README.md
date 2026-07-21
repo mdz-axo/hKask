@@ -29,7 +29,7 @@ Seven guides cover architecture patterns, the terminal UI boundary, cybernetic r
 Design decisions recorded as Architecture Decision Records:
 
 - [ADR-031: Consolidation Authorization](../architecture/ADRs/ADR-031-consolidation-authorization.md)
-- [ADR-035: Replicant Server Mode](../architecture/ADRs/ADR-035-userpod-server-mode.md)
+- [ADR-035: UserPod Server Mode](../architecture/ADRs/ADR-035-userpod-server-mode.md)
 - [ADR-043: Database Driver](../architecture/ADRs/ADR-043-database-driver.md)
 
 > See `docs/architecture/ADRs/` for the full archive (active + retired ADRs).

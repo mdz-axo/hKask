@@ -85,7 +85,7 @@ PDF → [Decimate] → PageQueue → [Score → Route → OCR] → [Verify] → 
 | `HKASK_TEMPLATE_ROOT` | Root containing `templates/docproc/`. Default: `registry` (relative to CWD). |
 | `HKASK_QA_MODEL` | Default provider-prefixed QA model. A request-level `model` wins; otherwise the router uses `HKASK_QA_MODEL`, then `HKASK_DEFAULT_MODEL`. |
 | `HKASK_USE_FAL_DOCRES` | Set to `true` to enable fal.ai docres binarization enhancement (opt-in, ~40s latency). Requires `FA_API_KEY`. |
-| `HKASK_MCP_HOST` | Replicant identity for CNS narrative memory. |
+| `HKASK_MCP_HOST` | UserPod identity for CNS narrative memory. |
 
 ### OCR Thresholds (via env vars or `settings.json`)
 

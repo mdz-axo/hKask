@@ -54,7 +54,7 @@ Kata-Kanban workflow coordination MCP server — task management with WIP limits
 
 | Variable | Description |
 |----------|-------------|
-| `HKASK_KANBAN_DB` | Per-agent kanban database file (defaults to `agents/{replicant}/kanban.db`) |
+| `HKASK_KANBAN_DB` | Per-agent kanban database file (defaults to `agents/{userpod}/kanban.db`) |
 | `HKASK_DB_PASSPHRASE` | SQLCipher encryption passphrase |
 
 ## CNS Spans

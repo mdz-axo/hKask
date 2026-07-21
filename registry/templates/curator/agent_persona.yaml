@@ -16,7 +16,7 @@ charter:
 
 capabilities:
   - "tool:inference:call"
-  - "tool:cns:observe"
+  - "tool:regulation:observe"
   - "tool:kanban:manage"
 
 rights:

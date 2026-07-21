@@ -148,4 +148,4 @@ grep -rn "HKASK_ENABLE_CONTENT_GUARD" mcp-servers/ corpus/env/
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
+*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*

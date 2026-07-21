@@ -202,7 +202,7 @@ ocap:
   template_scoped: true
 
 # CNS Monitoring
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.prompt
   variety_monitoring: true

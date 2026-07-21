@@ -55,7 +55,7 @@ Namespace: hkask       Namespace: conduit
 
 Conduit is a lightweight Matrix homeserver deployed as a separate Pod in the `conduit` namespace. It provides:
 
-- **Agent-to-agent (A2A) communication**: Replicants register as Matrix users and communicate through rooms.
+- **Agent-to-agent (A2A) communication**: UserPods register as Matrix users and communicate through rooms.
 - **7R7 listener integration**: The `SevenR7Listener` polls Matrix rooms and emits CNS observation spans.
 - **Thread-based attention**: Agents monitor threads via watchlists; the Curator decides escalation.
 

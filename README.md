@@ -38,7 +38,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 | # | Anchor | Implementation |
 |---|--------|----------------|
-| 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
+| 1 | **Agent Enablement** | Bots + UserPods in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
 | 2 | **Essential Tools** | 16 MCP servers + Inference Router (DeepInfra, fal.ai, Together AI, Runpod, OpenRouter, KiloCode, Ollama, Cline, Tinker) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
@@ -77,7 +77,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-memory` | Semantic/episodic pipelines (consolidation: episodic → semantic) |
 | `hkask-cns` | Cybernetic Nervous System |
 | `hkask-templates` | Registry, vocabulary, cascade, resolver |
-| `hkask-agents` | Pods, ACP, bot/replicant, Curator |
+| `hkask-agents` | Pods, ACP, bot/userpod, Curator |
 | `hkask-keystore` | OS keychain, AES-256-GCM |
 | `hkask-mcp` | MCP runtime, dispatch, security |
 | `hkask-cli` | CLI (37 subcommands + REPL) |

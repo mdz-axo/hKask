@@ -52,7 +52,7 @@ audit:
     message_receive: true
     capability_check: true
 
-cns:
+ledger:
   spans:
     emit_on_message_send: true
     emit_on_capability_denied: true

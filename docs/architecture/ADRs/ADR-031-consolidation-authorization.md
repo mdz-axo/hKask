@@ -145,4 +145,4 @@ configurations (it lives in the primary SQLite DB).
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — ADR-031 — v0.31.0*
+*ℏKask - A Minimal Viable Container for UserPods — ADR-031 — v0.31.0*

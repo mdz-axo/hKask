@@ -115,7 +115,7 @@ impl CapabilityTier {
     /// expect: "The system provides authenticated tool execution context for MCP servers"
     /// post: returns true iff embedded (CNS spans consumed by runtime, not stderr)
     #[must_use]
-    pub fn cns_available(&self) -> bool {
+    pub fn reg_available(&self) -> bool {
         self.embedded
     }
 }

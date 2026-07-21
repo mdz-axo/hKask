@@ -498,4 +498,4 @@ grep -r "\.unwrap()" crates/hkask-wallet/src/ && echo "VIOLATION: unwrap in libr
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.28.0 — Wallet Specification 2026-06-12*
+*ℏKask - A Minimal Viable Container for UserPods — v0.28.0 — Wallet Specification 2026-06-12*

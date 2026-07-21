@@ -31,7 +31,7 @@ Plan → Backlog | Do → InProgress | Check → Review | Act → Done
 - `KanbanService` — board CRUD, task CRUD, consent-gated assignment, LLM-mediated verification, de-jam
 - `Board` / `ColumnDef` — board with columns and WIP limits
 - `Task` / `TaskSpec` / `TaskStatus` / `Priority` — task lifecycle
-- `SpawnSpec` / `CapabilityPackage` — sub-replicant spawning with delegated capabilities
+- `SpawnSpec` / `CapabilityPackage` — sub-userpod spawning with delegated capabilities
 - `socratic` — Socratic inquiry cycle (4-stage: Elicit → Structure → Test → Summarize)
 
 ## Key Features
@@ -55,5 +55,5 @@ Plan → Backlog | Do → InProgress | Check → Review | Act → Done
 - `hkask-types` — ID types, CNS spans, WebID
 - `hkask-ports` — Hexagonal port traits
 - `hkask-inference` — Inference router
-- `hkask-agents` — ActivePods for sub-replicant spawning
+- `hkask-agents` — ActivePods for sub-userpod spawning
 - `hkask-capability` — OCAP delegation tokens

@@ -1,15 +1,15 @@
 # hkask-agents
 
-Agent pods, ACP, and bot/replicant management for hKask.
+Agent pods, ACP, and bot/userpod management for hKask.
 
 ## Key Concepts
 
 | Concept | Description |
 |---------|-------------|
-| **Pods** | Agent containers — CuratorPod, TeamPod, ReplicantPod |
+| **Pods** | Agent containers — CuratorPod, TeamPod, UserPodPod |
 | **ACP** | Agent Communication Protocol — agent-to-agent messaging |
 | **Bots** | Subsystem-curator bots (auto-spawn at startup) |
-| **Replicants** | Authorial style replicas — embed, compose, compare |
+| **UserPods** | Authorial style replicas — embed, compose, compare |
 | **Curator** | Human governance agent — metacognition, oversight |
 | **OCAP** | Object-capability security — delegation with attenuation |
 

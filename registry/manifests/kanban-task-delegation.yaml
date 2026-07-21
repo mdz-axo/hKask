@@ -83,7 +83,7 @@ steps:
     gas_cap: 5000
     timeout_seconds: 120
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.kanban.delegation
   variety_monitoring: true

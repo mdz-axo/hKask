@@ -41,7 +41,7 @@ steps:
     template_ref: ""
     mcp: from_template_contract
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.prompt.tool_dispatch
   variety_monitoring: true

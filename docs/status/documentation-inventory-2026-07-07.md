@@ -46,7 +46,7 @@ Documents that guide a user step-by-step from zero to a working outcome.
 
 | Document | Claims Quadrant | Actual Quadrant | Code Compiles | Last Change | Status |
 |----------|----------------|-----------------|--------------|-------------|--------|
-| `docs/user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md` | Tutorial | Tutorial | UNVERIFIED | 2026-07-02 | Active |
+| `docs/user-guides/USERPOD-ONBOARDING-WALKTHROUGH.md` | Tutorial | Tutorial | UNVERIFIED | 2026-07-02 | Active |
 | `docs/user-guides/kata-user-guide.md` | Tutorial | Mixed (Tutorial/Reference) | UNVERIFIED | 2026-07-05 | Active |
 | `docs/user-guides/skill-user-guide.md` | Tutorial | Tutorial | UNVERIFIED | 2026-07-02 | Active |
 

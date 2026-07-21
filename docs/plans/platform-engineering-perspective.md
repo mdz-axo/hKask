@@ -195,7 +195,7 @@ These skills already exist in hKask. The Platform Engineer userpod would activat
 | **scenario-builder** | Scenario planning: "What if the primary inference provider goes down for 24 hours?" "What if a userpod gains write access to the skill registry?" "What if CNS variety tracking saturates?" | Quarterly |
 | **handoff** | Between platform iterations, capture: what was done, what remains, key decisions, open questions. Ensures continuity across PDCA cycles. | Per cycle |
 
-### 4.2 New Skills the Platform Engineer Replicant Needs
+### 4.2 New Skills the Platform Engineer UserPod Needs
 
 These capabilities don't yet exist in hKask's skill registry. They must be developed as FlowDef manifests (steps that orchestrate existing capabilities) or as new KnowAct templates:
 
@@ -583,7 +583,7 @@ INVESTMENT 1 ── SLOs wired to CNS
 INVESTMENT 2 ── Platform-as-Product Metrics
                  (Time-to-first-agent, skill adoption, developer NPS, adoption funnel)
 
-INVESTMENT 3 ── Platform Engineer Replicant
+INVESTMENT 3 ── Platform Engineer UserPod
                  (Continuous audit, recommendation, consent-gated improvement via skills)
 ```
 
@@ -679,11 +679,11 @@ New CNS span: `cns.platform.metric` — emitted per metric evaluation with `metr
 
 ---
 
-## 11. Investment 3 — Platform Engineer Replicant
+## 11. Investment 3 — Platform Engineer UserPod
 
 The ultimate move: create a hKask agent that continuously audits and improves the platform — using hKask's own skills. This is not just automation; it is the platform engineering discipline encoded as an agent. It combines Vogels' API-first thinking (every audit is a programmatic invocation), Hightower's user empathy (recommendations are actionable and human-readable), Majors' observability rigor (every decision is CNS-observable), and Forsgren's measurement science (every recommendation is backed by data).
 
-### 11.1 Replicant Definition
+### 11.1 UserPod Definition
 
 The Platform Engineer userpod is defined by the `skill-bundler` manifest in §4.3. The userpod YAML mirrors that bundle, with the addition of the 10 new platform-specific skills that must be developed as FlowDef manifests before the userpod can execute them:
 
@@ -759,7 +759,7 @@ capabilities:
 New CNS spans:
 - `cns.platform.audit.started` — Platform audit cycle begins
 - `cns.platform.audit.completed` — Audit cycle complete with findings
-- `cns.platform.recommendation` — Replicant proposes an intervention
+- `cns.platform.recommendation` — UserPod proposes an intervention
 - `cns.platform.recommendation.accepted` — Human curator accepts
 - `cns.platform.recommendation.rejected` — Human curator rejects (with reason)
 
@@ -866,7 +866,7 @@ No production dependency from CNS → Storage.
 | DORA metrics are tracked per user | `cns.platform.metric.dora.*` spans | All 4 DORA metrics emitting within 30 days of Phase 4 start |
 | SPACE dimensions are tracked per user | `cns.platform.metric.space.*` spans | All 5 SPACE dimensions emitting within 30 days of Phase 4 start |
 | Platform Engineer userpod is active | `cns.platform.audit.*` spans | Weekly audits running within 30 days of Phase 5 start |
-| Replicant recommendations are actionable | Acceptance rate of recommendations | >60% acceptance within 90 days |
+| UserPod recommendations are actionable | Acceptance rate of recommendations | >60% acceptance within 90 days |
 | DORA elite cluster achieved | % of skill authors in Elite or High DORA cluster | >50% within 180 days of Phase 4 start |
 | Loyalty scorecard is operational | `cns.platform.metric.loyalty` span count | Monthly loyalty scores emitting within 30 days of Phase 7 start |
 | Loyalty score trend is positive | Loyalty score month-over-month delta | >0.0 (improving) for 3 consecutive months after Phase 8 |
@@ -878,7 +878,7 @@ No production dependency from CNS → Storage.
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
 | SLO alert fatigue | Medium | High | Start with 3 SLOs, expand only when signal-to-noise proven |
-| Replicant recommendations too frequent | Medium | Medium | Monthly audit cadence; batch recommendations |
+| UserPod recommendations too frequent | Medium | Medium | Monthly audit cadence; batch recommendations |
 | Platform Engineer userpod scope creep | Low | Medium | OCAP boundaries prevent write access; charter is narrow |
 | SLO targets too aggressive | Medium | Low | Start with loose targets (99.0%), tighten based on actual performance |
 | PaaP metrics gamed | Low | Medium | Metrics anchored in CNS spans — hard to fake without system compromise |

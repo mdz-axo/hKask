@@ -107,7 +107,7 @@ full daemon architecture and startup flow.
 
 ---
 
-## 5. Authenticate Your Replicant
+## 5. Authenticate Your UserPod
 
 Create a UserStore session so the daemon recognizes your userpod:
 

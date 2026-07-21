@@ -15,7 +15,7 @@ The CLI does not expose side-doors to MCP tools.
 | `tui` | Launch interactive ratatui workspace (embeds REPL); `-f` for non-interactive/pipe mode |
 | `init`, `onboard`, `doctor`, `settings`, `keystore` | Config |
 | `daemon` (start/status/stop), `serve`, `matrix` (deploy/register/status) | Startup |
-| `replicant` (register/login/logout/sessions/list/show/rename/delete/invite) | User lifecycle |
+| `userpod` (register/login/logout/sessions/list/show/rename/delete/invite) | User lifecycle |
 | `backup`, `git`, `export`, `repair` | Storage admin |
 | `federation`, `token`, `wallet` | Admin |
 | `deploy init --domain` | Remote cluster bootstrap (K3s/Hetzner) |

@@ -389,7 +389,7 @@ kask skill publish <skill-name>
 This:
 1. Copies the skill directory from `.agents/skills/<name>/` to `skills/<namespace>--<name>/`
 2. Sets `visibility: public` in the published copy's SKILL.md
-3. Sets `namespace` to the current userpod name (from `HKASK_REPLICANT_NAME`, git `user.name`, or `"local"`)
+3. Sets `namespace` to the current userpod name (from `HKASK_USERPOD_NAME`, git `user.name`, or `"local"`)
 4. Emits a `cns.skill` span (`skill_published`)
 
 Output:
@@ -799,8 +799,8 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
 
 | Gate | Failure | Result |
 |------|---------|--------|
-| Gate 1 (auth) | Replicant not authenticated | `McpError::Auth` — server fails to start |
-| Gate 2 (assignment) | Replicant not assigned to role | `McpError::RoleAssignment` — server fails to start |
+| Gate 1 (auth) | UserPod not authenticated | `McpError::Auth` — server fails to start |
+| Gate 2 (assignment) | UserPod not assigned to role | `McpError::RoleAssignment` — server fails to start |
 | Gate 3 (capability) | Some tools denied | Non-fatal — server starts, denied tools are unavailable |
 | Daemon unavailable | Cannot reach daemon socket | Falls back to direct mode (`daemon_client: None`) |
 
@@ -1078,7 +1078,7 @@ status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop
 ## Cross-Reference
 
 - [`hKask-architecture-master.md` § Kata — Cybernetic Capability Development](../architecture/core/hKask-architecture-master.md#kata--cybernetic-capability-development)
-- [`PRINCIPLES.md` § P6 — Space for Replicants & Bots](../architecture/core/PRINCIPLES.md#p6--space-for-userpods--bots)
+- [`PRINCIPLES.md` § P6 — Space for UserPods & Bots](../architecture/core/PRINCIPLES.md#p6--space-for-userpods--bots)
 - [`kata/mod.rs`](crates/hkask-services-kata-kanban/src/kata/mod.rs) — `KataEngine::execute()` dispatch (L333-486)
 - [`kata/improvement.rs`](crates/hkask-services-kata-kanban/src/kata/improvement.rs) — `run_improvement_from()` single-pass step loop (L20-121)
 - [`executor.rs`](crates/hkask-templates/src/executor.rs) — `ManifestExecutor::execute_manifest()` convergence loop (L209-686), `check_convergence()` (L746-799)

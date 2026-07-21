@@ -27,7 +27,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 | Entity | Crate | Description | Goal Principle |
 |--------|-------|-------------|---------------|
 | `HumanUser` | `hkask-storage` | Human identity with WebID, role (Admin\|Member), OAuth provider link | P1 |
-| `Replicant` | `hkask-types` | Agent identity with persona, voice, wallet link | P6 |
+| `UserPod` | `hkask-types` | Agent identity with persona, voice, wallet link | P6 |
 | `AgentPod` | `hkask-agents` | Runtime container for a userpod (Inactive\|Active\|ServerMode) | P1 |
 | `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
 | `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
@@ -208,7 +208,7 @@ The replica server provides 9 tools for style corpus management, prose generatio
 |--------|-------|--------|--------|
 | `hkask-mcp-replica` | `replica_build`, `replica_compose`, `replica_rewrite`, `replica_mashup`, `replica_compare`, `replica_registry`, `replica_explain`, `replica_discover`, `replica_cache_work` | Style replication + prose rewriting | ✅ Implemented |
 
-### 4.7 Replicant Architecture
+### 4.7 UserPod Architecture
 
 The replica system models a **human exemplar** — a named individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work: the corpus *is* the evidence of their voice, style, and intellectual framework. Each passage is a sample of that relationship.
 

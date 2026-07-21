@@ -255,13 +255,13 @@ hKask extends the Solid Pod isomorphism into two pod kinds, mapped to cybernetic
 | **CuratorPod** | `Curator` | `agents/curator/pod.db` | System (singleton) | VSM S4 Intelligence — sole decisional agent; observes, assesses, intervenes, escalates | `SemanticIndex` owner — aggregates Public hMems from all pods |
 | **UserPod** | `UserPod` | `agents/{sanitized_name}/pod.db` | Human+agent pair (1:1) | VSM S1 Implementation — regulated actor; produces CNS spans; governed by OCAP + Cybernetics | Episodic private; semantic published to Curator |
 
-**Authority DAG:** Curator → Cybernetics → {Inference, Episodic, Semantic}. The Curator is the only decisional agent; UserPods are regulated actors. The former `TeamPod` and `ReplicantPod` tiers were collapsed in v0.31.0 — the distinction was taxonomic (what kind of agent) rather than cybernetic (what role does the agent play in the regulation loop). The two-kind model maps directly to VSM S4 (Intelligence) and S1 (Implementation).
+**Authority DAG:** Curator → Cybernetics → {Inference, Episodic, Semantic}. The Curator is the only decisional agent; UserPods are regulated actors. The former `TeamPod` and `UserPodPod` tiers were collapsed in v0.31.0 — the distinction was taxonomic (what kind of agent) rather than cybernetic (what role does the agent play in the regulation loop). The two-kind model maps directly to VSM S4 (Intelligence) and S1 (Implementation).
 
 **Startup order:** CuratorPod → UserPods (on demand).
 **Data flow:** `store_semantic()` writes locally → CNS event `cns.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public hMems into `SemanticIndex` with cursor tracking.
 **Semantic recall:** `PodContext::recall_semantic()` routes through Curator's `SemanticIndex` for merged-lens view when Curator is active; falls back to local storage.
 
-**Backwards compatibility:** The `pod.kind` sidecar file accepts `"replicant"` as an alias for `"userpod"` (see `read_pod_kind()` in `crates/hkask-agents/src/pod/deployment.rs`). Pre-v0.31.0 pods with `kind: replicant` in the sidecar continue to load as `PodKind::UserPod` without migration.
+**Backwards compatibility:** The `pod.kind` sidecar file accepts `"userpod"` as an alias for `"userpod"` (see `read_pod_kind()` in `crates/hkask-agents/src/pod/deployment.rs`). Pre-v0.31.0 pods with `kind: userpod` in the sidecar continue to load as `PodKind::UserPod` without migration.
 
 
 #### PodDeployment — The Canonical Type (v0.30.0)
@@ -408,7 +408,7 @@ CLOUD SERVER (single binary, all crates compiled)
   hkask-cns - cybernetic nervous system
   hkask-codegraph - code understanding engine (tree-sitter, FTS5, recursive CTE, context assembly)
   hkask-wallet + hkask-memory - wallet and memory subsystems
-  Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, three-tier (Curator/Team/Replicant)
+  Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, three-tier (Curator/Team/UserPod)
 
 Access (all via HTTPS/Caddy):
   Browser (xterm.js) - primary terminal
@@ -975,7 +975,7 @@ agents/{name}/
 └── threads/        ← conversations
 ```
 
-**Pod types (PodKind):** Curator pod, Team pod, Replicant pod — all backed up identically.
+**Pod types (PodKind):** Curator pod, Team pod, UserPod pod — all backed up identically.
 
 ### User Commands
 
@@ -1240,13 +1240,13 @@ See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-trai
 
 ---
 
-## Daemon & Replicant Server Mode
+## Daemon & UserPod Server Mode
 
 **Crates:** `hkask-mcp` (daemon transport), `hkask-services-runtime` (daemon handler), `hkask-agents` (AgentMode)
 
 ### Summary
 
-Replicants can operate in **server mode**, presenting as MCP servers to IDEs (Zed, VSCode) and other hKask agents. The daemon — a Unix domain socket at `~/.config/hkask/daemon.sock` — mediates authentication, role assignment, capability verification, and dual memory encoding between out-of-process MCP binaries and the in-process agent stack.
+UserPods can operate in **server mode**, presenting as MCP servers to IDEs (Zed, VSCode) and other hKask agents. The daemon — a Unix domain socket at `~/.config/hkask/daemon.sock` — mediates authentication, role assignment, capability verification, and dual memory encoding between out-of-process MCP binaries and the in-process agent stack.
 
 ### Architecture
 
@@ -1328,7 +1328,7 @@ Concurrent chat+server mode planned for future release (3-6 months).
 
 ---
 
-## ACP Replicant — IDE Agent Presence
+## ACP UserPod — IDE Agent Presence
 
 **Crate:** `hkask-acp`, **Protocol:** [Agent Client Protocol](https://agentclientprotocol.com) (ACP)
 
@@ -1541,7 +1541,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | ADR | Topic |
 |-----|-------|
 | [`ADRs/ADR-031-consolidation-authorization.md`](../ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
-| [`ADRs/ADR-035-userpod-server-mode.md`](../ADRs/ADR-035-userpod-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
+| [`ADRs/ADR-035-userpod-server-mode.md`](../ADRs/ADR-035-userpod-server-mode.md) | UserPod server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
 | [`ADRs/ADR-036-gix-migration.md`](../ADRs/ADR-036-gix-migration.md) | Migration to gix (pure-Rust git) for CAS-backed content-addressed agent storage |
 | [`ADRs/ADR-037-blake3-content-addressing.md`](../ADRs/ADR-037-blake3-content-addressing.md) | blake3 content addressing for agent artifacts |
 | [`ADRs/ADR-041-dynamic-model-discovery.md`](../ADRs/ADR-041-dynamic-model-discovery.md) | Dynamic model discovery via inference provider catalog |
@@ -2075,7 +2075,7 @@ Matrix E2EE involves four key types. Here is who manages each:
 
 **Critical design rule:** hKask never sees the human's E2EE keys. The human's keys live in their Matrix client (FluffyChat). hKask only manages its own agents' keys. The trust boundary is the Matrix protocol itself — E2EE encrypts messages so that only the intended devices can decrypt them, regardless of who runs the homeserver.
 
-### 2.3 Identity Binding: How the Human Knows They're Talking to THEIR Replicant
+### 2.3 Identity Binding: How the Human Knows They're Talking to THEIR UserPod
 
 **The user has already completed hKask onboarding before installing FluffyChat.** They have a userpod identified by a **full name** (first and last, e.g., "Alice-Smith") and a **passphrase**. The userpod credential is the compound string `FirstName-LastName/Passphrase` (or `FirstName-LastName-Passphrase` — the separator `-` or `/` is configurable per install).
 
@@ -2122,7 +2122,7 @@ This resolves Gap B2 (MXID format specification) from §12.8.
 | **Malicious homeserver strips E2EE** | Yes — Conduit could serve unencrypted messages | FluffyChat rejects unencrypted messages in encrypted rooms. The agent's SDK does the same. E2EE is enforced client-side. |
 | **Impersonator creates `@alice-smith:matrix.org` on a different homeserver** | Yes — but different domain | Human connects to `matrix.example.com`, not `matrix.org`. The full MXID is `@alice-smith:example.com`. Different domain = different user. FluffyChat shows the full MXID. |
 | **QR code intercepted in transit** | Yes — if admin shares QR over insecure channel | QR code must be shared through a trusted channel. If admin and human are the same person, scan directly from terminal. If different, use an already-verified encrypted channel (Signal, existing Matrix DM). QR code is single-use — after SAS completes, it has no value. |
-| **Human scans wrong QR code** (e.g., from a different agent) | Yes — human error | QR code is labeled: "Replicant: Alice-Smith — scan this in FluffyChat to verify your agent." Human reads the label before scanning. |
+| **Human scans wrong QR code** (e.g., from a different agent) | Yes — human error | QR code is labeled: "UserPod: Alice-Smith — scan this in FluffyChat to verify your agent." Human reads the label before scanning. |
 | **AI attempts to assist with verification** | Yes — Curator or agent could try to "help" | **Prohibition.** The credential check is a direct string comparison with no AI involvement. The `kask matrix register` command does not invoke the Curator or any LLM. The human's name recognition is their own cognitive act — no AI mediates it. |
 
 #### Security Surface Diagram
@@ -2205,7 +2205,7 @@ This resolves Gap B2 (MXID format specification) from §12.8.
    → hKask sets Matrix display name to "Alice-Smith (hKask userpod)"
    → hKask prints a labeled QR code:
      ┌──────────────────────────────────────────────┐
-     │  Replicant: Alice-Smith                       │
+     │  UserPod: Alice-Smith                       │
      │  Matrix: @alice-smith:example.com             │
      │  Scan this QR code in FluffyChat to verify    │
      │  your agent. No AI involved in this step.     │
@@ -2306,7 +2306,7 @@ sequenceDiagram
     participant M as MCP Server<br/>(hkask-mcp-communication)
     participant D as Daemon<br/>(daemon.sock)
     participant Cu as Curator<br/>(Curation Loop)
-    participant A as Agent<br/>(Bot/Replicant)
+    participant A as Agent<br/>(Bot/UserPod)
     participant E as Episodic<br/>Memory
 
     H->>C: Send message to @agent:example.com<br/>"What's my schedule today?"
@@ -2354,7 +2354,7 @@ sequenceDiagram
     participant Cu as Curator
     participant A1 as Agent Alpha<br/>(Bot)
     participant D as Daemon<br/>(daemon.sock)
-    participant A2 as Agent Beta<br/>(Replicant)
+    participant A2 as Agent Beta<br/>(UserPod)
 
     Note over Cu: Curator activates Alpha<br/>for a scheduled task
 
@@ -2497,7 +2497,7 @@ graph TD
             DAEMON[Daemon<br/>daemon.sock]
             MCP_COMM[hkask-mcp-communication<br/>MatrixTransport + matrix-rust-sdk]
             CURATOR[Curator<br/>Curation Loop]
-            AGENTS[Agent Pods<br/>Bots + Replicants]
+            AGENTS[Agent Pods<br/>Bots + UserPods]
             KEYSTORE[hkask-keystore<br/>AES-256-GCM + OS keychain]
             EPISODIC[Episodic Memory<br/>SQLCipher]
             CNS[Cybernetics Loop<br/>cns.communication.matrix.* spans]
@@ -2658,7 +2658,7 @@ All of this is complexity hKask doesn't need to own. The sidecar approach keeps 
 
 Agents fall back to the daemon socket for local communication. Cross-installation messages queue in the MCP server's outbox (persisted to SQLCipher) and are delivered when the homeserver returns. The Curator receives a `cns.communication.matrix.unavailable` alert and can inform the user. This is graceful degradation, not catastrophic failure.
 
-**Q8:** P12 (Replicant Host Mandate) is a Prohibition: "every action has an author." How does a Matrix message from an external human map to a host userpod?
+**Q8:** P12 (Authenticated Host Mandate) is a Prohibition: "every action has an author." How does a Matrix message from an external human map to a host userpod?
 
 The human is authenticated as their own userpod on their own hKask install. When they send a Matrix message, their `hkask-mcp-communication` server attaches their WebID in the message's structured payload. The receiving hKask install verifies the sender's WebID against the Matrix user ID. If the human doesn't have a userpod (they're using vanilla FluffyChat without a hKask install), the message is attributed to an "external" pseudo-userpod with limited OCAP scope. The Curator flags unverified senders.
 
@@ -2905,13 +2905,13 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 | **P3 — Generative Space** | ✅ | Matrix enables cross-installation agent communication and human-to-agent interaction from mobile devices — expands the space of possible agent behaviors |
 | **P4 — Clear Boundaries (OCAP)** | ✅ | Matrix transport is OCAP-gated; agents need `communication:send` and `communication:receive` capabilities; Conduit is outside the OCAP boundary |
 | **P5 — Essentialism** | ✅ | ~750 lines replacing 303 lines of stubs; no embedded homeserver; two-function transport interface; Docker sidecar not library dependency |
-| **P6 — Space for Replicants & Bots** | ✅ | Matrix enables userpods to communicate with humans on mobile (H2A) and bots to communicate across installs (A2A) |
+| **P6 — Space for UserPods & Bots** | ✅ | Matrix enables userpods to communicate with humans on mobile (H2A) and bots to communicate across installs (A2A) |
 | **P7 — Evolutionary Architecture** | ✅ | Docker sidecar + SDK integration allows Matrix integration to evolve independently of hKask core; Conduit upgrades are `docker pull`, not `cargo update` |
 | **P8 — Semantic Grounding** | ✅ | Every Matrix message produces a ν-event with provenance (sender WebID, timestamp, room context); ν-events are canonical |
 | **P9 — Homeostatic Self-Regulation** | ✅ | `cns.communication.matrix.*` spans feed into Cybernetics Loop; sync health monitored; backpressure on message volume; sidecar health checked |
-| **P10 — Bot/Replicant Taxonomy** | ✅ | Bots use Matrix for A2A (machine-speed); Replicants use Matrix for H2A (human-speed); distinct interaction patterns |
+| **P10 — Bot/UserPod Taxonomy** | ✅ | Bots use Matrix for A2A (machine-speed); UserPods use Matrix for H2A (human-speed); distinct interaction patterns |
 | **P11 — Digital Public/Private Sphere** | ✅ | Matrix rooms map to visibility: private rooms = private sphere, public rooms = public sphere; OCAP-enforced |
-| **P12 — Replicant Host Mandate** | ✅ | Every Matrix message carries sender WebID in structured payload; unverified senders flagged; no anonymous messages; SAS verification establishes identity binding |
+| **P12 — Authenticated Host Mandate** | ✅ | Every Matrix message carries sender WebID in structured payload; unverified senders flagged; no anonymous messages; SAS verification establishes identity binding |
 | **Headless Constraint** | ✅ | No Matrix client UI in hKask; all interaction through CLI, MCP, or API; humans use FluffyChat (external client) |
 
 ---
@@ -3721,8 +3721,8 @@ WalletDraw,          // cns.wallet.draw
 WalletSpend,         // cns.wallet.spend
 WalletExhausted,     // cns.wallet.exhausted → algedonic alert
 
-// Replicant lifecycle (must exist for wallet creation flow)
-ReplicantRegistered, // cns.userpod.registered → triggers wallet creation
+// UserPod lifecycle (must exist for wallet creation flow)
+UserPodRegistered, // cns.userpod.registered → triggers wallet creation
 
 // Curator efficiency
 CuratorEfficiencyExceeded,  // cns.curator.efficiency.exceeded
@@ -3892,7 +3892,7 @@ The federation extends the existing three-tier pod architecture **horizontally**
 │  └────────────────────────────┘  │     │  └────────────────────────────┘  │
 │                                  │     │                                  │
 │  Skill Registry A (PRIVATE)      │     │  Skill Registry B (PRIVATE)      │
-│  ReplicantPods A (PRIVATE)       │     │  ReplicantPods B (PRIVATE)       │
+│  UserPodPods A (PRIVATE)       │     │  UserPodPods B (PRIVATE)       │
 │  TeamPods A (PRIVATE)            │     │  TeamPods B (PRIVATE)            │
 │                                  │     │                                  │
 │  Matrix Conduit A ◄──────────────┼─Fed─┼─► Matrix Conduit B               │
@@ -4900,7 +4900,7 @@ erDiagram
 
 This diagram models the storage layer for all [MDS Core Entities](MDS.md#11-core-entities):
 - **`HumanUser`** → `human_users` table
-- **`Replicant`** → `userpod_identities` table
+- **`UserPod`** → `userpod_identities` table
 - **`Wallet`** → `wallet_balances`, `wallet_transactions`, `encumbrances`, `deposit_addresses`, `deposit_references`
 - **`ApiKey`** → `api_keys` table
 - **`hMem`** → `triples` table

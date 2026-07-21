@@ -22,7 +22,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 |-----------|-------------|---------------|-----------------|--------|
 | DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §1.5.2 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-capability/src/lib.rs`, `Cargo.toml` workspace members | ✅ VERIFIED 2026-07-01 |
 | DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §4.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED 2026-07-01 |
-| DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §4.1 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/types/agent/definition.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-DC-003 | Agent Taxonomy (Bot/UserPod branching) | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §4.1 | `crates/hkask-agents/src/pod/types.rs`, `crates/hkask-agents/src/types/agent/definition.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | `explanation/sovereignty-and-ocap.md` | `crates/hkask-capability/src/lib.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | `explanation/architecture-patterns.md` | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-DC-006 | Standing Session Chat Lifecycle | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §1.5.3 | `crates/hkask-cli/src/commands/chat.rs`, `mcp-servers/hkask-mcp-research/src/main.rs` | ✅ VERIFIED 2026-07-01 |
@@ -141,7 +141,7 @@ The `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` contains 14 inline Merm
 | DIAG-FS-009 | ApiMeter ERD — Rate-Limit Buckets with per-key TokenTracker | §2.7 | ERD (erDiagram) |
 | DIAG-FS-010 | CompositeEnergyEstimator ERD — Multi-backend Energy Estimation | §2.8 | ERD (erDiagram) |
 | DIAG-FS-011 | CloudServer ERD — Deployment Domain (Caddy, Conduit, UserSession, Wallet) | §3.18 | ERD (erDiagram) |
-| DIAG-FS-012 | Core Domain Entity Model — Full entity map (HumanUser, Replicant, Wallet, Session, etc.) | §4.1 | ERD (erDiagram) |
+| DIAG-FS-012 | Core Domain Entity Model — Full entity map (HumanUser, UserPod, Wallet, Session, etc.) | §4.1 | ERD (erDiagram) |
 | DIAG-FS-013 | Deployment Domain Entity Model — KaskBinary, ServerProfile, deployment infra | §4.2 | ERD (erDiagram) |
 | DIAG-FS-014 | Contract-Anchoring ERD — Principles ↔ Contracts ↔ Sub-Contracts | §4.3 | ERD (erDiagram) |
 

@@ -246,9 +246,9 @@ Every test verifies an IS claim about system behavior. The CNS span registry (`C
 - **Test coverage is variety.** The CNS tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 
-### 5.4 P6 — Space for Replicants
+### 5.4 P6 — Space for UserPods
 
-Replicants propose tests for their own behavior. A userpod can open a PR containing a property-based test verifying its intended behavior, with the userpod's WebID as the authenticated author (P12). A human operator provides affirmative consent (P2) to merge.
+UserPods propose tests for their own behavior. A userpod can open a PR containing a property-based test verifying its intended behavior, with the userpod's WebID as the authenticated author (P12). A human operator provides affirmative consent (P2) to merge.
 
 ### 5.5 P7 — Evolutionary Architecture
 
@@ -295,7 +295,7 @@ Tests accumulate the scar tissue of every production incident. They become the r
 | **P2** | One test per TDD cycle (vertical slice, not horizontal) |
 | **P3** | Refactor only when GREEN — never while RED |
 | **P4** | After every bug fix, add a regression test that captures that class of bug |
-| **P5** | Replicants may propose tests; humans provide consent to merge (P2, P6) |
+| **P5** | UserPods may propose tests; humans provide consent to merge (P2, P6) |
 | **P6** | Every test action carries an authenticated author (TestWebId or userpod WebID) (P12) |
 
 ### 6.4 Quality Rules

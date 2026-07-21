@@ -32,7 +32,7 @@ per-pod storage of h_mem triples and embedding vectors to maximize recall qualit
 storage efficiency, and CI reliability while preserving the P1 User Sovereignty invariant
 (downloadable, passphrase-encrypted, file-portable databases)?
 
-**Stakeholders:** Replicant agents (recall consumers), curator (consolidation + re-embedding),
+**Stakeholders:** UserPod agents (recall consumers), curator (consolidation + re-embedding),
 users (sovereignty + portability), CI (reliability).
 
 **Constraints:**

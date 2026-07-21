@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # The Magna Carta of hKask
 
-## ℏKask v0.28.0 - A Minimal Viable Container for Replicants
+## ℏKask v0.28.0 - A Minimal Viable Container for UserPods
 
 **User Sovereignty is Non-Negotiable.**
 
@@ -438,7 +438,7 @@ The Magna Carta is not aspirational. It is enforced:
 
 ## Version
 
-ℏKask v0.28.0 - A Minimal Viable Container for Replicants
+ℏKask v0.28.0 - A Minimal Viable Container for UserPods
 
 *As simple as possible, but no simpler.*
 

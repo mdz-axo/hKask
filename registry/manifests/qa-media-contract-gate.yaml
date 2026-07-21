@@ -98,6 +98,6 @@ steps:
     command: "echo '[QA:media] FAIL — unit tests failed. Media server crate has regressions.'"
     terminal: true
 
-cns:
+ledger:
   emit_spans: true
   alert: qa.media.contract

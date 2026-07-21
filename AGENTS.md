@@ -60,7 +60,7 @@
 | No `Result<_, String>` | `thiserror` enums | `scripts/check-string-errors.sh` |
 | No unused crate dependencies | `nightly -D unused_crate_dependencies` | Nightly job |
 | MCP servers: tool-behavior contract tests | `Parameters(` seam | `scripts/check-mcp-tool-tests.sh` |
-| CNS namespace invariant (`cns.*` → `CANONICAL_NAMESPACES`) | Canonical span check | `scripts/check-cns-canonical.sh` |
+| Regulation namespace invariant (`reg.*` → `CANONICAL_NAMESPACES`) | Canonical span check | `scripts/check-reg-canonical.sh` |
 | Security regression library enforced | Every `status: enforced` checked | `scripts/check-kali-regressions.sh` |
 | Training-config regression library enforced | Every `surface: training` `status: enforced` checked | `scripts/check-lora-training-regressions.sh` |
 
@@ -99,7 +99,7 @@ Only #1 partially CI-gated; #2–#4 enforced by review.
 - `scripts/check-string-errors.sh` — `Result<_, String>` guard
 - `docs/ci/verify-docs.sh` — Documentation health
 - `crates/hkask-types/src/lib.rs` — Foundation types
-- `crates/hkask-cns/src/types/loops/loop_trait.rs` — `Loop` trait
+- `crates/hkask-regulation/src/types/loops/loop_trait.rs` — `Loop` trait
 - `mcp-servers/hkask-mcp-codegraph/src/lib.rs` — CodeGraph MCP server
 - `docs/architecture/` — Canonical architecture docs
 
@@ -107,5 +107,5 @@ Only #1 partially CI-gated; #2–#4 enforced by review.
 
 ---
 
-> **Quality reminder (Weinberg):** Value = "value to some person who matters." This guide optimizes for replicant orientation — not exhaustiveness. If you need full registry details, consult `.agents/skills/` directly.
+> **Quality reminder (Weinberg):** Value = "value to some person who matters." This guide optimizes for userpod orientation — not exhaustiveness. If you need full registry details, consult `.agents/skills/` directly.
 

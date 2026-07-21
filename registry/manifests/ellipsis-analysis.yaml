@@ -128,7 +128,7 @@ ocap:
   template_scoped: true
 
 # CNS Monitoring
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.agent_pod
   variety_monitoring: true

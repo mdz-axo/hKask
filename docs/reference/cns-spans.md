@@ -79,7 +79,7 @@ Core spans used across 2+ crates. This is the foundational enum implementing `Ob
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `AcpReplicantMemorySize` | `cns.acp.userpod.memory_size` | Replicant memory size reported via ACP | [INFERRED] On userpod state sync or ACP handshake |
+| `AcpUserPodMemorySize` | `cns.acp.userpod.memory_size` | UserPod memory size reported via ACP | [INFERRED] On userpod state sync or ACP handshake |
 | `AcpIdeConnectionState` | `cns.acp.ide.connection_state` | IDE connection state change | [INFERRED] IDE client connects or disconnects |
 
 ### 3.3 ClassifySpan — Classification Operations
@@ -99,7 +99,7 @@ Emitted through `emit_contract_*()` functions in `crates/hkask-cns/src/contract_
 
 | Variant | Namespace | Meaning | Emitted When |
 |---|---|---|---|
-| `ContractProposed` | `cns.contract.proposed` | Replicant proposes a spec contract | Phase B2–B4: userpod submits contract for human review |
+| `ContractProposed` | `cns.contract.proposed` | UserPod proposes a spec contract | Phase B2–B4: userpod submits contract for human review |
 | `ContractAccepted` | `cns.contract.accepted` | Human accepts the contract | Phase B3: reviewer approves the proposed contract |
 | `ContractRejected` | `cns.contract.rejected` | Human rejects the contract | Phase B3: reviewer rejects with a reason |
 | `ContractViolated` | `cns.contract.violated` | Contract violation during testing | Test harness detects contract non-conformance |

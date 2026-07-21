@@ -155,7 +155,7 @@ ocap:
 # - Five Questions Drill → Yes And
 # - PDCA Cycle → Yes But
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.prompt.kata.starter
   variety_monitoring: true

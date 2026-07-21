@@ -16,7 +16,7 @@ mds_categories: [domain, composition, trust, curation]
 
 ## Context
 
-The shift from a three-tier pod model (Curator/Team/Replicant) to a two-kind model (Curator/UserPod) in v0.31.0 collapsed the taxonomic distinction between agent kinds. The loops and CNS now regulate *behavioral roles* (VSM S1 Implementation vs. S4 Intelligence) rather than *agent identity tiers*. This shift changes the disturbance space that the cybernetic regulator must absorb.
+The shift from a three-tier pod model (Curator/Team/UserPod) to a two-kind model (Curator/UserPod) in v0.31.0 collapsed the taxonomic distinction between agent kinds. The loops and CNS now regulate *behavioral roles* (VSM S1 Implementation vs. S4 Intelligence) rather than *agent identity tiers*. This shift changes the disturbance space that the cybernetic regulator must absorb.
 
 **Problem Statement:** The `RegulationPolicy` covers only 8 of 31 `SignalMetric` variants, creating a variety deficit (Ashby's Law violation) where the regulator cannot respond to 23 distinct disturbance classes the system can produce.
 

@@ -12,9 +12,9 @@ charter:
   visibility: Primary
 
 capabilities:
-  - tool:cns:emit
-  - tool:cns:variety
-  - tool:cns:calibrate
+  - tool:regulation:emit
+  - tool:regulation:variety
+  - tool:regulation:calibrate
   - tool:memory:recall
   - tool:memory:query
   - tool:memory:remember

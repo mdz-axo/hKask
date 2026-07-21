@@ -18,7 +18,7 @@ Built-in MCP servers shipped with hKask. Each server is a thin surface over doma
 | Filesystem | `mcp-servers/hkask-mcp-filesystem` | File access and shell operations (OCAP-sandboxed) | 7 | — |
 | Kata Kanban | `mcp-servers/hkask-mcp-kata-kanban` | Toyota Kata task boards | 14 | `hkask-services-kata-kanban` |
 | Media | `mcp-servers/hkask-mcp-media` | Fal.ai media generation | — | — |
-| Replica | `mcp-servers/hkask-mcp-replica` | Replicant lifecycle | — | — |
+| Replica | `mcp-servers/hkask-mcp-replica` | UserPod lifecycle | — | — |
 | Research | `mcp-servers/hkask-mcp-research` | Web search, extraction, browsing, RSS feeds | 17 | `hkask-services-research` |
 | [Skill](skill-server.md) | `mcp-servers/hkask-mcp-skill` | Skill registry access (list, execute) | 3 | — |
 | Training | `mcp-servers/hkask-mcp-training` | LoRA training pipeline | — | — |

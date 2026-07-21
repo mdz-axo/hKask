@@ -845,7 +845,7 @@ These domains are documented here for completeness. The canonical contract forma
 ```yaml
 agent:
   name: Curator
-  type: Replicant
+  type: UserPod
   binding_contract: true
   editor: hKask-Administrator
 
@@ -1200,7 +1200,7 @@ Representative domains:
 **142 expect:-annotated contracts** — agents span five motivating principles:
 - **P1 (User Sovereignty)** — `AgentPod`, `PodDeployment`, `PodFactory`, `ActivePods`, `PodRegistry`, `SovereigntyChecker`
 - **P2 (Affirmative Consent)** — `ConsentRecord`, `ConsentManager`
-- **P4 (Clear Boundaries)** — `PodKind` (Curator/Team/Replicant), A2A runtime, MCP capability adapters, `PerPodToolBinding`
+- **P4 (Clear Boundaries)** — `PodKind` (Curator/Team/UserPod), A2A runtime, MCP capability adapters, `PerPodToolBinding`
 - **P9 (Homeostatic Self-Regulation)** — `CuratorSync`, `SemanticIndex`, Curator, Metacognition, LoopSystem, BotHealth, prompt classification
 - **P11 (Digital Sphere)** — `PerPodStorage`, `PerPodCnsRuntime`, per-pod SQLCipher files
 
@@ -1361,7 +1361,7 @@ The server registration mode (`open` or `closed`, default: `closed`) is set duri
 **Constraining Principles:** P2 (Affirmative Consent) — backup export requires explicit user passphrase; P4 (Clear Boundaries) — archive scoped to authenticated WebID
 **Crates:** `hkask-storage`, `hkask-api` | **Reference:** `docs/plans/deployment-and-backup.md`
 
-The backup archive is a single SQLCipher-encrypted SQLite file containing the user's full live hMem set plus a `backup_meta` table. It is the P1 data portability artifact — download from one server, upload to another, resume. Replicant name collisions on upload trigger auto-rename. No server-to-server protocol.
+The backup archive is a single SQLCipher-encrypted SQLite file containing the user's full live hMem set plus a `backup_meta` table. It is the P1 data portability artifact — download from one server, upload to another, resume. UserPod name collisions on upload trigger auto-rename. No server-to-server protocol.
 
 #### Production Contracts (11)
 
@@ -1386,7 +1386,7 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 | FR-BK-C1 | `CnsSpan::BackupExport` | `{ h_mem_count, bytes, duration_ms }` |
 | FR-BK-C2 | `CnsSpan::BackupAutoExport` | `{ webid, h_mem_count, bytes, duration_ms }` |
 | FR-BK-C3 | `CnsSpan::BackupUpload` | `{ h_mem_count, bytes_sent, duration_ms }` |
-| FR-BK-C4 | `CnsSpan::ReplicantMerge` | `{ source, target, h_mem_count, duration_ms }` |
+| FR-BK-C4 | `CnsSpan::UserPodMerge` | `{ source, target, h_mem_count, duration_ms }` |
 
 #### Test Contracts (3)
 
@@ -1626,7 +1626,7 @@ inference with `merge_json_values()` integration in the fusion orchestrator.
 
 ```mermaid
 erDiagram
-    HumanUser ||--o{ Replicant : provisions
+    HumanUser ||--o{ UserPod : provisions
     HumanUser ||--|| Wallet : owns
     HumanUser ||--o{ UserSession : creates
     HumanUser {
@@ -1635,7 +1635,7 @@ erDiagram
         string provider "GitHub | Google"
         string display_name
     }
-    Replicant {
+    UserPod {
         string webid PK
         string name
         string persona
@@ -1654,7 +1654,7 @@ erDiagram
         u64 encumbered_rj
         datetime expires_at
     }
-    Replicant ||--o{ AgentPod : activates
+    UserPod ||--o{ AgentPod : activates
     AgentPod {
         string pod_id PK
         string webid FK

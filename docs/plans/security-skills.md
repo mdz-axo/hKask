@@ -58,7 +58,7 @@ Cleanup applied:
 Pre-existing `Result<_, String>` CI gate failure resolved:
 - `crates/hkask-cli/src/onboarding.rs` — `register_in_user_store` converted
   from `Result<(), String>` to `Result<(), UserStoreRegistrationError>` (new
-  `thiserror` enum with `DbOpen`, `Pool`, `GetReplicant`, `RegisterReplicant`
+  `thiserror` enum with `DbOpen`, `Pool`, `GetUserPod`, `RegisterUserPod`
   variants, mirroring the existing `SessionCreationError` pattern in the
   same file). `scripts/check-string-errors.sh` now passes.
 

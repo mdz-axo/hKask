@@ -3,7 +3,7 @@ name = "hkask-identity"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hKask human identity and authentication types — HumanUser, ReplicantIdentity, UserSession, invites (extracted from hkask-services-core)"
+description = "hKask human identity and authentication types — HumanUser, UserPod, UserSession, invites (extracted from hkask-services-core)"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }

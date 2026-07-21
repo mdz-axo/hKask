@@ -830,7 +830,7 @@ main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                    hKask Installer                      ║"
-    echo "║        ℏKask - A Minimal Viable Container for Replicants    ║"
+    echo "║        ℏKask - A Minimal Viable Container for UserPods    ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
 

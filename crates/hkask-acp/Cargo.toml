@@ -3,7 +3,7 @@ name = "hkask-acp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "ACP (Agent Client Protocol) replicant — presents hKask coding agents in IDEs via the Agent Client Protocol"
+description = "ACP (Agent Client Protocol) userpod — presents hKask coding agents in IDEs via the Agent Client Protocol"
 
 [dependencies]
 hkask-mcp = { path = "../hkask-mcp" }

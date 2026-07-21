@@ -46,7 +46,7 @@ P12: every regulated variable is attributed.
 
 ## What changed in the v0.31.0 consolidation
 
-The prior "Replicant Host Mandate" framed a bot/userpod taxonomy (P10). That taxonomy
+The prior "Authenticated Host Mandate" framed a bot/userpod taxonomy (P10). That taxonomy
 is retired; P10 is refocused to **user agency**. The mandate is renamed to "Authenticated
 Host Mandate" to reflect that the accountable host is the userpod (or curator), not a
 "userpod" or "bot" role. The generic "agent" concept is preserved for A2A interop —

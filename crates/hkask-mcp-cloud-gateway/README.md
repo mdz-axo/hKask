@@ -8,7 +8,7 @@ mTLS + DelegationToken reverse proxy for remote MCP server access to the hKask d
 
 | Layer | Mechanism | Description |
 |-------|-----------|-------------|
-| 1. Transport | mTLS 1.3 | Client and server present X.509 certificates. Client cert CN maps to replicant WebID |
+| 1. Transport | mTLS 1.3 | Client and server present X.509 certificates. Client cert CN maps to userpod WebID |
 | 2. Authorization | Ed25519 DelegationToken | Per-request signed token. `delegated_to` must match mTLS CN |
 | 3. Capability | Per-tool gating | `token.resource_id` must match the requested tool name |
 

@@ -192,7 +192,7 @@ steps:
     gas_cap: 2000
     timeout_seconds: 20
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.kanban.decompose
   variety_monitoring: true

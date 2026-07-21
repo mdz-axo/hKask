@@ -8,7 +8,7 @@ Skill discovery, publishing, hashing, auditing, and bundle composition. Powers t
 
 | Module | Purpose |
 |--------|---------|
-| `skill_impl` | Skill discovery (`discover_skills`), publishing (`publish_skill`), visibility/namespace parsing, BLAKE3 hashing, replicant name resolution |
+| `skill_impl` | Skill discovery (`discover_skills`), publishing (`publish_skill`), visibility/namespace parsing, BLAKE3 hashing, userpod name resolution |
 | `audit` | `SkillAuditor` — registry health scoring, staleness detection, template validation, deprecation recommendations |
 | `bundle` | `BundleService` — LLM-native skill composition into `BundleManifest`, polarity classification, conflict detection, cascade ordering |
 
@@ -28,7 +28,7 @@ Skill discovery, publishing, hashing, auditing, and bundle composition. Powers t
 - `find_public_skill(root, name)` — locate a namespaced skill in the public zone
 - `compute_file_hash(path)` — BLAKE3 hash of a file
 - `read_skill_visibility(path)` / `read_skill_namespace(path)` — parse SKILL.md front matter
-- `resolve_replicant_name()` — resolve the replicant name for namespacing
+- `resolve_userpod_name()` — resolve the userpod name for namespacing
 
 ## Dependencies
 

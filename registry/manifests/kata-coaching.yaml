@@ -171,7 +171,7 @@ ocap:
 # - Q4 (Next step? What do you expect?) → Yes But
 # - Q5 (How quickly can we go and see?) → Plussing
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.prompt.kata.coaching
   variety_monitoring: true

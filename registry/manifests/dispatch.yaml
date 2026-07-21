@@ -68,7 +68,7 @@ steps:
     mcp: "${template.contract.mcp}"
     matroshka_depth: "${matroshka_depth + 1}"
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.prompt.dispatch
   variety_monitoring: true

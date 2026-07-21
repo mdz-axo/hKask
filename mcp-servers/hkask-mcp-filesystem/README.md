@@ -6,7 +6,7 @@ Filesystem and shell access MCP server — OCAP-governed agent tools.
 
 | Component | Description |
 |-----------|-------------|
-| `FileSystemServer` | Server struct with WebID, replicant identity, and project root |
+| `FileSystemServer` | Server struct with WebID, userpod identity, and project root |
 | Path sandbox | All file I/O canonicalized and verified against `project_root` |
 | CNS spans | `cns.tool.filesystem.*` — `file.read`, `file.written`, `file.deleted`, `command.completed`, `command.failed`, `path.rejected` |
 

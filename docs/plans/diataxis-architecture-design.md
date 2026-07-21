@@ -282,7 +282,7 @@ The CI pipeline (`docs/ci/verify-docs.sh`) checks:
 
 | Current Location | New Location | Migration |
 |-----------------|-------------|-----------|
-| `docs/user-guides/REPLICANT-ONBOARDING-WALKTHROUGH.md` | `docs/tutorial/getting-started.md` (rewrite) | Absorb + expand |
+| `docs/user-guides/USERPOD-ONBOARDING-WALKTHROUGH.md` | `docs/tutorial/getting-started.md` (rewrite) | Absorb + expand |
 | `docs/user-guides/*` (14 files) | `docs/how-to/*` (20 files) | Split procedural content from reference |
 | `docs/architecture/*` | `docs/explanation/*` (new files) + keep architecture/ | Extract explanatory content |
 | `docs/specifications/*` | Keep | Already reference-grade |

@@ -359,7 +359,7 @@ let remaining = lc.time_until_budget_exceeded(50.0);
 
 #### Ownership Model (P12)
 
-Every adapter has an owner. The `TrainedLoRAAdapter.owner` field is a `WebID` — a sovereign identity URI. This is P12 (Replicant Host Mandate): no anonymous artifacts, no anonymous agency. The `list_owner(webid)` method returns only adapters owned by that WebID. Every `EndpointInference` CNS span carries the owning WebID. No root. No `sudo`. No shared "admin" adapter pool. Every adapter is sovereign-scoped.
+Every adapter has an owner. The `TrainedLoRAAdapter.owner` field is a `WebID` — a sovereign identity URI. This is P12 (Authenticated Host Mandate): no anonymous artifacts, no anonymous agency. The `list_owner(webid)` method returns only adapters owned by that WebID. Every `EndpointInference` CNS span carries the owning WebID. No root. No `sudo`. No shared "admin" adapter pool. Every adapter is sovereign-scoped.
 
 #### Provider Support
 

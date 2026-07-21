@@ -231,7 +231,7 @@ ocap:
 # Uses the canonical cns.curation namespace. GEPA does not introduce new
 # CnsSpan variants; it emits tracing events under cns.curation with
 # operation fields specific to the evolutionary loop.
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.curation
   variety_monitoring: true

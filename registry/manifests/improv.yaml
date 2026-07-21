@@ -217,7 +217,7 @@ ocap:
   capability_expiry_seconds: 3600
   template_scoped: true
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.prompt.improv
   variety_monitoring: true

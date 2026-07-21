@@ -76,7 +76,7 @@ error_handling:
   retry_backoff_seconds: 1
   on_search_failure: fallback
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.web.news_timeline
   variety_monitoring: true

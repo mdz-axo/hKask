@@ -73,6 +73,6 @@ steps:
     command: "echo '[QA:cns] WARN — classifier uncertain on CNS test output. Manual review recommended.'"
     terminal: true
 
-cns:
+ledger:
   emit_spans: true
   alert: qa.cns.algedonic

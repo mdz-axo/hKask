@@ -136,4 +136,4 @@ cargo check -p hkask-services-core
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
+*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*

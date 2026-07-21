@@ -93,5 +93,5 @@ steps:
     description: "Classifier unavailable, manual review needed"
     terminal: true
 
-cns:
+ledger:
   emit_spans: true

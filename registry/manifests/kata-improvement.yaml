@@ -149,7 +149,7 @@ ocap:
 # - Plan (design experiment) → Yes But
 # - Check (compare prediction to actual) → Plussing
 
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.prompt.kata.improvement
   variety_monitoring: true

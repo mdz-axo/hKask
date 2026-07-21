@@ -346,7 +346,7 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 **Status:** Resolved — `AgentKind` remains a cosmetic enum  
 **Resolution Date:** 2026-06-03
 
-**Decision:** `AgentKind` (Bot/Replicant) remains a simple enum with no behavioral dispatch. Behavioral differences between Bot and Replicant are handled at the call site level (e.g., `chat_with_agent()` selects model based on `AgentKind`, privacy enforcement in `SemanticMemory`/`EpisodicMemory` uses `Visibility`). Converting `AgentKind` to a trait with associated types would change it from a 2-variant enum to a type-level dispatch mechanism, affecting every pod, agent registration, and template selection. The current design correctly separates identity (AgentKind) from behavior (site-level decisions). This is the right granularity for v0.27.0.
+**Decision:** `AgentKind` (Bot/UserPod) remains a simple enum with no behavioral dispatch. Behavioral differences between Bot and UserPod are handled at the call site level (e.g., `chat_with_agent()` selects model based on `AgentKind`, privacy enforcement in `SemanticMemory`/`EpisodicMemory` uses `Visibility`). Converting `AgentKind` to a trait with associated types would change it from a 2-variant enum to a type-level dispatch mechanism, affecting every pod, agent registration, and template selection. The current design correctly separates identity (AgentKind) from behavior (site-level decisions). This is the right granularity for v0.27.0.
 
 ---
 

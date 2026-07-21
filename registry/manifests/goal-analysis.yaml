@@ -65,7 +65,7 @@ inputs:
 #     alert_if_exceeds: 6
 #     rationale: "Warning before hard limit at 7"
 
-cns:
+ledger:
   spans:
     - cns.goal.create
     - cns.goal.transition

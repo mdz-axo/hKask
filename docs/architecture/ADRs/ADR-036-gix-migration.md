@@ -102,4 +102,4 @@ cargo test -p hkask-git-cas
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — ADR-036 — v0.31.0*
+*ℏKask - A Minimal Viable Container for UserPods — ADR-036 — v0.31.0*

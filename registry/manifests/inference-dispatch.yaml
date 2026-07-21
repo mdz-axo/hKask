@@ -65,7 +65,7 @@ steps:
 #   max_depth: 5
 #   enforce: true
 
-cns:
+ledger:
   spans:
     - cns.tool.invocation
     - cns.prompt.outcome

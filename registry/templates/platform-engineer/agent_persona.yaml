@@ -20,8 +20,8 @@ charter:
   editor: curator-or-human-admin
 
 capabilities:
-  - "tool:cns:observe"
-  - "tool:cns:query"
+  - "tool:regulation:observe"
+  - "tool:regulation:query"
   - "tool:curator:cns_query"
   - "tool:curator:list_tokens"
   - "tool:registry:index"

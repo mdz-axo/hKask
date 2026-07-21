@@ -1,6 +1,6 @@
 # hkask-identity — Human Identity & Authentication Types
 
-Human users, replicant identities, sessions, invites, and registration — the Access Guard boundary (Cybernetics subloop 6.1: who can access what). Extracted from `hkask-services-core` (see `tasks/plan-core-scope-contraction.md`, Task 2.2).
+Human users, userpod identities, sessions, invites, and registration — the Access Guard boundary (Cybernetics subloop 6.1: who can access what). Extracted from `hkask-services-core` (see `tasks/plan-core-scope-contraction.md`, Task 2.2).
 
 **Version:** v0.31.0 | **Crate:** `hkask-identity`
 
@@ -9,10 +9,10 @@ Human users, replicant identities, sessions, invites, and registration — the A
 | Type | Purpose |
 |------|---------|
 | `HumanUser` | Human user — owns contact info (email/phone for recovery); `new` |
-| `ReplicantIdentity` | In-system persona users log in as; `derive_webid`, `new` |
+| `UserPodIdentity` | In-system persona users log in as; `derive_webid`, `new` |
 | `UserSession` | Active session; `is_expired` |
 | `Invite` / `InviteStatus` | Multi-user invitation record + status enum (Pending/Accepted/Revoked/Expired); `Display`, `FromStr` |
-| `RegistrationRequest` | New-replicant registration payload |
+| `RegistrationRequest` | New-userpod registration payload |
 | `RegistrationError` | Registration validation errors (`thiserror`) |
 | `Role` / `OAuthProvider` | Re-exported from `hkask_types::identity` (orphan rule) |
 

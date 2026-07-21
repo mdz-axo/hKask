@@ -203,7 +203,7 @@ error_handling:
     - cns_span_ref
 
 # CNS Integration
-cns:
+ledger:
   emit_bootstrap_spans: true
   span_namespace: cns.bootstrap
   spans:

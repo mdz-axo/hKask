@@ -100,7 +100,7 @@ ocap:
   template_scoped: true
 
 # CNS Monitoring
-cns:
+ledger:
   emit_spans: true
   span_namespace: cns.connector.llm
   variety_monitoring: true

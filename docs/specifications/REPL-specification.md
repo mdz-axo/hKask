@@ -124,7 +124,7 @@ The `init_repl_state()` function assembles the REPL's dependency graph in order:
 4. **Phase 5 — WebID + Skills:** Derive `agent_webid` from the onboarding persona via `WebID::from_persona_with_namespace`. Load skills from `.agents/skills/` and `skills/` into the registry.
 5. **Phase 6 — Shared Infrastructure:** `AgentService::build(service_config)` — creates CNS, loop system, governed tool, pod manager, MCP runtime, storage. Wait for CuratorPod readiness (non-fatal on failure).
 6. **Phase 6 (cont.) — InferenceLoop:** Build `InferenceLoop` with energy budget and model. Register on loop system. Wire into `AgentService` via `set_inference_loop`.
-7. **Phase 7 — Replicant Env:** Propagate `HKASK_PROJECT_ROOT`, `HKASK_MCP_HOST`, `HKASK_REPLICANT_PERSONA` to env for child MCP processes.
+7. **Phase 7 — UserPod Env:** Propagate `HKASK_PROJECT_ROOT`, `HKASK_MCP_HOST`, `HKASK_USERPOD_PERSONA` to env for child MCP processes.
 8. **Phase 7.5 — Daemon Auto-Start:** Probe the daemon socket; spawn `kask daemon start` as a detached child if no live listener. Non-fatal on failure — MCP servers fall back to direct mode.
 9. **Phase 8 — Core MCP Server Auto-Start:** Start all `BUILTIN_SERVERS` except those in `CORE_EXCLUDED` (currently `companies`, `communication`, `training`, `replica` — 4 servers requiring explicit opt-in via `/mcp start`). 12 servers auto-start. A `debug_assert!` verifies every `CORE_EXCLUDED` entry exists in `BUILTIN_SERVERS` to prevent phantom exclusions.
 10. **Phase 10 — Energy Budget + Well + Wallet:** Register gas budget with `CyberneticsLoop`. Create default Well if none exists. Create gas wallet for the userpod if none exists.

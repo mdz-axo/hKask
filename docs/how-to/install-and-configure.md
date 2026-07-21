@@ -184,8 +184,8 @@ export HKASK_SERPAPI_API_KEY="your-serpapi-key"
 | `HKASK_DB_PASSPHRASE` | SQLCipher passphrase | From OS keychain |
 | `HKASK_DOMAIN` | Server domain for TLS | `localhost` |
 | `HKASK_PROJECT_ROOT` | Project root for skill discovery | Current directory |
-| `HKASK_REPLICANT_NAME` | Replicant name for skill publishing | `git user.name` or `"local"` |
-| `HKASK_REPLICANT_PERSONA` | Persona-based WebID resolution | Not set |
+| `HKASK_USERPOD_NAME` | UserPod name for skill publishing | `git user.name` or `"local"` |
+| `HKASK_USERPOD_PERSONA` | Persona-based WebID resolution | Not set |
 | `HKASK_WEBID` | User's WebID | Generated from persona |
 | `HKASK_MASTER_KEY` | Master encryption key | From OS keychain |
 | `HKASK_FUSION_DISABLED` | Disable fusion mode | Enabled |
