@@ -78,10 +78,6 @@ pub trait GasReservation: Send {
     fn release(&mut self);
 }
 
-/// Invoke tool calls through the governed McpRuntime.
-/// Now dyn-compatible — `TurnDeps` holds `&dyn ToolPort` directly.
-/// Tests mock `ToolPort` instead of a separate `ToolInvoker` trait.
-
 /// Thread memory: short-term conversation stream.
 pub trait ThreadMemory: Send {
     fn is_seeded(&self) -> bool;

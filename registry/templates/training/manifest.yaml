@@ -1,0 +1,22 @@
+# Template crate manifest for training renderers
+# hKask v0.31.0
+
+crate:
+  name: training
+  version: "0.31.0"
+  visibility: public
+  description: >
+    Harness-native training configuration renderers. These templates transform
+    typed TrainingParams into provider input; they do not perform inference or
+    select training policy.
+
+templates:
+  - id: training/axolotl-lora
+    name: "Render typed LoRA parameters as Axolotl YAML"
+    path: axolotl-lora.j2
+    type: RenderAct
+    lexicon_terms: [render, config, training, transform]
+    description: >
+      Render the canonical TrainingParams boundary as Axolotl YAML for the
+      RunPod host. Provider support and LoRA contract validation remain in the
+      training MCP server and registered lora-training skill.
