@@ -40,7 +40,7 @@ async-trait.workspace = true
 thiserror.workspace = true
 	dirs = "6"
 	base64.workspace = true
-rmcp.workspace = true
+
 anyhow.workspace = true
 
 [dev-dependencies]
