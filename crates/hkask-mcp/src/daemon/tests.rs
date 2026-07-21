@@ -218,12 +218,12 @@ fn request_variants_serialize_to_correct_shape() {
     .unwrap();
     assert_eq!(health["type"], "curator_health_query");
 
-    let ledger = serde_json::to_value(DaemonRequest::RegStatusQuery {
+    let reg = serde_json::to_value(DaemonRequest::RegStatusQuery {
         userpod: "alice".into(),
         domain: Some("tool".into()),
     })
     .unwrap();
-    assert_eq!(ledger["type"], "ledger_status_query");
+    assert_eq!(reg["type"], "reg_status_query");
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn missing_optional_fields() {
     }
 
     // Domain is optional
-    let json3 = r#"{"type":"ledger_status_query","userpod":"bob"}"#;
+    let json3 = r#"{"type":"reg_status_query","userpod":"bob"}"#;
     let req3: DaemonRequest = serde_json::from_str(json3).unwrap();
     match req3 {
         DaemonRequest::RegStatusQuery { domain, .. } => assert!(domain.is_none()),

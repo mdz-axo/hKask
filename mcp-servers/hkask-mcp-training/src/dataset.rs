@@ -201,6 +201,72 @@ impl NormalizedDataset {
     }
 }
 
+// ── Dataset profile (for skill recommendation) ──────────────────────────────
+
+/// A statistical profile of a dataset, derived by probing the actual file.
+///
+/// This is the output of `DatasetPipeline::profile()` — a read-only analysis
+/// that characterizes the dataset's structure, size, and quality signals
+/// without modifying it. The lora-training skill's G-D0 gate consumes this
+/// profile to customize its recommendation for the dataset's characteristics.
+///
+/// All fields are `Option` because the profile is best-effort — if the file
+/// can't be read or parsed, the fields remain `None` and the skill falls back
+/// to its declared-input reasoning.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatasetProfile {
+    /// Detected format (ChatML, ShareGPT, Alpaca, RawText, PreferenceDpo, etc.).
+    pub format: Option<DatasetFormat>,
+    /// Number of examples (non-empty lines for JSONL, array length for JSON).
+    pub n_samples: Option<usize>,
+    /// Average content length in characters across all examples.
+    /// For SFT: average total message content length per conversation.
+    /// For preference: average (chosen + rejected) length per example.
+    pub avg_content_chars: Option<f64>,
+    /// Maximum content length in characters across all examples.
+    pub max_content_chars: Option<usize>,
+    /// Estimated average token count (chars / 4 heuristic).
+    pub avg_token_estimate: Option<f64>,
+    /// Estimated maximum token count.
+    pub max_token_estimate: Option<usize>,
+    /// For SFT: average number of messages per conversation.
+    /// For preference: always 1 (each example is one preference pair).
+    pub avg_messages_per_example: Option<f64>,
+    /// For SFT: distribution of roles (e.g., {"user": 0.4, "assistant": 0.5, "system": 0.1}).
+    /// For preference: None.
+    pub role_distribution: Option<serde_json::Value>,
+    /// For preference data: average length ratio of chosen vs rejected.
+    /// Values near 1.0 indicate balanced preference pairs; values far from 1.0
+    /// may indicate length-biased preference data.
+    pub chosen_rejected_length_ratio: Option<f64>,
+    /// Whether the dataset contains system messages (SFT only).
+    pub has_system_messages: Option<bool>,
+    /// Whether the dataset contains multi-turn conversations (SFT only, >2 messages).
+    pub has_multi_turn: Option<bool>,
+    /// Whether the dataset appears to contain vision/image data (heuristic: presence
+    /// of "image" or "images" keys in the JSON).
+    pub has_vision_data: Option<bool>,
+}
+
+impl Default for DatasetProfile {
+    fn default() -> Self {
+        Self {
+            format: None,
+            n_samples: None,
+            avg_content_chars: None,
+            max_content_chars: None,
+            avg_token_estimate: None,
+            max_token_estimate: None,
+            avg_messages_per_example: None,
+            role_distribution: None,
+            chosen_rejected_length_ratio: None,
+            has_system_messages: None,
+            has_multi_turn: None,
+            has_vision_data: None,
+        }
+    }
+}
+
 /// Ingest, normalize, validate, and cache datasets for training.
 ///
 /// Pipeline: `ingest(file_path) → normalize → validate → cache`
@@ -240,6 +306,163 @@ impl DatasetPipeline {
     /// Returns the cached path on subsequent calls with the same input.
     pub fn ingest(&mut self, file_path: &std::path::Path) -> Result<PathBuf, DatasetError> {
         self.ingest_local(file_path)
+    }
+
+    /// Profile a dataset file — read-only statistical analysis.
+    ///
+    /// Probes the actual dataset file to derive characteristics that feed into
+    /// the lora-training skill's recommendation. This is a read-only operation:
+    /// it does not normalize, validate, or cache. It reads the raw file and
+    /// computes statistics.
+    ///
+    /// The profile is best-effort: if the file can't be read or parsed, fields
+    /// remain `None` and the caller falls back to declared-input reasoning.
+    ///
+    /// This method is called by the `training_validate_config` MCP tool when a
+    /// `dataset_path` is provided, and the resulting `DatasetProfile` is
+    /// included in the tool's response for the skill to consume.
+    pub fn profile(file_path: &std::path::Path) -> DatasetProfile {
+        let mut profile = DatasetProfile::default();
+
+        // Detect format.
+        profile.format = DatasetFormat::detect(file_path);
+
+        // Read the raw file content.
+        let content = match std::fs::read_to_string(file_path) {
+            Ok(c) => c,
+            Err(_) => return profile, // File read error — return empty profile.
+        };
+
+        // Count non-empty lines (each line is one example in JSONL).
+        let lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+        profile.n_samples = Some(lines.len());
+
+        // Heuristic: check for vision data (presence of "image" or "images" keys).
+        profile.has_vision_data =
+            Some(content.contains("\"image\"") || content.contains("\"images\""));
+
+        // Parse each line as JSON and compute statistics.
+        let mut total_chars: usize = 0;
+        let mut max_chars: usize = 0;
+        let mut total_messages: usize = 0;
+        let mut role_counts: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        let mut has_system = false;
+        let mut has_multi_turn = false;
+        let mut chosen_rejected_ratios: Vec<f64> = Vec::new();
+
+        for line in &lines {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            // Try to parse as JSON.
+            let json: serde_json::Value = match serde_json::from_str(trimmed) {
+                Ok(v) => v,
+                Err(_) => continue, // Skip unparseable lines.
+            };
+
+            // SFT: {"messages": [{"role": ..., "content": ...}, ...]}
+            if let Some(messages) = json.get("messages").and_then(|v| v.as_array()) {
+                let msg_count = messages.len();
+                total_messages += msg_count;
+                if msg_count > 2 {
+                    has_multi_turn = true;
+                }
+                let mut line_chars = 0;
+                for msg in messages {
+                    if let Some(role) = msg.get("role").and_then(|v| v.as_str()) {
+                        *role_counts.entry(role.to_string()).or_insert(0) += 1;
+                        if role == "system" {
+                            has_system = true;
+                        }
+                    }
+                    if let Some(content) = msg.get("content").and_then(|v| v.as_str()) {
+                        line_chars += content.len();
+                    }
+                }
+                total_chars += line_chars;
+                if line_chars > max_chars {
+                    max_chars = line_chars;
+                }
+            }
+
+            // Preference DPO: {"prompt": ..., "chosen": ..., "rejected": ...}
+            // Preference ORPO: {"chosen": ..., "rejected": ...}
+            if let (Some(chosen), Some(rejected)) = (json.get("chosen"), json.get("rejected")) {
+                let chosen_len = Self::json_content_len(chosen);
+                let rejected_len = Self::json_content_len(rejected);
+                total_chars += chosen_len + rejected_len;
+                if chosen_len + rejected_len > max_chars {
+                    max_chars = chosen_len + rejected_len;
+                }
+                if rejected_len > 0 {
+                    chosen_rejected_ratios.push(chosen_len as f64 / rejected_len as f64);
+                }
+            }
+
+            // Preference KTO: {"prompt": ..., "completion": ..., "label": bool}
+            if let Some(completion) = json.get("completion") {
+                let comp_len = Self::json_content_len(completion);
+                total_chars += comp_len;
+                if comp_len > max_chars {
+                    max_chars = comp_len;
+                }
+            }
+        }
+
+        let n = lines.len().max(1);
+        profile.avg_content_chars = Some(total_chars as f64 / n as f64);
+        profile.max_content_chars = Some(max_chars);
+        profile.avg_token_estimate = Some(total_chars as f64 / n as f64 / 4.0);
+        profile.max_token_estimate = Some(max_chars / 4);
+
+        // SFT-specific stats.
+        if total_messages > 0 {
+            profile.avg_messages_per_example = Some(total_messages as f64 / n as f64);
+            profile.has_system_messages = Some(has_system);
+            profile.has_multi_turn = Some(has_multi_turn);
+            // Build role distribution.
+            let total_roles: usize = role_counts.values().sum();
+            if total_roles > 0 {
+                let dist: serde_json::Map<String, serde_json::Value> = role_counts
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            serde_json::json!((*v as f64) / (total_roles as f64)),
+                        )
+                    })
+                    .collect();
+                profile.role_distribution = Some(serde_json::Value::Object(dist));
+            }
+        }
+
+        // Preference-specific stats.
+        if !chosen_rejected_ratios.is_empty() {
+            let avg_ratio =
+                chosen_rejected_ratios.iter().sum::<f64>() / chosen_rejected_ratios.len() as f64;
+            profile.chosen_rejected_length_ratio = Some(avg_ratio);
+        }
+
+        profile
+    }
+
+    /// Compute the content length of a JSON value (string or array of messages).
+    fn json_content_len(value: &serde_json::Value) -> usize {
+        match value {
+            serde_json::Value::String(s) => s.len(),
+            serde_json::Value::Array(arr) => arr
+                .iter()
+                .map(|msg| {
+                    msg.get("content")
+                        .and_then(|c| c.as_str())
+                        .map(|s| s.len())
+                        .unwrap_or(0)
+                })
+                .sum(),
+            _ => 0,
+        }
     }
 
     fn ingest_local(&mut self, file_path: &std::path::Path) -> Result<PathBuf, DatasetError> {

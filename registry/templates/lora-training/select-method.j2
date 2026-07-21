@@ -11,6 +11,7 @@ lexicon_terms:
 contract:
   input:
     training_config_path: string
+    dataset_path: string
     model_size_b: number
     memory_budget_gb: number
     inference_constraint: string
@@ -50,6 +51,7 @@ thinking_budget = "full"
 {# Relationships: complements kali-audit (security surface) and tdd (training-loop code) — zero overlap #}
 
 INPUT: training_config_path = {{ training_config_path | default("REQUIRED") }}
+INPUT: dataset_path = {{ dataset_path | default("undetermined") }} (path to the actual dataset file for profiling — optional)
 INPUT: model_size_b = {{ model_size_b | default("REQUIRED") }} (base model parameter count, in billions)
 INPUT: memory_budget_gb = {{ memory_budget_gb | default("REQUIRED") }} (available VRAM, in GB)
 INPUT: inference_constraint = {{ inference_constraint | default("either-ok") }} (must-merge | dynamic-switching | either-ok)
@@ -176,6 +178,63 @@ G0. adapter_purpose? (runs first; constrains all subsequent gates)
     - If adapter_purpose conflicts with trainer_preference (e.g.,
       adapter_purpose=instruction but trainer_preference=dpo), record as a
       conflict for operator resolution.
+
+G-D0. dataset_analysis? (runs alongside G0; probes the actual dataset file)
+    If `dataset_path` is declared (not undetermined), the skill SHOULD request
+    the runtime to profile the dataset via the `training_validate_config` tool
+    with `dataset_path` set. The runtime returns a `DatasetProfile` with:
+    - format: detected format (ChatML, ShareGPT, Alpaca, RawText, PreferenceDpo/Kto/Orpo)
+    - n_samples: number of examples
+    - avg_content_chars / max_content_chars: content length statistics
+    - avg_token_estimate / max_token_estimate: token count estimates (chars/4)
+    - avg_messages_per_example: conversation depth (SFT only)
+    - role_distribution: role frequency (SFT only)
+    - chosen_rejected_length_ratio: preference pair balance (preference only)
+    - has_system_messages: whether system prompts are present (SFT only)
+    - has_multi_turn: whether conversations have >2 messages (SFT only)
+    - has_vision_data: whether the dataset contains image keys
+
+    The profile feeds into the recommendation as follows:
+    - n_samples < 1000: warn that the dataset may be too small for stable
+      convergence. Recommend a lower rank (the model can't learn complex
+      patterns from few examples — overfitting risk).
+      [Citation: QLoRA paper §5 — small high-quality > large noisy]
+    - n_samples > 100000: warn that quality audit is needed (dedup,
+      contamination). Recommend subsampling to a high-quality subset.
+      [Citation: QLoRA paper §5]
+    - max_token_estimate > sequence_len: warn that some examples will be
+      truncated. Recommend increasing sequence_len or using packing.
+      [Citation: TRL SFTTrainer packing — huggingface.co/docs/trl/main/en/sft_trainer]
+    - avg_messages_per_example > 4 (multi-turn): recommend assistant_only_loss
+      if harness=trl, to focus training on assistant responses.
+      [Citation: TRL SFTTrainer assistant_only_loss — huggingface.co/docs/trl/main/en/sft_trainer]
+    - has_system_messages: note that the system prompt will be part of training;
+      if the system prompt is a fixed persona, consider whether it should be
+      baked into the adapter or kept as a runtime prompt.
+    - chosen_rejected_length_ratio far from 1.0 (< 0.5 or > 2.0): warn that
+      preference data may be length-biased. The model may learn to prefer
+      longer/shorter responses rather than better ones.
+      [Citation: DPO arXiv:2305.18290 — length bias in preference optimization;
+       SimPO (sigmoid_norm loss_type) addresses length bias]
+    - has_vision_data: set adapter_purpose=vision if not already declared.
+      Recommend harness=trl (SFTTrainer supports VLMs) or harness=ludwig.
+      [Citation: TRL SFTTrainer VLM — huggingface.co/docs/trl/main/en/sft_trainer]
+    - format detected as preference (DPO/KTO/ORPO): override adapter_purpose
+      to `preference` if it was undetermined or `instruction`.
+    - format detected as raw_text: suggest adapter_purpose=instruction with
+      continued-pretraining-style learning (lower rank, lower LR).
+
+    If `dataset_path` is undetermined or the profile fails (file not found,
+    unparseable), the skill falls back to `dataset_format_hint` and declared
+    inputs. The profile is best-effort — missing fields do not block the
+    recommendation.
+
+    The profile also feeds into G3 (rank refinement) and G6 (harness selection):
+    - G3 uses n_samples and avg_token_estimate to refine rank_range within
+      the G0 baseline. Small datasets → lower rank (overfitting risk). Large
+      datasets with long sequences → higher rank (more capacity needed).
+    - G6 uses format, has_vision_data, and has_multi_turn to select a harness
+      that can efficiently process the dataset's characteristics.
 
 G1. inference_constraint?
     - must-merge → constrain adapter_form to a merge-compatible LoRA-family

@@ -141,20 +141,45 @@ pub struct RegulatoryActionParams {
 }
 
 impl RegulatoryActionParams {
-    /// Create parameters with just a reason (no regulation data).
+    /// Create parameters with just a reason (no regulation data, no prediction).
     pub fn reason(reason: impl Into<String>) -> Self {
         Self {
             reason: reason.into(),
             data: RegulationData::NoData,
+            prediction: None,
         }
     }
 
-    /// Create parameters with reason + typed regulation data.
+    /// Create parameters with reason + typed regulation data (no prediction).
     pub fn with_data(reason: impl Into<String>, data: RegulationData) -> Self {
         Self {
             reason: reason.into(),
             data,
+            prediction: None,
         }
+    }
+
+    /// Create parameters with reason + typed regulation data + prediction.
+    ///
+    /// The prediction is the expected metric value after the action.
+    /// This closes the Toyota Kata prediction gap (ADR-056 §6.1).
+    pub fn with_prediction(
+        reason: impl Into<String>,
+        data: RegulationData,
+        prediction: f64,
+    ) -> Self {
+        Self {
+            reason: reason.into(),
+            data,
+            prediction: Some(prediction),
+        }
+    }
+
+    /// Set a prediction on existing parameters.
+    #[must_use]
+    pub fn predicted(mut self, value: f64) -> Self {
+        self.prediction = Some(value);
+        self
     }
 }
 
