@@ -140,6 +140,52 @@ impl HarnessAdapter for AxolotlHarness {
                         .join("registry")
                 }
             });
+
+        // Chat template injection for text-only base mirrors that omit it.
+        // Some text-only decoders extracted from multimodal checkpoints (e.g.
+        // the Gemma4 text decoder) ship without the canonical chat_template
+        // that axolotl's `chat_template` dataset type requires. Load a
+        // family-specific template from a registry asset and inject it as a
+        // pre-indented YAML block scalar. minijinja emits context strings raw
+        // (no re-interpretation of the embedded Jinja, no autoescaping), so the
+        // chat template's own {{ }}/{% %} reach the tokenizer/axolotl untouched.
+        // Always insert (empty for unsupported families) so Strict-undefined
+        // minijinja stays happy on the `{% if chat_template_block %}` guard.
+        let base_lower = job.base_model.to_lowercase();
+        let chat_asset = if base_lower.contains("gemma-4") || base_lower.contains("gemma4") {
+            Some("gemma4.jinja")
+        } else {
+            None
+        };
+        let mut chat_block = String::new();
+        if let Some(asset) = chat_asset {
+            let asset_path = template_root
+                .join("templates/training/chat-templates")
+                .join(asset);
+            match std::fs::read_to_string(&asset_path) {
+                Ok(raw) => {
+                    let indented = raw
+                        .lines()
+                        .map(|line| format!("  {line}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    chat_block = format!("chat_template: |\n{indented}");
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        target: "hkask.training.axolotl",
+                        asset = %asset_path.display(),
+                        error = %error,
+                        "Chat template asset not found; base may lack a chat_template"
+                    );
+                }
+            }
+        }
+        context.insert(
+            "chat_template_block".to_string(),
+            serde_json::json!(chat_block),
+        );
+
         let template_path = template_root.join("templates/training/axolotl-lora.j2");
         let template = std::fs::read_to_string(&template_path).map_err(|error| {
             ProviderError::InvalidConfig(format!(

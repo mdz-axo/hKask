@@ -29,7 +29,6 @@ pub mod types;
 
 // Re-export rich agent domain types from types/ (these are the canonical versions
 // that extend the hkask-types foundation types with additional fields).
-pub use types::agent::{AgentDefinition, Charter};
 // NOTE: AgentDefinition, Charter, PersonaConstraints, RegisteredAgent,
 // Contact, Responsibility, Right, ScheduledTask, UserProfile are defined
 // canonically in hkask_types::agent_registry. Import from hkask_types,

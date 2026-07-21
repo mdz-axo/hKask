@@ -10,7 +10,7 @@ use hkask_storage::user_store::UserStore;
 use hkask_storage::{AgentRegistryStore, SovereigntyBoundaryStore, WalletStore};
 use hkask_templates::SqliteRegistry;
 use hkask_types::WebID;
-use hkask_types::agent_registry::RegisteredAgent;
+// agent registry removed
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

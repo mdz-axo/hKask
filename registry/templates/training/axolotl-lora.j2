@@ -38,6 +38,9 @@ datasets:
 {% if data_files %}
     data_files: {{ data_files }}
 {% endif %}
+{% if chat_template_block %}
+{{ chat_template_block }}
+{% endif %}
 
 # Training
 num_epochs: {{ num_epochs | default(2) }}

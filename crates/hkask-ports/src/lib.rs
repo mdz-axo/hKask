@@ -20,7 +20,6 @@ pub mod git_cas;
 pub mod inference_port;
 pub mod inference_types;
 pub mod registry;
-pub mod registry_port;
 pub mod tool;
 pub mod wallet_budget_port;
 

@@ -15,7 +15,7 @@ use hkask_inference::{FusionMode, ProviderId};
 pub use hkask_repl::host::OnboardingOutcome;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 use hkask_services_onboarding::{MatrixRegistrationResult, OnboardingService, ResolvedSecrets};
-use hkask_types::agent_registry::{RegisteredAgent, UserProfile};
+// agent registry removed
 use thiserror::Error;
 
 use hkask_repl::display;
