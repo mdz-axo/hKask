@@ -66,17 +66,6 @@ impl DaemonClient {
 
     /// Query whether a userpod is assigned to a specific MCP role.
     #[must_use = "result must be used"]
-    pub async fn assignment_query(
-        &self,
-        userpod: &str,
-        role: &str,
-    ) -> std::io::Result<DaemonResponse> {
-        self.send_recv(&DaemonRequest::AssignmentQuery {
-            userpod: userpod.to_string(),
-            role: role.to_string(),
-        })
-        .await
-    }
 
     /// Query whether a userpod holds a capability token for a tool.
     #[must_use = "result must be used"]

@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::{AuthContext, DelegationToken};
 use hkask_ports::{ChatToolDefinition, InferencePort, StructuredToolCall};
-use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 
@@ -124,7 +123,6 @@ pub struct TurnRequest {
     /// Agent WebID for memory operations
     pub agent_webid: WebID,
     /// Persona constraints for output filtering
-    pub persona_constraints: Option<PersonaConstraints>,
     /// Pre-formatted tool section of the system prompt
     pub tool_section: String,
     /// Condensed API reference for answering API questions

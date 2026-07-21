@@ -517,7 +517,6 @@ pub(super) fn init_repl_state(
         current_agent: onboarding_outcome.signed_in_agent,
         active_session: None,
         resolved_secrets: onboarding_outcome.resolved_secrets,
-        persona_constraints: None,
         tool_definitions: Vec::new(),
         manifest_state: None,
         service_context: ctx.clone(),

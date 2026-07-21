@@ -29,7 +29,6 @@ mod turn;
 use hkask_services_context::AgentService;
 use hkask_services_kata_kanban::KanbanService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
-use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 use hkask_types::secret::ZeroizingSecret;
 use rustyline::error::ReadlineError;
@@ -97,7 +96,6 @@ pub struct ReplState {
     pub current_agent: String,
     pub active_session: Option<String>,
     pub resolved_secrets: Option<hkask_services_onboarding::ResolvedSecrets>,
-    persona_constraints: Option<PersonaConstraints>,
     /// Tool definitions for native function calling. Discovered from McpRuntime
     /// at init and refreshed when servers start/stop.
     pub tool_definitions: Vec<hkask_ports::ChatToolDefinition>,
@@ -136,7 +134,6 @@ impl std::fmt::Debug for ReplState {
             .field("active_session", &self.active_session)
             // Redacted: carries master key and DB passphrase.
             .field("resolved_secrets", &"<redacted>")
-            .field("persona_constraints", &self.persona_constraints)
             .field("tool_definitions", &self.tool_definitions)
             // ManifestCascade wraps non-Debug trait objects.
             .field(

@@ -7,7 +7,7 @@
 //! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
 //! the port is passed to this loop.
 
-use hkask_regulation::sensor_provider::SensorRegistry;
+use hkask_regulation::sensor_provider::SensorBus;
 use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId,
     RegulationData, Signal, SignalMetric,
@@ -38,7 +38,7 @@ pub struct InferenceLoop {
     /// Shared state between the loop and its sensors.
     sensor_state: Arc<InferenceSensorState>,
     /// Sensor registry — holds the Sensor implementations for this loop.
-    sensor_registry: SensorRegistry,
+    sensor_registry: SensorBus,
     /// Currently active inference model (None = not yet selected / unavailable).
     /// Kept in sync with `sensor_state.model_available`.
     current_model: Option<String>,
@@ -48,7 +48,7 @@ impl InferenceLoop {
     /// Create a new Inference Loop.
     pub fn new() -> Self {
         let sensor_state = Arc::new(InferenceSensorState::new());
-        let sensor_registry = SensorRegistry::new();
+        let sensor_registry = SensorBus::new();
         // Register all four inference sensors. The circuit breaker sensors
         // receive None (always closed / always available) — they can be
         // re-registered with a real circuit breaker via `with_circuit_breaker()`.
@@ -172,7 +172,7 @@ impl RegulationLoop for InferenceLoop {
         LoopId::Inference
     }
 
-    /// Sense: delegate to the SensorRegistry.
+    /// Sense: delegate to the SensorBus.
     ///
     /// All sensing is now done through Sensor implementations:
     /// - `CircuitBreakerStateSensor` — 0.0=closed, 1.0=open, 0.5=half-open

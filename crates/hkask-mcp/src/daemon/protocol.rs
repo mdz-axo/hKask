@@ -11,8 +11,6 @@ use serde::{Deserialize, Serialize};
 pub enum DaemonRequest {
     #[serde(rename = "auth_query")]
     AuthQuery { userpod: String },
-    #[serde(rename = "assignment_query")]
-    AssignmentQuery { userpod: String, role: String },
     #[serde(rename = "capability_query")]
     CapabilityQuery { userpod: String, tool: String },
     /// Store an experience in both episodic (first-person) and semantic (third-person) memory.
@@ -56,8 +54,6 @@ pub enum DaemonResponse {
         #[serde(skip_serializing_if = "Option::is_none")]
         action: Option<String>,
     },
-    #[serde(rename = "assignment_response")]
-    AssignmentResponse { assigned: bool },
     #[serde(rename = "capability_response")]
     CapabilityResponse { granted: bool },
     #[serde(rename = "error")]

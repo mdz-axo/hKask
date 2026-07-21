@@ -628,31 +628,6 @@ impl ChatService {
         )
     }
 
-    /// Apply persona constraints to filter forbidden patterns from a response.
-    ///
-    /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  response must be non-empty; constraints if Some must be valid PersonaConstraints
-    /// post: returns cleaned response with forbidden patterns stripped; violations logged; returns original if constraints is None
-    ///
-    /// expect: "The system applies persona-driven communication style filtering"
-    pub fn apply_persona_filter(
-        response: &str,
-        constraints: Option<&PersonaConstraints>,
-    ) -> String {
-        let Some(constraints) = constraints else {
-            return response.to_string();
-        };
-        let (cleaned, violations) = persona_filter::strip_forbidden_patterns(response, constraints);
-        if !violations.is_empty() {
-            tracing::warn!(
-                target: "hkask.persona",
-                violation_count = violations.len(),
-                violations = ?violations.iter().map(|(p, _)| p).collect::<Vec<_>>(),
-                "Persona constraint violations stripped from output"
-            );
-        }
-        cleaned
-    }
 
     /// Execute a full single-agent turn — manifest cascade, history suffix,
     /// inference via `ChatService::chat()`, and persona filter.

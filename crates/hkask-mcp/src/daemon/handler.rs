@@ -12,8 +12,6 @@ pub trait DaemonHandler: Send + Sync {
     /// Check if a userpod is authenticated. Returns (authenticated, webid).
     async fn check_auth(&self, userpod: &str) -> (bool, Option<String>);
 
-    /// Check if a userpod is assigned to a role.
-    async fn check_assignment(&self, userpod: &str, role: &str) -> bool;
 
     /// Check if a userpod holds a capability token for a tool.
     async fn check_capability(&self, userpod: &str, tool: &str) -> bool;

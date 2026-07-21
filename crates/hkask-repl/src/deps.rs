@@ -13,7 +13,6 @@ use hkask_ports::ToolPort;
 use hkask_services_chat::{ChatService, TurnRequest, TurnResult};
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;
-use hkask_types::PersonaConstraints;
 use hkask_types::WebID;
 
 use super::energy::EnergyGuard;
@@ -110,7 +109,6 @@ pub struct ReplTurnExecutor {
     current_agent: String,
     current_model: String,
     agent_webid: WebID,
-    persona_constraints: Option<PersonaConstraints>,
     tool_definitions: Vec<hkask_ports::ChatToolDefinition>,
     improv_mode: Option<hkask_improv::ImprovMode>,
 }
@@ -125,7 +123,6 @@ impl ReplTurnExecutor {
             current_agent: state.current_agent.clone(),
             current_model: state.current_model.clone(),
             agent_webid: state.agent_webid,
-            persona_constraints: state.persona_constraints.clone(),
             improv_mode: state.improv_mode.clone(),
             tool_definitions: state.tool_definitions.clone(),
         }
@@ -151,7 +148,6 @@ impl TurnExecutor for ReplTurnExecutor {
             episodic_storage: mem.episodic_storage,
             semantic_storage: mem.semantic_storage,
             agent_webid: self.agent_webid,
-            persona_constraints: self.persona_constraints.clone(),
             api_spec: None,
             llm_params: super::handlers::to_llm_params(settings),
             capability_checker: self.ctx.governance().checker.clone(),

@@ -35,7 +35,7 @@ use crate::set_point_calibrator::SetPointCalibrator;
 
 use crate::runtime::{RegulationLedger, RegulationCycleEntry};
 use crate::sensor_provider::{
-    EnergyBudgetSensor, SensorRegistry, ToolReliabilitySensor, VarietySensor,
+    EnergyBudgetSensor, SensorBus, ToolReliabilitySensor, VarietySensor,
     WalletBalanceRatioSensor, WalletKeyHealthSensor,
 };
 use crate::set_points::{InferenceThrottleMode, SetPoints};
@@ -110,7 +110,7 @@ pub struct CyberneticsLoop {
     /// Fermi-inspired early-stopping pattern for cybernetic regulation.
     stagnation_detector: Arc<StagnationDetector>,
     /// Pluggable metric sensors (Fermi Extractor pattern).
-    sensor_registry: Arc<SensorRegistry>,
+    sensor_registry: Arc<SensorBus>,
     /// Statistical learner for per-tool cost distributions and reliability.
     tool_stats: Option<Arc<ToolStats>>,
     /// Multi-model strategy evaluator (Fermi improvement-loop pattern).
@@ -160,7 +160,7 @@ impl CyberneticsLoop {
             substitution_after: set_points.substitution_after,
         }));
         let sensor_registry = {
-            let registry = SensorRegistry::new();
+            let registry = SensorBus::new();
             registry.register(Arc::new(EnergyBudgetSensor::new(
                 Arc::clone(&gas_budget_manager),
                 set_points.gas_min_remaining,
@@ -862,7 +862,7 @@ impl RegulationLoop for CyberneticsLoop {
 
         let mut signals = Vec::new();
 
-        // All sensing is now done through the SensorRegistry.
+        // All sensing is now done through the SensorBus.
         // Wallet balance ratio, energy remaining, variety deficit, wallet key health,
         // and tool reliability are all sensed by registered Sensor implementations.
         //

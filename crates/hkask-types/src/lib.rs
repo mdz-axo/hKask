@@ -2,7 +2,6 @@
 //! hKask Types — Foundation types for the hKask tool platform
 //!
 
-pub mod agent;
 pub mod agent_paths;
 pub mod cns;
 pub mod corpus;
@@ -36,7 +35,6 @@ pub mod sql_impls;
 
 // ── Essential re-exports (used by ≥3 downstream crates) ─────────────────
 
-pub use agent::PersonaConstraints;
 pub use cns::CircuitState;
 pub use crypto::Ed25519PublicKey;
 pub use curation::{
