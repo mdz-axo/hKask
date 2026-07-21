@@ -235,8 +235,8 @@ impl CurationLoop {
                     "Curator auto-consolidation skipped — missing consent"
                 );
                 tracing::info!(
-                    target: "cns",
-                    cns_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
+                    target: "reg",
+                    reg_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
                     operation = "skipped",
                     reason = "missing_consent",
                     missing_categories = ?missing,
@@ -272,8 +272,8 @@ impl CurationLoop {
                             "Curator auto-consolidation completed"
                         );
                         tracing::info!(
-                            target: "cns",
-                            cns_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
+                            target: "reg",
+                            reg_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
                                 operation = "completed",
                                 consolidated = outcome.consolidated_count,
                             deleted = outcome.deleted_count,
@@ -305,8 +305,8 @@ impl CurationLoop {
                             "Curator auto-consolidation failed"
                         );
                         tracing::info!(
-                            target: "cns",
-                            cns_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
+                            target: "reg",
+                            reg_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
                                 operation = "failed",
                                 error = %e,
                             "CNS"

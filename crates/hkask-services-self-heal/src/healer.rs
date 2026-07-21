@@ -101,7 +101,7 @@ impl SelfHealer {
                 Ok(v) => return Ok(v),
                 Err(e) => {
                     let err = e.to_string();
-                    tracing::info!(target: "cns.heal.retry_loop", attempt, max_retries = MAX_RETRIES, operation = %context.operation, error = %err);
+                    tracing::info!(target: "reg.heal.retry_loop", attempt, max_retries = MAX_RETRIES, operation = %context.operation, error = %err);
 
                     match self.attempt(&err, &context) {
                         HealOutcome::Healed {
@@ -148,7 +148,7 @@ impl SelfHealer {
                                 continue;
                             }
                             let json = serde_json::to_string(&debug_log).unwrap_or_default();
-                            tracing::error!(target: "cns.heal.escalated", operation = %context.operation, reason = %reason, debug_log = %json, "Healing exhausted — escalating to Curator");
+                            tracing::error!(target: "reg.heal.escalated", operation = %context.operation, reason = %reason, debug_log = %json, "Healing exhausted — escalating to Curator");
                             return Err(e);
                         }
                     }
@@ -158,12 +158,12 @@ impl SelfHealer {
 
         match operation() {
             Ok(v) => {
-                tracing::info!(target: "cns.heal.retry_loop", operation = %context.operation, "Operation succeeded after healing exhaustion");
+                tracing::info!(target: "reg.heal.retry_loop", operation = %context.operation, "Operation succeeded after healing exhaustion");
                 Ok(v)
             }
             Err(e) => {
                 let json = serde_json::to_string(&debug_log).unwrap_or_default();
-                tracing::error!(target: "cns.heal.escalated", operation = %context.operation, attempt_count = debug_log.attempt_count, debug_log = %json, "Healing exhausted — escalating to Curator");
+                tracing::error!(target: "reg.heal.escalated", operation = %context.operation, attempt_count = debug_log.attempt_count, debug_log = %json, "Healing exhausted — escalating to Curator");
                 Err(e)
             }
         }
@@ -173,20 +173,20 @@ impl SelfHealer {
 
     #[must_use]
     pub fn attempt(&self, error: &str, context: &HealContext) -> HealOutcome {
-        tracing::info!(target: "cns.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::cns::RegulationSpan::SelfHeal);
+        tracing::info!(target: "reg.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::cns::RegulationSpan::SelfHeal);
 
         // Stage 1: KnowAct classification
         if let Some((strategy_name, confidence)) = self.classify_error(error, context)
             && confidence > 0.5
             && let Some(strategy) = self.registry.find_strategy_by_name(&strategy_name)
         {
-            tracing::info!(target: "cns.heal.strategy", strategy = %strategy_name, confidence = confidence, source = "llm_classify");
+            tracing::info!(target: "reg.heal.strategy", strategy = %strategy_name, confidence = confidence, source = "llm_classify");
             return self.execute_and_judge(strategy, context);
         }
 
         // Stage 2: String-matching fallback
         if let Some(strategy) = self.registry.find_strategy(error) {
-            tracing::info!(target: "cns.heal.strategy", strategy = %strategy.name, source = "string_match");
+            tracing::info!(target: "reg.heal.strategy", strategy = %strategy.name, source = "string_match");
             return self.execute_and_judge(strategy, context);
         }
 
@@ -196,7 +196,7 @@ impl SelfHealer {
         }
 
         // Stage 4: Unhealable
-        tracing::warn!(target: "cns.heal.unmatched", operation = %context.operation, error = %error);
+        tracing::warn!(target: "reg.heal.unmatched", operation = %context.operation, error = %error);
         HealOutcome::Unhealable {
             reason: format!("No healing strategy matches: {}", error),
             suggestion: "Add a strategy to HealRegistry or a template to registry/templates/heal/"
@@ -218,7 +218,7 @@ impl SelfHealer {
         let prompt = match self.render_classify_template(context) {
             Ok(p) => p,
             Err(e) => {
-                tracing::warn!(target: "cns.heal", error = %e, "Failed to render classify-error.j2 — falling back to string matching");
+                tracing::warn!(target: "reg.heal", error = %e, "Failed to render classify-error.j2 — falling back to string matching");
                 return None;
             }
         };
@@ -248,7 +248,7 @@ impl SelfHealer {
             operation = context.operation,
         );
 
-        tracing::info!(target: "cns.heal.llm_assisted", operation = %context.operation);
+        tracing::info!(target: "reg.heal.llm_assisted", operation = %context.operation);
 
         let result = match inference(&prompt) {
             Ok(r) => r,
@@ -457,7 +457,7 @@ impl SelfHealer {
                 // multi-threaded runtime and MCP servers begin. No concurrent env
                 // access is possible at this point.
                 unsafe { std::env::set_var(key, &value) };
-                tracing::info!(target: "cns.heal.set_env", key = %key);
+                tracing::info!(target: "reg.heal.set_env", key = %key);
                 Ok(ActionResult {
                     success: true,
                     output: format!("Set {}", key),
@@ -471,7 +471,7 @@ impl SelfHealer {
                     if path.exists() && dotenvy::from_path(path).is_ok() {
                         loaded = true;
                         mods.push(format!("Loaded .env from: {}", path.display()));
-                        tracing::info!(target: "cns.heal.dotenv", path = %path.display());
+                        tracing::info!(target: "reg.heal.dotenv", path = %path.display());
                     }
                 }
                 Ok(ActionResult {
@@ -498,7 +498,7 @@ impl SelfHealer {
                 }
                 std::fs::write(path, content)
                     .map_err(|e| HealError::Io(format!("write {}: {}", path.display(), e)))?;
-                tracing::info!(target: "cns.heal.file_created", path = %path.display());
+                tracing::info!(target: "reg.heal.file_created", path = %path.display());
                 Ok(ActionResult {
                     success: true,
                     output: format!("Created: {}", path.display()),
@@ -518,7 +518,7 @@ impl SelfHealer {
                 description,
                 diff_suggestion,
             } => {
-                tracing::warn!(target: "cns.heal.code_change_proposed", file = %file.display(), description = %description, suggestion = %diff_suggestion);
+                tracing::warn!(target: "reg.heal.code_change_proposed", file = %file.display(), description = %description, suggestion = %diff_suggestion);
                 Ok(ActionResult {
                     success: false,
                     output: format!("Proposed: {} — {}", file.display(), description),
@@ -553,7 +553,7 @@ impl SelfHealer {
                     HealError::Io(format!("Read {}: {}", template_path.display(), e))
                 })?;
                 let prompt = self.render_template_content(&content, context)?;
-                tracing::info!(target: "cns.heal.llm_assisted", template = %template_path.display(), operation = %context.operation);
+                tracing::info!(target: "reg.heal.llm_assisted", template = %template_path.display(), operation = %context.operation);
                 let response = inference(&prompt)
                     .map_err(|e| HealError::Inference(format!("Inference: {}", e)))?;
                 let instructions: Vec<HealInstruction> = parse_llm_response(&response)?;

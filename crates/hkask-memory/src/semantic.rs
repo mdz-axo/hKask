@@ -164,7 +164,7 @@ impl SemanticMemory {
                 let original_confidence = t.confidence;
                 t.confidence = t.confidence.memory_decay(days_since, self.memory_life_days);
                 tracing::debug!(
-                    target: "cns.memory.decay",
+                    target: "reg.memory.decay",
                     entity = %t.entity,
                     attribute = %t.attribute,
                     original_confidence = %original_confidence,
@@ -184,7 +184,7 @@ impl SemanticMemory {
         for t in &deduped {
             if let Err(e) = self.h_mem_store.touch_recall(&t.id) {
                 tracing::warn!(
-                    target: "cns.memory.decay",
+                    target: "reg.memory.decay",
                     triple_id = %t.id,
                     error = %e,
                     "Failed to touch_recall semantic h_mem — decay clock not reset"
@@ -288,7 +288,7 @@ impl SemanticMemory {
 
         if existing.is_some() {
             tracing::debug!(
-                target: "cns.consolidation",
+                target: "reg.consolidation",
                 entity = %h_mem.entity,
                 attribute = %h_mem.attribute,
                 "Found existing semantic h_mem for EAV — will combine confidences"
@@ -320,7 +320,7 @@ impl SemanticMemory {
         self.h_mem_store
             .update(existing_id, current_value, new_confidence)?;
         tracing::debug!(
-            target: "cns.consolidation",
+            target: "reg.consolidation",
             triple_id = %existing_id.as_uuid(),
             new_confidence = %new_confidence,
             "Semantic h_mem confidence updated via Bayesian combination"
@@ -377,7 +377,7 @@ impl SemanticMemory {
         for t in &decayed {
             if let Err(e) = self.h_mem_store.touch_recall(&t.id) {
                 tracing::warn!(
-                    target: "cns.memory.decay",
+                    target: "reg.memory.decay",
                     triple_id = %t.id,
                     error = %e,
                     "Failed to touch_recall semantic h_mem (query_by_attribute) — decay clock not reset"

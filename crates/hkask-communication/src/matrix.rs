@@ -377,7 +377,7 @@ impl MatrixTransport {
         }
 
         tracing::info!(
-            target: "cns.communication.thread.created",
+            target: "reg.communication.thread.created",
             room_id = %room_id,
             name = %name,
             "Matrix room created"
@@ -413,7 +413,7 @@ impl MatrixTransport {
             .map_err(|e| MatrixError::Room(format!("Invite failed: {}", e)))?;
 
         tracing::info!(
-            target: "cns.communication.agent.invited",
+            target: "reg.communication.agent.invited",
             room_id = %room_id,
             user = %user_id,
             "User invited to room"

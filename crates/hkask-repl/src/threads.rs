@@ -38,8 +38,8 @@ use std::path::PathBuf;
 /// Emit a CNS span for thread operations.
 fn emit_thread_cns(operation: &str, detail: &str) {
     tracing::info!(
-        target: "cns",
-        cns_domain = "cns.thread",
+        target: "reg",
+        reg_domain = "cns.thread",
         operation = %operation,
         detail = %detail,
         "CNS"

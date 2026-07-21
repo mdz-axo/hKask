@@ -147,7 +147,7 @@ impl Database {
         };
 
         tracing::info!(
-            target: "cns.storage",
+            target: "reg.storage",
             operation = "open",
             path = %path,
             is_new = !salt_existed,
@@ -378,7 +378,7 @@ impl Drop for Database {
         // The pool is dropped here, closing all connections.
         if self.path != ":memory:" {
             tracing::info!(
-                target: "cns.storage",
+                target: "reg.storage",
                 operation = "close",
                 path = %self.path,
                 "Database closed"

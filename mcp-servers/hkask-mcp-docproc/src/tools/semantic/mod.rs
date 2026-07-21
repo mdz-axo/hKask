@@ -165,7 +165,7 @@ impl DocProcServer {
                     let content = output_scan.output.content(&response.text);
                     if !output_scan.passed {
                         tracing::warn!(
-                            target: "cns.guard",
+                            target: "reg.guard",
                             violations = ?output_scan.violations.iter().map(|v| &v.scanner).collect::<Vec<_>>(),
                             "Output guard violations in QA generation — content may be sanitized"
                         );
@@ -734,7 +734,7 @@ Respond in JSON format: {{\"h_mems\": [{{\"subject\": \"...\", \"predicate\": \"
                 let content = output_scan.output.content(&response.text);
                 if !output_scan.passed {
                     tracing::warn!(
-                        target: "cns.guard",
+                        target: "reg.guard",
                         entity = %entity_ref,
                         violations = ?output_scan.violations.iter().map(|v| &v.scanner).collect::<Vec<_>>(),
                         "Output guard violations in h_mem extraction — content may be sanitized"

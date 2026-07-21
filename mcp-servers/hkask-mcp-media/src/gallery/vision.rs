@@ -72,7 +72,7 @@ pub async fn detect_faces(
 
     let model_label = vision_model.unwrap_or("default");
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "detect",
         provider = model_label,
         "Vision LLM face detection"
@@ -83,7 +83,7 @@ pub async fn detect_faces(
         .await
         .map_err(|e| {
             tracing::warn!(
-                target: "cns.mcp.media.face",
+                target: "reg.mcp.media.face",
                 operation = "detect",
                 provider = model_label,
                 error = %e,
@@ -101,7 +101,7 @@ pub async fn detect_faces(
     };
 
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "detect",
         provider = model_label,
         face_count = faces.len(),
@@ -136,7 +136,7 @@ pub async fn validate_face_reference(
 
     let model_label = vision_model.unwrap_or("default");
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "validate",
         provider = model_label,
         "Vision LLM face reference validation"
@@ -147,7 +147,7 @@ pub async fn validate_face_reference(
         .await
         .map_err(|e| {
             tracing::warn!(
-                target: "cns.mcp.media.face",
+                target: "reg.mcp.media.face",
                 operation = "validate",
                 provider = model_label,
                 error = %e,
@@ -165,7 +165,7 @@ pub async fn validate_face_reference(
     })?;
 
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "validate",
         provider = model_label,
         valid = parsed.valid,
@@ -202,7 +202,7 @@ pub async fn match_faces(
 
     let model_label = vision_model.unwrap_or("default");
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "match",
         provider = model_label,
         "Vision LLM face match"
@@ -218,7 +218,7 @@ pub async fn match_faces(
         .await
         .map_err(|e| {
             tracing::warn!(
-                target: "cns.mcp.media.face",
+                target: "reg.mcp.media.face",
                 operation = "match",
                 provider = model_label,
                 error = %e,
@@ -236,7 +236,7 @@ pub async fn match_faces(
     })?;
 
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "match",
         provider = model_label,
         is_match = parsed.is_match,
@@ -285,7 +285,7 @@ pub async fn embed_face(
 
     let model_label = vision_model.unwrap_or("default");
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "embed",
         provider = model_label,
         "Vision LLM face embedding"
@@ -296,7 +296,7 @@ pub async fn embed_face(
         .await
         .map_err(|e| {
             tracing::warn!(
-                target: "cns.mcp.media.face",
+                target: "reg.mcp.media.face",
                 operation = "embed",
                 provider = model_label,
                 error = %e,
@@ -322,7 +322,7 @@ pub async fn embed_face(
     }
 
     tracing::info!(
-        target: "cns.mcp.media.face",
+        target: "reg.mcp.media.face",
         operation = "embed",
         provider = model_label,
         dim = parsed.dim,

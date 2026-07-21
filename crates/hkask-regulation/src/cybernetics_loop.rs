@@ -346,7 +346,7 @@ impl CyberneticsLoop {
                 .ineffective_count(metric_str, alt_str);
             if alt_count == 0 {
                 tracing::info!(
-                    target: "cns.cybernetics.substitution",
+                    target: "reg.cybernetics.substitution",
                     metric = metric_str,
                     from = %proposed_str,
                     to = %alt_str,
@@ -370,7 +370,7 @@ impl CyberneticsLoop {
         // All alternatives have been tried and failed — let the plateau
         // escalation handle it.
         tracing::warn!(
-            target: "cns.cybernetics.substitution",
+            target: "reg.cybernetics.substitution",
             metric = metric_str,
             action = %proposed_str,
             "All substitution alternatives exhausted for metric"
@@ -395,10 +395,10 @@ impl CyberneticsLoop {
                 0,
             );
             if let Err(e) = sink.persist(&event) {
-                tracing::error!(target: "cns.regulation", error = %e, "Failed to persist regulation span");
+                tracing::error!(target: "reg.regulation", error = %e, "Failed to persist regulation span");
             }
         } else {
-            tracing::warn!(target: "cns.regulation", span_kind = ?kind, "Regulation span dropped — no event_sink configured. Wire with_event_sink() for durable regulation observability.");
+            tracing::warn!(target: "reg.regulation", span_kind = ?kind, "Regulation span dropped — no event_sink configured. Wire with_event_sink() for durable regulation observability.");
         }
     }
 
@@ -421,7 +421,7 @@ impl CyberneticsLoop {
             || (has(AdjustEnergyBudget) && has(OverrideEnergyBudget))
         {
             tracing::warn!(
-                target: "cns.regulation.coherence",
+                target: "reg.regulation.coherence",
                 action_count = actions.len(),
                 "Potentially contradictory actions in same tick"
             );
@@ -430,7 +430,7 @@ impl CyberneticsLoop {
         // Both Throttle and CircuitBreak on Inference loop.
         if has_target(Throttle, LoopId::Inference) && has_target(CircuitBreak, LoopId::Inference) {
             tracing::warn!(
-                target: "cns.regulation.coherence",
+                target: "reg.regulation.coherence",
                 "Throttle + CircuitBreak both targeting Inference loop — consider consolidating"
             );
         }
@@ -551,7 +551,7 @@ impl CyberneticsLoop {
             }
 
             if count > 0 || wrapper.get("tool_stats").is_some() {
-                tracing::info!(target: "cns.cybernetics", count = count, "Loaded persisted budgets + Well + ToolStats state");
+                tracing::info!(target: "reg.cybernetics", count = count, "Loaded persisted budgets + Well + ToolStats state");
             }
             Ok(count)
         } else {
@@ -718,7 +718,7 @@ impl CyberneticsLoop {
                 self.handle_curation_directive(directive).await;
             }
             if cd_processed > 0 {
-                tracing::info!(target: "cns.cybernetics", processed = cd_processed, "Processed direct curator directives");
+                tracing::info!(target: "reg.cybernetics", processed = cd_processed, "Processed direct curator directives");
             }
         }
 
@@ -733,7 +733,7 @@ impl CyberneticsLoop {
         // Dampen repeated directives to prevent feedback oscillation
         if self.dampener.should_dampen_directive(&directive) {
             tracing::debug!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 directive = %directive.variant_name(),
                 "Directive dampened (repeated within window)"
             );
@@ -742,7 +742,7 @@ impl CyberneticsLoop {
             self.apply_directive(directive).await;
             self.persist_directive_acknowledgment(variant_name);
             tracing::info!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 directive = %variant_name,
                 outcome = "applied",
                 "Directive acknowledged (Curation→Cybernetics compliance)"
@@ -770,18 +770,18 @@ impl CyberneticsLoop {
                 additions,
                 removals,
             } => {
-                tracing::info!(target: "cns.cybernetics", agent = %agent, additions = ?additions, removals = ?removals, "Applied UpdateCapabilities directive from Curation (capabilities updated)")
+                tracing::info!(target: "reg.cybernetics", agent = %agent, additions = ?additions, removals = ?removals, "Applied UpdateCapabilities directive from Curation (capabilities updated)")
             }
             CuratorDirective::SeekMoreEvidence {
                 context,
                 channel,
                 confidence,
             } => {
-                tracing::info!(target: "cns.cybernetics", context = %context, channel = %channel, confidence = %confidence, "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)")
+                tracing::info!(target: "reg.cybernetics", context = %context, channel = %channel, confidence = %confidence, "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)")
             }
             // Federation directives are handled by CuratorAgent, not Cybernetics
             _ => {
-                tracing::debug!(target: "cns.cybernetics", variant = directive.variant_name(), "Federation directive — no Cybernetics action")
+                tracing::debug!(target: "reg.cybernetics", variant = directive.variant_name(), "Federation directive — no Cybernetics action")
             }
         }
     }
@@ -791,7 +791,7 @@ impl CyberneticsLoop {
         cns.calibrate_threshold(domain, new_threshold).await;
         drop(cns);
         tracing::info!(
-            target: "cns.cybernetics",
+            target: "reg.cybernetics",
             domain = domain,
             new_threshold = new_threshold,
             "Applied CalibrateThreshold directive from Curation"
@@ -839,7 +839,7 @@ impl CyberneticsLoop {
             );
             if let Err(e) = sink.persist(&ack) {
                 tracing::warn!(
-                    target: "cns.cybernetics",
+                    target: "reg.cybernetics",
                     error = %e,
                     "Failed to persist directive acknowledgment"
                 );
@@ -897,7 +897,7 @@ impl RegulationLoop for CyberneticsLoop {
                 && pred.reliable
             {
                 tracing::info!(
-                    target: "cns.regulation.predictive",
+                    target: "reg.regulation.predictive",
                     metric = dev.signal.metric.as_str(),
                     current = dev.signal.value,
                     set_point = dev.signal.set_point,
@@ -986,7 +986,7 @@ impl RegulationLoop for CyberneticsLoop {
                     false
                 };
                 if !sent {
-                    tracing::warn!(target: "cns.algedonic", domain = %alert.domain, "Well exhaustion alert send failed or channel not connected");
+                    tracing::warn!(target: "reg.algedonic", domain = %alert.domain, "Well exhaustion alert send failed or channel not connected");
                 }
                 if !sent && let Some(ref sink) = self.event_sink {
                     let event = RegulationRecord::new(
@@ -1002,7 +1002,7 @@ impl RegulationLoop for CyberneticsLoop {
                         0,
                     );
                     if let Err(e) = sink.persist(&event) {
-                        tracing::error!(target: "cns.cybernetics", error = %e, "Failed to persist budget exhaustion alert");
+                        tracing::error!(target: "reg.cybernetics", error = %e, "Failed to persist budget exhaustion alert");
                     }
                 }
             }
@@ -1019,7 +1019,7 @@ impl RegulationLoop for CyberneticsLoop {
                 match serde_json::to_value(&*budgets) {
                     Ok(v) => wrapper["budgets"] = v,
                     Err(e) => {
-                        tracing::error!(target: "cns.cybernetics", error = %e, "Failed to serialize gas budgets — skipping persistence");
+                        tracing::error!(target: "reg.cybernetics", error = %e, "Failed to serialize gas budgets — skipping persistence");
                         return;
                     }
                 }
@@ -1036,18 +1036,18 @@ impl RegulationLoop for CyberneticsLoop {
             let json = match serde_json::to_string_pretty(&wrapper) {
                 Ok(s) => s,
                 Err(e) => {
-                    tracing::error!(target: "cns.cybernetics", error = %e, "Failed to serialize budget wrapper — skipping persistence");
+                    tracing::error!(target: "reg.cybernetics", error = %e, "Failed to serialize budget wrapper — skipping persistence");
                     return;
                 }
             };
             if let Some(parent) = path.parent()
                 && let Err(e) = tokio::fs::create_dir_all(parent).await
             {
-                tracing::error!(target: "cns.cybernetics", path = %parent.display(), error = %e, "Failed to create budget persistence directory");
+                tracing::error!(target: "reg.cybernetics", path = %parent.display(), error = %e, "Failed to create budget persistence directory");
                 return;
             }
             if let Err(e) = tokio::fs::write(path, &json).await {
-                tracing::error!(target: "cns.cybernetics", path = %path.display(), error = %e, "Failed to persist gas budgets");
+                tracing::error!(target: "reg.cybernetics", path = %path.display(), error = %e, "Failed to persist gas budgets");
             }
         }
 
@@ -1075,7 +1075,7 @@ impl RegulationLoop for CyberneticsLoop {
                     if let Some(ref tx) = self.alerts_tx
                         && tx.send(CurationInput::Alert(alert)).is_err()
                     {
-                        tracing::warn!(target: "cns.algedonic", "Well exhaustion alert send failed — channel closed");
+                        tracing::warn!(target: "reg.algedonic", "Well exhaustion alert send failed — channel closed");
                     }
                 }
             } else {
@@ -1100,10 +1100,10 @@ impl RegulationLoop for CyberneticsLoop {
             .await;
         }
         if actions.len() > self.max_iterations as usize {
-            tracing::warn!(target: "cns.cybernetics", action_count = actions.len(), max_iterations = self.max_iterations, "Cascade detected: action count exceeds max_iterations");
+            tracing::warn!(target: "reg.cybernetics", action_count = actions.len(), max_iterations = self.max_iterations, "Cascade detected: action count exceeds max_iterations");
         }
         for action in actions {
-            tracing::info!(target: "cns.cybernetics", action_type = ?action.action_type, target_loop = %action.target, "Cybernetics Loop efferent signal");
+            tracing::info!(target: "reg.cybernetics", action_type = ?action.action_type, target_loop = %action.target, "Cybernetics Loop efferent signal");
             let target_id = action.target;
 
             // Send CurationInput::Alert on direct alerts channel.
@@ -1132,12 +1132,12 @@ impl RegulationLoop for CyberneticsLoop {
                     match alerts_tx.send(CurationInput::Alert(alert.clone())) {
                         Ok(()) => true,
                         Err(e) => {
-                            tracing::warn!(target: "cns.cybernetics", error = %e, "Failed to send CurationInput::Alert via live channel — falling back to persistence");
+                            tracing::warn!(target: "reg.cybernetics", error = %e, "Failed to send CurationInput::Alert via live channel — falling back to persistence");
                             false
                         }
                     }
                 } else {
-                    tracing::warn!(target: "cns.cybernetics", "Alerts channel not connected — falling back to persistence. Wire with_alerts_channel() for live delivery.");
+                    tracing::warn!(target: "reg.cybernetics", "Alerts channel not connected — falling back to persistence. Wire with_alerts_channel() for live delivery.");
                     false
                 };
 
@@ -1160,12 +1160,12 @@ impl RegulationLoop for CyberneticsLoop {
                             0,
                         );
                         if let Err(e) = sink.persist(&event) {
-                            tracing::error!(target: "cns.algedonic", error = %e, "CRITICAL: Failed to persist algedonic alert — alert lost. Both live channel and persistence failed.");
+                            tracing::error!(target: "reg.algedonic", error = %e, "CRITICAL: Failed to persist algedonic alert — alert lost. Both live channel and persistence failed.");
                         } else {
-                            tracing::info!(target: "cns.algedonic", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
+                            tracing::info!(target: "reg.algedonic", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
                         }
                     } else {
-                        tracing::error!(target: "cns.algedonic", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST — neither live channel nor event_sink connected. Feedback loop closure broken.");
+                        tracing::error!(target: "reg.algedonic", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST — neither live channel nor event_sink connected. Feedback loop closure broken.");
                     }
                 }
             }
@@ -1289,11 +1289,11 @@ impl RegulationLoop for CyberneticsLoop {
                         ),
                     };
                     if tx.send(CurationInput::Alert(alert)).is_err() {
-                        tracing::warn!(target: "cns.algedonic", "Plateau alert send failed — channel closed");
+                        tracing::warn!(target: "reg.algedonic", "Plateau alert send failed — channel closed");
                     }
                 }
                 tracing::warn!(
-                    target: "cns.cybernetics",
+                    target: "reg.cybernetics",
                     metric = metric.as_str(),
                     action_type = ?action.action_type,
                     "Regulatory plateau detected"
@@ -1329,7 +1329,7 @@ impl RegulationLoop for CyberneticsLoop {
                         ),
                     };
                     if tx.send(CurationInput::Alert(alert)).is_err() {
-                        tracing::warn!(target: "cns.algedonic", "Block alert send failed — channel closed");
+                        tracing::warn!(target: "reg.algedonic", "Block alert send failed — channel closed");
                     }
                 }
             }
@@ -1477,7 +1477,7 @@ impl RegulationLoop for CyberneticsLoop {
         *self.loop_quality.write().await = quality;
 
         tracing::debug!(
-            target: "cns.cybernetics",
+            target: "reg.cybernetics",
             delay_ms = quality.delay_ms,
             gain = quality.gain,
             fidelity = quality.fidelity_score,
@@ -1733,7 +1733,7 @@ impl CyberneticsLoop {
             // -- CommunicationQueueDepth AboveSetPoint ----------------------
             "communication_backpressure" => {
                 tracing::info!(
-                    target: "cns.cybernetics.backpressure",
+                    target: "reg.cybernetics.backpressure",
                     queue_depth = dev.signal.value,
                     threshold = dev.signal.set_point,
                     "Communication queue depth exceeded backpressure threshold"
@@ -1759,7 +1759,7 @@ impl CyberneticsLoop {
                     "warning"
                 };
                 tracing::warn!(
-                    target: "cns.wallet",
+                    target: "reg.wallet",
                     balance_ratio = dev.signal.value,
                     severity = severity,
                     "Wallet balance alert"
@@ -1781,7 +1781,7 @@ impl CyberneticsLoop {
             // -- WalletKeyHealth AboveSetPoint ------------------------------
             "wallet_key_unhealthy" => {
                 tracing::info!(
-                    target: "cns.wallet",
+                    target: "reg.wallet",
                     "API key health alert — exhausted or expired"
                 );
                 Some(RegulatoryAction::new(
@@ -1852,7 +1852,7 @@ impl CyberneticsLoop {
             // -- ToolReliability BelowSetPoint ------------------------------
             "tool_reliability_degraded" => {
                 tracing::warn!(
-                    target: "cns.tool",
+                    target: "reg.tool",
                     reliability = dev.signal.value,
                     set_point = dev.signal.set_point,
                     "Tool reliability degraded — success rate below threshold"
@@ -1872,7 +1872,7 @@ impl CyberneticsLoop {
             }
             _ => {
                 tracing::debug!(
-                    target: "cns.regulation",
+                    target: "reg.regulation",
                     reason = proposed.reason,
                     "Unknown regulation reason — no action built"
                 );

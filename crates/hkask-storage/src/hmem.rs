@@ -200,7 +200,7 @@ impl HMemStore {
             match self.row_to_h_mem(row) {
                 Ok(h) => results.push(h),
                 Err(e) => {
-                    tracing::error!(target: "cns.storage.corruption", error = %e, "Corrupted database row — propagating error for regulator visibility");
+                    tracing::error!(target: "reg.storage.corruption", error = %e, "Corrupted database row — propagating error for regulator visibility");
                     return Err(e);
                 }
             }

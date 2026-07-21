@@ -404,7 +404,7 @@ impl SeamWatcher {
 
         if !drifts.is_empty() {
             tracing::info!(
-                target: "cns.architecture.seam.drift",
+                target: "reg.architecture.seam.drift",
                 drift_count = %drifts.len(),
                 "Seam drift detected"
             );

@@ -187,7 +187,7 @@ impl DeepInfraBackend {
                         chrono::DateTime::parse_from_rfc3339(ts)
                             .ok()
                             .or_else(|| {
-                                tracing::warn!(target: "cns.inference", model = %m.id, created_at = %ts, "DeepInfra model has unparseable created_at, filtering out");
+                                tracing::warn!(target: "reg.inference", model = %m.id, created_at = %ts, "DeepInfra model has unparseable created_at, filtering out");
                                 None
                             })
                             .map(|dt| dt.with_timezone(&chrono::Utc))

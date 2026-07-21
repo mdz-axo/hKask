@@ -132,6 +132,6 @@ pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, 
         .hash_password_into(passphrase.as_bytes(), salt, &mut *key)
         .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
     // P9: CNS span
-    tracing::info!(target: "cns.keystore", operation = "derive_key", latency_ms = start.elapsed().as_millis(), "CNS");
+    tracing::info!(target: "reg.keystore", operation = "derive_key", latency_ms = start.elapsed().as_millis(), "CNS");
     Ok(key)
 }

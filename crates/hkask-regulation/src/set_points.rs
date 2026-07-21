@@ -476,7 +476,7 @@ pub fn load_set_points() -> SetPoints {
                 let points = SetPoints::from_config(&config);
                 if let Err(e) = points.validate() {
                     tracing::warn!(
-                        target: "cns.config()",
+                        target: "reg.config()",
                         path = %path,
                         error = %e,
                         "Loaded CNS set-points failed validation — falling back to defaults"
@@ -484,7 +484,7 @@ pub fn load_set_points() -> SetPoints {
                     return SetPoints::default();
                 }
                 tracing::info!(
-                    target: "cns.config()",
+                    target: "reg.config()",
                     path = %path,
                     "Loaded CNS set-points from config file"
                 );
@@ -492,7 +492,7 @@ pub fn load_set_points() -> SetPoints {
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.config()",
+                    target: "reg.config()",
                     path = %path,
                     error = %e,
                     "Failed to load CNS config file, using defaults"

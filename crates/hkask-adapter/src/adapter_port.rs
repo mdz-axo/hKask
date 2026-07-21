@@ -131,7 +131,7 @@ impl InferenceEndpointHandle {
             Ok(lc) => lc.phase,
             Err(e) => {
                 tracing::error!(
-                    target: "cns.adapter",
+                    target: "reg.adapter",
                     endpoint_id = %self.endpoint_id,
                     "Lifecycle mutex poisoned — returning Terminated"
                 );
@@ -148,7 +148,7 @@ impl InferenceEndpointHandle {
             Ok(lc) => lc.cost_accrued,
             Err(e) => {
                 tracing::error!(
-                    target: "cns.adapter",
+                    target: "reg.adapter",
                     endpoint_id = %self.endpoint_id,
                     "Lifecycle mutex poisoned in cost_accrued — returning 0.0"
                 );
@@ -165,7 +165,7 @@ impl InferenceEndpointHandle {
             Ok(lc) => lc.is_billable(),
             Err(e) => {
                 tracing::error!(
-                    target: "cns.adapter",
+                    target: "reg.adapter",
                     endpoint_id = %self.endpoint_id,
                     "Lifecycle mutex poisoned in is_billable — returning false"
                 );

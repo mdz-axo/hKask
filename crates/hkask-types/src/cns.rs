@@ -219,8 +219,8 @@ impl RegulationSpan {
     /// Emit a typed CNS span event through the `tracing` infrastructure.
     ///
     /// Enforces the canonical CNS emission convention (PRINCIPLES.md §9.2):
-    /// - `target` = `"cns"` root namespace (full domain in `cns_domain` field)
-    /// - `cns_domain` = `self.as_str()` (e.g. `"cns.tool.media"`)
+    /// - `target` = `"cns"` root namespace (full domain in `reg_domain` field)
+    /// - `reg_domain` = `self.as_str()` (e.g. `"cns.tool.media"`)
     /// - `operation` = the verb describing what occurred (e.g. `"invoked"`)
     /// - message = `"CNS"` (required for downstream ν-event parsing)
     ///
@@ -237,8 +237,8 @@ impl RegulationSpan {
     /// ```
     pub fn emit(&self, operation: &str) {
         tracing::info!(
-            target: "cns",
-            cns_domain = %self.as_str(),
+            target: "reg",
+            reg_domain = %self.as_str(),
             operation = %operation,
             "CNS",
         );

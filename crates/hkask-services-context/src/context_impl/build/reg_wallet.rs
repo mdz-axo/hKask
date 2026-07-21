@@ -82,7 +82,7 @@ pub(super) async fn build_registry_and_wallet(
     let (wallet_service, wallet_store, wallet_gas_calibrator) = match build_wallet(config, f, l) {
         Ok(tuple) => tuple,
         Err(e) => {
-            tracing::warn!(target: "cns.wallet", error = %e, "Wallet unavailable — running without rJoule");
+            tracing::warn!(target: "reg.wallet", error = %e, "Wallet unavailable — running without rJoule");
             (None, None, None)
         }
     };
@@ -125,7 +125,7 @@ fn build_wallet(
             match hkask_storage::Database::open(&path_str, &config.db_passphrase) {
                 Ok(db) => {
                     tracing::info!(
-                        target: "cns.wallet",
+                        target: "reg.wallet",
                         path = %path_str,
                         agent = %config.user_name,
                         "Per-agent wallet database opened"
@@ -140,7 +140,7 @@ fn build_wallet(
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.wallet",
+                        target: "reg.wallet",
                         path = %path_str,
                         error = %e,
                         "Failed to open per-agent wallet DB, falling back to shared connection"
@@ -179,7 +179,7 @@ fn build_wallet(
                 let address = address.trim();
                 if let Ok(true) = self.manager.repair_deposit_address_mapping(address) {
                     tracing::info!(
-                        target: "cns.heal",
+                        target: "reg.heal",
                         operation = %operation,
                         address = %address,
                         "Wallet self-heal repaired deposit address mapping"
@@ -254,7 +254,7 @@ fn build_wallet(
                     let wallet_id = WalletId::from_name(&identity.userpod_name);
                     if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
                         tracing::warn!(
-                            target: "cns.wallet",
+                            target: "reg.wallet",
                             userpod = %identity.userpod_name,
                             error = %e,
                             "Failed to create wallet for userpod"
@@ -263,14 +263,14 @@ fn build_wallet(
                         user_guard.set_wallet_id(&identity.userpod_name, wallet_id)
                     {
                         tracing::warn!(
-                            target: "cns.wallet",
+                            target: "reg.wallet",
                             userpod = %identity.userpod_name,
                             error = %e,
                             "Failed to bind wallet to userpod"
                         );
                     } else {
                         tracing::info!(
-                            target: "cns.wallet",
+                            target: "reg.wallet",
                             userpod = %identity.userpod_name,
                             wallet_id = %wallet_id,
                             "Wallet created and bound to userpod"
@@ -289,14 +289,14 @@ fn build_wallet(
         .unwrap_or(30);
     tokio::spawn(async move {
         tracing::info!(
-            target: "cns.wallet.deposit",
+            target: "reg.wallet.deposit",
             interval_secs = %interval_secs,
             "Deposit monitor started — polling every {}s",
             interval_secs
         );
         if let Err(e) = monitor_manager.start_deposit_monitor(interval_secs).await {
             tracing::error!(
-                target: "cns.wallet.deposit",
+                target: "reg.wallet.deposit",
                 error = %e,
                 "Deposit monitor loop exited with error"
             );

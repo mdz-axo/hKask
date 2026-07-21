@@ -74,7 +74,7 @@ impl Keychain {
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
         // P9: CNS span
-        info!(target: "cns.keystore", operation = "store", "CNS");
+        info!(target: "reg.keystore", operation = "store", "CNS");
         Ok(())
     }
 
@@ -88,7 +88,7 @@ impl Keychain {
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
         let result = entry.get_password().map_err(KeychainError::from)?;
-        info!(target: "cns.keystore", operation = "retrieve", "CNS");
+        info!(target: "reg.keystore", operation = "retrieve", "CNS");
         Ok(result)
     }
 
@@ -106,7 +106,7 @@ impl Keychain {
             .delete_credential()
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        info!(target: "cns.keystore", operation = "delete", "CNS");
+        info!(target: "reg.keystore", operation = "delete", "CNS");
         Ok(())
     }
 
@@ -123,7 +123,7 @@ impl Keychain {
             .set_password(secret)
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        info!(target: "cns.keystore", operation = "store_by_key", "CNS");
+        info!(target: "reg.keystore", operation = "store_by_key", "CNS");
         Ok(())
     }
 
@@ -137,7 +137,7 @@ impl Keychain {
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
         let result = entry.get_password().map_err(KeychainError::from)?;
-        info!(target: "cns.keystore", operation = "retrieve_by_key", "CNS");
+        info!(target: "reg.keystore", operation = "retrieve_by_key", "CNS");
         Ok(result)
     }
 
@@ -154,7 +154,7 @@ impl Keychain {
             .delete_credential()
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        info!(target: "cns.keystore", operation = "delete_by_key", "CNS");
+        info!(target: "reg.keystore", operation = "delete_by_key", "CNS");
         Ok(())
     }
 }
@@ -262,7 +262,7 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
 
     match derived {
         Ok(key) => {
-            info!(target: "cns.keystore", operation = "ocap_secret", source = "derived", "CNS");
+            info!(target: "reg.keystore", operation = "ocap_secret", source = "derived", "CNS");
             Ok(key)
         }
         Err(err) => Err(err),
@@ -298,7 +298,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
         #[cfg(debug_assertions)]
         SecretRef::Generated(_) => "generated",
     };
-    info!(target: "cns.keystore", operation = "resolve", variant = variant, "CNS");
+    info!(target: "reg.keystore", operation = "resolve", variant = variant, "CNS");
 
     match secret_ref {
         SecretRef::Env(var_name) => {
@@ -308,7 +308,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
                     id: format!("env var {} not set", var_name),
                 })
             })?;
-            info!(target: "cns.keystore", operation = "resolve_env", var_name = %var_name, "CNS");
+            info!(target: "reg.keystore", operation = "resolve_env", var_name = %var_name, "CNS");
             Ok(Zeroizing::new(value.into_bytes()))
         }
         SecretRef::Keychain(key_name) => {
@@ -320,13 +320,13 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
                 let entry = Entry::new(&keychain.service_name, key_name)
                     .map_err(|e| KeychainError::Platform(e.to_string()))?;
                 let secret = entry.get_password().map_err(KeychainError::from)?;
-                info!(target: "cns.keystore", operation = "resolve_keychain", key_name = %key_name, "CNS");
+                info!(target: "reg.keystore", operation = "resolve_keychain", key_name = %key_name, "CNS");
                 Ok::<_, KeychainError>(Zeroizing::new(secret.into_bytes()))
             }));
             match result {
                 Ok(inner) => inner,
                 Err(_) => {
-                    tracing::warn!(target: "cns.keystore", key_name = %key_name, "Keychain access panicked (likely concurrent D-Bus access) — falling back to env var");
+                    tracing::warn!(target: "reg.keystore", key_name = %key_name, "Keychain access panicked (likely concurrent D-Bus access) — falling back to env var");
                     Err(KeychainError::Platform(
                         "Keychain access panicked — concurrent D-Bus access may have triggered C-level abort".into(),
                     ))
@@ -337,7 +337,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             master_key_env,
             context,
         } => {
-            info!(target: "cns.keystore", operation = "resolve_derived", master_key_env = %master_key_env, context = %context, "CNS");
+            info!(target: "reg.keystore", operation = "resolve_derived", master_key_env = %master_key_env, context = %context, "CNS");
             // Resolve master key: env var first, then keychain
             let master_key_bytes = resolve(&SecretRef::Env(master_key_env.clone()))
                 .or_else(|_| resolve(&SecretRef::Keychain(master_key_env.clone())))
@@ -356,7 +356,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
 
             // HKDF-SHA256 derive sub-key
             let sub_key = crate::master_key::derive_sub_key(&master_key_bytes, context);
-            info!(target: "cns.keystore", operation = "derive_sub_key", latency_ms = start.elapsed().as_millis(), "CNS");
+            info!(target: "reg.keystore", operation = "derive_sub_key", latency_ms = start.elapsed().as_millis(), "CNS");
             Ok(sub_key)
         }
         #[cfg(debug_assertions)]
@@ -364,7 +364,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             let bytes: Vec<u8> = (0..*length as usize)
                 .map(|_| rand::random::<u8>())
                 .collect();
-            warn!(target: "cns.keystore", operation = "resolve_generated", length = *length, "CNS");
+            warn!(target: "reg.keystore", operation = "resolve_generated", length = *length, "CNS");
             Ok(Zeroizing::new(bytes))
         }
     }

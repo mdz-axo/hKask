@@ -254,7 +254,7 @@ impl RegulationLoop for InferenceLoop {
             match action.action_type {
                 ActionType::AdjustEnergyBudget => {
                     tracing::warn!(
-                        target: "cns.inference",
+                        target: "reg.inference",
                         action_type = ?action.action_type,
                         target_loop = %action.target,
                         parameters = ?action.parameters,
@@ -263,7 +263,7 @@ impl RegulationLoop for InferenceLoop {
                 }
                 ActionType::Calibrate => {
                     tracing::warn!(
-                        target: "cns.inference",
+                        target: "reg.inference",
                         action_type = ?action.action_type,
                         target_loop = %action.target,
                         parameters = ?action.parameters,
@@ -272,7 +272,7 @@ impl RegulationLoop for InferenceLoop {
                 }
                 _ => {
                     tracing::info!(
-                        target: "cns.inference",
+                        target: "reg.inference",
                         action_type = ?action.action_type,
                         target_loop = %action.target,
                         "Inference Loop regulatory action"

@@ -55,14 +55,14 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         // see `upload_adapter` for the resolution contract.
         let endpoint_url = format!("https://api.runpod.ai/v2/{}/openai/v1", template_id);
         tracing::info!(
-            target: "cns.adapter",
+            target: "reg.adapter",
             adapter_id = %adapter.id,
             template_id = %template_id,
             endpoint_url = %endpoint_url,
             "Provisioned Runpod serverless endpoint"
         );
         tracing::info!(
-            target: "cns.training.provider.runpod.provision",
+            target: "reg.training.provider.runpod.provision",
             template_id = %template_id,
             "RunPod endpoint provisioned"
         );
@@ -97,11 +97,11 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         // serverless), teardown should call the GraphQL `podTerminate` mutation
         // with the pod ID — see RunpodHost::drain_all_pods in the training server.
         tracing::info!(
-            target: "cns.adapter",
+            target: "reg.adapter",
             "Runpod serverless endpoint scales to zero automatically — no teardown needed"
         );
         tracing::info!(
-            target: "cns.training.provider.runpod.teardown",
+            target: "reg.training.provider.runpod.teardown",
             "RunPod endpoint teardown"
         );
         Ok(())
@@ -124,13 +124,13 @@ impl AdapterProviderBackend for RunpodAdapterBackend {
         // startup script (or env) to reference the new HF repo and redeploy.
         let model_name = adapter.source.repository_id().to_string();
         tracing::info!(
-            target: "cns.adapter",
+            target: "reg.adapter",
             adapter_id = %adapter.id,
             model_name = %model_name,
             "Runpod adapter resolved to HuggingFace repo (pulled by serverless template at cold start)"
         );
         tracing::info!(
-            target: "cns.training.provider.runpod.upload",
+            target: "reg.training.provider.runpod.upload",
             adapter_id = %adapter.id,
             "RunPod adapter uploaded"
         );

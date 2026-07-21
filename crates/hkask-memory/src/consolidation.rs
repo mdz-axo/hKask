@@ -48,7 +48,7 @@ impl ConsolidationBridge {
         perspective: WebID,
         request: ConsolidationRequest,
     ) -> anyhow::Result<ConsolidationOutcome> {
-        let span = tracing::span!(target: "cns.consolidation", tracing::Level::INFO, "consolidate");
+        let span = tracing::span!(target: "reg.consolidation", tracing::Level::INFO, "consolidate");
         let _enter = span.enter();
 
         let candidates = self
@@ -57,7 +57,7 @@ impl ConsolidationBridge {
             .map_err(|e| anyhow::anyhow!("Episodic error: {e}"))?;
 
         tracing::info!(
-            target: "cns.consolidation",
+            target: "reg.consolidation",
             perspective = %perspective,
             candidate_count = candidates.len(),
             limit = request.limit,
@@ -94,12 +94,12 @@ impl ConsolidationBridge {
                         combined_count += 1;
                         consolidated_count += 1;
                         if let Err(e) = self.episodic.expire_h_mem(&h_mem.id) {
-                            tracing::warn!(target: "cns.consolidation", triple_id = %h_mem.id.as_uuid(), error = %e, "Failed to expire episodic h_mem");
+                            tracing::warn!(target: "reg.consolidation", triple_id = %h_mem.id.as_uuid(), error = %e, "Failed to expire episodic h_mem");
                         } else {
                             expired_count += 1;
                         }
                         tracing::debug!(
-                            target: "cns.consolidation",
+                            target: "reg.consolidation",
                             entity = %h_mem.entity, attribute = %h_mem.attribute,
                             stored = %h_mem.confidence, days_since_recall = days_since,
                             episodic = %episodic_c,
@@ -111,7 +111,7 @@ impl ConsolidationBridge {
                     }
                     Err(e) => {
                         failed_count += 1;
-                        tracing::warn!(target: "cns.consolidation", entity = %h_mem.entity, error = %e, "Failed to update semantic h_mem");
+                        tracing::warn!(target: "reg.consolidation", entity = %h_mem.entity, error = %e, "Failed to update semantic h_mem");
                         continue;
                     }
                 }
@@ -132,12 +132,12 @@ impl ConsolidationBridge {
                     Ok(()) => {
                         consolidated_count += 1;
                         if let Err(e) = self.episodic.expire_h_mem(&h_mem.id) {
-                            tracing::warn!(target: "cns.consolidation", triple_id = %h_mem.id.as_uuid(), error = %e, "Failed to expire episodic h_mem");
+                            tracing::warn!(target: "reg.consolidation", triple_id = %h_mem.id.as_uuid(), error = %e, "Failed to expire episodic h_mem");
                         } else {
                             expired_count += 1;
                         }
                         tracing::debug!(
-                            target: "cns.consolidation",
+                            target: "reg.consolidation",
                             entity = %h_mem.entity, attribute = %h_mem.attribute,
                             stored = %h_mem.confidence, days_since_recall = days_since,
                             episodic = %episodic_c,
@@ -146,7 +146,7 @@ impl ConsolidationBridge {
                     }
                     Err(e) => {
                         failed_count += 1;
-                        tracing::warn!(target: "cns.consolidation", entity = %h_mem.entity, error = %e, "Failed to store new semantic h_mem");
+                        tracing::warn!(target: "reg.consolidation", entity = %h_mem.entity, error = %e, "Failed to store new semantic h_mem");
                         continue;
                     }
                 }
@@ -154,7 +154,7 @@ impl ConsolidationBridge {
         }
 
         tracing::info!(
-            target: "cns.consolidation",
+            target: "reg.consolidation",
             perspective = %perspective,
             consolidated_count, combined_count,
             newly_seeded = consolidated_count - combined_count,

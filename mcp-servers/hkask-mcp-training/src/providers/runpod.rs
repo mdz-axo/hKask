@@ -222,7 +222,7 @@ impl RunpodHost {
         };
         let count = pod_ids.len();
         tracing::info!(
-            target: "cns.training.provider.runpod.drain",
+            target: "reg.training.provider.runpod.drain",
             count = count,
             "Draining all RunPod pods"
         );
@@ -277,7 +277,7 @@ impl RunpodHost {
         });
 
         tracing::debug!(
-            target: "cns.training.provider.runpod.graphql",
+            target: "reg.training.provider.runpod.graphql",
             query_type = query_type,
             "RunPod GraphQL request"
         );
@@ -299,7 +299,7 @@ impl RunpodHost {
 
         if let Some(errors) = json.get("errors") {
             tracing::warn!(
-                target: "cns.training.provider.runpod.graphql",
+                target: "reg.training.provider.runpod.graphql",
                 query_type = query_type,
                 "RunPod GraphQL returned errors"
             );
@@ -310,7 +310,7 @@ impl RunpodHost {
         }
 
         tracing::info!(
-            target: "cns.training.provider.runpod.graphql",
+            target: "reg.training.provider.runpod.graphql",
             query_type = query_type,
             "RunPod GraphQL request succeeded"
         );
@@ -797,7 +797,7 @@ impl TrainingHost for RunpodHost {
         );
 
         tracing::info!(
-            target: "cns.training.provider.runpod.submit",
+            target: "reg.training.provider.runpod.submit",
             pod_id = %pod_id,
             gpu_type = %gpu_type_id,
             "RunPod pod submitted"
@@ -843,7 +843,7 @@ impl TrainingHost for RunpodHost {
             .unwrap_or("UNKNOWN");
 
         tracing::debug!(
-            target: "cns.training.provider.runpod.status",
+            target: "reg.training.provider.runpod.status",
             pod_id = %pod_id,
             desired_status = %status_str,
             "RunPod pod status"
@@ -870,7 +870,7 @@ impl TrainingHost for RunpodHost {
                     "No pod found for job"
                 );
                 tracing::warn!(
-                    target: "cns.training.provider.runpod.cancel",
+                    target: "reg.training.provider.runpod.cancel",
                     "No pod found for job"
                 );
                 return Ok(());
@@ -899,7 +899,7 @@ impl TrainingHost for RunpodHost {
             "Training pod terminated"
         );
         tracing::info!(
-        target: "cns.training.provider.runpod.cancel",
+        target: "reg.training.provider.runpod.cancel",
         pod_id = %pod_id,
         "RunPod pod cancelled"
         );

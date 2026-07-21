@@ -560,7 +560,7 @@ impl TrainingServer {
                 // Emit cns.lora.audit refuse spans
                 for f in &refusals {
                     tracing::error!(
-                        target: "cns.lora.audit",
+                        target: "reg.lora.audit",
                         gate = f.gate_id,
                         severity = "refuse",
                         message = %f.message,
@@ -589,7 +589,7 @@ impl TrainingServer {
                 };
                 if finding.severity == lora_validation::ValidationSeverity::Warn {
                     tracing::warn!(
-                        target: "cns.lora.audit",
+                        target: "reg.lora.audit",
                         gate = finding.gate_id,
                         severity = severity_str,
                         message = %finding.message,
@@ -605,7 +605,7 @@ impl TrainingServer {
                     );
                 } else if finding.severity == lora_validation::ValidationSeverity::Info {
                     tracing::info!(
-                        target: "cns.lora.audit",
+                        target: "reg.lora.audit",
                         gate = finding.gate_id,
                         severity = severity_str,
                         message = %finding.message,
@@ -1421,7 +1421,7 @@ impl TrainingServer {
                     match finding.severity {
                         lora_validation::ValidationSeverity::Refuse => {
                             tracing::error!(
-                                target: "cns.lora.audit",
+                                target: "reg.lora.audit",
                                 gate = finding.gate_id,
                                 severity = severity_str,
                                 message = %finding.message,
@@ -1431,7 +1431,7 @@ impl TrainingServer {
                         }
                         lora_validation::ValidationSeverity::Warn => {
                             tracing::warn!(
-                                target: "cns.lora.audit",
+                                target: "reg.lora.audit",
                                 gate = finding.gate_id,
                                 severity = severity_str,
                                 message = %finding.message,
@@ -1441,7 +1441,7 @@ impl TrainingServer {
                         }
                         lora_validation::ValidationSeverity::Info => {
                             tracing::info!(
-                                target: "cns.lora.audit",
+                                target: "reg.lora.audit",
                                 gate = finding.gate_id,
                                 severity = severity_str,
                                 message = %finding.message,
@@ -1456,7 +1456,7 @@ impl TrainingServer {
                 // phase knows the audit ran.
                 if findings.is_empty() {
                     tracing::info!(
-                        target: "cns.lora.audit",
+                        target: "reg.lora.audit",
                         gate = "all",
                         severity = "pass",
                         "LoRA training-config audit passed all static gates"

@@ -20,10 +20,6 @@ impl DaemonHandler for MockHandler {
         }
     }
 
-    async fn check_assignment(&self, _userpod: &str, _role: &str) -> bool {
-        true
-    }
-
     async fn check_capability(&self, _userpod: &str, _tool: &str) -> bool {
         true
     }
@@ -125,24 +121,6 @@ async fn daemon_auth_query_unauthenticated() {
     }
 }
 
-#[tokio::test]
-async fn daemon_assignment_query() {
-    let (mut listener, sock_path) = setup_test_listener().await;
-    listener.bind().await.unwrap();
-    let handler = Arc::new(MockHandler {
-        authenticated: true,
-    });
-    tokio::spawn(async move {
-        listener.serve(handler).await.unwrap();
-    });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    let client = DaemonClient::with_path(sock_path);
-    let response = client.assignment_query("bob", "research").await.unwrap();
-    match response {
-        DaemonResponse::AssignmentResponse { assigned } => assert!(assigned),
-        other => panic!("Expected AssignmentResponse, got {other:?}"),
-    }
-}
 
 #[tokio::test]
 async fn daemon_capability_query() {
@@ -208,12 +186,10 @@ fn request_variants_serialize_to_correct_shape() {
     assert_eq!(auth["type"], "auth_query");
     assert_eq!(auth["userpod"], "alice");
 
-    let assign = serde_json::to_value(DaemonRequest::AssignmentQuery {
         userpod: "alice".into(),
         role: "research".into(),
     })
     .unwrap();
-    assert_eq!(assign["type"], "assignment_query");
     assert_eq!(assign["role"], "research");
 
     let cap = serde_json::to_value(DaemonRequest::CapabilityQuery {
@@ -269,8 +245,6 @@ fn response_variants_serialize_to_correct_shape() {
     assert_eq!(auth["authenticated"], true);
 
     let assign =
-        serde_json::to_value(DaemonResponse::AssignmentResponse { assigned: true }).unwrap();
-    assert_eq!(assign["type"], "assignment_response");
 
     let cap = serde_json::to_value(DaemonResponse::CapabilityResponse { granted: false }).unwrap();
     assert_eq!(cap["type"], "capability_response");
@@ -341,7 +315,6 @@ fn failure_unknown_type_tag() {
 
 #[test]
 fn failure_missing_required_field() {
-    let json = r#"{"type":"assignment_query","userpod":"bob"}"#;
     // Missing 'role' field
     let result: Result<DaemonRequest, _> = serde_json::from_str(json);
     assert!(result.is_err());
@@ -393,33 +366,6 @@ async fn daemon_auth_query_is_idempotent() {
     }
 }
 
-#[tokio::test]
-async fn daemon_assignment_query_is_idempotent() {
-    let (mut listener, sock_path) = setup_test_listener().await;
-    listener.bind().await.unwrap();
-    let handler = Arc::new(MockHandler {
-        authenticated: true,
-    });
-    tokio::spawn(async move {
-        listener.serve(handler).await.unwrap();
-    });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    let client = DaemonClient::with_path(sock_path);
-
-    let r1 = client.assignment_query("bob", "research").await.unwrap();
-    let r2 = client.assignment_query("bob", "research").await.unwrap();
-
-    match (r1, r2) {
-        (
-            DaemonResponse::AssignmentResponse { assigned: a1 },
-            DaemonResponse::AssignmentResponse { assigned: a2 },
-        ) => {
-            assert!(a1);
-            assert!(a2);
-        }
-        _ => panic!("Expected AssignmentResponse"),
-    }
-}
 
 #[tokio::test]
 async fn daemon_capability_query_is_idempotent() {

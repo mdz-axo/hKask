@@ -110,305 +110,305 @@ pub struct SpanNamespace(String);
 /// which also validates against this set.
 const CANONICAL_NAMESPACES: &[&str] = &[
     // ── ACP (Agent Communication Protocol) ──
-    "cns.acp.ide.connection_state",
-    "cns.acp.userpod.memory_size",
+    "reg.acp.ide.connection_state",
+    "reg.acp.userpod.memory_size",
     // ── Core infrastructure ──
-    "cns.adapter",
-    "cns.agent_pod",
-    "cns.algedonic",
+    "reg.adapter",
+    "reg.agent_pod",
+    "reg.algedonic",
     // ── Seam architecture ──
-    "cns.architecture.seam.coverage",
-    "cns.architecture.seam.drift",
+    "reg.architecture.seam.coverage",
+    "reg.architecture.seam.drift",
     // ── Core infrastructure ──
-    "cns.backup",
-    "cns.backup.variety",
+    "reg.backup",
+    "reg.backup.variety",
     // ── Authorization ──
-    "cns.authorization",
+    "reg.authorization",
     // ── API metering ──
-    "cns.api.request",
+    "reg.api.request",
     // ── Chat / Communication ──
-    "cns.chat",
-    "cns.chat.condense",
+    "reg.chat",
+    "reg.chat.condense",
     // ── CI / QA ──
-    "cns.ci.invariant.violation",
+    "reg.ci.invariant.violation",
     // ── Classification ──
-    "cns.classify.drift",
-    "cns.classify.dual_fidelity",
+    "reg.classify.drift",
+    "reg.classify.dual_fidelity",
     // ── Chat / Communication ──
-    "cns.communication.agent",
-    "cns.communication.agent.deregistered",
-    "cns.communication.agent.invited",
-    "cns.communication.agent.registered",
-    "cns.communication.listener",
-    "cns.communication.listener.started",
-    "cns.communication.listener.stopped",
-    "cns.communication.message",
-    "cns.communication.message.ignored",
-    "cns.communication.message.observed",
-    "cns.communication.thread",
-    "cns.communication.thread.created",
-    "cns.communication.thread.monitored",
+    "reg.communication.agent",
+    "reg.communication.agent.deregistered",
+    "reg.communication.agent.invited",
+    "reg.communication.agent.registered",
+    "reg.communication.listener",
+    "reg.communication.listener.started",
+    "reg.communication.listener.stopped",
+    "reg.communication.message",
+    "reg.communication.message.ignored",
+    "reg.communication.message.observed",
+    "reg.communication.thread",
+    "reg.communication.thread.created",
+    "reg.communication.thread.monitored",
     // ── Condenser ──
-    "cns.condenser",
+    "reg.condenser",
     // ── Consent ──
-    "cns.consent",
-    "cns.consolidation",
+    "reg.consent",
+    "reg.consolidation",
     // ── Contracts ──
-    "cns.contract.accepted",
-    "cns.contract.coverage",
-    "cns.contract.proposed",
-    "cns.contract.quality.violated",
-    "cns.contract.rejected",
-    "cns.contract.violated",
+    "reg.contract.accepted",
+    "reg.contract.coverage",
+    "reg.contract.proposed",
+    "reg.contract.quality.violated",
+    "reg.contract.rejected",
+    "reg.contract.violated",
     // ── Curation / Curator ──
-    "cns.curation",
-    "cns.curation.escalation",
-    "cns.curation.escalation.critical",
-    "cns.curation.matrix",
-    "cns.curator.consolidation",
-    "cns.curator.efficiency.exceeded",
+    "reg.curation",
+    "reg.curation.escalation",
+    "reg.curation.escalation.critical",
+    "reg.curation.matrix",
+    "reg.curator.consolidation",
+    "reg.curator.efficiency.exceeded",
     // ── Cybernetics ──
-    "cns.cybernetics",
-    "cns.cybernetics.backpressure",
-    "cns.cybernetics.substitution",
+    "reg.cybernetics",
+    "reg.cybernetics.backpressure",
+    "reg.cybernetics.substitution",
     // ── Deploy / Sessions ──
-    "cns.deploy.backup_auto_export",
-    "cns.deploy.backup_export",
-    "cns.deploy.backup_upload",
-    "cns.deploy.session_close",
-    "cns.deploy.session_open",
+    "reg.deploy.backup_auto_export",
+    "reg.deploy.backup_export",
+    "reg.deploy.backup_upload",
+    "reg.deploy.session_close",
+    "reg.deploy.session_open",
     // ── Federation ──
-    "cns.federation",
-    "cns.federation.artifact_sync",
-    "cns.federation.conduit_route",
-    "cns.federation.conduit_route_lost",
-    "cns.federation.crdt_conflict",
-    "cns.federation.crdt_merge",
-    "cns.federation.dissolved",
-    "cns.federation.invite_accepted",
-    "cns.federation.invite_expired",
-    "cns.federation.invite_received",
-    "cns.federation.invite_rejected",
-    "cns.federation.invite_sent",
-    "cns.federation.link_degraded",
-    "cns.federation.link_established",
-    "cns.federation.link_lost",
-    "cns.federation.link_paused",
-    "cns.federation.link_resumed",
-    "cns.federation.member_left",
-    "cns.federation.member_revoked",
-    "cns.federation.registry_sync",
-    "cns.federation.sync",
+    "reg.federation",
+    "reg.federation.artifact_sync",
+    "reg.federation.conduit_route",
+    "reg.federation.conduit_route_lost",
+    "reg.federation.crdt_conflict",
+    "reg.federation.crdt_merge",
+    "reg.federation.dissolved",
+    "reg.federation.invite_accepted",
+    "reg.federation.invite_expired",
+    "reg.federation.invite_received",
+    "reg.federation.invite_rejected",
+    "reg.federation.invite_sent",
+    "reg.federation.link_degraded",
+    "reg.federation.link_established",
+    "reg.federation.link_lost",
+    "reg.federation.link_paused",
+    "reg.federation.link_resumed",
+    "reg.federation.member_left",
+    "reg.federation.member_revoked",
+    "reg.federation.registry_sync",
+    "reg.federation.sync",
     // ── Gas / Energy ──
-    "cns.gas",
-    "cns.gas.calibration",
+    "reg.gas",
+    "reg.gas.calibration",
     // ── Goal ──
-    "cns.goal",
+    "reg.goal",
     // ── Guard ──
-    "cns.guard",
-    "cns.guard.canary",
-    "cns.guard.input",
-    "cns.guard.output",
-    "cns.guard.runtime_policy",
-    "cns.guard.violation",
+    "reg.guard",
+    "reg.guard.canary",
+    "reg.guard.input",
+    "reg.guard.output",
+    "reg.guard.runtime_policy",
+    "reg.guard.violation",
     // ── Healing ──
-    "cns.heal",
-    "cns.heal.attempt",
-    "cns.heal.code_change_proposed",
-    "cns.heal.dotenv",
-    "cns.heal.escalated",
-    "cns.heal.file_created",
-    "cns.heal.llm_assisted",
-    "cns.heal.retry_loop",
-    "cns.heal.set_env",
-    "cns.heal.strategy",
-    "cns.heal.unmatched",
+    "reg.heal",
+    "reg.heal.attempt",
+    "reg.heal.code_change_proposed",
+    "reg.heal.dotenv",
+    "reg.heal.escalated",
+    "reg.heal.file_created",
+    "reg.heal.llm_assisted",
+    "reg.heal.retry_loop",
+    "reg.heal.set_env",
+    "reg.heal.strategy",
+    "reg.heal.unmatched",
     // ── Inference ──
-    "cns.inference",
+    "reg.inference",
     // ── Fusion (multi-model deliberation) ──
-    "cns.fusion",
+    "reg.fusion",
     // ── Kata / Skill / Keystore ──
-    "cns.kata",
-    "cns.keystore",
+    "reg.kata",
+    "reg.keystore",
     // ── MCP Media ──
-    "cns.mcp.media.face",
+    "reg.mcp.media.face",
     // ── Media / Memory ──
-    "cns.media",
-    "cns.memory",
-    "cns.memory.budget",
-    "cns.memory.decay",
-    "cns.memory.encode",
-    "cns.memory.episodic",
+    "reg.media",
+    "reg.memory",
+    "reg.memory.budget",
+    "reg.memory.decay",
+    "reg.memory.encode",
+    "reg.memory.episodic",
     // ── Multi-agent ──
-    "cns.multi.invite.accepted",
-    "cns.multi.invite.sent",
-    "cns.multi.role.assigned",
+    "reg.multi.invite.accepted",
+    "reg.multi.invite.sent",
+    "reg.multi.role.assigned",
     // ── Outcome ──
-    "cns.outcome",
+    "reg.outcome",
     // ── Platform metrics ──
-    "cns.platform.metric",
-    "cns.platform.metric.dora.change_fail_rate",
-    "cns.platform.metric.dora.deploy_freq",
-    "cns.platform.metric.dora.lead_time",
-    "cns.platform.metric.dora.mttr",
-    "cns.platform.metric.loyalty",
-    "cns.platform.metric.space.activity",
-    "cns.platform.metric.space.communication",
-    "cns.platform.metric.space.efficiency",
-    "cns.platform.metric.space.performance",
-    "cns.platform.metric.space.satisfaction",
+    "reg.platform.metric",
+    "reg.platform.metric.dora.change_fail_rate",
+    "reg.platform.metric.dora.deploy_freq",
+    "reg.platform.metric.dora.lead_time",
+    "reg.platform.metric.dora.mttr",
+    "reg.platform.metric.loyalty",
+    "reg.platform.metric.space.activity",
+    "reg.platform.metric.space.communication",
+    "reg.platform.metric.space.efficiency",
+    "reg.platform.metric.space.performance",
+    "reg.platform.metric.space.satisfaction",
     // ── QA ──
-    "cns.qa.mutant_survived",
-    "cns.qa.repair_attempted",
-    "cns.qa.repair_exhausted",
-    "cns.qa.repair_verified",
+    "reg.qa.mutant_survived",
+    "reg.qa.repair_attempted",
+    "reg.qa.repair_exhausted",
+    "reg.qa.repair_verified",
     // ── Regulation (v0.31.0 Fermi impact-gate) ──
-    "cns.regulation",
-    "cns.regulation.calibration",
-    "cns.regulation.coherence",
-    "cns.regulation.predictive",
+    "reg.regulation",
+    "reg.regulation.calibration",
+    "reg.regulation.coherence",
+    "reg.regulation.predictive",
     // ── UserPod ──
-    "cns.userpod.registered",
+    "reg.userpod.registered",
     // ── Semantic ──
-    "cns.semantic.published",
+    "reg.semantic.published",
     // ── Skill (organized by subdomain) ──
     // Lifecycle: skill discovery, loading, publishing
-    "cns.skill.lifecycle",
-    "cns.skill.lifecycle.skill_activated",
-    "cns.skill.lifecycle.skills_loaded",
-    "cns.skill.lifecycle.skills_discovered",
-    "cns.skill.lifecycle.skill_published",
+    "reg.skill.lifecycle",
+    "reg.skill.lifecycle.skill_activated",
+    "reg.skill.lifecycle.skills_loaded",
+    "reg.skill.lifecycle.skills_discovered",
+    "reg.skill.lifecycle.skill_published",
     // Registry: manifest validation
-    "cns.skill.registry",
-    "cns.skill.registry.registry_validated",
+    "reg.skill.registry",
+    "reg.skill.registry.registry_validated",
     // Cascade: step execution
-    "cns.skill.cascade",
-    "cns.skill.cascade.step_executed",
-    "cns.skill.cascade.compute",
+    "reg.skill.cascade",
+    "reg.skill.cascade.step_executed",
+    "reg.skill.cascade.compute",
     // Convergence: cascade outcomes
-    "cns.skill.convergence",
-    "cns.skill.convergence.converged",
-    "cns.skill.convergence.escalated",
+    "reg.skill.convergence",
+    "reg.skill.convergence.converged",
+    "reg.skill.convergence.escalated",
     // Budget: gas and rjoule limits
-    "cns.skill.budget",
-    "cns.skill.budget.gas_exhausted",
-    "cns.skill.budget.gas_alert",
-    "cns.skill.budget.rjoule_exhausted",
-    "cns.skill.budget.rjoule_alert",
+    "reg.skill.budget",
+    "reg.skill.budget.gas_exhausted",
+    "reg.skill.budget.gas_alert",
+    "reg.skill.budget.rjoule_exhausted",
+    "reg.skill.budget.rjoule_alert",
     // Frontmatter: SKILL.md parse errors (F-02 fix)
-    "cns.skill.frontmatter",
-    "cns.skill.frontmatter.missing",
+    "reg.skill.frontmatter",
+    "reg.skill.frontmatter.missing",
     // Manifest: registry manifest errors (F-03 fix)
-    "cns.skill.manifest",
-    "cns.skill.manifest.unparseable",
-    "cns.skill.manifest.absent",
-    "cns.skill.manifest.unreadable",
+    "reg.skill.manifest",
+    "reg.skill.manifest.unparseable",
+    "reg.skill.manifest.absent",
+    "reg.skill.manifest.unreadable",
     // ── SLO ──
-    "cns.slo.evaluated",
+    "reg.slo.evaluated",
     // ── Sovereignty ──
-    "cns.sovereignty",
-    "cns.sovereignty.consent_anomaly",
-    "cns.sovereignty.consent_audited",
-    "cns.sovereignty.governance_report",
-    "cns.sovereignty.portability_failure",
-    "cns.sovereignty.portability_verified",
+    "reg.sovereignty",
+    "reg.sovereignty.consent_anomaly",
+    "reg.sovereignty.consent_audited",
+    "reg.sovereignty.governance_report",
+    "reg.sovereignty.portability_failure",
+    "reg.sovereignty.portability_verified",
     // ── Spec ──
-    "cns.spec",
-    "cns.spec.executor",
+    "reg.spec",
+    "reg.spec.executor",
     // ── Storage ──
-    "cns.storage",
-    "cns.storage.corruption",
+    "reg.storage",
+    "reg.storage.corruption",
     // ── Tool subsystems ──
-    "cns.tool",
-    "cns.tool.communication",
-    "cns.tool.companies",
-    "cns.tool.condenser",
-    "cns.tool.curator",
-    "cns.tool.docproc",
-    "cns.tool.filesystem",
-    "cns.tool.kanban",
-    "cns.tool.media",
-    "cns.tool.memory",
-    "cns.tool.registry",
-    "cns.tool.replica",
-    "cns.tool.research",
-    "cns.tool.training",
-    "cns.tool.wallet",
-    "cns.tool.web_search",
+    "reg.tool",
+    "reg.tool.communication",
+    "reg.tool.companies",
+    "reg.tool.condenser",
+    "reg.tool.curator",
+    "reg.tool.docproc",
+    "reg.tool.filesystem",
+    "reg.tool.kanban",
+    "reg.tool.media",
+    "reg.tool.memory",
+    "reg.tool.registry",
+    "reg.tool.replica",
+    "reg.tool.research",
+    "reg.tool.training",
+    "reg.tool.wallet",
+    "reg.tool.web_search",
     // ── Variety ──
-    "cns.variety",
+    "reg.variety",
     // ── Wallet ──
-    "cns.wallet",
-    "cns.wallet.balance",
-    "cns.wallet.calibration",
-    "cns.wallet.chain",
-    "cns.wallet.chain_error",
-    "cns.wallet.conversion",
-    "cns.wallet.created",
-    "cns.wallet.deposit",
-    "cns.wallet.deposit_shielded",
-    "cns.wallet.draw",
-    "cns.wallet.exhausted",
-    "cns.wallet.key_exhausted",
-    "cns.wallet.key_expired",
-    "cns.wallet.key_issued",
-    "cns.wallet.key_revoked",
-    "cns.wallet.spend",
-    "cns.wallet.withdrawal",
+    "reg.wallet",
+    "reg.wallet.balance",
+    "reg.wallet.calibration",
+    "reg.wallet.chain",
+    "reg.wallet.chain_error",
+    "reg.wallet.conversion",
+    "reg.wallet.created",
+    "reg.wallet.deposit",
+    "reg.wallet.deposit_shielded",
+    "reg.wallet.draw",
+    "reg.wallet.exhausted",
+    "reg.wallet.key_exhausted",
+    "reg.wallet.key_expired",
+    "reg.wallet.key_issued",
+    "reg.wallet.key_revoked",
+    "reg.wallet.spend",
+    "reg.wallet.withdrawal",
     // ── Well ──
-    "cns.well.created",
-    "cns.well.draw",
-    "cns.well.exhausted",
-    "cns.well.replenished",
+    "reg.well.created",
+    "reg.well.draw",
+    "reg.well.exhausted",
+    "reg.well.replenished",
     // ── Pipeline (docproc) ──
-    "cns.pipeline",
-    "cns.pipeline.calibration",
-    "cns.pipeline.decimation",
-    "cns.pipeline.decimation.binarize",
-    "cns.pipeline.ocr",
-    "cns.pipeline.ocr.circuit_breaker",
-    "cns.pipeline.ocr.collusion",
-    "cns.pipeline.ocr.low_confidence",
-    "cns.pipeline.ocr.rate_limit",
-    "cns.pipeline.ocr.silent_failure",
-    "cns.pipeline.ocr.trust_invert",
-    "cns.pipeline.pdf_extract",
+    "reg.pipeline",
+    "reg.pipeline.calibration",
+    "reg.pipeline.decimation",
+    "reg.pipeline.decimation.binarize",
+    "reg.pipeline.ocr",
+    "reg.pipeline.ocr.circuit_breaker",
+    "reg.pipeline.ocr.collusion",
+    "reg.pipeline.ocr.low_confidence",
+    "reg.pipeline.ocr.rate_limit",
+    "reg.pipeline.ocr.silent_failure",
+    "reg.pipeline.ocr.trust_invert",
+    "reg.pipeline.pdf_extract",
     // ── Supply chain (security audit — supply-chain-sentinel skill) ──
-    "cns.supply_chain",
-    "cns.supply_chain.select",
-    "cns.supply_chain.probe",
-    "cns.supply_chain.report",
-    "cns.supply_chain.convergence",
+    "reg.supply_chain",
+    "reg.supply_chain.select",
+    "reg.supply_chain.probe",
+    "reg.supply_chain.report",
+    "reg.supply_chain.convergence",
     // ── Runtime posture (security audit — runtime-posture-monitor skill) ──
-    "cns.runtime",
-    "cns.runtime.select",
-    "cns.runtime.classify",
-    "cns.runtime.regulate",
-    "cns.runtime.convergence",
+    "reg.runtime",
+    "reg.runtime.select",
+    "reg.runtime.classify",
+    "reg.runtime.regulate",
+    "reg.runtime.convergence",
     // ── Attack taxonomy (security audit — attack-taxonomy-mapper skill) ──
-    "cns.taxonomy",
-    "cns.taxonomy.select",
-    "cns.taxonomy.map",
-    "cns.taxonomy.report",
-    "cns.taxonomy.convergence",
+    "reg.taxonomy",
+    "reg.taxonomy.select",
+    "reg.taxonomy.map",
+    "reg.taxonomy.report",
+    "reg.taxonomy.convergence",
     // ── LoRA training (training-config audit — lora-training skill) ──
-    "cns.lora",
-    "cns.lora.select",
-    "cns.lora.audit",
-    "cns.lora.report",
-    "cns.lora.convergence",
+    "reg.lora",
+    "reg.lora.select",
+    "reg.lora.audit",
+    "reg.lora.report",
+    "reg.lora.convergence",
     // ── Template ──
-    "cns.template",
+    "reg.template",
     // ── Training providers (provider HTTP call observability — post-mortem 2026-07-19) ──
-    "cns.training.provider",
-    "cns.training.provider.runpod.cancel",
-    "cns.training.provider.runpod.drain",
-    "cns.training.provider.runpod.graphql",
-    "cns.training.provider.runpod.provision",
-    "cns.training.provider.runpod.status",
-    "cns.training.provider.runpod.submit",
-    "cns.training.provider.runpod.teardown",
-    "cns.training.provider.runpod.upload",
+    "reg.training.provider",
+    "reg.training.provider.runpod.cancel",
+    "reg.training.provider.runpod.drain",
+    "reg.training.provider.runpod.graphql",
+    "reg.training.provider.runpod.provision",
+    "reg.training.provider.runpod.status",
+    "reg.training.provider.runpod.submit",
+    "reg.training.provider.runpod.teardown",
+    "reg.training.provider.runpod.upload",
 ];
 
 /// Hierarchical namespace validation — a sub-namespace like
@@ -442,7 +442,7 @@ impl SpanNamespace {
     }
 
     /// Fallible construction — returns Err for invalid namespaces.
-    /// Accepts both short ("tool") and full ("cns.tool") forms.
+    /// Accepts both short ("tool") and full ("reg.tool") forms.
     ///
     /// Implements `FromStr` so that `"variety".parse::<SpanNamespace>()` works.
     /// Parse a SpanNamespace from string.
@@ -450,10 +450,10 @@ impl SpanNamespace {
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// post: returns Some(SpanNamespace) if valid, None otherwise
     pub fn parse(s: &str) -> Option<Self> {
-        let full = if s.starts_with("cns.") {
+        let full = if s.starts_with("reg.") {
             s.to_string()
         } else {
-            format!("cns.{s}")
+            format!("reg.{s}")
         };
         if is_canonical(&full) {
             Some(Self(full))
@@ -464,17 +464,17 @@ impl SpanNamespace {
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is a valid SpanNamespace (canonical)
-    /// post: returns the full namespace string (e.g. "cns.tool")
+    /// post: returns the full namespace string (e.g. "reg.tool")
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
-    /// pre:  self is a valid SpanNamespace (starts with "cns.")
-    /// post: returns the short name after the "cns." prefix (e.g. "tool"),
-    ///       or the full namespace if it doesn't start with "cns."
+    /// pre:  self is a valid SpanNamespace (starts with "reg.")
+    /// post: returns the short name after the "reg." prefix (e.g. "tool"),
+    ///       or the full namespace if it doesn't start with "reg."
     pub fn short_name(&self) -> &str {
-        if let Some(rest) = self.0.strip_prefix("cns.") {
+        if let Some(rest) = self.0.strip_prefix("reg.") {
             rest
         } else {
             &self.0
@@ -613,16 +613,16 @@ impl SpanNamespace {
 /// The namespace is validated at construction time by `SpanNamespace`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Span {
-    /// The validated namespace (e.g., SpanNamespace::new("cns.tool"))
+    /// The validated namespace (e.g., SpanNamespace::new("reg.tool"))
     pub namespace: SpanNamespace,
-    /// Fully-qualified span path (e.g., "cns.tool.invoked")
+    /// Fully-qualified span path (e.g., "reg.tool.invoked")
     pub path: String,
 }
 
 impl Span {
     /// Create a new span with validated namespace.
     ///
-    /// Example: `Span::new(SpanNamespace::new("cns.tool"), "invoked")`
+    /// Example: `Span::new(SpanNamespace::new("reg.tool"), "invoked")`
     /// Create a new Span.
     ///
     /// expect: "System types preserve semantic identity and are provenance-aware"
@@ -720,24 +720,24 @@ impl SpanKind {
     /// Return the (namespace, local_path) pair for this span kind.
     fn namespace_and_path(&self) -> (&'static str, &'static str) {
         match self {
-            SpanKind::ToolInvoked => ("cns.tool", "invoked"),
-            SpanKind::ToolCompleted => ("cns.tool", "completed"),
-            SpanKind::ToolError => ("cns.tool", "error"),
-            SpanKind::GasReserved => ("cns.gas", "reserved"),
-            SpanKind::GasSettled => ("cns.gas", "settled"),
-            SpanKind::GasDepleted => ("cns.gas", "depleted"),
-            SpanKind::CurationDirectiveAcknowledged => ("cns.curation", "directive_acknowledged"),
-            SpanKind::CurationEscalation => ("cns.curation", "escalation"),
-            SpanKind::AgentPodRegistered => ("cns.agent_pod", "registered"),
-            SpanKind::AgentPodActivated => ("cns.agent_pod", "activated"),
-            SpanKind::AgentPodDeactivated => ("cns.agent_pod", "deactivated"),
-            SpanKind::VarietyAlgedonicAlert => ("cns.variety", "algedonic_alert"),
-            SpanKind::DepositCredited => ("cns.wallet", "deposit_credited"),
-            SpanKind::ImpactVerified => ("cns.regulation", "impact_verified"),
-            SpanKind::ActionSubstituted => ("cns.regulation", "action_substituted"),
-            SpanKind::ActionBlocked => ("cns.regulation", "action_blocked"),
-            SpanKind::RegulatoryPlateauDetected => ("cns.regulation", "plateau_detected"),
-            SpanKind::LoopMetricsTelemetry => ("cns.regulation", "loop_quality"),
+            SpanKind::ToolInvoked => ("reg.tool", "invoked"),
+            SpanKind::ToolCompleted => ("reg.tool", "completed"),
+            SpanKind::ToolError => ("reg.tool", "error"),
+            SpanKind::GasReserved => ("reg.gas", "reserved"),
+            SpanKind::GasSettled => ("reg.gas", "settled"),
+            SpanKind::GasDepleted => ("reg.gas", "depleted"),
+            SpanKind::CurationDirectiveAcknowledged => ("reg.curation", "directive_acknowledged"),
+            SpanKind::CurationEscalation => ("reg.curation", "escalation"),
+            SpanKind::AgentPodRegistered => ("reg.agent_pod", "registered"),
+            SpanKind::AgentPodActivated => ("reg.agent_pod", "activated"),
+            SpanKind::AgentPodDeactivated => ("reg.agent_pod", "deactivated"),
+            SpanKind::VarietyAlgedonicAlert => ("reg.variety", "algedonic_alert"),
+            SpanKind::DepositCredited => ("reg.wallet", "deposit_credited"),
+            SpanKind::ImpactVerified => ("reg.regulation", "impact_verified"),
+            SpanKind::ActionSubstituted => ("reg.regulation", "action_substituted"),
+            SpanKind::ActionBlocked => ("reg.regulation", "action_blocked"),
+            SpanKind::RegulatoryPlateauDetected => ("reg.regulation", "plateau_detected"),
+            SpanKind::LoopMetricsTelemetry => ("reg.regulation", "loop_quality"),
         }
     }
 }
@@ -805,7 +805,7 @@ mod tests {
     #[test]
     fn nuevent_new_sets_correct_defaults() {
         let webid = WebID::from_persona(b"test-agent");
-        let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+        let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
         let obs = serde_json::json!({"key": "value"});
 
         let event = RegulationRecord::new(webid, span, CyclePhase::Sense, obs.clone(), 0);
@@ -823,7 +823,7 @@ mod tests {
     #[test]
     fn nuevent_builder_chain_sets_fields() {
         let webid = WebID::from_persona(b"test-agent");
-        let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+        let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
         let parent_id = crate::id::EventID::new();
 
         let event = RegulationRecord::new(webid, span, CyclePhase::Act, serde_json::json!({}), 1)
@@ -840,18 +840,18 @@ mod tests {
 
     #[test]
     fn spannamespace_parse_accepts_short_and_full_forms() {
-        let full = SpanNamespace::parse("cns.tool");
+        let full = SpanNamespace::parse("reg.tool");
         assert!(full.is_some());
-        assert_eq!(full.unwrap().as_str(), "cns.tool");
+        assert_eq!(full.unwrap().as_str(), "reg.tool");
 
         let short = SpanNamespace::parse("tool");
         assert!(short.is_some());
-        assert_eq!(short.unwrap().as_str(), "cns.tool");
+        assert_eq!(short.unwrap().as_str(), "reg.tool");
     }
 
     #[test]
     fn spannamespace_parse_rejects_invalid() {
-        assert!(SpanNamespace::parse("cns.nonexistent").is_none());
+        assert!(SpanNamespace::parse("reg.nonexistent").is_none());
         assert!(SpanNamespace::parse("invalid").is_none());
         assert!(SpanNamespace::parse("").is_none());
     }
@@ -859,27 +859,27 @@ mod tests {
     #[test]
     fn spannamespace_category_classifies_correctly() {
         assert_eq!(
-            SpanNamespace::new("cns.variety").unwrap().category(),
+            SpanNamespace::new("reg.variety").unwrap().category(),
             SpanCategory::Cybernetics
         );
         assert_eq!(
-            SpanNamespace::new("cns.gas").unwrap().category(),
+            SpanNamespace::new("reg.gas").unwrap().category(),
             SpanCategory::Cybernetics
         );
         assert_eq!(
-            SpanNamespace::new("cns.curation").unwrap().category(),
+            SpanNamespace::new("reg.curation").unwrap().category(),
             SpanCategory::Curation
         );
         assert_eq!(
-            SpanNamespace::new("cns.inference").unwrap().category(),
+            SpanNamespace::new("reg.inference").unwrap().category(),
             SpanCategory::Inference
         );
         assert_eq!(
-            SpanNamespace::new("cns.agent_pod").unwrap().category(),
+            SpanNamespace::new("reg.agent_pod").unwrap().category(),
             SpanCategory::Episodic
         );
         assert_eq!(
-            SpanNamespace::new("cns.tool").unwrap().category(),
+            SpanNamespace::new("reg.tool").unwrap().category(),
             SpanCategory::Unknown
         );
     }
@@ -920,40 +920,40 @@ mod tests {
 
     #[test]
     fn span_new_constructs_full_path() {
-        let ns = SpanNamespace::new("cns.tool").unwrap();
+        let ns = SpanNamespace::new("reg.tool").unwrap();
         let span = Span::new(ns, "invoked");
-        assert_eq!(span.as_str(), "cns.tool.invoked");
+        assert_eq!(span.as_str(), "reg.tool.invoked");
     }
 
     #[test]
     fn span_from_kind_produces_correct_paths() {
         assert_eq!(
             Span::from_kind(SpanKind::ToolInvoked).as_str(),
-            "cns.tool.invoked"
+            "reg.tool.invoked"
         );
         assert_eq!(
             Span::from_kind(SpanKind::ToolCompleted).as_str(),
-            "cns.tool.completed"
+            "reg.tool.completed"
         );
         assert_eq!(
             Span::from_kind(SpanKind::GasReserved).as_str(),
-            "cns.gas.reserved"
+            "reg.gas.reserved"
         );
         assert_eq!(
             Span::from_kind(SpanKind::GasSettled).as_str(),
-            "cns.gas.settled"
+            "reg.gas.settled"
         );
         assert_eq!(
             Span::from_kind(SpanKind::CurationDirectiveAcknowledged).as_str(),
-            "cns.curation.directive_acknowledged"
+            "reg.curation.directive_acknowledged"
         );
         assert_eq!(
             Span::from_kind(SpanKind::AgentPodRegistered).as_str(),
-            "cns.agent_pod.registered"
+            "reg.agent_pod.registered"
         );
         assert_eq!(
             Span::from_kind(SpanKind::VarietyAlgedonicAlert).as_str(),
-            "cns.variety.algedonic_alert"
+            "reg.variety.algedonic_alert"
         );
     }
 
@@ -979,13 +979,13 @@ mod tests {
             }
         }
 
-        // e.g., "tool" → parse() → as_str() == "cns.tool"
+        // e.g., "tool" → parse() → as_str() == "reg.tool"
         proptest! {
             #[test]
             fn short_form_round_trip(
                 ns in canonical_namespace_str()
             ) {
-                let short = &ns[4..]; // strip "cns." prefix
+                let short = &ns[4..]; // strip "reg." prefix
                 let parsed = SpanNamespace::parse(short);
                 prop_assert!(parsed.is_some(), "short form should parse: {short}");
                 let span_ns = parsed.unwrap();
@@ -999,7 +999,7 @@ mod tests {
                 input in "\\PC*"
             ) {
                 prop_assume!(!CANONICAL_NAMESPACES.contains(&input.as_str()));
-                let full = format!("cns.{input}");
+                let full = format!("reg.{input}");
                 prop_assume!(!CANONICAL_NAMESPACES.contains(&full.as_str()));
 
                 let result = SpanNamespace::parse(&input);

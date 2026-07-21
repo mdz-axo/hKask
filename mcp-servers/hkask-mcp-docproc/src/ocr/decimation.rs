@@ -102,7 +102,7 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.pipeline.decimation",
+                    target: "reg.pipeline.decimation",
                     page = page_num,
                     error = %e,
                     "Failed to load page image — skipping"
@@ -120,7 +120,7 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
 
     if !failed_pages.is_empty() {
         tracing::warn!(
-            target: "cns.pipeline.decimation",
+            target: "reg.pipeline.decimation",
             failed_count = failed_pages.len(),
             total_pages = images.len() + failed_pages.len(),
             failed = ?failed_pages,
@@ -153,16 +153,16 @@ pub(crate) async fn preprocess_via_fal(image: &mut DynamicImage) {
     let api_key = std::env::var("FA_API_KEY").unwrap_or_default();
 
     if api_key.is_empty() {
-        tracing::warn!(target: "cns.pipeline.ocr", "HKASK_USE_FAL_DOCRES set but no API key found");
+        tracing::warn!(target: "reg.pipeline.ocr", "HKASK_USE_FAL_DOCRES set but no API key found");
         return;
     }
 
     // Try fal.ai enhancement on top of Otsu-binarized image
     if let Some(enhanced) = try_fal_docres(image, &api_key).await {
-        tracing::info!(target: "cns.pipeline.ocr", "fal.ai docres enhancement applied");
+        tracing::info!(target: "reg.pipeline.ocr", "fal.ai docres enhancement applied");
         *image = enhanced;
     } else {
-        tracing::warn!(target: "cns.pipeline.ocr", "fal.ai docres failed, keeping Otsu result");
+        tracing::warn!(target: "reg.pipeline.ocr", "fal.ai docres failed, keeping Otsu result");
     }
 }
 
@@ -246,7 +246,7 @@ fn otsu_binarize(image: &mut DynamicImage) {
     let unique: std::collections::BTreeSet<u8> = binarized.as_raw().iter().copied().collect();
     if unique.len() <= 1 {
         tracing::warn!(
-            target: "cns.pipeline.decimation.binarize",
+            target: "reg.pipeline.decimation.binarize",
             otsu_level = otsu_level,
             unique_values = unique.len(),
             "Otsu binarization produced uniform output — possible over-thresholding"

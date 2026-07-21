@@ -184,7 +184,7 @@ impl ClineBackend {
             Ok(r) => r,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     "Cline models request failed: {e}"
                 );
                 return Vec::new();
@@ -194,14 +194,14 @@ impl ClineBackend {
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            tracing::warn!(target: "cns.inference", "Cline models error {status}: {body}");
+            tracing::warn!(target: "reg.inference", "Cline models error {status}: {body}");
             return Vec::new();
         }
 
         let list: ClineModelList = match response.json().await {
             Ok(l) => l,
             Err(e) => {
-                tracing::warn!(target: "cns.inference", "Cline models parse error: {e}");
+                tracing::warn!(target: "reg.inference", "Cline models parse error: {e}");
                 return Vec::new();
             }
         };

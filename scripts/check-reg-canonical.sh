@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# CI gate: every `cns.*` tracing target must be a canonical CNS namespace
+# CI gate: every `reg.*` tracing target must be a canonical REG namespace
 # (registered in `CANONICAL_NAMESPACES`, directly or via an ancestor).
 #
-# Rationale: the `cns.*` prefix is reserved for canonical CNS spans — the
+# Rationale: the `reg.*` prefix is reserved for canonical REG spans — the
 # essential, ν-event-eligible, `SpanCategory`-categorized, loop-connected spans.
-# Performative telemetry MUST use `hkask.*` targets, not `cns.*` (PRINCIPLES §9.1).
-# Without this gate, performative logs borrowing the `cns.` prefix silently
-# re-grow, recreating the registry/code drift (the 89 stray `cns.*` targets
-# cleaned up in the cns-canonical sweep).
+# Performative telemetry MUST use `hkask.*` targets, not `reg.*` (PRINCIPLES §9.1).
+# Without this gate, performative logs borrowing the `reg.` prefix silently
+# re-grow, recreating the registry/code drift (the 89 stray `reg.*` targets
+# cleaned up in the reg-canonical sweep).
 #
 # This gate checks TWO surfaces:
-# 1. Rust code (.rs): `target: "cns.*"` tracing targets in production code
-# 2. Jinja2 templates (.j2): `cns.*` namespace references in skill templates
+# 1. Rust code (.rs): `target: "reg.*"` tracing targets in production code
+# 2. Jinja2 templates (.j2): `reg.*` namespace references in skill templates
 #    (templates instruct agents to emit spans — those references must be
 #    canonical too, otherwise the agent would emit non-canonical spans)
 #
 # Enabled in CI via `.github/workflows/ci.yml` invariants job.
-# Run locally: `bash scripts/check-cns-canonical.sh`
+# Run locally: `bash scripts/check-reg-canonical.sh`
 #
 # Exit codes:
-#   0 — every `cns.*` reference in production code AND templates is canonical
-#   1 — a non-canonical `cns.*` reference was found (register it or move it to `hkask.*`)
+#   0 — every `reg.*` reference in production code AND templates is canonical
+#   1 — a non-canonical `reg.*` reference was found (register it or move it to `hkask.*`)
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -52,17 +52,17 @@ is_canonical() {
 
 FAIL=0
 
-# ── Surface 1: Rust code (.rs) — `target: "cns.*"` tracing targets ───────
-# Collect every distinct `target: "cns.<...>"` in production code
+# ── Surface 1: Rust code (.rs) — `target: "reg.*"` tracing targets ───────
+# Collect every distinct `target: "reg.<...>"` in production code
 # (exclude tests, examples, build artifacts).
 mapfile -t TARGETS < <(
-  grep -rhoE 'target: "cns\.[a-z0-9_.]+"' crates/ mcp-servers/ \
+  grep -rhoE 'target: "reg\.[a-z0-9_.]+"' crates/ mcp-servers/ \
     --include='*.rs' \
     --exclude-dir=target \
     --exclude-dir=tests \
     --exclude-dir=examples \
     2>/dev/null \
-    | sed -E 's/.*"(cns\.[a-z0-9_.]+)"/\1/' \
+    | sed -E 's/.*"(reg\.[a-z0-9_.]+)"/\1/' \
     | sort -u
 )
 
@@ -71,33 +71,33 @@ for ns in "${TARGETS[@]}"; do
     sites=$( { grep -rnF -- "target: \"$ns\"" crates/ mcp-servers/ \
       --include='*.rs' --exclude-dir=target --exclude-dir=tests --exclude-dir=examples \
       2>/dev/null || true; } | head -5 )
-    echo "  non-canonical cns.* target (Rust): $ns"
+    echo "  non-canonical reg.* target (Rust): $ns"
     echo "$sites" | sed 's/^/    /'
     FAIL=1
   fi
 done
 
-# ── Surface 2: Jinja2 templates (.j2) — `cns.*` namespace references ──────
-# Skill templates (.j2) instruct agents to emit CNS spans. Those references
+# ── Surface 2: Jinja2 templates (.j2) — `reg.*` namespace references ──────
+# Skill templates (.j2) instruct agents to emit REG spans. Those references
 # must be canonical too — otherwise the agent would emit non-canonical spans.
-# We scan for `cns.<word>.<word>` patterns (at least two dot-separated segments
-# after 'cns.') to avoid false positives from prose like "cns" alone.
+# We scan for `reg.<word>.<word>` patterns (at least two dot-separated segments
+# after 'reg.') to avoid false positives from prose like "reg" alone.
 #
 # RATCHETED: pre-existing non-canonical references are allowlisted below.
 # As each is fixed (either registered in CANONICAL_NAMESPACES or retargeted to
 # hkask.*), remove it from the allowlist. When the allowlist is empty, the
 # standard is fully enforced and cannot regress.
 TEMPLATE_ALLOWLIST=(
-  "cns.contract.quality"
-  "cns.improv.freestyle"
-  "cns.improv.mode"
-  "cns.improv.plussing"
-  "cns.prompt.outcome"
-  "cns.prompt.render"
-  "cns.prompt.select"
-  "cns.qa.bolero_failure"
-  "cns.qa.custom"
-  "cns.qa.my_script"
+  "reg.contract.quality"
+  "reg.improv.freestyle"
+  "reg.improv.mode"
+  "reg.improv.plussing"
+  "reg.prompt.outcome"
+  "reg.prompt.render"
+  "reg.prompt.select"
+  "reg.qa.bolero_failure"
+  "reg.qa.custom"
+  "reg.qa.my_script"
 )
 
 is_template_allowlisted() {
@@ -109,7 +109,7 @@ is_template_allowlisted() {
 }
 
 mapfile -t J2_REFS < <(
-  grep -rhoE 'cns\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*' registry/templates/ \
+  grep -rhoE 'reg\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*' registry/templates/ \
     --include='*.j2' \
     2>/dev/null \
     | sort -u
@@ -126,7 +126,7 @@ for ns in "${J2_REFS[@]}"; do
       echo "$sites" | sed 's/^/    /'
       template_ratchet=$((template_ratchet + 1))
     else
-      echo "  non-canonical cns.* reference (template): $ns"
+      echo "  non-canonical reg.* reference (template): $ns"
       echo "$sites" | sed 's/^/    /'
       FAIL=1
     fi
@@ -134,15 +134,15 @@ for ns in "${J2_REFS[@]}"; do
 done
 
 if [ "$FAIL" -eq 0 ]; then
-  echo "OK: every cns.* reference in Rust code and .j2 templates is canonical (registered in CANONICAL_NAMESPACES)."
+  echo "OK: every reg.* reference in Rust code and .j2 templates is canonical (registered in CANONICAL_NAMESPACES)."
   if [ "$template_ratchet" -gt 0 ]; then
     echo "ratchet: $template_ratchet non-canonical template reference(s) allowlisted (pre-existing — fix to remove from allowlist)"
   fi
   exit 0
 else
   echo ""
-  echo "FAIL: non-canonical cns.* references found."
-  echo "The cns.* prefix is reserved for canonical CNS spans (PRINCIPLES §9.1)."
+  echo "FAIL: non-canonical reg.* references found."
+  echo "The reg.* prefix is reserved for canonical REG spans (PRINCIPLES §9.1)."
   echo "Fix: either register the namespace in $REGISTRY (if it drives a cybernetic"
   echo "loop / becomes a ν-event) or retarget the span to hkask.* (if it is"
   echo "performative telemetry)."

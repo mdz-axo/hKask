@@ -307,7 +307,7 @@ impl AdapterStore {
             ],
         )?;
         // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "store", adapter_id = %adapter.id, expertise = %adapter.expertise.name, "CNS");
+        tracing::info!(target: "reg.adapter", operation = "store", adapter_id = %adapter.id, expertise = %adapter.expertise.name, "CNS");
         Ok(())
     }
 
@@ -376,7 +376,7 @@ impl AdapterStore {
         )?;
         let result = rows.into_iter().next();
         // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "get_by_id", adapter_id = %id, found = result.is_some(), "CNS");
+        tracing::info!(target: "reg.adapter", operation = "get_by_id", adapter_id = %id, found = result.is_some(), "CNS");
         Ok(result)
     }
 
@@ -402,7 +402,7 @@ impl AdapterStore {
         )?;
 
         // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "get_by_expertise", expertise_name = %expertise_name, count = rows.len(), "CNS");
+        tracing::info!(target: "reg.adapter", operation = "get_by_expertise", expertise_name = %expertise_name, count = rows.len(), "CNS");
         Ok(rows)
     }
 
@@ -448,7 +448,7 @@ impl AdapterStore {
             }));
         }
         // P9: CNS span
-        tracing::info!(target: "cns.adapter", operation = "delete", adapter_id = %id, "CNS");
+        tracing::info!(target: "reg.adapter", operation = "delete", adapter_id = %id, "CNS");
         Ok(())
     }
 

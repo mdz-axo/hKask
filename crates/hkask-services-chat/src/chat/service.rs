@@ -98,14 +98,14 @@ impl ChatService {
             .await
         {
             tracing::warn!(
-                target: "cns.curation.matrix",
+                target: "reg.curation.matrix",
                 room_id = %room.0,
                 error = %e,
                 "Failed to post metacognition summary to Matrix"
             );
         } else {
             tracing::info!(
-                target: "cns.curation.matrix",
+                target: "reg.curation.matrix",
                 room_id = %room.0,
                 "Metacognition summary posted to Matrix standing session"
             );
@@ -583,7 +583,7 @@ impl ChatService {
             Ok(ctx) => ctx,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.spec.executor",
+                    target: "reg.spec.executor",
                     error = %e,
                     "Manifest cascade failed — continuing without manifest enrichment"
                 );
@@ -606,7 +606,7 @@ impl ChatService {
             None
         } else {
             tracing::info!(
-                target: "cns.spec.executor",
+                target: "reg.spec.executor",
                 steps_completed = context_parts.len(),
                 "Manifest cascade completed"
             );

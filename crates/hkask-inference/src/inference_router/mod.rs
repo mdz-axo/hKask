@@ -95,7 +95,7 @@ impl InferenceRouter {
         let shared_client = config
             .build_client()
             .map(Arc::new)
-            .map_err(|e| warn!(target: "cns.inference", "HTTP client build failed: {}", e))
+            .map_err(|e| warn!(target: "reg.inference", "HTTP client build failed: {}", e))
             .ok();
 
         let deepinfra = shared_client
@@ -124,28 +124,28 @@ impl InferenceRouter {
             .and_then(|c| ClineBackend::new(&config, Arc::clone(c)).ok());
 
         if deepinfra.is_none() {
-            warn!(target: "cns.inference", "DeepInfra backend unavailable (no API key)");
+            warn!(target: "reg.inference", "DeepInfra backend unavailable (no API key)");
         }
         if fal.is_none() {
-            warn!(target: "cns.inference", "fal.ai backend unavailable (no API key)");
+            warn!(target: "reg.inference", "fal.ai backend unavailable (no API key)");
         }
         if together.is_none() {
-            warn!(target: "cns.inference", "Together AI backend unavailable (no API key)");
+            warn!(target: "reg.inference", "Together AI backend unavailable (no API key)");
         }
         if openrouter.is_none() {
-            warn!(target: "cns.inference", "OpenRouter backend unavailable (no API key)");
+            warn!(target: "reg.inference", "OpenRouter backend unavailable (no API key)");
         }
         if kilocode.is_none() {
-            warn!(target: "cns.inference", "KiloCode backend unavailable (no API key)");
+            warn!(target: "reg.inference", "KiloCode backend unavailable (no API key)");
         }
         if runpod.is_none() {
-            warn!(target: "cns.inference", "RunPod backend unavailable (no API key or template)");
+            warn!(target: "reg.inference", "RunPod backend unavailable (no API key or template)");
         }
         if ollama.is_none() {
-            warn!(target: "cns.inference", "Ollama backend unavailable (no base URL)");
+            warn!(target: "reg.inference", "Ollama backend unavailable (no base URL)");
         }
         if cline.is_none() {
-            warn!(target: "cns.inference", "Cline backend unavailable (no API key)");
+            warn!(target: "reg.inference", "Cline backend unavailable (no API key)");
         }
 
         let embedding = shared_client
@@ -226,7 +226,7 @@ impl InferenceRouter {
             0,
         );
         if let Err(error) = governance.event_sink.persist(&invoked) {
-            warn!(target: "cns.inference", %error, "failed to persist inference invocation");
+            warn!(target: "reg.inference", %error, "failed to persist inference invocation");
         }
 
         let result = self
@@ -250,7 +250,7 @@ impl InferenceRouter {
             .settle_gas(&governance.agent, estimated, GasCost(actual))
             .await
         {
-            warn!(target: "cns.inference", %error, "failed to settle inference gas");
+            warn!(target: "reg.inference", %error, "failed to settle inference gas");
         }
 
         let (status, error, tokens_used) = match &result {
@@ -277,11 +277,11 @@ impl InferenceRouter {
         )
         .with_parent(invoked.id);
         if let Err(error) = governance.event_sink.persist(&completed) {
-            warn!(target: "cns.inference", %error, "failed to persist inference outcome");
+            warn!(target: "reg.inference", %error, "failed to persist inference outcome");
         }
 
         info!(
-            target: "cns.inference",
+            target: "reg.inference",
             agent = ?governance.agent,
             model,
             reserved = estimated.0,
@@ -485,7 +485,7 @@ impl InferenceRouter {
         match self.resolve_chat(&fusion.judge) {
             Ok((provider, _)) => {
                 tracing::info!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     fusion_judge = %fusion.judge,
                     provider = %provider.as_str(),
                     panel_count = fusion.panel.len(),
@@ -495,7 +495,7 @@ impl InferenceRouter {
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     fusion_judge = %fusion.judge,
                     error = %e,
                     "Fusion judge model provider NOT configured"

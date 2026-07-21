@@ -74,7 +74,7 @@ Comment thread (agent/userpod communication):",
 
         // P9: CNS span — kata prompt generated for human display
         tracing::info!(
-            target: "cns.kata",
+            target: "reg.kata",
             operation = "coaching_prompt_generated",
             task_id = %task.id,
             title = %task.title,
@@ -149,7 +149,7 @@ Recent comments:",
 
         // P9: CNS span — kata prompt generated for human display
         tracing::info!(
-            target: "cns.kata",
+            target: "reg.kata",
             operation = "improvement_prompt_generated",
             task_id = %task.id,
             title = %task.title,
@@ -190,7 +190,7 @@ Recent comments:",
 
         // P9: CNS span — kata prompt generated for human display
         tracing::info!(
-            target: "cns.kata",
+            target: "reg.kata",
             operation = "practice_prompt_generated",
             task_id = %task.id,
             sub_problem = %sub_problem,

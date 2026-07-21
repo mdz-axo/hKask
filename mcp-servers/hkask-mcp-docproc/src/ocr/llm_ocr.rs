@@ -70,7 +70,7 @@ impl CircuitBreaker {
             let until = now_unix() + self.cooldown_secs as i64;
             self.cooldown_until.store(until, Ordering::Relaxed);
             tracing::warn!(
-                target: "cns.pipeline.ocr.circuit_breaker",
+                target: "reg.pipeline.ocr.circuit_breaker",
                 failures = count,
                 cooldown_secs = self.cooldown_secs,
                 "Circuit breaker opened — pausing LLM OCR requests"
@@ -136,7 +136,7 @@ impl OcrExecutor for LlmOcrExecutor {
         // falls back to Tesseract gracefully without explicit circuit checks.
         if !self.breaker.is_closed() {
             tracing::debug!(
-                target: "cns.pipeline.ocr.circuit_breaker",
+                target: "reg.pipeline.ocr.circuit_breaker",
                 "LLM OCR reported unavailable — circuit breaker open"
             );
             return false;
@@ -195,7 +195,7 @@ impl OcrExecutor for LlmOcrExecutor {
                     || err_str.contains("Rate limit")
                 {
                     tracing::warn!(
-                        target: "cns.pipeline.ocr.rate_limit",
+                        target: "reg.pipeline.ocr.rate_limit",
                         model = %model,
                         page_index = page_index,
                         "OCR inference rate-limited — circuit breaker tracking"
@@ -229,7 +229,7 @@ impl OcrExecutor for LlmOcrExecutor {
         // GAP-4: CNS variety — flag suspiciously low confidence for Curator review
         if confidence < 0.3 && !result.text.trim().is_empty() {
             tracing::warn!(
-                target: "cns.pipeline.ocr.low_confidence",
+                target: "reg.pipeline.ocr.low_confidence",
                 page_index = page_index,
                 confidence = confidence,
                 model = %model,

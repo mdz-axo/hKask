@@ -1,6 +1,6 @@
 //! CNS span helpers for storage observability.
 //!
-//! Emits tracing events on `target: "cns.storage"` so the CNS regulator
+//! Emits tracing events on `target: "reg.storage"` so the CNS regulator
 //! can observe query latency, error rates, and throughput per table.
 
 /// Extract a table name from a SQL statement.
@@ -20,7 +20,7 @@ pub(crate) fn extract_table(sql: &str) -> &str {
 
 /// Emit a CNS span for a completed storage operation.
 ///
-/// The regulator consumes these events on `target: "cns.storage"` to
+/// The regulator consumes these events on `target: "reg.storage"` to
 /// track latency distributions, error rates, and throughput per table.
 pub(crate) fn emit_storage_span(
     operation: &str,
@@ -30,7 +30,7 @@ pub(crate) fn emit_storage_span(
     error: bool,
 ) {
     tracing::info!(
-        target: "cns.storage",
+        target: "reg.storage",
         operation = operation,
         table = table,
         duration_us = duration_us,

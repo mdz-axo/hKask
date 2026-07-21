@@ -76,7 +76,7 @@ impl ChatService {
                 old_text
             } else {
                 tracing::debug!(
-                    target: "cns.chat.condense",
+                    target: "reg.chat.condense",
                     agent = %req.userpod_name,
                     phase = "cpu_pre_compress",
                     original_bytes = compressed.original_bytes,
@@ -129,7 +129,7 @@ impl ChatService {
         }
 
         tracing::debug!(
-            target: "cns.chat.condense",
+            target: "reg.chat.condense",
             agent = %req.userpod_name,
             old_msgs = old_half.len(),
             recent_msgs = recent_half.len(),

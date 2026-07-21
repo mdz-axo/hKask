@@ -173,7 +173,7 @@ impl EpisodicMemory {
                 let original_confidence = t.confidence;
                 t.confidence = t.confidence.memory_decay(days_since, self.memory_life_days);
                 tracing::debug!(
-                    target: "cns.memory.decay",
+                    target: "reg.memory.decay",
                     entity = %t.entity,
                     attribute = %t.attribute,
                     original_confidence = %original_confidence,
@@ -196,7 +196,7 @@ impl EpisodicMemory {
         for t in &deduped {
             if let Err(e) = self.h_mem_store.touch_recall(&t.id) {
                 tracing::warn!(
-                    target: "cns.memory.decay",
+                    target: "reg.memory.decay",
                     triple_id = %t.id,
                     error = %e,
                     "Failed to touch_recall episodic h_mem — decay clock not reset"

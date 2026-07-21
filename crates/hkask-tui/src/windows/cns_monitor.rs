@@ -61,7 +61,7 @@ impl Window for CnsMonitorWindow {
             "Domain Status:",
             Style::default().fg(Color::DarkGray),
         )));
-        for (domain, healthy) in self.bridge.cns_domains() {
+        for (domain, healthy) in self.bridge.reg_domains() {
             let (mark, color) = if healthy {
                 ("✓", Color::Green)
             } else {

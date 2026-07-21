@@ -330,7 +330,7 @@ impl ManifestExecutor {
                     )));
                 }
                 PolicyVerdict::Log(message) => {
-                    info!(target: "cns.guard.runtime_policy", tool = tool_name, %message, "CNS");
+                    info!(target: "reg.guard.runtime_policy", tool = tool_name, %message, "CNS");
                 }
                 PolicyVerdict::Allow => {}
             }
@@ -479,7 +479,7 @@ impl ManifestExecutor {
                 let step = &steps[step_idx];
 
                 info!(
-                    target: "cns.skill.cascade.step_executed",
+                    target: "reg.skill.cascade.step_executed",
                     iteration = iteration,
                     step = step.ordinal,
                     action = %step.action,
@@ -497,7 +497,7 @@ impl ManifestExecutor {
                             Ok(rendered) => rendered.trim().to_string(),
                             Err(e) => {
                                 info!(
-                                    target: "cns.skill.cascade.step_executed",
+                                    target: "reg.skill.cascade.step_executed",
                                     step = step.ordinal,
                                     error = %e,
                                     "condition render failed; treating as false"
@@ -510,7 +510,7 @@ impl ManifestExecutor {
                     };
                     if !evaluate_step_condition(&resolved_cond, &context) {
                         info!(
-                            target: "cns.skill.cascade.step_executed",
+                            target: "reg.skill.cascade.step_executed",
                             iteration = iteration,
                             step = step.ordinal,
                             condition = %resolved_cond,
@@ -526,7 +526,7 @@ impl ManifestExecutor {
                     // ── Abort: converged — exit with success ──
                     "abort" => {
                         info!(
-                            target: "cns.skill.convergence.converged",
+                            target: "reg.skill.convergence.converged",
                             iteration = iteration,
                             reason = "abort action",
                             "CNS"
@@ -548,7 +548,7 @@ impl ManifestExecutor {
                     "escalate" => {
                         let reason = step.description.clone();
                         info!(
-                            target: "cns.skill.convergence.escalated",
+                            target: "reg.skill.convergence.escalated",
                             iteration = iteration,
                             reason = %reason,
                             "CNS"
@@ -577,7 +577,7 @@ impl ManifestExecutor {
                             if let Some(pos) = steps.iter().position(|s| s.ordinal == target) {
                                 step_idx = pos;
                                 info!(
-                                    target: "cns.skill.cascade.step_executed",
+                                    target: "reg.skill.cascade.step_executed",
                                     iteration = iteration,
                                     choice_jump = target,
                                     "CNS"
@@ -593,7 +593,7 @@ impl ManifestExecutor {
                         recursion_depth += 1;
                         if recursion_depth > matryoshka_limit {
                             info!(
-                                target: "cns.skill.convergence.escalated",
+                                target: "reg.skill.convergence.escalated",
                                 iteration = iteration,
                                 reason = "matryoshka depth exceeded",
                                 depth = recursion_depth,
@@ -624,7 +624,7 @@ impl ManifestExecutor {
                             .unwrap_or(0) as u32;
 
                         info!(
-                            target: "cns.skill.cascade.step_executed",
+                            target: "reg.skill.cascade.step_executed",
                             iteration = iteration,
                             loop_target = loop_target,
                             depth = recursion_depth,
@@ -647,7 +647,7 @@ impl ManifestExecutor {
                             // return error instead of silently exiting.
                             if manifest.convergence.on_not_reached == "escalate" {
                                 info!(
-                                    target: "cns.skill.convergence.escalated",
+                                    target: "reg.skill.convergence.escalated",
                                     iteration = iteration,
                                     reason = "convergence not reached (max_iterations exhausted)",
                                     "CNS"
@@ -727,7 +727,7 @@ impl ManifestExecutor {
                         // Check gas exhaustion after select
                         if gas_hard_limit && gas_used >= gas_cap {
                             info!(
-                                target: "cns.skill.budget.gas_exhausted",
+                                target: "reg.skill.budget.gas_exhausted",
                                 iteration = iteration,
                                 gas_used = gas_used,
                                 gas_cap = gas_cap,
@@ -752,7 +752,7 @@ impl ManifestExecutor {
                         {
                             gas_alerted = true;
                             info!(
-                                target: "cns.skill.budget.gas_alert",
+                                target: "reg.skill.budget.gas_alert",
                                 gas_used = gas_used,
                                 gas_cap = gas_cap,
                                 pct = (gas_used as f64 / gas_cap as f64) * 100.0,
@@ -762,7 +762,7 @@ impl ManifestExecutor {
                         // Check rJoule exhaustion after select
                         if rjoule_enabled && rjoule_hard_limit && rjoule_used >= rjoule_cap {
                             info!(
-                                target: "cns.skill.budget.rjoule_exhausted",
+                                target: "reg.skill.budget.rjoule_exhausted",
                                 iteration = iteration,
                                 rjoule_used = rjoule_used,
                                 rjoule_cap = rjoule_cap,
@@ -787,7 +787,7 @@ impl ManifestExecutor {
                         {
                             rjoule_alerted = true;
                             info!(
-                                target: "cns.skill.budget.rjoule_alert",
+                                target: "reg.skill.budget.rjoule_alert",
                                 rjoule_used = rjoule_used,
                                 rjoule_cap = rjoule_cap,
                                 pct = (rjoule_used / rjoule_cap) * 100.0,
@@ -822,7 +822,7 @@ impl ManifestExecutor {
             // Check gas exhaustion at end of pass
             if gas_hard_limit && gas_used >= gas_cap {
                 info!(
-                    target: "cns.skill.budget.gas_exhausted",
+                    target: "reg.skill.budget.gas_exhausted",
                     iteration = iteration,
                     gas_used = gas_used,
                     gas_cap = gas_cap,
@@ -879,7 +879,7 @@ impl ManifestExecutor {
                 // escalate when they fail to converge.
                 if manifest.convergence.on_not_reached == "escalate" {
                     info!(
-                        target: "cns.skill.convergence.escalated",
+                        target: "reg.skill.convergence.escalated",
                         iteration = iteration,
                         reason = "convergence not reached (max_iterations exhausted)",
                         "CNS"
@@ -1344,7 +1344,7 @@ impl ManifestExecutor {
 
         let result = dispatch_compute(compute_ref, &input)?;
         info!(
-            target: "cns.skill.cascade.compute",
+            target: "reg.skill.cascade.compute",
             ordinal = step.ordinal,
             compute_ref = compute_ref,
             "CNS"
@@ -1543,7 +1543,7 @@ impl ManifestExecutor {
                             if let Ok(c) = std::fs::read_to_string(&j2_path) {
                                 // Success with .j2 extension
                                 info!(
-                                    target: "cns.spec.executor",
+                                    target: "reg.spec.executor",
                                     step = step.ordinal,
                                     resolved = %j2_path.display(),
                                     "Resolved template with .j2 fallback"
@@ -1584,7 +1584,7 @@ impl ManifestExecutor {
                 };
 
                 info!(
-                    target: "cns.spec.executor",
+                    target: "reg.spec.executor",
                     step = step.ordinal,
                     template = %template_ref,
                     "Rendering minijinja template"
@@ -1991,7 +1991,7 @@ fn resolve_operand(s: &str, context: &HashMap<String, Value>) -> Option<Value> {
     // silently-false condition (e.g. step_1_result.mode == 'plussing' where
     // step_1_result.mode is missing) observable for debugging.
     warn!(
-        target: "cns.skill.cascade.step_executed",
+        target: "reg.skill.cascade.step_executed",
         operand = s,
         "condition operand not found in context; treating as literal string"
     );

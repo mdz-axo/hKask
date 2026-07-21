@@ -183,8 +183,8 @@ impl SloManager {
 
                         SloSpan::SloEvaluated.emit("evaluated");
                         tracing::info!(
-                            target: "cns",
-                            cns_domain = "cns.slo.evaluated",
+                            target: "reg",
+                            reg_domain = "cns.slo.evaluated",
                             slo_id = %slo.slo_id,
                             compliance = %compliance,
                             error_budget_pct = %(error_budget_remaining * 100.0),
@@ -208,8 +208,8 @@ impl SloManager {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns",
-                            cns_domain = "cns.slo.evaluated",
+                            target: "reg",
+                            reg_domain = "cns.slo.evaluated",
                             slo_id = %slo.slo_id,
                             error = %e,
                             "SLO evaluation failed — data provider error",

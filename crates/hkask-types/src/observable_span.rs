@@ -61,14 +61,14 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
     /// Emit a structured tracing event through the CNS infrastructure.
     ///
     /// Default implementation emits an info-level event with `target = "cns"`,
-    /// `cns_domain` set to `self.as_str()`, and `operation` as provided.
+    /// `reg_domain` set to `self.as_str()`, and `operation` as provided.
     ///
     /// This is the log-only convenience path. Prefer `emit_to()` when a
     /// `RegulationSink` is available — it persists the event for CNS consumers.
     fn emit(&self, operation: &str) {
         tracing::info!(
-            target: "cns",
-            cns_domain = %self.as_str(),
+            target: "reg",
+            reg_domain = %self.as_str(),
             operation = %operation,
             "CNS",
         );
@@ -114,7 +114,7 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
             && let Err(e) = sink.persist(&event)
         {
             tracing::warn!(
-                target: "cns",
+                target: "reg",
                 domain = %self.as_str(),
                 operation = %operation,
                 error = %e,

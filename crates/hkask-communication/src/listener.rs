@@ -105,7 +105,7 @@ impl SevenR7Listener {
                                 Ok(r) => r,
                                 Err(e) => {
                                     tracing::warn!(
-                                        target: "cns.communication.listener",
+                                        target: "reg.communication.listener",
                                         error = %e,
                                         "7R7 failed to list rooms"
                                     );
@@ -123,7 +123,7 @@ impl SevenR7Listener {
                                     for msg in &messages {
                                         if is_self_authored(msg, authenticated_user.as_ref()) {
                                             tracing::debug!(
-                                                target: "cns.communication.message.ignored",
+                                                target: "reg.communication.message.ignored",
                                                 room_id = %room_id,
                                                 event_id = %msg.event_id,
                                                 "7R7 ignored its own Matrix message"
@@ -132,7 +132,7 @@ impl SevenR7Listener {
                                         }
 
                                         tracing::info!(
-                                            target: "cns.communication.message.observed",
+                                            target: "reg.communication.message.observed",
                                             room_id = %room_id,
                                             sender = %msg.sender.as_str(),
                                             body_len = %msg.body.len(),
@@ -165,7 +165,7 @@ impl SevenR7Listener {
                                             Ok(true) => {}
                                             Ok(false) => {
                                                 tracing::debug!(
-                                                    target: "cns.communication.message.ignored",
+                                                    target: "reg.communication.message.ignored",
                                                     room_id = %room_id,
                                                     event_id = %msg.event_id,
                                                     "7R7 ignored replayed Matrix message"
@@ -173,7 +173,7 @@ impl SevenR7Listener {
                                             }
                                             Err(e) => {
                                                 tracing::warn!(
-                                                    target: "cns.communication.listener",
+                                                    target: "reg.communication.listener",
                                                     error = %e,
                                                     "7R7 failed to persist RegulationRecord"
                                                 );
@@ -184,7 +184,7 @@ impl SevenR7Listener {
                                 }
                                 Err(e) => {
                                     tracing::debug!(
-                                        target: "cns.communication.listener",
+                                        target: "reg.communication.listener",
                                         room_id = %room_id,
                                         error = %e,
                                         "7R7 failed to poll room"
@@ -194,7 +194,7 @@ impl SevenR7Listener {
                         }
                     }
                     _ = cancel_rx.changed() => {
-                        tracing::info!(target: "cns.communication.listener", "7R7 listener stopped");
+                        tracing::info!(target: "reg.communication.listener", "7R7 listener stopped");
                         break;
                     }
                 }
@@ -202,7 +202,7 @@ impl SevenR7Listener {
         });
 
         tracing::info!(
-            target: "cns.communication.listener.started",
+            target: "reg.communication.listener.started",
             interval_secs = %interval,
             "7R7 listener started"
         );
@@ -217,7 +217,7 @@ impl SevenR7Listener {
         *self.active.write().await = false;
         // Dropping the sender triggers the receiver in the select! loop.
         *self.cancel_tx.write().await = None;
-        tracing::info!(target: "cns.communication.listener.stopped", "7R7 listener stopped");
+        tracing::info!(target: "reg.communication.listener.stopped", "7R7 listener stopped");
     }
 }
 

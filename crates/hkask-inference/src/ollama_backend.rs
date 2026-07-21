@@ -231,7 +231,7 @@ impl OllamaBackend {
             Ok(r) => r,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     "Ollama models request failed: {e}"
                 );
                 return Vec::new();
@@ -242,7 +242,7 @@ impl OllamaBackend {
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
             tracing::warn!(
-                target: "cns.inference",
+                target: "reg.inference",
                 "Ollama models error {status}: {body}"
             );
             return Vec::new();
@@ -252,7 +252,7 @@ impl OllamaBackend {
             Ok(l) => l,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     "Ollama models parse error: {e}"
                 );
                 return Vec::new();

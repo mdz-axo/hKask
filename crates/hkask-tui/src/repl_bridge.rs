@@ -78,7 +78,7 @@ pub trait SystemBridge: Send + Sync {
     /// Get pod counts (curator, userpod, team), or `None` when scanning fails.
     fn pod_counts(&self) -> Option<(usize, usize)>;
     /// Get CNS domain health summary.
-    fn cns_domains(&self) -> Vec<(String, bool)>;
+    fn reg_domains(&self) -> Vec<(String, bool)>;
 }
 
 /// Rendered result of a model switch — the resolved model name and a

@@ -214,7 +214,7 @@ impl AlgedonicManager {
 
         if alert.should_escalate() {
             error!(
-                target: "cns.algedonic",
+                target: "reg.algedonic",
                 domain = %alert.domain,
                 deficit = alert.deficit,
                 threshold = alert.threshold,
@@ -222,7 +222,7 @@ impl AlgedonicManager {
             );
         } else if alert.is_warning() {
             warn!(
-                target: "cns.algedonic",
+                target: "reg.algedonic",
                 domain = %alert.domain,
                 deficit = alert.deficit,
                 "Variety deficit approaching threshold"
@@ -311,7 +311,7 @@ impl AlgedonicManager {
 
         if alert.should_escalate() {
             error!(
-                target: "cns.outcome",
+                target: "reg.outcome",
                 domain = %domain,
                 success_rate = %format!("{:.1}%", success_rate * 100.0),
                 total_ops = total_ops,
@@ -319,7 +319,7 @@ impl AlgedonicManager {
             );
         } else {
             warn!(
-                target: "cns.outcome",
+                target: "reg.outcome",
                 domain = %domain,
                 success_rate = %format!("{:.1}%", success_rate * 100.0),
                 total_ops = total_ops,

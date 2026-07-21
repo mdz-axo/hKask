@@ -116,10 +116,6 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
                 },
             }
         }
-        DaemonRequest::AssignmentQuery { userpod, role } => {
-            let assigned = handler.check_assignment(&userpod, &role).await;
-            DaemonResponse::AssignmentResponse { assigned }
-        }
         DaemonRequest::CapabilityQuery { userpod, tool } => {
             let granted = handler.check_capability(&userpod, &tool).await;
             DaemonResponse::CapabilityResponse { granted }

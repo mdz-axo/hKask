@@ -182,7 +182,7 @@ impl TogetherBackend {
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
             tracing::warn!(
-                target: "cns.inference",
+                target: "reg.inference",
                 "Together AI models error {}: {}",
                 status, body
             );
@@ -193,7 +193,7 @@ impl TogetherBackend {
             Ok(l) => l,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     "Together AI models parse error: {}",
                     e
                 );

@@ -49,7 +49,7 @@ pub fn create_inquiry(
     let task = service.task_create(board_id, spec, owner)?;
 
     tracing::info!(
-        target: "cns.kata",
+        target: "reg.kata",
         operation = "socratic_inquiry_created",
         task_id = %task.id,
         topic = %topic,
@@ -134,7 +134,7 @@ pub fn advance(
     let result = format!("{from} → {to}");
 
     tracing::info!(
-        target: "cns.kata",
+        target: "reg.kata",
         operation = "socratic_stage_advanced",
         task_id = %task_id,
         from = %from,

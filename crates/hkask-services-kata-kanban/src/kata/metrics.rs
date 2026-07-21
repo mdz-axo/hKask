@@ -24,7 +24,7 @@ impl KataEngine {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns.kata",
+                            target: "reg.kata",
                             metric = %m.name,
                             error = %e,
                             "Failed to capture before metric"
@@ -59,7 +59,7 @@ impl KataEngine {
                     }
                     Err(e) => {
                         tracing::warn!(
-                            target: "cns.kata",
+                            target: "reg.kata",
                             metric = %m.name,
                             error = %e,
                             "Failed to capture after metric"
@@ -121,7 +121,7 @@ impl KataEngine {
             .await;
         if let Some(a) = alert {
             tracing::warn!(
-                target: "cns.kata",
+                target: "reg.kata",
                 namespace = %manifest.cns.span_namespace,
                 kata_type = %kata_type,
                 severity = ?a.severity,
@@ -158,7 +158,7 @@ impl KataEngine {
         match accountant(cost, &reason) {
             Ok(remaining) => {
                 tracing::debug!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     step = %step_label,
                     cost = cost,
                     remaining = remaining,
@@ -167,7 +167,7 @@ impl KataEngine {
             }
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     step = %step_label,
                     cost = cost,
                     error = %e,

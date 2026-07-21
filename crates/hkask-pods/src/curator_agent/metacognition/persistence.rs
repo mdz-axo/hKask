@@ -46,7 +46,7 @@ pub(super) async fn persist_escalation_with_retry(
                 if attempt < MAX_ESCALATION_PERSIST_RETRIES {
                     let delay_ms = ESCALATION_PERSIST_BASE_DELAY_MS * 2u64.pow(attempt);
                     tracing::warn!(
-                        target: "cns.curation.escalation",
+                        target: "reg.curation.escalation",
                         attempt = attempt + 1,
                         max_retries = MAX_ESCALATION_PERSIST_RETRIES,
                         delay_ms,
@@ -59,7 +59,7 @@ pub(super) async fn persist_escalation_with_retry(
     }
 
     tracing::error!(
-        target: "cns.curation.escalation.critical",
+        target: "reg.curation.escalation.critical",
         template_id = %template_id,
         error = %last_error,
         max_retries = MAX_ESCALATION_PERSIST_RETRIES,

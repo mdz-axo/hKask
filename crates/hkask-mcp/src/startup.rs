@@ -54,7 +54,7 @@ pub struct StartupGateResult {
 ///
 /// Performs daemon queries in order:
 /// 1. `auth_query` — if unauthenticated, returns an error.
-/// 2. `assignment_query` — if unassigned, returns an error.
+/// 2. ~~`assignment_query`~~ — removed (role assignment tracking deleted).
 /// 3. `capability_query` for each tool in `required_tools` — denied tools are
 ///    collected into [`StartupGateResult::denied_tools`] (non-fatal: the server
 ///    starts with degraded capabilities).
@@ -131,26 +131,8 @@ pub async fn verify_startup_gates(
         }
     }
 
-    // ── Gate 2: Assignment ──────────────────────────────────────────────
-
-    let assignment = client.assignment_query(userpod, role).await?;
-    match assignment {
-        DaemonResponse::AssignmentResponse { assigned: true } => {
-            // Assigned — proceed to Gate 3.
-        }
-        DaemonResponse::AssignmentResponse { assigned: false } => {
-            return Err(McpError::RoleAssignment {
-                userpod: userpod.to_string(),
-                role: role.to_string(),
-            });
-        }
-        other => {
-            return Err(McpError::UnexpectedResponse {
-                context: "assignment".to_string(),
-                detail: format!("{:?}", other),
-            });
-        }
-    }
+    // Gate 2: Assignment — removed (role assignments deleted in consolidation).
+    // Tools are accessed via OCAP capabilities, not role assignments.
 
     // ── Gate 3: Capability ──────────────────────────────────────────────
 
@@ -213,10 +195,6 @@ mod tests {
                     None
                 },
             )
-        }
-
-        async fn check_assignment(&self, _userpod: &str, _role: &str) -> bool {
-            self.assigned.load(Ordering::SeqCst)
         }
 
         async fn check_capability(&self, _userpod: &str, tool: &str) -> bool {

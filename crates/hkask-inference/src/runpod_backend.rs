@@ -77,7 +77,7 @@ impl RunpodBackend {
             .await
             .map_err(|e| InferenceError::Json(format!("RunPod JSON: {}", e)))?;
         let result = chat_response_to_result(chat_response)?;
-        info!(target: "cns.inference", provider = "RP", model = %result.model, tokens = result.usage.total_tokens, "RunPod vision inference completed");
+        info!(target: "reg.inference", provider = "RP", model = %result.model, tokens = result.usage.total_tokens, "RunPod vision inference completed");
         Ok(result)
     }
 
@@ -133,7 +133,7 @@ impl RunpodBackend {
             return Ok(json.to_string());
         }
 
-        info!(target: "cns.inference", provider = "RP/kask-ocr", chars = text.len(), "kask-ocr completed");
+        info!(target: "reg.inference", provider = "RP/kask-ocr", chars = text.len(), "kask-ocr completed");
         Ok(text)
     }
 }

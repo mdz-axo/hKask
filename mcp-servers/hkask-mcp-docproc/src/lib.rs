@@ -301,7 +301,7 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
                 }
                 Ok(output) => {
                     tracing::warn!(
-                        target: "cns.pipeline.pdf_extract",
+                        target: "reg.pipeline.pdf_extract",
                         path = path,
                         stderr = %String::from_utf8_lossy(&output.stderr),
                         "pdftotext failed — routing document to OCR"
@@ -313,7 +313,7 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
                 }
                 Err(error) => {
                     tracing::warn!(
-                        target: "cns.pipeline.pdf_extract",
+                        target: "reg.pipeline.pdf_extract",
                         path = path,
                         error = %error,
                         "pdftotext unavailable — routing document to OCR"

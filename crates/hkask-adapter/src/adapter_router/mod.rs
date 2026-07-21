@@ -138,7 +138,7 @@ impl AdapterRouter {
         // Active inference requires re-creating the endpoint via create_endpoint().
         if let Err(e) = router.log_orphaned_endpoints() {
             tracing::warn!(
-                target: "cns.adapter",
+                target: "reg.adapter",
                 error = %e,
                 "Failed to read persisted endpoints on startup"
             );
@@ -157,13 +157,13 @@ impl AdapterRouter {
 
         if !rows.is_empty() {
             tracing::warn!(
-                target: "cns.adapter",
+                target: "reg.adapter",
                 count = rows.len(),
                 "Found orphaned endpoints from previous session — these may still incur provider costs"
             );
             for row in &rows {
                 tracing::warn!(
-                    target: "cns.adapter",
+                    target: "reg.adapter",
                     endpoint_id = %row.get_str(0).unwrap_or("?"),
                     provider = %row.get_str(1).unwrap_or("?"),
                     model = %row.get_str(2).unwrap_or("?"),
@@ -266,7 +266,7 @@ impl AdapterRouter {
         // Note: _owner is reserved for future multi-tenant scoping (P1 — User Sovereignty).
         // When multi-tenant is implemented, this will filter endpoints by owner before draining.
         tracing::debug!(
-            target: "cns.adapter",
+            target: "reg.adapter",
             "drain_all_owner called — draining all billable endpoints (owner filter not yet active)"
         );
 
@@ -697,7 +697,7 @@ impl Drop for EndpointGuard {
             tokio::task::spawn(async move {
                 if let Err(e) = router.teardown_endpoint(endpoint_id).await {
                     tracing::warn!(
-                        target: "cns.adapter",
+                        target: "reg.adapter",
                         endpoint_id = %endpoint_id,
                         error = %e,
                         "EndpointGuard: teardown on drop failed"

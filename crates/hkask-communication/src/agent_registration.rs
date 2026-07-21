@@ -55,7 +55,7 @@ impl AgentRegistry {
             .await
             .insert(webid.to_string(), user_id.clone());
         tracing::info!(
-            target: "cns.communication.agent.registered",
+            target: "reg.communication.agent.registered",
             webid = %webid.redacted_display(),
             matrix_user = %user_id.as_str(),
             "Agent Matrix mapping recorded"
@@ -73,7 +73,7 @@ impl AgentRegistry {
         let removed = self.entries.write().await.remove(&webid_str);
         if removed.is_some() {
             tracing::info!(
-                target: "cns.communication.agent.deregistered",
+                target: "reg.communication.agent.deregistered",
                 webid = %webid.redacted_display(),
                 "Agent deregistered from Matrix"
             );
@@ -117,7 +117,7 @@ impl AgentRegistry {
             .or_default()
             .push(webid_str);
         tracing::info!(
-            target: "cns.communication.thread.monitored",
+            target: "reg.communication.thread.monitored",
             webid = %webid.redacted_display(),
             room_id = %room_id.as_str(),
             "Agent added to thread watchlist"

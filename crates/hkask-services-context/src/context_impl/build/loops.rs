@@ -235,7 +235,7 @@ pub(super) async fn build_loops(
         // stops when runtime shutdown aborts spawned tasks.
         let fed_sync_clone: Arc<FederationSync> = Arc::clone(&fed_sync);
         tokio::spawn(async move { fed_sync_clone.run().await });
-        tracing::info!(target: "cns.federation.sync", replica = %local_replica, "Federation sync loop started");
+        tracing::info!(target: "reg.federation.sync", replica = %local_replica, "Federation sync loop started");
         Some(dispatch)
     } else {
         None
@@ -294,7 +294,7 @@ pub(super) async fn pod_backup_daemon(
         }
 
         tracing::info!(
-            target: "cns.backup",
+            target: "reg.backup",
             pod_count = pod_dirs.len(),
             "Pod backup: snapshotting {} pods",
             pod_dirs.len()
@@ -312,7 +312,7 @@ pub(super) async fn pod_backup_daemon(
             {
                 Ok(commit) => {
                     tracing::info!(
-                        target: "cns.backup",
+                        target: "reg.backup",
                         pod = %pod_name,
                         commit = %commit,
                         "Pod backup: snapshot complete"
@@ -320,7 +320,7 @@ pub(super) async fn pod_backup_daemon(
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.backup",
+                        target: "reg.backup",
                         pod = %pod_name,
                         error = %e,
                         "Pod backup: snapshot failed"

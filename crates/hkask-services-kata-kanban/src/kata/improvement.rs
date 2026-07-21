@@ -34,7 +34,7 @@ impl KataEngine {
 
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     action = %step.action,
@@ -56,7 +56,7 @@ impl KataEngine {
             let check_result = self.check_step_output(step, &output);
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     passed_check = check_result,
@@ -89,7 +89,7 @@ impl KataEngine {
 
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     gas = state.gas_consumed,
@@ -132,7 +132,7 @@ impl KataEngine {
                     if let Some(resp) = output.get("response") {
                         if resp.get(key).is_none() {
                             tracing::debug!(
-                                target: "cns.kata",
+                                target: "reg.kata",
                                 step = step.ordinal,
                                 missing = %key,
                                 "Step output missing expected field"
@@ -141,7 +141,7 @@ impl KataEngine {
                         }
                     } else {
                         tracing::debug!(
-                            target: "cns.kata",
+                            target: "reg.kata",
                             step = step.ordinal,
                             missing = %key,
                             "Step output missing expected field"

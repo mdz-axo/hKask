@@ -9,7 +9,6 @@
 //! Request (MCP binary → daemon):
 //! ```json
 //! {"type":"auth_query","userpod":"bob"}
-//! {"type":"assignment_query","userpod":"bob","role":"research"}
 //! {"type":"capability_query","userpod":"bob","tool":"web_search"}
 //! ```rust,no_run
 //!

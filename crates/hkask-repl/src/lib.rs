@@ -738,7 +738,7 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
             None
         }
     }
-    fn cns_domains(&self) -> Vec<(String, bool)> {
+    fn reg_domains(&self) -> Vec<(String, bool)> {
         let alerts = self.alert_count.load(std::sync::atomic::Ordering::Relaxed);
         vec![
             ("cns.tool".into(), alerts < 5),

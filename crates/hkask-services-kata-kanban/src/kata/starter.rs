@@ -28,7 +28,7 @@ impl KataEngine {
 
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     bot = %state.learner_bot,
                     automaticity = auto,
@@ -40,7 +40,7 @@ impl KataEngine {
 
             if needs_intervention {
                 tracing::warn!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     bot = %state.learner_bot,
                     days_since_last = history.days_since_last(&state.learner_bot, &today),
@@ -78,7 +78,7 @@ impl KataEngine {
 
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     practice = %practice.name,
                     bot = %state.learner_bot,

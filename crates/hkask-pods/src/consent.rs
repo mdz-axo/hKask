@@ -225,7 +225,7 @@ impl ConsentManager {
         }
 
         tracing::info!(
-            target: "cns.sovereignty",
+            target: "reg.sovereignty",
             operation = "consent_granted",
             webid = %webid,
             category = ?category,
@@ -258,7 +258,7 @@ impl ConsentManager {
             record.revoke();
             self.persist(record)?;
             tracing::info!(
-                target: "cns.sovereignty",
+                target: "reg.sovereignty",
                 operation = "consent_revoked",
                 webid = %webid,
                 "CNS"
@@ -298,7 +298,7 @@ impl ConsentManager {
 
         if !granted {
             tracing::info!(
-                target: "cns.sovereignty",
+                target: "reg.sovereignty",
                 operation = "consent_checked",
                 webid = %webid,
                 category = ?category,
@@ -332,7 +332,7 @@ impl ConsentManager {
             );
             if let Err(e) = sink.persist(&event) {
                 warn!(
-                    target: "cns.consent",
+                    target: "reg.consent",
                     error = %e,
                     webid = %webid,
                     category = %category.as_str(),

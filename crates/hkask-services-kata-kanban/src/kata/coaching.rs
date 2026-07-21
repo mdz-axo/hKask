@@ -36,7 +36,7 @@ impl KataEngine {
 
             if manifest.cns.emit_spans {
                 tracing::info!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     question = q.number,
                     bot = %state.learner_bot,

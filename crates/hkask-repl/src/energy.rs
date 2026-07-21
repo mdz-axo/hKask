@@ -139,7 +139,7 @@ impl Drop for EnergyGuard {
     fn drop(&mut self) {
         if !self.settled {
             tracing::warn!(
-                target: "cns.gas",
+                target: "reg.gas",
                 agent = %self.webid,
                 heuristic = self.heuristic,
                 "EnergyGuard dropped without settle/release — gas reservation leaked"

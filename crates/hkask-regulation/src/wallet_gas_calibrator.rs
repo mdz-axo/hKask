@@ -140,7 +140,7 @@ impl WalletGasCalibrator {
                 .gas_per_rjoule;
             self.wallet_manager.set_gas_per_rjoule(new_rate);
             info!(
-                target: "cns.wallet.calibration",
+                target: "reg.wallet.calibration",
                 since = %since,
                 until = %until,
                 ratio = %ratio,
@@ -182,7 +182,7 @@ impl WalletGasCalibrator {
             );
             if let Err(e) = sink.persist(&event) {
                 warn!(
-                    target: "cns.wallet.calibration",
+                    target: "reg.wallet.calibration",
                     error = %e,
                     "Failed to persist wallet calibration CNS span"
                 );

@@ -219,7 +219,7 @@ impl RegulationLoop for MetacognitionLoop {
             .await
             {
                 tracing::error!(
-                    target: "cns.curation.escalation",
+                    target: "reg.curation.escalation",
                     batch_id = %batch.id,
                     error = %e,
                     batch_size = batch.entries.len(),
@@ -242,7 +242,7 @@ impl RegulationLoop for MetacognitionLoop {
                 {
                     lost_count += 1;
                     tracing::error!(
-                        target: "cns.curation.escalation",
+                        target: "reg.curation.escalation",
                         template_id = %entry.template_id,
                         bot_id = %entry.bot_id,
                         error = %e,
@@ -252,7 +252,7 @@ impl RegulationLoop for MetacognitionLoop {
             }
             if lost_count > 0 {
                 tracing::error!(
-                    target: "cns.curation.escalation",
+                    target: "reg.curation.escalation",
                     lost = lost_count,
                     "{} escalation(s) could not be persisted — check escalation queue health",
                     lost_count

@@ -151,7 +151,7 @@ impl HkaskAcpAgent {
             let config = InferenceConfig::from_env();
             if let Some(ref fusion) = config.fusion {
                 tracing::info!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     fusion_judge = %fusion.judge,
                     fusion_panel = ?fusion.panel,
                     "ACP: fusion configured"

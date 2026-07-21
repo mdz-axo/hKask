@@ -198,7 +198,7 @@ async fn dispatch_panel(
                 }),
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.inference",
+                        target: "reg.inference",
                         panel_model = %model_name,
                         error = %e,
                         "Panel model generation failed"
@@ -279,7 +279,7 @@ fn collect_tool_calls(responses: &[PanelResponse]) -> (Vec<StructuredToolCall>, 
     for r in responses {
         if r.finish_reason == "tool_calls" && !r.tool_calls.is_empty() {
             tracing::info!(
-                target: "cns.fusion",
+                target: "reg.fusion",
                 panel_model = %r.model_name,
                 tool_call_count = r.tool_calls.len(),
                 "Fusion: passing through tool calls from panelist"
@@ -545,7 +545,7 @@ fn algo_vote(responses: &[PanelResponse]) -> InferenceResult {
     // vote degenerates to first-wins (not a vote) — fall back to merge.
     if responses.len() < 3 {
         tracing::warn!(
-            target: "cns.fusion",
+            target: "reg.fusion",
             algo_method = "vote",
             panel_count = responses.len(),
             "algo:vote requires ≥3 panelists — falling back to merge"
@@ -730,7 +730,7 @@ async fn mode_best_of_n(
 
     if idx_a == idx_b {
         info!(
-            target: "cns.fusion",
+            target: "reg.fusion",
             fusion_mode = "best-of-n",
             verdict = "agree",
             picked = idx_a,
@@ -738,7 +738,7 @@ async fn mode_best_of_n(
         );
     } else {
         info!(
-            target: "cns.fusion",
+            target: "reg.fusion",
             fusion_mode = "best-of-n",
             verdict = "disagree",
             position_bias = true,
@@ -815,7 +815,7 @@ async fn mode_critique(
     let draft_text = &draft.text;
 
     info!(
-        target: "cns.fusion",
+        target: "reg.fusion",
         fusion_mode = "critique",
         round = 1,
         draft_len = draft_text.len(),
@@ -913,7 +913,7 @@ async fn mode_deliberation(
 
         if verdict == ConvergenceVerdict::Converged {
             info!(
-                target: "cns.fusion",
+                target: "reg.fusion",
                 fusion_mode = "deliberation",
                 round = round,
                 convergence_rounds = round,
@@ -930,7 +930,7 @@ async fn mode_deliberation(
         // Continue: payload is the follow-up question for the panel.
         let follow_up = payload.unwrap_or_default();
         info!(
-            target: "cns.fusion",
+            target: "reg.fusion",
             fusion_mode = "deliberation",
             round = round,
             verdict = ConvergenceVerdict::Continue.as_str(),
@@ -959,7 +959,7 @@ Produce the final synthesis now.",
     );
     let result = call_judge(router, &fusion.judge, &final_prompt, params, tools).await?;
     info!(
-        target: "cns.fusion",
+        target: "reg.fusion",
         fusion_mode = "deliberation",
         round = max_rounds,
         convergence_rounds = max_rounds,
@@ -1013,7 +1013,7 @@ async fn mode_plan_implement(
     let strategy_text = &strategy.text;
 
     info!(
-        target: "cns.fusion",
+        target: "reg.fusion",
         fusion_mode = "pi",
         phase = 1,
         strategy_len = strategy_text.len(),
@@ -1085,7 +1085,7 @@ pub async fn orchestrate(
     fusion: &FusionConfig,
 ) -> Result<InferenceResult, InferenceError> {
     info!(
-        target: "cns.fusion",
+        target: "reg.fusion",
         fusion_mode = %fusion.mode.as_str(),
         fusion_judge = %fusion.judge,
         panel_count = fusion.panel.len(),
@@ -1107,7 +1107,7 @@ pub async fn orchestrate(
             AlgoMethod::Vote => algo_vote(&responses),
         };
         info!(
-            target: "cns.fusion",
+            target: "reg.fusion",
             fusion_judge = "algo",
             algo_method = fusion.algo_method.as_str(),
             panel_count = responses.len(),

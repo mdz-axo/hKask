@@ -188,7 +188,7 @@ impl GasBudget {
         self.remaining = new_cap;
         self.reserved = GasCost::ZERO;
         self.last_reservation = None;
-        tracing::warn!(target: "cns.gas", operation = "reset_to", new_cap = %new_cap.0, "CNS");
+        tracing::warn!(target: "reg.gas", operation = "reset_to", new_cap = %new_cap.0, "CNS");
     }
 
     /// expect: "The system tracks and constrains inference energy consumption through gas budgeting"
@@ -206,7 +206,7 @@ impl GasBudget {
     pub fn reserve(&mut self, gas: GasCost) -> Result<GasCost, GasError> {
         let available = self.available();
         if self.hard_limit && gas.0 > available.0 {
-            tracing::warn!(target: "cns.gas", operation = "reserve", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, requested = %gas.0, outcome = "budget_exceeded", "CNS");
+            tracing::warn!(target: "reg.gas", operation = "reserve", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, requested = %gas.0, outcome = "budget_exceeded", "CNS");
             return Err(GasError::BudgetExceeded {
                 requested: gas,
                 remaining: available,
@@ -218,7 +218,7 @@ impl GasBudget {
             self.reserved.0 <= self.remaining.0,
             "invariant: reserved ≤ remaining"
         );
-        tracing::info!(target: "cns.gas", operation = "reserve", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, requested = %gas.0, outcome = "ok", "CNS");
+        tracing::info!(target: "reg.gas", operation = "reserve", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, requested = %gas.0, outcome = "ok", "CNS");
         Ok(gas)
     }
 
@@ -237,7 +237,7 @@ impl GasBudget {
             self.last_reservation = None;
         }
         if self.hard_limit && actual_gas.0 > self.remaining.0 {
-            tracing::warn!(target: "cns.gas", operation = "settle", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, actual = %actual_gas.0, outcome = "budget_exceeded", "CNS");
+            tracing::warn!(target: "reg.gas", operation = "settle", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, actual = %actual_gas.0, outcome = "budget_exceeded", "CNS");
             return Err(GasError::BudgetExceeded {
                 requested: actual_gas,
                 remaining: self.remaining,
@@ -248,7 +248,7 @@ impl GasBudget {
             self.remaining.0 + self.reserved.0 <= self.cap.0,
             "invariant: remaining + reserved ≤ cap"
         );
-        tracing::info!(target: "cns.gas", operation = "settle", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, actual = %actual_gas.0, outcome = "ok", "CNS");
+        tracing::info!(target: "reg.gas", operation = "settle", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, actual = %actual_gas.0, outcome = "ok", "CNS");
         Ok(actual_gas)
     }
 
@@ -256,14 +256,14 @@ impl GasBudget {
     /// post: remaining is debited by gas, or BudgetExceeded error returned
     pub fn consume(&mut self, gas: GasCost) -> Result<GasCost, GasError> {
         if self.hard_limit && gas.0 > self.remaining.0 {
-            tracing::warn!(target: "cns.gas", operation = "consume", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, requested = %gas.0, outcome = "budget_exceeded", "CNS");
+            tracing::warn!(target: "reg.gas", operation = "consume", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, requested = %gas.0, outcome = "budget_exceeded", "CNS");
             return Err(GasError::BudgetExceeded {
                 requested: gas,
                 remaining: self.remaining,
             });
         }
         self.remaining = GasCost(self.remaining.0.saturating_sub(gas.0));
-        tracing::info!(target: "cns.gas", operation = "consume", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, consumed = %gas.0, outcome = "ok", "CNS");
+        tracing::info!(target: "reg.gas", operation = "consume", remaining = %self.remaining.0, reserved = %self.reserved.0, cap = %self.cap.0, consumed = %gas.0, outcome = "ok", "CNS");
         Ok(gas)
     }
 

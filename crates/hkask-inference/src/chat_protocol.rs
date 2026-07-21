@@ -232,7 +232,7 @@ pub(crate) async fn vision_infer(
         .await
         .map_err(|e| InferenceError::Json(format!("{} JSON: {}", label, e)))?;
     let result = chat_response_to_result(chat_response)?;
-    info!(target: "cns.inference", provider = label, model = %result.model, tokens = result.usage.total_tokens, "{} vision inference completed", label);
+    info!(target: "reg.inference", provider = label, model = %result.model, tokens = result.usage.total_tokens, "{} vision inference completed", label);
     Ok(result)
 }
 

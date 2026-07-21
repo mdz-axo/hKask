@@ -134,7 +134,7 @@ impl WalletService {
                 Ok(port) => {
                     let port = port.with_event_sink(Arc::clone(&event_sink));
                     tracing::info!(
-                        target: "cns.wallet.chain",
+                        target: "reg.wallet.chain",
                         chain = "hedera",
                         mirror_url = %mirror_url,
                         consensus_url = %consensus_url,
@@ -144,7 +144,7 @@ impl WalletService {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        target: "cns.wallet.chain",
+                        target: "reg.wallet.chain",
                         chain = "hedera",
                         error = %e,
                         "Failed to initialize HederaPort"

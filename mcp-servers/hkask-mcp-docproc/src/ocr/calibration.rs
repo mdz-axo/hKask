@@ -103,7 +103,7 @@ pub(crate) fn analyze_threshold_drift(
 /// The GovernedTool membrane handles RegulationRecord persistence for CNS learning.
 pub(crate) fn emit_drift_alert(alert: &ThresholdDriftAlert) {
     tracing::warn!(
-        target: "cns.pipeline.calibration",
+        target: "reg.pipeline.calibration",
         parameter = alert.parameter,
         current = alert.current_value,
         suggested = alert.suggested_value,

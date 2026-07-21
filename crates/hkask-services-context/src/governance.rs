@@ -169,7 +169,7 @@ fn emit_escalation_event(
     );
     if let Err(e) = events.persist(&event) {
         tracing::warn!(
-            target: "cns.curation",
+            target: "reg.curation",
             escalation_id = %escalation_id,
             error = %e,
             operation = operation,

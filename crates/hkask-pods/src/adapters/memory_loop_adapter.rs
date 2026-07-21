@@ -221,7 +221,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
         // registry, configured at startup via
         // `hkask_cli::bootstrap::install_tracing_subscriber`.
         tracing::debug!(
-            target: "cns.memory.budget",
+            target: "reg.memory.budget",
             perspective = %perspective,
             count = count,
             "Episodic storage usage checked (via loop membrane); consumer: hkask-cns"
@@ -246,7 +246,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
             .unwrap_or_else(|| Confidence::new(classification.default_confidence()));
 
         tracing::info!(
-            target: "cns.memory.encode",
+            target: "reg.memory.encode",
             classification = %classification,
             confidence = %confidence,
             entity = %request.entity,
@@ -305,7 +305,7 @@ impl SemanticStoragePort for MemoryLoopForwarder {
         let count = self.semantic.h_mem_count_for_entity(entity)?;
 
         tracing::debug!(
-            target: "cns.memory.budget",
+            target: "reg.memory.budget",
             entity = %entity,
             count = count,
             "Semantic storage usage checked (via loop membrane)"

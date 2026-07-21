@@ -210,7 +210,7 @@ impl GasBudgetManager {
                 if let Some(stale) = budget.stale_reservation() {
                     budget.release_stale_reservation();
                     tracing::warn!(
-                        target: "cns.cybernetics",
+                        target: "reg.cybernetics",
                         agent = %agent,
                         released = stale.0,
                         "Auto-released stale gas reservation — caller never settled"
@@ -241,7 +241,7 @@ impl GasBudgetManager {
             };
             if replenished.0 > 0 {
                 tracing::debug!(
-                    target: "cns.cybernetics",
+                    target: "reg.cybernetics",
                     agent = %agent,
                     replenish_rate = replenished.0,
                     "Replenished gas budget"
@@ -260,7 +260,7 @@ impl GasBudgetManager {
                 {
                     let burned = previous - current;
                     tracing::debug!(
-                        target: "cns.cybernetics",
+                        target: "reg.cybernetics",
                         agent = %agent,
                         gas_burned = burned,
                         remaining = current,
@@ -280,7 +280,7 @@ impl GasBudgetManager {
         if let Some(budget) = budgets.get_mut(agent) {
             budget.replenish_by(amount);
             tracing::info!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 agent = %agent,
                 amount = %amount,
                 remaining = %budget.remaining(),
@@ -298,7 +298,7 @@ impl GasBudgetManager {
         if let Some(budget) = budgets.get_mut(&agent) {
             budget.reset_to(new_budget);
             tracing::warn!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 agent = %agent,
                 new_budget = %new_budget,
                 "Applied OverrideEnergyBudget directive from Curation (set-point override)"
@@ -306,7 +306,7 @@ impl GasBudgetManager {
         } else {
             budgets.insert(agent, GasBudget::new(new_budget));
             tracing::warn!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 agent = %agent,
                 new_budget = %new_budget,
                 "Registered new gas budget from OverrideEnergyBudget directive"
@@ -330,13 +330,13 @@ impl GasBudgetManager {
         let mut overrides = self.active_overrides.write().await;
         if overrides.remove(&agent).is_some() {
             tracing::info!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 agent = %agent,
                 "Cleared Curation override — normal replenishment resumes"
             );
         } else {
             tracing::debug!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 agent = %agent,
                 "ClearOverride directive received but no active override found"
             );
@@ -361,7 +361,7 @@ impl GasBudgetManager {
             };
             drop(budgets);
             tracing::info!(
-                target: "cns.cybernetics",
+                target: "reg.cybernetics",
                 agent = %agent,
                 amount = %amount,
                 priority = priority,
@@ -383,7 +383,7 @@ impl GasBudgetManager {
             let expires_at = record.issued_at + chrono::Duration::seconds(record.ttl_secs as i64);
             if now > expires_at {
                 tracing::info!(
-                    target: "cns.cybernetics",
+                    target: "reg.cybernetics",
                     agent = %agent,
                     "Curation override expired — resuming normal replenishment"
                 );

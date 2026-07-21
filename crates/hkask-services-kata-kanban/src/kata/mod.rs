@@ -315,7 +315,7 @@ impl KataEngine {
             if manifest.cns.emit_spans {
                 // P9: CNS span
                 tracing::info!(
-                    target: "cns.kata",
+                    target: "reg.kata",
                     namespace = %manifest.cns.span_namespace,
                     kata_type = "bundle",
                     bot = %learner_bot,
@@ -342,7 +342,7 @@ impl KataEngine {
 
         // P9: CNS span
         tracing::info!(
-            target: "cns.kata",
+            target: "reg.kata",
             namespace = %manifest.cns.span_namespace,
             selected = %selected,
             manifest = %kata_manifest_name,
@@ -392,7 +392,7 @@ impl KataEngine {
                 // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "cns.kata",
+                        target: "reg.kata",
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "improvement",
                         bot = %learner_bot,
@@ -413,7 +413,7 @@ impl KataEngine {
                 // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "cns.kata",
+                        target: "reg.kata",
                         namespace = %manifest.cns.span_namespace,
                         steps = result.steps_completed,
                         gas = result.gas_consumed,
@@ -431,7 +431,7 @@ impl KataEngine {
                 // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "cns.kata",
+                        target: "reg.kata",
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "coaching",
                         bot = %learner_bot,
@@ -447,7 +447,7 @@ impl KataEngine {
                 // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "cns.kata",
+                        target: "reg.kata",
                         namespace = %manifest.cns.span_namespace,
                         questions = result.steps_completed,
                         gas = result.gas_consumed,
@@ -468,7 +468,7 @@ impl KataEngine {
                 // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "cns.kata",
+                        target: "reg.kata",
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "starter",
                         bot = %learner_bot,
@@ -509,7 +509,7 @@ impl KataEngine {
                 // P9: CNS span
                 if manifest.cns.emit_spans {
                     tracing::info!(
-                        target: "cns.kata",
+                        target: "reg.kata",
                         namespace = %manifest.cns.span_namespace,
                         practices = result.steps_completed,
                         automaticity_after = auto_after,

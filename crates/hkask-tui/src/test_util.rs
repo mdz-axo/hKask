@@ -43,7 +43,7 @@ impl SystemBridge for MockReplBridge {
     fn pod_counts(&self) -> Option<(usize, usize)> {
         Some((1, 1))
     }
-    fn cns_domains(&self) -> Vec<(String, bool)> {
+    fn reg_domains(&self) -> Vec<(String, bool)> {
         Vec::new()
     }
 }

@@ -32,7 +32,7 @@ impl ConsolidationService {
         request: ConsolidationRequest,
     ) -> anyhow::Result<ConsolidationOutcome> {
         tracing::info!(
-            target: "cns.consolidation",
+            target: "reg.consolidation",
             perspective = %perspective,
             limit = request.limit,
             confidence_floor = ?request.confidence_floor,
@@ -75,7 +75,7 @@ impl ConsolidationService {
         }
 
         tracing::info!(
-            target: "cns.consolidation",
+            target: "reg.consolidation",
             consolidated = bridge_outcome.consolidated_count,
             deleted = deleted_count,
             failed = bridge_outcome.failed_count,

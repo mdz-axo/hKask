@@ -260,7 +260,7 @@ impl KiloCodeBackend {
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
             tracing::warn!(
-                target: "cns.inference",
+                target: "reg.inference",
                 "KiloCode models error {}: {}",
                 status, body
             );
@@ -271,7 +271,7 @@ impl KiloCodeBackend {
             Ok(l) => l,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     "KiloCode models parse error: {}",
                     e
                 );

@@ -990,8 +990,8 @@ impl RegulationLedger {
 
                 if let Some(alert) = alert {
                     tracing::warn!(
-                        target: "cns",
-                        cns_domain = "cns.slo.breach_escalated",
+                        target: "reg",
+                        reg_domain = "cns.slo.breach_escalated",
                         slo_id = %eval.slo_id,
                         compliance = %eval.current_compliance,
                         error_budget_pct = %(eval.error_budget_remaining * 100.0),

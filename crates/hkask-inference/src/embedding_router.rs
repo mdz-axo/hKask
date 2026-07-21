@@ -58,14 +58,14 @@ impl EmbeddingRouter {
     /// post: returns EmbeddingRouter with DeepInfra client from shared pool
     pub fn with_client(config: &InferenceConfig, client: Arc<reqwest::Client>) -> Self {
         let deepinfra_client = if config.deepinfra_api_key.is_empty() {
-            warn!(target: "cns.inference", "DeepInfra embeddings unavailable (no API key)");
+            warn!(target: "reg.inference", "DeepInfra embeddings unavailable (no API key)");
             None
         } else {
             Some(Arc::clone(&client))
         };
 
         let openrouter_client = if config.openrouter_api_key.is_empty() {
-            warn!(target: "cns.inference", "OpenRouter embeddings unavailable (no API key)");
+            warn!(target: "reg.inference", "OpenRouter embeddings unavailable (no API key)");
             None
         } else {
             Some(Arc::clone(&client))
@@ -76,7 +76,7 @@ impl EmbeddingRouter {
             deepinfra_client,
             openrouter_client,
             ollama_client: if config.ollama_base_url.is_empty() {
-                warn!(target: "cns.inference", "Ollama embeddings unavailable (no base URL)");
+                warn!(target: "reg.inference", "Ollama embeddings unavailable (no base URL)");
                 None
             } else {
                 Some(Arc::clone(&client))
@@ -100,13 +100,13 @@ impl EmbeddingRouter {
         unavailable_msg: &str,
     ) -> Option<Arc<reqwest::Client>> {
         if !available {
-            warn!(target: "cns.inference", "{unavailable_msg}");
+            warn!(target: "reg.inference", "{unavailable_msg}");
             return None;
         }
         config
             .build_client()
             .map(Arc::new)
-            .map_err(|e| warn!(target: "cns.inference", "Embedding client build failed: {}", e))
+            .map_err(|e| warn!(target: "reg.inference", "Embedding client build failed: {}", e))
             .ok()
     }
 
@@ -240,7 +240,7 @@ impl EmbeddingRouter {
         }
 
         info!(
-            target: "cns.inference",
+            target: "reg.inference",
             provider = %provider.as_str(),
             model = %model,
             count = sentences.len(),

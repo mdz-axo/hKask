@@ -73,7 +73,7 @@ jobs:
       - name: MCP tool-behavior test coverage (ratcheted)
         run: bash scripts/check-mcp-tool-tests.sh
       - name: CNS canonical namespace invariant
-        run: bash scripts/check-cns-canonical.sh
+        run: bash scripts/check-reg-canonical.sh
       - name: Security regression library
         run: bash scripts/check-kali-regressions.sh
       - name: Training-config regression library

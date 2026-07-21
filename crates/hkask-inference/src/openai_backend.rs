@@ -81,7 +81,7 @@ pub async fn openai_compatible_generate(
 
     let result = chat_response_to_result(chat_response)?;
     tracing::info!(
-        target: "cns.inference",
+        target: "reg.inference",
         provider = provider_code,
         model = %result.model,
         tokens = result.usage.total_tokens,

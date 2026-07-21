@@ -30,7 +30,7 @@ struct MockBridge {
     pod_curator: usize,
     pod_userpod: usize,
     pods_available: bool,
-    cns_domains: Vec<(String, bool)>,
+    reg_domains: Vec<(String, bool)>,
     pending: Mutex<HashMap<InferenceRequestId, TuiTurnResult>>,
 }
 
@@ -48,7 +48,7 @@ impl MockBridge {
             pod_curator: 1,
             pod_userpod: 3,
             pods_available: true,
-            cns_domains: vec![
+            reg_domains: vec![
                 ("sovereignty".into(), true),
                 ("gas".into(), true),
                 ("consent".into(), true),
@@ -84,8 +84,8 @@ impl SystemBridge for MockBridge {
         self.pods_available
             .then_some((self.pod_curator, self.pod_userpod))
     }
-    fn cns_domains(&self) -> Vec<(String, bool)> {
-        self.cns_domains.clone()
+    fn reg_domains(&self) -> Vec<(String, bool)> {
+        self.reg_domains.clone()
     }
 }
 

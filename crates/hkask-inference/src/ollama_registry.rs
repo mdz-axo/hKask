@@ -244,7 +244,7 @@ impl OllamaRegistry {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            warn!(target: "cns.inference", "ollama create '{}' failed: {stderr}", spec.name);
+            warn!(target: "reg.inference", "ollama create '{}' failed: {stderr}", spec.name);
             return Err(RegistryError::CreateFailed {
                 name: spec.name.clone(),
                 stderr,

@@ -156,7 +156,7 @@ pub(crate) async fn store_episode(
         })?;
 
     tracing::debug!(
-        target: "cns.memory.episodic",
+        target: "reg.memory.episodic",
         entity = %req.entity,
         attribute = %req.attribute,
         confidence = %confidence,

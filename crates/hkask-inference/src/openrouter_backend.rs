@@ -185,7 +185,7 @@ impl OpenRouterBackend {
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
             tracing::warn!(
-                target: "cns.inference",
+                target: "reg.inference",
                 "OpenRouter models error {}: {}",
                 status, body
             );
@@ -196,7 +196,7 @@ impl OpenRouterBackend {
             Ok(l) => l,
             Err(e) => {
                 tracing::warn!(
-                    target: "cns.inference",
+                    target: "reg.inference",
                     "OpenRouter models parse error: {}",
                     e
                 );

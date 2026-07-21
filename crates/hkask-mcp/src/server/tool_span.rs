@@ -199,7 +199,7 @@ fn emit_tool_span(
     caller: Option<&hkask_types::WebID>,
     ontology: Option<&str>,
 ) {
-    tracing::info!(target: "cns.tool", tool = tool_name, outcome = outcome, duration_ms = duration_ms, error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""), caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""), ontology = ontology.unwrap_or(""), "CNS");
+    tracing::info!(target: "reg.tool", tool = tool_name, outcome = outcome, duration_ms = duration_ms, error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""), caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""), ontology = ontology.unwrap_or(""), "CNS");
 }
 
 // ── Framework-level tool execution ────────────────────────────────────────
@@ -221,7 +221,7 @@ pub trait ToolContext {
     /// Override this to wire daemon-based experience recording per Pattern D.
     /// Default: emits a CNS warning — memory not configured for this server.
     fn record_tool_outcome(&self, tool: &str, outcome: &str) {
-        tracing::warn!(target: "cns.memory", tool = %tool, outcome = %outcome,
+        tracing::warn!(target: "reg.memory", tool = %tool, outcome = %outcome,
             "Tool outcome not persisted — ToolContext::record_tool_outcome not overridden");
     }
 }
@@ -306,19 +306,19 @@ pub fn record_via_daemon(
                 .await
             {
                 Ok(crate::daemon::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                    tracing::debug!(target: "cns.memory", tool = %tool_name, "Experience stored via daemon");
+                    tracing::debug!(target: "reg.memory", tool = %tool_name, "Experience stored via daemon");
                 }
                 Ok(other) => {
-                    tracing::warn!(target: "cns.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
+                    tracing::warn!(target: "reg.memory", tool = %tool_name, response = ?other, "Unexpected daemon response")
                 }
                 Err(e) => {
-                    tracing::warn!(target: "cns.memory", tool = %tool_name, error = %e, "Failed to store experience");
+                    tracing::warn!(target: "reg.memory", tool = %tool_name, error = %e, "Failed to store experience");
                     tracing::warn!(target: "hkask.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
                 }
             }
         });
     } else {
-        tracing::warn!(target: "cns.memory", tool = %tool, outcome = %outcome, "Experience not persisted — daemon unavailable");
+        tracing::warn!(target: "reg.memory", tool = %tool, outcome = %outcome, "Experience not persisted — daemon unavailable");
     }
 }
 

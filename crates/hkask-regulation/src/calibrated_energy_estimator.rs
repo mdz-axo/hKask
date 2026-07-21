@@ -140,7 +140,7 @@ impl CalibratedEnergyEstimator {
             .map_err(|_| InfrastructureError::LockPoisoned)? = new_estimator;
 
         info!(
-            target: "cns.gas.calibration",
+            target: "reg.gas.calibration",
             since = %since,
             until = %until,
             adjusted_servers = adjusted,
@@ -182,7 +182,7 @@ impl CalibratedEnergyEstimator {
             );
             if let Err(e) = sink.persist(&event) {
                 warn!(
-                    target: "cns.gas.calibration",
+                    target: "reg.gas.calibration",
                     error = %e,
                     "Failed to persist calibration CNS span"
                 );

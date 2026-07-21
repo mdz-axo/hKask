@@ -179,7 +179,7 @@ async fn run_pipeline_sequential(
         if (page_index + 1) % 50 == 0 || elapsed.as_secs() >= 30 {
             let pct = ((page_index + 1) as f64 / expected_pages as f64 * 100.0) as u32;
             tracing::info!(
-                target: "cns.pipeline",
+                target: "reg.pipeline",
                 page = page_index + 1,
                 total = expected_pages,
                 percent = pct,
@@ -302,7 +302,7 @@ async fn run_pipeline_parallel(
             if done.is_multiple_of(50) || elapsed.as_secs() >= 10 {
                 let pct = (done as f64 / expected_pages as f64 * 100.0) as u32;
                 tracing::info!(
-                    target: "cns.pipeline",
+                    target: "reg.pipeline",
                     page = done,
                     total = expected_pages,
                     percent = pct,
@@ -433,7 +433,7 @@ async fn process_single_page(
         {
             Ok(tess_result) if !tess_result.text.trim().is_empty() => {
                 tracing::warn!(
-                    target: "cns.pipeline.ocr.silent_failure",
+                    target: "reg.pipeline.ocr.silent_failure",
                     page_index = page_index,
                     llm_model = %primary.backend,
                     tesseract_words = tess_result.text.split_whitespace().count(),
@@ -451,7 +451,7 @@ async fn process_single_page(
     let cv = if let Some(ref sec) = secondary {
         if primary.text.trim().is_empty() && sec.text.trim().is_empty() {
             tracing::warn!(
-                target: "cns.pipeline.ocr.collusion",
+                target: "reg.pipeline.ocr.collusion",
                 page_index = page_index,
                 backend_a = %primary.backend,
                 backend_b = %sec.backend,
@@ -567,7 +567,7 @@ async fn execute_with_fallback(
         if llm_confidence > tess_confidence + 0.3 && tess_confidence < 0.5 {
             // Trust the LLM result over Tesseract
             tracing::info!(
-                target: "cns.pipeline.ocr.trust_invert",
+                target: "reg.pipeline.ocr.trust_invert",
                 page_index = page_index,
                 tess_confidence = tess_confidence,
                 llm_confidence = llm_confidence,
@@ -635,7 +635,7 @@ fn finalize_outcome_inner(
 
     for cv in &cross_validations {
         tracing::info!(
-            target: "cns.pipeline.ocr",
+            target: "reg.pipeline.ocr",
             page_index = cv.page_index,
             similarity = cv.similarity,
             semantic_similarity = cv.semantic_similarity,
@@ -647,7 +647,7 @@ fn finalize_outcome_inner(
     }
 
     tracing::info!(
-        target: "cns.pipeline.ocr",
+        target: "reg.pipeline.ocr",
         total_pages = expected_pages,
         result_count = results.len(),
         error_count = errors.len(),

@@ -132,7 +132,7 @@ impl PerPodLedger {
         let span_namespace = format!("cns.agent_pod.{}", pod_id);
         let inner = RegulationLedger::default();
         debug!(
-            target: "cns.agent_pod",
+            target: "reg.agent_pod",
             pod_id = %pod_id,
             namespace = %span_namespace,
             "Per-pod CNS runtime initialized"

@@ -57,14 +57,14 @@ impl FederationSync {
 
     pub async fn run(&self) {
         tracing::info!(
-            target: "cns.federation.sync",
+            target: "reg.federation.sync",
             replica = %self.local_replica,
             "FederationSync started"
         );
         loop {
             tokio::time::sleep(self.interval).await;
             if let Err(e) = self.tick().await {
-                tracing::warn!(target: "cns.federation.sync", error = %e, "tick failed");
+                tracing::warn!(target: "reg.federation.sync", error = %e, "tick failed");
             }
         }
     }
@@ -131,14 +131,14 @@ impl FederationSync {
                     }
                     Ok((from, FederationMessage::InvitationRequest { .. })) => {
                         tracing::info!(
-                            target: "cns.federation.sync",
+                            target: "reg.federation.sync",
                             from_replica = %from,
                             "Received federation invitation"
                         );
                     }
                     Ok((from, FederationMessage::InvitationResponse { accepted, .. })) => {
                         tracing::info!(
-                            target: "cns.federation.sync",
+                            target: "reg.federation.sync",
                             from_replica = %from,
                             accepted = accepted,
                             "Received invitation response"
@@ -146,11 +146,11 @@ impl FederationSync {
                     }
                     Ok(_) => {}
                     Err(e) => {
-                        tracing::warn!(target: "cns.federation.sync", peer = %peer, error = %e, "sync recv failed");
+                        tracing::warn!(target: "reg.federation.sync", peer = %peer, error = %e, "sync recv failed");
                     }
                 },
                 Err(e) => {
-                    tracing::warn!(target: "cns.federation.sync", peer = %peer, error = %e, "sync send failed");
+                    tracing::warn!(target: "reg.federation.sync", peer = %peer, error = %e, "sync send failed");
                 }
             }
         }

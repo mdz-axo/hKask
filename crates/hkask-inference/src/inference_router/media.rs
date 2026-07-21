@@ -111,7 +111,7 @@ impl InferenceRouter {
             match di.remove_background(image_url).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    tracing::warn!(target: "cns.inference", error = %e, "DeepInfra background removal failed, falling back to fal.ai");
+                    tracing::warn!(target: "reg.inference", error = %e, "DeepInfra background removal failed, falling back to fal.ai");
                 }
             }
         }
@@ -208,7 +208,7 @@ impl InferenceRouter {
             match di.generate_speech(text, voice, None).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    tracing::warn!(target: "cns.inference", error = %e, "DeepInfra TTS failed, falling back to fal.ai");
+                    tracing::warn!(target: "reg.inference", error = %e, "DeepInfra TTS failed, falling back to fal.ai");
                 }
             }
         }
@@ -262,7 +262,7 @@ impl InferenceRouter {
             match di.transcribe(audio_url, language).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    tracing::warn!(target: "cns.inference", error = %e, "DeepInfra STT failed, falling back to fal.ai");
+                    tracing::warn!(target: "reg.inference", error = %e, "DeepInfra STT failed, falling back to fal.ai");
                 }
             }
         }
