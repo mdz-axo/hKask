@@ -117,17 +117,6 @@ pub struct ProviderInfo {
 /// by per-user configuration. The system never silently selects a provider;
 /// costs are always presented to the user (P2 — Affirmative Consent).
 impl CostModel {
-    /// Together AI — ~$1.10/hr for Llama-3.3-70B, ~3 min setup
-    pub fn together() -> Self {
-        Self {
-            provider: ProviderId::Together,
-            gpu_hourly_rate: 1.10,
-            estimated_setup_minutes: 3,
-            estimated_teardown_grace_seconds: 30,
-            currency: "USD".into(),
-        }
-    }
-
     /// Runpod — ~$0.79/hr for comparable GPU, ~5 min setup
     pub fn runpod() -> Self {
         Self {
@@ -142,9 +131,9 @@ impl CostModel {
     /// Tinker — per-token billing, no hourly GPU rate. ~$4.10/M train tokens.
     pub fn tinker() -> Self {
         Self {
-            provider: ProviderId::Together, // reuse provider ID space; Tinker is a variant
-            gpu_hourly_rate: 0.0,           // per-token, not per-hour
-            estimated_setup_minutes: 0,     // lazy-provisioned
+            provider: ProviderId::Tinker,
+            gpu_hourly_rate: 0.0,       // per-token, not per-hour
+            estimated_setup_minutes: 0, // lazy-provisioned
             estimated_teardown_grace_seconds: 0,
             currency: "USD".into(),
         }
@@ -153,19 +142,6 @@ impl CostModel {
 
 /// Static provider capabilities.
 impl ProviderCapability {
-    /// Together AI supports LoRA composition.
-    pub fn together() -> Self {
-        Self {
-            supports_lora_composition: true,
-            max_adapter_size_mb: Some(500),
-            supported_base_model_families: vec![
-                "llama-3.3-70b".into(),
-                "llama-3.1-70b".into(),
-                "qwen2.5-72b".into(),
-            ],
-        }
-    }
-
     /// Runpod supports LoRA composition with broader model support.
     pub fn runpod() -> Self {
         Self {

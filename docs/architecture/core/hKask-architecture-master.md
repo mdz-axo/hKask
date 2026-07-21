@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Replicants") v0.31.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Agentic AI Mediation") v0.31.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -246,20 +246,22 @@ _:webid a foaf:Agent ;
 | 4 | Interoperable linked-data triples | `hMem` struct with entity/attribute/value/confidence/visibility | ✓ |
 | 5 | Pod IS the deployment unit | `PodDeployment` owns its storage, CNS, and tools directly. `PodDeployment` includes `pod_kind`, `semantic_index`, and per-pod CNS runtime. `PodManager` deleted. `PodFactory` is stateless. | ✓ |
 
-#### Three-Tier Pod Architecture (v0.30.0)
+#### Two-Pod Architecture (v0.31.0)
 
-hKask extends the Solid Pod isomorphism into three pod tiers:
+hKask extends the Solid Pod isomorphism into two pod kinds, mapped to cybernetic roles rather than taxonomic tiers:
 
-| Tier | `PodKind` | Filename | Owner | Semantic Behavior |
-|------|-----------|----------|-------|-------------------|
-| **CuratorPod** | `Curator` | `agents/curator/pod.db` | System (singleton) | `SemanticIndex` owner — aggregates Public hMems from all pods |
-| **TeamPod** | `Team` | `agents/team.{name}/pod.db` | Shared bots | Bots share episodic storage; semantic published to Curator |
-| **ReplicantPod** | `Replicant` | `agents/userpod.{name}/pod.db` | Human+userpod pair | Episodic private; semantic published to Curator |
+| Kind | `PodKind` | Filename | Owner | Cybernetic Role | Semantic Behavior |
+|------|-----------|----------|-------|-----------------|-------------------|
+| **CuratorPod** | `Curator` | `agents/curator/pod.db` | System (singleton) | VSM S4 Intelligence — sole decisional agent; observes, assesses, intervenes, escalates | `SemanticIndex` owner — aggregates Public hMems from all pods |
+| **UserPod** | `UserPod` | `agents/{sanitized_name}/pod.db` | Human+agent pair (1:1) | VSM S1 Implementation — regulated actor; produces CNS spans; governed by OCAP + Cybernetics | Episodic private; semantic published to Curator |
 
-**Startup order:** CuratorPod → TeamPods → ReplicantPods (on demand).
+**Authority DAG:** Curator → Cybernetics → {Inference, Episodic, Semantic}. The Curator is the only decisional agent; UserPods are regulated actors. The former `TeamPod` and `ReplicantPod` tiers were collapsed in v0.31.0 — the distinction was taxonomic (what kind of agent) rather than cybernetic (what role does the agent play in the regulation loop). The two-kind model maps directly to VSM S4 (Intelligence) and S1 (Implementation).
+
+**Startup order:** CuratorPod → UserPods (on demand).
 **Data flow:** `store_semantic()` writes locally → CNS event `cns.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public hMems into `SemanticIndex` with cursor tracking.
 **Semantic recall:** `PodContext::recall_semantic()` routes through Curator's `SemanticIndex` for merged-lens view when Curator is active; falls back to local storage.
-**Full spec:** [`MULTI_POD_ARCHITECTURE.md`](#three-tier-pod-architecture-v030)
+
+**Backwards compatibility:** The `pod.kind` sidecar file accepts `"replicant"` as an alias for `"userpod"` (see `read_pod_kind()` in `crates/hkask-agents/src/pod/deployment.rs`). Pre-v0.31.0 pods with `kind: replicant` in the sidecar continue to load as `PodKind::UserPod` without migration.
 
 
 #### PodDeployment — The Canonical Type (v0.30.0)

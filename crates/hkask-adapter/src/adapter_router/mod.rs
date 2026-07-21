@@ -117,11 +117,10 @@ impl AdapterRouter {
     pub fn new(store: Arc<AdapterStore>) -> Self {
         let mut backends: HashMap<ProviderId, Arc<dyn AdapterProviderBackend>> = HashMap::new();
 
-        backends.insert(
-            ProviderId::Together,
-            Arc::new(together::TogetherAdapterBackend::new()),
-        );
-        // Runpod
+        // Runpod — the only adapter-capable inference backend.
+        // Together AI was removed as an adapter inference backend (deprecated
+        // as a training/adapter provider). Together remains available for
+        // non-adapter chat/vision inference via `hkask-inference`.
         backends.insert(
             ProviderId::Runpod,
             Arc::new(runpod::RunpodAdapterBackend::new()),
