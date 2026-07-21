@@ -8,86 +8,127 @@ use hkask_types::template::LLMParameters;
 
 /// Show all REPL settings.
 pub fn handle_repl_show(state: &ReplState) {
+    println!("{}", render_settings(state));
+}
+
+/// Render the current REPL settings as a display string (no printing).
+/// Shared by the REPL `/repl` handler and the TUI `SettingsBridge`.
+pub(crate) fn render_settings(state: &ReplState) -> String {
     let s = &state.repl_settings;
-    println!("  \x1b[1mREPL Settings\x1b[0m");
-    println!();
-    println!("  \x1b[36mtool_loop_limit\x1b[0m:  {}", s.tool_loop_limit);
-    println!(
-        "  \x1b[36mcontext_turns\x1b[0m:   {} (→ aliases saliency_window)",
+    let mut out = String::new();
+    out.push_str("  \x1b[1mREPL Settings\x1b[0m\n\n");
+    out.push_str(&format!(
+        "  \x1b[36mtool_loop_limit\x1b[0m:  {}\n",
+        s.tool_loop_limit
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mcontext_turns\x1b[0m:   {} (→ aliases saliency_window)\n",
         s.condense_saliency_window
-    );
-    println!(
-        "  \x1b[36m  pre_compress\x1b[0m:       {}",
+    ));
+    out.push_str(&format!(
+        "  \x1b[36m  pre_compress\x1b[0m:       {}\n",
         if s.pre_compress { "on" } else { "off" }
-    );
-    println!("  \x1b[36mtemperature\x1b[0m:     {}", s.temperature);
-    println!("  \x1b[36mtop_p\x1b[0m:           {}", s.top_p);
-    println!("  \x1b[36mtop_k\x1b[0m:           {}", s.top_k);
-    println!("  \x1b[36mmin_p\x1b[0m:          {}", s.min_p);
-    println!("  \x1b[36mtypical_p\x1b[0m:       {}", s.typical_p);
-    println!("  \x1b[36mmax_tokens\x1b[0m:      {}", s.max_tokens);
-    println!(
-        "  \x1b[36mseed\x1b[0m:            {}",
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mtemperature\x1b[0m:     {}\n",
+        s.temperature
+    ));
+    out.push_str(&format!("  \x1b[36mtop_p\x1b[0m:           {}\n", s.top_p));
+    out.push_str(&format!("  \x1b[36mtop_k\x1b[0m:           {}\n", s.top_k));
+    out.push_str(&format!("  \x1b[36mmin_p\x1b[0m:          {}\n", s.min_p));
+    out.push_str(&format!(
+        "  \x1b[36mtypical_p\x1b[0m:       {}\n",
+        s.typical_p
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mmax_tokens\x1b[0m:      {}\n",
+        s.max_tokens
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mseed\x1b[0m:            {}\n",
         s.seed.map_or("random".to_string(), |v| v.to_string())
-    );
-    println!("  \x1b[36mgas_heuristic\x1b[0m:    {}", s.gas_heuristic);
-    println!("  \x1b[36mgas_cap\x1b[0m:         {}", s.gas_cap);
-    println!(
-        "  \x1b[36mauto_condense\x1b[0m:     {}",
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mgas_heuristic\x1b[0m:    {}\n",
+        s.gas_heuristic
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mgas_cap\x1b[0m:         {}\n",
+        s.gas_cap
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mauto_condense\x1b[0m:     {}\n",
         if s.auto_condense { "on" } else { "off" }
-    );
+    ));
     if s.auto_condense {
-        println!(
-            "  \x1b[36m  pressure_threshold\x1b[0m: {:.1}%",
+        out.push_str(&format!(
+            "  \x1b[36m  pressure_threshold\x1b[0m: {:.1}%\n",
             s.condense_pressure_threshold * 100.0
-        );
-        println!(
-            "  \x1b[36m  saliency_window\x1b[0m:     {}",
+        ));
+        out.push_str(&format!(
+            "  \x1b[36m  saliency_window\x1b[0m:     {}\n",
             s.condense_saliency_window
-        );
-        println!(
-            "  \x1b[36m  pre_compress\x1b[0m:       {}",
+        ));
+        out.push_str(&format!(
+            "  \x1b[36m  pre_compress\x1b[0m:       {}\n",
             if s.pre_compress { "on" } else { "off" }
-        );
+        ));
     }
-    println!(
-        "  \x1b[36mshort_term_memory_life\x1b[0m: {} days",
+    out.push_str(&format!(
+        "  \x1b[36mshort_term_memory_life\x1b[0m: {} days\n",
         s.short_term_memory_life
-    );
+    ));
     if let Some(ref meta) = s.model_meta {
-        println!("  \x1b[36m─ model info ─\x1b[0m");
-        println!("  \x1b[36m  context_length\x1b[0m: {}", meta.context_length);
-        println!(
-            "  \x1b[36m  thinking\x1b[0m:       {}",
+        out.push_str("  \x1b[36m─ model info ─\x1b[0m\n");
+        out.push_str(&format!(
+            "  \x1b[36m  context_length\x1b[0m: {}\n",
+            meta.context_length
+        ));
+        out.push_str(&format!(
+            "  \x1b[36m  thinking\x1b[0m:       {}\n",
             if meta.supports_thinking { "yes" } else { "no" }
-        );
+        ));
         if !meta.capabilities.is_empty() {
-            println!(
-                "  \x1b[36m  capabilities\x1b[0m:   {}",
+            out.push_str(&format!(
+                "  \x1b[36m  capabilities\x1b[0m:   {}\n",
                 meta.capabilities.join(", ")
-            );
+            ));
         }
     } else {
-        println!("  \x1b[36m─ model info ─\x1b[0m  (not fetched yet — switch models to populate)");
+        out.push_str(
+            "  \x1b[36m─ model info ─\x1b[0m  (not fetched yet — switch models to populate)\n",
+        );
     }
-    println!("  \x1b[36m─ model defaults ─\x1b[0m");
-    println!(
-        "  \x1b[36mdisable_thinking\x1b[0m:  {}",
+    out.push_str("  \x1b[36m─ model defaults ─\x1b[0m\n");
+    out.push_str(&format!(
+        "  \x1b[36mdisable_thinking\x1b[0m:  {}\n",
         if s.disable_thinking { "yes" } else { "no" }
-    );
-    println!("  \x1b[36membedding_model\x1b[0m:  {}", s.embedding_model);
-    println!(
-        "  \x1b[36mclassifier_model\x1b[0m:   {}",
+    ));
+    out.push_str(&format!(
+        "  \x1b[36membedding_model\x1b[0m:  {}\n",
+        s.embedding_model
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mclassifier_model\x1b[0m:   {}\n",
         s.classifier_model
-    );
-    println!(
-        "  \x1b[36mocr_model\x1b[0m:                  {}",
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mocr_model\x1b[0m:                  {}\n",
         s.ocr_model
-    );
-    println!("  \x1b[36mocr_simple_max\x1b[0m:   {}", s.ocr_simple_max);
-    println!("  \x1b[36mocr_moderate_max\x1b[0m: {}", s.ocr_moderate_max);
-    println!("  \x1b[36mocr_sample_rate\x1b[0m:  {}", s.ocr_sample_rate);
-    println!();
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mocr_simple_max\x1b[0m:   {}\n",
+        s.ocr_simple_max
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mocr_moderate_max\x1b[0m: {}\n",
+        s.ocr_moderate_max
+    ));
+    out.push_str(&format!(
+        "  \x1b[36mocr_sample_rate\x1b[0m:  {}\n",
+        s.ocr_sample_rate
+    ));
+    out
 }
 
 /// Parse a /repl subcommand and apply the setting.
@@ -98,20 +139,32 @@ pub fn handle_repl_set(arg1: &str, arg2: &str, state: &mut ReplState) {
             println!("  \x1b[32mAll REPL settings reset to defaults\x1b[0m");
             handle_repl_show(state);
         }
-        "" | "status" => {
+        "" | "status" | "show" => {
             handle_repl_show(state);
         }
-        _ => match state.repl_settings.apply(arg1, arg2) {
-            Ok(()) => println!("  {} set to {}", arg1, arg2),
+        _ => match apply_setting(state, arg1, arg2) {
+            Ok(msg) => println!("  {}", msg),
             Err(e) => println!("  \x1b[31mError:\x1b[0m {}", e),
         },
     }
-    if arg1 == "reset" || ReplSettings::is_valid_setting(arg1) {
+}
+
+/// Apply `key=value` to `state.repl_settings` and persist to disk.
+/// Returns a rendered confirmation on success or an error on validation
+/// failure. Shared by the REPL `/repl` handler and the TUI `SettingsBridge`.
+pub(crate) fn apply_setting(
+    state: &mut ReplState,
+    key: &str,
+    value: &str,
+) -> anyhow::Result<String> {
+    state.repl_settings.apply(key, value)?;
+    if ReplSettings::is_valid_setting(key) {
         let path = settings_path();
         if let Ok(json) = serde_json::to_string_pretty(&state.repl_settings) {
             let _ = std::fs::write(&path, json);
         }
     }
+    Ok(format!("{} set to {}", key, value))
 }
 
 /// Path to the persisted settings file. Delegates to the shared

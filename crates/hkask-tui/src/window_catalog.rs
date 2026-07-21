@@ -8,7 +8,7 @@ use crate::bridges::{
     ResearchDataBridge, ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge,
     WalletDataBridge,
 };
-use crate::repl_bridge::{ReplBridge, SystemBridge};
+use crate::repl_bridge::{ReplBridge, SettingsBridge, SystemBridge};
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::backup::BackupWindow;
 use crate::windows::chat::ChatWindow;
@@ -60,6 +60,7 @@ pub(crate) fn window_kind_from_title(title: &str) -> Option<WindowKind> {
 pub(crate) struct WindowBridges {
     pub system_bridge: Arc<dyn SystemBridge>,
     pub repl_bridge: Arc<dyn ReplBridge>,
+    pub settings_bridge: Option<Arc<dyn SettingsBridge>>,
     pub wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     pub config_bridge: Option<Arc<dyn ConfigDataBridge>>,
     pub backup_bridge: Option<Arc<dyn BackupDataBridge>>,
@@ -221,12 +222,18 @@ pub(crate) fn create_window(
             Box::new(w)
         }
 
-        WindowKind::Chat => Box::new(ChatWindow::new(
-            id,
-            ctx.system_bridge.agent_name(),
-            ctx.system_bridge.model_name(),
-            bridge,
-        )),
+        WindowKind::Chat => {
+            let mut w = ChatWindow::new(
+                id,
+                ctx.system_bridge.agent_name(),
+                ctx.system_bridge.model_name(),
+                bridge,
+            );
+            if let Some(b) = ctx.settings_bridge.clone() {
+                w = w.with_settings_bridge(b);
+            }
+            Box::new(w)
+        }
 
         WindowKind::Scenarios => {
             mk_bridge!(

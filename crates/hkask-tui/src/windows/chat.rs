@@ -28,7 +28,7 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge};
+use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge, SettingsBridge};
 use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -129,6 +129,9 @@ pub struct ChatWindow {
     scroll_offset: u16,
     /// Bridge to the inference engine
     bridge: Arc<dyn ReplBridge>,
+    /// Optional settings/model mutation surface. When unset, `/model` and
+    /// `/repl` fall back to stub messages (tests / minimal hosts).
+    settings_bridge: Option<Arc<dyn SettingsBridge>>,
     /// Request owned by this window, if inference is active.
     pending_request: Option<InferenceRequestId>,
     /// Current inference state for async polling
@@ -162,11 +165,19 @@ impl ChatWindow {
             cursor_pos: 0,
             scroll_offset: 0,
             bridge,
+            settings_bridge: None,
             pending_request: None,
             inference_state: InferenceState::Idle,
             spinner_frame: 0,
             streaming_partial: String::new(),
         }
+    }
+
+    /// Attach the settings/model mutation surface. Required for `/model`
+    /// and `/repl` to actually mutate state; without it they emit a stub.
+    pub fn with_settings_bridge(mut self, bridge: Arc<dyn SettingsBridge>) -> Self {
+        self.settings_bridge = Some(bridge);
+        self
     }
 
     /// Add a message to the history and auto-scroll to bottom.
@@ -248,24 +259,81 @@ impl ChatWindow {
                 self.messages.clear();
                 self.scroll_offset = 0;
             }
-            "model" => {
-                let sub = parts.get(1).copied().unwrap_or("");
-                if sub.is_empty() {
-                    self.add_message(
-                        MessageSender::CnsAlert,
-                        format!(
-                            "Current model: {} (context: {} tokens)",
-                            self.bridge.model_name(),
-                            (1.0 / (self.bridge.context_pressure() + 0.001)) as u32
-                        ),
-                    );
-                } else {
-                    self.add_message(
-                        MessageSender::CnsAlert,
-                        format!("Model switch to '{}' requested. Use `kask chat --model {}` to change models.", sub, sub),
-                    );
-                }
-            }
+            :
+                        "model" => {
+                            let sub = parts.get(1).copied().unwrap_or("");
+                            match sub {
+                                "list" => match self.settings_bridge.as_ref() {
+                                    Some(b) => match b.list_models() {
+                                        Ok(models) if models.is_empty() => self.add_message(
+                                            MessageSender::CnsAlert,
+                                            "No models found — no providers reachable.".into(),
+                                        ),
+                                        Ok(models) => {
+                                            let mut lines = String::new();
+                                            lines.push_str(&format!("Available models ({}):\n", models.len()));
+                                            for m in &models {
+                                                lines.push_str(&format!(
+                                                    "  {}  {}  {}  {}\n",
+                                                    m.name,
+                                                    m.family.as_deref().unwrap_or("-"),
+                                                    m.parameter_size.as_deref().unwrap_or("-"),
+                                                    m.size_bytes
+                                                        .map(|s| format!("{:.1} GB", s as f64 / 1_073_741_824.0))
+                                                        .unwrap_or_else(|| "-".to_string()),
+                                                ));
+                                            }
+                                            lines.push_str("Use /model <name> to switch.");
+                                            self.add_message(MessageSender::CnsAlert, lines);
+                                        }
+                                        Err(e) => self.add_message(
+                                            MessageSender::CnsAlert,
+                                            format!("No models found — error listing models: {}", e),
+                                        ),
+                                    },
+                                    None => self.add_message(
+                                        MessageSender::CnsAlert,
+                                        "Model listing unavailable in this host. Use `kask model list`.".into(),
+                                    ),
+                                },
+                                "" => {
+                                    // Show current model + real context pressure (not a fake token count).
+                                    let pressure = self.bridge.context_pressure();
+                                    self.add_message(
+                                        MessageSender::CnsAlert,
+                                        format!(
+                                            "Current model: {} | Context: {:.0}% used",
+                                            self.model,
+                                            pressure * 100.0,
+                                        ),
+                                    );
+                                    self.add_message(
+                                        MessageSender::CnsAlert,
+                                        "Use /model <name> to switch, /model list to browse.".into(),
+                                    );
+                                }
+                                _ => match self.settings_bridge.as_ref() {
+                                    Some(b) => {
+                                        let result = b.set_model(sub);
+                                        self.model = result.resolved_name.clone();
+                                        let mut text = format!("Model set to: {}", result.resolved_name);
+                                        if !result.detail.is_empty() {
+                                            text.push_str("\n");
+                                            text.push_str(&result.detail);
+                                        }
+                                        self.add_message(MessageSender::CnsAlert, text);
+                                    }
+                                    None => self.add_message(
+                                        MessageSender::CnsAlert,
+                                        format!(
+                                            "Model switch to '{}' requested. Use `kask chat --model {}` to change models.",
+                                            sub,
+                                            sub,
+                                        ),
+                                    ),
+                                },
+                            }
+                        }
             "status" => {
                 let gas = self.bridge.gas_remaining();
                 let cap = self.bridge.gas_cap();

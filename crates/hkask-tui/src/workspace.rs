@@ -21,7 +21,7 @@ use crate::bridges::{
     WalletDataBridge, with_bridges, workspace_bridge_setter,
 };
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
-use crate::repl_bridge::{ReplBridge, SystemBridge};
+use crate::repl_bridge::{ReplBridge, SettingsBridge, SystemBridge};
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
 use crate::widgets::headers;
@@ -388,6 +388,7 @@ pub struct Workspace {
 
 #[derive(Default)]
 struct WorkspaceBridges {
+    settings_bridge: Option<Arc<dyn SettingsBridge>>,
     wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     config_bridge: Option<Arc<dyn ConfigDataBridge>>,
     backup_bridge: Option<Arc<dyn BackupDataBridge>>,
@@ -414,6 +415,7 @@ impl WorkspaceBridges {
         crate::window_catalog::WindowBridges {
             system_bridge,
             repl_bridge,
+            settings_bridge: self.settings_bridge.clone(),
             wallet_bridge: self.wallet_bridge.clone(),
             config_bridge: self.config_bridge.clone(),
             backup_bridge: self.backup_bridge.clone(),
@@ -485,6 +487,7 @@ impl Workspace {
     }
 
     with_bridges!(workspace_bridge_setter;
+        settings_bridge, SettingsBridge, with_settings_bridge;
         wallet_bridge, WalletDataBridge, with_wallet_bridge;
         config_bridge, ConfigDataBridge, with_config_bridge;
         backup_bridge, BackupDataBridge, with_backup_bridge;

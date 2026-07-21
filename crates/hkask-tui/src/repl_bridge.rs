@@ -81,6 +81,59 @@ pub trait SystemBridge: Send + Sync {
     fn cns_domains(&self) -> Vec<(String, bool)>;
 }
 
+/// Rendered result of a model switch — the resolved model name and a
+/// human-readable detail string for display.
+#[derive(Debug, Clone)]
+pub struct ModelSwitchResult {
+    /// The model name now in effect. May differ from the requested name when
+    /// the catalog resolved a single match; equals the request when the
+    /// provider was unreachable (stored verbatim for the next inference).
+    pub resolved_name: String,
+    /// Multi-line detail for display (family, parameters, quantization, or a
+    /// soft-error note when the provider was unreachable / multiple matches).
+    pub detail: String,
+}
+
+/// Model info for TUI display — a TUI-owned subset so `hkask-tui` does not
+/// depend on `hkask-services-inference`. Populated from the inference
+/// router's catalog by the bridge implementor.
+#[derive(Debug, Clone)]
+pub struct TuiModelInfo {
+    pub name: String,
+    pub family: Option<String>,
+    pub parameter_size: Option<String>,
+    pub quantization_level: Option<String>,
+    pub size_bytes: Option<u64>,
+}
+
+/// Settings + model mutation surface for the TUI.
+///
+/// Distinct from [`ReplBridge`] (inference primitives) to keep each trait's
+/// public surface ≤7 items — the TUI command surface needs to reach
+/// `ReplState` for model/settings mutation, but `hkask-tui` cannot depend on
+/// `hkask-repl` (dependency direction). The same concrete bridge implements
+/// both; the TUI receives `Arc<dyn SettingsBridge>` and ChatWindow renders
+/// the results.
+pub trait SettingsBridge: Send + Sync {
+    /// Switch to `name`. Resolves via the model catalog: on a single match,
+    /// updates the active model and populates model metadata; on zero matches
+    /// or a provider error, stores the name verbatim; on multiple matches,
+    /// leaves the model unchanged and returns the candidate list as detail.
+    fn set_model(&self, name: &str) -> ModelSwitchResult;
+
+    /// List available models from the catalog (TTL-cached by the implementor).
+    /// Returns `Err` with a displayable message when no provider is reachable.
+    fn list_models(&self) -> anyhow::Result<Vec<TuiModelInfo>>;
+
+    /// Render the current REPL settings as a multi-line display string.
+    fn settings_display(&self) -> String;
+
+    /// Apply `key=value`. Returns a rendered confirmation on success or an
+    /// error message on validation failure. Persistence is the implementor's
+    /// responsibility.
+    fn set_setting(&self, key: &str, value: &str) -> anyhow::Result<String>;
+}
+
 /// Full bridge — chat/inference + all monitoring methods.
 ///
 /// Used by ChatWindow, CuratorWindow, ScenariosWindow, and status windows.

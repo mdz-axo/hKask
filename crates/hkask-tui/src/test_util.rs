@@ -7,7 +7,8 @@
 use std::sync::Arc;
 
 use crate::repl_bridge::{
-    InferenceRequestId, InferenceState, ReplBridge, SystemBridge, TuiTurnResult,
+    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SettingsBridge,
+    SystemBridge, TuiModelInfo, TuiTurnResult,
 };
 
 /// A minimal mock bridge that returns defaults for all methods.
@@ -73,14 +74,45 @@ impl ReplBridge for MockReplBridge {
     }
 }
 
+impl SettingsBridge for MockReplBridge {
+    fn set_model(&self, name: &str) -> ModelSwitchResult {
+        ModelSwitchResult {
+            resolved_name: name.to_string(),
+            detail: String::new(),
+        }
+    }
+    fn list_models(&self) -> anyhow::Result<Vec<TuiModelInfo>> {
+        Ok(Vec::new())
+    }
+    fn settings_display(&self) -> String {
+        "(settings unavailable in test mock)".to_string()
+    }
+    fn set_setting(&self, _key: &str, _value: &str) -> anyhow::Result<String> {
+        Ok("(mock)".to_string())
+    }
+}
+
 /// Create a mock bridge for tests. Returns both system and repl Arcs
 /// backed by the same MockReplBridge instance.
-pub(crate) fn mock_bridges() -> (Arc<dyn SystemBridge>, Arc<dyn ReplBridge>) {
-    let bridge = Arc::new(MockReplBridge {
-        agent_name: "test-agent".to_string(),
-        model_name: "test-model".to_string(),
-    });
-    let system: Arc<dyn SystemBridge> = bridge.clone();
-    let repl: Arc<dyn ReplBridge> = bridge;
-    (system, repl)
-}
+pub(crate) fn mock_bridges() -> (
+    Arc<dyn SystemBridge>,
+    Arc<dyn ReplBridge>,
+    Arc<dyn SettingsBridge>,
+) {
+    pub(crate) fn mock_bridges() -> (Arc<dyn SystemBridge>, Arc<dyn ReplBridge>) {
+        let bridge = Arc::new(MockReplBridge {
+            agent_name: "test-agent".to_string(),
+            model_name: "test-model".to_string(),
+        });
+        let system: Arc<dyn SystemBridge> = bridge.clone();
+        let repl: Arc<dyn ReplBridge> = bridge;
+        (system, repl)
+    }
+
+    /// A mock `SettingsBridge` for tests that exercise `/model` or `/repl`.
+    pub(crate) fn mock_settings_bridge() -> Arc<dyn SettingsBridge> {
+        Arc::new(MockReplBridge {
+            agent_name: "test-agent".to_string(),
+            model_name: "test-model".to_string(),
+        })
+    }

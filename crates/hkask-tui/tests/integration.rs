@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use hkask_tui::{
-    InferenceRequestId, ReplBridge, SystemBridge, TuiTurnResult, Window, WindowId, WindowKind,
-    Workspace,
+    InferenceRequestId, ModelSwitchResult, ReplBridge, SettingsBridge, SystemBridge, TuiModelInfo,
+    TuiTurnResult, Window, WindowId, WindowKind, Workspace,
     windows::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
         CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
@@ -132,6 +132,24 @@ impl ReplBridge for MockBridge {
     }
     fn send_curator_message(&self, _input: &str) -> String {
         "curator ack".into()
+    }
+}
+
+impl SettingsBridge for MockBridge {
+    fn set_model(&self, name: &str) -> ModelSwitchResult {
+        ModelSwitchResult {
+            resolved_name: name.to_string(),
+            detail: String::new(),
+        }
+    }
+    fn list_models(&self) -> anyhow::Result<Vec<TuiModelInfo>> {
+        Ok(Vec::new())
+    }
+    fn settings_display(&self) -> String {
+        "(mock settings)".to_string()
+    }
+    fn set_setting(&self, _key: &str, _value: &str) -> anyhow::Result<String> {
+        Ok("(mock)".to_string())
     }
 }
 

@@ -375,6 +375,7 @@ pub fn run_tui(
         Ok(session) => {
             let session = session
                 .with_layout_path(layout_path)
+                .with_settings_bridge(bridge.clone())
                 .with_config_bridge(bridge.clone())
                 .with_registry_bridge(bridge.clone())
                 .with_wallet_bridge(bridge.clone())
@@ -746,5 +747,43 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
             ("cns.keystore".into(), true),
             ("cns.tui".into(), true),
         ]
+    }
+}
+
+#[cfg(feature = "tui")]
+impl hkask_tui::SettingsBridge for TuiReplBridge {
+    fn set_model(&self, name: &str) -> hkask_tui::ModelSwitchResult {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        handlers::resolve_and_set_model(&mut state, &self.rt_handle, name)
+    }
+
+    fn list_models(&self) -> anyhow::Result<Vec<hkask_tui::TuiModelInfo>> {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let ctx = hkask_services_inference::InferenceContext::from(state.service_context.as_ref());
+        let models =
+            self.rt_handle
+                .block_on(hkask_services_inference::InferenceService::search_models(
+                    &ctx, "",
+                ))?;
+        Ok(models
+            .into_iter()
+            .map(|m| hkask_tui::TuiModelInfo {
+                name: m.name,
+                family: m.family,
+                parameter_size: m.parameter_size,
+                quantization_level: m.quantization_level,
+                size_bytes: m.size_bytes,
+            })
+            .collect())
+    }
+
+    fn settings_display(&self) -> String {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        handlers::render_settings(&state)
+    }
+
+    fn set_setting(&self, key: &str, value: &str) -> anyhow::Result<String> {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        handlers::apply_setting(&mut state, key, value)
     }
 }
